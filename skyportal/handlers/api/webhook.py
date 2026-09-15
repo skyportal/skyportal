@@ -9,11 +9,8 @@ from baselayer.app.flow import Flow
 from baselayer.log import make_log
 
 from ...models import Annotation, ObjAnalysis
-from ...utils.embedding_store import (
-    PGVECTOR,
-    store_location,
-    upsert_embedding,
-)
+from ...utils.embedding_store import upsert_embedding
+from ...utils.embedding_store_config import PGVECTOR, store_location
 from ...utils.naive_datetime import utcnow_naive
 from ..base import BaseHandler
 from .candidate.candidate import (

@@ -6,8 +6,6 @@ the access rule stays in `Source.select` rather than being copied here.
 """
 
 __all__ = [
-    "PGVECTOR",
-    "store_location",
     "vector_literal",
     "upsert_embedding",
     "search_embeddings",
@@ -18,17 +16,9 @@ import sqlalchemy as sa
 
 from ..models.summary_embedding import SummaryEmbedding, Vector
 
-PGVECTOR = "pgvector"
-
 _embeddings = SummaryEmbedding.c
 # Lightweight handle for the few obj columns a search reads.
 _objs = sa.table("objs", sa.column("id"), sa.column("redshift"), sa.column("summary"))
-
-
-def store_location(config: dict) -> str | None:
-    """The configured backend name, lowercased, or None when unset."""
-    location = (config or {}).get("location")
-    return str(location).strip().lower() if location else None
 
 
 def vector_literal(vector) -> str:

@@ -19,7 +19,7 @@ from tornado.ioloop import IOLoop
 
 from baselayer.app.env import load_env
 from baselayer.log import make_log
-from skyportal.utils.embedding_store import PGVECTOR, store_location
+from skyportal.utils.embedding_store_config import PGVECTOR, store_location
 
 _, cfg = load_env()
 log = make_log("openai_analysis_service")

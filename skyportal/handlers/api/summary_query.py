@@ -11,12 +11,8 @@ from baselayer.app.env import load_env
 from baselayer.log import make_log
 
 from ...models import Classification, Source, User
-from ...utils.embedding_store import (
-    PGVECTOR,
-    search_embeddings,
-    search_embeddings_by_obj,
-    store_location,
-)
+from ...utils.embedding_store import search_embeddings, search_embeddings_by_obj
+from ...utils.embedding_store_config import PGVECTOR, store_location
 from ..base import BaseHandler
 
 _, cfg = load_env()
