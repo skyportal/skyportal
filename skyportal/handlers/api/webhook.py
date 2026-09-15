@@ -173,7 +173,7 @@ class AnalysisWebhookHandler(BaseHandler):
                         summary, analysis.obj, analysis.author
                     )
                     await session.commit()
-                    await _store_summary_embedding(session, analysis)
+                    await _store_summary_embedding(session, analysis, results)
                     log("analysis is a summary. Pushing to source.")
                     flow.push(
                         "*",
@@ -193,18 +193,13 @@ class AnalysisWebhookHandler(BaseHandler):
         return self.success(data={"status": "success"})
 
 
-async def _store_summary_embedding(session, analysis):
+async def _store_summary_embedding(session, analysis, results):
     """Record the vector the analysis service returned with the summary.
 
     Written after the summary is committed: a failure here must not take the
     summary down with it, and a failed statement leaves the transaction unusable.
     """
     if not _EMBED_TO_PGVECTOR:
-        return
-    try:
-        results = analysis.serialize_results_data()
-    except Exception as e:
-        log(f"Could not read analysis results to store the embedding: {e}")
         return
     vector = results.get("embedding")
     # The service runs from its own config, so the model it names is the one that
