@@ -1335,6 +1335,10 @@ def get_nearby_offset_stars(
                 "name": name,
                 "dras": dras,
                 "ddecs": ddecs,
+                # The same offsets as numbers, for facilities that take them in
+                # the request rather than off a finding chart.
+                "dra_arcsec": float(dra.value),
+                "ddec_arcsec": float(ddec.value),
                 "mag": float(source["phot_rp_mean_mag"]),
                 "pa": pa,
             }
