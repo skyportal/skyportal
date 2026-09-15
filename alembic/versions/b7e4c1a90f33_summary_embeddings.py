@@ -30,7 +30,6 @@ CREATE TABLE summary_embeddings (
     obj_id text PRIMARY KEY REFERENCES objs (id) ON DELETE CASCADE,
     embedding vector NOT NULL,
     model text NOT NULL,
-    summary text,
     created_at timestamptz NOT NULL DEFAULT now(),
     modified timestamptz NOT NULL DEFAULT now()
 )

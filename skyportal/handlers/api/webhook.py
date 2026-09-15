@@ -214,13 +214,7 @@ async def _store_summary_embedding(session, analysis):
     if not vector or not model:
         return
     try:
-        await upsert_embedding(
-            session,
-            analysis.obj_id,
-            vector,
-            model,
-            results.get("summary"),
-        )
+        await upsert_embedding(session, analysis.obj_id, vector, model)
         await session.commit()
     except Exception as e:
         # A summary without its vector is still worth keeping; it is missing from

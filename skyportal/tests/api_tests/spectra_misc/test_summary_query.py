@@ -65,20 +65,19 @@ def test_searching_from_a_visible_source_is_not_refused(view_only_token, public_
 MODEL = "test-embedding"
 
 
-def _store(obj_id, vector, summary="a summary"):
+def _store(obj_id, vector):
     """Put one vector in the store the way the webhook would."""
     DBSession().execute(
         sa.text(
-            "INSERT INTO summary_embeddings (obj_id, embedding, model, summary) "
-            "VALUES (:obj_id, CAST(:embedding AS vector), :model, :summary) "
+            "INSERT INTO summary_embeddings (obj_id, embedding, model) "
+            "VALUES (:obj_id, CAST(:embedding AS vector), :model) "
             "ON CONFLICT (obj_id) DO UPDATE SET embedding = EXCLUDED.embedding, "
-            "model = EXCLUDED.model, summary = EXCLUDED.summary"
+            "model = EXCLUDED.model"
         ),
         {
             "obj_id": obj_id,
             "embedding": vector_literal(vector),
             "model": MODEL,
-            "summary": summary,
         },
     )
     DBSession().commit()
@@ -89,8 +88,8 @@ def test_similar_sources_come_back_nearest_first(
 ):
     """The stored vectors are searched for real: no embedding service is needed
     to ask which summaries resemble one already indexed."""
-    _store(public_source.id, [1.0, 0.0, 0.0], "the anchor")
-    _store(public_source_no_data.id, [0.9, 0.1, 0.0], "close to the anchor")
+    _store(public_source.id, [1.0, 0.0, 0.0])
+    _store(public_source_no_data.id, [0.9, 0.1, 0.0])
 
     status, data = api(
         "POST",
@@ -114,7 +113,7 @@ def test_a_source_in_another_group_is_not_a_result(
     be asked about."""
     _store(public_source.id, [1.0, 0.0, 0.0])
     _store(public_source_no_data.id, [0.9, 0.1, 0.0])
-    _store(public_source_group2.id, [1.0, 0.0, 0.0], "someone else's source")
+    _store(public_source_group2.id, [1.0, 0.0, 0.0])
 
     status, data = api(
         "POST",

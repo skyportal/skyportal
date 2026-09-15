@@ -37,7 +37,6 @@ SummaryEmbedding = sa.Table(
     # are scoped to one model and vectors from an earlier one sit unread.
     sa.Column("embedding", Vector, nullable=False),
     sa.Column("model", sa.Text, nullable=False, index=True),
-    sa.Column("summary", sa.Text),
     sa.Column(
         "created_at",
         sa.DateTime(timezone=True),

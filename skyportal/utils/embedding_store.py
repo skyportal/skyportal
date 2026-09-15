@@ -43,9 +43,8 @@ _embeddings = sa.table(
     sa.column("obj_id"),
     sa.column("embedding"),
     sa.column("model"),
-    sa.column("summary"),
 )
-_objs = sa.table("objs", sa.column("id"), sa.column("redshift"))
+_objs = sa.table("objs", sa.column("id"), sa.column("redshift"), sa.column("summary"))
 _classifications = sa.table(
     "classifications", sa.column("obj_id"), sa.column("classification")
 )
@@ -88,21 +87,20 @@ def vector_literal(vector) -> str:
     return "[" + ",".join(repr(float(v)) for v in vector) + "]"
 
 
-async def upsert_embedding(session, obj_id, vector, model, summary=None):
+async def upsert_embedding(session, obj_id, vector, model):
     """Record one summary's vector, replacing any the obj already had."""
     await session.execute(
         sa.text(
-            "INSERT INTO summary_embeddings (obj_id, embedding, model, summary) "
-            "VALUES (:obj_id, CAST(:embedding AS vector), :model, :summary) "
+            "INSERT INTO summary_embeddings (obj_id, embedding, model) "
+            "VALUES (:obj_id, CAST(:embedding AS vector), :model) "
             "ON CONFLICT (obj_id) DO UPDATE SET "
             "embedding = EXCLUDED.embedding, model = EXCLUDED.model, "
-            "summary = EXCLUDED.summary, modified = now()"
+            "modified = now()"
         ),
         {
             "obj_id": obj_id,
             "embedding": vector_literal(vector),
             "model": model,
-            "summary": summary,
         },
     )
 
@@ -154,8 +152,13 @@ async def _nearest(session, target, k, model, accessible_objs, z_min, z_max, cla
     distance = _embeddings.c.embedding.op("<=>")(target)
     stmt = sa.select(
         _embeddings.c.obj_id,
-        _embeddings.c.summary,
         (1 - distance).label("score"),
+        # Read from the obj rather than keeping a copy here, which an edited
+        # summary would leave behind.
+        sa.select(_objs.c.summary)
+        .where(_objs.c.id == _embeddings.c.obj_id)
+        .scalar_subquery()
+        .label("summary"),
         sa.select(_objs.c.redshift)
         .where(_objs.c.id == _embeddings.c.obj_id)
         .scalar_subquery()
