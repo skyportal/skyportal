@@ -176,7 +176,7 @@ class SummaryQueryHandler(BaseHandler):
             async with self.AsyncSession() as session:
                 anchor = await session.scalar(
                     Source.select(session.user_or_token, columns=[Source.obj_id]).where(
-                        Source.obj_id == objID
+                        Source.obj_id == objID, Source.active.is_(True)
                     )
                 )
             if anchor is None:
@@ -190,7 +190,7 @@ class SummaryQueryHandler(BaseHandler):
                 # requester's groups.
                 accessible = Source.select(
                     session.user_or_token, columns=[Source.obj_id]
-                )
+                ).where(Source.active.is_(True))
                 if query:
                     vector = embed_query_text(query, user_openai_key)
                     results = await search_embeddings(
