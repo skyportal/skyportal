@@ -14,6 +14,7 @@ here means the one access rule in `Obj.select` decides, rather than a copy of it
 
 __all__ = [
     "PGVECTOR",
+    "ensure_vector_extension",
     "store_location",
     "vector_literal",
     "upsert_embedding",
@@ -48,6 +49,28 @@ _objs = sa.table("objs", sa.column("id"), sa.column("redshift"))
 _classifications = sa.table(
     "classifications", sa.column("obj_id"), sa.column("classification")
 )
+
+
+def ensure_vector_extension(connection):
+    """Install pgvector's `vector` type, unless it is there or we may not.
+
+    Installing an extension is a superuser act, so an already-installed one has
+    to short-circuit before the privilege check, and a role that cannot install
+    it gets told what an administrator has to run instead of a bare error.
+    """
+    if connection.scalar(
+        sa.text("SELECT 1 FROM pg_extension WHERE extname = 'vector'")
+    ):
+        return
+    try:
+        connection.execute(sa.text("CREATE EXTENSION vector"))
+    except Exception as e:
+        raise RuntimeError(
+            "The summary_embeddings table needs pgvector's `vector` type, and "
+            "this role may not install extensions. Ask an administrator to run, "
+            f"once, in database {connection.engine.url.database}:\n"
+            "    CREATE EXTENSION vector;"
+        ) from e
 
 
 def store_location(config: dict) -> str | None:

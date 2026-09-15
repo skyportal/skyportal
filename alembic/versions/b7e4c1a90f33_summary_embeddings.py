@@ -7,6 +7,7 @@ Create Date: 2026-09-14 18:40:00.000000
 """
 
 from alembic import op
+from skyportal.utils.embedding_store import ensure_vector_extension
 
 # revision identifiers, used by alembic.
 revision = "b7e4c1a90f33"
@@ -37,7 +38,7 @@ CREATE TABLE summary_embeddings (
 
 
 def upgrade():
-    op.execute("CREATE EXTENSION IF NOT EXISTS vector")
+    ensure_vector_extension(op.get_bind())
     op.execute(CREATE)
     op.execute("CREATE INDEX ix_summary_embeddings_model ON summary_embeddings (model)")
 
