@@ -15,16 +15,9 @@ down_revision = "c4d81f2a6b03"
 branch_labels = None
 depends_on = None
 
-# Raw DDL: `vector` is pgvector's own type, and spelling it here avoids
-# registering it with SQLAlchemy for one table.
-#
-# The column declares no width, so the embedding model can change without a
-# migration. Postgres will not compare vectors of different widths, so reads are
-# scoped to the model named in the config and vectors from an earlier model sit
-# unread until they are written over.
-#
-# No ANN index: an exact scan over a few thousand summaries is immediate, and
-# HNSW would pin the width that the missing declaration deliberately leaves open.
+# `vector` is pgvector's own type, spelled in raw DDL to avoid registering it
+# with SQLAlchemy for one table. No width and no ANN index: both would pin the
+# width, and an exact scan over a few thousand summaries is immediate.
 CREATE = """
 CREATE TABLE summary_embeddings (
     obj_id text PRIMARY KEY REFERENCES objs (id) ON DELETE CASCADE,

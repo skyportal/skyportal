@@ -1,15 +1,8 @@
-"""Where source-summary embeddings are kept, and how they are searched.
+"""Searching the summary embeddings kept in pgvector.
 
-`embeddings_store.summary.location` names the store; `pgvector` keeps the vectors
-in SkyPortal's own database, beside the summaries they were made from.
-
-pgvector holds them in a column with no declared width, so changing embedding
-model needs no migration. Postgres will not compare vectors of different widths,
-though, so every read is scoped to the model named in the config: vectors from a
-previous model stay in place, ignored, until they are written over.
-
-Callers pass the objs the requester may read as a subquery. Keeping it out of
-here means the one access rule in `Obj.select` decides, rather than a copy of it.
+Reads are scoped to one embedding model, since Postgres cannot compare vectors of
+different widths. Callers pass the objs the requester may read as a subquery, so
+the access rule stays in `Source.select` rather than being copied here.
 """
 
 __all__ = [
@@ -42,11 +35,7 @@ def store_location(config: dict) -> str | None:
 
 
 def vector_literal(vector) -> str:
-    """A float sequence in the text form pgvector parses, for binding as a param.
-
-    Sent as text and cast in the statement, which keeps the driver free of any
-    pgvector-specific type registration.
-    """
+    """A float sequence in the text form pgvector parses, cast in the statement."""
     return "[" + ",".join(repr(float(v)) for v in vector) + "]"
 
 
@@ -107,17 +96,12 @@ def _restrict(stmt, model, accessible_objs, z_min, z_max, classification_types):
 
 
 async def _nearest(session, target, k, model, accessible_objs, z_min, z_max, classes):
-    """The k rows closest to `target`.
-
-    `<=>` is cosine distance, so 0 is identical and 2 is opposite; the score
-    returned is 1 - distance, so 1 is identical and 0 is unrelated.
-    """
+    """The k rows closest to `target`, scored 1 (identical) to 0 (unrelated)."""
     distance = _embeddings.embedding.op("<=>", return_type=sa.Float)(target)
     stmt = sa.select(
         _embeddings.obj_id,
         (1 - distance).label("score"),
-        # Read from the obj rather than keeping a copy here, which an edited
-        # summary would leave behind.
+        # From the obj, so an edited summary is not left behind by a copy.
         sa.select(_objs.c.summary)
         .where(_objs.c.id == _embeddings.obj_id)
         .scalar_subquery()
@@ -176,11 +160,7 @@ async def search_embeddings_by_obj(
     z_max=None,
     classification_types=None,
 ):
-    """Summaries most similar to `obj_id`'s own, which is itself excluded.
-
-    Nothing is returned for a source the requester cannot read: otherwise the
-    neighbours of a private summary would be an answer about it.
-    """
+    """Summaries most similar to `obj_id`'s own, which is itself excluded."""
     anchor_where = [_embeddings.obj_id == obj_id, _embeddings.model == model]
     if accessible_objs is not None:
         anchor_where.append(_embeddings.obj_id.in_(accessible_objs))

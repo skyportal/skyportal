@@ -1,9 +1,4 @@
-"""The vector for a source's summary, when the embeddings store is pgvector.
-
-Registered on the metadata rather than mapped: nothing queries it as an object,
-and the searches in `skyportal.utils.embedding_store` are Core statements so they
-can compose with the access-controlled select for objs.
-"""
+"""The vector for a source's summary, when the embeddings store is pgvector."""
 
 __all__ = ["SummaryEmbedding", "Vector", "ensure_vector_extension"]
 
@@ -30,9 +25,8 @@ SummaryEmbedding = sa.Table(
         sa.ForeignKey("objs.id", ondelete="CASCADE"),
         primary_key=True,
     ),
-    # No declared width, so the embedding model can be changed without a
-    # migration. Postgres will not compare vectors of different widths, so reads
-    # are scoped to one model and vectors from an earlier one sit unread.
+    # No declared width, so the model can change without a migration; reads are
+    # scoped to one model, as Postgres cannot compare vectors of different widths.
     sa.Column("embedding", Vector, nullable=False),
     sa.Column("model", sa.Text, nullable=False, index=True),
     sa.Column(
@@ -53,9 +47,8 @@ SummaryEmbedding = sa.Table(
 def ensure_vector_extension(connection):
     """Install pgvector's `vector` type, unless it is there or we may not.
 
-    Installing an extension is a superuser act, so an already-installed one has
-    to short-circuit before the privilege check, and a role that cannot install
-    it gets told what an administrator has to run instead of a bare error.
+    Installing an extension is a superuser act, so an existing one must
+    short-circuit before the privilege check.
     """
     if connection.scalar(
         sa.text("SELECT 1 FROM pg_extension WHERE extname = 'vector'")

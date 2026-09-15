@@ -28,12 +28,12 @@ log = make_log("openai_analysis_service")
 summarize_embedding_config = (
     cfg["analysis_services.openai_analysis_service.embeddings_store.summary"] or {}
 )
-# The embedding model need not sit with the chat model. Vectors are comparable
-# only with others from the same model, so the two are configured separately.
+# The embedding model is configured apart from the chat model, and vectors are
+# comparable only with others from the same one.
 summarize_embedding_base_url = summarize_embedding_config.get("base_url") or None
 summarize_embedding_model = summarize_embedding_config.get("model")
 # This service only produces the vector; SkyPortal stores it when the result
-# comes back, so there is nothing to embed into unless pgvector is configured.
+# comes back, so there is nothing to embed into without pgvector.
 EMBED_SUMMARIES = (
     store_location(summarize_embedding_config) == PGVECTOR
     and summarize_embedding_model is not None

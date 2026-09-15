@@ -163,12 +163,8 @@ class SummaryQueryHandler(BaseHandler):
                 return self.error("No OpenAI API key found.", status=400)
 
         if objID:
-            # Without this, anyone could ask what a source they cannot read is
-            # similar to. The message does not distinguish "no such obj" from
-            # "not yours", so it says nothing about what exists.
-            #
-            # Obj itself is public; what a user may see is the Source rows tying
-            # an obj to their groups, so that is what decides here.
+            # Otherwise anyone could ask what a source they cannot read is
+            # similar to. The message says nothing about what exists.
             async with self.AsyncSession() as session:
                 anchor = await session.scalar(
                     Source.select(session.user_or_token, columns=[Source.obj_id]).where(
@@ -180,13 +176,11 @@ class SummaryQueryHandler(BaseHandler):
 
         classes = body.classificationTypes or None
         try:
-            # An HTTP round-trip, so it is made before a session is taken rather
-            # than holding a database connection open for its duration.
+            # An HTTP round-trip: made before a session is taken, not while
+            # holding a database connection.
             vector = embed_query_text(query, user_openai_key) if query else None
             async with self.AsyncSession() as session:
-                # A summary is as readable as the source it describes, so
-                # the search sees exactly the sources saved to the
-                # requester's groups.
+                # A summary is as readable as the source it describes.
                 accessible = Source.select(
                     session.user_or_token, columns=[Source.obj_id]
                 ).where(Source.active.is_(True))

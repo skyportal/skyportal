@@ -196,15 +196,14 @@ class AnalysisWebhookHandler(BaseHandler):
 async def _store_summary_embedding(session, analysis, results):
     """Record the vector the analysis service returned with the summary.
 
-    Written after the summary is committed: a failure here must not take the
-    summary down with it, and a failed statement leaves the transaction unusable.
+    Written after the summary is committed, as a failed statement would leave the
+    transaction unusable and take the summary down with it.
     """
     if not _EMBED_TO_PGVECTOR:
         return
     vector = results.get("embedding")
-    # The service runs from its own config, so the model it names is the one that
-    # made this vector; storing any other name would make the two impossible to
-    # tell apart, and vectors of different widths cannot be compared.
+    # The service names the model it actually used; ours may have moved on, and
+    # vectors of different widths cannot be compared.
     model = results.get("embedding_model")
     if not vector or not model:
         return
@@ -212,8 +211,7 @@ async def _store_summary_embedding(session, analysis, results):
         await upsert_embedding(session, analysis.obj_id, vector, model)
         await session.commit()
     except Exception as e:
-        # A summary without its vector is still worth keeping; it is missing from
-        # the search until the next run, not lost.
+        # A summary without its vector is missing from the search, not lost.
         await session.rollback()
         log(f"Could not store the summary embedding for {analysis.obj_id}: {e}")
 
