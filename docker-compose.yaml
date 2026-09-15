@@ -31,8 +31,6 @@ services:
         condition: service_healthy
 
   db:
-    # pgvector's build of postgres: the summary embeddings column uses its
-    # `vector` type, created with the rest of the schema.
     image: pgvector/pgvector:pg17
     container_name: postgres17
     environment:
