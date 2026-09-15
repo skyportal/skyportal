@@ -207,14 +207,18 @@ async def _store_summary_embedding(session, analysis):
         log(f"Could not read analysis results to store the embedding: {e}")
         return
     vector = results.get("embedding")
-    if not vector:
+    # The service runs from its own config, so the model it names is the one that
+    # made this vector; storing any other name would make the two impossible to
+    # tell apart, and vectors of different widths cannot be compared.
+    model = results.get("embedding_model")
+    if not vector or not model:
         return
     try:
         await upsert_embedding(
             session,
             analysis.obj_id,
             vector,
-            _embedding_config.get("model"),
+            model,
             results.get("summary"),
         )
         await session.commit()
