@@ -40,6 +40,7 @@ static/js/components/templates/HomePage.tsx
 static/js/components/templates/HoursBelowAirmassPlot.tsx
 static/js/components/templates/AboutPlugins.tsx
 static/login.html
+static/apply.html
 static/loginerror.html
 static/index.html
 .tokens.yaml

@@ -239,6 +239,7 @@ from skyportal.handlers.api import (
     ThumbnailPathHandler,
     UnsourcedFinderHandler,
     UserACLHandler,
+    UserApplicationHandler,
     UserHandler,
     UserObjListHandler,
     UserPublicProfileHandler,
@@ -274,6 +275,7 @@ from skyportal.handlers.api.internal import (
 )
 from skyportal.handlers.mcp import MCPHandler
 from skyportal.handlers.public import (
+    ApplyPageHandler,
     CachedSourceFinderHandler,
     ReleaseHandler,
     ReleaseSourcePageHandler,
@@ -688,6 +690,7 @@ skyportal_handlers = [
     ),
     (r"/api/sharing_service(/[0-9]+)?", SharingServiceHandler),
     (r"/api/unsourced_finder", UnsourcedFinderHandler),
+    (r"/api/user_applications(/[0-9]+)?", UserApplicationHandler),
     (r"/api/user/([0-9]+)/profile", UserPublicProfileHandler),
     (r"/api/user(/[0-9]+)/acls(/.*)?", UserACLHandler),
     (r"/api/user(/[0-9]+)/roles(/.*)?", UserRoleHandler),
@@ -754,6 +757,8 @@ skyportal_handlers = [
     (r"/public/reports/(gcn)(/[0-9]+)?(/.*)?", ReportHandler),
     (r"/public/finding_charts(?:/)?(.*)?", CachedSourceFinderHandler),
     (r"/public/.*", InvalidEndpointHandler),
+    # Account application form, for people who do not have an account yet.
+    (r"/apply(?:/)?", ApplyPageHandler),
     # Debug and logout pages.
     (r"/become_user(/.*)?", BecomeUserHandler),
     (r"/logout", LogoutHandler),
