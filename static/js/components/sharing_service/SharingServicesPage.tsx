@@ -63,6 +63,18 @@ const Form = withTheme(CustomCheckboxWidgetMuiTheme as any);
 // tsc; cast to any so call sites don't need to pass it.
 const StyledDataGrid: any = StyledDataGridBase;
 
+const renderChips = (labels: string[]) => (
+  <Box
+    sx={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: 0.5 }}
+  >
+    {labels.map((label) => (
+      <Tooltip key={label} title={label} placement="right">
+        <Chip size="small" label={label} variant="outlined" />
+      </Tooltip>
+    ))}
+  </Box>
+);
+
 interface SharingServiceGroupProps {
   sharingServiceGroup: any;
   sharingService: any;
@@ -237,6 +249,9 @@ const SharingServiceGroup = ({
     setOpen(false);
   };
 
+  const groupName =
+    groupsLookup[sharingServiceGroup.group_id]?.name || "loading...";
+
   const deleteGroup = async () => {
     try {
       await deleteSharingServiceGroup({
@@ -261,16 +276,18 @@ const SharingServiceGroup = ({
 
   return (
     <div>
-      <Chip
-        size="small"
-        label={groupsLookup[sharingServiceGroup.group_id]?.name || "loading..."}
-        sx={
-          sharingServiceGroup.owner
-            ? { bgcolor: "#457B9D", color: "white" }
-            : undefined
-        }
-        onClick={() => setOpen(true)}
-      />
+      <Tooltip title={groupName} placement="right">
+        <Chip
+          size="small"
+          label={groupName}
+          sx={
+            sharingServiceGroup.owner
+              ? { bgcolor: "#457B9D", color: "white" }
+              : undefined
+          }
+          onClick={() => setOpen(true)}
+        />
+      </Tooltip>
       <Dialog
         open={open}
         onClose={() => setOpen(false)}
@@ -1101,14 +1118,14 @@ const SharingServicesPage = () => {
       field: "name",
       headerName: "Name",
       flex: 1,
-      minWidth: 140,
+      minWidth: 160,
       renderCell: renderName,
     },
     {
       field: "sending_to",
       headerName: "Sending to",
-      flex: 0.8,
-      minWidth: 130,
+      flex: 0.7,
+      minWidth: 120,
       sortable: false,
       renderCell: (params: any) => {
         const sharingService = params.row;
@@ -1170,38 +1187,42 @@ const SharingServicesPage = () => {
       field: "groups",
       headerName: "Groups",
       flex: 1.2,
-      minWidth: 180,
+      minWidth: 170,
       sortable: false,
       renderCell: renderGroups,
     },
     {
       field: "coauthors",
       headerName: "Coauthors",
-      flex: 1.2,
-      minWidth: 180,
+      flex: 1.4,
+      minWidth: 190,
       sortable: false,
       renderCell: renderCoauthors,
     },
     {
       field: "instruments",
       headerName: "Instruments",
-      flex: 1,
-      minWidth: 140,
+      flex: 0.7,
+      minWidth: 110,
       valueGetter: (_value: any, row: any) => {
         const { instruments } = row;
         if (!instruments?.length) return "";
         return instruments.map((i: any) => i.name).join(", ");
       },
+      renderCell: (params: any) =>
+        renderChips((params.row.instruments || []).map((i: any) => i.name)),
     },
     {
       field: "streams",
-      headerName: "Streams (optional)",
-      flex: 1,
-      minWidth: 140,
+      headerName: "Streams",
+      flex: 0.7,
+      minWidth: 110,
       valueGetter: (_value: any, row: any) => {
         if (!row?.streams?.length) return "";
         return row.streams.map((stream: any) => stream.name).join(", ");
       },
+      renderCell: (params: any) =>
+        renderChips((params.row.streams || []).map((s: any) => s.name)),
     },
     {
       field: "manage",
