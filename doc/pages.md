@@ -87,3 +87,6 @@ Database Statistics Page: This page provides a list of typical database statisti
 
 User Management Page: This page provides a list of users, including their name, username, email, roles, ACLs, and groups. This page also allows for the invitation of new users. This page is only accessible to administrators.
 /user_management
+
+Account Applications Page: This page lists applications for an account submitted from the login page or at `/apply`, and lets whoever may decide on them (a `Manage users` administrator, or any `Endorse users` holder where peer endorsement is enabled) endorse or decline one. Endorsing issues the applicant an invitation.
+/user_applications

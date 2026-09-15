@@ -1265,6 +1265,15 @@ def view_only_token(user):
 
 
 @pytest.fixture()
+def endorse_users_token(user):
+    token_id = create_token(
+        ACLs=["Endorse users"], user_id=user.id, name=str(uuid.uuid4())
+    )
+    yield token_id
+    delete_token(token_id)
+
+
+@pytest.fixture()
 def view_only_token2(user2):
     token_id = create_token(ACLs=[], user_id=user2.id, name=str(uuid.uuid4()))
     yield token_id

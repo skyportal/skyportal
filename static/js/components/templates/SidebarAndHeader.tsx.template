@@ -33,6 +33,7 @@ import { useAppDispatch, useAppSelector } from "../../types/hooks";
 import * as Actions from "../../ducks/sidebar";
 import { useGetProfileQuery } from "../../ducks/profile";
 import { useGetBrokersQuery } from "../../ducks/brokers";
+import { useGetConfigQuery } from "../../ducks/config";
 
 import HeaderContent from "./HeaderContent";
 import hydrate from "../../actions";
@@ -158,6 +159,8 @@ const SidebarAndHeader = () => {
   const dispatch = useAppDispatch();
   const open = useAppSelector((state) => (state as any).sidebar.open);
   const { data: currentUser } = useGetProfileQuery();
+  // `enabled_if` sidebar items name a flag from this payload.
+  const config = (useGetConfigQuery().data as any) ?? {};
   const isSmall = useMediaQuery((theme: any) => theme.breakpoints.down("md"));
   const { data: brokers } = useGetBrokersQuery(undefined, {
     skip: !currentUser || currentUser.is_anonymous === true,
@@ -256,7 +259,7 @@ const SidebarAndHeader = () => {
     </Link>
     )}
     {% endif %}
-    {% if item.permissions or not item.anonymous_ok %}
+    {% if item.permissions or item.enabled_if or not item.anonymous_ok %}
       {(
       {% if item.permissions %}
       (
@@ -264,6 +267,9 @@ const SidebarAndHeader = () => {
         currentUser?.permissions?.includes("{{ permission }}") ||
       {% endfor %}
       false) &&
+      {% endif %}
+      {% if item.enabled_if %}
+      config?.{{ item.enabled_if }} &&
       {% endif %}
       {% if not item.anonymous_ok %}
       !currentUser?.is_anonymous &&
@@ -318,7 +324,7 @@ const SidebarAndHeader = () => {
     {% else %}
     </Link>
     {%- endif %}
-    {% if item.permissions or not item.anonymous_ok %}
+    {% if item.permissions or item.enabled_if or not item.anonymous_ok %}
     )}
     {% endif %}
     {%- endfor %}

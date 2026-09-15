@@ -70,3 +70,47 @@ body {
   border-right: none;
   padding-right: 0;
 }
+
+.applyForm {
+  display: flex;
+  flex-direction: column;
+  max-width: 30em;
+}
+
+.applyForm label {
+  margin-top: 1em;
+  font-weight: bold;
+  font-size: 90%;
+}
+
+.applyForm input,
+.applyForm textarea {
+  padding: 0.5em;
+  border: 1px solid #ccc;
+  border-radius: 3px;
+  font-family: inherit;
+  font-size: 100%;
+}
+
+.applyForm button {
+  margin-top: 1.5em;
+  cursor: pointer;
+  background: none;
+}
+
+.applyResult.success {
+  color: #1b5e20;
+}
+
+.applyResult.error {
+  color: #b71c1c;
+}
+
+.applyDetails {
+  margin-top: 1.5em;
+}
+
+.applyDetails summary {
+  cursor: pointer;
+  font-weight: bold;
+}

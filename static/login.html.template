@@ -34,6 +34,13 @@
           </a>
         </div>
         {%- endfor %}
+        {%- if user_applications is defined and user_applications.enabled and invitations is defined and invitations.enabled %}
+        <details class="applyDetails">
+          <summary>No account yet? Request one</summary>
+          <p>{{ user_applications.form_preamble }}</p>
+          {% include "_apply_form.html" %}
+        </details>
+        {%- endif %}
       </div>
     </div>
   </body>

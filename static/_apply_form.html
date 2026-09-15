@@ -1,0 +1,70 @@
+{#- The account application form, shared by the login page and /apply. -#}
+<form id="applyForm" class="applyForm">
+  <label for="firstName">First name</label>
+  <input id="firstName" name="firstName" type="text" maxlength="100" required />
+
+  <label for="lastName">Last name</label>
+  <input id="lastName" name="lastName" type="text" maxlength="100" required />
+
+  <label for="email">Your email address</label>
+  <input id="email" name="email" type="email" maxlength="255" required />
+
+  <label for="affiliation">Affiliation</label>
+  <input id="affiliation" name="affiliation" type="text" maxlength="255" />
+
+  <label for="endorserEmail"
+    >Email address of an existing user who can endorse you</label
+  >
+  <input id="endorserEmail" name="endorserEmail" type="email" maxlength="255" />
+
+  <label for="statement">Why do you need access?</label>
+  <textarea
+    id="statement"
+    name="statement"
+    rows="4"
+    maxlength="2000"
+  ></textarea>
+
+  <button type="submit" class="loginButtonText" id="applySubmit">
+    Submit application
+  </button>
+</form>
+<p id="applyResult" class="applyResult" hidden></p>
+<script>
+  (() => {
+    const form = document.getElementById("applyForm");
+    const result = document.getElementById("applyResult");
+    const submit = document.getElementById("applySubmit");
+    form.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      submit.disabled = true;
+      const body = Object.fromEntries(
+        Array.from(new FormData(form).entries()).map(([k, v]) => [
+          k,
+          v.trim() || null,
+        ]),
+      );
+      let payload = {};
+      try {
+        const response = await fetch("/api/user_applications", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body),
+        });
+        payload = await response.json();
+      } catch {
+        payload = { status: "error", message: "Could not reach the server." };
+      }
+      result.hidden = false;
+      if (payload.status === "success") {
+        result.textContent = payload.data.message;
+        result.className = "applyResult success";
+        form.hidden = true;
+      } else {
+        result.textContent = payload.message || "Something went wrong.";
+        result.className = "applyResult error";
+        submit.disabled = false;
+      }
+    });
+  })();
+</script>
