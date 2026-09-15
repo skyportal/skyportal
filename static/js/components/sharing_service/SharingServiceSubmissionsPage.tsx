@@ -2,12 +2,10 @@ import { useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { skipToken } from "@reduxjs/toolkit/query";
 
-import CircularProgress from "@mui/material/CircularProgress";
 import IconButton from "@mui/material/IconButton";
 import HistoryEduIcon from "@mui/icons-material/HistoryEdu";
 import ContentCopyIcon from "@mui/icons-material/ContentCopy";
 import AutoAwesomeIcon from "@mui/icons-material/AutoAwesome";
-import CancelIcon from "@mui/icons-material/Cancel";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import Typography from "@mui/material/Typography";
 import Dialog from "@mui/material/Dialog";
@@ -20,7 +18,7 @@ import ReactJson from "react-json-view";
 
 import Box from "@mui/material/Box";
 
-import StyledDataGridBase from "../StyledDataGrid";
+import StyledDataGridBase, { DataGridToolbar } from "../StyledDataGrid";
 import Button from "../Button";
 
 import UserAvatar from "../user/UserAvatar";
@@ -32,22 +30,23 @@ import { useGetUsersQuery } from "../../ducks/users";
 // tsc; cast to any so call sites don't need to pass it.
 const StyledDataGrid: any = StyledDataGridBase;
 
-const PAGE_SIZE_OPTIONS = [1, 25, 50, 100, 200];
+const PAGE_SIZE_OPTIONS = [25, 50, 100, 200];
 
-function getStatusColors(status: string) {
-  if (status.toLowerCase().startsWith("complete")) {
-    return ["white", "rgba(11,181,119,0.90)"];
+function getStatusStyle(status: string) {
+  const value = status.toLowerCase();
+  if (value.startsWith("complete") || value.startsWith("success")) {
+    return { color: "white", backgroundColor: "rgba(11,181,119,0.90)" };
   }
-  if (status.toLowerCase().includes("already posted to TNS")) {
-    return ["#212121", "rgba(255,152,0,0.90)"];
+  if (value.includes("already posted to tns")) {
+    return { color: "#212121", backgroundColor: "rgba(255,152,0,0.90)" };
   }
-  if (status.toLowerCase().startsWith("error")) {
-    return ["white", "rgba(244,67,54,0.90)"];
+  if (value.startsWith("error")) {
+    return { color: "white", backgroundColor: "rgba(244,67,54,0.90)" };
   }
-  if (status.toLowerCase().startsWith("testing mode")) {
-    return ["white", "rgba(125,163,227,0.9)"];
+  if (value.startsWith("testing mode")) {
+    return { color: "white", backgroundColor: "rgba(125,163,227,0.9)" };
   }
-  return ["black", "LightGrey"];
+  return { color: "text.primary", backgroundColor: "action.selected" };
 }
 
 const SharingServiceSubmissionsPage = () => {
@@ -83,36 +82,50 @@ const SharingServiceSubmissionsPage = () => {
     });
   }
 
-  const handleStatusRender = (status: string) => {
-    if (!status) return null;
-    const colors = getStatusColors(status);
+  const renderStatus = (status: string) => {
+    if (!status)
+      return (
+        <Typography variant="body2" sx={{ color: "text.disabled" }}>
+          &mdash;
+        </Typography>
+      );
     return (
-      <Typography
-        variant="body2"
-        style={{
-          backgroundColor: colors[1],
-          color: colors[0],
-          padding: "0.7em 0.9em",
+      <Box
+        sx={{
+          ...getStatusStyle(status),
+          width: "fit-content",
+          maxWidth: "100%",
+          padding: "0.35rem 0.75rem",
           borderRadius: "1rem",
-          maxWidth: "fit-content",
+          fontSize: "0.8125rem",
           fontWeight: 500,
+          lineHeight: 1.45,
+          whiteSpace: "normal",
+          overflowWrap: "anywhere",
         }}
       >
-        {status ?? "NA"}
-      </Typography>
+        {status.trim()}
+      </Box>
     );
   };
 
   const renderTnsInfo = (params: any) => {
     const { tns_name, tns_submission_id, tns_payload } = params.row;
 
+    if (!tns_name && !tns_submission_id && !tns_payload)
+      return (
+        <Typography variant="body2" sx={{ color: "text.disabled" }}>
+          &mdash;
+        </Typography>
+      );
+
     return (
       <Box
         sx={{
           display: "flex",
           flexDirection: "column",
-          alignItems: "center",
-          gap: "0.1rem",
+          alignItems: "flex-start",
+          gap: 0.25,
         }}
       >
         {tns_name && (
@@ -131,22 +144,27 @@ const SharingServiceSubmissionsPage = () => {
             </a>
           </Tooltip>
         )}
-        {tns_submission_id && (
-          <Tooltip title="ID of the submission returned by TNS">
-            {tns_submission_id}
-          </Tooltip>
-        )}
-        {tns_payload && (
-          <Tooltip title="TNS payload">
-            <IconButton
-              onClick={() => {
-                setShowTNSPayload(params.row);
-              }}
-            >
-              <HistoryEduIcon />
-            </IconButton>
-          </Tooltip>
-        )}
+        <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+          {tns_submission_id && (
+            <Tooltip title="ID of the submission returned by TNS">
+              <Typography variant="caption" sx={{ color: "text.secondary" }}>
+                #{tns_submission_id}
+              </Typography>
+            </Tooltip>
+          )}
+          {tns_payload && (
+            <Tooltip title="TNS payload">
+              <IconButton
+                size="small"
+                onClick={() => {
+                  setShowTNSPayload(params.row);
+                }}
+              >
+                <HistoryEduIcon fontSize="small" />
+              </IconButton>
+            </Tooltip>
+          )}
+        </Box>
       </Box>
     );
   };
@@ -155,25 +173,35 @@ const SharingServiceSubmissionsPage = () => {
     {
       field: "created_at",
       headerName: "Created at",
-      flex: 1,
-      minWidth: 140,
+      flex: 0.6,
+      minWidth: 110,
       filterable: false,
       sortable: false,
-      renderCell: (params: any) => (
-        <Typography variant="body2">
-          {params.row.created_at.split(".")[0].replace("T", "\n")}
-        </Typography>
-      ),
+      renderCell: (params: any) => {
+        const [date, time] = params.row.created_at.split(".")[0].split("T");
+        return (
+          <Box>
+            <Typography variant="body2">{date}</Typography>
+            <Typography variant="caption" sx={{ color: "text.secondary" }}>
+              {time}
+            </Typography>
+          </Box>
+        );
+      },
     },
     {
       field: "obj_id",
       headerName: "Source",
-      flex: 1,
+      flex: 0.7,
       minWidth: 120,
       filterable: false,
       sortable: false,
       renderCell: (params: any) => (
-        <Link to={`/source/${params.row.obj_id}`} target="_blank">
+        <Link
+          to={`/source/${params.row.obj_id}`}
+          target="_blank"
+          style={{ whiteSpace: "nowrap" }}
+        >
           {params.row.obj_id}
         </Link>
       ),
@@ -181,77 +209,71 @@ const SharingServiceSubmissionsPage = () => {
     {
       field: "publisher",
       headerName: "Publisher",
-      flex: 1,
-      minWidth: 200,
+      flex: 1.1,
+      minWidth: 190,
       filterable: false,
       sortable: false,
       renderCell: (params: any) => {
         const { user_id } = params.row;
+        const user = usersLookup[user_id];
         return (
-          <div
-            style={{
-              display: "flex",
-              flexDirection: "row",
-              alignItems: "center",
-              gap: "0.75rem",
-            }}
-          >
-            {usersLookup[user_id]?.username &&
-              usersLookup[user_id]?.gravatar_url && (
-                <UserAvatar
-                  size={28}
-                  firstName={usersLookup[user_id]?.first_name}
-                  lastName={usersLookup[user_id]?.last_name}
-                  username={usersLookup[user_id]?.username}
-                  gravatarUrl={usersLookup[user_id]?.gravatar_url}
-                  isBot={usersLookup[user_id]?.is_bot || false}
-                />
-              )}
-            {userLabel(usersLookup[user_id], false, true)}
+          <Box sx={{ display: "flex", alignItems: "center", gap: 0.75 }}>
+            {user?.username && user?.gravatar_url && (
+              <UserAvatar
+                size={26}
+                firstName={user.first_name}
+                lastName={user.last_name}
+                username={user.username}
+                gravatarUrl={user.gravatar_url}
+                isBot={user.is_bot || false}
+                userId={user_id}
+              />
+            )}
+            <Link to={`/user/${user_id}`}>{userLabel(user, false, true)}</Link>
             {params.row.auto_submission && (
               <Tooltip
                 title={`This submission was triggered automatically when the ${
-                  usersLookup[user_id]?.is_bot === true ? "BOT" : ""
+                  user?.is_bot === true ? "BOT" : ""
                 } user saved the source.`}
               >
                 <AutoAwesomeIcon fontSize="small" style={{ color: "gray" }} />
               </Tooltip>
             )}
-          </div>
+          </Box>
         );
       },
     },
     {
-      field: "Hermes status",
+      field: "hermes_status",
       headerName: "Hermes status",
-      flex: 1,
-      minWidth: 140,
+      flex: 1.6,
+      minWidth: 200,
       filterable: false,
       sortable: false,
-      renderCell: (params: any) => handleStatusRender(params.row.hermes_status),
+      renderCell: (params: any) => renderStatus(params.row.hermes_status),
     },
     {
-      field: "TNS status",
+      field: "tns_status",
       headerName: "TNS status",
-      flex: 1,
-      minWidth: 140,
+      flex: 1.6,
+      minWidth: 200,
       filterable: false,
       sortable: false,
-      renderCell: (params: any) => handleStatusRender(params.row.tns_status),
+      renderCell: (params: any) => renderStatus(params.row.tns_status),
     },
     {
       field: "tns_info",
       headerName: "TNS info",
-      flex: 1,
-      minWidth: 120,
+      flex: 0.7,
+      minWidth: 130,
       filterable: false,
       sortable: false,
       renderCell: renderTnsInfo,
     },
     {
       field: "custom_publishing_string",
-      headerName: "Custom Publishing String",
-      flex: 1,
+      headerName: "Custom publishing string",
+      flex: 1.2,
       minWidth: 180,
       filterable: false,
       sortable: false,
@@ -259,100 +281,110 @@ const SharingServiceSubmissionsPage = () => {
     {
       field: "archival",
       headerName: "Archival",
-      flex: 1,
-      minWidth: 110,
+      width: 110,
+      align: "center",
+      headerAlign: "center",
       filterable: false,
       sortable: false,
-      renderCell: (params: any) => (
-        <Box sx={{ display: "flex", justifyContent: "center" }}>
-          {params.row.archival ? (
-            <CheckCircleIcon style={{ color: "green" }} />
-          ) : (
-            <CancelIcon style={{ color: "red" }} />
-          )}
-        </Box>
-      ),
+      renderCell: (params: any) =>
+        params.row.archival ? (
+          <Tooltip title={params.row.archival_comment || "Archival submission"}>
+            <CheckCircleIcon fontSize="small" style={{ color: "green" }} />
+          </Tooltip>
+        ) : (
+          <Typography variant="body2" sx={{ color: "text.disabled" }}>
+            &mdash;
+          </Typography>
+        ),
     },
   ];
 
+  const CustomToolbar = () => (
+    <DataGridToolbar title="Sharing submissions" showQuickFilter={false} />
+  );
+
   return (
     <div>
-      {loading ? (
-        <CircularProgress />
-      ) : (
-        <Box sx={{ width: "100%" }}>
-          <Typography variant="h6" style={{ padding: "0.5rem" }}>
-            Sharing submissions
-          </Typography>
-          <StyledDataGrid
-            autoHeight
-            rows={sharingServiceSubmissions}
-            columns={columns}
-            getRowId={(row: any) => row.id}
-            paginationMode="server"
-            rowCount={submissionsData?.totalMatches || 0}
-            paginationModel={{
-              page: page - 1,
-              pageSize: rowsPerPage,
-            }}
-            onPaginationModelChange={handlePaginationModelChange}
-            pageSizeOptions={PAGE_SIZE_OPTIONS}
-            initialState={{
-              columns: {
-                columnVisibilityModel: {
-                  custom_publishing_string: false,
-                  archival: false,
-                },
-              },
-            }}
-            showToolbar
-          />
-        </Box>
-      )}
-      {sharingServiceSubmissions?.length > 0 && (
-        <Dialog
-          open={showTNSPayload !== null}
-          onClose={() => setShowTNSPayload(null)}
-          maxWidth="lg"
+      <StyledDataGrid
+        autoHeight
+        loading={loading}
+        rows={sharingServiceSubmissions}
+        columns={columns}
+        getRowId={(row: any) => row.id}
+        getRowHeight={() => "auto"}
+        sx={{
+          "& .MuiDataGrid-cell": {
+            whiteSpace: "normal",
+            alignItems: "center",
+            py: 1,
+          },
+        }}
+        paginationMode="server"
+        rowCount={submissionsData?.totalMatches || 0}
+        paginationModel={{
+          page: page - 1,
+          pageSize: rowsPerPage,
+        }}
+        onPaginationModelChange={handlePaginationModelChange}
+        pageSizeOptions={PAGE_SIZE_OPTIONS}
+        initialState={{
+          columns: {
+            columnVisibilityModel: {
+              custom_publishing_string: false,
+              archival: false,
+            },
+          },
+        }}
+        slots={{ toolbar: CustomToolbar }}
+        showToolbar
+      />
+      <Dialog
+        open={showTNSPayload !== null}
+        onClose={() => setShowTNSPayload(null)}
+        maxWidth="lg"
+      >
+        <DialogTitle
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: "1rem",
+          }}
         >
-          <DialogTitle
-            style={{ display: "flex", justifyContent: "space-between" }}
-          >
-            <Typography variant="h6">TNS payload</Typography>
-            <Tooltip title="Copy to clipboard">
-              <span>
-                <IconButton
-                  onClick={() => {
-                    navigator.clipboard.writeText(
-                      typeof showTNSPayload?.tns_payload === "string"
-                        ? showTNSPayload?.tns_payload
-                        : JSON.stringify(showTNSPayload?.tns_payload),
-                    );
-                  }}
-                >
-                  <ContentCopyIcon />
-                </IconButton>
-              </span>
-            </Tooltip>
-          </DialogTitle>
-          <DialogContent>
-            <ReactJson
-              src={
-                typeof showTNSPayload?.tns_payload === "string"
-                  ? JSON.parse(showTNSPayload?.tns_payload)
-                  : showTNSPayload?.tns_payload
-              }
-              displayDataTypes={false}
-              displayObjectSize={false}
-            />
-          </DialogContent>
-          <DialogActions>
-            <Button onClick={() => setShowTNSPayload(null)} color="primary">
-              Close
-            </Button>
-          </DialogActions>
-        </Dialog>
-      )}
+          <Typography variant="h6">TNS payload</Typography>
+          <Tooltip title="Copy to clipboard">
+            <span>
+              <IconButton
+                onClick={() => {
+                  navigator.clipboard.writeText(
+                    typeof showTNSPayload?.tns_payload === "string"
+                      ? showTNSPayload?.tns_payload
+                      : JSON.stringify(showTNSPayload?.tns_payload),
+                  );
+                }}
+              >
+                <ContentCopyIcon />
+              </IconButton>
+            </span>
+          </Tooltip>
+        </DialogTitle>
+        <DialogContent>
+          <ReactJson
+            src={
+              typeof showTNSPayload?.tns_payload === "string"
+                ? JSON.parse(showTNSPayload?.tns_payload)
+                : showTNSPayload?.tns_payload
+            }
+            displayDataTypes={false}
+            displayObjectSize={false}
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setShowTNSPayload(null)} color="primary">
+            Close
+          </Button>
+        </DialogActions>
+      </Dialog>
     </div>
   );
 };
