@@ -50,10 +50,27 @@ SummaryEmbedding = sa.Table(
     ),
 )
 
-# The type has to exist before the column using it can be created, and a fresh
-# database is built from this metadata rather than from the migrations.
-sa.event.listen(
-    SummaryEmbedding,
-    "before_create",
-    sa.DDL("CREATE EXTENSION IF NOT EXISTS vector"),
-)
+
+@sa.event.listens_for(SummaryEmbedding, "before_create")
+def _ensure_vector_extension(target, connection, **kw):
+    """Make sure the `vector` type exists before the column that uses it.
+
+    Installing an extension is a superuser act, and the application role is not
+    one, so this only attempts it when the extension is genuinely absent -- an
+    already-installed extension short-circuits before the privilege check. Where
+    it is missing and cannot be added, say which command an administrator has to
+    run rather than surfacing a bare permissions error from create_all.
+    """
+    if connection.scalar(
+        sa.text("SELECT 1 FROM pg_extension WHERE extname = 'vector'")
+    ):
+        return
+    try:
+        connection.execute(sa.text("CREATE EXTENSION IF NOT EXISTS vector"))
+    except Exception as e:
+        raise RuntimeError(
+            f"The {target.name} table needs pgvector's `vector` type, and this "
+            "role may not install extensions. Ask an administrator to run, once, "
+            f"in database {connection.engine.url.database}:\n"
+            "    CREATE EXTENSION vector;"
+        ) from e
