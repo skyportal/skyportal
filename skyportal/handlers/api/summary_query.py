@@ -166,18 +166,6 @@ class SummaryQueryHandler(BaseHandler):
             if not embedding_key:
                 return self.error("No OpenAI API key found.", status=400)
 
-        if objID:
-            # Otherwise anyone could ask what a source they cannot read is
-            # similar to. The message says nothing about what exists.
-            async with self.AsyncSession() as session:
-                anchor = await session.scalar(
-                    Source.select(session.user_or_token, columns=[Source.obj_id]).where(
-                        Source.obj_id == objID, Source.active.is_(True)
-                    )
-                )
-            if anchor is None:
-                return self.error(f"Cannot access object {objID}", status=403)
-
         classes = body.classificationTypes or None
         try:
             # A blocking HTTP round-trip: run off the event loop, and before a
@@ -195,6 +183,14 @@ class SummaryQueryHandler(BaseHandler):
                 accessible = Source.select(
                     session.user_or_token, columns=[Source.obj_id]
                 ).where(Source.active.is_(True))
+                if objID:
+                    # Otherwise anyone could ask what a source they cannot read
+                    # is similar to. The message says nothing about what exists.
+                    anchor = await session.scalar(
+                        accessible.where(Source.obj_id == objID)
+                    )
+                    if anchor is None:
+                        return self.error(f"Cannot access object {objID}", status=403)
                 accessible_classifications = Classification.select(
                     session.user_or_token,
                     columns=[Classification.obj_id, Classification.classification],

@@ -109,7 +109,9 @@ async def _nearest(
     stmt = _restrict(
         stmt, model, accessible_objs, classifications, z_min, z_max, classes
     )
-    stmt = stmt.order_by(distance).limit(k)
+    # Nothing is near a target that does not exist: an obj with no stored vector
+    # gives a NULL target, and every distance to it is NULL.
+    stmt = stmt.where(distance.isnot(None)).order_by(distance).limit(k)
 
     rows = (await session.execute(stmt)).mappings().all()
     return [
@@ -164,14 +166,12 @@ async def search_embeddings_by_obj(
     classification_types=None,
 ):
     """Summaries most similar to `obj_id`'s own, which is itself excluded."""
-    anchor_where = [_embeddings.obj_id == obj_id, _embeddings.model == model]
+    anchor = SummaryEmbedding.alias("anchor")
+    anchor_where = [anchor.c.obj_id == obj_id, anchor.c.model == model]
     if accessible_objs is not None:
-        anchor_where.append(_embeddings.obj_id.in_(accessible_objs))
-    anchor = await session.scalar(sa.select(_embeddings.embedding).where(*anchor_where))
-    if anchor is None:
-        return []
-
-    target = sa.cast(sa.literal(anchor), Vector())
+        anchor_where.append(anchor.c.obj_id.in_(accessible_objs))
+    # Read in place rather than fetched and sent back as a literal.
+    target = sa.select(anchor.c.embedding).where(*anchor_where).scalar_subquery()
     results = await _nearest(
         session,
         target,
