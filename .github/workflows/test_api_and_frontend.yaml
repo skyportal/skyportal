@@ -31,7 +31,9 @@ jobs:
     timeout-minutes: 120
     services:
       postgres:
-        image: postgres:17
+        # pgvector's build of postgres: the summary embeddings column
+        # uses its `vector` type, created with the rest of the schema.
+        image: pgvector/pgvector:pg17
         env:
           POSTGRES_USER: skyportal
           POSTGRES_PASSWORD: anything
