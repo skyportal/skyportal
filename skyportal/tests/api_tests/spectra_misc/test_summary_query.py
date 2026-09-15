@@ -1,5 +1,3 @@
-import sqlalchemy as sa
-
 from baselayer.app.models import DBSession
 from skyportal.tests import api
 from skyportal.utils.embedding_store import upsert_embedding
@@ -133,11 +131,6 @@ def test_a_source_with_no_stored_vector_returns_nothing(
     view_only_token, public_source, public_source_no_data
 ):
     """An un-indexed source is simply absent from the search, not an error."""
-    DBSession().execute(
-        sa.text("DELETE FROM summary_embeddings WHERE obj_id = :o"),
-        {"o": public_source.id},
-    )
-    DBSession().commit()
     _store(public_source_no_data.id, [0.9, 0.1, 0.0])
 
     status, data = api(
