@@ -137,6 +137,10 @@ class ConfigHandler(BaseHandler):
                 "bandpassesColors": BANDPASSES_COLORS,
                 "bandpassesWavelengths": BANDPASSES_WAVELENGTHS,
                 "useSummarySearch": USE_PGVECTOR,
+                "summarySearchMinScore": cfg[
+                    "analysis_services.openai_analysis_service."
+                    "embeddings_store.summary.min_score"
+                ],
                 "usePhotometryValidation": USE_PHOTOMETRY_VALIDATION,
                 "authBackends": configured_backends_public(),
                 "publicGroupName": cfg["misc.public_group_name"],

@@ -14,12 +14,13 @@ interface SimilarSourcesProps {
   k?: number;
 }
 
-const SimilarSources = ({
-  source,
-  min_score = 0.9,
-  k = 3,
-}: SimilarSourcesProps) => {
-  const useSummarySearch = (useGetConfigQuery().data as any)?.useSummarySearch;
+const SimilarSources = ({ source, min_score, k = 3 }: SimilarSourcesProps) => {
+  const config = useGetConfigQuery().data as any;
+  const useSummarySearch = config?.useSummarySearch;
+  // Scores only mean something relative to the embedding model in use, so the
+  // cut comes from the config that names it. A prop still wins where a caller
+  // has a reason to differ.
+  const threshold = min_score ?? config?.summarySearchMinScore;
   const [fetchSummaryQuery] = useFetchSummaryQueryMutation();
   const [simSourceList, setSimSourceList] = useState<any[]>([]);
 
@@ -38,7 +39,9 @@ const SimilarSources = ({
             // remove the source itself from the list
             tmpList = tmpList.filter((item) => item.id !== source.id);
             // remove any sources with a score below the threshold
-            tmpList = tmpList.filter((item) => item.score >= min_score);
+            if (threshold != null) {
+              tmpList = tmpList.filter((item) => item.score >= threshold);
+            }
             setSimSourceList(tmpList);
           } else {
             setSimSourceList([]);
@@ -48,7 +51,7 @@ const SimilarSources = ({
           // Don't show an error if the query fails, just don't show any similar sources
         });
     }
-  }, [fetchSummaryQuery, source, k, min_score, useSummarySearch]);
+  }, [fetchSummaryQuery, source, k, threshold, useSummarySearch]);
 
   return (
     <>
@@ -61,7 +64,11 @@ const SimilarSources = ({
           }}
         >
           <Tooltip
-            title={`Highest AI summary similarity scores s>${min_score}`}
+            title={
+              threshold != null
+                ? `Highest AI summary similarity scores s>${threshold}`
+                : "Highest AI summary similarity scores"
+            }
           >
             <b style={{ textWrap: "nowrap", marginRight: "0.5rem" }}>
               Similar Sources:

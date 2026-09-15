@@ -1471,6 +1471,11 @@ analysis_services:
         # OpenAI's own. The key comes from
         # analysis_services.openai_analysis_service.summary.
         base_url:
+        # Similarity below which a source is not offered as similar. Scores are
+        # only comparable within one model -- what counts as close for one is
+        # unreachable for another -- so set this from the spread `model`
+        # actually produces. Unset shows the closest matches whatever they score.
+        min_score:
 
 # Root for on-disk caches; everything under it is regenerable and safe to delete.
 cache_folder: cache
