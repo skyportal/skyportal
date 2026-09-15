@@ -29,6 +29,9 @@ def embed_query_text(query: str, openai_api_key: str) -> list[float]:
         model=summarize_embedding_model,
         openai_api_key=openai_api_key,
         base_url=summarize_embedding_base_url,
+        # Send the text itself, as the analysis service does, rather than the
+        # token ids langchain sends by default and other servers reject.
+        check_embedding_ctx_length=False,
     )
     return embeddings.embed_query(query)
 
