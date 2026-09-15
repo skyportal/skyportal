@@ -156,6 +156,14 @@ async def _nearest(session, target, k, model, accessible_objs, z_min, z_max, cla
         _embeddings.c.obj_id,
         _embeddings.c.summary,
         (1 - distance).label("score"),
+        sa.select(_objs.c.redshift)
+        .where(_objs.c.id == _embeddings.c.obj_id)
+        .scalar_subquery()
+        .label("redshift"),
+        sa.select(sa.func.array_agg(sa.distinct(_classifications.c.classification)))
+        .where(_classifications.c.obj_id == _embeddings.c.obj_id)
+        .scalar_subquery()
+        .label("classes"),
     )
     stmt = _restrict(stmt, model, accessible_objs, z_min, z_max, classes)
     stmt = stmt.order_by(distance).limit(k)
@@ -165,7 +173,11 @@ async def _nearest(session, target, k, model, accessible_objs, z_min, z_max, cla
         {
             "id": row["obj_id"],
             "score": float(row["score"]),
-            "metadata": {"summary": row["summary"]},
+            "metadata": {
+                "summary": row["summary"],
+                "redshift": row["redshift"],
+                "class": row["classes"] or [],
+            },
         }
         for row in rows
     ]
