@@ -159,7 +159,6 @@ const SidebarAndHeader = () => {
   const dispatch = useAppDispatch();
   const open = useAppSelector((state) => (state as any).sidebar.open);
   const { data: currentUser } = useGetProfileQuery();
-  // `enabled_if` sidebar items name a flag from this payload.
   const config = (useGetConfigQuery().data as any) ?? {};
   const isSmall = useMediaQuery((theme: any) => theme.breakpoints.down("md"));
   const { data: brokers } = useGetBrokersQuery(undefined, {

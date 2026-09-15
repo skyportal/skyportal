@@ -1,11 +1,4 @@
-/**
- * Account applications awaiting peer endorsement.
- *
- * The queue is only readable by users holding the "Endorse users" ACL; the
- * application form itself posts to the same endpoint unauthenticated, from the
- * server-rendered /apply page, so there is no submit endpoint here.
- */
-import { buildQueryString as toQueryString } from "../API";
+import { buildQueryString } from "../API";
 import { skyportalApi } from "../api/skyportalApi";
 
 export interface ApplicationUser {
@@ -33,7 +26,7 @@ export interface UserApplication {
 }
 
 export interface UserApplicationsParams {
-  status?: "pending" | "endorsed" | "declined" | undefined;
+  status?: UserApplication["status"] | undefined;
   mine?: boolean | undefined;
   pageNumber?: number | undefined;
   numPerPage?: number | undefined;
@@ -59,7 +52,7 @@ export const userApplicationsApi = skyportalApi.injectEndpoints({
       UserApplicationsParams | void
     >({
       query: (params) => {
-        const qs = toQueryString(params ?? {});
+        const qs = buildQueryString(params ?? {});
         return `api/user_applications${qs ? `?${qs}` : ""}`;
       },
       providesTags: ["UserApplication"],
