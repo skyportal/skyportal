@@ -51,6 +51,8 @@ interface QueuedObservationsTableProps {
   pageNumber?: number;
   numPerPage?: number;
   serverSide?: boolean;
+  filterModel?: any;
+  onFilterModelChange?: (model: any) => void;
 }
 
 const QueuedObservationsTable = ({
@@ -62,6 +64,8 @@ const QueuedObservationsTable = ({
   pageNumber = 1,
   numPerPage = 10,
   serverSide = true,
+  filterModel,
+  onFilterModelChange,
 }: QueuedObservationsTableProps) => {
   const { classes } = useStyles();
   const canUploadData = useHasPermission("Upload data");
@@ -357,6 +361,8 @@ const QueuedObservationsTable = ({
             sortModel={sortModel}
             onSortModelChange={handleSortModelChange}
             pageSizeOptions={PAGE_SIZE_OPTIONS}
+            filterModel={filterModel}
+            onFilterModelChange={onFilterModelChange}
             slots={{ toolbar: CustomToolbar }}
             showToolbar
           />

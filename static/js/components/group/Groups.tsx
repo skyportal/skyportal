@@ -16,6 +16,12 @@ const Groups = () => {
   const allGroups = groupsData?.all ?? null;
 
   const [tab, setTab] = useState(0);
+  // Shared across tabs so a search typed in one list survives switching
+  // tabs; it only resets when this component unmounts (i.e. leaving the page).
+  const [filterModel, setFilterModel] = useState({
+    items: [],
+    quickFilterValues: [],
+  });
 
   if (!userGroups.length || allGroups === null) return <Spinner />;
 
@@ -26,7 +32,13 @@ const Groups = () => {
   );
 
   const tabPanels = [
-    <GroupList key="my-groups" title="My groups" groups={userGroups} />,
+    <GroupList
+      key="my-groups"
+      title="My groups"
+      groups={userGroups}
+      filterModel={filterModel}
+      onFilterModelChange={setFilterModel}
+    />,
     ...(nonMemberGroups.length
       ? [
           <GroupList
@@ -34,6 +46,8 @@ const Groups = () => {
             title="Non-member groups"
             groups={nonMemberGroups}
             admission
+            filterModel={filterModel}
+            onFilterModelChange={setFilterModel}
           />,
         ]
       : []),
@@ -43,6 +57,8 @@ const Groups = () => {
             key="all-groups"
             title="All Groups"
             groups={allMultiUserGroups}
+            filterModel={filterModel}
+            onFilterModelChange={setFilterModel}
           />,
         ]
       : []),
