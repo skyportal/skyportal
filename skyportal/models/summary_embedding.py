@@ -5,13 +5,11 @@ and the searches in `skyportal.utils.embedding_store` are Core statements so the
 can compose with the access-controlled select for objs.
 """
 
-__all__ = ["SummaryEmbedding", "Vector"]
+__all__ = ["SummaryEmbedding", "Vector", "ensure_vector_extension"]
 
 import sqlalchemy as sa
 
 from baselayer.app.models import Base
-
-from ..utils.embedding_store import ensure_vector_extension
 
 
 class Vector(sa.types.UserDefinedType):
@@ -50,6 +48,28 @@ SummaryEmbedding = sa.Table(
         nullable=False,
     ),
 )
+
+
+def ensure_vector_extension(connection):
+    """Install pgvector's `vector` type, unless it is there or we may not.
+
+    Installing an extension is a superuser act, so an already-installed one has
+    to short-circuit before the privilege check, and a role that cannot install
+    it gets told what an administrator has to run instead of a bare error.
+    """
+    if connection.scalar(
+        sa.text("SELECT 1 FROM pg_extension WHERE extname = 'vector'")
+    ):
+        return
+    try:
+        connection.execute(sa.text("CREATE EXTENSION vector"))
+    except Exception as e:
+        raise RuntimeError(
+            "The summary_embeddings table needs pgvector's `vector` type, and "
+            "this role may not install extensions. Ask an administrator to run, "
+            f"once, in database {connection.engine.url.database}:\n"
+            "    CREATE EXTENSION vector;"
+        ) from e
 
 
 @sa.event.listens_for(SummaryEmbedding, "before_create")

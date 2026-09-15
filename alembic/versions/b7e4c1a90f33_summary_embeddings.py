@@ -7,7 +7,7 @@ Create Date: 2026-09-14 18:40:00.000000
 """
 
 from alembic import op
-from skyportal.utils.embedding_store import ensure_vector_extension
+from skyportal.models.summary_embedding import ensure_vector_extension
 
 # revision identifiers, used by alembic.
 revision = "b7e4c1a90f33"

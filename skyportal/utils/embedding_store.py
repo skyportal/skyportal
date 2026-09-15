@@ -14,7 +14,6 @@ here means the one access rule in `Obj.select` decides, rather than a copy of it
 
 __all__ = [
     "PGVECTOR",
-    "ensure_vector_extension",
     "store_location",
     "vector_literal",
     "upsert_embedding",
@@ -24,52 +23,16 @@ __all__ = [
 
 import sqlalchemy as sa
 
+from ..models.summary_embedding import SummaryEmbedding, Vector
+
 PGVECTOR = "pgvector"
 
-
-class Vector(sa.types.UserDefinedType):
-    """pgvector's type, named so a query can cast to it."""
-
-    cache_ok = True
-
-    def get_col_spec(self, **kw):
-        return "vector"
-
-
-# Lightweight table handles: the columns a search touches, not a second
-# declaration of tables the ORM already maps.
-_embeddings = sa.table(
-    "summary_embeddings",
-    sa.column("obj_id"),
-    sa.column("embedding"),
-    sa.column("model"),
-)
+_embeddings = SummaryEmbedding.c
+# Lightweight handles for the few columns a search reads off other tables.
 _objs = sa.table("objs", sa.column("id"), sa.column("redshift"), sa.column("summary"))
 _classifications = sa.table(
     "classifications", sa.column("obj_id"), sa.column("classification")
 )
-
-
-def ensure_vector_extension(connection):
-    """Install pgvector's `vector` type, unless it is there or we may not.
-
-    Installing an extension is a superuser act, so an already-installed one has
-    to short-circuit before the privilege check, and a role that cannot install
-    it gets told what an administrator has to run instead of a bare error.
-    """
-    if connection.scalar(
-        sa.text("SELECT 1 FROM pg_extension WHERE extname = 'vector'")
-    ):
-        return
-    try:
-        connection.execute(sa.text("CREATE EXTENSION vector"))
-    except Exception as e:
-        raise RuntimeError(
-            "The summary_embeddings table needs pgvector's `vector` type, and "
-            "this role may not install extensions. Ask an administrator to run, "
-            f"once, in database {connection.engine.url.database}:\n"
-            "    CREATE EXTENSION vector;"
-        ) from e
 
 
 def store_location(config: dict) -> str | None:
@@ -107,10 +70,10 @@ async def upsert_embedding(session, obj_id, vector, model):
 
 def _restrict(stmt, model, accessible_objs, z_min, z_max, classification_types):
     """Everything a search is allowed to look at, before similarity is considered."""
-    stmt = stmt.where(_embeddings.c.model == model)
+    stmt = stmt.where(_embeddings.model == model)
 
     if accessible_objs is not None:
-        stmt = stmt.where(_embeddings.c.obj_id.in_(accessible_objs))
+        stmt = stmt.where(_embeddings.obj_id.in_(accessible_objs))
 
     # Read against the live tables rather than a copy taken when the summary was
     # written, so a reclassification is reflected without re-embedding.
@@ -120,7 +83,7 @@ def _restrict(stmt, model, accessible_objs, z_min, z_max, classification_types):
                 sa.select(sa.literal(1))
                 .select_from(_objs)
                 .where(
-                    _objs.c.id == _embeddings.c.obj_id,
+                    _objs.c.id == _embeddings.obj_id,
                     # A source with no redshift cannot satisfy a redshift cut.
                     _objs.c.redshift.isnot(None),
                     *([_objs.c.redshift >= z_min] if z_min is not None else []),
@@ -135,7 +98,7 @@ def _restrict(stmt, model, accessible_objs, z_min, z_max, classification_types):
                 sa.select(sa.literal(1))
                 .select_from(_classifications)
                 .where(
-                    _classifications.c.obj_id == _embeddings.c.obj_id,
+                    _classifications.c.obj_id == _embeddings.obj_id,
                     _classifications.c.classification.in_(list(classification_types)),
                 )
             )
@@ -149,22 +112,22 @@ async def _nearest(session, target, k, model, accessible_objs, z_min, z_max, cla
     `<=>` is cosine distance, so 0 is identical and 2 is opposite; the score
     returned is 1 - distance, so 1 is identical and 0 is unrelated.
     """
-    distance = _embeddings.c.embedding.op("<=>")(target)
+    distance = _embeddings.embedding.op("<=>", return_type=sa.Float)(target)
     stmt = sa.select(
-        _embeddings.c.obj_id,
+        _embeddings.obj_id,
         (1 - distance).label("score"),
         # Read from the obj rather than keeping a copy here, which an edited
         # summary would leave behind.
         sa.select(_objs.c.summary)
-        .where(_objs.c.id == _embeddings.c.obj_id)
+        .where(_objs.c.id == _embeddings.obj_id)
         .scalar_subquery()
         .label("summary"),
         sa.select(_objs.c.redshift)
-        .where(_objs.c.id == _embeddings.c.obj_id)
+        .where(_objs.c.id == _embeddings.obj_id)
         .scalar_subquery()
         .label("redshift"),
         sa.select(sa.func.array_agg(sa.distinct(_classifications.c.classification)))
-        .where(_classifications.c.obj_id == _embeddings.c.obj_id)
+        .where(_classifications.c.obj_id == _embeddings.obj_id)
         .scalar_subquery()
         .label("classes"),
     )
@@ -218,12 +181,10 @@ async def search_embeddings_by_obj(
     Nothing is returned for a source the requester cannot read: otherwise the
     neighbours of a private summary would be an answer about it.
     """
-    anchor_where = [_embeddings.c.obj_id == obj_id, _embeddings.c.model == model]
+    anchor_where = [_embeddings.obj_id == obj_id, _embeddings.model == model]
     if accessible_objs is not None:
-        anchor_where.append(_embeddings.c.obj_id.in_(accessible_objs))
-    anchor = await session.scalar(
-        sa.select(_embeddings.c.embedding).where(*anchor_where)
-    )
+        anchor_where.append(_embeddings.obj_id.in_(accessible_objs))
+    anchor = await session.scalar(sa.select(_embeddings.embedding).where(*anchor_where))
     if anchor is None:
         return []
 
