@@ -83,7 +83,7 @@ def test_bulk_data_share_add_and_remove(
         data={"from_group_id": from_group, "to_group_id": to_group},
         token=upload_data_token,
     )
-    assert status in (400, 401), data
+    assert status in (401, 403), data
 
     # add: share both data types with the target group
     status, data = api(
@@ -194,8 +194,19 @@ def test_remove_group_from_spectrum(
     assert group2 not in gids
     assert group1 in gids
 
-    # refuse to remove the only remaining group
+    # peel off the remaining groups; the last one must be refused so the
+    # spectrum is never left with no groups (spectra also carry an owner group)
+    remaining = sorted(_spectrum_group_ids(spectrum_id, super_admin_token))
+    for gid in remaining[:-1]:
+        status, data = api(
+            "DELETE", f"spectra/{spectrum_id}/groups/{gid}", token=super_admin_token
+        )
+        assert status == 200, data
+    last = _spectrum_group_ids(spectrum_id, super_admin_token)
+    assert len(last) == 1
     status, data = api(
-        "DELETE", f"spectra/{spectrum_id}/groups/{group1}", token=super_admin_token
+        "DELETE",
+        f"spectra/{spectrum_id}/groups/{next(iter(last))}",
+        token=super_admin_token,
     )
     assert status == 400, data
