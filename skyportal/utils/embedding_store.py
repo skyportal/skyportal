@@ -65,8 +65,8 @@ def _restrict(
     if accessible_objs is not None:
         stmt = stmt.where(_embeddings.obj_id.in_(accessible_objs))
 
-    # Read against the live tables rather than a copy taken when the summary was
-    # written, so a reclassification is reflected without re-embedding.
+    # Redshift and classification are read live, so a reclassification counts
+    # without the summary being embedded again.
     if z_min is not None or z_max is not None:
         stmt = stmt.where(
             sa.exists(
@@ -128,8 +128,7 @@ async def _nearest(
         nearest = nearest.where((1 - distance) >= min_score)
     nearest = nearest.order_by(distance).limit(k).subquery()
 
-    # Described after the cut, so the k rows that survive it are the only ones
-    # these lookups run for.
+    # Described after the cut, so these lookups run for k rows and no more.
     stmt = (
         sa.select(
             nearest.c.obj_id,
@@ -205,7 +204,6 @@ async def search_embeddings_by_obj(
     anchor_where = [anchor.c.obj_id == obj_id, anchor.c.model == model]
     if accessible_objs is not None:
         anchor_where.append(anchor.c.obj_id.in_(accessible_objs))
-    # Read in place rather than fetched and sent back as a literal.
     target = sa.select(anchor.c.embedding).where(*anchor_where).scalar_subquery()
     results = await _nearest(
         session,
