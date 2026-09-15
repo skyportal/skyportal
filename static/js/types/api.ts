@@ -18173,13 +18173,13 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * Bulk-share one group's data with another group
+         * Bulk-share spectra/photometry with a group
          * @description <b>Permission(s) required:</b> <em>System admin (or System admin)</em><br><br>Grant (or revoke) a target group's access to every spectrum and/or
-         *     photometry point already shared with a source group, in one
-         *     set-based operation. Additive and idempotent: it only inserts or
-         *     deletes group associations and never touches the data itself. This
-         *     is the supported way to re-expose narrowly-shared legacy/imported
-         *     data collaboration-wide.
+         *     photometry point selected either by a source group (`from_group_id`)
+         *     or by a set of objects (`obj_ids`), in one set-based operation.
+         *     Additive and idempotent: it only inserts or deletes group
+         *     associations and never touches the data itself. The supported way to
+         *     re-expose narrowly-shared legacy/imported data collaboration-wide.
          */
         post: {
             parameters: {
@@ -18191,7 +18191,10 @@ export interface paths {
             requestBody?: {
                 content: {
                     "application/json": {
-                        from_group_id: number;
+                        /** @description Source group; mutually exclusive with obj_ids. */
+                        from_group_id?: number;
+                        /** @description Source objects; mutually exclusive with from_group_id. */
+                        obj_ids?: string[];
                         to_group_id: number;
                         data_types?: ("spectra" | "photometry")[];
                         /** @enum {string} */

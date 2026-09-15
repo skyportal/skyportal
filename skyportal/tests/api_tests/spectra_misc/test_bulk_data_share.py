@@ -161,6 +161,99 @@ def test_bulk_data_share_rejects_bad_input(super_admin_user, super_admin_token):
     )
     assert status == 400, data
 
+    # neither from_group_id nor obj_ids
+    status, data = api(
+        "POST",
+        "data_sharing/bulk",
+        data={"to_group_id": group},
+        token=super_admin_token,
+    )
+    assert status == 400, data
+
+    # both from_group_id and obj_ids
+    status, data = api(
+        "POST",
+        "data_sharing/bulk",
+        data={"from_group_id": group, "to_group_id": group + 1, "obj_ids": ["x"]},
+        token=super_admin_token,
+    )
+    assert status == 400, data
+
+
+def test_bulk_data_share_by_obj_ids(
+    super_admin_user, super_admin_token, public_source, lris, ztf_camera
+):
+    from_group = _make_group(super_admin_user, super_admin_token)
+    to_group = _make_group(super_admin_user, super_admin_token)
+
+    status, data = api(
+        "POST",
+        "spectrum",
+        data={
+            "obj_id": public_source.id,
+            "observed_at": "2020-02-01T00:00:00",
+            "instrument_id": lris.id,
+            "wavelengths": [664, 665, 666],
+            "fluxes": [1.0, 2.0, 3.0],
+            "group_ids": [from_group],
+        },
+        token=super_admin_token,
+    )
+    assert status == 200, data
+    spectrum_id = data["data"]["id"]
+
+    status, data = api(
+        "POST",
+        "photometry",
+        data={
+            "obj_id": str(public_source.id),
+            "mjd": 59050.0,
+            "instrument_id": ztf_camera.id,
+            "flux": 10.0,
+            "fluxerr": 0.1,
+            "zp": 25.0,
+            "magsys": "ab",
+            "filter": "ztfg",
+            "group_ids": [from_group],
+        },
+        token=super_admin_token,
+    )
+    assert status == 200, data
+    photometry_id = data["data"]["ids"][0]
+
+    # share by object, regardless of which group the data currently sits in
+    status, data = api(
+        "POST",
+        "data_sharing/bulk",
+        data={
+            "obj_ids": [public_source.id],
+            "to_group_id": to_group,
+            "data_types": ["spectra", "photometry"],
+            "action": "add",
+        },
+        token=super_admin_token,
+    )
+    assert status == 200, data
+    assert data["data"]["counts"]["spectra"] >= 1
+    assert data["data"]["counts"]["photometry"] >= 1
+    assert to_group in _spectrum_group_ids(spectrum_id, super_admin_token)
+    assert to_group in _photometry_group_ids(photometry_id, super_admin_token)
+
+    # remove by object
+    status, data = api(
+        "POST",
+        "data_sharing/bulk",
+        data={
+            "obj_ids": [public_source.id],
+            "to_group_id": to_group,
+            "action": "remove",
+        },
+        token=super_admin_token,
+    )
+    assert status == 200, data
+    assert to_group not in _spectrum_group_ids(spectrum_id, super_admin_token)
+    assert to_group not in _photometry_group_ids(photometry_id, super_admin_token)
+
 
 def test_remove_group_from_spectrum(
     super_admin_user, super_admin_token, public_source, lris
