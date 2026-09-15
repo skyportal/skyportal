@@ -1472,10 +1472,10 @@ analysis_services:
         # sent; anywhere else is reached with `api_key` below, or with no key.
         base_url:
         api_key:
-        # Similarity below which a source is not offered as similar. Scores are
-        # only comparable within one model -- what counts as close for one is
-        # unreachable for another -- so set this from the spread `model`
-        # actually produces. Unset shows the closest matches whatever they score.
+        # Cosine similarity below which a source is not offered as similar: 1 is
+        # identical, 0 unrelated, -1 opposite. What counts as close varies by
+        # model, so set this from the spread `model` actually produces. Unset
+        # shows the closest matches whatever they score.
         min_score: 0.9
 
 # Root for on-disk caches; everything under it is regenerable and safe to delete.

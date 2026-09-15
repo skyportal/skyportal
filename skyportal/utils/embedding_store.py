@@ -87,7 +87,11 @@ def _restrict(
 async def _nearest(
     session, target, k, model, accessible_objs, classifications, z_min, z_max, classes
 ):
-    """The k rows closest to `target`, scored 1 (identical) to 0 (unrelated)."""
+    """The k rows closest to `target`.
+
+    The score is cosine similarity: 1 for identical, 0 for unrelated, down to -1
+    for opposite.
+    """
     distance = _embeddings.embedding.op("<=>", return_type=sa.Float)(target)
     stmt = sa.select(
         _embeddings.obj_id,
