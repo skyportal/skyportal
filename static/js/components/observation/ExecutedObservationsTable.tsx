@@ -71,7 +71,7 @@ interface ExecutedObservationsTableProps {
   numPerPage?: number;
   serverSide?: boolean;
   filterModel?: any;
-  onFilterModelChange?: (model: any) => void;
+  onFilterModelChange?: ((model: any) => void) | undefined;
 }
 
 const ExecutedObservationsTable = ({

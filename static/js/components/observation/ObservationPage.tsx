@@ -34,7 +34,7 @@ interface ObservationListProps {
   handleFilterSubmit: (...a: any[]) => void;
   downloadCallback: (...a: any[]) => void;
   filterModel?: any;
-  onFilterModelChange?: (model: any) => void;
+  onFilterModelChange?: ((model: any) => void) | undefined;
 }
 
 const useStyles = makeStyles()((theme) => ({
