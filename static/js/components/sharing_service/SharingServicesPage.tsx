@@ -518,18 +518,13 @@ const SharingServiceCoauthor = ({
     setDeleteOpen(false);
   };
 
-  const label = (
-    <div>
-      {userLabel(user, false, true)}
-      <IconButton onClick={() => setDeleteOpen(true)}>
-        <DeleteIcon fontSize="small" />
-      </IconButton>
-    </div>
-  );
-
   return (
     <>
-      <Chip label={label} size="small" style={{ margin: "0.2rem" }} />
+      <Chip
+        label={userLabel(user, false, true)}
+        size="small"
+        onDelete={() => setDeleteOpen(true)}
+      />
       <ConfirmDeletionDialog
         deleteFunction={deleteCoauthor}
         dialogOpen={deleteOpen}
@@ -832,7 +827,7 @@ const SharingServicesPage = () => {
   const renderName = (params: any) => {
     const sharingService = params.row;
     return (
-      <div style={{ display: "flex", alignItems: "center" }}>
+      <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
         {sharingService.testing === true && (
           <Tooltip
             title={
@@ -848,10 +843,8 @@ const SharingServicesPage = () => {
             <BugReportIcon style={{ color: "orange" }} />
           </Tooltip>
         )}
-        <Typography variant="body1" style={{ marginLeft: "0.5rem" }}>
-          {sharingService.name}
-        </Typography>
-      </div>
+        <Typography variant="body1">{sharingService.name}</Typography>
+      </Box>
     );
   };
 
@@ -864,12 +857,12 @@ const SharingServicesPage = () => {
       ),
     );
     return (
-      <div
-        style={{
+      <Box
+        sx={{
           display: "flex",
           alignItems: "center",
           flexWrap: "wrap",
-          gap: "0.2rem",
+          gap: 0.5,
         }}
       >
         {coauthors.map((coauthor, idx) => (
@@ -884,7 +877,7 @@ const SharingServicesPage = () => {
           sharingService={sharingService}
           usersLookup={usersLookup}
         />
-      </div>
+      </Box>
     );
   };
 
@@ -894,7 +887,7 @@ const SharingServicesPage = () => {
       <Tooltip
         title={`Added at the end of the author list, e.g. 'First Last (Affiliation(s)) ${
           sharingService?.acknowledgments || "..."
-        }`}
+        }'`}
         placement="top"
       >
         <Typography variant="body1">
@@ -916,7 +909,14 @@ const SharingServicesPage = () => {
     });
 
     return (
-      <div style={{ display: "flex", flexWrap: "wrap", gap: "0.2rem" }}>
+      <Box
+        sx={{
+          display: "flex",
+          alignItems: "center",
+          flexWrap: "wrap",
+          gap: 0.5,
+        }}
+      >
         {sharingServiceGroups.map((sharingServiceGroup, idx) => (
           <SharingServiceGroup
             key={`${sharingServiceGroup.group_id}-${idx}`}
@@ -930,7 +930,7 @@ const SharingServicesPage = () => {
           sharingService={sharingService}
           groupsLookup={groupsLookup}
         />
-      </div>
+      </Box>
     );
   };
 
@@ -1040,7 +1040,7 @@ const SharingServicesPage = () => {
 
   const columns: any[] = [
     {
-      field: "Name",
+      field: "name",
       headerName: "Name",
       flex: 1,
       minWidth: 140,
@@ -1049,13 +1049,20 @@ const SharingServicesPage = () => {
     {
       field: "sending_to",
       headerName: "Sending to",
-      flex: 1,
-      minWidth: 140,
+      flex: 0.8,
+      minWidth: 130,
       sortable: false,
       renderCell: (params: any) => {
         const sharingService = params.row;
         return (
-          <div style={{ display: "flex", flexWrap: "wrap", gap: "0.2rem" }}>
+          <Box
+            sx={{
+              display: "flex",
+              alignItems: "center",
+              flexWrap: "wrap",
+              gap: 0.5,
+            }}
+          >
             {sharingService.enable_sharing_with_tns && (
               <Tooltip
                 title={
@@ -1072,6 +1079,7 @@ const SharingServicesPage = () => {
                 }
               >
                 <Chip
+                  size="small"
                   label={
                     <span
                       style={{
@@ -1080,10 +1088,7 @@ const SharingServicesPage = () => {
                         gap: "0.3rem",
                       }}
                     >
-                      TNS{" "}
-                      <InfoIcon
-                        style={{ color: "primary", fontSize: "1rem" }}
-                      />
+                      TNS <InfoIcon style={{ fontSize: "0.9rem" }} />
                     </span>
                   }
                   color="primary"
@@ -1092,33 +1097,38 @@ const SharingServicesPage = () => {
               </Tooltip>
             )}
             {sharingService.enable_sharing_with_hermes && (
-              <Chip label="Hermes" color="primary" variant="outlined" />
+              <Chip
+                size="small"
+                label="Hermes"
+                color="primary"
+                variant="outlined"
+              />
             )}
-          </div>
+          </Box>
         );
       },
     },
     {
       field: "groups",
       headerName: "Groups",
-      flex: 1,
-      minWidth: 160,
+      flex: 1.2,
+      minWidth: 180,
       sortable: false,
       renderCell: renderGroups,
     },
     {
       field: "coauthors",
       headerName: "Coauthors",
-      flex: 1,
-      minWidth: 160,
+      flex: 1.2,
+      minWidth: 180,
       sortable: false,
       renderCell: renderCoauthors,
     },
     {
       field: "acknowledgments",
       headerName: "Acknowledgments",
-      flex: 1,
-      minWidth: 160,
+      flex: 1.2,
+      minWidth: 180,
       sortable: false,
       renderCell: renderAcknowledgments,
     },
@@ -1137,7 +1147,7 @@ const SharingServicesPage = () => {
       field: "streams",
       headerName: "Streams (optional)",
       flex: 1,
-      minWidth: 160,
+      minWidth: 140,
       valueGetter: (_value: any, row: any) => {
         if (!row?.streams?.length) return "";
         return row.streams.map((stream: any) => stream.name).join(", ");
@@ -1145,17 +1155,19 @@ const SharingServicesPage = () => {
     },
     {
       field: "manage",
-      headerName: " ",
-      flex: 1,
-      minWidth: 120,
+      headerName: "",
+      width: managePermission ? 150 : 70,
       sortable: false,
       filterable: false,
+      disableColumnMenu: true,
+      resizable: false,
+      align: "right",
       renderCell: (params: any) => (
-        <div style={{ display: "flex" }}>
+        <Box sx={{ display: "flex", alignItems: "center" }}>
           {publishingSubmissionsLink(params.row)}
           {managePermission && renderEdit(params.row)}
           {managePermission && renderDelete(params.row)}
-        </div>
+        </Box>
       ),
     },
   ];
@@ -1192,6 +1204,8 @@ const SharingServicesPage = () => {
         )}
         columns={columns}
         getRowId={(row: any) => row.id}
+        getRowHeight={() => "auto"}
+        sx={{ "& .MuiDataGrid-cell": { whiteSpace: "normal", py: 1 } }}
         hideFooter
         initialState={{
           pagination: { paginationModel: { pageSize: 100 } },
