@@ -70,7 +70,6 @@ def upgrade():
         sa.ForeignKeyConstraint(["dateobs"], ["gcnevents.dateobs"], ondelete="CASCADE"),
         sa.PrimaryKeyConstraint("id"),
         sa.UniqueConstraint("_unique_id"),
-        sa.UniqueConstraint("hash"),
         sa.UniqueConstraint("token"),
     )
     op.create_index(
