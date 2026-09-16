@@ -473,8 +473,11 @@ class MMAAPI(FollowUpAPI):
     def custom_json_schema(instrument, user, **kwargs):
         from ..models import DBSession, GalaxyCatalog, InstrumentField
 
-        galaxy_catalogs = kwargs.get("galaxy_catalog_names", [])
-        if not isinstance(galaxy_catalogs, list) or len(galaxy_catalogs) == 0:
+        # An empty list is a valid answer (no catalogs); only a missing kwarg
+        # falls back to a per-instrument query, else rendering many instruments
+        # re-runs this DISTINCT once each.
+        galaxy_catalogs = kwargs.get("galaxy_catalog_names")
+        if galaxy_catalogs is None:
             galaxy_catalogs = [
                 g for (g,) in DBSession().query(GalaxyCatalog.name).distinct().all()
             ]
