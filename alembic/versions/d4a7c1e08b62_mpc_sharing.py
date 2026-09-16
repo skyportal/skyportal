@@ -5,7 +5,7 @@ submission row hangs off the track's anchor Obj; the columns otherwise mirror
 the TNS and Hermes ones.
 
 Revision ID: d4a7c1e08b62
-Revises: b2f8a1c9d3e5
+Revises: c3d9e7a1f4b6
 Create Date: 2026-09-16
 
 """
@@ -17,7 +17,7 @@ from alembic import op
 
 # revision identifiers, used by Alembic.
 revision = "d4a7c1e08b62"
-down_revision = "b2f8a1c9d3e5"
+down_revision = "c3d9e7a1f4b6"
 branch_labels = None
 depends_on = None
 
