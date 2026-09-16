@@ -32,6 +32,7 @@ from ...enum_types import (
     ANALYSIS_TYPES,
     AUTHENTICATION_TYPES,
     DEFAULT_ANALYSIS_FILTER_TYPES,
+    DEFAULT_ANALYSIS_LIST_FILTERS,
     DEFAULT_ANALYSIS_SCALAR_FILTERS,
 )
 from ...models import (
@@ -1271,6 +1272,11 @@ class DefaultAnalysisPostBody(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
+    analysis_resource_type: str = Field(
+        default="obj",
+        description="Resource this default triggers on: 'obj' (classifications) "
+        "or 'gcn_event' (incoming GCN triggers).",
+    )
     default_analysis_parameters: dict[str, Any] | str = Field(
         default_factory=dict,
         description="Dictionary of parameters to be passed thru to the analysis.",
@@ -2847,11 +2853,20 @@ class DefaultAnalysisHandler(BaseHandler):
                         f"Cannot find one or more groups with IDs: {group_ids}."
                     )
 
-                # check that the source_filter keys are valid: either a
-                # list-of-dicts filter (classifications) or a scalar (group_id).
+                analysis_resource_type = (body.analysis_resource_type or "obj").lower()
+                if analysis_resource_type not in ("obj", "gcn_event"):
+                    return self.error(
+                        "analysis_resource_type must be 'obj' or 'gcn_event', "
+                        f"not {analysis_resource_type}."
+                    )
+
+                # check that the source_filter keys are valid: a list-of-dicts
+                # filter (classifications), a scalar (group_id), or a list-of-
+                # scalars filter (gcn_tags / notice_types) for gcn_event defaults.
                 if not set(source_filter.keys()).issubset(
                     set(DEFAULT_ANALYSIS_FILTER_TYPES.keys())
                     | set(DEFAULT_ANALYSIS_SCALAR_FILTERS.keys())
+                    | set(DEFAULT_ANALYSIS_LIST_FILTERS.keys())
                 ):
                     return self.error(f"Invalid source_filter: {source_filter}.")
 
@@ -2861,6 +2876,15 @@ class DefaultAnalysisHandler(BaseHandler):
                             return self.error(
                                 f"Invalid source_filter. Key {key} must be a "
                                 f"{DEFAULT_ANALYSIS_SCALAR_FILTERS[key].__name__}."
+                            )
+                    elif key in DEFAULT_ANALYSIS_LIST_FILTERS:
+                        if not isinstance(value, list) or not all(
+                            isinstance(v, DEFAULT_ANALYSIS_LIST_FILTERS[key])
+                            for v in value
+                        ):
+                            return self.error(
+                                f"Invalid source_filter. Key {key} must be a list of "
+                                f"{DEFAULT_ANALYSIS_LIST_FILTERS[key].__name__}."
                             )
                     elif isinstance(value, list):
                         for v in value:
@@ -2884,6 +2908,7 @@ class DefaultAnalysisHandler(BaseHandler):
 
                 default_analysis = DefaultAnalysis(
                     analysis_service=analysis_service,
+                    analysis_resource_type=analysis_resource_type,
                     default_analysis_parameters=default_analysis_parameters,
                     source_filter=source_filter,
                     stats=stats,
