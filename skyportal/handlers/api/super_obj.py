@@ -7,6 +7,7 @@ from sqlalchemy.orm import selectinload
 from baselayer.app.access import auth_or_token, permissions
 
 from ...models import Obj, SuperObj
+from ...utils.parse import get_page_and_n_per_page
 from ..base import BaseHandler
 
 
@@ -28,6 +29,16 @@ class SuperObjGetQuery(BaseModel):
     objID: str | None = Field(
         default=None,
         description="Only SuperObjs linking this Obj",
+    )
+    includeEpochs: bool = Field(
+        default=False,
+        description="Include each linked Obj's thumbnails and annotations. A "
+        "scanning view needs them; a plain listing does not, and they cost a "
+        "query each.",
+    )
+    pageNumber: int = Field(default=1, description="Page number, starting at 1.")
+    numPerPage: int = Field(
+        default=100, description="SuperObjs per page, capped at 500."
     )
 
 
@@ -67,17 +78,39 @@ class SuperObjPatchBody(BaseModel):
     )
 
 
-def super_obj_to_dict(super_obj):
-    """Serialize a SuperObj with its linked Obj positions."""
-    return {
+def super_obj_to_dict(super_obj, epochs=False):
+    """Serialize a SuperObj with its linked Obj positions.
+
+    With ``epochs``, each Obj also carries its thumbnails and annotations, which
+    is what a reviewer needs to judge a moving object: one column of cutouts per
+    detection. Epochs are ordered by time so the columns read left to right.
+    """
+    objs = list(super_obj.objs)
+    if epochs:
+        objs.sort(key=lambda o: (o.created_at is None, o.created_at, o.id))
+    out = {
         "id": super_obj.id,
         "name": super_obj.name,
         "is_roid": super_obj.is_roid,
         "created_at": super_obj.created_at,
-        "objs": [
-            {"id": obj.id, "ra": obj.ra, "dec": obj.dec} for obj in super_obj.objs
-        ],
+        "objs": [{"id": obj.id, "ra": obj.ra, "dec": obj.dec} for obj in objs],
     }
+    if epochs:
+        for entry, obj in zip(out["objs"], objs, strict=True):
+            entry["created_at"] = obj.created_at
+            entry["thumbnails"] = [
+                {
+                    "id": t.id,
+                    "type": t.type,
+                    "public_url": t.public_url,
+                    "origin": t.origin,
+                }
+                for t in (obj.thumbnails or [])
+            ]
+            entry["annotations"] = [
+                {"origin": a.origin, "data": a.data} for a in (obj.annotations or [])
+            ]
+    return out
 
 
 async def load_objs(session, obj_ids):
@@ -187,8 +220,20 @@ class SuperObjHandler(BaseHandler):
         """
         query = self.parse_query(SuperObjGetQuery)
 
+        try:
+            page_number, n_per_page = get_page_and_n_per_page(
+                query.pageNumber, query.numPerPage
+            )
+        except ValueError as e:
+            return self.error(str(e))
+
         async with self.AsyncSession() as session:
             options = [selectinload(SuperObj.objs)]
+            if query.includeEpochs:
+                options = [
+                    selectinload(SuperObj.objs).selectinload(Obj.thumbnails),
+                    selectinload(SuperObj.objs).selectinload(Obj.annotations),
+                ]
 
             if super_obj_id is not None:
                 try:
@@ -203,7 +248,9 @@ class SuperObjHandler(BaseHandler):
                 )
                 if super_obj is None:
                     return self.error(f"Could not load SuperObj {super_obj_id}")
-                return self.success(data=super_obj_to_dict(super_obj))
+                return self.success(
+                    data=super_obj_to_dict(super_obj, epochs=query.includeEpochs)
+                )
 
             stmt = SuperObj.select(session.user_or_token, options=options)
 
@@ -216,9 +263,24 @@ class SuperObjHandler(BaseHandler):
             if query.objID is not None:
                 stmt = stmt.where(SuperObj.objs.any(Obj.id == query.objID))
 
-            result = await session.scalars(stmt)
+            total = await session.scalar(
+                sa.select(sa.func.count()).select_from(stmt.subquery())
+            )
+            result = await session.scalars(
+                stmt.order_by(SuperObj.created_at.desc(), SuperObj.id.desc())
+                .limit(n_per_page)
+                .offset((page_number - 1) * n_per_page)
+            )
             return self.success(
-                data=[super_obj_to_dict(s) for s in result.unique().all()]
+                data={
+                    "superObjs": [
+                        super_obj_to_dict(s, epochs=query.includeEpochs)
+                        for s in result.unique().all()
+                    ],
+                    "totalMatches": total,
+                    "pageNumber": page_number,
+                    "numPerPage": n_per_page,
+                }
             )
 
     @auth_or_token
