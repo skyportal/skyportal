@@ -32,6 +32,8 @@ import Spinner from "../Spinner";
 
 import ObservationPlanRequestForm from "../observation_plan/ObservationPlanRequestForm";
 import ObservationPlanRequestLists from "../observation_plan/ObservationPlanRequestLists";
+import AnalysisList from "../analysis/AnalysisList";
+import AnalysisForm from "../analysis/AnalysisForm";
 
 import { useCommentTarget } from "../../contexts/CommentPanelContext";
 import DisplayGraceDB from "./DisplayGraceDB";
@@ -442,6 +444,15 @@ const GcnEventPage = ({ route }: GcnEventPageProps) => {
               ) : (
                 noLocalization
               )}
+            </Paper>
+          </div>
+          <div className={styles.columnItem}>
+            <Paper>
+              <Typography className={styles.sectionHeading}>
+                Analyses
+              </Typography>
+              <AnalysisForm obj_id={dateobs} analysisResourceType="gcn_event" />
+              <AnalysisList obj_id={dateobs} analysisResourceType="gcn_event" />
             </Paper>
           </div>
         </Grid>

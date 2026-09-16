@@ -81,15 +81,21 @@ const useStyles = makeStyles()(() => ({
 
 interface AnalysisListProps {
   obj_id: string;
+  // "obj" (a source) by default; pass "gcn_event" with a dateobs as obj_id to
+  // list analyses run on a GCN event.
+  analysisResourceType?: string;
 }
 
-const AnalysisList = ({ obj_id }: AnalysisListProps) => {
+const AnalysisList = ({
+  obj_id,
+  analysisResourceType = "obj",
+}: AnalysisListProps) => {
   const { classes } = useStyles();
   const dispatch = useAppDispatch();
   const [cornerAnalysis, setCornerAnalysis] = useState<any>(null);
 
   const { data: analyses } = useGetAnalysesQuery({
-    analysis_resource_type: "obj",
+    analysis_resource_type: analysisResourceType,
     params: { objID: obj_id },
   });
   const [deleteAnalysisMutation] = useDeleteAnalysisMutation();
@@ -101,21 +107,26 @@ const AnalysisList = ({ obj_id }: AnalysisListProps) => {
   const [shareTarget, setShareTarget] = useState<any>(null);
   const [shareGroupIds, setShareGroupIds] = useState<number[]>([]);
 
-  // filter out the results, to only show the analyses for this object
+  // For a source, keep only this object's analyses; gcn_event analyses are
+  // already scoped to the event server-side and carry no obj_id.
   let analysesList: any[] = [];
   if (analyses !== undefined && analyses !== null) {
-    analysesList = analyses.filter(
-      (analysis: any) => analysis.obj_id === obj_id,
-    );
+    analysesList =
+      analysisResourceType === "obj"
+        ? analyses.filter((analysis: any) => analysis.obj_id === obj_id)
+        : analyses;
   }
 
   if (!analysesList || analysesList.length === 0) {
-    return <p>No analyses for this source...</p>;
+    return <p>No analyses yet...</p>;
   }
 
   const deleteAnalysis = async (analysisID: any) => {
     dispatch(showNotification(`Deleting Analysis (${analysisID}).`));
-    deleteAnalysisMutation({ analysis_id: analysisID });
+    deleteAnalysisMutation({
+      analysis_id: analysisID,
+      analysis_resource_type: analysisResourceType,
+    });
   };
 
   const isPrivate = (row: any) =>
@@ -147,6 +158,8 @@ const AnalysisList = ({ obj_id }: AnalysisListProps) => {
   };
 
   const renderShare = (params: any) => {
+    // Re-sharing is only wired up for obj analyses.
+    if (analysisResourceType !== "obj") return null;
     if (!profile || params.row.author_id !== profile.id) return null;
     return (
       <Button size="small" onClick={() => openShare(params.row)}>
@@ -160,7 +173,14 @@ const AnalysisList = ({ obj_id }: AnalysisListProps) => {
     return (
       <div className={classes.infoButton}>
         <Tooltip title="Link to analysis page" placement="top">
-          <Link to={`/source/${obj_id}/analysis/${analysis.id}`} role="link">
+          <Link
+            to={
+              analysisResourceType === "obj"
+                ? `/source/${obj_id}/analysis/${analysis.id}`
+                : `/gcn_events/${obj_id}/analysis/${analysis.id}`
+            }
+            role="link"
+          >
             <Button primary size="small">
               {analysis.id}
             </Button>

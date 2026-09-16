@@ -54,6 +54,7 @@ from skyportal.models import (
     GalaxyCatalog,
     GcnAssociationRule,
     GcnEvent,
+    GcnEventAnalysis,
     GcnEventAssociation,
     GcnEventCrossmatchState,
     GcnEventExtraction,
@@ -77,6 +78,7 @@ from skyportal.models import (
     GroupCommentOnSpectrum,
     GroupDefaultAnalysis,
     GroupGcnEvent,
+    GroupGcnEventAnalysis,
     GroupMMADetectorSpectrum,
     GroupMMADetectorTimeInterval,
     GroupObjAnalysis,
@@ -5054,6 +5056,60 @@ def public_group_obj_analysis(public_group, public_source, user):
 
 
 @pytest.fixture()
+def public_group_gcnevent_analysis(public_group, public_gcnevent, user):
+    # Inline parent: AnalysisService required by GcnEventAnalysis.
+    analysis_service = AnalysisService(
+        name=str(uuid.uuid4()),
+        display_name="Test Analysis Service",
+        url="http://localhost:5000/analysis/test_service",
+        authentication_type="none",
+        analysis_type="lightcurve_fitting",
+        input_data_types=[],
+    )
+    DBSession.add(analysis_service)
+    DBSession.commit()
+    analysis_service_id = analysis_service.id
+
+    # Inline parent: GcnEventAnalysis scoped to public_group so row-level read is
+    # meaningful (members can read; outsiders cannot).
+    gcnevent_analysis = GcnEventAnalysis(
+        dateobs=public_gcnevent.dateobs,
+        author_id=user.id,
+        analysis_service_id=analysis_service_id,
+        handled_by_url="/api/webhook/gcn_event_analysis",
+        status="completed",
+    )
+    DBSession.add(gcnevent_analysis)
+    DBSession.commit()
+    gcnevent_analysis_id = gcnevent_analysis.id
+
+    group_gcnevent_analysis = GroupGcnEventAnalysis(
+        group_id=public_group.id,
+        gcnevent_analyse_id=gcnevent_analysis_id,
+    )
+    DBSession.add(group_gcnevent_analysis)
+    DBSession.commit()
+    group_gcnevent_analysis_id = group_gcnevent_analysis.id
+
+    yield group_gcnevent_analysis
+
+    for model, ident in (
+        (GroupGcnEventAnalysis, group_gcnevent_analysis_id),
+        (GcnEventAnalysis, gcnevent_analysis_id),
+        (AnalysisService, analysis_service_id),
+    ):
+        row = (
+            DBSession()
+            .execute(sa.select(model).filter(model.id == ident))
+            .scalars()
+            .first()
+        )
+        if row is not None:
+            DBSession().delete(row)
+            DBSession().commit()
+
+
+@pytest.fixture()
 def public_group_obj_tag(public_source, public_group, user):
     option = ObjTagOption(name=str(uuid.uuid4()))
     DBSession.add(option)
@@ -5968,6 +6024,54 @@ def public_obj_analysis(public_source, public_group, user):
 
     for model, ident in (
         (ObjAnalysis, analysis_id),
+        (AnalysisService, analysis_service_id),
+    ):
+        row = (
+            DBSession()
+            .execute(sa.select(model).filter(model.id == ident))
+            .scalars()
+            .first()
+        )
+        if row is not None:
+            DBSession().delete(row)
+            DBSession().commit()
+
+
+@pytest.fixture()
+def public_gcnevent_analysis(public_gcnevent, public_group, user):
+    analysis_service = AnalysisService(
+        name=str(uuid.uuid4()),
+        display_name="Test Analysis Service",
+        url="http://localhost:5000/analysis/test_service",
+        authentication_type="none",
+        analysis_type="lightcurve_fitting",
+        groups=[public_group],
+    )
+    DBSession.add(analysis_service)
+    DBSession.commit()
+    analysis_service_id = analysis_service.id
+
+    analysis = GcnEventAnalysis(
+        dateobs=public_gcnevent.dateobs,
+        author_id=user.id,
+        analysis_service_id=analysis_service_id,
+        _unique_id=str(uuid.uuid4()),
+        show_parameters=False,
+        show_plots=False,
+        show_corner=False,
+        handled_by_url="/api/webhook/gcn_event_analysis",
+        status="queued",
+        token=str(uuid.uuid4()),
+        groups=[public_group],
+    )
+    DBSession.add(analysis)
+    DBSession.commit()
+    analysis_id = analysis.id
+
+    yield analysis
+
+    for model, ident in (
+        (GcnEventAnalysis, analysis_id),
         (AnalysisService, analysis_service_id),
     ):
         row = (

@@ -24,6 +24,7 @@ __all__ = [
     "GroupStream",
     "GroupAnalysisService",
     "GroupObjAnalysis",
+    "GroupGcnEventAnalysis",
     "GroupDefaultAnalysis",
     "GroupPublicRelease",
     "GroupScanReport",
@@ -41,7 +42,12 @@ from baselayer.app.models import (
     restricted,
 )
 
-from .analysis import AnalysisService, DefaultAnalysis, ObjAnalysis
+from .analysis import (
+    AnalysisService,
+    DefaultAnalysis,
+    GcnEventAnalysis,
+    ObjAnalysis,
+)
 from .annotation import Annotation, AnnotationOnPhotometry, AnnotationOnSpectrum
 from .classification import Classification
 from .comment import (
@@ -81,6 +87,12 @@ GroupObjAnalysis = join_model("group_obj_analyses", Group, ObjAnalysis)
 GroupObjAnalysis.__doc__ = "Join table mapping Groups to ObjAnalysis."
 GroupObjAnalysis.delete = GroupObjAnalysis.update = (
     accessible_by_group_admins & GroupObjAnalysis.read
+)
+
+GroupGcnEventAnalysis = join_model("group_gcnevent_analyses", Group, GcnEventAnalysis)
+GroupGcnEventAnalysis.__doc__ = "Join table mapping Groups to GcnEventAnalysis."
+GroupGcnEventAnalysis.delete = GroupGcnEventAnalysis.update = (
+    accessible_by_group_admins & GroupGcnEventAnalysis.read
 )
 
 GroupAnalysisService = join_model("group_analysisservices", Group, AnalysisService)

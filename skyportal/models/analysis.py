@@ -1,4 +1,9 @@
-__all__ = ["AnalysisService", "ObjAnalysis", "DefaultAnalysis"]
+__all__ = [
+    "AnalysisService",
+    "ObjAnalysis",
+    "GcnEventAnalysis",
+    "DefaultAnalysis",
+]
 
 import base64
 import io
@@ -207,6 +212,14 @@ class AnalysisService(Base):
         cascade="save-update, merge, refresh-expire, expunge, delete-orphan, delete",
         passive_deletes=True,
         doc="Instances of analysis applied to specific objects",
+    )
+
+    gcnevent_analyses = relationship(
+        "GcnEventAnalysis",
+        back_populates="analysis_service",
+        cascade="save-update, merge, refresh-expire, expunge, delete-orphan, delete",
+        passive_deletes=True,
+        doc="Instances of analysis applied to specific GCN events",
     )
 
     @property
@@ -459,6 +472,8 @@ class AnalysisMixin:
     def backref_name(cls):
         if cls.__name__ == "ObjAnalysis":
             return "obj_analyses"
+        if cls.__name__ == "GcnEventAnalysis":
+            return "gcnevent_analyses"
 
     @declared_attr
     def author_id(cls):
@@ -530,6 +545,35 @@ class ObjAnalysis(Base, AnalysisMixin, WebhookMixin):
             "Obj",
             back_populates=cls.backref_name(),
             doc="The ObjAnalysis's Obj.",
+        )
+
+
+class GcnEventAnalysis(Base, AnalysisMixin, WebhookMixin):
+    """Analysis on a GcnEvent with a set of results as JSON"""
+
+    __tablename__ = "gcnevent_analyses"
+
+    create = AccessibleIfRelatedRowsAreAccessible(gcnevent="read")
+    read = accessible_by_groups_members & AccessibleIfRelatedRowsAreAccessible(
+        gcnevent="read"
+    )
+    update = delete = AccessibleIfUserMatches("author")
+
+    @declared_attr
+    def dateobs(cls):
+        return sa.Column(
+            sa.ForeignKey("gcnevents.dateobs", ondelete="CASCADE"),
+            nullable=False,
+            index=True,
+            doc="UTC event timestamp of the GcnEventAnalysis's GcnEvent.",
+        )
+
+    @declared_attr
+    def gcnevent(cls):
+        return relationship(
+            "GcnEvent",
+            back_populates=cls.backref_name(),
+            doc="The GcnEventAnalysis's GcnEvent.",
         )
 
 

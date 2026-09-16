@@ -318,6 +318,15 @@ skyportal_handlers = [
         r"/api/(obj)/analysis(/[0-9]+)/(corner|results|plots)(/[0-9]+)?",
         AnalysisProductsHandler,
     ),
+    # GCN-event analyses: the resource id is a dateobs (has ':'/'T'), so match it
+    # broadly like the other /api/gcn_event routes. The trailing capture is the
+    # analysis_service_id on POST and the analysis_id on GET/DELETE.
+    (r"/api/(gcn_event)/(.*)/analysis(/[0-9]+)?", AnalysisHandler),
+    (r"/api/(gcn_event)/analysis(/[0-9]+)?", AnalysisHandler),
+    (
+        r"/api/(gcn_event)/analysis(/[0-9]+)/(corner|results|plots)(/[0-9]+)?",
+        AnalysisProductsHandler,
+    ),
     (r"/api/assignment(/.*)?", AssignmentHandler),
     (r"/api/brokers/([0-9]+)/filter/test", BrokerFilterTestHandler),
     (
@@ -695,7 +704,7 @@ skyportal_handlers = [
     (r"/api/weather(/.*)?", WeatherHandler),
     # strictly require uuid4 token for this unauthenticated endpoint
     (
-        r"/api/webhook/(obj)_analysis/([0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})?",
+        r"/api/webhook/(obj|gcn_event)_analysis/([0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})?",
         AnalysisWebhookHandler,
     ),
     # Public pages managed by the API.
