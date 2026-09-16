@@ -1859,3 +1859,67 @@ def test_patch_analysis_group_sharing(
     )
     assert status in (400, 401, 403)
     assert analysis_group_ids() == {user.single_user_group.id}
+
+
+def test_run_gcnevent_analysis(
+    analysis_service_token, analysis_token, public_group, public_gcnevent
+):
+    name = str(uuid.uuid4())
+    post_data = {
+        "name": name,
+        "display_name": "test gcn-event analysis service",
+        "description": "A test GCN-event analysis service",
+        "version": "1.0",
+        "contact_name": "Vera Rubin",
+        "contact_email": "vr@ls.st",
+        "url": f"http://localhost:{analysis_port}/analysis/demo_analysis",
+        "authentication_type": "none",
+        "analysis_type": "lightcurve_fitting",
+        # GCN-event analyses receive the event dateobs/GPS, not exported datasets.
+        "input_data_types": [],
+        "timeout": 60,
+        "group_ids": [public_group.id],
+    }
+    status, data = api(
+        "POST", "analysis_service", data=post_data, token=analysis_service_token
+    )
+    assert status == 200, data
+    analysis_service_id = data["data"]["id"]
+
+    dateobs = public_gcnevent.dateobs.isoformat()
+    status, data = api(
+        "POST",
+        f"gcn_event/{dateobs}/analysis/{analysis_service_id}",
+        token=analysis_token,
+    )
+    assert status == 200, data
+    analysis_id = data["data"].get("id")
+    assert analysis_id is not None
+
+    params = {"includeAnalysisData": True}
+
+    def analysis_started():
+        status, data = api(
+            "GET",
+            f"gcn_event/analysis/{analysis_id}",
+            token=analysis_token,
+            params=params,
+        )
+        assert status == 200, data
+        assert data["data"]["analysis_service_id"] == analysis_service_id
+        # status != queued means the service was called and the webhook returned
+        assert data["data"]["status"] != "queued", data["data"]["status_message"]
+        return data
+
+    retry_until(analysis_started, timeout=100)
+
+    # list analyses for the event
+    status, data = api("GET", f"gcn_event/{dateobs}/analysis", token=analysis_token)
+    assert status == 200, data
+    assert any(a["id"] == analysis_id for a in data["data"])
+
+    # delete
+    status, data = api(
+        "DELETE", f"gcn_event/analysis/{analysis_id}", token=analysis_token
+    )
+    assert status == 200, data

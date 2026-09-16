@@ -18173,13 +18173,13 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * Bulk-share one group's data with another group
+         * Bulk-share spectra/photometry with a group
          * @description <b>Permission(s) required:</b> <em>System admin (or System admin)</em><br><br>Grant (or revoke) a target group's access to every spectrum and/or
-         *     photometry point already shared with a source group, in one
-         *     set-based operation. Additive and idempotent: it only inserts or
-         *     deletes group associations and never touches the data itself. This
-         *     is the supported way to re-expose narrowly-shared legacy/imported
-         *     data collaboration-wide.
+         *     photometry point selected either by a source group (`from_group_id`)
+         *     or by a set of objects (`obj_ids`), in one set-based operation.
+         *     Additive and idempotent: it only inserts or deletes group
+         *     associations and never touches the data itself. The supported way to
+         *     re-expose narrowly-shared legacy/imported data collaboration-wide.
          */
         post: {
             parameters: {
@@ -18191,7 +18191,10 @@ export interface paths {
             requestBody?: {
                 content: {
                     "application/json": {
-                        from_group_id: number;
+                        /** @description Source group; mutually exclusive with obj_ids. */
+                        from_group_id?: number;
+                        /** @description Source objects; mutually exclusive with from_group_id. */
+                        obj_ids?: string[];
                         to_group_id: number;
                         data_types?: ("spectra" | "photometry")[];
                         /** @enum {string} */
@@ -23679,6 +23682,7 @@ export interface components {
         AnalysisService: {
             readonly groups?: components["schemas"]["Group"][];
             readonly obj_analyses?: components["schemas"]["ObjAnalysis"][];
+            readonly gcnevent_analyses?: components["schemas"]["GcnEventAnalysis"][];
             readonly default_analyses?: components["schemas"]["DefaultAnalysis"][];
             /** @description Unique name/identifier of the analysis service. */
             name: string;
@@ -23737,6 +23741,7 @@ export interface components {
         AnalysisServiceNoID: {
             readonly groups?: components["schemas"]["Group"][];
             readonly obj_analyses?: components["schemas"]["ObjAnalysis"][];
+            readonly gcnevent_analyses?: components["schemas"]["GcnEventAnalysis"][];
             readonly default_analyses?: components["schemas"]["DefaultAnalysis"][];
             /** @description Unique name/identifier of the analysis service. */
             name: string;
@@ -26896,6 +26901,7 @@ export interface components {
             readonly summaries?: components["schemas"]["GcnSummary"][];
             readonly _tags?: components["schemas"]["GcnTag"][];
             readonly localizations?: components["schemas"]["Localization"][];
+            readonly gcnevent_analyses?: components["schemas"]["GcnEventAnalysis"][];
             readonly observationplan_requests?: components["schemas"]["ObservationPlanRequest"][];
             readonly survey_efficiency_analyses?: components["schemas"]["SurveyEfficiencyForObservations"][];
             readonly comments?: components["schemas"]["CommentOnGCN"][];
@@ -26951,6 +26957,146 @@ export interface components {
             status: "success";
             message?: string;
             data?: components["schemas"]["GcnEvent"][];
+        };
+        GcnEventAnalysis: {
+            /** @description The GcnEventAnalysis's GcnEvent. */
+            readonly gcnevent?: components["schemas"]["GcnEvent"];
+            /** @description Annotation's author. */
+            readonly author?: components["schemas"]["User"];
+            /** @description Analysis Service associated with this analysis. */
+            readonly analysis_service?: components["schemas"]["AnalysisService"];
+            readonly groups?: components["schemas"]["Group"][];
+            /**
+             * Format: date-time
+             * @description UTC event timestamp of the GcnEventAnalysis's GcnEvent.
+             */
+            dateobs: string;
+            /** @description Unique object identifier. */
+            id?: number;
+            /** @description Unique identifier for this analysis result. */
+            _unique_id?: string;
+            /** @description MD5sum hash of the data to be saved to file. Helps identify duplicate results. */
+            hash?: string | null;
+            /** @description full name of the file path where the data is saved. */
+            _full_name?: string | null;
+            /** @description Whether to render the parameters of this analysis */
+            show_parameters?: boolean;
+            /** @description Whether to render the plots of this analysis */
+            show_plots?: boolean;
+            /** @description Whether to render the corner plots of this analysis */
+            show_corner?: boolean;
+            /** @description Optional parameters that are passed to the analysis service */
+            analysis_parameters?: string | null;
+            /** @description Optional filters that are applied to the input data that is passed to the analysis service */
+            input_filters?: string | null;
+            /** @description ID of the Annotation author's User instance. */
+            author_id: number;
+            /** @description ID of the associated analysis service. */
+            analysis_service_id: number;
+            /**
+             * Format: date-time
+             * @description Time after which the webhook is invalid. Default: 1 day from now.
+             */
+            invalid_after?: string;
+            /** @description Unique identifier for this webhook. */
+            token?: string;
+            /** @description url for internal API to handle the incoming callback. */
+            handled_by_url: string;
+            /**
+             * @description Status of the Webhook. One of: 'queued', 'pending', 'completed', 'failure', 'cancelled', 'timed_out'.
+             * @enum {string}
+             */
+            status: "queued" | "pending" | "completed" | "failure" | "cancelled" | "timed_out";
+            /** @description How long did this take to run and return this webhook? */
+            duration?: number | null;
+            /**
+             * Format: date-time
+             * @description When was the last time this webhook was accessed?
+             */
+            last_activity?: string | null;
+            /** @description A message describing the status of the webhook. */
+            status_message?: string | null;
+        };
+        SingleGcnEventAnalysis: {
+            /** @enum {string} */
+            status: "success";
+            message?: string;
+            data?: components["schemas"]["GcnEventAnalysis"];
+        };
+        ArrayOfGcnEventAnalysiss: {
+            /** @enum {string} */
+            status: "success";
+            message?: string;
+            data?: components["schemas"]["GcnEventAnalysis"][];
+        };
+        GcnEventAnalysisNoID: {
+            /** @description The GcnEventAnalysis's GcnEvent. */
+            readonly gcnevent?: components["schemas"]["GcnEvent"];
+            /** @description Annotation's author. */
+            readonly author?: components["schemas"]["User"];
+            /** @description Analysis Service associated with this analysis. */
+            readonly analysis_service?: components["schemas"]["AnalysisService"];
+            readonly groups?: components["schemas"]["Group"][];
+            /**
+             * Format: date-time
+             * @description UTC event timestamp of the GcnEventAnalysis's GcnEvent.
+             */
+            dateobs: string;
+            /** @description Unique identifier for this analysis result. */
+            _unique_id?: string;
+            /** @description MD5sum hash of the data to be saved to file. Helps identify duplicate results. */
+            hash?: string | null;
+            /** @description full name of the file path where the data is saved. */
+            _full_name?: string | null;
+            /** @description Whether to render the parameters of this analysis */
+            show_parameters?: boolean;
+            /** @description Whether to render the plots of this analysis */
+            show_plots?: boolean;
+            /** @description Whether to render the corner plots of this analysis */
+            show_corner?: boolean;
+            /** @description Optional parameters that are passed to the analysis service */
+            analysis_parameters?: string | null;
+            /** @description Optional filters that are applied to the input data that is passed to the analysis service */
+            input_filters?: string | null;
+            /** @description ID of the Annotation author's User instance. */
+            author_id: number;
+            /** @description ID of the associated analysis service. */
+            analysis_service_id: number;
+            /**
+             * Format: date-time
+             * @description Time after which the webhook is invalid. Default: 1 day from now.
+             */
+            invalid_after?: string;
+            /** @description Unique identifier for this webhook. */
+            token?: string;
+            /** @description url for internal API to handle the incoming callback. */
+            handled_by_url: string;
+            /**
+             * @description Status of the Webhook. One of: 'queued', 'pending', 'completed', 'failure', 'cancelled', 'timed_out'.
+             * @enum {string}
+             */
+            status: "queued" | "pending" | "completed" | "failure" | "cancelled" | "timed_out";
+            /** @description How long did this take to run and return this webhook? */
+            duration?: number | null;
+            /**
+             * Format: date-time
+             * @description When was the last time this webhook was accessed?
+             */
+            last_activity?: string | null;
+            /** @description A message describing the status of the webhook. */
+            status_message?: string | null;
+        };
+        SingleGcnEventAnalysisNoID: {
+            /** @enum {string} */
+            status: "success";
+            message?: string;
+            data?: components["schemas"]["GcnEventAnalysisNoID"];
+        };
+        ArrayOfGcnEventAnalysisNoIDs: {
+            /** @enum {string} */
+            status: "success";
+            message?: string;
+            data?: components["schemas"]["GcnEventAnalysisNoID"][];
         };
         GcnEventAssociation: {
             /** @description The earlier GcnEvent. */
@@ -27249,6 +27395,7 @@ export interface components {
             readonly summaries?: components["schemas"]["GcnSummary"][];
             readonly _tags?: components["schemas"]["GcnTag"][];
             readonly localizations?: components["schemas"]["Localization"][];
+            readonly gcnevent_analyses?: components["schemas"]["GcnEventAnalysis"][];
             readonly observationplan_requests?: components["schemas"]["ObservationPlanRequest"][];
             readonly survey_efficiency_analyses?: components["schemas"]["SurveyEfficiencyForObservations"][];
             readonly comments?: components["schemas"]["CommentOnGCN"][];
@@ -28323,6 +28470,44 @@ export interface components {
             status: "success";
             message?: string;
             data?: components["schemas"]["GroupGcnEvent"][];
+        };
+        GroupGcnEventAnalysis: {
+            readonly group?: components["schemas"]["Group"];
+            readonly gcneventanalysis?: components["schemas"]["GcnEventAnalysis"];
+            group_id: number;
+            gcnevent_analyse_id: number;
+            /** @description Unique object identifier. */
+            id?: number;
+        };
+        SingleGroupGcnEventAnalysis: {
+            /** @enum {string} */
+            status: "success";
+            message?: string;
+            data?: components["schemas"]["GroupGcnEventAnalysis"];
+        };
+        ArrayOfGroupGcnEventAnalysiss: {
+            /** @enum {string} */
+            status: "success";
+            message?: string;
+            data?: components["schemas"]["GroupGcnEventAnalysis"][];
+        };
+        GroupGcnEventAnalysisNoID: {
+            readonly group?: components["schemas"]["Group"];
+            readonly gcneventanalysis?: components["schemas"]["GcnEventAnalysis"];
+            group_id: number;
+            gcnevent_analyse_id: number;
+        };
+        SingleGroupGcnEventAnalysisNoID: {
+            /** @enum {string} */
+            status: "success";
+            message?: string;
+            data?: components["schemas"]["GroupGcnEventAnalysisNoID"];
+        };
+        ArrayOfGroupGcnEventAnalysisNoIDs: {
+            /** @enum {string} */
+            status: "success";
+            message?: string;
+            data?: components["schemas"]["GroupGcnEventAnalysisNoID"][];
         };
         GroupGcnEventNoID: {
             readonly group?: components["schemas"]["Group"];

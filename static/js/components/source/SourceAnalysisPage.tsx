@@ -80,24 +80,35 @@ const useStyles = makeStyles()((theme) => ({
   },
 }));
 
-interface SourceAnalysisPageProps {
+interface AnalysisPageProps {
   route: {
-    obj_id: string;
+    obj_id?: string;
+    dateobs?: string;
     analysis_id: number;
   };
+  analysisResourceType?: string;
 }
 
-const SourceAnalysisPage = ({ route }: SourceAnalysisPageProps) => {
+const AnalysisPage = ({
+  route,
+  analysisResourceType = "obj",
+}: AnalysisPageProps) => {
   const { classes } = useStyles();
+  const isObj = analysisResourceType === "obj";
+  // obj routes bind :obj_id, gcn_event routes bind :dateobs.
+  const resourceId = (isObj ? route.obj_id : route.dateobs) ?? "";
+  const resourceUrl = isObj
+    ? `/source/${resourceId}`
+    : `/gcn_events/${resourceId}`;
 
   const { data: analysisData } = useGetAnalysisQuery({
     analysis_id: route.analysis_id,
-    analysis_resource_type: "obj",
-    params: { objID: route.obj_id },
+    analysis_resource_type: analysisResourceType,
+    params: isObj ? { objID: resourceId } : {},
   });
   const { data: analysisResults } = useGetAnalysisResultsQuery({
     analysis_id: route.analysis_id,
-    analysis_resource_type: "obj",
+    analysis_resource_type: analysisResourceType,
   });
   const analysis = analysisData as any;
 
@@ -117,8 +128,8 @@ const SourceAnalysisPage = ({ route }: SourceAnalysisPageProps) => {
     <>
       <Typography variant="h5" gutterBottom>
         Analysis Page for{" "}
-        <Link to={`/source/${route.obj_id}`} role="link">
-          {route.obj_id}
+        <Link to={resourceUrl} role="link">
+          {resourceId}
         </Link>{" "}
         (#{route.analysis_id})
       </Typography>
@@ -228,7 +239,7 @@ const SourceAnalysisPage = ({ route }: SourceAnalysisPageProps) => {
                   </Card>
                   <Button
                     primary
-                    href={`/api/obj/analysis/${analysis.id}/results`}
+                    href={`/api/${analysisResourceType}/analysis/${analysis.id}/results`}
                     size="small"
                     type="submit"
                     target="_blank"
@@ -255,7 +266,7 @@ const SourceAnalysisPage = ({ route }: SourceAnalysisPageProps) => {
                   <CardContent>
                     <div className={classes.mediaDiv}>
                       <AnalysisCornerPlot
-                        objId={route.obj_id}
+                        objId={resourceId}
                         analysisId={analysis.id}
                       />
                     </div>
@@ -286,7 +297,7 @@ const SourceAnalysisPage = ({ route }: SourceAnalysisPageProps) => {
                           className={classes.mediaDiv}
                         >
                           <img
-                            src={`/api/obj/analysis/${analysis.id}/plots/${i}`}
+                            src={`/api/${analysisResourceType}/analysis/${analysis.id}/plots/${i}`}
                             alt={`analysis plot ${i}`}
                             className={classes.media}
                             title={`analysis plot ${i}`}
@@ -294,7 +305,7 @@ const SourceAnalysisPage = ({ route }: SourceAnalysisPageProps) => {
                           />
                           <Button
                             primary
-                            href={`/api/obj/analysis/${analysis.id}/plots/${i}`}
+                            href={`/api/${analysisResourceType}/analysis/${analysis.id}/plots/${i}`}
                             size="small"
                             type="submit"
                             target="_blank"
@@ -317,4 +328,8 @@ const SourceAnalysisPage = ({ route }: SourceAnalysisPageProps) => {
   );
 };
 
-export default withRouter(SourceAnalysisPage);
+export const GcnEventAnalysisPage = withRouter((props: any) => (
+  <AnalysisPage {...props} analysisResourceType="gcn_event" />
+));
+
+export default withRouter(AnalysisPage);

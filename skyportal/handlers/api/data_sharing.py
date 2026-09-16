@@ -11,21 +11,30 @@ from ..base import BaseHandler
 
 log = make_log("api/data_sharing")
 
-# Supported data types -> (association table, data-id column). Whitelist only;
-# these values are interpolated into SQL, so they must never come from the client.
+# Supported data types -> (association table, data-id column, data table).
+# Whitelist only; these values are interpolated into SQL, so they must never
+# come from the client.
 DATA_TYPES = {
-    "spectra": ("group_spectra", "spectr_id"),
-    "photometry": ("group_photometry", "photometr_id"),
+    "spectra": ("group_spectra", "spectr_id", "spectra"),
+    "photometry": ("group_photometry", "photometr_id", "photometry"),
 }
 
 
 class BulkDataShareBody(BaseModel):
-    """Add or remove a target group across all data already in a source group."""
+    """Add or remove a target group across data selected by a source group or a
+    set of objects. Provide exactly one of `from_group_id` or `obj_ids`."""
 
     model_config = ConfigDict(extra="forbid")
 
-    from_group_id: int = Field(
-        description="Group whose existing data-shares define the set to act on."
+    from_group_id: int | None = Field(
+        default=None,
+        description="Group whose existing data-shares define the set to act on. "
+        "Mutually exclusive with obj_ids.",
+    )
+    obj_ids: list[str] | None = Field(
+        default=None,
+        description="Objects whose data (in any group) to act on. Mutually "
+        "exclusive with from_group_id.",
     )
     to_group_id: int = Field(
         description="Group to grant (or revoke) access for on that data."
@@ -44,14 +53,14 @@ class BulkDataShareHandler(BaseHandler):
     async def post(self):
         """
         ---
-        summary: Bulk-share one group's data with another group
+        summary: Bulk-share spectra/photometry with a group
         description: |
             Grant (or revoke) a target group's access to every spectrum and/or
-            photometry point already shared with a source group, in one
-            set-based operation. Additive and idempotent: it only inserts or
-            deletes group associations and never touches the data itself. This
-            is the supported way to re-expose narrowly-shared legacy/imported
-            data collaboration-wide.
+            photometry point selected either by a source group (`from_group_id`)
+            or by a set of objects (`obj_ids`), in one set-based operation.
+            Additive and idempotent: it only inserts or deletes group
+            associations and never touches the data itself. The supported way to
+            re-expose narrowly-shared legacy/imported data collaboration-wide.
         tags:
           - groups
         requestBody:
@@ -60,11 +69,16 @@ class BulkDataShareHandler(BaseHandler):
               schema:
                 type: object
                 required:
-                  - from_group_id
                   - to_group_id
                 properties:
                   from_group_id:
                     type: integer
+                    description: Source group; mutually exclusive with obj_ids.
+                  obj_ids:
+                    type: array
+                    items:
+                      type: string
+                    description: Source objects; mutually exclusive with from_group_id.
                   to_group_id:
                     type: integer
                   data_types:
@@ -95,11 +109,17 @@ class BulkDataShareHandler(BaseHandler):
             return self.error(
                 f"Unknown data_types {sorted(unknown)}; allowed: {sorted(DATA_TYPES)}."
             )
-        if body.from_group_id == body.to_group_id:
+        scope_by_objs = bool(body.obj_ids)
+        if scope_by_objs == (body.from_group_id is not None):
+            return self.error("Provide exactly one of `from_group_id` or `obj_ids`.")
+        if not scope_by_objs and body.from_group_id == body.to_group_id:
             return self.error("`from_group_id` and `to_group_id` must differ.")
 
         async with self.AsyncSession() as session:
-            for gid in (body.from_group_id, body.to_group_id):
+            group_ids = [body.to_group_id]
+            if not scope_by_objs:
+                group_ids.append(body.from_group_id)
+            for gid in group_ids:
                 group = await session.scalar(
                     Group.select(session.user_or_token).where(Group.id == gid)
                 )
@@ -108,16 +128,38 @@ class BulkDataShareHandler(BaseHandler):
 
             counts = {}
             for data_type in body.data_types:
-                table, col = DATA_TYPES[data_type]
-                if body.action == "add":
+                assoc, col, data_table = DATA_TYPES[data_type]
+                if scope_by_objs and body.action == "add":
+                    # Share every point/spectrum of the given objects, whatever
+                    # group it currently sits in. NOT EXISTS keeps it idempotent.
+                    stmt = sa.text(
+                        f"INSERT INTO {assoc} (group_id, {col}, created_at, modified) "  # noqa: S608
+                        f"SELECT :to, d.id, :now, :now FROM {data_table} d "
+                        f"WHERE d.obj_id = ANY(:obj_ids) AND NOT EXISTS "
+                        f"(SELECT 1 FROM {assoc} x WHERE x.{col} = d.id "
+                        f"AND x.group_id = :to)"
+                    )
+                    params = {
+                        "to": body.to_group_id,
+                        "obj_ids": body.obj_ids,
+                        "now": utcnow_naive(),
+                    }
+                elif scope_by_objs:
+                    stmt = sa.text(
+                        f"DELETE FROM {assoc} x USING {data_table} d "  # noqa: S608
+                        f"WHERE x.{col} = d.id AND x.group_id = :to "
+                        f"AND d.obj_id = ANY(:obj_ids)"
+                    )
+                    params = {"to": body.to_group_id, "obj_ids": body.obj_ids}
+                elif body.action == "add":
                     # NOT EXISTS keeps it idempotent regardless of the table's
                     # PK shape (group_spectra has a surrogate id; group_photometry
                     # a composite key), so a re-run adds nothing.
                     stmt = sa.text(
-                        f"INSERT INTO {table} (group_id, {col}, created_at, modified) "  # noqa: S608
-                        f"SELECT :to, src.{col}, :now, :now FROM {table} src "
+                        f"INSERT INTO {assoc} (group_id, {col}, created_at, modified) "  # noqa: S608
+                        f"SELECT :to, src.{col}, :now, :now FROM {assoc} src "
                         f"WHERE src.group_id = :from_ AND NOT EXISTS "
-                        f"(SELECT 1 FROM {table} x WHERE x.{col} = src.{col} "
+                        f"(SELECT 1 FROM {assoc} x WHERE x.{col} = src.{col} "
                         f"AND x.group_id = :to)"
                     )
                     params = {
@@ -127,18 +169,20 @@ class BulkDataShareHandler(BaseHandler):
                     }
                 else:
                     stmt = sa.text(
-                        f"DELETE FROM {table} WHERE group_id = :to AND {col} IN "  # noqa: S608
-                        f"(SELECT {col} FROM {table} WHERE group_id = :from_)"
+                        f"DELETE FROM {assoc} WHERE group_id = :to AND {col} IN "  # noqa: S608
+                        f"(SELECT {col} FROM {assoc} WHERE group_id = :from_)"
                     )
                     params = {"to": body.to_group_id, "from_": body.from_group_id}
                 result = await session.execute(stmt, params)
                 counts[data_type] = result.rowcount
             await session.commit()
 
-        log(
-            f"bulk data {body.action}: group {body.from_group_id} -> "
-            f"{body.to_group_id}: {counts}"
+        source = (
+            f"objs={len(body.obj_ids)}"
+            if scope_by_objs
+            else f"group {body.from_group_id}"
         )
+        log(f"bulk data {body.action}: {source} -> {body.to_group_id}: {counts}")
         return self.success(data={"action": body.action, "counts": counts})
 
 

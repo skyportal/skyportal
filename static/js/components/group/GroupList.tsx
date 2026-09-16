@@ -29,6 +29,8 @@ interface GroupListProps {
   variant?: "normal" | "widget";
   linkToGroupSources?: boolean;
   admission?: boolean;
+  filterModel?: any;
+  onFilterModelChange?: (model: any) => void;
 }
 
 const GroupList = ({
@@ -37,6 +39,8 @@ const GroupList = ({
   variant = "normal",
   linkToGroupSources = false,
   admission = false,
+  filterModel,
+  onFilterModelChange,
 }: GroupListProps) => {
   const navigate = useNavigate();
   const dispatch = useAppDispatch();
@@ -209,6 +213,8 @@ const GroupList = ({
       getRowId={(row: any) => row.id}
       initialState={{ pagination: { paginationModel: { pageSize: 30 } } }}
       pageSizeOptions={[30, 50, 100, 200]}
+      filterModel={filterModel}
+      onFilterModelChange={onFilterModelChange}
       showToolbar
       onRowClick={
         admission ? undefined : (params: any) => navigate(getLink(params.row))

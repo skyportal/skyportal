@@ -574,6 +574,16 @@ async def process_event_filter(
         if horizon is not None:
             jd_end = min(jd_end, horizon)
 
+    # The resume point can sit past the end of the window: state.last_alert_jd
+    # records how far a previous run got, so narrowing delta_t_after (or the
+    # history horizon) leaves nothing left to search. The broker rejects
+    # start >= end outright, which would fail the state on every retry.
+    if jd_start >= jd_end:
+        state.last_queried = utcnow_naive()
+        state.status = "done"
+        state.error = None
+        return 0
+
     broker = filter_.broker
     survey = filter_survey(filter_)
     # Bounded by the filter's own stream: its group is who sees the candidates,

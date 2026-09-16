@@ -11,6 +11,7 @@ resolution-markers = [
 members = [
     "baselayer",
     "skyportal",
+    "skyportal-py-models",
 ]
 
 [[package]]
@@ -2469,8 +2470,8 @@ wheels = [
 
 [[package]]
 name = "m4opt"
-version = "0.1.dev877+g9ca530e1e"
-source = { git = "https://github.com/skyportal/m4opt?rev=9ca530e#9ca530e1efe92ed4f23ea78722a0b3e1a3d45d5b" }
+version = "0.1.dev878+gd02e893b7"
+source = { git = "https://github.com/skyportal/m4opt?rev=d02e893#d02e893b7c45150dd555c6cbf6c589a120f488d0" }
 dependencies = [
     { name = "aep8" },
     { name = "antiprism-python" },
@@ -4685,6 +4686,7 @@ dependencies = [
     { name = "shapely" },
     { name = "simplejson" },
     { name = "simsurvey" },
+    { name = "skyportal-py-models" },
     { name = "sncosmo" },
     { name = "suds-py3" },
     { name = "swifttools" },
@@ -4782,7 +4784,7 @@ requires-dist = [
     { name = "langchain-openai", specifier = "==1.2.2" },
     { name = "ligo-skymap", specifier = "==2.5.4" },
     { name = "lxml", specifier = "==6.1.1" },
-    { name = "m4opt", extras = ["scip"], marker = "extra == 'm4opt'", git = "https://github.com/skyportal/m4opt?rev=9ca530e" },
+    { name = "m4opt", extras = ["scip"], marker = "extra == 'm4opt'", git = "https://github.com/skyportal/m4opt?rev=d02e893" },
     { name = "marshmallow", specifier = "==4.3.0" },
     { name = "marshmallow-sqlalchemy", specifier = "==1.5.0" },
     { name = "matplotlib", specifier = "==3.11.1" },
@@ -4823,6 +4825,7 @@ requires-dist = [
     { name = "simplejson", specifier = "==4.1.1" },
     { name = "simsurvey", specifier = "==0.7.5" },
     { name = "skyportal", extras = ["pittgoogle"], marker = "extra == 'brokers-all'" },
+    { name = "skyportal-py-models", editable = "projects/api-models" },
     { name = "sncosmo", specifier = "==2.13.1" },
     { name = "suds-py3", specifier = "==1.4.5.0" },
     { name = "swifttools", specifier = "==4.0.5" },
@@ -4861,6 +4864,17 @@ docs = [
     { name = "sphinx", marker = "python_full_version >= '3.12'", specifier = ">=9.1.0" },
     { name = "sphinx-book-theme" },
 ]
+
+[[package]]
+name = "skyportal-py-models"
+version = "0.4.0"
+source = { editable = "projects/api-models" }
+dependencies = [
+    { name = "pydantic" },
+]
+
+[package.metadata]
+requires-dist = [{ name = "pydantic", specifier = ">=2" }]
 
 [[package]]
 name = "slicerator"

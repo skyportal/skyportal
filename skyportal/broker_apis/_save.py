@@ -490,10 +490,27 @@ async def _ingest_object(
         object_id, survey, data, instrument_id, programid2streamid
     )
 
+    # Whoever can see the object has to be able to see its light curve. With no
+    # group_ids the only group on the photometry is the ingesting account's own
+    # single-user group, so a scanner opens a new candidate to an empty plot --
+    # invisible for objects ZTF has seen before, whose points come from
+    # elsewhere too.
+    photometry_group_ids = set(saved_group_ids)
+    if filter_ids:
+        photometry_group_ids.update(
+            (
+                await session.scalars(
+                    sa.select(Filter.group_id).where(Filter.id.in_(filter_ids))
+                )
+            ).all()
+        )
+
     for pd in photometry_data.values():
         if pd["mjd"]:  # never post empty photometry (breaks JSON coercion)
             # Bulk ingestion must not inherit the sitewide default-share; keep
             # ingested photometry scoped to the object's stream/user groups.
+            if photometry_group_ids:
+                pd["group_ids"] = sorted(photometry_group_ids)
             try:
                 await add_external_photometry(
                     pd, user, session, apply_default_share=False

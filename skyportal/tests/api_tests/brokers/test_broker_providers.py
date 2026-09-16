@@ -210,8 +210,18 @@ def _capture_boom_request(monkeypatch, result=None):
 
     calls = []
 
-    def fake_request(broker, method, path, *, params=None, json=None):
-        calls.append({"method": method, "path": path, "params": params, "json": json})
+    # Mirror _request's signature, timeout included: test_filter and
+    # validate_filter pass one, and a fake without it raises TypeError.
+    def fake_request(broker, method, path, *, params=None, json=None, timeout=None):
+        calls.append(
+            {
+                "method": method,
+                "path": path,
+                "params": params,
+                "json": json,
+                "timeout": timeout,
+            }
+        )
         return result if result is not None else []
 
     monkeypatch.setattr(boom_mod, "_request", fake_request)
@@ -1236,7 +1246,7 @@ def test_boom_filter_test_scopes_unrestricted_users(public_stream):
 
     captured = {}
 
-    def fake_request(broker, method, path, *, params=None, json=None):
+    def fake_request(broker, method, path, *, params=None, json=None, timeout=None):
         captured["path"] = path
         captured["json"] = json
         return {"count": 0}
