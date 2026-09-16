@@ -19773,6 +19773,12 @@ export interface paths {
                     isRoid?: boolean | null;
                     /** @description Only SuperObjs linking this Obj */
                     objID?: string | null;
+                    /** @description Include each linked Obj's thumbnails and annotations. A scanning view needs them; a plain listing does not, and they cost a query each. */
+                    includeEpochs?: boolean;
+                    /** @description Page number, starting at 1. */
+                    pageNumber?: number;
+                    /** @description SuperObjs per page, capped at 500. */
+                    numPerPage?: number;
                 };
                 header?: never;
                 path?: never;
@@ -36144,6 +36150,7 @@ export interface components {
             _tns_altdata?: string | null;
             /** @description Whether to publish objects that already exist in TNS but not reported under this internal name (e.g., reported by another survey). */
             publish_existing_tns_objects?: boolean | null;
+            _mpc_altdata?: string | null;
             /** @description Unique object identifier. */
             id?: number;
         };
@@ -36212,6 +36219,7 @@ export interface components {
             owner?: boolean;
             auto_share_to_tns?: boolean;
             auto_share_to_hermes?: boolean;
+            auto_share_to_mpc?: boolean;
             auto_sharing_allow_bots?: boolean;
             /** @description Unique object identifier. */
             id?: number;
@@ -36279,6 +36287,7 @@ export interface components {
             owner?: boolean;
             auto_share_to_tns?: boolean;
             auto_share_to_hermes?: boolean;
+            auto_share_to_mpc?: boolean;
             auto_sharing_allow_bots?: boolean;
         };
         SingleSharingServiceGroupNoID: {
@@ -36322,6 +36331,7 @@ export interface components {
             _tns_altdata?: string | null;
             /** @description Whether to publish objects that already exist in TNS but not reported under this internal name (e.g., reported by another survey). */
             publish_existing_tns_objects?: boolean | null;
+            _mpc_altdata?: string | null;
         };
         SingleSharingServiceNoID: {
             /** @enum {string} */
@@ -36361,6 +36371,20 @@ export interface components {
             } | null;
             /** @description Payload to publish to TNS. */
             tns_payload?: {
+                [key: string]: unknown;
+            } | null;
+            /** @description Whether to publish to the Minor Planet Center or not. */
+            publish_to_mpc?: boolean;
+            /** @description Status of the MPC submission. */
+            mpc_status?: string | null;
+            /** @description Designation or tracking id the MPC submission was filed under. */
+            mpc_submission_id?: string | null;
+            /** @description Serialized HTTP response from the MPC. */
+            mpc_response?: {
+                [key: string]: unknown;
+            } | null;
+            /** @description ADES payload submitted to the MPC. */
+            mpc_payload?: {
                 [key: string]: unknown;
             } | null;
             /** @description Whether to publish to Hermes or not. */
@@ -36426,6 +36450,20 @@ export interface components {
             } | null;
             /** @description Payload to publish to TNS. */
             tns_payload?: {
+                [key: string]: unknown;
+            } | null;
+            /** @description Whether to publish to the Minor Planet Center or not. */
+            publish_to_mpc?: boolean;
+            /** @description Status of the MPC submission. */
+            mpc_status?: string | null;
+            /** @description Designation or tracking id the MPC submission was filed under. */
+            mpc_submission_id?: string | null;
+            /** @description Serialized HTTP response from the MPC. */
+            mpc_response?: {
+                [key: string]: unknown;
+            } | null;
+            /** @description ADES payload submitted to the MPC. */
+            mpc_payload?: {
                 [key: string]: unknown;
             } | null;
             /** @description Whether to publish to Hermes or not. */
