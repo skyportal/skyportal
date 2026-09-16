@@ -1,7 +1,7 @@
 """Add UserApplication table
 
 Revision ID: a3d7c1f04b92
-Revises: a1c7e4f93b52
+Revises: b2f8a1c9d3e5
 Create Date: 2026-09-15 10:00:00.000000
 
 """
@@ -13,7 +13,7 @@ from alembic import op
 
 # revision identifiers, used by Alembic.
 revision = "a3d7c1f04b92"
-down_revision = "a1c7e4f93b52"
+down_revision = "b2f8a1c9d3e5"
 branch_labels = None
 depends_on = None
 
