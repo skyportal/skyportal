@@ -1225,3 +1225,12 @@ GcnEvent.crossmatch_states = relationship(
     passive_deletes=True,
     doc="Per-broker crossmatch progress for this event.",
 )
+
+
+# Auto-run gcn_event default analyses when an incoming event is tagged (e.g. a
+# GRB trigger). Registered here because models.analysis imports before models.gcn.
+from sqlalchemy import event as sa_event  # noqa: E402
+
+from .analysis import create_default_gcnevent_analysis  # noqa: E402
+
+sa_event.listen(GcnTag, "after_insert", create_default_gcnevent_analysis)

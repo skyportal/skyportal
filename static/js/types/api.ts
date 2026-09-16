@@ -25060,9 +25060,12 @@ export interface components {
             show_corner?: boolean;
             /** @description Optional parameters that are passed to the analysis service */
             default_analysis_parameters?: string | null;
+            /** @description Resource this default triggers on: 'obj' (classifications) or 'gcn_event' (incoming GCN triggers). */
+            analysis_resource_type?: string;
             /**
              * @description JSONB column that defines the criteria for which this default analysis will be triggered.
-             *                 Example: {"classifications": {"name": "Kilonova", "probability": 0.9}}
+             *                 For 'obj': {"classifications": [{"name": "Kilonova", "probability": 0.9}]}.
+             *                 For 'gcn_event': {"gcn_tags": ["GRB"], "notice_types": [...]} (either, matched as OR).
              */
             source_filter: {
                 [key: string]: unknown;
@@ -25104,9 +25107,12 @@ export interface components {
             show_corner?: boolean;
             /** @description Optional parameters that are passed to the analysis service */
             default_analysis_parameters?: string | null;
+            /** @description Resource this default triggers on: 'obj' (classifications) or 'gcn_event' (incoming GCN triggers). */
+            analysis_resource_type?: string;
             /**
              * @description JSONB column that defines the criteria for which this default analysis will be triggered.
-             *                 Example: {"classifications": {"name": "Kilonova", "probability": 0.9}}
+             *                 For 'obj': {"classifications": [{"name": "Kilonova", "probability": 0.9}]}.
+             *                 For 'gcn_event': {"gcn_tags": ["GRB"], "notice_types": [...]} (either, matched as OR).
              */
             source_filter: {
                 [key: string]: unknown;
@@ -39155,6 +39161,12 @@ export interface components {
          * @description Request body for creating a default analysis.
          */
         DefaultAnalysisPostBody: {
+            /**
+             * Analysis Resource Type
+             * @description Resource this default triggers on: 'obj' (classifications) or 'gcn_event' (incoming GCN triggers).
+             * @default obj
+             */
+            analysis_resource_type: string;
             /**
              * Default Analysis Parameters
              * @description Dictionary of parameters to be passed thru to the analysis.
