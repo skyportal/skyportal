@@ -2469,8 +2469,8 @@ wheels = [
 
 [[package]]
 name = "m4opt"
-version = "0.1.dev877+g9ca530e1e"
-source = { git = "https://github.com/skyportal/m4opt?rev=9ca530e#9ca530e1efe92ed4f23ea78722a0b3e1a3d45d5b" }
+version = "0.1.dev878+gd02e893b7"
+source = { git = "https://github.com/skyportal/m4opt?rev=d02e893#d02e893b7c45150dd555c6cbf6c589a120f488d0" }
 dependencies = [
     { name = "aep8" },
     { name = "antiprism-python" },
@@ -4782,7 +4782,7 @@ requires-dist = [
     { name = "langchain-openai", specifier = "==1.2.2" },
     { name = "ligo-skymap", specifier = "==2.5.4" },
     { name = "lxml", specifier = "==6.1.1" },
-    { name = "m4opt", extras = ["scip"], marker = "extra == 'm4opt'", git = "https://github.com/skyportal/m4opt?rev=9ca530e" },
+    { name = "m4opt", extras = ["scip"], marker = "extra == 'm4opt'", git = "https://github.com/skyportal/m4opt?rev=d02e893" },
     { name = "marshmallow", specifier = "==4.3.0" },
     { name = "marshmallow-sqlalchemy", specifier = "==1.5.0" },
     { name = "matplotlib", specifier = "==3.11.1" },
