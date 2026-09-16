@@ -107,6 +107,8 @@ ANALYSIS_INPUT_TYPES = (
 DEFAULT_ANALYSIS_FILTER_TYPES = {"classifications": ["name", "probability"]}
 # Scalar (not list-of-dicts) filter keys; see create_default_analysis_on_save.
 DEFAULT_ANALYSIS_SCALAR_FILTERS = {"group_id": int, "spectrum": str}
+# List-of-scalar filter keys for gcn_event defaults; see create_default_gcnevent_analysis.
+DEFAULT_ANALYSIS_LIST_FILTERS = {"gcn_tags": str, "notice_types": str}
 AUTHENTICATION_TYPES = (
     "none",
     "header_token",

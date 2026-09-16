@@ -1923,3 +1923,98 @@ def test_run_gcnevent_analysis(
         "DELETE", f"gcn_event/analysis/{analysis_id}", token=analysis_token
     )
     assert status == 200, data
+
+
+def test_default_gcnevent_analysis_on_grb_tag(
+    analysis_service_token,
+    analysis_token,
+    super_admin_token,
+    public_group,
+    public_gcnevent,
+):
+    # A gcn_event default analysis auto-runs when a matching tag lands on an event.
+    name = str(uuid.uuid4())
+    post_data = {
+        "name": name,
+        "display_name": "test gcn-event default analysis service",
+        "description": "A test GCN-event analysis service",
+        "version": "1.0",
+        "contact_name": "Vera Rubin",
+        "contact_email": "vr@ls.st",
+        "url": f"http://localhost:{analysis_port}/analysis/demo_analysis",
+        "authentication_type": "none",
+        "analysis_type": "lightcurve_fitting",
+        "input_data_types": [],
+        "timeout": 60,
+        "group_ids": [public_group.id],
+    }
+    status, data = api(
+        "POST", "analysis_service", data=post_data, token=analysis_service_token
+    )
+    assert status == 200, data
+    analysis_service_id = data["data"]["id"]
+
+    status, data = api(
+        "POST",
+        f"analysis_service/{analysis_service_id}/default_analysis",
+        data={
+            "analysis_resource_type": "gcn_event",
+            "source_filter": {"gcn_tags": ["GRB"]},
+            "group_ids": [public_group.id],
+            "daily_limit": 5,
+        },
+        token=analysis_token,
+    )
+    assert status == 200, data
+
+    dateobs = public_gcnevent.dateobs.isoformat()
+
+    # A non-matching tag must not trigger the default analysis.
+    status, data = api(
+        "POST",
+        "gcn_event/tags",
+        data={"dateobs": dateobs, "text": "GW"},
+        token=super_admin_token,
+    )
+    assert status == 200, data
+
+    # The GRB tag should trigger it.
+    status, data = api(
+        "POST",
+        "gcn_event/tags",
+        data={"dateobs": dateobs, "text": "GRB"},
+        token=super_admin_token,
+    )
+    assert status == 200, data
+
+    # Only the GRB tag matches, so exactly one analysis should be auto-created
+    # (like test_default_analysis, we pin creation, not webhook completion).
+    def analysis_created():
+        status, data = api(
+            "GET",
+            f"gcn_event/{dateobs}/analysis",
+            token=analysis_token,
+        )
+        assert status == 200, data
+        matches = [
+            a for a in data["data"] if a["analysis_service_id"] == analysis_service_id
+        ]
+        assert len(matches) == 1, f"expected one auto-run analysis, got {len(matches)}"
+        return matches[0]
+
+    analysis = retry_until(analysis_created, timeout=60)
+
+    status, data = api(
+        "DELETE", f"gcn_event/analysis/{analysis['id']}", token=analysis_token
+    )
+    assert status == 200, data
+
+    # Remove the tags we added so the public_gcnevent fixture can delete the
+    # event (gcntags.dateobs is NOT NULL, so a nullifying cascade would fail).
+    for tag_text in ("GW", "GRB"):
+        api(
+            "DELETE",
+            f"gcn_event/tags/{dateobs}",
+            data={"tag": tag_text},
+            token=super_admin_token,
+        )
