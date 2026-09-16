@@ -327,6 +327,9 @@ app:
     - path: "/gcn_events/:dateobs"
       component: gcn/GcnEventPage
       anonymous_ok: true
+    - path: "/gcn_events/:dateobs/analysis/:analysis_id"
+      component: source/GcnEventAnalysisPage
+      anonymous_ok: true
     - path: "/mmadetectors"
       component: mma_detector/MMADetectorPage
     - path: "/earthquakes"
