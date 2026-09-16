@@ -18,15 +18,19 @@ from ...models import (
     GroupUser,
     Invitation,
     Role,
+    RoleACL,
     Stream,
     User,
+    UserACL,
     UserApplication,
     UserNotification,
+    UserRole,
 )
 from ...utils.app import get_app_base_url
 from ...utils.email import send_email
 from ...utils.naive_datetime import utcnow_naive
 from ...utils.user_applications import (
+    ADMIN_ACL,
     deciding_acls,
     may_decide,
     user_applications_enabled,
@@ -47,43 +51,68 @@ SUBMITTED_MESSAGE = (
 DISABLED_MESSAGE = "Account applications are not enabled in this deployment."
 
 
-def notify_endorser(session, application):
-    """Tell the named endorser an application is waiting, if we know who they are."""
-    if application.endorser_id is None:
-        return
+def notify_deciders(session, application, endorser):
+    """Tell whoever may act on the application it is waiting, and return their IDs.
+
+    The named endorser only counts when they may decide; under the default
+    admins-only mode they cannot, so it goes to the administrators instead.
+    """
+    if endorser is not None and may_decide(endorser):
+        recipients = [endorser]
+        notification = "has asked you to endorse their application for an account"
+        email = "has applied for an account and named you as their endorser."
+    else:
+        holds_admin_acl = sa.or_(
+            sa.select(UserACL.user_id)
+            .where(UserACL.user_id == User.id, UserACL.acl_id == ADMIN_ACL)
+            .exists(),
+            sa.select(UserRole.user_id)
+            .join(RoleACL, RoleACL.role_id == UserRole.role_id)
+            .where(UserRole.user_id == User.id, RoleACL.acl_id == ADMIN_ACL)
+            .exists(),
+        )
+        recipients = session.scalars(sa.select(User).where(holds_admin_acl)).all()
+        notification = "has applied for an account"
+        email = "has applied for an account."
+    if not recipients:
+        return []
 
     url = "/user_applications"
-    session.add(
-        UserNotification(
-            user_id=application.endorser_id,
-            text=(
-                f"*{application.first_name} {application.last_name}* has asked "
-                "you to endorse their application for an account"
-            ),
-            notification_type="user_application",
-            url=url,
+    for recipient in recipients:
+        session.add(
+            UserNotification(
+                user_id=recipient.id,
+                text=(
+                    f"*{application.first_name} {application.last_name}* {notification}"
+                ),
+                notification_type="user_application",
+                url=url,
+            )
         )
-    )
+    recipient_ids = [recipient.id for recipient in recipients]
     if cfg.get("user_applications.disable_emailing", False):
-        return
-    # The applicant is unauthenticated, so their words never reach the email as markup.
-    applicant = html.escape(
-        f"{application.first_name} {application.last_name} "
-        f"({application.contact_email})"
-    )
-    try:
-        send_email(
-            recipients=[application.endorser_email],
-            subject=cfg["user_applications.email_subject"],
-            body=(
-                f"{applicant} has applied for an account and named you as "
-                "their endorser.<br /><br />"
-                f'Review the application <a href="{get_app_base_url()}{url}">here</a>.'
-            ),
+        return recipient_ids
+
+    addresses = [r.contact_email for r in recipients if r.contact_email]
+    if addresses:
+        # The applicant is unauthenticated, so their words never reach the email as markup.
+        applicant = html.escape(
+            f"{application.first_name} {application.last_name} "
+            f"({application.contact_email})"
         )
-    except Exception as e:
-        # The application is recorded either way; the in-app notification stands.
-        log(f"Failed to email endorser {application.endorser_email}: {e}")
+        try:
+            send_email(
+                recipients=addresses,
+                subject=cfg["user_applications.email_subject"],
+                body=(
+                    f"{applicant} {email}<br /><br />"
+                    f'Review the application <a href="{get_app_base_url()}{url}">here</a>.'
+                ),
+            )
+        except Exception as e:
+            # The application is recorded either way; the in-app notification stands.
+            log(f"Failed to email {', '.join(addresses)}: {e}")
+    return recipient_ids
 
 
 class UserApplicationPostBody(BaseModel):
@@ -241,13 +270,11 @@ class UserApplicationHandler(BaseHandler):
             )
             session.add(application)
             session.flush()
-            notify_endorser(session, application)
+            notified = notify_deciders(session, application, endorser)
             session.commit()
 
-            if application.endorser_id is not None:
-                self.flow.push(
-                    application.endorser_id, "skyportal/FETCH_NOTIFICATIONS", {}
-                )
+            for user_id in notified:
+                self.flow.push(user_id, "skyportal/FETCH_NOTIFICATIONS", {})
             return self.success(data={"message": SUBMITTED_MESSAGE})
 
     @auth_or_token

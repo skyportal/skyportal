@@ -1,5 +1,8 @@
 import uuid
 
+import sqlalchemy as sa
+
+from skyportal.models import DBSession, User, UserNotification
 from skyportal.tests import api
 
 
@@ -235,4 +238,32 @@ def test_delete_application(endorse_users_token):
     assert (
         api("GET", f"user_applications/{application_id}", token=endorse_users_token)[0]
         == 400
+    )
+
+
+def test_an_endorser_who_cannot_decide_is_not_the_one_notified(
+    view_only_user, super_admin_user
+):
+    """Naming someone who may not act on applications must not put the
+    application in their lap; it goes to the administrators who can."""
+    session = DBSession()
+    session.rollback()
+    last_notification_id = (
+        session.scalar(sa.select(sa.func.max(UserNotification.id))) or 0
+    )
+
+    email = f"{uuid.uuid4().hex}@example.org"
+    assert submit(endorser_email=view_only_user.contact_email, email=email)[0] == 200
+
+    session.rollback()
+    notified = session.scalars(
+        sa.select(UserNotification.user_id).where(
+            UserNotification.id > last_notification_id,
+            UserNotification.notification_type == "user_application",
+        )
+    ).all()
+    assert notified
+    assert view_only_user.id not in notified
+    assert all(
+        "Manage users" in session.get(User, user_id).permissions for user_id in notified
     )
