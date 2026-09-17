@@ -175,6 +175,7 @@ export const TAG_TYPES = [
   "SourceInGcn",
   "SurveyEfficiencyObservationPlan",
   "UserNotification",
+  "UserApplication",
   "ScanReportItem",
   "DefaultObservationPlan",
   "Favorite",

@@ -352,6 +352,12 @@ def _build_gcnevent_analysis(
     receives the event's dateobs and GPS time — what time-domain services (e.g.
     aframe) work from.
     """
+    if analysis_service.is_summary:
+        raise ValueError(
+            "A summary is written to a source's summary history, so a summary "
+            "analysis service cannot run on a GCN event."
+        )
+
     import arrow
     from astropy.time import Time
 
@@ -924,6 +930,12 @@ async def post_analysis_async(
         )
         resource_path = f"/source/{obj_id}"
     elif analysis_resource_type.lower() == "gcn_event":
+        if analysis_service.is_summary:
+            raise ValueError(
+                "A summary is written to a source's summary history, so a "
+                "summary analysis service cannot run on a GCN event."
+            )
+
         import arrow
         from astropy.time import Time
 

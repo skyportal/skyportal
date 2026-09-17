@@ -1861,6 +1861,43 @@ def test_patch_analysis_group_sharing(
     assert analysis_group_ids() == {user.single_user_group.id}
 
 
+def test_summary_analysis_is_refused_on_a_gcnevent(
+    analysis_service_token, analysis_token, public_group, public_gcnevent
+):
+    """A summary is written to a source's summary history, which a GCN event has
+    none of, so the run is refused rather than left to fail on the webhook."""
+    name = str(uuid.uuid4())
+    post_data = {
+        "name": name,
+        "display_name": "test summary analysis service",
+        "description": "A test summary analysis service",
+        "version": "1.0",
+        "contact_name": "Vera Rubin",
+        "contact_email": "vr@ls.st",
+        "url": f"http://localhost:{analysis_port}/analysis/demo_analysis",
+        "authentication_type": "none",
+        "analysis_type": "lightcurve_fitting",
+        "input_data_types": [],
+        "is_summary": True,
+        "timeout": 60,
+        "group_ids": [public_group.id],
+    }
+    status, data = api(
+        "POST", "analysis_service", data=post_data, token=analysis_service_token
+    )
+    assert status == 200, data
+    analysis_service_id = data["data"]["id"]
+
+    dateobs = public_gcnevent.dateobs.isoformat()
+    status, data = api(
+        "POST",
+        f"gcn_event/{dateobs}/analysis/{analysis_service_id}",
+        token=analysis_token,
+    )
+    assert status == 400, data
+    assert "cannot run on a GCN event" in data["message"]
+
+
 def test_run_gcnevent_analysis(
     analysis_service_token, analysis_token, public_group, public_gcnevent
 ):

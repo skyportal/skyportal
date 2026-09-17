@@ -405,6 +405,30 @@ SkyPortal, you should enable multi-user login by adding Google
 credentials to the `server:auth` section of the configuration file and
 setting `debug_login` to `False`.
 
+### Account applications
+
+Where `invitations.enabled` is set, only an administrator holding the
+`Manage users` ACL can bring someone onto the instance. Setting
+`user_applications.enabled` opens a second route: people without an account
+apply from a form on the login page, or at `/apply`, naming an existing user who
+can vouch for them. Approving an application issues the invitation and emails it
+to the applicant, who then signs in through the usual OAuth flow.
+
+Applications are off by default, and that one flag covers everything the feature
+adds: the form on the login page, the `/apply` page, the API endpoints and the
+sidebar entry.
+
+`user_applications.peer_endorsement` decides who acts on an application. Left
+`False`, only `Manage users` administrators approve. Set `True`, any user
+holding the `Endorse users` ACL can vouch for one, as arXiv and GCN do;
+administrators still can either way. `Endorse users` is granted to the
+`Full user` and `Group admin` roles by default, and does nothing until peer
+endorsement is on.
+
+Whoever decides chooses the new user's role, and may add them only to groups
+they themselves belong to, so an endorsement cannot hand out access the endorser
+does not have.
+
 ### Username generation
 
 When `server.auth.username_is_email` is set to `True` (the default), the user's username is generated from their email address (e.g., `testuser@cesium-ml.org` → `testuser-cesium-ml-org`).

@@ -50,6 +50,7 @@ from skyportal.models import (
     Telescope,
     Thumbnail,
     User,
+    UserApplication,
     UserNotification,
     init_db,
 )
@@ -1154,6 +1155,24 @@ class InvitationFactory(factory.alchemy.SQLAlchemyModelFactory):
         DBSession().commit()
 
         UserFactory.teardown(invited_by)
+
+
+class UserApplicationFactory(factory.alchemy.SQLAlchemyModelFactory):
+    class Meta(BaseMeta):
+        model = UserApplication
+
+    first_name = "Ada"
+    last_name = "Lovelace"
+    contact_email = factory.LazyFunction(lambda: f"{uuid.uuid4().hex}@example.org")
+    status = "pending"
+
+    @staticmethod
+    def teardown(application):
+        if is_already_deleted(application, UserApplication):
+            return
+
+        DBSession().delete(application)
+        DBSession().commit()
 
 
 class NotificationFactory(factory.alchemy.SQLAlchemyModelFactory):
