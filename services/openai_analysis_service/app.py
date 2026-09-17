@@ -263,11 +263,11 @@ def run_openai_summarization(data_dict):
             base_url=summarize_embedding_base_url,
         )
         try:
-            e = embedding_client.embeddings.create(
+            response = embedding_client.embeddings.create(
                 input=openai_summary,
                 model=summarize_embedding_model,
             )
-            result["embedding"] = e.data[0].embedding
+            result["embedding"] = response.data[0].embedding
             result["embedding_model"] = summarize_embedding_model
         except Exception as e:
             # The summary is worth keeping either way: without its vector it is
