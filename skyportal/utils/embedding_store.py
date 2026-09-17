@@ -114,19 +114,25 @@ async def _nearest(
     for opposite.
     """
     distance = _embeddings.embedding.op("<=>", return_type=sa.Float)(target)
-    nearest = sa.select(
-        _embeddings.obj_id,
-        (1 - distance).label("score"),
-    )
-    nearest = _restrict(
-        nearest, model, accessible_objs, classifications, z_min, z_max, classes
-    )
+    scored = _restrict(
+        sa.select(_embeddings.obj_id, (1 - distance).label("score")),
+        model,
+        accessible_objs,
+        classifications,
+        z_min,
+        z_max,
+        classes,
+    ).subquery()
+
+    # Read off `scored` rather than repeating the expression: each mention would
+    # measure every candidate again, and read the target again with it.
+    nearest = sa.select(scored.c.obj_id, scored.c.score)
     # A target that does not exist is near nothing: an obj with no stored vector
     # gives a NULL target, and every distance to it is NULL.
-    nearest = nearest.where(distance.isnot(None))
+    nearest = nearest.where(scored.c.score.isnot(None))
     if min_score is not None:
-        nearest = nearest.where((1 - distance) >= min_score)
-    nearest = nearest.order_by(distance).limit(k).subquery()
+        nearest = nearest.where(scored.c.score >= min_score)
+    nearest = nearest.order_by(scored.c.score.desc()).limit(k).subquery()
 
     # Described after the cut, so these lookups run for k rows and no more.
     stmt = (
