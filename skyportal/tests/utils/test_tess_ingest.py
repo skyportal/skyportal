@@ -37,10 +37,13 @@ def _healpix_at(ra, dec):
     return HPX.skycoord_to_healpix(SkyCoord(ra * u.deg, dec * u.deg))
 
 
-def test_a_camera_centre_is_in_its_sector(tess_fields):
-    _, ra, dec, _ = camera_pointings(SECTOR)[0]
-    sectors = sectors_containing(DBSession(), tess_fields.id, _healpix_at(ra, dec))
-    assert sectors == [SECTOR]
+def test_every_camera_centre_is_in_its_sector(tess_fields):
+    # All four rather than one. A position bound with the wrong healpix encoding
+    # resolves somewhere else entirely, and a single camera centre can still land
+    # on another camera of the same sector by chance.
+    for camera, ra, dec, _ in camera_pointings(SECTOR):
+        sectors = sectors_containing(DBSession(), tess_fields.id, _healpix_at(ra, dec))
+        assert sectors == [SECTOR], f"camera {camera}"
 
 
 def test_a_position_well_off_the_cameras_is_in_no_sector(tess_fields):
