@@ -19,7 +19,7 @@ from tornado.ioloop import IOLoop
 
 from baselayer.app.env import load_env
 from baselayer.log import make_log
-from skyportal.utils.embedding_store_config import PGVECTOR, store_location
+from skyportal.utils.embedding_store_config import summary_embeddings_enabled
 
 _, cfg = load_env()
 log = make_log("openai_analysis_service")
@@ -35,10 +35,7 @@ summarize_embedding_api_key = summarize_embedding_config.get("api_key") or None
 summarize_embedding_model = summarize_embedding_config.get("model")
 # This service only produces the vector; SkyPortal stores it when the result
 # comes back, so there is nothing to embed into without pgvector.
-EMBED_SUMMARIES = (
-    store_location(summarize_embedding_config) == PGVECTOR
-    and summarize_embedding_model is not None
-)
+EMBED_SUMMARIES = summary_embeddings_enabled(summarize_embedding_config)
 
 summary_config = copy.deepcopy(cfg["analysis_services.openai_analysis_service.summary"])
 if summary_config.get("api_key"):

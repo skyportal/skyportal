@@ -10,7 +10,7 @@ from baselayer.log import make_log
 
 from ...models import Annotation, ObjAnalysis
 from ...utils.embedding_store import delete_embedding, upsert_embedding
-from ...utils.embedding_store_config import PGVECTOR, store_location
+from ...utils.embedding_store_config import summary_embeddings_enabled
 from ...utils.naive_datetime import utcnow_naive
 from ..base import BaseHandler
 from .candidate.candidate import (
@@ -24,7 +24,7 @@ _, cfg = load_env()
 _embedding_config = (
     cfg["analysis_services.openai_analysis_service.embeddings_store.summary"] or {}
 )
-_EMBED_TO_PGVECTOR = store_location(_embedding_config) == PGVECTOR
+_EMBED_TO_PGVECTOR = summary_embeddings_enabled(_embedding_config)
 
 
 class AnalysisWebhookPostBody(BaseModel):

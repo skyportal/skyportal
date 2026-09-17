@@ -1,12 +1,17 @@
 """Reading the embeddings store config. Kept apart from the search so services
 that only need to know whether it is on do not import the model layer."""
 
-__all__ = ["PGVECTOR", "store_location"]
+__all__ = ["summary_embeddings_enabled"]
 
 PGVECTOR = "pgvector"
 
 
-def store_location(config: dict) -> str | None:
-    """The configured backend name, lowercased, or None when unset."""
-    location = (config or {}).get("location")
-    return str(location).strip().lower() if location else None
+def summary_embeddings_enabled(config: dict) -> bool:
+    """Whether summary vectors are made and kept: a store, and a model to fill it."""
+    config = config or {}
+    location = config.get("location")
+    return (
+        bool(location)
+        and str(location).strip().lower() == PGVECTOR
+        and config.get("model") is not None
+    )

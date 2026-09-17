@@ -12,7 +12,7 @@ from baselayer.app.env import load_env
 
 from ...models import Classification, Source, User
 from ...utils.embedding_store import search_embeddings, search_embeddings_by_obj
-from ...utils.embedding_store_config import PGVECTOR, store_location
+from ...utils.embedding_store_config import summary_embeddings_enabled
 from ..base import BaseHandler
 
 _, cfg = load_env()
@@ -43,10 +43,7 @@ summarize_embedding_min_score = summarize_embedding_config.get("min_score")
 
 # The vectors live in our own database, so there is nothing to reach for: the
 # search is on when the config names the store and the model that filled it.
-USE_PGVECTOR = (
-    store_location(summarize_embedding_config) == PGVECTOR
-    and summarize_embedding_model is not None
-)
+USE_PGVECTOR = summary_embeddings_enabled(summarize_embedding_config)
 
 summary_config = copy.deepcopy(cfg["analysis_services.openai_analysis_service.summary"])
 if summary_config.get("api_key"):
