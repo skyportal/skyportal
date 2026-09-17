@@ -1,11 +1,16 @@
 import datetime
-from typing import ClassVar
 
 import numpy as np
 import sqlalchemy as sa
 from astropy.utils.masked import MaskedNDArray
 from marshmallow.exceptions import ValidationError
-from pydantic import BaseModel, ConfigDict, Field
+from skyportal_py_models.observing_runs import (
+    ObservingRunBulkEditBody,
+    ObservingRunGetQuery,
+    ObservingRunPostBody,
+    ObservingRunPostResponse,
+    ObservingRunPutBody,
+)
 from sqlalchemy.orm import selectinload
 
 from baselayer.app.access import auth_or_token, permissions
@@ -30,77 +35,6 @@ from ..base import BaseHandler
 log = make_log("api/observing_run")
 
 _, cfg = load_env()
-
-
-class ObservingRunPostBody(BaseModel):
-    """Request body for creating an observing run."""
-
-    model_config = ConfigDict(extra="forbid")
-
-    instrument_id: int = Field(
-        description="The ID of the instrument to be used in this run."
-    )
-    calendar_date: str = Field(
-        description="The local calendar date of the run (YYYY-MM-DD)."
-    )
-    pi: str | None = Field(default=None, description="The PI of the observing run.")
-    observers: str | None = Field(
-        default=None, description="The names of the observers"
-    )
-    duration: int | None = Field(
-        default=None, description="Number of nights in the observing run"
-    )
-    group_id: int | None = Field(
-        default=None, description="The ID of the group this run is associated with."
-    )
-    group_ids: list[int] | None = Field(
-        default=None,
-        description="IDs of the groups that can see this run and its target "
-        "list. Defaults to the sitewide group, which is what a run was visible "
-        "to before runs became group-scoped.",
-    )
-
-
-class ObservingRunPostResponse(BaseModel):
-    """ID of the newly created observing run."""
-
-    id: int = Field(description="New Observing Run ID")
-
-
-class ObservingRunPutBody(BaseModel):
-    """Request body for updating an observing run."""
-
-    model_config = ConfigDict(extra="forbid")
-
-    instrument_id: int | None = Field(
-        default=None, description="The ID of the instrument to be used in this run."
-    )
-    calendar_date: str | None = Field(
-        default=None, description="The local calendar date of the run (YYYY-MM-DD)."
-    )
-    pi: str | None = Field(default=None, description="The PI of the observing run.")
-    observers: str | None = Field(
-        default=None, description="The names of the observers"
-    )
-    duration: int | None = Field(
-        default=None, description="Number of nights in the observing run"
-    )
-    group_id: int | None = Field(
-        default=None, description="The ID of the group this run is associated with."
-    )
-
-
-class ObservingRunBulkEditBody(BaseModel):
-    """Request body for bulk-updating the assignments of an observing run."""
-
-    model_config = ConfigDict(extra="forbid")
-
-    current_status: str | None = Field(
-        default=None, description="Assignment status to filter on"
-    )
-    new_status: str | None = Field(
-        default=None, description="New status to apply to the matching assignments"
-    )
 
 
 async def post_observing_run(data, user_id, session):
@@ -164,31 +98,6 @@ async def post_observing_run(data, user_id, session):
     flow.push("*", "skyportal/FETCH_OBSERVING_RUNS")
 
     return run.id
-
-
-class ObservingRunGetQuery(BaseModel):
-    """Query parameters for listing observing runs."""
-
-    model_config = ConfigDict(extra="forbid")
-
-    single_fields: ClassVar[frozenset[str]] = frozenset()
-
-    upcomingOnly: bool = Field(
-        default=False,
-        description=(
-            "Only return runs that have not finished yet. Callers offering a "
-            "run to assign a target to want these, rather than every run ever "
-            "scheduled."
-        ),
-    )
-    numPerPage: int | None = Field(
-        default=None,
-        description="Number of runs to return per paginated request. Defaults to all runs.",
-    )
-    pageNumber: int = Field(
-        default=1,
-        description="Page number for paginated query results. Defaults to 1.",
-    )
 
 
 class ObservingRunHandler(BaseHandler):

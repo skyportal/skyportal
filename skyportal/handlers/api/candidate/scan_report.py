@@ -1,9 +1,8 @@
 from datetime import timedelta
-from typing import Any
 
 import arrow
 import sqlalchemy as sa
-from pydantic import BaseModel, ConfigDict, Field
+from skyportal_py_models.candidates import ScanReportGetQuery, ScanReportPostBody
 from sqlalchemy.orm import selectinload
 
 from baselayer.app.access import auth_or_token
@@ -17,43 +16,6 @@ from ...base import BaseHandler
 from .scan_report_item import create_scan_report_items
 
 log = make_log("api/scan_report")
-
-
-class ScanReportPostBody(BaseModel):
-    """Request body for populating a candidate scanning report."""
-
-    model_config = ConfigDict(extra="forbid")
-
-    group_ids: list[int] | None = Field(
-        default=None,
-        description="Groups used to filter the candidates and manage the report",
-    )
-    passed_filters_range: dict[str, Any] | None = Field(
-        default=None,
-        description="Range (start_date, end_date) between which the candidates "
-        "passed the filters",
-    )
-    saved_candidates_range: dict[str, Any] | None = Field(
-        default=None,
-        description="Range (start_saved_date, end_saved_date) between which the "
-        "candidates were saved as sources",
-    )
-    passed_filters_window_hours: float | None = Field(
-        default=None,
-        description="Alternative to passed_filters_range: a rolling window of this "
-        "many hours ending now. Ignored if passed_filters_range is given. Lets a "
-        "recurring caller generate reports on a schedule.",
-    )
-    saved_candidates_window_hours: float | None = Field(
-        default=None,
-        description="Alternative to saved_candidates_range: a rolling window of this "
-        "many hours ending now. Ignored if saved_candidates_range is given.",
-    )
-    gcn_event_dateobs: str | None = Field(
-        default=None,
-        description="Restrict the report to objects the crossmatch associated with "
-        "this GCN event",
-    )
 
 
 async def get_sources_by_objs_in_range(
@@ -139,15 +101,6 @@ async def get_sources_by_objs_in_range(
     except Exception as e:
         log(f"Error while retrieving saved candidates: {e}")
         return []
-
-
-class ScanReportGetQuery(BaseModel):
-    """Query parameters for listing candidate scanning reports."""
-
-    model_config = ConfigDict(extra="forbid")
-
-    numPerPage: int = Field(default=10, ge=1, description="Number of items to return")
-    page: int = Field(default=1, ge=1, description="Page number to return")
 
 
 class ScanReportHandler(BaseHandler):

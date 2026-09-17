@@ -1,70 +1,15 @@
-from typing import ClassVar
-
 import sqlalchemy as sa
-from pydantic import BaseModel, ConfigDict, Field
+from skyportal_py_models.objs import (
+    SuperObjGetQuery,
+    SuperObjPatchBody,
+    SuperObjPostBody,
+)
 from sqlalchemy.orm import selectinload
 
 from baselayer.app.access import auth_or_token, permissions
 
 from ...models import Obj, SuperObj
 from ..base import BaseHandler
-
-
-class SuperObjGetQuery(BaseModel):
-    """Query parameters for retrieving SuperObjs."""
-
-    model_config = ConfigDict(extra="forbid")
-
-    single_fields: ClassVar[frozenset[str]] = frozenset()
-
-    name: str | None = Field(
-        default=None,
-        description="Filter by (partial) name",
-    )
-    isRoid: bool | None = Field(
-        default=None,
-        description="Filter by moving-object status",
-    )
-    objID: str | None = Field(
-        default=None,
-        description="Only SuperObjs linking this Obj",
-    )
-
-
-class SuperObjPostBody(BaseModel):
-    """Request body for creating a SuperObj."""
-
-    model_config = ConfigDict(extra="forbid", coerce_numbers_to_str=True)
-
-    name: str | None = Field(
-        default=None, description="Name of the super-object, e.g. an MPC designation."
-    )
-    is_roid: bool = Field(
-        default=False, description="Whether the super-object is a moving object."
-    )
-    obj_ids: list[str] = Field(
-        default_factory=list, description="IDs of the Objs to link."
-    )
-
-
-class SuperObjPatchBody(BaseModel):
-    """Request body for updating a SuperObj."""
-
-    model_config = ConfigDict(extra="forbid", coerce_numbers_to_str=True)
-
-    name: str | None = Field(default=None, description="Name of the super-object.")
-    is_roid: bool | None = Field(
-        default=None, description="Whether the super-object is a moving object."
-    )
-    obj_ids: list[str] | None = Field(
-        default=None, description="IDs of the Objs to link, replacing the current ones."
-    )
-    add_obj_ids: list[str] | None = Field(
-        default=None, description="IDs of Objs to add to the current ones."
-    )
-    remove_obj_ids: list[str] | None = Field(
-        default=None, description="IDs of Objs to remove from the current ones."
-    )
 
 
 def super_obj_to_dict(super_obj):

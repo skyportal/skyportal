@@ -2,7 +2,7 @@ import datetime
 import os
 
 import tornado.web
-from pydantic import BaseModel, ConfigDict, Field
+from skyportal_py_models.system import LogPostBody
 
 from baselayer.app.access import permissions
 from baselayer.log import make_log
@@ -11,17 +11,6 @@ from skyportal.utils.files import filesize_to_human_readable
 from ...base import BaseHandler
 
 log = make_log("js")
-
-
-class LogPostBody(BaseModel):
-    """Request body for logging a frontend error."""
-
-    model_config = ConfigDict(extra="forbid")
-
-    error: str | None = Field(default=None, description="Error message to log")
-    stack: str | None = Field(
-        default=None, description="Component stack trace of the error"
-    )
 
 
 class LogHandler(BaseHandler):

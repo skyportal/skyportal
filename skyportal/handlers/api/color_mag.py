@@ -1,7 +1,8 @@
 from typing import Annotated
 
 import numpy as np
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import Field
+from skyportal_py_models.sources import ObjColorMagGetQuery
 
 from baselayer.app.access import auth_or_token
 
@@ -90,90 +91,6 @@ def get_color_mag(annotations, **kwargs):
             output.append({"origin": an.origin, "abs_mag": abs_mag, "color": color})
 
     return output
-
-
-class ObjColorMagGetQuery(BaseModel):
-    """Query parameters for getting the color and absolute magnitude of a source."""
-
-    model_config = ConfigDict(extra="forbid")
-
-    catalog: str | None = Field(
-        default=None,
-        description=(
-            "Partial match to the origin, associated with a catalog cross match, "
-            "from which the color-mag data should be retrieved. "
-            "Default is GAIA. Ignores case and underscores."
-        ),
-    )
-    apparentMagKey: str | None = Field(
-        default=None,
-        description=(
-            "The key inside the cross-match which is associated "
-            "with the magnitude of the color-magnitude data. "
-            "Will look for parallax data in addition to this magnitude "
-            "in order to calculate the absolute magnitude of the object. "
-            'Default is "Mag_G". Ignores case and underscores.'
-        ),
-    )
-    parallaxKey: str | None = Field(
-        default=None,
-        description=(
-            "The key inside the cross-match which is associated "
-            "with the parallax of the source. "
-            "Will look for magnitude data in addition to this parallax "
-            "in order to calculate the absolute magnitude of the object. "
-            'Default is "Plx". Ignores case and underscores.'
-        ),
-    )
-    absorptionKey: str | None = Field(
-        default=None,
-        description=(
-            "The key inside the cross-match which is associated "
-            "with the source absorption term. "
-            "Will add this term to the absolute magnitude calculated "
-            "from apparent magnitude and parallax. "
-            'Default is "A_G". Ignores case and underscores.'
-        ),
-    )
-    absoluteMagKey: str | None = Field(
-        default=None,
-        description=(
-            "The key inside the cross-match which is associated "
-            "with the absolute magnitude of the color-magnitude data. "
-            'If given, will override the "apparentMagKey", "parallaxKey" '
-            'and "absorptionKey", and takes the magnitude directly from '
-            "this key in the cross match dictionary. "
-            "Default is None. Ignores case and underscores."
-        ),
-    )
-    blueMagKey: str | None = Field(
-        default=None,
-        description=(
-            "The key inside the cross-match which is associated "
-            "with the source magnitude in the shorter wavelength. "
-            "Will add this term to the red magnitude to get the color. "
-            'Default is "Mag_Bp". Ignores case and underscores.'
-        ),
-    )
-    redMagKey: str | None = Field(
-        default=None,
-        description=(
-            "The key inside the cross-match which is associated "
-            "with the source magnitude in the longer wavelength. "
-            "Will add this term to the blue magnitude to get the color. "
-            'Default is "Mag_Rp". Ignores case and underscores.'
-        ),
-    )
-    colorKey: str | None = Field(
-        default=None,
-        description=(
-            "The key inside the cross-match which is associated "
-            "with the color term of the color-magnitude data. "
-            'If given, will override the "blueMagKey", and "redMagKey", '
-            "taking the color directly from the associated dictionary value. "
-            "Default is None. Ignores case and underscores."
-        ),
-    )
 
 
 class ObjColorMagHandler(BaseHandler):

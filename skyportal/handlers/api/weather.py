@@ -1,7 +1,7 @@
 import datetime
 
 import sqlalchemy as sa
-from pydantic import BaseModel, ConfigDict, Field
+from skyportal_py_models.weather import WeatherGetQuery
 
 from baselayer.app.access import auth_or_token
 from baselayer.app.env import load_env
@@ -14,18 +14,6 @@ from ..base import BaseHandler
 _, cfg = load_env()
 weather_refresh = cfg.get("weather.refresh_time")
 openweather_api_key = cfg.get("weather.openweather_api_key")
-
-
-class WeatherGetQuery(BaseModel):
-    """Query parameters for retrieving weather at a telescope site."""
-
-    model_config = ConfigDict(extra="forbid")
-
-    telescope_id: int | None = Field(
-        default=None,
-        description="ID of the telescope to report weather for. If not given, "
-        "the telescope saved in the user's preferences is used.",
-    )
 
 
 class WeatherHandler(BaseHandler):
