@@ -10,16 +10,12 @@ interface SimilarSourcesProps {
     id?: string;
     [key: string]: any;
   };
-  min_score?: number;
   k?: number;
 }
 
-const SimilarSources = ({ source, min_score, k = 3 }: SimilarSourcesProps) => {
+const SimilarSources = ({ source, k = 3 }: SimilarSourcesProps) => {
   const config = useGetConfigQuery().data as any;
   const useSummarySearch = config?.useSummarySearch;
-  // The search already applies the configured cut; a prop raises it for a caller
-  // that wants closer matches than the rest of the app.
-  const threshold = min_score;
   const [fetchSummaryQuery] = useFetchSummaryQueryMutation();
   const [simSourceList, setSimSourceList] = useState<any[]>([]);
 
@@ -32,21 +28,13 @@ const SimilarSources = ({ source, min_score, k = 3 }: SimilarSourcesProps) => {
       fetchSummaryQuery(queryBundle)
         .unwrap()
         .then((data: any) => {
-          let tmpList: any[] = data?.query_results ?? [];
-          if (tmpList.length > 0) {
-            if (threshold != null) {
-              tmpList = tmpList.filter((item) => item.score >= threshold);
-            }
-            setSimSourceList(tmpList);
-          } else {
-            setSimSourceList([]);
-          }
+          setSimSourceList(data?.query_results ?? []);
         })
         .catch(() => {
           // Don't show an error if the query fails, just don't show any similar sources
         });
     }
-  }, [fetchSummaryQuery, source, k, threshold, useSummarySearch]);
+  }, [fetchSummaryQuery, source, k, useSummarySearch]);
 
   return (
     <>
@@ -58,13 +46,7 @@ const SimilarSources = ({ source, min_score, k = 3 }: SimilarSourcesProps) => {
             alignItems: "center",
           }}
         >
-          <Tooltip
-            title={
-              threshold != null
-                ? `Highest AI summary similarity scores s>${threshold}`
-                : "Highest AI summary similarity scores"
-            }
-          >
+          <Tooltip title="Highest AI summary similarity scores">
             <b style={{ textWrap: "nowrap", marginRight: "0.5rem" }}>
               Similar Sources:
             </b>
