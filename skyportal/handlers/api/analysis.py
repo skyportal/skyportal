@@ -1808,12 +1808,15 @@ class AnalysisHandler(BaseHandler):
                 if user is None:
                     return self.error("Cannot find user.", status=400)
 
+                # preferences is nullable, and a user who has never saved any
+                # has None rather than an empty mapping.
+                preferences = user.preferences or {}
                 if (
-                    user.preferences.get("summary", {})
+                    preferences.get("summary", {})
                     .get("OpenAI", {})
                     .get("active", False)
                 ):
-                    user_pref_openai = user.preferences["summary"]["OpenAI"].copy()
+                    user_pref_openai = preferences["summary"]["OpenAI"].copy()
                     analysis_parameters["openai_api_key"] = user_pref_openai["apikey"]
                     user_pref_openai.pop("apikey", None)
                     user_pref_openai.pop("active", None)

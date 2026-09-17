@@ -5,6 +5,7 @@ containment query every other survey already uses; this only turns the answer
 into an annotation the scanning page can filter on.
 """
 
+import healpix_alchemy
 import sqlalchemy as sa
 
 from ..models import Annotation, Group, InstrumentField, InstrumentFieldTile
@@ -17,7 +18,12 @@ def sectors_containing(session, instrument_id, healpix):
         sa.select(InstrumentField.field_id).where(
             InstrumentFieldTile.instrument_id == instrument_id,
             InstrumentFieldTile.instrument_field_id == InstrumentField.id,
-            InstrumentFieldTile.healpix.contains(healpix),
+            # Bound as a Point. Tile's bind param reads a bare integer as a
+            # NUNIQ index and would decode this nested level-29 pixel into a
+            # range at an unrelated position.
+            InstrumentFieldTile.healpix.contains(
+                sa.literal(healpix, healpix_alchemy.Point)
+            ),
         )
     ).all()
     return sorted({sector_of(field_id) for field_id in field_ids})
