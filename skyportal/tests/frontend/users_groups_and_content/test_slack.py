@@ -36,10 +36,11 @@ def test_slack_url(page, user):
 
     page.goto(f"/become_user/{user.id}")
     page.goto("/profile")
-    # SlackPreferences reads the slack preamble from /api/config via RTK Query,
-    # which only fetches once that panel mounts; without it every URL fails.
-    with page.expect_response(lambda r: "/api/config" in r.url):
-        open_preferences_panel(page, "integrations")
+    open_preferences_panel(page, "integrations")
+    # SlackPreferences reads the slack preamble from /api/config as it mounts,
+    # and the URL validation needs it. Wait on the panel's own controls rather
+    # than on that response: the config is often already cached, in which case
+    # no request is made and there is no response to wait for.
     slack_toggle = page.locator('//*[@data-testid="slack_toggle"]').first
     expect(slack_toggle).to_be_visible()
 
