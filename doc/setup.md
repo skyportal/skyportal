@@ -11,6 +11,7 @@ how to install them on MacOS and Debian-based systems below.
 - PostgreSQL (v>=14.0)
 - Node.JS/npm (v>=16.14.0/8.3.2)
 - Bun
+- pgvector, the PostgreSQL extension supplying the `vector` type
 
 When installing SkyPortal on Debian-based systems, 2 additional packages are required to be able to install `pycurl` later on:
 
@@ -324,9 +325,16 @@ environment, the Javascript bundle and the database schema all change with it.
 1. Get the new code with `git pull` (or `git checkout v1.2.3` for a release).
 2. Update the submodules with `git submodule update --init --recursive`.
 3. Update the Python environment with `uv sync`.
-4. Apply any pending database migrations with `make db_migrate`.
-5. Start the app again with `make run`, which reinstalls the Javascript
+4. Install pgvector, which every database now needs whether or not the summary
+   search is on. The installation section for your platform gives the command.
+5. Apply any pending database migrations with `make db_migrate`.
+6. Start the app again with `make run`, which reinstalls the Javascript
    dependencies and rebuilds the bundle.
+
+The source-summary search used to keep its vectors in Pinecone, and now keeps
+them in SkyPortal's own database. An installation whose config still says
+`location: pinecone` loses the search until that is changed to `pgvector`, and
+each summary is written again so its vector is stored.
 
 `make db_migrate` runs `alembic upgrade head`, with `PYTHONPATH` and the config
 flag already set. To run alembic directly, activate the environment and supply
@@ -354,6 +362,11 @@ The resulting errors do not usually name the step that was skipped:
   was run without `PYTHONPATH=.`, or outside the environment, rather than the
   submodules being missing. The `make` targets set both.
 - If alembic reports more than one head, see [Database migrations](migrations).
+- A migration that stops on the `vector` type means that database has no
+  pgvector. Installing an extension takes a superuser, so `make db_init` does
+  it; where the application role may not, an administrator runs
+  `CREATE EXTENSION vector;` once per database. If that fails in turn, pgvector
+  is missing from the machine.
 
 ## Troubleshooting
 
