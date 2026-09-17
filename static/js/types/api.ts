@@ -41771,6 +41771,13 @@ export interface components {
              * @default null
              */
             channel: string | null;
+            /**
+             * Origin
+             * @description Optional workflow that created the comment.
+             * @default null
+             * @constant
+             */
+            origin: "scanning";
         };
         /**
          * CommentPostResponse
