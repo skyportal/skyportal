@@ -133,12 +133,10 @@ jobs:
 
       - name: Save current Alembic head on main
         run: |
-          # Get the head line from Alembic history output
-          head=$( PYTHONPATH=. .venv/bin/python -m alembic history | grep '(head)' )
-
-          # Split by space; index 2 should be latest revision
-          tokens=($head)
-          current_head=${tokens[2]}
+          # `alembic heads` prints the revision on its own. The history line
+          # cannot be split by position: a mergepoint lists two parents before
+          # the arrow, which shifts every field along.
+          current_head=$( PYTHONPATH=. .venv/bin/python -m alembic heads | awk '/\(head\)/ {print $1; exit}' )
           echo ${current_head}
           echo "CURRENT_HEAD=${current_head}" >> $GITHUB_ENV
 
