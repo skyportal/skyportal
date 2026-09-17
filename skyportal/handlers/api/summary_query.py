@@ -195,6 +195,8 @@ class SummaryQueryHandler(BaseHandler):
                     columns=[Classification.obj_id, Classification.classification],
                 )
                 if query:
+                    # No cut: a question and a summary are different kinds of
+                    # text, and score far lower than two summaries do.
                     results = await search_embeddings(
                         session,
                         vector,
@@ -205,7 +207,6 @@ class SummaryQueryHandler(BaseHandler):
                         z_min,
                         z_max,
                         classes,
-                        summarize_embedding_min_score,
                     )
                 else:
                     results = await search_embeddings_by_obj(
