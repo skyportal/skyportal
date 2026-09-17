@@ -51,6 +51,27 @@ def _disable_external_sends(monkeypatch):
 
 
 @pytest.fixture(autouse=True)
+def _enable_peer_endorsement(monkeypatch):
+    """Pin the UserApplication config the matrix expects.
+
+    Its access logic is config-dependent, and an in-process test reads the
+    default config rather than test_config.yaml, so without this the rows would
+    assert the feature-off behaviour instead of the access logic.
+    """
+    from skyportal.utils import user_applications
+
+    monkeypatch.setattr(
+        user_applications,
+        "cfg",
+        {
+            "user_applications.enabled": True,
+            "user_applications.peer_endorsement": True,
+            "invitations.enabled": True,
+        },
+    )
+
+
+@pytest.fixture(autouse=True)
 def _recover_session_after_test():
     """Roll back the shared session after every permission test.
 
@@ -76,6 +97,7 @@ FIXTURE_MODEL = {
     "broker": "Broker",
     "user_broker_credential": "BrokerCredential",
     "invitation": "Invitation",
+    "user_application": "UserApplication",
     "keck1_telescope": "Telescope",
     "problematic_assignment": "ClassicalAssignment",
     "public_annotation": "Annotation",
@@ -758,6 +780,25 @@ CASES = [
     ("super_admin_user", "invitation", "read", True),
     ("super_admin_user", "invitation", "update", True),
     ("super_admin_user", "invitation", "delete", True),
+    # --- UserApplication  (user_application): anyone may apply; deciding on one
+    # needs an ACL that reaches these roles through their role, not directly,
+    # and test_config enables peer endorsement ---
+    ("user", "user_application", "create", True),
+    ("user", "user_application", "read", True),
+    ("user", "user_application", "update", True),
+    ("user", "user_application", "delete", True),
+    ("user_group2", "user_application", "create", True),
+    ("user_group2", "user_application", "read", True),
+    ("user_group2", "user_application", "update", True),
+    ("user_group2", "user_application", "delete", True),
+    ("group_admin_user", "user_application", "create", True),
+    ("group_admin_user", "user_application", "read", True),
+    ("group_admin_user", "user_application", "update", True),
+    ("group_admin_user", "user_application", "delete", True),
+    ("super_admin_user", "user_application", "create", True),
+    ("super_admin_user", "user_application", "read", True),
+    ("super_admin_user", "user_application", "update", True),
+    ("super_admin_user", "user_application", "delete", True),
     # --- ObservingRun  (red_transients_run) ---
     ("user", "red_transients_run", "create", True),
     ("user", "red_transients_run", "read", True),

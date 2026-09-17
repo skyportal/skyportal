@@ -312,6 +312,8 @@ app:
       component: followup_request/FollowupRequestPage
     - path: "/user_management"
       component: user/UserManagement
+    - path: "/user_applications"
+      component: user/UserApplications
     - path: "/upload_spectrum/:id"
       component: spectrum/UploadSpectrum
     - path: "/observability/:id"
@@ -507,6 +509,11 @@ app:
         - name: Scanning report
           icon: Summarize
           url: /candidates/scan_reports
+
+        - name: Account applications
+          icon: HowToReg
+          enabled_if: canDecideUserApplications # a /api/config flag
+          url: /user_applications
 
     - name: Admin
       icon: AdminPanelSettings
@@ -988,6 +995,20 @@ invitations:
     Welcome to <b>SkyPortal</b>!
     <br />
     Some other text here.
+
+# Lets people without an account apply for one, from a form on the login page
+# and at /apply. Approving an application issues the invitation they sign up
+# with, so this requires invitations.enabled.
+user_applications:
+  enabled: False
+  # Who acts on an application. False: only "Manage users" administrators.
+  # True: peer endorsement, where any user holding the "Endorse users" ACL can
+  # vouch for one, as arXiv and GCN do.
+  peer_endorsement: False
+  disable_emailing: False # If True, the named endorser is notified in-app only
+  email_subject: "A new user application awaits your endorsement"
+  form_preamble: | # Shown above the application form; can include HTML tags
+    Tell us who you are, and name an existing user who can vouch for you.
 
 notifications:
   enabled: True
