@@ -984,7 +984,7 @@ const SourceContent = ({ source }: SourceContentProps) => {
             )}
             {source.summary_history?.length > 0 &&
             currentUser?.preferences?.["showSimilarSources"] === true ? (
-              <SimilarSources source={source} min_score={0.9} k={3} />
+              <SimilarSources source={source} k={3} />
             ) : null}
             <div className={classes.infoLine} style={{ marginTop: "0.25rem" }}>
               {alertBroker ? (

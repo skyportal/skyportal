@@ -178,6 +178,13 @@ app:
 
 analysis_services:
   analysis_folder: analysis_data
+  openai_analysis_service:
+    embeddings_store:
+      summary:
+        # The vectors live in the test database, so the summary search is
+        # exercised for real rather than stubbed.
+        location: pgvector
+        model: test-embedding
   sn_analysis_service:
     port: 6802
   spectral_cube_analysis_service:

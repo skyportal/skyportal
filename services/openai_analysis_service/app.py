@@ -15,88 +15,25 @@ import tornado.escape
 import tornado.web
 import yaml
 from astropy.table import Table
-from pinecone import Pinecone
 from tornado.ioloop import IOLoop
 
 from baselayer.app.env import load_env
 from baselayer.log import make_log
+from skyportal.utils.embedding_store_config import summary_embeddings_enabled
 
 _, cfg = load_env()
 log = make_log("openai_analysis_service")
 
 # Preamble: get the embeddings and summary parameters ready
-# for now, we only support pinecone embeddings
-summarize_embedding_config = cfg[
-    "analysis_services.openai_analysis_service.embeddings_store.summary"
-]
-pinecone_client = None
-USE_PINECONE = False
-if (
-    summarize_embedding_config.get("location") == "pinecone"
-    and summarize_embedding_config.get("api_key")
-    and summarize_embedding_config.get("index_name")
-    and summarize_embedding_config.get("index_size")
-):
-    log("initializing pinecone...")
-    pinecone_client = Pinecone(
-        api_key=summarize_embedding_config.get("api_key"),
-    )
-
-    summarize_embedding_index = summarize_embedding_config.get("index_name")
-    if summarize_embedding_index not in [
-        index.name for index in pinecone_client.list_indexes().indexes
-    ]:
-        # check if we have the spec variable in the config
-        pod_spec_required_keys = ["environment", "pod_type"]
-        serverless_spec_required_keys = ["cloud", "region"]
-
-        pod_spec_optional_keys = ["replicas", "pods", "shards"]
-
-        has_pod_spec = all(
-            summarize_embedding_config.get(k) is not None
-            for k in pod_spec_required_keys
-        )
-        has_serverless_spec = all(
-            summarize_embedding_config.get(k) is not None
-            for k in serverless_spec_required_keys
-        )
-
-        if has_pod_spec:
-            USE_PINECONE = True
-        else:
-            log(
-                "Pod spec not found in the config file, cannot create index in pinecone"
-            )
-
-        if USE_PINECONE:
-            spec = {
-                "pod": {
-                    "environment": summarize_embedding_config.get("environment"),
-                    "pod_type": summarize_embedding_config.get("pod_type"),
-                }
-            }
-            for k in pod_spec_optional_keys:
-                if summarize_embedding_config.get(k) is not None:
-                    spec["pod"][k] = summarize_embedding_config.get(k)
-            if has_serverless_spec:
-                spec = {
-                    "serverless": {
-                        "cloud": summarize_embedding_config.get("cloud"),
-                        "region": summarize_embedding_config.get("region"),
-                    }
-                }
-            pinecone_client.create_index(
-                summarize_embedding_index,
-                dimension=summarize_embedding_config.get("index_size"),
-                spec=spec,
-            )
-            log(f"index {summarize_embedding_index} created in pinecone")
-    else:
-        USE_PINECONE = True
-else:
-    log(
-        "Pinecone access does not seem to be configured in the config file, not using pinecone"
-    )
+summarize_embedding_config = (
+    cfg["analysis_services.openai_analysis_service.embeddings_store.summary"] or {}
+)
+# The embedding model is configured apart from the chat model.
+summarize_embedding_base_url = summarize_embedding_config.get("base_url") or None
+summarize_embedding_api_key = summarize_embedding_config.get("api_key") or None
+summarize_embedding_model = summarize_embedding_config.get("model")
+# This service only produces the vector; SkyPortal stores it when it comes back.
+EMBED_SUMMARIES = summary_embeddings_enabled(summarize_embedding_config)
 
 summary_config = copy.deepcopy(cfg["analysis_services.openai_analysis_service.summary"])
 if summary_config.get("api_key"):
@@ -313,42 +250,33 @@ def run_openai_summarization(data_dict):
     openai_summary = ". ".join(temp_summary).replace("\n", " ")
     result = {"summary": openai_summary}
 
-    if USE_PINECONE:
+    if EMBED_SUMMARIES:
+        # Only OpenAI itself, configured without a key of its own, is reached
+        # with the key this run was given, which may be the requesting user's.
+        embedding_key = summarize_embedding_api_key
+        if not embedding_key and not summarize_embedding_base_url:
+            embedding_key = analysis_parameters["openai_api_key"]
+        embedding_client = OpenAI(
+            api_key=embedding_key or "none",
+            base_url=summarize_embedding_base_url,
+        )
         try:
-            e = client.embeddings.create(
+            response = embedding_client.embeddings.create(
                 input=openai_summary,
-                model=summarize_embedding_config.get("model", "text-embedding-3-small"),
+                model=summarize_embedding_model,
             )
+            result["embedding"] = response.data[0].embedding
+            result["embedding_model"] = summarize_embedding_model
         except Exception as e:
-            log(f"OpenAI embedding failed {e}")
-            rez.update(
-                {
-                    "status": "failure",
-                    "message": f"OpenAI embedding failed: {e}",
-                }
-            )
-            return rez
-        pinecone_index = pinecone_client.Index(summarize_embedding_index)
-        metadata = {}
-        if z is not None:
-            metadata["redshift"] = z
-
-        if len(classifications) > 0:
-            metadata["class"] = list(set(classifications["classification"]))
-        else:
-            metadata["class"] = []
-
-        metadata["summary"] = openai_summary
-
-        pinecone_index.upsert([(source_id, e.data[0].embedding, metadata)])
-        result["embedding"] = e.data[0].embedding
+            # Unindexed, the summary is missing from the search, not lost.
+            log(f"Embedding the summary failed, returning it unindexed: {e}")
 
     f = tempfile.NamedTemporaryFile(suffix=".joblib", prefix="results_", delete=False)
     f.close()
     joblib.dump(result, f.name, compress=3)
     result_data = base64.b64encode(open(f.name, "rb").read())
     try:
-        os.remove(f)
+        os.remove(f.name)
     except:  # noqa E722
         pass
 

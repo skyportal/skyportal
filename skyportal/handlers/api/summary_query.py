@@ -3,106 +3,45 @@ import os
 from typing import Any
 
 import yaml
-from langchain_openai import OpenAIEmbeddings
-from pinecone import Pinecone
+from openai import OpenAI
 from pydantic import BaseModel, ConfigDict, Field
+from tornado.ioloop import IOLoop
 
 from baselayer.app.access import auth_or_token
 from baselayer.app.env import load_env
-from baselayer.log import make_log
 
-from ...models import User
+from ...models import Classification, Source, User
+from ...utils.embedding_store import search_embeddings, search_embeddings_by_obj
+from ...utils.embedding_store_config import summary_embeddings_enabled
 from ..base import BaseHandler
 
 _, cfg = load_env()
-log = make_log("query")
 
 
-def search_sources(
-    client: Pinecone,
-    query: str,
-    k: int = 4,
-    filter: dict | None = None,
-    index_name: str | None = None,
-    namespace: str | None = None,
-    openai_api_key: str | None = None,
-) -> list[dict]:
-    """Return pinecone documents most similar to query, along with scores.
-
-    Args:
-        client: Pinecone client object.
-        query: Text to look up documents similar to.
-        k: Number of Documents to return. Defaults to 4.
-        filter: Dictionary of argument(s) to filter on metadata
-        index_name: Name of the index to search in.
-        namespace: Namespace to search in. Default will search in '' namespace.
-        openai_api_key: OpenAI API key to use for embeddings.
-    Returns:
-        List of source dictionaries most similar to the query and score for each
-    """
-    if client is None:
-        raise ValueError("pinecone_client must be provided")
-    if index_name is None:
-        raise ValueError("index_name must be provided")
-    if openai_api_key is None:
-        raise ValueError("openai_api_key must be provided")
-
-    embeddings = OpenAIEmbeddings(
+def embed_query_text(query: str, openai_api_key: str) -> list[float]:
+    """The query's vector, from whichever server the embedding config names."""
+    client = OpenAI(
+        # A server of one's own may want no key at all, but the client insists.
+        api_key=openai_api_key or "none",
+        base_url=summarize_embedding_base_url,
+    )
+    embedding = client.embeddings.create(
+        input=query,
         model=summarize_embedding_model,
-        embedding_ctx_length=summarize_embedding_index_size,
-        openai_api_key=openai_api_key,
     )
-    query_vector = embeddings.embed_query(query)
-
-    index = client.Index(index_name)
-    results = index.query(
-        top_k=k,
-        vector=query_vector,
-        include_values=False,
-        include_metadata=True,
-        namespace=namespace,
-        filter=filter,
-    )
-
-    sources = []
-    for res in results["matches"]:
-        try:
-            sources.append(
-                {"id": res["id"], "score": res["score"], "metadata": res["metadata"]}
-            )
-        except Exception as e:
-            log(f"Error: {e}")
-    return sources
+    return embedding.data[0].embedding
 
 
-pinecone_client = None
+summarize_embedding_config = (
+    cfg["analysis_services.openai_analysis_service.embeddings_store.summary"] or {}
+)
+summarize_embedding_model = summarize_embedding_config.get("model")
+# Any server speaking the OpenAI embeddings protocol, not just OpenAI's.
+summarize_embedding_base_url = summarize_embedding_config.get("base_url") or None
+summarize_embedding_api_key = summarize_embedding_config.get("api_key") or None
+summarize_embedding_min_score = summarize_embedding_config.get("min_score")
 
-summarize_embedding_config = cfg[
-    "analysis_services.openai_analysis_service.embeddings_store.summary"
-]
-USE_PINECONE = False
-if (
-    summarize_embedding_config.get("location") == "pinecone"
-    and summarize_embedding_config.get("api_key")
-    and summarize_embedding_config.get("index_name")
-    and summarize_embedding_config.get("index_size")
-):
-    log("initializing pinecone access...")
-    pinecone_client = Pinecone(
-        api_key=summarize_embedding_config.get("api_key"),
-    )
-
-    summarize_embedding_index_name = summarize_embedding_config.get("index_name")
-    summarize_embedding_index_size = summarize_embedding_config.get("index_size")
-    summarize_embedding_model = summarize_embedding_config.get("model")
-
-    if summarize_embedding_index_name in [
-        index.name for index in pinecone_client.list_indexes().indexes
-    ]:
-        USE_PINECONE = True
-elif cfg["database.database"] == "skyportal_test":
-    USE_PINECONE = True
-    log("Setting USE_PINECONE=True as it seems like we are in a test environment")
+USE_PGVECTOR = summary_embeddings_enabled(summarize_embedding_config)
 
 summary_config = copy.deepcopy(cfg["analysis_services.openai_analysis_service.summary"])
 if summary_config.get("api_key"):
@@ -171,34 +110,11 @@ class SummaryQueryHandler(BaseHandler):
         """
         body = self.parse_body(SummaryQueryPostBody)
 
-        if not USE_PINECONE:
+        if not USE_PGVECTOR:
             return self.error(
-                "No valid pinecone configuration found. Please check your config file."
+                "No summary embeddings store is configured. Set "
+                "analysis_services.openai_analysis_service.embeddings_store.summary."
             )
-        user_openai_key = None
-        if not openai_api_key:
-            user_id = self.associated_user_object.id
-            async with self.AsyncSession() as session:
-                user = await session.scalar(
-                    User.select(session.user_or_token, mode="read").where(
-                        User.id == user_id
-                    )
-                )
-                if user is None:
-                    return self.error(
-                        "No global OpenAI key found and cannot find user.", status=400
-                    )
-
-                if user.preferences is not None and user.preferences.get(
-                    "summary", {}
-                ).get("OpenAI", {}).get("active", False):
-                    user_openai_key = user.preferences["summary"]["OpenAI"].get(
-                        "apikey"
-                    )
-        else:
-            user_openai_key = openai_api_key
-        if not user_openai_key:
-            return self.error("No OpenAI API key found.", status=400)
 
         query = body.q
         objID = body.objID
@@ -214,46 +130,89 @@ class SummaryQueryHandler(BaseHandler):
         if z_min is not None and z_max is not None and z_min > z_max:
             return self.error("z_min must be <= z_max")
 
-        filters = []
-        if z_min is not None:
-            filters.append({"redshift": {"$gte": z_min}})
-        if z_max is not None:
-            filters.append({"redshift": {"$lte": z_max}})
-        if body.classificationTypes:
-            filters.append({"class": {"$in": body.classificationTypes}})
-        if not filters:
-            filt = {}
-        elif len(filters) == 1:
-            filt = filters[0]
-        else:
-            filt = {"$and": filters}
+        # Only a text query needs the embedding service; searching from a source
+        # uses the vector already stored for it. Only OpenAI itself, configured
+        # without a key of its own, is reached with the requester's.
+        embedding_key = summarize_embedding_api_key
+        if query and not embedding_key and not summarize_embedding_base_url:
+            embedding_key = openai_api_key
+            if not embedding_key:
+                user_id = self.associated_user_object.id
+                async with self.AsyncSession() as session:
+                    user = await session.scalar(
+                        User.select(session.user_or_token, mode="read").where(
+                            User.id == user_id
+                        )
+                    )
+                    if user is None:
+                        return self.error(
+                            "No global OpenAI key found and cannot find user.",
+                            status=400,
+                        )
 
-        if query:
-            try:
-                results = search_sources(
-                    pinecone_client,
-                    query,
-                    k,
-                    filt,
-                    summarize_embedding_index_name,
-                    "",
-                    user_openai_key,
-                )
-            except Exception as e:
-                return self.error(f"Could not search sources: {e}")
-        else:
-            try:
-                index = pinecone_client.Index(summarize_embedding_index_name)
-                query_response = index.query(
-                    top_k=k,
-                    index=summarize_embedding_index_name,
-                    include_values=False,
-                    include_metadata=True,
-                    id=objID,
-                    filter=filt,
-                )
-                results = query_response.get("matches", [])
-            except Exception as e:
-                return self.error(f"Could not query index: {e}")
+                    if user.preferences is not None and user.preferences.get(
+                        "summary", {}
+                    ).get("OpenAI", {}).get("active", False):
+                        embedding_key = user.preferences["summary"]["OpenAI"].get(
+                            "apikey"
+                        )
+            if not embedding_key:
+                return self.error("No OpenAI API key found.", status=400)
 
+        classes = body.classificationTypes or None
+        try:
+            # A blocking HTTP round-trip: run off the event loop, and before a
+            # session is taken.
+            vector = (
+                await IOLoop.current().run_in_executor(
+                    None, embed_query_text, query, embedding_key
+                )
+                if query
+                else None
+            )
+            async with self.AsyncSession() as session:
+                # A summary is as readable as the source it describes.
+                accessible = Source.select(
+                    session.user_or_token, columns=[Source.obj_id]
+                ).where(Source.active.is_(True))
+                if objID:
+                    # The message says nothing about what exists.
+                    anchor = await session.scalar(
+                        accessible.where(Source.obj_id == objID)
+                    )
+                    if anchor is None:
+                        return self.error(f"Cannot access object {objID}", status=403)
+                accessible_classifications = Classification.select(
+                    session.user_or_token,
+                    columns=[Classification.obj_id, Classification.classification],
+                )
+                if query:
+                    # No cut: a question scores far lower against a summary
+                    # than a summary does.
+                    results = await search_embeddings(
+                        session,
+                        vector,
+                        k,
+                        summarize_embedding_model,
+                        accessible,
+                        accessible_classifications,
+                        z_min,
+                        z_max,
+                        classes,
+                    )
+                else:
+                    results = await search_embeddings_by_obj(
+                        session,
+                        objID,
+                        k,
+                        summarize_embedding_model,
+                        accessible,
+                        accessible_classifications,
+                        z_min,
+                        z_max,
+                        classes,
+                        summarize_embedding_min_score,
+                    )
+        except Exception as e:
+            return self.error(f"Could not search sources: {e}")
         return self.success(data={"query_results": results})
