@@ -192,21 +192,18 @@ class AnalysisWebhookHandler(BaseHandler):
 async def _store_summary_embedding(session, analysis, summary_results):
     """Record the vector the analysis service returned with the summary.
 
-    Written last: the rollback clearing a failed statement expires everything
-    else the handler holds.
+    Written last: a rollback here would expire everything else the handler holds.
     """
     if not _EMBED_TO_PGVECTOR:
         return
     vector = summary_results.get("embedding")
-    # The service names the model it actually used; ours may have moved on, and
-    # vectors of different widths cannot be compared.
+    # The service names the model it used; the config may have moved on since.
     model = summary_results.get("embedding_model")
     try:
         if vector and model:
             await session.execute(upsert_embedding(analysis.obj_id, vector, model))
         else:
-            # This summary was never embedded, so any vector the obj holds
-            # describes text it no longer has.
+            # Any vector the obj holds describes text it no longer has.
             await session.execute(delete_embedding(analysis.obj_id))
         await session.commit()
     except Exception as e:

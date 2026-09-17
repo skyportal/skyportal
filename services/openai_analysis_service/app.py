@@ -28,13 +28,11 @@ log = make_log("openai_analysis_service")
 summarize_embedding_config = (
     cfg["analysis_services.openai_analysis_service.embeddings_store.summary"] or {}
 )
-# The embedding model is configured apart from the chat model, and vectors are
-# comparable only with others from the same one.
+# The embedding model is configured apart from the chat model.
 summarize_embedding_base_url = summarize_embedding_config.get("base_url") or None
 summarize_embedding_api_key = summarize_embedding_config.get("api_key") or None
 summarize_embedding_model = summarize_embedding_config.get("model")
-# This service only produces the vector; SkyPortal stores it when the result
-# comes back, so there is nothing to embed into without pgvector.
+# This service only produces the vector; SkyPortal stores it when it comes back.
 EMBED_SUMMARIES = summary_embeddings_enabled(summarize_embedding_config)
 
 summary_config = copy.deepcopy(cfg["analysis_services.openai_analysis_service.summary"])
@@ -270,8 +268,7 @@ def run_openai_summarization(data_dict):
             result["embedding"] = response.data[0].embedding
             result["embedding_model"] = summarize_embedding_model
         except Exception as e:
-            # The summary is worth keeping either way: without its vector it is
-            # missing from the search until the next run, not lost.
+            # Unindexed, the summary is missing from the search, not lost.
             log(f"Embedding the summary failed, returning it unindexed: {e}")
 
     f = tempfile.NamedTemporaryFile(suffix=".joblib", prefix="results_", delete=False)

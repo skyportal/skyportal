@@ -25,8 +25,7 @@ SummaryEmbedding = sa.Table(
         sa.ForeignKey("objs.id", ondelete="CASCADE"),
         primary_key=True,
     ),
-    # No declared width, so the model can change without a migration; reads are
-    # scoped to one model, as Postgres cannot compare vectors of different widths.
+    # No declared width, so the embedding model can change without a migration.
     sa.Column("embedding", Vector, nullable=False),
     sa.Column("model", sa.Text, nullable=False, index=True),
     sa.Column(

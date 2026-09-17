@@ -15,9 +15,7 @@ down_revision = "c4d81f2a6b03"
 branch_labels = None
 depends_on = None
 
-# `vector` is pgvector's own type, spelled in raw DDL to avoid registering it
-# with SQLAlchemy for one table. No width and no ANN index: both would pin the
-# width, and an exact scan over a few thousand summaries is immediate.
+# No declared width, and so no ANN index: either would pin the embedding model.
 CREATE = """
 CREATE TABLE summary_embeddings (
     obj_id text PRIMARY KEY REFERENCES objs (id) ON DELETE CASCADE,

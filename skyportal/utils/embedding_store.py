@@ -65,8 +65,7 @@ def _restrict(
     if accessible_objs is not None:
         stmt = stmt.where(_embeddings.obj_id.in_(accessible_objs))
 
-    # Redshift and classification are read live, so a reclassification counts
-    # without the summary being embedded again.
+    # Read live, so a reclassification counts without a new embedding.
     if z_min is not None or z_max is not None:
         stmt = stmt.where(
             sa.exists(
@@ -124,11 +123,9 @@ async def _nearest(
         classes,
     ).subquery()
 
-    # Read off `scored` rather than repeating the expression: each mention would
-    # measure every candidate again, and read the target again with it.
+    # Read off `scored`: each mention of the expression would measure again.
     nearest = sa.select(scored.c.obj_id, scored.c.score)
-    # A target that does not exist is near nothing: an obj with no stored vector
-    # gives a NULL target, and every distance to it is NULL.
+    # An obj with no stored vector gives a NULL target, and NULL every score.
     nearest = nearest.where(scored.c.score.isnot(None))
     if min_score is not None:
         nearest = nearest.where(scored.c.score >= min_score)

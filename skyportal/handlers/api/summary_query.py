@@ -41,8 +41,6 @@ summarize_embedding_base_url = summarize_embedding_config.get("base_url") or Non
 summarize_embedding_api_key = summarize_embedding_config.get("api_key") or None
 summarize_embedding_min_score = summarize_embedding_config.get("min_score")
 
-# The vectors live in our own database, so there is nothing to reach for: the
-# search is on when the config names the store and the model that filled it.
 USE_PGVECTOR = summary_embeddings_enabled(summarize_embedding_config)
 
 summary_config = copy.deepcopy(cfg["analysis_services.openai_analysis_service.summary"])
@@ -132,10 +130,9 @@ class SummaryQueryHandler(BaseHandler):
         if z_min is not None and z_max is not None and z_min > z_max:
             return self.error("z_min must be <= z_max")
 
-        # Searching from a source uses the vector already stored for it, so only
-        # a text query needs the embedding service, and so only it needs a key.
-        # Only OpenAI itself, configured without a key of its own, is ever
-        # reached with the requester's.
+        # Only a text query needs the embedding service; searching from a source
+        # uses the vector already stored for it. Only OpenAI itself, configured
+        # without a key of its own, is reached with the requester's.
         embedding_key = summarize_embedding_api_key
         if query and not embedding_key and not summarize_embedding_base_url:
             embedding_key = openai_api_key
@@ -165,7 +162,7 @@ class SummaryQueryHandler(BaseHandler):
         classes = body.classificationTypes or None
         try:
             # A blocking HTTP round-trip: run off the event loop, and before a
-            # session is taken rather than while holding a connection.
+            # session is taken.
             vector = (
                 await IOLoop.current().run_in_executor(
                     None, embed_query_text, query, embedding_key
@@ -174,14 +171,12 @@ class SummaryQueryHandler(BaseHandler):
                 else None
             )
             async with self.AsyncSession() as session:
-                # A summary is as readable as the source it describes, and a
-                # classification only as readable as the groups it was posted to.
+                # A summary is as readable as the source it describes.
                 accessible = Source.select(
                     session.user_or_token, columns=[Source.obj_id]
                 ).where(Source.active.is_(True))
                 if objID:
-                    # Otherwise anyone could ask what a source they cannot read
-                    # is similar to. The message says nothing about what exists.
+                    # The message says nothing about what exists.
                     anchor = await session.scalar(
                         accessible.where(Source.obj_id == objID)
                     )
@@ -192,8 +187,8 @@ class SummaryQueryHandler(BaseHandler):
                     columns=[Classification.obj_id, Classification.classification],
                 )
                 if query:
-                    # No cut: a question and a summary are different kinds of
-                    # text, and score far lower than two summaries do.
+                    # No cut: a question scores far lower against a summary
+                    # than a summary does.
                     results = await search_embeddings(
                         session,
                         vector,

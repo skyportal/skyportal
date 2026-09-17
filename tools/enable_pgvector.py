@@ -1,9 +1,7 @@
 """Enable pgvector in the databases, which the summary embeddings table needs.
 
-Installing an extension is a superuser act, so it happens here beside database
-creation rather than from the application role while the app is running. Which
-role is the superuser varies: a container usually makes the application's own
-one, while a local install has it apart, so both are tried.
+Installing an extension takes a superuser, and which role that is varies, so
+every candidate is tried.
 """
 
 import os
@@ -45,8 +43,7 @@ def psql(user, statement, database):
 
 
 for database in databases:
-    # A database that cannot be reached at all is one this install does not use;
-    # db_init leaves such a database alone too.
+    # A database that cannot be reached is one this install does not use.
     if not any(psql(user, "SELECT 1;", database).returncode == 0 for user in users):
         continue
 
