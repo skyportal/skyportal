@@ -1,7 +1,7 @@
 """summary embeddings
 
 Revision ID: b7e4c1a90f33
-Revises: c4d81f2a6b03
+Revises: f956a0803f46
 Create Date: 2026-09-14 18:40:00.000000
 
 """
@@ -11,7 +11,7 @@ from skyportal.models.summary_embedding import ensure_vector_extension
 
 # revision identifiers, used by alembic.
 revision = "b7e4c1a90f33"
-down_revision = "c4d81f2a6b03"
+down_revision = "f956a0803f46"
 branch_labels = None
 depends_on = None
 
