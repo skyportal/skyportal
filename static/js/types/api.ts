@@ -18163,6 +18163,70 @@ export interface paths {
         };
         trace?: never;
     };
+    "/api/data_sharing/bulk": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Bulk-share spectra/photometry with a group
+         * @description <b>Permission(s) required:</b> <em>System admin (or System admin)</em><br><br>Grant (or revoke) a target group's access to every spectrum and/or
+         *     photometry point selected either by a source group (`from_group_id`)
+         *     or by a set of objects (`obj_ids`), in one set-based operation.
+         *     Additive and idempotent: it only inserts or deletes group
+         *     associations and never touches the data itself. The supported way to
+         *     re-expose narrowly-shared legacy/imported data collaboration-wide.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": {
+                        /** @description Source group; mutually exclusive with obj_ids. */
+                        from_group_id?: number;
+                        /** @description Source objects; mutually exclusive with from_group_id. */
+                        obj_ids?: string[];
+                        to_group_id: number;
+                        data_types?: ("spectra" | "photometry")[];
+                        /** @enum {string} */
+                        action?: "add" | "remove";
+                    };
+                };
+            };
+            responses: {
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Success"];
+                    };
+                };
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/spatial_catalog/ascii": {
         parameters: {
             query?: never;
@@ -18420,6 +18484,56 @@ export interface paths {
             };
         };
         delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/spectra/{spectrum_id}/groups/{group_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Remove a group from a spectrum
+         * @description <b>Permission(s) required:</b> <em>System admin (or System admin)</em><br><br>Revoke a single group's access to one spectrum. Used to undo an
+         *     accidental over-share; refuses to remove a spectrum's only group.
+         */
+        delete: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    spectrum_id: string;
+                    group_id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Success"];
+                    };
+                };
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
         options?: never;
         head?: never;
         patch?: never;
@@ -20154,6 +20268,16 @@ export interface paths {
                                  */
                                 invitationsEnabled?: boolean;
                                 /**
+                                 * @description Boolean indicating whether account applications are
+                                 *     enabled in current deployment.
+                                 */
+                                userApplicationsEnabled?: boolean;
+                                /**
+                                 * @description Boolean indicating whether the requesting user may
+                                 *     endorse or decline account applications.
+                                 */
+                                canDecideUserApplications?: boolean;
+                                /**
                                  * @description URL preamble used for forwarding slack notifications.
                                  *     The default is "https://hooks.slack.com/".
                                  */
@@ -21488,7 +21612,46 @@ export interface paths {
         };
         options?: never;
         head?: never;
-        patch?: never;
+        /**
+         * Reorder the coauthors of an external sharing service
+         * @description <b>Permission(s) required:</b> <em>Manage sharing services (or System admin)</em><br><br>Reorder the coauthors of an external sharing service, the order is the one used to publish
+         */
+        patch: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    /** @description ID of the external sharing service */
+                    sharing_service_id: number;
+                    /** @description Unused, the order is given in the body */
+                    user_id: number;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["SharingServiceCoauthorPatchBody"];
+                };
+            };
+            responses: {
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Success"];
+                    };
+                };
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
         trace?: never;
     };
     "/api/sharing_service/{sharing_service_id}/group/{group_id}": {
@@ -21906,6 +22069,213 @@ export interface paths {
         };
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/user_applications/{application_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get an account application
+         * @description Retrieve an account application
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    application_id: number;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Success"];
+                    };
+                };
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        /**
+         * Delete an account application
+         * @description Delete an account application
+         */
+        delete: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    application_id: number;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Success"];
+                    };
+                };
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        options?: never;
+        head?: never;
+        /**
+         * Endorse or decline an account application
+         * @description Endorsing issues the invitation the applicant signs up with, and emails
+         *     it to them. Groups are limited to those the endorser belongs to.
+         */
+        patch: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    application_id: number;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["UserApplicationPatchBody"];
+                };
+            };
+            responses: {
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Success"];
+                    };
+                };
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        trace?: never;
+    };
+    "/api/user_applications": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get account applications
+         * @description Retrieve account applications awaiting endorsement
+         */
+        get: {
+            parameters: {
+                query?: {
+                    /** @description Only return applications with this status. */
+                    status?: "pending" | "endorsed" | "declined" | null;
+                    /** @description Only return applications naming the requesting user as endorser. */
+                    mine?: boolean;
+                    /** @description Number of applications per paginated request. */
+                    numPerPage?: number;
+                    /** @description Page number for paginated results. */
+                    pageNumber?: number;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Success"];
+                    };
+                };
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        /**
+         * Apply for an account
+         * @description Submit an application for an account, to be endorsed by an existing
+         *     user. Open to unauthenticated callers.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["UserApplicationPostBody"];
+                };
+            };
+            responses: {
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Success"];
+                    };
+                };
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
         delete?: never;
         options?: never;
         head?: never;
@@ -23112,6 +23482,44 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/apply": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Display the account application form
+         * @description Display the form for applying for an account
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/html": string;
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -23274,6 +23682,7 @@ export interface components {
         AnalysisService: {
             readonly groups?: components["schemas"]["Group"][];
             readonly obj_analyses?: components["schemas"]["ObjAnalysis"][];
+            readonly gcnevent_analyses?: components["schemas"]["GcnEventAnalysis"][];
             readonly default_analyses?: components["schemas"]["DefaultAnalysis"][];
             /** @description Unique name/identifier of the analysis service. */
             name: string;
@@ -23332,6 +23741,7 @@ export interface components {
         AnalysisServiceNoID: {
             readonly groups?: components["schemas"]["Group"][];
             readonly obj_analyses?: components["schemas"]["ObjAnalysis"][];
+            readonly gcnevent_analyses?: components["schemas"]["GcnEventAnalysis"][];
             readonly default_analyses?: components["schemas"]["DefaultAnalysis"][];
             /** @description Unique name/identifier of the analysis service. */
             name: string;
@@ -24905,9 +25315,12 @@ export interface components {
             show_corner?: boolean;
             /** @description Optional parameters that are passed to the analysis service */
             default_analysis_parameters?: string | null;
+            /** @description Resource this default triggers on: 'obj' (classifications) or 'gcn_event' (incoming GCN triggers). */
+            analysis_resource_type?: string;
             /**
              * @description JSONB column that defines the criteria for which this default analysis will be triggered.
-             *                 Example: {"classifications": {"name": "Kilonova", "probability": 0.9}}
+             *                 For 'obj': {"classifications": [{"name": "Kilonova", "probability": 0.9}]}.
+             *                 For 'gcn_event': {"gcn_tags": ["GRB"], "notice_types": [...]} (either, matched as OR).
              */
             source_filter: {
                 [key: string]: unknown;
@@ -24949,9 +25362,12 @@ export interface components {
             show_corner?: boolean;
             /** @description Optional parameters that are passed to the analysis service */
             default_analysis_parameters?: string | null;
+            /** @description Resource this default triggers on: 'obj' (classifications) or 'gcn_event' (incoming GCN triggers). */
+            analysis_resource_type?: string;
             /**
              * @description JSONB column that defines the criteria for which this default analysis will be triggered.
-             *                 Example: {"classifications": {"name": "Kilonova", "probability": 0.9}}
+             *                 For 'obj': {"classifications": [{"name": "Kilonova", "probability": 0.9}]}.
+             *                 For 'gcn_event': {"gcn_tags": ["GRB"], "notice_types": [...]} (either, matched as OR).
              */
             source_filter: {
                 [key: string]: unknown;
@@ -26491,6 +26907,7 @@ export interface components {
             readonly summaries?: components["schemas"]["GcnSummary"][];
             readonly _tags?: components["schemas"]["GcnTag"][];
             readonly localizations?: components["schemas"]["Localization"][];
+            readonly gcnevent_analyses?: components["schemas"]["GcnEventAnalysis"][];
             readonly observationplan_requests?: components["schemas"]["ObservationPlanRequest"][];
             readonly survey_efficiency_analyses?: components["schemas"]["SurveyEfficiencyForObservations"][];
             readonly comments?: components["schemas"]["CommentOnGCN"][];
@@ -26546,6 +26963,146 @@ export interface components {
             status: "success";
             message?: string;
             data?: components["schemas"]["GcnEvent"][];
+        };
+        GcnEventAnalysis: {
+            /** @description The GcnEventAnalysis's GcnEvent. */
+            readonly gcnevent?: components["schemas"]["GcnEvent"];
+            /** @description Annotation's author. */
+            readonly author?: components["schemas"]["User"];
+            /** @description Analysis Service associated with this analysis. */
+            readonly analysis_service?: components["schemas"]["AnalysisService"];
+            readonly groups?: components["schemas"]["Group"][];
+            /**
+             * Format: date-time
+             * @description UTC event timestamp of the GcnEventAnalysis's GcnEvent.
+             */
+            dateobs: string;
+            /** @description Unique object identifier. */
+            id?: number;
+            /** @description Unique identifier for this analysis result. */
+            _unique_id?: string;
+            /** @description MD5sum hash of the data to be saved to file. Helps identify duplicate results. */
+            hash?: string | null;
+            /** @description full name of the file path where the data is saved. */
+            _full_name?: string | null;
+            /** @description Whether to render the parameters of this analysis */
+            show_parameters?: boolean;
+            /** @description Whether to render the plots of this analysis */
+            show_plots?: boolean;
+            /** @description Whether to render the corner plots of this analysis */
+            show_corner?: boolean;
+            /** @description Optional parameters that are passed to the analysis service */
+            analysis_parameters?: string | null;
+            /** @description Optional filters that are applied to the input data that is passed to the analysis service */
+            input_filters?: string | null;
+            /** @description ID of the Annotation author's User instance. */
+            author_id: number;
+            /** @description ID of the associated analysis service. */
+            analysis_service_id: number;
+            /**
+             * Format: date-time
+             * @description Time after which the webhook is invalid. Default: 1 day from now.
+             */
+            invalid_after?: string;
+            /** @description Unique identifier for this webhook. */
+            token?: string;
+            /** @description url for internal API to handle the incoming callback. */
+            handled_by_url: string;
+            /**
+             * @description Status of the Webhook. One of: 'queued', 'pending', 'completed', 'failure', 'cancelled', 'timed_out'.
+             * @enum {string}
+             */
+            status: "queued" | "pending" | "completed" | "failure" | "cancelled" | "timed_out";
+            /** @description How long did this take to run and return this webhook? */
+            duration?: number | null;
+            /**
+             * Format: date-time
+             * @description When was the last time this webhook was accessed?
+             */
+            last_activity?: string | null;
+            /** @description A message describing the status of the webhook. */
+            status_message?: string | null;
+        };
+        SingleGcnEventAnalysis: {
+            /** @enum {string} */
+            status: "success";
+            message?: string;
+            data?: components["schemas"]["GcnEventAnalysis"];
+        };
+        ArrayOfGcnEventAnalysiss: {
+            /** @enum {string} */
+            status: "success";
+            message?: string;
+            data?: components["schemas"]["GcnEventAnalysis"][];
+        };
+        GcnEventAnalysisNoID: {
+            /** @description The GcnEventAnalysis's GcnEvent. */
+            readonly gcnevent?: components["schemas"]["GcnEvent"];
+            /** @description Annotation's author. */
+            readonly author?: components["schemas"]["User"];
+            /** @description Analysis Service associated with this analysis. */
+            readonly analysis_service?: components["schemas"]["AnalysisService"];
+            readonly groups?: components["schemas"]["Group"][];
+            /**
+             * Format: date-time
+             * @description UTC event timestamp of the GcnEventAnalysis's GcnEvent.
+             */
+            dateobs: string;
+            /** @description Unique identifier for this analysis result. */
+            _unique_id?: string;
+            /** @description MD5sum hash of the data to be saved to file. Helps identify duplicate results. */
+            hash?: string | null;
+            /** @description full name of the file path where the data is saved. */
+            _full_name?: string | null;
+            /** @description Whether to render the parameters of this analysis */
+            show_parameters?: boolean;
+            /** @description Whether to render the plots of this analysis */
+            show_plots?: boolean;
+            /** @description Whether to render the corner plots of this analysis */
+            show_corner?: boolean;
+            /** @description Optional parameters that are passed to the analysis service */
+            analysis_parameters?: string | null;
+            /** @description Optional filters that are applied to the input data that is passed to the analysis service */
+            input_filters?: string | null;
+            /** @description ID of the Annotation author's User instance. */
+            author_id: number;
+            /** @description ID of the associated analysis service. */
+            analysis_service_id: number;
+            /**
+             * Format: date-time
+             * @description Time after which the webhook is invalid. Default: 1 day from now.
+             */
+            invalid_after?: string;
+            /** @description Unique identifier for this webhook. */
+            token?: string;
+            /** @description url for internal API to handle the incoming callback. */
+            handled_by_url: string;
+            /**
+             * @description Status of the Webhook. One of: 'queued', 'pending', 'completed', 'failure', 'cancelled', 'timed_out'.
+             * @enum {string}
+             */
+            status: "queued" | "pending" | "completed" | "failure" | "cancelled" | "timed_out";
+            /** @description How long did this take to run and return this webhook? */
+            duration?: number | null;
+            /**
+             * Format: date-time
+             * @description When was the last time this webhook was accessed?
+             */
+            last_activity?: string | null;
+            /** @description A message describing the status of the webhook. */
+            status_message?: string | null;
+        };
+        SingleGcnEventAnalysisNoID: {
+            /** @enum {string} */
+            status: "success";
+            message?: string;
+            data?: components["schemas"]["GcnEventAnalysisNoID"];
+        };
+        ArrayOfGcnEventAnalysisNoIDs: {
+            /** @enum {string} */
+            status: "success";
+            message?: string;
+            data?: components["schemas"]["GcnEventAnalysisNoID"][];
         };
         GcnEventAssociation: {
             /** @description The earlier GcnEvent. */
@@ -26844,6 +27401,7 @@ export interface components {
             readonly summaries?: components["schemas"]["GcnSummary"][];
             readonly _tags?: components["schemas"]["GcnTag"][];
             readonly localizations?: components["schemas"]["Localization"][];
+            readonly gcnevent_analyses?: components["schemas"]["GcnEventAnalysis"][];
             readonly observationplan_requests?: components["schemas"]["ObservationPlanRequest"][];
             readonly survey_efficiency_analyses?: components["schemas"]["SurveyEfficiencyForObservations"][];
             readonly comments?: components["schemas"]["CommentOnGCN"][];
@@ -27918,6 +28476,44 @@ export interface components {
             status: "success";
             message?: string;
             data?: components["schemas"]["GroupGcnEvent"][];
+        };
+        GroupGcnEventAnalysis: {
+            readonly group?: components["schemas"]["Group"];
+            readonly gcneventanalysis?: components["schemas"]["GcnEventAnalysis"];
+            group_id: number;
+            gcnevent_analyse_id: number;
+            /** @description Unique object identifier. */
+            id?: number;
+        };
+        SingleGroupGcnEventAnalysis: {
+            /** @enum {string} */
+            status: "success";
+            message?: string;
+            data?: components["schemas"]["GroupGcnEventAnalysis"];
+        };
+        ArrayOfGroupGcnEventAnalysiss: {
+            /** @enum {string} */
+            status: "success";
+            message?: string;
+            data?: components["schemas"]["GroupGcnEventAnalysis"][];
+        };
+        GroupGcnEventAnalysisNoID: {
+            readonly group?: components["schemas"]["Group"];
+            readonly gcneventanalysis?: components["schemas"]["GcnEventAnalysis"];
+            group_id: number;
+            gcnevent_analyse_id: number;
+        };
+        SingleGroupGcnEventAnalysisNoID: {
+            /** @enum {string} */
+            status: "success";
+            message?: string;
+            data?: components["schemas"]["GroupGcnEventAnalysisNoID"];
+        };
+        ArrayOfGroupGcnEventAnalysisNoIDs: {
+            /** @enum {string} */
+            status: "success";
+            message?: string;
+            data?: components["schemas"]["GroupGcnEventAnalysisNoID"][];
         };
         GroupGcnEventNoID: {
             readonly group?: components["schemas"]["Group"];
@@ -35829,6 +36425,8 @@ export interface components {
             readonly sharing_service?: components["schemas"]["SharingService"];
             sharing_service_id: number;
             user_id: number;
+            /** @description Position of the coauthor in the published author list, ascending. */
+            order?: number;
             /** @description Unique object identifier. */
             id?: number;
         };
@@ -35849,6 +36447,8 @@ export interface components {
             readonly sharing_service?: components["schemas"]["SharingService"];
             sharing_service_id: number;
             user_id: number;
+            /** @description Position of the coauthor in the published author list, ascending. */
+            order?: number;
         };
         SingleSharingServiceCoauthorNoID: {
             /** @enum {string} */
@@ -38322,6 +38922,108 @@ export interface components {
             message?: string;
             data?: components["schemas"]["UserACLNoID"][];
         };
+        UserApplication: {
+            /** @description The User the applicant named as their endorser. */
+            readonly endorser?: components["schemas"]["User"];
+            /** @description The User who endorsed or declined the application. */
+            readonly endorsed_by?: components["schemas"]["User"];
+            /** @description The Invitation the endorsement issued. */
+            readonly invitation?: components["schemas"]["Invitation"];
+            /** @description Applicant's first name. */
+            first_name: string;
+            /** @description Applicant's last name. */
+            last_name: string;
+            /** @description Address the invitation is sent to once the application is endorsed. */
+            contact_email: string;
+            /** @description Applicant's stated institution or affiliation. */
+            affiliation?: string | null;
+            /** @description Applicant's stated reason for wanting access. */
+            statement?: string | null;
+            /** @description Address of the endorser the applicant named, as typed by them. */
+            endorser_email?: string | null;
+            /** @description ID of the User matching `endorser_email`, if the address is one we know. */
+            endorser_id?: number | null;
+            /**
+             * @description Application status. Can be one of either 'pending', 'endorsed', or 'declined'.
+             * @enum {string}
+             */
+            status?: "pending" | "endorsed" | "declined";
+            /** @description ID of the User who endorsed or declined the application. */
+            endorsed_by_id?: number | null;
+            /**
+             * Format: date-time
+             * @description UTC time the application was endorsed or declined.
+             */
+            decided_at?: string | null;
+            /** @description Why the application was declined. */
+            decline_reason?: string | null;
+            /** @description ID of the Invitation the endorsement issued. */
+            invitation_id?: number | null;
+            /** @description Unique object identifier. */
+            id?: number;
+        };
+        SingleUserApplication: {
+            /** @enum {string} */
+            status: "success";
+            message?: string;
+            data?: components["schemas"]["UserApplication"];
+        };
+        ArrayOfUserApplications: {
+            /** @enum {string} */
+            status: "success";
+            message?: string;
+            data?: components["schemas"]["UserApplication"][];
+        };
+        UserApplicationNoID: {
+            /** @description The User the applicant named as their endorser. */
+            readonly endorser?: components["schemas"]["User"];
+            /** @description The User who endorsed or declined the application. */
+            readonly endorsed_by?: components["schemas"]["User"];
+            /** @description The Invitation the endorsement issued. */
+            readonly invitation?: components["schemas"]["Invitation"];
+            /** @description Applicant's first name. */
+            first_name: string;
+            /** @description Applicant's last name. */
+            last_name: string;
+            /** @description Address the invitation is sent to once the application is endorsed. */
+            contact_email: string;
+            /** @description Applicant's stated institution or affiliation. */
+            affiliation?: string | null;
+            /** @description Applicant's stated reason for wanting access. */
+            statement?: string | null;
+            /** @description Address of the endorser the applicant named, as typed by them. */
+            endorser_email?: string | null;
+            /** @description ID of the User matching `endorser_email`, if the address is one we know. */
+            endorser_id?: number | null;
+            /**
+             * @description Application status. Can be one of either 'pending', 'endorsed', or 'declined'.
+             * @enum {string}
+             */
+            status?: "pending" | "endorsed" | "declined";
+            /** @description ID of the User who endorsed or declined the application. */
+            endorsed_by_id?: number | null;
+            /**
+             * Format: date-time
+             * @description UTC time the application was endorsed or declined.
+             */
+            decided_at?: string | null;
+            /** @description Why the application was declined. */
+            decline_reason?: string | null;
+            /** @description ID of the Invitation the endorsement issued. */
+            invitation_id?: number | null;
+        };
+        SingleUserApplicationNoID: {
+            /** @enum {string} */
+            status: "success";
+            message?: string;
+            data?: components["schemas"]["UserApplicationNoID"];
+        };
+        ArrayOfUserApplicationNoIDs: {
+            /** @enum {string} */
+            status: "success";
+            message?: string;
+            data?: components["schemas"]["UserApplicationNoID"][];
+        };
         UserInvitation: {
             readonly user?: components["schemas"]["User"];
             readonly invitation?: components["schemas"]["Invitation"];
@@ -38816,6 +39518,12 @@ export interface components {
          * @description Request body for creating a default analysis.
          */
         DefaultAnalysisPostBody: {
+            /**
+             * Analysis Resource Type
+             * @description Resource this default triggers on: 'obj' (classifications) or 'gcn_event' (incoming GCN triggers).
+             * @default obj
+             */
+            analysis_resource_type: string;
             /**
              * Default Analysis Parameters
              * @description Dictionary of parameters to be passed thru to the analysis.
@@ -46678,6 +47386,17 @@ export interface components {
             id: number;
         };
         /**
+         * SharingServiceCoauthorPatchBody
+         * @description Request body for reordering the coauthors of an external sharing service.
+         */
+        SharingServiceCoauthorPatchBody: {
+            /**
+             * User Ids
+             * @description IDs of all the coauthors of the sharing service, in the order they should be published
+             */
+            user_ids: number[];
+        };
+        /**
          * SharingServiceGroupPutBody
          * @description Request body for adding or editing a group of an external sharing service.
          */
@@ -46874,6 +47593,76 @@ export interface components {
              * @description New Sharing Service ID
              */
             id: number;
+        };
+        /**
+         * UserApplicationPostBody
+         * @description Request body for applying for an account.
+         */
+        UserApplicationPostBody: {
+            /**
+             * Firstname
+             * @description Applicant's first name.
+             */
+            firstName: string;
+            /**
+             * Lastname
+             * @description Applicant's last name.
+             */
+            lastName: string;
+            /**
+             * Email
+             * @description Address the invitation is sent to once the application is endorsed.
+             */
+            email: string;
+            /**
+             * Affiliation
+             * @description Applicant's institution or affiliation.
+             * @default null
+             */
+            affiliation: string | null;
+            /**
+             * Statement
+             * @description Why the applicant wants access.
+             * @default null
+             */
+            statement: string | null;
+            /**
+             * Endorseremail
+             * @description Address of an existing user the applicant asks to endorse them.
+             * @default null
+             */
+            endorserEmail: string | null;
+        };
+        /**
+         * UserApplicationPatchBody
+         * @description Request body for endorsing or declining an account application.
+         */
+        UserApplicationPatchBody: {
+            /**
+             * Status
+             * @description One of either 'endorsed' or 'declined'.
+             * @enum {string}
+             */
+            status: "endorsed" | "declined";
+            /**
+             * Groupids
+             * @description IDs of groups to add the applicant to. The endorser must belong to each of them. Defaults to none, which still lands the applicant in the sitewide public group.
+             * @default null
+             */
+            groupIDs: number[] | null;
+            /**
+             * Role
+             * @description The role the new user will have in the system.
+             * @default Full user
+             * @enum {string}
+             */
+            role: "Full user" | "View only";
+            /**
+             * Declinereason
+             * @description Why the application was declined.
+             * @default null
+             */
+            declineReason: string | null;
         };
         /**
          * UserACLPostBody

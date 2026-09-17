@@ -14,6 +14,7 @@ from baselayer.app.env import load_env
 ROOT = pathlib.Path(__file__).parents[3]
 ABOUT_TEMPLATE = ROOT / "static/js/components/templates/AboutPlugins.tsx.template"
 LOGIN_TEMPLATE = ROOT / "static/login.html.template"
+APPLY_TEMPLATE = ROOT / "static/apply.html.template"
 
 FRITZ_LIKE = {
     "auth_backends": [
@@ -155,3 +156,42 @@ def test_login_template_skips_artwork_for_an_unconfigured_backend():
     assert out.count('class="loginButton"') == 1
     assert "/login/retired" not in out
     assert "/old.png" not in out
+
+
+def login_config(**user_applications):
+    return {
+        **FRITZ_LIKE,
+        "user_applications": {"enabled": True, **user_applications},
+        "invitations": {"enabled": True},
+    }
+
+
+def test_login_template_carries_the_application_form_when_enabled():
+    out = render(LOGIN_TEMPLATE, login_config())
+
+    assert 'id="applyForm"' in out
+    assert 'name="endorserEmail"' in out
+    assert "/api/user_applications" in out
+
+
+def test_login_template_carries_no_form_when_applications_are_off():
+    # applications are approved by issuing an invitation, so they are inert
+    # without the invitation pipeline
+    assert 'id="applyForm"' not in render(
+        LOGIN_TEMPLATE, {**login_config(), "invitations": {"enabled": False}}
+    )
+    assert 'id="applyForm"' not in render(LOGIN_TEMPLATE, login_config(enabled=False))
+    # a config predating the feature must still render a login page
+    out = render(LOGIN_TEMPLATE, dict(FRITZ_LIKE))
+    assert 'id="applyForm"' not in out
+    assert out.count('class="loginButton"') == 2
+
+
+def test_apply_template_renders_the_configured_preamble():
+    _, cfg = load_env()
+
+    out = render(APPLY_TEMPLATE, cfg)
+
+    assert cfg["user_applications.form_preamble"].strip().split("\n")[0] in out
+    assert f"Apply for a {cfg['app.title']} account" in out
+    assert 'action="/api/user_applications"' not in out  # posted by fetch, not a form

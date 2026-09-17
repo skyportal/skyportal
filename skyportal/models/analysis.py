@@ -1,4 +1,9 @@
-__all__ = ["AnalysisService", "ObjAnalysis", "DefaultAnalysis"]
+__all__ = [
+    "AnalysisService",
+    "ObjAnalysis",
+    "GcnEventAnalysis",
+    "DefaultAnalysis",
+]
 
 import base64
 import io
@@ -207,6 +212,14 @@ class AnalysisService(Base):
         cascade="save-update, merge, refresh-expire, expunge, delete-orphan, delete",
         passive_deletes=True,
         doc="Instances of analysis applied to specific objects",
+    )
+
+    gcnevent_analyses = relationship(
+        "GcnEventAnalysis",
+        back_populates="analysis_service",
+        cascade="save-update, merge, refresh-expire, expunge, delete-orphan, delete",
+        passive_deletes=True,
+        doc="Instances of analysis applied to specific GCN events",
     )
 
     @property
@@ -459,6 +472,8 @@ class AnalysisMixin:
     def backref_name(cls):
         if cls.__name__ == "ObjAnalysis":
             return "obj_analyses"
+        if cls.__name__ == "GcnEventAnalysis":
+            return "gcnevent_analyses"
 
     @declared_attr
     def author_id(cls):
@@ -533,6 +548,35 @@ class ObjAnalysis(Base, AnalysisMixin, WebhookMixin):
         )
 
 
+class GcnEventAnalysis(Base, AnalysisMixin, WebhookMixin):
+    """Analysis on a GcnEvent with a set of results as JSON"""
+
+    __tablename__ = "gcnevent_analyses"
+
+    create = AccessibleIfRelatedRowsAreAccessible(gcnevent="read")
+    read = accessible_by_groups_members & AccessibleIfRelatedRowsAreAccessible(
+        gcnevent="read"
+    )
+    update = delete = AccessibleIfUserMatches("author")
+
+    @declared_attr
+    def dateobs(cls):
+        return sa.Column(
+            sa.ForeignKey("gcnevents.dateobs", ondelete="CASCADE"),
+            nullable=False,
+            index=True,
+            doc="UTC event timestamp of the GcnEventAnalysis's GcnEvent.",
+        )
+
+    @declared_attr
+    def gcnevent(cls):
+        return relationship(
+            "GcnEvent",
+            back_populates=cls.backref_name(),
+            doc="The GcnEventAnalysis's GcnEvent.",
+        )
+
+
 class DefaultAnalysis(Base):
     # this is a table that stores a default analysis for a given analysis service
     # this default analysis will be triggered based on a set of criteria
@@ -582,12 +626,22 @@ class DefaultAnalysis(Base):
         doc=("Optional parameters that are passed to the analysis service"),
     )
 
+    analysis_resource_type = sa.Column(
+        sa.String,
+        nullable=False,
+        server_default="obj",
+        default="obj",
+        doc="Resource this default triggers on: 'obj' (classifications) or "
+        "'gcn_event' (incoming GCN triggers).",
+    )
+
     source_filter = sa.Column(
         psql.JSONB,
         nullable=False,
         doc="""
             JSONB column that defines the criteria for which this default analysis will be triggered.
-            Example: {"classifications": {"name": "Kilonova", "probability": 0.9}}
+            For 'obj': {"classifications": [{"name": "Kilonova", "probability": 0.9}]}.
+            For 'gcn_event': {"gcn_tags": ["GRB"], "notice_types": [...]} (either, matched as OR).
         """,
     )
 
@@ -775,6 +829,159 @@ def create_default_analysis(mapper, connection, target):
                     )
         except Exception as e:
             log(f"Error creating default analyses on classification {target.id}: {e}")
+
+
+def _run_default_gcnevent_analysis(
+    default_analysis_id, author_id, dateobs, notification
+):
+    """Bump the per-day counter and post one default analysis for a GCN event.
+
+    The gcn_event analog of _run_default_analysis, keyed by dateobs and dispatched
+    via run_async so it runs after the ingesting transaction commits (the event is
+    not visible to a fresh session until then).
+    """
+    import time
+
+    from skyportal.handlers.api.analysis import post_analysis
+    from skyportal.models import GcnEvent, User
+
+    for _ in range(20):
+        with DBSession() as probe:
+            if (
+                probe.scalar(
+                    sa.select(GcnEvent.dateobs).where(GcnEvent.dateobs == dateobs)
+                )
+                is not None
+            ):
+                break
+        time.sleep(0.5)
+    else:
+        log(
+            f"Default analysis {default_analysis_id}: gcn_event {dateobs} never became visible"
+        )
+        return
+
+    with DBSession() as db_session:
+        try:
+            author = db_session.scalar(sa.select(User).where(User.id == author_id))
+            if author is None:
+                return
+            default_analysis = db_session.scalars(
+                DefaultAnalysis.select(author, mode="update").where(
+                    DefaultAnalysis.id == default_analysis_id
+                )
+            ).first()
+            if default_analysis is None:
+                return
+
+            now = utcnow_naive().strftime("%Y-%m-%dT%H:%M:%S.%f")
+            stats = default_analysis.stats or {}
+            if not {"daily_limit", "daily_count", "last_run"}.issubset(stats.keys()):
+                stats = {"daily_limit": 10, "daily_count": 0, "last_run": now}
+            if datetime.strptime(stats["last_run"], "%Y-%m-%dT%H:%M:%S.%f") < (
+                utcnow_naive() - timedelta(days=1)
+            ):
+                stats = {
+                    "daily_limit": stats["daily_limit"],
+                    "daily_count": 0,
+                    "last_run": now,
+                }
+            default_analysis.stats = {
+                "daily_limit": stats["daily_limit"],
+                "daily_count": stats["daily_count"] + 1,
+                "last_run": now,
+            }
+            db_session.add(default_analysis)
+
+            post_analysis(
+                "gcn_event",
+                dateobs.isoformat(),
+                current_user=author,
+                author=author,
+                groups=default_analysis.groups,
+                analysis_service=default_analysis.analysis_service,
+                analysis_parameters=default_analysis.default_analysis_parameters,
+                show_parameters=default_analysis.show_parameters,
+                show_plots=default_analysis.show_plots,
+                show_corner=default_analysis.show_corner,
+                notification=notification,
+                session=db_session,
+            )
+        except Exception as e:
+            log(
+                f"Error creating default gcn_event analysis with id {default_analysis_id}: {e}"
+            )
+            db_session.rollback()
+
+
+def create_default_gcnevent_analysis(mapper, connection, target):
+    """Trigger gcn_event default analyses that match a newly-tagged GCN event.
+
+    ``target`` is a GcnTag; registered on GcnTag.after_insert from gcn.py. Matches
+    a default's source_filter gcn_tags/notice_types (either, OR) against the event,
+    within the per-day limit, and dedups against a service already run for it.
+    """
+
+    @event.listens_for(inspect(target).session, "after_flush", once=True)
+    def receive_after_flush(session, context):
+        try:
+            from skyportal.models import GcnNotice, GcnTag
+            from skyportal.utils.asynchronous import run_async
+
+            dateobs = target.dateobs
+            event_tags = set(
+                session.scalars(
+                    sa.select(GcnTag.text).where(GcnTag.dateobs == dateobs)
+                ).all()
+            )
+            event_tags.add(target.text)
+            notice_types = set(
+                session.scalars(
+                    sa.select(GcnNotice.notice_type).where(GcnNotice.dateobs == dateobs)
+                ).all()
+            )
+
+            stmt = sa.select(DefaultAnalysis).where(
+                DefaultAnalysis.analysis_resource_type == "gcn_event",
+                _default_analysis_under_limit(),
+            )
+            for default_analysis in session.scalars(stmt).all():
+                filt = default_analysis.source_filter or {}
+                wanted_tags = set(filt.get("gcn_tags") or [])
+                wanted_notices = set(filt.get("notice_types") or [])
+                # A filter with neither key matches nothing (avoid firing on every
+                # event); otherwise any listed tag or notice type is enough.
+                if not wanted_tags and not wanted_notices:
+                    continue
+                if not (wanted_tags & event_tags) and not (
+                    wanted_notices & notice_types
+                ):
+                    continue
+
+                existing = session.scalar(
+                    sa.select(GcnEventAnalysis.id).where(
+                        GcnEventAnalysis.dateobs == dateobs,
+                        GcnEventAnalysis.analysis_service_id
+                        == default_analysis.analysis_service_id,
+                    )
+                )
+                if existing is not None:
+                    continue
+
+                log(
+                    f"Creating default analysis {default_analysis.analysis_service.name} "
+                    f"for gcn_event {dateobs}"
+                )
+                run_async(
+                    _run_default_gcnevent_analysis,
+                    default_analysis.id,
+                    default_analysis.author_id,
+                    dateobs,
+                    f"Default analysis {default_analysis.analysis_service.name} "
+                    f"triggered by GCN event {dateobs}",
+                )
+        except Exception as e:
+            log(f"Error creating default gcn_event analyses on a tag: {e}")
 
 
 @event.listens_for(Source, "after_insert")

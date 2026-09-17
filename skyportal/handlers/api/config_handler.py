@@ -9,6 +9,7 @@ from baselayer.app.env import load_env
 from skyportal.models import cosmo
 from skyportal.utils.assistant import is_enabled as assistant_enabled
 from skyportal.utils.tns import TNS_INSTRUMENT_IDS
+from skyportal.utils.user_applications import may_decide, user_applications_enabled
 
 from ...enum_types import (
     ALLOWED_ALLOCATION_TYPES,
@@ -78,6 +79,16 @@ class ConfigHandler(BaseHandler):
                               description: |
                                 Boolean indicating whether new user invitation pipeline
                                 is enabled in current deployment.
+                            userApplicationsEnabled:
+                              type: boolean
+                              description: |
+                                Boolean indicating whether account applications are
+                                enabled in current deployment.
+                            canDecideUserApplications:
+                              type: boolean
+                              description: |
+                                Boolean indicating whether the requesting user may
+                                endorse or decline account applications.
                             slackPreamble:
                               type: string
                               description: |
@@ -112,6 +123,8 @@ class ConfigHandler(BaseHandler):
             data={
                 "slackPreamble": cfg["slack.expected_url_preamble"],
                 "invitationsEnabled": cfg["invitations.enabled"],
+                "userApplicationsEnabled": user_applications_enabled(),
+                "canDecideUserApplications": may_decide(self.current_user),
                 "assistantEnabled": assistant_enabled(cfg),
                 "cosmology": str(cosmo),
                 "cosmologyParams": cosmology_parameter_rows(cosmo),

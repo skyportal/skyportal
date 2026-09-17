@@ -14,6 +14,7 @@ all_acl_ids = [
     "Comment",
     "Annotate",
     "Manage users",
+    "Endorse users",
     "Manage sources",
     "Manage photometry",
     "Manage groups",
@@ -53,6 +54,7 @@ role_acls = {
         "Run Analyses",
         "Post taxonomy",
         "Manage users",
+        "Endorse users",
         "Classify",
         "Manage observing runs",
     ],
@@ -63,6 +65,7 @@ role_acls = {
         "Classify",
         "Run Analyses",
         "Manage observing runs",
+        "Endorse users",
     ],
     "View only": [],
 }

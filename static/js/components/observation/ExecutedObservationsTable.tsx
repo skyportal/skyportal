@@ -70,6 +70,8 @@ interface ExecutedObservationsTableProps {
   pageNumber?: number;
   numPerPage?: number;
   serverSide?: boolean;
+  filterModel?: any;
+  onFilterModelChange?: ((model: any) => void) | undefined;
 }
 
 const ExecutedObservationsTable = ({
@@ -81,6 +83,8 @@ const ExecutedObservationsTable = ({
   pageNumber = 1,
   numPerPage = 10,
   serverSide = true,
+  filterModel,
+  onFilterModelChange,
 }: ExecutedObservationsTableProps) => {
   const { classes } = useStyles();
   const navigate = useNavigate();
@@ -489,6 +493,8 @@ const ExecutedObservationsTable = ({
             sortModel={sortModel}
             onSortModelChange={handleSortModelChange}
             pageSizeOptions={PAGE_SIZE_OPTIONS}
+            filterModel={filterModel}
+            onFilterModelChange={onFilterModelChange}
             slots={{ toolbar: CustomToolbar }}
             showToolbar
           />

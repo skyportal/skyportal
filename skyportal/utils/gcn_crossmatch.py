@@ -88,7 +88,20 @@ DEFAULTS = {
     "cumprob": DEFAULT_CUMPROB,
     # Per-filter cut on a match's credible level. None keeps all of cumprob.
     "max_credible_level": None,
-    "max_alerts": 500,
+    # A wide localization returns far more than a cone: the widest Fermi GBM
+    # region measured here yields a few hundred alerts a slice after the quality
+    # cuts, and truncation here is silent, so leave headroom.
+    "max_alerts": 10000,
+    # Which end of the window survives truncation at max_alerts. A counterpart
+    # search wants the alerts nearest the trigger, so those filters set
+    # "Ascending"; the default keeps the newest, as a live event feed wants.
+    "sort_order": "Descending",
+    # A GRB counterpart's first detection follows the trigger and its light
+    # curve is short. Both are relative to the event, so they cannot live in the
+    # broker-side filter, which is the same pipeline for every event. None
+    # leaves the history unconstrained.
+    "max_days_to_first_detection": None,
+    "max_detection_span_days": None,
     # One-shot search of the window before the event, to spot positions that
     # were already active and so cannot be counterparts.
     "archival": True,
@@ -548,6 +561,28 @@ async def process_event_filter(
         if state.last_alert_jd is not None:
             jd_start = max(jd_start, state.last_alert_jd)
         jd_end = event_jd + float(conf(config, "delta_t_after"))
+        # The history cuts cap the epoch of anything that can match: a first
+        # detection no later than the trigger plus one window, and an alert no
+        # later than that first detection plus the span. Searching past that is
+        # provably empty, and the broker walks a wide window in slices, so the
+        # saving is whole requests rather than rows.
+        horizon = detection_horizon(
+            event_jd,
+            conf(config, "max_days_to_first_detection"),
+            conf(config, "max_detection_span_days"),
+        )
+        if horizon is not None:
+            jd_end = min(jd_end, horizon)
+
+    # The resume point can sit past the end of the window: state.last_alert_jd
+    # records how far a previous run got, so narrowing delta_t_after (or the
+    # history horizon) leaves nothing left to search. The broker rejects
+    # start >= end outright, which would fail the state on every retry.
+    if jd_start >= jd_end:
+        state.last_queried = utcnow_naive()
+        state.status = "done"
+        state.error = None
+        return 0
 
     broker = filter_.broker
     survey = filter_survey(filter_)
@@ -564,13 +599,21 @@ async def process_event_filter(
         # artifacts, asteroids and variable stars are rejected before they cross
         # the wire rather than after.
         cuts, cuts_source = await resolve_quality_pipeline(session, broker, filter_.id)
+        # First: the broker joins the alert history collection lazily, before the
+        # first stage that reads it, so a cut placed after that stage is applied
+        # to the joined set rather than shrinking it.
+        history = history_window_stages(
+            event_jd,
+            conf(config, "max_days_to_first_detection"),
+            conf(config, "max_detection_span_days"),
+        )
         result = broker.broker_class.test_filter(
             broker,
             session,
             pipeline=(
-                [cone_match_stage(ra0, dec0, radius), *cuts]
+                [cone_match_stage(ra0, dec0, radius), *history, *cuts]
                 if cone is not None
-                else list(cuts)
+                else [*history, *cuts]
             ),
             # BOOM prepends the region match itself, so the cuts reach it
             # unchanged and a skymap event runs the same versioned filter a
@@ -581,7 +624,7 @@ async def process_event_filter(
             start_jd=jd_start,
             end_jd=jd_end,
             sort_by="candidate.jd",
-            sort_order="Descending",
+            sort_order=str(conf(config, "sort_order")),
             limit=int(conf(config, "max_alerts")),
         )
         alerts = (
@@ -1151,6 +1194,66 @@ def distance_lookup(localization):
         return mu, sigma
 
     return lookup
+
+
+def detection_horizon(event_jd, max_days_to_first, max_span_days):
+    """Latest alert epoch that can satisfy both history cuts, or None.
+
+    Both are needed: without the span an alert may be arbitrarily late, and
+    without the first-detection window its start is unbounded.
+    """
+    if max_days_to_first is None or max_span_days is None:
+        return None
+    return float(event_jd) + float(max_days_to_first) + float(max_span_days)
+
+
+def history_window_stages(event_jd, max_days_to_first, max_span_days):
+    """Pipeline stages constraining an alert's detection history to the event.
+
+    ``max_days_to_first`` requires the object's first detection to fall between
+    the trigger and that many days after it: a counterpart cannot predate the
+    explosion, and one that appears a month later is not the same transient.
+    ``max_span_days`` caps the alert's own epoch against that first detection,
+    which rejects the long-lived variables that dominate a wide localization.
+    Per alert, the alert's epoch is the last detection, and a wider search is
+    walked in slices, so this is not implied by the query window.
+
+    ZTF field names. BOOM does not store ``jdendhist``, and a missing field
+    makes ``$subtract`` null, which compares as less than any bound -- so a span
+    written against it would pass everything. A survey without ``jdstarthist``
+    matches nothing, so leave these unset for those filters.
+    """
+    stages = []
+    if max_days_to_first is not None:
+        stages.append(
+            {
+                "$match": {
+                    "candidate.jdstarthist": {
+                        "$gte": float(event_jd),
+                        "$lte": float(event_jd) + float(max_days_to_first),
+                    }
+                }
+            }
+        )
+    if max_span_days is not None:
+        stages.append(
+            {
+                "$match": {
+                    "$expr": {
+                        "$lte": [
+                            {
+                                "$subtract": [
+                                    "$candidate.jd",
+                                    "$candidate.jdstarthist",
+                                ]
+                            },
+                            float(max_span_days),
+                        ]
+                    }
+                }
+            }
+        )
+    return stages
 
 
 def cone_match_stage(ra, dec, radius_deg):

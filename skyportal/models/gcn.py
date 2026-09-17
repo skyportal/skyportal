@@ -755,6 +755,14 @@ class GcnEvent(Base):
 
     localizations = relationship("Localization")
 
+    gcnevent_analyses = relationship(
+        "GcnEventAnalysis",
+        back_populates="gcnevent",
+        cascade="save-update, merge, refresh-expire, expunge, delete-orphan, delete",
+        passive_deletes=True,
+        doc="Analyses run on this GCN event.",
+    )
+
     observationplan_requests = relationship(
         "ObservationPlanRequest",
         back_populates="gcnevent",
@@ -1217,3 +1225,12 @@ GcnEvent.crossmatch_states = relationship(
     passive_deletes=True,
     doc="Per-broker crossmatch progress for this event.",
 )
+
+
+# Auto-run gcn_event default analyses when an incoming event is tagged (e.g. a
+# GRB trigger). Registered here because models.analysis imports before models.gcn.
+from sqlalchemy import event as sa_event  # noqa: E402
+
+from .analysis import create_default_gcnevent_analysis  # noqa: E402
+
+sa_event.listen(GcnTag, "after_insert", create_default_gcnevent_analysis)

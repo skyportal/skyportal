@@ -51,6 +51,27 @@ def _disable_external_sends(monkeypatch):
 
 
 @pytest.fixture(autouse=True)
+def _enable_peer_endorsement(monkeypatch):
+    """Pin the UserApplication config the matrix expects.
+
+    Its access logic is config-dependent, and an in-process test reads the
+    default config rather than test_config.yaml, so without this the rows would
+    assert the feature-off behaviour instead of the access logic.
+    """
+    from skyportal.utils import user_applications
+
+    monkeypatch.setattr(
+        user_applications,
+        "cfg",
+        {
+            "user_applications.enabled": True,
+            "user_applications.peer_endorsement": True,
+            "invitations.enabled": True,
+        },
+    )
+
+
+@pytest.fixture(autouse=True)
 def _recover_session_after_test():
     """Roll back the shared session after every permission test.
 
@@ -76,6 +97,7 @@ FIXTURE_MODEL = {
     "broker": "Broker",
     "user_broker_credential": "BrokerCredential",
     "invitation": "Invitation",
+    "user_application": "UserApplication",
     "keck1_telescope": "Telescope",
     "problematic_assignment": "ClassicalAssignment",
     "public_annotation": "Annotation",
@@ -164,6 +186,7 @@ FIXTURE_MODEL = {
     "public_mmadetector": "MMADetector",
     "public_mmadetector_spectrum": "MMADetectorSpectrum",
     "public_obj_analysis": "ObjAnalysis",
+    "public_gcnevent_analysis": "GcnEventAnalysis",
     "public_obj_tag_option": "ObjTagOption",
     "public_observation_plan_request": "ObservationPlanRequest",
     "public_observation_plan_request_target_group": "ObservationPlanRequestTargetGroup",
@@ -214,6 +237,7 @@ FIXTURE_MODEL = {
     "public_group_comment_on_gcn": "GroupCommentOnGCN",
     "public_group_invitation": "GroupInvitation",
     "public_group_obj_analysis": "GroupObjAnalysis",
+    "public_group_gcnevent_analysis": "GroupGcnEventAnalysis",
     "public_group_photometric_series": "GroupPhotometricSeries",
     "public_phot_stat": "PhotStat",
     "public_stream_photometry": "StreamPhotometry",
@@ -756,6 +780,25 @@ CASES = [
     ("super_admin_user", "invitation", "read", True),
     ("super_admin_user", "invitation", "update", True),
     ("super_admin_user", "invitation", "delete", True),
+    # --- UserApplication  (user_application): anyone may apply; deciding on one
+    # needs an ACL that reaches these roles through their role, not directly,
+    # and test_config enables peer endorsement ---
+    ("user", "user_application", "create", True),
+    ("user", "user_application", "read", True),
+    ("user", "user_application", "update", True),
+    ("user", "user_application", "delete", True),
+    ("user_group2", "user_application", "create", True),
+    ("user_group2", "user_application", "read", True),
+    ("user_group2", "user_application", "update", True),
+    ("user_group2", "user_application", "delete", True),
+    ("group_admin_user", "user_application", "create", True),
+    ("group_admin_user", "user_application", "read", True),
+    ("group_admin_user", "user_application", "update", True),
+    ("group_admin_user", "user_application", "delete", True),
+    ("super_admin_user", "user_application", "create", True),
+    ("super_admin_user", "user_application", "read", True),
+    ("super_admin_user", "user_application", "update", True),
+    ("super_admin_user", "user_application", "delete", True),
     # --- ObservingRun  (red_transients_run) ---
     ("user", "red_transients_run", "create", True),
     ("user", "red_transients_run", "read", True),
@@ -1871,6 +1914,23 @@ CASES = [
     ("super_admin_user", "public_obj_analysis", "read", True),
     ("super_admin_user", "public_obj_analysis", "update", True),
     ("super_admin_user", "public_obj_analysis", "delete", True),
+    # --- GcnEventAnalysis  (public_gcnevent_analysis) ---
+    ("user", "public_gcnevent_analysis", "create", True),
+    ("user", "public_gcnevent_analysis", "read", True),
+    ("user", "public_gcnevent_analysis", "update", True),
+    ("user", "public_gcnevent_analysis", "delete", True),
+    ("user_group2", "public_gcnevent_analysis", "create", True),
+    ("user_group2", "public_gcnevent_analysis", "read", False),
+    ("user_group2", "public_gcnevent_analysis", "update", False),
+    ("user_group2", "public_gcnevent_analysis", "delete", False),
+    ("group_admin_user", "public_gcnevent_analysis", "create", True),
+    ("group_admin_user", "public_gcnevent_analysis", "read", True),
+    ("group_admin_user", "public_gcnevent_analysis", "update", False),
+    ("group_admin_user", "public_gcnevent_analysis", "delete", False),
+    ("super_admin_user", "public_gcnevent_analysis", "create", True),
+    ("super_admin_user", "public_gcnevent_analysis", "read", True),
+    ("super_admin_user", "public_gcnevent_analysis", "update", True),
+    ("super_admin_user", "public_gcnevent_analysis", "delete", True),
     # --- ObjTagOption  (public_obj_tag_option)  [PREDICTED - verify in CI] ---
     ("user", "public_obj_tag_option", "create", True),
     ("user", "public_obj_tag_option", "read", True),
@@ -2777,6 +2837,23 @@ CASES = [
     ("super_admin_user", "public_group_obj_analysis", "read", True),
     ("super_admin_user", "public_group_obj_analysis", "update", True),
     ("super_admin_user", "public_group_obj_analysis", "delete", True),
+    # --- GroupGcnEventAnalysis  (public_group_gcnevent_analysis) ---
+    ("user", "public_group_gcnevent_analysis", "create", True),
+    ("user", "public_group_gcnevent_analysis", "read", True),
+    ("user", "public_group_gcnevent_analysis", "update", False),
+    ("user", "public_group_gcnevent_analysis", "delete", False),
+    ("user_group2", "public_group_gcnevent_analysis", "create", False),
+    ("user_group2", "public_group_gcnevent_analysis", "read", False),
+    ("user_group2", "public_group_gcnevent_analysis", "update", False),
+    ("user_group2", "public_group_gcnevent_analysis", "delete", False),
+    ("group_admin_user", "public_group_gcnevent_analysis", "create", True),
+    ("group_admin_user", "public_group_gcnevent_analysis", "read", True),
+    ("group_admin_user", "public_group_gcnevent_analysis", "update", True),
+    ("group_admin_user", "public_group_gcnevent_analysis", "delete", True),
+    ("super_admin_user", "public_group_gcnevent_analysis", "create", True),
+    ("super_admin_user", "public_group_gcnevent_analysis", "read", True),
+    ("super_admin_user", "public_group_gcnevent_analysis", "update", True),
+    ("super_admin_user", "public_group_gcnevent_analysis", "delete", True),
     # --- GroupPhotometricSeries  (public_group_photometric_series)  [recovered, probed] ---
     ("user", "public_group_photometric_series", "create", True),
     ("user", "public_group_photometric_series", "read", True),

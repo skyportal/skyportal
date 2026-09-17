@@ -44,6 +44,10 @@ twilio:
   sms_account_sid:
   sms_auth_token:
 
+user_applications:
+  enabled: True
+  peer_endorsement: True
+
 invitations:
   enabled: True
   days_until_expiry: 3
