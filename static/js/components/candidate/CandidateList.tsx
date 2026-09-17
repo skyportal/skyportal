@@ -45,7 +45,7 @@ import AddClassificationsScanningPage from "./AddClassificationsScanningPage";
 import Button from "../Button";
 import DisplayPhotStats from "../source/DisplayPhotStats";
 import CandidatePlugins from "./CandidatePlugins";
-import ChatBubbleOutlineIcon from "@mui/icons-material/ChatBubbleOutline";
+import ChatIcon from "@mui/icons-material/Chat";
 import { useCommentPanel } from "../../contexts/CommentPanelContext";
 import { MAIN_CHANNEL } from "../comment/channels";
 
@@ -761,7 +761,7 @@ const Candidate = ({
                   disabled={isReadOnly}
                   size="small"
                 >
-                  <ChatBubbleOutlineIcon fontSize="small" />
+                  <ChatIcon fontSize="small" />
                 </IconButton>
               </span>
             </Tooltip>

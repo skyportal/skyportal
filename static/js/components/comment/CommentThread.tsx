@@ -216,7 +216,7 @@ interface CommentThreadProps {
   // Omit to let the list fill the height its parent gives it.
   maxHeightList?: string;
   channel?: string | undefined;
-  origin?: "scanning";
+  origin?: "scanning" | undefined;
   pinned?: boolean;
 }
 
