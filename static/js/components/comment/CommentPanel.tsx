@@ -79,7 +79,11 @@ const CommentPanel = ({ inline = false }: CommentPanelProps) => {
 
   const hasComments = target?.type === "source" || target?.type === "gcn_event";
   const showComments =
-    hasComments && (inline || !commentsInline || target.type !== "source");
+    hasComments &&
+    (inline ||
+      !commentsInline ||
+      target.type !== "source" ||
+      target.origin === "scanning");
   const showAssistant = !inline && assistantEnabled;
   const isComments = showComments && (space === "comments" || !showAssistant);
   const activeSpace: ChatSpace = isComments ? "comments" : "assistant";
