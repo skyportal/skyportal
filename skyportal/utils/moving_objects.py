@@ -2,6 +2,7 @@ import urllib.parse
 from datetime import datetime
 from io import StringIO
 
+import healpix_alchemy
 import numpy as np
 import pandas as pd
 import requests
@@ -440,7 +441,12 @@ def get_instrument_fields(
     conditions = [
         InstrumentFieldTile.instrument_id == instrument_id,
         InstrumentFieldTile.instrument_field_id == InstrumentField.id,
-        InstrumentFieldTile.healpix.contains(row["healpix"]),
+        # Bound as a Point. Tile's bind param reads a bare integer as a NUNIQ
+        # index and would decode this nested level-29 pixel into a range at an
+        # unrelated position.
+        InstrumentFieldTile.healpix.contains(
+            sa.literal(row["healpix"], healpix_alchemy.Point)
+        ),
     ]
     if references_only:
         conditions.append(InstrumentField.reference_filters != "{}")

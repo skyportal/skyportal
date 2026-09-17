@@ -115,6 +115,22 @@ class SharingService(Base):
     def tns_altdata(self, value):
         self._tns_altdata = value
 
+    # The MPC files a submission under a named person rather than a bot, so the
+    # acknowledgement address is configuration rather than a constant.
+    _mpc_altdata = sa.Column(
+        StringEncryptedType(JSONType, cfg["app.secret_key"], AesEngine, "pkcs5")
+    )
+
+    @property
+    def mpc_altdata(self):
+        if self._mpc_altdata is None:
+            return {}
+        return json.loads(self._mpc_altdata)
+
+    @mpc_altdata.setter
+    def mpc_altdata(self, value):
+        self._mpc_altdata = value
+
     groups = relationship(
         "SharingServiceGroup",
         back_populates="sharing_service",
@@ -179,6 +195,7 @@ class SharingServiceGroup(Base):
     owner = sa.Column(sa.Boolean, nullable=False, default=False)
     auto_share_to_tns = sa.Column(sa.Boolean, nullable=False, server_default="false")
     auto_share_to_hermes = sa.Column(sa.Boolean, nullable=False, server_default="false")
+    auto_share_to_mpc = sa.Column(sa.Boolean, nullable=False, server_default="false")
     auto_sharing_allow_bots = sa.Column(
         sa.Boolean, nullable=False, server_default="false"
     )
@@ -286,6 +303,35 @@ class SharingServiceSubmission(Base):
     )
 
     tns_payload = deferred(sa.Column(psql.JSONB, doc="Payload to publish to TNS."))
+
+    # One submission covers a whole track: an ADES document carries every epoch
+    # as its own observation line under one trkSub, so the row hangs off the
+    # track's anchor Obj and the other epochs create nothing.
+    publish_to_mpc = sa.Column(
+        sa.Boolean,
+        nullable=False,
+        server_default="false",
+        doc="Whether to publish to the Minor Planet Center or not.",
+    )
+
+    mpc_status = sa.Column(
+        sa.String, nullable=True, doc="Status of the MPC submission."
+    )
+
+    mpc_submission_id = sa.Column(
+        sa.String,
+        nullable=True,
+        default=None,
+        doc="Designation or tracking id the MPC submission was filed under.",
+    )
+
+    mpc_response = deferred(
+        sa.Column(psql.JSONB, doc="Serialized HTTP response from the MPC.")
+    )
+
+    mpc_payload = deferred(
+        sa.Column(psql.JSONB, doc="ADES payload submitted to the MPC.")
+    )
 
     publish_to_hermes = sa.Column(
         sa.Boolean,

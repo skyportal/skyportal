@@ -43,19 +43,21 @@ def test_super_obj_filters(super_admin_token, public_source):
 
     status, data = api("GET", f"super_objs?name={name}", token=super_admin_token)
     assert status == 200
-    assert [s["id"] for s in data["data"]] == [super_obj_id]
+    assert [s["id"] for s in data["data"]["superObjs"]] == [super_obj_id]
+    assert data["data"]["totalMatches"] == 1
 
     status, data = api(
         "GET", f"super_objs?objID={public_source.id}", token=super_admin_token
     )
     assert status == 200
-    assert super_obj_id in [s["id"] for s in data["data"]]
+    assert super_obj_id in [s["id"] for s in data["data"]["superObjs"]]
 
     status, data = api(
         "GET", f"super_objs?name={name}&isRoid=false", token=super_admin_token
     )
     assert status == 200
-    assert data["data"] == []
+    assert data["data"]["superObjs"] == []
+    assert data["data"]["totalMatches"] == 0
 
 
 def test_super_obj_membership_updates(
