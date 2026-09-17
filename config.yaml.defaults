@@ -1467,9 +1467,10 @@ analysis_services:
         # model, so reads are scoped to whatever is named here and a change
         # leaves earlier vectors unread until each summary is embedded again.
         model: text-embedding-3-small
-        # Any server speaking the OpenAI embeddings protocol. Unset means
-        # OpenAI's own, which is the only case where a user's own OpenAI key is
-        # sent; anywhere else is reached with `api_key` below, or with no key.
+        # Any server speaking the OpenAI embeddings protocol; unset means
+        # OpenAI's own. `api_key` is the key it is reached with. Only OpenAI's
+        # own, left without one, falls back to the key the summary was made
+        # with, which may be a user's.
         base_url:
         api_key:
         # Cosine similarity below which a source is not offered as similar to

@@ -137,10 +137,10 @@ class SummaryQueryHandler(BaseHandler):
 
         # Searching from a source uses the vector already stored for it, so only
         # a text query needs the embedding service, and so only it needs a key.
-        # A configured server gets the key configured with it; only OpenAI itself
-        # is ever reached with the requester's own.
+        # Only OpenAI itself, configured without a key of its own, is ever
+        # reached with the requester's.
         embedding_key = summarize_embedding_api_key
-        if query and not summarize_embedding_base_url:
+        if query and not embedding_key and not summarize_embedding_base_url:
             embedding_key = openai_api_key
             if not embedding_key:
                 user_id = self.associated_user_object.id

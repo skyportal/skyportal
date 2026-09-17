@@ -256,16 +256,14 @@ def run_openai_summarization(data_dict):
     result = {"summary": openai_summary}
 
     if EMBED_SUMMARIES:
-        # The embedding server is configured apart from the chat one, and only
-        # OpenAI itself is reached with the key this run was given, which may be
-        # the requesting user's own.
-        embedding_client = (
-            OpenAI(
-                api_key=summarize_embedding_api_key or "none",
-                base_url=summarize_embedding_base_url,
-            )
-            if summarize_embedding_base_url
-            else OpenAI(api_key=analysis_parameters.get("openai_api_key"))
+        # Only OpenAI itself, configured without a key of its own, is reached
+        # with the key this run was given, which may be the requesting user's.
+        embedding_key = summarize_embedding_api_key
+        if not embedding_key and not summarize_embedding_base_url:
+            embedding_key = analysis_parameters["openai_api_key"]
+        embedding_client = OpenAI(
+            api_key=embedding_key or "none",
+            base_url=summarize_embedding_base_url,
         )
         try:
             e = embedding_client.embeddings.create(
