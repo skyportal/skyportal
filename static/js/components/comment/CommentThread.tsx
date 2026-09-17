@@ -216,6 +216,7 @@ interface CommentThreadProps {
   // Omit to let the list fill the height its parent gives it.
   maxHeightList?: string;
   channel?: string | undefined;
+  origin?: "scanning";
   pinned?: boolean;
 }
 
@@ -232,6 +233,7 @@ const CommentThread = ({
   includeCommentsOnAllResourceTypes = true,
   maxHeightList,
   channel,
+  origin,
   pinned = false,
 }: CommentThreadProps) => {
   const { classes: styles, cx } = useStyles();
@@ -319,6 +321,7 @@ const CommentThread = ({
           spectrum_id: spectrumID,
           channel,
           ...formData,
+          origin,
         });
         break;
       case "gcn_event":

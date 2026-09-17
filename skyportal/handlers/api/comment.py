@@ -3,7 +3,7 @@ import os
 import string
 import time
 import unicodedata
-from typing import Annotated, ClassVar
+from typing import Annotated, ClassVar, Literal
 
 import arrow
 import sqlalchemy as sa
@@ -86,6 +86,10 @@ class CommentPostBody(BaseModel):
         default=None,
         description="Conversation the comment belongs to; the main thread if unset. "
         "Only used for comments on sources.",
+    )
+    origin: Literal["scanning"] | None = Field(
+        default=None,
+        description="Optional workflow that created the comment.",
     )
 
 
@@ -581,6 +585,7 @@ class CommentHandler(BaseHandler):
                             Comment.attachment_name == attachment_name,
                             Comment.author_id == author_id,
                             Comment.bot == is_bot_request,
+                            Comment.origin == body.origin,
                         )
                     )
                     existing = existing_result.first()
@@ -597,6 +602,7 @@ class CommentHandler(BaseHandler):
                             author_id=author_id,
                             groups=groups,
                             bot=is_bot_request,
+                            origin=body.origin,
                         )
                 elif associated_resource_type.lower() == "spectra":
                     try:

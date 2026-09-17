@@ -10,7 +10,7 @@ import {
 import { MAIN_CHANNEL } from "../components/comment/channels";
 
 export type CommentTarget =
-  | { type: "source"; id: string }
+  | { type: "source"; id: string; origin?: "scanning" }
   | { type: "gcn_event"; id: number; dateobs: string }
   // A filter has no comments of its own; the panel offers only the assistant.
   | { type: "filter"; id: number; brokerId: number };

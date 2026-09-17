@@ -488,6 +488,7 @@ const CommentPanel = ({ inline = false }: CommentPanelProps) => {
               key={channel}
               objID={target.id}
               channel={channel === MAIN_CHANNEL ? undefined : channel}
+              origin={target.origin}
               pinned={channel === INTERESTED_CHANNEL}
             />
           ) : (

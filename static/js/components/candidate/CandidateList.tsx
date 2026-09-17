@@ -45,6 +45,9 @@ import AddClassificationsScanningPage from "./AddClassificationsScanningPage";
 import Button from "../Button";
 import DisplayPhotStats from "../source/DisplayPhotStats";
 import CandidatePlugins from "./CandidatePlugins";
+import ChatBubbleOutlineIcon from "@mui/icons-material/ChatBubbleOutline";
+import { useCommentPanel } from "../../contexts/CommentPanelContext";
+import { MAIN_CHANNEL } from "../comment/channels";
 
 import { dec_to_dms, ra_to_hours } from "../../units";
 
@@ -722,6 +725,16 @@ const Candidate = ({
   totalMatches,
 }: CandidateProps) => {
   const { classes } = useStyles();
+  const { setTarget, setOpen, setSpace, setChannel } = useCommentPanel();
+  const isReadOnly = useIsReadOnly();
+
+  const openCandidateComments = () => {
+    setTarget({ type: "source", id: candidate.id, origin: "scanning" });
+    setSpace("comments");
+    setChannel(MAIN_CHANNEL);
+    setOpen(true);
+  };
+
   return (
     <Paper
       variant="outlined"
@@ -738,6 +751,21 @@ const Candidate = ({
           />
         </div>
         <div style={{ gridArea: "info", padding: "0 0 0 0.25rem" }}>
+          <div style={{ display: "flex", justifyContent: "flex-end" }}>
+            <Tooltip title="Comment on candidate">
+              <span>
+                <IconButton
+                  aria-label="comment on candidate"
+                  data-testid={`comment-candidate-${candidate.id}`}
+                  onClick={openCandidateComments}
+                  disabled={isReadOnly}
+                  size="small"
+                >
+                  <ChatBubbleOutlineIcon fontSize="small" />
+                </IconButton>
+              </span>
+            </Tooltip>
+          </div>
           <CandidateInfo candidateObj={candidate} filterGroups={filterGroups} />
         </div>
         <div style={{ gridArea: "photometry" }}>
