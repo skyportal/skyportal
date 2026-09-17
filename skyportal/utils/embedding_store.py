@@ -65,7 +65,7 @@ def _restrict(
     if accessible_objs is not None:
         stmt = stmt.where(_embeddings.obj_id.in_(accessible_objs))
 
-    # Read live, so a reclassification counts without a new embedding.
+    # Redshift and class are read live: a change counts without a new embedding.
     if z_min is not None or z_max is not None:
         stmt = stmt.where(
             sa.exists(
