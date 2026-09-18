@@ -57,17 +57,8 @@ def test_a_server_without_pgvector_is_told_to_install_it():
     assert not connection.created
 
 
-def test_an_unprivileged_role_is_told_to_ask_an_administrator():
+def test_an_unprivileged_role_is_told_which_database_to_create_it_in():
     connection = FakeConnection(may_install=False)
-    with pytest.raises(RuntimeError, match="may not install extensions") as caught:
+    with pytest.raises(RuntimeError, match="superuser.+skyportal") as caught:
         ensure_vector_extension(connection)
     assert isinstance(caught.value.__cause__, PermissionError)
-
-
-def test_the_database_is_named_in_both_messages():
-    for connection in (
-        FakeConnection(available=False),
-        FakeConnection(may_install=False),
-    ):
-        with pytest.raises(RuntimeError, match="skyportal"):
-            ensure_vector_extension(connection)

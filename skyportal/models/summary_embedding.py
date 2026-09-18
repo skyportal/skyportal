@@ -60,21 +60,13 @@ def ensure_vector_extension(connection):
         sa.text("SELECT 1 FROM pg_available_extensions WHERE name = 'vector'")
     ):
         raise RuntimeError(
-            "The summary_embeddings table needs pgvector's `vector` type, "
-            "which this PostgreSQL server does not carry. Install pgvector "
-            "alongside the server -- under Docker, run the pgvector/pgvector "
-            "image in place of postgres -- and then, in database "
-            f"{database}:\n"
-            "    CREATE EXTENSION vector;"
+            "pgvector is not on this server; the pgvector/pgvector image has it."
         )
     try:
         connection.execute(sa.text("CREATE EXTENSION vector"))
     except Exception as e:
         raise RuntimeError(
-            "The summary_embeddings table needs pgvector's `vector` type, and "
-            "this role may not install extensions. Ask an administrator to run, "
-            f"once, in database {database}:\n"
-            "    CREATE EXTENSION vector;"
+            f"pgvector needs a superuser: CREATE EXTENSION vector; in {database}."
         ) from e
 
 
