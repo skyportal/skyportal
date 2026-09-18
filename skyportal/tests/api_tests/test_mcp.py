@@ -121,6 +121,8 @@ def test_mcp_tools_list(view_only_token):
         "get_analyses",
         "get_analysis",
         "run_analysis",
+        "get_comments",
+        "post_comment",
         "get_gcn_events",
         "get_gcn_event",
         "get_gcn_event_extractions",
@@ -408,6 +410,11 @@ def test_mcp_tool_request_mapping():
     assert run_tool("post_photometry", {})[0][0][1] == "/api/photometry"
     assert run_tool("post_spectrum", {})[0][0][1] == "/api/spectrum"
 
+    calls, _ = run_tool("get_comments", {"obj_id": "X"})
+    assert calls == [("GET", "/api/sources/X/comments", None, None)]
+    calls, _ = run_tool("post_comment", {"obj_id": "X", "text": "triage"})
+    assert calls == [("POST", "/api/sources/X/comments", None, {"text": "triage"})]
+
 
 def test_analysis_tool_request_mapping():
     calls, _ = run_tool("list_analysis_services", {})
@@ -690,6 +697,24 @@ def test_mcp_gcn_comment_round_trip(gcn_GW190814, super_admin_token):
     assert status == 200, data
     texts = [c["text"] for c in data["result"]["structuredContent"]]
     assert "Follow-up requested." in texts
+
+
+def test_mcp_source_comment_round_trip(public_source, super_admin_token):
+    """A source comment is where the agent path records an LLM triage verdict."""
+    text = f"FLARE triage: needs_spectrum. {uuid.uuid4()}"
+    status, data = _call(
+        "post_comment",
+        {"obj_id": public_source.id, "text": text},
+        super_admin_token,
+    )
+    assert status == 200, data
+
+    status, data = _call(
+        "get_comments", {"obj_id": public_source.id}, super_admin_token
+    )
+    assert status == 200, data
+    texts = [c["text"] for c in data["result"]["structuredContent"]]
+    assert text in texts
 
 
 # ─── Broker filter tools ────────────────────────────────────────────────────

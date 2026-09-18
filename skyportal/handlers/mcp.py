@@ -702,6 +702,35 @@ async def run_analysis(handler, args):
 
 
 @tool(
+    "get_comments",
+    "The discussion on a source. Comments are how people (and agents) record "
+    "findings on a source in SkyPortal.",
+    {"obj_id": _prop("string", "Source ID.")},
+    required=("obj_id",),
+)
+async def get_comments(handler, args):
+    return await handler.api("GET", f"/api/sources/{args['obj_id']}/comments")
+
+
+@tool(
+    "post_comment",
+    "Add a comment to a source, e.g. to record an LLM triage verdict and its "
+    "reasoning on the source's discussion thread. WRITE: this posts a visible "
+    "comment.",
+    {
+        "obj_id": _prop("string", "Source ID."),
+        "text": _prop("string", "The comment body (markdown allowed)."),
+        "group_ids": _GROUP_IDS,
+    },
+    required=("obj_id", "text"),
+    writes=True,
+)
+async def post_comment(handler, args):
+    obj_id = args.pop("obj_id")
+    return await handler.api("POST", f"/api/sources/{obj_id}/comments", body=args)
+
+
+@tool(
     "get_gcn_events",
     "List GCN events (gravitational-wave, GRB, neutrino and other multi-messenger "
     "triggers). Filter by date range, or by name with partialdateobs, which "
