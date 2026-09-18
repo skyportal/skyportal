@@ -91,7 +91,12 @@ app:
   # own environment: `executable` must resolve there.
   m4opt:
     enabled: false
+    # `local` preserves the traditional deployment: invoke the configured
+    # executable in the SkyPortal environment. `remote` sends the sky map and
+    # schedule request to a private M4OPT worker.
+    deployment: local
     executable: m4opt
+    endpoint:
     # Which MILP solver runs the schedule. Deliberately not offered in the
     # request form: it is a property of the deployment, not of the science, and
     # picking one the server has no license for only produces a failure. scip

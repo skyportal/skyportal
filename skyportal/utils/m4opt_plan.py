@@ -17,6 +17,7 @@ __all__ = [
     "schedule_rows",
 ]
 
+import base64
 import os
 import subprocess
 import tempfile
@@ -125,6 +126,46 @@ def run_m4opt(
             command.append(f"--exptime-max={float(exposure_time)}s")
             command.append("--no-appmag-dist")
         command.extend(config.get("extra_args") or [])
+
+        deployment = config.get("deployment", "local")
+        if deployment == "remote":
+            endpoint = config.get("endpoint")
+            if not endpoint:
+                raise M4OPTError("M4OPT remote deployment requires an endpoint.")
+            import requests
+
+            request = {
+                "skymap": base64.b64encode(skymap_path.read_bytes()).decode("ascii"),
+                "mission": mission,
+                "delay_seconds": float(delay.to_value(u.s)),
+                "deadline_seconds": float(deadline.to_value(u.s)),
+                "nside": int(config.get("nside", 128)),
+                "timelimit_seconds": int(config.get("timelimit", 300)),
+                "max_fields": int(max_fields or config.get("max_fields", 50)),
+                "bandpasses": list(bandpasses),
+                "visits": int(visits) if visits else None,
+                "exposure_time": float(exposure_time) if exposure_time else None,
+                "extra_args": config.get("extra_args") or [],
+            }
+            try:
+                response = requests.post(
+                    endpoint.rstrip("/") + "/schedule",
+                    json=request,
+                    timeout=config.get("subprocess_timeout", 3600) + 30,
+                )
+                response.raise_for_status()
+                response_data = response.json()
+                schedule_path.write_bytes(
+                    base64.b64decode(response_data["schedule"], validate=True)
+                )
+            except (requests.RequestException, KeyError, ValueError) as e:
+                detail = ""
+                if getattr(e, "response", None) is not None:
+                    detail = f": {e.response.text[-2000:]}"
+                raise M4OPTError(f"M4OPT worker request failed{detail}") from e
+            return read_schedule(schedule_path)
+        if deployment != "local":
+            raise M4OPTError("M4OPT deployment must be either 'local' or 'remote'.")
 
         env = None
         if solver := config.get("solver"):
