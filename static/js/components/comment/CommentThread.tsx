@@ -385,7 +385,7 @@ const CommentThread = ({
     throw new Error(`Illegal input ${resourceType} to CommentThread. `);
   }
 
-  comments = comments || [];
+  comments = (comments || []).filter(Boolean);
 
   if (!includeBots && !channel) {
     comments = comments?.filter((comment: any) => comment.bot === false);
