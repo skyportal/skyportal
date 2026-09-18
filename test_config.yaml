@@ -78,7 +78,6 @@ services:
   disabled:
     - external_logging
     - cron
-    - gcnserver
     - dask
     - spectral_cube_analysis_service
     - tns_retrieval_queue
