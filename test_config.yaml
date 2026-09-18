@@ -176,6 +176,12 @@ app:
     use_parallel: False
     Ncores: 1
 
+  m4opt:
+    enabled: false
+    deployment: local
+    executable: m4opt
+    endpoint:
+
 analysis_services:
   analysis_folder: analysis_data
   openai_analysis_service:
