@@ -300,6 +300,45 @@ def test_save_candidate_quick_save(
 
 
 @pytest.mark.flaky(reruns=2)
+def test_comment_from_candidate_opens_scanning_panel(
+    page, group_admin_user, public_group, public_candidate, comment_token
+):
+    page.goto(f"/become_user/{group_admin_user.id}")
+    page.goto("/candidates")
+    page.locator(
+        f'//*[@data-testid="filteringFormGroupCheckbox-{public_group.id}"]'
+    ).first.click()
+    page.locator('//button[text()="Search"]').first.click()
+
+    comment_button = page.locator(
+        f'//*[@data-testid="comment-candidate-{public_candidate.id}"]'
+    ).first
+    expect(comment_button).to_be_visible()
+    comment_button.click()
+
+    expect(page.locator('//*[@data-testid="source-chat"]').first).to_be_visible()
+    comment_text = str(uuid.uuid4())
+    page.locator(
+        '//form[@data-testid="comment-form"]//textarea[@name="text"]'
+    ).first.fill(comment_text)
+    page.locator(
+        '//form[@data-testid="comment-form"]//*[@name="submitCommentButton"]'
+    ).first.click()
+    expect(
+        page.locator(f'//*[contains(text(), "{comment_text}")]').first
+    ).to_be_visible()
+
+    status, data = api(
+        "GET",
+        f"sources/{public_candidate.id}/comments",
+        token=comment_token,
+    )
+    assert status == 200, data
+    comment = next(c for c in data["data"] if c["text"] == comment_text)
+    assert comment["origin"] == "scanning"
+
+
+@pytest.mark.flaky(reruns=2)
 def test_save_candidate_select_groups(
     page, group_admin_user, public_group, public_candidate
 ):

@@ -366,6 +366,8 @@ export const sourceApi = skyportalApi.injectEndpoints({
           body["group_ids"] = formData["group_ids"];
         if (formData["channel"] !== undefined)
           body["channel"] = formData["channel"];
+        if (formData["origin"] !== undefined)
+          body["origin"] = formData["origin"];
         if (formData["attachment"]) {
           body["attachment"] = await fileReaderPromise(formData["attachment"]);
         }

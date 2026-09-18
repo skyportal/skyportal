@@ -629,6 +629,7 @@ async def create_scan_report_items(
                     Comment.obj_id.in_(chunk_obj_ids),
                     Comment.author_id == report.author_id,
                     Comment.bot.is_(False),
+                    Comment.origin == "scanning",
                 )
                 .order_by(Comment.created_at.desc())
             )

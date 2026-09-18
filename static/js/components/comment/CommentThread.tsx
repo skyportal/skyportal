@@ -216,6 +216,7 @@ interface CommentThreadProps {
   // Omit to let the list fill the height its parent gives it.
   maxHeightList?: string;
   channel?: string | undefined;
+  origin?: "scanning" | undefined;
   pinned?: boolean;
 }
 
@@ -232,6 +233,7 @@ const CommentThread = ({
   includeCommentsOnAllResourceTypes = true,
   maxHeightList,
   channel,
+  origin,
   pinned = false,
 }: CommentThreadProps) => {
   const { classes: styles, cx } = useStyles();
@@ -319,6 +321,7 @@ const CommentThread = ({
           spectrum_id: spectrumID,
           channel,
           ...formData,
+          origin,
         });
         break;
       case "gcn_event":
@@ -346,7 +349,10 @@ const CommentThread = ({
       Array.isArray(spectra) &&
       objID != null
     ) {
-      specComments = spectra?.map((spec: any) => spec.comments)?.flat();
+      specComments = spectra
+        .map((spec: any) => spec.comments || [])
+        .flat()
+        .filter(Boolean);
     }
     if (comments !== null && specComments !== null) {
       comments = specComments.concat(comments);
@@ -379,7 +385,7 @@ const CommentThread = ({
     throw new Error(`Illegal input ${resourceType} to CommentThread. `);
   }
 
-  comments = comments || [];
+  comments = (comments || []).filter(Boolean);
 
   if (!includeBots && !channel) {
     comments = comments?.filter((comment: any) => comment.bot === false);

@@ -139,7 +139,12 @@ def test_scan_report_item_includes_followup_and_assignment(
     # report should auto-fill (#5526).
     comment_text = "looks like a promising transient"
     CommentFactory(
-        obj=obj, author=user, groups=[public_group], text=comment_text, bot=False
+        obj=obj,
+        author=user,
+        groups=[public_group],
+        text=comment_text,
+        bot=False,
+        origin="scanning",
     )
 
     # Detections are read from PhotStat (not raw photometry): a fainter first
