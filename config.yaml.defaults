@@ -1481,6 +1481,12 @@ analysis_services:
       model: o4-mini
       presence_penalty: 1.0
       prompt: Using markdown (including URL links), in one succinct (less than 250 words) paragraph written in the 3rd person summarize the following comments about this astronomical source.  If classifications and/or the redshift are given, then note those in the summary. This will be read by expert astrophysicists, so no need to explain known concepts and definitions.
+    # LLM triage of a classifier analysis (analysis_parameters.task="triage").
+    # Reuses the summary LLM settings and reads the analysis / posts the comment
+    # through the database, so it needs no key of its own. The caller can pass its
+    # own analysis_parameters.prompt; this is only the default when none is given.
+    triage:
+      prompt: You are an expert time-domain astronomer triaging a photometric transient from a machine classifier. Given the calibrated class probabilities, the conformal prediction set, credibility, the anomaly energy, the host/context features and the light curve, return STRICT JSON with keys summary, evidence, suggested_action, caveats. Do not restate the numbers verbatim; interpret them. The classifier's own rule-based verdict is authoritative; if you disagree, say so in caveats.
     embeddings_store:
       summary:
         # Where the summary vectors are kept. `pgvector` holds them in
