@@ -9,7 +9,6 @@ config.yaml
 test_config.yaml
 github_deploy_key.enc
 dbdata
-dask-worker-space
 webdriver-console
 cache
 __pycache__/
