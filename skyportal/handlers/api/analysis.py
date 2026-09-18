@@ -332,6 +332,28 @@ def analysis_model_for(analysis_resource_type):
     return None
 
 
+def _localization_payload(localization):
+    """Sky position (max-probability point) and a skymap reference for a GCN
+    localization, best-effort. Targeted searches (e.g. PyGRB) point at ra/dec; the
+    skymap reference is passed through for later use."""
+    if localization is None:
+        return {}
+    out = {
+        "localization_name": localization.localization_name,
+        "skymap_url": (
+            f"/api/localization/{localization.dateobs.isoformat()}"
+            f"/name/{localization.localization_name}/download"
+        ),
+    }
+    try:
+        center = localization.center
+        out["ra"] = float(center["ra"])
+        out["dec"] = float(center["dec"])
+    except Exception:
+        pass
+    return out
+
+
 def _build_gcnevent_analysis(
     resource_id,
     current_user,
@@ -361,7 +383,7 @@ def _build_gcnevent_analysis(
     import arrow
     from astropy.time import Time
 
-    from ...models import GcnEvent, GcnEventAnalysis
+    from ...models import GcnEvent, GcnEventAnalysis, Localization
 
     dateobs = arrow.get(resource_id).naive
     event = session.scalars(
@@ -370,9 +392,15 @@ def _build_gcnevent_analysis(
     if event is None:
         raise ValueError(f"GcnEvent {resource_id} not found")
 
+    localization = session.scalars(
+        Localization.select(current_user)
+        .where(Localization.dateobs == event.dateobs)
+        .order_by(Localization.created_at.desc())
+    ).first()
     inputs["gcn_event"] = {
         "dateobs": event.dateobs.isoformat(),
         "gps": float(Time(event.dateobs).gps),
+        **_localization_payload(localization),
     }
 
     stmt = (
@@ -939,7 +967,7 @@ async def post_analysis_async(
         import arrow
         from astropy.time import Time
 
-        from ...models import GcnEvent, GcnEventAnalysis
+        from ...models import GcnEvent, GcnEventAnalysis, Localization
 
         dateobs = arrow.get(resource_id).naive
         event = (
@@ -949,10 +977,19 @@ async def post_analysis_async(
         ).first()
         if event is None:
             raise ValueError(f"GcnEvent {resource_id} not found")
-        # GPS time so time-domain services (e.g. aframe) needn't convert dateobs.
+        localization = (
+            await session.scalars(
+                Localization.select(current_user)
+                .where(Localization.dateobs == event.dateobs)
+                .order_by(Localization.created_at.desc())
+            )
+        ).first()
+        # GPS time so time-domain services (e.g. aframe) needn't convert dateobs;
+        # ra/dec + skymap reference for targeted searches (e.g. PyGRB).
         inputs["gcn_event"] = {
             "dateobs": event.dateobs.isoformat(),
             "gps": float(Time(event.dateobs).gps),
+            **_localization_payload(localization),
         }
         stmt = (
             GcnEventAnalysis.select(current_user)
