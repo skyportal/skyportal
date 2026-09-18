@@ -1013,11 +1013,7 @@ class DuplicateSchedulingHandler(BaseHandler):
         async with self.AsyncSession() as session:
             mine_stmt = FollowupRequest.select(
                 session.user_or_token,
-                columns=[
-                    FollowupRequest.obj_id,
-                    FollowupRequest.id,
-                    FollowupRequest.payload,
-                ],
+                columns=[FollowupRequest.obj_id, FollowupRequest.id],
             ).where(FollowupRequest.status.notin_(_SETTLED_REQUEST_STATES))
             mine = (await session.execute(mine_stmt)).all()
             if not mine:
@@ -1025,9 +1021,6 @@ class DuplicateSchedulingHandler(BaseHandler):
 
             my_obj_ids = {row[0] for row in mine}
             my_request_ids = {row[1] for row in mine}
-            my_windows = {}
-            for obj_id, _, payload in mine:
-                my_windows.setdefault(obj_id, []).append(_request_window(payload))
 
             rows = (
                 await session.execute(
@@ -1069,6 +1062,32 @@ class DuplicateSchedulingHandler(BaseHandler):
                     .distinct()
                 )
             ).all()
+
+            # Windows are only compared for objects another group also holds, so
+            # the payloads (large JSONB) are read just for those, not for every
+            # unsettled request the user has.
+            conflict_obj_ids = {row[0] for row in rows}
+            my_windows = {}
+            if conflict_obj_ids:
+                conflict_ids = [rid for (oid, rid) in mine if oid in conflict_obj_ids]
+                payload_rows = (
+                    await session.execute(
+                        sa.select(
+                            FollowupRequest.obj_id, FollowupRequest.payload
+                        ).where(
+                            FollowupRequest.id
+                            == sa.any_(
+                                sa.bindparam(
+                                    "conflict_ids",
+                                    conflict_ids,
+                                    type_=sa.ARRAY(sa.Integer),
+                                )
+                            )
+                        )
+                    )
+                ).all()
+                for obj_id, payload in payload_rows:
+                    my_windows.setdefault(obj_id, []).append(_request_window(payload))
 
             # Two groups holding the same object months apart is not a clash.
             # Only report requests whose window overlaps one of ours; a request
