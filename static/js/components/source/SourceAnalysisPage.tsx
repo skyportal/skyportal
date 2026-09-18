@@ -16,6 +16,7 @@ import Typography from "@mui/material/Typography";
 import Button from "../Button";
 import withRouter from "../withRouter";
 import AnalysisCornerPlot from "../analysis/AnalysisCornerPlot";
+import AnalysisClassification from "../analysis/AnalysisClassification";
 
 import {
   useGetAnalysisQuery,
@@ -199,6 +200,11 @@ const AnalysisPage = ({
                     ),
                 )}
               </div>
+            )}
+          {analysisResults &&
+            analysis?.status === "completed" &&
+            (analysisResults as any)?.classification && (
+              <AnalysisClassification results={analysisResults} />
             )}
           {analysis?.["show_parameters"] &&
             analysisResults &&

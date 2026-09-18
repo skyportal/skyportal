@@ -174,6 +174,79 @@ def test_analysis_service_dropdown_shows_display_name(
     ).to_be_visible()
 
 
+def test_analysis_classification_rendering(
+    page,
+    user,
+    public_source,
+    analysis_service_token,
+    analysis_token,
+    public_group,
+):
+    """An analysis whose results carry a `classification` block renders the native
+    score tiles + predicted/triage chips reused from the broker ML-score UI."""
+    name = str(uuid.uuid4())
+    post_data = {
+        "name": name,
+        "display_name": f"Classifier {name}",
+        "description": "desc",
+        "version": "1.0",
+        "contact_name": "Vera Rubin",
+        "url": "http://example.com",
+        "authentication_type": "none",
+        "analysis_type": "meta_analysis",
+        "upload_only": True,
+        "group_ids": [public_group.id],
+    }
+    status, data = api(
+        "POST", "analysis_service", data=post_data, token=analysis_service_token
+    )
+    assert status == 200
+    analysis_service_id = data["data"]["id"]
+
+    results = {
+        "classification": {
+            "predicted": "SN_Ia",
+            "probabilities": {
+                "SN_Ia": 0.75,
+                "SN_CC": 0.24,
+                "SLSN": 0.0,
+                "AGN": 0.0,
+                "TDE": 0.0,
+                "CV": 0.01,
+            },
+            "prediction_set": ["SN_Ia"],
+            "alpha": 0.1,
+            "credibility": 0.62,
+            "anomaly": {"energy_percentile": 97.3},
+        },
+        "triage": {"verdict": "needs_spectrum", "priority": 2},
+    }
+    params = {
+        "show_parameters": True,
+        "analysis": {"results": {"format": "json", "data": results}},
+    }
+    status, data = api(
+        "POST",
+        f"obj/{public_source.id}/analysis_upload/{analysis_service_id}",
+        token=analysis_token,
+        data=params,
+    )
+    assert status == 200
+    analysis_id = data["data"]["id"]
+
+    page.goto(f"/become_user/{user.id}")
+    page.goto(f"/source/{public_source.id}/analysis/{analysis_id}")
+
+    expect(page.get_by_text("Predicted: SN Ia").first).to_be_visible()
+    expect(
+        page.get_by_text("Triage: needs_spectrum (priority 2)").first
+    ).to_be_visible()
+    expect(page.get_by_text("Class probabilities").first).to_be_visible()
+    # top class renders as a percentage tile
+    expect(page.get_by_text("75%").first).to_be_visible()
+    expect(page.get_by_text("Credibility 0.62", exact=False).first).to_be_visible()
+
+
 def test_analysis_service_disabled_without_required_photometry(
     page, user, public_source_no_data, analysis_service_token, public_group
 ):

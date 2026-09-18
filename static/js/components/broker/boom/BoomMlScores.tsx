@@ -1,40 +1,8 @@
-import Box from "@mui/material/Box";
-import Tooltip from "@mui/material/Tooltip";
-import Typography from "@mui/material/Typography";
-import { alpha } from "@mui/material/styles";
-import type { Theme } from "@mui/material/styles";
-import { makeStyles } from "tss-react/mui";
+import ScoreTiles, { scoreColor } from "./ScoreTiles";
+import type { Score } from "./ScoreTiles";
 
-const useStyles = makeStyles()((theme) => ({
-  root: { marginTop: theme.spacing(1) },
-  grid: {
-    display: "grid",
-    gridTemplateColumns: "repeat(auto-fill, minmax(78px, 1fr))",
-    gap: theme.spacing(0.5),
-    marginTop: theme.spacing(0.5),
-  },
-  tile: {
-    color: theme.palette.text.primary,
-    borderRadius: theme.shape.borderRadius,
-    padding: theme.spacing(0.25, 0.5),
-  },
-  name: { fontSize: "0.65rem", fontWeight: 600 },
-  scoreLine: {
-    display: "flex",
-    alignItems: "flex-end",
-    justifyContent: "space-between",
-    gap: theme.spacing(0.5),
-  },
-  score: { fontSize: "1.1rem", fontWeight: 700, lineHeight: 1.1 },
-  separation: { fontSize: "0.65rem", opacity: 0.7 },
-}));
-
-export interface Score {
-  name: string;
-  score: number;
-  separation?: number;
-  hint?: string;
-}
+export { scoreColor };
+export type { Score };
 
 // Same score name as the drb/reliability metadata column.
 export const REAL_BOGUS = "Real/Bogus";
@@ -78,55 +46,8 @@ export const collectScores = (alert: any): Score[] => {
   return scores;
 };
 
-const arcsec = (v: number) =>
-  v < 60 ? `${v.toFixed(1)}″` : `${(v / 60).toFixed(2)}′`;
-
-export const scoreColor = (theme: Theme, score: number) =>
-  alpha(
-    score > 0.7
-      ? theme.palette.success.main
-      : score > 0.4
-        ? theme.palette.warning.main
-        : theme.palette.error.main,
-    0.45,
-  );
-
-const BoomMlScores = ({ alert }: { alert: any }) => {
-  const { classes, theme } = useStyles();
-  const scores = collectScores(alert);
-  if (!scores.length) return null;
-
-  const color = (score: number) => scoreColor(theme, score);
-
-  return (
-    <div className={classes.root}>
-      <Typography variant="caption" color="text.secondary">
-        ML scores
-      </Typography>
-      <Box className={classes.grid}>
-        {scores.map((s) => (
-          <Tooltip key={s.name} title={s.hint ?? ""} placement="top">
-            <div
-              className={classes.tile}
-              style={{ backgroundColor: color(s.score) }}
-            >
-              <div className={classes.name}>{s.name}</div>
-              <div className={classes.scoreLine}>
-                <span className={classes.score}>
-                  {`${(s.score * 100).toFixed(0)}%`}
-                </span>
-                {typeof s.separation === "number" && (
-                  <span className={classes.separation}>
-                    {arcsec(s.separation)}
-                  </span>
-                )}
-              </div>
-            </div>
-          </Tooltip>
-        ))}
-      </Box>
-    </div>
-  );
-};
+const BoomMlScores = ({ alert }: { alert: any }) => (
+  <ScoreTiles label="ML scores" scores={collectScores(alert)} />
+);
 
 export default BoomMlScores;
