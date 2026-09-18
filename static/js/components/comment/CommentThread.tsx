@@ -349,7 +349,10 @@ const CommentThread = ({
       Array.isArray(spectra) &&
       objID != null
     ) {
-      specComments = spectra?.map((spec: any) => spec.comments)?.flat();
+      specComments = spectra
+        .map((spec: any) => spec.comments || [])
+        .flat()
+        .filter(Boolean);
     }
     if (comments !== null && specComments !== null) {
       comments = specComments.concat(comments);
