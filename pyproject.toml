@@ -85,7 +85,7 @@ dependencies = [
     "pymongo>=4.6, <5.0",
     "afterglowpy==0.8.1",
     "gcn-kafka==0.3.3",
-    "confluent_kafka==2.15.0",
+    "confluent_kafka==2.15.1",
     "iminuit==2.32.0",
     "watchdog==6.0.0",
     "PyAstronomy==0.24.0",
