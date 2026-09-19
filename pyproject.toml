@@ -92,7 +92,7 @@ dependencies = [
     "shapely==2.1.2",
     "openai==2.40.0",
     "simplejson==4.1.1",
-    "pydantic==2.13.4",
+    "pydantic==2.13.5",
     # Optional observability stack (opt-in via config `observability.enabled`)
     "opentelemetry-sdk>=1.30.0",
     "opentelemetry-exporter-prometheus>=0.51b0",
