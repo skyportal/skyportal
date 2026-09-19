@@ -824,7 +824,21 @@ server:
     google_oauth2_timeout: 15
 
 services:
-  dask: False
+  disabled: # UNCOMMENT to disable a service
+    - dask
+    # - facility_queue
+    # - jpl_sbident_queue
+    # - ngsf_analysis_service
+    # - observation_plan_queue
+    # - openai_analysis_service
+    # - pdl_service
+    # - recurring_apis
+    # - reminders
+    # - sharing_service_submission_queue
+    # - slack
+    # - sn_analysis_service
+    # - spectral_cube_analysis_service
+    # - thumbnail_queue
 
 # Alert brokers (BOOM, Fink, Lasair, ...) are configured at runtime as
 # `Broker` database records (name + provider class + encrypted credentials), not
