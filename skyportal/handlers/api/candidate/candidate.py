@@ -4,6 +4,7 @@ import operator
 import re
 import time
 import uuid
+from collections import defaultdict
 from copy import copy
 from typing import Any, ClassVar, Literal
 
@@ -1560,6 +1561,39 @@ class CandidateHandler(BaseHandler):
                 )
             )
             matching_source_ids = matching_source_ids_result.unique().all()
+
+            # passing_group_ids needs each candidate's filters and the groups
+            # those filters belong to. Asked per object that was two queries a
+            # row; both are done once for the whole page here.
+            page_obj_ids = [obj.id for (obj,) in query_results["candidates"]]
+            filter_ids_by_obj = defaultdict(list)
+            if page_obj_ids:
+                candidate_filters_result = await session.execute(
+                    Candidate.select(
+                        session.user_or_token,
+                        columns=[Candidate.obj_id, Candidate.filter_id],
+                    ).where(Candidate.obj_id.in_(page_obj_ids))
+                )
+                for candidate_obj_id, filter_id in candidate_filters_result.all():
+                    # An object may be a candidate on one filter several times.
+                    if filter_id not in filter_ids_by_obj[candidate_obj_id]:
+                        filter_ids_by_obj[candidate_obj_id].append(filter_id)
+            page_filter_ids = {
+                filter_id
+                for filter_ids in filter_ids_by_obj.values()
+                for filter_id in filter_ids
+            }
+            group_id_by_filter_id = {}
+            if page_filter_ids:
+                page_filters_result = await session.scalars(
+                    Filter.select(session.user_or_token).where(
+                        Filter.id.in_(page_filter_ids)
+                    )
+                )
+                group_id_by_filter_id = {
+                    f.id: f.group_id for f in page_filters_result.all()
+                }
+
             candidate_list = []
             if autosave:
                 from ..source import post_source_async
@@ -1595,20 +1629,11 @@ class CandidateHandler(BaseHandler):
                             "classifications",
                             classifications_result.unique().all(),
                         )
-                    candidate_filter_ids_result = await session.scalars(
-                        Candidate.select(
-                            session.user_or_token,
-                            columns=[Candidate.filter_id],
-                        ).where(Candidate.obj_id == obj.id)
-                    )
-                    candidate_filter_ids = candidate_filter_ids_result.all()
-                    passing_filters_result = await session.scalars(
-                        Filter.select(session.user_or_token).where(
-                            Filter.id.in_(candidate_filter_ids)
-                        )
-                    )
-                    passing_filters = passing_filters_result.all()
-                    obj.passing_group_ids = [f.group_id for f in passing_filters]
+                    obj.passing_group_ids = [
+                        group_id_by_filter_id[filter_id]
+                        for filter_id in filter_ids_by_obj.get(obj.id, [])
+                        if filter_id in group_id_by_filter_id
+                    ]
                     if autosave:
                         source = {
                             "id": obj.id,
