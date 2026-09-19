@@ -43,7 +43,7 @@ _, cfg = load_env()
 
 cache_dir = f"{cache_folder}/finding_charts"
 cache_max_age_days = cfg.get("misc.days_to_keep_finding_charts_cache", 30)
-cache_max_age = cache_max_age_days * 24 * 60 * 60  # days to seconds
+cache_max_age = cache_max_age_days * 24 * 60 * 60
 finding_charts_cache = Cache(cache_dir=cache_dir, max_age=cache_max_age)
 
 PS1_CUTOUT_TIMEOUT = 15  # seconds
@@ -57,15 +57,12 @@ NGPS_TARGET_BANDS_TO_SNCOSMO = {
     "U": ["sdssu", "bessellux", "standard::u", "lsstu"],
 }
 
-# we inverse the dictionary
-SNCOSMO_BANDS_TO_NGPS_TARGET = {}
-for k, v in NGPS_TARGET_BANDS_TO_SNCOSMO.items():
-    for vv in v:
-        SNCOSMO_BANDS_TO_NGPS_TARGET[vv] = k
-
-ALL_NGPS_SNCOSMO_BANDS = []
-for v in NGPS_TARGET_BANDS_TO_SNCOSMO.values():
-    ALL_NGPS_SNCOSMO_BANDS.extend(v)
+SNCOSMO_BANDS_TO_NGPS_TARGET = {
+    band: target
+    for target, bands in NGPS_TARGET_BANDS_TO_SNCOSMO.items()
+    for band in bands
+}
+ALL_NGPS_SNCOSMO_BANDS = list(SNCOSMO_BANDS_TO_NGPS_TARGET)
 
 gaia = GaiaQuery()
 
@@ -132,14 +129,12 @@ facility_parameters = {
     },
 }
 
-# ZTF ref grabber URLs. See get_ztfref_url() below
 irsa = {
     "url_data": "https://irsa.ipac.caltech.edu/ibe/data/ztf/products/",
     "url_search": "https://irsa.ipac.caltech.edu/ibe/search/ztf/products/",
 }
 
-# A small metadata lookup, but it blocks one of the app's few worker threads,
-# so fail fast when IRSA hangs rather than stalling every request behind it.
+# Blocks one of the app's few worker threads, so fail fast when IRSA hangs.
 IRSA_SEARCH_TIMEOUT = (6.05, 5.0)
 
 
@@ -198,8 +193,7 @@ def memcache(f):
 
 
 def get_url(*args, **kwargs):
-    # Connect and read timeouts. setdefault, not assignment: callers fetching
-    # something small on the request path need a shorter one than an image pull.
+    # setdefault, not assignment: callers on the request path pass a shorter one.
     kwargs.setdefault("timeout", (6.05, 20))
     try:
         return requests.get(*args, **kwargs)
@@ -243,37 +237,26 @@ def get_ps1_url(ra, dec, imsize, *args, **kwargs):
 
     try:
         response = requests.get(ps_query_url, timeout=PS1_CUTOUT_TIMEOUT)
-        # see models.py for how this URL is constructed
         match = re.search('src="//ps1images.stsci.edu.*?"', response.content.decode())
         if match is None:
             log(f"PS1 image not found for {ra} {dec}")
             return ""
         url = match.group().replace('src="', "http:").replace('"', "")
         url += f"&format=fits&imagename=ps1{ra}{dec:+f}.fits"
-    except (requests.exceptions.SSLError, requests.exceptions.ReadTimeout) as e:
-        log(f"Error getting PS1 image URL {str(e)}")
-        return ""
     except Exception as e:
-        log(f"Error getting PS1 image URL {e.message}")
+        log(f"Error getting PS1 image URL {e}")
         return ""
 
     return url
 
 
-@memcache
 def get_ps1_cds_url(ra, dec, imsize, *args, **kwargs):
-    """
-    Returns the URL that points to the PS1 image for the
-    requested position, using CDS service
-    """
-
-    fov = imsize / 60.0  # from arcmin to degrees
-    url = (
-        f"https://alasky.cds.unistra.fr/hips-image-services/hips2fits"
-        f"?width=500&height=500&fov={fov}&ra={ra}&dec={dec}"
-        f"&hips=CDS/P/PanSTARRS/DR1/r"
+    """URL of the CDS hips2fits PS1 r-band cutout at this position."""
+    return (
+        "https://alasky.cds.unistra.fr/hips-image-services/hips2fits"
+        f"?width=500&height=500&fov={imsize / 60.0}&ra={ra}&dec={dec}"
+        "&hips=CDS/P/PanSTARRS/DR1/r"
     )
-    return url
 
 
 @memcache
@@ -307,8 +290,6 @@ def _ztfref_url_and_epoch(ra, dec, imsize):
     """
 
     def _ret(url, meta=None):
-        # Also return the ref coadd midpoint epoch (Time, or None) so PM can be
-        # carried forward from the reference epoch.
         try:
             start = Time(
                 pd.to_datetime(meta.loc[0, "startobsdate"]).tz_convert(None).isoformat()
@@ -372,14 +353,13 @@ def get_ztfref_url(ra, dec, imsize, *args, return_epoch=False, **kwargs):
 
 
 def ngps_defaults(mag, magfilter):
-    try:  # if numerical, format to 2 decimal places
+    try:
         mag = f"{mag:<0.02f}"
     except (TypeError, ValueError):
         pass
     return f"2,3,PA,1.5,2.5,650,680,R,{mag},{magfilter},SNR 5,1"
 
 
-# helper dict for seaching for FITS images from various surveys
 source_image_parameters = {
     "desi": {
         "url": (
@@ -453,7 +433,6 @@ def get_astrometry_backup_from_ztf(
         Astrometry table
 
     """
-    # get the ZTF catalog data and make it look like a Gaia Query result
     ztf_astrometry, _ = get_ztfcatalog(ra, dec, as_astropy_table=True)
     if ztf_astrometry is None or not len(ztf_astrometry):
         return ztf_astrometry
@@ -489,7 +468,6 @@ def get_astrometry_backup_from_ztf(
     if len(ztf_astrometry) == 0:
         return ztf_astrometry
 
-    # add the extra columns
     for k, v in extra_backup_ztf_columns.items():
         ztf_astrometry[k] = v[0]
         if v[1] is not None:
@@ -524,7 +502,6 @@ def get_ztfcatalog(
     """
     cache = Cache(cache_dir=cache_dir, max_items=cache_max_items)
 
-    # Also returns ztfref_epoch (Time, or None): the ref coadd midpoint epoch.
     refurl, ztfref_epoch = get_ztfref_url(ra, dec, imsize=5, return_epoch=True)
     if refurl is None or refurl == "":
         log("Empty ZTF reference image URL. Returning empty table.")
@@ -594,7 +571,6 @@ def _calculate_best_position_for_offset_stars(
         log("Warning: No photometry given. Falling back to original source position.")
         return fallback
 
-    # convert the photometry into a dataframe
     phot = [x.to_dict() for x in photometry]
     df = pd.DataFrame(phot)
 
@@ -608,13 +584,8 @@ def _calculate_best_position_for_offset_stars(
         )
         return fallback
 
-    # remove observations with distances more than max_offset away
-    # from the median
     try:
-        # use nanmedian so that med_ra, med_dec are not returned as
-        # nan when df['ra'] or df['dec'] contains `None`s (can happen
-        # when there is no position information for a photometry
-        # point)
+        # nanmedian: a photometry point can carry no position at all
         med_ra, med_dec = np.nanmedian(df["ra"]), np.nanmedian(df["dec"])
     except (TypeError, AttributeError):
         log(
@@ -635,8 +606,6 @@ def _calculate_best_position_for_offset_stars(
         )
         return fallback
 
-    # check to make sure that the median isn't too far away from the
-    # discovery position
     if fallback != (None, None):
         c1 = SkyCoord(med_ra * u.deg, med_dec * u.deg, frame="icrs")
         c2 = SkyCoord(fallback[0] * u.deg, fallback[1] * u.deg, frame="icrs")
@@ -653,7 +622,6 @@ def _calculate_best_position_for_offset_stars(
     df["offset_arcsec"] = np.sqrt(df["ra_offset"] ** 2 + df["dec_offset"] ** 2)
     df = df[df["offset_arcsec"] <= max_offset]
 
-    # remove outliers
     if len(df) > 4 and sigma_clip is not None:
         df = df[df["offset_arcsec"] < sigma_clip * np.std(df["offset_arcsec"])]
 
@@ -736,7 +704,6 @@ def get_formatted_standards_list(
         log("Warning: Do not recognize this starlist format. Using Keck.")
         starlist_format = starlist_formats["Keck"]
 
-    space = " "
     col_sep = starlist_format["col_sep"]
     coord_sep = starlist_format["coord_sep"]
     commentstr = starlist_format["commentstr"]
@@ -750,9 +717,7 @@ def get_formatted_standards_list(
         return result
 
     tab = SkyCoord(df["ra"], df["dec"], unit=(u.hourangle, u.deg))
-    # Where a Gaia DR3 match exists, emit its position (epoch 2016) propagated to
-    # the obstime with its PM (sub-arcsec); otherwise fall back to the listed
-    # catalog position unchanged.
+    # Without a Gaia match, the listed catalog position is used unchanged.
     if {"gaia_ra", "gaia_dec", "pmra", "pmdec"}.issubset(df.columns):
         obstime_t = Time(obstime) if obstime else Time(utcnow_naive().isoformat())
         gra = df["gaia_ra"].to_numpy(dtype=float)
@@ -783,7 +748,6 @@ def get_formatted_standards_list(
     df["dec_float"] = tab.dec.value
     df["skycoord"] = [x[1:] for x in format_hmsdms(tab, coord_sep, col_sep)]
 
-    # filter
     df = df[
         (df["dec_float"] >= dec_filter_range[0])
         & (df["dec_float"] <= dec_filter_range[1])
@@ -800,12 +764,7 @@ def get_formatted_standards_list(
         ]
 
     if standard_type == "ESO":
-        mag = []
-        for _, row in df.iterrows():
-            commentSplit = row["comment"].split(" ")
-            mag.append(float(commentSplit[1].replace("V=", "")))
-        df["mag"] = mag
-
+        df["mag"] = [float(c.split(" ")[1].replace("V=", "")) for c in df["comment"]]
         df = df[(df["mag"] <= magnitude_range[0]) & (df["mag"] >= magnitude_range[1])]
 
     if len(df) == 0:
@@ -815,44 +774,26 @@ def get_formatted_standards_list(
     if return_dataframe:
         return df
     elif starlist_type == "P200-NGPS":
-        # special format for NGPS, CSV-like with additional columns
+        has_mag = "mag" in df.columns
         for _, row in df.iterrows():
-            if "mag" in df.columns:
-                mag, magfilter = row["mag"], "V"
-            else:
-                mag, magfilter = "", ""
+            mag, magfilter = (row["mag"], "V") if has_mag else ("", "")
+            # empty columns: offset ra, offset dec, then priority
             starlist.append(
                 {
-                    "str": (
-                        f"{row['name']}"
-                        + ","
-                        + f"{row['skycoord']}"
-                        + ",,"  # offset ra, dec, empty for standards
-                        + ","
-                        + "standard"  # comment
-                        + ","  # priority, empty for standards
-                        + ","
-                        + ngps_defaults(mag, magfilter)
-                    )
+                    "str": f"{row['name']},{row['skycoord']},,,standard,,"
+                    f"{ngps_defaults(mag, magfilter)}"
                 }
             )
-        return {"starlist_info": starlist, "success": True}
     else:
-        for index, row in df.iterrows():
+        for _, row in df.iterrows():
             starlist.append(
                 {
-                    "str": (
-                        f"{row['name'].replace(' ', ''):{space}<{maxname_size}}"
-                        + col_sep
-                        + f"{row.skycoord}"
-                        + col_sep
-                        + f"{row.epoch}"
-                        + col_sep
-                        + f"{commentstr} {row.comment}"
-                    )
+                    "str": f"{row['name'].replace(' ', ''):<{maxname_size}}{col_sep}"
+                    f"{row.skycoord}{col_sep}{row.epoch}{col_sep}"
+                    f"{commentstr} {row.comment}"
                 }
             )
-        return {"starlist_info": starlist, "success": True}
+    return {"starlist_info": starlist, "success": True}
 
 
 @warningfilter(action="ignore", category=DeprecationWarning)
@@ -957,29 +898,25 @@ def get_nearby_offset_stars(
         frame="icrs",
         obstime=source_obstime,
     )
-    # get three times as many stars as requested for now
-    # and go fainter as well
     fainter_diff = 1.5  # mag
     search_multipler = 20
     min_distance = 5.0 / 3600.0  # min distance from source for offset star
-    # Above this proper motion (mas/yr), a ZTF-ref position that cannot be
-    # carried forward is too stale to point at: see the candidate loop below.
+    # mas/yr above which an uncorrectable ZTF-ref position is too stale to use
     max_uncorrected_ztfref_pm = 50.0
-    source_in_catalog_dist = 0.5 / 3600.0  # min distance from source for offset star
+    source_in_catalog_dist = 0.5 / 3600.0  # below this, the entry is the source
     query_string = f"""
                   SELECT DISTANCE(
                     POINT('ICRS', ra, dec),
                     POINT('ICRS', {source_ra}, {source_dec})) AS
                     dist, source_id, ra, dec, ref_epoch,
                     phot_rp_mean_mag, pmra, pmdec, parallax
-                  FROM {{main_db}}.gaia_source
+                  FROM {{main_db}}
                   WHERE 1=CONTAINS(
                     POINT('ICRS', ra, dec),
                     CIRCLE('ICRS', {source_ra}, {source_dec},
                            {radius_degrees}))
                 """
-    # gaia_available is False when the Gaia TAP query fails: PM can't be applied
-    # (the ZTFref backup carries no PM), so callers can flag it to the user.
+    # False when Gaia fails: the ZTFref backup carries no PM, so callers warn.
     gaia_available = True
     default_return = (
         [],
@@ -989,7 +926,6 @@ def get_nearby_offset_stars(
         False,
     )
 
-    # try to get Gaia sources first
     with gaia as g:
         try:
             r = g.query(query_string)
@@ -998,8 +934,6 @@ def get_nearby_offset_stars(
             r = None
             gaia_available = False
 
-    # ...otherwise fall back to ZTFref public sources or return
-    # a tuple of no offset stars
     if r is None:
         if use_ztfref_as_gaia_backup:
             r = get_astrometry_backup_from_ztf(source_ra, source_dec)
@@ -1009,25 +943,20 @@ def get_nearby_offset_stars(
     if r is None or len(r) == 0:
         return (*default_return, gaia_available)
 
-    # we need to filter here to get around the new Gaia archive slowdown
-    # when SQL filtering on different columns
+    # filtered here, not in ADQL: the Gaia archive is slow on these columns
     filter_mask = (
         (r["phot_rp_mean_mag"] < mag_limit + fainter_diff)
         & (r["phot_rp_mean_mag"] > mag_min)
         & (r["parallax"] < 250)
     )
     r = r[filter_mask]
-    # sort by distance and take the top several results
-    # we need to do this here because gaia ADQL sort is not working
+    # sorted here because the Gaia ADQL sort does not work
     r.sort("dist")
     r = r[: int(how_many * search_multipler)]
 
-    # get brighter stars at top for the nearby sources:
     r.sort("phot_rp_mean_mag")
     potential_source_in_gaia_query = r[r["dist"] < source_in_catalog_dist]
     if len(potential_source_in_gaia_query) > 0:
-        # try to find offset stars brighter than the catalog brightness of the
-        # source.
         source_catalog_mag = potential_source_in_gaia_query["phot_rp_mean_mag"]
         offset_brightness_limit = source_catalog_mag
         for _ in range(3):
@@ -1037,8 +966,7 @@ def get_nearby_offset_stars(
                 break
             offset_brightness_limit += 0.5
 
-    # filter out stars near the source (and the source itself)
-    # since we do not want waste an offset star on very nearby sources
+    # drop the source itself, and stars too close to it to be worth pointing at
     r = r[r["dist"] > min_distance]
 
     queries_issued += 1
@@ -1067,8 +995,6 @@ def get_nearby_offset_stars(
                 )
                 use_ztfref = False
 
-    # star needs to be this far away
-    # from another star
     min_sep = min_sep_arcsec * u.arcsec
     good_list = []
     for source in r:
@@ -1083,21 +1009,16 @@ def get_nearby_offset_stars(
             obstime=Time(source["ref_epoch"], format="jyear"),
         )
 
-        d2d = c.separation(catalog)  # match it to the catalog
+        d2d = c.separation(catalog)
         if sum(d2d < min_sep) == 1 and source["phot_rp_mean_mag"] <= mag_limit:
             use_original = True
 
-            # this star is not near another star and is bright enough
-
-            # if there's a close match to ZTF reference position then use
-            #  ZTF position for this source instead of the gaia/motion data
             if use_ztfref and ztfcatalog is not None:
                 try:
                     idx, ztfdist, _ = c.match_to_catalog_sky(ztfcatalog)
 
                     if ztfdist < 0.5 * u.arcsec:
-                        # ZTF position carried forward by Gaia PM from the ref
-                        # epoch (static fallback if the ref epoch is unknown).
+                        # ZTF position carried forward by Gaia PM from the ref epoch
                         if ztfref_epoch is not None:
                             cprime = SkyCoord(
                                 ra=ztfcatalog[idx].ra.value,
@@ -1113,9 +1034,7 @@ def get_nearby_offset_stars(
                             np.hypot(source["pmra"], source["pmdec"])
                             >= max_uncorrected_ztfref_pm
                         ):
-                            # Without the ref epoch the ZTF position cannot be
-                            # carried forward, and for a fast mover a decade-old
-                            # position can fall outside a narrow slit.
+                            # a decade-old position of a fast mover misses the slit
                             cprime = c.apply_space_motion(new_obstime=source_obstime)
                         else:
                             cprime = SkyCoord(
@@ -1149,8 +1068,6 @@ def get_nearby_offset_stars(
                     )
 
             if use_original:
-                # precess it's position forward to the source obstime and
-                # get offsets suitable for spectroscopy
                 # TODO: put this in geocentric coords to account for parallax
                 cprime = c.apply_space_motion(new_obstime=source_obstime)
                 dra, ddec = cprime.spherical_offsets_to(center)
@@ -1168,7 +1085,6 @@ def get_nearby_offset_stars(
 
     good_list.sort()
 
-    # if we got less than we asked for, relax the criteria
     if (len(good_list) < how_many) and (queries_issued < allowed_queries):
         return get_nearby_offset_stars(
             source_ra,
@@ -1204,64 +1120,44 @@ def get_nearby_offset_stars(
     maxname_size = starlist_format["maxname_size"]
     first_line = starlist_format["first_line"]
 
-    basename = source_name.strip().replace(" ", "")
-    if len(basename) > maxname_size:
-        basename = basename[3:]
+    stripped_name = source_name.strip().replace(" ", "")
+    basename = stripped_name[3:] if len(stripped_name) > maxname_size else stripped_name
+    abrev_basename = (
+        basename[3:maxname_size]
+        if len(stripped_name) > maxname_size - 3
+        else stripped_name
+    )
 
-    abrev_basename = source_name.strip().replace(" ", "")
-    if len(abrev_basename) > maxname_size - 3:
-        abrev_basename = basename[3:maxname_size]
-
-    space = " "
     hmsdms = format_hmsdms(center, coord_sep, col_sep)
     if starlist_type == "P200-NGPS":
-        # special format for NGPS, CSV-like with additional columns
         if not source_mag or not source_magfilter:
             mag, magfilter = "", ""
         else:
-            magfilter = SNCOSMO_BANDS_TO_NGPS_TARGET.get(source_magfilter, None)
+            magfilter = SNCOSMO_BANDS_TO_NGPS_TARGET.get(source_magfilter)
             if magfilter is None:
                 raise ValueError(
-                    f"Cannot find corresponding NGPS filter for sncosmo filter {magfilter}"
+                    f"Cannot find corresponding NGPS filter for sncosmo filter {source_magfilter}"
                 )
             try:
                 mag = round(float(source_mag), 2)
             except ValueError:
                 raise ValueError(f"Cannot convert magnitude {source_mag} to float")
 
-        # we only keep letters, numbers, special characters but remove all \n, \t, ... and other control characters
-        # we also remove all mentions of the col_sep character used by the starlist format
-        assignment_comment = str(assignment_comment)
         assignment_comment = "".join(
-            [
-                c
-                for c in assignment_comment
-                if c.isalnum() or c in string.punctuation or c == " "
-            ]
-        )
-        assignment_comment = assignment_comment.replace(col_sep, " ")
+            c
+            for c in str(assignment_comment)
+            if c.isalnum() or c in string.punctuation or c == " "
+        ).replace(col_sep, " ")
 
+        # empty columns: offset ra, offset dec
         star_list_format = (
-            f"{basename}"
-            + ","
-            + f"{hmsdms}"
-            + ",,"  # offset ra, dec (empty for target)
-            + ","
-            + assignment_comment
-            + ","
-            + str(int(assignment_priority))  # assignment priority, if any
-            + ","
-            + ngps_defaults(mag, magfilter)
+            f"{basename},{hmsdms},,,{assignment_comment},"
+            f"{int(assignment_priority)},{ngps_defaults(mag, magfilter)}"
         )
     else:
         star_list_format = (
-            f"{basename:{space}<{maxname_size}}"
-            + col_sep
-            + f"{hmsdms}"
-            + col_sep
-            + "2000.0"
-            + col_sep
-            + f"{commentstr} source_name={source_name}"
+            f"{basename:<{maxname_size}}{col_sep}{hmsdms}{col_sep}2000.0{col_sep}"
+            f"{commentstr} source_name={source_name}"
         )
 
     star_list = [{"str": first_line}] if first_line else []
@@ -1281,10 +1177,11 @@ def get_nearby_offset_stars(
             f'{ddec.value:<0.03f}" N' if ddec > 0 else f'{abs(ddec.value):<0.03f}" S'
         )
 
-        if giveoffsets:
-            offsets = f"raoffset={dra.value:<0.03f} decoffset={ddec.value:<0.03f}"
-        else:
-            offsets = ""
+        offsets = (
+            f"raoffset={dra.value:<0.03f} decoffset={ddec.value:<0.03f}"
+            if giveoffsets
+            else ""
+        )
 
         if starlist_type == "P200-NGPS":
             name = f"{abrev_basename}_o{i + 1}"
@@ -1293,38 +1190,25 @@ def get_nearby_offset_stars(
 
         hmsdms = format_hmsdms(c, coord_sep, col_sep)
 
-        # the id_col isn't necessarily source_id, it might be SOURCE_ID, so figure out which one it is:
-        id_col = "source_id"
-        for k in list(source.keys()):
-            if "source_id" in str(k).lower().strip():
-                id_col = k
-                break
+        # TAP servers differ on the case of this column
+        id_col = next(
+            (k for k in source.colnames if "source_id" in k.lower().strip()),
+            "source_id",
+        )
 
         if starlist_type == "P200-NGPS":
-            # special format for NGPS, CSV-like with additional columns
+            # empty column: priority
             star_list_format = (
-                f"{name}"
-                + ","
-                + f"{hmsdms}"
-                + f",{dra.value:<0.03f},{ddec.value:<0.03f},"  # offset ra, dec
-                + "offset"  # comment
-                + ","  # priority (empty for offsets)
-                + ","
-                + ngps_defaults(source["phot_rp_mean_mag"], "R")
+                f"{name},{hmsdms},{dra.value:<0.03f},{ddec.value:<0.03f},offset,,"
+                f"{ngps_defaults(source['phot_rp_mean_mag'], 'R')}"
             )
         else:
             star_list_format = (
-                f"{name:{space}<{maxname_size}}"
-                + col_sep
-                + f"{hmsdms}"
-                + col_sep
-                + "2000.0"
-                + col_sep
-                + f"{offsets}"
-                + f"{col_sep if giveoffsets else ''}"
-                + f'{commentstr} dist={3600 * dist:<0.02f}"; {source["phot_rp_mean_mag"]:<0.02f} mag'
-                + f"; {dras}, {ddecs} PA={pa:<0.02f} deg"
-                + f" ID={source[id_col]}"
+                f"{name:<{maxname_size}}{col_sep}{hmsdms}{col_sep}2000.0{col_sep}"
+                f"{offsets}{col_sep if giveoffsets else ''}"
+                f'{commentstr} dist={3600 * dist:<0.02f}"; '
+                f"{source['phot_rp_mean_mag']:<0.02f} mag"
+                f"; {dras}, {ddecs} PA={pa:<0.02f} deg ID={source[id_col]}"
             )
 
         star_list.append(
@@ -1335,8 +1219,7 @@ def get_nearby_offset_stars(
                 "name": name,
                 "dras": dras,
                 "ddecs": ddecs,
-                # The same offsets as numbers, for facilities that take them in
-                # the request rather than off a finding chart.
+                # for facilities that take offsets in the request, not off a chart
                 "dra_arcsec": float(dra.value),
                 "ddec_arcsec": float(ddec.value),
                 "mag": float(source["phot_rp_mean_mag"]),
@@ -1344,7 +1227,6 @@ def get_nearby_offset_stars(
             }
         )
 
-    # send back the starlist in
     return (
         star_list,
         query_string.replace("\n", " "),
@@ -1400,7 +1282,6 @@ def fits_image(
             ra=center_ra, dec=center_dec, pixscale=pixscale, imsize=imsize
         )
     else:
-        # use the URL field as a function
         url = source_image_parameters[image_source]["url"](
             ra=center_ra, dec=center_dec, imsize=imsize
         )
@@ -1410,36 +1291,28 @@ def fits_image(
         return None
 
     cache = Cache(cache_dir=cache_dir, max_items=cache_max_items)
+    hash_name = f"{center_ra}{center_dec}{imsize}{image_source}"
+    hdu_fn = cache[hash_name]
+    if hdu_fn is not None:
+        return fits.open(hdu_fn)[0]
 
-    def get_hdu(url):
-        """Try to get HDU from cache, otherwise fetch."""
-        hash_name = f"{center_ra}{center_dec}{imsize}{image_source}"
-        hdu_fn = cache[hash_name]
+    response = get_url(url, stream=True, allow_redirects=True)
+    if response is None or response.status_code != 200:
+        return None
 
-        # Found entry in cache, return that
-        if hdu_fn is not None:
-            return fits.open(hdu_fn)[0]
+    hdu = fits.open(io.BytesIO(response.content))[0]
+    if np.count_nonzero(hdu.data) == 0:
+        return None
 
-        response = get_url(url, stream=True, allow_redirects=True)
-        if response is None or response.status_code != 200:
-            return None
+    buf = io.BytesIO()
+    hdu.writeto(buf)
+    buf.seek(0)
+    cache[hash_name] = buf.read()
+    return fits.open(cache[hash_name])[0]
 
-        # Check if HDU is a valid FITS file
-        hdu = fits.open(io.BytesIO(response.content))[0]
 
-        # Ensure it is not empty
-        if np.count_nonzero(hdu.data) == 0:
-            return None
-
-        # Save a copy in cache and return
-        buf = io.BytesIO()
-        hdu.writeto(buf)
-        buf.seek(0)
-        cache[hash_name] = buf.read()
-
-        return fits.open(cache[hash_name])[0]
-
-    return get_hdu(url)
+def _chart_failure(reason):
+    return {"success": False, "reason": reason, "data": "", "name": ""}
 
 
 def get_finding_chart_cache_key(*args, **kwargs):
@@ -1452,12 +1325,9 @@ def get_finding_chart_cache_key(*args, **kwargs):
                 if key not in ["obstime"]
             ]
         )
-        # also add the version, to invalidate the cache when
-        # the application is upgraded to a new version
         + "_"
         + str(__version__)
-        # use the secret key as a salt, so a cache key
-        # can't just be built using function parameters
+        # salted, so a cache key cannot be forged from the parameters alone
         + "_"
         + str(cfg["app.secret_key"])
     )
@@ -1553,9 +1423,6 @@ def get_finding_chart(
             try:
                 value = np.load(value, allow_pickle=True)
                 value = value.item()
-                # the cache records the obstime used to generate the finding chart
-                # if the request obstime is more than "max_cache_age" seconds away from
-                # the cached obstime, then do not use the cache
                 if "obstime" not in value:
                     del finding_charts_cache[cache_key]
                     raise Exception(
@@ -1568,7 +1435,6 @@ def get_finding_chart(
                         abs((cached_obstime - request_time).to_value("sec"))
                         > cache_max_age
                     ):
-                        # the cache is too old, remove it.
                         del finding_charts_cache[cache_key]
                         raise Exception(
                             f"existing cache was computed with obstime={cached_obstime.iso}, request has obstime={request_time.iso} (max age is {cache_max_age_days} days)"
@@ -1582,70 +1448,57 @@ def get_finding_chart(
                 log(f"Failed to load cached finding chart: {e}")
 
     if (imsize < 2.0) or (imsize > 15):
-        return {
-            "success": False,
-            "reason": "Requested `imsize` out of range",
-            "data": "",
-            "name": "",
-        }
+        return _chart_failure("Requested `imsize` out of range")
 
     if image_source not in source_image_parameters:
-        return {
-            "success": False,
-            "reason": f"image source {image_source} not in list",
-            "data": "",
-            "name": "",
-        }
+        return _chart_failure(f"image source {image_source} not in list")
 
     matplotlib.use("Agg")
     fig = plt.figure(figsize=(11, 8.5), constrained_layout=False)
-    widths = [2.6, 1]
-    heights = [2.6, 1]
     spec = fig.add_gridspec(
         ncols=2,
         nrows=2,
-        width_ratios=widths,
-        height_ratios=heights,
+        width_ratios=[2.6, 1],
+        height_ratios=[2.6, 1],
         left=0.05,
         right=0.95,
     )
 
-    # how wide on the side will the image be? 256 as default
     npixels = source_image_parameters[image_source].get("npixels", 256)
-    # set the pixelscale in arcsec (typically about 1 arcsec/pixel)
-    pixscale = 60 * imsize / npixels
+    pixscale = 60 * imsize / npixels  # arcsec/pixel
 
     hdu = fits_image(source_ra, source_dec, imsize=imsize, image_source=image_source)
 
     # skeleton WCS - this is the field that the user requested
     wcs = WCS(naxis=2)
 
-    # set the headers of the WCS.
-    # The center of the image is the reference point (source_ra, source_dec):
     wcs.wcs.crpix = [npixels / 2, npixels / 2]
     wcs.wcs.crval = [source_ra, source_dec]
 
-    # create the pixel scale and orientation North up, East left
-    # pixelscale is in degrees, established in the tangent plane
-    # to the reference point
+    # North up, East left; CD is in degrees on the tangent plane
     wcs.wcs.cd = np.array([[-pixscale / 3600, 0], [0, pixscale / 3600]])
     wcs.wcs.ctype = ["RA---TAN", "DEC--TAN"]
 
     fallback = True
+    date_obs = None
     if hdu is not None:
         im = hdu.data
 
-        # replace the nans with medians
         im[np.isnan(im)] = np.nanmedian(im)
 
-        # Fix the header keyword for the input system, if needed
+        # RADECSYS was renamed RADESYSa in the FITS standard
         hdr = hdu.header
         if "RADECSYS" in hdr:
             hdr.set("RADESYSa", hdr["RADECSYS"], before="RADECSYS")
             del hdr["RADECSYS"]
 
+        date_obs = hdr.get("DATE-OBS")
+        if not date_obs and hdr.get("MJD-OBS"):
+            date_obs = Time(f"{hdr['MJD-OBS']}", format="mjd").to_value(
+                "fits", subfmt="date_hms"
+            )
+
         if source_image_parameters[image_source].get("reproject", False):
-            # project image to the skeleton WCS solution
             log("Reprojecting image to requested position and orientation")
             im, _ = reproject_adaptive(hdu, wcs, shape_out=(npixels, npixels))
         else:
@@ -1662,9 +1515,7 @@ def get_finding_chart(
         all_nans = np.isnan(im[test_slice, test_slice].flatten()).all()
         all_zeros = (im[test_slice, test_slice].flatten() == 0).all()
         if not (all_zeros or all_nans):
-            percents = np.nanpercentile(im.flatten(), [10, 99.0])
-            vmin = percents[0]
-            vmax = percents[1]
+            vmin, vmax = np.nanpercentile(im.flatten(), [10, 99.0])
             interval = ZScaleInterval(
                 n_samples=int(0.1 * (im.shape[0] * im.shape[1])),
                 contrast=zscale_contrast,
@@ -1675,8 +1526,6 @@ def get_finding_chart(
             fallback = False
 
     if hdu is None or fallback:
-        # if we got back a blank image, try to fallback on another survey
-        # and return the results from that call
         if fallback_image_source is not None:
             if fallback_image_source != image_source:
                 log(f"Falling back on image source {fallback_image_source}")
@@ -1693,15 +1542,11 @@ def get_finding_chart(
                     **offset_star_kwargs,
                 )
 
-        # we dont have an image here, so let's create a dummy one
-        # so we can still plot
+        # no image: plot the markup over a blank frame
         im = np.zeros((npixels, npixels))
         watermark = None
-        vmin = 0
-        vmax = 0
-        norm = ImageNormalize(im, vmin=vmin, vmax=vmax)
+        norm = ImageNormalize(im, vmin=0, vmax=0)
 
-    # add the images in the top left corner
     ax = fig.add_subplot(spec[0, 0], projection=wcs)
     ax_text = fig.add_subplot(spec[0, 1])
     ax_text.axis("off")
@@ -1724,16 +1569,10 @@ def get_finding_chart(
     )
 
     if not isinstance(star_list, list) or len(star_list) == 0:
-        return {
-            "success": False,
-            "reason": "failure to get star list",
-            "data": "",
-            "name": "",
-        }
+        return _chart_failure("failure to get star list")
 
     first_line = None
     if offset_star_kwargs.get("starlist_type", "Keck") == "P200-NGPS":
-        # add a first line with the column names for P200-NGPS (csv format)
         first_line = "NAME,RA,DECL,OFFSET_RA,OFFSET_DEC,COMMENT,PRIORITY,BINSPAT,BINSPECT,SLITANGLE,SLITWIDTH,AIRMASS_MAX,WRANGE_LOW,WRANGE_HIGH,CHANNEL,MAGNITUDE,MAGFILTER,EXPTIME,NEXP"
 
     ncolors = len(star_list)
@@ -1757,7 +1596,6 @@ def get_finding_chart(
         + "\n".join([x["str"] for x in star_list])
     )
 
-    # add the starlist
     ax_starlist.text(
         0,
         0.50,
@@ -1767,7 +1605,6 @@ def get_finding_chart(
         transform=ax_starlist.transAxes,
     )
 
-    # add the watermark for the survey
     props = {"boxstyle": "round", "facecolor": "gray", "alpha": 0.7}
 
     if watermark is not None:
@@ -1784,14 +1621,6 @@ def get_finding_chart(
             alpha=0.5,
             bbox=props,
         )
-
-    date_obs = hdr.get("DATE-OBS")
-    if not date_obs:
-        mjd_obs = hdr.get("MJD-OBS")
-        if mjd_obs:
-            date_obs = Time(f"{mjd_obs}", format="mjd").to_value(
-                "fits", subfmt="date_hms"
-            )
 
     if date_obs:
         ax.text(
@@ -1822,13 +1651,12 @@ def get_finding_chart(
     )
 
     # compass rose
-    # rose_center_pixel = ax.transAxes.transform((0.04, 0.95))
     rose_center = pixel_to_skycoord(int(npixels * 0.1), int(npixels * 0.9), wcs)
     props = {"boxstyle": "round", "facecolor": "gray", "alpha": 0.5}
 
     for ang, label, off in [(0, "N", 0.01), (90, "E", 0.03)]:
         position_angle = ang * u.deg
-        separation = (0.05 * imsize * 60) * u.arcsec  # 5%
+        separation = (0.05 * imsize * 60) * u.arcsec
         p2 = rose_center.directional_offset_by(position_angle, separation)
         ax.plot(
             [rose_center.ra.value, p2.ra.value],
@@ -1838,7 +1666,6 @@ def get_finding_chart(
             linewidth=2,
         )
 
-        # label N and E
         position_angle = (ang + 15) * u.deg
         separation = ((0.05 + off) * imsize * 60) * u.arcsec
         p2 = rose_center.directional_offset_by(position_angle, separation)
@@ -1859,7 +1686,6 @@ def get_finding_chart(
     for i, star in enumerate(star_list):
         c1 = SkyCoord(star["ra"] * u.deg, star["dec"] * u.deg, frame="icrs")
 
-        # mark up the right side of the page with position and offset info
         name_title = star["name"]
         if star.get("mag") is not None:
             name_title += f" {star.get('mag'):.2f} mag"
@@ -1895,10 +1721,8 @@ def get_finding_chart(
             color=colors[i],
         )
 
-        # work on making marks where the stars are
         for ang in [0, 90]:
-            # for the source itself (i=0), change the angle of the lines in
-            # case the offset star is the same as the source itself
+            # angled differently for i=0, in case an offset star sits on the source
             position_angle = ang * u.deg if i != 0 else (ang + 225) * u.deg
             separation = (tick_offset * imsize * 60) * u.arcsec
             p1 = c1.directional_offset_by(position_angle, separation)
@@ -1913,7 +1737,6 @@ def get_finding_chart(
                 alpha=0.8,
             )
         if star["name"].find("_o") != -1:
-            # this is an offset star
             text = star["name"].split("_o")[-1]
             position_angle = 14 * u.deg
             separation = (tick_offset + tick_length * 1.6) * imsize * 60 * u.arcsec

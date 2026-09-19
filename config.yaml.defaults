@@ -824,7 +824,21 @@ server:
     google_oauth2_timeout: 15
 
 services:
-  dask: False
+  disabled: # UNCOMMENT to disable a service
+    - dask
+    # - facility_queue
+    # - jpl_sbident_queue
+    # - ngsf_analysis_service
+    # - observation_plan_queue
+    # - openai_analysis_service
+    # - pdl_service
+    # - recurring_apis
+    # - reminders
+    # - sharing_service_submission_queue
+    # - slack
+    # - sn_analysis_service
+    # - spectral_cube_analysis_service
+    # - thumbnail_queue
 
 # Alert brokers (BOOM, Fink, Lasair, ...) are configured at runtime as
 # `Broker` database records (name + provider class + encrypted credentials), not
@@ -888,7 +902,6 @@ misc:
   cosmology: Planck18
   #cosmology: {H0: "65.0", Om0: 0.3, Ode0: 0.7, name: 'skyportal_user_cosmo'}
 
-  dustmap: sfd
   # Vendored in the skyportal-data submodule so the SFD maps are present
   # without a network fetch at startup. obj.py still falls back to fetching
   # if the files are absent (e.g. submodule not initialized).
@@ -977,7 +990,7 @@ twilio:
   sendgrid_api_key:
 
   # Twilio SMS API configs
-  # These values must be valid ones from the Twitter API console
+  # These values must be valid ones from the Twilio API console
   from_number:
   sms_account_sid:
   sms_auth_token:
@@ -1042,7 +1055,7 @@ spectrum_types:
 
 cross_match:
   gaia:
-    catalog: "gaiaedr3.gaia_source"
+    catalog: gaiadr3.gaia_source
     radius: 2.0
     limmag: 20.5
     number: 1
@@ -1269,8 +1282,6 @@ hosts:
   assistant: 127.0.0.1
   slack: 127.0.0.1
 
-# JPL Scout NEO Target-of-Opportunity candidates, published by
-# lsst-sssc/scout-alert-bridge. Leave `topic` unset to disable the service.
 assignments:
   # An uploaded spectrum marks a matching observing-run assignment "done".
   # A spectrum naming its assignment always settles it; otherwise the run's
@@ -1289,6 +1300,8 @@ tess:
   group_ids: [] # groups the annotations are visible to
   bot_user_id: # user recorded as the annotation author
 
+# JPL Scout NEO Target-of-Opportunity candidates, published by
+# lsst-sssc/scout-alert-bridge. Leave `topic` unset to disable the service.
 scout:
   topic: # e.g. lco.scout-neo-too-test
   kafka_server: kafka.scimma.org

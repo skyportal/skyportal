@@ -329,3 +329,22 @@ def test_ztfref_lookup_uses_the_short_timeout():
     assert IRSA_SEARCH_TIMEOUT[1] <= 10, (
         "read timeout is back to a thread-stalling value"
     )
+
+
+def test_finding_chart_without_an_image_still_renders():
+    """The last survey in the fallback chain returning nothing is not an error.
+
+    The chart is drawn over a blank frame, so the starlist is still usable.
+    """
+    with patch("skyportal.utils.offset.fits_image", return_value=None):
+        rez = get_finding_chart(
+            123.0,
+            33.3,
+            "testSource",
+            image_source="dss",
+            fallback_image_source=None,
+            use_cache=False,
+        )
+
+    assert rez["success"], rez.get("reason")
+    assert rez["data"].find(bytes("PDF", encoding="utf8")) != -1

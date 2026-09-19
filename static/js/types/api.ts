@@ -45605,7 +45605,7 @@ export interface components {
         GaiaQueryBody: {
             /**
              * Catalog
-             * @description The name of the catalog key, associated with a catalog cross match, from which the data should be retrieved. Default is "gaiadr3.gaia_source".
+             * @description The name of the catalog key, associated with a catalog cross match, from which the data should be retrieved. Defaults to `cross_match.gaia.catalog` in the config.
              * @default gaiadr3.gaia_source
              */
             catalog: string;

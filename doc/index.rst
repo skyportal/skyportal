@@ -89,6 +89,7 @@ User Guide
    mcp
    dev
    deploy
+   services
    observability
    versioning
    data_loader

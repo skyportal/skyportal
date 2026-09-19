@@ -74,9 +74,6 @@ updates:
       time: "06:00"
     open-pull-requests-limit: 10
     ignore:
-      - dependency-name: dask
-        versions:
-          - 2021.1.1
       - dependency-name: numpy
         versions:
           - 1.20.0

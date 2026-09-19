@@ -151,7 +151,7 @@ operators know what to set.
 ## Disabling a service
 
 Remove the block from `services.external`, or add the service name to
-`services.disabled`:
+`services.disabled`, the same list that turns off the built-in [services](services):
 
 ```yaml
 services:

@@ -45,8 +45,6 @@ class TimeoutHTTPAdapter(HTTPAdapter):
 
 
 class GaiaQuery:
-    db = "gaiadr3"
-
     # conversion for units in VO tables to astropy units
     unit_conversion = {
         "Dimensionless": None,
@@ -63,7 +61,7 @@ class GaiaQuery:
         "Angle[rad], Angle[rad]": u.deg,  # this is the `pos` in degrees, incorrectly reported as radians
     }
 
-    def __init__(self, db="gaiadr3", timeout=DEFAULT_TIMEOUT):
+    def __init__(self, db=cfg["cross_match.gaia.catalog"], timeout=DEFAULT_TIMEOUT):
         self.db = db
         self.timeout = timeout
         self.session = None
