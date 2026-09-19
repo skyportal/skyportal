@@ -972,7 +972,7 @@ def get_nearby_offset_stars(
                     POINT('ICRS', {source_ra}, {source_dec})) AS
                     dist, source_id, ra, dec, ref_epoch,
                     phot_rp_mean_mag, pmra, pmdec, parallax
-                  FROM {{main_db}}.gaia_source
+                  FROM {{main_db}}
                   WHERE 1=CONTAINS(
                     POINT('ICRS', ra, dec),
                     CIRCLE('ICRS', {source_ra}, {source_dec},

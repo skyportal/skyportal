@@ -18,6 +18,7 @@ log = make_log("tap/gaia")
 _, cfg = load_env()
 
 DEFAULT_TIMEOUT = 10  # seconds
+DEFAULT_CATALOG = cfg["cross_match.gaia.catalog"]
 SERVERS = [
     # Leibniz-Institute for Astrophysics Potsdam (AIP)
     "https://gaia.aip.de/tap",
@@ -45,7 +46,7 @@ class TimeoutHTTPAdapter(HTTPAdapter):
 
 
 class GaiaQuery:
-    db = "gaiadr3"
+    db = DEFAULT_CATALOG
 
     # conversion for units in VO tables to astropy units
     unit_conversion = {
@@ -63,7 +64,7 @@ class GaiaQuery:
         "Angle[rad], Angle[rad]": u.deg,  # this is the `pos` in degrees, incorrectly reported as radians
     }
 
-    def __init__(self, db="gaiadr3", timeout=DEFAULT_TIMEOUT):
+    def __init__(self, db=DEFAULT_CATALOG, timeout=DEFAULT_TIMEOUT):
         self.db = db
         self.timeout = timeout
         self.session = None

@@ -59,10 +59,10 @@ class GaiaQueryBody(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     catalog: str = Field(
-        default="gaiadr3.gaia_source",
+        default=cfg["cross_match.gaia.catalog"],
         description="The name of the catalog key, associated with a catalog cross "
-        "match, from which the data should be retrieved. "
-        'Default is "gaiadr3.gaia_source".',
+        "match, from which the data should be retrieved. Defaults to "
+        "`cross_match.gaia.catalog` in the config.",
     )
     crossmatchRadius: float | None = Field(
         default=cfg["cross_match.gaia.radius"],
@@ -256,7 +256,7 @@ class GaiaQueryHandler(BaseHandler):
                 phot_g_mean_mag, phot_bp_mean_mag, phot_rp_mean_mag,
                 pm, pmra, pmdec, parallax, parallax_error, parallax_over_error,
                 ruwe
-                FROM {{main_db}}.gaia_source
+                FROM {{main_db}}
                 WHERE 1=CONTAINS(
                 POINT('ICRS', ra, dec),
                 CIRCLE('ICRS', {obj.ra}, {obj.dec},
