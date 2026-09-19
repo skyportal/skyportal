@@ -290,6 +290,73 @@ _SUMMARY_PROMPT = (
 )
 
 
+# A telescope long enough to be a sentence tells the model nothing more than
+# its name does.
+_SUMMARY_MAX_TELESCOPE = 60
+
+# Only used where no row names a facility, so it stands in for a telescope.
+_SUMMARY_MAX_SUBJECT = 80
+
+
+def _shorten(name, limit):
+    """Trim to `limit` on a word boundary, so a name never ends mid-word."""
+    name = name.strip()
+    if len(name) <= limit:
+        return name
+    head = name[:limit].rsplit(" ", 1)[0]
+    return (head or name[:limit]).rstrip(" ,(").strip()
+
+
+def _row_telescopes(rows):
+    """The distinct facilities a circular's rows name, in the order they appear."""
+    telescopes = []
+    for row in rows:
+        name = (
+            row.get("telescope_canonical")
+            or row.get("telescope")
+            or row.get("instrument_canonical")
+            or row.get("instrument")
+        )
+        if not name:
+            continue
+        name = _shorten(str(name), _SUMMARY_MAX_TELESCOPE)
+        if name not in telescopes:
+            telescopes.append(name)
+    return telescopes
+
+
+def _row_measurement(row):
+    """One row as text, or None where nothing was actually measured.
+
+    A circular reports in whatever unit its band works in, so an X-ray or radio
+    row carries a flux and no magnitude. Reading only magnitudes dropped the
+    detections that matter most -- the X-ray afterglow among them.
+    """
+    band = row.get("filter") or row.get("bandpass")
+    if row.get("mag") is not None:
+        value = f"{band or '?'} = {row['mag']}"
+        if row.get("mag_error") is not None:
+            value += f" +/- {row['mag_error']}"
+        return value
+    if row.get("limiting_mag") is not None:
+        return f"{band or '?'} > {row['limiting_mag']}"
+
+    if (energy_band := row.get("energy_band_kev")) and len(energy_band) == 2:
+        band = f"{energy_band[0]}-{energy_band[1]} keV"
+    elif frequency := row.get("frequency_ghz"):
+        band = f"{frequency} GHz"
+    if row.get("energy_flux") is not None:
+        return f"{band or '?'} = {row['energy_flux']} erg/cm2/s"
+    if row.get("limiting_energy_flux") is not None:
+        return f"{band or '?'} < {row['limiting_energy_flux']} erg/cm2/s"
+    unit = row.get("flux_density_unit") or "mJy"
+    if row.get("flux_density") is not None:
+        return f"{band or '?'} = {row['flux_density']} {unit}"
+    if row.get("limiting_flux_density") is not None:
+        return f"{band or '?'} < {row['limiting_flux_density']} {unit}"
+    return None
+
+
 def _summary_context(event, extractions):
     """The event as plain text, from the parsed extractions rather than the prose."""
     lines = [f"GCN event {event.dateobs} UTC."]
@@ -304,8 +371,13 @@ def _summary_context(event, extractions):
         parts = []
         if circular_id := extraction.circular_id:
             parts.append(f"GCN {circular_id}")
-        if telescope := data.get("telescope_name"):
-            parts.append(str(telescope))
+        if telescopes := _row_telescopes(data.get("photometry") or []):
+            parts.append(", ".join(telescopes))
+        elif subject := data.get("subject"):
+            # Nothing on the rows says who observed; the subject line does, and
+            # without it the model attributes the measurements to whoever was
+            # named last.
+            parts.append(_shorten(str(subject), _SUMMARY_MAX_SUBJECT))
         classification = (data.get("classification") or {}).get("classification")
         subtype = (data.get("classification") or {}).get("subtype")
         if classification:
@@ -316,21 +388,14 @@ def _summary_context(event, extractions):
         if redshift is not None:
             parts.append(f"z = {redshift}")
         rows = data.get("photometry") or []
-        for row in rows[:_SUMMARY_MAX_ROWS]:
-            band = row.get("filter") or row.get("bandpass") or "?"
-            if row.get("mag") is not None:
-                value = f"{band} = {row['mag']}"
-                if row.get("mag_error") is not None:
-                    value += f" +/- {row['mag_error']}"
-            elif row.get("limiting_mag") is not None:
-                value = f"{band} > {row['limiting_mag']}"
-            else:
-                continue
+        measured = [row for row in rows if _row_measurement(row)]
+        for row in measured[:_SUMMARY_MAX_ROWS]:
+            value = _row_measurement(row)
             if row.get("obs_mjd") is not None:
                 value += f" at MJD {row['obs_mjd']}"
             parts.append(value)
-        if len(rows) > _SUMMARY_MAX_ROWS:
-            parts.append(f"and {len(rows) - _SUMMARY_MAX_ROWS} further rows")
+        if len(measured) > _SUMMARY_MAX_ROWS:
+            parts.append(f"and {len(measured) - _SUMMARY_MAX_ROWS} further rows")
         if data.get("retraction"):
             parts.append("RETRACTION")
         if parts:
