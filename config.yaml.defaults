@@ -902,7 +902,6 @@ misc:
   cosmology: Planck18
   #cosmology: {H0: "65.0", Om0: 0.3, Ode0: 0.7, name: 'skyportal_user_cosmo'}
 
-  dustmap: sfd
   # Vendored in the skyportal-data submodule so the SFD maps are present
   # without a network fetch at startup. obj.py still falls back to fetching
   # if the files are absent (e.g. submodule not initialized).
@@ -991,7 +990,7 @@ twilio:
   sendgrid_api_key:
 
   # Twilio SMS API configs
-  # These values must be valid ones from the Twitter API console
+  # These values must be valid ones from the Twilio API console
   from_number:
   sms_account_sid:
   sms_auth_token:
@@ -1283,8 +1282,6 @@ hosts:
   assistant: 127.0.0.1
   slack: 127.0.0.1
 
-# JPL Scout NEO Target-of-Opportunity candidates, published by
-# lsst-sssc/scout-alert-bridge. Leave `topic` unset to disable the service.
 assignments:
   # An uploaded spectrum marks a matching observing-run assignment "done".
   # A spectrum naming its assignment always settles it; otherwise the run's
@@ -1303,6 +1300,8 @@ tess:
   group_ids: [] # groups the annotations are visible to
   bot_user_id: # user recorded as the annotation author
 
+# JPL Scout NEO Target-of-Opportunity candidates, published by
+# lsst-sssc/scout-alert-bridge. Leave `topic` unset to disable the service.
 scout:
   topic: # e.g. lco.scout-neo-too-test
   kafka_server: kafka.scimma.org
