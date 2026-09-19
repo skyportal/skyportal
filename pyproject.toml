@@ -91,7 +91,7 @@ dependencies = [
     "PyAstronomy==0.24.0",
     "shapely==2.1.2",
     "openai==2.40.0",
-    "simplejson==4.1.1",
+    "simplejson==4.1.2",
     "pydantic==2.13.4",
     # Optional observability stack (opt-in via config `observability.enabled`)
     "opentelemetry-sdk>=1.30.0",
