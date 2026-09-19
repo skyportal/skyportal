@@ -44,23 +44,29 @@ SummaryEmbedding = sa.Table(
 
 
 def ensure_vector_extension(connection):
-    """Install pgvector's `vector` type, unless it is there or we may not.
+    """Install pgvector's `vector` type, unless it is there or we cannot.
 
     Installing an extension is a superuser act, so an existing one must
-    short-circuit before the privilege check.
+    short-circuit before the privilege check. A server without pgvector at
+    all fails for a different reason than one that will not let this role
+    install it, and wants a different fix, so they are told apart here.
     """
     if connection.scalar(
         sa.text("SELECT 1 FROM pg_extension WHERE extname = 'vector'")
     ):
         return
+    database = connection.engine.url.database
+    if not connection.scalar(
+        sa.text("SELECT 1 FROM pg_available_extensions WHERE name = 'vector'")
+    ):
+        raise RuntimeError(
+            "pgvector is not on this server; the pgvector/pgvector image has it."
+        )
     try:
         connection.execute(sa.text("CREATE EXTENSION vector"))
     except Exception as e:
         raise RuntimeError(
-            "The summary_embeddings table needs pgvector's `vector` type, and "
-            "this role may not install extensions. Ask an administrator to run, "
-            f"once, in database {connection.engine.url.database}:\n"
-            "    CREATE EXTENSION vector;"
+            f"pgvector needs a superuser: CREATE EXTENSION vector; in {database}."
         ) from e
 
 
