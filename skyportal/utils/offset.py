@@ -1480,6 +1480,7 @@ def get_finding_chart(
     wcs.wcs.ctype = ["RA---TAN", "DEC--TAN"]
 
     fallback = True
+    date_obs = None
     if hdu is not None:
         im = hdu.data
 
@@ -1490,6 +1491,12 @@ def get_finding_chart(
         if "RADECSYS" in hdr:
             hdr.set("RADESYSa", hdr["RADECSYS"], before="RADECSYS")
             del hdr["RADECSYS"]
+
+        date_obs = hdr.get("DATE-OBS")
+        if not date_obs and hdr.get("MJD-OBS"):
+            date_obs = Time(f"{hdr['MJD-OBS']}", format="mjd").to_value(
+                "fits", subfmt="date_hms"
+            )
 
         if source_image_parameters[image_source].get("reproject", False):
             log("Reprojecting image to requested position and orientation")
@@ -1614,14 +1621,6 @@ def get_finding_chart(
             alpha=0.5,
             bbox=props,
         )
-
-    date_obs = hdr.get("DATE-OBS")
-    if not date_obs:
-        mjd_obs = hdr.get("MJD-OBS")
-        if mjd_obs:
-            date_obs = Time(f"{mjd_obs}", format="mjd").to_value(
-                "fits", subfmt="date_hms"
-            )
 
     if date_obs:
         ax.text(
