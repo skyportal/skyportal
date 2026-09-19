@@ -1040,7 +1040,7 @@ _DEDUP_COERCIONS = {
 
 # Dedup columns ignoring flux/fluxerr (the PUT handler's duplicate_ignore_flux
 # mode, super-admin only): a posted row may then match several stored rows.
-_NOFLUX_DEDUP_COLUMNS = ("obj_id", "instrument_id", "origin", "mjd")
+_NOFLUX_DEDUP_COLUMNS = ("obj_id", "instrument_id", "origin", "mjd", "filter")
 
 
 def _dedup_key(row, columns=Photometry.DEDUP_COLUMNS):

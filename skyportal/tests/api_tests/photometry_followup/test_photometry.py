@@ -3610,3 +3610,66 @@ def test_get_photometry_without_id_returns_error(upload_data_token):
     status, data = api("GET", "photometry", token=upload_data_token)
     assert status == 400
     assert "photometry_id" in data["message"]
+
+
+def test_same_epoch_limits_in_two_bands_both_survive(
+    upload_data_token, public_source, ztf_camera, public_group
+):
+    # Two bands at one epoch are two measurements. Equal-depth limits make
+    # equal flux (NaN) and equal fluxerr, and a btree reads NaN as equal to
+    # NaN, so without the filter in the dedup key these shared one key and
+    # the whole multi-row statement was rejected.
+    origin = f"two-band-limits-{uuid.uuid4()}"
+    status, data = api(
+        "POST",
+        "photometry",
+        data={
+            "obj_id": str(public_source.id),
+            "instrument_id": ztf_camera.id,
+            "mjd": [58000.5, 58000.5],
+            "mag": [None, None],
+            "magerr": [None, None],
+            "limiting_mag": [20.5, 20.5],
+            "magsys": ["ab", "ab"],
+            "filter": ["ztfg", "ztfr"],
+            "origin": [origin, origin],
+            "group_ids": [public_group.id],
+        },
+        token=upload_data_token,
+    )
+    assert status == 200, data
+    assert len(data["data"]["ids"]) == 2
+
+    bands = set()
+    for photometry_id in data["data"]["ids"]:
+        status, data = api(
+            "GET", f"photometry/{photometry_id}", token=upload_data_token
+        )
+        assert status == 200, data
+        bands.add(data["data"]["filter"])
+    assert bands == {"ztfg", "ztfr"}
+
+
+def test_one_band_still_deduplicates_at_the_same_epoch(
+    upload_data_token, public_source, ztf_camera, public_group
+):
+    # The band widens the key; it does not weaken it. The same limit twice in
+    # one band is still one measurement.
+    origin = f"one-band-limit-{uuid.uuid4()}"
+    payload = {
+        "obj_id": str(public_source.id),
+        "instrument_id": ztf_camera.id,
+        "mjd": 58000.75,
+        "mag": None,
+        "magerr": None,
+        "limiting_mag": 20.5,
+        "magsys": "ab",
+        "filter": "ztfg",
+        "origin": origin,
+        "group_ids": [public_group.id],
+    }
+    status, data = api("POST", "photometry", data=payload, token=upload_data_token)
+    assert status == 200, data
+
+    status, data = api("POST", "photometry", data=payload, token=upload_data_token)
+    assert status == 400, data
