@@ -66,6 +66,9 @@ const defaultLayouts: any = {
   {%- endfor %}
 }
 
+const geometry = (items: any[] = []) =>
+  JSON.stringify(items.map(({ i, x, y, w, h }: any) => [i, x, y, w, h]));
+
 const withSavedPositions = (saved: any) =>
   Object.fromEntries(
     Object.entries(defaultLayouts).map(([breakpoint, items]: [string, any]) => [
@@ -96,6 +99,12 @@ const HomePage = () => {
   );
 
   const layoutChangeHandler = (_: any, allLayouts: any) => {
+    // The grid also fires this on mount, which would save a layout nobody chose.
+    const changed = Object.entries(allLayouts).some(
+      ([breakpoint, items]: [string, any]) =>
+        geometry(items) !== geometry(currentLayouts[breakpoint]),
+    );
+    if (!changed) return;
     const prefs = { layouts: allLayouts };
     updateUserPreferences(prefs);
   };
