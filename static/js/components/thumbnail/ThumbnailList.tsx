@@ -15,7 +15,15 @@ import { useGenerateSurveyThumbnailMutation } from "../../ducks/candidate/candid
 dayjs.extend(calendar);
 
 const ALERT_THUMBNAIL_TYPES = ["new", "ref", "sub"];
-const ARCHIVAL_THUMBNAIL_TYPES = ["sdss", "ls", "ps1", "sm", "hst", "chandra"];
+const ARCHIVAL_THUMBNAIL_TYPES = [
+  "sdss",
+  "ls",
+  "ps1",
+  "sm",
+  "hst",
+  "chandra",
+  "jwst",
+];
 // PanSTARRS is resolved asynchronously on the backend after the source loads;
 // show a loading tile while it arrives. (SkyMapper/HST/Chandra/JWST are
 // on-demand, so no loading tile for those.)
