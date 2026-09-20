@@ -47690,6 +47690,12 @@ export interface components {
              */
             status: "endorsed" | "declined";
             /**
+             * Streamids
+             * @description IDs of streams to grant the applicant. The endorser must have each of them, and they must cover every stream the chosen groups read. Omitted, the groups' own streams are granted.
+             * @default null
+             */
+            streamIDs: number[] | null;
+            /**
              * Groupids
              * @description IDs of groups to add the applicant to. The endorser must belong to each of them. Defaults to none, which still lands the applicant in the sitewide public group.
              * @default null
