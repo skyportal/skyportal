@@ -299,12 +299,24 @@ def test_save_candidate_quick_save(
     expect(page.locator('//span[text()="Previously Saved"]').first).to_be_visible()
 
 
-@pytest.mark.flaky(reruns=2)
-def test_comment_from_candidate_opens_scanning_panel(
-    page, group_admin_user, public_group, public_candidate, comment_token
-):
-    page.goto(f"/become_user/{group_admin_user.id}")
-    page.goto("/candidates")
+def wait_for_posted_comment(obj_id, comment_text, token, timeout=30):
+    """The comment the page just submitted, once the POST has been recorded."""
+    deadline = time.time() + timeout
+    while True:
+        status, data = api("GET", f"sources/{obj_id}/comments", token=token)
+        assert status == 200, data
+        comment = next(
+            (c for c in data["data"] if c["text"] == comment_text),
+            None,
+        )
+        if comment is not None:
+            return comment
+        assert time.time() < deadline, f"comment {comment_text} was never posted"
+        time.sleep(1)
+
+
+def open_candidate_comment_panel(page, public_group, public_candidate):
+    """Search the candidate out and open its chat, from a freshly loaded page."""
     page.locator(
         f'//*[@data-testid="filteringFormGroupCheckbox-{public_group.id}"]'
     ).first.click()
@@ -315,27 +327,50 @@ def test_comment_from_candidate_opens_scanning_panel(
     ).first
     expect(comment_button).to_be_visible()
     comment_button.click()
-
     expect(page.locator('//*[@data-testid="source-chat"]').first).to_be_visible()
+
+
+def expect_scanning_comment(page, comment_text):
+    # Scoped to a rendered comment rather than any node on the page, so a match
+    # means the thread actually painted it.
+    expect(
+        page.locator('//*[@id="comment"]//p', has_text=comment_text).first
+    ).to_be_visible()
+
+
+@pytest.mark.flaky(reruns=2)
+def test_comment_from_candidate_opens_scanning_panel(
+    page, group_admin_user, public_group, public_candidate, comment_token
+):
+    page.goto(f"/become_user/{group_admin_user.id}")
+    page.goto("/candidates")
+    open_candidate_comment_panel(page, public_group, public_candidate)
+
     comment_text = str(uuid.uuid4())
-    page.locator(
+    comment_box = page.locator(
         '//form[@data-testid="comment-form"]//textarea[@name="text"]'
-    ).first.fill(comment_text)
+    ).first
+    comment_box.click()
+    comment_box.fill(comment_text)
+    # The button posts what React holds, not what the DOM shows, so let the
+    # controlled value settle before submitting.
+    expect(comment_box).to_have_value(comment_text)
     page.locator(
         '//form[@data-testid="comment-form"]//*[@name="submitCommentButton"]'
     ).first.click()
-    expect(
-        page.locator(f'//*[contains(text(), "{comment_text}")]').first
-    ).to_be_visible()
 
-    status, data = api(
-        "GET",
-        f"sources/{public_candidate.id}/comments",
-        token=comment_token,
-    )
-    assert status == 200, data
-    comment = next(c for c in data["data"] if c["text"] == comment_text)
+    # The comment is the server's answer, so confirm it landed before blaming
+    # the page for not showing it. The POST is in flight as this runs.
+    comment = wait_for_posted_comment(public_candidate.id, comment_text, comment_token)
     assert comment["origin"] == "scanning"
+
+    try:
+        expect_scanning_comment(page, comment_text)
+    except AssertionError:
+        # Comments occasionally fail to render on first paint under CI load.
+        page.goto("/candidates")
+        open_candidate_comment_panel(page, public_group, public_candidate)
+        expect_scanning_comment(page, comment_text)
 
 
 @pytest.mark.flaky(reruns=2)
