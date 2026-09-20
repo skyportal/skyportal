@@ -42,6 +42,8 @@ init_db(**cfg["database"])
 
 log = make_log("ep_service")
 
+ep_cfg = cfg.get("einstein_probe", {}) or {}
+
 user_id = 1
 
 # Fields the data center must supply for a candidate to be ingestible. A
@@ -273,7 +275,6 @@ async def ingest_candidates(candidates, group_names, radius_multiplier, max_even
 
 
 def is_configured():
-    ep_cfg = cfg.get("einstein_probe", {}) or {}
     if not ep_cfg.get("enabled", False):
         log("Einstein Probe ingestion is disabled, skipping")
         return False
@@ -291,10 +292,6 @@ def is_configured():
 
 @check_loaded(logger=log)
 def service(*args, **kwargs):
-    if not is_configured():
-        return
-
-    ep_cfg = cfg["einstein_probe"]
     client = EPClient(
         ep_cfg.get("base_url", "https://ep.bao.ac.cn/ep"),
         ep_cfg["email"],
@@ -329,6 +326,7 @@ def service(*args, **kwargs):
 
 if __name__ == "__main__":
     try:
-        service()
+        if is_configured():
+            service()
     except Exception as e:
         log(f"Error: {e}")

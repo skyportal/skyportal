@@ -21,8 +21,10 @@ init_db(**cfg["database"])
 
 log = make_log("gcn_crossmatch")
 
+config = cfg.get("gcn_crossmatch", {}) or {}
 
-def is_configured(config):
+
+def is_configured():
     if not config.get("enabled", False):
         log("GCN crossmatch is disabled, skipping")
         return False
@@ -31,10 +33,6 @@ def is_configured(config):
 
 @check_loaded(logger=log)
 def service(*args, **kwargs):
-    config = cfg.get("gcn_crossmatch", {}) or {}
-    if not is_configured(config):
-        return
-
     interval = float(config.get("poll_interval", 300))
     log(f"Crossmatching GCN localizations against brokers every {interval:.0f}s")
 
@@ -51,6 +49,7 @@ def service(*args, **kwargs):
 
 if __name__ == "__main__":
     try:
-        service()
+        if is_configured():
+            service()
     except Exception as e:
         log(f"Error: {e}")
