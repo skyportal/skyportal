@@ -22,7 +22,7 @@ import Button from "../Button";
 import StyledDataGrid, { DataGridToolbar } from "../StyledDataGrid";
 import { capitalize, userLabel } from "../../utils/format";
 import { useGetConfigQuery } from "../../ducks/config";
-import { useGetProfileQuery } from "../../ducks/profile";
+import { useGetGroupsQuery } from "../../ducks/groups";
 import {
   UserApplication,
   useDecideUserApplicationMutation,
@@ -54,7 +54,7 @@ const EndorseDialog = ({
 }) => {
   const dispatch = useAppDispatch();
   const [decide] = useDecideUserApplicationMutation();
-  const myGroups = (useGetProfileQuery().data?.groups ?? []).filter(
+  const myGroups = (useGetGroupsQuery().data?.user ?? []).filter(
     (group: any) => !group.single_user_group,
   );
   const [groupIDs, setGroupIDs] = useState<number[]>([]);
