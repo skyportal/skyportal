@@ -1,5 +1,3 @@
-"""The vector for a source's summary, when the embeddings store is pgvector."""
-
 __all__ = ["SummaryEmbedding", "Vector", "ensure_vector_extension"]
 
 import sqlalchemy as sa
@@ -8,8 +6,6 @@ from baselayer.app.models import Base
 
 
 class Vector(sa.types.UserDefinedType):
-    """pgvector's type, so the column can be created and cast to."""
-
     cache_ok = True
 
     def get_col_spec(self, **kw):
@@ -44,11 +40,7 @@ SummaryEmbedding = sa.Table(
 
 
 def ensure_vector_extension(connection):
-    """Install pgvector's `vector` type, unless it is there or we may not.
-
-    Installing an extension is a superuser act, so an existing one must
-    short-circuit before the privilege check.
-    """
+    """Install pgvector's `vector` type; an existing one short-circuits the superuser check."""
     if connection.scalar(
         sa.text("SELECT 1 FROM pg_extension WHERE extname = 'vector'")
     ):
@@ -77,5 +69,4 @@ def ensure_vector_extension(connection):
 
 @sa.event.listens_for(SummaryEmbedding, "before_create")
 def _create_vector_extension(target, connection, **kw):
-    """Make sure the `vector` type exists before the column that uses it."""
     ensure_vector_extension(connection)

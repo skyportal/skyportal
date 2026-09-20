@@ -1,8 +1,7 @@
 """Runner for the GCN alert crossmatch.
 
-All the logic lives in ``skyportal.utils.gcn_crossmatch`` so it can be imported
-and tested without this module's ``init_db`` rebinding the session. This file
-only reads configuration and drives the loop.
+The logic lives in ``skyportal.utils.gcn_crossmatch`` so it stays importable
+without this module's ``init_db`` rebinding the session.
 """
 
 import asyncio
