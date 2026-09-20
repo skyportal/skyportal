@@ -978,6 +978,22 @@ async def _post_default_followup_requests_async(
                 # access below doesn't fire one SELECT per existing request.
                 # Also eager-load allocation->instrument so candidate.instrument
                 # (== allocation.instrument) is greenlet-safe under async.
+                # A facility's queue is per instrument, so a duplicate reaching
+                # it through a second allocation is still a duplicate; two
+                # allocations on one instrument each triggered by their own
+                # autosaving filter is how SEDM was receiving the same target
+                # twice. The lock serializes those saves, which arrive
+                # milliseconds apart in separate tasks and sessions, and without
+                # it both read this table before either has written.
+                instrument_id = await session.scalar(
+                    sa.select(Allocation.instrument_id).where(
+                        Allocation.id == allocation_id
+                    )
+                )
+                await session.execute(
+                    sa.text("select pg_advisory_xact_lock(hashtext(:obj), :instr)"),
+                    {"obj": str(obj_id), "instr": int(instrument_id or 0)},
+                )
                 existing_requests = (
                     await session.scalars(
                         sa.select(FollowupRequest)
@@ -989,7 +1005,11 @@ async def _post_default_followup_requests_async(
                         )
                         .where(
                             FollowupRequest.obj_id == obj_id,
-                            FollowupRequest.allocation_id == allocation_id,
+                            FollowupRequest.allocation_id.in_(
+                                sa.select(Allocation.id).where(
+                                    Allocation.instrument_id == instrument_id
+                                )
+                            ),
                             FollowupRequest.status != "deleted",
                         )
                     )
@@ -1007,9 +1027,14 @@ async def _post_default_followup_requests_async(
                     )
 
                 matching = [r for r in existing_requests if _same_request(r)]
+                # Bumping is confined to this allocation: a match on another one
+                # belongs to a different group, and raising its priority would
+                # edit a request this default does not own. Such a match still
+                # suppresses a new submission.
+                bumpable = [r for r in matching if r.allocation_id == allocation_id]
                 # lowest-priority match first (so we bump the weakest existing
                 # request), respecting priority_order
-                matching.sort(
+                bumpable.sort(
                     key=lambda r: get_payload_priority(r.payload)[1] or 0,
                     reverse=(priority_order == "desc"),
                 )
@@ -1023,12 +1048,19 @@ async def _post_default_followup_requests_async(
                     # implements_update flag (mirrors Kowalski): if the flag is
                     # set but the instrument has no update API, the attempt below
                     # raises and is rolled back + logged.
-                    candidate = matching[0]
-                    priority_key = detect_priority_alias(candidate.payload)
+                    candidate = bumpable[0] if bumpable else None
+                    priority_key = (
+                        detect_priority_alias(candidate.payload) if candidate else None
+                    )
                     _, new_priority = get_payload_priority(payload)
-                    _, existing_priority = get_payload_priority(candidate.payload)
+                    _, existing_priority = (
+                        get_payload_priority(candidate.payload)
+                        if candidate
+                        else (None, None)
+                    )
                     if (
-                        "submitted" in str(candidate.status).lower()
+                        candidate is not None
+                        and "submitted" in str(candidate.status).lower()
                         and implements_update
                         and new_priority is not None
                         and existing_priority is not None
