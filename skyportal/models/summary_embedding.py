@@ -56,10 +56,21 @@ def ensure_vector_extension(connection):
     try:
         connection.execute(sa.text("CREATE EXTENSION vector"))
     except Exception as e:
+        # SQLSTATE 0A000: absent from the server, not a privilege problem.
+        if getattr(getattr(e, "orig", None), "sqlstate", None) == "0A000":
+            fix = (
+                "which is not installed on this PostgreSQL server. Install it "
+                "(`brew install pgvector`, `apt install postgresql-17-pgvector`, "
+                "...), then run, once,"
+            )
+        else:
+            fix = (
+                "and this role may not install extensions. Ask an administrator "
+                "to run, once,"
+            )
         raise RuntimeError(
-            "The summary_embeddings table needs pgvector's `vector` type, and "
-            "this role may not install extensions. Ask an administrator to run, "
-            f"once, in database {connection.engine.url.database}:\n"
+            f"The summary_embeddings table needs pgvector's `vector` type, {fix} "
+            f"in database {connection.engine.url.database}:\n"
             "    CREATE EXTENSION vector;"
         ) from e
 
