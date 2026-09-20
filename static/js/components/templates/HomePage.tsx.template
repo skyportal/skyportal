@@ -66,6 +66,18 @@ const defaultLayouts: any = {
   {%- endfor %}
 }
 
+const withSavedPositions = (saved: any) =>
+  Object.fromEntries(
+    Object.entries(defaultLayouts).map(([breakpoint, items]: [string, any]) => [
+      breakpoint,
+      items.map((item: any) => {
+        const { x, y, w, h } =
+          (saved?.[breakpoint] ?? []).find((s: any) => s.i === item.i) ?? item;
+        return { ...item, x, y, w, h };
+      }),
+    ]),
+  );
+
 const HomePage = () => {
   const { classes } = useStyles();
   const [updateUserPreferences] = useUpdateUserPreferencesMutation();
@@ -79,8 +91,9 @@ const HomePage = () => {
   const gridRowHeight = parseFloat(convert(rem, "px"));
   const groups = useGetGroupsQuery().data?.user ?? [];
   const { data: profile } = useGetProfileQuery();
-  const currentLayouts =
-    (profile?.preferences as any)?.layouts ?? defaultLayouts;
+  const currentLayouts = withSavedPositions(
+    (profile?.preferences as any)?.layouts,
+  );
 
   const layoutChangeHandler = (_: any, allLayouts: any) => {
     const prefs = { layouts: allLayouts };
