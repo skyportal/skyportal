@@ -289,6 +289,8 @@ from .utils.observability import setup_observability
 
 log = make_log("app_server")
 
+DEFAULT_SECRET_KEY = "abc01234"
+
 
 class CustomApplication(tornado.web.Application):
     def log_request(self, handler):
@@ -800,11 +802,14 @@ def make_app(cfg, baselayer_handlers, baselayer_settings, process=None, env=None
         one key, 'debug'---true if launched with `--debug`.
 
     """
-    if cfg["app.secret_key"] == "abc01234":
-        print("!" * 80)
-        print("  Your server is insecure. Please update the secret string ")
-        print("  in the configuration file!")
-        print("!" * 80)
+    if cfg["app.secret_key"] == DEFAULT_SECRET_KEY:
+        if env is None or not env.debug:
+            raise RuntimeError(
+                "app.secret_key is the one shipped in config.yaml.defaults, so "
+                "session cookies and the credentials encrypted in the database "
+                "are readable by anyone. Set it to a random string."
+            )
+        log("Running on the default app.secret_key; development only")
 
     if cfg.get("testing", False):
         iers_conf.auto_download = False
