@@ -3074,6 +3074,54 @@ class DefaultFollowupRequestPostBody(BaseModel):
     )
 
 
+class DefaultFollowupRequestPatchBody(BaseModel):
+    """Fields to change on a default follow-up request; all are optional.
+
+    Constraint keys are merged into the stored constraints rather than
+    replacing them, so changing one leaves the rest intact.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    payload: dict[str, Any] | None = Field(
+        default=None, description="Follow-up request payload."
+    )
+    allocation_id: int | None = Field(
+        default=None, description="Follow-up request allocation ID."
+    )
+    target_group_ids: list[int] | None = Field(
+        default=None,
+        description="IDs of groups the results are shared with. Replaces the "
+        "existing set.",
+    )
+    default_followup_name: str | None = Field(
+        default=None, description="Name of the default follow-up request."
+    )
+    source_filter: dict[str, Any] | str | None = Field(
+        default=None,
+        description="Which sources this applies to. An absent name matches every "
+        "object in the group.",
+    )
+    not_if_duplicates: bool | None = Field(default=None)
+    source_group_ids: list[int] | None = Field(default=None)
+    ignore_source_group_ids: list[int] | None = Field(default=None)
+    not_if_classified: bool | None = Field(default=None)
+    not_if_spectra_exist: bool | None = Field(default=None)
+    not_if_tns_classified: bool | None = Field(default=None)
+    not_if_tns_reported: float | None = Field(default=None)
+    not_if_assignment_exists: bool | None = Field(default=None)
+    ignore_allocation_ids: list[int] | None = Field(default=None)
+    radius: float | None = Field(
+        default=None, description="Radius (arcsec) used when checking constraints."
+    )
+    priority_order: str | None = Field(
+        default=None, description="One of 'asc' or 'desc'."
+    )
+    validity_days: int | None = Field(default=None)
+    comment: str | None = Field(default=None)
+    implements_update: bool | None = Field(default=None)
+
+
 class DefaultFollowupRequestPostResponse(BaseModel):
     """Data payload returned when creating a default follow-up request."""
 
@@ -3226,6 +3274,192 @@ class DefaultFollowupRequestHandler(BaseHandler):
 
             self.push_all(action="skyportal/REFRESH_DEFAULT_FOLLOWUP_REQUESTS")
             return self.success(data={"id": default_followup_request.id})
+
+    @auth_or_token
+    async def patch(
+        self,
+        default_followup_request_id: int,
+        *,
+        body: DefaultFollowupRequestPatchBody = None,
+    ):
+        """
+        ---
+        summary: Update a default follow-up request
+        description: Update a default follow-up request in place, leaving the
+          fields that were not supplied untouched.
+        tags:
+          - default followup requests
+        responses:
+          200:
+            content:
+              application/json:
+                schema: Success
+          400:
+            content:
+              application/json:
+                schema: Error
+        """
+        body = self.parse_body(DefaultFollowupRequestPatchBody)
+        data = body.model_dump(exclude_unset=True)
+        if not data:
+            return self.error("Nothing to update.")
+
+        async with self.AsyncSession() as session:
+            default_followup_request = await session.scalar(
+                DefaultFollowupRequest.select(
+                    session.user_or_token,
+                    mode="update",
+                    options=[
+                        selectinload(DefaultFollowupRequest.allocation).joinedload(
+                            Allocation.instrument
+                        ),
+                        selectinload(DefaultFollowupRequest.target_groups),
+                    ],
+                ).where(DefaultFollowupRequest.id == int(default_followup_request_id))
+            )
+            if default_followup_request is None:
+                return self.error(
+                    f"Cannot find DefaultFollowupRequest with ID "
+                    f"{default_followup_request_id}"
+                )
+
+            if "default_followup_name" in data:
+                existing = await session.scalar(
+                    DefaultFollowupRequest.select(session.user_or_token).where(
+                        DefaultFollowupRequest.default_followup_name
+                        == data["default_followup_name"],
+                        DefaultFollowupRequest.id != default_followup_request.id,
+                    )
+                )
+                if existing is not None:
+                    return self.error(
+                        f"A default follow-up request called "
+                        f"{data['default_followup_name']} already exists. That "
+                        f"name must be unique."
+                    )
+                default_followup_request.default_followup_name = data[
+                    "default_followup_name"
+                ]
+
+            # The payload is validated against whichever allocation ends up in
+            # effect, so a change of allocation is applied before it.
+            allocation = default_followup_request.allocation
+            if "allocation_id" in data:
+                allocation = await session.scalar(
+                    Allocation.select(session.user_or_token)
+                    .where(Allocation.id == data["allocation_id"])
+                    .options(joinedload(Allocation.instrument))
+                )
+                if allocation is None:
+                    return self.error(
+                        f"Cannot access allocation with ID: {data['allocation_id']}",
+                        status=403,
+                    )
+                default_followup_request.allocation_id = allocation.id
+
+            if "payload" in data:
+                instrument = allocation.instrument
+                if instrument.api_classname is None:
+                    return self.error("Instrument has no remote API.", status=403)
+                try:
+                    form_schema = instrument.api_class.custom_json_schema(
+                        instrument, session.user_or_token
+                    )
+                except AttributeError:
+                    form_schema = instrument.api_class.form_json_schema
+
+                payload = dict(data["payload"])
+                if "start_date" in payload:
+                    return self.error("Cannot have start_date in the payload")
+                if "end_date" in payload:
+                    return self.error("Cannot have end_date in the payload")
+                if str(detect_priority_alias(payload)).lower() != "urgency":
+                    payload["start_date"] = str(utcnow_naive())
+                    payload["end_date"] = str(utcnow_naive() + timedelta(days=1))
+                try:
+                    jsonschema.validate(payload, form_schema)
+                except jsonschema.exceptions.ValidationError as e:
+                    return self.error(f"Payload failed to validate: {e}", status=403)
+                default_followup_request.payload = payload
+
+            if "source_filter" in data:
+                source_filter = data["source_filter"]
+                if not isinstance(source_filter, dict):
+                    try:
+                        source_filter = load_source_filter(source_filter)
+                    except Exception as e:
+                        return self.error(
+                            f"Incorrect format for source_filter. Must be a valid "
+                            f"json string: {e}"
+                        )
+                try:
+                    await validate_source_filter_regex(
+                        session, source_filter.get("name")
+                    )
+                except ValueError as e:
+                    return self.error(str(e))
+                default_followup_request.source_filter = source_filter
+
+            provided_constraints = {
+                key: data[key] for key in FOLLOWUP_CONSTRAINT_KEYS if key in data
+            }
+            if provided_constraints or "radius" in data:
+                constraints = {
+                    **(default_followup_request.constraints or {}),
+                    **provided_constraints,
+                }
+                if "radius" in data:
+                    try:
+                        constraints["radius"] = float(data["radius"])
+                    except (TypeError, ValueError):
+                        return self.error(
+                            "Invalid specified radius for spatial constraints."
+                        )
+                constraints.setdefault("radius", 0.5)
+                default_followup_request.constraints = constraints
+
+            if "priority_order" in data:
+                if data["priority_order"] not in ("asc", "desc"):
+                    return self.error("priority_order must be one of: asc, desc.")
+                default_followup_request.priority_order = data["priority_order"]
+
+            if "validity_days" in data:
+                try:
+                    default_followup_request.validity_days = (
+                        None
+                        if data["validity_days"] is None
+                        else int(data["validity_days"])
+                    )
+                except (TypeError, ValueError):
+                    return self.error("validity_days must be an integer.")
+
+            if "comment" in data:
+                default_followup_request.comment = data["comment"]
+
+            if "implements_update" in data:
+                default_followup_request.implements_update = data["implements_update"]
+
+            if "target_group_ids" in data:
+                target_groups = (
+                    await session.scalars(
+                        Group.select(session.user_or_token).where(
+                            Group.id.in_(data["target_group_ids"] or [])
+                        )
+                    )
+                ).all()
+                default_followup_request.target_groups = target_groups
+
+            try:
+                await session.commit()
+            except IntegrityError:
+                await session.rollback()
+                return self.error(
+                    "A default follow-up request with that name already exists. "
+                    "That name must be unique."
+                )
+
+            self.push_all(action="skyportal/REFRESH_DEFAULT_FOLLOWUP_REQUESTS")
+            return self.success()
 
     @auth_or_token
     async def get(self, default_followup_request_id: int | None = None):
