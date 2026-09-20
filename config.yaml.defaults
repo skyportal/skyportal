@@ -818,7 +818,8 @@ server:
   #
   # You need to have Google+ API enabled; it takes a few minutes to activate.
   auth:
-    debug_login: True
+    # Sign everyone in as a single test user. Local development only.
+    debug_login: False
     google_oauth2_key:
     google_oauth2_secret:
     google_oauth2_timeout: 15
