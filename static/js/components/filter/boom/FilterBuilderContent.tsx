@@ -105,6 +105,9 @@ const FilterBuilderContent = ({
   // Read-only viewer state for raw Mongo pipelines that can't be rendered as blocks.
   const [showPipeline, setShowPipeline] = useState(true);
   const [pipelineView, setPipelineView] = useState("complete");
+  // True when the active version carries no block tree, so the builder is
+  // showing the broker's pipeline rather than an imported raw filter.
+  const [noBlockTree, setNoBlockTree] = useState(false);
   const [expandedStages, setExpandedStages] = useState<Set<any>>(new Set());
   const handleStageToggle = useCallback((index: number) => {
     setExpandedStages((prev) => {
@@ -162,6 +165,7 @@ const FilterBuilderContent = ({
         const versionData = activeFilters[0].version;
 
         if (versionData.filters) {
+          setNoBlockTree(false);
           setLocalFilterData(versionData.filters);
           if (setFilters) {
             setFilters(versionData.filters);
@@ -181,6 +185,7 @@ const FilterBuilderContent = ({
           // Extract the actual filter blocks from version[0]
           const editableData = versionData;
 
+          setNoBlockTree(false);
           setLocalFilterData(editableData);
           if (setFilters) {
             setFilters(editableData);
@@ -201,6 +206,10 @@ const FilterBuilderContent = ({
       if (activeVersion && activeVersion.pipeline) {
         try {
           const pipelineData = JSON.parse(activeVersion.pipeline);
+          // Reached only when no block tree was stored for the active version,
+          // which is a different situation from a filter imported as a raw
+          // pipeline even though both end up read-only.
+          setNoBlockTree(true);
           setLocalFilterData(pipelineData);
           if (setFilters && pipelineData) {
             setFilters(pipelineData);
@@ -282,6 +291,24 @@ const FilterBuilderContent = ({
   const rawPipeline = isRawMongoPipeline(filtersToRender)
     ? filtersToRender
     : null;
+
+  // The newest version that still has a block tree, so a version saved without
+  // one does not dead-end the user.
+  const lastEditableVersion = useMemo(() => {
+    if (!noBlockTree) return null;
+    const withTree = new Set(
+      ((filter as any)?.filters || [])
+        .filter((v: any) => v?.version?.filters || Array.isArray(v?.version))
+        .map((v: any) => v.fid),
+    );
+    const candidates = ((filter as any)?.fv || []).filter((v: any) =>
+      withTree.has(v.fid),
+    );
+    candidates.sort(
+      (a: any, b: any) => (a.created_at || 0) - (b.created_at || 0),
+    );
+    return candidates.length ? candidates[candidates.length - 1] : null;
+  }, [noBlockTree, filter]);
   const handleCopy = useCallback(() => {
     navigator.clipboard?.writeText(JSON.stringify(rawPipeline, null, 2));
   }, [rawPipeline]);
@@ -427,6 +454,7 @@ const FilterBuilderContent = ({
         </Typography>
         <Box sx={{ display: "flex", gap: 2 }}>
           <Button
+            type="button"
             data-testid="tour-filter-save"
             variant="contained"
             startIcon={<SaveIcon />}
@@ -442,6 +470,7 @@ const FilterBuilderContent = ({
             Save
           </Button>
           <Button
+            type="button"
             variant="outlined"
             startIcon={<NoteIcon />}
             onClick={handleAddAnnotations}
@@ -456,6 +485,7 @@ const FilterBuilderContent = ({
             Add Annotations
           </Button>
           <Button
+            type="button"
             variant="outlined"
             startIcon={<CodeIcon />}
             onClick={handleShowMongoQuery}
@@ -485,9 +515,22 @@ const FilterBuilderContent = ({
         ) : rawPipeline ? (
           <>
             <Alert severity="info" sx={{ mb: 2 }}>
-              This filter was imported as a raw MongoDB pipeline, so it
-              can&apos;t be edited in the block builder. It&apos;s shown
-              read-only below; edit it through the broker API.
+              {noBlockTree ? (
+                <>
+                  This version was saved without the block builder&apos;s
+                  representation of it, so only the pipeline it produced can be
+                  shown here. The pipeline below is read-only.
+                  {lastEditableVersion
+                    ? ` Version ${String(lastEditableVersion.fid).slice(0, 8)} is the most recent one that is still editable: activate it to carry on in the builder.`
+                    : " Edit it through the broker API."}
+                </>
+              ) : (
+                <>
+                  This filter was imported as a raw MongoDB pipeline, so it
+                  can&apos;t be edited in the block builder. It&apos;s shown
+                  read-only below; edit it through the broker API.
+                </>
+              )}
             </Alert>
             <PipelineViewer
               pipeline={rawPipeline}

@@ -641,6 +641,54 @@ class DefaultFollowupRequestPostBody(BaseModel):
     )
 
 
+class DefaultFollowupRequestPatchBody(BaseModel):
+    """Fields to change on a default follow-up request; all are optional.
+
+    Constraint keys are merged into the stored constraints rather than
+    replacing them, so changing one leaves the rest intact.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    payload: dict[str, Any] | None = Field(
+        default=None, description="Follow-up request payload."
+    )
+    allocation_id: int | None = Field(
+        default=None, description="Follow-up request allocation ID."
+    )
+    target_group_ids: list[int] | None = Field(
+        default=None,
+        description="IDs of groups the results are shared with. Replaces the "
+        "existing set.",
+    )
+    default_followup_name: str | None = Field(
+        default=None, description="Name of the default follow-up request."
+    )
+    source_filter: dict[str, Any] | str | None = Field(
+        default=None,
+        description="Which sources this applies to. An absent name matches every "
+        "object in the group.",
+    )
+    not_if_duplicates: bool | None = Field(default=None)
+    source_group_ids: list[int] | None = Field(default=None)
+    ignore_source_group_ids: list[int] | None = Field(default=None)
+    not_if_classified: bool | None = Field(default=None)
+    not_if_spectra_exist: bool | None = Field(default=None)
+    not_if_tns_classified: bool | None = Field(default=None)
+    not_if_tns_reported: float | None = Field(default=None)
+    not_if_assignment_exists: bool | None = Field(default=None)
+    ignore_allocation_ids: list[int] | None = Field(default=None)
+    radius: float | None = Field(
+        default=None, description="Radius (arcsec) used when checking constraints."
+    )
+    priority_order: str | None = Field(
+        default=None, description="One of 'asc' or 'desc'."
+    )
+    validity_days: int | None = Field(default=None)
+    comment: str | None = Field(default=None)
+    implements_update: bool | None = Field(default=None)
+
+
 class DefaultFollowupRequestPostResponse(BaseModel):
     """Data payload returned when creating a default follow-up request."""
 

@@ -3936,7 +3936,43 @@ export interface paths {
         };
         options?: never;
         head?: never;
-        patch?: never;
+        /**
+         * Update a default follow-up request
+         * @description Update a default follow-up request in place, leaving the fields that were not supplied untouched.
+         */
+        patch: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    default_followup_request_id: number;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["DefaultFollowupRequestPatchBody"];
+                };
+            };
+            responses: {
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Success"];
+                    };
+                };
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
         trace?: never;
     };
     "/api/default_followup_request": {
@@ -23715,10 +23751,10 @@ export interface components {
             _authinfo?: string | null;
             enabled?: boolean;
             /**
-             * @description Type of analysis. One of: 'lightcurve_fitting', 'spectrum_fitting', 'meta_analysis'
+             * @description Type of analysis. One of: 'lightcurve_fitting', 'spectrum_fitting', 'meta_analysis', 'gw_search', 'period_finding'
              * @enum {string}
              */
-            analysis_type: "lightcurve_fitting" | "spectrum_fitting" | "meta_analysis";
+            analysis_type: "lightcurve_fitting" | "spectrum_fitting" | "meta_analysis" | "gw_search" | "period_finding";
             /** @description List of allowed_analysis_input_types required by the service. This data will be assembled and sent over to the analysis service. */
             input_data_types?: string[] | null;
             /** @description Max time in seconds to wait for the analysis service to complete. */
@@ -23774,10 +23810,10 @@ export interface components {
             _authinfo?: string | null;
             enabled?: boolean;
             /**
-             * @description Type of analysis. One of: 'lightcurve_fitting', 'spectrum_fitting', 'meta_analysis'
+             * @description Type of analysis. One of: 'lightcurve_fitting', 'spectrum_fitting', 'meta_analysis', 'gw_search', 'period_finding'
              * @enum {string}
              */
-            analysis_type: "lightcurve_fitting" | "spectrum_fitting" | "meta_analysis";
+            analysis_type: "lightcurve_fitting" | "spectrum_fitting" | "meta_analysis" | "gw_search" | "period_finding";
             /** @description List of allowed_analysis_input_types required by the service. This data will be assembled and sent over to the analysis service. */
             input_data_types?: string[] | null;
             /** @description Max time in seconds to wait for the analysis service to complete. */
@@ -41051,6 +41087,121 @@ export interface components {
              */
             id: number;
         };
+        /**
+         * DefaultFollowupRequestPatchBody
+         * @description Fields to change on a default follow-up request; all are optional.
+         *
+         *     Constraint keys are merged into the stored constraints rather than
+         *     replacing them, so changing one leaves the rest intact.
+         */
+        DefaultFollowupRequestPatchBody: {
+            /**
+             * Payload
+             * @description Follow-up request payload.
+             * @default null
+             */
+            payload: {
+                [key: string]: unknown;
+            } | null;
+            /**
+             * Allocation Id
+             * @description Follow-up request allocation ID.
+             * @default null
+             */
+            allocation_id: number | null;
+            /**
+             * Target Group Ids
+             * @description IDs of groups the results are shared with. Replaces the existing set.
+             * @default null
+             */
+            target_group_ids: number[] | null;
+            /**
+             * Default Followup Name
+             * @description Name of the default follow-up request.
+             * @default null
+             */
+            default_followup_name: string | null;
+            /**
+             * Source Filter
+             * @description Which sources this applies to. An absent name matches every object in the group.
+             * @default null
+             */
+            source_filter: ({
+                [key: string]: unknown;
+            } | string) | null;
+            /**
+             * Not If Duplicates
+             * @default null
+             */
+            not_if_duplicates: boolean | null;
+            /**
+             * Source Group Ids
+             * @default null
+             */
+            source_group_ids: number[] | null;
+            /**
+             * Ignore Source Group Ids
+             * @default null
+             */
+            ignore_source_group_ids: number[] | null;
+            /**
+             * Not If Classified
+             * @default null
+             */
+            not_if_classified: boolean | null;
+            /**
+             * Not If Spectra Exist
+             * @default null
+             */
+            not_if_spectra_exist: boolean | null;
+            /**
+             * Not If Tns Classified
+             * @default null
+             */
+            not_if_tns_classified: boolean | null;
+            /**
+             * Not If Tns Reported
+             * @default null
+             */
+            not_if_tns_reported: number | null;
+            /**
+             * Not If Assignment Exists
+             * @default null
+             */
+            not_if_assignment_exists: boolean | null;
+            /**
+             * Ignore Allocation Ids
+             * @default null
+             */
+            ignore_allocation_ids: number[] | null;
+            /**
+             * Radius
+             * @description Radius (arcsec) used when checking constraints.
+             * @default null
+             */
+            radius: number | null;
+            /**
+             * Priority Order
+             * @description One of 'asc' or 'desc'.
+             * @default null
+             */
+            priority_order: string | null;
+            /**
+             * Validity Days
+             * @default null
+             */
+            validity_days: number | null;
+            /**
+             * Comment
+             * @default null
+             */
+            comment: string | null;
+            /**
+             * Implements Update
+             * @default null
+             */
+            implements_update: boolean | null;
+        };
         /** DefaultGcnTagPostBody */
         DefaultGcnTagPostBody: {
             /**
@@ -47689,6 +47840,12 @@ export interface components {
              * @enum {string}
              */
             status: "endorsed" | "declined";
+            /**
+             * Streamids
+             * @description IDs of streams to grant the applicant. The endorser must have each of them, and they must cover every stream the chosen groups read. Omitted, the groups' own streams are granted.
+             * @default null
+             */
+            streamIDs: number[] | null;
             /**
              * Groupids
              * @description IDs of groups to add the applicant to. The endorser must belong to each of them. Defaults to none, which still lands the applicant in the sitewide public group.

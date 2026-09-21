@@ -1,8 +1,10 @@
-"""Which model a summary request uses: the instance's, or the user's own."""
+"""Which model a summary request uses, and what it does with a cut-off answer."""
 
 from types import SimpleNamespace
 
-from skyportal.utils.summarize import user_summarizer
+import pytest
+
+from skyportal.utils.summarize import summarize, user_summarizer
 
 
 def _user(**openai):
@@ -34,3 +36,44 @@ def test_personal_model_parameters_carry_through():
     settings = user_summarizer(_user(active=True, apikey="key", model="gpt-4o-mini"))
     assert settings["model"] == "gpt-4o-mini"
     assert "apikey" not in settings and "active" not in settings
+
+
+def _stub_openai(monkeypatch, content, finish_reason):
+    """Stand in for the OpenAI client, returning one prepared choice."""
+    response = SimpleNamespace(
+        choices=[
+            SimpleNamespace(
+                message=SimpleNamespace(content=content),
+                finish_reason=finish_reason,
+            )
+        ]
+    )
+
+    class _Client:
+        def __init__(self, **kwargs):
+            self.chat = SimpleNamespace(
+                completions=SimpleNamespace(create=lambda **kw: response)
+            )
+
+    import openai
+
+    monkeypatch.setattr(openai, "OpenAI", _Client)
+
+
+@pytest.mark.parametrize("finish_reason", ["stop", None])
+def test_a_finished_answer_is_kept(monkeypatch, finish_reason):
+    _stub_openai(monkeypatch, "A tidy one-paragraph summary.", finish_reason)
+    assert summarize("p", "c", settings={"api_key": "k"}) == (
+        "A tidy one-paragraph summary."
+    )
+
+
+def test_an_answer_cut_off_at_max_tokens_is_refused(monkeypatch):
+    # A reasoning model can spend the budget before the answer starts, leaving
+    # a stub that reads like a summary. Better none than half a sentence.
+    _stub_openai(monkeypatch, "SVOM\u2019s ECLAIRs instrument (", "length")
+    assert summarize("p", "c", settings={"api_key": "k"}) is None
+
+
+def test_no_key_asks_nothing():
+    assert summarize("p", "c", settings={}) is None

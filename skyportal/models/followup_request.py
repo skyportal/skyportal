@@ -398,14 +398,19 @@ def add_followup(mapper, connection, target):
                 obj_origin = None
             target_data = {**target.to_dict(), "obj_origin": obj_origin}
 
-            # match by obj id/name
+            # match by obj id/name, where an absent name means every object
+            # in the group qualifies; requiring one silently disables a default
+            # whose author left the field blank, which is how several on the
+            # production instance had never fired.
             # match by group id of the source
             requests_query = requests_query.where(
-                DefaultFollowupRequest.source_filter["name"].astext.isnot(None),
-                func.regexp_match(
-                    target_data["obj_id"],
-                    DefaultFollowupRequest.source_filter["name"].astext,
-                ).isnot(None),
+                sa.or_(
+                    DefaultFollowupRequest.source_filter["name"].astext.is_(None),
+                    func.regexp_match(
+                        target_data["obj_id"],
+                        DefaultFollowupRequest.source_filter["name"].astext,
+                    ).isnot(None),
+                ),
                 EQ_OP(
                     DefaultFollowupRequest.source_filter["group_id"],
                     cast(target_data["group_id"], psql.JSONB),

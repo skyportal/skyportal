@@ -540,3 +540,124 @@ def test_default_followup_request_rejects_a_duplicate_name(
     assert status == 200, data
 
     api("DELETE", f"default_followup_request/{default_id}", token=super_admin_token)
+
+
+def test_default_followup_request_patch(
+    public_group, public_group_sedm_allocation, super_admin_token
+):
+    """A patch changes the fields it names and leaves the rest alone."""
+    request_data = _default_followup_payload(
+        public_group,
+        public_group_sedm_allocation,
+        not_if_classified=True,
+        radius=2.0,
+        validity_days=3,
+        comment="before",
+    )
+    status, data = api(
+        "POST", "default_followup_request", data=request_data, token=super_admin_token
+    )
+    assert status == 200, data
+    new_id = data["data"]["id"]
+
+    renamed = str(uuid.uuid4())
+    status, data = api(
+        "PATCH",
+        f"default_followup_request/{new_id}",
+        data={
+            "default_followup_name": renamed,
+            "comment": "after",
+            "not_if_spectra_exist": True,
+            "source_filter": {"group_id": public_group.id},
+        },
+        token=super_admin_token,
+    )
+    assert status == 200, data
+
+    status, data = api("GET", "default_followup_request", token=super_admin_token)
+    assert status == 200
+    match = next(r for r in data["data"] if r["id"] == new_id)
+
+    assert match["default_followup_name"] == renamed
+    assert match["comment"] == "after"
+    # a source_filter with no name is allowed: it matches every object in the group
+    assert match["source_filter"] == {"group_id": public_group.id}
+    # the named constraint is added and the ones already stored survive
+    assert match["constraints"]["not_if_spectra_exist"] is True
+    assert match["constraints"]["not_if_classified"] is True
+    assert match["constraints"]["radius"] == 2.0
+    # fields the patch did not mention are untouched
+    assert match["validity_days"] == 3
+    assert match["allocation_id"] == public_group_sedm_allocation.id
+
+
+def test_default_followup_request_patch_rejects_duplicate_name(
+    public_group, public_group_sedm_allocation, super_admin_token
+):
+    ids = []
+    for _ in range(2):
+        status, data = api(
+            "POST",
+            "default_followup_request",
+            data=_default_followup_payload(public_group, public_group_sedm_allocation),
+            token=super_admin_token,
+        )
+        assert status == 200, data
+        ids.append(data["data"]["id"])
+
+    status, data = api("GET", "default_followup_request", token=super_admin_token)
+    assert status == 200
+    first_name = next(r for r in data["data"] if r["id"] == ids[0])[
+        "default_followup_name"
+    ]
+
+    status, data = api(
+        "PATCH",
+        f"default_followup_request/{ids[1]}",
+        data={"default_followup_name": first_name},
+        token=super_admin_token,
+    )
+    assert status == 400
+    assert "must be unique" in data["message"]
+
+    # renaming to its own name is not a conflict with itself
+    status, data = api(
+        "PATCH",
+        f"default_followup_request/{ids[0]}",
+        data={"default_followup_name": first_name},
+        token=super_admin_token,
+    )
+    assert status == 200, data
+
+
+def test_default_followup_request_patch_validates_payload(
+    public_group, public_group_sedm_allocation, super_admin_token
+):
+    status, data = api(
+        "POST",
+        "default_followup_request",
+        data=_default_followup_payload(public_group, public_group_sedm_allocation),
+        token=super_admin_token,
+    )
+    assert status == 200, data
+    new_id = data["data"]["id"]
+
+    # dates are set when the request fires, so they cannot be stored on the default
+    status, data = api(
+        "PATCH",
+        f"default_followup_request/{new_id}",
+        data={"payload": {"observation_type": "IFU", "start_date": "2026-01-01"}},
+        token=super_admin_token,
+    )
+    assert status == 400
+    assert "start_date" in data["message"]
+
+    # an empty patch says so rather than silently succeeding
+    status, data = api(
+        "PATCH",
+        f"default_followup_request/{new_id}",
+        data={},
+        token=super_admin_token,
+    )
+    assert status == 400
+    assert "Nothing to update" in data["message"]
