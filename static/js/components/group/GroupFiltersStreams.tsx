@@ -1,6 +1,6 @@
 import { Fragment, useState } from "react";
 import { Link } from "react-router-dom";
-import { Controller, useForm } from "react-hook-form";
+import { Controller, useForm, useWatch } from "react-hook-form";
 import DeleteIcon from "@mui/icons-material/Delete";
 import AddIcon from "@mui/icons-material/Add";
 import EditIcon from "@mui/icons-material/Edit";
@@ -36,6 +36,7 @@ import { showNotification } from "baselayer/components/Notifications";
 import Button from "../Button";
 
 import { useAppDispatch } from "../../types/hooks";
+import { useGetBrokersQuery } from "../../ducks/brokers";
 import {
   useAddGroupFilterMutation,
   useDeleteGroupFilterMutation,
@@ -66,12 +67,14 @@ const GroupFiltersStreams = ({
   const [editNameInput, setEditNameInput] = useState("");
   const dispatch = useAppDispatch();
   const { data: streams } = useGetStreamsQuery();
+  const { data: brokers } = useGetBrokersQuery();
   const [addGroupFilter] = useAddGroupFilterMutation();
   const [deleteGroupFilter] = useDeleteGroupFilterMutation();
   const [addGroupStream] = useAddGroupStreamMutation();
   const [updateFilterName] = useUpdateFilterNameMutation();
 
   const { register, handleSubmit, control, reset } = useForm();
+  const selectedBrokerId = useWatch({ control, name: "broker_id" });
 
   const { handleSubmit: handleSubmit2, control: control2 } = useForm();
 
@@ -82,7 +85,7 @@ const GroupFiltersStreams = ({
   };
 
   const handleAddFilterDialogOpen = (stream: any) => {
-    reset({ filter_name: "" });
+    reset({ filter_name: "", broker_id: "" });
     setFilterStream(stream);
   };
 
@@ -95,6 +98,7 @@ const GroupFiltersStreams = ({
         name: data.filter_name,
         group_id: group.id,
         stream_id: filterStream.id,
+        broker_id: data.broker_id || null,
       }).unwrap();
       dispatch(showNotification("Added filter to group"));
       dispatch(groupApi.util.invalidateTags([{ type: "Group", id: group.id }]));
@@ -117,6 +121,10 @@ const GroupFiltersStreams = ({
       // error notification handled by the base query
     }
   };
+
+  const filterBrokers = (brokers ?? []).filter(
+    (broker) => broker.active && broker.filter_kind !== "none",
+  );
 
   const groupStreamIds = group?.streams?.map((stream: any) => stream.id);
 
@@ -394,11 +402,39 @@ const GroupFiltersStreams = ({
               name="filter_name"
               control={control}
             />
+            {filterBrokers.length > 0 && (
+              <FormControl required fullWidth margin="dense">
+                <InputLabel id="add-filter-broker-label">Broker</InputLabel>
+                <Controller
+                  name="broker_id"
+                  defaultValue=""
+                  control={control}
+                  render={({ field: { onChange, value } }) => (
+                    <Select
+                      label="Broker"
+                      labelId="add-filter-broker-label"
+                      onChange={onChange}
+                      value={value}
+                    >
+                      {filterBrokers.map((broker) => (
+                        <MenuItem value={broker.id} key={broker.id}>
+                          {broker.name}
+                        </MenuItem>
+                      ))}
+                    </Select>
+                  )}
+                />
+                <FormHelperText>
+                  The broker that will run this filter
+                </FormHelperText>
+              </FormControl>
+            )}
           </DialogContent>
           <DialogActions>
             <Button
               primary
               type="submit"
+              disabled={filterBrokers.length > 0 && !selectedBrokerId}
               data-testid="add-filter-dialog-submit"
             >
               Add

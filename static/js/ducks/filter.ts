@@ -15,6 +15,7 @@ export interface AddGroupFilterArg {
   name: string;
   group_id: number | string;
   stream_id: number | string;
+  broker_id?: number | string | null;
 }
 
 export interface DeleteGroupFilterArg {
@@ -40,14 +41,14 @@ export const filterApi = skyportalApi.injectEndpoints({
       providesTags: ["Filters"],
     }),
     addGroupFilter: build.mutation<unknown, AddGroupFilterArg>({
-      query: ({ name, group_id, stream_id }) => ({
+      query: ({ name, group_id, stream_id, broker_id }) => ({
         url: "api/filters",
         method: "POST",
-        body: { name, group_id, stream_id },
+        body: { name, group_id, stream_id, broker_id },
       }),
       // Also refresh any filter query (list/single); consumers still invalidate
       // the owning group separately.
-      invalidatesTags: ["Filters"],
+      invalidatesTags: ["Filters", "Broker"],
     }),
     deleteGroupFilter: build.mutation<unknown, DeleteGroupFilterArg>({
       query: ({ filter_id }) => ({
