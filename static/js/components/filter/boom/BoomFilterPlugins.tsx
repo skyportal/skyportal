@@ -33,7 +33,6 @@ import { useAppDispatch } from "../../../types/hooks";
 import {
   useBoomFilterVersion,
   useEditBoomFilterVersionMutation,
-  useUpdateBoomGroupFilterMutation,
   useUpdateBoomFilterFlagsMutation,
   useValidateBoomFilterMutation,
 } from "../../../ducks/boom_filter";
@@ -124,12 +123,11 @@ const useStyles = makeStyles()((theme) => ({
 const BoomFilterPlugins = (_props: BoomFilterPluginsProps) => {
   const { classes } = useStyles();
   const dispatch = useAppDispatch();
-  const { handleSubmit, setValue, control } = useForm();
+  const { setValue, control } = useForm();
 
   const { data: filter_v = {}, refetch: refetchFilterVersion } =
     useBoomFilterVersion();
   const [editFilterVersion] = useEditBoomFilterVersionMutation();
-  const [updateGroupFilter] = useUpdateBoomGroupFilterMutation();
   const [updateFilterFlags] = useUpdateBoomFilterFlagsMutation();
   const [validateFilter] = useValidateBoomFilterMutation();
   const { data: profile } = useGetProfileQuery();
@@ -516,20 +514,6 @@ const BoomFilterPlugins = (_props: BoomFilterPluginsProps) => {
     }
   }, [filter_v, setValue]);
 
-  // save new filter version
-  const onSubmitSaveFilterVersion = async (data: any) => {
-    const result: any = await updateGroupFilter({
-      filter_id: filter_v.id,
-      altdata: data.pipeline,
-    });
-    if (!result.error) {
-      dispatch(showNotification(`Saved new filter version`));
-      setInlineNewVersion(false);
-      setShowAnnotationBuilder(false);
-    }
-    refetchFilterVersion();
-  };
-
   const handleNew = () => {
     if (!inlineNewVersion) {
       // Only fetch when opening the builder
@@ -620,9 +604,12 @@ const BoomFilterPlugins = (_props: BoomFilterPluginsProps) => {
                     overflowY: "auto", // Only hide vertical overflow for scrolling
                   }}
                 >
+                  {/* A submit here would save a version without its block
+                      tree, leaving it uneditable in the builder; the builder's
+                      own Save is the only path that stores both. */}
                   <form
                     id="inline-filter-form"
-                    onSubmit={handleSubmit(onSubmitSaveFilterVersion)}
+                    onSubmit={(e) => e.preventDefault()}
                   >
                     <Controller
                       render={() => (
