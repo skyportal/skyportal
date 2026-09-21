@@ -5,7 +5,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class NewsFeedAuthorInfoResponse(BaseModel):
@@ -49,7 +49,35 @@ class NewsFeedItemResponse(BaseModel):
     author_info: NewsFeedAuthorInfoResponse | None = None
 
 
+MAX_NEWSFEED_ITEMS = 1000
+
+
+DEFAULT_NEWSFEED_ITEMS = 50
+
+
+class NewsFeedGetQuery(BaseModel):
+    """Query parameters for the news feed."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    numItems: int | None = Field(
+        default=None,
+        description=(
+            "Number of newsfeed items to return. "
+            f"Defaults to {DEFAULT_NEWSFEED_ITEMS}. Max is {MAX_NEWSFEED_ITEMS}."
+        ),
+    )
+    teamID: int | None = Field(
+        default=None,
+        description="Scope the feed to the groups of this team, intersected with "
+        "the user's accessible groups.",
+    )
+
+
 __all__ = [
+    "DEFAULT_NEWSFEED_ITEMS",
+    "MAX_NEWSFEED_ITEMS",
     "NewsFeedAuthorInfoResponse",
+    "NewsFeedGetQuery",
     "NewsFeedItemResponse",
 ]

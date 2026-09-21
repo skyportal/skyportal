@@ -1,8 +1,10 @@
 import json
-from typing import Any
 
 from marshmallow.exceptions import ValidationError
-from pydantic import BaseModel, ConfigDict, Field
+from skyportal_py_models.sharing_services import (
+    SharingServicePutBody,
+    SharingServicePutResponse,
+)
 from sqlalchemy.orm import selectinload
 
 from baselayer.app.access import auth_or_token, permissions
@@ -22,69 +24,6 @@ from ....utils.parse import get_list_typed, str_to_bool
 from ...base import BaseHandler
 
 log = make_log("api/sharing_service")
-
-
-class SharingServicePutBody(BaseModel):
-    """Request body for creating or updating a sharing service. On update, only
-    the provided fields are changed."""
-
-    model_config = ConfigDict(extra="forbid")
-
-    name: str | None = Field(default=None, description="Sharing service name.")
-    owner_group_ids: list[int] | str | None = Field(
-        default=None,
-        description="IDs of the groups that will own the sharing service (used "
-        "on creation).",
-    )
-    instrument_ids: list[int] | str | None = Field(
-        default=None,
-        description="IDs of the instruments to restrict the photometry to when "
-        "publishing.",
-    )
-    stream_ids: list[int] | str | None = Field(
-        default=None,
-        description="IDs of the streams to restrict the photometry to when publishing.",
-    )
-    acknowledgments: str | None = Field(
-        default=None, description="Acknowledgments to use for sharing."
-    )
-    testing: bool | str | None = Field(
-        default=None,
-        description="If true, nothing will be shared but the request's payload "
-        "will be stored.",
-    )
-    photometry_options: dict[str, Any] | None = Field(
-        default=None,
-        description="Photometry options to make some data optional or mandatory "
-        "for manual and auto-publishing.",
-    )
-    enable_sharing_with_hermes: bool | None = Field(
-        default=None, description="Whether to enable publishing to Hermes or not."
-    )
-    enable_sharing_with_tns: bool | None = Field(
-        default=None, description="Whether to enable publishing to TNS or not."
-    )
-    tns_bot_name: str | None = Field(default=None, description="Name of the TNS bot.")
-    tns_bot_id: int | None = Field(default=None, description="ID of the TNS bot.")
-    tns_source_group_id: int | None = Field(
-        default=None, description="Source group ID of the TNS bot."
-    )
-    tns_altdata: dict | str | None = Field(
-        default=None,
-        alias="_tns_altdata",
-        description="TNS altdata (e.g. the API key), as a JSON object or string.",
-    )
-    publish_existing_tns_objects: bool | str | None = Field(
-        default=None,
-        description="Whether to publish objects that already exist in TNS but "
-        "not reported under this internal name.",
-    )
-
-
-class SharingServicePutResponse(BaseModel):
-    """Data payload returned when creating or updating a sharing service."""
-
-    id: int = Field(description="New Sharing Service ID")
 
 
 def validate_tns_fields(sharing_service):

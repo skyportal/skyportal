@@ -1,6 +1,7 @@
-from typing import Annotated, Any
+from typing import Annotated
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import Field
+from skyportal_py_models.analysis import AnalysisWebhookPostBody
 from sqlalchemy.orm import selectinload
 
 from baselayer.app import models as baselayer_models
@@ -25,27 +26,6 @@ _embedding_config = (
     cfg["analysis_services.openai_analysis_service.embeddings_store.summary"] or {}
 )
 _EMBED_TO_PGVECTOR = summary_embeddings_enabled(_embedding_config)
-
-
-class AnalysisWebhookPostBody(BaseModel):
-    """Result payload posted back by an external analysis service.
-
-    External services may include additional keys, so extras are allowed
-    rather than forbidden.
-    """
-
-    model_config = ConfigDict(extra="allow")
-
-    status: str | None = Field(
-        default=None, description="Status of the analysis run, e.g. 'success'."
-    )
-    message: str | None = Field(
-        default=None,
-        description="Status/return message from the analysis service.",
-    )
-    analysis: dict[str, Any] | None = Field(
-        default=None, description="Results data of this analysis."
-    )
 
 
 class AnalysisWebhookHandler(BaseHandler):

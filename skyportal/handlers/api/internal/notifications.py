@@ -1,18 +1,9 @@
-from pydantic import BaseModel, ConfigDict, Field
+from skyportal_py_models.notifications import NotificationPatchBody
 
 from baselayer.app.access import auth_or_token
 
 from ....models import UserNotification
 from ...base import BaseHandler
-
-
-class NotificationPatchBody(BaseModel):
-    """Request body for updating a notification (or all of a user's
-    notifications)."""
-
-    model_config = ConfigDict(extra="forbid")
-
-    viewed: bool = Field(description="Whether the notification has been viewed")
 
 
 class NotificationHandler(BaseHandler):

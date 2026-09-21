@@ -1,20 +1,10 @@
-from pydantic import BaseModel, ConfigDict, Field
+from skyportal_py_models.roles import UserRolePostBody
 from sqlalchemy.orm import selectinload
 
 from baselayer.app.access import auth_or_token, permissions
 
 from ...models import Role, User, UserRole
 from ..base import BaseHandler
-
-
-class UserRolePostBody(BaseModel):
-    """Request body for granting roles to a user."""
-
-    model_config = ConfigDict(extra="forbid")
-
-    roleIds: list[str] = Field(
-        description="Array of Role IDs (strings) to be granted to user"
-    )
 
 
 class RoleHandler(BaseHandler):
