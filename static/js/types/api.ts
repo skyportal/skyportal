@@ -23751,10 +23751,10 @@ export interface components {
             _authinfo?: string | null;
             enabled?: boolean;
             /**
-             * @description Type of analysis. One of: 'lightcurve_fitting', 'spectrum_fitting', 'meta_analysis'
+             * @description Type of analysis. One of: 'lightcurve_fitting', 'spectrum_fitting', 'meta_analysis', 'gw_search', 'period_finding'
              * @enum {string}
              */
-            analysis_type: "lightcurve_fitting" | "spectrum_fitting" | "meta_analysis";
+            analysis_type: "lightcurve_fitting" | "spectrum_fitting" | "meta_analysis" | "gw_search" | "period_finding";
             /** @description List of allowed_analysis_input_types required by the service. This data will be assembled and sent over to the analysis service. */
             input_data_types?: string[] | null;
             /** @description Max time in seconds to wait for the analysis service to complete. */
@@ -23810,10 +23810,10 @@ export interface components {
             _authinfo?: string | null;
             enabled?: boolean;
             /**
-             * @description Type of analysis. One of: 'lightcurve_fitting', 'spectrum_fitting', 'meta_analysis'
+             * @description Type of analysis. One of: 'lightcurve_fitting', 'spectrum_fitting', 'meta_analysis', 'gw_search', 'period_finding'
              * @enum {string}
              */
-            analysis_type: "lightcurve_fitting" | "spectrum_fitting" | "meta_analysis";
+            analysis_type: "lightcurve_fitting" | "spectrum_fitting" | "meta_analysis" | "gw_search" | "period_finding";
             /** @description List of allowed_analysis_input_types required by the service. This data will be assembled and sent over to the analysis service. */
             input_data_types?: string[] | null;
             /** @description Max time in seconds to wait for the analysis service to complete. */
