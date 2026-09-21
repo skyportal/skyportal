@@ -1780,35 +1780,23 @@ const SourceTable = ({
   const showDownload =
     downloadCallback !== null && downloadCallback !== undefined;
 
-  const toolbarSlotProps = useMemo(
-    () => ({
-      toolbar: {
-        title,
-        searchBy,
-        searchText,
-        onSearchByChange: setSearchBy,
-        onSearchTextChange: setSearchText,
-        onOpenFilter: () => {
-          setFilterFormSubmitted(false);
-          setFilterOpen(true);
-        },
-        onNewSource: isReadOnly ? null : () => setOpenNew(true),
-        onDownload: showDownload ? handleDownload : null,
-        columnPickerOptions,
-        onAddColumn: handleAddColumn,
-      },
-    }),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [
+  const toolbarSlotProps = {
+    toolbar: {
       title,
       searchBy,
       searchText,
-      isReadOnly,
-      showDownload,
+      onSearchByChange: setSearchBy,
+      onSearchTextChange: setSearchText,
+      onOpenFilter: () => {
+        setFilterFormSubmitted(false);
+        setFilterOpen(true);
+      },
+      onNewSource: isReadOnly ? null : () => setOpenNew(true),
+      onDownload: showDownload ? handleDownload : null,
       columnPickerOptions,
-      handleAddColumn,
-    ],
-  );
+      onAddColumn: handleAddColumn,
+    },
+  };
 
   return (
     <>
