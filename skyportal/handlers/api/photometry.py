@@ -1040,7 +1040,7 @@ _DEDUP_COERCIONS = {
 
 # Dedup columns ignoring flux/fluxerr (the PUT handler's duplicate_ignore_flux
 # mode, super-admin only): a posted row may then match several stored rows.
-_NOFLUX_DEDUP_COLUMNS = ("obj_id", "instrument_id", "origin", "mjd")
+_NOFLUX_DEDUP_COLUMNS = ("obj_id", "instrument_id", "origin", "mjd", "filter")
 
 
 def _dedup_key(row, columns=Photometry.DEDUP_COLUMNS):
@@ -1104,6 +1104,9 @@ async def find_duplicate_photometry(session, df, ignore_flux=False):
                 "instrument_id": int(row.instrument_id),
                 "origin": row.origin,
                 "mjd": row.mjd,
+                # itertuples renames nothing here, but `filter` reads like a
+                # method, so take it by name.
+                "filter": getattr(row, "filter"),
                 "fluxerr": row.standardized_fluxerr,
                 "flux": row.standardized_flux,
             },
