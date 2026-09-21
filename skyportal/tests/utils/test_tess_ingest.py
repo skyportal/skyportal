@@ -12,7 +12,11 @@ from skyportal.utils.tess import (
     camera_region,
     field_data,
 )
-from skyportal.utils.tess_ingest import annotate_object, sectors_containing
+from skyportal.utils.tess_ingest import (
+    annotate_object,
+    needs_annotation,
+    sectors_containing,
+)
 
 SECTOR = 50
 
@@ -111,11 +115,6 @@ def test_an_object_without_a_position_is_skipped(
 
 def _select(session, now, limit=10):
     """Object ids the service would pick up for annotation."""
-    import sys
-
-    sys.path.insert(0, "services/tess_sector")
-    from tess_sector import needs_annotation
-
     return {obj.id for obj in session.scalars(needs_annotation(now, limit)).all()}
 
 
