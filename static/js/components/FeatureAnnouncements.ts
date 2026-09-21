@@ -144,18 +144,17 @@ export const FEATURE_ANNOUNCEMENTS: FeatureAnnouncement[] = [
   },
   {
     id: "source-list-cleanup",
-    path: /^\/sources\/?$/,
+    path: /^\/(sources|group_sources\/[^/]+|favorites)\/?$/,
     announcedAt: "2026-09-20",
     steps: [
       {
-        target: '[data-testid="tour-source-search"]',
-        title: "Sources page cleaned up",
+        target: '[data-testid^="source_table_"]',
+        title: "Source tables cleaned up",
         content:
-          "The table header now carries the title, the search and every " +
-          "action, and the table fills the screen. Search also got fixed: it " +
-          "keeps the focus while you type, and no longer cares about case, " +
-          "so ztf finds ZTF.",
-        placement: "bottom",
+          "Every source table has been cleaned up, and search is fixed: it " +
+          "no longer loses focus after each letter, and it ignores case, so " +
+          "ztf finds ZTF.",
+        placement: "center",
       },
       {
         target: '[data-testid="add-column-button"]',
