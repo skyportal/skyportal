@@ -14,8 +14,8 @@ def _reveal_column(page, search_text):
     """Add an annotation/altdata column via the toolbar picker. These are
     materialized on demand (the registry is unbounded), not listed in the
     DataGrid columns panel."""
+    page.locator("[data-testid='add-column-button']").first.click()
     picker = page.locator("[data-testid='add-column-picker'] input").first
-    picker.click()
     picker.fill(search_text)
     # Options are labelled "<key> (<origin>)"; search_text is distinctive. Match
     # a specific <li> (MUI re-renders the option list as you type, so a generic
