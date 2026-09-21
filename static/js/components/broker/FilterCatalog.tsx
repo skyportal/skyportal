@@ -224,7 +224,15 @@ const FilterCatalog = ({ brokerId }: { brokerId?: number }) => {
                     />
                   )}
                 </TableCell>
-                <TableCell>{groupName(f.group_id)}</TableCell>
+                <TableCell>
+                  <Chip
+                    size="small"
+                    label={groupName(f.group_id)}
+                    component={Link}
+                    to={`/group/${f.group_id}`}
+                    clickable
+                  />
+                </TableCell>
                 <TableCell>{streamName(f.stream_id)}</TableCell>
                 {brokerId ? null : (
                   <>
