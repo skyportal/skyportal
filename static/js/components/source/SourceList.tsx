@@ -8,7 +8,6 @@ import AlertTitle from "@mui/material/AlertTitle";
 
 import { showNotification } from "baselayer/components/Notifications";
 import SourceTable from "./SourceTable";
-import Spinner from "../Spinner";
 import ProgressIndicator from "../ProgressIndicators";
 import { useAppDispatch } from "../../types/hooks";
 import {
@@ -17,11 +16,13 @@ import {
 } from "../../ducks/sources";
 import { useGetDbInfoQuery } from "../../ducks/dbInfo";
 
+const EMPTY_SOURCES: any[] = [];
+
 const SourceList = () => {
   const dispatch = useAppDispatch();
 
   const [queryParams, setQueryParams] = useState<any>({});
-  const { data: sourcesState } = useFetchSourcesQuery(queryParams);
+  const { data: sourcesState, isFetching } = useFetchSourcesQuery(queryParams);
   const [fetchSourcesTrigger] = useLazyFetchSourcesQuery();
   const sourceTableEmpty = (useGetDbInfoQuery().data as any)
     ?.source_table_empty;
@@ -127,8 +128,6 @@ const SourceList = () => {
     return sourceAll;
   };
 
-  if (!sourcesState?.sources) return <Spinner />;
-
   return (
     <>
       {sourceTableEmpty && (
@@ -143,14 +142,15 @@ const SourceList = () => {
         </Alert>
       )}
       <SourceTable
-        sources={sourcesState.sources}
+        sources={sourcesState?.sources || EMPTY_SOURCES}
         paginateCallback={handleSourceTablePagination}
-        totalMatches={sourcesState.totalMatches}
-        pageNumber={sourcesState.pageNumber}
-        numPerPage={sourcesState.numPerPage}
+        totalMatches={sourcesState?.totalMatches || 0}
+        pageNumber={sourcesState?.pageNumber || 1}
+        numPerPage={sourcesState?.numPerPage || 30}
         sortingCallback={handleSourceTableSorting}
         downloadCallback={handleSourcesDownload}
         fixedHeader={true}
+        isLoading={isFetching}
       />
       <Dialog open={downloadProgressTotal > 0} maxWidth="md">
         <DialogContent
