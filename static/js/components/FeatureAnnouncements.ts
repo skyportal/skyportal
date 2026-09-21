@@ -143,6 +143,31 @@ export const FEATURE_ANNOUNCEMENTS: FeatureAnnouncement[] = [
     ],
   },
   {
+    id: "source-list-cleanup",
+    path: /^\/sources\/?$/,
+    announcedAt: "2026-09-20",
+    steps: [
+      {
+        target: '[data-testid="tour-source-search"]',
+        title: "Sources page cleaned up",
+        content:
+          "The table header now carries the title, the search and every " +
+          "action, and the table fills the screen. Search also got fixed: it " +
+          "keeps the focus while you type, and no longer cares about case, " +
+          "so ztf finds ZTF.",
+        placement: "bottom",
+      },
+      {
+        target: '[data-testid="add-column-button"]',
+        title: "Annotation and altdata columns",
+        content:
+          "The column picker moved from above the table to this button. Open " +
+          "it to search any annotation or altdata field and add it as a column.",
+        placement: "bottom",
+      },
+    ],
+  },
+  {
     id: "sharing-service-coauthor-order",
     path: /^\/sharing_services\/?$/,
     announcedAt: "2026-09-15",
