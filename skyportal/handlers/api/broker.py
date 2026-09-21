@@ -1496,6 +1496,22 @@ class BrokerFilterCatalogHandler(BaseHandler):
                     .offset((page_number - 1) * n_per_page)
                 )
             ).all()
+            user = self.associated_user_object
+            manages_groups = bool(
+                {"System admin", "Manage groups"} & set(user.permissions)
+            )
+            admin_group_ids = set()
+            if not manages_groups:
+                admin_group_ids = set(
+                    (
+                        await session.scalars(
+                            sa.select(GroupUser.group_id).where(
+                                GroupUser.user_id == user.id,
+                                GroupUser.admin.is_(True),
+                            )
+                        )
+                    ).all()
+                )
             return self.success(
                 data={
                     "filters": [
@@ -1507,6 +1523,8 @@ class BrokerFilterCatalogHandler(BaseHandler):
                             "broker_id": f.broker_id,
                             "autosave": f.autosave,
                             "altdata": f.altdata,
+                            "group_admin": manages_groups
+                            or f.group_id in admin_group_ids,
                         }
                         for f in filters
                     ],

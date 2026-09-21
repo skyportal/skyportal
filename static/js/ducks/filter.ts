@@ -54,7 +54,7 @@ export const filterApi = skyportalApi.injectEndpoints({
         url: `api/filters/${filter_id}`,
         method: "DELETE",
       }),
-      invalidatesTags: ["Filters"],
+      invalidatesTags: ["Filters", "Broker"],
     }),
     updateFilterAltdata: build.mutation<
       unknown,
