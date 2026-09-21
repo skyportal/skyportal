@@ -183,19 +183,14 @@ const FilterCatalog = ({ brokerId }: { brokerId?: number }) => {
               <TableCell>Name</TableCell>
               <TableCell>Group</TableCell>
               <TableCell>Stream</TableCell>
-              {brokerId ? null : (
-                <>
-                  <TableCell>Broker</TableCell>
-                  <TableCell align="right">Attach to</TableCell>
-                </>
-              )}
-              <TableCell align="right" />
+              {brokerId ? null : <TableCell>Broker</TableCell>}
+              <TableCell align="right">Actions</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
             {filters.length === 0 && (
               <TableRow>
-                <TableCell colSpan={brokerId ? 4 : 6}>
+                <TableCell colSpan={brokerId ? 4 : 5}>
                   <Typography variant="body2" color="text.secondary">
                     {isFetching ? "Loading…" : "No filter matches this search."}
                   </Typography>
@@ -235,75 +230,74 @@ const FilterCatalog = ({ brokerId }: { brokerId?: number }) => {
                 </TableCell>
                 <TableCell>{streamName(f.stream_id)}</TableCell>
                 {brokerId ? null : (
-                  <>
-                    <TableCell>
-                      {f.broker_id ? brokerName(f.broker_id) : "—"}
-                    </TableCell>
-                    <TableCell align="right">
-                      {f.broker_id ? null : (
-                        <Box
-                          sx={{
-                            display: "flex",
-                            gap: 1,
-                            justifyContent: "flex-end",
-                          }}
-                        >
-                          <FormControl size="small" sx={{ minWidth: 180 }}>
-                            <InputLabel id={`attach-broker-${f.id}`}>
-                              Broker
-                            </InputLabel>
-                            <Select
-                              labelId={`attach-broker-${f.id}`}
-                              label="Broker"
-                              value={targets[f.id] ?? ""}
-                              onChange={(e) =>
-                                setTargets({
-                                  ...targets,
-                                  [f.id]: e.target.value as number,
-                                })
-                              }
-                            >
-                              {attachable.map((b) => (
-                                <MenuItem key={b.id} value={b.id}>
-                                  {b.name}
-                                </MenuItem>
-                              ))}
-                            </Select>
-                          </FormControl>
-                          <Button
-                            variant="contained"
-                            size="small"
-                            disabled={!targets[f.id]}
-                            onClick={() => {
-                              const target = targets[f.id];
-                              if (target)
-                                attachFilter({
-                                  filterId: f.id,
-                                  brokerId: target,
-                                });
-                            }}
-                          >
-                            Attach
-                          </Button>
-                        </Box>
-                      )}
-                    </TableCell>
-                  </>
+                  <TableCell>
+                    {f.broker_id ? brokerName(f.broker_id) : "—"}
+                  </TableCell>
                 )}
                 <TableCell align="right">
-                  {f.group_admin && (
-                    <Tooltip
-                      title={`Delete filter "${f.name}"`}
-                      placement={"left"}
-                    >
-                      <Button
-                        color="error"
-                        onClick={() => handleDeleteFilter(f.id)}
+                  <Box
+                    sx={{
+                      display: "flex",
+                      gap: 1,
+                      justifyContent: "flex-end",
+                      alignItems: "center",
+                    }}
+                  >
+                    {!brokerId && !f.broker_id && (
+                      <>
+                        <FormControl size="small" sx={{ minWidth: 180 }}>
+                          <InputLabel id={`attach-broker-${f.id}`}>
+                            Broker
+                          </InputLabel>
+                          <Select
+                            labelId={`attach-broker-${f.id}`}
+                            label="Broker"
+                            value={targets[f.id] ?? ""}
+                            onChange={(e) =>
+                              setTargets({
+                                ...targets,
+                                [f.id]: e.target.value as number,
+                              })
+                            }
+                          >
+                            {attachable.map((b) => (
+                              <MenuItem key={b.id} value={b.id}>
+                                {b.name}
+                              </MenuItem>
+                            ))}
+                          </Select>
+                        </FormControl>
+                        <Button
+                          variant="contained"
+                          size="small"
+                          disabled={!targets[f.id]}
+                          onClick={() => {
+                            const target = targets[f.id];
+                            if (target)
+                              attachFilter({
+                                filterId: f.id,
+                                brokerId: target,
+                              });
+                          }}
+                        >
+                          Attach
+                        </Button>
+                      </>
+                    )}
+                    {f.group_admin && (
+                      <Tooltip
+                        title={`Delete filter "${f.name}"`}
+                        placement={"left"}
                       >
-                        <DeleteIcon />
-                      </Button>
-                    </Tooltip>
-                  )}
+                        <Button
+                          color="error"
+                          onClick={() => handleDeleteFilter(f.id)}
+                        >
+                          <DeleteIcon />
+                        </Button>
+                      </Tooltip>
+                    )}
+                  </Box>
                 </TableCell>
               </TableRow>
             ))}
