@@ -2,7 +2,11 @@ from typing import Annotated
 
 import sqlalchemy as sa
 from astropy.time import Time
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import Field
+from skyportal_py_models.skymap_triggers import (
+    SkymapTriggerDeleteBody,
+    SkymapTriggerPostBody,
+)
 from sqlalchemy.orm import selectinload
 
 from baselayer.app.access import permissions
@@ -20,28 +24,6 @@ from ..base import BaseHandler
 AllocationId = Annotated[
     int, Field(description="ID for the allocation to delete queue")
 ]
-
-
-class SkymapTriggerPostBody(BaseModel):
-    """Request body for posting a skymap-based trigger."""
-
-    model_config = ConfigDict(extra="forbid")
-
-    allocation_id: int = Field(description="Followup request allocation ID.")
-    localization_id: int = Field(description="Localization ID.")
-    integrated_probability: float = Field(
-        default=0.95, description="Integrated probability within skymap."
-    )
-
-
-class SkymapTriggerDeleteBody(BaseModel):
-    """Request body for deleting a skymap-based trigger."""
-
-    model_config = ConfigDict(extra="forbid")
-
-    trigger_name: str | None = Field(
-        default=None, description="Name of the trigger/queue to remove"
-    )
 
 
 class SkymapTriggerAPIHandler(BaseHandler):

@@ -1,4 +1,4 @@
-from pydantic import BaseModel, ConfigDict, Field
+from skyportal_py_models.objs import ObjTNSGetQuery
 from tornado.ioloop import IOLoop
 
 from baselayer.app.access import auth_or_token
@@ -11,17 +11,6 @@ from ....utils.tns import get_tns
 from ...base import BaseHandler
 
 log = make_log("api/obj_tns")
-
-
-class ObjTNSGetQuery(BaseModel):
-    """Query parameters for retrieving TNS information for an object."""
-
-    model_config = ConfigDict(extra="forbid")
-
-    radius: float = Field(
-        default=2.0,
-        description="Search radius, in arcsec, around the object. Defaults to 2.0.",
-    )
 
 
 class ObjTNSHandler(BaseHandler):

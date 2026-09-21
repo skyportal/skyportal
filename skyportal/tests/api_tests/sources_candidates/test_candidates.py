@@ -1940,3 +1940,34 @@ def test_bulk_delete_old_unsaved_candidates(
     # recent + unsaved was kept (too new)
     status, _ = api("HEAD", f"candidates/{recent_unsaved}", token=view_only_token)
     assert status == 200
+
+
+def test_candidate_passing_group_ids(
+    annotation_token_two_groups,
+    view_only_token,
+    public_candidate_two_groups,
+    public_candidate,
+    public_group,
+    public_group2,
+):
+    # passing_group_ids is built for the whole page at once, so check both that
+    # each candidate keeps its own groups and that a filter the caller cannot
+    # see is left out.
+    def passing_group_ids(token):
+        status, data = api("GET", "candidates", token=token)
+        assert status == 200, data
+        return {
+            candidate["id"]: set(candidate["passing_group_ids"])
+            for candidate in data["data"]["candidates"]
+        }
+
+    both_groups = passing_group_ids(annotation_token_two_groups)
+    assert both_groups[public_candidate_two_groups.id] == {
+        public_group.id,
+        public_group2.id,
+    }
+    assert both_groups[public_candidate.id] == {public_group.id}
+
+    # view_only_token is not in public_group2, so that filter is not its own.
+    one_group = passing_group_ids(view_only_token)
+    assert one_group[public_candidate_two_groups.id] == {public_group.id}

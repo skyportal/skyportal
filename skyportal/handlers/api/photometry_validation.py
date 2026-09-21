@@ -4,6 +4,7 @@ import sqlalchemy as sa
 from marshmallow import Schema, fields, validates_schema
 from marshmallow.exceptions import ValidationError
 from pydantic import BaseModel, BeforeValidator, ConfigDict, Field
+from skyportal_py_models.photometry import PhotometryValidationResponse
 
 from baselayer.app.access import permissions
 from baselayer.app.env import load_env
@@ -53,12 +54,6 @@ class PhotometryValidationPostBody(BaseModel):
         default=None,
         description="Magnitude system used for the frontend photometry refresh.",
     )
-
-
-class PhotometryValidationResponse(BaseModel):
-    """Data payload returned when validating/rejecting a photometry point."""
-
-    id: int = Field(description="The id of the photometry_validation.")
 
 
 class Validator(Schema):

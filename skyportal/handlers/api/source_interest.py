@@ -1,5 +1,5 @@
 import sqlalchemy as sa
-from pydantic import BaseModel, ConfigDict, Field
+from skyportal_py_models.sources import SourceInterestPostBody
 
 from baselayer.app.access import auth_or_token
 from baselayer.app.env import load_env
@@ -10,20 +10,6 @@ from ..base import BaseHandler
 env, cfg = load_env()
 
 INTERESTED_CHANNEL = "Interested"
-
-
-class SourceInterestPostBody(BaseModel):
-    """Request body for registering an interest in a source."""
-
-    model_config = ConfigDict(extra="forbid")
-
-    title: str = Field(description="Title of the planned work")
-    description: str | None = Field(
-        default=None, description="Description of the planned work"
-    )
-    link: str | None = Field(
-        default=None, description="Link to a related page or document"
-    )
 
 
 class SourceInterestHandler(BaseHandler):

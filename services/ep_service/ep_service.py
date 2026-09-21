@@ -1,22 +1,14 @@
 """Ingest unverified X-ray transient candidates from the Einstein Probe data center.
 
-This is the proprietary EP feed (https://ep.bao.ac.cn), which is distinct from
-the public ``gcn.notices.einstein_probe.wxt.alert`` topic that gcn_service
-already consumes. The data center publishes candidates earlier and in more
-detail, keyed by ``name`` + ``version``, and its ``obs_start`` is the
-observation start rather than the trigger time -- so the two streams produce
-separate GcnEvents for the same physical transient. The EP name is recorded in
-``aliases`` so they can be cross-linked.
+This proprietary feed (https://ep.bao.ac.cn) is distinct from the public
+``gcn.notices.einstein_probe.wxt.alert`` topic gcn_service already consumes: it
+publishes earlier, keys on ``name`` + ``version``, and reports the observation
+start rather than the trigger time, so the two streams produce separate
+GcnEvents for the same transient, cross-linked through ``aliases``.
 
-Because the feed is invitation-only, every event it creates is restricted to
-the groups named in ``einstein_probe.group_names``. GcnEvent.read is
-group-scoped, so an event with no groups would fall back to the sitewide public
-group and publish the feed to every user; the service refuses to start rather
-than let that happen.
-
-The pure logic here -- ``to_gcn_payload`` and the dedup helpers -- is kept free
-of module-level side effects so it can be exercised in tests without a poller
-or network access.
+GcnEvent.read is group-scoped, so an event with no groups falls back to the
+sitewide public group and publishes this invitation-only feed to everyone. The
+service refuses to start unless ``einstein_probe.group_names`` is set.
 """
 
 import asyncio
@@ -42,11 +34,10 @@ init_db(**cfg["database"])
 
 log = make_log("ep_service")
 
+ep_cfg = cfg.get("einstein_probe", {}) or {}
+
 user_id = 1
 
-# Fields the data center must supply for a candidate to be ingestible. A
-# candidate missing any of these is skipped with a warning rather than aborting
-# the cycle -- one malformed record should not stall the whole feed.
 REQUIRED_FIELDS = [
     "name",
     "ra",
@@ -63,7 +54,6 @@ REQUIRED_FIELDS = [
     "version",
 ]
 
-# Numeric fields carried onto the GcnEvent as a GcnProperty.
 PROPERTY_FIELDS = [
     "exp_time",
     "flux",
@@ -72,8 +62,6 @@ PROPERTY_FIELDS = [
     "bkg_counts",
     "net_counts",
     "net_rate",
-    # EP-hosted data products for the candidate; present in the live feed and
-    # worth keeping, since nothing else in skyportal can regenerate them.
     "light_curve_url",
     "spectrum_url",
 ]
@@ -82,11 +70,7 @@ OBS_START_FORMAT = "%Y-%m-%dT%H:%M:%SZ"
 
 
 class EPClient:
-    """Minimal client for the EP data center API.
-
-    The token is short-lived and cheap to mint, so it is refreshed on every
-    fetch rather than cached and invalidated.
-    """
+    """Client for the EP data center API; the token is minted on every fetch, never cached."""
 
     def __init__(self, base_url, email, password, timeout=30):
         self.base_url = base_url.rstrip("/")
@@ -117,10 +101,9 @@ class EPClient:
         )
         response.raise_for_status()
         try:
-            candidates = response.json()
+            return response.json() or []
         except ValueError:
             return []
-        return candidates or []
 
 
 def parse_obs_start(obs_start):
@@ -130,70 +113,37 @@ def parse_obs_start(obs_start):
     return datetime.strptime(obs_start, OBS_START_FORMAT)
 
 
-def validate_candidate(candidate):
-    """Return the list of required fields missing from a candidate."""
-    return [f for f in REQUIRED_FIELDS if candidate.get(f) is None]
-
-
 def to_gcn_payload(candidate, group_ids, radius_multiplier=1.0):
-    """Map an EP data-center candidate onto a post_gcnevent_from_dictionary payload.
-
-    Parameters
-    ----------
-    candidate : dict
-        One record from the unverified-candidate list.
-    group_ids : list of int
-        Groups the resulting GcnEvent is restricted to. Must be non-empty.
-    radius_multiplier : float
-        Scale factor on the EP position error when sizing the cone.
-
-    Returns
-    -------
-    dict
-    """
     if not group_ids:
         raise ValueError("EP events must be restricted to at least one group")
 
     name = str(candidate["name"])
-    dateobs = parse_obs_start(candidate["obs_start"])
-    error = float(candidate["pos_err"]) * float(radius_multiplier)
-
-    properties = {f: candidate.get(f) for f in PROPERTY_FIELDS}
-    # ep_name/ep_version are what the dedup check keys on, so they must live in
-    # the property payload rather than only in the log.
-    properties["ep_name"] = name
-    properties["ep_version"] = str(candidate["version"])
-    # the cone as EP reported it, so nothing downstream has to parse it back
-    # out of the localization name
-    properties["ra"] = float(candidate["ra"])
-    properties["dec"] = float(candidate["dec"])
-    properties["pos_err"] = float(candidate["pos_err"])
+    ra = float(candidate["ra"])
+    dec = float(candidate["dec"])
+    pos_err = float(candidate["pos_err"])
 
     return {
-        "dateobs": dateobs.isoformat(),
-        # identity across versions: EP may revise the position, and with it
-        # obs_start, between versions of the same named candidate
+        "dateobs": parse_obs_start(candidate["obs_start"]).isoformat(),
+        # Stable across versions: EP revises obs_start, so dateobs cannot be the identity.
         "trigger_id": name,
         "aliases": [f"EP#{name}"],
-        "skymap": {
-            "ra": float(candidate["ra"]),
-            "dec": float(candidate["dec"]),
-            "error": error,
-        },
+        "skymap": {"ra": ra, "dec": dec, "error": pos_err * float(radius_multiplier)},
         "tags": ["EP", "X-ray"],
-        "properties": properties,
+        "properties": {
+            **{f: candidate.get(f) for f in PROPERTY_FIELDS},
+            # already_ingested() keys the dedup on ep_name/ep_version.
+            "ep_name": name,
+            "ep_version": str(candidate["version"]),
+            "ra": ra,
+            "dec": dec,
+            "pos_err": pos_err,
+        },
         "group_ids": list(group_ids),
     }
 
 
 async def already_ingested(session, name, version):
-    """Whether this exact (name, version) has already been ingested.
-
-    The poller re-fetches the entire unverified list every cycle, and
-    post_gcnevent_from_dictionary appends GcnProperty and GcnTag rows
-    unconditionally -- so without this guard every cycle would pile up
-    duplicate rows on every event in the feed.
-    """
+    """post_gcnevent_from_dictionary appends rows unconditionally, so every cycle would duplicate."""
     return (
         await session.scalar(
             sa.select(GcnProperty.id)
@@ -205,7 +155,6 @@ async def already_ingested(session, name, version):
 
 
 async def resolve_group_ids(session, user, group_names):
-    """Resolve configured group names to ids, failing loudly if none match."""
     if not group_names:
         raise ValueError(
             "einstein_probe.group_names is empty; refusing to ingest the "
@@ -216,8 +165,7 @@ async def resolve_group_ids(session, user, group_names):
         .unique()
         .all()
     )
-    found = {g.name for g in groups}
-    missing = set(group_names) - found
+    missing = set(group_names) - {g.name for g in groups}
     if missing:
         raise ValueError(
             f"einstein_probe.group_names not found in DB: {sorted(missing)}"
@@ -226,7 +174,6 @@ async def resolve_group_ids(session, user, group_names):
 
 
 async def ingest_candidates(candidates, group_names, radius_multiplier, max_event_age):
-    """Ingest a batch of EP candidates, skipping duplicates and stale records."""
     cutoff = utcnow_naive() - timedelta(days=float(max_event_age))
     ingested = 0
 
@@ -242,7 +189,7 @@ async def ingest_candidates(candidates, group_names, radius_multiplier, max_even
         for candidate in candidates:
             name = candidate.get("name")
             try:
-                missing = validate_candidate(candidate)
+                missing = [f for f in REQUIRED_FIELDS if candidate.get(f) is None]
                 if missing:
                     log(f"Skipping EP candidate {name}: missing fields {missing}")
                     continue
@@ -273,7 +220,6 @@ async def ingest_candidates(candidates, group_names, radius_multiplier, max_even
 
 
 def is_configured():
-    ep_cfg = cfg.get("einstein_probe", {}) or {}
     if not ep_cfg.get("enabled", False):
         log("Einstein Probe ingestion is disabled, skipping")
         return False
@@ -291,10 +237,6 @@ def is_configured():
 
 @check_loaded(logger=log)
 def service(*args, **kwargs):
-    if not is_configured():
-        return
-
-    ep_cfg = cfg["einstein_probe"]
     client = EPClient(
         ep_cfg.get("base_url", "https://ep.bao.ac.cn/ep"),
         ep_cfg["email"],
@@ -319,8 +261,6 @@ def service(*args, **kwargs):
                 if count:
                     log(f"Ingested {count} new EP candidate(s)")
         except Exception as e:
-            # The data center has unannounced maintenance windows; log and retry
-            # on the next cycle rather than exiting.
             traceback.print_exc()
             log(f"Failed to poll EP data center: {e}")
 
@@ -329,6 +269,7 @@ def service(*args, **kwargs):
 
 if __name__ == "__main__":
     try:
-        service()
+        if is_configured():
+            service()
     except Exception as e:
         log(f"Error: {e}")

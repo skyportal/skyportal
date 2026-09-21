@@ -1,8 +1,15 @@
 import json
-from typing import Annotated, Any
+from typing import Annotated
 
 import arrow
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import Field
+from skyportal_py_models.instruments import (
+    InstrumentLogExternalAPIGetQuery,
+    InstrumentLogGetQuery,
+    InstrumentLogPostBody,
+    InstrumentLogPostResponse,
+    InstrumentStatusPutBody,
+)
 from sqlalchemy.orm import selectinload, undefer
 
 from baselayer.app.access import auth_or_token, permissions
@@ -15,55 +22,6 @@ from ..base import BaseHandler
 InstrumentId = Annotated[
     int, Field(description="The instrument ID to update the status for")
 ]
-
-
-class InstrumentLogPostBody(BaseModel):
-    """Request body for posting instrument logs."""
-
-    model_config = ConfigDict(extra="forbid")
-
-    start_date: str = Field(
-        description="Arrow-parseable date string (e.g. 2020-01-01)."
-    )
-    end_date: str = Field(description="Arrow-parseable date string (e.g. 2020-01-01).")
-    log: str | dict[str, Any] = Field(
-        description="Nested JSON containing the log messages, or a parsable "
-        "string of log lines."
-    )
-
-
-class InstrumentLogPostResponse(BaseModel):
-    """Data payload returned when posting instrument logs."""
-
-    id: int = Field(description="The id of the InstrumentLog")
-
-
-class InstrumentStatusPutBody(BaseModel):
-    """Request body for updating an instrument's status."""
-
-    model_config = ConfigDict(extra="forbid")
-
-    status: str | dict[str, Any] | None = Field(
-        default=None,
-        description="The status of the instrument, as a JSON object or a "
-        "JSON-encoded string. When empty or omitted, the status is instead "
-        "refreshed from the instrument's remote API.",
-    )
-
-
-class InstrumentLogGetQuery(BaseModel):
-    """Query parameters for retrieving instrument logs."""
-
-    model_config = ConfigDict(extra="forbid")
-
-    startDate: str | None = Field(
-        default=None,
-        description="Arrow-parseable date string (e.g. 2020-01-01). Only return logs ending after this date.",
-    )
-    endDate: str | None = Field(
-        default=None,
-        description="Arrow-parseable date string (e.g. 2020-01-01). Only return logs starting before this date.",
-    )
 
 
 class InstrumentLogHandler(BaseHandler):
@@ -171,19 +129,6 @@ class InstrumentLogHandler(BaseHandler):
                 return self.error(
                     f"Error occured while retrieving instrument logs: {str(e)}"
                 )
-
-
-class InstrumentLogExternalAPIGetQuery(BaseModel):
-    """Query parameters for retrieving instrument logs from an external API."""
-
-    model_config = ConfigDict(extra="forbid")
-
-    startDate: str = Field(
-        description="Arrow-parseable date string (e.g. 2020-01-01).",
-    )
-    endDate: str = Field(
-        description="Arrow-parseable date string (e.g. 2020-01-01).",
-    )
 
 
 class InstrumentLogExternalAPIHandler(BaseHandler):

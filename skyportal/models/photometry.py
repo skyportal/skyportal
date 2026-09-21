@@ -523,10 +523,14 @@ class Photometry(conesearch_alchemy.Point, Base):
 
 
 # Deduplication index. This is a unique index that prevents any photometry
-# point that has the same obj_id, instrument_id, origin, mjd, flux error,
-# and flux as a photometry point that already exists within the table from
-# being inserted into the table. The index also allows fast lookups on this
-# set of columns, making the search for duplicates a O(log(n)) operation.
+# point that has the same obj_id, instrument_id, origin, mjd, filter, flux
+# error, and flux as a photometry point that already exists within the table
+# from being inserted into the table. The index also allows fast lookups on
+# this set of columns, making the search for duplicates a O(log(n)) operation.
+#
+# Two bands measured at one epoch are two measurements, so the band is part of
+# the key: without it, same-epoch limits of equal depth in different filters
+# collide, and a multi-row upsert carrying both is rejected outright.
 
 # Single source of truth for the dedup column set: ON CONFLICT call sites
 # and the dedup-key helper in handlers/api/photometry.py both read this so
@@ -536,6 +540,7 @@ Photometry.DEDUP_COLUMNS = (
     "instrument_id",
     "origin",
     "mjd",
+    "filter",
     "fluxerr",
     "flux",
 )

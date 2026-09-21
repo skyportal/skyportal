@@ -1,5 +1,10 @@
 import sqlalchemy as sa
-from pydantic import BaseModel, ConfigDict, Field
+from skyportal_py_models.teams import (
+    TeamPostBody,
+    TeamPostResponse,
+    TeamPutBody,
+    TeamPutResponse,
+)
 from sqlalchemy.orm import selectinload
 
 from baselayer.app.access import auth_or_token, permissions
@@ -20,60 +25,6 @@ EDITABLE_FIELDS = [
     "logo_url",
     "background_url",
 ]
-
-
-class TeamPostBody(BaseModel):
-    """Request body for creating a team."""
-
-    model_config = ConfigDict(extra="forbid")
-
-    name: str = Field(description="Team name.")
-    nickname: str | None = Field(default=None, description="Team nickname.")
-    description: str | None = Field(default=None, description="Team description.")
-    primary_color: str | None = Field(default=None, description="Primary color.")
-    secondary_color: str | None = Field(default=None, description="Secondary color.")
-    logo_url: str | None = Field(default=None, description="Logo URL or data URI.")
-    background_url: str | None = Field(
-        default=None, description="Background image URL or data URI."
-    )
-    group_ids: list[int] = Field(
-        default_factory=list,
-        description="IDs of the groups making up the team. The current user "
-        "must be an admin of each group added to the team.",
-    )
-
-
-class TeamPostResponse(BaseModel):
-    """Data payload returned when creating a team."""
-
-    id: int = Field(description="New team ID")
-
-
-class TeamPutBody(BaseModel):
-    """Request body for updating a team."""
-
-    model_config = ConfigDict(extra="forbid")
-
-    name: str | None = Field(default=None, description="Team name.")
-    nickname: str | None = Field(default=None, description="Team nickname.")
-    description: str | None = Field(default=None, description="Team description.")
-    primary_color: str | None = Field(default=None, description="Primary color.")
-    secondary_color: str | None = Field(default=None, description="Secondary color.")
-    logo_url: str | None = Field(default=None, description="Logo URL or data URI.")
-    background_url: str | None = Field(
-        default=None, description="Background image URL or data URI."
-    )
-    group_ids: list[int] | None = Field(
-        default=None,
-        description="When provided, replaces the team's groups; the user must "
-        "be an admin of each group added or removed.",
-    )
-
-
-class TeamPutResponse(BaseModel):
-    """Data payload returned when updating a team."""
-
-    id: int = Field(description="Updated team ID")
 
 
 def team_to_dict(team, include_users=True):
