@@ -818,7 +818,7 @@ server:
   #
   # You need to have Google+ API enabled; it takes a few minutes to activate.
   auth:
-    # Sign everyone in as a single test user. Local development only.
+    # If true, the app will not require a login to access any page. Local development only.
     debug_login: False
     google_oauth2_key:
     google_oauth2_secret:
