@@ -1,7 +1,7 @@
 """analysis dropdown sections: gw_search + period_finding
 
 Revision ID: 2db498b66cfd
-Revises: b7e4c1a90f33
+Revises: c9f1b3d75a24
 Create Date: 2026-09-21 00:00:00.000000
 
 """
@@ -10,7 +10,7 @@ from alembic import op
 
 # revision identifiers, used by Alembic.
 revision = "2db498b66cfd"
-down_revision = "b7e4c1a90f33"
+down_revision = "c9f1b3d75a24"
 branch_labels = None
 depends_on = None
 
