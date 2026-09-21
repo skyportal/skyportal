@@ -90,8 +90,8 @@ def load_fields(session, instrument):
     return len(field_data["ID"])
 
 
-def stale_obj_ids(now):
-    """Objects whose stored annotation disagrees with the sector observing now.
+def stale(now):
+    """Whether an annotation disagrees with the sector observing now.
 
     `sectors` only grows, but which one is current changes every few weeks, so an
     annotation goes stale where the object did not.
@@ -99,36 +99,46 @@ def stale_obj_ids(now):
     stored = Annotation.data["in_current_sector"].astext.cast(sa.Boolean)
     if now is None:
         # Between sectors nothing is in one, so any stored true is stale.
-        stale = stored.is_(True)
-    else:
-        in_now = Annotation.data["sectors"].contains(sa.func.to_jsonb(sa.literal(now)))
-        stale = stored.is_distinct_from(in_now)
+        return stored.is_(True)
+    in_now = Annotation.data["sectors"].contains(sa.func.to_jsonb(sa.literal(now)))
+    return stored.is_distinct_from(in_now)
+
+
+def needs_annotation(now, limit):
+    """Candidates whose TESS annotation is missing or no longer true of `now`.
+
+    EXISTS / NOT EXISTS rather than IN / NOT IN: those become semi- and
+    anti-joins, where the IN form built a hash of every candidate row and then
+    re-checked the annotation subquery once per object.
+
+    One annotation per object per origin is guaranteed by a unique index, so
+    "unannotated, or annotated and stale" is the same as "has no annotation
+    that is still current" -- a single anti-join rather than two subqueries
+    under an OR.
+    """
+    current = (
+        sa.select(1)
+        .where(
+            Annotation.obj_id == Obj.id,
+            Annotation.origin == ANNOTATION_ORIGIN,
+            sa.not_(stale(now)),
+        )
+        .exists()
+    )
     return (
-        sa.select(Annotation.obj_id)
-        .where(Annotation.origin == ANNOTATION_ORIGIN, stale)
-        .scalar_subquery()
+        sa.select(Obj)
+        .where(
+            sa.select(1).where(Candidate.obj_id == Obj.id).exists(),
+            Obj.healpix.isnot(None),
+            sa.not_(current),
+        )
+        .limit(limit)
     )
 
 
 def annotate_batch(session, instrument):
     """Annotate candidates with no TESS annotation, and refresh stale ones."""
-    annotated = (
-        sa.select(Annotation.obj_id)
-        .where(Annotation.origin == ANNOTATION_ORIGIN)
-        .scalar_subquery()
-    )
-    objs = session.scalars(
-        sa.select(Obj)
-        .where(
-            Obj.id.in_(sa.select(Candidate.obj_id)),
-            Obj.healpix.isnot(None),
-            sa.or_(
-                Obj.id.notin_(annotated),
-                Obj.id.in_(stale_obj_ids(current_sector())),
-            ),
-        )
-        .limit(batch_size)
-    ).all()
+    objs = session.scalars(needs_annotation(current_sector(), batch_size)).all()
     for obj in objs:
         annotate_object(session, obj, instrument.id, bot_user_id, group_ids)
     session.commit()

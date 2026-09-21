@@ -107,3 +107,90 @@ def test_an_object_without_a_position_is_skipped(
         )
         is None
     )
+
+
+def _select(session, now, limit=10):
+    """Object ids the service would pick up for annotation."""
+    import sys
+
+    sys.path.insert(0, "services/tess_sector")
+    from tess_sector import needs_annotation
+
+    return {obj.id for obj in session.scalars(needs_annotation(now, limit)).all()}
+
+
+def _annotate_with(session, obj, user, group, sectors, in_current_sector):
+    from skyportal.models import Annotation
+
+    session.add(
+        Annotation(
+            obj_id=obj.id,
+            origin=ANNOTATION_ORIGIN,
+            data={"sectors": sectors, "in_current_sector": in_current_sector},
+            author_id=user.id,
+            groups=[group],
+        )
+    )
+    session.commit()
+
+
+def test_an_unannotated_candidate_is_selected(
+    public_candidate, public_group, super_admin_user
+):
+    public_candidate.healpix = _healpix_at(10.0, -20.0)
+    DBSession().commit()
+    assert public_candidate.id in _select(DBSession(), SECTOR)
+
+
+def test_a_candidate_with_no_position_is_not_selected(
+    public_candidate, public_group, super_admin_user
+):
+    public_candidate.healpix = None
+    DBSession().commit()
+    assert public_candidate.id not in _select(DBSession(), SECTOR)
+
+
+def test_an_annotation_that_still_holds_is_left_alone(
+    public_candidate, public_group, super_admin_user
+):
+    public_candidate.healpix = _healpix_at(10.0, -20.0)
+    DBSession().commit()
+    # in_current_sector agrees with SECTOR being in `sectors`.
+    _annotate_with(
+        DBSession(), public_candidate, super_admin_user, public_group, [SECTOR], True
+    )
+    assert public_candidate.id not in _select(DBSession(), SECTOR)
+
+
+def test_an_annotation_the_sector_has_moved_past_is_reselected(
+    public_candidate, public_group, super_admin_user
+):
+    public_candidate.healpix = _healpix_at(10.0, -20.0)
+    DBSession().commit()
+    # Stored true, but the object is not in the sector observing now: stale.
+    _annotate_with(
+        DBSession(), public_candidate, super_admin_user, public_group, [SECTOR], True
+    )
+    assert public_candidate.id in _select(DBSession(), SECTOR + 1)
+
+
+def test_between_sectors_a_stored_true_is_stale(
+    public_candidate, public_group, super_admin_user
+):
+    public_candidate.healpix = _healpix_at(10.0, -20.0)
+    DBSession().commit()
+    _annotate_with(
+        DBSession(), public_candidate, super_admin_user, public_group, [SECTOR], True
+    )
+    assert public_candidate.id in _select(DBSession(), None)
+
+
+def test_between_sectors_a_stored_false_still_holds(
+    public_candidate, public_group, super_admin_user
+):
+    public_candidate.healpix = _healpix_at(10.0, -20.0)
+    DBSession().commit()
+    _annotate_with(
+        DBSession(), public_candidate, super_admin_user, public_group, [SECTOR], False
+    )
+    assert public_candidate.id not in _select(DBSession(), None)
