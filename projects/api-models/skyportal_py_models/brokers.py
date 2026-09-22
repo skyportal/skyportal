@@ -68,6 +68,7 @@ class BrokerResponse(BaseModel):
         | None
     ) = None
     active: bool | None = None
+    ingest: bool | None = None
     default_alert_search: bool | None = None
     default_crossmatch: bool | None = None
     default_photometry: bool | None = None
@@ -247,6 +248,7 @@ class BrokerPost(BaseModel):
     broker_classname: BrokerClassname
     altdata: dict[str, Any] | None = None
     active: bool | None = None
+    ingest: bool | None = None
     default_alert_search: bool | None = None
     default_crossmatch: bool | None = None
     default_photometry: bool | None = None
@@ -288,6 +290,10 @@ class BrokerPostBody(BaseModel):
     active: bool = Field(
         default=True, description="Whether the broker connection is active."
     )
+    ingest: bool = Field(
+        default=False,
+        description="Have the ingestion service consume this broker's stream.",
+    )
     default_alert_search: bool = Field(
         default=False,
         description="Make this the broker the source page searches alerts on.",
@@ -309,6 +315,10 @@ class BrokerPatchBody(BaseModel):
     name: str | None = Field(default=None, description="Name of the broker connection.")
     active: bool | None = Field(
         default=None, description="Whether the broker connection is active."
+    )
+    ingest: bool | None = Field(
+        default=None,
+        description="Have the ingestion service consume this broker's stream.",
     )
     altdata: dict[str, Any] | None = Field(
         default=None, description="Endpoints/credentials for this broker instance."

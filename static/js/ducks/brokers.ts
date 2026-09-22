@@ -10,6 +10,7 @@ export interface Broker {
   name: string;
   broker_classname: string;
   active: boolean;
+  ingest: boolean;
   default_alert_search: boolean;
   default_crossmatch: boolean;
   default_photometry: boolean;

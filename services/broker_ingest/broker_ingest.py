@@ -53,7 +53,9 @@ async def _run_broker(broker):
 
 async def _active_ingestion_brokers(session):
     brokers = (
-        await session.scalars(sa.select(Broker).where(Broker.active.is_(True)))
+        await session.scalars(
+            sa.select(Broker).where(Broker.active.is_(True), Broker.ingest.is_(True))
+        )
     ).all()
     wanted = {}
     for b in brokers:

@@ -48,6 +48,14 @@ class Broker(Base):
         doc="Whether this broker is enabled.",
     )
 
+    ingest = sa.Column(
+        sa.Boolean,
+        nullable=False,
+        server_default="false",
+        doc="Whether the ingestion service consumes this broker's stream. Separate "
+        "from `active`, which only makes the connection usable on demand.",
+    )
+
     default_alert_search = sa.Column(
         sa.Boolean,
         nullable=False,

@@ -24492,6 +24492,8 @@ export interface components {
             broker_classname: "GENERICBROKER" | "LASAIRBROKER" | "BABAMULBROKER" | "BOOMBROKER" | "FINKBROKER" | "ALERCEBROKER" | "ANTARESBROKER" | "PITTGOOGLEBROKER" | "AMPELBROKER";
             /** @description Whether this broker is enabled. */
             active?: boolean;
+            /** @description Whether the ingestion service consumes this broker's stream. Separate from `active`, which only makes the connection usable on demand. */
+            ingest?: boolean;
             /** @description Whether this broker is the one the source page's alert search targets. */
             default_alert_search?: boolean;
             /** @description Whether this broker is the one cross-matches (cone searches) target. */
@@ -24588,6 +24590,8 @@ export interface components {
             broker_classname: "GENERICBROKER" | "LASAIRBROKER" | "BABAMULBROKER" | "BOOMBROKER" | "FINKBROKER" | "ALERCEBROKER" | "ANTARESBROKER" | "PITTGOOGLEBROKER" | "AMPELBROKER";
             /** @description Whether this broker is enabled. */
             active?: boolean;
+            /** @description Whether the ingestion service consumes this broker's stream. Separate from `active`, which only makes the connection usable on demand. */
+            ingest?: boolean;
             /** @description Whether this broker is the one the source page's alert search targets. */
             default_alert_search?: boolean;
             /** @description Whether this broker is the one cross-matches (cone searches) target. */
@@ -40660,6 +40664,12 @@ export interface components {
              */
             active: boolean;
             /**
+             * Ingest
+             * @description Have the ingestion service consume this broker's stream.
+             * @default false
+             */
+            ingest: boolean;
+            /**
              * Default Alert Search
              * @description Make this the broker the source page searches alerts on.
              * @default false
@@ -40695,6 +40705,12 @@ export interface components {
              * @default null
              */
             active: boolean | null;
+            /**
+             * Ingest
+             * @description Have the ingestion service consume this broker's stream.
+             * @default null
+             */
+            ingest: boolean | null;
             /**
              * Altdata
              * @description Endpoints/credentials for this broker instance.

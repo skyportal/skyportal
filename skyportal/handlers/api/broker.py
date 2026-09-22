@@ -136,6 +136,7 @@ def broker_to_dict(broker, include_altdata=False):
         "name": broker.name,
         "broker_classname": broker.broker_classname,
         "active": broker.active,
+        "ingest": broker.ingest,
         "default_alert_search": broker.default_alert_search,
         "default_crossmatch": broker.default_crossmatch,
         "default_photometry": broker.default_photometry,
@@ -199,6 +200,7 @@ class BrokerHandler(BaseHandler):
                 name=name,
                 broker_classname=broker_classname,
                 active=body.active,
+                ingest=body.ingest,
             )
             if broker.broker_class.implements()["test_connection"]:
                 broker.active = False
@@ -306,6 +308,8 @@ class BrokerHandler(BaseHandler):
                 broker.altdata = altdata
             if "active" in fields_set:
                 broker.active = body.active
+            if "ingest" in fields_set:
+                broker.ingest = body.ingest
             tested = False
             if (
                 checks_credentials
