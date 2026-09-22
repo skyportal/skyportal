@@ -20507,6 +20507,192 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/assistant_queries/{query_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Retrieve one shared assistant query */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    query_id: number;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Success"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        /**
+         * Delete a shared assistant query
+         * @description Only the query's owner may delete it.
+         */
+        delete: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    query_id: number;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Success"];
+                    };
+                };
+            };
+        };
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/assistant_queries": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List the shared assistant queries visible to the user
+         * @description Queries tied to a group the requesting user belongs to.
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Success"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        /**
+         * Create a shared assistant query
+         * @description The creator must be a member of the query's group.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["AssistantQueryPostBody"];
+                };
+            };
+            responses: {
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Success"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/assistant_queries/{query_id}/subscription": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Subscribe the requesting user to a query's notifications
+         * @description Allowed only for a query the user can see (in its group).
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    query_id: number;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Success"];
+                    };
+                };
+            };
+        };
+        /** Unsubscribe the requesting user from a query's notifications */
+        delete: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    query_id: number;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Success"];
+                    };
+                };
+            };
+        };
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/taxonomy/{taxonomy_id}": {
         parameters: {
             query?: never;
@@ -24074,6 +24260,10 @@ export interface components {
             context_type?: string | null;
             /** @description ID of that resource, if any. */
             context_id?: string | null;
+            /** @description Who to notify with the answer, as {'users': [ids], 'groups': [ids]}. Used by scheduled/triggered runs; a person chatting reads it in the panel. */
+            notify?: {
+                [key: string]: unknown;
+            } | null;
             /** @description Unique object identifier. */
             id?: number;
         };
@@ -24104,6 +24294,10 @@ export interface components {
             context_type?: string | null;
             /** @description ID of that resource, if any. */
             context_id?: string | null;
+            /** @description Who to notify with the answer, as {'users': [ids], 'groups': [ids]}. Used by scheduled/triggered runs; a person chatting reads it in the panel. */
+            notify?: {
+                [key: string]: unknown;
+            } | null;
         };
         SingleAssistantMessageNoID: {
             /** @enum {string} */
@@ -24116,6 +24310,134 @@ export interface components {
             status: "success";
             message?: string;
             data?: components["schemas"]["AssistantMessageNoID"][];
+        };
+        AssistantQuery: {
+            /** @description User who created the query. */
+            readonly owner?: components["schemas"]["User"];
+            /** @description Group the query is tied to. */
+            readonly group?: components["schemas"]["Group"];
+            readonly subscriptions?: components["schemas"]["AssistantQuerySubscription"][];
+            /** @description User who created the query. */
+            owner_id: number;
+            /** @description Group the query is tied to; its members can see and subscribe. */
+            group_id: number;
+            /** @description Short name shown in the list. */
+            name: string;
+            /** @description What the query does. */
+            description?: string | null;
+            /** @description Instruction run by the assistant. */
+            prompt: string;
+            /** @description Resource the query runs on (currently 'source'). */
+            context_type?: string;
+            /** @description Substring of an analysis service name; a completed matching analysis triggers the query. NULL for a query that is not analysis-triggered. */
+            analysis_service_match?: string | null;
+            /** @description Group ids always notified with the answer, besides the subscribers. */
+            notify_groups?: {
+                [key: string]: unknown;
+            } | null;
+            /** @description Whether the query runs. */
+            active?: boolean;
+            /** @description Run but notify no one (validation mode). */
+            dry_run?: boolean;
+            /** @description Unique object identifier. */
+            id?: number;
+        };
+        SingleAssistantQuery: {
+            /** @enum {string} */
+            status: "success";
+            message?: string;
+            data?: components["schemas"]["AssistantQuery"];
+        };
+        ArrayOfAssistantQuerys: {
+            /** @enum {string} */
+            status: "success";
+            message?: string;
+            data?: components["schemas"]["AssistantQuery"][];
+        };
+        AssistantQueryNoID: {
+            /** @description User who created the query. */
+            readonly owner?: components["schemas"]["User"];
+            /** @description Group the query is tied to. */
+            readonly group?: components["schemas"]["Group"];
+            readonly subscriptions?: components["schemas"]["AssistantQuerySubscription"][];
+            /** @description Group the query is tied to; its members can see and subscribe. */
+            group_id: number;
+            /** @description Short name shown in the list. */
+            name: string;
+            /** @description What the query does. */
+            description?: string | null;
+            /** @description Instruction run by the assistant. */
+            prompt: string;
+            /** @description Resource the query runs on (currently 'source'). */
+            context_type?: string;
+            /** @description Substring of an analysis service name; a completed matching analysis triggers the query. NULL for a query that is not analysis-triggered. */
+            analysis_service_match?: string | null;
+            /** @description Group ids always notified with the answer, besides the subscribers. */
+            notify_groups?: {
+                [key: string]: unknown;
+            } | null;
+            /** @description Whether the query runs. */
+            active?: boolean;
+            /** @description Run but notify no one (validation mode). */
+            dry_run?: boolean;
+        };
+        SingleAssistantQueryNoID: {
+            /** @enum {string} */
+            status: "success";
+            message?: string;
+            data?: components["schemas"]["AssistantQueryNoID"];
+        };
+        ArrayOfAssistantQueryNoIDs: {
+            /** @enum {string} */
+            status: "success";
+            message?: string;
+            data?: components["schemas"]["AssistantQueryNoID"][];
+        };
+        AssistantQuerySubscription: {
+            /** @description The query subscribed to. */
+            readonly query?: components["schemas"]["AssistantQuery"];
+            /** @description The subscribing user. */
+            readonly user?: components["schemas"]["User"];
+            /** @description The query subscribed to. */
+            query_id: number;
+            /** @description The subscribing user. */
+            user_id: number;
+            /** @description Unique object identifier. */
+            id?: number;
+        };
+        SingleAssistantQuerySubscription: {
+            /** @enum {string} */
+            status: "success";
+            message?: string;
+            data?: components["schemas"]["AssistantQuerySubscription"];
+        };
+        ArrayOfAssistantQuerySubscriptions: {
+            /** @enum {string} */
+            status: "success";
+            message?: string;
+            data?: components["schemas"]["AssistantQuerySubscription"][];
+        };
+        AssistantQuerySubscriptionNoID: {
+            /** @description The query subscribed to. */
+            readonly query?: components["schemas"]["AssistantQuery"];
+            /** @description The subscribing user. */
+            readonly user?: components["schemas"]["User"];
+            /** @description The query subscribed to. */
+            query_id: number;
+            /** @description The subscribing user. */
+            user_id: number;
+        };
+        SingleAssistantQuerySubscriptionNoID: {
+            /** @enum {string} */
+            status: "success";
+            message?: string;
+            data?: components["schemas"]["AssistantQuerySubscriptionNoID"];
+        };
+        ArrayOfAssistantQuerySubscriptionNoIDs: {
+            /** @enum {string} */
+            status: "success";
+            message?: string;
+            data?: components["schemas"]["AssistantQuerySubscriptionNoID"][];
         };
         Association: {
             /** @description Unique object identifier. */
@@ -47011,6 +47333,71 @@ export interface components {
              * @default null
              */
             context_id: string | null;
+            /**
+             * Notify
+             * @description Who to notify with the answer once it is ready, as {"users": [ids], "groups": [ids]}. The author is always notified; named recipients must share a group with the author.
+             * @default null
+             */
+            notify: {
+                [key: string]: unknown;
+            } | null;
+        };
+        /**
+         * AssistantQueryPostBody
+         * @description Request body for creating a shared assistant query.
+         */
+        AssistantQueryPostBody: {
+            /**
+             * Name
+             * @description Short name shown in the query list.
+             */
+            name: string;
+            /**
+             * Group Id
+             * @description Group the query is tied to; its members subscribe.
+             */
+            group_id: number;
+            /**
+             * Prompt
+             * @description Instruction the assistant runs.
+             */
+            prompt: string;
+            /**
+             * Description
+             * @description What the query does.
+             * @default null
+             */
+            description: string | null;
+            /**
+             * Analysis Service Match
+             * @description Substring of an analysis service name; a completed matching analysis triggers the query.
+             * @default null
+             */
+            analysis_service_match: string | null;
+            /**
+             * Notify Groups
+             * @description Group ids always notified, besides the subscribers.
+             * @default null
+             */
+            notify_groups: number[] | null;
+            /**
+             * Context Type
+             * @description Resource the query runs on.
+             * @default source
+             */
+            context_type: string;
+            /**
+             * Active
+             * @description Whether the query runs.
+             * @default true
+             */
+            active: boolean;
+            /**
+             * Dry Run
+             * @description Run but notify no one.
+             * @default false
+             */
+            dry_run: boolean;
         };
         /**
          * TaxonomyPostBody
