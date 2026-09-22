@@ -6,13 +6,16 @@ on:
       - main
       - test-docker
   pull_request:
-    # Run on PRs that touch docker-related files.
+    # Run on PRs that touch docker-related files, plus skyportal/ itself:
+    # `ADD . /skyportal` bakes it into the image, so an app-side change can
+    # break the container boot without touching anything listed below.
     paths:
       - Dockerfile
       - docker.yaml
       - docker-compose.yaml
       - .dockerignore
       - .github/workflows/test_docker_build.yaml
+      - skyportal/**
 
 jobs:
   test:
