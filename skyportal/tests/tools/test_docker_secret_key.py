@@ -61,3 +61,29 @@ def test_other_settings_are_not_disturbed(run, tmp_path):
     run("app:\n  secret_key: abc01234\n  sedm_endpoint:\n  ps1_cutout_url:\n")
     config = yaml.safe_load((tmp_path / "config.yaml").read_text())
     assert set(config["app"]) == {"secret_key", "sedm_endpoint", "ps1_cutout_url"}
+
+
+def test_replicas_on_one_volume_agree(tmp_path, monkeypatch):
+    # Two containers sharing the persistentdata volume must end up with the
+    # same key: nginx will route a websocket to either, and auth is only valid
+    # on the process that issued the session.
+    monkeypatch.chdir(tmp_path)
+    keys = set()
+    for _ in range(2):
+        pathlib.Path("config.yaml").write_text("app:\n  secret_key: abc01234\n")
+        ensure_secret_key()
+        config = yaml.safe_load(pathlib.Path("config.yaml").read_text())
+        keys.add(config["app"]["secret_key"])
+    assert len(keys) == 1
+
+
+def test_a_key_file_left_empty_by_a_crash_is_replaced(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    store = tmp_path / "persistentdata" / "secret_key"
+    store.parent.mkdir()
+    store.write_text("")
+    pathlib.Path("config.yaml").write_text("app:\n  secret_key: abc01234\n")
+    ensure_secret_key()
+    config = yaml.safe_load(pathlib.Path("config.yaml").read_text())
+    assert config["app"]["secret_key"] not in (None, "", "abc01234")
+    assert store.read_text().strip() == config["app"]["secret_key"]

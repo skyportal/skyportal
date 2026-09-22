@@ -12,6 +12,7 @@ deployment: replicas each generate their own, and a session is only valid on
 the one that issued it.
 """
 
+import os
 import pathlib
 import re
 import secrets
@@ -29,14 +30,29 @@ def current(text):
 
 
 def stored_key():
-    """The key this volume has already been given, or a new one."""
-    if STORE.exists() and (key := STORE.read_text().strip()):
-        return key
-    key = secrets.token_urlsafe(32)
+    """The key this volume has been given, generating it once if it has none.
+
+    Created with O_EXCL so replicas sharing the volume settle on one key: the
+    loser of the race reads the winner's rather than keeping its own. Workers
+    inside a container never race -- this runs once, before the app starts --
+    but websocket auth breaks across any two processes with different keys, so
+    it is worth making the shared-volume case deterministic too.
+    """
     STORE.parent.mkdir(parents=True, exist_ok=True)
-    STORE.write_text(key + "\n")
-    STORE.chmod(0o600)
-    return key
+    for _ in range(2):
+        try:
+            fd = os.open(STORE, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600)
+        except FileExistsError:
+            pass
+        else:
+            with os.fdopen(fd, "w") as handle:
+                handle.write(secrets.token_urlsafe(32) + "\n")
+        if key := STORE.read_text().strip():
+            return key
+        # Created but not written: a crash in that window would otherwise
+        # leave every later start reading an empty key.
+        STORE.unlink(missing_ok=True)
+    raise RuntimeError(f"could not settle on a secret key at {STORE}")
 
 
 def ensure_secret_key():
