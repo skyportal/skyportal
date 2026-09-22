@@ -208,6 +208,7 @@ def setup_permissions():
     DBSession().commit()
 
     provision_anonymous_user()
+    provision_skybot()
 
 
 def provision_anonymous_user():
@@ -220,6 +221,22 @@ def provision_anonymous_user():
         return
     username = cfg.get("app.anonymous_user") or "anonymous"
     add_user(username, roles=["View only"])
+
+
+def provision_skybot():
+    """Create the ``skybot`` bot user when autonomous analysis triage is enabled.
+
+    It authors the triage assistant runs and the loop executes with its
+    permissions, so it is a "Full user" in the public group; add it to the groups
+    a task notifies. No-op when the feature is off."""
+    triage = (cfg.get("app.assistant") or {}).get("analysis_triage") or {}
+    if not triage.get("enabled"):
+        return
+    user = add_user("skybot", roles=["Full user"], first_name="Sky", last_name="Bot")
+    if not user.is_bot:
+        user.is_bot = True
+        DBSession().add(user)
+        DBSession().commit()
 
 
 def create_token(ACLs, user_id, name):
