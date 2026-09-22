@@ -68,6 +68,44 @@ full set, as does every push to `main`. Add the `run-all-tests` label
 and re-run the workflow to force a full run; see
 `.github/workflows/ci_scope.yaml`.
 
+### Changesets
+
+`projects/` holds the published Python packages, `skyportal-py` and
+`skyportal-py-models`. They are versioned and released together, and
+separately from the app, so a PR that changes them has to include a
+changeset: a small Markdown file under `.changeset/` that says how the
+version should be bumped and describes the change for the changelog.
+Changesets keep the changelog out of the merge conflict path, and let
+each PR document its own change.
+
+Write one with [Knope](https://knope.tech) (`knope document-change`),
+or by hand:
+
+```markdown
+---
+clients: patch
+---
+
+# Short, user-facing summary of the change
+
+An optional longer description.
+```
+
+Use `major` for breaking changes, `minor` for new features, `patch`
+for fixes, and `misc` for anything that does not change what the
+packages do. A PR that touches `projects/` without affecting users (a
+comment typo, say) can skip the requirement with the `skip-changelog`
+label.
+
+### Releasing the Python clients
+
+Every push to `main` runs `knope prepare-release`, which opens or
+updates a `release/clients` PR: it consumes the pending changesets,
+computes the next version, bumps both `pyproject.toml` files and adds
+the new section to `projects/CHANGELOG.md`. Merging that PR tags
+`clients/vX.Y.Z`, creates a GitHub release, and uploads both packages
+to PyPI. The app is released separately, see `RELEASE.txt`.
+
 ### Reviews
 
 All code that goes into SkyPortal is reviewed by two team members

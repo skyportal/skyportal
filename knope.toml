@@ -1,0 +1,72 @@
+# The two published Python packages are released together, as one Knope package
+# named `clients`: `skyportal-py` pins `skyportal-py-models` exactly, and the
+# app already owns the bare `vX.Y.Z` tags (see RELEASE.txt), so these are tagged
+# `clients/vX.Y.Z`.
+[packages.clients]
+versioned_files = [
+    "projects/api-models/pyproject.toml",
+    "projects/python-client/pyproject.toml",
+]
+changelog = "projects/CHANGELOG.md"
+extra_changelog_sections = [{ name = "Other changes", types = ["misc"] }]
+
+# Most commits here touch the app, not the clients, and Knope applies an
+# unscoped conventional commit to every package: version bumps come from
+# changesets only.
+[changes]
+ignore_conventional_commits = true
+
+[[workflows]]
+name = "document-change"
+
+[[workflows.steps]]
+type = "CreateChangeFile"
+
+[[workflows]]
+name = "prepare-release"
+
+[[workflows.steps]]
+type = "Command"
+command = "git switch -c release/clients"
+
+[[workflows.steps]]
+type = "PrepareRelease"
+
+# Knope cannot version a dependency inside a pyproject.toml, so the exact pin
+# `skyportal-py` carries on `skyportal-py-models` is rewritten here.
+[[workflows.steps]]
+type = "Command"
+shell = true
+command = "sed -i.bak -E 's/(skyportal-py-models==)[^\"]+/\\1$version/' projects/python-client/pyproject.toml && rm projects/python-client/pyproject.toml.bak && uv lock"
+variables = { "$version" = "Version" }
+
+[[workflows.steps]]
+type = "Command"
+command = "git commit --all -m \"chore: prepare client release $version\""
+variables = { "$version" = "Version" }
+
+[[workflows.steps]]
+type = "Command"
+command = "git push --force --set-upstream origin release/clients"
+
+[[workflows.steps]]
+type = "CreatePullRequest"
+base = "main"
+
+[workflows.steps.title]
+template = "chore: prepare client release $version"
+variables = { "$version" = "Version" }
+
+[workflows.steps.body]
+template = "This PR was created by Knope. Merging it will tag and publish `skyportal-py` and `skyportal-py-models`.\n\n$changelog"
+variables = { "$changelog" = "ChangelogEntry" }
+
+[[workflows]]
+name = "release"
+
+[[workflows.steps]]
+type = "Release"
+
+[github]
+owner = "skyportal"
+repo = "skyportal"

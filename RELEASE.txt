@@ -11,3 +11,6 @@ How to make a new release of ``SkyPortal``
 - Push the tag to github to create a new release::
 
    git push origin --tags
+
+The Python clients in ``projects/`` have their own version, released by Knope
+from changesets; see "Releasing the Python clients" in ``doc/contributing.md``.

@@ -1,0 +1,48 @@
+name: Prepare client release
+
+# Turns the changesets that have landed on main into a release PR: it bumps
+# `skyportal-py` and `skyportal-py-models`, and writes projects/CHANGELOG.md.
+# Merging that PR tags and publishes them (see clients_publish.yaml).
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  prepare-release:
+    if: "!contains(github.event.head_commit.message, 'chore: prepare client release')"
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # uv refuses to lock with a workspace member missing, and the release
+      # commit refreshes uv.lock with the new client versions.
+      - name: Check out the baselayer submodule
+        run: git submodule update --init --depth 1 baselayer
+
+      - uses: astral-sh/setup-uv@v7
+
+      - uses: knope-dev/action@v2.1.2
+        with:
+          version: 0.23.0
+
+      - name: Configure git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      # Fails harmlessly when no changeset is waiting to be released.
+      - name: Create or update the release PR
+        run: knope prepare-release --verbose
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        continue-on-error: true
