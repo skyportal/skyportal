@@ -13,7 +13,7 @@ permissions:
   contents: read
 
 jobs:
-  check:
+  changeset:
     if: ${{ github.head_ref != 'release/clients' && !contains(github.event.pull_request.labels.*.name, 'skip-changelog') }}
     runs-on: ubuntu-latest
     timeout-minutes: 5
@@ -29,7 +29,12 @@ jobs:
           set -euo pipefail
           changed=$(git diff --name-only "origin/$BASE...HEAD")
 
-          if ! grep -q '^projects/' <<< "$changed"; then
+          # CHANGELOG.md is written by the release workflow, so a PR that only
+          # touches it has not changed the clients.
+          clients=$(grep '^projects/' <<< "$changed" \
+            | grep -v '^projects/CHANGELOG\.md$' || true)
+
+          if [ -z "$clients" ]; then
             echo "No client changes; no changeset needed."
             exit 0
           fi
