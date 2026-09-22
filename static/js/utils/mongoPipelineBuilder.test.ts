@@ -83,8 +83,6 @@ describe("buildMongoAggregationPipeline list conditions", () => {
   });
 
   it("keeps numeric values numeric on array subfields", () => {
-    // The subfield resolves through subFieldOptions; an unresolved field would be
-    // read as a string and turn -1 into "-1", which never matches a double.
     const expression = listExpression(
       listVariable("$anyElementTrue", {
         logic: "and",

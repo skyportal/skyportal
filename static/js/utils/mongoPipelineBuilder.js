@@ -2625,11 +2625,7 @@ const generateListVariableExpression = (
     case "$anyElementTrue":
       if (value && value.children) {
         const condition = convertBlockToMongoExpr(
-          {
-            children: value.children,
-            logic: value.logic,
-            isTrue: value.isTrue,
-          },
+          value,
           null, // dependencyGraph not available in list condition context
           fieldOptions,
           customVariables,
@@ -2654,11 +2650,7 @@ const generateListVariableExpression = (
     case "$allElementsTrue":
       if (value && value.children) {
         const condition = convertBlockToMongoExpr(
-          {
-            children: value.children,
-            logic: value.logic,
-            isTrue: value.isTrue,
-          },
+          value,
           null, // dependencyGraph not available in list condition context
           fieldOptions,
           customVariables,
@@ -2683,11 +2675,7 @@ const generateListVariableExpression = (
     case "$filter":
       if (value && value.children) {
         const condition = convertBlockToMongoExpr(
-          {
-            children: value.children,
-            logic: value.logic,
-            isTrue: value.isTrue,
-          },
+          value,
           null, // dependencyGraph not available in list condition context
           fieldOptions,
           customVariables,
