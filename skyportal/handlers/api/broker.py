@@ -33,6 +33,7 @@ from ...broker_apis.interface import survey_permissions
 from ...enum_types import ALLOWED_BROKER_CLASSNAMES
 from ...models import Broker, BrokerCredential, Filter, GroupUser, Obj, Stream
 from ..base import BaseHandler
+from .filter import delete_filter_on_broker
 
 log = make_log("api/broker")
 
@@ -1418,20 +1419,7 @@ class BrokerFiltersHandler(BaseHandler):
             ).first()
             if f is None:
                 return self.error(f"Cannot find a filter with ID: {filter_id}.")
-            boom = (
-                (f.altdata or {}).get("boom") if isinstance(f.altdata, dict) else None
-            )
-            if (
-                isinstance(boom, dict)
-                and boom.get("filter_id") is not None
-                and broker.broker_class.implements()["delete_filter"]
-            ):
-                try:
-                    broker.broker_class.delete_filter(
-                        broker, session, boom_filter_id=boom["filter_id"]
-                    )
-                except Exception:
-                    pass
+            delete_filter_on_broker(broker, f, session)
             session.delete(f)
             session.commit()
             return self.success()
