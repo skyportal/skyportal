@@ -1,3 +1,5 @@
+from playwright.sync_api import expect
+
 from skyportal.tests import api
 
 PLOT = "#photometry-plot .js-plotly-plot"
@@ -20,7 +22,9 @@ def _drag_zoom(page):
     # not the drag layer: plotly rebuilds it on every redraw
     page.locator(PLOT).first.scroll_into_view_if_needed()
     page.wait_for_timeout(500)
-    box = page.locator(DRAG_LAYER).first.bounding_box()
+    drag = page.locator(DRAG_LAYER).first
+    expect(drag).to_be_visible()
+    box = drag.bounding_box()
     assert box, "photometry plot has no drag layer to zoom on"
     y = box["y"] + box["height"] / 2
     page.mouse.move(box["x"] + box["width"] * 0.35, y)
