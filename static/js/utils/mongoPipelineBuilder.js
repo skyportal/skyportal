@@ -963,7 +963,7 @@ const buildListDependencies = (
       if (
         (condition.operator === "$filter" ||
           condition.operator === "$anyElementTrue" ||
-          condition.operator === "$allElementTrue") &&
+          condition.operator === "$allElementsTrue") &&
         condition.value
       ) {
         // If the condition has a children structure (block format), analyze it
@@ -2647,7 +2647,7 @@ const generateListVariableExpression = (
       }
       return { $anyElementTrue: { $ifNull: [`$${field}`, []] } };
 
-    case "$allElementTrue":
+    case "$allElementsTrue":
       if (value && value.children) {
         const condition = convertBlockToMongoExpr(
           { children: value.children },
@@ -2661,7 +2661,7 @@ const generateListVariableExpression = (
         );
         if (condition && Object.keys(condition).length > 0) {
           return {
-            $allElementTrue: {
+            $allElementsTrue: {
               $map: {
                 input: { $ifNull: [`$${field}`, []] },
                 in: condition,
@@ -2670,7 +2670,7 @@ const generateListVariableExpression = (
           };
         }
       }
-      return { $allElementTrue: { $ifNull: [`$${field}`, []] } };
+      return { $allElementsTrue: { $ifNull: [`$${field}`, []] } };
 
     case "$filter":
       if (value && value.children) {
@@ -3166,16 +3166,16 @@ const convertListVariableCondition = (
       (typeof compareValue === "string" && compareValue.trim() === "")) &&
     condition &&
     (listVar?.listCondition?.operator === "$anyElementTrue" ||
-      listVar?.listCondition?.operator === "$allElementTrue")
+      listVar?.listCondition?.operator === "$allElementsTrue")
   ) {
     compareValue = getBooleanSwitch(condition, value);
   }
 
-  // For list variables with $anyElementTrue or $allElementTrue, handle boolean comparisons
+  // For list variables with $anyElementTrue or $allElementsTrue, handle boolean comparisons
   // Only convert to boolean for equality checks, not for numeric comparisons
   if (
     (listVar?.listCondition?.operator === "$anyElementTrue" ||
-      listVar?.listCondition?.operator === "$allElementTrue") &&
+      listVar?.listCondition?.operator === "$allElementsTrue") &&
     (operator === "$eq" || operator === "equals")
   ) {
     if (compareValue === "true") {
@@ -3194,7 +3194,7 @@ const convertListVariableCondition = (
     (typeof compareValue === "string" && compareValue.trim() === "") ||
     (compareValue === undefined &&
       listVar?.listCondition?.operator !== "$anyElementTrue" &&
-      listVar?.listCondition?.operator !== "$allElementTrue")
+      listVar?.listCondition?.operator !== "$allElementsTrue")
   ) {
     // Allow boolean false values through
     if (typeof compareValue !== "boolean") {
@@ -3268,7 +3268,7 @@ const convertArithmeticVariableCondition = (
     if (arrayField) {
       expr = replaceArrayFieldInExpr(expr, arrayField);
 
-      // When in array context (anyElementTrue/allElementTrue), return expression directly without $expr
+      // When in array context (anyElementTrue/allElementsTrue), return expression directly without $expr
       // because we're already inside an aggregation expression context
       return makeExprArrayCondition(expr, operator, compareValue);
     }
@@ -3407,7 +3407,7 @@ const convertSchemaFieldCondition = (
       // $isNumber requires $expr, so we need to wrap it
       return { $expr: { $isNumber: `$${field}` } };
     case "$anyElementTrue":
-    case "$allElementTrue":
+    case "$allElementsTrue":
       // For boolean list variables treated as schema fields, use booleanSwitch to determine comparison value
       // This happens when list variable fields are referenced without isListVariable flag
       if (
@@ -3875,11 +3875,11 @@ export const isValidPipeline = (pipeline) => {
         )
           return false;
       }
-      if (value.$allElementTrue !== undefined) {
-        // $allElementTrue must be either an array or an object (for $map)
+      if (value.$allElementsTrue !== undefined) {
+        // $allElementsTrue must be either an array or an object (for $map)
         if (
-          !Array.isArray(value.$allElementTrue) &&
-          typeof value.$allElementTrue !== "object"
+          !Array.isArray(value.$allElementsTrue) &&
+          typeof value.$allElementsTrue !== "object"
         )
           return false;
       }
