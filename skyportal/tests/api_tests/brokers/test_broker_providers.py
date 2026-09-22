@@ -947,6 +947,33 @@ def test_merge_broker_augments_db_and_dedups():
     assert merge_photometry_points([], []) == []
 
 
+def test_merge_keeps_forced_photometry_at_a_saved_epoch():
+    """Forced photometry carries its own origin, so a saved alert point must not
+    suppress it: ZTF fp_hists covers the very exposures prv_nondetections reports
+    a limit for, and dropping on (obj, instrument, filter, mjd) alone hid all of it."""
+    db = [
+        {
+            "obj_id": "A",
+            "instrument_id": 1,
+            "filter": "ztfg",
+            "mjd": 59000.0,
+            "origin": "None",
+            "id": 5,
+        }
+    ]
+    broker = [
+        {
+            "obj_id": "A",
+            "instrument_id": 1,
+            "filter": "ztfg",
+            "mjd": 59000.0,
+            "origin": "fp",
+            "id": None,
+        }
+    ]
+    assert len(merge_photometry_points(db, broker)) == 2
+
+
 def test_merge_dedups_per_obj():
     """Under includeSuperObjsPhotometry the points of several objs are merged at
     once: a saved point on one obj must not suppress the same epoch on another."""
