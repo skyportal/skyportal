@@ -67,6 +67,13 @@ RUN bash -c "\
     mkdir -p /skyportal/cache && \
     chown -R skyportal.skyportal /skyportal/cache && \
     \
+    # The subdirectories below are chowned individually, which leaves the
+    # parent owned by root: anything writing a new file straight into
+    # persistentdata/ cannot, and it is a mounted volume, so the ownership
+    # carries into the deployment.
+    mkdir -p /skyportal/persistentdata && \
+    chown skyportal.skyportal /skyportal/persistentdata && \
+    \
     mkdir -p /skyportal/persistentdata/analysis && \
     chown -R skyportal.skyportal /skyportal/persistentdata/analysis && \
     \
@@ -98,4 +105,4 @@ USER skyportal
 # specifying ports in docker-compose.yaml already
 EXPOSE 5000
 
-CMD ["bash", "-c", "source .venv/bin/activate && (make log &) && make run_production"]
+CMD ["bash", "-c", "source .venv/bin/activate && PYTHONPATH=. python tools/docker_secret_key.py && (make log &) && make run_production"]
