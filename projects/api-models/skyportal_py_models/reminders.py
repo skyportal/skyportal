@@ -3,10 +3,20 @@
 from __future__ import annotations
 
 from datetime import date
+from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
 from skyportal_py_models._cyclic import ReminderResponse
+
+#: The kinds of resource a reminder can be attached to.
+ReminderResourceType = Literal[
+    "source",
+    "spectra",
+    "gcn_event",
+    "shift",
+    "earthquake",
+]
 
 
 class RemindersResponse(BaseModel):
