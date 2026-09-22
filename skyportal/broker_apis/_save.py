@@ -154,16 +154,7 @@ def build_photometry_groups(object_id, survey, data, instrument_id, programid2st
         raise ValueError(f"No zeropoint configured for survey '{survey}'.")
 
     photometry_data: dict = {}
-    # Photometry is unique on (obj, instrument, origin, mjd, filter), and one
-    # epoch can appear in more than one of these arrays (Lasair repeats
-    # detections across prv_candidates and fp_hists). Postgres cannot resolve
-    # duplicates that arrive in the same INSERT -- ON CONFLICT raises instead --
-    # so the whole object's photometry would be lost. Keep the first of each,
-    # so the arrays run from most to least informative about an epoch: an alert
-    # detection, else a forced measurement, else a bare upper limit. Forced
-    # photometry last would let a non-detection mask a forced detection at the
-    # same epoch, which is how a filter can pass an object on forced detections
-    # the light curve then does not show.
+    # Dedup on Photometry's unique columns: ON CONFLICT cannot resolve duplicates within one INSERT.
     seen: set = set()
     for array_name in ["prv_candidates", "fp_hists", "prv_nondetections"]:
         # Forced photometry is separated by origin so it can be shown or hidden
@@ -202,9 +193,7 @@ def build_photometry_groups(object_id, survey, data, instrument_id, programid2st
             programid = phot.get("programid", 1) if survey == "ZTF" else 1
             key = (survey, programid)
 
-            # An epoch already taken from an earlier array must not reappear,
-            # or the light curve carries it twice.
-            epoch = (key, round(jd - 2400000.5, 8), _normalize_band(band))
+            epoch = (key, origin, round(jd - 2400000.5, 8), _normalize_band(band))
             if epoch in seen:
                 continue
             seen.add(epoch)

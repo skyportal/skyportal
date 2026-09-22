@@ -65,16 +65,26 @@ def _dedup_key(point):
         point.get("obj_id"),
         point.get("instrument_id"),
         point.get("filter"),
+        point.get("origin"),
         _round_mjd(point.get("mjd")),
     )
 
 
 def _phot_dedup_key(phot):
-    return (phot.obj_id, phot.instrument_id, phot.filter, _round_mjd(phot.mjd))
+    return (
+        phot.obj_id,
+        phot.instrument_id,
+        phot.filter,
+        phot.origin,
+        _round_mjd(phot.mjd),
+    )
 
 
 def merge_photometry_points(db_points, broker_points):
-    """Union DB and broker photometry, the DB point winning on (obj, instrument, filter, mjd)."""
+    """Union DB and broker photometry, the DB point winning on the columns
+    ``Photometry.DEDUP_COLUMNS`` makes unique. Origin belongs in that key: without
+    it a forced measurement is dropped at every epoch an alert point already
+    covers, which on a ZTF light curve is nearly all of them."""
     seen = {_dedup_key(p) for p in db_points}
     return sorted(
         [*db_points, *(p for p in broker_points if _dedup_key(p) not in seen)],
