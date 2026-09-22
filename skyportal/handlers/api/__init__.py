@@ -21,6 +21,7 @@ from .annotation_services import (
     VizierQueryHandler,
 )
 from .assistant import AssistantConversationHandler, AssistantMessageHandler
+from .assistant_query import AssistantQueryHandler, AssistantQuerySubscriptionHandler
 from .broker import (
     BrokerAlertsHandler,
     BrokerConeSearchHandler,

@@ -29,6 +29,14 @@ class AssistantMessagePostBody(BaseModel):
     context_id: str | None = Field(
         default=None, description="ID of the resource the user is looking at."
     )
+    notify: dict | None = Field(
+        default=None,
+        description=(
+            "Who to notify with the answer once it is ready, as "
+            '{"users": [ids], "groups": [ids]}. The author is always notified; '
+            "named recipients must share a group with the author."
+        ),
+    )
 
 
 class AssistantChannelQuery(BaseModel):
@@ -114,6 +122,7 @@ class AssistantMessageHandler(BaseHandler):
                 channel=body.channel or None,
                 context_type=body.context_type,
                 context_id=body.context_id,
+                notify=body.notify,
             )
             session.add(message)
             await session.commit()

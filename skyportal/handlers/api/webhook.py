@@ -130,6 +130,39 @@ class AnalysisWebhookHandler(BaseHandler):
 
             await session.commit()
 
+            # A completed ML analysis triggers autonomous skybot triage runs that
+            # explain it (read-only; off unless configured). Which services trigger
+            # which prompt is config (app.assistant.analysis_triage.tasks).
+            if (
+                analysis_resource_type.lower() == "obj"
+                and (body.status or "error") == "success"
+            ):
+                from tornado.ioloop import IOLoop
+
+                from ...utils.assistant import post_to_assistant
+                from ...utils.assistant_triage import (
+                    enqueue_query_run,
+                    matching_queries,
+                    triage_enabled,
+                )
+
+                if triage_enabled(cfg):
+                    for query in await matching_queries(session, analysis):
+                        try:
+                            message_id = await enqueue_query_run(
+                                session, analysis, query
+                            )
+                            if message_id is not None:
+                                await IOLoop.current().run_in_executor(
+                                    None,
+                                    lambda mid=message_id: post_to_assistant(cfg, mid),
+                                )
+                        except Exception as e:
+                            log(
+                                f"Could not enqueue assistant query {query.id} for "
+                                f"{analysis.obj_id}: {e}"
+                            )
+
             try:
                 flow = Flow()
                 if analysis.analysis_service.is_summary:

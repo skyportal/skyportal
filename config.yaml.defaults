@@ -353,6 +353,8 @@ app:
       component: observation_plan/ObservationPlanRequestPage
     - path: "/recurring_apis"
       component: RecurringAPIPage
+    - path: "/assistant_queries"
+      component: AssistantQueriesPage
     - path: "/shifts"
       component: shift/ShiftNoId
     - path: "/shifts/:id"
@@ -498,6 +500,10 @@ app:
           icon: Restore
           url: /recurring_apis
 
+        - name: Assistant Queries
+          icon: SmartToy
+          url: /assistant_queries
+
         - name: Summary Search
           icon: Troubleshoot
           url: /summary_search
@@ -599,6 +605,15 @@ app:
     # Oldest messages are dropped first when a conversation outgrows this.
     max_context_messages: 40
     request_timeout: 300
+    # Autonomous triage: when an analysis completes, any active AssistantQuery
+    # whose service match is in the service name (and whose group the source is
+    # in) runs as skybot and notifies its subscribers. Read-only -- the answer is
+    # a notification + a skybot thread message; nothing is written to the source.
+    # The queries themselves are DB rows users manage (create + subscribe); this
+    # is just the master switch. Needs a bot user named "skybot" (auto-provisioned
+    # when this is on) and the assistant configured above.
+    analysis_triage:
+      enabled: false
 
   homepage_widgets:
     # This section describes the specific widgets shown on the Home Page and how

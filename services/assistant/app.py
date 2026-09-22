@@ -14,7 +14,14 @@ from baselayer.app.env import load_env
 from baselayer.app.flow import Flow
 from baselayer.app.models import ACL, init_db, session_context_id
 from baselayer.log import make_log
-from skyportal.models import AssistantMessage, DBSession, Token, User
+from skyportal.models import (
+    AssistantMessage,
+    DBSession,
+    GroupUser,
+    Token,
+    User,
+    UserNotification,
+)
 from skyportal.utils.app import get_app_base_url
 from skyportal.utils.assistant import SERVICE_TOKEN_PREFIX, build_messages, condense
 
@@ -282,6 +289,64 @@ def conversation_of(session, user_id, channel, up_to_id=None):
     ]
 
 
+def deliver_notifications(session, author_id, notify, context_type, context_id, answer):
+    """Notify the recipients a task run named, with its answer.
+
+    Groups expand to their members; a named user must share a group with the
+    author, so a run cannot notify people outside the author's groups.
+    """
+    if not isinstance(notify, dict):
+        return
+    wanted = {int(u) for u in (notify.get("users") or [])}
+    for gid in notify.get("groups") or []:
+        wanted.update(
+            session.scalars(
+                sa.select(GroupUser.user_id).where(GroupUser.group_id == int(gid))
+            ).all()
+        )
+    wanted.discard(author_id)
+    if not wanted:
+        return
+    author = session.scalar(sa.select(User).where(User.id == author_id))
+    if author is not None and author.is_bot:
+        # A bot's recipients were resolved and authorised by the triggering query
+        # (its subscribers, in its group), so deliver to them directly.
+        allowed = wanted
+    else:
+        # A person's run may only notify people they share a group with.
+        author_groups = set(
+            session.scalars(
+                sa.select(GroupUser.group_id).where(GroupUser.user_id == author_id)
+            ).all()
+        )
+        allowed = set(
+            session.scalars(
+                sa.select(GroupUser.user_id).where(
+                    GroupUser.user_id.in_(wanted),
+                    GroupUser.group_id.in_(author_groups or {-1}),
+                )
+            ).all()
+        )
+    if not allowed:
+        return
+    snippet = " ".join((answer or "").split())
+    if len(snippet) > 300:
+        snippet = snippet[:297] + "..."
+    where = f" on {context_type} {context_id}" if context_id else ""
+    text = (
+        f"Assistant triage{where}: {snippet}"
+        if snippet
+        else f"An assistant run{where} produced no answer."
+    )
+    url = f"/source/{context_id}" if context_type == "source" and context_id else None
+    for uid in allowed:
+        session.add(
+            UserNotification(
+                user_id=uid, text=text, notification_type="assistant", url=url
+            )
+        )
+
+
 def respond(message_id):
     session_context_id.set(uuid.uuid4().hex)
     try:
@@ -295,6 +360,7 @@ def respond(message_id):
             user_id = message.user_id
             channel = message.channel
             context_type, context_id = message.context_type, message.context_id
+            notify = message.notify
             if already_answered(session, message):
                 log(f"message {message_id} already has an answer; not answering twice")
                 return
@@ -336,6 +402,10 @@ def respond(message_id):
                         system=True,
                     )
                 )
+                if notify:
+                    deliver_notifications(
+                        session, user_id, notify, context_type, context_id, text
+                    )
             session.commit()
 
         if asked is None:

@@ -216,6 +216,7 @@ export const TAG_TYPES = [
   "FetchDefaultGcnTags",
   "FetchPublicSourcePages",
   "RecurringAPIs",
+  "AssistantQueries",
   "Reminder",
   "ObjTagOption",
   "ObjTag",
