@@ -26,6 +26,8 @@ import {
 import Responsive from "../Responsive";
 import FoldBox from "../FoldBox";
 import FormValidationError from "../FormValidationError";
+import SearchableSelect from "../SearchableSelect";
+import { filterAnnotationOrigins } from "./annotationSortOptions";
 import ClassificationSelect from "../classification/ClassificationSelect";
 
 dayjs.extend(utc);
@@ -533,29 +535,25 @@ const CandidatesPreferencesForm = ({
               name="sortingOrigin"
               control={control}
               render={({ field: { onChange, value } }) => (
-                <Select
+                // Searchable, matching the scanning page: there is one origin
+                // per filter and survey, so the list is far too long to pick
+                // from by eye. Cleared to "" rather than null, which is what
+                // validateSorting and the submit handler treat as unset.
+                <SearchableSelect
                   id="profileAnnotationSortingOriginSelect"
-                  value={value}
-                  onChange={(event) => {
-                    setSelectedAnnotationOrigin(event.target.value);
-                    onChange(event.target.value);
-                  }}
-                  input={
-                    <Input data-testid="profileAnnotationSortingOriginSelect" />
+                  label="Origin"
+                  data-testid="profileAnnotationSortingOriginSelect"
+                  options={Object.keys(availableAnnotationsInfo || {})}
+                  filterOptions={(options: string[], state: any) =>
+                    filterAnnotationOrigins(options, state.inputValue)
                   }
-                >
-                  {availableAnnotationsInfo ? (
-                    [""]
-                      .concat(Object.keys(availableAnnotationsInfo))
-                      .map((option) => (
-                        <MenuItem key={option} value={option}>
-                          {option === "" ? "None" : option}
-                        </MenuItem>
-                      ))
-                  ) : (
-                    <div />
-                  )}
-                </Select>
+                  style={{ minWidth: "100%" }}
+                  value={value || null}
+                  onChange={(_event: any, newValue: string | null) => {
+                    setSelectedAnnotationOrigin(newValue || "");
+                    onChange(newValue || "");
+                  }}
+                />
               )}
               rules={{ validate: validateSorting }}
               defaultValue=""
@@ -573,26 +571,21 @@ const CandidatesPreferencesForm = ({
               } as any)}
               defaultValue=""
               render={({ field: { onChange, value } }) => (
-                <Select
-                  onChange={onChange}
-                  value={value}
+                <SearchableSelect
+                  id="profileAnnotationSortingKeySelect"
+                  label="Key"
                   data-testid="profileAnnotationSortingKeySelect"
-                >
-                  {availableAnnotationsInfo ? (
-                    availableAnnotationsInfo[selectedAnnotationOrigin]?.map(
-                      (option: any) => (
-                        <MenuItem
-                          key={Object.keys(option)[0]}
-                          value={Object.keys(option)[0]}
-                        >
-                          {Object.keys(option)[0]}
-                        </MenuItem>
-                      ),
-                    )
-                  ) : (
-                    <div />
-                  )}
-                </Select>
+                  options={(
+                    availableAnnotationsInfo?.[selectedAnnotationOrigin] || []
+                  )
+                    .map((annotation: any) => Object.keys(annotation || {}))
+                    .flat()}
+                  style={{ minWidth: "100%" }}
+                  value={value || null}
+                  onChange={(_event: any, newValue: string | null) =>
+                    onChange(newValue || "")
+                  }
+                />
               )}
             />
             <InputLabel id="profile-sorting-select-order-label">
