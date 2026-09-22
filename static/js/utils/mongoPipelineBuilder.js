@@ -3309,10 +3309,12 @@ const convertSchemaFieldCondition = (
   expressionContext = false,
   condition = null,
 ) => {
-  const fieldDef = fieldOptions.find(
-    (f) => f.value === field || f.label === field,
-  );
-  const fieldType = fieldDef?.type || "string";
+  const matchesField = (f) => f.value === field || f.label === field;
+  const fieldDef =
+    fieldOptions.find(matchesField) ||
+    (subFieldOptions || []).find(matchesField);
+  // Left undefined when unresolved: only a known string type coerces the value.
+  const fieldType = fieldDef?.type;
 
   const compareValue = parseValueForComparison(
     value,
