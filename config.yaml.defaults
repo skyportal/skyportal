@@ -605,7 +605,7 @@ app:
     # Oldest messages are dropped first when a conversation outgrows this.
     max_context_messages: 40
     request_timeout: 300
-    # Master switch for autonomous triage: on completion, active AssistantQuery rows (user-managed) run as skybot and notify subscribers; needs skybot (auto-provisioned) and the assistant above.
+    # Master switch for autonomous triage: on completion
     analysis_triage:
       enabled: false
 
