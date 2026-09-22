@@ -605,13 +605,7 @@ app:
     # Oldest messages are dropped first when a conversation outgrows this.
     max_context_messages: 40
     request_timeout: 300
-    # Autonomous triage: when an analysis completes, any active AssistantQuery
-    # whose service match is in the service name (and whose group the source is
-    # in) runs as skybot and notifies its subscribers. Read-only -- the answer is
-    # a notification + a skybot thread message; nothing is written to the source.
-    # The queries themselves are DB rows users manage (create + subscribe); this
-    # is just the master switch. Needs a bot user named "skybot" (auto-provisioned
-    # when this is on) and the assistant configured above.
+    # Master switch for autonomous triage: on completion, active AssistantQuery rows (user-managed) run as skybot and notify subscribers; needs skybot (auto-provisioned) and the assistant above.
     analysis_triage:
       enabled: false
 
