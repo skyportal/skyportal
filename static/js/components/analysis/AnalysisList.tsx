@@ -476,6 +476,9 @@ const AnalysisList = ({
             </Typography>
             <StyledDataGrid
               autoHeight
+              // Grow each row to its content; the default fixed height clipped
+              // the stacked action buttons (e.g. Display Results under Download).
+              getRowHeight={() => "auto"}
               rows={analysesList || []}
               columns={columns}
               getRowId={(row: any) => row.id}

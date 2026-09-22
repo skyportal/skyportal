@@ -1541,7 +1541,9 @@ colors:
     classification:
       # A few examples that show up in the demo data. You can modify the config on deploy to fill out the colors and types you want.
       { "variable": "#3a87ad", "Time-domain Source": "#ff0000" }
-    origin: { "SCoPe": "#3a87ad" }
+    # Per-classifier colours: each ML classifier posts with its own `origin`, so its
+    # rows render as a distinct set (the ml flag separates them from human labels).
+    origin: { "SCoPe": "#3a87ad", "FLARE": "#c2477a", "ORACLE": "#6d3fa0" }
   gcnTags:
     {
       "BNS": "#468847",

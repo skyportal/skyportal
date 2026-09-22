@@ -167,192 +167,214 @@ const ClassificationList = ({ obj }: ClassificationListProps) => {
     return color;
   };
 
-  const items = sorted_classifications.map(
-    ({
-      id,
-      author_name,
-      created_at,
-      classification,
-      probability,
-      origin,
-      ml,
-      taxonomy_id,
-      groups,
-      obj_id,
-      edits,
-    }: any) => {
-      // Meta-object provenance: when this classification was aggregated from a
-      // different underlying source (SuperObj member), show which one.
-      const fromLinkedObj = obj_id && obj.id && obj_id !== obj.id;
-      let taxname: any = taxonomyList.filter((i: any) => i.id === taxonomy_id);
-      if (taxname.length > 0) {
-        taxname = taxname[0].name;
-      } else {
-        taxname = "Unknown taxonomy";
-      }
-      const permission =
-        userProfile?.permissions.includes("System admin") ||
-        userProfile?.permissions.includes("Manage groups") ||
-        isGroupAdmin ||
-        userProfile?.username === author_name;
-      return (
-        <React.Fragment key={`classification_${id}`}>
-          <ListItem className={styles.classification}>
-            <div className={styles.classificationHeader}>
-              <span className={(styles as any).classificationUser}>
-                <span>{author_name}</span>
-              </span>
-              &nbsp;
-              <span className={styles.classificationTime}>
-                {dayjs().to(dayjs.utc(`${created_at}Z`))}
-              </span>
-              &nbsp;
-              <Tooltip
-                title={groups?.map((group: any) => group.name)?.join(", ")}
-              >
-                <GroupIcon
-                  fontSize="small"
-                  style={{ paddingTop: "6px", paddingBottom: "0px" }}
+  const renderClassification = ({
+    id,
+    author_name,
+    created_at,
+    classification,
+    probability,
+    origin,
+    ml,
+    taxonomy_id,
+    groups,
+    obj_id,
+    edits,
+  }: any) => {
+    // Meta-object provenance: when this classification was aggregated from a
+    // different underlying source (SuperObj member), show which one.
+    const fromLinkedObj = obj_id && obj.id && obj_id !== obj.id;
+    let taxname: any = taxonomyList.filter((i: any) => i.id === taxonomy_id);
+    if (taxname.length > 0) {
+      taxname = taxname[0].name;
+    } else {
+      taxname = "Unknown taxonomy";
+    }
+    const permission =
+      userProfile?.permissions.includes("System admin") ||
+      userProfile?.permissions.includes("Manage groups") ||
+      isGroupAdmin ||
+      userProfile?.username === author_name;
+    return (
+      <React.Fragment key={`classification_${id}`}>
+        <ListItem className={styles.classification}>
+          <div className={styles.classificationHeader}>
+            <span className={(styles as any).classificationUser}>
+              <span>{author_name}</span>
+            </span>
+            &nbsp;
+            <span className={styles.classificationTime}>
+              {dayjs().to(dayjs.utc(`${created_at}Z`))}
+            </span>
+            &nbsp;
+            <Tooltip
+              title={groups?.map((group: any) => group.name)?.join(", ")}
+            >
+              <GroupIcon
+                fontSize="small"
+                style={{ paddingTop: "6px", paddingBottom: "0px" }}
+              />
+            </Tooltip>
+            {fromLinkedObj && (
+              <Tooltip title={`From linked source ${obj_id}`}>
+                <Chip
+                  label={obj_id}
+                  size="small"
+                  variant="outlined"
+                  component="a"
+                  href={`/source/${obj_id}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  clickable
+                  style={{ marginLeft: "0.4em", height: "18px" }}
                 />
               </Tooltip>
-              {fromLinkedObj && (
-                <Tooltip title={`From linked source ${obj_id}`}>
-                  <Chip
-                    label={obj_id}
-                    size="small"
-                    variant="outlined"
-                    component="a"
-                    href={`/source/${obj_id}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    clickable
-                    style={{ marginLeft: "0.4em", height: "18px" }}
-                  />
-                </Tooltip>
-              )}
-            </div>
-            <div
-              className={styles.wrap}
-              data-testid={`classificationDiv_${id}`}
-            >
-              <div className={styles.classificationMessage}>
-                <div
-                  style={{
-                    display: "flex",
-                    flexDirection: "row",
-                    alignItems: "center",
-                  }}
-                >
-                  {origin && classifications_classes?.["origin"] ? (
-                    <span
-                      style={{
-                        fontWeight: "bold",
-                        fontSize: "120%",
-                        color:
-                          classifications_classes["origin"][origin] ||
-                          defaultColor(ml),
-                        marginRight: "0.1em",
-                      }}
-                    >
-                      {ml ? (
-                        <Tooltip title="classification from an ML classifier">
-                          <span>
-                            {probability < 0.1
-                              ? `ML: ${classification}?`
-                              : `ML: ${classification}`}
-                          </span>
-                        </Tooltip>
-                      ) : (
+            )}
+          </div>
+          <div className={styles.wrap} data-testid={`classificationDiv_${id}`}>
+            <div className={styles.classificationMessage}>
+              <div
+                style={{
+                  display: "flex",
+                  flexDirection: "row",
+                  alignItems: "center",
+                }}
+              >
+                {origin && classifications_classes?.["origin"] ? (
+                  <span
+                    style={{
+                      fontWeight: "bold",
+                      fontSize: "120%",
+                      color:
+                        classifications_classes["origin"][origin] ||
+                        defaultColor(ml),
+                      marginRight: "0.1em",
+                    }}
+                  >
+                    {ml ? (
+                      <Tooltip title="classification from an ML classifier">
                         <span>
                           {probability < 0.1
-                            ? `${classification}?`
-                            : `${classification}`}
+                            ? `ML: ${classification}?`
+                            : `ML: ${classification}`}
                         </span>
-                      )}
-                    </span>
-                  ) : (
-                    <span
-                      style={{
-                        fontWeight: "bold",
-                        fontSize: "120%",
-                        marginRight: "0.1em",
-                        color: defaultColor(ml),
-                      }}
-                    >
-                      {ml ? (
-                        <Tooltip title="classification from an ML classifier">
-                          <span>
-                            {probability < 0.1
-                              ? `ML: ${classification}?`
-                              : `ML: ${classification}`}
-                          </span>
-                        </Tooltip>
-                      ) : (
+                      </Tooltip>
+                    ) : (
+                      <span>
+                        {probability < 0.1
+                          ? `${classification}?`
+                          : `${classification}`}
+                      </span>
+                    )}
+                  </span>
+                ) : (
+                  <span
+                    style={{
+                      fontWeight: "bold",
+                      fontSize: "120%",
+                      marginRight: "0.1em",
+                      color: defaultColor(ml),
+                    }}
+                  >
+                    {ml ? (
+                      <Tooltip title="classification from an ML classifier">
                         <span>
                           {probability < 0.1
-                            ? `${classification}?`
-                            : `${classification}`}
+                            ? `ML: ${classification}?`
+                            : `ML: ${classification}`}
                         </span>
-                      )}
-                    </span>
-                  )}
-                  {origin ? (
-                    <span>{`(P=${probability}, origin=${origin})`}</span>
-                  ) : (
-                    <span>{`(P=${probability})`}</span>
-                  )}
-                  {edits?.length > 0 && (
-                    <Tooltip
-                      title={
-                        <div>
-                          {edits.map((edit: any) => (
-                            <div key={`edit_${edit.id}`}>
-                              {`${edit.editor_name}: ${
-                                edit.old_probability ?? "none"
-                              } → ${edit.new_probability ?? "none"}, ${dayjs().to(
-                                dayjs.utc(`${edit.created_at}Z`),
-                              )}`}
-                            </div>
-                          ))}
-                        </div>
-                      }
-                    >
-                      <HistoryIcon
-                        fontSize="small"
-                        style={{ marginLeft: "0.2em", color: "gray" }}
-                      />
-                    </Tooltip>
-                  )}
-                </div>
-                <div>
-                  <i>{taxname}</i>
-                </div>
+                      </Tooltip>
+                    ) : (
+                      <span>
+                        {probability < 0.1
+                          ? `${classification}?`
+                          : `${classification}`}
+                      </span>
+                    )}
+                  </span>
+                )}
+                {origin ? (
+                  <span>{`(P=${probability}, origin=${origin})`}</span>
+                ) : (
+                  <span>{`(P=${probability})`}</span>
+                )}
+                {edits?.length > 0 && (
+                  <Tooltip
+                    title={
+                      <div>
+                        {edits.map((edit: any) => (
+                          <div key={`edit_${edit.id}`}>
+                            {`${edit.editor_name}: ${
+                              edit.old_probability ?? "none"
+                            } → ${edit.new_probability ?? "none"}, ${dayjs().to(
+                              dayjs.utc(`${edit.created_at}Z`),
+                            )}`}
+                          </div>
+                        ))}
+                      </div>
+                    }
+                  >
+                    <HistoryIcon
+                      fontSize="small"
+                      style={{ marginLeft: "0.2em", color: "gray" }}
+                    />
+                  </Tooltip>
+                )}
               </div>
               <div>
-                <Button
-                  size="small"
-                  type="button"
-                  name={`deleteClassificationButton${id}`}
-                  onClick={() => openDialog(id)}
-                  disabled={!permission}
-                  className={styles.classificationDelete}
-                >
-                  <DeleteIcon />
-                </Button>
-                <ConfirmDeletionDialog
-                  deleteFunction={deleteClassification}
-                  dialogOpen={dialogOpen}
-                  closeDialog={closeDialog}
-                  resourceName="classification"
-                />
+                <i>{taxname}</i>
               </div>
             </div>
-          </ListItem>
-          <Divider style={{ height: "1px" }} />
-        </React.Fragment>
-      );
-    },
+            <div>
+              <Button
+                size="small"
+                type="button"
+                name={`deleteClassificationButton${id}`}
+                onClick={() => openDialog(id)}
+                disabled={!permission}
+                className={styles.classificationDelete}
+              >
+                <DeleteIcon />
+              </Button>
+              <ConfirmDeletionDialog
+                deleteFunction={deleteClassification}
+                dialogOpen={dialogOpen}
+                closeDialog={closeDialog}
+                resourceName="classification"
+              />
+            </div>
+          </div>
+        </ListItem>
+        <Divider style={{ height: "1px" }} />
+      </React.Fragment>
+    );
+  };
+
+  // One block per classifier: group by origin (humans first, ML origins after),
+  // so each classifier's labels render as their own set.
+  const originColors = classifications_classes?.["origin"] || {};
+  const grouped: Record<string, any[]> = {};
+  sorted_classifications.forEach((c: any) => {
+    const key = c.origin || (c.ml ? "ML" : "Human");
+    (grouped[key] = grouped[key] || []).push(c);
+  });
+  const groupNames = Object.keys(grouped).sort((a, b) =>
+    a === "Human" ? -1 : b === "Human" ? 1 : a.localeCompare(b),
   );
+  const items = groupNames.map((name) => (
+    <React.Fragment key={`origin_${name}`}>
+      <ListItem style={{ padding: "2px 8px", backgroundColor: "#f5f5f5" }}>
+        <span
+          style={{
+            fontWeight: "bold",
+            color: originColors[name] || defaultColor(name !== "Human"),
+          }}
+        >
+          {name === "Human" ? "Human classifications" : name}
+        </span>
+      </ListItem>
+      {(grouped[name] ?? []).map((c: any) => renderClassification(c))}
+    </React.Fragment>
+  ));
 
   return (
     <div style={{ display: classifications.length > 0 ? "block" : "none" }}>

@@ -120,6 +120,7 @@ def test_mcp_tools_list(view_only_token):
         "list_analysis_services",
         "get_analyses",
         "get_analysis",
+        "get_classifications",
         "run_analysis",
         "get_comments",
         "post_comment",
@@ -412,6 +413,8 @@ def test_mcp_tool_request_mapping():
 
     calls, _ = run_tool("get_comments", {"obj_id": "X"})
     assert calls == [("GET", "/api/sources/X/comments", None, None)]
+    calls, _ = run_tool("get_classifications", {"obj_id": "X"})
+    assert calls == [("GET", "/api/sources/X/classifications", None, None)]
     calls, _ = run_tool("post_comment", {"obj_id": "X", "text": "triage"})
     assert calls == [("POST", "/api/sources/X/comments", None, {"text": "triage"})]
 

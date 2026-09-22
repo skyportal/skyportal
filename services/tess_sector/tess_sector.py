@@ -22,7 +22,7 @@ from skyportal.utils.tess import (
     current_sector,
     missing_field_data,
 )
-from skyportal.utils.tess_ingest import annotate_object
+from skyportal.utils.tess_ingest import annotate_object, needs_annotation
 
 env, cfg = load_env()
 log = make_log("tess_sector")
@@ -90,45 +90,9 @@ def load_fields(session, instrument):
     return len(field_data["ID"])
 
 
-def stale_obj_ids(now):
-    """Objects whose stored annotation disagrees with the sector observing now.
-
-    `sectors` only grows, but which one is current changes every few weeks, so an
-    annotation goes stale where the object did not.
-    """
-    stored = Annotation.data["in_current_sector"].astext.cast(sa.Boolean)
-    if now is None:
-        # Between sectors nothing is in one, so any stored true is stale.
-        stale = stored.is_(True)
-    else:
-        in_now = Annotation.data["sectors"].contains(sa.func.to_jsonb(sa.literal(now)))
-        stale = stored.is_distinct_from(in_now)
-    return (
-        sa.select(Annotation.obj_id)
-        .where(Annotation.origin == ANNOTATION_ORIGIN, stale)
-        .scalar_subquery()
-    )
-
-
 def annotate_batch(session, instrument):
     """Annotate candidates with no TESS annotation, and refresh stale ones."""
-    annotated = (
-        sa.select(Annotation.obj_id)
-        .where(Annotation.origin == ANNOTATION_ORIGIN)
-        .scalar_subquery()
-    )
-    objs = session.scalars(
-        sa.select(Obj)
-        .where(
-            Obj.id.in_(sa.select(Candidate.obj_id)),
-            Obj.healpix.isnot(None),
-            sa.or_(
-                Obj.id.notin_(annotated),
-                Obj.id.in_(stale_obj_ids(current_sector())),
-            ),
-        )
-        .limit(batch_size)
-    ).all()
+    objs = session.scalars(needs_annotation(current_sector(), batch_size)).all()
     for obj in objs:
         annotate_object(session, obj, instrument.id, bot_user_id, group_ids)
     session.commit()
