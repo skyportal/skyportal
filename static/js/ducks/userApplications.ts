@@ -40,6 +40,7 @@ export interface UserApplicationsResult {
 
 export interface EndorsementPayload {
   status: "endorsed" | "declined";
+  streamIDs?: number[] | undefined;
   groupIDs?: number[] | undefined;
   role?: ("Full user" | "View only") | undefined;
   declineReason?: string | undefined;

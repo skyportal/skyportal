@@ -68,5 +68,17 @@ def summarize(prompt, context, timeout=60, settings=None):
         log(f"summarization failed: {e}")
         return None
 
-    text = (response.choices[0].message.content or "").strip()
+    choice = response.choices[0]
+    # A reasoning model spends the same budget on its reasoning, so a small
+    # max_tokens can be gone before the answer starts and leave a stub that
+    # reads like a summary. Refuse it rather than store half a sentence.
+    if choice.finish_reason == "length":
+        log(
+            "summarization hit max_tokens before finishing; raise "
+            "analysis_services.openai_analysis_service.summary.max_tokens "
+            f"(currently {settings.get('max_tokens', 350)})"
+        )
+        return None
+
+    text = (choice.message.content or "").strip()
     return text or None

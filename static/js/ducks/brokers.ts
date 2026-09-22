@@ -59,6 +59,7 @@ export interface BrokerFilter {
   stream_id: number;
   broker_id: number | null;
   altdata?: Record<string, unknown>;
+  group_admin?: boolean;
 }
 
 export interface FilterCatalogQuery {

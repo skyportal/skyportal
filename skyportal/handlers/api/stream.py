@@ -1,7 +1,11 @@
-from typing import Any
-
 import sqlalchemy as sa
-from pydantic import BaseModel, ConfigDict, Field
+from skyportal_py_models.streams import (
+    StreamPatchBody,
+    StreamPostBody,
+    StreamPostResponse,
+    StreamUserPostBody,
+    StreamUserPostResponse,
+)
 
 from baselayer.app import models as baselayer_models
 from baselayer.app.access import auth_or_token, permissions
@@ -11,63 +15,6 @@ from ...models import (
     StreamUser,
 )
 from ..base import BaseHandler
-
-
-class StreamPostBody(BaseModel):
-    """Request body for creating a stream."""
-
-    model_config = ConfigDict(extra="forbid")
-
-    name: str = Field(description="Stream name.")
-    altdata: dict[str, Any] | None = Field(
-        default=None,
-        description="Misc. metadata stored in JSON format, e.g. "
-        "`{'collection': 'ZTF_alerts', selector: [1, 2]}`",
-    )
-    auto_join: bool = Field(
-        default=False,
-        description="Boolean indicating whether any user may add themselves "
-        "to this stream. Auto-join streams are visible to all users.",
-    )
-
-
-class StreamPostResponse(BaseModel):
-    """Data payload returned when creating a stream."""
-
-    id: int = Field(description="New stream ID")
-
-
-class StreamPatchBody(BaseModel):
-    """Request body for updating a stream."""
-
-    model_config = ConfigDict(extra="forbid")
-
-    name: str = Field(description="Stream name.")
-    altdata: dict[str, Any] | None = Field(
-        default=None,
-        description="Misc. metadata stored in JSON format, e.g. "
-        "`{'collection': 'ZTF_alerts', selector: [1, 2]}`",
-    )
-    auto_join: bool | None = Field(
-        default=None,
-        description="Boolean indicating whether any user may add themselves "
-        "to this stream. Auto-join streams are visible to all users.",
-    )
-
-
-class StreamUserPostBody(BaseModel):
-    """Request body for granting stream access to a user."""
-
-    model_config = ConfigDict(extra="forbid")
-
-    user_id: int = Field(description="ID of the user to be granted stream access")
-
-
-class StreamUserPostResponse(BaseModel):
-    """Data payload returned when granting stream access to a user."""
-
-    stream_id: int = Field(description="Stream ID")
-    user_id: int = Field(description="User ID")
 
 
 class StreamHandler(BaseHandler):

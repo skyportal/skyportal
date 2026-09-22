@@ -2,7 +2,7 @@ import uuid
 
 import sqlalchemy as sa
 
-from skyportal.models import DBSession, User, UserNotification
+from skyportal.models import DBSession, Invitation, User, UserNotification
 from skyportal.tests import api
 
 
@@ -267,3 +267,75 @@ def test_an_endorser_who_cannot_decide_is_not_the_one_notified(
     assert all(
         "Manage users" in session.get(User, user_id).permissions for user_id in notified
     )
+
+
+def pending_application_id(token, email):
+    status, data = api(
+        "GET",
+        "user_applications",
+        params={"status": "pending", "numPerPage": 100},
+        token=token,
+    )
+    assert status == 200
+    return find(data["data"]["applications"], email)["id"]
+
+
+def test_chosen_streams_reach_the_invitation(
+    endorse_users_token, public_group, public_stream, public_streamuser
+):
+    email = f"{uuid.uuid4().hex}@example.org"
+    assert submit(email=email)[0] == 200
+    application_id = pending_application_id(endorse_users_token, email)
+
+    status, data = api(
+        "PATCH",
+        f"user_applications/{application_id}",
+        data={
+            "status": "endorsed",
+            "streamIDs": [public_stream.id],
+            "groupIDs": [public_group.id],
+        },
+        token=endorse_users_token,
+    )
+    assert status == 200, data
+
+    invitation = DBSession().scalar(
+        sa.select(Invitation).where(Invitation.id == data["data"]["invitation_id"])
+    )
+    assert [stream.id for stream in invitation.streams] == [public_stream.id]
+
+
+def test_a_group_whose_stream_is_not_granted_is_refused(
+    endorse_users_token, public_group, public_streamuser
+):
+    # public_group reads public_stream; endorsing into it while granting no
+    # streams would leave the applicant in a group whose data they cannot read.
+    email = f"{uuid.uuid4().hex}@example.org"
+    assert submit(email=email)[0] == 200
+    application_id = pending_application_id(endorse_users_token, email)
+
+    status, data = api(
+        "PATCH",
+        f"user_applications/{application_id}",
+        data={"status": "endorsed", "streamIDs": [], "groupIDs": [public_group.id]},
+        token=endorse_users_token,
+    )
+    assert status == 400
+    assert "does not grant" in data["message"]
+
+
+def test_endorser_cannot_grant_a_stream_they_do_not_have(
+    endorse_users_token, public_stream2
+):
+    email = f"{uuid.uuid4().hex}@example.org"
+    assert submit(email=email)[0] == 200
+    application_id = pending_application_id(endorse_users_token, email)
+
+    status, data = api(
+        "PATCH",
+        f"user_applications/{application_id}",
+        data={"status": "endorsed", "streamIDs": [public_stream2.id]},
+        token=endorse_users_token,
+    )
+    assert status == 400
+    assert "streams you have yourself" in data["message"]

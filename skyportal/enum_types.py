@@ -95,7 +95,13 @@ LISTENER_CLASSES = LISTENERS
 LISTENER_CLASSNAMES = [c.__name__ for c in LISTENERS]
 
 
-ANALYSIS_TYPES = ("lightcurve_fitting", "spectrum_fitting", "meta_analysis")
+ANALYSIS_TYPES = (
+    "lightcurve_fitting",
+    "spectrum_fitting",
+    "meta_analysis",
+    "gw_search",
+    "period_finding",
+)
 ANALYSIS_INPUT_TYPES = (
     "photometry",
     "spectra",

@@ -118,12 +118,11 @@ pittgoogle = [
 brokers-all = ["skyportal[pittgoogle]"]
 
 # M4OPT as an alternative observation-plan scheduler to gwemopt. Optional
-# because it needs a MILP solver; the `scip` extra pulls the one that needs no
-# license. A git dependency until the SCIP backend lands upstream.
+# because it needs a MILP solver. M4OPT 3.0.0 declares its CPLEX Python
+# bindings directly; local deployments may still provide a different solver
+# environment through the configured executable and solver setting.
 m4opt = [
-    # Pinned to a commit: the fork's main is a deployment snapshot that gets
-    # re-cut as the upstream PRs land, so the branch name moves under you.
-    "m4opt[scip] @ git+https://github.com/skyportal/m4opt@d02e893",
+    "m4opt==3.0.0",
 ]
 
 [dependency-groups]

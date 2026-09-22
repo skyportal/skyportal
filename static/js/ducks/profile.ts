@@ -32,7 +32,6 @@ export interface Profile {
   acls: string[];
   roles: any[];
   preferences: Record<string, any>;
-  groups: any[];
   tokens?: any[];
   groupAdmissionRequests?: any[];
   is_anonymous?: boolean;

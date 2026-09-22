@@ -24,6 +24,7 @@ import {
   useDeleteAnalysisMutation,
   useUpdateAnalysisMutation,
 } from "../../ducks/source";
+import { useGetGroupsQuery } from "../../ducks/groups";
 import { useGetProfileQuery } from "../../ducks/profile";
 
 import Dialog from "@mui/material/Dialog";
@@ -101,7 +102,7 @@ const AnalysisList = ({
   const [deleteAnalysisMutation] = useDeleteAnalysisMutation();
   const [updateAnalysisMutation] = useUpdateAnalysisMutation();
   const profile = useGetProfileQuery().data;
-  const myGroups = profile?.groups ?? [];
+  const myGroups = useGetGroupsQuery().data?.user ?? [];
   const singleUserGroup = myGroups.find((g: any) => g.single_user_group);
   const shareableGroups = myGroups.filter((g: any) => !g.single_user_group);
   const [shareTarget, setShareTarget] = useState<any>(null);

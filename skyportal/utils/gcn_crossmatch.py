@@ -102,6 +102,10 @@ DEFAULTS = {
     # leaves the history unconstrained.
     "max_days_to_first_detection": None,
     "max_detection_span_days": None,
+    # Epochs required before an alert is a counterpart worth showing. Forced
+    # photometry can supply them, so this is not ndethist alone. None leaves the
+    # count to the broker-side filter.
+    "min_detections": None,
     # One-shot search of the window before the event, to spot positions that
     # were already active and so cannot be counterparts.
     "archival": True,
@@ -607,13 +611,16 @@ async def process_event_filter(
             conf(config, "max_days_to_first_detection"),
             conf(config, "max_detection_span_days"),
         )
+        # Last: it reads the joined alert history, which the earlier stages
+        # have already shrunk.
+        detections = detection_count_stages(event_jd, conf(config, "min_detections"))
         result = broker.broker_class.test_filter(
             broker,
             session,
             pipeline=(
-                [cone_match_stage(ra0, dec0, radius), *history, *cuts]
+                [cone_match_stage(ra0, dec0, radius), *history, *cuts, *detections]
                 if cone is not None
-                else [*history, *cuts]
+                else [*history, *cuts, *detections]
             ),
             # BOOM prepends the region match itself, so the cuts reach it
             # unchanged and a skymap event runs the same versioned filter a
@@ -1254,6 +1261,79 @@ def history_window_stages(event_jd, max_days_to_first, max_span_days):
             }
         )
     return stages
+
+
+# The signal-to-noise at which a forced-photometry epoch counts as a
+# detection. BOOM applies its own threshold before it sets ``isdiffpos`` at all,
+# so this is presently redundant -- it is stated to pin the meaning of "a
+# detection" here rather than inherit whatever the broker currently uses.
+FORCED_PHOT_SNR = 3.0
+
+
+def detection_count_stages(event_jd, min_detections):
+    """Require enough epochs that could belong to a counterpart.
+
+    An object with a single alert detection can still be one when forced
+    photometry supplies the rest, so those epochs count -- but only from the
+    trigger onwards. A forced detection before the burst says the position was
+    already active, which argues against a counterpart rather than for one, and
+    counting it would let pre-existing variability satisfy the requirement.
+
+    ``ndethist`` needs no such guard: ``max_days_to_first_detection`` already
+    places the first alert detection after the trigger.
+    """
+    if not min_detections:
+        return []
+    return [
+        {
+            "$match": {
+                "$expr": {
+                    "$or": [
+                        {"$gte": ["$candidate.ndethist", int(min_detections)]},
+                        {
+                            "$gte": [
+                                {
+                                    "$size": {
+                                        "$filter": {
+                                            "input": {"$ifNull": ["$fp_hists", []]},
+                                            "cond": {
+                                                "$and": [
+                                                    {
+                                                        "$eq": [
+                                                            "$$this.isdiffpos",
+                                                            True,
+                                                        ]
+                                                    },
+                                                    {
+                                                        "$gte": [
+                                                            {
+                                                                "$ifNull": [
+                                                                    "$$this.snr_psf",
+                                                                    0,
+                                                                ]
+                                                            },
+                                                            FORCED_PHOT_SNR,
+                                                        ]
+                                                    },
+                                                    {
+                                                        "$gte": [
+                                                            "$$this.jd",
+                                                            float(event_jd),
+                                                        ]
+                                                    },
+                                                ]
+                                            },
+                                        }
+                                    }
+                                },
+                                int(min_detections),
+                            ]
+                        },
+                    ]
+                }
+            }
+        }
+    ]
 
 
 def cone_match_stage(ra, dec, radius_deg):

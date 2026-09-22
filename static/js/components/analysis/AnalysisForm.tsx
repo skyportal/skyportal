@@ -68,6 +68,16 @@ const useStyles = makeStyles()(() => ({
   },
 }));
 
+// Section headers for the analysis dropdown, keyed by AnalysisService.analysis_type.
+// Unmapped types fall back to the raw value so a new type is still grouped.
+const ANALYSIS_TYPE_LABELS: Record<string, string> = {
+  lightcurve_fitting: "Light-Curve Fitting",
+  spectrum_fitting: "Spectral Classification",
+  period_finding: "Period Finding",
+  gw_search: "Gravitational-Wave Searches",
+  meta_analysis: "Meta / Summarization",
+};
+
 interface AnalysisFormProps {
   obj_id: string;
   analysisResourceType?: string;
@@ -509,7 +519,11 @@ const AnalysisForm = ({
           getOptionLabel={(option: any) =>
             option?.display_name || option?.name || ""
           }
-          groupBy={(option: any) => option?.analysis_type || "other"}
+          groupBy={(option: any) =>
+            ANALYSIS_TYPE_LABELS[option?.analysis_type] ||
+            option?.analysis_type ||
+            "Other"
+          }
           getOptionDisabled={(option: any) => !serviceHasRequiredInputs(option)}
           isOptionEqualToValue={(option: any, value: any) =>
             option?.id === value?.id

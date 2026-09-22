@@ -1,6 +1,5 @@
 import io
 import json
-from typing import Any, ClassVar, Literal
 
 import astropy
 import matplotlib
@@ -10,7 +9,15 @@ import sqlalchemy as sa
 from astroplan.moon import moon_phase_angle
 from astropy.utils.masked import MaskedNDArray
 from marshmallow.exceptions import ValidationError
-from pydantic import BaseModel, ConfigDict, Field
+from skyportal_py_models.allocations import (
+    AllocationGetQuery,
+    AllocationObservationPlanGetQuery,
+    AllocationPostBody,
+    AllocationPostResponse,
+    AllocationPutBody,
+    AllocationReportGetQuery,
+)
+from skyportal_py_models.followup_requests import MAX_FOLLOWUP_REQUESTS
 from sqlalchemy import func
 from sqlalchemy.orm import selectinload
 
@@ -29,95 +36,6 @@ from ...models import (
 )
 from ...utils.parse import get_page_and_n_per_page
 from ..base import BaseHandler
-from .followup_request import MAX_FOLLOWUP_REQUESTS
-
-MAX_OBSERVATION_PLANS = 1000
-
-
-class AllocationObservationPlanGetQuery(BaseModel):
-    """Query parameters for listing an allocation's observation plans."""
-
-    model_config = ConfigDict(extra="forbid")
-
-    numPerPage: int = Field(
-        default=50,
-        le=MAX_OBSERVATION_PLANS,
-        description=(
-            "Number of observation plans to return per paginated request. "
-            f"Defaults to 50. Can be no larger than {MAX_OBSERVATION_PLANS}."
-        ),
-    )
-    pageNumber: int = Field(
-        default=1,
-        description="Page number for paginated query results. Defaults to 1.",
-    )
-    sortBy: Literal["created_at", "modified", "status", "gcnevent_id"] = Field(
-        default="created_at",
-        description="The field to sort by. Defaults to created_at.",
-    )
-    sortOrder: Literal["asc", "desc"] = Field(
-        default="asc",
-        description="The sort order, either asc or desc. Defaults to asc.",
-    )
-
-
-class AllocationPostBody(BaseModel):
-    """Request body for creating an allocation."""
-
-    model_config = ConfigDict(extra="forbid")
-
-    group_id: int | None = Field(
-        default=None,
-        description="The ID of the Group the allocation is associated with.",
-    )
-    instrument_id: int | None = Field(
-        default=None,
-        description="The ID of the Instrument the allocation is associated with.",
-    )
-    pi: str | None = Field(
-        default=None, description="The PI of the allocation's proposal."
-    )
-    proposal_id: str | None = Field(
-        default=None,
-        description="The ID of the proposal associated with this allocation.",
-    )
-    hours_allocated: float | None = Field(
-        default=None, description="The number of hours allocated."
-    )
-    validity_ranges: list | None = Field(
-        default=None,
-        description="A list of validity ranges for the allocation, each with a "
-        "start_date and end_date in UTC.",
-    )
-    types: list[str] | None = Field(
-        default=None, description="The type(s) of allocation."
-    )
-    default_share_group_ids: list[int] | None = Field(
-        default=None, description="List of default group IDs to share data with."
-    )
-    allocation_admin_ids: list[int] | None = Field(
-        default=None, description="List of user IDs to set as allocation admins."
-    )
-    altdata: dict[str, Any] | str | None = Field(
-        default=None,
-        alias="_altdata",
-        description="Additional metadata for the allocation (e.g., API credentials).",
-    )
-
-
-class AllocationPutBody(AllocationPostBody):
-    """Request body for updating an allocation."""
-
-    replace_altdata: bool | None = Field(
-        default=None,
-        description="Whether to replace existing altdata rather than merge into it.",
-    )
-
-
-class AllocationPostResponse(BaseModel):
-    """Data payload returned when creating an allocation."""
-
-    id: int = Field(description="New allocation ID")
 
 
 class AllocationObservationPlanHandler(BaseHandler):
@@ -221,71 +139,6 @@ class AllocationObservationPlanHandler(BaseHandler):
             }
 
             return self.success(data=data)
-
-
-class AllocationGetQuery(BaseModel):
-    """Query parameters for retrieving allocations."""
-
-    model_config = ConfigDict(extra="forbid")
-
-    single_fields: ClassVar[frozenset[str]] = frozenset(
-        {"pageNumber", "numPerPage", "sortBy", "sortOrder"}
-    )
-
-    numPerPage: int = Field(
-        default=50,
-        description=(
-            "Number of followup requests to return per paginated request, when "
-            "retrieving a single allocation. Defaults to 50. Can be no larger "
-            f"than {MAX_FOLLOWUP_REQUESTS}."
-        ),
-    )
-    pageNumber: int = Field(
-        default=1,
-        description="Page number for paginated query results. Defaults to 1.",
-    )
-    sortBy: Literal["created_at", "modified", "status", "obj"] = Field(
-        default="created_at",
-        description="The field to sort followup requests by. Defaults to created_at.",
-    )
-    sortOrder: Literal["asc", "desc"] = Field(
-        default="asc",
-        description="The sort order, either asc or desc. Defaults to asc.",
-    )
-    instrument_id: int | None = Field(
-        default=None,
-        description="Instrument ID to retrieve allocations for.",
-    )
-    apiType: Literal["api_classname", "api_classname_obsplan"] | None = Field(
-        default=None,
-        description="Restrict to allocations on instruments with this API class defined.",
-    )
-    apiImplements: (
-        Literal[
-            "update",
-            "delete",
-            "get",
-            "submit",
-            "send",
-            "remove",
-            "retrieve",
-            "queued",
-            "remove_queue",
-            "prepare_payload",
-            "send_skymap",
-            "queued_skymap",
-            "remove_skymap",
-            "retrieve_log",
-            "update_status",
-        ]
-        | None
-    ) = Field(
-        default=None,
-        description=(
-            "Restrict to allocations whose instrument API implements this "
-            "method. Requires apiType."
-        ),
-    )
 
 
 class AllocationHandler(BaseHandler):
@@ -740,17 +593,6 @@ class AllocationHandler(BaseHandler):
             await session.commit()
             self.push_all(action="skyportal/REFRESH_ALLOCATIONS")
             return self.success()
-
-
-class AllocationReportGetQuery(BaseModel):
-    """Query parameters for the allocation report."""
-
-    model_config = ConfigDict(extra="forbid")
-
-    output_format: Literal["pdf", "png"] = Field(
-        default="pdf",
-        description="Output format for analysis. Can be png or pdf.",
-    )
 
 
 class AllocationReportHandler(BaseHandler):

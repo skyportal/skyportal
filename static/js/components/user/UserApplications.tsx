@@ -25,9 +25,9 @@ import Button from "../Button";
 import ConfirmDeletionDialog from "../ConfirmDeletionDialog";
 import StyledDataGrid, { DataGridToolbar } from "../StyledDataGrid";
 import { capitalize, userLabel } from "../../utils/format";
-import { Group } from "../../types/domain";
 import { useGetConfigQuery } from "../../ducks/config";
-import { useGetProfileQuery } from "../../ducks/profile";
+import { useGetGroupsQuery } from "../../ducks/groups";
+import { useGetStreamsQuery } from "../../ducks/streams";
 import {
   UserApplication,
   useDecideUserApplicationMutation,
@@ -139,6 +139,8 @@ const COLUMNS_BY_STATUS = {
 
 const ACTIONS_WIDTH = { pending: 230, endorsed: 60, declined: 150 };
 
+const groupStreams = (group: any): any[] => group?.streams ?? [];
+
 const DecisionDialog = ({
   application,
   decision,
@@ -150,9 +152,11 @@ const DecisionDialog = ({
 }) => {
   const dispatch = useAppDispatch();
   const [decide] = useDecideUserApplicationMutation();
-  const myGroups: Group[] = (useGetProfileQuery().data?.groups ?? []).filter(
-    (group: Group) => !group.single_user_group,
+  const myStreams = useGetStreamsQuery().data ?? [];
+  const myGroups = (useGetGroupsQuery().data?.user ?? []).filter(
+    (group: any) => !group.single_user_group,
   );
+  const [streamIDs, setStreamIDs] = useState<number[]>([]);
   const [groupIDs, setGroupIDs] = useState<number[]>([]);
   const [role, setRole] = useState<(typeof ROLES)[number]>("Full user");
   const [reason, setReason] = useState("");
@@ -160,11 +164,29 @@ const DecisionDialog = ({
   const endorsing = decision === "endorsed";
   const action = endorsing ? "Endorse" : "Decline";
 
+  // A group is only usable with the streams that feed its filters, so it can
+  // be offered once the applicant is being given all of them.
+  const availableGroups = myGroups.filter((group: any) =>
+    groupStreams(group).every((stream: any) => streamIDs.includes(stream.id)),
+  );
+
+  const chooseStreams = (selected: number[]) => {
+    setStreamIDs(selected);
+    // Narrowing the streams can strand a group that was already picked.
+    setGroupIDs((picked) =>
+      picked.filter((id) =>
+        groupStreams(myGroups.find((group: any) => group.id === id)).every(
+          (stream: any) => selected.includes(stream.id),
+        ),
+      ),
+    );
+  };
+
   const submit = async () => {
     const result = await decide({
       applicationID: application.id,
       payload: endorsing
-        ? { status: decision, groupIDs, role }
+        ? { status: decision, streamIDs, groupIDs, role }
         : { status: decision, declineReason: reason || undefined },
     });
     if ("error" in result) return;
@@ -227,6 +249,37 @@ const DecisionDialog = ({
                 </Select>
               </FormControl>
               <FormControl fullWidth>
+                <InputLabel id="endorseStreamsLabel">Streams</InputLabel>
+                <Select
+                  multiple
+                  labelId="endorseStreamsLabel"
+                  label="Streams"
+                  value={streamIDs}
+                  onChange={(event) =>
+                    chooseStreams(event.target.value as number[])
+                  }
+                  renderValue={(selected) => (
+                    <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.5 }}>
+                      {myStreams
+                        .filter((stream: any) => selected.includes(stream.id))
+                        .map((stream: any) => (
+                          <Chip
+                            key={stream.id}
+                            size="small"
+                            label={stream.name}
+                          />
+                        ))}
+                    </Box>
+                  )}
+                >
+                  {myStreams.map((stream: any) => (
+                    <MenuItem key={stream.id} value={stream.id}>
+                      {stream.name}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+              <FormControl fullWidth>
                 <InputLabel id="endorseGroupsLabel">Groups</InputLabel>
                 <Select
                   multiple
@@ -239,8 +292,8 @@ const DecisionDialog = ({
                   renderValue={(selected) => (
                     <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.5 }}>
                       {myGroups
-                        .filter((group) => selected.includes(group.id))
-                        .map((group) => (
+                        .filter((group: any) => selected.includes(group.id))
+                        .map((group: any) => (
                           <Chip
                             key={group.id}
                             size="small"
@@ -250,7 +303,7 @@ const DecisionDialog = ({
                     </Box>
                   )}
                 >
-                  {myGroups.map((group) => (
+                  {availableGroups.map((group: any) => (
                     <MenuItem key={group.id} value={group.id}>
                       {group.name}
                     </MenuItem>
@@ -258,7 +311,7 @@ const DecisionDialog = ({
                 </Select>
               </FormControl>
               <DialogContentText variant="body2">
-                {`An invitation will be emailed to ${application.contact_email}. You can only add them to groups you belong to.`}
+                {`An invitation will be emailed to ${application.contact_email}. You can only grant streams you have yourself, and groups you belong to that those streams cover.`}
               </DialogContentText>
             </>
           ) : (

@@ -234,6 +234,13 @@ def clear_service_tokens():
         log(f"cleared {cleared} token(s) left by a previous run")
 
 
+def misconfigured(exc):
+    """Whether the endpoint refused the credentials, the model or the URL, which
+    asking again will not fix."""
+    response = getattr(exc, "response", None)
+    return response is not None and response.status_code in (401, 403, 404)
+
+
 def already_answered(session, message):
     """Whether a reply to this message has already been written."""
     return (
@@ -307,7 +314,11 @@ def respond(message_id):
             text = answer(conversation, context_type, context_id, profile, token_id)
         except Exception as exc:
             log(f"assistant failed on message {message_id}: {exc}")
-            text = "Something went wrong while looking that up."
+            text = (
+                "The assistant is not set up correctly; tell an administrator."
+                if misconfigured(exc)
+                else "Something went wrong while looking that up."
+            )
 
         with DBSession() as session:
             session.execute(sa.delete(Token).where(Token.id == token_id))

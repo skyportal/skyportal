@@ -446,15 +446,6 @@ const GcnEventPage = ({ route }: GcnEventPageProps) => {
               )}
             </Paper>
           </div>
-          <div className={styles.columnItem}>
-            <Paper>
-              <Typography className={styles.sectionHeading}>
-                Analyses
-              </Typography>
-              <AnalysisForm obj_id={dateobs} analysisResourceType="gcn_event" />
-              <AnalysisList obj_id={dateobs} analysisResourceType="gcn_event" />
-            </Paper>
-          </div>
         </Grid>
       </Grid>
       <React.Fragment key="right">
@@ -481,6 +472,19 @@ const GcnEventPage = ({ route }: GcnEventPageProps) => {
                 <Reminders
                   resourceId={gcnEvent.id.toString()}
                   resourceType="gcn_event"
+                />
+              </Grid>
+              <Grid size={12}>
+                <Typography className={styles.sectionHeading}>
+                  Analyses
+                </Typography>
+                <AnalysisForm
+                  obj_id={dateobs}
+                  analysisResourceType="gcn_event"
+                />
+                <AnalysisList
+                  obj_id={dateobs}
+                  analysisResourceType="gcn_event"
                 />
               </Grid>
               <PropertiesSection title="Light curve" size={{ sm: 12, lg: 6 }}>

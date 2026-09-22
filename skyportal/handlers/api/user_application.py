@@ -170,6 +170,12 @@ class UserApplicationPatchBody(BaseModel):
     status: Literal["endorsed", "declined"] = Field(
         description="One of either 'endorsed' or 'declined'."
     )
+    streamIDs: list[int] | None = Field(
+        default=None,
+        description="IDs of streams to grant the applicant. The endorser must "
+        "have each of them, and they must cover every stream the chosen groups "
+        "read. Omitted, the groups' own streams are granted.",
+    )
     groupIDs: list[int] | None = Field(
         default=None,
         description="IDs of groups to add the applicant to. The endorser must "
@@ -445,14 +451,45 @@ class UserApplicationHandler(BaseHandler):
                         f"not a member of group(s): {missing}"
                     )
 
-                # Onboarding requires every group's streams to be on the
-                # invitation, so they come from the groups rather than the caller.
+            # A group is unusable without the streams feeding its filters, so
+            # the two are checked against each other rather than one being
+            # quietly trimmed to fit the other.
+            group_stream_ids = set()
+            if group_ids:
                 result = await session.scalars(
-                    Stream.select(self.current_user)
-                    .join(GroupStream)
-                    .where(GroupStream.group_id.in_(group_ids))
+                    sa.select(GroupStream.stream_id).where(
+                        GroupStream.group_id.in_(group_ids)
+                    )
+                )
+                group_stream_ids = set(result.all())
+
+            if body.streamIDs is None:
+                # No explicit choice: grant whatever of the groups' streams the
+                # endorser can pass on. Kept lenient for callers written before
+                # streams were chosen in their own right.
+                stream_ids = group_stream_ids
+            else:
+                stream_ids = set(body.streamIDs)
+                uncovered = group_stream_ids.difference(stream_ids)
+                if uncovered:
+                    return self.error(
+                        "The chosen groups read stream(s) the invitation does "
+                        f"not grant: {sorted(uncovered)}"
+                    )
+
+            if stream_ids:
+                # Endorsers grant their own streams only, for the same reason
+                # they vouch into their own groups only.
+                result = await session.scalars(
+                    Stream.select(self.current_user).where(Stream.id.in_(stream_ids))
                 )
                 streams = result.unique().all()
+                missing = stream_ids.difference({s.id for s in streams})
+                if missing and body.streamIDs is not None:
+                    return self.error(
+                        "You may only grant streams you have yourself; "
+                        f"no access to stream(s): {sorted(missing)}"
+                    )
 
             role = await session.scalar(
                 Role.select(self.current_user).where(Role.id == body.role)

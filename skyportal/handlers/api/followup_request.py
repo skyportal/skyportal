@@ -10,7 +10,6 @@ import time
 import traceback
 import uuid
 from datetime import timedelta
-from typing import Any, ClassVar, Literal
 
 import arrow
 import conesearch_alchemy as ca
@@ -35,8 +34,27 @@ from astropy import units as u
 from astropy.coordinates import EarthLocation, SkyCoord
 from astropy.time import Time, TimeDelta
 from marshmallow.exceptions import ValidationError
-from pydantic import BaseModel, ConfigDict, Field
 from scipy.stats import norm
+from skyportal_py_models.followup_requests import (
+    MAX_FOLLOWUP_REQUESTS,
+    AssignmentPostBody,
+    AssignmentPostResponse,
+    AssignmentPutBody,
+    DefaultFollowupRequestPatchBody,
+    DefaultFollowupRequestPostBody,
+    DefaultFollowupRequestPostResponse,
+    FollowupRequestCommentPutBody,
+    FollowupRequestCommentPutResponse,
+    FollowupRequestDeleteBody,
+    FollowupRequestGetQuery,
+    FollowupRequestPostBody,
+    FollowupRequestPostResponse,
+    FollowupRequestPrioritizationPutBody,
+    FollowupRequestPutBody,
+    FollowupRequestSchedulerGetQuery,
+    FollowupRequestWatcherDeleteBody,
+    FollowupRequestWatcherPostBody,
+)
 from sqlalchemy import func
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.exc import IntegrityError
@@ -75,8 +93,6 @@ from ...utils.parse import get_page_and_n_per_page, str_to_bool
 from ..base import BaseHandler, format_doc
 
 log = make_log("api/followup_request")
-
-MAX_FOLLOWUP_REQUESTS = 1000
 
 # Trigger-constraint keys the manual follow-up API accepts; Default Follow-up
 # Requests store and apply the identical logic.
@@ -216,47 +232,6 @@ async def post_assignment(data, session):
         payload={"run_id": assignment.run_id},
     )
     return assignment.id
-
-
-class AssignmentPostBody(BaseModel):
-    """Request body for posting a new observing-run assignment."""
-
-    model_config = ConfigDict(extra="forbid")
-
-    run_id: int = Field(description="ID of the observing run to assign the target to.")
-    obj_id: str = Field(description="The ID of the object to observe.")
-    priority: str = Field(
-        description="Priority of the request, (lowest = 1, highest = 5)."
-    )
-    status: str | None = Field(default=None, description="The status of the request.")
-    comment: str | None = Field(
-        default=None, description="An optional comment describing the request."
-    )
-
-
-class AssignmentPostResponse(BaseModel):
-    """Data payload returned when posting a new assignment."""
-
-    id: int = Field(description="New assignment ID")
-
-
-class AssignmentPutBody(BaseModel):
-    """Request body for updating an observing-run assignment."""
-
-    model_config = ConfigDict(extra="forbid")
-
-    run_id: int | None = Field(default=None, description="ID of the observing run.")
-    obj_id: str | None = Field(
-        default=None, description="The ID of the object to observe."
-    )
-    priority: str | None = Field(
-        default=None,
-        description="Priority of the request, (lowest = 1, highest = 5).",
-    )
-    status: str | None = Field(default=None, description="The status of the request.")
-    comment: str | None = Field(
-        default=None, description="An optional comment describing the request."
-    )
 
 
 class AssignmentHandler(BaseHandler):
@@ -978,6 +953,22 @@ async def _post_default_followup_requests_async(
                 # access below doesn't fire one SELECT per existing request.
                 # Also eager-load allocation->instrument so candidate.instrument
                 # (== allocation.instrument) is greenlet-safe under async.
+                # A facility's queue is per instrument, so a duplicate reaching
+                # it through a second allocation is still a duplicate; two
+                # allocations on one instrument each triggered by their own
+                # autosaving filter is how SEDM was receiving the same target
+                # twice. The lock serializes those saves, which arrive
+                # milliseconds apart in separate tasks and sessions, and without
+                # it both read this table before either has written.
+                instrument_id = await session.scalar(
+                    sa.select(Allocation.instrument_id).where(
+                        Allocation.id == allocation_id
+                    )
+                )
+                await session.execute(
+                    sa.text("select pg_advisory_xact_lock(hashtext(:obj), :instr)"),
+                    {"obj": str(obj_id), "instr": int(instrument_id or 0)},
+                )
                 existing_requests = (
                     await session.scalars(
                         sa.select(FollowupRequest)
@@ -989,7 +980,11 @@ async def _post_default_followup_requests_async(
                         )
                         .where(
                             FollowupRequest.obj_id == obj_id,
-                            FollowupRequest.allocation_id == allocation_id,
+                            FollowupRequest.allocation_id.in_(
+                                sa.select(Allocation.id).where(
+                                    Allocation.instrument_id == instrument_id
+                                )
+                            ),
                             FollowupRequest.status != "deleted",
                         )
                     )
@@ -1007,9 +1002,14 @@ async def _post_default_followup_requests_async(
                     )
 
                 matching = [r for r in existing_requests if _same_request(r)]
+                # Bumping is confined to this allocation: a match on another one
+                # belongs to a different group, and raising its priority would
+                # edit a request this default does not own. Such a match still
+                # suppresses a new submission.
+                bumpable = [r for r in matching if r.allocation_id == allocation_id]
                 # lowest-priority match first (so we bump the weakest existing
                 # request), respecting priority_order
-                matching.sort(
+                bumpable.sort(
                     key=lambda r: get_payload_priority(r.payload)[1] or 0,
                     reverse=(priority_order == "desc"),
                 )
@@ -1023,12 +1023,19 @@ async def _post_default_followup_requests_async(
                     # implements_update flag (mirrors Kowalski): if the flag is
                     # set but the instrument has no update API, the attempt below
                     # raises and is rolled back + logged.
-                    candidate = matching[0]
-                    priority_key = detect_priority_alias(candidate.payload)
+                    candidate = bumpable[0] if bumpable else None
+                    priority_key = (
+                        detect_priority_alias(candidate.payload) if candidate else None
+                    )
                     _, new_priority = get_payload_priority(payload)
-                    _, existing_priority = get_payload_priority(candidate.payload)
+                    _, existing_priority = (
+                        get_payload_priority(candidate.payload)
+                        if candidate
+                        else (None, None)
+                    )
                     if (
-                        "submitted" in str(candidate.status).lower()
+                        candidate is not None
+                        and "submitted" in str(candidate.status).lower()
                         and implements_update
                         and new_priority is not None
                         and existing_priority is not None
@@ -1130,259 +1137,6 @@ def post_default_followup_requests(obj_id, default_followup_request_ids, user_id
         _post_default_followup_requests_async(
             obj_id, default_followup_request_ids, user_id
         )
-    )
-
-
-class FollowupRequestGetQuery(BaseModel):
-    """Query parameters for retrieving followup requests."""
-
-    model_config = ConfigDict(extra="forbid")
-
-    single_fields: ClassVar[frozenset[str]] = frozenset({"includeObjThumbnails"})
-
-    startDate: str | None = Field(
-        default=None,
-        description=(
-            "Arrow-parseable date string (e.g. 2020-01-01). If provided, filter by "
-            "created_at >= startDate"
-        ),
-    )
-    endDate: str | None = Field(
-        default=None,
-        description=(
-            "Arrow-parseable date string (e.g. 2020-01-01). If provided, filter by "
-            "created_at <= endDate"
-        ),
-    )
-    observationStartDate: str | None = Field(
-        default=None,
-        description=(
-            "Arrow-parseable date string (e.g. 2020-01-01). If provided, filter by "
-            "payload.start_date >= observationStartDate"
-        ),
-    )
-    observationEndDate: str | None = Field(
-        default=None,
-        description=(
-            "Arrow-parseable date string (e.g. 2020-01-01). If provided, filter by "
-            "payload.end_date <= observationEndDate"
-        ),
-    )
-    sourceID: str | None = Field(
-        default=None,
-        description="Portion of ID to filter on",
-    )
-    instrumentID: int | None = Field(
-        default=None,
-        description="Instrument ID to filter on",
-    )
-    allocationID: int | None = Field(
-        default=None,
-        description="Allocation ID to filter on",
-    )
-    requesters: list[int] = Field(
-        default_factory=list,
-        description="Comma-separated list of user IDs to filter requests by requester",
-    )
-    priorityThreshold: float | None = Field(
-        default=None,
-        description=(
-            "Threshold on request priority to include. If provided, filter by "
-            "payload.priority >= priorityThreshold"
-        ),
-    )
-    status: str | None = Field(
-        default=None,
-        description="String to match status of request against",
-    )
-    includeObjThumbnails: bool = Field(
-        default=True,
-        description="Boolean indicating whether to include associated thumbnails. Defaults to True.",
-    )
-    sortBy: Literal["created_at", "modified", "status", "obj"] = Field(
-        default="created_at",
-        description="Field to sort by. Defaults to created_at.",
-    )
-    sortOrder: Literal["asc", "desc"] = Field(
-        default="asc",
-        description="Sort order. Defaults to asc.",
-    )
-    pageNumber: int = Field(
-        default=1,
-        description="Page number for paginated query results. Defaults to 1.",
-    )
-    numPerPage: int = Field(
-        default=100,
-        description=(
-            "Number of followup requests to return per paginated request. "
-            f"Defaults to 100. Max {MAX_FOLLOWUP_REQUESTS}."
-        ),
-    )
-
-
-class FollowupRequestPostBody(BaseModel):
-    """Request body for submitting a new follow-up request."""
-
-    model_config = ConfigDict(extra="forbid")
-
-    obj_id: str = Field(description="ID of the target Obj.")
-    payload: dict[str, Any] | None = Field(
-        default=None, description="Content of the followup request."
-    )
-    status: str | None = Field(default=None, description="The status of the request.")
-    allocation_id: int = Field(description="Followup request allocation ID.")
-    target_group_ids: list[int] | None = Field(
-        default=None,
-        description="IDs of groups to share the results of the followup request with.",
-    )
-    not_if_duplicates: bool | None = Field(
-        default=None,
-        description="If true, the followup request will not be executed if the object already has a pending or completed request of the same allocation.",
-    )
-    source_group_ids: list[int] | None = Field(
-        default=None,
-        description="IDs of groups to which there must be a source for the object associated with the followup request.",
-    )
-    not_if_classified: bool | None = Field(
-        default=None,
-        description="If true, the followup request will not be executed if there are any sources within radius with (human-only) classifications.",
-    )
-    not_if_spectra_exist: bool | None = Field(
-        default=None,
-        description="If true, the followup request will not be executed if there are any sources within radius that have spectra.",
-    )
-    not_if_tns_classified: bool | None = Field(
-        default=None,
-        description="If true, the followup request will not be executed if any object within radius is already classified as SN in TNS.",
-    )
-    not_if_tns_reported: float | None = Field(
-        default=None,
-        description="If there are any sources within radius with TNS reports, and the source has been discovered within before this many hours from the current time, the followup request will not be executed.",
-    )
-    not_if_assignment_exists: bool | None = Field(
-        default=None,
-        description="If there are any sources within radius that are assigned to an observing run, the followup request will not be executed.",
-    )
-    ignore_source_group_ids: list[int] | None = Field(
-        default=None,
-        description="If there are any sources within radius saved to any of these groups, the followup request will not be executed.",
-    )
-    radius: float | None = Field(
-        default=None, description="Radius of to use when checking constraints."
-    )
-    ignore_allocation_ids: list[int] | None = Field(
-        default=None,
-        description="If there are any existing requests from the allocations that are pending or completed, the followup request will not be executed.",
-    )
-    refreshSource: bool = Field(
-        default=True,
-        description="Whether to refresh the source page after posting the request.",
-    )
-    refreshRequests: bool = Field(
-        default=False,
-        description="Whether to refresh the follow-up requests list after posting the request.",
-    )
-
-
-class FollowupRequestPostResponse(BaseModel):
-    """Data payload returned when posting a follow-up request."""
-
-    id: int | None = Field(
-        description="New follow-up request ID, null when the request was ignored"
-    )
-    request_status: str | None = Field(
-        default=None, description="Status of the new follow-up request"
-    )
-    ignored: bool | None = Field(
-        default=None,
-        description="True when constraints prevented the request from being sent",
-    )
-    message: str | None = Field(default=None, description="Why the request was ignored")
-
-
-class FollowupRequestPutBody(BaseModel):
-    """Request body for updating a follow-up request.
-
-    Every field is optional: a body containing ``status`` performs a
-    status-only update, otherwise the request is (re)submitted/updated and the
-    marshmallow ``FollowupRequestPost`` schema enforces the required fields.
-    """
-
-    model_config = ConfigDict(extra="forbid")
-
-    obj_id: str | None = Field(default=None, description="ID of the target Obj.")
-    payload: dict[str, Any] | None = Field(
-        default=None, description="Content of the followup request."
-    )
-    status: str | None = Field(default=None, description="The status of the request.")
-    allocation_id: int | None = Field(
-        default=None, description="Followup request allocation ID."
-    )
-    target_group_ids: list[int] | None = Field(
-        default=None,
-        description="IDs of groups to share the results of the followup request with.",
-    )
-    not_if_duplicates: bool | None = Field(
-        default=None,
-        description="If true, the followup request will not be executed if the object already has a pending or completed request of the same allocation.",
-    )
-    source_group_ids: list[int] | None = Field(
-        default=None,
-        description="IDs of groups to which there must be a source for the object associated with the followup request.",
-    )
-    not_if_classified: bool | None = Field(
-        default=None,
-        description="If true, the followup request will not be executed if there are any sources within radius with (human-only) classifications.",
-    )
-    not_if_spectra_exist: bool | None = Field(
-        default=None,
-        description="If true, the followup request will not be executed if there are any sources within radius that have spectra.",
-    )
-    not_if_tns_classified: bool | None = Field(
-        default=None,
-        description="If true, the followup request will not be executed if any object within radius is already classified as SN in TNS.",
-    )
-    not_if_tns_reported: float | None = Field(
-        default=None,
-        description="If there are any sources within radius with TNS reports, and the source has been discovered within before this many hours from the current time, the followup request will not be executed.",
-    )
-    not_if_assignment_exists: bool | None = Field(
-        default=None,
-        description="If there are any sources within radius that are assigned to an observing run, the followup request will not be executed.",
-    )
-    ignore_source_group_ids: list[int] | None = Field(
-        default=None,
-        description="If there are any sources within radius saved to any of these groups, the followup request will not be executed.",
-    )
-    radius: float | None = Field(
-        default=None, description="Radius of to use when checking constraints."
-    )
-    ignore_allocation_ids: list[int] | None = Field(
-        default=None,
-        description="If there are any existing requests from the allocations that are pending or completed, the followup request will not be executed.",
-    )
-    refreshSource: bool = Field(
-        default=True,
-        description="Whether to refresh the source page after updating the request.",
-    )
-    refreshRequests: bool = Field(
-        default=False,
-        description="Whether to refresh the follow-up requests list after updating the request.",
-    )
-
-
-class FollowupRequestDeleteBody(BaseModel):
-    """Request body for deleting a follow-up request."""
-
-    model_config = ConfigDict(extra="forbid")
-
-    refreshSource: bool = Field(
-        default=True,
-        description="Whether to refresh the source page after deleting the request.",
-    )
-    refreshRequests: bool = Field(
-        default=False,
-        description="Whether to refresh the follow-up requests list after deleting the request.",
     )
 
 
@@ -1955,22 +1709,6 @@ class FollowupRequestHandler(BaseHandler):
             return self.success()
 
 
-class FollowupRequestCommentPutBody(BaseModel):
-    """Request body for updating a follow-up request comment."""
-
-    model_config = ConfigDict(extra="forbid")
-
-    comment: str | None = Field(
-        default=None, description="Comment to add to the follow-up request"
-    )
-
-
-class FollowupRequestCommentPutResponse(BaseModel):
-    """Data payload returned when updating a follow-up request comment."""
-
-    id: int = Field(description="ID of the updated follow-up request")
-
-
 class FollowupRequestCommentHandler(BaseHandler):
     @permissions(["Upload data"])
     async def put(
@@ -2431,80 +2169,6 @@ def observation_schedule(
         }
 
 
-class FollowupRequestSchedulerGetQuery(BaseModel):
-    """Query parameters for retrieving a followup requests schedule."""
-
-    model_config = ConfigDict(extra="forbid")
-
-    sourceID: str | None = Field(
-        default=None,
-        description="Portion of ID to filter on",
-    )
-    startDate: str | None = Field(
-        default=None,
-        description=(
-            "Arrow-parseable date string (e.g. 2020-01-01). If provided, filter by "
-            "created_at >= startDate"
-        ),
-    )
-    endDate: str | None = Field(
-        default=None,
-        description=(
-            "Arrow-parseable date string (e.g. 2020-01-01). If provided, filter by "
-            "created_at <= endDate"
-        ),
-    )
-    status: str | None = Field(
-        default=None,
-        description="String to match status of request against",
-    )
-    priorityThreshold: float | None = Field(
-        default=None,
-        description=(
-            "Threshold on request priority to include. If provided, filter by "
-            "payload.priority >= priorityThreshold"
-        ),
-    )
-    timeResolution: float = Field(
-        default=20,
-        description="Time resolution for scheduler creation in seconds. Defaults to 20.",
-    )
-    observationStartDate: str | None = Field(
-        default=None,
-        description=(
-            "Arrow-parseable date string (e.g. 2020-01-01). If provided, start time "
-            "of observation window, otherwise now."
-        ),
-    )
-    observationEndDate: str | None = Field(
-        default=None,
-        description=(
-            "Arrow-parseable date string (e.g. 2020-01-01). If provided, end time "
-            "of observation window, otherwise 12 hours from now."
-        ),
-    )
-    includeStandards: bool = Field(
-        default=False,
-        description="Include standards in schedule. Defaults to False.",
-    )
-    standardsOnly: bool = Field(
-        default=False,
-        description="Only request standards in schedule. Defaults to False.",
-    )
-    standardType: str = Field(
-        default="ESO",
-        description="Origin of the standard stars, defined in config.yaml. Defaults to ESO.",
-    )
-    magnitudeRange: str | None = Field(
-        default=None,
-        description='lowest and highest magnitude to return, e.g. "(12,9)"',
-    )
-    output_format: str = Field(
-        default="csv",
-        description="Output format for schedule. Can be png, pdf, or csv",
-    )
-
-
 class FollowupRequestSchedulerHandler(BaseHandler):
     @auth_or_token
     async def get(
@@ -2688,33 +2352,6 @@ class FollowupRequestSchedulerHandler(BaseHandler):
             data = io.BytesIO(rez["data"])
 
             await self.send_file(data, filename, output_type=output_format)
-
-
-class FollowupRequestPrioritizationPutBody(BaseModel):
-    """Request body for reprioritizing follow-up requests."""
-
-    model_config = ConfigDict(extra="forbid")
-
-    requestIds: list[int] | None = Field(
-        default=None, description="List of follow-up request IDs"
-    )
-    priorityType: str = Field(
-        default="magnitude",
-        description="Priority source. Must be either localization or magnitude. Defaults to magnitude.",
-    )
-    magnitudeOrdering: str = Field(
-        default="ascending",
-        description="Ordering for brightness based prioritization. Must be either ascending (brightest first) or descending (faintest first). Defaults to ascending.",
-    )
-    localizationId: int | None = Field(
-        default=None, description="Filter by localization ID"
-    )
-    minimumPriority: float = Field(
-        default=1, description="Minimum priority for the instrument. Defaults to 1."
-    )
-    maximumPriority: float = Field(
-        default=5, description="Maximum priority for the instrument. Defaults to 5."
-    )
 
 
 class FollowupRequestPrioritizationHandler(BaseHandler):
@@ -2958,96 +2595,6 @@ async def validate_source_filter_regex(session, name):
         )
 
 
-class DefaultFollowupRequestPostBody(BaseModel):
-    """Request body for creating a default follow-up request."""
-
-    model_config = ConfigDict(extra="forbid")
-
-    payload: dict[str, Any] = Field(
-        description="Content of the default follow-up request."
-    )
-    allocation_id: int = Field(description="Follow-up request allocation ID.")
-    target_group_ids: list[int] | None = Field(
-        default=None,
-        description="IDs of groups to share the results of the default follow-up request with.",
-    )
-    default_followup_name: str = Field(
-        description="Unique name of the default follow-up request."
-    )
-    source_filter: dict[str, Any] | str = Field(
-        description="Source filter used to decide which saved sources this default "
-        "follow-up request applies to (keys: name, group_id, origin, classification).",
-    )
-    not_if_duplicates: bool | None = Field(
-        default=None,
-        description="If true, the request will not be submitted if the object already has a pending or completed request of the same allocation.",
-    )
-    source_group_ids: list[int] | None = Field(
-        default=None,
-        description="IDs of groups to which there must be a source for the object for the request to be submitted.",
-    )
-    ignore_source_group_ids: list[int] | None = Field(
-        default=None,
-        description="If there are any sources within radius saved to any of these groups, the request will not be submitted.",
-    )
-    not_if_classified: bool | None = Field(
-        default=None,
-        description="If true, the request will not be submitted if there are any sources within radius with (human-only) classifications.",
-    )
-    not_if_spectra_exist: bool | None = Field(
-        default=None,
-        description="If true, the request will not be submitted if there are any sources within radius that have spectra.",
-    )
-    not_if_tns_classified: bool | None = Field(
-        default=None,
-        description="If true, the request will not be submitted if any object within radius is already classified as SN in TNS.",
-    )
-    not_if_tns_reported: float | None = Field(
-        default=None,
-        description="If there are any sources within radius with TNS reports discovered more than this many hours ago, the request will not be submitted.",
-    )
-    not_if_assignment_exists: bool | None = Field(
-        default=None,
-        description="If there are any sources within radius that are assigned to an observing run, the request will not be submitted.",
-    )
-    ignore_allocation_ids: list[int] | None = Field(
-        default=None,
-        description="If there are any existing pending or completed requests from these allocations within radius, the request will not be submitted.",
-    )
-    radius: float | None = Field(
-        default=None,
-        description="Radius (arcsec) to use when checking constraints.",
-    )
-    priority_order: str | None = Field(
-        default=None,
-        description="Whether higher priority values mean higher ('asc', default) or "
-        "lower ('desc') observing priority. Controls whether an incoming "
-        "auto-trigger bumps an existing request's priority.",
-    )
-    validity_days: int | None = Field(
-        default=None,
-        description="Number of days an auto-submitted request stays valid (end_date = "
-        "start_date + validity_days). Defaults to 7. Ignored for "
-        "urgency-based instruments.",
-    )
-    comment: str | None = Field(
-        default=None,
-        description="Optional comment posted to the source when a follow-up request is "
-        "auto-submitted from this default request.",
-    )
-    implements_update: bool | None = Field(
-        default=None,
-        description="Operator override: if false, never priority-bump an existing "
-        "matching request even if the instrument supports updates. Defaults to true.",
-    )
-
-
-class DefaultFollowupRequestPostResponse(BaseModel):
-    """Data payload returned when creating a default follow-up request."""
-
-    id: int = Field(description="New default follow-up request ID")
-
-
 class DefaultFollowupRequestHandler(BaseHandler):
     @auth_or_token
     async def post(
@@ -3196,6 +2743,192 @@ class DefaultFollowupRequestHandler(BaseHandler):
             return self.success(data={"id": default_followup_request.id})
 
     @auth_or_token
+    async def patch(
+        self,
+        default_followup_request_id: int,
+        *,
+        body: DefaultFollowupRequestPatchBody = None,
+    ):
+        """
+        ---
+        summary: Update a default follow-up request
+        description: Update a default follow-up request in place, leaving the
+          fields that were not supplied untouched.
+        tags:
+          - default followup requests
+        responses:
+          200:
+            content:
+              application/json:
+                schema: Success
+          400:
+            content:
+              application/json:
+                schema: Error
+        """
+        body = self.parse_body(DefaultFollowupRequestPatchBody)
+        data = body.model_dump(exclude_unset=True)
+        if not data:
+            return self.error("Nothing to update.")
+
+        async with self.AsyncSession() as session:
+            default_followup_request = await session.scalar(
+                DefaultFollowupRequest.select(
+                    session.user_or_token,
+                    mode="update",
+                    options=[
+                        selectinload(DefaultFollowupRequest.allocation).joinedload(
+                            Allocation.instrument
+                        ),
+                        selectinload(DefaultFollowupRequest.target_groups),
+                    ],
+                ).where(DefaultFollowupRequest.id == int(default_followup_request_id))
+            )
+            if default_followup_request is None:
+                return self.error(
+                    f"Cannot find DefaultFollowupRequest with ID "
+                    f"{default_followup_request_id}"
+                )
+
+            if "default_followup_name" in data:
+                existing = await session.scalar(
+                    DefaultFollowupRequest.select(session.user_or_token).where(
+                        DefaultFollowupRequest.default_followup_name
+                        == data["default_followup_name"],
+                        DefaultFollowupRequest.id != default_followup_request.id,
+                    )
+                )
+                if existing is not None:
+                    return self.error(
+                        f"A default follow-up request called "
+                        f"{data['default_followup_name']} already exists. That "
+                        f"name must be unique."
+                    )
+                default_followup_request.default_followup_name = data[
+                    "default_followup_name"
+                ]
+
+            # The payload is validated against whichever allocation ends up in
+            # effect, so a change of allocation is applied before it.
+            allocation = default_followup_request.allocation
+            if "allocation_id" in data:
+                allocation = await session.scalar(
+                    Allocation.select(session.user_or_token)
+                    .where(Allocation.id == data["allocation_id"])
+                    .options(joinedload(Allocation.instrument))
+                )
+                if allocation is None:
+                    return self.error(
+                        f"Cannot access allocation with ID: {data['allocation_id']}",
+                        status=403,
+                    )
+                default_followup_request.allocation_id = allocation.id
+
+            if "payload" in data:
+                instrument = allocation.instrument
+                if instrument.api_classname is None:
+                    return self.error("Instrument has no remote API.", status=403)
+                try:
+                    form_schema = instrument.api_class.custom_json_schema(
+                        instrument, session.user_or_token
+                    )
+                except AttributeError:
+                    form_schema = instrument.api_class.form_json_schema
+
+                payload = dict(data["payload"])
+                if "start_date" in payload:
+                    return self.error("Cannot have start_date in the payload")
+                if "end_date" in payload:
+                    return self.error("Cannot have end_date in the payload")
+                if str(detect_priority_alias(payload)).lower() != "urgency":
+                    payload["start_date"] = str(utcnow_naive())
+                    payload["end_date"] = str(utcnow_naive() + timedelta(days=1))
+                try:
+                    jsonschema.validate(payload, form_schema)
+                except jsonschema.exceptions.ValidationError as e:
+                    return self.error(f"Payload failed to validate: {e}", status=403)
+                default_followup_request.payload = payload
+
+            if "source_filter" in data:
+                source_filter = data["source_filter"]
+                if not isinstance(source_filter, dict):
+                    try:
+                        source_filter = load_source_filter(source_filter)
+                    except Exception as e:
+                        return self.error(
+                            f"Incorrect format for source_filter. Must be a valid "
+                            f"json string: {e}"
+                        )
+                try:
+                    await validate_source_filter_regex(
+                        session, source_filter.get("name")
+                    )
+                except ValueError as e:
+                    return self.error(str(e))
+                default_followup_request.source_filter = source_filter
+
+            provided_constraints = {
+                key: data[key] for key in FOLLOWUP_CONSTRAINT_KEYS if key in data
+            }
+            if provided_constraints or "radius" in data:
+                constraints = {
+                    **(default_followup_request.constraints or {}),
+                    **provided_constraints,
+                }
+                if "radius" in data:
+                    try:
+                        constraints["radius"] = float(data["radius"])
+                    except (TypeError, ValueError):
+                        return self.error(
+                            "Invalid specified radius for spatial constraints."
+                        )
+                constraints.setdefault("radius", 0.5)
+                default_followup_request.constraints = constraints
+
+            if "priority_order" in data:
+                if data["priority_order"] not in ("asc", "desc"):
+                    return self.error("priority_order must be one of: asc, desc.")
+                default_followup_request.priority_order = data["priority_order"]
+
+            if "validity_days" in data:
+                try:
+                    default_followup_request.validity_days = (
+                        None
+                        if data["validity_days"] is None
+                        else int(data["validity_days"])
+                    )
+                except (TypeError, ValueError):
+                    return self.error("validity_days must be an integer.")
+
+            if "comment" in data:
+                default_followup_request.comment = data["comment"]
+
+            if "implements_update" in data:
+                default_followup_request.implements_update = data["implements_update"]
+
+            if "target_group_ids" in data:
+                target_groups = (
+                    await session.scalars(
+                        Group.select(session.user_or_token).where(
+                            Group.id.in_(data["target_group_ids"] or [])
+                        )
+                    )
+                ).all()
+                default_followup_request.target_groups = target_groups
+
+            try:
+                await session.commit()
+            except IntegrityError:
+                await session.rollback()
+                return self.error(
+                    "A default follow-up request with that name already exists. "
+                    "That name must be unique."
+                )
+
+            self.push_all(action="skyportal/REFRESH_DEFAULT_FOLLOWUP_REQUESTS")
+            return self.success()
+
+    @auth_or_token
     async def get(self, default_followup_request_id: int | None = None):
         """
         ---
@@ -3294,36 +3027,6 @@ class DefaultFollowupRequestHandler(BaseHandler):
             await session.commit()
             self.push_all(action="skyportal/REFRESH_DEFAULT_FOLLOWUP_REQUESTS")
             return self.success()
-
-
-class FollowupRequestWatcherPostBody(BaseModel):
-    """Request body for adding a follow-up request to the watch list."""
-
-    model_config = ConfigDict(extra="forbid")
-
-    refreshSource: bool = Field(
-        default=True,
-        description="Whether to refresh the source page after watching the request.",
-    )
-    refreshRequests: bool = Field(
-        default=False,
-        description="Whether to refresh the follow-up requests list after watching the request.",
-    )
-
-
-class FollowupRequestWatcherDeleteBody(BaseModel):
-    """Request body for removing a follow-up request from the watch list."""
-
-    model_config = ConfigDict(extra="forbid")
-
-    refreshSource: bool = Field(
-        default=True,
-        description="Whether to refresh the source page after unwatching the request.",
-    )
-    refreshRequests: bool = Field(
-        default=False,
-        description="Whether to refresh the follow-up requests list after unwatching the request.",
-    )
 
 
 class FollowupRequestWatcherHandler(BaseHandler):
