@@ -22,6 +22,8 @@ from skyportal.models import (
     AnnotationOnPhotometry,
     AnnotationOnSpectrum,
     AssistantMessage,
+    AssistantQuery,
+    AssistantQuerySubscription,
     Broker,
     BrokerCredential,
     Candidate,
@@ -5853,6 +5855,54 @@ def public_assistant_message(user):
     row = (
         DBSession()
         .execute(sa.select(AssistantMessage).filter(AssistantMessage.id == message_id))
+        .scalars()
+        .first()
+    )
+    if row is not None:
+        DBSession().delete(row)
+        DBSession().commit()
+
+
+@pytest.fixture()
+def public_assistant_query(user, public_group):
+    query = AssistantQuery(
+        owner_id=user.id,
+        group_id=public_group.id,
+        name="FLARE triage",
+        prompt="Triage this classification.",
+        analysis_service_match="flare",
+    )
+    DBSession.add(query)
+    DBSession.commit()
+    query_id = query.id
+    yield query
+    row = (
+        DBSession()
+        .execute(sa.select(AssistantQuery).filter(AssistantQuery.id == query_id))
+        .scalars()
+        .first()
+    )
+    if row is not None:
+        DBSession().delete(row)
+        DBSession().commit()
+
+
+@pytest.fixture()
+def public_assistant_query_subscription(user, public_assistant_query):
+    subscription = AssistantQuerySubscription(
+        query_id=public_assistant_query.id, user_id=user.id
+    )
+    DBSession.add(subscription)
+    DBSession.commit()
+    subscription_id = subscription.id
+    yield subscription
+    row = (
+        DBSession()
+        .execute(
+            sa.select(AssistantQuerySubscription).filter(
+                AssistantQuerySubscription.id == subscription_id
+            )
+        )
         .scalars()
         .first()
     )
