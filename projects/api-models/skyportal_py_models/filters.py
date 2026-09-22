@@ -51,6 +51,7 @@ class FilterPatch(BaseModel):
     altdata: dict[str, Any] | None = None
     group_id: int | None = None
     stream_id: int | None = None
+    broker_id: int | None = None
     autosave: bool | None = None
 
 
