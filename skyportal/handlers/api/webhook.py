@@ -9,7 +9,7 @@ from baselayer.app.env import load_env
 from baselayer.app.flow import Flow
 from baselayer.log import make_log
 
-from ...models import Annotation, ObjAnalysis
+from ...models import Annotation, Classification, ObjAnalysis, Taxonomy
 from ...utils.embedding_store import delete_embedding, upsert_embedding
 from ...utils.embedding_store_config import summary_embeddings_enabled
 from ...utils.naive_datetime import utcnow_naive
@@ -121,8 +121,12 @@ class AnalysisWebhookHandler(BaseHandler):
             # the source page). Upsert one per origin so a re-run refreshes rather
             # than piling up; default the origin to the service name. Obj-scoped
             # only (annotations attach to an Obj).
+            made_classification = False
             if analysis_resource_type.lower() == "obj":
                 await _upsert_analysis_annotations(session, analysis, results)
+                made_classification = await _upsert_analysis_classifications(
+                    session, analysis, results
+                )
 
             await session.commit()
 
@@ -167,6 +171,12 @@ class AnalysisWebhookHandler(BaseHandler):
                             "skyportal/REFRESH_OBJ_ANALYSES",
                             payload={"obj_key": analysis.obj.internal_key},
                         )
+                        if made_classification:
+                            flow.push(
+                                "*",
+                                "skyportal/REFRESH_SOURCE",
+                                payload={"obj_key": analysis.obj.internal_key},
+                            )
                     elif analysis_resource_type.lower() == "gcn_event":
                         flow.push(
                             "*",
@@ -241,6 +251,88 @@ async def _upsert_analysis_annotations(session, analysis, results):
                     groups=list(analysis.groups),
                 )
             )
+
+
+def _allowed_classes(hierarchy):
+    if "class" in hierarchy:
+        yield hierarchy["class"]
+    for item in hierarchy.get("subclasses", []) or []:
+        yield from _allowed_classes(item)
+
+
+async def _resolve_taxonomy(session, entry):
+    """The taxonomy an ML classification names, by id or (latest) name."""
+    import sqlalchemy as sa
+
+    if entry.get("taxonomy_id") is not None:
+        return await session.scalar(
+            sa.select(Taxonomy).where(Taxonomy.id == entry["taxonomy_id"])
+        )
+    name = entry.get("taxonomy")
+    if not name:
+        return None
+    return await session.scalar(
+        sa.select(Taxonomy)
+        .where(Taxonomy.name == name, Taxonomy.isLatest.is_(True))
+        .order_by(Taxonomy.id.desc())
+    )
+
+
+async def _upsert_analysis_classifications(session, analysis, results):
+    """Create or refresh the ML classifications an analysis service returned.
+
+    Each entry is ``{"taxonomy"|"taxonomy_id", "classification", "probability",
+    "origin"}``; it is written as ``ml=True`` and kept one per (obj, taxonomy,
+    origin) so a re-run refreshes in place. The label must be in the taxonomy, so a
+    service maps its own classes onto one SkyPortal ships. Returns whether any were
+    written, so the caller can refresh the source.
+    """
+    import sqlalchemy as sa
+
+    entries = results.get("classifications") if isinstance(results, dict) else None
+    made = False
+    for entry in entries or []:
+        if not isinstance(entry, dict) or not entry.get("classification"):
+            continue
+        taxonomy = await _resolve_taxonomy(session, entry)
+        if taxonomy is None:
+            log(f"FLARE/ML classification skipped: no taxonomy for {entry}")
+            continue
+        if entry["classification"] not in _allowed_classes(taxonomy.hierarchy):
+            log(
+                f"ML classification {entry['classification']!r} not in taxonomy "
+                f"{taxonomy.name!r}; skipping"
+            )
+            continue
+        origin = entry.get("origin") or analysis.analysis_service.name
+        probability = entry.get("probability")
+        existing = await session.scalar(
+            sa.select(Classification).where(
+                Classification.obj_id == analysis.obj_id,
+                Classification.taxonomy_id == taxonomy.id,
+                Classification.origin == origin,
+            )
+        )
+        if existing is not None:
+            existing.classification = entry["classification"]
+            existing.probability = probability
+            existing.ml = True
+        else:
+            session.add(
+                Classification(
+                    classification=entry["classification"],
+                    obj_id=analysis.obj_id,
+                    origin=origin,
+                    probability=probability,
+                    ml=True,
+                    taxonomy_id=taxonomy.id,
+                    author_id=analysis.author_id,
+                    author_name=analysis.author.username,
+                    groups=list(analysis.groups),
+                )
+            )
+        made = True
+    return made
 
 
 def sa_select_analysis_by_token(token, analysis_resource_type="obj"):
