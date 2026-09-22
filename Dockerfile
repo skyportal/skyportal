@@ -67,6 +67,13 @@ RUN bash -c "\
     mkdir -p /skyportal/cache && \
     chown -R skyportal.skyportal /skyportal/cache && \
     \
+    # The subdirectories below are chowned individually, which leaves the
+    # parent owned by root: anything writing a new file straight into
+    # persistentdata/ cannot, and it is a mounted volume, so the ownership
+    # carries into the deployment.
+    mkdir -p /skyportal/persistentdata && \
+    chown skyportal.skyportal /skyportal/persistentdata && \
+    \
     mkdir -p /skyportal/persistentdata/analysis && \
     chown -R skyportal.skyportal /skyportal/persistentdata/analysis && \
     \
