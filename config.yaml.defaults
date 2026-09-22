@@ -767,6 +767,11 @@ database:
     # Seconds before the pooler force-closes a connection left idle in a
     # transaction; guards the pool against leaked transactions (0 = disabled).
     idle_transaction_timeout: 0
+    # How the pooler connects to Postgres, in pgbouncer's own terms (disable,
+    # allow, prefer, require, verify-ca, verify-full). pgbouncer defaults to
+    # disable before 1.24, and a managed Postgres often refuses an unencrypted
+    # connection, which shows up as "pg_hba.conf rejects ... no encryption".
+    server_tls_sslmode: prefer
 
 server:
   host: localhost
