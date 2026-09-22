@@ -171,6 +171,24 @@ def get_json_tags(payload):
     return tags
 
 
+def get_json_trigger_id(payload):
+    """Instrument trigger id of a GCN JSON notice, when the stream carries one."""
+    if payload.get("instrument") == "WXT":
+        ids = payload.get("id") or []
+        if not isinstance(ids, list | tuple):
+            ids = [ids]
+        if ids:
+            return str(ids[0])
+    return None
+
+
+def get_json_aliases(payload):
+    """Aliases of a GCN JSON notice, using the INSTRUMENT#ID convention that
+    get_notice_aliases applies to VOEvent notices."""
+    trigger_id = get_json_trigger_id(payload)
+    return [f"EP#{trigger_id}"] if trigger_id else []
+
+
 def from_igwn_gwalert(payload):
     """Normalize a raw IGWN/LVK gwalert JSON alert (GCN Kafka topic
     `igwn.gwalert`) into the canonical GCN JSON-notice shape consumed by

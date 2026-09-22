@@ -136,6 +136,7 @@ from ...utils.gcn import (
     get_contour,
     get_dateobs,
     get_designation_date,
+    get_json_aliases,
     get_json_tags,
     get_notice_aliases,
     get_properties,
@@ -953,7 +954,7 @@ async def post_gcnevent_from_json(
             GcnEvent.select(user).where(GcnEvent.dateobs == dateobs)
         )
 
-    aliases = payload.get("aliases") or []
+    aliases = payload.get("aliases") or get_json_aliases(payload)
     if event is None:
         if dateobs is None:
             raise ValueError(
