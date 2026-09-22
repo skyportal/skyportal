@@ -120,6 +120,7 @@ def test_mcp_tools_list(view_only_token):
         "list_analysis_services",
         "get_analyses",
         "get_analysis",
+        "get_classifications",
         "run_analysis",
         "get_comments",
         "post_comment",
