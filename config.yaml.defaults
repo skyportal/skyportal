@@ -823,7 +823,8 @@ server:
   #
   # You need to have Google+ API enabled; it takes a few minutes to activate.
   auth:
-    debug_login: True
+    # If true, the app will not require a login to access any page. Local development only.
+    debug_login: False
     google_oauth2_key:
     google_oauth2_secret:
     google_oauth2_timeout: 15
@@ -832,6 +833,8 @@ services:
   disabled: # UNCOMMENT to disable a service
     - dask
     # - facility_queue
+    # - gcn_service
+    # - hermes_skyportal_sync
     # - jpl_sbident_queue
     # - ngsf_analysis_service
     # - observation_plan_queue
@@ -844,6 +847,7 @@ services:
     # - sn_analysis_service
     # - spectral_cube_analysis_service
     # - thumbnail_queue
+    # - tns_retrieval_queue
 
 # Alert brokers (BOOM, Fink, Lasair, ...) are configured at runtime as
 # `Broker` database records (name + provider class + encrypted credentials), not

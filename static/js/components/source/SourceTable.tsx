@@ -9,13 +9,13 @@ import React, {
   useState,
   useMemo,
   useCallback,
+  useRef,
 } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Controller, useForm } from "react-hook-form";
 
 import IconButton from "@mui/material/IconButton";
 import FormControlLabel from "@mui/material/FormControlLabel";
-import Grid from "@mui/material/Grid";
 import AddIcon from "@mui/icons-material/Add";
 import Chip from "@mui/material/Chip";
 import DeleteIcon from "@mui/icons-material/Delete";
@@ -30,8 +30,11 @@ import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
 import KeyboardArrowRightIcon from "@mui/icons-material/KeyboardArrowRight";
 import Select from "@mui/material/Select";
 import MenuItem from "@mui/material/MenuItem";
+import Divider from "@mui/material/Divider";
 import TextField from "@mui/material/TextField";
 import Box from "@mui/material/Box";
+import InputAdornment from "@mui/material/InputAdornment";
+import Popover from "@mui/material/Popover";
 import { makeStyles } from "tss-react/mui";
 import Checkbox from "@mui/material/Checkbox";
 import CheckIcon from "@mui/icons-material/Check";
@@ -39,35 +42,20 @@ import ClearIcon from "@mui/icons-material/Clear";
 import InfoIcon from "@mui/icons-material/Info";
 import QuestionMarkIcon from "@mui/icons-material/QuestionMark";
 import PriorityHigh from "@mui/icons-material/PriorityHigh";
+import PlaylistAddIcon from "@mui/icons-material/PlaylistAdd";
+import SearchIcon from "@mui/icons-material/Search";
 import CircularProgress from "@mui/material/CircularProgress";
-import Divider from "@mui/material/Divider";
-import ListItem from "@mui/material/ListItem";
-import ListItemText from "@mui/material/ListItemText";
-import ExpandLess from "@mui/icons-material/ExpandLess";
-import ExpandMore from "@mui/icons-material/ExpandMore";
-import Collapse from "@mui/material/Collapse";
-import List from "@mui/material/List";
 import Tooltip from "@mui/material/Tooltip";
-import Typography from "@mui/material/Typography";
 import SearchableSelect from "../SearchableSelect";
-import { isMobileOnly } from "react-device-detect";
 import { showNotification } from "baselayer/components/Notifications";
-import { useAppDispatch, useAppSelector } from "../../types/hooks";
+import { useAppDispatch } from "../../types/hooks";
 import Button from "../Button";
 import StyledDataGridBase, { DataGridToolbar } from "../StyledDataGrid";
 import DisplayPhotStats from "./DisplayPhotStats";
 
 import { dec_to_dms, mjd_to_utc, ra_to_hours } from "../../units";
-import ThumbnailList from "../thumbnail/ThumbnailList";
 import ShowClassification from "../classification/ShowClassification";
-import ShowSummaries from "../summary/ShowSummaries";
-import ShowSummaryHistory from "../summary/ShowSummaryHistory";
-import SourceTableFilterForm from "./SourceTableFilterForm";
-import StartBotSummary from "../StartBotSummary";
-import VegaPhotometry from "../plot/VegaPhotometry";
 import FavoritesButton from "../listing/FavoritesButton";
-import MultipleClassificationsForm from "../classification/MultipleClassificationsForm";
-import UpdateSourceSummary from "./UpdateSourceSummary";
 import {
   useDeleteClassificationsMutation,
   useAddClassificationVoteMutation,
@@ -81,7 +69,6 @@ import {
   useLazyFetchSavedGroupSourcesQuery,
   useGetAltdataInfoQuery,
 } from "../../ducks/sources";
-import { photometryApi } from "../../ducks/photometry";
 import { useGetSourcesInGcnQuery } from "../../ducks/sourcesingcn";
 import { useGetGcnEventQuery } from "../../ducks/gcnEvent";
 import { useGetTagOptionsQuery } from "../../ducks/objectTags";
@@ -89,6 +76,7 @@ import { useGetTaxonomiesQuery } from "../../ducks/taxonomies";
 import { useGetAnnotationsInfoQuery } from "../../ducks/candidate/candidates";
 import { getContrastColor } from "../ObjectTags";
 import { filterOutEmptyValues } from "../../API";
+import useDebounced from "../../hooks/useDebounced";
 import { getAnnotationValueString } from "../candidate/ScanningPageCandidateAnnotations";
 import {
   altdataKeyForField,
@@ -100,10 +88,14 @@ import {
 } from "./sourceTableColumns";
 import ConfirmSourceInGCN from "./ConfirmSourceInGCN";
 import ConfirmDeletionDialog from "../ConfirmDeletionDialog";
-import NewSource from "./NewSource";
 
-const VegaSpectrum = React.lazy(() => import("../plot/VegaSpectrum"));
-const VegaHR = React.lazy(() => import("../plot/VegaHR"));
+// Loaded on demand: each pulls in bundles (rjsf, plots) the list never needs
+// until a row is expanded or a dialog is opened.
+const SourceDetailPanel = React.lazy(() => import("./SourceDetailPanel"));
+const SourceTableFilterForm = React.lazy(
+  () => import("./SourceTableFilterForm"),
+);
+const NewSource = React.lazy(() => import("./NewSource"));
 
 // StyledDataGrid is a .jsx component whose propTypes make `sx` look required to
 // tsc; cast to any so call sites don't need to pass it.
@@ -139,9 +131,6 @@ const SERVER_SORT_FIELD: Record<string, string> = {
 };
 
 const useStyles = makeStyles()((theme) => ({
-  tableGrid: {
-    width: "100%",
-  },
   objId: {
     color:
       theme.palette.mode === "dark"
@@ -154,21 +143,6 @@ const useStyles = makeStyles()((theme) => ({
     alignItems: "center",
     fontSize: "1rem",
   },
-  annotations: {
-    overflowWrap: "break-word",
-  },
-  root: {
-    width: "100%",
-    background: theme.palette.background.paper,
-    padding: theme.spacing(1),
-    maxHeight: "15rem",
-    overflowY: "scroll",
-  },
-  nested: {
-    paddingLeft: theme.spacing(4),
-    paddingTop: 0,
-    paddingBottom: 0,
-  },
   classificationDelete: {
     cursor: "pointer",
     fontSize: "2em",
@@ -179,9 +153,6 @@ const useStyles = makeStyles()((theme) => ({
   },
   classificationDeleteDisabled: {
     opacity: 0,
-  },
-  widgetIcon: {
-    display: "none",
   },
   groupChips: {
     display: "flex",
@@ -428,189 +399,149 @@ const RenderShowLabelling = React.memo(({ source }: { source: any }) => {
 });
 RenderShowLabelling.displayName = "RenderShowLabelling";
 
-// The pull-out detail panel previously rendered by mui-datatables'
-// renderExpandableRow. Extracted into a memoized component that subscribes to
-// photometry itself, so incoming photometry (e.g. at Argus alert rates) updates
-// only the expanded panels and never forces the parent grid's columns to rebuild.
-const SourceDetailPanel = React.memo(
-  ({
-    source,
-    groupID,
-    taxonomyList = [],
-  }: {
-    source: any;
-    groupID?: number | undefined;
-    taxonomyList?: any[] | undefined;
-  }) => {
-    const { classes } = useStyles();
-    // Read any already-cached full photometry for this source without triggering
-    // a fetch (the folded plot only renders when photometry is already loaded,
-    // e.g. on the Source page).
-    const photometry = useAppSelector(
-      (state) =>
-        photometryApi.endpoints.fetchSourcePhotometry.select({
-          id: source.id,
-        })(state as any).data,
-    );
-    const [openedOrigins, setOpenedOrigins] = useState<Record<string, any>>({});
+// Module scope on purpose: a toolbar built inside the table is a new component
+// type on every keystroke, which remounts the search input and drops focus.
+const SourceTableToolbar = ({
+  title,
+  searchBy,
+  searchText,
+  onSearchByChange,
+  onSearchTextChange,
+  onOpenFilter,
+  onNewSource,
+  onDownload,
+  columnPickerOptions,
+  onAddColumn,
+}: any) => {
+  const [columnAnchor, setColumnAnchor] = useState<HTMLElement | null>(null);
 
-    const annotations = source.annotations || [];
-
-    const handleClick = (origin: any) => {
-      setOpenedOrigins((prev) => ({ ...prev, [origin]: !prev[origin] }));
-    };
-
-    const plotWidth = isMobileOnly ? 200 : 400;
-    const specPlotHeight = isMobileOnly ? 150 : 200;
-    const legendOrient = isMobileOnly ? "bottom" : "right";
-
-    return (
-      <div
-        data-testid={`groupSourceExpand_${source.id}`}
-        style={{ width: "100%" }}
-      >
-        <Grid
-          container
-          direction="row"
-          spacing={3}
-          sx={{
-            justifyContent: "center",
-            alignItems: "center",
-          }}
+  return (
+    <DataGridToolbar title={title} showExport={false} showQuickFilter={false}>
+      {columnPickerOptions.length > 0 && (
+        <>
+          <Tooltip title="Add an annotation or altdata column">
+            <IconButton
+              size="small"
+              aria-label="Add column"
+              data-testid="add-column-button"
+              onClick={(event) => setColumnAnchor(event.currentTarget)}
+            >
+              <PlaylistAddIcon />
+            </IconButton>
+          </Tooltip>
+          <Popover
+            open={Boolean(columnAnchor)}
+            anchorEl={columnAnchor}
+            onClose={() => setColumnAnchor(null)}
+            anchorOrigin={{ vertical: "bottom", horizontal: "left" }}
+          >
+            <Box sx={{ padding: "0.75rem", width: "22rem" }}>
+              <SearchableSelect
+                options={columnPickerOptions}
+                getOptionLabel={(o: any) => o.label}
+                // Nothing until the user types, then capped matches, so a large
+                // registry never floods the dropdown.
+                filterOptions={(opts: any, state: any) =>
+                  filterColumnPickerOptions(opts, state.inputValue)
+                }
+                onChange={(_e: any, value: any) => {
+                  if (!value) return;
+                  onAddColumn(value.field);
+                  setColumnAnchor(null);
+                }}
+                value={null}
+                blurOnSelect
+                clearOnBlur
+                label="Add a column"
+                placeholder="annotation or altdata field…"
+                textFieldProps={{
+                  autoFocus: true,
+                  "data-testid": "add-column-picker",
+                }}
+              />
+            </Box>
+          </Popover>
+        </>
+      )}
+      <Tooltip title="Filter Table">
+        <IconButton
+          size="small"
+          data-testid="Filter Table-iconButton"
+          onClick={onOpenFilter}
         >
-          <ThumbnailList
-            thumbnails={source.thumbnails}
-            ra={source.ra}
-            dec={source.dec}
-            useGrid={false}
-          />
-          <Grid>
-            <VegaPhotometry sourceId={source.id} />
-          </Grid>
-          <Grid>
-            {(photometry?.length ?? 0) > 0 && (
-              <VegaPhotometry
-                sourceId={source.id}
-                annotations={annotations}
-                folded
-              />
-            )}
-          </Grid>
-          <Grid>
-            {source.color_magnitude?.length > 0 && (
-              <div data-testid={`hr_diagram_${source.id}`}>
-                <Suspense fallback={<CircularProgress color="secondary" />}>
-                  <VegaHR
-                    data={source.color_magnitude}
-                    width={200}
-                    height={200}
-                  />
-                </Suspense>
-              </div>
-            )}
-          </Grid>
-          <Grid>
-            <Suspense fallback={<CircularProgress color="secondary" />}>
-              <VegaSpectrum
-                sourceId={source.id}
-                width={plotWidth}
-                height={specPlotHeight}
-                legendOrient={legendOrient}
-                normalization="median"
-              />
-            </Suspense>
-          </Grid>
-          <Grid>
-            <div className={classes.annotations}>
-              {annotations?.length > 0 && (
-                <>
-                  <Typography variant="subtitle2">Annotations:</Typography>
-                  <List
-                    component="nav"
-                    aria-labelledby="nested-list-subheader"
-                    className={classes.root}
-                    dense
-                  >
-                    {annotations.map((annotation: any) => (
-                      <div key={`annotation_${annotation.origin}`}>
-                        <Divider />
-                        <ListItem
-                          onClick={() => handleClick(annotation.origin)}
-                        >
-                          <ListItemText
-                            primary={`${annotation.origin}`}
-                            slotProps={{ primary: { variant: "button" } }}
-                          />
-                          {openedOrigins[annotation.origin] ? (
-                            <ExpandLess />
-                          ) : (
-                            <ExpandMore />
-                          )}
-                        </ListItem>
-                        <Collapse
-                          in={openedOrigins[annotation.origin]}
-                          timeout="auto"
-                          unmountOnExit
-                        >
-                          <List component="div" dense disablePadding>
-                            {Object.entries(annotation.data).map(
-                              ([key, value]) => (
-                                <ListItem
-                                  key={`key_${annotation.origin}_${key}`}
-                                  className={classes.nested}
-                                >
-                                  <ListItemText
-                                    secondary={`${key}: ${getAnnotationValueString(
-                                      value,
-                                    )}`}
-                                  />
-                                </ListItem>
-                              ),
-                            )}
-                          </List>
-                        </Collapse>
-                        <Divider />
-                      </div>
-                    ))}
-                  </List>
-                </>
-              )}
-            </div>
-          </Grid>
-          <Grid size={12}>
-            <MultipleClassificationsForm
-              objId={source.id}
-              taxonomyList={taxonomyList}
-              groupId={groupID}
-              currentClassifications={source.classifications}
-            />
-          </Grid>
-          <Grid size={12}>
-            <ShowSummaries summaries={source.summary_history} />
-            {source.summary_history?.length < 1 ||
-            !source.summary_history ||
-            source.summary_history[0].summary === null ? (
-              <div>
-                <b>Summarize: &nbsp;</b>
-              </div>
-            ) : null}
-            <UpdateSourceSummary source={source} />
-            {source.classifications?.length > 0 ? (
-              <StartBotSummary obj_id={source.id} />
-            ) : null}
-            {source.summary_history?.length > 0 ? (
-              <ShowSummaryHistory
-                summaries={source.summary_history}
-                obj_id={source.id}
-              />
-            ) : null}
-          </Grid>
-        </Grid>
-      </div>
-    );
-  },
-);
-SourceDetailPanel.displayName = "SourceDetailPanel";
+          <FilterListIcon />
+        </IconButton>
+      </Tooltip>
+      {onNewSource && (
+        <Tooltip title="Add a source">
+          <IconButton name="new_source" size="small" onClick={onNewSource}>
+            <AddIcon />
+          </IconButton>
+        </Tooltip>
+      )}
+      {onDownload && (
+        <Tooltip title="Download CSV">
+          <IconButton
+            size="small"
+            aria-label="Download CSV"
+            data-testid="download-sources-button"
+            onClick={onDownload}
+          >
+            <DownloadIcon />
+          </IconButton>
+        </Tooltip>
+      )}
+      <TextField
+        size="small"
+        placeholder="Search"
+        data-testid="tour-source-search"
+        value={searchText}
+        onChange={(event) => onSearchTextChange(event.target.value)}
+        sx={{ width: "20rem" }}
+        slotProps={{
+          input: {
+            startAdornment: (
+              <InputAdornment position="start" sx={{ marginRight: 0 }}>
+                <SearchIcon fontSize="small" sx={{ marginRight: "0.25rem" }} />
+                <Select
+                  variant="standard"
+                  disableUnderline
+                  value={searchBy}
+                  onChange={(event) => onSearchByChange(event.target.value)}
+                  sx={{
+                    fontSize: "0.875rem",
+                    "& .MuiSelect-select": { paddingY: 0 },
+                  }}
+                >
+                  <MenuItem value="name">ID/IAU</MenuItem>
+                  <MenuItem value="comment">Comment</MenuItem>
+                </Select>
+                <Divider
+                  orientation="vertical"
+                  flexItem
+                  sx={{ marginX: "0.5rem", marginY: "0.25rem" }}
+                />
+              </InputAdornment>
+            ),
+            endAdornment: searchText ? (
+              <InputAdornment position="end">
+                <IconButton
+                  size="small"
+                  aria-label="Clear search"
+                  onClick={() => onSearchTextChange("")}
+                >
+                  <ClearIcon fontSize="small" />
+                </IconButton>
+              </InputAdornment>
+            ) : null,
+          },
+        }}
+      />
+    </DataGridToolbar>
+  );
+};
+
+const TOOLBAR_SLOT = { toolbar: SourceTableToolbar };
 
 interface SourceTableProps {
   sources: any[];
@@ -627,6 +558,7 @@ interface SourceTableProps {
   sourceInGcnFilter?: any;
   gcnEventDateobs?: string | null;
   fixedHeader?: boolean;
+  isLoading?: boolean;
 }
 
 // Data grid with pull-out rows containing a summary of each source.
@@ -646,11 +578,11 @@ const SourceTable = ({
   sourceInGcnFilter = EMPTY_OBJECT,
   gcnEventDateobs = null,
   fixedHeader = false,
+  isLoading = false,
 }: SourceTableProps) => {
   // sourceStatus should be one of either "saved" (default) or "requested" to add a button to agree to save the source.
   // If groupID is not given, show all data available to user's accessible groups
 
-  const dispatch = useAppDispatch();
   const [acceptSaveRequest] = useAcceptSaveRequestMutation();
   const [declineSaveRequest] = useDeclineSaveRequestMutation();
   const [fetchPendingGroupSourcesTrigger] =
@@ -814,6 +746,26 @@ const SourceTable = ({
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchBy]);
+
+  // Query on the settled text, so a name costs one request, not one per letter.
+  const debouncedSearchText = useDebounced(searchText, 400);
+  const appliedSearchText = useRef("");
+  useEffect(() => {
+    if (debouncedSearchText === appliedSearchText.current) return;
+    appliedSearchText.current = debouncedSearchText;
+    const data: any = { ...filterFormData };
+    if (searchBy === "name") {
+      data.sourceID = debouncedSearchText;
+      delete data.commentsFilter;
+    } else {
+      data.commentsFilter = debouncedSearchText;
+      delete data.sourceID;
+    }
+    setLoading(true);
+    paginateCallback(1, rowsPerPage, {}, data);
+    setFilterFormData(data);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [debouncedSearchText]);
 
   const currentSortOrder = useCallback(
     () =>
@@ -1299,11 +1251,13 @@ const SourceTable = ({
         renderCell: (params: any) => {
           if (params.row.__detail) {
             return (
-              <SourceDetailPanel
-                source={params.row.__source}
-                groupID={groupID}
-                taxonomyList={taxonomyList}
-              />
+              <Suspense fallback={<CircularProgress color="secondary" />}>
+                <SourceDetailPanel
+                  source={params.row.__source}
+                  groupID={groupID}
+                  taxonomyList={taxonomyList}
+                />
+              </Suspense>
             );
           }
           const expanded = openedRows.includes(params.row.id);
@@ -1647,24 +1601,6 @@ const SourceTable = ({
     [pageNumber, rowsPerPage],
   );
 
-  const handleSearchChange = (text: any) => {
-    const data: any = {
-      ...filterFormData,
-    };
-    if (searchBy === "name") {
-      data.sourceID = text;
-      delete data.commentsFilter;
-    } else if (searchBy === "comment") {
-      data.commentsFilter = text;
-      delete data.sourceID;
-    } else {
-      dispatch(showNotification("Invalid searchBy parameter", "error"));
-    }
-    setLoading(true);
-    paginateCallback(1, rowsPerPage, {}, data);
-    setFilterFormData(data);
-  };
-
   const handleFilterSubmit = async (formData: any) => {
     setLoading(true);
     // Remove empty position
@@ -1844,157 +1780,74 @@ const SourceTable = ({
   const showDownload =
     downloadCallback !== null && downloadCallback !== undefined;
 
-  const CustomToolbar = useMemo(
-    () =>
-      function SourceTableToolbar() {
-        return (
-          <DataGridToolbar showExport={false} showQuickFilter={false}>
-            <Tooltip title="Filter Table">
-              <IconButton
-                size="small"
-                data-testid="Filter Table-iconButton"
-                onClick={() => {
-                  setFilterFormSubmitted(false);
-                  setFilterOpen(true);
-                }}
-              >
-                <FilterListIcon />
-              </IconButton>
-            </Tooltip>
-            <Select
-              label="Search by"
-              variant="standard"
-              value={searchBy}
-              onChange={(event) => setSearchBy(event.target.value)}
-              style={{ marginLeft: "10px" }}
-              size="small"
-            >
-              <MenuItem value="name">ID/IAU</MenuItem>
-              <MenuItem value="comment">Comment</MenuItem>
-            </Select>
-            <TextField
-              variant="standard"
-              size="small"
-              placeholder="Search"
-              value={searchText}
-              onChange={(event) => {
-                setSearchText(event.target.value);
-                handleSearchChange(event.target.value);
-              }}
-            />
-            {!isReadOnly && (
-              <IconButton
-                name="new_source"
-                size="small"
-                onClick={() => setOpenNew(true)}
-              >
-                <AddIcon />
-              </IconButton>
-            )}
-            {showDownload && (
-              <Tooltip title="Download CSV">
-                <IconButton
-                  size="small"
-                  aria-label="Download CSV"
-                  data-testid="download-sources-button"
-                  onClick={handleDownload}
-                >
-                  <DownloadIcon />
-                </IconButton>
-              </Tooltip>
-            )}
-          </DataGridToolbar>
-        );
+  const toolbarSlotProps = {
+    toolbar: {
+      title,
+      searchBy,
+      searchText,
+      onSearchByChange: setSearchBy,
+      onSearchTextChange: setSearchText,
+      onOpenFilter: () => {
+        setFilterFormSubmitted(false);
+        setFilterOpen(true);
       },
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [searchBy, searchText, showDownload],
-  );
+      onNewSource: isReadOnly ? null : () => setOpenNew(true),
+      onDownload: showDownload ? handleDownload : null,
+      columnPickerOptions,
+      onAddColumn: handleAddColumn,
+    },
+  };
 
   return (
-    <div className={classes.source} data-testid={`source_table_${title}`}>
-      <div>
-        <Grid
-          container
-          spacing={3}
-          sx={{
-            flexDirection: "column",
-            alignItems: "flex-start",
-            justifyContent: "flex-start",
-          }}
-        >
-          <Grid className={classes.tableGrid}>
-            {title && (
-              <Typography variant="h6" style={{ marginBottom: "0.5rem" }}>
-                {title}
-              </Typography>
-            )}
-            {tableFilterList.length > 0 && (
-              <div className={classes.filterChips}>
-                {tableFilterList.map((chip) => (
-                  <Chip
-                    key={chip}
-                    label={chip}
-                    size="small"
-                    onDelete={() => handleFilterChipDelete(chip)}
-                  />
-                ))}
-              </div>
-            )}
-            {columnPickerOptions.length > 0 && (
-              <SearchableSelect
-                options={columnPickerOptions}
-                getOptionLabel={(o) => o.label}
-                // Nothing until the user types, then capped matches, so a large
-                // registry never floods the dropdown.
-                filterOptions={(opts, state) =>
-                  filterColumnPickerOptions(opts, state.inputValue)
-                }
-                onChange={(_e, value) => value && handleAddColumn(value.field)}
-                value={null}
-                blurOnSelect
-                clearOnBlur
-                sx={{ width: 340, marginBottom: "0.5rem" }}
-                placeholder="Add annotation / altdata column…"
-                textFieldProps={{
-                  variant: "standard",
-                  "data-testid": "add-column-picker",
-                }}
+    <>
+      <Box
+        data-testid={`source_table_${title}`}
+        sx={{
+          display: "flex",
+          flexDirection: "column",
+          width: "100%",
+          // Fill what the app layout leaves below the top bar and its page
+          // padding, so the grid ends at the bottom of the viewport.
+          height: fixedHeader ? "calc(100vh - 5.25rem)" : "65vh",
+        }}
+      >
+        {tableFilterList.length > 0 && (
+          <div className={classes.filterChips}>
+            {tableFilterList.map((chip) => (
+              <Chip
+                key={chip}
+                label={chip}
+                size="small"
+                onDelete={() => handleFilterChipDelete(chip)}
               />
-            )}
-            <Box
-              sx={{
-                height: fixedHeader ? "calc(100vh - 201px)" : "65vh",
-                width: "100%",
-              }}
-            >
-              <StyledDataGrid
-                rows={displayRows}
-                columns={columns}
-                loading={loading}
-                getRowHeight={getRowHeight}
-                columnVisibilityModel={columnVisibilityModel}
-                onColumnVisibilityModelChange={
-                  handleColumnVisibilityModelChange
-                }
-                paginationMode="server"
-                sortingMode="server"
-                rowCount={totalMatches}
-                paginationModel={paginationModel}
-                onPaginationModelChange={handlePaginationModelChange}
-                sortModel={sortModel}
-                onSortModelChange={handleSortModelChange}
-                pageSizeOptions={PAGE_SIZE_OPTIONS}
-                disableColumnFilter
-                // Keep all columns mounted so colSpan on the detail row works;
-                // row virtualization stays on, which is the performance win.
-                columnBufferPx={3000}
-                slots={{ toolbar: CustomToolbar }}
-                showToolbar
-              />
-            </Box>
-          </Grid>
-        </Grid>
-      </div>
+            ))}
+          </div>
+        )}
+        <StyledDataGrid
+          rows={displayRows}
+          columns={columns}
+          loading={loading || isLoading}
+          getRowHeight={getRowHeight}
+          columnVisibilityModel={columnVisibilityModel}
+          onColumnVisibilityModelChange={handleColumnVisibilityModelChange}
+          paginationMode="server"
+          sortingMode="server"
+          rowCount={totalMatches}
+          paginationModel={paginationModel}
+          onPaginationModelChange={handlePaginationModelChange}
+          sortModel={sortModel}
+          onSortModelChange={handleSortModelChange}
+          pageSizeOptions={PAGE_SIZE_OPTIONS}
+          disableColumnFilter
+          // Keep all columns mounted so colSpan on the detail row works;
+          // row virtualization stays on, which is the performance win.
+          columnBufferPx={3000}
+          slots={TOOLBAR_SLOT}
+          slotProps={toolbarSlotProps}
+          showToolbar
+          sx={{ flex: 1, minHeight: 0 }}
+        />
+      </Box>
       <Dialog open={filterOpen} onClose={() => setFilterOpen(false)} fullWidth>
         <DialogContent>
           {filterFormSubmitted ? (
@@ -2002,20 +1855,22 @@ const SourceTable = ({
               <InfoIcon /> &nbsp; Filters submitted to server!
             </div>
           ) : (
-            <SourceTableFilterForm handleFilterSubmit={handleFilterSubmit} />
+            <Suspense fallback={<CircularProgress color="secondary" />}>
+              <SourceTableFilterForm handleFilterSubmit={handleFilterSubmit} />
+            </Suspense>
           )}
         </DialogContent>
       </Dialog>
-      <div>
-        {openNew && (
-          <Dialog open={openNew} onClose={handleClose} maxWidth="md">
-            <DialogContent dividers>
+      {openNew && (
+        <Dialog open={openNew} onClose={handleClose} maxWidth="md">
+          <DialogContent dividers>
+            <Suspense fallback={<CircularProgress color="secondary" />}>
               <NewSource onClose={handleClose} />
-            </DialogContent>
-          </Dialog>
-        )}
-      </div>
-    </div>
+            </Suspense>
+          </DialogContent>
+        </Dialog>
+      )}
+    </>
   );
 };
 

@@ -3,7 +3,7 @@
   "license": "BSD-3-Clause",
   "scripts": {
     "build": "make bundle",
-    "test": "eslint -c esling.config.js && make test",
+    "test": "eslint -c eslint.config.js static && make test",
     "typecheck": "node ./node_modules/typescript7/bin/tsc --noEmit",
     "typegen": "openapi-typescript openapi.json -o static/js/types/api.ts"
   },

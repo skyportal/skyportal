@@ -1,7 +1,7 @@
 import uuid
 from datetime import UTC, datetime
 
-import pytest
+from playwright.sync_api import TimeoutError as PlaywrightTimeoutError
 from playwright.sync_api import expect
 from tdtax import __version__, taxonomy
 
@@ -19,18 +19,20 @@ def filter_for_value(page, value, last=False):
     page.locator(input_xpath).first.fill(value)
 
 
-def _profile_patch(page):
+def _profile_patch(page, timeout=None):
     return page.expect_response(
-        lambda r: "api/internal/profile" in r.url and r.request.method == "PATCH"
+        lambda r: "api/internal/profile" in r.url and r.request.method == "PATCH",
+        timeout=timeout,
     )
 
 
 def _enable_switch(page, name, attempts=3):
-    """Click a notification preference switch and wait until it's checked.
+    """Click a notification preference switch and wait until the save lands.
 
     The panel re-renders as saved preferences load, so a click can land on a
     switch that is not wired up yet and be dropped silently. Re-click rather
-    than fail, and treat an already-checked switch as done.
+    than fail, and treat an already-checked switch as done. The switch flips
+    optimistically, so only the PATCH says the preference is stored.
     """
     switch = page.locator(f'//*[@name="{name}"]').first
     checked = page.locator(
@@ -40,11 +42,33 @@ def _enable_switch(page, name, attempts=3):
     for attempt in range(attempts):
         if checked.count() > 0 and checked.is_visible():
             return
-        switch.click()
         try:
+            with _profile_patch(page, timeout=10000):
+                switch.click()
             expect(checked).to_be_visible(timeout=10000)
             return
-        except AssertionError:
+        except (AssertionError, PlaywrightTimeoutError):
+            if attempt == attempts - 1:
+                raise
+
+
+def _add_to_favorites(page, obj_id, attempts=3):
+    """Click the favorite star and wait until the source is a favorite.
+
+    The button re-renders as the favorites query resolves, so a click can land
+    before it is wired up and be dropped silently. Re-click rather than fail.
+    The star only flips once the refetch confirms the save.
+    """
+    exclude = page.locator(f'//*[@data-testid="favorites-exclude_{obj_id}"]').first
+    include = page.locator(f'//*[@data-testid="favorites-include_{obj_id}"]').first
+    for attempt in range(attempts):
+        if include.count() > 0 and include.is_visible():
+            return
+        try:
+            exclude.click()
+            expect(include).to_be_visible(timeout=10000)
+            return
+        except (AssertionError, PlaywrightTimeoutError):
             if attempt == attempts - 1:
                 raise
 
@@ -75,7 +99,6 @@ def expect_unread_badge(page, count=1, attempts=3):
             page.reload()
 
 
-@pytest.mark.flaky(reruns=2)
 def test_mention_generates_notification_then_mark_read_and_delete(
     page, user, public_source
 ):
@@ -109,7 +132,6 @@ def test_mention_generates_notification_then_mark_read_and_delete(
     expect(page.locator("//*[text()='No notifications']").first).to_be_visible()
 
 
-@pytest.mark.flaky(reruns=2)
 def test_group_admission_requests_notifications(
     page, user, super_admin_user, public_group, public_group2, super_admin_token
 ):
@@ -157,7 +179,6 @@ def test_group_admission_requests_notifications(
     expect(page.locator(f'//em[text()="{public_group2.name}"]').first).to_be_visible()
 
 
-@pytest.mark.flaky(reruns=3)
 def test_comment_on_favorite_source_triggers_notification(
     page, user, user2, public_source
 ):
@@ -170,12 +191,7 @@ def test_comment_on_favorite_source_triggers_notification(
     _enable_switch(page, "favorite_sources_new_bot_comments")
 
     page.goto(f"/source/{public_source.id}")
-    page.locator(
-        f'//*[@data-testid="favorites-exclude_{public_source.id}"]'
-    ).first.click()
-    expect(
-        page.locator(f'//*[@data-testid="favorites-include_{public_source.id}"]').first
-    ).to_be_visible()
+    _add_to_favorites(page, public_source.id)
 
     page.goto(f"/become_user/{user2.id}")
     page.goto(f"/source/{public_source.id}")
@@ -191,7 +207,6 @@ def test_comment_on_favorite_source_triggers_notification(
     ).to_be_visible()
 
 
-@pytest.mark.flaky(reruns=3)
 def test_classification_on_favorite_source_triggers_notification(
     page, user, public_source, public_group, taxonomy_token, classification_token
 ):
@@ -220,12 +235,7 @@ def test_classification_on_favorite_source_triggers_notification(
     _enable_switch(page, "favorite_sources_new_ml_classifications")
 
     page.goto(f"/source/{public_source.id}")
-    page.locator(
-        f'//*[@data-testid="favorites-exclude_{public_source.id}"]'
-    ).first.click()
-    expect(
-        page.locator(f'//*[@data-testid="favorites-include_{public_source.id}"]').first
-    ).to_be_visible()
+    _add_to_favorites(page, public_source.id)
 
     status, data = api(
         "POST",
@@ -253,7 +263,6 @@ def test_classification_on_favorite_source_triggers_notification(
     ).to_be_visible()
 
 
-@pytest.mark.flaky(reruns=3)
 def test_spectra_on_favorite_source_triggers_notification(
     page, user, public_source, lris, upload_data_token, public_group
 ):
@@ -265,12 +274,7 @@ def test_spectra_on_favorite_source_triggers_notification(
     _enable_switch(page, "favorite_sources_new_spectra")
 
     page.goto(f"/source/{public_source.id}")
-    page.locator(
-        f'//*[@data-testid="favorites-exclude_{public_source.id}"]'
-    ).first.click()
-    expect(
-        page.locator(f'//*[@data-testid="favorites-include_{public_source.id}"]').first
-    ).to_be_visible()
+    _add_to_favorites(page, public_source.id)
 
     status, data = api(
         "POST",
@@ -326,9 +330,11 @@ def test_new_classification_on_source_triggers_notification(
     page.locator('//li[@data-value="AGN"]').first.click()
     page.keyboard.press("Escape")
 
-    page.locator(
-        '//*[@data-testid="addShortcutButton" and contains(., "Update")]'
-    ).first.click()
+    # the toast is dispatched client-side, before the PATCH lands
+    with _profile_patch(page):
+        page.locator(
+            '//*[@data-testid="addShortcutButton" and contains(., "Update")]'
+        ).first.click()
     expect(
         page.locator('//*[contains(text(), "Sources classifications updated")]').first
     ).to_be_visible()
@@ -356,7 +362,6 @@ def test_new_classification_on_source_triggers_notification(
     ).to_be_visible()
 
 
-@pytest.mark.flaky(reruns=3)
 def test_new_spectra_on_source_triggers_notification(
     page, user, public_source, lris, upload_data_token, public_group
 ):
@@ -371,9 +376,10 @@ def test_new_spectra_on_source_triggers_notification(
     page.locator(f'//li[contains(text(), "{public_group.name}")]').first.click()
     page.keyboard.press("Escape")
 
-    page.locator(
-        '//*[@data-testid="addShortcutButton" and contains(., "Update")]'
-    ).first.click()
+    with _profile_patch(page):
+        page.locator(
+            '//*[@data-testid="addShortcutButton" and contains(., "Update")]'
+        ).first.click()
 
     status, data = api(
         "POST",
@@ -400,7 +406,6 @@ def test_new_spectra_on_source_triggers_notification(
     ).to_be_visible()
 
 
-@pytest.mark.flaky(reruns=2)
 def test_new_gcn_event_triggers_notification(page, user):
     page.goto(f"/become_user/{user.id}")
     page.goto("/profile")

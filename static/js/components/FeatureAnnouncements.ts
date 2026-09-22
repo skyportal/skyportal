@@ -143,6 +143,30 @@ export const FEATURE_ANNOUNCEMENTS: FeatureAnnouncement[] = [
     ],
   },
   {
+    id: "source-list-cleanup",
+    path: /^\/(sources|group_sources\/[^/]+|favorites)\/?$/,
+    announcedAt: "2026-09-20",
+    steps: [
+      {
+        target: '[data-testid^="source_table_"]',
+        title: "Source tables cleaned up",
+        content:
+          "Every source table has been cleaned up, and search is fixed: it " +
+          "no longer loses focus after each letter, and it ignores case, so " +
+          "ztf finds ZTF.",
+        placement: "center",
+      },
+      {
+        target: '[data-testid="add-column-button"]',
+        title: "Annotation and altdata columns",
+        content:
+          "The column picker moved from above the table to this button. Open " +
+          "it to search any annotation or altdata field and add it as a column.",
+        placement: "bottom",
+      },
+    ],
+  },
+  {
     id: "sharing-service-coauthor-order",
     path: /^\/sharing_services\/?$/,
     announcedAt: "2026-09-15",
