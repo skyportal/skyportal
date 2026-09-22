@@ -372,7 +372,7 @@ const ClassificationList = ({ obj }: ClassificationListProps) => {
           {name === "Human" ? "Human classifications" : name}
         </span>
       </ListItem>
-      {grouped[name].map((c: any) => renderClassification(c))}
+      {(grouped[name] ?? []).map((c: any) => renderClassification(c))}
     </React.Fragment>
   ));
 
