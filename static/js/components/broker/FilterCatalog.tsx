@@ -31,6 +31,7 @@ import { useDeleteGroupFilterMutation } from "../../ducks/filter";
 import { useGetGroupsQuery } from "../../ducks/groups";
 import { useGetStreamsQuery } from "../../ducks/streams";
 import { useAppDispatch } from "../../types/hooks";
+import ConfirmFilterDeletionDialog from "../filter/ConfirmFilterDeletionDialog";
 
 const PAGE_SIZES = [10, 25, 50];
 
@@ -42,6 +43,10 @@ const FilterCatalog = ({ brokerId }: { brokerId?: number }) => {
   const [streamID, setStreamID] = useState<number | "">("");
   const [brokerID, setBrokerID] = useState<number | "" | "none">("");
   const [targets, setTargets] = useState<Record<number, number>>({});
+  const [filterToDelete, setFilterToDelete] = useState<{
+    id: number;
+    name: string;
+  } | null>(null);
 
   const { data, isFetching } = useGetFilterCatalogQuery({
     pageNumber: page + 1,
@@ -81,13 +86,15 @@ const FilterCatalog = ({ brokerId }: { brokerId?: number }) => {
       setPage(0);
     };
 
-  const handleDeleteFilter = async (filterId: number) => {
+  const handleDeleteFilter = async () => {
+    if (!filterToDelete) return;
     try {
-      await deleteFilter({ filter_id: filterId }).unwrap();
+      await deleteFilter({ filter_id: filterToDelete.id }).unwrap();
       dispatch(showNotification("Deleted filter"));
     } catch {
       // error notification handled by the base query
     }
+    setFilterToDelete(null);
   };
 
   const filters = data?.filters || [];
@@ -291,7 +298,9 @@ const FilterCatalog = ({ brokerId }: { brokerId?: number }) => {
                       >
                         <Button
                           color="error"
-                          onClick={() => handleDeleteFilter(f.id)}
+                          onClick={() =>
+                            setFilterToDelete({ id: f.id, name: f.name })
+                          }
                         >
                           <DeleteIcon />
                         </Button>
@@ -316,6 +325,11 @@ const FilterCatalog = ({ brokerId }: { brokerId?: number }) => {
           }}
         />
       </Paper>
+      <ConfirmFilterDeletionDialog
+        filter={filterToDelete}
+        closeDialog={() => setFilterToDelete(null)}
+        deleteFunction={handleDeleteFilter}
+      />
     </Box>
   );
 };

@@ -267,6 +267,16 @@ class FilterHandler(BaseHandler):
             )
             if f is None:
                 return self.error(f"Cannot find a filter with ID: {filter_id}.")
+
+            if not await has_admin_access_for_group(
+                self.associated_user_object, f.group_id, session
+            ):
+                return self.error(
+                    "Insufficient permissions: must be a group admin or system "
+                    "admin to delete a filter.",
+                    status=403,
+                )
+
             delete_filter_on_broker(f.broker, f, session)
             await session.delete(f)
             await session.commit()
