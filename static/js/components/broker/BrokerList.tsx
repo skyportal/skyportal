@@ -111,6 +111,14 @@ const COLUMNS: {
     value: (b: any) => Number(Boolean(b.active)),
   },
   {
+    id: "ingest",
+    label: "Ingest",
+    tooltip:
+      "Consume this broker's stream continuously and save what it sends. " +
+      "Only offered by brokers whose provider supports ingestion.",
+    value: (b: any) => Number(Boolean(b.ingest)),
+  },
+  {
     id: "default_alert_search",
     label: "Default search",
     tooltip:
@@ -356,6 +364,20 @@ const BrokerList = () => {
                           updateBroker({
                             id: b.id,
                             patch: { active: e.target.checked },
+                          })
+                        }
+                      />
+                    </TableCell>
+                    <TableCell onClick={(e) => e.stopPropagation()}>
+                      <Switch
+                        checked={Boolean(b.ingest)}
+                        disabled={
+                          !isSystemAdmin || !b.capabilities?.["run_ingestion"]
+                        }
+                        onChange={(e) =>
+                          updateBroker({
+                            id: b.id,
+                            patch: { ingest: e.target.checked },
                           })
                         }
                       />
