@@ -1298,7 +1298,8 @@ def test_boom_filter_test_scopes_unrestricted_users(public_stream):
 
 
 def test_build_photometry_groups_drops_repeated_epochs():
-    """One epoch can arrive in more than one array; it must be written once.
+    """An epoch repeated under one origin must be written once, but a forced
+    measurement keeps its own row at an epoch an alert point already covers.
 
     Photometry is unique on (obj, instrument, origin, mjd, filter), and Postgres
     refuses an INSERT that carries duplicates within a single statement rather
@@ -1313,14 +1314,14 @@ def test_build_photometry_groups_drops_repeated_epochs():
         "programid": 1,
     }
     data = {
-        # Lasair repeats detections between these two
         "prv_candidates": [point, dict(point)],
         "fp_hists": [dict(point), {**point, "jd": 2459001.5}],
     }
     groups = build_photometry_groups("ZTF1", "ZTF", data, 42, {("ZTF", 1): [10]})
     g = groups[("ZTF", 1)]
 
-    assert g["mjd"] == [59000.0, 59001.0], "a repeated epoch was written twice"
+    assert g["mjd"] == [59000.0, 59000.0, 59001.0], "a repeated epoch was written twice"
+    assert g["origin"] == [None, "fp", "fp"]
     assert len(g["filter"]) == len(g["mjd"]) == len(g["flux"])
 
 
