@@ -54,6 +54,7 @@ from skyportal.models import (
     GcnEventAssociation,
     GcnEventCrossmatchState,
     GcnEventObj,
+    GcnNotice,
     Group,
     Localization,
     Obj,
@@ -106,6 +107,13 @@ DEFAULTS = {
     # photometry can supply them, so this is not ndethist alone. None leaves the
     # count to the broker-side filter.
     "min_detections": None,
+    # Notice types whose localizations this filter ignores. Fermi reports a
+    # flight position within seconds and a ground position later, and the ground
+    # position supersedes it: the flight one is tens of degrees across, so a
+    # match against it can sit far outside the burst's real position. Listing a
+    # type here drops it even when no refined one arrives, so an event that only
+    # ever has that type is not searched at all.
+    "exclude_notice_types": None,
     # One-shot search of the window before the event, to spot positions that
     # were already active and so cannot be counterparts.
     "archival": True,
@@ -992,6 +1000,29 @@ async def run_cycle(config=None, user_id=1):
             .all()
         )
 
+        # Localization carries only notice_id, so the types come in one query
+        # rather than a lazy load per localization inside the loop.
+        notice_ids = {
+            loc.notice_id
+            for event in events
+            for loc in (event.localizations or [])
+            if loc.notice_id is not None
+        }
+        notice_types = (
+            {
+                row.id: row.notice_type
+                for row in (
+                    await session.execute(
+                        sa.select(GcnNotice.id, GcnNotice.notice_type).where(
+                            GcnNotice.id.in_(notice_ids)
+                        )
+                    )
+                ).all()
+            }
+            if notice_ids
+            else {}
+        )
+
         for event in events:
             if not event.localizations:
                 continue
@@ -1007,6 +1038,12 @@ async def run_cycle(config=None, user_id=1):
                         continue
                     broker = filter_.broker
                     settings = filter_settings(filter_, config)
+                    excluded = conf(settings, "exclude_notice_types") or []
+                    if (
+                        excluded
+                        and notice_types.get(localization.notice_id) in excluded
+                    ):
+                        continue
                     if rate_limited_until(broker.id) is not None:
                         continue
                     state = await session.scalar(
