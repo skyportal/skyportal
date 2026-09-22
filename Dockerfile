@@ -98,4 +98,4 @@ USER skyportal
 # specifying ports in docker-compose.yaml already
 EXPOSE 5000
 
-CMD ["bash", "-c", "source .venv/bin/activate && (make log &) && make run_production"]
+CMD ["bash", "-c", "source .venv/bin/activate && python tools/docker_secret_key.py && (make log &) && make run_production"]
