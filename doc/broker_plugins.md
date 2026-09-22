@@ -23,10 +23,12 @@ of forking SkyPortal or re-deriving the same integration in every deployment.
   provider overrode. Handlers gate on it, and the frontend can show/hide
   features accordingly.
 - **`Broker` model** (`skyportal/models/broker.py`), one configured broker:
-  `name`, `broker_classname` (which provider), `active`, and encrypted
+  `name`, `broker_classname` (which provider), `active`, `ingest`, and encrypted
   `altdata` (endpoints/credentials, mirroring `Allocation.altdata`). Only system
   admins may create/update/delete brokers, and `altdata` is redacted from
-  non-admins.
+  non-admins. `active` makes the connection usable on demand; `ingest` is what
+  subscribes the instance to its stream, and the two are set separately because
+  a broker worth searching by hand is not necessarily one to consume in full.
 - **Site defaults**, `default_alert_search`, `default_crossmatch` and
   `default_photometry` name the broker the source page's "Search alerts" button
   opens, the one its cross-matches (cone searches) run against, and the one
@@ -75,8 +77,8 @@ service and gated by config.
 
 ### 1. Enable the ingestion service
 
-The `broker_ingest` service (`services/broker_ingest/`) runs one task per active
-broker whose provider implements `run_ingestion`. It is **off by default**; enable
+The `broker_ingest` service (`services/broker_ingest/`) runs one task per broker
+that is `active`, has `ingest` set, and whose provider implements `run_ingestion`. It is **off by default**; enable
 it in your config and **restart** the app:
 
 ```yaml

@@ -33,6 +33,28 @@ def _broker_payload(**overrides):
     return payload
 
 
+def test_ingest_is_off_until_it_is_asked_for(super_admin_token):
+    status, data = api(
+        "POST", "brokers", data=_broker_payload(), token=super_admin_token
+    )
+    assert status == 200
+    broker_id = data["data"]["id"]
+
+    status, data = api("GET", f"brokers/{broker_id}", token=super_admin_token)
+    assert status == 200
+    assert data["data"]["ingest"] is False
+
+    status, _ = api(
+        "PATCH",
+        f"brokers/{broker_id}",
+        data={"ingest": True},
+        token=super_admin_token,
+    )
+    assert status == 200
+    status, data = api("GET", f"brokers/{broker_id}", token=super_admin_token)
+    assert data["data"]["ingest"] is True
+
+
 def test_broker_crud(super_admin_token):
     payload = _broker_payload()
     status, data = api("POST", "brokers", data=payload, token=super_admin_token)
