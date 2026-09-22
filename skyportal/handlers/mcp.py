@@ -677,9 +677,7 @@ async def get_analysis(handler, args):
     required=("obj_id",),
 )
 async def get_classifications(handler, args):
-    return await handler.api(
-        "GET", f"/api/sources/{args['obj_id']}/classifications"
-    )
+    return await handler.api("GET", f"/api/sources/{args['obj_id']}/classifications")
 
 
 @tool(
