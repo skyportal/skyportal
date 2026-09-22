@@ -22,7 +22,7 @@ module.exports = [
       "static/**/*.tsx",
     ],
   },
-  { ignores: ["docs/*"] },
+  { ignores: ["docs/*", "static/build/**"] },
   {
     // CommonJS config files at repo root use Node globals
     files: ["*.config.js", "*.config.cjs"],
