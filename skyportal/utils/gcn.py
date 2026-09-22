@@ -160,7 +160,7 @@ def get_json_tags(payload):
     tags = []
     if "instrument" in payload:
         if payload["instrument"] == "WXT":
-            tags = ["Einstein Probe"]
+            tags = ["Einstein Probe", "X-ray"]
         elif payload["instrument"] == "BAT-GUANO":
             tags = ["GUANO"]
 

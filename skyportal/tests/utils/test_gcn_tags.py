@@ -8,7 +8,7 @@ from skyportal.utils.gcn import (
 
 
 def test_get_json_tags():
-    assert get_json_tags({"instrument": "WXT"}) == ["Einstein Probe"]
+    assert get_json_tags({"instrument": "WXT"}) == ["Einstein Probe", "X-ray"]
     assert get_json_tags({"instrument": "BAT-GUANO"}) == ["GUANO"]
     assert get_json_tags({"instrument": "ZTF"}) == []
     assert get_json_tags({}) == []

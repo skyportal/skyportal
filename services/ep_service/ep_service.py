@@ -128,7 +128,7 @@ def to_gcn_payload(candidate, group_ids, radius_multiplier=1.0):
         "trigger_id": name,
         "aliases": [f"EP#{name}"],
         "skymap": {"ra": ra, "dec": dec, "error": pos_err * float(radius_multiplier)},
-        "tags": ["EP", "X-ray"],
+        "tags": ["Einstein Probe", "X-ray"],
         "properties": {
             **{f: candidate.get(f) for f in PROPERTY_FIELDS},
             # already_ingested() keys the dedup on ep_name/ep_version.
