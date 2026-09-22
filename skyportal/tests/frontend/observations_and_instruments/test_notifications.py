@@ -52,6 +52,27 @@ def _enable_switch(page, name, attempts=3):
                 raise
 
 
+def _add_to_favorites(page, obj_id, attempts=3):
+    """Click the favorite star and wait until the source is a favorite.
+
+    The button re-renders as the favorites query resolves, so a click can land
+    before it is wired up and be dropped silently. Re-click rather than fail.
+    The star only flips once the refetch confirms the save.
+    """
+    exclude = page.locator(f'//*[@data-testid="favorites-exclude_{obj_id}"]').first
+    include = page.locator(f'//*[@data-testid="favorites-include_{obj_id}"]').first
+    for attempt in range(attempts):
+        if include.count() > 0 and include.is_visible():
+            return
+        try:
+            exclude.click()
+            expect(include).to_be_visible(timeout=10000)
+            return
+        except (AssertionError, PlaywrightTimeoutError):
+            if attempt == attempts - 1:
+                raise
+
+
 def expect_unread_badge(page, count=1, attempts=3):
     """Open the panel and wait for its notifications tab to count `count` unread.
 
@@ -170,12 +191,7 @@ def test_comment_on_favorite_source_triggers_notification(
     _enable_switch(page, "favorite_sources_new_bot_comments")
 
     page.goto(f"/source/{public_source.id}")
-    page.locator(
-        f'//*[@data-testid="favorites-exclude_{public_source.id}"]'
-    ).first.click()
-    expect(
-        page.locator(f'//*[@data-testid="favorites-include_{public_source.id}"]').first
-    ).to_be_visible()
+    _add_to_favorites(page, public_source.id)
 
     page.goto(f"/become_user/{user2.id}")
     page.goto(f"/source/{public_source.id}")
@@ -219,12 +235,7 @@ def test_classification_on_favorite_source_triggers_notification(
     _enable_switch(page, "favorite_sources_new_ml_classifications")
 
     page.goto(f"/source/{public_source.id}")
-    page.locator(
-        f'//*[@data-testid="favorites-exclude_{public_source.id}"]'
-    ).first.click()
-    expect(
-        page.locator(f'//*[@data-testid="favorites-include_{public_source.id}"]').first
-    ).to_be_visible()
+    _add_to_favorites(page, public_source.id)
 
     status, data = api(
         "POST",
@@ -263,12 +274,7 @@ def test_spectra_on_favorite_source_triggers_notification(
     _enable_switch(page, "favorite_sources_new_spectra")
 
     page.goto(f"/source/{public_source.id}")
-    page.locator(
-        f'//*[@data-testid="favorites-exclude_{public_source.id}"]'
-    ).first.click()
-    expect(
-        page.locator(f'//*[@data-testid="favorites-include_{public_source.id}"]').first
-    ).to_be_visible()
+    _add_to_favorites(page, public_source.id)
 
     status, data = api(
         "POST",
