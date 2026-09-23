@@ -65,3 +65,38 @@ def test_a_schema_it_cannot_read_is_returned_unchanged():
     assert supplement_schema(None) is None
     assert supplement_schema({"no_fields": True}) == {"no_fields": True}
     assert supplement_schema("a string") == "a string"
+
+
+def test_the_provider_serves_the_supplemented_schema(monkeypatch):
+    # The integration point: what a caller of filter_modules receives, and so
+    # what both the builder and get_alert_schema read.
+    from skyportal.broker_apis import boom
+
+    monkeypatch.setattr(
+        boom, "_request", lambda *a, **k: {"fields": [{"name": "candidate"}]}
+    )
+    data = boom.BOOMBROKER.filter_modules(
+        broker=None, session=None, elements="schema", survey="ZTF"
+    )
+    names = [f["name"] for f in data["schema"]["fields"]]
+    assert "candidate" in names
+    assert "villar_fit" in names
+    assert "cross_matches" in names
+
+
+def test_the_fields_survive_flattening_into_dotted_paths():
+    # get_alert_schema flattens the schema before the model sees it; a record
+    # the flattener cannot walk would be advertised as nothing.
+    from skyportal.handlers.mcp import _flatten_avro
+
+    schema = supplement_schema(
+        {
+            "type": "record",
+            "name": "alert",
+            "fields": [{"name": "candidate", "type": "string"}],
+        }
+    )
+    paths = dict(_flatten_avro(schema))
+    assert paths.get("villar_fit.reduced_chi2") == "double?"
+    assert "villar_fit.tau_rise_ZTF_r" in paths
+    assert any(p.startswith("cross_matches[]") for p in paths)
