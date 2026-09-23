@@ -8,7 +8,7 @@ import pytest
 import sqlalchemy as sa
 import yaml
 
-from skyportal.utils.secret_key import (
+from skyportal.models.secret_key_fingerprint import (
     SecretKeyFingerprint,
     check_secret_key,
     fingerprint,

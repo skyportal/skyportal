@@ -287,8 +287,8 @@ from skyportal.handlers.public import (
 
 from . import model_util, openapi
 from .models import db_engine, init_db
+from .models.secret_key_fingerprint import check_secret_key
 from .utils.observability import setup_observability
-from .utils.secret_key import check_secret_key
 
 log = make_log("app_server")
 
