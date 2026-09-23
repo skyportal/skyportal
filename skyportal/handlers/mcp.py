@@ -81,7 +81,12 @@ returns; a path it does not list matches nothing, silently.
 3. post_filter to create the filter.
 4. run_broker_filter to preview. Without sort_by it returns a count, which is \
 what to tune a threshold against; a pipeline broker needs start_jd and end_jd. \
-Write only the cuts: the terminal $project is appended for you.
+Write only the cuts: the terminal $project is appended for you. Never tell \
+anyone how many alerts a filter will return unless run_broker_filter returned \
+that number for the pipeline as it now stands: the rate is the one thing they \
+cannot check by reading it, and a plausible guess is indistinguishable from a \
+measurement. Add the cuts a few at a time and preview as you go, so you know \
+which one changed the count.
 5. post_broker_filter_version, then activate_broker_filter_version with the \
 fid it returns. Posting validates the version and returns the verdict; \
 activation is refused without a passing one, and \
@@ -93,9 +98,15 @@ Writing the pipeline itself:
 anything about an object's history has to come from a precomputed field \
 (properties.detection_history, properties.episode_history, photstats) rather \
 than from aggregating prv_candidates.
-- A comparison against a missing field is true in Mongo, so a cut written to \
-exclude something keeps every alert that lacks the field. Pair it with an \
-existence or null test when that matters.
+- Write a cut as a query operator, `{"x": {"$lt": 5}}`, not as `$expr`. \
+A query operator compares only within a type, so it passes over an alert whose \
+field is missing or null; the same cut inside `$expr` treats missing as lower \
+than every number and keeps all of them. On one night of ZTF that is 1,992 \
+alerts against 165,333. Reach for `$expr` only to compare two fields of the \
+same alert, and pair it with an existence test when you do.
+- A field that is NaN when unset is the other half of this: the sentinel is \
+present, so it fails every comparison rather than passing them. get_alert_schema \
+says which fields those are.
 - prv_candidates and fp_hists describe the sky position, not the object. For a \
 mover, whose objectId changes almost every detection, they are somebody else's \
 history."""
@@ -957,8 +968,35 @@ async def get_observation_plans(handler, args):
 _PRIMITIVES = {"null", "boolean", "int", "long", "float", "double", "bytes", "string"}
 
 
-def _flatten_avro(schema, prefix="", registry=None, stack=(), depth=0):
-    """An Avro schema as (dotted path, type) pairs, arrays marked with `[]`."""
+NAN_NOTE = (
+    "NaN when unset, so it is present and fails every comparison: pair a "
+    "< cut with a > bound, or it also keeps the unset ones."
+)
+
+
+def _field_note(field):
+    """What is worth telling a pipeline author about one Avro field.
+
+    Avro puts `doc` on the field or on the record it names, and BOOM flags a
+    field whose sentinel is NaN rather than absence."""
+    docs = [field.get("doc")]
+    kind = field.get("type")
+    if isinstance(kind, dict):
+        docs.append(kind.get("doc"))
+    if field.get("nan_possible") or (
+        isinstance(kind, dict) and kind.get("nan_possible")
+    ):
+        docs.append(NAN_NOTE)
+    text = " ".join(d.strip() for d in docs if isinstance(d, str) and d.strip())
+    return " ".join(text.split()) or None
+
+
+def _flatten_avro(schema, prefix="", registry=None, stack=(), depth=0, notes=None):
+    """An Avro schema as (dotted path, type) pairs, arrays marked with `[]`.
+
+    `notes`, when given, is filled with the per-path documentation the schema
+    carries: a field's `doc`, and a warning for one flagged `nan_possible`,
+    whose sentinel fails every comparison rather than being absent."""
     registry = {} if registry is None else registry
     if depth > 12:
         return []
@@ -970,14 +1008,14 @@ def _flatten_avro(schema, prefix="", registry=None, stack=(), depth=0):
             return [(prefix, schema)] if prefix else []
         if schema in stack or schema not in registry:
             return [(prefix, schema)] if prefix else []
-        return _flatten_avro(registry[schema], prefix, registry, stack, depth)
+        return _flatten_avro(registry[schema], prefix, registry, stack, depth, notes)
 
     if isinstance(schema, list):
         branches = [b for b in schema if b != "null"]
         nullable = len(branches) < len(schema)
         if not branches:
             return [(prefix, "null")] if prefix else []
-        flat = _flatten_avro(branches[0], prefix, registry, stack, depth)
+        flat = _flatten_avro(branches[0], prefix, registry, stack, depth, notes)
         return [(p, t + "?" if nullable and p == prefix else t) for p, t in flat]
 
     if not isinstance(schema, dict):
@@ -995,21 +1033,27 @@ def _flatten_avro(schema, prefix="", registry=None, stack=(), depth=0):
             if not name:
                 continue
             path = f"{prefix}.{name}" if prefix else name
+            if notes is not None:
+                note = _field_note(field)
+                if note:
+                    notes[path] = note
             out.extend(
-                _flatten_avro(field.get("type"), path, registry, stack, depth + 1)
+                _flatten_avro(
+                    field.get("type"), path, registry, stack, depth + 1, notes
+                )
             )
         return out
     if kind == "array":
         return _flatten_avro(
-            schema.get("items"), f"{prefix}[]", registry, stack, depth + 1
+            schema.get("items"), f"{prefix}[]", registry, stack, depth + 1, notes
         )
     if kind == "enum":
         return [(prefix, "enum(" + "|".join(schema.get("symbols") or []) + ")")]
     if kind == "map":
         return _flatten_avro(
-            schema.get("values"), f"{prefix}{{}}", registry, stack, depth + 1
+            schema.get("values"), f"{prefix}{{}}", registry, stack, depth + 1, notes
         )
-    return _flatten_avro(kind, prefix, registry, stack, depth)
+    return _flatten_avro(kind, prefix, registry, stack, depth, notes)
 
 
 def _versions(filter_record):
@@ -1057,6 +1101,23 @@ async def get_filter_targets(handler, args):
     }
 
 
+def _note_at(path, notes):
+    """The note on a path, or the nearest one above it.
+
+    Two fields sharing an Avro record share its leaves, so what separates a
+    rise from a decline is documented on the block rather than on the `rate`
+    they have in common.
+    """
+    # Notes are keyed by the field's own path; the flattener marks an array or
+    # a map on the path it builds from it, so the markers come back off here.
+    parts = [part.rstrip("[]{}") for part in path.split(".")]
+    for stop in range(len(parts), 0, -1):
+        note = notes.get(".".join(parts[:stop]))
+        if note:
+            return note
+    return None
+
+
 @tool(
     "get_alert_schema",
     "The fields a filter pipeline may reference, as dotted paths with their "
@@ -1064,7 +1125,11 @@ async def get_filter_targets(handler, args):
     "matches nothing, and an empty preview looks the same as an empty sky. "
     "`?` marks a nullable field and `[]` an array. Paths are already the "
     "names a pipeline uses: the broker flattens what it joins, so write "
-    "`cross_matches.x`, never `aux.cross_matches.x`, which is rejected.",
+    "`cross_matches.x`, never `aux.cross_matches.x`, which is rejected. "
+    "`notes` carries what the schema says about a field: its units, the sign "
+    "of a rate, the meaning of a classifier score, and whether it is NaN when "
+    "unset. Read the note for every field you cut on; the cut that looks "
+    "obvious is the one a note usually contradicts.",
     {
         "broker_id": _prop("integer", "Broker ID."),
         "survey": _prop("string", "Survey whose alerts the filter runs on, e.g. ZTF."),
@@ -1089,7 +1154,8 @@ async def get_alert_schema(handler, args):
             f"Broker {broker_id} reports no alert schema for survey {args['survey']!r}."
         )
 
-    paths = _flatten_avro(schema)
+    notes = {}
+    paths = _flatten_avro(schema, notes=notes)
     search = (args.get("search") or "").lower()
     prefix = args.get("prefix") or ""
     if search:
@@ -1098,11 +1164,19 @@ async def get_alert_schema(handler, args):
         paths = [(p, t) for p, t in paths if p == prefix or p.startswith(prefix)]
 
     limit = args.get("limit") or 200
+    shown = paths[:limit]
     return {
         "survey": args["survey"],
         "matched": len(paths),
         "truncated": len(paths) > limit,
-        "fields": dict(paths[:limit]),
+        "fields": dict(shown),
+        # Only for what is shown, and only where there is something to say, so
+        # the common field stays a one-line type.
+        "notes": {
+            path: note
+            for path, note in ((p, _note_at(p, notes)) for p, _ in shown)
+            if note
+        },
     }
 
 
@@ -1359,6 +1433,25 @@ async def activate_broker_filter_version(handler, args):
     return await handler.api(
         "PATCH", f"/api/brokers/{broker_id}/filters/{filter_id}", body=args
     )
+
+
+@tool(
+    "post_group",
+    "Create a group. A filter needs one to post its candidates to, and asking "
+    "for a filter of one's own usually means asking for the group as well. "
+    "The creator is its only member, so this shares nothing that was not "
+    "already shared; adding anyone else is a separate, deliberate act.",
+    {
+        "name": _prop("string", "Group name, which has to be unique."),
+        "nickname": _prop("string", "Short name, shown where space is tight."),
+        "description": _prop("string", "What the group is for."),
+    },
+    required=("name",),
+    passthrough="POST /api/groups",
+    writes=True,
+)
+async def post_group(handler, args):
+    return await handler.api("POST", "/api/groups", body=args)
 
 
 @tool(

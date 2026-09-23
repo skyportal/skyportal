@@ -1069,5 +1069,24 @@
         }
       ]
     }
-  ]
+  ],
+  "notes": {
+    "candidate.drb": "Deep-learning real/bogus score; 1 is real. The usual realness cut.",
+    "candidate.isdiffpos": "Whether the subtraction is positive, as the string \"t\"/\"1\" rather than a boolean, so match with $in.",
+    "candidate.ndethist": "Count of prior detections at this position in the alert packet itself, which is not the same as detection_history.n_pos.",
+    "classifications.acai_b": "ACAI score that the alert is BOGUS: a subtraction artefact, not an astrophysical source. Cut for a low value, never a high one.",
+    "classifications.acai_h": "ACAI score that the alert is a hosted transient (a supernova on a galaxy). Duev et al. 2021.",
+    "classifications.acai_n": "ACAI score that the alert is a nuclear transient, on the centre of its host.",
+    "classifications.acai_o": "ACAI score that the alert is an orphan transient, with no visible host.",
+    "classifications.acai_v": "ACAI score that the alert is a variable star.",
+    "classifications.btsbot": "BTSbot score that the alert is a bright extragalactic transient worth spectroscopy. Rehemtulla et al. 2024.",
+    "properties.detection_history.n_pos": "Count of positive-subtraction detections over the object's whole history, so a young transient has a small one.",
+    "properties.near_brightstar": "True when the position sits close enough to a bright star for the subtraction to be unreliable.",
+    "properties.photstats.*.fading": "Straight-line fit to the decline, in magnitudes per day. `rate` is POSITIVE while the source fades, the opposite sign to the rise.",
+    "properties.photstats.*.peak_mag": "Brightest magnitude seen, so the smallest number. A brighter peak is peak_mag < x.",
+    "properties.photstats.*.rising": "Straight-line fit to the rise. `rate` is in magnitudes per day and is NEGATIVE while the source brightens, so a fast riser is rate < -0.05, not rate > 0.05. `red_chi2` small means the rise is well constrained.",
+    "properties.rock": "True when the object is a known solar-system body.",
+    "properties.star": "True when the object is consistent with a star rather than a transient.",
+    "properties.stationary": "True when the object has not moved between detections."
+  }
 }

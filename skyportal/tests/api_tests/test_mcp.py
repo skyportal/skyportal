@@ -149,6 +149,7 @@ def test_mcp_tools_list(view_only_token):
         "post_broker_filter_version",
         "validate_broker_filter_version",
         "activate_broker_filter_version",
+        "post_group",
         "post_filter",
     }
     tools = {t["name"]: t for t in result["tools"]}
@@ -930,6 +931,34 @@ def test_a_self_referencing_record_terminates():
 
 def test_get_alert_schema_requires_a_survey():
     assert "survey" in TOOLS["get_alert_schema"]["inputSchema"]["required"]
+
+
+def test_the_schema_carries_what_the_schema_says_about_a_field():
+    # Units, the sign of a rate and the meaning of a score are the parts a
+    # path cannot convey, and the flattener used to drop them one step before
+    # the only reader who needed them.
+    notes = {}
+    documented = {
+        "type": "record",
+        "name": "alert",
+        "fields": [
+            {"name": "rate", "type": "double", "doc": "Magnitudes per day."},
+            {"name": "chi2", "type": "double", "nan_possible": True},
+            {"name": "plain", "type": "int"},
+        ],
+    }
+    fields = dict(_flatten_avro(documented, notes=notes))
+    assert fields["plain"] == "int"
+    assert notes["rate"] == "Magnitudes per day."
+    assert "NaN" in notes["chi2"]
+    # A field with nothing to say does not get an entry, so notes stays short
+    # enough to read beside 200 paths.
+    assert "plain" not in notes
+
+
+def test_making_a_group_is_a_write():
+    assert TOOLS["post_group"]["annotations"]["readOnlyHint"] is False
+    assert TOOLS["post_group"]["inputSchema"]["required"] == ["name"]
 
 
 def test_get_filter_targets_needs_no_arguments():
