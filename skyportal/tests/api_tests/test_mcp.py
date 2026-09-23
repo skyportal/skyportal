@@ -3,7 +3,13 @@ import base64
 import json
 import uuid
 
-from skyportal.handlers.mcp import TOOLS, ToolError, _analyze_band, _versions
+from skyportal.handlers.mcp import (
+    TOOLS,
+    ToolError,
+    _analyze_band,
+    _flatten_avro,
+    _versions,
+)
 from skyportal.tests import cfg, session
 
 VERSION = "2026-07-28"
@@ -133,10 +139,15 @@ def test_mcp_tools_list(view_only_token):
         "get_observation_plan_form",
         "post_observation_plan",
         "get_observation_plans",
+        "get_filter_targets",
+        "get_alert_schema",
+        "search_filters",
+        "attach_filter_to_broker",
         "get_broker_filter",
         "diff_broker_filter_versions",
         "run_broker_filter",
         "post_broker_filter_version",
+        "validate_broker_filter_version",
         "activate_broker_filter_version",
         "post_filter",
     }
@@ -750,6 +761,7 @@ def test_broker_filter_tools_require_their_identifiers():
         "diff_broker_filter_versions",
         "run_broker_filter",
         "post_broker_filter_version",
+        "validate_broker_filter_version",
         "activate_broker_filter_version",
     ):
         assert "broker_id" in TOOLS[name]["inputSchema"]["required"], name
@@ -825,3 +837,167 @@ def test_every_state_changing_tool_is_marked_as_writing():
     assert not write_shaped, (
         f"offered to the assistant but changes state: {write_shaped}"
     )
+
+
+# A cut-down ZTF alert schema: nested records, a reused named type
+# (prv_nondetections reuses ZtfPrvCandidate), a nullable union, an enum and an
+# array, which is every shape the real one uses.
+ALERT_SCHEMA = {
+    "type": "record",
+    "name": "ZtfAlertToFilter",
+    "fields": [
+        {"name": "objectId", "type": "string"},
+        {
+            "name": "candidate",
+            "type": {
+                "type": "record",
+                "name": "ZtfCandidate",
+                "fields": [
+                    {"name": "jd", "type": "double"},
+                    {"name": "sgscore1", "type": ["null", "float"]},
+                    {
+                        "name": "band",
+                        "type": {
+                            "type": "enum",
+                            "name": "Band",
+                            "symbols": ["g", "r"],
+                        },
+                    },
+                ],
+            },
+        },
+        {
+            "name": "prv_candidates",
+            "type": {
+                "type": "array",
+                "items": {
+                    "type": "record",
+                    "name": "ZtfPrvCandidate",
+                    "fields": [{"name": "magpsf", "type": ["null", "float"]}],
+                },
+            },
+        },
+        {
+            "name": "prv_nondetections",
+            "type": {"type": "array", "items": "ZtfPrvCandidate"},
+        },
+    ],
+}
+
+
+def test_schema_flattens_to_dotted_paths():
+    fields = dict(_flatten_avro(ALERT_SCHEMA))
+    assert fields["objectId"] == "string"
+    assert fields["candidate.jd"] == "double"
+
+
+def test_a_nullable_field_is_marked():
+    # A null branch is what distinguishes "absent" from zero, and a filter that
+    # treats the two alike is the mistake this marking is here to prevent.
+    fields = dict(_flatten_avro(ALERT_SCHEMA))
+    assert fields["candidate.sgscore1"] == "float?"
+
+
+def test_an_enum_lists_its_symbols():
+    fields = dict(_flatten_avro(ALERT_SCHEMA))
+    assert fields["candidate.band"] == "enum(g|r)"
+
+
+def test_an_array_is_marked_and_descended_into():
+    fields = dict(_flatten_avro(ALERT_SCHEMA))
+    assert fields["prv_candidates[].magpsf"] == "float?"
+
+
+def test_a_reused_named_type_is_resolved():
+    # Avro names a record once and refers to it by name after; leaving the
+    # reference unresolved would hide every field of prv_nondetections.
+    fields = dict(_flatten_avro(ALERT_SCHEMA))
+    assert fields["prv_nondetections[].magpsf"] == "float?"
+
+
+def test_a_self_referencing_record_terminates():
+    recursive = {
+        "type": "record",
+        "name": "Node",
+        "fields": [
+            {"name": "value", "type": "int"},
+            {"name": "child", "type": ["null", "Node"]},
+        ],
+    }
+    fields = dict(_flatten_avro(recursive))
+    assert fields["value"] == "int"
+
+
+def test_get_alert_schema_requires_a_survey():
+    assert "survey" in TOOLS["get_alert_schema"]["inputSchema"]["required"]
+
+
+def test_get_filter_targets_needs_no_arguments():
+    # It is the entry point: the caller has no ids yet.
+    assert TOOLS["get_filter_targets"]["inputSchema"]["required"] == []
+
+
+def test_discovery_tools_do_not_write():
+    for name in ("get_filter_targets", "get_alert_schema"):
+        assert TOOLS[name]["annotations"]["readOnlyHint"] is True, name
+
+
+def test_validating_a_version_is_a_write():
+    # It records the verdict on the filter, which activation then reads.
+    assert (
+        TOOLS["validate_broker_filter_version"]["annotations"]["readOnlyHint"] is False
+    )
+
+
+def test_get_filter_targets_returns_ids_to_create_a_filter_with(
+    view_only_token, public_group, public_stream
+):
+    is_error, text, _ = call_tool("get_filter_targets", {}, view_only_token)
+    assert not is_error, text
+    targets = json.loads(text)
+    assert public_group.id in [g["id"] for g in targets["groups"]]
+    assert public_stream.id in [s["id"] for s in targets["streams"]]
+
+
+def test_get_filter_targets_does_not_leak_broker_credentials(
+    view_only_token, public_group
+):
+    # GET /api/brokers returns altdata, which holds the broker's Kafka
+    # password; only the fields a filter needs are passed on.
+    is_error, text, _ = call_tool("get_filter_targets", {}, view_only_token)
+    assert not is_error, text
+    for broker in json.loads(text)["brokers"]:
+        assert set(broker) == {
+            "id",
+            "name",
+            "active",
+            "surveys",
+            "filter_kind",
+            "filter_pipeline",
+        }
+
+
+def test_search_filters_finds_a_filter_by_name(
+    view_only_token, public_filter, public_group
+):
+    is_error, text, _ = call_tool(
+        "search_filters", {"name": public_filter.name}, view_only_token
+    )
+    assert not is_error, text
+    assert public_filter.id in [f["id"] for f in json.loads(text)["filters"]]
+
+
+def test_search_filters_leaves_the_pipeline_out(view_only_token, public_filter):
+    # A catalog row carries the whole compiled pipeline in altdata; the search
+    # is for choosing one, and get_broker_filter reads the one chosen.
+    is_error, text, _ = call_tool(
+        "search_filters", {"name": public_filter.name}, view_only_token
+    )
+    assert not is_error, text
+    for row in json.loads(text)["filters"]:
+        assert "altdata" not in row
+
+
+def test_copying_a_filter_needs_no_broker(view_only_token):
+    # Searching is how an unattached filter is found, so brokerID is optional.
+    assert TOOLS["search_filters"]["inputSchema"]["required"] == []

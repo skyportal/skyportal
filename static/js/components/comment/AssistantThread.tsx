@@ -14,6 +14,8 @@ import {
   useAskAssistantMutation,
   useGetAssistantConversationQuery,
 } from "../../ducks/assistant";
+import AssistantFilterProposal from "./AssistantFilterProposal";
+import AssistantToolTrace from "./AssistantToolTrace";
 
 const messageSx = {
   fontSize: "90%",
@@ -144,6 +146,14 @@ const AssistantThread = ({ channel, target }: AssistantThreadProps) => {
             >
               <ReactMarkdown>{message.text}</ReactMarkdown>
             </Box>
+            {message.system && (
+              <AssistantToolTrace calls={message.tool_calls ?? []} />
+            )}
+            {message.system &&
+              message.proposal &&
+              target?.type === "filter" && (
+                <AssistantFilterProposal proposal={message.proposal} />
+              )}
           </Fragment>
         ))}
         {!answered && (

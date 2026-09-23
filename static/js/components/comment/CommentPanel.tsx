@@ -47,9 +47,15 @@ const centeredSx = {
 
 interface CommentPanelProps {
   inline?: boolean;
+  // Docked on a page whose whole subject is what the assistant is for, so the
+  // assistant belongs in the page rather than in the floating panel.
+  assistant?: boolean;
 }
 
-const CommentPanel = ({ inline = false }: CommentPanelProps) => {
+const CommentPanel = ({
+  inline = false,
+  assistant = false,
+}: CommentPanelProps) => {
   const {
     target,
     inline: commentsInline,
@@ -84,7 +90,7 @@ const CommentPanel = ({ inline = false }: CommentPanelProps) => {
       !commentsInline ||
       target.type !== "source" ||
       target.origin === "scanning");
-  const showAssistant = !inline && assistantEnabled;
+  const showAssistant = (!inline || assistant) && assistantEnabled;
   const isComments = showComments && (space === "comments" || !showAssistant);
   const activeSpace: ChatSpace = isComments ? "comments" : "assistant";
   const visible = inline || open;
@@ -270,7 +276,8 @@ const CommentPanel = ({ inline = false }: CommentPanelProps) => {
         flexDirection: "column",
         overflow: "hidden",
         ...(inline
-          ? { height: "60vh" }
+          ? // Docked above a tool, it has to leave the tool on screen.
+            { height: assistant ? "26rem" : "60vh" }
           : {
               position: "fixed",
               right: "1.5rem",

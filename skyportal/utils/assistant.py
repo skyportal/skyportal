@@ -180,3 +180,97 @@ def _shrunk(value, budget):
     if len(json.dumps(value, default=str)) <= budget:
         return None
     return _reparsed(condense(json.dumps(value, default=str), budget))
+
+
+# How much of one tool's arguments and result the page is shown. The trace is
+# there to be read at a glance; the answer carries the detail.
+TRACE_ARG_BUDGET = 400
+TRACE_SUMMARY_BUDGET = 300
+
+
+def record_call(name, arguments, result, ok):
+    """One entry of the trace shown under the answer."""
+    return {
+        "name": name,
+        "arguments": trim(arguments, TRACE_ARG_BUDGET),
+        "ok": ok,
+        "summary": condense(str(result), TRACE_SUMMARY_BUDGET),
+    }
+
+
+def trim(arguments, budget):
+    """Tool arguments small enough to render, the pipeline left whole.
+
+    A pipeline is the one argument worth reading in full: it is what the user is
+    being asked to approve.
+    """
+    out = {}
+    for key, value in (arguments or {}).items():
+        if key == "pipeline":
+            out[key] = value
+            continue
+        rendered = value if isinstance(value, str) else json.dumps(value, default=str)
+        out[key] = value if len(rendered) <= budget else rendered[:budget] + "\u2026"
+    return out
+
+
+def proposal(trace):
+    """The filter the assistant built, assembled from what it actually ran.
+
+    A pipeline it never previewed is not offered: the preview is the evidence
+    that it matches anything, and offering one without it invites saving a
+    filter that passes nothing.
+    """
+    pipeline = preview = target = None
+    for call in trace:
+        if not call["ok"]:
+            continue
+        arguments = call["arguments"]
+        if call["name"] == "run_broker_filter" and arguments.get("pipeline"):
+            pipeline = arguments["pipeline"]
+            preview = {
+                "summary": call["summary"],
+                "start_jd": arguments.get("start_jd"),
+                "end_jd": arguments.get("end_jd"),
+            }
+        elif call["name"] == "post_broker_filter_version" and arguments.get("altdata"):
+            # Saved already: what the builder should show is what was saved.
+            pipeline = arguments["altdata"]
+            target = {
+                "broker_id": arguments.get("broker_id"),
+                "filter_id": arguments.get("filter_id"),
+            }
+    if pipeline is None or preview is None:
+        return None
+    return {"pipeline": pipeline, "preview": preview, "target": target}
+
+
+# Writing tools the assistant may use while the user is on that filter's page,
+# where building a filter is the whole point of asking. Each touches only that
+# filter, runs under the user's own token, and activation is still gated on a
+# passing validation.
+FILTER_WRITE_TOOLS = frozenset(
+    {
+        "post_filter",
+        "post_broker_filter_version",
+        "validate_broker_filter_version",
+        "activate_broker_filter_version",
+        "attach_filter_to_broker",
+    }
+)
+
+
+def offered_tools(tools, context_type=None):
+    """The tools to put in front of the model.
+
+    Read-only ones always. A tool that writes is offered only on the page whose
+    subject it writes to, because a model can be talked into a write by the text
+    of something it read, and most of what it reads is written by other people.
+    """
+    writable = FILTER_WRITE_TOOLS if context_type == "filter" else frozenset()
+    return [
+        tool
+        for tool in tools
+        if (tool.get("annotations") or {}).get("readOnlyHint")
+        or tool.get("name") in writable
+    ]

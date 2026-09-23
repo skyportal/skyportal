@@ -210,3 +210,56 @@ def test_asking_needs_a_configured_assistant(user):
     status, data = api("GET", "assistant/messages", token=token_id)
     assert_api(status, data)
     assert data["data"] == []
+
+
+def test_the_tool_trace_and_proposal_reach_the_reader(user):
+    # The page renders both; an answer whose steps and pipeline stop at the
+    # database is one nobody can check.
+    token_id = _token(user)
+    channel = str(uuid.uuid4())
+    trace = [
+        {
+            "name": "run_broker_filter",
+            "arguments": {"broker_id": 1},
+            "ok": True,
+            "summary": '{"count": 12}',
+        }
+    ]
+    built = {
+        "pipeline": [{"$match": {"candidate.drb": {"$gt": 0.9}}}],
+        "preview": {"summary": '{"count": 12}', "start_jd": 1.0, "end_jd": 8.0},
+        "target": None,
+    }
+    message = AssistantMessage(
+        user_id=user.id,
+        channel=channel,
+        text="Here is a filter.",
+        system=True,
+        tool_calls=trace,
+        proposal=built,
+    )
+    DBSession().add(message)
+    DBSession().commit()
+
+    status, data = api(
+        "GET", "assistant/messages", params={"channel": channel}, token=token_id
+    )
+    assert_api(status, data)
+    answer = data["data"][0]
+    assert answer["tool_calls"] == trace
+    assert answer["proposal"]["pipeline"] == built["pipeline"]
+
+
+def test_a_question_carries_no_trace(user):
+    # Only the assistant's own messages have one, so the panel has nothing to
+    # render under what the user typed.
+    token_id = _token(user)
+    channel = str(uuid.uuid4())
+    _seed(user.id, channel, "build me a filter")
+
+    status, data = api(
+        "GET", "assistant/messages", params={"channel": channel}, token=token_id
+    )
+    assert_api(status, data)
+    assert data["data"][0]["tool_calls"] is None
+    assert data["data"][0]["proposal"] is None

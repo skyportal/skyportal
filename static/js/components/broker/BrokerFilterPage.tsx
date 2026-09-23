@@ -6,6 +6,7 @@ import { useCommentTarget } from "../../contexts/CommentPanelContext";
 import { setBrokerFilterTarget } from "../../ducks/brokerFilterTarget";
 import { useGetBrokersQuery } from "../../ducks/brokers";
 import BoomFilterPlugins from "../filter/boom/BoomFilterPlugins";
+import BrokerFilterAssistant from "./BrokerFilterAssistant";
 import GcnCrossmatchPlugin from "../filter/GcnCrossmatchPlugin";
 import LasairFilterEditor from "./lasair/LasairFilterEditor";
 
@@ -28,6 +29,7 @@ const BrokerFilterPage = () => {
   if (broker?.broker_classname === "LASAIRBROKER") {
     return (
       <Box sx={{ p: 2 }}>
+        <BrokerFilterAssistant />
         <LasairFilterEditor broker={broker} filterId={fid} />
         <GcnCrossmatchPlugin />
       </Box>
@@ -36,6 +38,7 @@ const BrokerFilterPage = () => {
 
   return (
     <>
+      <BrokerFilterAssistant />
       <BoomFilterPlugins />
       <GcnCrossmatchPlugin />
     </>
