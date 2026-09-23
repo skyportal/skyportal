@@ -52,6 +52,7 @@ import {
   plotAxisTheme,
   plotCanvasTheme,
   PHOT_ZP,
+  LOW_SIGNIFICANCE_SNR,
   smoothing_func,
   mjdnow,
   rgba,
@@ -130,10 +131,6 @@ const getPhotometryInstrumentLabel = (point: any) =>
 
 // Internal flux is in µJy (PHOT_ZP = 23.9 is the AB zeropoint for µJy); these
 // factors rescale the flux axis to the selected display unit.
-// Below this signal-to-noise a measurement is drawn as an upper limit by
-// default; it is still real data, so a toggle reveals the raw point.
-const LOW_SIGNIFICANCE_SNR = 3;
-
 const FLUX_UNIT_FACTORS: Record<string, number> = {
   µJy: 1,
   mJy: 1e-3,

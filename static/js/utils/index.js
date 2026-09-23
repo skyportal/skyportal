@@ -4,6 +4,7 @@
 export {
   C,
   PHOT_ZP,
+  LOW_SIGNIFICANCE_SNR,
   BASE_LAYOUT,
   LINES,
   LOGTYPE_TO_COLOR,
