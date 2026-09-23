@@ -136,7 +136,9 @@ from ...utils.gcn import (
     get_contour,
     get_dateobs,
     get_designation_date,
+    get_json_aliases,
     get_json_tags,
+    get_json_trigger_id,
     get_notice_aliases,
     get_properties,
     get_skymap,
@@ -937,6 +939,8 @@ async def post_gcnevent_from_json(
         dateobs = Time(payload["trigger_time"], format="isot", precision=0)
         dateobs = Time(dateobs.iso).datetime
 
+    trigger_id = get_json_trigger_id(payload)
+
     event = None
     ref_ID = payload.get("ref_ID", None)
     if ref_ID is not None:
@@ -948,12 +952,17 @@ async def post_gcnevent_from_json(
             )
         )
 
+    if event is None and trigger_id is not None:
+        event = await session.scalar(
+            GcnEvent.select(user).where(GcnEvent.trigger_id == trigger_id)
+        )
+
     if event is None and dateobs is not None:
         event = await session.scalar(
             GcnEvent.select(user).where(GcnEvent.dateobs == dateobs)
         )
 
-    aliases = payload.get("aliases") or []
+    aliases = payload.get("aliases") or get_json_aliases(payload)
     if event is None:
         if dateobs is None:
             raise ValueError(
@@ -963,6 +972,7 @@ async def post_gcnevent_from_json(
         event = GcnEvent(
             dateobs=dateobs,
             aliases=aliases or None,
+            trigger_id=trigger_id,
             sent_by_id=user.id,
         )
         event.groups = await resolve_gcnevent_groups(
@@ -983,8 +993,11 @@ async def post_gcnevent_from_json(
             )
         # add any new aliases (e.g. LVC#superevent) not already present
         new_aliases = [a for a in aliases if a not in (event.aliases or [])]
-        if new_aliases:
-            event.aliases = (event.aliases or []) + new_aliases
+        if new_aliases or (trigger_id is not None and event.trigger_id is None):
+            if new_aliases:
+                event.aliases = (event.aliases or []) + new_aliases
+            if event.trigger_id is None:
+                event.trigger_id = trigger_id
             session.add(event)
             await session.commit()
 

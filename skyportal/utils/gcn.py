@@ -160,7 +160,7 @@ def get_json_tags(payload):
     tags = []
     if "instrument" in payload:
         if payload["instrument"] == "WXT":
-            tags = ["Einstein Probe"]
+            tags = ["Einstein Probe", "X-ray"]
         elif payload["instrument"] == "BAT-GUANO":
             tags = ["GUANO"]
 
@@ -169,6 +169,24 @@ def get_json_tags(payload):
         tags += get_igwn_gwalert_tags(payload)
 
     return tags
+
+
+def get_json_trigger_id(payload):
+    """Instrument trigger id of a GCN JSON notice, when the stream carries one."""
+    if payload.get("instrument") == "WXT":
+        ids = payload.get("id") or []
+        if not isinstance(ids, list | tuple):
+            ids = [ids]
+        if ids:
+            return str(ids[0])
+    return None
+
+
+def get_json_aliases(payload):
+    """Aliases of a GCN JSON notice, using the INSTRUMENT#ID convention that
+    get_notice_aliases applies to VOEvent notices."""
+    trigger_id = get_json_trigger_id(payload)
+    return [f"EP#{trigger_id}"] if trigger_id else []
 
 
 def from_igwn_gwalert(payload):

@@ -39,7 +39,7 @@ def _ep_payload(
         "trigger_id": name,
         "aliases": [f"EP#{name}"],
         "skymap": {"ra": ra, "dec": dec, "error": error},
-        "tags": ["EP", "X-ray"] + ([tag] if tag else []),
+        "tags": ["Einstein Probe", "X-ray"] + ([tag] if tag else []),
         "properties": {
             "ep_name": name,
             "ep_version": "1",
@@ -72,7 +72,7 @@ def test_ep_candidate_creates_restricted_event(
     status, data = api("GET", f"gcn_event/{dateobs_str}", token=view_only_token_group2)
     assert status == 200, data
     assert data["data"]["trigger_id"] == name
-    assert "EP" in data["data"]["tags"]
+    assert "Einstein Probe" in data["data"]["tags"]
 
     # the proprietary feed must not be visible outside the EP group
     status, data = api("GET", f"gcn_event/{dateobs_str}", token=view_only_token)
