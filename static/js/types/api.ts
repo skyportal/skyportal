@@ -24292,6 +24292,14 @@ export interface components {
             notify?: {
                 [key: string]: unknown;
             } | null;
+            /** @description The tools the assistant ran to reach this answer, in order, as [{name, arguments, ok, summary}]. Shown so the reader can see what the answer rests on rather than taking the prose for it. */
+            tool_calls?: {
+                [key: string]: unknown;
+            } | null;
+            /** @description A filter pipeline the assistant arrived at, with whatever preview it ran, so the page can offer it for saving. Read out of tool_calls. */
+            proposal?: {
+                [key: string]: unknown;
+            } | null;
             /** @description Unique object identifier. */
             id?: number;
         };
@@ -24324,6 +24332,14 @@ export interface components {
             context_id?: string | null;
             /** @description Who to notify with the answer, as {'users': [ids], 'groups': [ids]}. Used by scheduled/triggered runs; a person chatting reads it in the panel. */
             notify?: {
+                [key: string]: unknown;
+            } | null;
+            /** @description The tools the assistant ran to reach this answer, in order, as [{name, arguments, ok, summary}]. Shown so the reader can see what the answer rests on rather than taking the prose for it. */
+            tool_calls?: {
+                [key: string]: unknown;
+            } | null;
+            /** @description A filter pipeline the assistant arrived at, with whatever preview it ran, so the page can offer it for saving. Read out of tool_calls. */
+            proposal?: {
                 [key: string]: unknown;
             } | null;
         };

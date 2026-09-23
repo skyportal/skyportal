@@ -63,6 +63,21 @@ class AssistantMessage(Base):
         "Used by scheduled/triggered runs; a person chatting reads it in the panel.",
     )
 
+    tool_calls = sa.Column(
+        JSONB,
+        nullable=True,
+        doc="The tools the assistant ran to reach this answer, in order, as "
+        "[{name, arguments, ok, summary}]. Shown so the reader can see what "
+        "the answer rests on rather than taking the prose for it.",
+    )
+
+    proposal = sa.Column(
+        JSONB,
+        nullable=True,
+        doc="A filter pipeline the assistant arrived at, with whatever preview "
+        "it ran, so the page can offer it for saving. Read out of tool_calls.",
+    )
+
 
 class AssistantQuery(Base):
     """A shared, group-scoped assistant task others can discover and subscribe to.

@@ -62,3 +62,62 @@ about a trigger and reply in the discussion on it.
 producer may store machine-readable values parsed out of an event's prose.
 `origin` names the producer and the payload is that producer's own shape, so
 filter by `origin` when you care which pipeline it came from.
+
+## Broker filters
+
+Nine tools cover a filter from nothing to running on the live alert stream, so
+an assistant can build one from a description of what the user wants to catch.
+
+| Tool                             | Purpose                                                              |
+| -------------------------------- | -------------------------------------------------------------------- |
+| `get_filter_targets`             | The groups, streams and filter-capable brokers the token can use     |
+| `get_alert_schema`               | Fields a pipeline may reference, as dotted paths with their types    |
+| `post_filter`                    | Create the filter on a group and stream                              |
+| `run_broker_filter`              | Preview: a count, or the alerts themselves when `sort_by` is given   |
+| `post_broker_filter_version`     | Add a compiled pipeline as a new version                             |
+| `validate_broker_filter_version` | Ask the broker whether a version is fit to run                       |
+| `activate_broker_filter_version` | Make a version the one the broker runs                               |
+| `get_broker_filter`              | Read a filter: its versions, which is active, its auto-save settings |
+| `diff_broker_filter_versions`    | Unified diff of two versions' pipelines                              |
+
+Three things about this sequence are not visible from the schemas, so they are
+also stated in the server's `instructions`:
+
+- **The stream bounds what the filter can see.** A cut on data the stream does
+  not carry passes nothing, and looks identical to a cut nothing satisfies.
+- **`get_alert_schema` is not optional.** A pipeline that references a path the
+  survey does not have matches no alerts and reports no error, which is the
+  same outcome as a filter that is merely too tight. The tool flattens the
+  broker's Avro schema to dotted paths, marking nullable fields with `?` and
+  arrays with `[]`, and takes `search` or `prefix` because the full ZTF schema
+  is about a thousand paths.
+- **Activation is gated on validation.** Posting a version validates it and
+  `post_broker_filter_version` returns that verdict; activating a version with
+  no passing verdict is refused.
+
+`get_filter_targets` passes on only the broker fields a filter needs.
+`GET /api/brokers` returns each broker's `altdata`, which holds its Kafka
+credentials, and none of that reaches the model.
+
+## What the assistant may call
+
+The assistant service runs the tool loop itself, and does not offer the model
+every tool the endpoint exposes. Read-only tools are always offered. A tool that
+writes is offered only on the page whose subject it writes to: the five filter
+write tools in `FILTER_WRITE_TOOLS` are offered when the user asks from a
+filter page, and nowhere else. `call_tool` then refuses anything that was not
+offered, so the selection is enforced twice.
+
+The reason is that most of what the assistant reads was written by someone else
+-- GCN circulars, comments, annotations -- and a model can be talked into a
+write by the text of what it read. Scoping the write tools to the page keeps
+the reachable damage to the one filter the user is already editing, and every
+call still runs under that user's own token with the usual permission checks.
+Activating a version remains gated on a passing validation.
+
+Each answer records what it ran. `AssistantMessage.tool_calls` holds the calls
+in order as `[{name, arguments, ok, summary}]`, and `AssistantMessage.proposal`
+holds a filter pipeline the assistant arrived at, read back out of that trace.
+A pipeline it never previewed is not offered: the preview is the evidence that
+it matches anything, and offering one without it invites saving a filter that
+passes nothing. The filter page renders both under the answer.

@@ -1,12 +1,27 @@
 import { skyportalApi } from "../api/skyportalApi";
 import { invalidateOnMessage } from "../api/wsInvalidation";
 
+export interface AssistantToolCall {
+  name: string;
+  arguments: Record<string, any>;
+  ok: boolean;
+  summary: string;
+}
+
+export interface AssistantProposal {
+  pipeline: any[];
+  preview: { summary: string; start_jd: number | null; end_jd: number | null };
+  target: { broker_id: number; filter_id: number } | null;
+}
+
 export interface AssistantMessage {
   id: number;
   text: string;
   system: boolean;
   channel: string | null;
   created_at: string;
+  tool_calls?: AssistantToolCall[] | null;
+  proposal?: AssistantProposal | null;
 }
 
 export interface AssistantQuestion {

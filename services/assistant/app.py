@@ -26,7 +26,14 @@ from skyportal.models import (
     UserNotification,
 )
 from skyportal.utils.app import get_app_base_url
-from skyportal.utils.assistant import SERVICE_TOKEN_PREFIX, build_messages, condense
+from skyportal.utils.assistant import (
+    SERVICE_TOKEN_PREFIX,
+    build_messages,
+    condense,
+    offered_tools,
+    proposal,
+    record_call,
+)
 
 _, cfg = load_env()
 log = make_log("assistant")
@@ -87,14 +94,9 @@ def _rpc(token, method, params, timeout, tool_name=None):
     return payload["result"]
 
 
-def list_tools(token):
-    """The read-only tools. A tool that writes is never offered, and `call_tool`
-    refuses anything that was not."""
-    tools = [
-        tool
-        for tool in _rpc(token, "tools/list", {}, 60)["tools"]
-        if tool.get("annotations", {}).get("readOnlyHint")
-    ]
+def list_tools(token, context_type=None):
+    """The tools to offer, as the chat API wants them."""
+    tools = offered_tools(_rpc(token, "tools/list", {}, 60)["tools"], context_type)
     return [
         {
             "type": "function",
@@ -159,9 +161,11 @@ def remaining(deadline, floor=5.0):
 
 
 def answer(conversation, context_type, context_id, user, token):
-    tools = list_tools(token)
+    """The answer, the tools it took to get there, and any filter it built."""
+    tools = list_tools(token, context_type)
     offered = {tool["function"]["name"] for tool in tools}
     messages = build_messages(conversation, MAX_CONTEXT, context_type, context_id, user)
+    trace = []
 
     deadline = time.monotonic() + ANSWER_TIMEOUT
     # One round-trip can ask for several tools at once, so count the calls
@@ -174,17 +178,20 @@ def answer(conversation, context_type, context_id, user, token):
         message = chat(messages, tools, timeout=left)
         calls = message.get("tool_calls") or []
         if not calls:
-            return (message.get("content") or "").strip()
+            return (message.get("content") or "").strip(), trace, proposal(trace)
         messages.append(message)
         calls_made += len(calls)
         for call in calls:
             name = call["function"]["name"]
+            arguments, ok = {}, True
             try:
                 arguments = json.loads(call["function"]["arguments"] or "{}")
                 result = call_tool(token, name, arguments, offered)
             except Exception as exc:
+                ok = False
                 result = f"tool {name} failed: {exc}"
                 log(result)
+            trace.append(record_call(name, arguments, result, ok))
             messages.append(
                 {
                     "role": "tool",
@@ -200,10 +207,15 @@ def answer(conversation, context_type, context_id, user, token):
         }
     )
     if (left := remaining(deadline)) is None:
-        return "I ran out of time working that out. Please ask again, or narrow the question."
+        return (
+            "I ran out of time working that out. Please ask again, or narrow the question.",
+            trace,
+            proposal(trace),
+        )
     # No tools on the last word, or the model asks for another instead of
     # answering and the reply comes back empty.
-    return (chat(messages, [], timeout=left).get("content") or "").strip()
+    text = (chat(messages, [], timeout=left).get("content") or "").strip()
+    return text, trace, proposal(trace)
 
 
 def service_token(session, user_id):
@@ -421,8 +433,11 @@ def respond(message_id):
             token_id = service_token(session, user_id).id
 
         # Answering takes minutes, so no connection is held while it runs.
+        trace, built = [], None
         try:
-            text = answer(conversation, context_type, context_id, profile, token_id)
+            text, trace, built = answer(
+                conversation, context_type, context_id, profile, token_id
+            )
         except Exception as exc:
             log(f"assistant failed on message {message_id}: {exc}")
             text = (
@@ -449,6 +464,8 @@ def respond(message_id):
                         channel=asked[0],
                         text=text or "I could not find an answer to that.",
                         system=True,
+                        tool_calls=trace or None,
+                        proposal=built,
                     )
                 )
                 if notify:

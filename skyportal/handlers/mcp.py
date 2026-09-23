@@ -69,7 +69,36 @@ digits adds a second point at the same epoch rather than replacing it.
 one does not activate it. Preview with run_broker_filter before activating: a \
 pipeline that returns nothing there will pass nothing in production.
 - An empty result is usually a wrong field name rather than an empty sky. \
-Check the shape of one record before concluding that nothing matched."""
+Check the shape of one record before concluding that nothing matched.
+
+Creating a broker filter, in order:
+
+1. get_filter_targets for the group, stream and broker ids. The stream bounds \
+which alerts the filter may see, so a cut on data the stream does not carry \
+passes nothing.
+2. get_alert_schema for the field names. Write the cuts against paths it \
+returns; a path it does not list matches nothing, silently.
+3. post_filter to create the filter.
+4. run_broker_filter to preview. Without sort_by it returns a count, which is \
+what to tune a threshold against; a pipeline broker needs start_jd and end_jd. \
+Write only the cuts: the terminal $project is appended for you.
+5. post_broker_filter_version, then activate_broker_filter_version with the \
+fid it returns. Posting validates the version and returns the verdict; \
+activation is refused without a passing one, and \
+validate_broker_filter_version re-runs it after a fix.
+
+Writing the pipeline itself:
+
+- A pipeline is per-alert. $group, $unwind and $lookup are rejected, so \
+anything about an object's history has to come from a precomputed field \
+(properties.detection_history, properties.episode_history, photstats) rather \
+than from aggregating prv_candidates.
+- A comparison against a missing field is true in Mongo, so a cut written to \
+exclude something keeps every alert that lacks the field. Pair it with an \
+existence or null test when that matters.
+- prv_candidates and fp_hists describe the sky position, not the object. For a \
+mover, whose objectId changes almost every detection, they are somebody else's \
+history."""
 
 
 # JSON-RPC / MCP error codes
@@ -925,6 +954,64 @@ async def get_observation_plans(handler, args):
     return await handler.api("GET", path, query=args)
 
 
+_PRIMITIVES = {"null", "boolean", "int", "long", "float", "double", "bytes", "string"}
+
+
+def _flatten_avro(schema, prefix="", registry=None, stack=(), depth=0):
+    """An Avro schema as (dotted path, type) pairs, arrays marked with `[]`."""
+    registry = {} if registry is None else registry
+    if depth > 12:
+        return []
+
+    # A named type used a second time is a bare string, resolved against the
+    # registry; a record that contains itself would otherwise never terminate.
+    if isinstance(schema, str):
+        if schema in _PRIMITIVES:
+            return [(prefix, schema)] if prefix else []
+        if schema in stack or schema not in registry:
+            return [(prefix, schema)] if prefix else []
+        return _flatten_avro(registry[schema], prefix, registry, stack, depth)
+
+    if isinstance(schema, list):
+        branches = [b for b in schema if b != "null"]
+        nullable = len(branches) < len(schema)
+        if not branches:
+            return [(prefix, "null")] if prefix else []
+        flat = _flatten_avro(branches[0], prefix, registry, stack, depth)
+        return [(p, t + "?" if nullable and p == prefix else t) for p, t in flat]
+
+    if not isinstance(schema, dict):
+        return []
+
+    kind = schema.get("type")
+    if schema.get("name"):
+        registry.setdefault(schema["name"], schema)
+
+    if kind == "record":
+        stack = (*stack, schema.get("name"))
+        out = []
+        for field in schema.get("fields") or []:
+            name = field.get("name")
+            if not name:
+                continue
+            path = f"{prefix}.{name}" if prefix else name
+            out.extend(
+                _flatten_avro(field.get("type"), path, registry, stack, depth + 1)
+            )
+        return out
+    if kind == "array":
+        return _flatten_avro(
+            schema.get("items"), f"{prefix}[]", registry, stack, depth + 1
+        )
+    if kind == "enum":
+        return [(prefix, "enum(" + "|".join(schema.get("symbols") or []) + ")")]
+    if kind == "map":
+        return _flatten_avro(
+            schema.get("values"), f"{prefix}{{}}", registry, stack, depth + 1
+        )
+    return _flatten_avro(kind, prefix, registry, stack, depth)
+
+
 def _versions(filter_record):
     """A broker filter's versions, oldest first, as (fid, pipeline) pairs."""
     return [
@@ -932,6 +1019,146 @@ def _versions(filter_record):
         for v in (filter_record or {}).get("fv") or []
         if v.get("fid")
     ]
+
+
+@tool(
+    "get_filter_targets",
+    "The groups, streams and filter-capable brokers this token can use, with "
+    "the ids post_filter needs. Start here: a filter belongs to one group and "
+    "one stream, and the stream decides which alerts it is allowed to see.",
+    {},
+)
+async def get_filter_targets(handler, args):
+    groups = await handler.api("GET", "/api/groups")
+    streams = await handler.api("GET", "/api/streams")
+    brokers = await handler.api("GET", "/api/brokers")
+
+    accessible = (groups or {}).get("user_groups") or (groups or {}).get("all_groups")
+    return {
+        "groups": [
+            {"id": g.get("id"), "name": g.get("name")} for g in (accessible or [])
+        ],
+        "streams": [
+            {"id": s.get("id"), "name": s.get("name")} for s in (streams or [])
+        ],
+        # altdata carries broker credentials, so only the fields a filter needs.
+        "brokers": [
+            {
+                "id": b.get("id"),
+                "name": b.get("name"),
+                "active": b.get("active"),
+                "surveys": b.get("surveys"),
+                "filter_kind": b.get("filter_kind"),
+                "filter_pipeline": (b.get("capabilities") or {}).get("filter_pipeline"),
+            }
+            for b in (brokers or [])
+            if (b.get("capabilities") or {}).get("create_filter")
+        ],
+    }
+
+
+@tool(
+    "get_alert_schema",
+    "The fields a filter pipeline may reference, as dotted paths with their "
+    "types. Read this before writing a pipeline: a path that is not here "
+    "matches nothing, and an empty preview looks the same as an empty sky. "
+    "`?` marks a nullable field and `[]` an array.",
+    {
+        "broker_id": _prop("integer", "Broker ID."),
+        "survey": _prop("string", "Survey whose alerts the filter runs on, e.g. ZTF."),
+        "search": _prop(
+            "string", "Keep only paths containing this substring, case-insensitive."
+        ),
+        "prefix": _prop("string", "Keep only paths under this one, e.g. candidate."),
+        "limit": _prop("integer", "Maximum paths to return (default 200).", minimum=1),
+    },
+    required=("broker_id", "survey"),
+)
+async def get_alert_schema(handler, args):
+    broker_id = args["broker_id"]
+    modules = await handler.api(
+        "GET",
+        f"/api/brokers/{broker_id}/filter_modules",
+        query={"survey": args["survey"]},
+    )
+    schema = (modules or {}).get("schema")
+    if not schema:
+        raise ToolError(
+            f"Broker {broker_id} reports no alert schema for survey {args['survey']!r}."
+        )
+
+    paths = _flatten_avro(schema)
+    search = (args.get("search") or "").lower()
+    prefix = args.get("prefix") or ""
+    if search:
+        paths = [(p, t) for p, t in paths if search in p.lower()]
+    if prefix:
+        paths = [(p, t) for p, t in paths if p == prefix or p.startswith(prefix)]
+
+    limit = args.get("limit") or 200
+    return {
+        "survey": args["survey"],
+        "matched": len(paths),
+        "truncated": len(paths) > limit,
+        "fields": dict(paths[:limit]),
+    }
+
+
+@tool(
+    "search_filters",
+    "Search the filters this token can see, by name, group, stream or broker. "
+    "The way to copy an existing filter rather than write one: find one that "
+    "already does something close, read its pipeline with get_broker_filter, "
+    "and post that as a version of a new filter.",
+    {
+        "name": _prop("string", "Case-insensitive substring of the filter name."),
+        "groupID": _prop("integer", "Only filters on this group."),
+        "streamID": _prop("integer", "Only filters on this stream."),
+        "brokerID": _prop(
+            "string", 'A broker id, or "none" for filters attached to no broker.'
+        ),
+        "pageNumber": _prop("integer", "Page of results (default 1)."),
+        "numPerPage": _prop("integer", "Results per page."),
+    },
+    passthrough="GET /api/brokers/filters",
+)
+async def search_filters(handler, args):
+    data = await handler.api("GET", "/api/brokers/filters", query=args)
+    # altdata carries the whole compiled pipeline; get_broker_filter returns
+    # that for the one filter the caller settles on.
+    return {
+        "totalMatches": (data or {}).get("totalMatches"),
+        "filters": [
+            {
+                "id": f.get("id"),
+                "name": f.get("name"),
+                "group_id": f.get("group_id"),
+                "stream_id": f.get("stream_id"),
+                "broker_id": f.get("broker_id"),
+                "autosave": f.get("autosave"),
+                "group_admin": f.get("group_admin"),
+            }
+            for f in (data or {}).get("filters") or []
+        ],
+    }
+
+
+@tool(
+    "attach_filter_to_broker",
+    "Bind a filter that runs on no broker to one, so versions can be posted to "
+    "it. A filter already attached to a different broker is refused.",
+    {
+        "filter_id": _prop("integer", "Filter ID."),
+        "broker_id": _prop("integer", "Broker to attach it to."),
+    },
+    required=("filter_id", "broker_id"),
+    writes=True,
+)
+async def attach_filter_to_broker(handler, args):
+    filter_id = args.pop("filter_id")
+    return await handler.api(
+        "POST", f"/api/brokers/filters/{filter_id}/attach", body=args
+    )
 
 
 @tool(
@@ -1013,7 +1240,9 @@ async def diff_broker_filter_versions(handler, args):
     "run_broker_filter",
     "Preview which alerts a pipeline passes, without saving anything. The way "
     "to check a filter before activating it: a pipeline that returns nothing "
-    "here will pass nothing in production.",
+    "here will pass nothing in production. Returns a count on its own, which "
+    "is what to tune a threshold against; pass sort_by to get the alerts "
+    "themselves. A pipeline broker needs both start_jd and end_jd.",
     {
         "broker_id": _prop("integer", "Broker ID."),
         "pipeline": _prop(
@@ -1021,6 +1250,11 @@ async def diff_broker_filter_versions(handler, args):
             "The aggregation pipeline to run, as a list of stages.",
             items={"type": "object"},
         ),
+        "sort_by": _prop(
+            "string",
+            "Field to sort matching alerts by. Omit to return only a count.",
+        ),
+        "sort_order": _prop("string", "Ascending or Descending (default)."),
         "selectedCollection": _prop(
             "string", "Alert collection to run against, e.g. ZTF_alerts."
         ),
@@ -1069,11 +1303,38 @@ async def post_broker_filter_version(handler, args):
     # activating a version needs it, and nothing else reports it.
     record = await handler.api("GET", f"/api/brokers/{broker_id}/filters/{filter_id}")
     versions = _versions(record)
+    fid = versions[-1][0] if versions else None
+    # The POST validates the new version; surface that verdict, since
+    # activation is refused without a passing one.
+    boom = ((record or {}).get("altdata") or {}).get("boom") or {}
     return {
         "id": (result or {}).get("id", filter_id),
-        "fid": versions[-1][0] if versions else None,
+        "fid": fid,
         "active_fid": (record or {}).get("active_fid"),
+        "validation": (boom.get("validations") or {}).get(fid),
     }
+
+
+@tool(
+    "validate_broker_filter_version",
+    "Ask the broker whether a filter version is fit to run, and record the "
+    "verdict. Activation is gated on this: posting a version validates it "
+    "automatically, so call this only when that verdict is missing or when a "
+    "failure has since been fixed.",
+    {
+        "broker_id": _prop("integer", "Broker ID."),
+        "filter_id": _prop("integer", "Filter ID."),
+        "fid": _prop("string", "Version (fid) to validate."),
+    },
+    required=("broker_id", "filter_id", "fid"),
+    writes=True,
+)
+async def validate_broker_filter_version(handler, args):
+    broker_id = args.pop("broker_id")
+    filter_id = args.pop("filter_id")
+    return await handler.api(
+        "POST", f"/api/brokers/{broker_id}/filters/{filter_id}/validate", body=args
+    )
 
 
 @tool(

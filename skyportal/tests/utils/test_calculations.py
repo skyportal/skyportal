@@ -56,7 +56,19 @@ def test_dms_to_deg():
 
 def test_radec_to_healpix():
     row = {"ra": 231.413765, "dec": 17.680664}
-    assert radec_to_healpix(row) == 1204148902702861198
+    assert radec_to_healpix(row) == 604398283425736742
+
+
+def test_radec_to_healpix_matches_the_column_it_is_compared_against():
+    # A ring index and a nested one are both valid and name different patches
+    # of sky, so an index built the other way silently matches the wrong field.
+    import astropy.units as u
+    import healpix_alchemy as ha
+
+    row = {"ra": 231.413765, "dec": 17.680664}
+    assert radec_to_healpix(row) == ha.constants.HPX.lonlat_to_healpix(
+        row["ra"] * u.deg, row["dec"] * u.deg
+    )
 
 
 def test_radec2lb():
