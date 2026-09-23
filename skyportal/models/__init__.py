@@ -1,6 +1,11 @@
 # Baselayer models
 from baselayer.app.models import *
 
+# Registers secret_key_fingerprint on Base.metadata. The table lives beside
+# the code that reads it, but alembic compares against the metadata models
+# build, and a table missing from it reads as one to drop.
+from ..utils.secret_key import SecretKeyFingerprint  # noqa: F401
+
 # SkyPortal models
 from .allocation import *
 from .analysis import *
