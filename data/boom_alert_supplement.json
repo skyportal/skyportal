@@ -907,67 +907,99 @@
           "fields": [
             {
               "name": "reduced_chi2",
-              "type": ["null", "double"]
+              "type": ["null", "double"],
+              "nan_possible": true,
+              "doc": "NaN when the fit was skipped, so this is present and fails every comparison rather than being absent."
             },
             {
               "name": "peak_flux",
-              "type": ["null", "double"]
+              "type": ["null", "double"],
+              "nan_possible": true,
+              "doc": "NaN when the fit was skipped, so this is present and fails every comparison rather than being absent."
             },
             {
               "name": "A_ZTF_r",
-              "type": ["null", "double"]
+              "type": ["null", "double"],
+              "nan_possible": true,
+              "doc": "NaN when the fit was skipped, so this is present and fails every comparison rather than being absent."
             },
             {
               "name": "beta_ZTF_r",
-              "type": ["null", "double"]
+              "type": ["null", "double"],
+              "nan_possible": true,
+              "doc": "NaN when the fit was skipped, so this is present and fails every comparison rather than being absent."
             },
             {
               "name": "gamma_ZTF_r",
-              "type": ["null", "double"]
+              "type": ["null", "double"],
+              "nan_possible": true,
+              "doc": "NaN when the fit was skipped, so this is present and fails every comparison rather than being absent."
             },
             {
               "name": "t_0_ZTF_r",
-              "type": ["null", "double"]
+              "type": ["null", "double"],
+              "nan_possible": true,
+              "doc": "NaN when the fit was skipped, so this is present and fails every comparison rather than being absent."
             },
             {
               "name": "tau_rise_ZTF_r",
-              "type": ["null", "double"]
+              "type": ["null", "double"],
+              "nan_possible": true,
+              "doc": "NaN when the fit was skipped, so this is present and fails every comparison rather than being absent."
             },
             {
               "name": "tau_fall_ZTF_r",
-              "type": ["null", "double"]
+              "type": ["null", "double"],
+              "nan_possible": true,
+              "doc": "NaN when the fit was skipped, so this is present and fails every comparison rather than being absent."
             },
             {
               "name": "extra_sigma_ZTF_r",
-              "type": ["null", "double"]
+              "type": ["null", "double"],
+              "nan_possible": true,
+              "doc": "NaN when the fit was skipped, so this is present and fails every comparison rather than being absent."
             },
             {
               "name": "A_ZTF_g",
-              "type": ["null", "double"]
+              "type": ["null", "double"],
+              "nan_possible": true,
+              "doc": "NaN when the fit was skipped, so this is present and fails every comparison rather than being absent."
             },
             {
               "name": "beta_ZTF_g",
-              "type": ["null", "double"]
+              "type": ["null", "double"],
+              "nan_possible": true,
+              "doc": "NaN when the fit was skipped, so this is present and fails every comparison rather than being absent."
             },
             {
               "name": "gamma_ZTF_g",
-              "type": ["null", "double"]
+              "type": ["null", "double"],
+              "nan_possible": true,
+              "doc": "NaN when the fit was skipped, so this is present and fails every comparison rather than being absent."
             },
             {
               "name": "t_0_ZTF_g",
-              "type": ["null", "double"]
+              "type": ["null", "double"],
+              "nan_possible": true,
+              "doc": "NaN when the fit was skipped, so this is present and fails every comparison rather than being absent."
             },
             {
               "name": "tau_rise_ZTF_g",
-              "type": ["null", "double"]
+              "type": ["null", "double"],
+              "nan_possible": true,
+              "doc": "NaN when the fit was skipped, so this is present and fails every comparison rather than being absent."
             },
             {
               "name": "tau_fall_ZTF_g",
-              "type": ["null", "double"]
+              "type": ["null", "double"],
+              "nan_possible": true,
+              "doc": "NaN when the fit was skipped, so this is present and fails every comparison rather than being absent."
             },
             {
               "name": "extra_sigma_ZTF_g",
-              "type": ["null", "double"]
+              "type": ["null", "double"],
+              "nan_possible": true,
+              "doc": "NaN when the fit was skipped, so this is present and fails every comparison rather than being absent."
             }
           ]
         }

@@ -119,3 +119,21 @@ def test_the_fields_survive_flattening_into_dotted_paths():
     assert paths.get("villar_fit.reduced_chi2") == "double?"
     assert "villar_fit.tau_rise_ZTF_r" in paths
     assert any(p.startswith("cross_matches[]") for p in paths)
+
+
+def test_nan_possible_rides_along_on_the_field():
+    # Avro has no way to say "present but NaN", and it is the property that
+    # separates "this alert had no fit" from "this alert failed the cut".
+    # Avro permits unknown attributes, so it travels as one rather than being
+    # lost in prose the builder never renders.
+    villar = next(f for f in supplemental_fields() if f["name"] == "villar_fit")
+    record = next(t for t in villar["type"] if isinstance(t, dict))
+    assert all(f.get("nan_possible") for f in record["fields"])
+
+    # ... and a parser that does not know the attribute still walks the field.
+    from skyportal.handlers.mcp import _flatten_avro
+
+    schema = supplement_schema(
+        {"type": "record", "name": "alert", "fields": [{"name": "c", "type": "string"}]}
+    )
+    assert dict(_flatten_avro(schema))["villar_fit.reduced_chi2"] == "double?"
