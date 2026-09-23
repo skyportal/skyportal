@@ -355,9 +355,16 @@ function ShowClassification({
   // advertise the object as being of that class (#3483). A null probability
   // means unspecified and is still shown.
   // `classifications` is frozen RTK Query data, so copy before sorting in place.
+  // A human classification always takes precedence over an ML one; each row shows
+  // its first entry, so put human labels first, then most recent.
   const sorted_classifications = [...(classifications || [])]
     .filter((c) => c["probability"] !== 0)
-    .sort((a, b) => (a["created_at"] > b["created_at"] ? -1 : 1));
+    .sort((a, b) => {
+      const mlA = a["ml"] ? 1 : 0;
+      const mlB = b["ml"] ? 1 : 0;
+      if (mlA !== mlB) return mlA - mlB;
+      return a["created_at"] > b["created_at"] ? -1 : 1;
+    });
 
   const classificationsGrouped = sorted_classifications.reduce(
     (r: Record<string, any[]>, a: any) => {
