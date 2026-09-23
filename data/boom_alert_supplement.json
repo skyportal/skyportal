@@ -972,6 +972,70 @@
           ]
         }
       ]
+    },
+    {
+      "name": "sso_history",
+      "doc": "Prior detections of the matched solar-system object, oldest first, within a year and inside the association radius. Each entry carries its own geometry rather than the alert's, so a window statistic gets one value per point. The last five are null on entries enriched before SSO geometry shipped, and fill in as the window rolls forward.",
+      "type": [
+        "null",
+        {
+          "type": "array",
+          "items": {
+            "type": "record",
+            "name": "SsoHistoryEntry",
+            "fields": [
+              {
+                "name": "designation",
+                "type": "string"
+              },
+              {
+                "name": "jd",
+                "type": "double"
+              },
+              {
+                "name": "fid",
+                "type": "int"
+              },
+              {
+                "name": "magpsf",
+                "type": "double"
+              },
+              {
+                "name": "sigmapsf",
+                "type": "double"
+              },
+              {
+                "name": "ra",
+                "type": "double"
+              },
+              {
+                "name": "dec",
+                "type": "double"
+              },
+              {
+                "name": "predicted_mag",
+                "type": ["null", "double"]
+              },
+              {
+                "name": "separation_arcsec",
+                "type": ["null", "double"]
+              },
+              {
+                "name": "helio_dist",
+                "type": ["null", "double"]
+              },
+              {
+                "name": "topo_dist",
+                "type": ["null", "double"]
+              },
+              {
+                "name": "phase_angle",
+                "type": ["null", "double"]
+              }
+            ]
+          }
+        }
+      ]
     }
   ]
 }

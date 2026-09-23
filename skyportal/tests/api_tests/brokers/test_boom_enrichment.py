@@ -67,6 +67,25 @@ def test_a_schema_it_cannot_read_is_returned_unchanged():
     assert supplement_schema("a string") == "a string"
 
 
+def test_sso_history_entries_carry_their_own_geometry(monkeypatch=None):
+    # An array of entries, not a single match: a window statistic needs one
+    # value per point, and the geometry leaves are null on entries enriched
+    # before SSO geometry shipped.
+    from skyportal.handlers.mcp import _flatten_avro
+
+    schema = supplement_schema(
+        {
+            "type": "record",
+            "name": "alert",
+            "fields": [{"name": "candidate", "type": "string"}],
+        }
+    )
+    paths = dict(_flatten_avro(schema))
+    assert paths["sso_history[].designation"] == "string"
+    assert paths["sso_history[].phase_angle"] == "double?"
+    assert paths["sso_history[].jd"] == "double"
+
+
 def test_the_provider_serves_the_supplemented_schema(monkeypatch):
     # The integration point: what a caller of filter_modules receives, and so
     # what both the builder and get_alert_schema read.
