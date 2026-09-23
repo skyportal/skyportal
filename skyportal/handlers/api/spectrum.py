@@ -25,7 +25,7 @@ from skyportal_py_models.spectra import (
     SyntheticPhotometryPostBody,
 )
 from sqlalchemy import or_
-from sqlalchemy.orm import defer, selectinload
+from sqlalchemy.orm import defer, noload, selectinload
 
 from baselayer.app.access import auth_or_token, permissions
 from baselayer.app.custom_exceptions import AccessError
@@ -1268,6 +1268,16 @@ class SpectrumASCIIFileParser(BaseHandler, ASCIIHandler):
         return self.success(data=spec)
 
 
+def user_columns_only(loader):
+    """A user loader that fetches the user's own columns and nothing else.
+
+    The acls, groups and roles are named rather than suppressed with
+    ``noload("*")``: the wildcard cannot apply to ``User.social_auth``, which is
+    ``lazy="dynamic"``, and loads it once per user instead of leaving it alone.
+    """
+    return loader.options(noload(User.acls), noload(User.groups), noload(User.roles))
+
+
 class ObjSpectraHandler(BaseHandler):
     @auth_or_token
     async def get(
@@ -1331,13 +1341,12 @@ class ObjSpectraHandler(BaseHandler):
                         Instrument.telescope
                     ),
                     selectinload(Spectrum.groups),
-                    # noload("*") keeps each user's columns but suppresses their
-                    # acls/groups/roles (lazy subquery/selectin), which the
-                    # response does not need and which otherwise fire per user.
-                    selectinload(Spectrum.owner).noload("*"),
-                    selectinload(Spectrum.pis).noload("*"),
-                    selectinload(Spectrum.reducers).noload("*"),
-                    selectinload(Spectrum.observers).noload("*"),
+                    # The response needs each user's own columns, not their
+                    # acls/groups/roles, which otherwise fire per user.
+                    user_columns_only(selectinload(Spectrum.owner)),
+                    user_columns_only(selectinload(Spectrum.pis)),
+                    user_columns_only(selectinload(Spectrum.reducers)),
+                    user_columns_only(selectinload(Spectrum.observers)),
                     *(
                         []
                         if include_original_file
@@ -1368,7 +1377,7 @@ class ObjSpectraHandler(BaseHandler):
             spectrum_ids = [spec.id for spec in spectra]
             comments_result = await session.scalars(
                 CommentOnSpectrum.select(session.user_or_token)
-                .options(selectinload(CommentOnSpectrum.author).noload("*"))
+                .options(user_columns_only(selectinload(CommentOnSpectrum.author)))
                 .where(CommentOnSpectrum.spectrum_id.in_(spectrum_ids))
             )
             comments_by_spectrum = defaultdict(list)
@@ -1377,7 +1386,7 @@ class ObjSpectraHandler(BaseHandler):
 
             annotations_result = await session.scalars(
                 AnnotationOnSpectrum.select(session.user_or_token)
-                .options(selectinload(AnnotationOnSpectrum.author).noload("*"))
+                .options(user_columns_only(selectinload(AnnotationOnSpectrum.author)))
                 .where(AnnotationOnSpectrum.spectrum_id.in_(spectrum_ids))
             )
             annotations_by_spectrum = defaultdict(list)
