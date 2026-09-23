@@ -6,7 +6,7 @@ those rows undecryptable. This records the key in use so the app can refuse to
 start on a different one.
 
 Revision ID: e7a4c2b90d13
-Revises: c9e4b7a21f68
+Revises: b8f3d21c07ae
 Create Date: 2026-09-23
 
 """
@@ -16,7 +16,7 @@ import sqlalchemy as sa
 from alembic import op
 
 revision = "e7a4c2b90d13"
-down_revision = "c9e4b7a21f68"
+down_revision = "b8f3d21c07ae"
 branch_labels = None
 depends_on = None
 
