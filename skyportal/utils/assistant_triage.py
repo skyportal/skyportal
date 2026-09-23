@@ -33,6 +33,16 @@ log = make_log("assistant_triage")
 
 SKYBOT_USERNAME = "skybot"
 
+# Appended to every query run so the answer ends with a machine-readable urgency
+# marker; the assistant service posts the comment either way but only notifies
+# subscribers when this is "yes".
+NOTIFY_SUFFIX = (
+    "\n\nFinally, on the very last line output exactly `NOTIFY: yes` if a human "
+    "should be alerted promptly (a genuine anomaly, a candidate needing "
+    "spectroscopy, or something clearly unusual), otherwise `NOTIFY: no`. Use "
+    "`yes` sparingly: most routine classifications are `NOTIFY: no`."
+)
+
 
 def triage_enabled(cfg) -> bool:
     """The master switch: autonomous triage on, and an assistant to run it."""
@@ -115,10 +125,12 @@ async def enqueue_query_run(session, analysis, query) -> int | None:
     notify = None
     if not query.dry_run:
         users = await _recipients(session, query)
-        notify = {"users": users} if users else None
+        # comment_groups carries where skybot posts the full triage as a bot
+        # comment; it runs even with no subscribers, so the group still sees it.
+        notify = {"users": users, "comment_groups": [query.group_id]}
     message = AssistantMessage(
         user_id=skybot.id,
-        text=query.prompt,
+        text=query.prompt + NOTIFY_SUFFIX,
         channel=f"query:{query.id}:{analysis.obj_id}",
         context_type=query.context_type or "source",
         context_id=analysis.obj_id,

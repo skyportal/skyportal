@@ -1,6 +1,7 @@
 """Woken by the app when a message is posted, answers it through the MCP endpoint."""
 
 import json
+import re
 import time
 import uuid
 
@@ -16,7 +17,9 @@ from baselayer.app.models import ACL, init_db, session_context_id
 from baselayer.log import make_log
 from skyportal.models import (
     AssistantMessage,
+    Comment,
     DBSession,
+    Group,
     GroupUser,
     Token,
     User,
@@ -289,6 +292,48 @@ def conversation_of(session, user_id, channel, up_to_id=None):
     ]
 
 
+def _parse_urgency(answer):
+    """Pull a trailing ``NOTIFY: yes/no`` marker off a triage answer.
+
+    Returns (is_urgent, text_without_the_marker). A missing marker is treated as
+    not urgent, so a model that forgets it never spams notifications.
+    """
+    text = answer or ""
+    match = None
+    for m in re.finditer(r"(?im)^[ \t>*_-]*NOTIFY:\s*(yes|no)\b.*$", text):
+        match = m
+    if match is None:
+        return False, text.strip()
+    is_urgent = match.group(1).lower() == "yes"
+    return is_urgent, (text[: match.start()] + text[match.end() :]).strip()
+
+
+def post_triage_comment(session, author_id, notify, context_type, context_id, answer):
+    """Post the full triage as a bot comment on the source, visible to the query's
+    group(s). Only for source-scoped query runs, whose notify carries
+    ``comment_groups``; interactive chats (no comment_groups) never post.
+    """
+    if not isinstance(notify, dict):
+        return
+    group_ids = notify.get("comment_groups") or []
+    text = (answer or "").strip()
+    if not (group_ids and context_type == "source" and context_id and text):
+        return
+    groups = session.scalars(sa.select(Group).where(Group.id.in_(group_ids))).all()
+    if not groups:
+        return
+    session.add(
+        Comment(
+            text=text,
+            obj_id=context_id,
+            author_id=author_id,
+            groups=list(groups),
+            bot=True,
+            origin="skybot",
+        )
+    )
+
+
 def deliver_notifications(session, author_id, notify, context_type, context_id, answer):
     """Notify the recipients a task run named, with its answer.
 
@@ -386,6 +431,10 @@ def respond(message_id):
                 else "Something went wrong while looking that up."
             )
 
+        # A query run ends with a NOTIFY: yes/no marker deciding whether it is
+        # worth a notification; the comment is posted either way.
+        is_urgent, text = _parse_urgency(text)
+
         with DBSession() as session:
             session.execute(sa.delete(Token).where(Token.id == token_id))
             asked = session.execute(
@@ -403,9 +452,15 @@ def respond(message_id):
                     )
                 )
                 if notify:
-                    deliver_notifications(
+                    # The bot comment is the durable record; a notification only
+                    # fires when the triage flagged itself urgent, to avoid spam.
+                    post_triage_comment(
                         session, user_id, notify, context_type, context_id, text
                     )
+                    if is_urgent:
+                        deliver_notifications(
+                            session, user_id, notify, context_type, context_id, text
+                        )
             session.commit()
 
         if asked is None:
