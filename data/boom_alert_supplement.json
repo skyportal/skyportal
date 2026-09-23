@@ -898,7 +898,7 @@
     },
     {
       "name": "villar_fit",
-      "doc": "Villar (2019) fit, computed by BOOM on ingestion. Leaves are villar_pso PARAM_NAMES x FILTERS plus the fit statistic. A fit that was skipped writes NaN to every leaf rather than omitting them, so the field is always present and a comparison against a skipped fit is false.",
+      "doc": "Villar (2019) fit, computed by BOOM on ingestion. Leaves are villar_pso PARAM_NAMES x FILTERS plus reduced_chi2 and peak_flux. A fit that was skipped writes NaN to every leaf rather than omitting them, so the field is always present and a comparison against a skipped fit is false.",
       "type": [
         "null",
         {
@@ -907,6 +907,13 @@
           "fields": [
             {
               "name": "reduced_chi2",
+              "type": [
+                "null",
+                "double"
+              ]
+            },
+            {
+              "name": "peak_flux",
               "type": [
                 "null",
                 "double"

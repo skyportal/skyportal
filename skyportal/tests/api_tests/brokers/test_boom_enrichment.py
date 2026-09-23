@@ -35,13 +35,13 @@ def test_every_group_is_a_usable_avro_field():
 
 
 def test_the_villar_fit_is_offered_per_parameter_and_band():
-    # The one group whose shape is known: seven parameters in each of two
-    # bands, plus the fit statistic.
+    # Seven parameters in each of two bands, plus reduced_chi2 and
+    # peak_flux. Counted against production by the BOOM side.
     villar = next(f for f in supplemental_fields() if f["name"] == "villar_fit")
     record = next(t for t in villar["type"] if isinstance(t, dict))
     leaves = {f["name"] for f in record["fields"]}
-    assert len(leaves) == 15
-    assert "reduced_chi2" in leaves
+    assert len(leaves) == 16
+    assert {"reduced_chi2", "peak_flux"} <= leaves
     assert {"tau_rise_ZTF_r", "tau_rise_ZTF_g"} <= leaves
 
 

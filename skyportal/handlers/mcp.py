@@ -1062,7 +1062,9 @@ async def get_filter_targets(handler, args):
     "The fields a filter pipeline may reference, as dotted paths with their "
     "types. Read this before writing a pipeline: a path that is not here "
     "matches nothing, and an empty preview looks the same as an empty sky. "
-    "`?` marks a nullable field and `[]` an array.",
+    "`?` marks a nullable field and `[]` an array. Paths are already the "
+    "names a pipeline uses: the broker flattens what it joins, so write "
+    "`cross_matches.x`, never `aux.cross_matches.x`, which is rejected.",
     {
         "broker_id": _prop("integer", "Broker ID."),
         "survey": _prop("string", "Survey whose alerts the filter runs on, e.g. ZTF."),
