@@ -175,6 +175,7 @@ from skyportal.handlers.api import (
     ObservingRunBulkEditHandler,
     ObservingRunHandler,
     PhotometricSeriesHandler,
+    PhotometryAlertHandler,
     PhotometryHandler,
     PhotometryOriginHandler,
     PhotometryRangeHandler,
@@ -347,6 +348,12 @@ skyportal_handlers = [
     (r"/api/brokers/([0-9]+)/alerts/([^/]+)/cutouts", BrokerCutoutsHandler),
     (r"/api/brokers/([0-9]+)/cone_search", BrokerConeSearchHandler),
     (r"/api/brokers/([0-9]+)/alerts/([^/]+)/photometry", BrokerPhotometryHandler),
+    # Before the bare photometry route below, whose [^/]+ would otherwise
+    # swallow the id and never reach this one.
+    (r"/api/brokers/photometry/([0-9]+)/alert", PhotometryAlertHandler),
+    # Broker-served points were never saved, so they carry their own
+    # alert id instead of a row to look it up by.
+    (r"/api/brokers/photometry/alert", PhotometryAlertHandler),
     # non-numeric, so this never shadows the numeric /api/brokers/{id} routes
     (r"/api/brokers/photometry/([^/]+)", BrokerDefaultPhotometryHandler),
     (r"/api/brokers/([0-9]+)/alerts/([^/]+)/save", BrokerSaveHandler),

@@ -215,8 +215,10 @@ def build_photometry_groups(object_id, survey, data, instrument_id, programid2st
                     "dec": [],
                     # SSO geometry per point (rh/delta/phase) for the outburst
                     # statistic; populated from phot["sso"] when BOOM stamped it,
-                    # else left null. Pruned below if nothing was stamped.
-                    "altdata": {"rh": [], "delta": [], "phase": []},
+                    # else left null. `candid` is the alert this point came from,
+                    # which is what the broker needs to hand back its cutouts.
+                    # Pruned below if nothing was stamped.
+                    "altdata": {"rh": [], "delta": [], "phase": [], "candid": []},
                     **{col: [] for col in columns},
                 }
             pd = photometry_data[key]
@@ -233,6 +235,10 @@ def build_photometry_groups(object_id, survey, data, instrument_id, programid2st
             pd["altdata"]["rh"].append(psso.get("helio_dist"))
             pd["altdata"]["delta"].append(psso.get("topo_dist"))
             pd["altdata"]["phase"].append(psso.get("phase_angle"))
+            # Forced photometry has no alert behind it, so this stays null there
+            # and the point simply offers no cutout.
+            candid = phot.get("candid")
+            pd["altdata"]["candid"].append(str(candid) if candid is not None else None)
             for col, value in columns.items():
                 pd.setdefault(col, []).append(value)
 

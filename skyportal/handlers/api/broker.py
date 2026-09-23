@@ -31,7 +31,16 @@ from baselayer.log import make_log
 from ...broker_apis._photometry import db_photometry_points, super_obj_obj_ids
 from ...broker_apis.interface import survey_permissions
 from ...enum_types import ALLOWED_BROKER_CLASSNAMES
-from ...models import Broker, BrokerCredential, Filter, GroupUser, Obj, Stream
+from ...models import (
+    Broker,
+    BrokerCredential,
+    Filter,
+    GroupUser,
+    Instrument,
+    Obj,
+    Photometry,
+    Stream,
+)
 from ..base import BaseHandler
 
 log = make_log("api/broker")
@@ -472,6 +481,91 @@ class BrokerCutoutsHandler(BaseHandler):
             except Exception as e:
                 return self.error(f"Error fetching cutouts from {broker.name}: {e}")
             return self.success(data=data)
+
+
+class PhotometryAlertHandler(BaseHandler):
+    """The alert one photometry point came from.
+
+    The lightcurve payload is deliberately slim and carries no alert id, so the
+    point is identified by its own id and the alert resolved here. The caller
+    then asks the broker for the cutouts, which is the expensive half and only
+    worth paying for the point someone actually clicked.
+    """
+
+    @auth_or_token
+    async def get(self, photometry_id: int | None = None):
+        """
+        ---
+        summary: Get the alert a photometry point came from
+        description: Return the alert id, survey and broker for the alert a
+          photometry point was ingested from, enough to fetch its cutouts.
+          Forced photometry has no alert behind it and reports that.
+        tags:
+          - brokers
+          - photometry
+        responses:
+          200:
+            content:
+              application/json:
+                schema: Success
+          400:
+            content:
+              application/json:
+                schema: Error
+        """
+        async with self.AsyncSession() as session:
+            phot = None
+            if photometry_id is not None:
+                phot = await session.scalar(
+                    Photometry.select(self.current_user)
+                    .options(joinedload(Photometry.instrument))
+                    .where(Photometry.id == int(photometry_id))
+                )
+                if phot is None:
+                    return self.error(f"No accessible photometry point {photometry_id}")
+                candid = (phot.altdata or {}).get("candid")
+            else:
+                # A point the broker served that was never saved has no row to
+                # look up, so it arrives carrying its own alert id.
+                candid = self.get_argument("candid", None)
+
+            if candid in (None, ""):
+                return self.error(
+                    "This point carries no alert id, so it has no cutouts. Forced "
+                    "photometry has no alert behind it, and points ingested before "
+                    "alert ids were recorded do not carry one.",
+                    status=404,
+                )
+
+            broker = await session.scalar(
+                Broker.select(self.current_user).where(
+                    Broker.active.is_(True), Broker.default_alert_search.is_(True)
+                )
+            )
+            if broker is None or not broker.broker_class.implements()["get_cutouts"]:
+                return self.error("No broker configured to serve cutouts.")
+
+            survey = self.get_argument("survey", None)
+            ra = dec = None
+            if phot is not None:
+                survey = phot.instrument.name if phot.instrument else survey
+                obj = await session.scalar(
+                    Obj.select(self.current_user).where(Obj.id == phot.obj_id)
+                )
+                # The point's own position where it has one: a mover is somewhere
+                # different at every epoch, and the object's position would send
+                # the thumbnail's survey links to the wrong sky.
+                ra = phot.ra if phot.ra is not None else (obj.ra if obj else None)
+                dec = phot.dec if phot.dec is not None else (obj.dec if obj else None)
+            return self.success(
+                data={
+                    "candid": str(candid),
+                    "broker_id": broker.id,
+                    "survey": survey,
+                    "ra": ra,
+                    "dec": dec,
+                }
+            )
 
 
 class BrokerConeSearchHandler(BaseHandler):
