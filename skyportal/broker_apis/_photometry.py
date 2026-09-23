@@ -37,6 +37,7 @@ _PAYLOAD_KEYS = (
     "flux",
     "fluxerr",
     "filter",
+    "origin",
     "zp",
     "magsys",
     "ra",

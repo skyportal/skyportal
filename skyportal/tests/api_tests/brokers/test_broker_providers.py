@@ -1729,3 +1729,52 @@ def test_transient_photometry_resolves_ids_once_per_request():
 
     # One for the instruments, one for the objs, however many groups there are.
     assert asyncio.run(query_counts()) == {1: 2, 6: 2}
+
+
+def test_transient_photometry_keeps_the_point_origin():
+    """A group carries origin per point, and the payload must forward it: dropped,
+    every broker point looked like an alert point, so a forced measurement was
+    deduped away against the upper limit saved at its epoch and the lightcurve
+    showed no forced photometry at all."""
+    import asyncio
+
+    from skyportal.broker_apis._photometry import transient_photometry
+    from skyportal.models import Instrument, Telescope
+
+    instrument = Instrument(
+        id=1,
+        name="ZTF",
+        type="imager",
+        band="optical",
+        filters=["ztfg"],
+        telescope=Telescope(
+            id=1,
+            name="P48",
+            nickname="P48",
+            lat=33.0,
+            lon=-116.0,
+            elevation=1700.0,
+            diameter=1.2,
+        ),
+    )
+    obj_id = "ZTF26abcdefg"
+
+    class _Session:
+        async def scalars(self, stmt):
+            entity = stmt.column_descriptions[0]["entity"]
+            rows = [instrument] if entity is Instrument else [obj_id]
+            return type("_Result", (), {"all": staticmethod(lambda: rows)})()
+
+    group = {
+        "obj_id": [obj_id, obj_id],
+        "instrument_id": [instrument.id, instrument.id],
+        "mjd": [59000.0, 59000.0],
+        "filter": ["ztfg", "ztfg"],
+        "origin": [None, "fp"],
+        "flux": [None, 120.0],
+        "fluxerr": [10.0, 10.0],
+        "zp": [23.9, 23.9],
+        "magsys": ["ab", "ab"],
+    }
+    phots = asyncio.run(transient_photometry({"ZTF1": group}, _Session()))
+    assert [p.origin for p in phots] == ["None", "fp"]
