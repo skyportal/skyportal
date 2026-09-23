@@ -287,12 +287,11 @@ from skyportal.handlers.public import (
 
 from . import model_util, openapi
 from .models import db_engine, init_db
+from .models.app_secret import secret_key
 from .models.secret_key_fingerprint import check_secret_key
 from .utils.observability import setup_observability
 
 log = make_log("app_server")
-
-DEFAULT_SECRET_KEY = "abc01234"
 
 
 class CustomApplication(tornado.web.Application):
@@ -810,15 +809,6 @@ def make_app(cfg, baselayer_handlers, baselayer_settings, process=None, env=None
         one key, 'debug'---true if launched with `--debug`.
 
     """
-    if cfg["app.secret_key"] == DEFAULT_SECRET_KEY:
-        if env is None or not env.debug:
-            raise RuntimeError(
-                "app.secret_key is the one shipped in config.yaml.defaults, so "
-                "session cookies and the credentials encrypted in the database "
-                "are readable by anyone. Set it to a random string."
-            )
-        log("Running on the default app.secret_key; development only")
-
     if cfg.get("testing", False):
         iers_conf.auto_download = False
         iers_conf.iers_degraded_accuracy = "ignore"
@@ -917,9 +907,10 @@ def make_app(cfg, baselayer_handlers, baselayer_settings, process=None, env=None
             "migrations are used), then start the app."
         )
 
+    # After init_db, so a key that lives in the database can be read.
     check_secret_key(
         db_engine(),
-        cfg["app.secret_key"],
+        secret_key(),
         allow_change=cfg.get("app.allow_secret_key_change", False),
     )
 

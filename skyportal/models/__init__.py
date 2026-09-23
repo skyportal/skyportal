@@ -5,6 +5,7 @@ from baselayer.app.models import *
 from .allocation import *
 from .analysis import *
 from .annotation import *
+from .app_secret import *
 from .assignment import *
 from .assistant import *
 from .broker import *
