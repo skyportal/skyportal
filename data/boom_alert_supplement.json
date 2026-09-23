@@ -895,6 +895,124 @@
           ]
         }
       }
+    },
+    {
+      "name": "villar_fit",
+      "doc": "Villar (2019) fit, computed by BOOM on ingestion. Leaves are villar_pso PARAM_NAMES x FILTERS plus the fit statistic. A fit that was skipped writes NaN to every leaf rather than omitting them, so the field is always present and a comparison against a skipped fit is false.",
+      "type": [
+        "null",
+        {
+          "type": "record",
+          "name": "VillarFit",
+          "fields": [
+            {
+              "name": "reduced_chi2",
+              "type": [
+                "null",
+                "double"
+              ]
+            },
+            {
+              "name": "A_ZTF_r",
+              "type": [
+                "null",
+                "double"
+              ]
+            },
+            {
+              "name": "beta_ZTF_r",
+              "type": [
+                "null",
+                "double"
+              ]
+            },
+            {
+              "name": "gamma_ZTF_r",
+              "type": [
+                "null",
+                "double"
+              ]
+            },
+            {
+              "name": "t_0_ZTF_r",
+              "type": [
+                "null",
+                "double"
+              ]
+            },
+            {
+              "name": "tau_rise_ZTF_r",
+              "type": [
+                "null",
+                "double"
+              ]
+            },
+            {
+              "name": "tau_fall_ZTF_r",
+              "type": [
+                "null",
+                "double"
+              ]
+            },
+            {
+              "name": "extra_sigma_ZTF_r",
+              "type": [
+                "null",
+                "double"
+              ]
+            },
+            {
+              "name": "A_ZTF_g",
+              "type": [
+                "null",
+                "double"
+              ]
+            },
+            {
+              "name": "beta_ZTF_g",
+              "type": [
+                "null",
+                "double"
+              ]
+            },
+            {
+              "name": "gamma_ZTF_g",
+              "type": [
+                "null",
+                "double"
+              ]
+            },
+            {
+              "name": "t_0_ZTF_g",
+              "type": [
+                "null",
+                "double"
+              ]
+            },
+            {
+              "name": "tau_rise_ZTF_g",
+              "type": [
+                "null",
+                "double"
+              ]
+            },
+            {
+              "name": "tau_fall_ZTF_g",
+              "type": [
+                "null",
+                "double"
+              ]
+            },
+            {
+              "name": "extra_sigma_ZTF_g",
+              "type": [
+                "null",
+                "double"
+              ]
+            }
+          ]
+        }
+      ]
     }
   ]
 }

@@ -7,7 +7,6 @@ looks exactly like a night with no candidates.
 """
 
 from skyportal.broker_apis._enrichment import (
-    VILLAR_FIELDS,
     supplement_schema,
     supplemental_fields,
 )
@@ -25,12 +24,22 @@ def test_the_enrichment_fields_are_added():
     assert "candidate" in _names(schema)
 
 
-def test_every_villar_parameter_and_band_is_offered():
+def test_every_group_is_a_usable_avro_field():
+    # Whatever the file lists -- a fit today, a classifier tomorrow -- has to
+    # be something the builder can render and a pipeline can reference.
+    fields = supplemental_fields()
+    assert fields, "the supplement is empty; the builder would show nothing"
+    for field in fields:
+        assert field.get("name"), f"unnamed entry: {field}"
+        assert field.get("type"), f"{field['name']} has no type"
+
+
+def test_the_villar_fit_is_offered_per_parameter_and_band():
+    # The one group whose shape is known: seven parameters in each of two
+    # bands, plus the fit statistic.
     villar = next(f for f in supplemental_fields() if f["name"] == "villar_fit")
     record = next(t for t in villar["type"] if isinstance(t, dict))
     leaves = {f["name"] for f in record["fields"]}
-    assert leaves == set(VILLAR_FIELDS)
-    # 7 parameters in each of two bands, plus the fit statistic
     assert len(leaves) == 15
     assert "reduced_chi2" in leaves
     assert {"tau_rise_ZTF_r", "tau_rise_ZTF_g"} <= leaves

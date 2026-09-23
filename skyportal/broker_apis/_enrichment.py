@@ -1,18 +1,22 @@
 """Fields BOOM writes onto an alert that its Avro schema does not describe.
 
 A filter pipeline runs against the Mongo document, not the packet that
-arrived, and BOOM enriches that document after ingestion: catalogue
-cross-matches, and a Villar fit per alert. Neither is in the schema
-`filter_modules` returns, so a path that exists matches nothing a caller can
-discover -- and an empty preview looks the same as an empty sky.
+arrived, and BOOM enriches that document after ingestion. Those fields are in
+no schema, so a path that exists is undiscoverable -- and a pipeline that
+references one nobody published matches nothing, which looks exactly like a
+night with no candidates.
 
-This is a stopgap. BOOM owns the enrichment and should advertise it, at which
-point every field here arrives from the broker and this module goes away;
-`supplement_schema` already stands aside for any field the broker declares
-itself, so that switchover needs no coordination.
+The groups live in data rather than here: enrichment grows -- other fits,
+other classifiers -- and adding one should be an edit to the file, not to
+this module. Nothing in this code knows what a Villar fit is.
+
+A stopgap. BOOM owns the enrichment and should advertise it; when it does,
+every group here arrives from the broker instead. `supplement_schema` stands
+aside for any field the broker declares, so that switchover needs no
+coordination and removing this needs no flag day.
 """
 
-__all__ = ["VILLAR_FIELDS", "supplement_schema", "supplemental_fields"]
+__all__ = ["supplement_schema", "supplemental_fields"]
 
 import functools
 import json
@@ -22,42 +26,13 @@ SUPPLEMENT_FILE = (
     pathlib.Path(__file__).parents[2] / "data" / "boom_alert_supplement.json"
 )
 
-# villar_pso::PARAM_NAMES and ::FILTERS. A fit that is skipped writes NaN to
-# every one of these rather than leaving them out, so they are never absent
-# and a comparison against a skipped fit is simply false.
-VILLAR_PARAMS = ("A", "beta", "gamma", "t_0", "tau_rise", "tau_fall", "extra_sigma")
-VILLAR_FILTERS = ("ZTF_r", "ZTF_g")
-VILLAR_FIELDS = ["reduced_chi2"] + [
-    f"{param}_{filt}" for filt in VILLAR_FILTERS for param in VILLAR_PARAMS
-]
-
-
-def _villar_entry():
-    """The Villar fit as one nullable record, matching the cross-match shape."""
-    return {
-        "name": "villar_fit",
-        "doc": "Villar (2019) fit, computed by BOOM; NaN where the fit was skipped.",
-        "type": [
-            "null",
-            {
-                "type": "record",
-                "name": "VillarFit",
-                "fields": [
-                    {"name": name, "type": ["null", "double"]} for name in VILLAR_FIELDS
-                ],
-            },
-        ],
-    }
-
 
 @functools.lru_cache(maxsize=1)
 def supplemental_fields():
     """Avro field entries for what BOOM adds to an alert after ingestion."""
-    fields = []
-    if SUPPLEMENT_FILE.exists():
-        fields.extend(json.loads(SUPPLEMENT_FILE.read_text()).get("fields") or [])
-    fields.append(_villar_entry())
-    return fields
+    if not SUPPLEMENT_FILE.exists():
+        return []
+    return json.loads(SUPPLEMENT_FILE.read_text()).get("fields") or []
 
 
 def supplement_schema(schema):
