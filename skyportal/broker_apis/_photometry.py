@@ -42,6 +42,9 @@ _PAYLOAD_KEYS = (
     "magsys",
     "ra",
     "dec",
+    # Parallel arrays the standardizer attaches per row, so a point the broker
+    # serves without it ever being saved still knows which alert it came from.
+    "altdata",
 )
 
 
@@ -377,6 +380,7 @@ async def transient_photometry(groups, session):
                 flux=row.get("standardized_flux"),
                 fluxerr=row.get("standardized_fluxerr"),
                 origin=row.get("origin"),
+                altdata=row.get("altdata"),
             )
             # serialize()/PhotStat read phot.instrument, which no query would load here
             instrument = instrument_cache.get(row["instrument_id"])

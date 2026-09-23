@@ -2,12 +2,14 @@ import json
 from concurrent.futures import ThreadPoolExecutor
 from datetime import UTC, datetime, timedelta
 
+import numpy as np
 import requests
 from pymongo import MongoClient
 
 from baselayer.app.env import load_env
 from baselayer.log import make_log
 
+from ..utils.cache import Cache, cache_folder, dict_to_bytes
 from ..utils.survey import survey_from_object_id
 from ._enrichment import supplement_schema
 from .interface import BrokerAPI, normalize_module_streams
@@ -26,6 +28,11 @@ VALIDATE_TIMEOUT = 180  # seconds
 TEST_TIMEOUT = 600  # seconds
 RADIUS_UNIT_MAP = {"deg": "Degrees", "arcmin": "Arcminutes", "arcsec": "Arcseconds"}
 NO_CUTOUT_PROJECTION = {"cutoutScience": 0, "cutoutTemplate": 0, "cutoutDifference": 0}
+
+cutouts_cache = Cache(
+    cache_dir=f"{cache_folder}/broker_cutouts",
+    max_age=cfg.get("misc.minutes_to_keep_broker_cutouts_cache", 1440) * 60,
+)
 
 # token cache keyed by (base_url, username): (token, expiry). Providers are
 # stateless, so the short-lived bearer token is cached at module scope.
@@ -275,6 +282,7 @@ def _boom_photometry_to_prv(photometry):
                 "ra": p.get("ra"),
                 "dec": p.get("dec"),
                 "programid": p.get("programid", 1),
+                "candid": p.get("candid"),
             }
         )
     return prv
@@ -359,6 +367,10 @@ def _fetch_sso_history(broker, survey, designation):
                 "programid": c.get("programid", 1),
                 "ssmagnr": c.get("ssmagnr"),
                 "ssdistnr": c.get("ssdistnr"),
+                # The alert this detection came from, so the point can ask the
+                # broker for its cutouts. A mover's objectId changes almost every
+                # detection, so the candid is the only way back to the image.
+                "candid": doc.get("_id"),
                 # Per-detection geometry, carried onto the point's photometry altdata.
                 "sso": (doc.get("properties") or {}).get("sso"),
             }
@@ -674,12 +686,26 @@ class BOOMBROKER(BrokerAPI):
             )
             if not visible:
                 raise ValueError(f"No accessible alert with candid {alert_id}")
-        return _request(
+
+        # Reached only once the scope check above has passed, so the cache
+        # serves nobody the images they were just denied.
+        key = f"{broker.id}_{survey}_{alert_id}"
+        cached = cutouts_cache[key]
+        if cached is not None:
+            try:
+                return np.load(cached, allow_pickle=True).item()["cutouts"]
+            except Exception:
+                log(f"unreadable cutout cache entry for {key}, refetching")
+
+        cutouts = _request(
             broker,
             "GET",
             f"surveys/{survey}/cutouts",
             params={"candid": alert_id},
         )
+        if cutouts:
+            cutouts_cache[key] = dict_to_bytes({"cutouts": cutouts})
+        return cutouts
 
     @staticmethod
     def cone_search(broker, ra, dec, radius, session, **kwargs):

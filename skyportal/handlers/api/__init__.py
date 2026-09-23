@@ -37,6 +37,7 @@ from .broker import (
     BrokerHandler,
     BrokerPhotometryHandler,
     BrokerSaveHandler,
+    PhotometryAlertHandler,
 )
 from .broker_apis import BrokerAPIsHandler
 from .candidate.candidate import BulkDeleteCandidatesHandler, CandidateHandler
