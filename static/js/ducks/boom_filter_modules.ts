@@ -11,20 +11,6 @@
 import { skyportalApi } from "../api/skyportalApi";
 import { brokerFilterBase } from "./brokerFilterTarget";
 import { useBoomFilterVersion } from "./boom_filter";
-import { crossmatch_fields } from "../constants/crossmatch";
-
-// Append the cross-match fields (same catalogs for every survey) to a fetched schema.
-const patchSchema = (schema: any) => {
-  if (!schema) return schema;
-
-  const patchedSchema = JSON.parse(JSON.stringify(schema));
-
-  if (patchedSchema.fields) {
-    patchedSchema.fields.push(crossmatch_fields);
-  }
-
-  return patchedSchema;
-};
 
 export const boomFilterModulesApi = skyportalApi.injectEndpoints({
   endpoints: (build) => ({
@@ -33,7 +19,7 @@ export const boomFilterModulesApi = skyportalApi.injectEndpoints({
         `${brokerFilterBase()}/filter_modules?survey=${survey}&elements=schema`,
       transformResponse: (response: any) => {
         try {
-          return patchSchema(response?.schema);
+          return response?.schema;
         } catch (error) {
           console.error("Error parsing schema JSON:", error);
           return null;
