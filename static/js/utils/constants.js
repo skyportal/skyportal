@@ -1,5 +1,10 @@
 const C = 299792.458; // km/s
 const PHOT_ZP = 23.9; // AB mag zero point
+// Below this signal-to-noise a measurement is real data but not a detection, so
+// every lightcurve draws it at its limiting magnitude instead of at a value
+// whose error bar spans the plot. Shared so the source and candidate pages
+// cannot disagree about what counts as a detection.
+const LOW_SIGNIFICANCE_SNR = 3;
 
 const BASE_LAYOUT = {
   automargin: true,
@@ -268,6 +273,7 @@ const LOGTYPE_TO_COLOR = {
 export {
   C,
   PHOT_ZP,
+  LOW_SIGNIFICANCE_SNR,
   BASE_LAYOUT,
   LINES,
   LOGTYPE_TO_COLOR,
