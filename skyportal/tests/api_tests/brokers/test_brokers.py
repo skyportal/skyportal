@@ -529,7 +529,7 @@ def test_secret_config_fields_cover_every_provider():
         "AMPELBROKER": ["scimma.password"],
         "ANTARESBROKER": [],
         "BABAMULBROKER": ["token"],
-        "BOOMBROKER": ["password"],
+        "BOOMBROKER": ["password", "kafka.password"],
         "FINKBROKER": ["fink.password"],
         "GENERICBROKER": ["token"],
         "LASAIRBROKER": ["token", "kafka.password"],

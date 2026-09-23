@@ -526,8 +526,11 @@ class PhotometryAlertHandler(BaseHandler):
                 candid = (phot.altdata or {}).get("candid")
             else:
                 # A point the broker served that was never saved has no row to
-                # look up, so it arrives carrying its own alert id.
+                # look up, so it arrives carrying its own alert id. Only digits:
+                # the id is echoed back and then used to address the broker.
                 candid = self.get_argument("candid", None)
+                if candid is not None and not str(candid).isdigit():
+                    return self.error(f"{candid!r} is not an alert id")
 
             if candid in (None, ""):
                 return self.error(

@@ -564,10 +564,40 @@ class BOOMBROKER(BrokerAPI):
                 "title": "Survey",
                 "description": "Survey this connection serves.",
             },
+            # Declared so the SASL password is rendered as one and, more to the
+            # point, stripped from the broker a reader is served: what is not in
+            # this schema is not in secret_config_fields either.
+            "kafka": {
+                "type": "object",
+                "title": "Kafka stream",
+                "description": "BOOM's results stream, consumed for ingestion.",
+                "properties": {
+                    "host": {"type": "string", "title": "Kafka host"},
+                    "port": {"type": "integer", "title": "Kafka port"},
+                    "username": {"type": "string", "title": "Kafka username"},
+                    "password": {"type": "string", "title": "Kafka password"},
+                    "sasl_mechanism": {
+                        "type": "string",
+                        "title": "SASL mechanism",
+                    },
+                    "group_id": {"type": "string", "title": "Consumer group id"},
+                    "auto_offset_reset": {
+                        "type": "string",
+                        "title": "Auto offset reset",
+                    },
+                    "num_consumers": {
+                        "type": "integer",
+                        "title": "Number of consumers",
+                    },
+                },
+            },
         },
     }
 
-    ui_json_schema = {"password": {"ui:widget": "password"}}
+    ui_json_schema = {
+        "password": {"ui:widget": "password"},
+        "kafka": {"password": {"ui:widget": "password"}},
+    }
 
     @staticmethod
     def validate_config(altdata):
