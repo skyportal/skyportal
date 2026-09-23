@@ -247,6 +247,8 @@ const CandidatesPreferencesForm = ({
     // live on the profile rather than defaulting on for every scanner.
     [
       "maxSgscore",
+      "maxCredibleLevel",
+      "minDistpsnr",
       "minNdethist",
       "minAbsGalacticLatitude",
       "promptDeltaT",
@@ -453,6 +455,16 @@ const CandidatesPreferencesForm = ({
           <InputLabel>GCN crossmatch cuts (leave blank to disable)</InputLabel>
           {[
             { name: "maxSgscore", label: "Max star score", step: 0.05 },
+            {
+              name: "maxCredibleLevel",
+              label: "Max credible level",
+              step: 0.05,
+            },
+            {
+              name: "minDistpsnr",
+              label: "Min PS1 distance [arcsec]",
+              step: 0.5,
+            },
             { name: "minNdethist", label: "Min detections", step: 1 },
             {
               name: "minAbsGalacticLatitude",
