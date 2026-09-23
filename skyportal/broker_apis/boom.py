@@ -9,6 +9,7 @@ from baselayer.app.env import load_env
 from baselayer.log import make_log
 
 from ..utils.survey import survey_from_object_id
+from ._enrichment import supplement_schema
 from .interface import BrokerAPI, normalize_module_streams
 
 log = make_log("broker/boom")
@@ -924,7 +925,11 @@ class BOOMBROKER(BrokerAPI):
         elements = kwargs.get("elements", "schema")
         if elements == "schema":
             survey = _survey(broker, kwargs)
-            return {"schema": _request(broker, "GET", f"filters/schemas/{survey}")}
+            # BOOM's schema describes the packet; a pipeline runs against
+            # the document BOOM enriched. Fill in what it writes and does
+            # not yet declare.
+            schema = _request(broker, "GET", f"filters/schemas/{survey}")
+            return {"schema": supplement_schema(schema)}
         name = kwargs.get("name")
         db = _modules_db(broker)
         if db is None:
