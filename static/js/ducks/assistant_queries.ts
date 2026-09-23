@@ -40,6 +40,17 @@ export const assistantQueriesApi = skyportalApi.injectEndpoints({
       }),
       invalidatesTags: ["AssistantQueries"],
     }),
+    updateAssistantQuery: build.mutation<
+      unknown,
+      { id: number; body: Record<string, unknown> }
+    >({
+      query: ({ id, body }) => ({
+        url: `api/assistant_queries/${id}`,
+        method: "PATCH",
+        body,
+      }),
+      invalidatesTags: ["AssistantQueries"],
+    }),
     deleteAssistantQuery: build.mutation<unknown, number>({
       query: (id) => ({
         url: `api/assistant_queries/${id}`,
@@ -71,6 +82,7 @@ invalidateOnMessage("skyportal/REFRESH_ASSISTANT_QUERIES", () => [
 export const {
   useGetAssistantQueriesQuery,
   useCreateAssistantQueryMutation,
+  useUpdateAssistantQueryMutation,
   useDeleteAssistantQueryMutation,
   useSubscribeAssistantQueryMutation,
   useUnsubscribeAssistantQueryMutation,

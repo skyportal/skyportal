@@ -33,6 +33,21 @@ class AssistantQueryPostBody(BaseModel):
     dry_run: bool = Field(default=False, description="Run but notify no one.")
 
 
+class AssistantQueryPatchBody(BaseModel):
+    """Fields to update on a shared assistant query; only those sent are changed.
+    The group a query is tied to is fixed (make a new query to move it)."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    name: str | None = None
+    description: str | None = None
+    prompt: str | None = None
+    analysis_service_match: str | None = None
+    notify_groups: list[int] | None = None
+    active: bool | None = None
+    dry_run: bool | None = None
+
+
 def _serialize(query, subscriber_ids, user_id):
     return {
         "id": query.id,
@@ -138,6 +153,33 @@ class AssistantQueryHandler(BaseHandler):
             await session.commit()
             self.push_all(action="skyportal/REFRESH_ASSISTANT_QUERIES")
             return self.success(data={"id": query.id})
+
+    @auth_or_token
+    async def patch(self, query_id: int):
+        """
+        ---
+        summary: Update a shared assistant query
+        description: Only the query's owner may edit it; only the sent fields change.
+        tags: [assistant]
+        responses:
+          200: {content: {application/json: {schema: Success}}}
+        """
+        updates = self.parse_body(AssistantQueryPatchBody).model_dump(
+            exclude_unset=True
+        )
+        async with self.AsyncSession() as session:
+            query = await session.scalar(
+                AssistantQuery.select(session.user_or_token, mode="update").where(
+                    AssistantQuery.id == query_id
+                )
+            )
+            if query is None:
+                return self.error("Cannot update this query.", status=403)
+            for field, value in updates.items():
+                setattr(query, field, value)
+            await session.commit()
+            self.push_all(action="skyportal/REFRESH_ASSISTANT_QUERIES")
+            return self.success()
 
     @auth_or_token
     async def delete(self, query_id: int):

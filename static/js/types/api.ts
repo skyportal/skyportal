@@ -3092,6 +3092,10 @@ export interface paths {
                     minAbsGalacticLatitude?: number | null;
                     /** @description Keep only candidates whose crossmatch star/galaxy score is below this. A high score means the candidate sits on a star. */
                     maxSgscore?: number | null;
+                    /** @description Keep only candidates at or inside this credible level of the event's localization, so 0.9 keeps the 90 percent region. A candidate near 1 sits in the tail, which for a wide localization can be tens of degrees from the event. */
+                    maxCredibleLevel?: number | null;
+                    /** @description Keep only candidates at least this many arcseconds from the nearest PS1 source, to drop those sitting on a catalogued object. A candidate with no PS1 match at all is kept. */
+                    minDistpsnr?: number | null;
                     /** @description Keep only candidates with at least this many detections in their alert history. */
                     minNdethist?: number | null;
                     /** @description Keep only candidates detected within this many days of the event, i.e. |delta_t| <= this. Applies to every candidate. */
@@ -20565,7 +20569,31 @@ export interface paths {
         };
         options?: never;
         head?: never;
-        patch?: never;
+        /**
+         * Update a shared assistant query
+         * @description Only the query's owner may edit it; only the sent fields change.
+         */
+        patch: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    query_id: number;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Success"];
+                    };
+                };
+            };
+        };
         trace?: never;
     };
     "/api/assistant_queries": {

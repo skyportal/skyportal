@@ -9,7 +9,7 @@ from baselayer.app.env import load_env
 from baselayer.app.flow import Flow
 from baselayer.log import make_log
 
-from ...models import Annotation, Classification, ObjAnalysis, Taxonomy
+from ...models import Annotation, Classification, Group, ObjAnalysis, Source, Taxonomy
 from ...utils.embedding_store import delete_embedding, upsert_embedding
 from ...utils.embedding_store_config import summary_embeddings_enabled
 from ...utils.naive_datetime import utcnow_naive
@@ -245,6 +245,22 @@ async def _store_summary_embedding(session, analysis, summary_results):
         log(f"Could not store the summary embedding for {analysis.obj_id}: {e}")
 
 
+async def _obj_saved_groups(session, analysis):
+    """The groups the source is saved to, so results follow the source rather than
+    every group the analysis run was shared with. Falls back to the analysis's own
+    groups when the object is not saved anywhere (e.g. a candidate-only obj)."""
+    import sqlalchemy as sa
+
+    group_ids = set(
+        await session.scalars(
+            sa.select(Source.group_id).where(Source.obj_id == analysis.obj_id)
+        )
+    )
+    if not group_ids:
+        return list(analysis.groups)
+    return list(await session.scalars(sa.select(Group).where(Group.id.in_(group_ids))))
+
+
 async def _upsert_analysis_annotations(session, analysis, results):
     """Create or refresh the annotations an analysis service returned.
 
@@ -255,6 +271,7 @@ async def _upsert_analysis_annotations(session, analysis, results):
     import sqlalchemy as sa
 
     annotations = results.get("annotations") if isinstance(results, dict) else None
+    saved_groups = await _obj_saved_groups(session, analysis)
     # A run scoped to only the author's single-user group is private: namespace
     # its annotation origin so it neither clobbers nor leaks into the shared
     # per-service annotation, which is matched by obj_id + origin alone.
@@ -281,7 +298,7 @@ async def _upsert_analysis_annotations(session, analysis, results):
                     origin=origin,
                     data=ann["data"],
                     author_id=analysis.author_id,
-                    groups=list(analysis.groups),
+                    groups=saved_groups,
                 )
             )
 
@@ -324,6 +341,7 @@ async def _upsert_analysis_classifications(session, analysis, results):
 
     entries = results.get("classifications") if isinstance(results, dict) else None
     made = False
+    saved_groups = await _obj_saved_groups(session, analysis)
     for entry in entries or []:
         if not isinstance(entry, dict) or not entry.get("classification"):
             continue
@@ -361,7 +379,7 @@ async def _upsert_analysis_classifications(session, analysis, results):
                     taxonomy_id=taxonomy.id,
                     author_id=analysis.author_id,
                     author_name=analysis.author.username,
-                    groups=list(analysis.groups),
+                    groups=saved_groups,
                 )
             )
         made = True

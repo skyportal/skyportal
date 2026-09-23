@@ -408,6 +408,8 @@ const FilterCandidateList = ({
       numberDetections: "",
       localizationCumprob: "",
       maxSgscore: scanningProfile?.maxSgscore ?? "",
+      maxCredibleLevel: scanningProfile?.maxCredibleLevel ?? "",
+      minDistpsnr: scanningProfile?.minDistpsnr ?? "",
       minNdethist: scanningProfile?.minNdethist ?? "",
       minAbsGalacticLatitude: scanningProfile?.minAbsGalacticLatitude ?? "",
       promptDeltaT: scanningProfile?.promptDeltaT ?? "",
@@ -580,6 +582,12 @@ const FilterCandidateList = ({
     // a group that is not crossmatched is unaffected.
     if (formData.maxSgscore !== "" && formData.maxSgscore != null) {
       data.maxSgscore = formData.maxSgscore;
+    }
+    if (formData.maxCredibleLevel !== "" && formData.maxCredibleLevel != null) {
+      data.maxCredibleLevel = formData.maxCredibleLevel;
+    }
+    if (formData.minDistpsnr !== "" && formData.minDistpsnr != null) {
+      data.minDistpsnr = formData.minDistpsnr;
     }
     if (formData.minNdethist !== "" && formData.minNdethist != null) {
       data.minNdethist = formData.minNdethist;
@@ -1221,6 +1229,34 @@ const FilterCandidateList = ({
                     />
                   )}
                   name="maxSgscore"
+                  control={control}
+                />
+                <Controller
+                  render={({ field: { onChange, value } }) => (
+                    <TextField
+                      id="maxCredibleLevel"
+                      label="Max credible level"
+                      type="number"
+                      value={value ?? ""}
+                      onChange={(event) => onChange(event.target.value)}
+                      slotProps={{ htmlInput: { step: 0.05, min: 0, max: 1 } }}
+                    />
+                  )}
+                  name="maxCredibleLevel"
+                  control={control}
+                />
+                <Controller
+                  render={({ field: { onChange, value } }) => (
+                    <TextField
+                      id="minDistpsnr"
+                      label="Min PS1 distance [arcsec]"
+                      type="number"
+                      value={value ?? ""}
+                      onChange={(event) => onChange(event.target.value)}
+                      slotProps={{ htmlInput: { step: 0.5, min: 0 } }}
+                    />
+                  )}
+                  name="minDistpsnr"
                   control={control}
                 />
                 <Controller

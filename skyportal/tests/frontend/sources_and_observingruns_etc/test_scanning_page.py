@@ -995,13 +995,16 @@ def test_add_scanning_profile(
         "1.0"
     )
     page.locator('//div[@data-testid="annotation-sorting-accordion"]').first.click()
-    page.locator(
-        '//div[@data-testid="profileAnnotationSortingOriginSelect"]'
-    ).first.click()
+    # Origin and key are searchable selects. Type rather than click: the
+    # dropdown arrow covers the middle of the input in this dialog and swallows
+    # the click, and typing is what the field is there for.
+    page.locator('//input[@id="profileAnnotationSortingOriginSelect"]').first.fill(
+        "kowalski"
+    )
     page.locator('//li[text()="kowalski"]').first.click()
-    page.locator(
-        '//div[@data-testid="profileAnnotationSortingKeySelect"]'
-    ).first.click()
+    page.locator('//input[@id="profileAnnotationSortingKeySelect"]').first.fill(
+        "offset_from_host_galaxy"
+    )
     page.locator('//li[text()="offset_from_host_galaxy"]').first.click()
     page.locator(
         '//div[@data-testid="profileAnnotationSortingOrderSelect"]'

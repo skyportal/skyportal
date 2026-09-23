@@ -329,7 +329,7 @@ def crossmatch_value_clause(origin, key, comparison):
     """EXISTS over the crossmatch annotation's per-event entries.
 
     A GCN crossmatch stores one entry per event keyed by event name, so
-    `delta_t`, `ndethist` and `sgscore` sit one level down; a filter on a
+    `delta_t`, `sgscore` and the rest sit one level down; a filter on a
     top-level key of that name matches nothing. `comparison` receives the
     numeric value of `key` within an entry and returns the test to apply.
     """
@@ -577,6 +577,8 @@ class CandidateHandler(BaseHandler):
         annotation_filter_list = query.annotationFilterList
         min_abs_galactic_latitude = query.minAbsGalacticLatitude
         max_sgscore = query.maxSgscore
+        max_credible_level = query.maxCredibleLevel
+        min_distpsnr = query.minDistpsnr
         min_ndethist = query.minNdethist
         prompt_delta_t = query.promptDeltaT
         max_delta_t = query.maxDeltaT
@@ -792,6 +794,29 @@ class CandidateHandler(BaseHandler):
                 q = q.where(
                     crossmatch_value_clause(
                         crossmatch_origin, "sgscore", lambda v: v < max_sgscore
+                    )
+                )
+
+            # A position in the localization's tail can be tens of degrees from
+            # the event, which no amount of promptness redeems.
+            if max_credible_level is not None:
+                q = q.where(
+                    crossmatch_value_clause(
+                        crossmatch_origin,
+                        "credible_level",
+                        lambda v: v <= max_credible_level,
+                    )
+                )
+
+            # Sitting on a catalogued source argues against a counterpart.
+            # A negative distance means no PS1 match at all, the good case,
+            # so it passes rather than being compared.
+            if min_distpsnr is not None:
+                q = q.where(
+                    crossmatch_value_clause(
+                        crossmatch_origin,
+                        "distpsnr",
+                        lambda v: sa.or_(v < 0, v >= min_distpsnr),
                     )
                 )
 

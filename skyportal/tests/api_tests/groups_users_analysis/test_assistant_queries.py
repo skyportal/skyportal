@@ -71,6 +71,41 @@ def test_create_list_subscribe_unsubscribe_delete(user, public_group):
     assert _find(data["data"], query_id) is None
 
 
+def test_owner_can_edit_query(user, public_group):
+    token = _token(user)
+    status, data = api(
+        "POST",
+        "assistant_queries",
+        data={
+            "name": "before",
+            "group_id": public_group.id,
+            "prompt": "old prompt",
+            "analysis_service_match": "flare",
+        },
+        token=token,
+    )
+    assert_api(status, data)
+    query_id = data["data"]["id"]
+
+    status, data = api(
+        "PATCH",
+        f"assistant_queries/{query_id}",
+        data={"name": "after", "prompt": "new prompt", "dry_run": True},
+        token=token,
+    )
+    assert_api(status, data)
+
+    status, data = api("GET", "assistant_queries", token=token)
+    row = _find(data["data"], query_id)
+    assert row["name"] == "after"
+    assert row["prompt"] == "new prompt"
+    assert row["dry_run"] is True
+    # Untouched fields keep their values.
+    assert row["analysis_service_match"] == "flare"
+
+    api("DELETE", f"assistant_queries/{query_id}", token=token)
+
+
 def test_cannot_create_in_a_group_youre_not_in(user, public_group2):
     token = _token(user)
     status, data = api(

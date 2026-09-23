@@ -31,7 +31,7 @@ Configuration is passed in explicitly for the same reason.
 import json
 import math
 import traceback
-from datetime import timedelta
+from datetime import datetime, timedelta
 
 import healpy
 import numpy as np
@@ -54,6 +54,7 @@ from skyportal.models import (
     GcnEventAssociation,
     GcnEventCrossmatchState,
     GcnEventObj,
+    GcnNotice,
     Group,
     Localization,
     Obj,
@@ -106,6 +107,13 @@ DEFAULTS = {
     # photometry can supply them, so this is not ndethist alone. None leaves the
     # count to the broker-side filter.
     "min_detections": None,
+    # Notice types whose localizations this filter ignores. Fermi reports a
+    # flight position within seconds and a ground position later, and the ground
+    # position supersedes it: the flight one is tens of degrees across, so a
+    # match against it can sit far outside the burst's real position. Listing a
+    # type here drops it even when no refined one arrives, so an event that only
+    # ever has that type is not searched at all.
+    "exclude_notice_types": None,
     # One-shot search of the window before the event, to spot positions that
     # were already active and so cannot be counterparts.
     "archival": True,
@@ -870,6 +878,98 @@ async def associate_events(session, user, config=None):
     return found
 
 
+async def retract_superseded_matches(
+    session, user, filter_, event, localizations, config
+):
+    """Drop this filter's matches on an event that its current regions exclude.
+
+    A refined localization supersedes the coarse one it replaces, and a filter
+    can be told to ignore a notice type outright. Either way an annotation made
+    earlier keeps asserting an association the filter would not make now, and
+    nothing else removes it: a Fermi flight position tens of degrees across
+    leaves matches far outside the burst once the ground position lands.
+
+    Containment is re-tested with the same call the match used, so a position
+    retracted here is one the filter would no longer return.
+    """
+    cumprob = float(conf(config, "cumprob"))
+    max_cl = conf(config, "max_credible_level")
+
+    def same_event(value):
+        # Annotations carry the dateobs in ISO form ("...T23:48:13"), which is
+        # not what str() gives for a datetime, so compare the parsed values.
+        try:
+            return datetime.fromisoformat(str(value)) == event.dateobs
+        except (TypeError, ValueError):
+            return False
+
+    rows = (
+        await session.execute(
+            sa.select(Annotation, Obj.ra, Obj.dec)
+            .join(Obj, Obj.id == Annotation.obj_id)
+            .join(Candidate, Candidate.obj_id == Annotation.obj_id)
+            .where(
+                Annotation.origin == ANNOTATION_ORIGIN,
+                Candidate.filter_id == filter_.id,
+                Obj.ra.isnot(None),
+                Obj.dec.isnot(None),
+            )
+            .distinct()
+        )
+    ).all()
+
+    retracted = 0
+    for annotation, ra, dec in rows:
+        data = dict(annotation.data or {})
+        stale = [
+            key
+            for key, entry in data.items()
+            if isinstance(entry, dict) and same_event(entry.get("dateobs"))
+        ]
+        if not stale:
+            continue
+
+        # Inside any one of the regions still searched is enough to keep it.
+        still_matches = False
+        for localization in localizations:
+            levels = await credible_levels_in_localization(
+                session, localization, [(ra, dec)], cumprob=cumprob
+            )
+            level = levels.get(0)
+            if level is None:
+                continue
+            if max_cl is not None and level > float(max_cl):
+                continue
+            still_matches = True
+            break
+        if still_matches:
+            continue
+
+        for key in stale:
+            data.pop(key, None)
+        retracted += len(stale)
+        if data:
+            annotation.data = data
+            flag_modified(annotation, "data")
+        else:
+            await session.delete(annotation)
+            # The candidacy existed only because of this match, so it goes too.
+            await session.execute(
+                sa.delete(Candidate).where(
+                    Candidate.obj_id == annotation.obj_id,
+                    Candidate.filter_id == filter_.id,
+                )
+            )
+
+    if retracted:
+        await session.commit()
+        log(
+            f"{filter_.name}: retracted {retracted} match(es) for {event.dateobs} "
+            f"that its current localizations no longer contain"
+        )
+    return retracted
+
+
 async def newest_localization(session, user, dateobs):
     """The most recent localization for an event, with its skymap loaded."""
     return await session.scalar(
@@ -992,6 +1092,29 @@ async def run_cycle(config=None, user_id=1):
             .all()
         )
 
+        # Localization carries only notice_id, so the types come in one query
+        # rather than a lazy load per localization inside the loop.
+        notice_ids = {
+            loc.notice_id
+            for event in events
+            for loc in (event.localizations or [])
+            if loc.notice_id is not None
+        }
+        notice_types = (
+            {
+                row.id: row.notice_type
+                for row in (
+                    await session.execute(
+                        sa.select(GcnNotice.id, GcnNotice.notice_type).where(
+                            GcnNotice.id.in_(notice_ids)
+                        )
+                    )
+                ).all()
+            }
+            if notice_ids
+            else {}
+        )
+
         for event in events:
             if not event.localizations:
                 continue
@@ -1001,12 +1124,40 @@ async def run_cycle(config=None, user_id=1):
             # sky. Searching only one silently drops the rest.
             localizations = sorted(event.localizations, key=lambda loc: loc.created_at)
 
+            # Before searching, drop what this event's current regions no longer
+            # contain. A localization the filter now ignores, or one superseded
+            # by a refined map, leaves matches asserting an association that
+            # would not be made today.
+            for filter_ in filters:
+                if not event_matches(filter_, event, localizations[0]):
+                    continue
+                settings = filter_settings(filter_, config)
+                excluded = conf(settings, "exclude_notice_types") or []
+                searchable = [
+                    loc
+                    for loc in localizations
+                    if not excluded or notice_types.get(loc.notice_id) not in excluded
+                ]
+                try:
+                    await retract_superseded_matches(
+                        session, user, filter_, event, searchable, settings
+                    )
+                except Exception as e:
+                    await session.rollback()
+                    log(f"Could not retract matches for {event.dateobs}: {e}")
+
             for localization in localizations:
                 for filter_ in filters:
                     if not event_matches(filter_, event, localization):
                         continue
                     broker = filter_.broker
                     settings = filter_settings(filter_, config)
+                    excluded = conf(settings, "exclude_notice_types") or []
+                    if (
+                        excluded
+                        and notice_types.get(localization.notice_id) in excluded
+                    ):
+                        continue
                     if rate_limited_until(broker.id) is not None:
                         continue
                     state = await session.scalar(
