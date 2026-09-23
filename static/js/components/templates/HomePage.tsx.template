@@ -48,11 +48,6 @@ const useStyles = makeStyles()(() => ({
   widgetPaperFillSpace: {
     height: "100%",
   },
-  resetButton: {
-    position: "fixed",
-    bottom: "1rem",
-    right: "1rem"
-  },
 }));
 
 const defaultLayouts: any = {
@@ -66,26 +61,46 @@ const defaultLayouts: any = {
   {%- endfor %}
 }
 
+const gridCols: any = {{ app.homepage_grid.cols|tojson }}
+
 const geometry = (items: any[] = []) =>
   JSON.stringify(items.map(({ i, x, y, w, h }: any) => [i, x, y, w, h]));
 
 const withSavedPositions = (saved: any) =>
   Object.fromEntries(
-    Object.entries(defaultLayouts).map(([breakpoint, items]: [string, any]) => [
-      breakpoint,
-      items.map((item: any) => {
-        const { x, y, w, h } =
-          (saved?.[breakpoint] ?? []).find((s: any) => s.i === item.i) ?? item;
-        return { ...item, x, y, w, h };
-      }),
-    ]),
+    Object.entries(defaultLayouts).map(([breakpoint, items]: [string, any]) => {
+      const savedItems: any[] = saved?.[breakpoint] ?? [];
+      if (savedItems.length === 0) return [breakpoint, items];
+      // New widgets go below the saved layout: at their default spot they shove it around.
+      let nextX = 0;
+      let nextY = Math.max(...savedItems.map((s: any) => s.y + s.h));
+      let rowHeight = 0;
+      return [
+        breakpoint,
+        items.map((item: any) => {
+          const savedItem = savedItems.find((s: any) => s.i === item.i);
+          if (savedItem) {
+            const { x, y, w, h } = savedItem;
+            return { ...item, x, y, w, h };
+          }
+          if (nextX + item.w > gridCols[breakpoint]) {
+            nextX = 0;
+            nextY += rowHeight;
+            rowHeight = 0;
+          }
+          const placed = { ...item, x: nextX, y: nextY };
+          nextX += item.w;
+          rowHeight = Math.max(rowHeight, item.h);
+          return placed;
+        }),
+      ];
+    }),
   );
 
 const HomePage = () => {
   const { classes } = useStyles();
   const [updateUserPreferences] = useUpdateUserPreferencesMutation();
 
-  // Taken from configs
   const rem = "{{ app.homepage_grid.row_height|default("9.375rem")}}";
 
   const theme = useTheme();
@@ -105,23 +120,16 @@ const HomePage = () => {
         geometry(items) !== geometry(currentLayouts[breakpoint]),
     );
     if (!changed) return;
-    const prefs = { layouts: allLayouts };
-    updateUserPreferences(prefs);
+    updateUserPreferences({ layouts: allLayouts });
   };
 
-  // The hook measures once, in an effect, and gives up if its container is not
-  // in the DOM yet -- so the container below is rendered unconditionally. Gate
-  // it on the profile instead and the first measurement finds nothing, leaving
-  // the grid stuck at the hook's 1280px placeholder width.
+  // The container must render unconditionally: the effect gives up if the node is missing.
   const { width, containerRef, mounted } = useContainerWidth();
 
-  const resetLayouts = () => {
-    const prefs = { layouts: defaultLayouts };
-    updateUserPreferences(prefs);
-  };
+  const resetLayouts = () => updateUserPreferences({ layouts: defaultLayouts });
 
   return (
-    <div>
+    <>
       <div ref={containerRef}>
       {profile?.username && mounted && (
       <ResponsiveGridLayout
@@ -129,7 +137,7 @@ const HomePage = () => {
         className="layout"
         layouts={currentLayouts}
         breakpoints={{ '{' + app.homepage_grid.breakpoints|tojson + '}' }}
-        cols={{ '{' + app.homepage_grid.cols|tojson + '}' }}
+        cols={gridCols}
         margin={[10, 10]}
         onLayoutChange={layoutChangeHandler}
         {% raw %}dragConfig={{ handle: ".dragHandle" }}{% endraw %}
@@ -175,15 +183,16 @@ const HomePage = () => {
       )}
       </div>
       {profile?.username && (
-      <div className={classes.resetButton}>
-        <Tooltip title="Reset page layout" placement="left">
-          <IconButton onClick={resetLayouts}>
-            <CachedIcon />
-          </IconButton>
-        </Tooltip>
-      </div>
+      <Tooltip title="Reset page layout" placement="left">
+        <IconButton
+          onClick={resetLayouts}
+          {% raw %}sx={{ position: "fixed", bottom: "1rem", right: "1rem" }}{% endraw %}
+        >
+          <CachedIcon />
+        </IconButton>
+      </Tooltip>
       )}
-    </div>
+    </>
   );
 };
 
