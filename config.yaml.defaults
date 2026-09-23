@@ -68,6 +68,10 @@ app:
   # base64.b64encode(os.urandom(50)).decode('ascii')
   secret_key: abc01234
 
+  # Start on a secret_key the database was not last started on. The credentials
+  # encrypted under the old one must then be re-entered.
+  allow_secret_key_change: False
+
   factory: skyportal.app_server.make_app
 
   # Threads each Tornado instance may use for blocking work. Too few lets a slow

@@ -288,6 +288,7 @@ from skyportal.handlers.public import (
 from . import model_util, openapi
 from .models import db_engine, init_db
 from .utils.observability import setup_observability
+from .utils.secret_key import check_secret_key
 
 log = make_log("app_server")
 
@@ -915,6 +916,12 @@ def make_app(cfg, baselayer_handlers, baselayer_settings, process=None, env=None
             "`make db_create_tables` (or `alembic upgrade head` where "
             "migrations are used), then start the app."
         )
+
+    check_secret_key(
+        db_engine(),
+        cfg["app.secret_key"],
+        allow_change=cfg.get("app.allow_secret_key_change", False),
+    )
 
     model_util.refresh_enums()
 
