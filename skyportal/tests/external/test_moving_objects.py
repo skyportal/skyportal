@@ -130,8 +130,9 @@ def test_moving_object_followup(super_admin_token):
     exposure_time = 60
     band = "ztfr"
 
+    # 822 is the primary field the object crosses on this night.
     telescope_id, instrument_id, _, _ = add_telescope_and_instrument(
-        "ZTF", super_admin_token, fields_ids=[364, 365, 366]
+        "ZTF", super_admin_token, fields_ids=[793, 822, 823]
     )
 
     status, data = api(

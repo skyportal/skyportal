@@ -1,5 +1,5 @@
 import astroplan
-import astropy_healpix as ahp
+import healpix_alchemy as ha
 import numpy as np
 import pandas as pd
 import scipy.stats
@@ -577,4 +577,7 @@ def radec_to_healpix(row: dict | pd.Series) -> int:
     int
         HEALPix index
     """
-    return ahp.lonlat_to_healpix(row["ra"] * u.deg, row["dec"] * u.deg, 2**29)
+    # healpix_alchemy's own HPX, as every other caller in the app uses: it is
+    # the nside and ordering the Point column and the field tiles are built on,
+    # so the index cannot disagree with what it is compared against.
+    return ha.constants.HPX.lonlat_to_healpix(row["ra"] * u.deg, row["dec"] * u.deg)

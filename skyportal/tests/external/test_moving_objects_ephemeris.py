@@ -57,7 +57,7 @@ def test_get_instrument_fields(super_admin_token):
     data["instrument_field_ids"] = None
 
     _, instrument_id, _, _ = add_telescope_and_instrument(
-        "ZTF", super_admin_token, fields_ids=[364, 365, 366]
+        "ZTF", super_admin_token, fields_ids=[793, 822, 823]
     )
 
     with DBSession() as session:
@@ -74,9 +74,9 @@ def test_get_instrument_fields(super_admin_token):
         assert "field_id" in field
         assert "ra" in field
         assert "dec" in field
-        assert field["field_id"] == 364
-        assert field["ra"] == 139.2275
-        assert field["dec"] == -9.85
+        assert field["field_id"] == 822
+        assert field["ra"] == 220.0
+        assert field["dec"] == 62.15
 
 
 def test_add_instrument_fields(super_admin_token):
@@ -92,32 +92,32 @@ def test_add_instrument_fields(super_admin_token):
     data["instrument_field_ids"] = None
 
     _, instrument_id, _, _ = add_telescope_and_instrument(
-        "ZTF", super_admin_token, fields_ids=[364, 365, 366]
+        "ZTF", super_admin_token, fields_ids=[793, 822, 823]
     )
 
     with DBSession() as session:
         dfs, field2radec = add_instrument_fields(
             data, instrument_id, "ZTF", session, observer, primary_only=True
         )
-        print(field2radec)
         assert isinstance(dfs, list)
-        assert len(dfs) == 2
+        # One field, and the object stays in it, so there is one run to observe.
+        assert len(dfs) == 1
         df = dfs[0]
         assert isinstance(df, pd.DataFrame)
-        assert len(df) == 10
+        assert len(df) == 286
         assert "instrument_field_id" in df.columns
         assert len(df["instrument_field_id"].unique()) == 1
-        assert df["instrument_field_id"].unique()[0] == 364
+        assert df["instrument_field_id"].unique()[0] == 822
         assert "airmass" in df.columns
         assert df["airmass"].max() <= 2.0
         assert df["airmass"].min() > 0.0
 
         assert isinstance(field2radec, dict)
-        assert len(field2radec) == 2
-        assert 364 in field2radec
-        assert isinstance(field2radec[364], tuple)
-        assert field2radec[364][0] == 139.2275
-        assert field2radec[364][1] == -9.85
+        assert len(field2radec) == 1
+        assert 822 in field2radec
+        assert isinstance(field2radec[822], tuple)
+        assert field2radec[822][0] == 220.0
+        assert field2radec[822][1] == 62.15
 
 
 def test_count_consecutive(super_admin_token):
@@ -133,7 +133,7 @@ def test_count_consecutive(super_admin_token):
     data["instrument_field_ids"] = None
 
     _, instrument_id, _, _ = add_telescope_and_instrument(
-        "ZTF", super_admin_token, fields_ids=[364, 365, 366]
+        "ZTF", super_admin_token, fields_ids=[793, 822, 823]
     )
 
     with DBSession() as session:
@@ -146,7 +146,7 @@ def test_count_consecutive(super_admin_token):
         assert isinstance(df, pd.DataFrame)
         assert "count" in df.columns
         assert df["count"].min() == 1
-        assert df["count"].max() == 6
+        assert df["count"].max() == 286
 
 
 def test_find_longest_sequence(super_admin_token):
@@ -162,7 +162,7 @@ def test_find_longest_sequence(super_admin_token):
     data["instrument_field_ids"] = None
 
     _, instrument_id, _, _ = add_telescope_and_instrument(
-        "ZTF", super_admin_token, fields_ids=[364, 365, 366]
+        "ZTF", super_admin_token, fields_ids=[793, 822, 823]
     )
 
     with DBSession() as session:
@@ -173,10 +173,10 @@ def test_find_longest_sequence(super_admin_token):
 
         df = count_consecutive(df)
         start, end, field_id, count = find_longest_sequence(df)
-        assert start == datetime(2025, 2, 7, 8, 54)
-        assert end == datetime(2025, 2, 7, 8, 59)
-        assert field_id == 364
-        assert count == 6
+        assert start == datetime(2025, 2, 7, 8, 29)
+        assert end == datetime(2025, 2, 7, 13, 14)
+        assert field_id == 822
+        assert count == 286
 
 
 def test_find_observable_sequence(super_admin_token):
@@ -192,7 +192,7 @@ def test_find_observable_sequence(super_admin_token):
     data["instrument_field_ids"] = None
 
     _, instrument_id, _, _ = add_telescope_and_instrument(
-        "ZTF", super_admin_token, fields_ids=[364, 365, 366]
+        "ZTF", super_admin_token, fields_ids=[793, 822, 823]
     )
 
     with DBSession() as session:
@@ -211,31 +211,31 @@ def test_find_observable_sequence(super_admin_token):
 
         valid_obs = [
             {
-                "start_time": datetime(2025, 2, 7, 8, 55),
-                "end_time": datetime(2025, 2, 7, 8, 56),
+                "start_time": datetime(2025, 2, 7, 10, 50),
+                "end_time": datetime(2025, 2, 7, 10, 51),
                 "band": "ztfr",
-                "field_id": 364,
-                "airmass": 1.43,
-                "sun_altitude": -68.17,
-                "moon_distance": 74.93,
+                "field_id": 822,
+                "airmass": 1.2492,
+                "sun_altitude": -47.87,
+                "moon_distance": 86.85,
             },
             {
-                "start_time": datetime(2025, 2, 7, 8, 56),
-                "end_time": datetime(2025, 2, 7, 8, 57),
+                "start_time": datetime(2025, 2, 7, 10, 51),
+                "end_time": datetime(2025, 2, 7, 10, 52),
                 "band": "ztfr",
-                "field_id": 364,
-                "airmass": 1.43,
-                "sun_altitude": -68.04,
-                "moon_distance": 74.92,
+                "field_id": 822,
+                "airmass": 1.2476,
+                "sun_altitude": -47.66,
+                "moon_distance": 86.84,
             },
             {
-                "start_time": datetime(2025, 2, 7, 8, 57),
-                "end_time": datetime(2025, 2, 7, 8, 58),
+                "start_time": datetime(2025, 2, 7, 10, 52),
+                "end_time": datetime(2025, 2, 7, 10, 53),
                 "band": "ztfr",
-                "field_id": 364,
-                "airmass": 1.43,
-                "sun_altitude": -67.91,
-                "moon_distance": 74.91,
+                "field_id": 822,
+                "airmass": 1.2461,
+                "sun_altitude": -47.46,
+                "moon_distance": 86.84,
             },
         ]
 
