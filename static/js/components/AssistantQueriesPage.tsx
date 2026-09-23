@@ -3,6 +3,7 @@ import { makeStyles } from "tss-react/mui";
 import { showNotification } from "baselayer/components/Notifications";
 import AddIcon from "@mui/icons-material/Add";
 import DeleteIcon from "@mui/icons-material/Delete";
+import EditIcon from "@mui/icons-material/Edit";
 import Box from "@mui/material/Box";
 import Button from "@mui/material/Button";
 import Checkbox from "@mui/material/Checkbox";
@@ -27,6 +28,7 @@ import {
   useGetAssistantQueriesQuery,
   useSubscribeAssistantQueryMutation,
   useUnsubscribeAssistantQueryMutation,
+  useUpdateAssistantQueryMutation,
 } from "../ducks/assistant_queries";
 
 const useStyles = makeStyles()(() => ({
@@ -51,14 +53,35 @@ const AssistantQueriesPage = () => {
   const userGroups = useGetGroupsQuery().data?.user ?? [];
 
   const [createQuery] = useCreateAssistantQueryMutation();
+  const [updateQuery] = useUpdateAssistantQueryMutation();
   const [deleteQuery] = useDeleteAssistantQueryMutation();
   const [subscribe] = useSubscribeAssistantQueryMutation();
   const [unsubscribe] = useUnsubscribeAssistantQueryMutation();
 
-  const [openNewForm, setOpenNewForm] = useState(false);
+  const [openForm, setOpenForm] = useState(false);
+  const [editId, setEditId] = useState<number | null>(null);
   const [form, setForm] = useState<any>(emptyForm);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [queryToDelete, setQueryToDelete] = useState<number | null>(null);
+
+  const openCreate = () => {
+    setEditId(null);
+    setForm(emptyForm);
+    setOpenForm(true);
+  };
+
+  const openEdit = (row: any) => {
+    setEditId(row.id);
+    setForm({
+      name: row.name ?? "",
+      prompt: row.prompt ?? "",
+      group_id: row.group_id,
+      analysis_service_match: row.analysis_service_match ?? "",
+      description: row.description ?? "",
+      dry_run: row.dry_run ?? false,
+    });
+    setOpenForm(true);
+  };
 
   const toggleSubscription = async (row: any) => {
     try {
@@ -72,7 +95,7 @@ const AssistantQueriesPage = () => {
     }
   };
 
-  const submitNew = async () => {
+  const submitForm = async () => {
     if (!form.name || !form.prompt || !form.group_id) {
       dispatch(
         showNotification("Name, group and prompt are required", "error"),
@@ -80,17 +103,32 @@ const AssistantQueriesPage = () => {
       return;
     }
     try {
-      await createQuery({
-        name: form.name,
-        prompt: form.prompt,
-        group_id: form.group_id,
-        description: form.description || null,
-        analysis_service_match: form.analysis_service_match || null,
-        dry_run: form.dry_run,
-      }).unwrap();
-      dispatch(showNotification("Assistant query created"));
+      if (editId != null) {
+        await updateQuery({
+          id: editId,
+          body: {
+            name: form.name,
+            prompt: form.prompt,
+            description: form.description || null,
+            analysis_service_match: form.analysis_service_match || null,
+            dry_run: form.dry_run,
+          },
+        }).unwrap();
+        dispatch(showNotification("Assistant query updated"));
+      } else {
+        await createQuery({
+          name: form.name,
+          prompt: form.prompt,
+          group_id: form.group_id,
+          description: form.description || null,
+          analysis_service_match: form.analysis_service_match || null,
+          dry_run: form.dry_run,
+        }).unwrap();
+        dispatch(showNotification("Assistant query created"));
+      }
       setForm(emptyForm);
-      setOpenNewForm(false);
+      setEditId(null);
+      setOpenForm(false);
     } catch {
       // error notification handled by the base query
     }
@@ -150,6 +188,19 @@ const AssistantQueriesPage = () => {
       ),
     },
     {
+      field: "edit",
+      headerName: " ",
+      width: 60,
+      sortable: false,
+      filterable: false,
+      renderCell: (params: any) =>
+        params.row.is_owner ? (
+          <IconButton onClick={() => openEdit(params.row)}>
+            <EditIcon />
+          </IconButton>
+        ) : null,
+    },
+    {
       field: "delete",
       headerName: " ",
       width: 60,
@@ -171,10 +222,7 @@ const AssistantQueriesPage = () => {
 
   const CustomToolbar = () => (
     <DataGridToolbar showQuickFilter>
-      <IconButton
-        name="new_assistant_query_form"
-        onClick={() => setOpenNewForm(true)}
-      >
+      <IconButton name="new_assistant_query_form" onClick={openCreate}>
         <AddIcon />
       </IconButton>
     </DataGridToolbar>
@@ -198,8 +246,10 @@ const AssistantQueriesPage = () => {
         />
       </Box>
 
-      <Dialog open={openNewForm} onClose={() => setOpenNewForm(false)}>
-        <DialogTitle>Add an assistant query</DialogTitle>
+      <Dialog open={openForm} onClose={() => setOpenForm(false)}>
+        <DialogTitle>
+          {editId != null ? "Edit assistant query" : "Add an assistant query"}
+        </DialogTitle>
         <DialogContent>
           <Stack spacing={2} className={classes.form}>
             <TextField
@@ -221,6 +271,10 @@ const AssistantQueriesPage = () => {
               value={form.group_id}
               onChange={(e) => setForm({ ...form, group_id: e.target.value })}
               required
+              disabled={editId != null}
+              helperText={
+                editId != null ? "A query's group can't be changed." : undefined
+              }
             >
               {userGroups.map((g: any) => (
                 <MenuItem key={g.id} value={g.id}>
@@ -255,8 +309,8 @@ const AssistantQueriesPage = () => {
               }
               label="Dry run (run but notify no one)"
             />
-            <Button variant="contained" onClick={submitNew}>
-              Create
+            <Button variant="contained" onClick={submitForm}>
+              {editId != null ? "Save" : "Create"}
             </Button>
           </Stack>
         </DialogContent>
