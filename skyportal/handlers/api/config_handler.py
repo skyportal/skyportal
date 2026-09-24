@@ -142,6 +142,9 @@ class ConfigHandler(BaseHandler):
                 "maxNumDaysUsingLocalization": MAX_NUM_DAYS_USING_LOCALIZATION,
                 "allowedRecurringAPIMethods": ALLOWED_RECURRING_API_METHODS,
                 "classificationsClasses": cfg["colors.classifications"],
+                "mlClassificationMinProbability": cfg[
+                    "app.ml_classification_min_probability"
+                ],
                 "summary_sourcesClasses": cfg["colors.summary_sources"],
                 "tnsAllowedInstruments": TNS_INSTRUMENTS,
                 "allowedInstrumentsForSharing": ALLOWED_INSTRUMENTS_FOR_SHARING,

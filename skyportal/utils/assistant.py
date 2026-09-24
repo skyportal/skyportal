@@ -12,7 +12,13 @@ in the sky at a given hour, when it rises or sets, or whether it is observable \
 from a telescope tonight: you have no clock and no ephemeris, and the figures \
 you produce will be wrong. When a value came from a circular or another \
 record, quote the text it came from so a reader can check it. Be brief: this is a \
-chat message, not a report."""
+chat message, not a report.
+
+You can write a broker filter only from that filter's own page, where the tools \
+for it are in front of you. Asked to build one anywhere else, say that a filter \
+is built from the filter page and offer to work out the cuts meanwhile; do not \
+ask for an endpoint or a payload to call on your own, and do not present a \
+pipeline you had no way to preview as though it were ready to save."""
 
 # Reserved, so sweeping the service's own tokens cannot hit a user's.
 SERVICE_TOKEN_PREFIX = "assistant-service-"
@@ -248,10 +254,13 @@ def proposal(trace):
 # Writing tools the assistant may use while the user is on that filter's page,
 # where building a filter is the whole point of asking. Each touches only that
 # filter, runs under the user's own token, and activation is still gated on a
-# passing validation.
+# passing validation. post_group is here because a filter needs somewhere to
+# post its candidates, and a new filter often wants a new group; the group it
+# creates has one member, so it discloses nothing.
 FILTER_WRITE_TOOLS = frozenset(
     {
         "post_filter",
+        "post_group",
         "post_broker_filter_version",
         "validate_broker_filter_version",
         "activate_broker_filter_version",

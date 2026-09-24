@@ -137,3 +137,177 @@ def test_nan_possible_rides_along_on_the_field():
         {"type": "record", "name": "alert", "fields": [{"name": "c", "type": "string"}]}
     )
     assert dict(_flatten_avro(schema))["villar_fit.reduced_chi2"] == "double?"
+
+
+def test_a_note_says_which_way_a_rise_rate_points():
+    # The sign is the whole content of the field: a rate in magnitudes per day
+    # is negative while the source brightens, so "rising" reads backwards and
+    # the obvious cut selects the sources that are fading.
+    from skyportal.broker_apis._enrichment import annotate_schema
+    from skyportal.handlers.mcp import _flatten_avro, _note_at
+
+    schema = {
+        "type": "record",
+        "name": "alert",
+        "fields": [
+            {
+                "name": "properties",
+                "type": {
+                    "type": "record",
+                    "name": "Properties",
+                    "fields": [
+                        {
+                            "name": "photstats",
+                            "type": {
+                                "type": "record",
+                                "name": "PhotStats",
+                                "fields": [
+                                    {
+                                        "name": "r",
+                                        "type": {
+                                            "type": "record",
+                                            "name": "Band",
+                                            "fields": [
+                                                {
+                                                    "name": "rising",
+                                                    "type": {
+                                                        "type": "record",
+                                                        "name": "Rise",
+                                                        "fields": [
+                                                            {
+                                                                "name": "rate",
+                                                                "type": "double",
+                                                            }
+                                                        ],
+                                                    },
+                                                }
+                                            ],
+                                        },
+                                    }
+                                ],
+                            },
+                        }
+                    ],
+                },
+            }
+        ],
+    }
+    notes = {}
+    _flatten_avro(annotate_schema(schema), notes=notes)
+    assert "NEGATIVE" in _note_at("properties.photstats.r.rising.rate", notes)
+
+
+def test_a_note_says_acai_b_scores_an_artefact():
+    # Read as a supernova class it selects junk: 82% of the alerts scoring
+    # over 0.5 on a night of ZTF have drb < 0.3.
+    from skyportal.broker_apis._enrichment import annotate_schema
+
+    field = {"name": "acai_b", "type": "float"}
+    schema = {
+        "type": "record",
+        "name": "alert",
+        "fields": [
+            {
+                "name": "classifications",
+                "type": {
+                    "type": "record",
+                    "name": "Classifications",
+                    "fields": [field],
+                },
+            }
+        ],
+    }
+    annotate_schema(schema)
+    assert "BOGUS" in field["doc"]
+
+
+def test_the_broker_keeps_its_own_wording():
+    # A note is a stopgap for what BOOM has not documented, so it stands aside
+    # the moment BOOM does, the way supplement_schema does for a field.
+    from skyportal.broker_apis._enrichment import annotate_schema
+
+    field = {"name": "acai_b", "type": "float", "doc": "BOOM says this."}
+    annotate_schema(
+        {
+            "type": "record",
+            "name": "alert",
+            "fields": [
+                {
+                    "name": "classifications",
+                    "type": {
+                        "type": "record",
+                        "name": "Classifications",
+                        "fields": [field],
+                    },
+                }
+            ],
+        }
+    )
+    assert field["doc"] == "BOOM says this."
+
+
+def test_a_note_reaches_the_model_through_the_flattener():
+    # The information existed in the schema all along and was dropped one step
+    # before the only reader who needed it.
+    from skyportal.handlers.mcp import _flatten_avro
+
+    notes = {}
+    schema = supplement_schema(
+        {"type": "record", "name": "alert", "fields": [{"name": "c", "type": "string"}]}
+    )
+    _flatten_avro(schema, notes=notes)
+    assert "NaN" in notes["villar_fit.reduced_chi2"]
+
+
+def test_a_rise_and_a_decline_do_not_share_a_sign():
+    # They are two fields of one Avro record, so a note written onto the `rate`
+    # they have in common tells the reader the decline brightens.
+    from skyportal.broker_apis._enrichment import annotate_schema
+    from skyportal.handlers.mcp import _flatten_avro, _note_at
+
+    fit = {
+        "type": "record",
+        "name": "Fit",
+        "fields": [{"name": "rate", "type": "double"}],
+    }
+    schema = {
+        "type": "record",
+        "name": "alert",
+        "fields": [
+            {
+                "name": "properties",
+                "type": {
+                    "type": "record",
+                    "name": "Properties",
+                    "fields": [
+                        {
+                            "name": "photstats",
+                            "type": {
+                                "type": "record",
+                                "name": "PhotStats",
+                                "fields": [
+                                    {
+                                        "name": "r",
+                                        "type": {
+                                            "type": "record",
+                                            "name": "Band",
+                                            "fields": [
+                                                {"name": "rising", "type": fit},
+                                                {"name": "fading", "type": fit},
+                                            ],
+                                        },
+                                    }
+                                ],
+                            },
+                        }
+                    ],
+                },
+            }
+        ],
+    }
+    notes = {}
+    _flatten_avro(annotate_schema(schema), notes=notes)
+    rising = _note_at("properties.photstats.r.rising.rate", notes)
+    fading = _note_at("properties.photstats.r.fading.rate", notes)
+    assert "NEGATIVE" in rising and "POSITIVE" not in rising
+    assert "POSITIVE" in fading and "NEGATIVE" not in fading
