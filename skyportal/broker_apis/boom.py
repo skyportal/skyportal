@@ -1186,6 +1186,21 @@ class BOOMBROKER(BrokerAPI):
                     results = _top_n(results, payload["sort_by"], sort_order, limit)
                 return {**res, "results": results}
             return res
-        return _request(
-            broker, "POST", "filters/test/count", json=payload, timeout=TEST_TIMEOUT
-        )
+        # The same cap applies to a count, and BOOM rejects a wider window as a
+        # bare 400: the caller sees a filter that will not preview and cannot
+        # tell that from a pipeline it dislikes. Walk it in slices and add them
+        # up, as the sorted branch above already does.
+        total, res = 0, None
+        for start_jd, end_jd in _jd_windows(
+            payload["start_jd"], payload["end_jd"], MAX_TEST_WINDOW_DAYS
+        ):
+            res = _request(
+                broker,
+                "POST",
+                "filters/test/count",
+                json={**payload, "start_jd": start_jd, "end_jd": end_jd},
+                timeout=TEST_TIMEOUT,
+            )
+            if isinstance(res, dict):
+                total += res.get("count") or 0
+        return {**res, "count": total} if isinstance(res, dict) else res
