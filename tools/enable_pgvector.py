@@ -74,7 +74,8 @@ for database in databases:
     for client in reachable:
         p = psql(client, "CREATE EXTENSION IF NOT EXISTS vector;", database)
         if p.returncode == 0:
-            log(f"pgvector enabled in {database}")
+            via = f" (with `{' '.join(client[:4])}`)" if client[0] == "sudo" else ""
+            log(f"pgvector enabled in {database}{via}")
             break
         errors.append(p.stderr.decode("utf-8").strip())
     else:
