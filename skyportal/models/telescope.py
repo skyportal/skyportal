@@ -6,7 +6,6 @@ from datetime import timedelta
 import astroplan
 import numpy as np
 import sqlalchemy as sa
-import timezonefinder
 from astropy import time as ap_time
 from astropy import units as u
 from astropy.utils.masked import MaskedNDArray
@@ -165,6 +164,9 @@ class Telescope(Base):
                 return self._observer_timezone
 
         try:
+            # deferred: timezonefinder pulls in numba and llvmlite
+            import timezonefinder
+
             tf = timezonefinder.TimezoneFinder(in_memory=True)
             local_tz = tf.timezone_at(lng=(self.lon + 180) % 360 - 180, lat=self.lat)
             elevation = self.elevation

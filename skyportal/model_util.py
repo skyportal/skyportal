@@ -4,7 +4,8 @@ from baselayer.app.auth_backends import default_auth_backend
 from baselayer.app.env import load_env
 from baselayer.app.psa import TornadoStorage
 from baselayer.log import make_log
-from skyportal.enum_types import LISTENER_CLASSES, sqla_enum_types
+from skyportal.enum_types import sqla_enum_types
+from skyportal.facility_apis import LISTENERS
 from skyportal.models import ACL, DBSession, Group, Role, Token, User
 
 log = make_log("model_util")
@@ -36,7 +37,7 @@ all_acl_ids = [
     "Delete taxonomy",
     "Delete bulk photometry",
     "Classify",
-] + [c.get_acl_id() for c in LISTENER_CLASSES]
+] + [c.get_acl_id() for c in LISTENERS]
 
 
 role_acls = {

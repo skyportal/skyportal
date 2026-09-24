@@ -11,8 +11,8 @@ from sncosmo.magsystems import _MAGSYSTEMS
 from baselayer.app.env import load_env
 from baselayer.log import make_log
 
-from .broker_apis import BROKERS
-from .facility_apis import APIS, LISTENERS
+from .broker_apis import BROKER_CLASSNAMES
+from .facility_apis import API_CLASSNAMES, LISTENER_CLASSNAMES
 
 log = make_log("enum_types")
 
@@ -90,10 +90,6 @@ INSTRUMENT_TYPES = ("imager", "spectrograph", "imaging spectrograph")
 MMA_DETECTOR_TYPES = ("gravitational-wave", "neutrino", "gamma-ray-burst", "x-ray")
 FOLLOWUP_PRIORITIES = ("1", "2", "3", "4", "5")
 FOLLOWUP_HTTP_REQUEST_ORIGINS = ("remote", "skyportal")
-
-LISTENER_CLASSES = LISTENERS
-LISTENER_CLASSNAMES = [c.__name__ for c in LISTENERS]
-
 
 ANALYSIS_TYPES = (
     "lightcurve_fitting",
@@ -186,7 +182,7 @@ followup_priorities = sa.Enum(
     *FOLLOWUP_PRIORITIES, name="followup_priorities", validate_strings=True
 )
 
-ALLOWED_API_CLASSNAMES = [c.__name__ for c in APIS]
+ALLOWED_API_CLASSNAMES = list(API_CLASSNAMES)
 
 api_classnames = sa.Enum(
     *ALLOWED_API_CLASSNAMES,
@@ -200,7 +196,7 @@ listener_classnames = sa.Enum(
     validate_strings=True,
 )
 
-ALLOWED_BROKER_CLASSNAMES = [c.__name__ for c in BROKERS]
+ALLOWED_BROKER_CLASSNAMES = list(BROKER_CLASSNAMES)
 
 broker_classnames = sa.Enum(
     *ALLOWED_BROKER_CLASSNAMES,

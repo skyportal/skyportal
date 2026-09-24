@@ -18,14 +18,9 @@ import random
 import astropy.units as u
 import jinja2
 import lxml
-import matplotlib
-import matplotlib.pyplot as plt
 import numpy as np
 import sqlalchemy as sa
-from ligo.skymap import (
-    plot,  # noqa: F401 F811
-    postprocess,
-)
+from ligo.skymap import postprocess
 from mocpy import MOC
 from sqlalchemy import UniqueConstraint, func, select
 from sqlalchemy.dialects.postgresql import JSONB
@@ -220,6 +215,11 @@ class GcnReport(Base):
             )
 
         center = postprocess.posterior_max(localization.flat_2d)
+
+        # deferred: pyplot and the ligo.skymap projections are only needed to plot
+        import matplotlib
+        import matplotlib.pyplot as plt
+        from ligo.skymap import plot  # noqa: F401
 
         matplotlib.use("Agg")
         fig = plt.figure(figsize=figsize, constrained_layout=False)
