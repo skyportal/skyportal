@@ -1026,10 +1026,7 @@ invitations:
   days_until_expiry: 3
   disable_emailing: False # If True, the app will generate invite tokens but not send emails
   email_subject: "You've been invited to collaborate on SkyPortal"
-  # Added above the invitation link. Optional: the message already names the
-  # site, the person inviting, the link and how long it lasts. Anything here
-  # should say what this deployment is for, since a recipient judging whether
-  # the mail is genuine has only what it tells them.
+  # Optional HTML added above the invitation link, to say what this deployment is for
   email_body_preamble: ""
 
 # Lets people without an account apply for one, from a form on the login page
