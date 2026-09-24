@@ -36,12 +36,9 @@ clients = [
     ["psql", *flags, "-U", cfg["database.user"] or db],
     ["psql", *flags, "-U", admin_user],
 ]
-# Stock Linux installs only admit the superuser through peer auth on the socket;
-# `-n` relies on credentials that `db_init` cached, and never prompts.
-if shutil.which("sudo"):
-    clients.append(
-        ["sudo", "-n", "-u", admin_user, "psql", "-X", "--no-password", *port]
-    )
+# Stock Linux installs only admit the superuser through peer auth on the socket.
+sudo_client = ["sudo", "-n", "-u", admin_user, "psql", "-X", "--no-password", *port]
+use_sudo = None
 
 
 def psql(client, statement, database):
@@ -50,6 +47,29 @@ def psql(client, statement, database):
         capture_output=True,
         env=psql_env,
     )
+
+
+def ask_sudo(command):
+    """Ask once whether to run sudo; the alternative is to run `command` by hand."""
+    global use_sudo
+    if use_sudo is None:
+        use_sudo = False
+        if sys.stdin.isatty() and shutil.which("sudo"):
+            print(
+                "\nEnabling pgvector needs a superuser. Either:\n\n"
+                f"  1. Let this script run `sudo -u {admin_user} psql`. "
+                "sudo can ask for your password.\n"
+                "  2. Answer no, and run this command yourself:\n\n"
+                f"       {command}\n"
+            )
+            try:
+                answer = input("Use sudo? [y/N] ").strip().lower()
+            except (EOFError, KeyboardInterrupt):
+                answer = ""
+            use_sudo = answer in ("y", "yes") and (
+                subprocess.run(["sudo", "-v"]).returncode == 0
+            )
+    return use_sudo
 
 
 for database in databases:
@@ -70,19 +90,26 @@ for database in databases:
         log("  macOS:         brew install pgvector")
         sys.exit(1)
 
+    statement = "CREATE EXTENSION IF NOT EXISTS vector;"
+    command = f"sudo -u {admin_user} psql -c '{statement}' {database}"
     errors = []
     for client in reachable:
-        p = psql(client, "CREATE EXTENSION IF NOT EXISTS vector;", database)
+        p = psql(client, statement, database)
         if p.returncode == 0:
-            via = f" (with `{' '.join(client[:4])}`)" if client[0] == "sudo" else ""
-            log(f"pgvector enabled in {database}{via}")
+            log(f"pgvector enabled in {database}")
             break
         errors.append(p.stderr.decode("utf-8").strip())
     else:
+        if ask_sudo(command):
+            p = psql(sudo_client, statement, database)
+            if p.returncode == 0:
+                log(f"pgvector enabled in {database} (with `sudo -u {admin_user}`)")
+                continue
+            errors.append(p.stderr.decode("utf-8").strip())
         log(f"Could not enable pgvector in {database}:")
         for error in errors:
             log(error)
-        log("Create it as a superuser with:")
-        log(f"  sudo -u {admin_user} psql -c 'CREATE EXTENSION vector;' {database}")
+        log("Run this command yourself, then run this script again:")
+        log(f"  {command}")
         log("The summary embeddings table cannot be created until it is there.")
         sys.exit(1)
