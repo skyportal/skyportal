@@ -1,0 +1,78 @@
+name: Prepare release
+
+# Keeps one release pull request open and up to date with everything waiting to
+# be released: it dates the version, writes it into every versioned file and
+# adds the new section to CHANGELOG.md. Merging that PR releases (see
+# release.yaml). Runs only when a changeset lands, which is the only time there
+# is anything to release.
+
+on:
+  push:
+    branches: [main]
+    paths: [".changeset/**"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  prepare-release:
+    if: "!contains(github.event.head_commit.message, 'chore: prepare release')"
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # uv refuses to lock with a workspace member missing, and the release
+      # commit refreshes uv.lock with the new version.
+      - name: Check out the baselayer submodule
+        run: git submodule update --init --depth 1 baselayer
+
+      - uses: astral-sh/setup-uv@v7
+
+      - uses: knope-dev/action@v2.1.2
+        with:
+          version: 0.23.0
+
+      - name: Configure git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      # Knope has no calendar versioning, so the version is worked out here and
+      # handed to it. Three segments, unpadded: any more and Knope's override
+      # refuses to parse, and a leading zero is stripped by PEP 440 anyway.
+      - name: Work out the version
+        id: calver
+        run: |
+          python3 - <<'PY' >> "$GITHUB_OUTPUT"
+          import datetime
+          import pathlib
+          import re
+
+          text = pathlib.Path("pyproject.toml").read_text()
+          current = re.search(r"""^version = ['"]([^'"]+)['"]""", text, re.M).group(1)
+
+          today = datetime.date.today()
+          prefix = f"{today.year}.{today.month}"
+          # Several releases in one month keep counting up; a new month restarts.
+          micro = (
+              int(current.rsplit(".", 1)[1]) + 1
+              if current.startswith(f"{prefix}.")
+              else 0
+          )
+          print(f"version={prefix}.{micro}")
+          PY
+
+      # Fails harmlessly when no changeset is waiting to be released.
+      - name: Create or update the release PR
+        run: knope prepare-release --verbose --override-version "$VERSION"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERSION: ${{ steps.calver.outputs.version }}
+        continue-on-error: true

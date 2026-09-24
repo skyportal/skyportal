@@ -1,0 +1,83 @@
+# Everything in this repository ships as one version, on one tag: the app, and
+# the `skyportal-py` and `skyportal-py-models` packages under projects/.
+[package]
+versioned_files = [
+    "pyproject.toml",
+    "projects/api-models/pyproject.toml",
+    "projects/python-client/pyproject.toml",
+    { path = "skyportal/__init__.py", regex = "(?m)^__version__ = \"(?<version>[^\"]+)\"$" },
+]
+changelog = "CHANGELOG.md"
+
+# Releases are dated, so a changeset says what kind of change it is rather than
+# how far the version should move.
+extra_changelog_sections = [
+    { name = "Breaking changes", types = ["breaking"] },
+    { name = "Features", types = ["feature"] },
+    { name = "Bug fixes", types = ["bugfix"] },
+    { name = "Documentation", types = ["docs"] },
+    { name = "Refactors", types = ["refactor"] },
+    { name = "Other changes", types = ["other"] },
+]
+
+# Knope applies an unscoped conventional commit to every package, so a release
+# comes from changesets only. Knope cannot compute a calendar version either,
+# so prepare_release.yaml works it out and passes `--override-version`; without
+# that override there is no bump to apply and nothing would release.
+[changes]
+ignore_conventional_commits = true
+
+[[workflows]]
+name = "document-change"
+
+[[workflows.steps]]
+type = "CreateChangeFile"
+
+[[workflows]]
+name = "prepare-release"
+
+[[workflows.steps]]
+type = "Command"
+command = "git switch -c release"
+
+[[workflows.steps]]
+type = "PrepareRelease"
+
+# Knope cannot version a dependency inside a pyproject.toml, so the exact pin
+# `skyportal-py` carries on `skyportal-py-models` is rewritten here.
+[[workflows.steps]]
+type = "Command"
+shell = true
+command = "sed -i.bak -E 's/(skyportal-py-models==)[^\"]+/\\1$version/' projects/python-client/pyproject.toml && rm projects/python-client/pyproject.toml.bak && uv lock"
+variables = { "$version" = "Version" }
+
+[[workflows.steps]]
+type = "Command"
+command = "git commit --all -m \"chore: prepare release $version\""
+variables = { "$version" = "Version" }
+
+[[workflows.steps]]
+type = "Command"
+command = "git push --force --set-upstream origin release"
+
+[[workflows.steps]]
+type = "CreatePullRequest"
+base = "main"
+
+[workflows.steps.title]
+template = "chore: prepare release $version"
+variables = { "$version" = "Version" }
+
+[workflows.steps.body]
+template = "This PR was created by Knope. It stays open and up to date with everything waiting to be released; merging it tags the release and publishes the packages.\n\n$changelog"
+variables = { "$changelog" = "ChangelogEntry" }
+
+[[workflows]]
+name = "release"
+
+[[workflows.steps]]
+type = "Release"
+
+[github]
+owner = "skyportal"
+repo = "skyportal"

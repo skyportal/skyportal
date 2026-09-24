@@ -1,0 +1,56 @@
+name: Release
+
+# Merging the release PR tags the release, publishes the release notes, and
+# uploads `skyportal-py` and `skyportal-py-models` to PyPI. Both projects
+# publish through PyPI trusted publishing, so no API token is stored here.
+
+on:
+  pull_request:
+    types: [closed]
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  release:
+    if: github.head_ref == 'release' && github.event.pull_request.merged == true
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: knope-dev/action@v2.1.2
+        with:
+          version: 0.23.0
+
+      - name: Tag the release and publish the release notes
+        run: knope release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  publish:
+    needs: release
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+
+      # uv builds a workspace member, so every member has to be present.
+      - name: Check out the baselayer submodule
+        run: git submodule update --init --depth 1 baselayer
+
+      - uses: astral-sh/setup-uv@v7
+
+      - name: Build both distributions
+        run: |
+          uv build --package skyportal-py-models --out-dir dist
+          uv build --package skyportal-py --out-dir dist
+
+      - uses: pypa/gh-action-pypi-publish@release/v1

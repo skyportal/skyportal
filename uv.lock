@@ -4674,7 +4674,7 @@ docs = [
 
 [[package]]
 name = "skyportal-py"
-version = "0.4.0"
+version = "1.4.0"
 source = { editable = "projects/python-client" }
 dependencies = [
     { name = "httpx" },
@@ -4711,7 +4711,7 @@ test = [
 
 [[package]]
 name = "skyportal-py-models"
-version = "0.4.0"
+version = "1.4.0"
 source = { editable = "projects/api-models" }
 dependencies = [
     { name = "pydantic" },
