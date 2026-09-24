@@ -332,9 +332,7 @@ def test_user_info_hides_unshared_fields(view_only_token, user, view_only_token2
 
 
 def test_a_system_admin_can_read_back_what_it_just_wrote(super_admin_token, user):
-    # The permissions decorator lets System admin satisfy any ACL, so the write
-    # succeeds. Reading it back under a stricter rule made a successful PATCH
-    # look like it had silently done nothing.
+    # A stricter read rule made a successful PATCH look like it did nothing.
     email = "readback_test@skyportal.com"
     status, data = api(
         "PATCH",
@@ -354,8 +352,7 @@ def test_a_system_admin_can_read_back_what_it_just_wrote(super_admin_token, user
 
 
 def test_a_system_admin_sees_the_full_record(super_admin_token, user):
-    # oauth_uid goes the same way as contact_email: redacted from anyone who
-    # cannot manage the user, which a system admin can.
+    # Redacted from anyone who cannot manage the user, which an admin can.
     status, data = api(
         "GET", "user", params={"lastName": user.last_name}, token=super_admin_token
     )

@@ -246,9 +246,7 @@ async def add_user_and_setup_groups(
 
 class UserHandler(BaseHandler):
     def can_manage_users(self):
-        # System admin satisfies any ACL, which is how the permissions decorator
-        # gates the write side. Reading it differently here let a system admin
-        # set a user's contact_email and then have it redacted from the response.
+        # System admin satisfies any ACL, as it does on the write side.
         granted = self.current_user.permissions
         return "Manage users" in granted or "System admin" in granted
 
