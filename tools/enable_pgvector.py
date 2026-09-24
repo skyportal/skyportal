@@ -5,6 +5,7 @@ every candidate is tried.
 """
 
 import os
+import shutil
 import subprocess
 import sys
 
@@ -21,39 +22,66 @@ env, cfg = load_env()
 db = cfg["database.database"]
 databases = (f"{db}_test",) if env.test_only else (db, f"{db}_test")
 
-flags = ["--no-password"]
+port = ["-p", str(cfg["database.port"])] if cfg["database.port"] else []
+flags = ["--no-password", *port]
 if cfg["database.host"]:
     flags += ["-h", str(cfg["database.host"])]
-if cfg["database.port"]:
-    flags += ["-p", str(cfg["database.port"])]
 
 psql_env = dict(os.environ)
 if cfg["database.password"]:
     psql_env["PGPASSWORD"] = cfg["database.password"]
 
-users = [cfg["database.user"] or db, cfg.get("database.admin_user") or "postgres"]
+admin_user = cfg.get("database.admin_user") or "postgres"
+clients = [
+    ["psql", *flags, "-U", cfg["database.user"] or db],
+    ["psql", *flags, "-U", admin_user],
+]
+# Stock Linux installs only admit the superuser through peer auth on the socket;
+# `-n` relies on credentials that `db_init` cached, and never prompts.
+if shutil.which("sudo"):
+    clients.append(
+        ["sudo", "-n", "-u", admin_user, "psql", "-X", "--no-password", *port]
+    )
 
 
-def psql(user, statement, database):
+def psql(client, statement, database):
     return subprocess.run(
-        ["psql", *flags, "-U", user, "-c", statement, database],
+        [*client, "-t", "-A", "-c", statement, database],
         capture_output=True,
         env=psql_env,
     )
 
 
 for database in databases:
+    reachable = [c for c in clients if psql(c, "SELECT 1;", database).returncode == 0]
     # A database that cannot be reached is one this install does not use.
-    if not any(psql(user, "SELECT 1;", database).returncode == 0 for user in users):
+    if not reachable:
         continue
 
-    for user in users:
-        p = psql(user, "CREATE EXTENSION IF NOT EXISTS vector;", database)
+    p = psql(
+        reachable[0],
+        "SELECT 1 FROM pg_available_extensions WHERE name = 'vector';",
+        database,
+    )
+    if p.returncode == 0 and not p.stdout.strip():
+        log("pgvector is not installed on the PostgreSQL server. Install it with:")
+        log("  Fedora/RHEL:   sudo dnf install pgvector")
+        log("  Debian/Ubuntu: sudo apt install postgresql-<version>-pgvector")
+        log("  macOS:         brew install pgvector")
+        sys.exit(1)
+
+    errors = []
+    for client in reachable:
+        p = psql(client, "CREATE EXTENSION IF NOT EXISTS vector;", database)
         if p.returncode == 0:
             log(f"pgvector enabled in {database}")
             break
+        errors.append(p.stderr.decode("utf-8").strip())
     else:
         log(f"Could not enable pgvector in {database}:")
-        log(p.stderr.decode("utf-8").strip())
+        for error in errors:
+            log(error)
+        log("Create it as a superuser with:")
+        log(f"  sudo -u {admin_user} psql -c 'CREATE EXTENSION vector;' {database}")
         log("The summary embeddings table cannot be created until it is there.")
         sys.exit(1)
