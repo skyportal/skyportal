@@ -110,3 +110,47 @@ def test_an_inviter_who_cannot_be_read_costs_nothing():
 
     body = invitation_module.invite_body(Exploding(), LINK)
     assert "You have been invited to join" in body
+
+
+def test_one_bad_address_does_not_stop_the_rest():
+    # The batch used to go in a single send_message, where the server refused
+    # the bad address and delivered the others; one message each must not make
+    # the first refusal cost everyone after it their mail.
+    sent = []
+
+    def send(message):
+        if message["To"] == "gone@example.edu":
+            raise mail.smtplib.SMTPRecipientsRefused({message["To"]: (550, b"no")})
+        sent.append(message["To"])
+
+    with patch.object(mail.smtplib, "SMTP") as server:
+        server.return_value.send_message.side_effect = send
+        mail.cfg["smtp"] = {
+            "from_email": "no-reply@example.org",
+            "password": "x",
+            "host": "h",
+            "port": 587,
+        }
+        mail.send_email(
+            ["a@example.edu", "gone@example.edu", "b@example.edu"],
+            "Subject",
+            "<p>Hi</p>",
+        )
+    assert sent == ["a@example.edu", "b@example.edu"]
+
+
+def test_a_refusal_still_raises_when_nobody_was_reached():
+    # An invitation has one recipient and rolls back on an exception, so a
+    # refusal there has to stay fatal.
+    with patch.object(mail.smtplib, "SMTP") as server:
+        server.return_value.send_message.side_effect = (
+            mail.smtplib.SMTPRecipientsRefused({"gone@example.edu": (550, b"no")})
+        )
+        mail.cfg["smtp"] = {
+            "from_email": "no-reply@example.org",
+            "password": "x",
+            "host": "h",
+            "port": 587,
+        }
+        with pytest.raises(mail.smtplib.SMTPRecipientsRefused):
+            mail.send_email(["gone@example.edu"], "Subject", "<p>Hi</p>")

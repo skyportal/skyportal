@@ -13,12 +13,15 @@ import smtplib
 from email.message import EmailMessage
 from email.utils import formataddr, make_msgid
 
+from python_http_client.exceptions import BadRequestsError
 from sendgrid import SendGridAPIClient
 from sendgrid.helpers.mail import Mail
 
 from baselayer.app.env import load_env
+from baselayer.log import make_log
 
 _, cfg = load_env()
+log = make_log("email")
 
 _PARAGRAPH = re.compile(r"(?i)</(?:p|div|h[1-6]|ul|ol|table)\s*>")
 _BREAK = re.compile(r"(?i)<(?:br\s*/?|/li|/tr)\s*>")
@@ -82,6 +85,20 @@ def _build(recipient, subject, body):
     return message
 
 
+def _raise_if_nobody_was_reached(refused, recipients):
+    """Log the addresses that bounced, and fail only if none were deliverable.
+
+    Callers treat an exception as "this was not sent": an invitation rolls back
+    on one, so a refusal has to keep raising when there was a single recipient,
+    while a notification to many must survive one bad address among them.
+    """
+    if not refused:
+        return
+    log(f"refused by the server: {', '.join(sorted(refused))}")
+    if len(refused) == len(recipients):
+        raise next(iter(refused.values()))
+
+
 def send_email(recipients, subject, body):
     """Send one message per recipient, so nobody is shown anyone else's address."""
     service = cfg.get("email_service")
@@ -96,19 +113,24 @@ def send_email(recipients, subject, body):
 
     name, address = _sender()
     text = as_plain_text(body)
+    refused = {}
 
     if service == "sendgrid":
         client = SendGridAPIClient(cfg["twilio.sendgrid_api_key"])
         for recipient in recipients:
-            client.send(
-                Mail(
-                    from_email=(address, name),
-                    to_emails=recipient,
-                    subject=subject,
-                    plain_text_content=text,
-                    html_content=body,
+            try:
+                client.send(
+                    Mail(
+                        from_email=(address, name),
+                        to_emails=recipient,
+                        subject=subject,
+                        plain_text_content=text,
+                        html_content=body,
+                    )
                 )
-            )
+            except BadRequestsError as e:
+                refused[recipient] = e
+        _raise_if_nobody_was_reached(refused, recipients)
         return
 
     server = smtplib.SMTP(cfg["smtp.host"], cfg["smtp.port"])
@@ -116,6 +138,14 @@ def send_email(recipients, subject, body):
         server.starttls()
         server.login(cfg["smtp.from_email"], cfg["smtp.password"])
         for recipient in recipients:
-            server.send_message(_build(recipient, subject, body))
+            try:
+                server.send_message(_build(recipient, subject, body))
+            except smtplib.SMTPRecipientsRefused as e:
+                # This address, not the server: the rest of the batch is still
+                # deliverable and a notification to fifty people should not be
+                # lost to one retired account. Anything else (auth, connection)
+                # is not per-recipient and propagates.
+                refused[recipient] = e
     finally:
         server.quit()
+    _raise_if_nobody_was_reached(refused, recipients)
