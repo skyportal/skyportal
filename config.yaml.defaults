@@ -1,5 +1,10 @@
 app:
   title: SkyPortal
+  # An ML classifier posts every source it scores, including the ones it is
+  # unsure of. Below this probability the label is kept on the source but no
+  # longer summarised at the top of the page, where a tentative guess reads as
+  # the object's identity. Null probabilities (most human labels) are unaffected.
+  ml_classification_min_probability: 0.9
   # Opening sentences of a source's acknowledgment block, before the facilities
   # and programs that source actually used are appended. Deployment-specific:
   # name the instance and the infrastructure behind it.
