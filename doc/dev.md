@@ -65,12 +65,33 @@ SkyPortal test fixtures are implemented with teardown logic, such that any datab
 
 Any new fixtures and fixture factories being added should follow this same structure, taking care to delete all fixture data (including SubFactory-generated records, i.e. a new User created to be the author of a new Comment). Foreign key constraints and cascade behavior defined on the database models can be used to simplify this logic but can also lead to subtle errors in tearing down fixtures and should be taken into careful consideration.
 
-## Debugging
+## Make targets
 
-- Run `make log` to watch log output
-- Run `make stop` to stop any running web services.
-- Run `make attach` to attach to output of webserver, e.g. for use with `pdb.set_trace()`
-- Run `make check-js-updates` to see which Javascript packages are eligible for an upgrade.
+Run `make help` to list the targets that have a description.
+
+SkyPortal includes the baselayer targets, e.g. `make run`, `make log`, `make stop`, `make status`, `make memory` and `make attach`.
+For the full list, see the [baselayer documentation](http://cesium-ml.org/baselayer/).
+
+Database:
+
+- `make db_init`: create the databases, and the extensions that the schema needs in them.
+- `make db_create_tables`: create the tables in the database.
+- `make db_migrate`: migrate the database to the latest schema.
+- `make db_clear`: drop and recreate all databases, and delete the on-disk data tied to them.
+- `make db_clear_test`: drop and recreate only the test database.
+- `make load_seed_data`: seed the database with common telescopes, instruments and a taxonomy.
+- `make load_demo_data`: import the example dataset.
+
+Frontend types:
+
+- `make typegen`: generate TypeScript types from the OpenAPI spec into `static/js/types/api.ts`.
+- `make routemap`: regenerate `static/js/types/routeSchemaMap.ts` from `openapi.json`.
+
+Docs and Docker:
+
+- `make docs`: build the SkyPortal docs.
+- `make docker-local`: build the Docker images locally.
+- `make docker-images`: build and upload the Docker images.
 
 ## Database
 
