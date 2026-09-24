@@ -112,13 +112,33 @@ async def _recipients(session, query):
 
 async def enqueue_query_run(session, analysis, query) -> int | None:
     """Create a skybot run for one triggered query; returns the message id (the
-    caller posts it to the assistant service), or None if skybot is absent."""
+    caller posts it to the assistant service), or None if the run is skipped.
+
+    Skipped when skybot is absent, and when it is not a member of the query's
+    group. A classification is readable only by the groups the source is saved
+    to, so a bot outside them reads an empty list and says the analysis does not
+    exist -- on the page where everyone else can see it. Saying nothing is the
+    better failure.
+    """
     skybot = await session.scalar(
         sa.select(User).where(User.username == SKYBOT_USERNAME, User.is_bot.is_(True))
     )
     if skybot is None:
         log(
             f"no bot user named {SKYBOT_USERNAME!r}; skipping query {query.id} "
+            f"for {analysis.obj_id}"
+        )
+        return None
+    reads_the_group = await session.scalar(
+        sa.select(GroupUser.id).where(
+            GroupUser.group_id == query.group_id,
+            GroupUser.user_id == skybot.id,
+        )
+    )
+    if reads_the_group is None:
+        log(
+            f"{SKYBOT_USERNAME!r} is not a member of group {query.group_id}, so it "
+            f"cannot read what it would be asked about; skipping query {query.id} "
             f"for {analysis.obj_id}"
         )
         return None
