@@ -1,6 +1,6 @@
-name: Publish clients
+name: Release
 
-# Merging a release PR (from clients_prepare_release.yaml) tags the release and
+# Merging the release PR tags the release, publishes the release notes, and
 # uploads `skyportal-py` and `skyportal-py-models` to PyPI. Both projects
 # publish through PyPI trusted publishing, so no API token is stored here.
 
@@ -14,7 +14,7 @@ permissions:
 
 jobs:
   release:
-    if: github.head_ref == 'release/clients' && github.event.pull_request.merged == true
+    if: github.head_ref == 'release' && github.event.pull_request.merged == true
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:

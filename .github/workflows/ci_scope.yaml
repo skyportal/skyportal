@@ -97,7 +97,6 @@ jobs:
               ".changeset/**",
               "knope.toml",
               "LICENSE.txt",
-              "RELEASE.txt",
               ".git-blame-ignore-revs",
               ".cursorrules",
           ]

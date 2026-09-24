@@ -70,20 +70,18 @@ and re-run the workflow to force a full run; see
 
 ### Changesets
 
-`projects/` holds the published Python packages, `skyportal-py` and
-`skyportal-py-models`. They are versioned and released together, and
-separately from the app, so a PR that changes them has to include a
-changeset: a small Markdown file under `.changeset/` that says how the
-version should be bumped and describes the change for the changelog.
-Changesets keep the changelog out of the merge conflict path, and let
-each PR document its own change.
+Every pull request that can reach a user carries a changeset: a small
+Markdown file under `.changeset/` describing the change. They keep the
+changelog out of the merge conflict path, and let each PR document its
+own change in the author's words rather than a reviewer's reading of
+the commit title.
 
 Write one with [Knope](https://knope.tech) (`knope document-change`),
 or by hand:
 
 ```markdown
 ---
-clients: patch
+default: bugfix
 ---
 
 # Short, user-facing summary of the change
@@ -91,28 +89,31 @@ clients: patch
 An optional longer description.
 ```
 
-Use `major` for breaking changes, `minor` for new features, `patch`
-for fixes, and `misc` for anything that does not change what the
-packages do. The clients are versioned by date, so the type picks which
-section of the changelog the entry lands in rather than how far the
-version moves. A PR that touches `projects/` without affecting users (a
-comment typo, say) can skip the requirement with the `skip-changelog`
-label.
+The type picks the section of the changelog the entry lands in:
+`breaking`, `feature`, `bugfix`, `docs`, `refactor` or `other`. It does
+not affect the version, which is the release date, so call out a
+`breaking` change when you make one: the version number cannot warn
+anyone on your behalf.
 
-### Releasing the Python clients
+A PR that only touches `doc/`, `.github/` or Markdown skips the
+requirement automatically. Anything else that users will never notice
+can skip it with the `skip-changelog` label.
 
-The clients use CalVer: `YYYY.MM.MICRO`, where the micro counts
-releases within the month (`2026.9.0`, `2026.9.1`, then `2026.10.0`).
-The segments are unpadded, because PEP 440 strips a leading zero from a
-version anyway.
+### Releasing
 
-Every push to `main` runs `knope prepare-release`, which opens or
-updates a `release/clients` PR: it consumes the pending changesets,
-dates the release, writes the version into both `pyproject.toml` files
-and adds the new section to `projects/CHANGELOG.md`. Merging that PR
-tags `clients/vYYYY.MM.MICRO`, creates a GitHub release, and uploads
-both packages to PyPI. The app has its own, unrelated version, see
-`RELEASE.txt`.
+The app and the packages under `projects/` share one version and are
+released together, always, with no way to release one without the
+others. The version is the date: `YYYY.MM.MICRO`, where the micro
+counts releases within the month (`2026.9.0`, `2026.9.1`, then
+`2026.10.0`). The segments are unpadded, because PEP 440 strips a
+leading zero from a version anyway.
+
+There is one release pull request, from the `release` branch. It stays
+open, it is rewritten every time a changeset lands on `main`, and it
+can be merged whenever the pending changes are worth releasing.
+Merging it tags `vYYYY.MM.MICRO`, creates the GitHub release from the
+changelog, and uploads `skyportal-py` and `skyportal-py-models` to
+PyPI.
 
 ### Reviews
 

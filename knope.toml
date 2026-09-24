@@ -1,20 +1,29 @@
-# The two published Python packages are released together, as one Knope package
-# named `clients`: `skyportal-py` pins `skyportal-py-models` exactly, and the
-# app already owns the bare `vX.Y.Z` tags (see RELEASE.txt), so these are tagged
-# `clients/vX.Y.Z`.
-[packages.clients]
+# Everything in this repository ships as one version, on one tag: the app, and
+# the `skyportal-py` and `skyportal-py-models` packages under projects/.
+[package]
 versioned_files = [
+    "pyproject.toml",
     "projects/api-models/pyproject.toml",
     "projects/python-client/pyproject.toml",
+    { path = "skyportal/__init__.py", regex = "(?m)^__version__ = \"(?<version>[^\"]+)\"$" },
 ]
-changelog = "projects/CHANGELOG.md"
-extra_changelog_sections = [{ name = "Other changes", types = ["misc"] }]
+changelog = "CHANGELOG.md"
 
-# Most commits here touch the app, not the clients, and Knope applies an
-# unscoped conventional commit to every package: releases come from changesets
-# only. Knope has no CalVer support, so the version itself is computed by
-# clients_prepare_release.yaml and passed in with `--override-version`; a
-# changeset's bump type only picks which changelog section it lands in.
+# Releases are dated, so a changeset says what kind of change it is rather than
+# how far the version should move.
+extra_changelog_sections = [
+    { name = "Breaking changes", types = ["breaking"] },
+    { name = "Features", types = ["feature"] },
+    { name = "Bug fixes", types = ["bugfix"] },
+    { name = "Documentation", types = ["docs"] },
+    { name = "Refactors", types = ["refactor"] },
+    { name = "Other changes", types = ["other"] },
+]
+
+# Knope applies an unscoped conventional commit to every package, so a release
+# comes from changesets only. Knope cannot compute a calendar version either,
+# so prepare_release.yaml works it out and passes `--override-version`; without
+# that override there is no bump to apply and nothing would release.
 [changes]
 ignore_conventional_commits = true
 
@@ -29,7 +38,7 @@ name = "prepare-release"
 
 [[workflows.steps]]
 type = "Command"
-command = "git switch -c release/clients"
+command = "git switch -c release"
 
 [[workflows.steps]]
 type = "PrepareRelease"
@@ -44,23 +53,23 @@ variables = { "$version" = "Version" }
 
 [[workflows.steps]]
 type = "Command"
-command = "git commit --all -m \"chore: prepare client release $version\""
+command = "git commit --all -m \"chore: prepare release $version\""
 variables = { "$version" = "Version" }
 
 [[workflows.steps]]
 type = "Command"
-command = "git push --force --set-upstream origin release/clients"
+command = "git push --force --set-upstream origin release"
 
 [[workflows.steps]]
 type = "CreatePullRequest"
 base = "main"
 
 [workflows.steps.title]
-template = "chore: prepare client release $version"
+template = "chore: prepare release $version"
 variables = { "$version" = "Version" }
 
 [workflows.steps.body]
-template = "This PR was created by Knope. Merging it will tag and publish `skyportal-py` and `skyportal-py-models`.\n\n$changelog"
+template = "This PR was created by Knope. It stays open and up to date with everything waiting to be released; merging it tags the release and publishes the packages.\n\n$changelog"
 variables = { "$changelog" = "ChangelogEntry" }
 
 [[workflows]]

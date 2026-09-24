@@ -1,19 +1,23 @@
-name: Prepare client release
+name: Prepare release
 
-# Turns the changesets that have landed on main into a release PR: it versions
-# `skyportal-py` and `skyportal-py-models`, and writes projects/CHANGELOG.md.
-# Merging that PR tags and publishes them (see clients_publish.yaml).
+# Keeps one release pull request open and up to date with everything waiting to
+# be released: it dates the version, writes it into every versioned file and
+# adds the new section to CHANGELOG.md. Merging that PR releases (see
+# release.yaml). Runs only when a changeset lands, which is the only time there
+# is anything to release.
 
 on:
   push:
     branches: [main]
+    paths: [".changeset/**"]
+  workflow_dispatch:
 
 permissions:
   contents: read
 
 jobs:
   prepare-release:
-    if: "!contains(github.event.head_commit.message, 'chore: prepare client release')"
+    if: "!contains(github.event.head_commit.message, 'chore: prepare release')"
     runs-on: ubuntu-latest
     timeout-minutes: 15
     permissions:
@@ -25,7 +29,7 @@ jobs:
           fetch-depth: 0
 
       # uv refuses to lock with a workspace member missing, and the release
-      # commit refreshes uv.lock with the new client versions.
+      # commit refreshes uv.lock with the new version.
       - name: Check out the baselayer submodule
         run: git submodule update --init --depth 1 baselayer
 
@@ -40,10 +44,9 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
-      # The clients use CalVer, which Knope does not know how to compute, so the
-      # version is worked out here and handed to it. Three segments, unpadded:
-      # any more and Knope's override refuses to parse, and a leading zero is
-      # stripped by PEP 440 normalization anyway.
+      # Knope has no calendar versioning, so the version is worked out here and
+      # handed to it. Three segments, unpadded: any more and Knope's override
+      # refuses to parse, and a leading zero is stripped by PEP 440 anyway.
       - name: Work out the version
         id: calver
         run: |
@@ -52,8 +55,8 @@ jobs:
           import pathlib
           import re
 
-          text = pathlib.Path("projects/api-models/pyproject.toml").read_text()
-          current = re.search(r'^version = "([^"]+)"', text, re.M).group(1)
+          text = pathlib.Path("pyproject.toml").read_text()
+          current = re.search(r"""^version = ['"]([^'"]+)['"]""", text, re.M).group(1)
 
           today = datetime.date.today()
           prefix = f"{today.year}.{today.month}"
