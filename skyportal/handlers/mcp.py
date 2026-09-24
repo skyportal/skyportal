@@ -1320,6 +1320,59 @@ async def diff_broker_filter_versions(handler, args):
     }
 
 
+_COMPARISONS = ("$lt", "$lte", "$gt", "$gte")
+
+
+def _expr_comparisons(node, found=None):
+    """Field comparisons written as `$expr`, which match a missing field.
+
+    `{"x": {"$lt": 5}}` compares within a type and passes over an alert whose
+    `x` is absent; `{"$expr": {"$lt": ["$x", 5]}}` treats absent as lower than
+    every number and keeps all of them. The two read alike and differ by the
+    whole stream: a rise-rate cut written the second way selected 23 alerts, all
+    of them ones with no rise measured, where the first selected none.
+    """
+    found = [] if found is None else found
+    if isinstance(node, dict):
+        for key, value in node.items():
+            if key == "$expr" and isinstance(value, dict):
+                for op, operands in value.items():
+                    if op in _COMPARISONS and isinstance(operands, list):
+                        fields = [
+                            o[1:]
+                            for o in operands
+                            if isinstance(o, str) and o.startswith("$")
+                        ]
+                        # Two fields of the same alert is what $expr is for.
+                        if len(fields) == 1:
+                            found.append((fields[0], op, operands))
+            _expr_comparisons(value, found)
+    elif isinstance(node, list):
+        for item in node:
+            _expr_comparisons(item, found)
+    return found
+
+
+def _as_query_operator(field, op, operands):
+    """The cut the caller meant, in the form that skips a missing field."""
+    literals = [o for o in operands if not (isinstance(o, str) and o.startswith("$"))]
+    value = literals[0] if literals else "..."
+    return json.dumps({field: {op: value}})
+
+
+def _reject_expr_comparisons(pipeline):
+    offenders = _expr_comparisons(pipeline)
+    if not offenders:
+        return
+    rewrites = ", ".join(_as_query_operator(*o) for o in offenders[:3])
+    raise ToolError(
+        "This pipeline compares a field inside $expr, which matches every alert "
+        "where the field is missing rather than skipping it, so the cut keeps "
+        "what it was written to exclude. Write it as a query operator instead: "
+        f"{rewrites}. Reserve $expr for comparing two fields of the same alert."
+    )
+
+
 @tool(
     "run_broker_filter",
     "Preview which alerts a pipeline passes, without saving anything. The way "
@@ -1346,8 +1399,12 @@ async def diff_broker_filter_versions(handler, args):
             "integer",
             "Filter whose stream bounds which alerts are searched.",
         ),
-        "start_jd": _prop("number", "Earliest alert JD to consider."),
-        "end_jd": _prop("number", "Latest alert JD to consider."),
+        "start_jd": _prop(
+            "number",
+            "Earliest alert JD. Omit both this and end_jd to preview the most "
+            "recent day, which is usually what you want.",
+        ),
+        "end_jd": _prop("number", "Latest alert JD. Defaults to now."),
         "limit": _prop("integer", "Maximum alerts to return."),
     },
     required=("broker_id", "pipeline"),
@@ -1355,6 +1412,16 @@ async def diff_broker_filter_versions(handler, args):
 )
 async def run_broker_filter(handler, args):
     broker_id = args.pop("broker_id")
+    _reject_expr_comparisons(args.get("pipeline"))
+    # A window nobody chose is the last day, rather than one guessed from
+    # memory: a stale JD is rejected by the broker as an opaque 400, and the
+    # caller cannot tell that from a pipeline that matches nothing.
+    if args.get("end_jd") is None and args.get("start_jd") is None:
+        from astropy.time import Time
+
+        now = Time.now().jd
+        args["start_jd"] = round(now - 1, 4)
+        args["end_jd"] = round(now, 4)
     return await handler.api("POST", f"/api/brokers/{broker_id}/filter/test", body=args)
 
 
@@ -1378,6 +1445,7 @@ async def run_broker_filter(handler, args):
     writes=True,
 )
 async def post_broker_filter_version(handler, args):
+    _reject_expr_comparisons(args.get("altdata"))
     broker_id = args.pop("broker_id")
     filter_id = args.pop("filter_id")
     result = await handler.api(

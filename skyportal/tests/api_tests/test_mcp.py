@@ -3,12 +3,16 @@ import base64
 import json
 import uuid
 
+import pytest
+
 from skyportal.handlers.mcp import (
     TOOLS,
     ToolError,
     _analyze_band,
+    _expr_comparisons,
     _flatten_avro,
     _note_owner,
+    _reject_expr_comparisons,
     _versions,
 )
 from skyportal.tests import cfg, session
@@ -1062,3 +1066,44 @@ def test_a_note_is_reported_once_rather_than_on_every_field_under_it():
     assert owners == {"properties"}
     # ... and each leaf still finds it, so nothing stops being documented.
     assert _note_owner("properties.a", notes) == "properties"
+
+
+def test_a_field_compared_inside_expr_is_refused():
+    # `{"x": {"$lt": 5}}` compares within a type and passes over an alert whose
+    # x is absent; the same cut inside $expr treats absent as lower than every
+    # number and keeps all of them. On a night of ZTF a rise-rate cut written
+    # the second way selected 23 alerts, every one of them lacking a measured
+    # rise, where the first selected none.
+    bad = [
+        {
+            "$match": {
+                "$or": [
+                    {"$expr": {"$lt": ["$properties.photstats.g.rising.rate", -0.3]}}
+                ]
+            }
+        }
+    ]
+    with pytest.raises(ToolError) as caught:
+        _reject_expr_comparisons(bad)
+    # The message has to carry the rewrite, or the caller retries the same cut.
+    assert '"properties.photstats.g.rising.rate": {"$lt": -0.3}' in str(caught.value)
+
+
+def test_the_query_operator_form_is_allowed():
+    _reject_expr_comparisons(
+        [{"$match": {"properties.photstats.g.rising.rate": {"$lt": -0.3}}}]
+    )
+
+
+def test_expr_comparing_two_fields_is_allowed():
+    # Comparing two fields of one alert is what $expr is for, and a query
+    # operator cannot express it.
+    _reject_expr_comparisons([{"$match": {"$expr": {"$lt": ["$a", "$b"]}}}])
+
+
+def test_an_expr_nested_deep_in_a_pipeline_is_still_found():
+    buried = [
+        {"$match": {"x": 1}},
+        {"$match": {"$and": [{"$or": [{"$expr": {"$gte": ["$y", 3]}}]}]}},
+    ]
+    assert _expr_comparisons(buried) == [("y", "$gte", ["$y", 3])]
