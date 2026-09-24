@@ -25,7 +25,7 @@ import secrets
 import sqlalchemy as sa
 
 from baselayer.app.env import load_env
-from baselayer.app.models import Base, DBSession
+from baselayer.app.models import Base
 
 env, cfg = load_env()
 
@@ -62,17 +62,26 @@ def _from_database():
     Inserted with ON CONFLICT DO NOTHING and then read back, so pods racing
     each other on a first start settle on whichever insert won rather than
     each keeping its own.
+
+    On a connection of its own, never the shared session: the first bind of an
+    encrypted column can land inside someone else's flush, and committing that
+    session would end their transaction underneath them.
     """
     from sqlalchemy.dialects.postgresql import insert as pg_insert
 
-    session = DBSession()
-    session.execute(
-        pg_insert(SecretKey)
-        .values(id=1, key=secrets.token_urlsafe(32))
-        .on_conflict_do_nothing(index_elements=["id"])
-    )
-    session.commit()
-    return session.execute(sa.select(SecretKey.c.key)).scalar_one()
+    from baselayer.app.models import db_engine
+
+    bind = db_engine()
+    # Tests bind the session to a connection rather than the engine.
+    engine = getattr(bind, "engine", bind)
+    with engine.connect() as connection:
+        connection.execute(
+            pg_insert(SecretKey)
+            .values(id=1, key=secrets.token_urlsafe(32))
+            .on_conflict_do_nothing(index_elements=["id"])
+        )
+        connection.commit()
+        return connection.execute(sa.select(SecretKey.c.key)).scalar_one()
 
 
 def secret_key():

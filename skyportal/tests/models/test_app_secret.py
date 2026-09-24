@@ -63,3 +63,29 @@ def test_the_columns_ask_for_it_lazily():
     column = next(c for c in Allocation.__table__.c if c.name == "_altdata")
     assert callable(column.type._key)
     assert column.type._key is module.secret_key
+
+
+def test_the_key_is_read_without_touching_the_shared_session():
+    # The first bind of an encrypted column can happen inside another
+    # transaction's flush; committing the shared session there ends that
+    # transaction under its owner, which reads as "This transaction is closed"
+    # somewhere unrelated.
+    from unittest.mock import MagicMock, patch
+
+    import baselayer.app.models as baselayer_models
+
+    connection = MagicMock()
+    connection.execute.return_value.scalar_one.return_value = "from-its-own-connection"
+    engine = MagicMock()
+    # A real Engine is its own .engine, which is how the unwrap reaches it.
+    engine.engine = engine
+    engine.connect.return_value.__enter__.return_value = connection
+
+    with (
+        patch.object(baselayer_models, "db_engine", return_value=engine),
+        patch.object(baselayer_models, "DBSession") as shared_session,
+    ):
+        assert module._from_database() == "from-its-own-connection"
+
+    shared_session.assert_not_called()
+    connection.commit.assert_called_once()
