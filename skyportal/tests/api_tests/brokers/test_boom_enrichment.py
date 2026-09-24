@@ -144,7 +144,7 @@ def test_a_note_says_which_way_a_rise_rate_points():
     # is negative while the source brightens, so "rising" reads backwards and
     # the obvious cut selects the sources that are fading.
     from skyportal.broker_apis._enrichment import annotate_schema
-    from skyportal.handlers.mcp import _flatten_avro, _note_at
+    from skyportal.handlers.mcp import _flatten_avro, _note_owner
 
     schema = {
         "type": "record",
@@ -194,7 +194,8 @@ def test_a_note_says_which_way_a_rise_rate_points():
     }
     notes = {}
     _flatten_avro(annotate_schema(schema), notes=notes)
-    assert "NEGATIVE" in _note_at("properties.photstats.r.rising.rate", notes)
+    owner = _note_owner("properties.photstats.r.rising.rate", notes)
+    assert "NEGATIVE" in notes[owner]
 
 
 def test_a_note_says_acai_b_scores_an_artefact():
@@ -263,7 +264,7 @@ def test_a_rise_and_a_decline_do_not_share_a_sign():
     # They are two fields of one Avro record, so a note written onto the `rate`
     # they have in common tells the reader the decline brightens.
     from skyportal.broker_apis._enrichment import annotate_schema
-    from skyportal.handlers.mcp import _flatten_avro, _note_at
+    from skyportal.handlers.mcp import _flatten_avro, _note_owner
 
     fit = {
         "type": "record",
@@ -307,7 +308,7 @@ def test_a_rise_and_a_decline_do_not_share_a_sign():
     }
     notes = {}
     _flatten_avro(annotate_schema(schema), notes=notes)
-    rising = _note_at("properties.photstats.r.rising.rate", notes)
-    fading = _note_at("properties.photstats.r.fading.rate", notes)
+    rising = notes[_note_owner("properties.photstats.r.rising.rate", notes)]
+    fading = notes[_note_owner("properties.photstats.r.fading.rate", notes)]
     assert "NEGATIVE" in rising and "POSITIVE" not in rising
     assert "POSITIVE" in fading and "NEGATIVE" not in fading
