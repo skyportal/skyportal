@@ -1,5 +1,7 @@
 __all__ = ["Invitation"]
 
+import html
+
 import sqlalchemy as sa
 from sqlalchemy import event
 from sqlalchemy.dialects import postgresql as psql
@@ -90,8 +92,61 @@ def send_user_invite_email(mapper, connection, target):
         send_email(
             recipients=[target.user_email],
             subject=cfg["invitations.email_subject"],
-            body=(
-                f"{cfg['invitations.email_body_preamble']}<br /><br />"
-                f'Please click <a href="{link_location}">here</a> to join.'
-            ),
+            body=invite_body(target, link_location),
         )
+
+
+def inviter_name(target):
+    """Who sent the invitation, for the reader who has to judge whether to trust it.
+
+    Looked up defensively: this runs inside a flush, and a name is not worth
+    failing an invitation over.
+    """
+    try:
+        user = target.invited_by
+        if user is None:
+            return None
+        name = " ".join(
+            part for part in (user.first_name, user.last_name) if part
+        ).strip()
+        return name or user.username or None
+    except Exception:
+        return None
+
+
+def invite_body(target, link_location):
+    """The invitation, written so that its recipient can tell what it is.
+
+    An unexplained link to a domain someone has never visited is the shape of
+    a phishing mail, and a reader has nothing to check it against: the site,
+    the person who invited them, the address the link goes to and how long it
+    lasts all belong in the message.
+    """
+    site = cfg.get("app.title") or "SkyPortal"
+    who = inviter_name(target)
+    from_line = (
+        f"{html.escape(who)} has invited you to join <b>{html.escape(site)}</b>."
+        if who
+        else f"You have been invited to join <b>{html.escape(site)}</b>."
+    )
+
+    try:
+        days = int(cfg["invitations.days_until_expiry"])
+        expiry = f"<p>The link is good for {days} days.</p>"
+    except (TypeError, ValueError):
+        expiry = ""
+
+    preamble = (cfg["invitations.email_body_preamble"] or "").strip()
+    if preamble and not preamble.startswith("<"):
+        preamble = f"<p>{preamble}</p>"
+
+    return (
+        f"<p>{from_line}</p>"
+        f"{preamble}"
+        f'<p>To accept, open <a href="{link_location}">{link_location}</a></p>'
+        f"<p>Signing in without opening that link will not work: it carries the "
+        f"invitation itself.</p>"
+        f"{expiry}"
+        f"<p>If you were not expecting this, you can ignore the message; "
+        f"nothing is created until the link is opened.</p>"
+    )
