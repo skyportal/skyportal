@@ -1,5 +1,6 @@
 import asyncio
 import concurrent.futures
+import time
 
 import sentry_sdk
 import sqlalchemy as sa
@@ -910,8 +911,16 @@ def make_app(cfg, baselayer_handlers, baselayer_settings, process=None, env=None
 
     # If tables are found in the database, new tables will only be added
     # in debug mode.  In production, we leave the tables alone, since
-    # migrations might be used.
-    create_tables(add=env.debug)
+    # migrations might be used. Only worker 0 creates them, so that workers
+    # do not race to create the same enum types.
+    if not process:
+        create_tables(add=env.debug)
+    elif env.debug:
+        # create_all() commits in one transaction; wait for it on an empty database.
+        for _ in range(120):
+            if sa.inspect(db_engine()).has_table("users"):
+                break
+            time.sleep(1)
 
     # create_tables() is a no-op outside debug mode, so an unmigrated database
     # reaches this point empty and every later step fails on a missing table or
