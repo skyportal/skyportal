@@ -329,3 +329,53 @@ def test_user_info_hides_unshared_fields(view_only_token, user, view_only_token2
 
     status, data = api("GET", "user", params={"email": "@"}, token=view_only_token)
     assert status == 400, data
+
+
+def test_a_system_admin_can_read_back_what_it_just_wrote(super_admin_token, user):
+    # The permissions decorator lets System admin satisfy any ACL, so the write
+    # succeeds. Reading it back under a stricter rule made a successful PATCH
+    # look like it had silently done nothing.
+    email = "readback_test@skyportal.com"
+    status, data = api(
+        "PATCH",
+        f"user/{user.id}",
+        data={"contact_email": email},
+        token=super_admin_token,
+    )
+    assert status == 200, data
+
+    status, data = api(
+        "GET", "user", params={"lastName": user.last_name}, token=super_admin_token
+    )
+    assert status == 200, data
+    rows = [u for u in data["data"]["users"] if u["id"] == user.id]
+    assert rows, "the user is missing from the listing"
+    assert rows[0]["contact_email"] == email
+
+
+def test_a_system_admin_sees_the_full_record(super_admin_token, user):
+    # oauth_uid goes the same way as contact_email: redacted from anyone who
+    # cannot manage the user, which a system admin can.
+    status, data = api(
+        "GET", "user", params={"lastName": user.last_name}, token=super_admin_token
+    )
+    assert status == 200, data
+    rows = [u for u in data["data"]["users"] if u["id"] == user.id]
+    assert rows and "contact_email" in rows[0]
+
+
+def test_an_ordinary_user_still_cannot_read_it(
+    super_admin_token, view_only_token2, user
+):
+    # The point is to match the write rule, not to widen who can read.
+    status, data = api(
+        "PATCH",
+        f"user/{user.id}",
+        data={"contact_email": "still_private@skyportal.com"},
+        token=super_admin_token,
+    )
+    assert status == 200, data
+
+    status, data = api("GET", f"user/{user.id}", token=view_only_token2)
+    assert status == 200, data
+    assert "contact_email" not in data["data"]

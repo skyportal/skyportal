@@ -246,7 +246,11 @@ async def add_user_and_setup_groups(
 
 class UserHandler(BaseHandler):
     def can_manage_users(self):
-        return "Manage users" in self.current_user.permissions
+        # System admin satisfies any ACL, which is how the permissions decorator
+        # gates the write side. Reading it differently here let a system admin
+        # set a user's contact_email and then have it redacted from the response.
+        granted = self.current_user.permissions
+        return "Manage users" in granted or "System admin" in granted
 
     def can_manage_user(self, user_id):
         """Whether the requester may see a user's record beyond its public profile."""
