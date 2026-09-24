@@ -1101,20 +1101,23 @@ async def get_filter_targets(handler, args):
     }
 
 
-def _note_at(path, notes):
-    """The note on a path, or the nearest one above it.
+def _note_owner(path, notes):
+    """The path that documents `path`: itself, or the nearest one above it.
 
     Two fields sharing an Avro record share its leaves, so what separates a
     rise from a decline is documented on the block rather than on the `rate`
-    they have in common.
+    they have in common. The note is reported against the block, once, rather
+    than copied onto every leaf under it: `properties` alone covers 58 of the
+    paths in a ZTF schema, and repeating its sentence on each of them was
+    enough to push the whole conversation past the model's context.
     """
     # Notes are keyed by the field's own path; the flattener marks an array or
     # a map on the path it builds from it, so the markers come back off here.
     parts = [part.rstrip("[]{}") for part in path.split(".")]
     for stop in range(len(parts), 0, -1):
-        note = notes.get(".".join(parts[:stop]))
-        if note:
-            return note
+        owner = ".".join(parts[:stop])
+        if notes.get(owner):
+            return owner
     return None
 
 
@@ -1128,8 +1131,11 @@ def _note_at(path, notes):
     "`cross_matches.x`, never `aux.cross_matches.x`, which is rejected. "
     "`notes` carries what the schema says about a field: its units, the sign "
     "of a rate, the meaning of a classifier score, and whether it is NaN when "
-    "unset. Read the note for every field you cut on; the cut that looks "
-    "obvious is the one a note usually contradicts.",
+    "unset. A note is keyed by the path it is written on, which may be a "
+    "prefix of the field you are reading: the note on "
+    "`properties.photstats.r.rising` governs `...rising.rate` under it. Before "
+    "cutting on a field, read its note and the notes on its prefixes; the cut "
+    "that looks obvious is the one a note usually contradicts.",
     {
         "broker_id": _prop("integer", "Broker ID."),
         "survey": _prop("string", "Survey whose alerts the filter runs on, e.g. ZTF."),
@@ -1170,12 +1176,14 @@ async def get_alert_schema(handler, args):
         "matched": len(paths),
         "truncated": len(paths) > limit,
         "fields": dict(shown),
-        # Only for what is shown, and only where there is something to say, so
-        # the common field stays a one-line type.
+        # Keyed by the path each note is written on, which for a record is the
+        # prefix of the fields it describes: one entry per note rather than one
+        # per field that inherits it.
         "notes": {
-            path: note
-            for path, note in ((p, _note_at(p, notes)) for p, _ in shown)
-            if note
+            owner: notes[owner]
+            for owner in dict.fromkeys(
+                filter(None, (_note_owner(p, notes) for p, _ in shown))
+            )
         },
     }
 

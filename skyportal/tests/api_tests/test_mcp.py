@@ -8,6 +8,7 @@ from skyportal.handlers.mcp import (
     ToolError,
     _analyze_band,
     _flatten_avro,
+    _note_owner,
     _versions,
 )
 from skyportal.tests import cfg, session
@@ -1030,3 +1031,34 @@ def test_search_filters_leaves_the_pipeline_out(view_only_token, public_filter):
 def test_copying_a_filter_needs_no_broker(view_only_token):
     # Searching is how an unattached filter is found, so brokerID is optional.
     assert TOOLS["search_filters"]["inputSchema"]["required"] == []
+
+
+def test_a_note_is_reported_once_rather_than_on_every_field_under_it():
+    # A record's note applies to everything beneath it, and copying it onto
+    # each leaf is what made the schema tool large enough to cost the model its
+    # context: `properties` alone covers 58 paths of a ZTF schema.
+    notes = {}
+    schema = {
+        "type": "record",
+        "name": "alert",
+        "fields": [
+            {
+                "name": "properties",
+                "doc": "Everything enrichment computed.",
+                "type": {
+                    "type": "record",
+                    "name": "Properties",
+                    "fields": [
+                        {"name": "a", "type": "double"},
+                        {"name": "b", "type": "double"},
+                        {"name": "c", "type": "double"},
+                    ],
+                },
+            }
+        ],
+    }
+    paths = _flatten_avro(schema, notes=notes)
+    owners = {_note_owner(p, notes) for p, _ in paths}
+    assert owners == {"properties"}
+    # ... and each leaf still finds it, so nothing stops being documented.
+    assert _note_owner("properties.a", notes) == "properties"
