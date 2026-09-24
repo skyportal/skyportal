@@ -1,6 +1,7 @@
 # Changelog
 
-`skyportal-py` and `skyportal-py-models` are versioned and released together.
+`skyportal-py` and `skyportal-py-models` are versioned and released together,
+by date: `YYYY.MM.MICRO`. Releases up to 0.4.0 used SemVer.
 
 ## 0.4.0 (2026-09-22)
 

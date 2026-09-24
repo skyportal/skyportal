@@ -1,6 +1,6 @@
 name: Prepare client release
 
-# Turns the changesets that have landed on main into a release PR: it bumps
+# Turns the changesets that have landed on main into a release PR: it versions
 # `skyportal-py` and `skyportal-py-models`, and writes projects/CHANGELOG.md.
 # Merging that PR tags and publishes them (see clients_publish.yaml).
 
@@ -40,9 +40,36 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
+      # The clients use CalVer, which Knope does not know how to compute, so the
+      # version is worked out here and handed to it. Three segments, unpadded:
+      # any more and Knope's override refuses to parse, and a leading zero is
+      # stripped by PEP 440 normalization anyway.
+      - name: Work out the version
+        id: calver
+        run: |
+          python3 - <<'PY' >> "$GITHUB_OUTPUT"
+          import datetime
+          import pathlib
+          import re
+
+          text = pathlib.Path("projects/api-models/pyproject.toml").read_text()
+          current = re.search(r'^version = "([^"]+)"', text, re.M).group(1)
+
+          today = datetime.date.today()
+          prefix = f"{today.year}.{today.month}"
+          # Several releases in one month keep counting up; a new month restarts.
+          micro = (
+              int(current.rsplit(".", 1)[1]) + 1
+              if current.startswith(f"{prefix}.")
+              else 0
+          )
+          print(f"version={prefix}.{micro}")
+          PY
+
       # Fails harmlessly when no changeset is waiting to be released.
       - name: Create or update the release PR
-        run: knope prepare-release --verbose
+        run: knope prepare-release --verbose --override-version "$VERSION"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERSION: ${{ steps.calver.outputs.version }}
         continue-on-error: true

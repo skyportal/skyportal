@@ -93,18 +93,26 @@ An optional longer description.
 
 Use `major` for breaking changes, `minor` for new features, `patch`
 for fixes, and `misc` for anything that does not change what the
-packages do. A PR that touches `projects/` without affecting users (a
+packages do. The clients are versioned by date, so the type picks which
+section of the changelog the entry lands in rather than how far the
+version moves. A PR that touches `projects/` without affecting users (a
 comment typo, say) can skip the requirement with the `skip-changelog`
 label.
 
 ### Releasing the Python clients
 
+The clients use CalVer: `YYYY.MM.MICRO`, where the micro counts
+releases within the month (`2026.9.0`, `2026.9.1`, then `2026.10.0`).
+The segments are unpadded, because PEP 440 strips a leading zero from a
+version anyway.
+
 Every push to `main` runs `knope prepare-release`, which opens or
 updates a `release/clients` PR: it consumes the pending changesets,
-computes the next version, bumps both `pyproject.toml` files and adds
-the new section to `projects/CHANGELOG.md`. Merging that PR tags
-`clients/vX.Y.Z`, creates a GitHub release, and uploads both packages
-to PyPI. The app is released separately, see `RELEASE.txt`.
+dates the release, writes the version into both `pyproject.toml` files
+and adds the new section to `projects/CHANGELOG.md`. Merging that PR
+tags `clients/vYYYY.MM.MICRO`, creates a GitHub release, and uploads
+both packages to PyPI. The app has its own, unrelated version, see
+`RELEASE.txt`.
 
 ### Reviews
 

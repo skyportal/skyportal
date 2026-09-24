@@ -12,5 +12,5 @@ How to make a new release of ``SkyPortal``
 
    git push origin --tags
 
-The Python clients in ``projects/`` have their own version, released by Knope
-from changesets; see "Releasing the Python clients" in ``doc/contributing.md``.
+The Python clients in ``projects/`` have their own, dated version, released by
+Knope from changesets; see "Releasing the Python clients" in ``doc/contributing.md``.

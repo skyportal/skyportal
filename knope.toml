@@ -11,8 +11,10 @@ changelog = "projects/CHANGELOG.md"
 extra_changelog_sections = [{ name = "Other changes", types = ["misc"] }]
 
 # Most commits here touch the app, not the clients, and Knope applies an
-# unscoped conventional commit to every package: version bumps come from
-# changesets only.
+# unscoped conventional commit to every package: releases come from changesets
+# only. Knope has no CalVer support, so the version itself is computed by
+# clients_prepare_release.yaml and passed in with `--override-version`; a
+# changeset's bump type only picks which changelog section it lands in.
 [changes]
 ignore_conventional_commits = true
 
