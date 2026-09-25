@@ -738,6 +738,144 @@ class BOOMBROKER(BrokerAPI):
         return cutouts
 
     @staticmethod
+    def get_track(broker, track_id, session, **kwargs):
+        """A linked track and the detections that make it up.
+
+        Two queries: the track for its members, then those alerts for their
+        positions. The track carries candids only, and a vetting view needs
+        jd/ra/dec/mag/band, so fetching them here keeps that one round trip.
+        """
+        survey = _survey(broker, kwargs)
+        found = _request(
+            broker,
+            "POST",
+            "queries/find",
+            json={
+                "catalog_name": f"{survey}_tracks",
+                "filter": {"_id": str(track_id)},
+                "projection": {
+                    "members": 1,
+                    "n_detections": 1,
+                    "n_nights": 1,
+                    "arc_days": 1,
+                    "first_jd": 1,
+                    "last_jd": 1,
+                    "designation": 1,
+                },
+                "limit": 1,
+            },
+        )
+        track = (found or [None])[0]
+        if not track:
+            raise ValueError(f"No track {track_id} in {survey}_tracks")
+
+        members = track.get("members") or []
+        scope = _scope_filter(kwargs, survey)
+        alerts = (
+            _request(
+                broker,
+                "POST",
+                "queries/find",
+                json={
+                    "catalog_name": f"{survey}_alerts",
+                    "filter": {"_id": {"$in": list(members)}, **scope},
+                    "projection": {
+                        "candidate.jd": 1,
+                        "candidate.ra": 1,
+                        "candidate.dec": 1,
+                        "candidate.magpsf": 1,
+                        "candidate.band": 1,
+                        "candidate.ssnamenr": 1,
+                        "objectId": 1,
+                    },
+                    "limit": len(members),
+                },
+            )
+            if members
+            else []
+        )
+
+        detections = []
+        for alert in alerts or []:
+            candidate = alert.get("candidate") or {}
+            detections.append(
+                {
+                    # A candid is a 19-digit integer, which JSON hands the
+                    # browser as a float and rounds; keep it a string.
+                    "candid": str(alert.get("_id")),
+                    "jd": candidate.get("jd"),
+                    "ra": candidate.get("ra"),
+                    "dec": candidate.get("dec"),
+                    "mag": candidate.get("magpsf"),
+                    "band": candidate.get("band"),
+                    "ssnamenr": candidate.get("ssnamenr"),
+                    "objectId": alert.get("objectId"),
+                }
+            )
+        detections.sort(key=lambda d: d["jd"] if d["jd"] is not None else 0)
+
+        return {
+            "id": str(track.get("_id", track_id)),
+            "n_detections": track.get("n_detections"),
+            "n_nights": track.get("n_nights"),
+            "arc_days": track.get("arc_days"),
+            "first_jd": track.get("first_jd"),
+            "last_jd": track.get("last_jd"),
+            "designation": track.get("designation"),
+            "detections": detections,
+            # Members the requester's streams do not cover are simply absent,
+            # so say so rather than let a short arc look like the whole track.
+            "members_withheld": len(members) - len(detections),
+        }
+
+    @staticmethod
+    def find_control_detection(broker, near_jd, session, window_days=0.5, **kwargs):
+        """A detection near ``near_jd`` whose solar-system object is already known.
+
+        The control for a known-object check: a query that comes back empty
+        proves nothing unless the same query finds an object that is definitely
+        there. Taken from the same night so it exercises the epoch and observing
+        code the real query uses, not just the network path.
+        """
+        survey = _survey(broker, kwargs)
+        scope = _scope_filter(kwargs, survey)
+        found = _request(
+            broker,
+            "POST",
+            "queries/find",
+            json={
+                "catalog_name": f"{survey}_alerts",
+                "filter": {
+                    "candidate.jd": {
+                        "$gte": float(near_jd) - window_days,
+                        "$lte": float(near_jd) + window_days,
+                    },
+                    "candidate.ssnamenr": {"$nin": [None, "null", ""]},
+                    **scope,
+                },
+                "projection": {
+                    "candidate.jd": 1,
+                    "candidate.ra": 1,
+                    "candidate.dec": 1,
+                    "candidate.ssnamenr": 1,
+                },
+                "limit": 1,
+            },
+        )
+        row = (found or [None])[0]
+        if not row:
+            return None
+        candidate = row.get("candidate") or {}
+        if candidate.get("ra") is None or candidate.get("jd") is None:
+            return None
+        return {
+            "ra": candidate["ra"],
+            "dec": candidate["dec"],
+            "jd": candidate["jd"],
+            "expect": str(candidate.get("ssnamenr") or "").strip(),
+        }
+
+    @staticmethod
     def cone_search(broker, ra, dec, radius, session, **kwargs):
         """Cross-match a position against BOOM's reference catalogs (Gaia, PS1,
         AllWISE, ...). Returns ``{catalog_name: [sources]}`` for catalogs with a

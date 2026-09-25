@@ -268,6 +268,25 @@ def fix_sun_time_calculation_error(
     )
 
 
+# The rise time is a crossing, so allow for the solver landing marginally
+# short of it rather than calling that a failure.
+ALTITUDE_TOLERANCE_DEG = 0.05
+
+
+def _below_altitude(times, target, observer, altitude):
+    """Which of `times` have the target below `altitude`, ignoring empty slots."""
+    values = np.atleast_1d(times)
+    below = np.zeros(values.shape, dtype=bool)
+    for index, when in enumerate(values):
+        if when is None:
+            continue
+        reached = observer.altaz(when, target).alt.to_value(u.degree)
+        below[index] = float(np.atleast_1d(reached)[0]) < (
+            altitude.to_value(u.degree) - ALTITUDE_TOLERANCE_DEG
+        )
+    return below.reshape(np.shape(times)) if np.shape(times) else below[0]
+
+
 def get_rise_set_time(target, altitude=30 * u.degree, **kwargs):
     """The rise and set times of the target at the given altitude as an astropy.time.Time.
 
@@ -350,6 +369,14 @@ def get_rise_set_time(target, altitude=30 * u.degree, **kwargs):
         if np.any(no_time_during_night):
             rise_time = np.where(no_time_during_night, None, rise_time)
             set_time = np.where(no_time_during_night, None, set_time)
+
+        # Clamping the rise to sunset assumes the target was already up by then.
+        # When the previous rise was a whole day earlier it was not, and the
+        # window would start below the altitude that was asked for.
+        still_below = _below_altitude(rise_time, target, observer, altitude)
+        if np.any(still_below):
+            rise_time = np.where(still_below, None, rise_time)
+            set_time = np.where(still_below, None, set_time)
 
     if isinstance(rise_time, np.ndarray) and rise_time.size == 1:
         rise_time = rise_time.item()

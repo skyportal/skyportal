@@ -38,6 +38,7 @@ import UpdateSourceMPC from "../source/UpdateSourceMPC";
 import ObjectTags from "../ObjectTags";
 import RejectButton from "../RejectButton";
 import VegaPhotometry from "../plot/VegaPhotometry";
+import TrackCandidateSummary from "../moving_object/TrackCandidateSummary";
 import Spinner from "../Spinner";
 
 const TrackScanner = lazy(() => import("../superobj/TrackScanner"));
@@ -666,6 +667,15 @@ interface CandidatePhotometryProps {
   sourceId: string;
 }
 
+/** The track id a linking filter annotated this candidate with, if any. */
+const trackIdFor = (obj: any) => {
+  for (const annotation of obj?.annotations ?? []) {
+    const found = annotation?.data?.track_id ?? annotation?.data?.track?.id;
+    if (found) return String(found);
+  }
+  return null;
+};
+
 const CandidatePhotometry = ({ sourceId }: CandidatePhotometryProps) => (
   <div>
     <VegaPhotometry
@@ -770,6 +780,14 @@ const Candidate = ({
         </div>
         <div style={{ gridArea: "photometry" }}>
           <CandidatePhotometry sourceId={candidate.id} />
+          {/* A mover arrives under a new id each visit, so the track is what
+              says these detections are one object. */}
+          {trackIdFor(candidate) && (
+            <TrackCandidateSummary
+              trackId={trackIdFor(candidate) as string}
+              brokerId={candidate.broker_id ?? 1}
+            />
+          )}
         </div>
         <div
           style={{

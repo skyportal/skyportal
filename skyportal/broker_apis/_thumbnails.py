@@ -91,12 +91,16 @@ def clean_image_array(img):
     return img
 
 
-def render_cutout_png(data_array, stretch, normalizer, cmap="bone"):
-    """Normalize and render a 2D array to PNG bytes (BytesIO, seeked to 0)."""
+def render_cutout_png(data_array, stretch, normalizer, cmap="bone", limits=None):
+    """Normalize and render a 2D array to PNG bytes (BytesIO, seeked to 0).
+
+    ``limits`` overrides the normalizer with explicit (vmin, vmax) in the
+    normalized scale, for a caller that knows where the interesting range is.
+    """
     img = clean_image_array(data_array)
     norm = ImageNormalize(img, stretch=stretch)
     img_norm = norm(img)
-    vmin, vmax = normalizer.get_limits(img_norm)
+    vmin, vmax = limits if limits is not None else normalizer.get_limits(img_norm)
 
     buff = io.BytesIO()
     fig, ax = plt.subplots(figsize=(4, 4))

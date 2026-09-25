@@ -89,3 +89,51 @@ __all__ = [
     "MovingObjectFollowupPostBody",
     "MovingObjectObservationResponse",
 ]
+
+
+class TrackDetection(BaseModel):
+    """One detection in a linked track, as the linker reports it."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    candid: str | int = Field(description="Alert id the cutouts are keyed on.")
+    jd: float = Field(description="Julian date of the detection.")
+    ra: float = Field(description="Right ascension in degrees.")
+    dec: float = Field(description="Declination in degrees.")
+    mag: float | None = Field(default=None, description="Reported magnitude.")
+    band: str | None = Field(default=None, description="Filter the detection is in.")
+
+
+class MovingObjectTrackPostBody(BaseModel):
+    """Request body for measuring a linked track from its cutouts."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    detections: list[TrackDetection] = Field(
+        description="The track's detections. Not keyed on obj_id: a moving "
+        "object gets a new one almost every epoch, which is the whole problem."
+    )
+    broker_id: int = Field(description="Broker to fetch the cutouts from.")
+    survey: str = Field(default="ZTF", description="Survey the alerts are from.")
+    cutout: str = Field(
+        default="cutoutDifference",
+        description="Which cutout to measure. Only the difference image is "
+        "meaningful for a moving object.",
+    )
+    include_images: bool = Field(
+        default=True,
+        description="Render each epoch as a PNG stretched to its own "
+        "background. Off returns the numbers alone.",
+    )
+    check_known: bool = Field(
+        default=False,
+        description="Ask JPL whether the track is an already-known small body. "
+        "Costs a few queries, and reports a negative only when a control "
+        "observation proves the query path still works.",
+    )
+    measure_cutouts: bool = Field(
+        default=True,
+        description="Measure each epoch's pixels. Off returns the geometry "
+        "alone, which needs no cutouts and so no broker call: a scanning page "
+        "can show it for every candidate, where measuring cannot.",
+    )
