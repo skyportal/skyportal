@@ -1,5 +1,7 @@
 import numpy as np
+from astroplan import FixedTarget, Observer
 from astropy import units as u
+from astropy.coordinates import EarthLocation, SkyCoord
 from astropy.time import Time
 
 from baselayer.app.models import DBSession
@@ -365,3 +367,37 @@ def test_gaussian_sigmas_for():
     # clamped rather than infinite at the ends
     assert gaussian_sigmas_for(0.0) == 0.0
     assert np.isfinite(gaussian_sigmas_for(1.0))
+
+
+def test_a_rise_time_is_never_below_the_altitude_it_was_asked_for():
+    """The window may not start before the target reaches the altitude.
+
+    Clamping the rise to sunset assumes the target was already up by then.
+    When the previous rise was a whole day earlier it was not, and the window
+    began 0.6 degrees short -- which the caller then offered as observable.
+    """
+    observer = Observer(
+        location=EarthLocation(
+            lat=33.3634 * u.deg, lon=-116.8361 * u.deg, height=1870 * u.m
+        )
+    )
+    target = FixedTarget(SkyCoord(30 * u.deg, 45 * u.deg))
+    limit = get_altitude_from_airmass(3.0)
+
+    # Every three hours over two weeks: the defect only showed on some nights,
+    # which is why it read as a flaky test rather than a bug.
+    for hours in range(0, 24 * 14, 3):
+        time = Time("2026-09-25T00:00:00") + hours * u.hour
+        rise, _ = get_rise_set_time(
+            target=target,
+            altitude=limit * u.degree,
+            observer=observer,
+            time=time,
+            night_only=True,
+        )
+        if rise is None:
+            continue
+        altitude = float(observer.altaz(rise, target).alt.deg)
+        assert altitude > limit - 0.05, (
+            f"window from {time.iso} starts at {altitude:.3f} deg, below {limit:.3f}"
+        )
