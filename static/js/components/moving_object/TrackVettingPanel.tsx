@@ -11,6 +11,7 @@ import {
   MeasuredEpoch,
   TrackMeasurement,
 } from "../../ducks/moving_object_track";
+import KnownObjectVerdictPanel from "./KnownObjectVerdictPanel";
 
 const Plot = createPlotlyComponent(Plotly);
 
@@ -163,6 +164,8 @@ const TrackVettingPanel = ({ measurement }: TrackVettingPanelProps) => {
           residual means anything.
         </Alert>
       )}
+
+      <KnownObjectVerdictPanel verdict={measurement.known_object} />
 
       <Paper variant="outlined" sx={{ padding: "0.4rem" }}>
         <Typography

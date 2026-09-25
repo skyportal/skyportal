@@ -126,6 +126,26 @@ const TrackCandidateSummary = ({
           title="Detections your streams do not cover, so this arc is partial"
         />
       )}
+      {vetting?.known_object && (
+        <Chip
+          size="small"
+          color={
+            !vetting.known_object.verified
+              ? "warning"
+              : vetting.known_object.known
+                ? "error"
+                : "success"
+          }
+          label={
+            !vetting.known_object.verified
+              ? "check failed"
+              : vetting.known_object.known
+                ? `known: ${vetting.known_object.matches[0]?.name ?? "yes"}`
+                : "nothing known"
+          }
+          title={vetting.known_object.reason}
+        />
+      )}
       <Button size="small" onClick={openVetting} disabled={measuring}>
         {measuring ? <CircularProgress size="0.9rem" /> : "Vet cutouts"}
       </Button>

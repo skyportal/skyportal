@@ -30,6 +30,30 @@ export interface MeasuredEpoch extends TrackEpoch {
   centroid_offset_px: number;
 }
 
+export interface KnownObjectMatch {
+  name: string;
+  identified: boolean;
+  nearest_arcsec: number;
+  offset_drift_arcsec: number;
+  rate_difference_arcsec_per_hour: number | null;
+  motion_agrees: boolean;
+  epochs: number;
+  reason: string;
+}
+
+/**
+ * Three states, never two: `known` true is a recovery, false is a clean
+ * negative the control vouched for, and null means the check did not run.
+ */
+export interface KnownObjectVerdict {
+  known: boolean | null;
+  verified: boolean;
+  matches: KnownObjectMatch[];
+  nearby: KnownObjectMatch[];
+  errors: string[];
+  reason: string;
+}
+
 export interface TrackAnalysis {
   detections: TrackEpoch[];
   failures: { candid: string; error: string }[];
@@ -44,6 +68,7 @@ export interface TrackAnalysis {
   arc_days: number;
   n_detections: number;
   n_object_ids: number;
+  known_object?: KnownObjectVerdict | null;
 }
 
 /** The same, once the cutouts have been measured. */
@@ -84,7 +109,14 @@ export const movingObjectTrackApi = skyportalApi.injectEndpoints({
       query: (body) => ({
         url: "api/moving_object/track",
         method: "POST",
-        body: { ...body, measure_cutouts: true, include_images: true },
+        // Vetting is exactly when the known-object check is worth its
+        // JPL round trips.
+        body: {
+          ...body,
+          measure_cutouts: true,
+          include_images: true,
+          check_known: true,
+        },
       }),
     }),
   }),
