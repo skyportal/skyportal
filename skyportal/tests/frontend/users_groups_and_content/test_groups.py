@@ -189,7 +189,8 @@ def test_add_stream_add_delete_filter_group(
     expect(page.locator(f'//span[contains(.,"{filter_name}")]')).to_have_count(1)
 
     # delete filter
-    page.locator(f'//a[contains(.,"{filter_name}")]').first.click()
+    page.locator('//button[@aria-label="delete filter"]').first.click()
+    page.locator('//button[@data-testid="confirmDeletetionButton"]').first.click()
     expect(page.locator(f'//a[contains(.,"{filter_name}")]').first).to_be_hidden()
 
 

@@ -34,6 +34,7 @@ import ListItemButton from "@mui/material/ListItemButton";
 import { showNotification } from "baselayer/components/Notifications";
 
 import Button from "../Button";
+import ConfirmFilterDeletionDialog from "../filter/ConfirmFilterDeletionDialog";
 
 import { useAppDispatch } from "../../types/hooks";
 import { useGetBrokersQuery } from "../../ducks/brokers";
@@ -65,6 +66,7 @@ const GroupFiltersStreams = ({
   const [addStreamOpen, setAddStreamOpen] = useState(false);
   const [editingFilterId, setEditingFilterId] = useState<any>(null);
   const [editNameInput, setEditNameInput] = useState("");
+  const [filterToDelete, setFilterToDelete] = useState<any>(null);
   const dispatch = useAppDispatch();
   const { data: streams } = useGetStreamsQuery();
   const { data: brokers } = useGetBrokersQuery();
@@ -139,13 +141,14 @@ const GroupFiltersStreams = ({
     {},
   );
 
-  const handleDeleteFilter = async (filterId: any) => {
+  const handleDeleteFilter = async () => {
     try {
-      await deleteGroupFilter({ filter_id: filterId }).unwrap();
+      await deleteGroupFilter({ filter_id: filterToDelete.id }).unwrap();
       dispatch(showNotification("Deleted filter from group"));
     } catch {
       // error notification handled by the base query
     }
+    setFilterToDelete(null);
     dispatch(groupApi.util.invalidateTags([{ type: "Group", id: group.id }]));
   };
 
@@ -277,9 +280,10 @@ const GroupFiltersStreams = ({
                               onClick={(e: any) => {
                                 e.preventDefault();
                                 e.stopPropagation();
-                                handleDeleteFilter(filter.id);
+                                setFilterToDelete(filter);
                               }}
                               color="error"
+                              aria-label="delete filter"
                             >
                               <DeleteIcon />
                             </Button>
@@ -445,6 +449,11 @@ const GroupFiltersStreams = ({
           </DialogActions>
         </form>
       </Dialog>
+      <ConfirmFilterDeletionDialog
+        filter={filterToDelete}
+        closeDialog={() => setFilterToDelete(null)}
+        deleteFunction={handleDeleteFilter}
+      />
     </Box>
   );
 };

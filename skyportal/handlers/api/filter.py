@@ -7,10 +7,13 @@ from skyportal_py_models.filters import (
 from sqlalchemy.orm import joinedload, load_only
 
 from baselayer.app.access import auth_or_token, permissions
+from baselayer.log import make_log
 
 from ...models import Broker, Filter
 from ..base import BaseHandler
 from .group import has_admin_access_for_group
+
+log = make_log("api/filter")
 
 # A filter's altdata holds its whole broker definition, which runs to tens of
 # kilobytes apiece and is only of use one filter at a time. The list leaves it
@@ -25,6 +28,25 @@ LIST_FIELDS = (
     "created_at",
     "modified",
 )
+
+
+def delete_filter_on_broker(broker, f, session):
+    """Delete a filter's broker-side counterpart, so that dropping it here does
+    not leave it running on the broker. Best-effort: an unreachable broker must
+    not make a filter undeletable."""
+    broker_filter_id = ((f.altdata or {}).get("boom") or {}).get("filter_id")
+    if (
+        broker is None
+        or broker_filter_id is None
+        or not broker.broker_class.implements().get("delete_filter")
+    ):
+        return
+    try:
+        broker.broker_class.delete_filter(
+            broker, session, boom_filter_id=broker_filter_id
+        )
+    except Exception as e:
+        log(f"Failed to delete filter {f.id} on {broker.name}: {e}")
 
 
 class FilterHandler(BaseHandler):
@@ -237,12 +259,25 @@ class FilterHandler(BaseHandler):
             return self.error(f"Invalid filter_id: {filter_id}")
         async with self.AsyncSession() as session:
             f = await session.scalar(
-                Filter.select(session.user_or_token, mode="delete").where(
-                    Filter.id == filter_id
-                )
+                Filter.select(
+                    session.user_or_token,
+                    mode="delete",
+                    options=[joinedload(Filter.broker)],
+                ).where(Filter.id == filter_id)
             )
             if f is None:
                 return self.error(f"Cannot find a filter with ID: {filter_id}.")
+
+            if not await has_admin_access_for_group(
+                self.associated_user_object, f.group_id, session
+            ):
+                return self.error(
+                    "Insufficient permissions: must be a group admin or system "
+                    "admin to delete a filter.",
+                    status=403,
+                )
+
+            delete_filter_on_broker(f.broker, f, session)
             await session.delete(f)
             await session.commit()
             return self.success()
