@@ -183,6 +183,57 @@ def extract_designation(data=None, annotations_by_filter_id=None):
     return None
 
 
+# A linked track that is not yet a known object. Its id comes from the linker,
+# not the MPC, so it is prefixed apart from sso_ designations.
+TRACK_OBJ_ID_PREFIX = "trk_"
+
+
+def extract_track_id(data=None, annotations_by_filter_id=None):
+    """The linked-track id on an alert, if the linker put one there.
+
+    An undiscovered mover has no designation to key on, so the track id is the
+    only thing binding its detections together. Read from the alert's own block
+    or from a filter's annotations, the same two places a designation arrives.
+    """
+    block = ((data or {}).get("properties") or {}).get("track") or (data or {}).get(
+        "track"
+    )
+    if isinstance(block, dict) and block.get("id"):
+        return str(block["id"])
+
+    for annotations in (annotations_by_filter_id or {}).values():
+        if not isinstance(annotations, dict):
+            continue
+        found = annotations.get("track_id") or annotations.get("track")
+        if isinstance(found, dict):
+            found = found.get("id")
+        if found:
+            return str(found)
+    return None
+
+
+def track_to_obj_id(track_id):
+    """A track id as a collision-safe Obj ID, distinct from a designation's."""
+    return designation_to_obj_id(track_id, prefix=TRACK_OBJ_ID_PREFIX)
+
+
+def sso_key_for(data=None, annotations_by_filter_id=None):
+    """What to key a moving object's Obj on, and which kind of key it is.
+
+    A designation wins over a track id: once the MPC has named the object, that
+    is the identity to keep, and a track later matched to one folds into the
+    sso_ object rather than leaving a duplicate behind.
+    """
+    designation = extract_designation(data, annotations_by_filter_id)
+    if designation:
+        return designation_to_obj_id(designation), "designation", designation
+
+    track_id = extract_track_id(data, annotations_by_filter_id)
+    if track_id:
+        return track_to_obj_id(track_id), "track", track_id
+    return None, None, None
+
+
 def sso_filter_targets(filters):
     """Map Filter id -> group id to auto-save to, or None to only scan.
 

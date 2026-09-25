@@ -4,19 +4,32 @@ from typing import Annotated
 import arrow
 import sqlalchemy as sa
 from pydantic import Field
-from skyportal_py_models.moving_objects import MovingObjectFollowupPostBody
+from skyportal_py_models.moving_objects import (
+    MovingObjectFollowupPostBody,
+    MovingObjectTrackPostBody,
+)
 from sqlalchemy.orm import joinedload
+from tornado.ioloop import IOLoop
 
 from baselayer.app.access import auth_or_token
 from baselayer.app.env import load_env
 
-from ...models import Instrument
+from ...models import Broker, Instrument
+from ...utils.moving_object_track import (
+    NotMeasurable,
+    band_flux_agreements,
+    measure_cutout,
+    motion_residuals,
+    position_angles,
+    render_epoch,
+)
 from ...utils.moving_objects import (
     add_instrument_fields,
     find_observable_sequence,
     get_ephemeris,
 )
 from ..base import BaseHandler
+from .broker import alert_permissions
 
 _, cfg = load_env()
 
@@ -148,3 +161,223 @@ class MovingObjectFollowupHandler(BaseHandler):
             except Exception as e:
                 traceback.print_exc()
                 return self.error(f"Error: {e}")
+
+
+class MovingObjectTrackHandler(BaseHandler):
+    @auth_or_token
+    async def post(self, *, body: MovingObjectTrackPostBody = None):
+        """
+        ---
+        summary: Measure a linked moving-object track
+        description: |
+          Measure each detection of a track in its difference cutout and report
+          what decides whether the track is one real object: per-epoch
+          significance and centroid offset, how the position angle turns along
+          the arc, the residual about a smooth motion model, and whether the
+          pixels order the bands the way the photometry does.
+
+          Measuring needs real pixel values, so this requires a broker that
+          returns FITS. A broker serving rendered PNGs is refused rather than
+          measured, because a display stretch has already destroyed the flux
+          scale.
+        tags:
+          - moving objects
+        responses:
+          200:
+            content:
+              application/json:
+                schema: Success
+          400:
+            content:
+              application/json:
+                schema: Error
+        """
+        body = self.parse_body(MovingObjectTrackPostBody)
+        detections = [d.model_dump() for d in body.detections]
+        if not detections:
+            return self.error("A track needs at least one detection.")
+
+        async with self.AsyncSession() as session:
+            broker = await session.scalar(
+                Broker.select(self.current_user).where(Broker.id == body.broker_id)
+            )
+            if broker is None:
+                return self.error(f"No broker with id {body.broker_id}")
+            if (
+                body.measure_cutouts
+                and not broker.broker_class.implements()["get_cutouts"]
+            ):
+                return self.error(f"Broker {broker.name} does not serve cutouts.")
+
+            measured, failures = [], []
+            for detection in sorted(detections, key=lambda d: d["jd"]):
+                # Geometry alone needs no pixels, so no broker call either.
+                if not body.measure_cutouts:
+                    measured.append(dict(detection))
+                    continue
+                try:
+                    row = await self._measure(broker, detection, body, session)
+                except Exception as e:
+                    failures.append(
+                        {"candid": str(detection["candid"]), "error": str(e)}
+                    )
+                    continue
+                measured.append(row)
+
+            if not measured:
+                return self.error(
+                    "No detection could be measured. "
+                    + "; ".join(f["error"] for f in failures[:3])
+                )
+
+            residuals = motion_residuals(measured)
+            known = None
+            if body.check_known:
+                known = await self._check_known(broker, measured, body, session)
+            return self.success(
+                data={
+                    "detections": measured,
+                    "known_object": known,
+                    "failures": failures,
+                    "position_angles": position_angles(measured),
+                    "motion": residuals,
+                    "band_flux": band_flux_agreements(measured),
+                    "arc_days": measured[-1]["jd"] - measured[0]["jd"],
+                    "n_detections": len(measured),
+                    # The count that makes the case: a real object arrives under
+                    # a new object id almost every epoch.
+                    "n_object_ids": len(
+                        {
+                            d.get("ztf_object_id")
+                            for d in measured
+                            if d.get("ztf_object_id")
+                        }
+                    ),
+                }
+            )
+
+    async def _check_known(self, broker, measured, body, session):
+        """Whether JPL already knows this object, with the negative verified.
+
+        The control comes from the same night as the track: a detection whose
+        solar-system object is named in the alert itself. Without one, the
+        check reports unverified rather than claiming a discovery.
+        """
+        from astropy.time import Time
+
+        from ...utils.jpl_sbident import check_known_object, obscode_for_survey
+
+        obscode = await obscode_for_survey(session, body.survey)
+        control = await IOLoop.current().run_in_executor(
+            None,
+            lambda: broker.broker_class.find_control_detection(
+                broker,
+                measured[0]["jd"],
+                session,
+                survey=body.survey,
+                permissions=alert_permissions(self.current_user, session),
+            ),
+        )
+
+        def obs_time_for(jd):
+            return Time(float(jd), format="jd", scale="utc").to_datetime()
+
+        return await IOLoop.current().run_in_executor(
+            None,
+            lambda: check_known_object(
+                measured, obs_time_for, obscode=obscode or "500", control=control
+            ),
+        )
+
+    async def _measure(self, broker, detection, body, session):
+        """One detection measured in its difference cutout."""
+        from ...broker_apis._thumbnails import decode_cutout
+
+        cutouts = await IOLoop.current().run_in_executor(
+            None,
+            lambda: broker.broker_class.get_cutouts(
+                broker,
+                str(detection["candid"]),
+                session,
+                survey=body.survey,
+                permissions=alert_permissions(self.current_user, session),
+            ),
+        )
+        payload = (cutouts or {}).get(body.cutout)
+        if payload is None:
+            raise ValueError(f"no {body.cutout} for candid {detection['candid']}")
+        if isinstance(payload, str) and payload.startswith("data:image"):
+            raise ValueError(
+                "this broker returns rendered images, whose flux scale is gone"
+            )
+
+        data, header = decode_cutout(payload, body.survey)
+        try:
+            measurement = measure_cutout(data)
+        except NotMeasurable as e:
+            raise ValueError(str(e)) from e
+
+        row = {**detection, **measurement}
+        if body.include_images:
+            row["png"] = render_epoch(data, body.survey, header)
+        return row
+
+
+class MovingObjectTrackLookupHandler(BaseHandler):
+    @auth_or_token
+    async def get(self, track_id: str):
+        """
+        ---
+        summary: Get a linked track and its detections
+        description: |
+          Fetch one track from the broker by its id, with the detections that
+          make it up. The track stores candids only, so the positions are
+          fetched alongside them: a vetting view needs jd/ra/dec/mag/band.
+
+          Detections the requester's streams do not cover are omitted and
+          counted, so a partially visible track cannot pass for a short one.
+        tags:
+          - moving objects
+        responses:
+          200:
+            content:
+              application/json:
+                schema: Success
+          400:
+            content:
+              application/json:
+                schema: Error
+        """
+        broker_id = self.get_argument("broker_id", None)
+        survey = self.get_argument("survey", "ZTF")
+
+        async with self.AsyncSession() as session:
+            if broker_id is not None:
+                broker = await session.scalar(
+                    Broker.select(self.current_user).where(Broker.id == int(broker_id))
+                )
+            else:
+                broker = await session.scalar(
+                    Broker.select(self.current_user).where(
+                        Broker.active.is_(True), Broker.default_alert_search.is_(True)
+                    )
+                )
+            if broker is None:
+                return self.error("No broker to look the track up on")
+            if not hasattr(broker.broker_class, "get_track"):
+                return self.error(f"Broker {broker.name} does not serve tracks.")
+
+            try:
+                data = await IOLoop.current().run_in_executor(
+                    None,
+                    lambda: broker.broker_class.get_track(
+                        broker,
+                        track_id,
+                        session,
+                        survey=survey,
+                        permissions=alert_permissions(self.current_user, session),
+                    ),
+                )
+            except Exception as e:
+                return self.error(f"Error fetching track from {broker.name}: {e}")
+            return self.success(data=data)

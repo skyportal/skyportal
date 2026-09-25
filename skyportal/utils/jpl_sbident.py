@@ -203,3 +203,115 @@ def enqueue_identification(obj_id, user_id, obs_time, group_ids=None, **kwargs):
     except Exception as e:
         log(f"{obj_id}: could not reach the identification queue ({e})")
     return False
+
+
+# Epochs queried when the track is longer than this. Querying every epoch of a
+# long arc is slow and tells you nothing the ends and middle do not.
+MAX_EPOCHS_QUERIED = 3
+
+
+def _sample_epochs(detections, limit=MAX_EPOCHS_QUERIED):
+    rows = sorted(detections, key=lambda d: d["jd"])
+    if len(rows) <= limit:
+        return rows
+    return [rows[0], rows[len(rows) // 2], rows[-1]]
+
+
+def check_known_object(detections, obs_time_for, obscode="500", control=None, **kwargs):
+    """Whether a track is a known minor planet, and whether to believe a "no".
+
+    A silent query failure reads as "undiscovered", which is the worst answer
+    this can give: it invites someone to submit a known object as a discovery.
+    So a negative is only reported as one when a control observation, whose
+    object is known to be there, comes back positive on the same code path.
+
+    ``control`` is {"ra", "dec", "jd", "expect"} for a detection whose object
+    JPL should find. Without one the result is returned unverified rather than
+    as a clean negative.
+    """
+    matches, errors = [], []
+    for row in _sample_epochs(detections):
+        try:
+            found = identify(
+                row["ra"],
+                row["dec"],
+                obs_time_for(row["jd"]),
+                obscode=obscode,
+                **kwargs,
+            )
+        except JPLSBIdentError as e:
+            errors.append(str(e))
+            continue
+        for match in found:
+            matches.append({**match, "jd": row["jd"]})
+
+    if matches:
+        # A positive needs no control: JPL named something at that position.
+        return {
+            "known": True,
+            "verified": True,
+            "matches": matches,
+            "errors": errors,
+            "reason": "JPL matched a known small body",
+        }
+
+    if errors:
+        return {
+            "known": None,
+            "verified": False,
+            "matches": [],
+            "errors": errors,
+            "reason": f"JPL could not be queried: {errors[0]}",
+        }
+
+    if control is None:
+        return {
+            "known": None,
+            "verified": False,
+            "matches": [],
+            "errors": [],
+            "reason": "no control observation, so a negative cannot be trusted",
+        }
+
+    try:
+        found = identify(
+            control["ra"],
+            control["dec"],
+            obs_time_for(control["jd"]),
+            obscode=obscode,
+            **kwargs,
+        )
+    except JPLSBIdentError as e:
+        return {
+            "known": None,
+            "verified": False,
+            "matches": [],
+            "errors": [str(e)],
+            "reason": f"the control query failed, so a negative proves nothing: {e}",
+        }
+
+    expected = str(control.get("expect") or "").strip().lower()
+    hit = (
+        [m for m in found if expected in str(m.get("name", "")).strip().lower()]
+        if expected
+        else found
+    )
+    if not hit:
+        return {
+            "known": None,
+            "verified": False,
+            "matches": [],
+            "errors": [],
+            "reason": (
+                "the control found nothing where a known object was expected, so "
+                "this negative is a broken query rather than a discovery"
+            ),
+        }
+
+    return {
+        "known": False,
+        "verified": True,
+        "matches": [],
+        "errors": [],
+        "reason": "no known small body, and the control confirmed the query works",
+    }
