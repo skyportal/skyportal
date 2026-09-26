@@ -279,7 +279,10 @@ export const sourceApi = skyportalApi.injectEndpoints({
         method: "PATCH",
         body: { groupID, active: true, requested: false },
       }),
-      invalidatesTags: (_result, _error, { sourceID }) => sourceTag(sourceID),
+      invalidatesTags: (_result, _error, { sourceID }) => [
+        ...sourceTag(sourceID),
+        "Sources",
+      ],
     }),
     declineSaveRequest: build.mutation<
       any,
@@ -290,7 +293,10 @@ export const sourceApi = skyportalApi.injectEndpoints({
         method: "PATCH",
         body: { groupID, active: false, requested: false },
       }),
-      invalidatesTags: (_result, _error, { sourceID }) => sourceTag(sourceID),
+      invalidatesTags: (_result, _error, { sourceID }) => [
+        ...sourceTag(sourceID),
+        "Sources",
+      ],
     }),
     addSourceView: build.mutation<any, number | string>({
       query: (id) => ({
