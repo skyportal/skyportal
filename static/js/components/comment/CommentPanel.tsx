@@ -74,8 +74,6 @@ const pin = (offset: number, axis: "vw" | "vh", size: number) =>
 
 interface CommentPanelProps {
   inline?: boolean;
-  // Docked on a page whose whole subject is what the assistant is for, so the
-  // assistant belongs in the page rather than in the floating panel.
   assistant?: boolean;
 }
 
@@ -351,8 +349,7 @@ const CommentPanel = ({
         flexDirection: "column",
         overflow: "hidden",
         ...(inline
-          ? // Docked above a tool, it has to leave the tool on screen.
-            { height: assistant ? "26rem" : "60vh" }
+          ? { height: assistant ? "26rem" : "60vh" }
           : {
               position: "fixed",
               right: panelRight,

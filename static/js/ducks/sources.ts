@@ -248,7 +248,6 @@ export const {
   useFetchSavedGroupSourcesQuery,
   useLazyFetchSavedGroupSourcesQuery,
   useFetchPendingGroupSourcesQuery,
-  useLazyFetchPendingGroupSourcesQuery,
   useFetchFavoriteSourcesQuery,
   useFetchGcnEventSourcesQuery,
   useFetchSpatialCatalogSourcesQuery,
