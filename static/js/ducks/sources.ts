@@ -210,6 +210,18 @@ invalidateOnMessage("skyportal/REFRESH_FAVORITE_SOURCES", () =>
   window.location.pathname === "/favorites" ? ["Sources"] : null,
 );
 
+invalidateOnMessage("skyportal/REFRESH_SOURCE", (payload, getState) => {
+  const queries = (getState() as any)?.skyportalApi?.queries ?? {};
+  const onLoadedList = Object.values(queries).some(
+    (entry: any) =>
+      entry?.endpointName !== "fetchSources" &&
+      (entry?.data?.sources as any[] | undefined)?.some(
+        (s) => s.internal_key === payload?.obj_key,
+      ),
+  );
+  return onLoadedList ? ["Sources"] : null;
+});
+
 invalidateOnMessage("skyportal/FETCH_GCNEVENT_SOURCES", (payload, getState) => {
   const dateobs =
     payload?.gcnEvent?.dateobs ??
