@@ -52,12 +52,14 @@ import {
   plotAxisTheme,
   plotCanvasTheme,
   PHOT_ZP,
+  LOW_SIGNIFICANCE_SNR,
   smoothing_func,
   mjdnow,
   rgba,
 } from "../../utils";
 import { useGetConfigQuery } from "../../ducks/config";
 import { useGetAnalysesQuery } from "../../ducks/source";
+import PhotometryCutoutStrip, { CutoutPin } from "./PhotometryCutoutStrip";
 import { buildModelLightcurveTraces, ModelFit } from "./modelLightcurveTraces";
 import {
   RequestSpectrumDialog,
@@ -130,10 +132,6 @@ const getPhotometryInstrumentLabel = (point: any) =>
 
 // Internal flux is in µJy (PHOT_ZP = 23.9 is the AB zeropoint for µJy); these
 // factors rescale the flux axis to the selected display unit.
-// Below this signal-to-noise a measurement is drawn as an upper limit by
-// default; it is still real data, so a toggle reveals the raw point.
-const LOW_SIGNIFICANCE_SNR = 3;
-
 const FLUX_UNIT_FACTORS: Record<string, number> = {
   µJy: 1,
   mJy: 1e-3,
@@ -942,6 +940,12 @@ const PhotometryPlot = ({
       if (newPoint.streams.length > 0) {
         newPoint.text += `<br>Streams: ${newPoint.streams.join(", ")}`;
       }
+      // Only where there is an alert to show: a follow-up point or a forced
+      // photometry epoch has no image behind it, and offering one there sends
+      // the reader looking for something that does not exist.
+      if (newPoint.altdata?.candid) {
+        newPoint.text += "<br><i>Click to pin its cutouts</i>";
+      }
 
       // Store display values for plotting
       newPoint.magDisplay =
@@ -1057,6 +1061,14 @@ const PhotometryPlot = ({
     return null;
   };
 
+  // Declared above createTraces, which reads pinnedCandids when it builds the
+  // detection markers.
+  const [cutoutPins, setCutoutPins] = useState<CutoutPin[]>([]);
+  const pinnedCandids = useMemo(
+    () => new Set(cutoutPins.map((pin) => pin.candid)),
+    [cutoutPins],
+  );
+
   const createTraces = (
     groupedPhotometry: any,
     photometryStats: any,
@@ -1160,6 +1172,15 @@ const PhotometryPlot = ({
           const detectionsTrace: any = {
             dataType: "detections",
             isForcedPhotometry: detectionisFP,
+            // The alert this point came from where it carries one, else the
+            // point's own id to look it up by. A point the broker served but
+            // nobody saved has no id, so the candid is the only handle on it.
+            customdata: detections.map((point: any) => [
+              point.altdata?.candid ?? null,
+              point.id ?? null,
+              point.mjd ?? null,
+              point.filter ?? null,
+            ]),
             x: detections.map((point: any) =>
               t0 && displayXAxisInlog ? point.sec_since_t0 : point.mjd,
             ),
@@ -1183,8 +1204,16 @@ const PhotometryPlot = ({
             legendgroup: `${key}detections`,
             marker: {
               line: {
-                width: 1,
-                color: colorBorder,
+                // A pinned epoch is ringed, so a strip of cutouts can be read
+                // back onto the points they came from.
+                width: detections.map((point: any) =>
+                  pinnedCandids.has(point.altdata?.candid) ? 3 : 1,
+                ),
+                color: detections.map((point: any) =>
+                  pinnedCandids.has(point.altdata?.candid)
+                    ? muiTheme.palette.warning.main
+                    : colorBorder,
+                ),
               },
               color: colorInteriorDet,
               size: markerSize,
@@ -1770,6 +1799,8 @@ const PhotometryPlot = ({
     shownModelFits,
     showLowSignificance,
     showNegativeFlux,
+    // Pinning rings a marker, which is part of the traces.
+    pinnedCandids,
   ]);
 
   // Only an axis whose meaning changed invalidates the user's zoom. New or
@@ -2181,18 +2212,39 @@ const PhotometryPlot = ({
             }
           }}
           onClick={(event: any) => {
-            const point = (event?.points || []).find(
+            const points = event?.points || [];
+            const spectrumPoint = points.find(
               (p: any) => p?.data?.name === UNSHARED_SPECTRUM,
             );
-            if (!point) return;
-            const spectrumId = Array.isArray(point.customdata)
-              ? point.customdata[0]
-              : point.customdata;
-            setSpectrumToRequest(
-              unsharedSpectra.find(
-                (spectrum) => spectrum.id === spectrumId,
-              ) as SpectrumAvailability,
+            if (spectrumPoint) {
+              const spectrumId = Array.isArray(spectrumPoint.customdata)
+                ? spectrumPoint.customdata[0]
+                : spectrumPoint.customdata;
+              setSpectrumToRequest(
+                unsharedSpectra.find(
+                  (spectrum) => spectrum.id === spectrumId,
+                ) as SpectrumAvailability,
+              );
+              return;
+            }
+            // A detection: show the images it came from. Forced photometry has
+            // no alert behind it, and the dialog says so rather than nothing.
+            // Armed only on points that carry an alert, matching the tooltip.
+            const detection = points.find(
+              (p: any) =>
+                p?.data?.dataType === "detections" &&
+                p?.customdata?.[0] != null,
             );
+            if (detection) {
+              const [candid, photometryId, mjd, filter] = detection.customdata;
+              // Clicking a pinned epoch again removes it, so the same click
+              // both adds and takes away.
+              setCutoutPins((pins) =>
+                pins.some((pin) => pin.candid === candid)
+                  ? pins.filter((pin) => pin.candid !== candid)
+                  : [...pins, { candid, photometryId, mjd, filter }],
+              );
+            }
           }}
           onDoubleClick={() => setLayoutReset(true)}
           onLegendDoubleClick={(e: any) => {
@@ -2250,6 +2302,13 @@ const PhotometryPlot = ({
         objId={obj_id}
         spectrum={spectrumToRequest}
         onClose={() => setSpectrumToRequest(null)}
+      />
+      <PhotometryCutoutStrip
+        pins={cutoutPins}
+        onRemove={(candid) =>
+          setCutoutPins((pins) => pins.filter((pin) => pin.candid !== candid))
+        }
+        onClear={() => setCutoutPins([])}
       />
       {effectiveModelFits.length > 0 && (
         <div

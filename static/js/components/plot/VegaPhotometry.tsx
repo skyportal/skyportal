@@ -5,6 +5,7 @@ import Switch from "@mui/material/Switch";
 
 import { useGetSourcePhotometryMinimalQuery } from "../../ducks/photometry_minimal";
 import { useGetConfigQuery } from "../../ducks/config";
+import { asDetectionOrLimit } from "../../utils/photometrySignificance";
 
 const VegaPlot = React.lazy(() => import("./VegaPlot"));
 const VegaFoldedPlot = React.lazy(() => import("./VegaFoldedPlot"));
@@ -117,7 +118,7 @@ const VegaPhotometry = (props: VegaPhotometryProps) => {
     if (photometry == null) {
       return null;
     }
-    return photometry.filter((datum: any) => {
+    return photometry.map(asDetectionOrLimit).filter((datum: any) => {
       if (!showUpperLimits && datum.mag === null) {
         return false;
       }

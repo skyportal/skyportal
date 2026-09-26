@@ -37,6 +37,7 @@ from .broker import (
     BrokerHandler,
     BrokerPhotometryHandler,
     BrokerSaveHandler,
+    PhotometryAlertHandler,
 )
 from .broker_apis import BrokerAPIsHandler
 from .candidate.candidate import BulkDeleteCandidatesHandler, CandidateHandler
@@ -149,7 +150,11 @@ from .mmadetector import (
     MMADetectorSpectrumHandler,
     MMADetectorTimeIntervalHandler,
 )
-from .moving_object import MovingObjectFollowupHandler
+from .moving_object import (
+    MovingObjectFollowupHandler,
+    MovingObjectTrackHandler,
+    MovingObjectTrackLookupHandler,
+)
 from .mpc import ObjMPCHandler
 from .news_feed import NewsFeedHandler
 from .obj import ObjAcknowledgmentHandler, ObjHandler, ObjPositionHandler

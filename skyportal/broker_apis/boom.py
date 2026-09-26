@@ -2,13 +2,16 @@ import json
 from concurrent.futures import ThreadPoolExecutor
 from datetime import UTC, datetime, timedelta
 
+import numpy as np
 import requests
 from pymongo import MongoClient
 
 from baselayer.app.env import load_env
 from baselayer.log import make_log
 
+from ..utils.cache import Cache, cache_folder, dict_to_bytes
 from ..utils.survey import survey_from_object_id
+from ._enrichment import annotate_schema, supplement_schema
 from .interface import BrokerAPI, normalize_module_streams
 
 log = make_log("broker/boom")
@@ -25,6 +28,11 @@ VALIDATE_TIMEOUT = 180  # seconds
 TEST_TIMEOUT = 600  # seconds
 RADIUS_UNIT_MAP = {"deg": "Degrees", "arcmin": "Arcminutes", "arcsec": "Arcseconds"}
 NO_CUTOUT_PROJECTION = {"cutoutScience": 0, "cutoutTemplate": 0, "cutoutDifference": 0}
+
+cutouts_cache = Cache(
+    cache_dir=f"{cache_folder}/broker_cutouts",
+    max_age=cfg.get("misc.minutes_to_keep_broker_cutouts_cache", 1440) * 60,
+)
 
 # token cache keyed by (base_url, username): (token, expiry). Providers are
 # stateless, so the short-lived bearer token is cached at module scope.
@@ -274,6 +282,7 @@ def _boom_photometry_to_prv(photometry):
                 "ra": p.get("ra"),
                 "dec": p.get("dec"),
                 "programid": p.get("programid", 1),
+                "candid": p.get("candid"),
             }
         )
     return prv
@@ -358,6 +367,10 @@ def _fetch_sso_history(broker, survey, designation):
                 "programid": c.get("programid", 1),
                 "ssmagnr": c.get("ssmagnr"),
                 "ssdistnr": c.get("ssdistnr"),
+                # The alert this detection came from, so the point can ask the
+                # broker for its cutouts. A mover's objectId changes almost every
+                # detection, so the candid is the only way back to the image.
+                "candid": doc.get("_id"),
                 # Per-detection geometry, carried onto the point's photometry altdata.
                 "sso": (doc.get("properties") or {}).get("sso"),
             }
@@ -551,10 +564,40 @@ class BOOMBROKER(BrokerAPI):
                 "title": "Survey",
                 "description": "Survey this connection serves.",
             },
+            # Declared so the SASL password is rendered as one and, more to the
+            # point, stripped from the broker a reader is served: what is not in
+            # this schema is not in secret_config_fields either.
+            "kafka": {
+                "type": "object",
+                "title": "Kafka stream",
+                "description": "BOOM's results stream, consumed for ingestion.",
+                "properties": {
+                    "host": {"type": "string", "title": "Kafka host"},
+                    "port": {"type": "integer", "title": "Kafka port"},
+                    "username": {"type": "string", "title": "Kafka username"},
+                    "password": {"type": "string", "title": "Kafka password"},
+                    "sasl_mechanism": {
+                        "type": "string",
+                        "title": "SASL mechanism",
+                    },
+                    "group_id": {"type": "string", "title": "Consumer group id"},
+                    "auto_offset_reset": {
+                        "type": "string",
+                        "title": "Auto offset reset",
+                    },
+                    "num_consumers": {
+                        "type": "integer",
+                        "title": "Number of consumers",
+                    },
+                },
+            },
         },
     }
 
-    ui_json_schema = {"password": {"ui:widget": "password"}}
+    ui_json_schema = {
+        "password": {"ui:widget": "password"},
+        "kafka": {"password": {"ui:widget": "password"}},
+    }
 
     @staticmethod
     def validate_config(altdata):
@@ -673,12 +716,164 @@ class BOOMBROKER(BrokerAPI):
             )
             if not visible:
                 raise ValueError(f"No accessible alert with candid {alert_id}")
-        return _request(
+
+        # Reached only once the scope check above has passed, so the cache
+        # serves nobody the images they were just denied.
+        key = f"{broker.id}_{survey}_{alert_id}"
+        cached = cutouts_cache[key]
+        if cached is not None:
+            try:
+                return np.load(cached, allow_pickle=True).item()["cutouts"]
+            except Exception:
+                log(f"unreadable cutout cache entry for {key}, refetching")
+
+        cutouts = _request(
             broker,
             "GET",
             f"surveys/{survey}/cutouts",
             params={"candid": alert_id},
         )
+        if cutouts:
+            cutouts_cache[key] = dict_to_bytes({"cutouts": cutouts})
+        return cutouts
+
+    @staticmethod
+    def get_track(broker, track_id, session, **kwargs):
+        """A linked track and the detections that make it up.
+
+        Two queries: the track for its members, then those alerts for their
+        positions. The track carries candids only, and a vetting view needs
+        jd/ra/dec/mag/band, so fetching them here keeps that one round trip.
+        """
+        survey = _survey(broker, kwargs)
+        found = _request(
+            broker,
+            "POST",
+            "queries/find",
+            json={
+                "catalog_name": f"{survey}_tracks",
+                "filter": {"_id": str(track_id)},
+                "projection": {
+                    "members": 1,
+                    "n_detections": 1,
+                    "n_nights": 1,
+                    "arc_days": 1,
+                    "first_jd": 1,
+                    "last_jd": 1,
+                    "designation": 1,
+                },
+                "limit": 1,
+            },
+        )
+        track = (found or [None])[0]
+        if not track:
+            raise ValueError(f"No track {track_id} in {survey}_tracks")
+
+        members = track.get("members") or []
+        scope = _scope_filter(kwargs, survey)
+        alerts = (
+            _request(
+                broker,
+                "POST",
+                "queries/find",
+                json={
+                    "catalog_name": f"{survey}_alerts",
+                    "filter": {"_id": {"$in": list(members)}, **scope},
+                    "projection": {
+                        "candidate.jd": 1,
+                        "candidate.ra": 1,
+                        "candidate.dec": 1,
+                        "candidate.magpsf": 1,
+                        "candidate.band": 1,
+                        "candidate.ssnamenr": 1,
+                        "objectId": 1,
+                    },
+                    "limit": len(members),
+                },
+            )
+            if members
+            else []
+        )
+
+        detections = []
+        for alert in alerts or []:
+            candidate = alert.get("candidate") or {}
+            detections.append(
+                {
+                    # A candid is a 19-digit integer, which JSON hands the
+                    # browser as a float and rounds; keep it a string.
+                    "candid": str(alert.get("_id")),
+                    "jd": candidate.get("jd"),
+                    "ra": candidate.get("ra"),
+                    "dec": candidate.get("dec"),
+                    "mag": candidate.get("magpsf"),
+                    "band": candidate.get("band"),
+                    "ssnamenr": candidate.get("ssnamenr"),
+                    "objectId": alert.get("objectId"),
+                }
+            )
+        detections.sort(key=lambda d: d["jd"] if d["jd"] is not None else 0)
+
+        return {
+            "id": str(track.get("_id", track_id)),
+            "n_detections": track.get("n_detections"),
+            "n_nights": track.get("n_nights"),
+            "arc_days": track.get("arc_days"),
+            "first_jd": track.get("first_jd"),
+            "last_jd": track.get("last_jd"),
+            "designation": track.get("designation"),
+            "detections": detections,
+            # Members the requester's streams do not cover are simply absent,
+            # so say so rather than let a short arc look like the whole track.
+            "members_withheld": len(members) - len(detections),
+        }
+
+    @staticmethod
+    def find_control_detection(broker, near_jd, session, window_days=0.5, **kwargs):
+        """A detection near ``near_jd`` whose solar-system object is already known.
+
+        The control for a known-object check: a query that comes back empty
+        proves nothing unless the same query finds an object that is definitely
+        there. Taken from the same night so it exercises the epoch and observing
+        code the real query uses, not just the network path.
+        """
+        survey = _survey(broker, kwargs)
+        scope = _scope_filter(kwargs, survey)
+        found = _request(
+            broker,
+            "POST",
+            "queries/find",
+            json={
+                "catalog_name": f"{survey}_alerts",
+                "filter": {
+                    "candidate.jd": {
+                        "$gte": float(near_jd) - window_days,
+                        "$lte": float(near_jd) + window_days,
+                    },
+                    "candidate.ssnamenr": {"$nin": [None, "null", ""]},
+                    **scope,
+                },
+                "projection": {
+                    "candidate.jd": 1,
+                    "candidate.ra": 1,
+                    "candidate.dec": 1,
+                    "candidate.ssnamenr": 1,
+                },
+                "limit": 1,
+            },
+        )
+        row = (found or [None])[0]
+        if not row:
+            return None
+        candidate = row.get("candidate") or {}
+        if candidate.get("ra") is None or candidate.get("jd") is None:
+            return None
+        return {
+            "ra": candidate["ra"],
+            "dec": candidate["dec"],
+            "jd": candidate["jd"],
+            "expect": str(candidate.get("ssnamenr") or "").strip(),
+        }
 
     @staticmethod
     def cone_search(broker, ra, dec, radius, session, **kwargs):
@@ -924,7 +1119,11 @@ class BOOMBROKER(BrokerAPI):
         elements = kwargs.get("elements", "schema")
         if elements == "schema":
             survey = _survey(broker, kwargs)
-            return {"schema": _request(broker, "GET", f"filters/schemas/{survey}")}
+            # BOOM's schema describes the packet; a pipeline runs against
+            # the document BOOM enriched. Fill in what it writes and does
+            # not yet declare.
+            schema = _request(broker, "GET", f"filters/schemas/{survey}")
+            return {"schema": annotate_schema(supplement_schema(schema))}
         name = kwargs.get("name")
         db = _modules_db(broker)
         if db is None:
@@ -1125,6 +1324,21 @@ class BOOMBROKER(BrokerAPI):
                     results = _top_n(results, payload["sort_by"], sort_order, limit)
                 return {**res, "results": results}
             return res
-        return _request(
-            broker, "POST", "filters/test/count", json=payload, timeout=TEST_TIMEOUT
-        )
+        # The same cap applies to a count, and BOOM rejects a wider window as a
+        # bare 400: the caller sees a filter that will not preview and cannot
+        # tell that from a pipeline it dislikes. Walk it in slices and add them
+        # up, as the sorted branch above already does.
+        total, res = 0, None
+        for start_jd, end_jd in _jd_windows(
+            payload["start_jd"], payload["end_jd"], MAX_TEST_WINDOW_DAYS
+        ):
+            res = _request(
+                broker,
+                "POST",
+                "filters/test/count",
+                json={**payload, "start_jd": start_jd, "end_jd": end_jd},
+                timeout=TEST_TIMEOUT,
+            )
+            if isinstance(res, dict):
+                total += res.get("count") or 0
+        return {**res, "count": total} if isinstance(res, dict) else res

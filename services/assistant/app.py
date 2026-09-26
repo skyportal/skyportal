@@ -29,6 +29,7 @@ from skyportal.utils.app import get_app_base_url
 from skyportal.utils.assistant import (
     SERVICE_TOKEN_PREFIX,
     build_messages,
+    chat_payload,
     condense,
     offered_tools,
     proposal,
@@ -139,17 +140,21 @@ def chat(messages, tools, timeout=None):
     response = requests.post(
         f"{BASE_URL.rstrip('/')}/chat/completions",
         headers=headers,
-        json={
-            "model": MODEL,
-            "messages": messages,
-            "tools": tools,
-            "temperature": 0,
-            **(
-                {} if THINKING else {"chat_template_kwargs": {"enable_thinking": False}}
-            ),
-        },
+        json=chat_payload(MODEL, messages, tools, THINKING),
         timeout=timeout or TIMEOUT,
     )
+    if response.status_code >= 400:
+        # The status alone says nothing: a refused request looks identical
+        # whether the context was too long, a tool schema was rejected or the
+        # model was unavailable, and the answer the user sees is the same
+        # sentence either way. The server's own words are the only thing that
+        # tells them apart, so they go in the log.
+        log(
+            f"model refused the request: {response.status_code} "
+            f"{response.text[:600]} "
+            f"(messages={len(messages)}, tools={len(tools)}, "
+            f"payload={len(json.dumps(messages)) + len(json.dumps(tools))} chars)"
+        )
     response.raise_for_status()
     return response.json()["choices"][0]["message"]
 

@@ -2296,6 +2296,100 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/brokers/photometry/{photometry_id}/alert": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get the alert a photometry point came from
+         * @description Return the alert id, survey and broker for the alert a photometry point was ingested from, enough to fetch its cutouts. Forced photometry has no alert behind it and reports that.
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    photometry_id: number;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Success"];
+                    };
+                };
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/brokers/photometry/alert": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get the alert a photometry point came from
+         * @description Return the alert id, survey and broker for the alert a photometry point was ingested from, enough to fetch its cutouts. Forced photometry has no alert behind it and reports that.
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Success"];
+                    };
+                };
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/brokers/photometry/{object_id}": {
         parameters: {
             query?: never;
@@ -6604,6 +6698,118 @@ export interface paths {
                 };
             };
         };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/moving_object/track": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Measure a linked moving-object track
+         * @description Measure each detection of a track in its difference cutout and report
+         *     what decides whether the track is one real object: per-epoch
+         *     significance and centroid offset, how the position angle turns along
+         *     the arc, the residual about a smooth motion model, and whether the
+         *     pixels order the bands the way the photometry does.
+         *
+         *     Measuring needs real pixel values, so this requires a broker that
+         *     returns FITS. A broker serving rendered PNGs is refused rather than
+         *     measured, because a display stretch has already destroyed the flux
+         *     scale.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["MovingObjectTrackPostBody"];
+                };
+            };
+            responses: {
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Success"];
+                    };
+                };
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/moving_object/track/{track_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get a linked track and its detections
+         * @description Fetch one track from the broker by its id, with the detections that
+         *     make it up. The track stores candids only, so the positions are
+         *     fetched alongside them: a vetting view needs jd/ra/dec/mag/band.
+         *
+         *     Detections the requester's streams do not cover are omitted and
+         *     counted, so a partially visible track cannot pass for a short one.
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    track_id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Success"];
+                    };
+                };
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -42504,6 +42710,90 @@ export interface components {
              * @default false
              */
             references_only: boolean;
+        };
+        /**
+         * TrackDetection
+         * @description One detection in a linked track, as the linker reports it.
+         */
+        TrackDetection: {
+            /**
+             * Candid
+             * @description Alert id the cutouts are keyed on.
+             */
+            candid: string | number;
+            /**
+             * Jd
+             * @description Julian date of the detection.
+             */
+            jd: number;
+            /**
+             * Ra
+             * @description Right ascension in degrees.
+             */
+            ra: number;
+            /**
+             * Dec
+             * @description Declination in degrees.
+             */
+            dec: number;
+            /**
+             * Mag
+             * @description Reported magnitude.
+             * @default null
+             */
+            mag: number | null;
+            /**
+             * Band
+             * @description Filter the detection is in.
+             * @default null
+             */
+            band: string | null;
+        };
+        /**
+         * MovingObjectTrackPostBody
+         * @description Request body for measuring a linked track from its cutouts.
+         */
+        MovingObjectTrackPostBody: {
+            /**
+             * Detections
+             * @description The track's detections. Not keyed on obj_id: a moving object gets a new one almost every epoch, which is the whole problem.
+             */
+            detections: components["schemas"]["TrackDetection"][];
+            /**
+             * Broker Id
+             * @description Broker to fetch the cutouts from.
+             */
+            broker_id: number;
+            /**
+             * Survey
+             * @description Survey the alerts are from.
+             * @default ZTF
+             */
+            survey: string;
+            /**
+             * Cutout
+             * @description Which cutout to measure. Only the difference image is meaningful for a moving object.
+             * @default cutoutDifference
+             */
+            cutout: string;
+            /**
+             * Include Images
+             * @description Render each epoch as a PNG stretched to its own background. Off returns the numbers alone.
+             * @default true
+             */
+            include_images: boolean;
+            /**
+             * Check Known
+             * @description Ask JPL whether the track is an already-known small body. Costs a few queries, and reports a negative only when a control observation proves the query path still works.
+             * @default false
+             */
+            check_known: boolean;
+            /**
+             * Measure Cutouts
+             * @description Measure each epoch's pixels. Off returns the geometry alone, which needs no cutouts and so no broker call: a scanning page can show it for every candidate, where measuring cannot.
+             * @default true
+             */
+            measure_cutouts: boolean;
         };
         /**
          * EarthquakePostBody

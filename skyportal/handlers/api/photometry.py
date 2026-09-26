@@ -673,6 +673,22 @@ async def resolve_photometry_refs(instrument_ids, obj_ids, session):
     return instruments_by_id, existing_oids
 
 
+def _blank(value):
+    """Whether an altdata value carries nothing.
+
+    A key absent for one point and present for another arrives here as NaN,
+    because the parallel arrays become a DataFrame column: a per-point key is
+    null wherever it does not apply. NaN is not JSON, so it has to go the same
+    way None does rather than being written out.
+    """
+    if value is None or value == "":
+        return True
+    try:
+        return bool(pd.isna(value))
+    except (TypeError, ValueError):
+        return False
+
+
 async def standardize_photometry_data(data, session, *, refs=None):
     if not isinstance(data, dict):
         raise ValidationError(
@@ -765,8 +781,8 @@ async def standardize_photometry_data(data, session, *, refs=None):
     if altdata is not None and len(altdata) > 0:
         for index, e in enumerate(altdata):
             altdata[index] = (
-                {k: v for k, v in e.items() if v not in [None, ""]}
-                if not all(v in [None, ""] for v in e.values())
+                {k: v for k, v in e.items() if not _blank(v)}
+                if not all(_blank(v) for v in e.values())
                 else None
             )
         df["altdata"] = altdata

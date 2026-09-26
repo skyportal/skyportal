@@ -47,7 +47,7 @@ def test_only_bodies_inside_the_radius_are_matches():
         ["1 Ceres (A801 AA)", "", "", "1.", "2.", "2.5", "15.6"],
         ["99 Far (A900 XX)", "", "", "80.", "60.", "120.", "18.1"],
     ]
-    matches = parse_matches(_payload(rows))
+    matches = parse_matches(_payload(rows), max_arcsec=10)
     assert [m["name"] for m in matches] == ["1 Ceres (A801 AA)"]
 
 
@@ -61,8 +61,19 @@ def test_matches_are_nearest_first():
 
 def test_radius_is_adjustable():
     rows = [["99 Far (A900 XX)", "", "", "80.", "60.", "120.", "18.1"]]
-    assert parse_matches(_payload(rows)) == []
+    assert parse_matches(_payload(rows), max_arcsec=100) == []
     assert len(parse_matches(_payload(rows), max_arcsec=200)) == 1
+
+
+def test_the_default_cone_is_wide_on_purpose():
+    # 2019 SS77 was recovered 92 arcsec outside its own prediction, and a hit
+    # is identified by how its separation behaves across the arc rather than by
+    # being close. A tight default would hide the cases that matter.
+    from skyportal.utils.jpl_sbident import DEFAULT_MATCH_ARCSEC
+
+    assert DEFAULT_MATCH_ARCSEC >= 360
+    rows = [["99 Far (A900 XX)", "", "", "80.", "60.", "120.", "18.1"]]
+    assert len(parse_matches(_payload(rows))) == 1
 
 
 def test_no_second_pass_means_no_matches():

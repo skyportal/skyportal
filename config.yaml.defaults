@@ -1,5 +1,10 @@
 app:
   title: SkyPortal
+  # An ML classifier posts every source it scores, including the ones it is
+  # unsure of. Below this probability the label is kept on the source but no
+  # longer summarised at the top of the page, where a tentative guess reads as
+  # the object's identity. Null probabilities (most human labels) are unaffected.
+  ml_classification_min_probability: 0.9
   # Opening sentences of a source's acknowledgment block, before the facilities
   # and programs that source actually used are appended. Deployment-specific:
   # name the instance and the infrastructure behind it.
@@ -896,6 +901,9 @@ misc:
   minutes_to_keep_public_source_pages_cache: 1440 # 1 day
   minutes_to_keep_reports_cache: 1440 # 1 day
   minutes_to_keep_broker_photometry_cache: 30
+  # An alert's cutouts never change, so this is bounded by disk rather
+  # than by staleness.
+  minutes_to_keep_broker_cutouts_cache: 1440 # 1 day
   max_seconds_to_sleep_reminders_service: 60
   max_seconds_to_sleep_recurring_apis_service: 60
   public_group_name: "Sitewide Group"
