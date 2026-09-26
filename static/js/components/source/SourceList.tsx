@@ -1,10 +1,11 @@
 import { useState } from "react";
 
-import Typography from "@mui/material/Typography";
-import Dialog from "@mui/material/Dialog";
-import DialogContent from "@mui/material/DialogContent";
 import Alert from "@mui/material/Alert";
 import AlertTitle from "@mui/material/AlertTitle";
+import Box from "@mui/material/Box";
+import Dialog from "@mui/material/Dialog";
+import DialogContent from "@mui/material/DialogContent";
+import Typography from "@mui/material/Typography";
 
 import { showNotification } from "baselayer/components/Notifications";
 import SourceTable from "./SourceTable";
@@ -24,8 +25,7 @@ const SourceList = () => {
   const [queryParams, setQueryParams] = useState<any>({});
   const { data: sourcesState, isFetching } = useFetchSourcesQuery(queryParams);
   const [fetchSourcesTrigger] = useLazyFetchSourcesQuery();
-  const sourceTableEmpty = (useGetDbInfoQuery().data as any)
-    ?.source_table_empty;
+  const sourceTableEmpty = !!useGetDbInfoQuery().data?.["source_table_empty"];
 
   const [downloadProgressCurrent, setDownloadProgressCurrent] = useState(0);
   const [downloadProgressTotal, setDownloadProgressTotal] = useState(0);
@@ -40,12 +40,9 @@ const SourceList = () => {
       ...filterData,
       pageNumber,
       numPerPage,
-      // Reuse the backend's cached obj_id list for this query instead of
-      // re-running the full ordering aggregate on every page. Only valid past
-      // page 1 — the duck drops it otherwise, matching the handler's contract.
       queryID: pageNumber > 1 ? (sourcesState?.queryID ?? null) : null,
     };
-    if (sortData && Object.keys(sortData).length > 0) {
+    if (sortData?.name) {
       data.sortBy = sortData.name;
       data.sortOrder = sortData.direction;
     }
@@ -53,76 +50,58 @@ const SourceList = () => {
     fetchSourcesTrigger(data)
       .unwrap()
       .catch(() => {
-        handleSourceTablePagination(pageNumber, numPerPage, null, null);
+        if (!data.queryID) return;
+        const retry = { ...data, queryID: null };
+        setQueryParams(retry);
+        fetchSourcesTrigger(retry);
       });
   };
 
-  const handleSourceTableSorting = (sortData: any, filterData: any) => {
-    const data = {
-      ...filterData,
-      pageNumber: 1,
-      numPerPage: queryParams.numPerPage,
-      sortBy: sortData.name,
-      sortOrder: sortData.direction,
-    };
-    setQueryParams(data);
-    fetchSourcesTrigger(data);
-  };
+  const handleSourceTableSorting = (sortData: any, filterData: any) =>
+    handleSourceTablePagination(
+      1,
+      queryParams.numPerPage,
+      sortData,
+      filterData,
+    );
 
   const handleSourcesDownload = async () => {
-    const sourceAll: any[] = [];
-    if (!sourcesState || sourcesState.totalMatches === 0) {
+    if (!sourcesState?.totalMatches) {
       dispatch(showNotification("No sources to download", "warning"));
-    } else {
-      setDownloadProgressTotal(sourcesState.totalMatches);
-      // Carried from page 1 onwards so each subsequent page reads the backend's
-      // cached obj_id list. Without it every page of the download re-runs the
-      // full ordering aggregate, which dominates the download for large results.
-      let downloadQueryID: string | null = null;
-      for (
-        let i = 1;
-        i <= Math.ceil(sourcesState.totalMatches / sourcesState.numPerPage);
-        i += 1
-      ) {
-        const data: any = {
+      return [];
+    }
+    const { totalMatches, numPerPage } = sourcesState;
+    const sourceAll: any[] = [];
+    let downloadQueryID: string | null = null;
+
+    setDownloadProgressTotal(totalMatches);
+    for (let i = 1; i <= Math.ceil(totalMatches / numPerPage); i += 1) {
+      try {
+        // eslint-disable-next-line no-await-in-loop
+        const result: any = await fetchSourcesTrigger({
           ...queryParams,
           pageNumber: i,
-          numPerPage: sourcesState.numPerPage,
+          numPerPage,
           queryID: i > 1 ? downloadQueryID : null,
-        };
-        /* eslint-disable no-await-in-loop */
-        try {
-          const result: any = await fetchSourcesTrigger(data).unwrap();
-          downloadQueryID = result?.queryID ?? downloadQueryID;
-          sourceAll.push(...result.sources);
-          setDownloadProgressCurrent(sourceAll.length);
-          setDownloadProgressTotal(sourcesState.totalMatches);
-        } catch {
-          // break the loop and set progress to 0 and show error message
-          setDownloadProgressCurrent(0);
-          setDownloadProgressTotal(0);
-          if (sourceAll?.length === 0) {
-            dispatch(
-              showNotification(
-                "Failed to fetch some sources. Download cancelled.",
-                "error",
-              ),
-            );
-          } else {
-            dispatch(
-              showNotification(
-                "Failed to fetch some sources, please try again. Sources fetched so far will be downloaded.",
-                "error",
-              ),
-            );
-          }
-          break;
-        }
+        }).unwrap();
+        downloadQueryID = result?.queryID ?? downloadQueryID;
+        sourceAll.push(...result.sources);
+        setDownloadProgressCurrent(sourceAll.length);
+      } catch {
+        dispatch(
+          showNotification(
+            sourceAll.length
+              ? "Failed to fetch some sources, please try again. Sources fetched so far will be downloaded."
+              : "Failed to fetch some sources. Download cancelled.",
+            "error",
+          ),
+        );
+        break;
       }
     }
     setDownloadProgressCurrent(0);
     setDownloadProgressTotal(0);
-    if (sourceAll?.length === sourcesState?.totalMatches) {
+    if (sourceAll.length === totalMatches) {
       dispatch(showNotification("Sources downloaded successfully"));
     }
     return sourceAll;
@@ -149,42 +128,27 @@ const SourceList = () => {
         numPerPage={sourcesState?.numPerPage || 30}
         sortingCallback={handleSourceTableSorting}
         downloadCallback={handleSourcesDownload}
-        fixedHeader={true}
+        fixedHeader
         isLoading={isFetching}
       />
       <Dialog open={downloadProgressTotal > 0} maxWidth="md">
         <DialogContent
-          style={{
+          sx={{
             display: "flex",
             flexDirection: "column",
-            justifyContent: "center",
             alignItems: "center",
           }}
         >
-          <Typography
-            variant="h6"
-            sx={{
-              display: "inline",
-            }}
-          >
+          <Typography variant="h6">
             Downloading {downloadProgressTotal} sources
           </Typography>
-          <div
-            style={{
-              height: "5rem",
-              width: "5rem",
-              display: "flex",
-              flexDirection: "column",
-              justifyContent: "center",
-              alignItems: "center",
-            }}
-          >
+          <Box sx={{ height: "5rem", width: "5rem" }}>
             <ProgressIndicator
               current={downloadProgressCurrent}
               total={downloadProgressTotal}
               percentage={false}
             />
-          </div>
+          </Box>
         </DialogContent>
       </Dialog>
     </>

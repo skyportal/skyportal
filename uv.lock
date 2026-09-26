@@ -481,7 +481,6 @@ version = "0.1"
 source = { virtual = "baselayer" }
 dependencies = [
     { name = "arrow" },
-    { name = "distributed" },
     { name = "jinja2" },
     { name = "numpy" },
     { name = "packaging" },
@@ -517,7 +516,6 @@ test = [
 [package.metadata]
 requires-dist = [
     { name = "arrow", specifier = ">=0.15.4" },
-    { name = "distributed", specifier = ">=2023.1.1" },
     { name = "jinja2", specifier = ">=2.11.2" },
     { name = "numpy", specifier = ">=1.21.4" },
     { name = "packaging", specifier = ">=23.0" },

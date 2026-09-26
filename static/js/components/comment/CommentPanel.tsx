@@ -1,4 +1,12 @@
-import { KeyboardEvent, Suspense, lazy, useEffect, useState } from "react";
+import {
+  KeyboardEvent,
+  PointerEvent,
+  Suspense,
+  lazy,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 import AddIcon from "@mui/icons-material/Add";
 import ChatIcon from "@mui/icons-material/Chat";
 import CloseIcon from "@mui/icons-material/Close";
@@ -45,6 +53,25 @@ const centeredSx = {
   justifyContent: "center",
 } as const;
 
+const FAB_SIZE = 48;
+const PANEL_WIDTH = 416;
+const PANEL_MIN_HEIGHT = 336;
+const EDGE = 24;
+const DEFAULT_FAB = { right: EDGE, bottom: 72 };
+const FAB_POSITION_KEY = "chatFabPosition";
+
+const clampFab = ({ right, bottom }: { right: number; bottom: number }) => ({
+  right: Math.min(Math.max(right, EDGE), window.innerWidth - FAB_SIZE - EDGE),
+  bottom: Math.min(
+    Math.max(bottom, EDGE),
+    window.innerHeight - FAB_SIZE - EDGE,
+  ),
+});
+
+// Clamped in CSS, not only on drag: the window can shrink after the last drag.
+const pin = (offset: number, axis: "vw" | "vh", size: number) =>
+  `clamp(${EDGE}px, ${offset}px, calc(100${axis} - ${size + EDGE}px))`;
+
 interface CommentPanelProps {
   inline?: boolean;
   // Docked on a page whose whole subject is what the assistant is for, so the
@@ -82,6 +109,23 @@ const CommentPanel = ({
   );
   const [channelToDelete, setChannelToDelete] = useState<string | null>(null);
   const downSm = useMediaQuery((theme: any) => theme.breakpoints.down("sm"));
+  const [fab, setFab] = useState(() => {
+    const [right = NaN, bottom = NaN] = (
+      window.localStorage.getItem(FAB_POSITION_KEY) ?? ""
+    )
+      .split(",")
+      .map(Number);
+    return Number.isFinite(right) && Number.isFinite(bottom)
+      ? clampFab({ right, bottom })
+      : DEFAULT_FAB;
+  });
+  const dragFrom = useRef<{
+    x: number;
+    y: number;
+    right: number;
+    bottom: number;
+  } | null>(null);
+  const dragged = useRef(false);
 
   const hasComments = target?.type === "source" || target?.type === "gcn_event";
   const showComments =
@@ -267,6 +311,37 @@ const CommentPanel = ({
 
   const bothSpaces = showComments && showAssistant;
 
+  const startDrag = (event: PointerEvent<HTMLElement>) => {
+    if (event.button !== 0) return;
+    event.currentTarget.setPointerCapture(event.pointerId);
+    dragFrom.current = { x: event.clientX, y: event.clientY, ...fab };
+    dragged.current = false;
+  };
+
+  const moveDrag = (event: PointerEvent<HTMLElement>) => {
+    const from = dragFrom.current;
+    if (!from) return;
+    const dx = from.x - event.clientX;
+    const dy = from.y - event.clientY;
+    if (!dragged.current && Math.abs(dx) + Math.abs(dy) < 5) return;
+    dragged.current = true;
+    setFab(clampFab({ right: from.right + dx, bottom: from.bottom + dy }));
+  };
+
+  const endDrag = () => {
+    dragFrom.current = null;
+    if (dragged.current)
+      window.localStorage.setItem(
+        FAB_POSITION_KEY,
+        `${fab.right},${fab.bottom}`,
+      );
+  };
+
+  const fabRight = pin(fab.right, "vw", FAB_SIZE);
+  const fabBottom = pin(fab.bottom, "vh", FAB_SIZE);
+  const panelRight = pin(fab.right, "vw", PANEL_WIDTH);
+  const panelBottom = pin(fab.bottom + FAB_SIZE + 8, "vh", PANEL_MIN_HEIGHT);
+
   const panel = (
     <Paper
       elevation={inline ? 1 : 8}
@@ -280,13 +355,13 @@ const CommentPanel = ({
             { height: assistant ? "26rem" : "60vh" }
           : {
               position: "fixed",
-              right: "1.5rem",
-              bottom: "5.5rem",
+              right: panelRight,
+              bottom: panelBottom,
               zIndex: theme.zIndex.drawer,
               width: "26rem",
               maxWidth: "calc(100vw - 3rem)",
               height: "70vh",
-              maxHeight: "calc(100vh - 10rem)",
+              maxHeight: `calc(100vh - ${panelBottom} - 1rem)`,
               [theme.breakpoints.down("sm")]: {
                 inset: 0,
                 width: "100%",
@@ -540,13 +615,22 @@ const CommentPanel = ({
           <Fab
             color="primary"
             size="medium"
-            onClick={() => setOpen(!open)}
+            onClick={() => {
+              if (!dragged.current) setOpen(!open);
+              dragged.current = false;
+            }}
+            onPointerDown={startDrag}
+            onPointerMove={moveDrag}
+            onPointerUp={endDrag}
+            onPointerCancel={endDrag}
             data-testid="source-chat-button"
             sx={{
               position: "fixed",
-              right: "1.5rem",
-              bottom: "1.5rem",
+              right: fabRight,
+              bottom: fabBottom,
               zIndex: "drawer",
+              cursor: "grab",
+              touchAction: "none",
             }}
           >
             {open ? (
