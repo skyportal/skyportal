@@ -4,8 +4,6 @@ import Typography from "@mui/material/Typography";
 import Paper from "@mui/material/Paper";
 import Grid from "@mui/material/Grid";
 import { makeStyles } from "tss-react/mui";
-import Dialog from "@mui/material/Dialog";
-import DialogContent from "@mui/material/DialogContent";
 import Tab from "@mui/material/Tab";
 import Tabs from "@mui/material/Tabs";
 
@@ -14,7 +12,7 @@ import { filterOutEmptyValues } from "../../API";
 import ExecutedObservationsTable from "./ExecutedObservationsTable";
 import QueuedObservationsTable from "./QueuedObservationsTable";
 import QueueAPIDisplay from "./QueueAPIDisplay";
-import ProgressIndicator from "../ProgressIndicators";
+import { DownloadProgressDialog } from "../ProgressIndicators";
 import SkymapTriggerAPIDisplay from "./SkymapTriggerAPIDisplay";
 
 import {
@@ -431,41 +429,11 @@ const ObservationPage = () => {
               filterModel={filterModel}
               onFilterModelChange={setFilterModel}
             />
-            <Dialog open={downloadProgressTotal > 0} maxWidth="md">
-              <DialogContent
-                style={{
-                  display: "flex",
-                  flexDirection: "column",
-                  justifyContent: "center",
-                  alignItems: "center",
-                }}
-              >
-                <Typography
-                  variant="h6"
-                  sx={{
-                    display: "inline",
-                  }}
-                >
-                  Downloading {downloadProgressTotal} observations
-                </Typography>
-                <div
-                  style={{
-                    height: "5rem",
-                    width: "5rem",
-                    display: "flex",
-                    flexDirection: "column",
-                    justifyContent: "center",
-                    alignItems: "center",
-                  }}
-                >
-                  <ProgressIndicator
-                    current={downloadProgressCurrent}
-                    total={downloadProgressTotal}
-                    percentage={false}
-                  />
-                </div>
-              </DialogContent>
-            </Dialog>
+            <DownloadProgressDialog
+              current={downloadProgressCurrent}
+              total={downloadProgressTotal}
+              label="observations"
+            />
           </div>
         </Grid>
       )}

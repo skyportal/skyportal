@@ -2,14 +2,11 @@ import { useGetGroupsQuery } from "../../ducks/groups";
 import { useState } from "react";
 import { useAppDispatch } from "../../types/hooks";
 
-import Typography from "@mui/material/Typography";
-import Dialog from "@mui/material/Dialog";
-import DialogContent from "@mui/material/DialogContent";
 import { showNotification } from "baselayer/components/Notifications";
 
 import SourceTable from "../source/SourceTable";
 import withRouter from "../withRouter";
-import ProgressIndicator from "../ProgressIndicators";
+import { DownloadProgressDialog } from "../ProgressIndicators";
 import Spinner from "../Spinner";
 
 import {
@@ -223,41 +220,11 @@ const GroupSources = ({ route }: GroupSourcesProps) => {
           downloadCallback={handleSourcesDownload}
         />
       )}
-      <Dialog open={downloadProgressTotal > 0} maxWidth="md">
-        <DialogContent
-          style={{
-            display: "flex",
-            flexDirection: "column",
-            justifyContent: "center",
-            alignItems: "center",
-          }}
-        >
-          <Typography
-            variant="h6"
-            sx={{
-              display: "inline",
-            }}
-          >
-            Downloading {downloadProgressTotal} sources
-          </Typography>
-          <div
-            style={{
-              height: "5rem",
-              width: "5rem",
-              display: "flex",
-              flexDirection: "column",
-              justifyContent: "center",
-              alignItems: "center",
-            }}
-          >
-            <ProgressIndicator
-              current={downloadProgressCurrent}
-              total={downloadProgressTotal}
-              percentage={false}
-            />
-          </div>
-        </DialogContent>
-      </Dialog>
+      <DownloadProgressDialog
+        current={downloadProgressCurrent}
+        total={downloadProgressTotal}
+        label="sources"
+      />
     </Box>
   );
 };

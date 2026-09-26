@@ -2,14 +2,10 @@ import { useState } from "react";
 
 import Alert from "@mui/material/Alert";
 import AlertTitle from "@mui/material/AlertTitle";
-import Box from "@mui/material/Box";
-import Dialog from "@mui/material/Dialog";
-import DialogContent from "@mui/material/DialogContent";
-import Typography from "@mui/material/Typography";
 
 import { showNotification } from "baselayer/components/Notifications";
 import SourceTable from "./SourceTable";
-import ProgressIndicator from "../ProgressIndicators";
+import { DownloadProgressDialog } from "../ProgressIndicators";
 import { useAppDispatch } from "../../types/hooks";
 import {
   useFetchSourcesQuery,
@@ -131,26 +127,11 @@ const SourceList = () => {
         fixedHeader
         isLoading={isFetching}
       />
-      <Dialog open={downloadProgressTotal > 0} maxWidth="md">
-        <DialogContent
-          sx={{
-            display: "flex",
-            flexDirection: "column",
-            alignItems: "center",
-          }}
-        >
-          <Typography variant="h6">
-            Downloading {downloadProgressTotal} sources
-          </Typography>
-          <Box sx={{ height: "5rem", width: "5rem" }}>
-            <ProgressIndicator
-              current={downloadProgressCurrent}
-              total={downloadProgressTotal}
-              percentage={false}
-            />
-          </Box>
-        </DialogContent>
-      </Dialog>
+      <DownloadProgressDialog
+        current={downloadProgressCurrent}
+        total={downloadProgressTotal}
+        label="sources"
+      />
     </>
   );
 };

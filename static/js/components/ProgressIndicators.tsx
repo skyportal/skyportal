@@ -1,6 +1,8 @@
-import CircularProgress from "@mui/material/CircularProgress";
-import Typography from "@mui/material/Typography";
 import Box from "@mui/material/Box";
+import CircularProgress from "@mui/material/CircularProgress";
+import Dialog from "@mui/material/Dialog";
+import DialogContent from "@mui/material/DialogContent";
+import Typography from "@mui/material/Typography";
 
 interface CircularProgressWithLabelProps {
   current?: number;
@@ -13,8 +15,8 @@ const CircularProgressWithLabel = ({
   total = 100,
   percentage = true,
 }: CircularProgressWithLabelProps) => (
-  <div
-    style={{
+  <Box
+    sx={{
       display: "flex",
       flexDirection: "column",
       width: "100%",
@@ -26,7 +28,7 @@ const CircularProgressWithLabel = ({
     <CircularProgress
       variant="determinate"
       value={Math.round((current * 100) / total)}
-      style={{ width: "100%", height: "100%" }}
+      sx={{ width: "100%", height: "100%" }}
     />
     <Box
       sx={{
@@ -40,25 +42,46 @@ const CircularProgressWithLabel = ({
         justifyContent: "center",
       }}
     >
-      {percentage ? (
-        <Typography
-          variant="caption"
-          component="div"
-          sx={{
-            color: "text.secondary",
-          }}
-        >{`${Math.round((current * 100) / total)}%`}</Typography>
-      ) : (
-        <Typography
-          variant="caption"
-          component="div"
-          sx={{
-            color: "text.secondary",
-          }}
-        >{`${current}/${total}`}</Typography>
-      )}
+      <Typography
+        variant="caption"
+        component="div"
+        sx={{ color: "text.secondary" }}
+      >
+        {percentage
+          ? `${Math.round((current * 100) / total)}%`
+          : `${current}/${total}`}
+      </Typography>
     </Box>
-  </div>
+  </Box>
+);
+
+interface DownloadProgressDialogProps {
+  current: number;
+  total: number;
+  label: string;
+}
+
+const DownloadProgressDialog = ({
+  current,
+  total,
+  label,
+}: DownloadProgressDialogProps) => (
+  <Dialog open={total > 0} maxWidth="md">
+    <DialogContent
+      sx={{ display: "flex", flexDirection: "column", alignItems: "center" }}
+    >
+      <Typography variant="h6">
+        Downloading {total} {label}
+      </Typography>
+      <Box sx={{ height: "5rem", width: "5rem" }}>
+        <CircularProgressWithLabel
+          current={current}
+          total={total}
+          percentage={false}
+        />
+      </Box>
+    </DialogContent>
+  </Dialog>
 );
 
 interface TableProgressTextProps {
@@ -69,25 +92,15 @@ interface TableProgressTextProps {
 const TableProgressText = ({
   nbItems = 0,
   status = "pending",
-}: TableProgressTextProps) => {
-  if (nbItems === 0) {
-    return null;
-  }
-  return (
-    <div>
-      <Typography
-        variant="caption"
-        component="div"
-        sx={{
-          color: "text.secondary",
-        }}
-      >
-        {`${nbItems} ${status}`}
-      </Typography>
-    </div>
+}: TableProgressTextProps) =>
+  nbItems === 0 ? null : (
+    <Typography
+      variant="caption"
+      component="div"
+      sx={{ color: "text.secondary" }}
+    >
+      {`${nbItems} ${status}`}
+    </Typography>
   );
-};
 
-export default CircularProgressWithLabel;
-
-export { TableProgressText };
+export { DownloadProgressDialog, TableProgressText };
