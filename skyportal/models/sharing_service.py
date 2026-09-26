@@ -24,6 +24,7 @@ from baselayer.app.models import (
     UserAccessControl,
 )
 
+from .app_secret import secret_key
 from .group import Group, GroupUser
 
 _, cfg = load_env()
@@ -95,7 +96,7 @@ class SharingService(Base):
         sa.Integer, doc="Source group ID of the TNS bot.", nullable=True
     )
     _tns_altdata = sa.Column(
-        StringEncryptedType(JSONType, cfg["app.secret_key"], AesEngine, "pkcs5")
+        StringEncryptedType(JSONType, secret_key, AesEngine, "pkcs5")
     )
     publish_existing_tns_objects = sa.Column(
         sa.Boolean,
@@ -118,7 +119,7 @@ class SharingService(Base):
     # The MPC files a submission under a named person rather than a bot, so the
     # acknowledgement address is configuration rather than a constant.
     _mpc_altdata = sa.Column(
-        StringEncryptedType(JSONType, cfg["app.secret_key"], AesEngine, "pkcs5")
+        StringEncryptedType(JSONType, secret_key, AesEngine, "pkcs5")
     )
 
     @property

@@ -15,6 +15,7 @@ from baselayer.app.models import Base, restricted
 
 from .. import broker_apis
 from ..enum_types import broker_classnames
+from .app_secret import secret_key
 
 _, cfg = load_env()
 
@@ -106,7 +107,7 @@ class Broker(Base):
     )
 
     _altdata = sa.Column(
-        StringEncryptedType(JSONType, cfg["app.secret_key"], AesEngine, "pkcs5"),
+        StringEncryptedType(JSONType, secret_key, AesEngine, "pkcs5"),
         doc="Encrypted per-instance configuration (endpoints, credentials).",
     )
 

@@ -5,6 +5,7 @@ from baselayer.app.models import *
 from .allocation import *
 from .analysis import *
 from .annotation import *
+from .app_secret import *
 from .assignment import *
 from .assistant import *
 from .broker import *
@@ -45,6 +46,7 @@ from .reminder import *
 from .scan_report.scan_report import *
 from .scan_report.scan_report_item import *
 from .schema import setup_schema
+from .secret_key_fingerprint import *
 from .sharing_service import *
 from .shift import *
 from .source import *
