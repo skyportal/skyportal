@@ -284,7 +284,6 @@ const FilterCatalog = ({ brokerId }: { brokerId?: number }) => {
       </Box>
 
       <StyledDataGrid
-        autoHeight={Boolean(brokerId)}
         rows={data?.filters || []}
         columns={columns}
         loading={isFetching}

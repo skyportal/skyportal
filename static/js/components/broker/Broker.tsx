@@ -245,7 +245,14 @@ const Broker = () => {
   if (brokersLoading) return <Spinner />;
 
   return (
-    <Box sx={{ p: 2 }}>
+    <Box
+      sx={{
+        height: "calc(100vh - 5.25rem)",
+        display: "flex",
+        flexDirection: "column",
+        overflow: "auto",
+      }}
+    >
       <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 2 }}>
         <IconButton component={Link} to="/brokers" aria-label="back to brokers">
           <ArrowBackIcon />
