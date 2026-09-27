@@ -132,14 +132,21 @@ const BlockComponent = ({
   return (
     <Paper
       component="section"
+      elevation={isRoot ? 1 : 0}
       sx={{
         display: "flex",
         flexDirection: "column",
         gap: isStickyHeader ? 0 : blockState.isCollapsed ? 0 : 1,
-        p: blockState.isCollapsed ? 1 : 2,
-        pt: isStickyHeader ? 0 : blockState.isCollapsed ? 1 : 2,
-        borderColor: "grey.300",
+        p: isRoot && !blockState.isCollapsed ? 2 : 1,
+        pt: isStickyHeader ? 0 : isRoot && !blockState.isCollapsed ? 2 : 1,
         borderRadius: 2,
+        ...(!isRoot && {
+          pr: 0,
+          borderLeft: 3,
+          borderColor: "primary.light",
+          borderRadius: 0,
+          backgroundColor: "transparent",
+        }),
       }}
       aria-label={`${block.category} block${
         blockState.customBlockName ? ` - ${blockState.customBlockName}` : ""
