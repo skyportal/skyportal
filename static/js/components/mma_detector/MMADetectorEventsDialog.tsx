@@ -1,12 +1,16 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 
+import Box from "@mui/material/Box";
+import Chip from "@mui/material/Chip";
 import Dialog from "@mui/material/Dialog";
 import DialogContent from "@mui/material/DialogContent";
 import DialogTitle from "@mui/material/DialogTitle";
+import MuiLink from "@mui/material/Link";
 import dayjs from "dayjs";
 
 import StyledDataGrid from "../StyledDataGrid";
+import { useGetConfigQuery } from "../../ducks/config";
 import { useGetGcnEventsQuery } from "../../ducks/gcnEvents";
 
 interface MMADetectorEventsDialogProps {
@@ -23,6 +27,7 @@ const MMADetectorEventsDialog = ({
     pageSize: 25,
   });
 
+  const tagColors = (useGetConfigQuery().data as any)?.gcnTagsClasses ?? {};
   const { data, isFetching } = useGetGcnEventsQuery({
     mmadetectorIds: `${mmadetector.id}`,
     numPerPage: paginationModel.pageSize,
@@ -40,23 +45,29 @@ const MMADetectorEventsDialog = ({
           autoHeight
           rows={(data as any)?.events ?? []}
           getRowId={(row: any) => row.dateobs}
+          getRowHeight={() => "auto"}
+          sx={{
+            "& .MuiDataGrid-cell": {
+              whiteSpace: "normal",
+              display: "flex",
+              alignItems: "center",
+            },
+          }}
           columns={[
             {
               field: "dateobs",
               headerName: "Event",
-              flex: 1,
-              minWidth: 170,
+              width: 180,
               renderCell: ({ row }: any) => (
-                <Link to={`/gcn_events/${row.dateobs}`}>
+                <MuiLink component={Link} to={`/gcn_events/${row.dateobs}`}>
                   {dayjs(row.dateobs).format("YYYY-MM-DD HH:mm:ss")}
-                </Link>
+                </MuiLink>
               ),
             },
             {
               field: "aliases",
               headerName: "Aliases",
-              flex: 1,
-              minWidth: 120,
+              width: 200,
               valueGetter: (value: any) => (value ?? []).join(", "),
             },
             {
@@ -65,6 +76,18 @@ const MMADetectorEventsDialog = ({
               flex: 1,
               minWidth: 120,
               valueGetter: (value: any) => (value ?? []).join(", "),
+              renderCell: ({ row }: any) => (
+                <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.5 }}>
+                  {[...new Set<string>(row.tags ?? [])].map((tag) => (
+                    <Chip
+                      key={tag}
+                      size="small"
+                      label={tag}
+                      sx={{ backgroundColor: tagColors[tag] ?? "#999999" }}
+                    />
+                  ))}
+                </Box>
+              ),
             },
           ]}
           loading={isFetching}

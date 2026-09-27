@@ -53,8 +53,8 @@ const STEPS: { title: string; open: (go: Go) => Promise<void> }[] = [
     title: "MMA detector events",
     open: async (go) => {
       go("/mmadetectors");
-      await waitFor(".MuiListItemButton-root");
-      click(".MuiListItemButton-root");
+      await waitFor('[aria-label^="show gcn events for"]');
+      click('[aria-label^="show gcn events for"]');
     },
   },
   {
