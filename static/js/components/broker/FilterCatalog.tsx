@@ -1,12 +1,12 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 
+import CheckIcon from "@mui/icons-material/Check";
 import DeleteIcon from "@mui/icons-material/Delete";
 import Box from "@mui/material/Box";
 import Button from "@mui/material/Button";
 import Chip from "@mui/material/Chip";
-import FormControl from "@mui/material/FormControl";
-import InputLabel from "@mui/material/InputLabel";
+import IconButton from "@mui/material/IconButton";
 import MuiLink from "@mui/material/Link";
 import MenuItem from "@mui/material/MenuItem";
 import Select from "@mui/material/Select";
@@ -17,6 +17,7 @@ import { showNotification } from "baselayer/components/Notifications";
 
 import {
   BrokerFilter,
+  FilterCatalogQuery,
   useAttachFilterToBrokerMutation,
   useGetBrokersQuery,
   useGetFilterCatalogQuery,
@@ -31,25 +32,25 @@ import ConfirmFilterDeletionDialog from "../filter/ConfirmFilterDeletionDialog";
 const FilterCatalog = ({ brokerId }: { brokerId?: number }) => {
   const [page, setPage] = useState(0);
   const [numPerPage, setNumPerPage] = useState(25);
-  const [name, setName] = useState("");
-  const [groupID, setGroupID] = useState<number | "">("");
-  const [streamID, setStreamID] = useState<number | "">("");
-  const [brokerID, setBrokerID] = useState<number | "" | "none">("");
+  const [query, setQuery] = useState<FilterCatalogQuery>({
+    name: "",
+    groupID: "",
+    streamID: "",
+    brokerID: "",
+  });
   const [targets, setTargets] = useState<Record<number, number>>({});
-  const [filterToDelete, setFilterToDelete] = useState<{
-    id: number;
-    name: string;
-  } | null>(null);
+  const [filterToDelete, setFilterToDelete] = useState<BrokerFilter | null>(
+    null,
+  );
 
   const { data, isFetching } = useGetFilterCatalogQuery({
+    ...query,
     pageNumber: page + 1,
     numPerPage,
-    name: name || undefined,
-    groupID,
-    streamID,
-    brokerID: brokerId ?? brokerID,
+    name: query.name || undefined,
+    brokerID: brokerId ?? query.brokerID,
   });
-  const { data: brokers } = useGetBrokersQuery();
+  const { data: brokers = [] } = useGetBrokersQuery();
   const { data: groups } = useGetGroupsQuery();
   const { data: streams } = useGetStreamsQuery();
   const [attachFilter] = useAttachFilterToBrokerMutation();
@@ -58,30 +59,18 @@ const FilterCatalog = ({ brokerId }: { brokerId?: number }) => {
 
   const groupList = groups?.userAccessible || [];
   const streamList = (streams as { id: number; name: string }[]) || [];
-  const brokerList = brokers || [];
+  const total = data?.totalMatches ?? 0;
   const brokerName = (id: number) =>
-    brokerList.find((b) => b.id === id)?.name ?? `broker ${id}`;
-  const groupName = (id: number) =>
-    groupList.find((g) => g.id === id)?.name ?? `group ${id}`;
-  const streamName = (id: number) =>
-    streamList.find((s) => s.id === id)?.name ?? `stream ${id}`;
-  const attachable = brokerList.filter(
-    (b) => b.active && b.filter_kind !== "none",
-  );
-  const hasPipeline = (f: { altdata?: Record<string, unknown> }) =>
-    Boolean((f.altdata as { boom?: unknown } | undefined)?.boom);
+    brokers.find((b) => b.id === id)?.name ?? `broker ${id}`;
 
-  const onFilterChange =
-    <T,>(setter: (v: T) => void) =>
-    (v: T) => {
-      setter(v);
-      setPage(0);
-    };
+  const updateQuery = (patch: FilterCatalogQuery) => {
+    setQuery({ ...query, ...patch });
+    setPage(0);
+  };
 
   const handleDeleteFilter = async () => {
-    if (!filterToDelete) return;
     try {
-      await deleteFilter({ filter_id: filterToDelete.id }).unwrap();
+      await deleteFilter({ filter_id: filterToDelete!.id }).unwrap();
       dispatch(showNotification("Deleted filter"));
     } catch {
       // error notification handled by the base query
@@ -107,7 +96,7 @@ const FilterCatalog = ({ brokerId }: { brokerId?: number }) => {
           ) : (
             f.name
           )}
-          {hasPipeline(f) && (
+          {Boolean(f.altdata?.["boom"]) && (
             <Chip
               size="small"
               label="pipeline"
@@ -126,7 +115,10 @@ const FilterCatalog = ({ brokerId }: { brokerId?: number }) => {
       renderCell: ({ row: f }: { row: BrokerFilter }) => (
         <Chip
           size="small"
-          label={groupName(f.group_id)}
+          label={
+            groupList.find((g) => g.id === f.group_id)?.name ??
+            `group ${f.group_id}`
+          }
           component={Link}
           to={`/group/${f.group_id}`}
           clickable
@@ -138,7 +130,8 @@ const FilterCatalog = ({ brokerId }: { brokerId?: number }) => {
       headerName: "Stream",
       flex: 1,
       minWidth: 140,
-      valueGetter: (value: number) => streamName(value),
+      valueGetter: (value: number) =>
+        streamList.find((s) => s.id === value)?.name ?? `stream ${value}`,
     },
     ...(brokerId
       ? []
@@ -147,9 +140,51 @@ const FilterCatalog = ({ brokerId }: { brokerId?: number }) => {
             field: "broker_id",
             headerName: "Broker",
             flex: 1,
-            minWidth: 140,
-            valueGetter: (value: number | null) =>
-              value ? brokerName(value) : "—",
+            minWidth: 290,
+            renderCell: ({ row: f }: { row: BrokerFilter }) =>
+              f.broker_id ? (
+                brokerName(f.broker_id)
+              ) : (
+                <Box sx={{ display: "flex", gap: 1, alignItems: "center" }}>
+                  <Select
+                    size="small"
+                    displayEmpty
+                    value={targets[f.id] ?? ""}
+                    renderValue={(value) =>
+                      value ? (
+                        brokerName(value)
+                      ) : (
+                        <Box component="span" sx={{ color: "text.secondary" }}>
+                          Attach broker
+                        </Box>
+                      )
+                    }
+                    onKeyDown={(e) => e.stopPropagation()}
+                    onChange={(e) =>
+                      setTargets({ ...targets, [f.id]: Number(e.target.value) })
+                    }
+                    sx={{ minWidth: 180 }}
+                  >
+                    {brokers
+                      .filter((b) => b.active && b.filter_kind !== "none")
+                      .map((b) => (
+                        <MenuItem key={b.id} value={b.id}>
+                          {b.name}
+                        </MenuItem>
+                      ))}
+                  </Select>
+                  <IconButton
+                    aria-label="Attach"
+                    color="success"
+                    disabled={!targets[f.id]}
+                    onClick={() =>
+                      attachFilter({ filterId: f.id, brokerId: targets[f.id]! })
+                    }
+                  >
+                    <CheckIcon />
+                  </IconButton>
+                </Box>
+              ),
           },
         ]),
     {
@@ -157,72 +192,22 @@ const FilterCatalog = ({ brokerId }: { brokerId?: number }) => {
       headerName: "Actions",
       align: "right",
       headerAlign: "right",
-      minWidth: 320,
-      renderCell: ({ row: f }: { row: BrokerFilter }) => (
-        <Box
-          sx={{
-            display: "flex",
-            gap: 1,
-            justifyContent: "flex-end",
-            alignItems: "center",
-          }}
-        >
-          {!brokerId && !f.broker_id && (
-            <>
-              <FormControl size="small" sx={{ minWidth: 180 }}>
-                <InputLabel id={`attach-broker-${f.id}`}>Broker</InputLabel>
-                <Select
-                  labelId={`attach-broker-${f.id}`}
-                  label="Broker"
-                  value={targets[f.id] ?? ""}
-                  onChange={(e) =>
-                    setTargets({
-                      ...targets,
-                      [f.id]: e.target.value as number,
-                    })
-                  }
-                >
-                  {attachable.map((b) => (
-                    <MenuItem key={b.id} value={b.id}>
-                      {b.name}
-                    </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
-              <Button
-                variant="contained"
-                size="small"
-                disabled={!targets[f.id]}
-                onClick={() => {
-                  const target = targets[f.id];
-                  if (target)
-                    attachFilter({
-                      filterId: f.id,
-                      brokerId: target,
-                    });
-                }}
-              >
-                Attach
-              </Button>
-            </>
-          )}
-          {f.group_admin && (
-            <Tooltip title={`Delete filter "${f.name}"`} placement={"left"}>
-              <Button
-                color="error"
-                onClick={() => setFilterToDelete({ id: f.id, name: f.name })}
-              >
-                <DeleteIcon />
-              </Button>
-            </Tooltip>
-          )}
-        </Box>
-      ),
+      width: 100,
+      renderCell: ({ row: f }: { row: BrokerFilter }) =>
+        f.group_admin && (
+          <Tooltip title={`Delete filter "${f.name}"`} placement="left">
+            <Button color="error" onClick={() => setFilterToDelete(f)}>
+              <DeleteIcon />
+            </Button>
+          </Tooltip>
+        ),
     },
   ];
 
   return (
-    <Box>
+    <Box
+      sx={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0 }}
+    >
       <Box
         sx={{
           display: "flex",
@@ -236,85 +221,79 @@ const FilterCatalog = ({ brokerId }: { brokerId?: number }) => {
           size="small"
           label="Name"
           placeholder="Search"
-          value={name}
-          onChange={(e) => onFilterChange(setName)(e.target.value)}
+          value={query.name}
+          onChange={(e) => updateQuery({ name: e.target.value })}
         />
-        <FormControl size="small" sx={{ minWidth: 160 }}>
-          <InputLabel id="filter-catalog-group">Group</InputLabel>
-          <Select
-            labelId="filter-catalog-group"
-            label="Group"
-            value={groupID}
+        <TextField
+          select
+          size="small"
+          label="Group"
+          value={query.groupID}
+          onChange={(e) =>
+            updateQuery({ groupID: e.target.value as number | "" })
+          }
+          sx={{ minWidth: 160 }}
+        >
+          <MenuItem value="">All groups</MenuItem>
+          {groupList.map((g) => (
+            <MenuItem key={g.id} value={g.id}>
+              {g.name}
+            </MenuItem>
+          ))}
+        </TextField>
+        <TextField
+          select
+          size="small"
+          label="Stream"
+          value={query.streamID}
+          onChange={(e) =>
+            updateQuery({ streamID: e.target.value as number | "" })
+          }
+          sx={{ minWidth: 160 }}
+        >
+          <MenuItem value="">All streams</MenuItem>
+          {streamList.map((s) => (
+            <MenuItem key={s.id} value={s.id}>
+              {s.name}
+            </MenuItem>
+          ))}
+        </TextField>
+        {!brokerId && (
+          <TextField
+            select
+            size="small"
+            label="Broker"
+            value={query.brokerID}
             onChange={(e) =>
-              onFilterChange(setGroupID)(e.target.value as number | "")
+              updateQuery({ brokerID: e.target.value as number | "none" })
             }
+            sx={{ minWidth: 160 }}
           >
-            <MenuItem value="">All groups</MenuItem>
-            {groupList.map((g) => (
-              <MenuItem key={g.id} value={g.id}>
-                {g.name}
+            <MenuItem value="">All brokers</MenuItem>
+            {brokers.map((b) => (
+              <MenuItem key={b.id} value={b.id}>
+                {b.name}
               </MenuItem>
             ))}
-          </Select>
-        </FormControl>
-        <FormControl size="small" sx={{ minWidth: 160 }}>
-          <InputLabel id="filter-catalog-stream">Stream</InputLabel>
-          <Select
-            labelId="filter-catalog-stream"
-            label="Stream"
-            value={streamID}
-            onChange={(e) =>
-              onFilterChange(setStreamID)(e.target.value as number | "")
-            }
-          >
-            <MenuItem value="">All streams</MenuItem>
-            {streamList.map((s) => (
-              <MenuItem key={s.id} value={s.id}>
-                {s.name}
-              </MenuItem>
-            ))}
-          </Select>
-        </FormControl>
-        {brokerId ? null : (
-          <FormControl size="small" sx={{ minWidth: 160 }}>
-            <InputLabel id="filter-catalog-broker">Broker</InputLabel>
-            <Select
-              labelId="filter-catalog-broker"
-              label="Broker"
-              value={brokerID}
-              onChange={(e) =>
-                onFilterChange(setBrokerID)(
-                  e.target.value as number | "" | "none",
-                )
-              }
-            >
-              <MenuItem value="">All brokers</MenuItem>
-              {brokerList.map((b) => (
-                <MenuItem key={b.id} value={b.id}>
-                  {b.name}
-                </MenuItem>
-              ))}
-              <MenuItem value="none">No broker</MenuItem>
-            </Select>
-          </FormControl>
+            <MenuItem value="none">No broker</MenuItem>
+          </TextField>
         )}
         <Typography variant="body2" color="text.secondary">
-          {`${data?.totalMatches ?? 0} filter${
-            (data?.totalMatches ?? 0) === 1 ? "" : "s"
-          }`}
+          {`${total} filter${total === 1 ? "" : "s"}`}
         </Typography>
       </Box>
 
       <StyledDataGrid
-        autoHeight
+        autoHeight={Boolean(brokerId)}
         rows={data?.filters || []}
         columns={columns}
         loading={isFetching}
         localeText={{ noRowsLabel: "No filter matches this search." }}
         disableColumnSorting
         disableColumnMenu
+        sx={{ flex: 1, minHeight: 0 }}
         paginationMode="server"
-        rowCount={data?.totalMatches ?? 0}
+        rowCount={total}
         paginationModel={{ page, pageSize: numPerPage }}
         onPaginationModelChange={(model: {
           page: number;

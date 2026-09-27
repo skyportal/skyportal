@@ -189,113 +189,121 @@ const GroupFiltersStreams = ({
       <Typography variant="h6">Streams and filters</Typography>
       <Paper sx={{ mb: 1 }}>
         <List component="nav">
-          {group.streams?.map((stream: any) => (
-            <Fragment key={stream.id}>
-              <ListItem
-                secondaryAction={
-                  isAdmin(currentUser) && (
-                    <Tooltip
-                      title={`Add filter to stream "${stream.name}"`}
-                      placement={"left"}
-                    >
-                      <IconButton
-                        edge="end"
-                        aria-label="add filter"
-                        onClick={() => handleAddFilterDialogOpen(stream)}
+          {group.streams?.length ? (
+            group.streams.map((stream: any) => (
+              <Fragment key={stream.id}>
+                <ListItem
+                  secondaryAction={
+                    isAdmin(currentUser) && (
+                      <Tooltip
+                        title={`Add filter to stream "${stream.name}"`}
+                        placement={"left"}
                       >
-                        <AddIcon />
-                      </IconButton>
-                    </Tooltip>
-                  )
-                }
-              >
-                <ListItemText primary={stream.name} />
-              </ListItem>
-              <List disablePadding>
-                {(filtersByStreamId[stream.id] ?? []).map((filter: any) =>
-                  editingFilterId === filter.id ? (
-                    <ListItem key={filter.id} sx={{ pl: 2 }}>
-                      <TextField
-                        value={editNameInput}
-                        onChange={(e: any) => setEditNameInput(e.target.value)}
-                        size="small"
-                        variant="outlined"
-                        slotProps={{
-                          htmlInput: { "data-testid": "filter-name-input" },
-                        }}
-                        onKeyDown={(e: any) => {
-                          if (e.key === "Enter") handleSaveRename();
-                          if (e.key === "Escape") handleCancelRename();
-                        }}
-                        autoFocus
-                      />
-                      <ListItemSecondaryAction>
                         <IconButton
-                          size="small"
-                          onClick={handleSaveRename}
-                          aria-label="save filter name"
-                          data-testid="save-filter-name-button"
+                          edge="end"
+                          aria-label="add filter"
+                          onClick={() => handleAddFilterDialogOpen(stream)}
                         >
-                          <CheckIcon fontSize="small" />
+                          <AddIcon />
                         </IconButton>
-                        <IconButton
+                      </Tooltip>
+                    )
+                  }
+                >
+                  <ListItemText primary={stream.name} />
+                </ListItem>
+                <List disablePadding>
+                  {(filtersByStreamId[stream.id] ?? []).map((filter: any) =>
+                    editingFilterId === filter.id ? (
+                      <ListItem key={filter.id} sx={{ pl: 2 }}>
+                        <TextField
+                          value={editNameInput}
+                          onChange={(e: any) =>
+                            setEditNameInput(e.target.value)
+                          }
                           size="small"
-                          onClick={handleCancelRename}
-                          aria-label="cancel filter rename"
-                        >
-                          <CloseIcon fontSize="small" />
-                        </IconButton>
-                      </ListItemSecondaryAction>
-                    </ListItem>
-                  ) : (
-                    <ListItemButton
-                      key={filter.id}
-                      component={Link}
-                      to={`/filter/${filter.id}`}
-                    >
-                      <ListItemText sx={{ pl: 2 }} primary={filter.name} />
-                      {isAdmin(currentUser) && (
+                          variant="outlined"
+                          slotProps={{
+                            htmlInput: { "data-testid": "filter-name-input" },
+                          }}
+                          onKeyDown={(e: any) => {
+                            if (e.key === "Enter") handleSaveRename();
+                            if (e.key === "Escape") handleCancelRename();
+                          }}
+                          autoFocus
+                        />
                         <ListItemSecondaryAction>
-                          <Tooltip
-                            title={`Rename filter "${filter.name}"`}
-                            placement={"left"}
+                          <IconButton
+                            size="small"
+                            onClick={handleSaveRename}
+                            aria-label="save filter name"
+                            data-testid="save-filter-name-button"
                           >
-                            <IconButton
-                              onClick={(e: any) => {
-                                e.preventDefault();
-                                e.stopPropagation();
-                                handleStartRename(filter);
-                              }}
-                              aria-label="rename filter"
-                              data-testid={`rename-filter-${filter.id}`}
-                            >
-                              <EditIcon />
-                            </IconButton>
-                          </Tooltip>
-                          <Tooltip
-                            title={`Delete filter "${filter.name}"`}
-                            placement={"left"}
+                            <CheckIcon fontSize="small" />
+                          </IconButton>
+                          <IconButton
+                            size="small"
+                            onClick={handleCancelRename}
+                            aria-label="cancel filter rename"
                           >
-                            <Button
-                              onClick={(e: any) => {
-                                e.preventDefault();
-                                e.stopPropagation();
-                                setFilterToDelete(filter);
-                              }}
-                              color="error"
-                              aria-label="delete filter"
-                            >
-                              <DeleteIcon />
-                            </Button>
-                          </Tooltip>
+                            <CloseIcon fontSize="small" />
+                          </IconButton>
                         </ListItemSecondaryAction>
-                      )}
-                    </ListItemButton>
-                  ),
-                )}
-              </List>
-            </Fragment>
-          ))}
+                      </ListItem>
+                    ) : (
+                      <ListItemButton
+                        key={filter.id}
+                        component={Link}
+                        to={`/filter/${filter.id}`}
+                      >
+                        <ListItemText sx={{ pl: 2 }} primary={filter.name} />
+                        {isAdmin(currentUser) && (
+                          <ListItemSecondaryAction>
+                            <Tooltip
+                              title={`Rename filter "${filter.name}"`}
+                              placement={"left"}
+                            >
+                              <IconButton
+                                onClick={(e: any) => {
+                                  e.preventDefault();
+                                  e.stopPropagation();
+                                  handleStartRename(filter);
+                                }}
+                                aria-label="rename filter"
+                                data-testid={`rename-filter-${filter.id}`}
+                              >
+                                <EditIcon />
+                              </IconButton>
+                            </Tooltip>
+                            <Tooltip
+                              title={`Delete filter "${filter.name}"`}
+                              placement={"left"}
+                            >
+                              <Button
+                                onClick={(e: any) => {
+                                  e.preventDefault();
+                                  e.stopPropagation();
+                                  setFilterToDelete(filter);
+                                }}
+                                color="error"
+                                aria-label="delete filter"
+                              >
+                                <DeleteIcon />
+                              </Button>
+                            </Tooltip>
+                          </ListItemSecondaryAction>
+                        )}
+                      </ListItemButton>
+                    ),
+                  )}
+                </List>
+              </Fragment>
+            ))
+          ) : (
+            <ListItem>
+              <ListItemText secondary="No streams available for this group." />
+            </ListItem>
+          )}
         </List>
       </Paper>
       {currentUser.permissions.includes("System admin") && (

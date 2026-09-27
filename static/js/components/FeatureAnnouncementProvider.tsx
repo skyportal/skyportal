@@ -4,6 +4,7 @@ import { EVENTS, useJoyride } from "react-joyride";
 import type { Step } from "react-joyride";
 
 import { FEATURE_ANNOUNCEMENTS } from "./FeatureAnnouncements";
+import DataGridReview from "./DataGridReview";
 import { useTourStyles } from "./tourStyles";
 import {
   useGetProfileQuery,
@@ -110,7 +111,12 @@ const FeatureAnnouncementProvider = () => {
     [on, updatePreferences],
   );
 
-  return <>{Tour}</>;
+  return (
+    <>
+      {Tour}
+      <DataGridReview />
+    </>
+  );
 };
 
 export default FeatureAnnouncementProvider;

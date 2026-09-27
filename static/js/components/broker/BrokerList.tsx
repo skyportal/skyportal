@@ -16,18 +16,14 @@ import Dialog from "@mui/material/Dialog";
 import DialogActions from "@mui/material/DialogActions";
 import DialogContent from "@mui/material/DialogContent";
 import DialogTitle from "@mui/material/DialogTitle";
-import FormControl from "@mui/material/FormControl";
 import IconButton from "@mui/material/IconButton";
-import InputLabel from "@mui/material/InputLabel";
 import MenuItem from "@mui/material/MenuItem";
 import Radio from "@mui/material/Radio";
-import Select from "@mui/material/Select";
 import Switch from "@mui/material/Switch";
 import Tab from "@mui/material/Tab";
 import Tabs from "@mui/material/Tabs";
 import TextField from "@mui/material/TextField";
 import Tooltip from "@mui/material/Tooltip";
-import Typography from "@mui/material/Typography";
 
 import {
   Broker,
@@ -40,6 +36,7 @@ import {
 import { useGetProfileQuery } from "../../ducks/profile";
 import StyledDataGrid from "../StyledDataGrid";
 import FilterCatalog from "./FilterCatalog";
+import NewBrokerFilterDialog from "./NewBrokerFilterDialog";
 
 const Form = withTheme(MuiTheme);
 
@@ -52,10 +49,6 @@ const capabilityChips = (caps: Record<string, boolean>) =>
       on: Boolean(caps?.["filter_modules"] || caps?.["test_filter"]),
     },
   ].filter((c) => c.on);
-
-const brokerLink = (id: number) => `/brokers/${id}`;
-
-const TABS = ["Brokers", "Filters"];
 
 const NEW_BROKER_FORM_ID = "new-broker-form";
 
@@ -113,15 +106,13 @@ const defaultBlockedReason = (
   toggle: (typeof DEFAULT_TOGGLES)[number],
   isSystemAdmin: boolean,
 ) => {
-  const clearing = Boolean(b[toggle.field]);
   if (!isSystemAdmin) return "Only system admins can change the defaults.";
-  if (clearing) return "";
+  if (b[toggle.field]) return "";
   if (!b.capabilities?.[toggle.capability]) return toggle.unsupported;
   if (!b.active) return "Activate this broker to make it the default.";
   return "";
 };
 
-// Admin view for every broker, distinct from the alert search page.
 const BrokerList = () => {
   const navigate = useNavigate();
   const { data: brokers, isLoading } = useGetBrokersQuery();
@@ -139,25 +130,15 @@ const BrokerList = () => {
   const [pendingDefaults, setPendingDefaults] = useState<string[]>([]);
   const [tab, setTab] = useState(0);
   const [addOpen, setAddOpen] = useState(false);
+  const [newFilterOpen, setNewFilterOpen] = useState(false);
   const [editing, setEditing] = useState<Broker | null>(null);
-  const classNames = Object.keys(apis || {});
   const schema = newClass ? apis?.[newClass]?.formSchemaConfig : null;
-  const uiSchema = newClass ? apis?.[newClass]?.uiSchema : null;
-  const dialogSchema = editing ? optionalSchema(schema) : schema;
 
-  const openCreate = () => {
-    setEditing(null);
-    setNewName("");
-    setNewClass("");
-    setFormData({});
-    setAddOpen(true);
-  };
-
-  const openEdit = (broker: Broker) => {
+  const openDialog = (broker: Broker | null) => {
     setEditing(broker);
-    setNewName(broker.name);
-    setNewClass(broker.broker_classname);
-    setFormData((broker.altdata as Record<string, unknown>) ?? {});
+    setNewName(broker?.name ?? "");
+    setNewClass(broker?.broker_classname ?? "");
+    setFormData(broker?.altdata ?? {});
     setAddOpen(true);
   };
 
@@ -173,13 +154,7 @@ const BrokerList = () => {
           broker_classname: newClass,
           altdata: formData,
         });
-    if ("data" in res) {
-      setNewName("");
-      setNewClass("");
-      setFormData({});
-      setEditing(null);
-      setAddOpen(false);
-    }
+    if ("data" in res) setAddOpen(false);
   };
 
   const columns: any[] = [
@@ -285,7 +260,7 @@ const BrokerList = () => {
             <IconButton
               size="small"
               aria-label="edit broker"
-              onClick={() => openEdit(row)}
+              onClick={() => openDialog(row)}
             >
               <EditIcon fontSize="small" />
             </IconButton>
@@ -302,42 +277,43 @@ const BrokerList = () => {
   ];
 
   return (
-    <Box sx={{ p: 2 }}>
+    <Box
+      sx={{
+        height: "calc(100vh - 5.25rem)",
+        display: "flex",
+        flexDirection: "column",
+      }}
+    >
       <Box
         sx={{
           display: "flex",
           alignItems: "center",
           justifyContent: "space-between",
-          gap: 1,
-          mb: 1,
+          borderBottom: 1,
+          borderColor: "divider",
+          mb: 2,
         }}
       >
-        <Typography variant="h5">Brokers</Typography>
-        {isSystemAdmin && (
+        <Tabs value={tab} onChange={(_event, value) => setTab(value)}>
+          <Tab label="Brokers" />
+          <Tab label="Filters" />
+        </Tabs>
+        {(tab === 1 || isSystemAdmin) && (
           <Button
             variant="contained"
             size="small"
             startIcon={<AddIcon />}
-            onClick={openCreate}
+            onClick={() =>
+              tab === 0 ? openDialog(null) : setNewFilterOpen(true)
+            }
           >
-            Add a broker
+            {tab === 0 ? "Broker" : "Filter"}
           </Button>
         )}
       </Box>
 
-      <Tabs
-        sx={{ borderBottom: 1, borderColor: "divider", mb: 2 }}
-        value={tab}
-        onChange={(_event, value) => setTab(value)}
-      >
-        {TABS.map((label) => (
-          <Tab key={label} label={label} />
-        ))}
-      </Tabs>
-
       {tab === 0 && (
         <StyledDataGrid
-          autoHeight
           rows={brokers || []}
           columns={columns}
           loading={isLoading}
@@ -351,14 +327,23 @@ const BrokerList = () => {
                 field,
               )
             )
-              navigate(brokerLink(row.id));
+              navigate(`/brokers/${row.id}`);
           }}
-          sx={{ mb: 3, "& .MuiDataGrid-row": { cursor: "pointer" } }}
+          sx={{
+            flex: 1,
+            minHeight: 0,
+            "& .MuiDataGrid-row": { cursor: "pointer" },
+          }}
           data-testid="tour-brokers-list"
         />
       )}
 
       {tab === 1 && <FilterCatalog />}
+
+      <NewBrokerFilterDialog
+        open={newFilterOpen}
+        onClose={() => setNewFilterOpen(false)}
+      />
 
       <Dialog
         open={addOpen}
@@ -377,39 +362,38 @@ const BrokerList = () => {
               value={newName}
               onChange={(e) => setNewName(e.target.value)}
             />
-            <FormControl size="small" sx={{ minWidth: 220 }}>
-              <InputLabel id="new-broker-class">Provider</InputLabel>
-              <Select
-                labelId="new-broker-class"
-                label="Provider"
-                value={newClass}
-                disabled={Boolean(editing)}
-                onChange={(e) => {
-                  setNewClass(e.target.value);
-                  setFormData({});
-                }}
-              >
-                {classNames.map((c) => (
-                  <MenuItem key={c} value={c}>
-                    {c}
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
+            <TextField
+              select
+              size="small"
+              label="Provider"
+              value={newClass}
+              disabled={Boolean(editing)}
+              onChange={(e) => {
+                setNewClass(e.target.value);
+                setFormData({});
+              }}
+              sx={{ minWidth: 220 }}
+            >
+              {Object.keys(apis || {}).map((c) => (
+                <MenuItem key={c} value={c}>
+                  {c}
+                </MenuItem>
+              ))}
+            </TextField>
           </Box>
-          {schema ? (
+          {schema && (
             <Form
               id={NEW_BROKER_FORM_ID}
-              schema={dialogSchema as Record<string, unknown>}
-              uiSchema={(uiSchema || {}) as Record<string, unknown>}
+              schema={editing ? optionalSchema(schema) : schema}
+              uiSchema={apis?.[newClass]?.uiSchema || {}}
               formData={formData}
               validator={validator}
               onChange={(e) => setFormData(e.formData)}
-              onSubmit={() => onSubmit()}
+              onSubmit={onSubmit}
             >
               <></>
             </Form>
-          ) : null}
+          )}
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setAddOpen(false)}>Cancel</Button>
@@ -418,7 +402,7 @@ const BrokerList = () => {
             disabled={!newName || !newClass}
             {...(schema
               ? ({ type: "submit", form: NEW_BROKER_FORM_ID } as const)
-              : { onClick: () => onSubmit() })}
+              : { onClick: onSubmit })}
           >
             {editing ? "Save changes" : "Create broker"}
           </Button>
