@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Button, Typography } from "@mui/material";
+import { Button, Tooltip, Typography } from "@mui/material";
 import SaveIcon from "@mui/icons-material/Save";
 
 interface SaveBlockComponentProps {
@@ -94,18 +94,20 @@ const SaveBlockComponent = ({
     <>
       {/* Save Block Button (always right-aligned) */}
       {!isCustomBlock || !isCollapsed ? (
-        <Button
-          size="medium"
-          startIcon={<SaveIcon />}
-          variant="outlined"
-          onClick={handleSaveBlock}
-          sx={{
-            minHeight: 40, // Match the typical height of a small Select component
-            px: 2, // Add some horizontal padding to match Select width better
-          }}
+        <Tooltip
+          describeChild
+          title="Save this block as a reusable custom block, to insert in any filter from Add. It does not save the filter."
         >
-          Save Block
-        </Button>
+          <Button
+            size="medium"
+            startIcon={<SaveIcon />}
+            variant="outlined"
+            onClick={handleSaveBlock}
+            sx={{ minHeight: 40, px: 2 }}
+          >
+            Save Block
+          </Button>
+        </Tooltip>
       ) : null}
       {localSaveError && (
         <Typography
