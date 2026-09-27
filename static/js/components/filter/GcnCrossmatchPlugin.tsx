@@ -1,15 +1,14 @@
 import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 
-import Accordion from "@mui/material/Accordion";
-import AccordionDetails from "@mui/material/AccordionDetails";
-import AccordionSummary from "@mui/material/AccordionSummary";
+import Box from "@mui/material/Box";
 import Chip from "@mui/material/Chip";
-import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import FormControlLabel from "@mui/material/FormControlLabel";
+import Paper from "@mui/material/Paper";
 import Stack from "@mui/material/Stack";
 import Switch from "@mui/material/Switch";
 import TextField from "@mui/material/TextField";
+import Tooltip from "@mui/material/Tooltip";
 import Typography from "@mui/material/Typography";
 
 import Button from "../Button";
@@ -104,74 +103,75 @@ const GcnCrossmatchPlugin = () => {
   };
 
   return (
-    <Accordion>
-      <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-        <Typography sx={{ fontWeight: 500 }}>GCN crossmatch</Typography>
-        {stored?.enabled && (
-          <Chip size="small" color="primary" label="on" sx={{ ml: 1 }} />
-        )}
-      </AccordionSummary>
-      <AccordionDetails>
-        <Typography variant="body2" sx={{ color: "text.secondary", mb: 1 }}>
-          Search this filter&apos;s broker for alerts inside the localization of
-          each recent GCN event, and raise what lands there as candidates for
-          this filter&apos;s group.
-        </Typography>
-        <Stack spacing={2}>
-          <FormControlLabel
-            control={
-              <Switch
-                checked={enabled}
-                onChange={(event) => {
-                  setEnabled(event.target.checked);
-                  setSaved(false);
-                }}
-                slotProps={{
-                  input: { "aria-label": "enable gcn crossmatch" },
-                }}
-              />
-            }
-            label="Crossmatch GCN events with this filter"
-          />
+    <Paper variant="outlined" sx={{ p: 2 }}>
+      <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+        <Typography variant="h6">GCN crossmatch</Typography>
+        {stored?.enabled && <Chip size="small" color="primary" label="on" />}
+      </Box>
+      <Typography variant="body2" sx={{ color: "text.secondary", mb: 1 }}>
+        Search this filter&apos;s broker for alerts inside the localization of
+        each recent GCN event, and raise what lands there as candidates for this
+        filter&apos;s group.
+      </Typography>
+      <Stack spacing={2}>
+        <FormControlLabel
+          control={
+            <Switch
+              checked={enabled}
+              onChange={(event) => {
+                setEnabled(event.target.checked);
+                setSaved(false);
+              }}
+              slotProps={{
+                input: { "aria-label": "enable gcn crossmatch" },
+              }}
+            />
+          }
+          label="Crossmatch GCN events with this filter"
+        />
+        <TextField
+          size="small"
+          label="Only events tagged (comma separated)"
+          helperText="Leave blank for every event, e.g. Einstein Probe, GRB"
+          value={tags}
+          onChange={(event) => {
+            setTags(event.target.value);
+            setSaved(false);
+          }}
+        />
+        {SETTINGS.map(({ key, label, help }) => (
           <TextField
+            key={key}
             size="small"
-            label="Only events tagged (comma separated)"
-            helperText="Leave blank for every event, e.g. Einstein Probe, GRB"
-            value={tags}
+            label={label}
+            helperText={`${help} — blank inherits the default`}
+            value={values[key] ?? ""}
             onChange={(event) => {
-              setTags(event.target.value);
+              setValues({ ...values, [key]: event.target.value });
               setSaved(false);
             }}
           />
-          {SETTINGS.map(({ key, label, help }) => (
-            <TextField
-              key={key}
-              size="small"
-              label={label}
-              helperText={`${help} — blank inherits the default`}
-              value={values[key] ?? ""}
-              onChange={(event) => {
-                setValues({ ...values, [key]: event.target.value });
-                setSaved(false);
-              }}
-            />
-          ))}
-          <div>
+        ))}
+        <div>
+          <Tooltip
+            describeChild
+            title="Save these crossmatch settings. They are stored on the filter, apart from its versions, and apply whichever version is active."
+          >
             <Button primary onClick={handleSave} name="saveGcnCrossmatch">
               Save
             </Button>
-            {saved && (
-              <Typography
-                variant="body2"
-                sx={{ color: "text.secondary", display: "inline", ml: 1 }}
-              >
-                Saved
-              </Typography>
-            )}
-          </div>
-        </Stack>
-      </AccordionDetails>
-    </Accordion>
+          </Tooltip>
+          {saved && (
+            <Typography
+              variant="body2"
+              sx={{ color: "text.secondary", display: "inline", ml: 1 }}
+            >
+              Saved
+            </Typography>
+          )}
+        </div>
+      </Stack>
+    </Paper>
   );
 };
 

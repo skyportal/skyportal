@@ -36,7 +36,7 @@ const AssistantHint = () => {
           Open assistant
         </Button>
       }
-      sx={{ mb: 2, border: 1, borderColor: "divider" }}
+      sx={{ border: 1, borderColor: "divider" }}
     >
       The assistant knows which filter you are on and can read it. Ask it to
       explain, fix or extend this filter. We recommend using it when writing or
@@ -63,7 +63,7 @@ const BrokerFilterPage = () => {
 
   if (broker?.broker_classname === "LASAIRBROKER") {
     return (
-      <Box sx={{ p: 2 }}>
+      <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
         <AssistantHint />
         <LasairFilterEditor broker={broker} filterId={fid} />
         <GcnCrossmatchPlugin />
@@ -72,11 +72,10 @@ const BrokerFilterPage = () => {
   }
 
   return (
-    <>
+    <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
       <AssistantHint />
       <BoomFilterPlugins />
-      <GcnCrossmatchPlugin />
-    </>
+    </Box>
   );
 };
 

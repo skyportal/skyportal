@@ -41,12 +41,7 @@ const FilterPlugins = () => {
 
   // Set synchronously, before BoomFilterPlugins' mount effects read it.
   setBrokerFilterTarget(brokerId);
-  return (
-    <>
-      <BoomFilterPlugins />
-      <GcnCrossmatchPlugin />
-    </>
-  );
+  return <BoomFilterPlugins />;
 };
 
 export default FilterPlugins;
