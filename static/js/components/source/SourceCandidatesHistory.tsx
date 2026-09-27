@@ -1,4 +1,7 @@
 import { useState } from "react";
+import { Link } from "react-router-dom";
+import Chip from "@mui/material/Chip";
+import MuiLink from "@mui/material/Link";
 import HistoryIcon from "@mui/icons-material/History";
 import Dialog from "@mui/material/Dialog";
 import DialogContent from "@mui/material/DialogContent";
@@ -7,6 +10,7 @@ import Tooltip from "@mui/material/Tooltip";
 import Typography from "@mui/material/Typography";
 import TextField from "@mui/material/TextField";
 import Search from "@mui/icons-material/Search";
+import dayjs from "dayjs";
 
 import { useGetGroupsQuery } from "../../ducks/groups";
 import { useGetStreamsQuery } from "../../ducks/streams";
@@ -18,6 +22,8 @@ interface CandidateHistoryItem {
   passed_at?: string;
   passed_at_utc?: string;
   filter?: {
+    id?: number;
+    broker_id?: number | null;
     name?: string;
     group_id?: number;
     stream_id?: number;
@@ -96,13 +102,32 @@ const SourceCandidatesHistory = ({
                 headerName: "Candidate ID",
                 flex: 1,
               },
-              { field: "passed_at", headerName: "Passed at (UTC)", flex: 1 },
+              {
+                field: "passed_at",
+                headerName: "Passed at (UTC)",
+                width: 180,
+                valueFormatter: (value: string) =>
+                  dayjs(value).format("YYYY-MM-DD HH:mm:ss"),
+              },
               {
                 field: "filter",
                 headerName: "Filter",
                 flex: 1,
                 valueGetter: (_value: any, row: CandidateHistoryItem) =>
                   row.filter?.name,
+                renderCell: ({ value, row }: any) =>
+                  row.filter && (
+                    <MuiLink
+                      component={Link}
+                      to={
+                        row.filter.broker_id
+                          ? `/brokers/${row.filter.broker_id}/filter/${row.filter.id}`
+                          : `/filter/${row.filter.id}`
+                      }
+                    >
+                      {value}
+                    </MuiLink>
+                  ),
               },
               {
                 field: "group",
@@ -112,6 +137,18 @@ const SourceCandidatesHistory = ({
                   userAccessible.find(
                     (group: any) => group.id === row.filter?.group_id,
                   )?.name || "N/A",
+                renderCell: ({ value, row }: any) =>
+                  row.filter?.group_id ? (
+                    <Chip
+                      size="small"
+                      label={value}
+                      component={Link}
+                      to={`/group/${row.filter.group_id}`}
+                      clickable
+                    />
+                  ) : (
+                    value
+                  ),
               },
               {
                 field: "stream",

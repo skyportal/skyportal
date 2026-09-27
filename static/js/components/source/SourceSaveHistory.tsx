@@ -1,4 +1,6 @@
 import { useState } from "react";
+import { Link } from "react-router-dom";
+import Chip from "@mui/material/Chip";
 import HistoryIcon from "@mui/icons-material/History";
 import Box from "@mui/material/Box";
 import Dialog from "@mui/material/Dialog";
@@ -41,13 +43,36 @@ const SourceSaveHistory = ({ groups }: SourceSaveHistoryProps) => {
             autoHeight
             rows={groups ?? []}
             columns={[
-              { field: "name", headerName: "Group Name", flex: 1 },
+              {
+                field: "name",
+                headerName: "Group Name",
+                flex: 1,
+                renderCell: ({ row }: { row: Group }) => (
+                  <Chip
+                    size="small"
+                    label={row.name}
+                    component={Link}
+                    to={`/group/${row.id}`}
+                    clickable
+                  />
+                ),
+              },
               {
                 field: "saved_by",
                 headerName: "Saved By",
                 flex: 1,
                 valueGetter: (_value: any, row: Group) =>
                   row.saved_by?.username,
+                renderCell: ({ value, row }: any) =>
+                  value && (
+                    <Chip
+                      size="small"
+                      label={value}
+                      component={Link}
+                      to={`/user/${row.saved_by.id}`}
+                      clickable
+                    />
+                  ),
               },
               {
                 field: "saved_at",

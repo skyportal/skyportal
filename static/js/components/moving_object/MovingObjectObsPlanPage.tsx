@@ -4,6 +4,7 @@ import Grid from "@mui/material/Grid";
 import { makeStyles } from "tss-react/mui";
 import Form from "@rjsf/mui";
 import validator from "@rjsf/validator-ajv8";
+import dayjs from "dayjs";
 import { showNotification } from "baselayer/components/Notifications";
 import TextLoop from "react-text-loop";
 import Dialog from "@mui/material/Dialog";
@@ -55,9 +56,10 @@ const PlaceHolder = () => {
 const COLUMNS = [
   {
     field: "start_time",
-    headerName: "Start Time",
-    flex: 1.5,
-    minWidth: 180,
+    headerName: "Start Time (UTC)",
+    width: 180,
+    valueFormatter: (value: string) =>
+      dayjs(value).format("YYYY-MM-DD HH:mm:ss"),
   },
   {
     field: "field_id",

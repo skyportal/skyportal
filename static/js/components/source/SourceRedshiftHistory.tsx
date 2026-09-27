@@ -1,8 +1,11 @@
 import { useState } from "react";
+import { Link } from "react-router-dom";
+import Chip from "@mui/material/Chip";
 import HistoryIcon from "@mui/icons-material/History";
 import Dialog from "@mui/material/Dialog";
 import DialogContent from "@mui/material/DialogContent";
 import DialogTitle from "@mui/material/DialogTitle";
+import dayjs from "dayjs";
 
 import { useGetUsersQuery } from "../../ducks/users";
 import StyledDataGrid from "../StyledDataGrid";
@@ -55,8 +58,24 @@ const SourceRedshiftHistory = ({
                 flex: 1,
                 valueGetter: (value: number) =>
                   allUsers.find((user: any) => user.id === value)?.username,
+                renderCell: ({ value, row }: any) =>
+                  value && (
+                    <Chip
+                      size="small"
+                      label={value}
+                      component={Link}
+                      to={`/user/${row.set_by_user_id}`}
+                      clickable
+                    />
+                  ),
               },
-              { field: "set_at_utc", headerName: "Time (UTC)", flex: 1 },
+              {
+                field: "set_at_utc",
+                headerName: "Time (UTC)",
+                width: 180,
+                valueFormatter: (value: string) =>
+                  dayjs(value).format("YYYY-MM-DD HH:mm:ss"),
+              },
               { field: "value", headerName: "Value", flex: 1 },
               { field: "uncertainty", headerName: "Uncertainty", flex: 1 },
               { field: "origin", headerName: "Origin", flex: 1 },

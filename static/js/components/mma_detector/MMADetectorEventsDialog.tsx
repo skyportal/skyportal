@@ -56,7 +56,7 @@ const MMADetectorEventsDialog = ({
           columns={[
             {
               field: "dateobs",
-              headerName: "Event",
+              headerName: "Event (UTC)",
               width: 180,
               renderCell: ({ row }: any) => (
                 <MuiLink component={Link} to={`/gcn_events/${row.dateobs}`}>

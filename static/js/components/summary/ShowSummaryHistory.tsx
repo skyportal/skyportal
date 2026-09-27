@@ -7,6 +7,7 @@ import Box from "@mui/material/Box";
 import SmartToyIcon from "@mui/icons-material/SmartToy";
 import { Link } from "react-router-dom";
 import Tooltip from "@mui/material/Tooltip";
+import dayjs from "dayjs";
 
 import Button from "../Button";
 import { useGetUsersQuery } from "../../ducks/users";
@@ -106,7 +107,13 @@ const ShowSummaryHistory = ({
                   </Box>
                 ),
               },
-              { field: "set_at_utc", headerName: "Time (UTC)", flex: 1 },
+              {
+                field: "set_at_utc",
+                headerName: "Time (UTC)",
+                width: 180,
+                valueFormatter: (value: string) =>
+                  dayjs(value).format("YYYY-MM-DD HH:mm:ss"),
+              },
             ]}
             initialState={{
               sorting: { sortModel: [{ field: "set_at_utc", sort: "desc" }] },
