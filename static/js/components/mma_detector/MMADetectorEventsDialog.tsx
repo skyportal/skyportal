@@ -1,19 +1,14 @@
 import { useState } from "react";
-import { Link } from "react-router-dom";
-
+import { Link as RouterLink } from "react-router-dom";
 import Dialog from "@mui/material/Dialog";
-import DialogContent from "@mui/material/DialogContent";
-import DialogTitle from "@mui/material/DialogTitle";
-import Table from "@mui/material/Table";
-import TableBody from "@mui/material/TableBody";
-import TableCell from "@mui/material/TableCell";
-import TableHead from "@mui/material/TableHead";
-import TablePagination from "@mui/material/TablePagination";
-import TableRow from "@mui/material/TableRow";
-import Typography from "@mui/material/Typography";
+import Chip from "@mui/material/Chip";
+import Link from "@mui/material/Link";
 import dayjs from "dayjs";
 
 import { useGetGcnEventsQuery } from "../../ducks/gcnEvents";
+import { useGetConfigQuery } from "../../ducks/config";
+import StyledDataGrid, { DataGridToolbar } from "../StyledDataGrid";
+import ExpandableCell from "../ExpandableCell";
 
 const numPerPage = 10;
 
@@ -22,67 +17,92 @@ interface MMADetectorEventsDialogProps {
   onClose: () => void;
 }
 
-/** The GCN events an MMA detector contributed to. */
 const MMADetectorEventsDialog = ({
   mmadetector,
   onClose,
 }: MMADetectorEventsDialogProps) => {
-  const [pageNumber, setPageNumber] = useState(1);
-
+  const [page, setPage] = useState(0);
   const { data, isFetching } = useGetGcnEventsQuery({
     mmadetectorIds: `${mmadetector.id}`,
     numPerPage,
-    pageNumber,
+    pageNumber: page + 1,
   });
+  const tagColors = useGetConfigQuery().data?.["gcnTagsClasses"] as
+    Record<string, string> | undefined;
 
-  const events = (data as any)?.events ?? [];
-  const totalMatches = (data as any)?.totalMatches ?? 0;
+  const columns = [
+    {
+      field: "dateobs",
+      headerName: "Event",
+      flex: 1,
+      minWidth: 180,
+      renderCell: ({ value }: any) => (
+        <Link
+          component={RouterLink}
+          to={`/gcn_events/${value}`}
+          underline="hover"
+        >
+          {dayjs(value).format("YYYY-MM-DD HH:mm:ss")}
+        </Link>
+      ),
+    },
+    {
+      field: "aliases",
+      headerName: "Aliases",
+      flex: 1,
+      valueGetter: (value: string[] | undefined) => value?.join(", "),
+    },
+    {
+      field: "tags",
+      headerName: "Tags",
+      flex: 2,
+      renderCell: ({ value }: any) => (
+        <ExpandableCell
+          maxVisible={6}
+          items={[...new Set<string>(value ?? [])].map((tag) => (
+            <Chip
+              key={tag}
+              size="small"
+              label={tag}
+              sx={{ bgcolor: tagColors?.[tag] ?? "#999999" }}
+            />
+          ))}
+        />
+      ),
+    },
+  ];
 
   return (
     <Dialog open onClose={onClose} maxWidth="md" fullWidth>
-      <DialogTitle>
-        {mmadetector.name} ({mmadetector.nickname})
-      </DialogTitle>
-      <DialogContent dividers>
-        {!isFetching && totalMatches === 0 ? (
-          <Typography variant="body2" sx={{ color: "text.secondary" }}>
-            No GCN events are linked to this detector.
-          </Typography>
-        ) : (
-          <>
-            <Table size="small" data-testid="mmadetector-events-table">
-              <TableHead>
-                <TableRow>
-                  <TableCell>Event</TableCell>
-                  <TableCell>Aliases</TableCell>
-                  <TableCell>Tags</TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {events.map((gcnEvent: any) => (
-                  <TableRow key={gcnEvent.dateobs} hover>
-                    <TableCell>
-                      <Link to={`/gcn_events/${gcnEvent.dateobs}`}>
-                        {dayjs(gcnEvent.dateobs).format("YYYY-MM-DD HH:mm:ss")}
-                      </Link>
-                    </TableCell>
-                    <TableCell>{(gcnEvent.aliases ?? []).join(", ")}</TableCell>
-                    <TableCell>{(gcnEvent.tags ?? []).join(", ")}</TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-            <TablePagination
-              component="div"
-              count={totalMatches}
-              page={pageNumber - 1}
-              onPageChange={(_, page) => setPageNumber(page + 1)}
-              rowsPerPage={numPerPage}
-              rowsPerPageOptions={[numPerPage]}
-            />
-          </>
-        )}
-      </DialogContent>
+      <StyledDataGrid
+        autoHeight
+        rows={data?.events ?? []}
+        columns={columns}
+        getRowId={(row: any) => row.dateobs}
+        getRowHeight={() => "auto"}
+        loading={isFetching}
+        paginationMode="server"
+        rowCount={data?.totalMatches ?? 0}
+        paginationModel={{ page, pageSize: numPerPage }}
+        onPaginationModelChange={(model: any) => setPage(model.page)}
+        pageSizeOptions={[numPerPage]}
+        disableColumnMenu
+        disableColumnSorting
+        localeText={{
+          noRowsLabel: "No GCN events are linked to this detector.",
+        }}
+        slots={{ toolbar: DataGridToolbar }}
+        slotProps={{
+          root: { "data-testid": "mmadetector-events-table" },
+          toolbar: {
+            title: `${mmadetector.name} (${mmadetector.nickname})`,
+            showColumns: false,
+            showQuickFilter: false,
+            showExport: false,
+          },
+        }}
+        showToolbar
+      />
     </Dialog>
   );
 };
