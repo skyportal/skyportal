@@ -16,6 +16,7 @@ import type { WorldMapMarker } from "./WorldMap";
 import Button from "./Button";
 import Paper from "./Paper";
 import Spinner from "./Spinner";
+import { FULL_PAGE_HEIGHT } from "./StyledDataGrid";
 
 const WorldMap = lazy(() => import("./WorldMap"));
 
@@ -111,10 +112,24 @@ const ListPanelPage = ({
   return (
     <Suspense fallback={<Spinner />}>
       <Grid container spacing={3}>
-        <Grid size={{ lg: 8, md: 6, sm: 12 }}>
-          <Paper>
-            {main ??
-              (listInMain ? (
+        <Grid
+          size={{ lg: 8, md: 6, sm: 12 }}
+          sx={
+            main
+              ? {
+                  display: "flex",
+                  flexDirection: "column",
+                  height: { lg: FULL_PAGE_HEIGHT },
+                  overflow: "auto",
+                  gap: 2,
+                  "& > *": { flexShrink: 0 },
+                }
+              : {}
+          }
+        >
+          {main ?? (
+            <Paper>
+              {listInMain ? (
                 <>
                   <Typography variant="h6" sx={{ fontWeight: "500" }}>
                     List of {name}s
@@ -123,11 +138,19 @@ const ListPanelPage = ({
                 </>
               ) : (
                 <WorldMap markers={markers} />
-              ))}
-          </Paper>
+              )}
+            </Paper>
+          )}
         </Grid>
         {(!listInMain || canManage) && (
-          <Grid size={{ lg: 4, md: 6, sm: 12 }}>
+          <Grid
+            size={{ lg: 4, md: 6, sm: 12 }}
+            sx={{
+              display: "flex",
+              flexDirection: "column",
+              maxHeight: { lg: FULL_PAGE_HEIGHT },
+            }}
+          >
             {!listInMain && canManage && (
               <Box>
                 <Button
@@ -139,6 +162,7 @@ const ListPanelPage = ({
                 </Button>
                 <Button
                   secondary
+                  aria-label={`Add a New ${name}`}
                   onClick={() => setShowForm(true)}
                   sx={panelStyles(showForm)}
                 >
@@ -146,7 +170,7 @@ const ListPanelPage = ({
                 </Button>
               </Box>
             )}
-            <Paper>
+            <Paper sx={{ minHeight: 0, overflow: "auto" }}>
               {listInMain && (
                 <Typography variant="h6" sx={{ fontWeight: "500" }}>
                   Add a New {name}

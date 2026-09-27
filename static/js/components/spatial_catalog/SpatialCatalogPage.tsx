@@ -1,5 +1,4 @@
 import { useState } from "react";
-import Box from "@mui/material/Box";
 import IconButton from "@mui/material/IconButton";
 import Typography from "@mui/material/Typography";
 import DeleteIcon from "@mui/icons-material/Delete";
@@ -49,6 +48,7 @@ const SpatialCatalogSources = ({
   return (
     <SourceTable
       title=""
+      fixedHeader
       sources={data.sources}
       paginateCallback={(
         pageNumber: number,
@@ -122,7 +122,7 @@ const SpatialCatalogPage = () => {
         name="Spatial Catalog"
         permission="System admin"
         main={
-          <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
+          <>
             {currentId ? (
               <SpatialCatalogTable
                 catalog={catalog}
@@ -139,7 +139,7 @@ const SpatialCatalogPage = () => {
                 setSourcesArgs={setSourcesArgs}
               />
             )}
-          </Box>
+          </>
         }
         items={catalogs.map((c: any) => ({
           key: c.id,

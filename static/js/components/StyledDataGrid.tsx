@@ -31,6 +31,8 @@ import SearchIcon from "@mui/icons-material/Search";
 //
 // Defaults here are the conventions we want everywhere; any of them can be
 // overridden by passing the same prop at the call site.
+export const FULL_PAGE_HEIGHT = "calc(100vh - 5.25rem)";
+
 const baseSx = (theme: any) => ({
   // Framed, rounded container instead of a borderless grid.
   border: `1px solid ${theme.palette.divider}`,

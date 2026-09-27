@@ -50,7 +50,10 @@ import SearchableSelect from "../SearchableSelect";
 import { showNotification } from "baselayer/components/Notifications";
 import { useAppDispatch } from "../../types/hooks";
 import Button from "../Button";
-import StyledDataGridBase, { DataGridToolbar } from "../StyledDataGrid";
+import StyledDataGridBase, {
+  DataGridToolbar,
+  FULL_PAGE_HEIGHT,
+} from "../StyledDataGrid";
 import DisplayPhotStats from "./DisplayPhotStats";
 
 import { dec_to_dms, mjd_to_utc, ra_to_hours } from "../../units";
@@ -1770,7 +1773,7 @@ const SourceTable = ({
           width: "100%",
           // Fill what the app layout leaves below the top bar and its page
           // padding, so the grid ends at the bottom of the viewport.
-          height: fixedHeader ? "calc(100vh - 5.25rem)" : "65vh",
+          height: fixedHeader ? FULL_PAGE_HEIGHT : "65vh",
         }}
       >
         {tableFilterList.length > 0 && (

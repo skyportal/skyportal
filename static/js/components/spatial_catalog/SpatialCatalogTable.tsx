@@ -6,7 +6,10 @@ import DialogTitle from "@mui/material/DialogTitle";
 import SourceTableFilterForm from "../source/SourceTableFilterForm";
 
 import Button from "../Button";
-import StyledDataGrid, { DataGridToolbar } from "../StyledDataGrid";
+import StyledDataGrid, {
+  DataGridToolbar,
+  FULL_PAGE_HEIGHT,
+} from "../StyledDataGrid";
 
 import { filterOutEmptyValues } from "../../API";
 
@@ -167,12 +170,12 @@ const SpatialCatalogTable = ({
 
   return (
     <StyledDataGrid
-      autoHeight
+      sx={{ height: FULL_PAGE_HEIGHT }}
       rows={catalog.entries}
       columns={columns}
       getRowId={(row: any) => row.id}
       initialState={{
-        pagination: { paginationModel: { pageSize: 10 } },
+        pagination: { paginationModel: { pageSize: 25 } },
       }}
       pageSizeOptions={[2, 10, 25, 50, 100]}
       slots={{ toolbar: DataGridToolbar }}
