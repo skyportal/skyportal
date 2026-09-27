@@ -3,12 +3,6 @@ import HistoryIcon from "@mui/icons-material/History";
 import Dialog from "@mui/material/Dialog";
 import DialogContent from "@mui/material/DialogContent";
 import DialogTitle from "@mui/material/DialogTitle";
-import { makeStyles } from "tss-react/mui";
-import Table from "@mui/material/Table";
-import TableBody from "@mui/material/TableBody";
-import TableCell from "@mui/material/TableCell";
-import TableHead from "@mui/material/TableHead";
-import TableRow from "@mui/material/TableRow";
 import Tooltip from "@mui/material/Tooltip";
 import Typography from "@mui/material/Typography";
 import TextField from "@mui/material/TextField";
@@ -16,19 +10,7 @@ import Search from "@mui/icons-material/Search";
 
 import { useGetGroupsQuery } from "../../ducks/groups";
 import { useGetStreamsQuery } from "../../ducks/streams";
-
-const useStyles = makeStyles()(() => ({
-  historyIcon: {
-    height: "1.4rem",
-    cursor: "pointer",
-    color: "gray",
-  },
-  dialogTitle: {
-    display: "flex",
-    justifyContent: "space-between",
-    alignItems: "center",
-  },
-}));
+import StyledDataGrid from "../StyledDataGrid";
 
 interface CandidateHistoryItem {
   id?: number;
@@ -49,7 +31,6 @@ interface SourceCandidatesHistoryProps {
 const SourceCandidatesHistory = ({
   candidates = [],
 }: SourceCandidatesHistoryProps) => {
-  const { classes } = useStyles();
   const { data: streams = [] } = useGetStreamsQuery();
   const userAccessible = useGetGroupsQuery().data?.userAccessible ?? [];
 
@@ -57,7 +38,7 @@ const SourceCandidatesHistory = ({
 
   const [dialogOpen, setDialogOpen] = useState(false);
 
-  if (!(candidates && candidates.length > 0)) {
+  if (!candidates?.length) {
     return null;
   }
 
@@ -73,8 +54,7 @@ const SourceCandidatesHistory = ({
     <>
       <Tooltip title="Candidates History" placement="top">
         <HistoryIcon
-          data-testid="candidatesHistoryIconButton"
-          className={classes.historyIcon}
+          sx={{ height: "1.4rem", cursor: "pointer", color: "gray" }}
           onClick={() => {
             setDialogOpen(true);
           }}
@@ -83,9 +63,16 @@ const SourceCandidatesHistory = ({
       <Dialog
         open={dialogOpen}
         onClose={() => setDialogOpen(false)}
+        fullWidth
         maxWidth="md"
       >
-        <DialogTitle className={classes.dialogTitle}>
+        <DialogTitle
+          sx={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+          }}
+        >
           <Typography variant="h6">Candidates History</Typography>
           <TextField
             label="Search by Filter"
@@ -100,38 +87,43 @@ const SourceCandidatesHistory = ({
           />
         </DialogTitle>
         <DialogContent>
-          <Table>
-            <TableHead>
-              <TableRow>
-                <TableCell>Candidate ID</TableCell>
-                <TableCell>Passed at (UTC)</TableCell>
-                <TableCell>Filter</TableCell>
-                <TableCell>Group</TableCell>
-                <TableCell>Stream</TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {(filteredCandidates || []).map((historyItem) => (
-                <TableRow key={`candidate-history-${historyItem.id}`}>
-                  <TableCell>{historyItem?.passing_alert_id}</TableCell>
-                  <TableCell>{historyItem?.passed_at}</TableCell>
-                  <TableCell>{historyItem?.filter?.name}</TableCell>
-                  <TableCell>
-                    {userAccessible?.find(
-                      (group: any) =>
-                        group.id === historyItem?.filter?.group_id,
-                    )?.name || "N/A"}
-                  </TableCell>
-                  <TableCell>
-                    {streams?.find(
-                      (stream: any) =>
-                        stream.id === historyItem?.filter?.stream_id,
-                    )?.name || "N/A"}
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+          <StyledDataGrid
+            autoHeight
+            rows={filteredCandidates}
+            columns={[
+              {
+                field: "passing_alert_id",
+                headerName: "Candidate ID",
+                flex: 1,
+              },
+              { field: "passed_at", headerName: "Passed at (UTC)", flex: 1 },
+              {
+                field: "filter",
+                headerName: "Filter",
+                flex: 1,
+                valueGetter: (_value: any, row: CandidateHistoryItem) =>
+                  row.filter?.name,
+              },
+              {
+                field: "group",
+                headerName: "Group",
+                flex: 1,
+                valueGetter: (_value: any, row: CandidateHistoryItem) =>
+                  userAccessible.find(
+                    (group: any) => group.id === row.filter?.group_id,
+                  )?.name || "N/A",
+              },
+              {
+                field: "stream",
+                headerName: "Stream",
+                flex: 1,
+                valueGetter: (_value: any, row: CandidateHistoryItem) =>
+                  streams.find(
+                    (stream: any) => stream.id === row.filter?.stream_id,
+                  )?.name || "N/A",
+              },
+            ]}
+          />
         </DialogContent>
       </Dialog>
     </>

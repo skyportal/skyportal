@@ -3,32 +3,14 @@ import HistoryIcon from "@mui/icons-material/History";
 import Dialog from "@mui/material/Dialog";
 import DialogContent from "@mui/material/DialogContent";
 import DialogTitle from "@mui/material/DialogTitle";
-import { makeStyles } from "tss-react/mui";
-import Table from "@mui/material/Table";
-import TableBody from "@mui/material/TableBody";
-import TableCell from "@mui/material/TableCell";
-import TableHead from "@mui/material/TableHead";
-import TableRow from "@mui/material/TableRow";
+import Box from "@mui/material/Box";
 import SmartToyIcon from "@mui/icons-material/SmartToy";
 import { Link } from "react-router-dom";
 import Tooltip from "@mui/material/Tooltip";
 
 import Button from "../Button";
 import { useGetUsersQuery } from "../../ducks/users";
-
-const useStyles = makeStyles()(() => ({
-  saveButton: {
-    textAlign: "center",
-    margin: "1rem",
-  },
-  historyIcon: {
-    height: "1rem",
-    cursor: "pointer",
-  },
-  infoButton: {
-    paddingRight: "0.5rem",
-  },
-}));
+import StyledDataGrid from "../StyledDataGrid";
 
 interface SummaryHistoryItem {
   summary?: string;
@@ -52,25 +34,9 @@ const ShowSummaryHistory = ({
   summaries = null,
   button = false,
 }: ShowSummaryHistoryProps) => {
-  const { classes } = useStyles();
   const allUsers = useGetUsersQuery().data?.users ?? [];
-  const userIdToUsername: Record<number, string> = {};
 
   const [dialogOpen, setDialogOpen] = useState(false);
-
-  // Sort history from newest to oldest.
-  // `summaries` is frozen RTK Query data, so copy before sorting in place.
-  const sortedHistory = [...(summaries ?? [])].sort((a, b) => {
-    const dateA = new Date(a.set_at_utc as string);
-    const dateB = new Date(b.set_at_utc as string);
-    return dateB.getTime() - dateA.getTime();
-  });
-
-  if (allUsers.length) {
-    allUsers?.forEach((user: any) => {
-      userIdToUsername[user.id] = user.username;
-    });
-  }
 
   return (
     <>
@@ -90,9 +56,8 @@ const ShowSummaryHistory = ({
         <Tooltip title="Show history of object summaries">
           <span>
             <HistoryIcon
-              data-testid="summaryHistoryIconButton"
               fontSize="small"
-              className={classes.historyIcon}
+              sx={{ height: "1rem", cursor: "pointer" }}
               onClick={() => {
                 setDialogOpen(true);
               }}
@@ -108,47 +73,45 @@ const ShowSummaryHistory = ({
       >
         <DialogTitle>Summary History for {label ?? obj_id}</DialogTitle>
         <DialogContent>
-          <Table>
-            <TableHead>
-              <TableRow>
-                <TableCell>Summary</TableCell>
-                <TableCell>Set By</TableCell>
-                <TableCell>Time (UTC)</TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {sortedHistory &&
-                allUsers.length &&
-                summaries?.map((historyItem) => (
-                  <TableRow key={historyItem.set_at_utc}>
-                    <TableCell>{historyItem.summary}</TableCell>
-                    <TableCell>
-                      {historyItem.is_bot &&
-                      typeof historyItem.analysis_id === "number" ? (
-                        <div className={classes.infoButton}>
-                          <Tooltip
-                            title="Link to analysis page"
-                            placement="top"
+          <StyledDataGrid
+            autoHeight
+            getRowHeight={() => "auto"}
+            sx={{ "& .MuiDataGrid-cell": { whiteSpace: "normal" } }}
+            rows={(summaries ?? []).map((row, id) => ({ ...row, id }))}
+            columns={[
+              { field: "summary", headerName: "Summary", flex: 3 },
+              {
+                field: "set_by_user_id",
+                headerName: "Set By",
+                flex: 1,
+                valueGetter: (value?: number) =>
+                  allUsers.find((user: any) => user.id === value)?.username,
+                renderCell: ({ row, value }: any) => (
+                  <Box>
+                    {row.is_bot && typeof row.analysis_id === "number" ? (
+                      <Box sx={{ pr: "0.5rem" }}>
+                        <Tooltip title="Link to analysis page" placement="top">
+                          <Link
+                            to={`/source/${obj_id}/analysis/${row.analysis_id}`}
+                            role="link"
                           >
-                            <Link
-                              to={`/source/${obj_id}/analysis/${historyItem.analysis_id}`}
-                              role="link"
-                            >
-                              <Button primary size="small">
-                                <SmartToyIcon fontSize="small" />
-                              </Button>
-                            </Link>
-                          </Tooltip>
-                        </div>
-                      ) : null}
-                      {historyItem.set_by_user_id !== undefined &&
-                        userIdToUsername[historyItem.set_by_user_id]}
-                    </TableCell>
-                    <TableCell>{historyItem.set_at_utc}</TableCell>
-                  </TableRow>
-                ))}
-            </TableBody>
-          </Table>
+                            <Button primary size="small">
+                              <SmartToyIcon fontSize="small" />
+                            </Button>
+                          </Link>
+                        </Tooltip>
+                      </Box>
+                    ) : null}
+                    {value}
+                  </Box>
+                ),
+              },
+              { field: "set_at_utc", headerName: "Time (UTC)", flex: 1 },
+            ]}
+            initialState={{
+              sorting: { sortModel: [{ field: "set_at_utc", sort: "desc" }] },
+            }}
+          />
         </DialogContent>
       </Dialog>
     </>

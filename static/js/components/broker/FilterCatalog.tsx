@@ -9,20 +9,14 @@ import FormControl from "@mui/material/FormControl";
 import InputLabel from "@mui/material/InputLabel";
 import MuiLink from "@mui/material/Link";
 import MenuItem from "@mui/material/MenuItem";
-import Paper from "@mui/material/Paper";
 import Select from "@mui/material/Select";
-import Table from "@mui/material/Table";
-import TableBody from "@mui/material/TableBody";
-import TableCell from "@mui/material/TableCell";
-import TableHead from "@mui/material/TableHead";
-import TablePagination from "@mui/material/TablePagination";
-import TableRow from "@mui/material/TableRow";
 import TextField from "@mui/material/TextField";
 import Tooltip from "@mui/material/Tooltip";
 import Typography from "@mui/material/Typography";
 import { showNotification } from "baselayer/components/Notifications";
 
 import {
+  BrokerFilter,
   useAttachFilterToBrokerMutation,
   useGetBrokersQuery,
   useGetFilterCatalogQuery,
@@ -31,9 +25,8 @@ import { useDeleteGroupFilterMutation } from "../../ducks/filter";
 import { useGetGroupsQuery } from "../../ducks/groups";
 import { useGetStreamsQuery } from "../../ducks/streams";
 import { useAppDispatch } from "../../types/hooks";
+import StyledDataGrid from "../StyledDataGrid";
 import ConfirmFilterDeletionDialog from "../filter/ConfirmFilterDeletionDialog";
-
-const PAGE_SIZES = [10, 25, 50];
 
 const FilterCatalog = ({ brokerId }: { brokerId?: number }) => {
   const [page, setPage] = useState(0);
@@ -97,7 +90,137 @@ const FilterCatalog = ({ brokerId }: { brokerId?: number }) => {
     setFilterToDelete(null);
   };
 
-  const filters = data?.filters || [];
+  const columns: any[] = [
+    {
+      field: "name",
+      headerName: "Name",
+      flex: 1,
+      minWidth: 200,
+      renderCell: ({ row: f }: { row: BrokerFilter }) => (
+        <>
+          {f.broker_id ? (
+            <MuiLink
+              component={Link}
+              to={`/brokers/${f.broker_id}/filter/${f.id}`}
+            >
+              {f.name}
+            </MuiLink>
+          ) : (
+            f.name
+          )}
+          {hasPipeline(f) && (
+            <Chip
+              size="small"
+              label="pipeline"
+              color="primary"
+              sx={{ ml: 1 }}
+            />
+          )}
+        </>
+      ),
+    },
+    {
+      field: "group_id",
+      headerName: "Group",
+      flex: 1,
+      minWidth: 140,
+      renderCell: ({ row: f }: { row: BrokerFilter }) => (
+        <Chip
+          size="small"
+          label={groupName(f.group_id)}
+          component={Link}
+          to={`/group/${f.group_id}`}
+          clickable
+        />
+      ),
+    },
+    {
+      field: "stream_id",
+      headerName: "Stream",
+      flex: 1,
+      minWidth: 140,
+      valueGetter: (value: number) => streamName(value),
+    },
+    ...(brokerId
+      ? []
+      : [
+          {
+            field: "broker_id",
+            headerName: "Broker",
+            flex: 1,
+            minWidth: 140,
+            valueGetter: (value: number | null) =>
+              value ? brokerName(value) : "—",
+          },
+        ]),
+    {
+      field: "actions",
+      headerName: "Actions",
+      align: "right",
+      headerAlign: "right",
+      minWidth: 320,
+      renderCell: ({ row: f }: { row: BrokerFilter }) => (
+        <Box
+          sx={{
+            display: "flex",
+            gap: 1,
+            justifyContent: "flex-end",
+            alignItems: "center",
+          }}
+        >
+          {!brokerId && !f.broker_id && (
+            <>
+              <FormControl size="small" sx={{ minWidth: 180 }}>
+                <InputLabel id={`attach-broker-${f.id}`}>Broker</InputLabel>
+                <Select
+                  labelId={`attach-broker-${f.id}`}
+                  label="Broker"
+                  value={targets[f.id] ?? ""}
+                  onChange={(e) =>
+                    setTargets({
+                      ...targets,
+                      [f.id]: e.target.value as number,
+                    })
+                  }
+                >
+                  {attachable.map((b) => (
+                    <MenuItem key={b.id} value={b.id}>
+                      {b.name}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+              <Button
+                variant="contained"
+                size="small"
+                disabled={!targets[f.id]}
+                onClick={() => {
+                  const target = targets[f.id];
+                  if (target)
+                    attachFilter({
+                      filterId: f.id,
+                      brokerId: target,
+                    });
+                }}
+              >
+                Attach
+              </Button>
+            </>
+          )}
+          {f.group_admin && (
+            <Tooltip title={`Delete filter "${f.name}"`} placement={"left"}>
+              <Button
+                color="error"
+                onClick={() => setFilterToDelete({ id: f.id, name: f.name })}
+              >
+                <DeleteIcon />
+              </Button>
+            </Tooltip>
+          )}
+        </Box>
+      ),
+    },
+  ];
 
   return (
     <Box>
@@ -183,148 +306,25 @@ const FilterCatalog = ({ brokerId }: { brokerId?: number }) => {
         </Typography>
       </Box>
 
-      <Paper variant="outlined" sx={{ overflowX: "auto" }}>
-        <Table size="small">
-          <TableHead>
-            <TableRow>
-              <TableCell>Name</TableCell>
-              <TableCell>Group</TableCell>
-              <TableCell>Stream</TableCell>
-              {brokerId ? null : <TableCell>Broker</TableCell>}
-              <TableCell align="right">Actions</TableCell>
-            </TableRow>
-          </TableHead>
-          <TableBody>
-            {filters.length === 0 && (
-              <TableRow>
-                <TableCell colSpan={brokerId ? 4 : 5}>
-                  <Typography variant="body2" color="text.secondary">
-                    {isFetching ? "Loading…" : "No filter matches this search."}
-                  </Typography>
-                </TableCell>
-              </TableRow>
-            )}
-            {filters.map((f) => (
-              <TableRow key={f.id} hover>
-                <TableCell>
-                  {f.broker_id ? (
-                    <MuiLink
-                      component={Link}
-                      to={`/brokers/${f.broker_id}/filter/${f.id}`}
-                    >
-                      {f.name}
-                    </MuiLink>
-                  ) : (
-                    f.name
-                  )}
-                  {hasPipeline(f) && (
-                    <Chip
-                      size="small"
-                      label="pipeline"
-                      color="primary"
-                      sx={{ ml: 1 }}
-                    />
-                  )}
-                </TableCell>
-                <TableCell>
-                  <Chip
-                    size="small"
-                    label={groupName(f.group_id)}
-                    component={Link}
-                    to={`/group/${f.group_id}`}
-                    clickable
-                  />
-                </TableCell>
-                <TableCell>{streamName(f.stream_id)}</TableCell>
-                {brokerId ? null : (
-                  <TableCell>
-                    {f.broker_id ? brokerName(f.broker_id) : "—"}
-                  </TableCell>
-                )}
-                <TableCell align="right">
-                  <Box
-                    sx={{
-                      display: "flex",
-                      gap: 1,
-                      justifyContent: "flex-end",
-                      alignItems: "center",
-                    }}
-                  >
-                    {!brokerId && !f.broker_id && (
-                      <>
-                        <FormControl size="small" sx={{ minWidth: 180 }}>
-                          <InputLabel id={`attach-broker-${f.id}`}>
-                            Broker
-                          </InputLabel>
-                          <Select
-                            labelId={`attach-broker-${f.id}`}
-                            label="Broker"
-                            value={targets[f.id] ?? ""}
-                            onChange={(e) =>
-                              setTargets({
-                                ...targets,
-                                [f.id]: e.target.value as number,
-                              })
-                            }
-                          >
-                            {attachable.map((b) => (
-                              <MenuItem key={b.id} value={b.id}>
-                                {b.name}
-                              </MenuItem>
-                            ))}
-                          </Select>
-                        </FormControl>
-                        <Button
-                          variant="contained"
-                          size="small"
-                          disabled={!targets[f.id]}
-                          onClick={() => {
-                            const target = targets[f.id];
-                            if (target)
-                              attachFilter({
-                                filterId: f.id,
-                                brokerId: target,
-                              });
-                          }}
-                        >
-                          Attach
-                        </Button>
-                      </>
-                    )}
-                    {f.group_admin && (
-                      <Tooltip
-                        title={`Delete filter "${f.name}"`}
-                        placement={"left"}
-                      >
-                        <Button
-                          color="error"
-                          onClick={() =>
-                            setFilterToDelete({ id: f.id, name: f.name })
-                          }
-                        >
-                          <DeleteIcon />
-                        </Button>
-                      </Tooltip>
-                    )}
-                  </Box>
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-        <TablePagination
-          component="div"
-          count={data?.totalMatches ?? 0}
-          page={page}
-          onPageChange={(_e, p) => setPage(p)}
-          rowsPerPage={numPerPage}
-          rowsPerPageOptions={PAGE_SIZES}
-          onRowsPerPageChange={(e) => {
-            setNumPerPage(Number(e.target.value));
-            setPage(0);
-          }}
-        />
-      </Paper>
+      <StyledDataGrid
+        autoHeight
+        rows={data?.filters || []}
+        columns={columns}
+        loading={isFetching}
+        localeText={{ noRowsLabel: "No filter matches this search." }}
+        disableColumnSorting
+        disableColumnMenu
+        paginationMode="server"
+        rowCount={data?.totalMatches ?? 0}
+        paginationModel={{ page, pageSize: numPerPage }}
+        onPaginationModelChange={(model: {
+          page: number;
+          pageSize: number;
+        }) => {
+          setPage(model.pageSize === numPerPage ? model.page : 0);
+          setNumPerPage(model.pageSize);
+        }}
+      />
       <ConfirmFilterDeletionDialog
         filter={filterToDelete}
         closeDialog={() => setFilterToDelete(null)}

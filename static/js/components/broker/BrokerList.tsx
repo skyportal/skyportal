@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 import { withTheme } from "@rjsf/core";
@@ -20,17 +20,10 @@ import FormControl from "@mui/material/FormControl";
 import IconButton from "@mui/material/IconButton";
 import InputLabel from "@mui/material/InputLabel";
 import MenuItem from "@mui/material/MenuItem";
-import Paper from "@mui/material/Paper";
 import Radio from "@mui/material/Radio";
 import Select from "@mui/material/Select";
 import Switch from "@mui/material/Switch";
 import Tab from "@mui/material/Tab";
-import Table from "@mui/material/Table";
-import TableBody from "@mui/material/TableBody";
-import TableCell from "@mui/material/TableCell";
-import TableHead from "@mui/material/TableHead";
-import TableRow from "@mui/material/TableRow";
-import TableSortLabel from "@mui/material/TableSortLabel";
 import Tabs from "@mui/material/Tabs";
 import TextField from "@mui/material/TextField";
 import Tooltip from "@mui/material/Tooltip";
@@ -45,6 +38,7 @@ import {
   useUpdateBrokerMutation,
 } from "../../ducks/brokers";
 import { useGetProfileQuery } from "../../ducks/profile";
+import StyledDataGrid from "../StyledDataGrid";
 import FilterCatalog from "./FilterCatalog";
 
 const Form = withTheme(MuiTheme);
@@ -80,85 +74,33 @@ const optionalSchema = (node: any): any => {
   };
 };
 
-const COLUMNS: {
-  id: string;
-  label: string;
-  tooltip?: string;
-  value: (b: any) => string | number;
-}[] = [
-  { id: "name", label: "Name", value: (b: any) => b.name || "" },
-  {
-    id: "provider",
-    label: "Provider",
-    value: (b: any) => b.broker_classname || "",
-  },
-  {
-    id: "surveys",
-    label: "Surveys",
-    value: (b: any) => (b.surveys || []).join(", "),
-  },
-  {
-    id: "capabilities",
-    label: "Capabilities",
-    value: (b: any) =>
-      capabilityChips(b.capabilities)
-        .map((c) => c.label)
-        .join(", "),
-  },
-  {
-    id: "active",
-    label: "Active",
-    value: (b: any) => Number(Boolean(b.active)),
-  },
-  {
-    id: "ingest",
-    label: "Ingest",
-    tooltip:
-      "Consume this broker's stream continuously and save what it sends. " +
-      "Only offered by brokers whose provider supports ingestion.",
-    value: (b: any) => Number(Boolean(b.ingest)),
-  },
-  {
-    id: "default_alert_search",
-    label: "Default search",
-    tooltip:
-      "Broker the source page's \"Search alerts\" button and the sidebar's " +
-      "alert search open. Unset: no alert search is offered.",
-    value: (b: any) => Number(Boolean(b.default_alert_search)),
-  },
-  {
-    id: "default_crossmatch",
-    label: "Default cross-match",
-    tooltip:
-      "Broker the source page's centroid plot cross-matches against " +
-      "(cone search on reference catalogs). Unset: the first broker that " +
-      "returns catalogs is used.",
-    value: (b: any) => Number(Boolean(b.default_crossmatch)),
-  },
-  {
-    id: "default_photometry",
-    label: "Default photometry",
-    tooltip:
-      "Broker the source page's lightcurve pulls photometry from on the fly, " +
-      "shown on top of the saved points and never written to the database. " +
-      "Unset: only saved photometry is shown, and no broker is queried.",
-    value: (b: any) => Number(Boolean(b.default_photometry)),
-  },
-];
-
 const DEFAULT_TOGGLES = [
   {
     field: "default_alert_search",
+    label: "Default search",
+    description:
+      "Broker the source page's \"Search alerts\" button and the sidebar's " +
+      "alert search open. Unset: no alert search is offered.",
     capability: "query_alerts",
     unsupported: "This broker does not support alert search.",
   },
   {
     field: "default_crossmatch",
+    label: "Default cross-match",
+    description:
+      "Broker the source page's centroid plot cross-matches against " +
+      "(cone search on reference catalogs). Unset: the first broker that " +
+      "returns catalogs is used.",
     capability: "cross_match_catalogs",
     unsupported: "This broker does not support catalog cross-match.",
   },
   {
     field: "default_photometry",
+    label: "Default photometry",
+    description:
+      "Broker the source page's lightcurve pulls photometry from on the fly, " +
+      "shown on top of the saved points and never written to the database. " +
+      "Unset: only saved photometry is shown, and no broker is queried.",
     capability: "get_photometry",
     unsupported:
       "This broker cannot serve the source page's photometry: it has no " +
@@ -198,27 +140,6 @@ const BrokerList = () => {
   const [tab, setTab] = useState(0);
   const [addOpen, setAddOpen] = useState(false);
   const [editing, setEditing] = useState<Broker | null>(null);
-  const [orderBy, setOrderBy] = useState("name");
-  const [order, setOrder] = useState<"asc" | "desc">("asc");
-
-  const sortedBrokers = useMemo(() => {
-    const col = COLUMNS.find((c) => c.id === orderBy);
-    if (!col) return brokers || [];
-    const dir = order === "asc" ? 1 : -1;
-    return [...(brokers || [])].sort((a, b) => {
-      const va = col.value(a);
-      const vb = col.value(b);
-      if (typeof va === "number" && typeof vb === "number")
-        return (va - vb) * dir;
-      return String(va).localeCompare(String(vb)) * dir;
-    });
-  }, [brokers, orderBy, order]);
-
-  const onSort = (id: string) => {
-    setOrder(orderBy === id && order === "asc" ? "desc" : "asc");
-    setOrderBy(id);
-  };
-
   const classNames = Object.keys(apis || {});
   const schema = newClass ? apis?.[newClass]?.formSchemaConfig : null;
   const uiSchema = newClass ? apis?.[newClass]?.uiSchema : null;
@@ -261,6 +182,125 @@ const BrokerList = () => {
     }
   };
 
+  const columns: any[] = [
+    { field: "name", headerName: "Name", flex: 1, minWidth: 140 },
+    {
+      field: "broker_classname",
+      headerName: "Provider",
+      flex: 1,
+      minWidth: 140,
+    },
+    {
+      field: "surveys",
+      headerName: "Surveys",
+      minWidth: 120,
+      valueGetter: (value: string[] | undefined) => (value || []).join(", "),
+    },
+    {
+      field: "capabilities",
+      headerName: "Capabilities",
+      minWidth: 200,
+      valueGetter: (value: Record<string, boolean>) =>
+        capabilityChips(value)
+          .map((c) => c.label)
+          .join(", "),
+      renderCell: ({ row }: { row: Broker }) =>
+        capabilityChips(row.capabilities).map((c) => (
+          <Chip key={c.label} size="small" label={c.label} sx={{ mr: 0.5 }} />
+        )),
+    },
+    {
+      field: "active",
+      headerName: "Active",
+      renderCell: ({ row }: { row: Broker }) => (
+        <Switch
+          checked={row.active}
+          disabled={!isSystemAdmin}
+          onChange={(e) =>
+            updateBroker({ id: row.id, patch: { active: e.target.checked } })
+          }
+        />
+      ),
+    },
+    {
+      field: "ingest",
+      headerName: "Ingest",
+      description:
+        "Consume this broker's stream continuously and save what it sends. " +
+        "Only offered by brokers whose provider supports ingestion.",
+      renderCell: ({ row }: { row: Broker }) => (
+        <Switch
+          checked={Boolean(row.ingest)}
+          disabled={!isSystemAdmin || !row.capabilities?.["run_ingestion"]}
+          onChange={(e) =>
+            updateBroker({ id: row.id, patch: { ingest: e.target.checked } })
+          }
+        />
+      ),
+    },
+    ...DEFAULT_TOGGLES.map((toggle) => ({
+      field: toggle.field,
+      headerName: toggle.label,
+      description: toggle.description,
+      minWidth: 150,
+      renderCell: ({ row }: { row: Broker }) => {
+        const isDefault = Boolean(row[toggle.field]);
+        const blocked = defaultBlockedReason(row, toggle, isSystemAdmin);
+        const pendingKey = `${row.id}:${toggle.field}`;
+        return pendingDefaults.includes(pendingKey) ? (
+          <CircularProgress size={20} sx={{ m: "5px" }} />
+        ) : (
+          <Tooltip
+            title={blocked || (isDefault ? "Click to clear this default." : "")}
+          >
+            <span>
+              <Radio
+                size="small"
+                checked={isDefault}
+                disabled={Boolean(blocked)}
+                onClick={async () => {
+                  setPendingDefaults((p) => [...p, pendingKey]);
+                  await updateBroker({
+                    id: row.id,
+                    patch: { [toggle.field]: !isDefault },
+                  });
+                  setPendingDefaults((p) => p.filter((k) => k !== pendingKey));
+                }}
+              />
+            </span>
+          </Tooltip>
+        );
+      },
+    })),
+    {
+      field: "actions",
+      headerName: "Actions",
+      align: "right",
+      headerAlign: "right",
+      sortable: false,
+      filterable: false,
+      renderCell: ({ row }: { row: Broker }) =>
+        isSystemAdmin && (
+          <>
+            <IconButton
+              size="small"
+              aria-label="edit broker"
+              onClick={() => openEdit(row)}
+            >
+              <EditIcon fontSize="small" />
+            </IconButton>
+            <IconButton
+              size="small"
+              aria-label="delete broker"
+              onClick={() => deleteBroker(row.id)}
+            >
+              <DeleteIcon fontSize="small" />
+            </IconButton>
+          </>
+        ),
+    },
+  ];
+
   return (
     <Box sx={{ p: 2 }}>
       <Box
@@ -295,171 +335,28 @@ const BrokerList = () => {
         ))}
       </Tabs>
 
-      {tab === 0 &&
-        (isLoading ? (
-          <CircularProgress />
-        ) : (
-          <Paper
-            variant="outlined"
-            sx={{ mb: 3, overflowX: "auto" }}
-            data-testid="tour-brokers-list"
-          >
-            <Table size="small">
-              <TableHead>
-                <TableRow>
-                  {COLUMNS.map((c) => (
-                    <TableCell
-                      key={c.id}
-                      sortDirection={orderBy === c.id ? order : false}
-                    >
-                      <Tooltip title={c.tooltip || ""}>
-                        <TableSortLabel
-                          active={orderBy === c.id}
-                          direction={orderBy === c.id ? order : "asc"}
-                          onClick={() => onSort(c.id)}
-                        >
-                          {c.label}
-                        </TableSortLabel>
-                      </Tooltip>
-                    </TableCell>
-                  ))}
-                  <TableCell align="right">Actions</TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {sortedBrokers.length === 0 && (
-                  <TableRow>
-                    <TableCell colSpan={COLUMNS.length + 1}>
-                      <Typography variant="body2" color="text.secondary">
-                        No broker configured yet.
-                      </Typography>
-                    </TableCell>
-                  </TableRow>
-                )}
-                {sortedBrokers.map((b) => (
-                  <TableRow
-                    key={b.id}
-                    hover
-                    onClick={() => navigate(brokerLink(b.id))}
-                    sx={{ cursor: "pointer" }}
-                  >
-                    <TableCell>{b.name}</TableCell>
-                    <TableCell>{b.broker_classname}</TableCell>
-                    <TableCell>{(b.surveys || []).join(", ")}</TableCell>
-                    <TableCell>
-                      {capabilityChips(b.capabilities).map((c) => (
-                        <Chip
-                          key={c.label}
-                          size="small"
-                          label={c.label}
-                          sx={{ mr: 0.5 }}
-                        />
-                      ))}
-                    </TableCell>
-                    <TableCell onClick={(e) => e.stopPropagation()}>
-                      <Switch
-                        checked={b.active}
-                        disabled={!isSystemAdmin}
-                        onChange={(e) =>
-                          updateBroker({
-                            id: b.id,
-                            patch: { active: e.target.checked },
-                          })
-                        }
-                      />
-                    </TableCell>
-                    <TableCell onClick={(e) => e.stopPropagation()}>
-                      <Switch
-                        checked={Boolean(b.ingest)}
-                        disabled={
-                          !isSystemAdmin || !b.capabilities?.["run_ingestion"]
-                        }
-                        onChange={(e) =>
-                          updateBroker({
-                            id: b.id,
-                            patch: { ingest: e.target.checked },
-                          })
-                        }
-                      />
-                    </TableCell>
-                    {DEFAULT_TOGGLES.map((toggle) => {
-                      const isDefault = Boolean(b[toggle.field]);
-                      const blocked = defaultBlockedReason(
-                        b,
-                        toggle,
-                        isSystemAdmin,
-                      );
-                      const pendingKey = `${b.id}:${toggle.field}`;
-                      return (
-                        <TableCell
-                          key={toggle.field}
-                          onClick={(e) => e.stopPropagation()}
-                        >
-                          {pendingDefaults.includes(pendingKey) ? (
-                            <CircularProgress size={20} sx={{ m: "5px" }} />
-                          ) : (
-                            <Tooltip
-                              title={
-                                blocked ||
-                                (isDefault
-                                  ? "Click to clear this default."
-                                  : "")
-                              }
-                            >
-                              <span>
-                                <Radio
-                                  size="small"
-                                  checked={isDefault}
-                                  disabled={Boolean(blocked)}
-                                  onClick={async () => {
-                                    setPendingDefaults((p) => [
-                                      ...p,
-                                      pendingKey,
-                                    ]);
-                                    await updateBroker({
-                                      id: b.id,
-                                      patch: { [toggle.field]: !isDefault },
-                                    });
-                                    setPendingDefaults((p) =>
-                                      p.filter((k) => k !== pendingKey),
-                                    );
-                                  }}
-                                />
-                              </span>
-                            </Tooltip>
-                          )}
-                        </TableCell>
-                      );
-                    })}
-                    <TableCell
-                      align="right"
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      {isSystemAdmin && (
-                        <>
-                          <IconButton
-                            size="small"
-                            aria-label="edit broker"
-                            onClick={() => openEdit(b)}
-                          >
-                            <EditIcon fontSize="small" />
-                          </IconButton>
-                          <IconButton
-                            size="small"
-                            aria-label="delete broker"
-                            onClick={() => deleteBroker(b.id)}
-                          >
-                            <DeleteIcon fontSize="small" />
-                          </IconButton>
-                        </>
-                      )}
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </Paper>
-        ))}
+      {tab === 0 && (
+        <StyledDataGrid
+          autoHeight
+          rows={brokers || []}
+          columns={columns}
+          loading={isLoading}
+          localeText={{ noRowsLabel: "No broker configured yet." }}
+          initialState={{
+            sorting: { sortModel: [{ field: "name", sort: "asc" }] },
+          }}
+          onCellClick={({ field, row }: { field: string; row: Broker }) => {
+            if (
+              ["name", "broker_classname", "surveys", "capabilities"].includes(
+                field,
+              )
+            )
+              navigate(brokerLink(row.id));
+          }}
+          sx={{ mb: 3, "& .MuiDataGrid-row": { cursor: "pointer" } }}
+          data-testid="tour-brokers-list"
+        />
+      )}
 
       {tab === 1 && <FilterCatalog />}
 

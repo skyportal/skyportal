@@ -5,17 +5,12 @@ import { makeStyles } from "tss-react/mui";
 import Form from "@rjsf/mui";
 import validator from "@rjsf/validator-ajv8";
 import { showNotification } from "baselayer/components/Notifications";
-import Table from "@mui/material/Table";
-import TableBody from "@mui/material/TableBody";
-import TableCell from "@mui/material/TableCell";
-import TableContainer from "@mui/material/TableContainer";
-import TableHead from "@mui/material/TableHead";
-import TableRow from "@mui/material/TableRow";
 import TextLoop from "react-text-loop";
 import Dialog from "@mui/material/Dialog";
 import DialogContent from "@mui/material/DialogContent";
 import CircularProgress from "@mui/material/CircularProgress";
 import { MyObjectFieldTemplate } from "../gcn/GcnSelectionForm";
+import StyledDataGrid from "../StyledDataGrid";
 
 import { useAppDispatch } from "../../types/hooks";
 import { usePostMovingObjectObsPlanMutation } from "../../ducks/moving_object";
@@ -257,32 +252,46 @@ const MovingObjectObsPlanPage = () => {
       </Grid>
       <Grid size={{ lg: 7, md: 12 }}>
         <Paper elevation={1}>
-          <TableContainer>
-            <Table sx={{ minWidth: 650 }} aria-label="simple table">
-              <TableHead>
-                <TableRow>
-                  <TableCell>Start Time</TableCell>
-                  <TableCell>Field ID</TableCell>
-                  <TableCell>Band</TableCell>
-                  <TableCell>Airmass</TableCell>
-                  <TableCell>Moon Distance</TableCell>
-                  <TableCell>Sun Altitude</TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {planData.map((row) => (
-                  <TableRow key={row.id}>
-                    <TableCell>{row.start_time}</TableCell>
-                    <TableCell>{row.field_id}</TableCell>
-                    <TableCell>{row.band}</TableCell>
-                    <TableCell>{row.airmass.toFixed(2)}</TableCell>
-                    <TableCell>{row.moon_distance.toFixed(2)}</TableCell>
-                    <TableCell>{row.sun_altitude.toFixed(2)}</TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </TableContainer>
+          <StyledDataGrid
+            autoHeight
+            rows={planData.map((row, id) => ({ ...row, id }))}
+            columns={[
+              {
+                field: "start_time",
+                headerName: "Start Time",
+                flex: 1.5,
+                minWidth: 180,
+              },
+              {
+                field: "field_id",
+                headerName: "Field ID",
+                flex: 1,
+                minWidth: 90,
+              },
+              { field: "band", headerName: "Band", flex: 1, minWidth: 80 },
+              {
+                field: "airmass",
+                headerName: "Airmass",
+                flex: 1,
+                minWidth: 110,
+                valueFormatter: (value: number) => value.toFixed(2),
+              },
+              {
+                field: "moon_distance",
+                headerName: "Moon Distance",
+                flex: 1,
+                minWidth: 110,
+                valueFormatter: (value: number) => value.toFixed(2),
+              },
+              {
+                field: "sun_altitude",
+                headerName: "Sun Altitude",
+                flex: 1,
+                minWidth: 110,
+                valueFormatter: (value: number) => value.toFixed(2),
+              },
+            ]}
+          />
         </Paper>
       </Grid>
       <Dialog open={loading} maxWidth="sm" fullWidth>
