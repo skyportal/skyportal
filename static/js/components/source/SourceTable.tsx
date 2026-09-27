@@ -64,11 +64,7 @@ import {
   useAcceptSaveRequestMutation,
   useDeclineSaveRequestMutation,
 } from "../../ducks/source";
-import {
-  useLazyFetchPendingGroupSourcesQuery,
-  useLazyFetchSavedGroupSourcesQuery,
-  useGetAltdataInfoQuery,
-} from "../../ducks/sources";
+import { useGetAltdataInfoQuery } from "../../ducks/sources";
 import { useGetSourcesInGcnQuery } from "../../ducks/sourcesingcn";
 import { useGetGcnEventQuery } from "../../ducks/gcnEvent";
 import { useGetTagOptionsQuery } from "../../ducks/objectTags";
@@ -585,9 +581,6 @@ const SourceTable = ({
 
   const [acceptSaveRequest] = useAcceptSaveRequestMutation();
   const [declineSaveRequest] = useDeclineSaveRequestMutation();
-  const [fetchPendingGroupSourcesTrigger] =
-    useLazyFetchPendingGroupSourcesQuery();
-  const [fetchSavedGroupSourcesTrigger] = useLazyFetchSavedGroupSourcesQuery();
   const { data: taxonomyList = EMPTY_ARRAY } = useGetTaxonomiesQuery();
 
   const { classes } = useStyles() as { classes: any };
@@ -808,37 +801,6 @@ const SourceTable = ({
     );
   };
 
-  const handleSaveSource = async (sourceID: any) => {
-    try {
-      await acceptSaveRequest({ sourceID, groupID: groupID! }).unwrap();
-      fetchPendingGroupSourcesTrigger({
-        group_ids: [groupID],
-        pageNumber: 1,
-        numPerPage: 10,
-      });
-      fetchSavedGroupSourcesTrigger({
-        group_ids: [groupID],
-        pageNumber: 1,
-        numPerPage: 10,
-      });
-    } catch {
-      // error notification handled by the baseQuery
-    }
-  };
-
-  const handleIgnoreSource = async (sourceID: any) => {
-    try {
-      await declineSaveRequest({ sourceID, groupID: groupID! }).unwrap();
-      fetchPendingGroupSourcesTrigger({
-        group_ids: [groupID],
-        pageNumber: 1,
-        numPerPage: 10,
-      });
-    } catch {
-      // error notification handled by the baseQuery
-    }
-  };
-
   const toggleExpand = (id: any) => {
     setOpenedRows((prev) =>
       prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id],
@@ -1057,9 +1019,9 @@ const SourceTable = ({
           <Button
             secondary
             size="small"
-            onClick={() => {
-              handleSaveSource(source.id);
-            }}
+            onClick={() =>
+              acceptSaveRequest({ sourceID: source.id, groupID: groupID! })
+            }
             data-testid={`saveSourceButton_${source.id}`}
           >
             Save
@@ -1068,9 +1030,9 @@ const SourceTable = ({
           <Button
             secondary
             size="small"
-            onClick={() => {
-              handleIgnoreSource(source.id);
-            }}
+            onClick={() =>
+              declineSaveRequest({ sourceID: source.id, groupID: groupID! })
+            }
             data-testid={`declineRequestButton_${source.id}`}
           >
             Ignore

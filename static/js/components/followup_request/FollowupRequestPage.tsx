@@ -2,8 +2,6 @@ import { useGetProfileQuery } from "../../ducks/profile";
 import React, { useState } from "react";
 import CircularProgress from "@mui/material/CircularProgress";
 import Typography from "@mui/material/Typography";
-import Dialog from "@mui/material/Dialog";
-import DialogContent from "@mui/material/DialogContent";
 import Grid from "@mui/material/Grid";
 import Tab from "@mui/material/Tab";
 import Tabs from "@mui/material/Tabs";
@@ -22,7 +20,7 @@ import FollowupRequestListsBase from "./FollowupRequestLists";
 import FollowupHealth from "./FollowupHealth";
 import FollowupRequestSelectionForm from "./FollowupRequestSelectionForm";
 import FollowupRequestPrioritizationForm from "./FollowupRequestPrioritizationForm";
-import ProgressIndicator from "../ProgressIndicators";
+import { DownloadProgressDialog } from "../ProgressIndicators";
 import DefaultFollowupRequestList from "./DefaultFollowupRequestList";
 import Paper from "../Paper";
 
@@ -236,41 +234,11 @@ const FollowupRequestPage = () => {
               <Typography variant="h6">Prioritize Followup Requests</Typography>
               <FollowupRequestPrioritizationForm fetchParams={fetchParams} />
             </Paper>
-            <Dialog open={downloadProgressTotal > 0} maxWidth="md">
-              <DialogContent
-                style={{
-                  display: "flex",
-                  flexDirection: "column",
-                  justifyContent: "center",
-                  alignItems: "center",
-                }}
-              >
-                <Typography
-                  variant="h6"
-                  sx={{
-                    display: "inline",
-                  }}
-                >
-                  Downloading {downloadProgressTotal} follow-up requests
-                </Typography>
-                <div
-                  style={{
-                    height: "5rem",
-                    width: "5rem",
-                    display: "flex",
-                    flexDirection: "column",
-                    justifyContent: "center",
-                    alignItems: "center",
-                  }}
-                >
-                  <ProgressIndicator
-                    current={downloadProgressCurrent}
-                    total={downloadProgressTotal}
-                    percentage={false}
-                  />
-                </div>
-              </DialogContent>
-            </Dialog>
+            <DownloadProgressDialog
+              current={downloadProgressCurrent}
+              total={downloadProgressTotal}
+              label="follow-up requests"
+            />
           </Grid>
         </Grid>
       )}

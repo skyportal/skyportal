@@ -6,8 +6,6 @@ import useMediaQuery from "@mui/material/useMediaQuery";
 import Box from "@mui/material/Box";
 import Checkbox from "@mui/material/Checkbox";
 import CircularProgress from "@mui/material/CircularProgress";
-import Dialog from "@mui/material/Dialog";
-import DialogContent from "@mui/material/DialogContent";
 import FormControlLabel from "@mui/material/FormControlLabel";
 import FormGroup from "@mui/material/FormGroup";
 import Grid from "@mui/material/Grid";
@@ -57,7 +55,7 @@ import GcnGalaxiesTab from "./GcnGalaxiesTab";
 import GcnSourcesQueryForm from "./GcnSourcesQueryForm";
 const LocalizationPlot = lazy(() => import("../localization/LocalizationPlot"));
 import SourceTable from "../source/SourceTable";
-import ProgressIndicator from "../ProgressIndicators";
+import { DownloadProgressDialog } from "../ProgressIndicators";
 
 import { useGetLocalizationQuery } from "../../ducks/localization";
 import Spinner from "../Spinner";
@@ -302,41 +300,11 @@ const GcnEventSourcesPage = ({
           gcnEventDateobs={dateobs}
         />
       )}
-      <Dialog open={downloadProgressTotal > 0} maxWidth="md">
-        <DialogContent
-          style={{
-            display: "flex",
-            flexDirection: "column",
-            justifyContent: "center",
-            alignItems: "center",
-          }}
-        >
-          <Typography
-            variant="h6"
-            sx={{
-              display: "inline",
-            }}
-          >
-            Downloading {downloadProgressTotal} sources
-          </Typography>
-          <div
-            style={{
-              height: "5rem",
-              width: "5rem",
-              display: "flex",
-              flexDirection: "column",
-              justifyContent: "center",
-              alignItems: "center",
-            }}
-          >
-            <ProgressIndicator
-              current={downloadProgressCurrent}
-              total={downloadProgressTotal}
-              percentage={false}
-            />
-          </div>
-        </DialogContent>
-      </Dialog>
+      <DownloadProgressDialog
+        current={downloadProgressCurrent}
+        total={downloadProgressTotal}
+        label="sources"
+      />
     </div>
   );
 };
@@ -1267,41 +1235,11 @@ const GcnSelectionForm = ({ dateobs }: GcnSelectionFormProps) => {
                       downloadCallback={handleExecutedDownload}
                       serverSide={false}
                     />
-                    <Dialog open={downloadProgressTotal > 0} maxWidth="md">
-                      <DialogContent
-                        style={{
-                          display: "flex",
-                          flexDirection: "column",
-                          justifyContent: "center",
-                          alignItems: "center",
-                        }}
-                      >
-                        <Typography
-                          variant="h6"
-                          sx={{
-                            display: "inline",
-                          }}
-                        >
-                          Downloading {downloadProgressTotal} observations
-                        </Typography>
-                        <div
-                          style={{
-                            height: "5rem",
-                            width: "5rem",
-                            display: "flex",
-                            flexDirection: "column",
-                            justifyContent: "center",
-                            alignItems: "center",
-                          }}
-                        >
-                          <ProgressIndicator
-                            current={downloadProgressCurrent}
-                            total={downloadProgressTotal}
-                            percentage={false}
-                          />
-                        </div>
-                      </DialogContent>
-                    </Dialog>
+                    <DownloadProgressDialog
+                      current={downloadProgressCurrent}
+                      total={downloadProgressTotal}
+                      label="observations"
+                    />
                   </div>
                 )}
               </div>

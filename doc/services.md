@@ -11,8 +11,8 @@ Everything runs by default. Name what you do not want in your `config.yaml`:
 ```yaml
 services:
   disabled:
-    - dask
     - slack
+    - thumbnail_queue
 ```
 
 Or invert the choice, turning everything off and naming what to run:
@@ -46,7 +46,6 @@ worth listing are those that poll for something you do not use.
 | `external_logging`  | Tails the logs and forwards them to a remote syslog                           | Not shipping logs                          |
 | `fake_oauth2`       | Stub Google OAuth provider for `server.auth.debug_login`                      | Real OAuth                                 |
 | `rspack`            | Watches the frontend sources and rebuilds the bundle                          | Production, where the bundle is built once |
-| `dask`              | Scheduler and four workers that nothing in SkyPortal connects to              | Always, disabled by default                |
 
 ## SkyPortal services
 

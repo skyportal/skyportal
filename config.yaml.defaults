@@ -845,7 +845,6 @@ server:
 
 services:
   disabled: # UNCOMMENT to disable a service
-    - dask
     # - facility_queue
     # - gcn_service
     # - hermes_skyportal_sync
