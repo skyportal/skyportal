@@ -42,6 +42,7 @@ from ...models import (
     Stream,
 )
 from ..base import BaseHandler
+from .filter import delete_filter_on_broker
 
 log = make_log("api/broker")
 
@@ -1519,20 +1520,23 @@ class BrokerFiltersHandler(BaseHandler):
             ).first()
             if f is None:
                 return self.error(f"Cannot find a filter with ID: {filter_id}.")
-            boom = (
-                (f.altdata or {}).get("boom") if isinstance(f.altdata, dict) else None
+            user = self.associated_user_object
+            is_group_admin = session.scalar(
+                sa.select(GroupUser).where(
+                    GroupUser.group_id == f.group_id,
+                    GroupUser.user_id == user.id,
+                    GroupUser.admin.is_(True),
+                )
             )
-            if (
-                isinstance(boom, dict)
-                and boom.get("filter_id") is not None
-                and broker.broker_class.implements()["delete_filter"]
+            if not is_group_admin and not {"System admin", "Manage groups"} & set(
+                user.permissions
             ):
-                try:
-                    broker.broker_class.delete_filter(
-                        broker, session, boom_filter_id=boom["filter_id"]
-                    )
-                except Exception:
-                    pass
+                return self.error(
+                    "Insufficient permissions: must be a group admin or system "
+                    "admin to delete a filter.",
+                    status=403,
+                )
+            delete_filter_on_broker(broker, f, session)
             session.delete(f)
             session.commit()
             return self.success()

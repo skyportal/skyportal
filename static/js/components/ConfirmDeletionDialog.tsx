@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import Dialog from "@mui/material/Dialog";
 import DialogActions from "@mui/material/DialogActions";
 import DialogContent from "@mui/material/DialogContent";
@@ -9,6 +10,7 @@ interface ConfirmDeletionDialogProps {
   dialogOpen: boolean;
   closeDialog: (...args: any[]) => void;
   resourceName: string;
+  message?: ReactNode;
 }
 
 const ConfirmDeletionDialog = ({
@@ -16,11 +18,12 @@ const ConfirmDeletionDialog = ({
   dialogOpen,
   closeDialog,
   resourceName,
+  message,
 }: ConfirmDeletionDialogProps) => (
   <Dialog sx={{ "z-index": 99999 }} open={dialogOpen} onClose={closeDialog}>
     <DialogTitle>Delete {resourceName}?</DialogTitle>
     <DialogContent>
-      Are you sure you want to delete this/these {resourceName}?
+      {message ?? `Are you sure you want to delete this/these ${resourceName}?`}
     </DialogContent>
     <DialogActions>
       <Button
