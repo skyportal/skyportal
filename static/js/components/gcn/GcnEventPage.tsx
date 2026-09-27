@@ -25,6 +25,7 @@ import {
   useGetGcnTachQuery,
   usePostGcnTachMutation,
   usePostGcnGraceDBMutation,
+  useUpdateGcnEventMutation,
 } from "../../ducks/gcnEvent";
 
 import GcnSelectionForm from "./GcnSelectionForm";
@@ -42,10 +43,10 @@ import GcnAliases from "./GcnAliases";
 import GcnCirculars from "./GcnCirculars";
 import GcnEventAllocationTriggers from "./GcnEventAllocationTriggers";
 import GcnEventAssociationSummary from "./GcnEventAssociationSummary";
-import UpdateGcnEventSummary from "./UpdateGcnEventSummary";
 import GenerateGcnEventSummary from "./GenerateGcnEventSummary";
 import ShowSummaries from "../summary/ShowSummaries";
 import ShowSummaryHistory from "../summary/ShowSummaryHistory";
+import UpdateSummary from "../summary/UpdateSummary";
 import GcnLocalizationsTable from "./GcnLocalizationsTable";
 import GcnProperties from "./GcnProperties";
 import GcnTags from "./GcnTags";
@@ -202,6 +203,7 @@ const GcnEventPage = ({ route }: GcnEventPageProps) => {
   const { classes: styles } = useStyles();
 
   const dispatch = useAppDispatch();
+  const [updateGcnEvent] = useUpdateGcnEventMutation();
   const { data: gcnEventData } = useGetGcnEventQuery(
     route?.dateobs ?? skipToken,
   ) as { data: any };
@@ -395,10 +397,20 @@ const GcnEventPage = ({ route }: GcnEventPageProps) => {
                 )}
                 <div style={{ display: "flex", alignItems: "center" }}>
                   {permission && (
-                    <UpdateGcnEventSummary
-                      dateobs={dateobs}
+                    <UpdateSummary
                       summary={gcnEvent.summary}
                       summaryHistory={gcnEvent.summary_history}
+                      onSave={async (summary) => {
+                        await updateGcnEvent({
+                          dateobs,
+                          payload: { summary },
+                        }).unwrap();
+                        dispatch(
+                          showNotification(
+                            "Event summary successfully updated.",
+                          ),
+                        );
+                      }}
                     />
                   )}
                   {permission && <GenerateGcnEventSummary dateobs={dateobs} />}
