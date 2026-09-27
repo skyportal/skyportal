@@ -1,7 +1,9 @@
 import { Link } from "react-router-dom";
 import Chip from "@mui/material/Chip";
 import MuiLink from "@mui/material/Link";
+import Stack from "@mui/material/Stack";
 import Typography from "@mui/material/Typography";
+import { GridColDef } from "@mui/x-data-grid";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 
@@ -13,13 +15,13 @@ import {
 
 dayjs.extend(utc);
 
-const COLUMNS: any[] = [
+const COLUMNS: GridColDef<SourceInterest>[] = [
   {
     field: "obj_id",
     headerName: "Source",
     flex: 1,
     minWidth: 130,
-    renderCell: ({ row }: { row: SourceInterest }) => (
+    renderCell: ({ row }) => (
       <Link to={`/source/${row.obj_id}`}>{row.obj_id}</Link>
     ),
   },
@@ -28,17 +30,16 @@ const COLUMNS: any[] = [
     headerName: "Title",
     flex: 3,
     minWidth: 250,
-    valueGetter: (_value: any, row: SourceInterest) =>
-      `${row.title} ${row.description ?? ""}`,
-    renderCell: ({ row }: { row: SourceInterest }) => (
-      <div>
+    valueGetter: (_value, row) => `${row.title} ${row.description ?? ""}`,
+    renderCell: ({ row }) => (
+      <Stack>
         <Typography variant="subtitle2">{row.title}</Typography>
         {row.description && (
           <Typography variant="body2" color="textSecondary">
             {row.description}
           </Typography>
         )}
-      </div>
+      </Stack>
     ),
   },
   {
@@ -47,7 +48,7 @@ const COLUMNS: any[] = [
     flex: 1,
     minWidth: 140,
     sortable: false,
-    renderCell: ({ row }: { row: SourceInterest }) =>
+    renderCell: ({ row }) =>
       row.link && (
         <MuiLink href={row.link} target="_blank" rel="noreferrer">
           {row.link}
@@ -59,8 +60,8 @@ const COLUMNS: any[] = [
     headerName: "User",
     flex: 1,
     minWidth: 130,
-    valueGetter: (_value: any, row: SourceInterest) => row.user.username,
-    renderCell: ({ row }: { row: SourceInterest }) => (
+    valueGetter: (_value, row) => row.user.username,
+    renderCell: ({ row }) => (
       <Chip
         size="small"
         label={row.user.username}
@@ -75,7 +76,7 @@ const COLUMNS: any[] = [
     headerName: "Registered",
     flex: 1,
     minWidth: 150,
-    valueGetter: (value: string) => dayjs.utc(value).format("YYYY-MM-DD HH:mm"),
+    valueGetter: (value) => dayjs.utc(value).format("YYYY-MM-DD HH:mm"),
   },
 ];
 
