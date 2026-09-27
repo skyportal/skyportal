@@ -29,11 +29,11 @@ const NewEarthquake = () => {
     .replace("+00:00", "");
 
   function validate(formData: any, errors: any) {
-    if (formData.lon < -180 || formData.lon > 180) {
-      errors.lon.addError("Longitude must be between -180 and 180.");
+    if (formData.longitude < -180 || formData.longitude > 180) {
+      errors.longitude.addError("Longitude must be between -180 and 180.");
     }
-    if (formData.lat < -90 || formData.lat > 90) {
-      errors.lat.addError("Latitude must be between -90 and 90.");
+    if (formData.latitude < -90 || formData.latitude > 90) {
+      errors.latitude.addError("Latitude must be between -90 and 90.");
     }
 
     return errors;
