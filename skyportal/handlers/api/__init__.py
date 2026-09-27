@@ -236,7 +236,7 @@ from .source import (
 )
 from .source_exists import SourceExistsHandler
 from .source_groups import SourceGroupsHandler
-from .source_interest import SourceInterestHandler
+from .source_interest import SourceInterestHandler, SourceInterestListHandler
 from .source_labels import SourceLabelsHandler
 from .spatial_catalog import SpatialCatalogASCIIFileHandler, SpatialCatalogHandler
 from .spectrum import (
