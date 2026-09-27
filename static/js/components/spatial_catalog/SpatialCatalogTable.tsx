@@ -1,7 +1,4 @@
 import { useState } from "react";
-import Paper from "@mui/material/Paper";
-import Typography from "@mui/material/Typography";
-import { makeStyles } from "tss-react/mui";
 import CircularProgress from "@mui/material/CircularProgress";
 import Dialog from "@mui/material/Dialog";
 import DialogContent from "@mui/material/DialogContent";
@@ -9,7 +6,7 @@ import DialogTitle from "@mui/material/DialogTitle";
 import SourceTableFilterForm from "../source/SourceTableFilterForm";
 
 import Button from "../Button";
-import StyledDataGrid from "../StyledDataGrid";
+import StyledDataGrid, { DataGridToolbar } from "../StyledDataGrid";
 
 import { filterOutEmptyValues } from "../../API";
 
@@ -18,21 +15,6 @@ interface SpatialCatalogSourcesArgs {
   entryName: string;
   filterParams?: any;
 }
-
-const useStyles = makeStyles()((theme) => ({
-  container: {
-    width: "100%",
-    overflow: "scroll",
-  },
-  eventTags: {
-    marginLeft: "0.5rem",
-    "& > div": {
-      margin: "0.25rem",
-      color: "white",
-      background: theme.palette.primary.main,
-    },
-  },
-}));
 
 interface RetrieveSpatialCatalogSourcesProps {
   catalog?: any;
@@ -136,8 +118,6 @@ const SpatialCatalogTable = ({
   catalog = null,
   setSourcesArgs,
 }: SpatialCatalogTableProps) => {
-  const { classes } = useStyles();
-
   if (!catalog || catalog.entries.length === 0) {
     return <p>No entries available...</p>;
   }
@@ -186,26 +166,19 @@ const SpatialCatalogTable = ({
   ];
 
   return (
-    <div>
-      {catalog.entries ? (
-        <Paper className={classes.container}>
-          <Typography variant="h6">Catalog Entries</Typography>
-          <StyledDataGrid
-            autoHeight
-            rows={catalog.entries}
-            columns={columns}
-            getRowId={(row: any) => row.id}
-            initialState={{
-              pagination: { paginationModel: { pageSize: 10 } },
-            }}
-            pageSizeOptions={[2, 10, 25, 50, 100]}
-            showToolbar
-          />
-        </Paper>
-      ) : (
-        <CircularProgress />
-      )}
-    </div>
+    <StyledDataGrid
+      autoHeight
+      rows={catalog.entries}
+      columns={columns}
+      getRowId={(row: any) => row.id}
+      initialState={{
+        pagination: { paginationModel: { pageSize: 10 } },
+      }}
+      pageSizeOptions={[2, 10, 25, 50, 100]}
+      slots={{ toolbar: DataGridToolbar }}
+      slotProps={{ toolbar: { title: catalog.catalog_name } }}
+      showToolbar
+    />
   );
 };
 
