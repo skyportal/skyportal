@@ -28,6 +28,7 @@ from skyportal.models import (
 from skyportal.utils.app import get_app_base_url
 from skyportal.utils.assistant import (
     SERVICE_TOKEN_PREFIX,
+    attempt_timeouts,
     build_messages,
     chat_payload,
     condense,
@@ -58,6 +59,11 @@ MAX_CONTEXT = int(CONFIG.get("max_context_messages", 40))
 # next to generation, so this buys breadth for very little time.
 RESULT_BUDGET = int(CONFIG.get("result_budget", 20000))
 TIMEOUT = float(CONFIG.get("request_timeout", 300))
+# A stalled request holds the whole answer budget and the turn ends with
+# nothing. Bounding one attempt leaves room to try again inside the same
+# deadline, which is worth doing: the failures seen so far hang from the
+# first call while neighbouring turns answer in seconds.
+ATTEMPT_TIMEOUT = float(CONFIG.get("attempt_timeout", 150))
 
 
 def _rpc(token, method, params, timeout, tool_name=None):
@@ -134,29 +140,45 @@ def call_tool(token, name, arguments, offered):
 
 
 def chat(messages, tools, timeout=None):
+    """One chat-completions round, retried once if the first attempt stalls."""
     headers = {"Content-Type": "application/json"}
     if API_KEY:
         headers["Authorization"] = f"Bearer {API_KEY}"
-    response = requests.post(
-        f"{BASE_URL.rstrip('/')}/chat/completions",
-        headers=headers,
-        json=chat_payload(MODEL, messages, tools, THINKING),
-        timeout=timeout or TIMEOUT,
-    )
-    if response.status_code >= 400:
-        # The status alone says nothing: a refused request looks identical
-        # whether the context was too long, a tool schema was rejected or the
-        # model was unavailable, and the answer the user sees is the same
-        # sentence either way. The server's own words are the only thing that
-        # tells them apart, so they go in the log.
-        log(
-            f"model refused the request: {response.status_code} "
-            f"{response.text[:600]} "
-            f"(messages={len(messages)}, tools={len(tools)}, "
-            f"payload={len(json.dumps(messages)) + len(json.dumps(tools))} chars)"
-        )
-    response.raise_for_status()
-    return response.json()["choices"][0]["message"]
+    payload = chat_payload(MODEL, messages, tools, THINKING)
+
+    attempts = attempt_timeouts(timeout or TIMEOUT, ATTEMPT_TIMEOUT)
+
+    last: Exception | None = None
+    for number, attempt in enumerate(attempts, start=1):
+        try:
+            response = requests.post(
+                f"{BASE_URL.rstrip('/')}/chat/completions",
+                headers=headers,
+                json=payload,
+                timeout=attempt,
+            )
+        except requests.exceptions.Timeout as exc:
+            last = exc
+            log(
+                f"model did not answer within {attempt:.0f}s "
+                f"(attempt {number} of {len(attempts)})"
+            )
+            continue
+        if response.status_code >= 400:
+            # The status alone says nothing: a refused request looks identical
+            # whether the context was too long, a tool schema was rejected or
+            # the model was unavailable, and the answer the user sees is the
+            # same sentence either way. The server's own words tell them apart.
+            log(
+                f"model refused the request: {response.status_code} "
+                f"{response.text[:600]} "
+                f"(messages={len(messages)}, tools={len(tools)}, "
+                f"payload={len(json.dumps(messages)) + len(json.dumps(tools))} chars)"
+            )
+        response.raise_for_status()
+        return response.json()["choices"][0]["message"]
+
+    raise last if last is not None else RuntimeError("no attempt was made")
 
 
 def remaining(deadline, floor=5.0):
@@ -445,11 +467,17 @@ def respond(message_id):
             )
         except Exception as exc:
             log(f"assistant failed on message {message_id}: {exc}")
-            text = (
-                "The assistant is not set up correctly; tell an administrator."
-                if misconfigured(exc)
-                else "Something went wrong while looking that up."
-            )
+            if misconfigured(exc):
+                text = "The assistant is not set up correctly; tell an administrator."
+            elif isinstance(exc, requests.exceptions.Timeout):
+                # Distinguishable from a fault in what was asked: a reader who
+                # cannot tell them apart reports the wrong one.
+                text = (
+                    "The model did not answer in time. Nothing is wrong with "
+                    "what you asked; try again."
+                )
+            else:
+                text = "Something went wrong while looking that up."
 
         # A query run ends with a NOTIFY: yes/no marker deciding whether it is
         # worth a notification; the comment is posted either way.

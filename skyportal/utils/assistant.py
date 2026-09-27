@@ -319,3 +319,18 @@ def chat_payload(model, messages, tools, thinking=False):
     if not thinking:
         payload["chat_template_kwargs"] = {"enable_thinking": False}
     return payload
+
+
+def attempt_timeouts(budget, cap):
+    """How long to allow each try of one model round, longest first.
+
+    A stalled request holds whatever it is given, so an attempt bounded below
+    the deadline is what leaves room for a second one. Where the budget is too
+    small to divide there is a single attempt, which is the old behaviour.
+    """
+    if budget <= 0:
+        return []
+    first = min(cap, budget)
+    rest = budget - first
+    # A sliver of budget is not worth a round trip.
+    return [first, min(cap, rest)] if rest > 1.0 else [first]
