@@ -276,8 +276,7 @@ const TelescopeTable = ({
     },
   ].filter(Boolean);
 
-  // Memoized (like SourceTable/GalaxyTable) so the toolbar slot keeps a stable
-  // identity; an inline slot remounts each render and loops the grid.
+  // Memoized: an inline toolbar slot remounts each render and loops the grid.
   const CustomToolbar = useMemo(
     () =>
       function TelescopeTableToolbar() {

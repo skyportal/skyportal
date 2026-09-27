@@ -64,7 +64,6 @@ const RetrieveSpatialCatalogSources = ({
     setQueryInProgress(true);
     closeDialog();
 
-    // Remove empty position
     if (
       !formData.position.ra &&
       !formData.position.dec &&
@@ -74,7 +73,6 @@ const RetrieveSpatialCatalogSources = ({
     }
 
     const data = filterOutEmptyValues(formData) as any;
-    // Expand cone search params
     if ("position" in data) {
       data.ra = data.position.ra;
       data.dec = data.position.dec;

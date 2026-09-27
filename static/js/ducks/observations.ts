@@ -1,20 +1,3 @@
-/**
- * Observations.
- *
- * RTK Query conversion of the old `FETCH_OBSERVATIONS` /
- * `FETCH_GCNEVENT_OBSERVATIONS` duck. The executed-observations list and the
- * GCN-event observations list are queries; submit/upload/treasuremap/external
- * API calls are mutations.
- *
- * The date-window defaulting that the old thunks applied is preserved inside
- * the query builders so callers can pass a sparse filterParams object.
- *
- * Websocket-driven invalidation bridges the old `messageHandler.add(...)`
- * callbacks: `REFRESH_OBSERVATIONS` refetches the observations list, and
- * `FETCH_GCNEVENT_OBSERVATIONS` refetches the GCN-event observations (the old
- * handler gated this on the currently-loaded gcnEvent matching the pushed
- * event id; that condition is preserved).
- */
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 import relativeTime from "dayjs/plugin/relativeTime";
@@ -24,7 +7,6 @@ import { skyportalApi } from "../api/skyportalApi";
 import { invalidateOnMessage } from "../api/wsInvalidation";
 import type { RouteData } from "../types/routeSchemaMap";
 
-// Extras returned alongside the wrapper that RouteData does not encode.
 type ObservationListResponse = RouteData<"GET /api/observation"> & {
   geojson?: object[] | null;
   field_ids?: number[] | null;
@@ -194,13 +176,8 @@ export const observationsApi = skyportalApi.injectEndpoints({
   }),
 });
 
-// Websocket: the old handler refetched the observations list on
-// REFRESH_OBSERVATIONS.
 invalidateOnMessage("skyportal/REFRESH_OBSERVATIONS", () => ["Observation"]);
 
-// Websocket: the old handler refetched the GCN-event observations on
-// FETCH_GCNEVENT_OBSERVATIONS, but only when the currently-loaded gcnEvent
-// matched the pushed event id.
 invalidateOnMessage(
   "skyportal/FETCH_GCNEVENT_OBSERVATIONS",
   (payload, getState) => {

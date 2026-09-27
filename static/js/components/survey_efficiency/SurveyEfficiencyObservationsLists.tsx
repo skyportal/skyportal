@@ -80,7 +80,6 @@ const SurveyEfficiencyObservationsLists = ({
     value.sort();
   });
 
-  // for each analysisGroupedByInstId, we sort the analyses by their created_at date, most recent first
   Object.keys(analysesGroupedByInstId).forEach((key) => {
     analysesGroupedByInstId[key].sort(
       (a: any, b: any) =>
@@ -229,9 +228,6 @@ const SurveyEfficiencyObservationsLists = ({
     },
   ];
 
-  // Build and download a CSV of all analyses. Previously this used
-  // mui-datatables' onDownload(buildHead); we now build the header line
-  // ourselves so there is no dependency on the table library.
   const handleDownload = () => {
     const allKeys = survey_efficiency_analyses.reduce((r: any, a: any) => {
       Object.keys(a.payload).forEach((key) => {

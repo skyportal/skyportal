@@ -160,7 +160,6 @@ const GroupSources = ({ route }: GroupSourcesProps) => {
           setDownloadProgressCurrent(sourceAll.length);
           setDownloadProgressTotal(savedSourcesState.totalMatches);
         } catch {
-          // break the loop and set progress to 0 and show error message
           setDownloadProgressCurrent(0);
           setDownloadProgressTotal(0);
           if (sourceAll?.length === 0) {

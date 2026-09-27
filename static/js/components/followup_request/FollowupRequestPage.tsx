@@ -143,7 +143,6 @@ const FollowupRequestPage = () => {
           setDownloadProgressCurrent(allFollowupRequests.length);
           setDownloadProgressTotal(data.totalMatches);
         } catch {
-          // break the loop and set progress to 0 and show error message
           setDownloadProgressCurrent(0);
           setDownloadProgressTotal(0);
           if (allFollowupRequests?.length === 0) {

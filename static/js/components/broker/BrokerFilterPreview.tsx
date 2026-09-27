@@ -25,7 +25,6 @@ const BrokerFilterPreview = ({
     ? (previewData as Record<string, unknown>[])
     : [];
 
-  // Declared before the early returns below so the hook runs on every render.
   const Toolbar = useMemo(
     () =>
       function PreviewToolbar() {

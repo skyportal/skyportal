@@ -171,7 +171,6 @@ const UserInvitations = () => {
   const { data: currentUser } = useGetProfileQuery();
   const { data: streams } = useGetStreamsQuery();
   const allGroups = useGetGroupsQuery().data?.all;
-  // Invite links must name a backend; offer the first configured one.
   const authBackends = (useGetConfigQuery().data as any)?.authBackends ?? [];
   const [rowsPerPage, setRowsPerPage] = useState(DEFAULT_NUM_PER_PAGE);
   const [fetchParams, setFetchParams] = useState<any>({

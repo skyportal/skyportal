@@ -58,7 +58,6 @@ const Earthquake = () => {
   const { events, totalMatches } = earthquakes;
 
   const handlePageChange = (pageNumber: number, numPerPage: number) => {
-    // Save state for future
     setFetchParams({
       ...fetchParams,
       pageNumber,
@@ -82,7 +81,6 @@ const Earthquake = () => {
       params.statusKeep = filterData.statusKeep;
       params.statusRemove = filterData.statusRemove;
     }
-    // Save state for future
     setFetchParams(params);
   };
 

@@ -122,8 +122,6 @@ const ObservationPlanRequestLists = ({
       setSelectedLocalizationId(gcnEvent?.localizations?.[0]?.id);
     };
     getLocalizations();
-    // Don't want to reset everytime the component rerenders and
-    // the defaultStartDate is updated, so ignore ESLint here
   }, [dispatch, setSelectedLocalizationId, gcnEvent]);
 
   function handleShowTable(id: any) {
@@ -373,8 +371,6 @@ const ObservationPlanRequestLists = ({
             <DialogContent>
               {fetchedObservationPlan &&
               fetchedObservationPlan.id === observationplanRequest.id ? (
-                /* here will show a list (ordered by time) of all the observations in the plan */
-                /* for each will show the time, field_id, filter */
                 <>
                   <StyledDataGrid
                     autoHeight

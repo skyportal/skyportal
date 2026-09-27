@@ -148,8 +148,6 @@ const ObservationPage = () => {
   const [downloadProgressTotal, setDownloadProgressTotal] = useState(0);
 
   const [tabIndex, setTabIndex] = React.useState(0);
-  // Shared across tabs so a search typed in one table survives switching
-  // tabs; it only resets when this component unmounts (i.e. leaving the page).
   const [filterModel, setFilterModel] = useState({
     items: [],
     quickFilterValues: [],
@@ -181,7 +179,6 @@ const ObservationPage = () => {
       params.sortBy = sortData.name;
       params.sortOrder = sortData.direction;
     }
-    // Save state for future (triggers the observations query refetch)
     setFetchExecutedParams(params);
   };
 
@@ -195,7 +192,6 @@ const ObservationPage = () => {
       numPerPage,
       pageNumber: page + 1,
     };
-    // Save state for future (triggers the queued observations query refetch)
     setFetchQueuedParams(params);
   };
 
@@ -264,7 +260,6 @@ const ObservationPage = () => {
       params.endDate = filterData.endDate;
       params.instrumentName = filterData.instrumentName;
     }
-    // Save state for future (triggers the observations query refetch)
     setFetchExecutedParams(params);
   };
 
@@ -283,7 +278,6 @@ const ObservationPage = () => {
       params.endDate = filterData.endDate;
       params.instrumentName = filterData.instrumentName;
     }
-    // Save state for future (triggers the queued observations query refetch)
     setFetchQueuedParams(params);
   };
 
@@ -320,7 +314,6 @@ const ObservationPage = () => {
           setDownloadProgressCurrent(observationsAll.length);
           setDownloadProgressTotal(totalMatches);
         } catch {
-          // break the loop and set progress to 0 and show error message
           setDownloadProgressCurrent(0);
           setDownloadProgressTotal(0);
           if (observations.observations?.length === 0) {
@@ -376,7 +369,6 @@ const ObservationPage = () => {
           setDownloadProgressCurrent(observationsAll.length);
           setDownloadProgressTotal(queuedObservations.totalMatches);
         } catch {
-          // break the loop and set progress to 0 and show error message
           setDownloadProgressCurrent(0);
           setDownloadProgressTotal(0);
           if (queuedObservations.observations?.length === 0) {

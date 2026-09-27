@@ -22,7 +22,6 @@ interface MMADetectorEventsDialogProps {
   onClose: () => void;
 }
 
-/** The GCN events an MMA detector contributed to. */
 const MMADetectorEventsDialog = ({
   mmadetector,
   onClose,

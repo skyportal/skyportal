@@ -233,7 +233,6 @@ const AllocationObservationPlansTable = ({
       numPerPage,
       pageNumber: page + 1,
     };
-    // Save state for future; the parent's query refetches when params change.
     setFetchParams(params);
   };
 
@@ -342,7 +341,6 @@ const AllocationSummaryTable = ({
       numPerPage,
       pageNumber: page + 1,
     };
-    // Save state for future; the query refetches when params change.
     setFetchParams(params);
   };
 

@@ -51,19 +51,15 @@ import Box from "@mui/material/Box";
 const AirmassPlot = React.lazy(() => import("../plot/AirmassPlot"));
 
 function getStatusColors(status: string) {
-  // if it starts with success, green
   if (status.startsWith("complete")) {
     return ["black", "MediumAquaMarine"];
   }
-  // if any of these strings are present, yellow
   if (status.includes("not observed")) {
     return ["black", "Orange"];
   }
-  // if it starts with error, red
   if (status.startsWith("error")) {
     return ["white", "Crimson"];
   }
-  // else grey
   return ["black", "LightGrey"];
 }
 
@@ -326,7 +322,6 @@ const RunSummary = ({ route }: RunSummaryProps) => {
               padding: "0.25rem 0.75rem 0.25rem 0.75rem",
               borderRadius: "1rem",
               maxWidth: "fit-content",
-              // don't allow line breaks unless the status contains "error"
               whiteSpace: status.includes("error") ? "normal" : "nowrap",
             }}
             {...({ name: `${id}_status` } as any)}
@@ -402,8 +397,7 @@ const RunSummary = ({ route }: RunSummaryProps) => {
       flex: 1,
       minWidth: 150,
       type: "dateTime",
-      // "" means never up; null groups those rows together (first ascending,
-      // last descending) instead of sorting as an empty string
+      // null, not "", so never-up rows group together when sorted
       valueGetter: (value: any) => (value ? new Date(value) : null),
       renderCell: (params: any) =>
         params.row.rise_time_utc === ""
@@ -416,8 +410,7 @@ const RunSummary = ({ route }: RunSummaryProps) => {
       flex: 1,
       minWidth: 150,
       type: "dateTime",
-      // "" means never up; null groups those rows together (first ascending,
-      // last descending) instead of sorting as an empty string
+      // null, not "", so never-up rows group together when sorted
       valueGetter: (value: any) => (value ? new Date(value) : null),
       renderCell: (params: any) =>
         params.row.set_time_utc === ""
@@ -486,9 +479,7 @@ const RunSummary = ({ route }: RunSummaryProps) => {
   (assignments || []).forEach((assignment: any) => {
     displayRows.push(assignment);
     if (openedRows.includes(assignment.id)) {
-      // Carry the parent's fields so every column sorts/filters a detail row
-      // identically to its parent; the grid's sort is stable, so the panel
-      // stays directly beneath the row it belongs to.
+      // Parent fields let the stable sort keep each detail row under its parent.
       displayRows.push({
         ...assignment,
         id: `${assignment.id}__detail`,

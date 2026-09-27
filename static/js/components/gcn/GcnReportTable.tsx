@@ -32,7 +32,6 @@ const GcnReportTable = ({
 
   const renderName = (params: any) => {
     const report = params.row;
-    // return a link to the report that opens in a new tab
     return (
       <a
         href={`/public/reports/gcn/${report?.id}`}

@@ -174,7 +174,6 @@ const GcnEvents = () => {
       params.sortBy = sortData.name;
       params.sortOrder = sortData.direction;
     }
-    // Save state for future
     setFetchParams(params);
   };
 
@@ -199,7 +198,6 @@ const GcnEvents = () => {
       params.localizationPropertiesFilter =
         filterData.localizationPropertiesFilter;
     }
-    // Save state for future
     setFetchParams(params);
   };
 

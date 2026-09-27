@@ -32,7 +32,6 @@ const SourcesList = ({ sources }: SourcesListProps) => {
     setAnchorEl(null);
   };
 
-  // reorder the sources list alphabetically descending.
   // `sources` is frozen RTK Query data, so copy before sorting in place.
   sources = [...sources].sort((a, b) => (a > b ? 1 : -1));
 
@@ -91,7 +90,6 @@ const CatalogQueryLists = ({ catalog_queries }: CatalogQueryListsProps) => {
     let text = <div>{query?.status}</div>;
     if (query?.status?.includes("completed: Added ")) {
       let transients = query?.status?.split("completed: Added ")[1];
-      // split by commas
       transients = transients.split(",");
       text = <SourcesList sources={transients} />;
     }

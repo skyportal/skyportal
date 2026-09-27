@@ -1,15 +1,3 @@
-/**
- * Follow-up requests.
- *
- * RTK Query conversion of the old `FETCH_FOLLOWUP_REQUESTS` duck. The list is a
- * paginated query keyed on the fetch params; mutations watch/unwatch a request
- * and (re-)prioritize requests. The websocket `REFRESH_FOLLOWUP_REQUESTS`
- * message is bridged to cache invalidation via `invalidateOnMessage`.
- *
- * The schedule/allocation-report downloads remain plain redux-thunks that stream
- * a file to the browser (they are side-effecting blob fetches, not cacheable
- * data, so they do not fit the query/mutation model).
- */
 import * as API from "../API";
 import { skyportalApi } from "../api/skyportalApi";
 import { invalidateOnMessage } from "../api/wsInvalidation";
@@ -44,9 +32,7 @@ export const followupRequestsApi = skyportalApi.injectEndpoints({
       RouteData<"PUT /api/followup_request/prioritization">,
       Record<string, any>
     >({
-      // The prioritization form carries extra UI-only fields (instrumentId,
-      // gcnEventId, observation dates); the endpoint forbids unknown keys, so
-      // only forward the ones it reads.
+      // The endpoint forbids unknown keys, so drop the form's UI-only fields.
       query: ({
         requestIds,
         priorityType,
@@ -93,7 +79,6 @@ export const followupRequestsApi = skyportalApi.injectEndpoints({
   }),
 });
 
-// Plain thunks for browser file downloads (not part of the RTK Query cache).
 export const downloadFollowupSchedule = (
   instrumentId: number | string,
   format = "csv",
@@ -107,7 +92,7 @@ export const downloadFollowupSchedule = (
     })}`,
     "skyportal/DOWNLOAD_FOLLOWUP_SCHEDULE",
     {
-      filename: `followup_schedule_${instrumentId}.${format.toLowerCase()}`, // filename for the download
+      filename: `followup_schedule_${instrumentId}.${format.toLowerCase()}`,
     },
   );
 
@@ -118,7 +103,6 @@ export const downloadAllocationReport = (instrumentId: number | string) =>
     {},
   );
 
-// Websocket: the old handler refetched the list on REFRESH_FOLLOWUP_REQUESTS.
 invalidateOnMessage("skyportal/REFRESH_FOLLOWUP_REQUESTS", () => [
   "FollowupRequest",
 ]);

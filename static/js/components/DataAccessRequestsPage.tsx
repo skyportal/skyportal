@@ -90,7 +90,6 @@ const BASE_COLUMNS: any[] = [
   },
 ];
 
-/** One tab's grid, paginated by the server. */
 const RequestGrid = ({
   direction,
   renderActions,

@@ -259,10 +259,6 @@ const Reminders = ({
   const isReadOnly = useIsReadOnly();
   const [open, setOpen] = useState(false);
   const [deleteReminderMutation] = useDeleteReminderMutation();
-  // for now, we'll just show the reminders of the current user.
-  // in the future, we'll want to show all reminders for the resource
-  // show the users in the reminders list (datatable)
-  // and allow to choose users to add to the reminders to in the NewReminder dialog
   const { data: currentUser } = useGetProfileQuery();
   const { data: reminders } = useGetRemindersQuery(
     resourceId && resourceType ? { resourceId, resourceType } : skipToken,
@@ -271,11 +267,7 @@ const Reminders = ({
     (r: any) => r.user_id === currentUser?.id,
   );
 
-  // Memoized so the toolbar (the "new reminder" button and quick-filter search
-  // box) keeps a stable identity across the re-render that happens when the
-  // reminders list loads; otherwise MUI remounts it and any element reference a
-  // test is interacting with goes stale. Must be declared before the early
-  // returns below so the hook runs on every render (rules-of-hooks).
+  // Memoized: a toolbar remount on list load leaves test element references stale.
   const CustomToolbar = useMemo(
     () =>
       function RemindersToolbar() {
