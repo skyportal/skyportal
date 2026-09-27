@@ -445,7 +445,6 @@ const ShareDataForm = ({ route }: ShareDataFormProps) => {
     autoHeight: true,
     checkboxSelection: true,
     disableRowSelectionOnClick: false,
-    pageSizeOptions: [10, 25, 50, 100],
     showToolbar: true,
   };
 
@@ -488,9 +487,6 @@ const ShareDataForm = ({ route }: ShareDataFormProps) => {
             photRows.map((row: any) => row.id),
             setSelectedPhotRows,
           )}
-          initialState={{
-            pagination: { paginationModel: { pageSize: 10 } },
-          }}
           slots={{ toolbar: PhotometryGridToolbar }}
         />
       )}
@@ -512,7 +508,6 @@ const ShareDataForm = ({ route }: ShareDataFormProps) => {
               setSelectedSpecRows,
             )}
             initialState={{
-              pagination: { paginationModel: { pageSize: 10 } },
               columns: {
                 columnVisibilityModel: {
                   reducer_contact: false,

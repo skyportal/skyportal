@@ -40,8 +40,6 @@ const useStyles = makeStyles()(() => ({
 
 const renderStatus = (params: any) => {
   const { status } = params.row;
-  // status can be "highlighted", "rejected", "ambiguous", or "pending"
-  // should never happen here, but show "not vetted" if status is undefined
   let icon = <PriorityHigh color="primary" />;
   if (status === "highlighted") {
     icon = <CheckIcon color="success" />;
@@ -84,7 +82,6 @@ interface GcnNotesTableProps {
   canExpand?: boolean;
 }
 
-// Table for displaying annotations
 const GcnNotesTable = ({ gcnNotes, canExpand = true }: GcnNotesTableProps) => {
   const { classes } = useStyles();
 
@@ -94,7 +91,6 @@ const GcnNotesTable = ({ gcnNotes, canExpand = true }: GcnNotesTableProps) => {
     setOpenGCNNotes(false);
   };
 
-  // Curate data
   const tableData = (gcnNotes || []).map((gcnNote, index) => {
     const { dateobs, status, explanation, notes } = gcnNote;
     return { id: index, dateobs, status, explanation, notes };
@@ -121,10 +117,6 @@ const GcnNotesTable = ({ gcnNotes, canExpand = true }: GcnNotesTableProps) => {
         <StyledDataGrid
           columns={columns}
           rows={tableData}
-          initialState={{
-            pagination: { paginationModel: { pageSize: 10 } },
-          }}
-          pageSizeOptions={[10, 15, 50]}
           slots={{ toolbar: CustomToolbar }}
           showToolbar
         />

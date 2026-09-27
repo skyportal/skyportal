@@ -16,7 +16,7 @@ import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 import relativeTime from "dayjs/plugin/relativeTime";
 
-import StyledDataGridBase, { DataGridToolbar } from "../StyledDataGrid";
+import StyledDataGrid, { DataGridToolbar } from "../StyledDataGrid";
 import { flattenAnnotationData } from "../candidate/annotationValue";
 import { getAnnotationValueString } from "../candidate/ScanningPageCandidateAnnotations";
 
@@ -25,10 +25,6 @@ import { useDeleteSpectrumAnnotationMutation } from "../../ducks/spectra";
 
 dayjs.extend(relativeTime);
 dayjs.extend(utc);
-
-// StyledDataGrid is a .jsx component whose propTypes make `sx` look required to
-// tsc; cast to any so call sites don't need to pass it.
-const StyledDataGrid: any = StyledDataGridBase;
 
 const useStyles = makeStyles()(() => ({
   container: {
@@ -59,7 +55,6 @@ interface AnnotationsTableProps {
   canExpand?: boolean;
 }
 
-// Table for displaying annotations
 const AnnotationsTable = ({
   annotations,
   spectrumAnnotations = [],
@@ -104,12 +99,7 @@ const AnnotationsTable = ({
     setOpenAnnotations(false);
   };
 
-  // Memoize the toolbar so it keeps a stable component identity across the
-  // re-renders triggered as the source page loads its annotations/spectra
-  // asynchronously. Without this, the inline function identity changes every
-  // render, forcing MUI to unmount/remount the toolbar (and its QuickFilter
-  // input) and invalidating any element reference a test is mid-interaction
-  // with (StaleElementReferenceException on .clear()).
+  // Stable identity: a remounted toolbar broke tests (StaleElementReferenceException).
   const CustomToolbar = useMemo(
     () =>
       function AnnotationsTableToolbar() {
@@ -129,9 +119,7 @@ const AnnotationsTable = ({
     [canExpand],
   );
 
-  // Curate data. Combine source + spectrum annotations into a NEW array — the
-  // `annotations` prop is now frozen RTK Query cache data, so mutating it with
-  // `.push(...)` throws `TypeError: "length" is read-only`.
+  // `annotations` is frozen RTK Query data: build a new array, `.push` throws.
   const allAnnotations = [...(annotations ?? []), ...spectrumAnnotations];
   const tableData: any[] = [];
   allAnnotations.forEach((annotation: any) => {
@@ -228,20 +216,16 @@ const AnnotationsTable = ({
   ];
 
   if (spectrumAnnotations?.length) {
-    // add another column to show the spectrum observed at property
     columns.splice(1, 0, {
       field: "observed_at",
       headerName: "Spectrum Obs. at",
       flex: 1,
       minWidth: 140,
-      // valueGetter (not valueFormatter) so the displayed "YYYY-MM-DD.f" string
-      // is also the value the toolbar quick filter matches against.
+      // valueGetter, not valueFormatter: the quick filter matches this string.
       valueGetter: (value: any) => renderSpectrumDate(value),
     });
   }
 
-  // Meta-object provenance: when the annotations span more than one underlying
-  // Obj (i.e. aggregated across a SuperObj), surface which source each came from.
   const aggregatedAcrossObjs =
     new Set(tableData.map((row: any) => row.obj_id)).size > 1;
   if (aggregatedAcrossObjs) {
@@ -271,10 +255,6 @@ const AnnotationsTable = ({
           columns={columns}
           rows={tableData}
           getRowId={(row: any) => row.__rowid}
-          initialState={{
-            pagination: { paginationModel: { pageSize: 10 } },
-          }}
-          pageSizeOptions={[10, 15, 50]}
           slots={{ toolbar: CustomToolbar }}
           showToolbar
         />

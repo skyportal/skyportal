@@ -159,8 +159,6 @@ const GroupAdmissionRequestsManagement = ({
         rows={requests}
         columns={columns}
         getRowId={(row: any) => row.id}
-        initialState={{ pagination: { paginationModel: { pageSize: 10 } } }}
-        pageSizeOptions={[10, 25, 50, 100, 200]}
         showToolbar
       />
     </Box>

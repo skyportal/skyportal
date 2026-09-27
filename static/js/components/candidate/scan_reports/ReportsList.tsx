@@ -60,7 +60,7 @@ const Item = styled("div")({
   marginBottom: "0.8rem",
 });
 
-const NUM_PER_PAGE = 10;
+const NUM_PER_PAGE = 25;
 
 const ReportsList = () => {
   const navigate = useNavigate();

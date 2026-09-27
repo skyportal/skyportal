@@ -25,7 +25,6 @@ const BrokerFilterPreview = ({
     ? (previewData as Record<string, unknown>[])
     : [];
 
-  // Declared before the early returns below so the hook runs on every render.
   const Toolbar = useMemo(
     () =>
       function PreviewToolbar() {
@@ -59,8 +58,6 @@ const BrokerFilterPreview = ({
       rows={rows}
       columns={columns}
       getRowId={(row: any) => row._rowId}
-      initialState={{ pagination: { paginationModel: { pageSize: 10 } } }}
-      pageSizeOptions={[10, 25, 50]}
       slots={{ toolbar: Toolbar }}
       showToolbar
       sx={{ mt: 2 }}

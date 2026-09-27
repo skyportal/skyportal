@@ -13,7 +13,6 @@ const GcnProperties = ({ properties }: GcnPropertiesProps) => {
     );
   }
 
-  // Flatten each property's "data" dict into one column per property name.
   const propertyNames = properties
     .map((property) => Object.keys(property.data))
     .flat();
@@ -63,8 +62,7 @@ const GcnProperties = ({ properties }: GcnPropertiesProps) => {
       flex: 1,
       minWidth: 100,
       sortable: false,
-      // Property names may contain dots; force flat access rather than letting
-      // DataGrid interpret the field as a nested path.
+      // Names may contain dots, which DataGrid would read as nested paths.
       valueGetter: (_value: any, row: any) => row[name],
     })),
   ];
@@ -75,8 +73,6 @@ const GcnProperties = ({ properties }: GcnPropertiesProps) => {
       rows={propertiesWithUniqueKeys}
       columns={columns}
       getRowId={(row: any) => row.__rowid}
-      initialState={{ pagination: { paginationModel: { pageSize: 10 } } }}
-      pageSizeOptions={[1, 10, 15]}
       slots={{ toolbar: DataGridToolbar }}
       slotProps={{ toolbar: { title: "Event Properties" } }}
       showToolbar

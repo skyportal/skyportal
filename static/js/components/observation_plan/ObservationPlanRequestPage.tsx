@@ -29,8 +29,6 @@ const FAILED_COLOR = "#d32f2f";
 const DONE_STATUSES = ["complete", "submitted to telescope queue"];
 const ACTIVE_STATUSES = ["pending submission", "running"];
 
-// Statuses are free text: a failure carries the exception that caused it, so
-// anything not recognised is treated as a failure rather than assumed benign.
 const statusKind = (status?: string) => {
   if (!status) return "failed";
   if (DONE_STATUSES.includes(status)) return "done";
@@ -73,8 +71,6 @@ const HealthTile = ({
 );
 
 const ObservationPlanHealth = ({ requests }: { requests: any[] }) => {
-  // Captured once, so the window is measured from page load rather than
-  // shifting under every render.
   const [now] = useState(() => Date.now());
   const [windowMs, setWindowMs] = useState<number>(7 * DAY_MS);
 
@@ -189,7 +185,6 @@ const ObservationPlanRequestPage = () => {
         scheduler: r.payload?.scheduler || "gwemopt",
         localization_name: r.payload?.localization_name || "",
         queue_name: r.payload?.queue_name || "",
-        // What the request actually cost, which is what makes a slow queue visible.
         duration_s: Math.round(
           (parseUTC(r.modified) - parseUTC(r.created_at)) / 1000,
         ),
@@ -258,10 +253,8 @@ const ObservationPlanRequestPage = () => {
               columns={columns}
               getRowId={(row: any) => row.id}
               initialState={{
-                pagination: { paginationModel: { pageSize: 25 } },
                 sorting: { sortModel: [{ field: "created_at", sort: "desc" }] },
               }}
-              pageSizeOptions={[10, 25, 50, 100]}
             />
           </Paper>
         </div>

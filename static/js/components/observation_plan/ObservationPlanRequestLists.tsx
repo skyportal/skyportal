@@ -122,8 +122,6 @@ const ObservationPlanRequestLists = ({
       setSelectedLocalizationId(gcnEvent?.localizations?.[0]?.id);
     };
     getLocalizations();
-    // Don't want to reset everytime the component rerenders and
-    // the defaultStartDate is updated, so ignore ESLint here
   }, [dispatch, setSelectedLocalizationId, gcnEvent]);
 
   function handleShowTable(id: any) {
@@ -373,8 +371,6 @@ const ObservationPlanRequestLists = ({
             <DialogContent>
               {fetchedObservationPlan &&
               fetchedObservationPlan.id === observationplanRequest.id ? (
-                /* here will show a list (ordered by time) of all the observations in the plan */
-                /* for each will show the time, field_id, filter */
                 <>
                   <StyledDataGrid
                     autoHeight
@@ -606,18 +602,12 @@ const ObservationPlanRequestLists = ({
       >
         <StyledDataGrid
           autoHeight
-          // Let rows grow to fit the embedded skymap cell; without this the
-          // default ~52px row height clips the localization plot to a sliver.
           getRowHeight={() => "auto"}
           data-testid={`${instLookUp[instrument_id].name}_grid`}
           rows={requestsGroupedByInstId[instrument_id]}
           columns={getDataTableColumns(instrument_id)}
           getRowId={(row: any) => row.id}
           disableColumnFilter
-          initialState={{
-            pagination: { paginationModel: { pageSize: 10 } },
-          }}
-          pageSizeOptions={[1, 10, 15]}
           showToolbar
         />
       </AccordionDetails>

@@ -48,6 +48,8 @@ import { useGetProfileQuery } from "../../../../ducks/profile";
 import PipelineViewer from "./PipelineViewer";
 import FullscreenResultsDialog from "./FullscreenResultsDialog";
 
+const PAGE_SIZE = 50;
+
 const useStyles = makeStyles()((_theme) => ({
   timeRange: {
     display: "grid",
@@ -57,8 +59,6 @@ const useStyles = makeStyles()((_theme) => ({
   },
 }));
 
-// Helper function to properly combine user pipeline with additional stages
-// Note: Sorting is now handled by the API, not in the pipeline
 const combineWithPipeline = (
   userPipeline: any[],
   additionalStages: any[] = [],
@@ -66,10 +66,8 @@ const combineWithPipeline = (
 ) => {
   const finalPipeline: any[] = [];
 
-  // Add user pipeline stages
   finalPipeline.push(...userPipeline);
 
-  // Add any additional stages (like $limit, $size) before the final project stage
   if (additionalStages && additionalStages.length > 0) {
     finalPipeline.unshift(...additionalStages);
   }
@@ -101,7 +99,6 @@ const resetPaginationAndQueryState = (setters: any) => {
   setLastPageOffset(0);
   setDisplayResults({ data: [] });
 
-  // Optional setters that may not be available in all contexts
   if (setQueryCompleted) setQueryCompleted(false);
 };
 
@@ -149,7 +146,7 @@ const MongoQueryDialog = () => {
   const [copySuccess, setCopySuccess] = useState(false);
   const [displayResults, setDisplayResults] = useState<{ data?: any[] }>({
     data: [],
-  }); // Local results for display
+  });
   const [selectedCollection, setSelectedCollection] = useState(
     filter_stream === "ZTF"
       ? "ZTF_alerts"
@@ -168,10 +165,9 @@ const MongoQueryDialog = () => {
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalDocuments, setTotalDocuments] = useState(0);
-  const [pageSize] = useState(50);
   const [isLoadingPage, setIsLoadingPage] = useState(false);
   const [pageCursors, setPageCursors] = useState<Map<any, any>>(new Map());
-  const [pageDataCache, setPageDataCache] = useState<Map<any, any>>(new Map()); // Cache actual page data
+  const [pageDataCache, setPageDataCache] = useState<Map<any, any>>(new Map());
   const [, setLastDocumentId] = useState<any>(null);
   const [hasNextPage, setHasNextPage] = useState(false);
   const [queryCompleted, setQueryCompleted] = useState(false);
@@ -260,7 +256,6 @@ const MongoQueryDialog = () => {
     endDate: defaultEndDate,
   } as any);
 
-  // Watch for date changes and validate
   const watchedStartDate = watch("startDate" as any);
   const watchedEndDate = watch("endDate" as any);
 
@@ -405,7 +400,7 @@ const MongoQueryDialog = () => {
     countOnly = false,
     cursor: any = null,
     direction = "forward",
-    limit = pageSize + 1,
+    limit = PAGE_SIZE + 1,
   ): Promise<any> => {
     const { startDate, endDate } = getConvertedDatesFromForm(getValues);
 
@@ -459,14 +454,14 @@ const MongoQueryDialog = () => {
           lastId: null,
         };
       }
-      let hasMore = originalData.length > pageSize;
+      let hasMore = originalData.length > PAGE_SIZE;
       let data;
 
       if (direction === "backward") {
-        data = hasMore ? originalData.slice(0, pageSize + 1) : originalData;
+        data = hasMore ? originalData.slice(0, PAGE_SIZE + 1) : originalData;
         data = [...data].reverse();
       } else {
-        data = hasMore ? originalData.slice(0, pageSize + 1) : originalData;
+        data = hasMore ? originalData.slice(0, PAGE_SIZE + 1) : originalData;
       }
 
       const processedResult = {
@@ -481,7 +476,6 @@ const MongoQueryDialog = () => {
         setDisplayResults({ data: data });
       }
 
-      // Store the actual displayed data boundaries for cursor navigation
       const firstId = data.length > 0 ? data[0]._id : null;
       const lastId = data.length > 0 ? data[data.length - 1]._id : null;
 
@@ -491,7 +485,7 @@ const MongoQueryDialog = () => {
         nextCursor: lastId,
         firstId: firstId,
         lastId: lastId,
-        data: data, // Return data for caching
+        data: data,
       };
     }
     return {
@@ -504,15 +498,12 @@ const MongoQueryDialog = () => {
   };
 
   const handleRunQuery = async () => {
-    // Validate date range before running the query
     const { startDate, endDate } = getConvertedDatesFromForm(getValues);
-    // BOOM rejects a windowless query, so catch it here rather than surfacing
-    // its 400 to the user.
+    // BOOM rejects a query without a date window with a 400.
     if (!startDate || !endDate) {
       setQueryError("Select a start and end date before running the query.");
       return;
     }
-    // Both are Julian dates, so their difference is already in days.
     if (endDate - startDate > 7) {
       setQueryError(
         "Date range cannot exceed 7 days. Please select a shorter time period.",
@@ -539,7 +530,6 @@ const MongoQueryDialog = () => {
     try {
       clearBoomFilter();
 
-      // Get first page data first
       const firstPageQueryResult = await executeQuery(false);
 
       setHasNextPage(firstPageQueryResult.hasNext);
@@ -554,22 +544,16 @@ const MongoQueryDialog = () => {
 
       setPageCursors(newCursors);
 
-      // Cache page 1 data
       if (firstPageQueryResult.data) {
         const newCache = new Map();
         newCache.set(1, firstPageQueryResult.data);
         setPageDataCache(newCache);
       }
 
-      // Get actual count after first page
       const countQueryResult = await executeQuery(true);
-      // Good code when using queries/count endpoint
-      // const actualCount = countQueryResult.result?.data?.data || 0;
-      // temporary code to get count from results length
       const actualCount = countQueryResult.result?.data?.count;
       setTotalDocuments(actualCount);
 
-      // Set query completed only after both queries are done
       setQueryCompleted(true);
     } catch (error) {
       console.error("Query error:", error);
@@ -588,7 +572,7 @@ const MongoQueryDialog = () => {
         const cachedData = pageDataCache.get(newPage);
         setDisplayResults({ data: cachedData });
         setCurrentPage(newPage);
-        cachedData.length < pageSize + 1
+        cachedData.length < PAGE_SIZE + 1
           ? setHasNextPage(false)
           : setHasNextPage(true);
         setIsLoadingPage(false);
@@ -631,7 +615,7 @@ const MongoQueryDialog = () => {
 
         setCurrentPage(newPage);
       } else {
-        const lastPageOffsetCalc = totalDocuments - (newPage - 1) * pageSize;
+        const lastPageOffsetCalc = totalDocuments - (newPage - 1) * PAGE_SIZE;
         const countQueryResult = await executeQuery(
           false,
           null,
@@ -722,7 +706,6 @@ const MongoQueryDialog = () => {
             </Box>
           ) : (
             <Box>
-              {/* Connection Warning */}
               {connectionStatus === "disconnected" && (
                 <Alert severity="warning" sx={{ mb: 3 }}>
                   <Typography variant="subtitle2">
@@ -740,7 +723,6 @@ const MongoQueryDialog = () => {
                     <FormValidationError message={dateValidationError} />
                   )}
 
-                  {/* Date Range Instructions */}
                   <Box sx={{ mb: 2 }}>
                     <Typography
                       variant="subtitle2"
@@ -765,7 +747,6 @@ const MongoQueryDialog = () => {
                           />
                         </LocalizationProvider>
                       )}
-                      // rules={{ validate: validateDates }}
                       name={"startDate" as any}
                       control={control}
                       defaultValue={defaultStartDate as any}
@@ -783,7 +764,6 @@ const MongoQueryDialog = () => {
                           />
                         </LocalizationProvider>
                       )}
-                      // rules={{ validate: validateDates }}
                       name={"endDate" as any}
                       control={control}
                       defaultValue={defaultEndDate as any}
@@ -791,7 +771,6 @@ const MongoQueryDialog = () => {
                   </div>
                 </div>
 
-                {/* Collection Selector and Run Controls */}
                 <Box
                   sx={{ display: "flex", gap: 2, mb: 3, alignItems: "center" }}
                 >
@@ -815,7 +794,6 @@ const MongoQueryDialog = () => {
                 </Box>
               </form>
 
-              {/* Query Error Display */}
               {queryError && (
                 <Alert severity="error" sx={{ mb: 3 }}>
                   <Typography variant="subtitle2">Query Error:</Typography>
@@ -823,7 +801,6 @@ const MongoQueryDialog = () => {
                 </Alert>
               )}
 
-              {/* Query Results */}
               {((displayResults.data?.length ?? 0) > 0 || queryCompleted) && (
                 <Box sx={{ mb: 3 }}>
                   <Box
@@ -854,11 +831,11 @@ const MongoQueryDialog = () => {
                             : "primary"
                       }
                     />
-                    {totalDocuments > pageSize &&
+                    {totalDocuments > PAGE_SIZE &&
                       (displayResults.data?.length ?? 0) > 0 && (
                         <Chip
                           label={`Page ${currentPage} of ${Math.ceil(
-                            totalDocuments / pageSize,
+                            totalDocuments / PAGE_SIZE,
                           )}`}
                           size="small"
                           variant="outlined"
@@ -1078,7 +1055,6 @@ const MongoQueryDialog = () => {
                           </TableBody>
                         </Table>
                       </TableContainer>
-                      {/* Always show pagination info when there are results */}
                       {(displayResults.data?.length ?? 0) > 0 && (
                         <Box
                           sx={{
@@ -1088,12 +1064,11 @@ const MongoQueryDialog = () => {
                           }}
                         >
                           <Stack spacing={2}>
-                            {/* Cursor-based pagination controls - show if there are multiple pages OR if hasNext is true OR if results exist */}
-                            {(totalDocuments > pageSize ||
+                            {(totalDocuments > PAGE_SIZE ||
                               hasNextPage ||
                               currentPage > 1 ||
                               (displayResults.data?.length ?? 0) >=
-                                pageSize) && (
+                                PAGE_SIZE) && (
                               <Box
                                 sx={{
                                   display: "flex",
@@ -1144,7 +1119,7 @@ const MongoQueryDialog = () => {
                                   onClick={(e: any) =>
                                     handlePageChange(
                                       e,
-                                      Math.ceil(totalDocuments / pageSize),
+                                      Math.ceil(totalDocuments / PAGE_SIZE),
                                     )
                                   }
                                   disabled={
@@ -1172,11 +1147,11 @@ const MongoQueryDialog = () => {
                                 : totalDocuments > 0
                                   ? `Showing page ${currentPage} (${Math.min(
                                       displayResults.data?.length || 0,
-                                      pageSize,
+                                      PAGE_SIZE,
                                     )} results on this page)`
                                   : `Showing ${Math.min(
                                       displayResults.data?.length || 0,
-                                      pageSize,
+                                      PAGE_SIZE,
                                     )} results (cursor-based pagination)`}
                             </Typography>
                           </Stack>
@@ -1197,7 +1172,6 @@ const MongoQueryDialog = () => {
                 </Box>
               )}
 
-              {/* Pipeline Visualization */}
               <PipelineViewer
                 pipeline={pipeline}
                 showPipeline={showPipeline}
@@ -1242,7 +1216,7 @@ const MongoQueryDialog = () => {
         queryCompleted={queryCompleted}
         totalDocuments={totalDocuments}
         currentPage={currentPage}
-        pageSize={pageSize}
+        pageSize={PAGE_SIZE}
         hasNextPage={hasNextPage}
         isLoadingPage={isLoadingPage}
         expandedCells={expandedCells}

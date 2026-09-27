@@ -15,14 +15,13 @@ import dayjs from "dayjs";
 
 import { useGetGcnEventsQuery } from "../../ducks/gcnEvents";
 
-const numPerPage = 10;
+const numPerPage = 25;
 
 interface MMADetectorEventsDialogProps {
   mmadetector: any;
   onClose: () => void;
 }
 
-/** The GCN events an MMA detector contributed to. */
 const MMADetectorEventsDialog = ({
   mmadetector,
   onClose,

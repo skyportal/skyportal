@@ -24,9 +24,6 @@ import {
 
 import EditFollowupRequestDialog from "./EditFollowupRequestDialog";
 
-const PAGE_SIZE_OPTIONS = [10, 25, 50, 100];
-
-// Lower-cased labels of the payload-derived columns visible by default.
 const displayedColumns = [
   "requester",
   "allocation",
@@ -44,7 +41,6 @@ const displayedColumns = [
 ];
 
 const keyOrder = (a: any, b: any) => {
-  // End date comes after start date
   if (a === "end_date" && b === "start_date") {
     return 1;
   }
@@ -52,7 +48,6 @@ const keyOrder = (a: any, b: any) => {
     return -1;
   }
 
-  // Dates come before anything else
   if (a === "end_date" || a === "start_date") {
     return -1;
   }
@@ -60,7 +55,6 @@ const keyOrder = (a: any, b: any) => {
     return 1;
   }
 
-  // if there is an observation_type, it comes before anything else except dates and priority
   if (
     a === "observation_type" &&
     b !== "end_date" &&
@@ -78,7 +72,6 @@ const keyOrder = (a: any, b: any) => {
     return 1;
   }
 
-  // priority comes before status
   if (a === "priority" && b === "status") {
     return -1;
   }
@@ -86,7 +79,6 @@ const keyOrder = (a: any, b: any) => {
     return 1;
   }
 
-  // priority and status go at the end, so anything else comes before them
   if (a === "priority" || a === "status") {
     return 1;
   }
@@ -94,14 +86,12 @@ const keyOrder = (a: any, b: any) => {
     return -1;
   }
 
-  // Regular string comparison
   if (a < b) {
     return -1;
   }
   if (a > b) {
     return 1;
   }
-  // a must be equal to b
   return 0;
 };
 
@@ -255,7 +245,7 @@ const FollowupRequestLists = ({
   totalMatches = 0,
   handleTableChange = false,
   pageNumber = 1,
-  numPerPage = 10,
+  numPerPage = 25,
   showObject = false,
   serverSide = false,
   requestType = "triggered",
@@ -363,7 +353,6 @@ const FollowupRequestLists = ({
       (inst) => instrumentFormParams[inst.id]?.[schema] != null,
     );
 
-    // keep requests of this type, and those whose instrument only implements this type
     followupRequests = followupRequests.filter(
       (request) =>
         request?.payload?.request_type === requestType ||
@@ -610,8 +599,6 @@ const FollowupRequestLists = ({
     return { columns, defaultVisibility };
   };
 
-  // Synthesize the mui-datatables onTableChange(action, tableState) contract
-  // from the DataGrid handlers so callers stay unchanged.
   const handlePaginationModelChange = (model: any) => {
     setRowsPerPage(model.pageSize);
     if (typeof handleTableChange === "function") {
@@ -676,7 +663,6 @@ const FollowupRequestLists = ({
             >
               <StyledDataGrid
                 autoHeight
-                // action buttons wrap onto several lines, a fixed row height clips them
                 getRowHeight={() => "auto"}
                 rows={requestsGroupedByInstId[instrument_id]}
                 columns={columns}
@@ -707,7 +693,6 @@ const FollowupRequestLists = ({
                         },
                       }
                 }
-                pageSizeOptions={PAGE_SIZE_OPTIONS}
                 slots={{ toolbar: CustomToolbar }}
                 showToolbar
               />

@@ -33,8 +33,6 @@ import { useGetStreamsQuery } from "../../ducks/streams";
 import { useAppDispatch } from "../../types/hooks";
 import ConfirmFilterDeletionDialog from "../filter/ConfirmFilterDeletionDialog";
 
-const PAGE_SIZES = [10, 25, 50];
-
 const FilterCatalog = ({ brokerId }: { brokerId?: number }) => {
   const [page, setPage] = useState(0);
   const [numPerPage, setNumPerPage] = useState(25);
@@ -72,7 +70,6 @@ const FilterCatalog = ({ brokerId }: { brokerId?: number }) => {
     groupList.find((g) => g.id === id)?.name ?? `group ${id}`;
   const streamName = (id: number) =>
     streamList.find((s) => s.id === id)?.name ?? `stream ${id}`;
-  // Only brokers that accept filters can be attached to.
   const attachable = brokerList.filter(
     (b) => b.active && b.filter_kind !== "none",
   );
@@ -318,7 +315,7 @@ const FilterCatalog = ({ brokerId }: { brokerId?: number }) => {
           page={page}
           onPageChange={(_e, p) => setPage(p)}
           rowsPerPage={numPerPage}
-          rowsPerPageOptions={PAGE_SIZES}
+          rowsPerPageOptions={[25, 50, 100]}
           onRowsPerPageChange={(e) => {
             setNumPerPage(Number(e.target.value));
             setPage(0);
