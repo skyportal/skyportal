@@ -4,6 +4,7 @@ import Dialog from "@mui/material/Dialog";
 import DialogContent from "@mui/material/DialogContent";
 import DialogTitle from "@mui/material/DialogTitle";
 import Box from "@mui/material/Box";
+import Chip from "@mui/material/Chip";
 import SmartToyIcon from "@mui/icons-material/SmartToy";
 import { Link } from "react-router-dom";
 import Tooltip from "@mui/material/Tooltip";
@@ -103,7 +104,15 @@ const ShowSummaryHistory = ({
                         </Tooltip>
                       </Box>
                     ) : null}
-                    {value}
+                    {value && (
+                      <Chip
+                        size="small"
+                        label={value}
+                        component={Link}
+                        to={`/user/${row.set_by_user_id}`}
+                        clickable
+                      />
+                    )}
                   </Box>
                 ),
               },
@@ -117,6 +126,7 @@ const ShowSummaryHistory = ({
             ]}
             initialState={{
               sorting: { sortModel: [{ field: "set_at_utc", sort: "desc" }] },
+              pagination: { paginationModel: { pageSize: 100 } },
             }}
           />
         </DialogContent>
