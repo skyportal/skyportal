@@ -21,7 +21,7 @@ type FollowupRequestsArg = Record<string, any> | void;
 const buildFollowupRequestsUrl = (params: Record<string, any>): string => {
   const withDefaults = { ...params };
   if (!Object.keys(withDefaults).includes("numPerPage")) {
-    withDefaults["numPerPage"] = 10;
+    withDefaults["numPerPage"] = 25;
   }
   // keep false so includeObjThumbnails=false actually reaches the server
   const filtered = filterOutEmptyValues(withDefaults, true, false);

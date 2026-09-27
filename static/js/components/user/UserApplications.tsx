@@ -470,7 +470,6 @@ const UserApplications = () => {
               numPerPage: model.pageSize,
             })
           }
-          pageSizeOptions={[25, 50, 100]}
           showToolbar
           slots={{ toolbar: DataGridToolbar }}
         />

@@ -39,9 +39,7 @@ const useStyles = makeStyles()((theme) => ({
   },
 }));
 
-const defaultNumPerPage = 10;
-
-const PAGE_SIZE_OPTIONS = [10, 25, 50, 100];
+const defaultNumPerPage = 25;
 
 const Earthquake = () => {
   const { classes } = useStyles();
@@ -172,7 +170,6 @@ const Earthquake = () => {
               pageSize: fetchParams.numPerPage,
             }}
             onPaginationModelChange={handlePaginationModelChange}
-            pageSizeOptions={PAGE_SIZE_OPTIONS}
             slots={{ toolbar: CustomToolbar }}
             showToolbar
           />

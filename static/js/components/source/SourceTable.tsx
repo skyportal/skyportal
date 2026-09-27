@@ -99,8 +99,6 @@ const StyledDataGrid: any = StyledDataGridBase;
 
 // Page-size options preserved from the previous mui-datatables config. The
 // community DataGrid throws above MAX_PAGE_SIZE (100), so stop there.
-const PAGE_SIZE_OPTIONS = [1, 5, 10, 25, 50, 75, 100];
-
 // Shared empty defaults. Inline `= []` / `= {}` defaults allocate a new value on
 // every render, which permanently invalidates the `columns` memo below (it
 // depends on them) and forces the grid to rebuild every column each render.
@@ -567,7 +565,7 @@ const SourceTable = ({
   paginateCallback,
   pageNumber = 1,
   totalMatches = 0,
-  numPerPage = 30,
+  numPerPage = 25,
   sortingCallback = null,
   downloadCallback = null,
   includeGcnStatus = false,
@@ -1799,7 +1797,6 @@ const SourceTable = ({
           onPaginationModelChange={handlePaginationModelChange}
           sortModel={sortModel}
           onSortModelChange={handleSortModelChange}
-          pageSizeOptions={PAGE_SIZE_OPTIONS}
           disableColumnFilter
           // Keep all columns mounted so colSpan on the detail row works;
           // row virtualization stays on, which is the performance win.

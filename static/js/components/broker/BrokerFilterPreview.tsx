@@ -59,8 +59,6 @@ const BrokerFilterPreview = ({
       rows={rows}
       columns={columns}
       getRowId={(row: any) => row._rowId}
-      initialState={{ pagination: { paginationModel: { pageSize: 10 } } }}
-      pageSizeOptions={[10, 25, 50]}
       slots={{ toolbar: Toolbar }}
       showToolbar
       sx={{ mt: 2 }}

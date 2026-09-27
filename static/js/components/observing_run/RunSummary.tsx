@@ -528,10 +528,6 @@ const RunSummary = ({ route }: RunSummaryProps) => {
         getRowId={(row: any) => row.id}
         getRowHeight={(params: any) => (params.model.__detail ? "auto" : null)}
         columnBufferPx={3000}
-        pageSizeOptions={[10, 25, 50, 100]}
-        initialState={{
-          pagination: { paginationModel: { pageSize: 10, page: 0 } },
-        }}
         slots={{ toolbar: CustomToolbar }}
         showToolbar
       />

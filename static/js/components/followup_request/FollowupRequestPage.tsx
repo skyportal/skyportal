@@ -33,7 +33,7 @@ dayjs.extend(utc);
 
 const FollowupRequestLists = FollowupRequestListsBase as any;
 
-const defaultNumPerPage = 10;
+const defaultNumPerPage = 25;
 
 const FollowupRequestPage = () => {
   const { data: telescopeList = [] } = useGetTelescopesQuery();

@@ -179,9 +179,7 @@ const GroupUsers = ({
         getRowHeight={() => "auto"}
         initialState={{
           columns: { columnVisibilityModel: { name: hasNames } },
-          pagination: { paginationModel: { pageSize: 25 } },
         }}
-        pageSizeOptions={[10, 25, 50, 100, 200]}
         columnBufferPx={3000}
         showToolbar
       />

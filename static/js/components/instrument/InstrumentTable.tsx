@@ -256,8 +256,10 @@ const InstrumentTable = ({
         rows={enrichedInstruments}
         columns={columns}
         getRowId={(row: any) => row.id}
+        pageSizeOptions={[25, 50, 100, { value: -1, label: "All" }]}
         initialState={{
           columns: { columnVisibilityModel: { id: false } },
+          pagination: { paginationModel: { pageSize: -1 } },
         }}
         slots={{ toolbar: CustomToolbar }}
         showToolbar

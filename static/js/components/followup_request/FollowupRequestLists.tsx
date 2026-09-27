@@ -24,8 +24,6 @@ import {
 
 import EditFollowupRequestDialog from "./EditFollowupRequestDialog";
 
-const PAGE_SIZE_OPTIONS = [10, 25, 50, 100];
-
 // Lower-cased labels of the payload-derived columns visible by default.
 const displayedColumns = [
   "requester",
@@ -255,7 +253,7 @@ const FollowupRequestLists = ({
   totalMatches = 0,
   handleTableChange = false,
   pageNumber = 1,
-  numPerPage = 10,
+  numPerPage = 25,
   showObject = false,
   serverSide = false,
   requestType = "triggered",
@@ -707,7 +705,6 @@ const FollowupRequestLists = ({
                         },
                       }
                 }
-                pageSizeOptions={PAGE_SIZE_OPTIONS}
                 slots={{ toolbar: CustomToolbar }}
                 showToolbar
               />

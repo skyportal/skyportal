@@ -41,8 +41,6 @@ import DefaultGcnTagPage from "./DefaultGcnTagPage";
 import Crossmatch from "./CrossmatchGcnEvents";
 import GcnEventAllocationTriggers from "./GcnEventAllocationTriggers";
 
-const PAGE_SIZE_OPTIONS = [10, 25, 50, 100];
-
 const useStyles = makeStyles()((theme) => ({
   tags: {
     margin: "0 1px 1px 0",
@@ -123,7 +121,7 @@ const DialogTitle = withStyles(
   dialogTitleStyles,
 );
 
-const defaultNumPerPage = 10;
+const defaultNumPerPage = 25;
 
 const GcnEvents = () => {
   const { classes } = useStyles();
@@ -528,7 +526,6 @@ const GcnEvents = () => {
                     onPaginationModelChange={handlePaginationModelChange}
                     sortModel={sortModel}
                     onSortModelChange={handleSortModelChange}
-                    pageSizeOptions={PAGE_SIZE_OPTIONS}
                     disableColumnFilter
                     slots={{ toolbar: CustomToolbar }}
                     showToolbar

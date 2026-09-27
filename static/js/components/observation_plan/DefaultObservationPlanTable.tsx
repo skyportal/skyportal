@@ -177,7 +177,8 @@ const DefaultObservationPlanTable = ({
         rows={default_observation_plans || []}
         columns={columns}
         getRowId={(row: any) => row.id}
-        hideFooter
+        pageSizeOptions={[25, 50, 100, { value: -1, label: "All" }]}
+        initialState={{ pagination: { paginationModel: { pageSize: -1 } } }}
         slots={{ toolbar: CustomToolbar }}
         showToolbar
       />

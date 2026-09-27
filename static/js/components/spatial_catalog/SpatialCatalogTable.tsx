@@ -195,10 +195,6 @@ const SpatialCatalogTable = ({
             rows={catalog.entries}
             columns={columns}
             getRowId={(row: any) => row.id}
-            initialState={{
-              pagination: { paginationModel: { pageSize: 10 } },
-            }}
-            pageSizeOptions={[2, 10, 25, 50, 100]}
             showToolbar
           />
         </Paper>

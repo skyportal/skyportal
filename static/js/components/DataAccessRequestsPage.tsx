@@ -164,7 +164,6 @@ const RequestGrid = ({
           numPerPage: model.pageSize,
         })
       }
-      pageSizeOptions={[25, 50, 100]}
       className={classes.root}
     />
   );

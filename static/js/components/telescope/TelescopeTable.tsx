@@ -305,9 +305,9 @@ const TelescopeTable = ({
         getRowId={(row: any) => row.id}
         onRowClick={(params: any) => navigate(`/telescope/${params.row.id}`)}
         sx={{ "& .MuiDataGrid-row": { cursor: "pointer" } }}
-        hideFooter
+        pageSizeOptions={[25, 50, 100, { value: -1, label: "All" }]}
         initialState={{
-          pagination: { paginationModel: { pageSize: 100 } },
+          pagination: { paginationModel: { pageSize: -1 } },
         }}
         slots={{ toolbar: CustomToolbar }}
         showToolbar

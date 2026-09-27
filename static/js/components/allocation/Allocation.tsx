@@ -311,7 +311,6 @@ const AllocationObservationPlansTable = ({
           pageSize: fetchParams.numPerPage,
         }}
         onPaginationModelChange={handlePaginationModelChange}
-        pageSizeOptions={[25, 50, 100]}
       />
     </div>
   );
@@ -651,7 +650,6 @@ const AllocationSummaryTable = ({
           pageSize: fetchParams.numPerPage,
         }}
         onPaginationModelChange={handlePaginationModelChange}
-        pageSizeOptions={[25, 50, 100]}
       />
       <Dialog
         open={editCommentRequestId !== null}

@@ -58,9 +58,6 @@ import { useAppDispatch } from "../../types/hooks";
 
 dayjs.extend(utc);
 
-const PAGE_SIZE_OPTIONS = [10, 25, 50, 100, 200];
-const DEFAULT_NUM_PER_PAGE = 25;
-
 const cellSx = {
   display: "flex",
   alignItems: "center",
@@ -636,10 +633,6 @@ const UserManagement = () => {
           getRowId={(row: any) => row.id}
           getRowHeight={() => "auto"}
           loading={usersManagementFetching}
-          initialState={{
-            pagination: { paginationModel: { pageSize: DEFAULT_NUM_PER_PAGE } },
-          }}
-          pageSizeOptions={PAGE_SIZE_OPTIONS}
           columnBufferPx={3000}
           slots={{ toolbar: UsersToolbar }}
           slotProps={{

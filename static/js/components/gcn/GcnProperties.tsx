@@ -75,8 +75,6 @@ const GcnProperties = ({ properties }: GcnPropertiesProps) => {
       rows={propertiesWithUniqueKeys}
       columns={columns}
       getRowId={(row: any) => row.__rowid}
-      initialState={{ pagination: { paginationModel: { pageSize: 10 } } }}
-      pageSizeOptions={[1, 10, 15]}
       slots={{ toolbar: DataGridToolbar }}
       slotProps={{ toolbar: { title: "Event Properties" } }}
       showToolbar

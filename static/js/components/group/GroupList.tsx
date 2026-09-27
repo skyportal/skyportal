@@ -211,8 +211,6 @@ const GroupList = ({
       rows={multiUserGroups}
       columns={columns}
       getRowId={(row: any) => row.id}
-      initialState={{ pagination: { paginationModel: { pageSize: 30 } } }}
-      pageSizeOptions={[30, 50, 100, 200]}
       filterModel={filterModel}
       onFilterModelChange={onFilterModelChange}
       showToolbar

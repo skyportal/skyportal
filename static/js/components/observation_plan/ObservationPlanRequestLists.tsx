@@ -606,18 +606,12 @@ const ObservationPlanRequestLists = ({
       >
         <StyledDataGrid
           autoHeight
-          // Let rows grow to fit the embedded skymap cell; without this the
-          // default ~52px row height clips the localization plot to a sliver.
           getRowHeight={() => "auto"}
           data-testid={`${instLookUp[instrument_id].name}_grid`}
           rows={requestsGroupedByInstId[instrument_id]}
           columns={getDataTableColumns(instrument_id)}
           getRowId={(row: any) => row.id}
           disableColumnFilter
-          initialState={{
-            pagination: { paginationModel: { pageSize: 10 } },
-          }}
-          pageSizeOptions={[1, 10, 15]}
           showToolbar
         />
       </AccordionDetails>

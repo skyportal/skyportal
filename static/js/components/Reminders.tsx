@@ -374,10 +374,6 @@ const Reminders = ({
           rows={remindersList}
           columns={columns}
           getRowId={(row: any) => row.id}
-          initialState={{
-            pagination: { paginationModel: { pageSize: 5 } },
-          }}
-          pageSizeOptions={[2, 5, 10]}
           slots={{ toolbar: CustomToolbar }}
           showToolbar
         />

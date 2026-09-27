@@ -80,6 +80,7 @@ const baseSx = (theme: any) => ({
 // version-sensitive, and call sites already pass a validated shape.
 interface StyledDataGridProps {
   sx?: any;
+  initialState?: any;
   [key: string]: any;
 }
 
@@ -89,11 +90,25 @@ interface StyledDataGridProps {
 // prop types here.
 const LooseDataGrid = DataGrid as any;
 
-const StyledDataGrid = ({ sx, ...props }: StyledDataGridProps) => (
+const StyledDataGrid = ({
+  sx,
+  initialState,
+  ...props
+}: StyledDataGridProps) => (
   <LooseDataGrid
     density="standard"
     disableRowSelectionOnClick
     sx={[baseSx, ...(Array.isArray(sx) ? sx : [sx])]}
+    initialState={{
+      ...initialState,
+      pagination: {
+        ...initialState?.pagination,
+        paginationModel: {
+          pageSize: 25,
+          ...initialState?.pagination?.paginationModel,
+        },
+      },
+    }}
     {...props}
   />
 );

@@ -258,10 +258,8 @@ const ObservationPlanRequestPage = () => {
               columns={columns}
               getRowId={(row: any) => row.id}
               initialState={{
-                pagination: { paginationModel: { pageSize: 25 } },
                 sorting: { sortModel: [{ field: "created_at", sort: "desc" }] },
               }}
-              pageSizeOptions={[10, 25, 50, 100]}
             />
           </Paper>
         </div>

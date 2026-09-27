@@ -33,8 +33,6 @@ import { useGetStreamsQuery } from "../../ducks/streams";
 import { useAppDispatch } from "../../types/hooks";
 import ConfirmFilterDeletionDialog from "../filter/ConfirmFilterDeletionDialog";
 
-const PAGE_SIZES = [10, 25, 50];
-
 const FilterCatalog = ({ brokerId }: { brokerId?: number }) => {
   const [page, setPage] = useState(0);
   const [numPerPage, setNumPerPage] = useState(25);
@@ -318,7 +316,7 @@ const FilterCatalog = ({ brokerId }: { brokerId?: number }) => {
           page={page}
           onPageChange={(_e, p) => setPage(p)}
           rowsPerPage={numPerPage}
-          rowsPerPageOptions={PAGE_SIZES}
+          rowsPerPageOptions={[25, 50, 100]}
           onRowsPerPageChange={(e) => {
             setNumPerPage(Number(e.target.value));
             setPage(0);

@@ -331,10 +331,6 @@ const SurveyEfficiencyObservationsLists = ({
               rows={analysesGroupedByInstId[instrument_id]}
               columns={columns}
               getRowId={(row: any) => row.id}
-              initialState={{
-                pagination: { paginationModel: { pageSize: 10 } },
-              }}
-              pageSizeOptions={[1, 10, 15]}
               slots={{ toolbar: CustomToolbar }}
               showToolbar
             />

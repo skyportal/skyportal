@@ -14,8 +14,6 @@ import StyledDataGrid, { DataGridToolbar } from "../StyledDataGrid";
 import GalaxyTableFilterForm from "./GalaxyTableFilterForm";
 import { filterOutEmptyValues } from "../../API";
 
-const PAGE_SIZE_OPTIONS = [2, 10, 25, 50, 100];
-
 interface GalaxyTableProps {
   galaxies?: any[] | null;
   totalMatches?: number;
@@ -32,7 +30,7 @@ const GalaxyTable = ({
   handleTableChange = false,
   onFilterSubmit = undefined,
   pageNumber = 1,
-  numPerPage = 10,
+  numPerPage = 25,
   serverSide = true,
 }: GalaxyTableProps) => {
   const [filterFormSubmitted, setFilterFormSubmitted] = useState(false);
@@ -317,7 +315,6 @@ const GalaxyTable = ({
             onPaginationModelChange={handlePaginationModelChange}
             sortModel={sortModel}
             onSortModelChange={handleSortModelChange}
-            pageSizeOptions={PAGE_SIZE_OPTIONS}
             slots={{ toolbar: CustomToolbar }}
             showToolbar
           />

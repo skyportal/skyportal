@@ -76,7 +76,7 @@ const withObservationDefaults = (filterParams: FilterParams): FilterParams => {
     params["endDate"] = dayjs().utc().format("YYYY-MM-DDTHH:mm:ssZ");
   }
   if (!Object.keys(params).includes("numPerPage")) {
-    params["numPerPage"] = 10;
+    params["numPerPage"] = 25;
   }
   return params;
 };

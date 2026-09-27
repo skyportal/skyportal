@@ -18,8 +18,6 @@ import NewAPIQueuedObservation from "./NewAPIQueuedObservation";
 import { useGetInstrumentsQuery } from "../../ducks/instruments";
 import { useHasPermission } from "../../ducks/profile";
 
-const PAGE_SIZE_OPTIONS = [10, 25, 50, 100];
-
 // Map each DataGrid column `field` to the field name the server expects for
 // sorting. Columns absent from this map are not server-sortable.
 const SERVER_SORT_FIELD: Record<string, string> = {
@@ -62,7 +60,7 @@ const QueuedObservationsTable = ({
   handleTableChange = false,
   handleFilterSubmit = false,
   pageNumber = 1,
-  numPerPage = 10,
+  numPerPage = 25,
   serverSide = true,
   filterModel,
   onFilterModelChange,
@@ -360,7 +358,6 @@ const QueuedObservationsTable = ({
             onPaginationModelChange={handlePaginationModelChange}
             sortModel={sortModel}
             onSortModelChange={handleSortModelChange}
-            pageSizeOptions={PAGE_SIZE_OPTIONS}
             filterModel={filterModel}
             onFilterModelChange={onFilterModelChange}
             slots={{ toolbar: CustomToolbar }}

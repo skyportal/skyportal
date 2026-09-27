@@ -15,7 +15,7 @@ import dayjs from "dayjs";
 
 import { useGetGcnEventsQuery } from "../../ducks/gcnEvents";
 
-const numPerPage = 10;
+const numPerPage = 25;
 
 interface MMADetectorEventsDialogProps {
   mmadetector: any;

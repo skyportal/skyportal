@@ -121,10 +121,6 @@ const GcnNotesTable = ({ gcnNotes, canExpand = true }: GcnNotesTableProps) => {
         <StyledDataGrid
           columns={columns}
           rows={tableData}
-          initialState={{
-            pagination: { paginationModel: { pageSize: 10 } },
-          }}
-          pageSizeOptions={[10, 15, 50]}
           slots={{ toolbar: CustomToolbar }}
           showToolbar
         />

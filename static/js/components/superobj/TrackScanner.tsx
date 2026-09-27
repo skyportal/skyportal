@@ -233,7 +233,7 @@ const TrackRow = ({
  */
 const TrackScanner = () => {
   const [page, setPage] = useState(0);
-  const [perPage, setPerPage] = useState(10);
+  const [perPage, setPerPage] = useState(25);
   const [onlyMultiEpoch, setOnlyMultiEpoch] = useState(true);
   const userGroups = useGetGroupsQuery().data?.userAccessible ?? [];
 
@@ -297,7 +297,7 @@ const TrackScanner = () => {
           setPerPage(parseInt(e.target.value, 10));
           setPage(0);
         }}
-        rowsPerPageOptions={[10, 25, 50]}
+        rowsPerPageOptions={[25, 50, 100]}
       />
     </Box>
   );

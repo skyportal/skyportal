@@ -128,8 +128,6 @@ const CatalogQueryLists = ({ catalog_queries }: CatalogQueryListsProps) => {
         rows={catalog_queries}
         columns={columns}
         getRowId={(row: any) => row.id}
-        initialState={{ pagination: { paginationModel: { pageSize: 10 } } }}
-        pageSizeOptions={[1, 10, 15]}
         showToolbar
         sx={{ width: "100%" }}
       />
