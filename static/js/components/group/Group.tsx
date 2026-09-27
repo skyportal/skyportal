@@ -151,7 +151,6 @@ const Group = () => {
           group={group}
           currentUser={currentUser}
           isAdmin={isAdmin}
-          theme={theme}
         />
       )}
       <Dialog

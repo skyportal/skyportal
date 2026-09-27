@@ -5,8 +5,9 @@
  * RTK Query conversion of the old `FETCH_FILTER` / `ADD_GROUP_FILTER` /
  * `DELETE_GROUP_FILTER` duck. The endpoints are injected into the central
  * `skyportalApi`. The queries provide the `Filters` tag; the add/delete
- * mutations invalidate it (to refresh the filter list/single) and consumers
- * still invalidate the owning *group* via `groupApi.util.invalidateTags`.
+ * mutations invalidate it (to refresh the filter list/single). Add also
+ * invalidates the owning group; after a delete, consumers still do it via
+ * `groupApi.util.invalidateTags`.
  */
 import { skyportalApi } from "../api/skyportalApi";
 import type { RouteData } from "../types/routeSchemaMap";
@@ -46,9 +47,11 @@ export const filterApi = skyportalApi.injectEndpoints({
         method: "POST",
         body: { name, group_id, stream_id, broker_id },
       }),
-      // Also refresh any filter query (list/single); consumers still invalidate
-      // the owning group separately.
-      invalidatesTags: ["Filters", "Broker"],
+      invalidatesTags: (_result, _error, { group_id }) => [
+        "Filters",
+        "Broker",
+        { type: "Group", id: Number(group_id) },
+      ],
     }),
     deleteGroupFilter: build.mutation<unknown, DeleteGroupFilterArg>({
       query: ({ filter_id }) => ({

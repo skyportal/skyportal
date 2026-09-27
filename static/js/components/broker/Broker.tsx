@@ -25,7 +25,7 @@ import BrokerAlertFilters from "./BrokerAlertFilters";
 import BrokerCredentialsForm from "./BrokerCredentialsForm";
 import FilterCatalog from "./FilterCatalog";
 import { AlertFilter, fieldsOf, flatten, matchesFilters } from "./alertFields";
-import NewBrokerFilterDialog from "./NewBrokerFilterDialog";
+import NewFilterDialog from "../filter/NewFilterDialog";
 import LasairFilterBuilder from "./lasair/LasairFilterBuilder";
 import Spinner from "../Spinner";
 import { dec_to_deg, ra_to_deg } from "../../units";
@@ -374,7 +374,7 @@ const Broker = () => {
               </Typography>
             ))}
 
-          <NewBrokerFilterDialog
+          <NewFilterDialog
             open={newFilterOpen}
             onClose={() => setNewFilterOpen(false)}
             brokerId={brokerId}

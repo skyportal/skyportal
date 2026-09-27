@@ -36,7 +36,7 @@ import {
 import { useGetProfileQuery } from "../../ducks/profile";
 import StyledDataGrid from "../StyledDataGrid";
 import FilterCatalog from "./FilterCatalog";
-import NewBrokerFilterDialog from "./NewBrokerFilterDialog";
+import NewFilterDialog from "../filter/NewFilterDialog";
 
 const Form = withTheme(MuiTheme);
 
@@ -340,7 +340,7 @@ const BrokerList = () => {
 
       {tab === 1 && <FilterCatalog />}
 
-      <NewBrokerFilterDialog
+      <NewFilterDialog
         open={newFilterOpen}
         onClose={() => setNewFilterOpen(false)}
       />
