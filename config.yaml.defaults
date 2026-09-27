@@ -259,6 +259,8 @@ app:
       component: listing/FavoritesPage
     - path: "/data_access_requests"
       component: DataAccessRequestsPage
+    - path: "/source_interests"
+      component: source/SourceInterestsPage
     - path: "/groups"
       component: group/Groups
     - path: "/group/:id"
@@ -435,6 +437,10 @@ app:
         - name: Data Requests
           icon: LockOpen
           url: /data_access_requests
+
+        - name: Interests
+          icon: Handshake
+          url: /source_interests
 
         - name: Shifts
           icon: SubwayRounded
