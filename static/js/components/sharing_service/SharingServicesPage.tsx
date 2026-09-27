@@ -630,6 +630,7 @@ const SharingServiceCoauthors = ({
 const SharingServicesToolbar = ({ onCreate }: { onCreate?: () => void }) => (
   <DataGridToolbar
     title="Sharing Services"
+    showExpandAll
     showColumns={false}
     showQuickFilter={false}
     showExport={false}

@@ -99,6 +99,7 @@ const MMADetectorEventsDialog = ({
             showColumns: false,
             showQuickFilter: false,
             showExport: false,
+            showExpandAll: true,
           },
         }}
         showToolbar

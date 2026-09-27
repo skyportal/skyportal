@@ -54,6 +54,7 @@ import StyledDataGridBase, {
   DataGridToolbar,
   FULL_PAGE_HEIGHT,
 } from "../StyledDataGrid";
+import ExpandableCell from "../ExpandableCell";
 import DisplayPhotStats from "./DisplayPhotStats";
 
 import { dec_to_dms, mjd_to_utc, ra_to_hours } from "../../units";
@@ -152,14 +153,6 @@ const useStyles = makeStyles()((theme) => ({
   },
   classificationDeleteDisabled: {
     opacity: 0,
-  },
-  groupChips: {
-    display: "flex",
-    flexDirection: "row",
-    flexWrap: "wrap",
-    alignItems: "center",
-    gap: "0.25rem",
-    maxWidth: "120px",
   },
   filterChips: {
     display: "flex",
@@ -415,7 +408,12 @@ const SourceTableToolbar = ({
   const [columnAnchor, setColumnAnchor] = useState<HTMLElement | null>(null);
 
   return (
-    <DataGridToolbar title={title} showExport={false} showQuickFilter={false}>
+    <DataGridToolbar
+      title={title}
+      showExport={false}
+      showQuickFilter={false}
+      showExpandAll
+    >
       {columnPickerOptions.length > 0 && (
         <>
           <Tooltip title="Add an annotation or altdata column">
@@ -982,24 +980,18 @@ const SourceTable = ({
       </Suspense>
     );
 
-    const renderGroups = (params: any) => {
-      const source = params.row;
-      return (
-        <div key={`${source.id}_groups`} className={classes.groupChips}>
-          {(getGroups(source) || []).map((group: any) => (
-            <div key={group.name}>
-              <Chip
-                label={group.name.substring(0, 15)}
-                key={group.id}
-                size="small"
-                onClick={() => navigate(`/group/${group.id}`)}
-              />
-              <br />
-            </div>
-          ))}
-        </div>
-      );
-    };
+    const renderGroups = (params: any) => (
+      <ExpandableCell
+        items={(getGroups(params.row) || []).map((group: any) => (
+          <Chip
+            label={group.name.substring(0, 15)}
+            key={group.id}
+            size="small"
+            onClick={() => navigate(`/group/${group.id}`)}
+          />
+        ))}
+      />
+    );
 
     const renderDateSaved = (params: any) => (
       <div key={`${params.row.id}_date_saved`}>
@@ -1076,37 +1068,23 @@ const SourceTable = ({
       <div>{params.row.mpc_name ? params.row.mpc_name : ""}</div>
     );
 
-    const renderTags = (params: any) => {
-      const source = params.row;
-      const tags = source.tags || [];
-      if (tags.length === 0) {
-        return null;
-      }
-      const tagsWithColors = tags.map((tag: any) => {
-        const tagOption = tagOptions.find(
-          (option: any) => option.id === tag.objtagoption_id,
-        );
-        return {
-          ...tag,
-          color: tagOption?.color || "#dddfe2",
-        };
-      });
-      return (
-        <div key={`${source.id}_tags`} className={classes.groupChips}>
-          {tagsWithColors.map((tag: any) => (
+    const renderTags = (params: any) => (
+      <ExpandableCell
+        items={(params.row.tags || []).map((tag: any) => {
+          const color =
+            tagOptions.find((option: any) => option.id === tag.objtagoption_id)
+              ?.color || "#dddfe2";
+          return (
             <Chip
               key={tag.id}
               label={tag.name}
               size="small"
-              style={{
-                backgroundColor: tag.color,
-                color: getContrastColor(tag.color),
-              }}
+              sx={{ bgcolor: color, color: getContrastColor(color) }}
             />
-          ))}
-        </div>
-      );
-    };
+          );
+        })}
+      />
+    );
 
     const renderSavedBy = (params: any) => getSavedBy(params.row);
 
@@ -1535,8 +1513,7 @@ const SourceTable = ({
     openedRows,
   ]);
 
-  // Interleave a synthetic detail row after each expanded source. getRowHeight
-  // returns "auto" for those rows so the pull-out content sizes itself.
+  // Interleave a synthetic detail row after each expanded source.
   const displayRows = useMemo(() => {
     const out: any[] = [];
     (sources || []).forEach((source: any) => {
@@ -1551,11 +1528,6 @@ const SourceTable = ({
     });
     return out;
   }, [sources, openedRows]);
-
-  const getRowHeight = useCallback(
-    (params: any) => (params.model.__detail ? "auto" : null),
-    [],
-  );
 
   // Must be a stable object. An inline literal re-runs the grid's pagination
   // sync effect every render, and while the model is out of range (e.g. a page
@@ -1792,7 +1764,7 @@ const SourceTable = ({
           rows={displayRows}
           columns={columns}
           loading={loading || isLoading}
-          getRowHeight={getRowHeight}
+          getRowHeight={() => "auto"}
           columnVisibilityModel={columnVisibilityModel}
           onColumnVisibilityModelChange={handleColumnVisibilityModelChange}
           paginationMode="server"

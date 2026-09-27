@@ -19,6 +19,11 @@ import ViewColumnIcon from "@mui/icons-material/ViewColumn";
 import FilterListIcon from "@mui/icons-material/FilterList";
 import FileDownloadIcon from "@mui/icons-material/FileDownload";
 import SearchIcon from "@mui/icons-material/Search";
+import UnfoldMoreIcon from "@mui/icons-material/UnfoldMore";
+import UnfoldLessIcon from "@mui/icons-material/UnfoldLess";
+import { useContext } from "react";
+
+import { ExpandAllContext, ExpandAllProvider } from "./ExpandableCell";
 
 // Shared, theme-aware wrapper around MUI X DataGrid.
 //
@@ -92,13 +97,34 @@ interface StyledDataGridProps {
 const LooseDataGrid = DataGrid as any;
 
 const StyledDataGrid = ({ sx, ...props }: StyledDataGridProps) => (
-  <LooseDataGrid
-    density="standard"
-    disableRowSelectionOnClick
-    sx={[baseSx, ...(Array.isArray(sx) ? sx : [sx])]}
-    {...props}
-  />
+  <ExpandAllProvider>
+    <LooseDataGrid
+      density="standard"
+      disableRowSelectionOnClick
+      sx={[baseSx, ...(Array.isArray(sx) ? sx : [sx])]}
+      {...props}
+    />
+  </ExpandAllProvider>
 );
+
+const ExpandAllButton = () => {
+  const { expandAll, setExpandAll } = useContext(ExpandAllContext);
+  const label = expandAll ? "Collapse all" : "Expand all";
+  return (
+    <Tooltip title={label}>
+      <ToolbarButton
+        aria-label={label}
+        onClick={() => setExpandAll(!expandAll)}
+      >
+        {expandAll ? (
+          <UnfoldLessIcon fontSize="small" />
+        ) : (
+          <UnfoldMoreIcon fontSize="small" />
+        )}
+      </ToolbarButton>
+    </Tooltip>
+  );
+};
 
 // Shared v8 DataGrid toolbar. Replaces the deprecated GridToolbar* family
 // (GridToolbarContainer/GridToolbarColumnsButton/GridToolbarQuickFilter), which
@@ -112,6 +138,7 @@ export const DataGridToolbar = ({
   showQuickFilter = true,
   showFilter = false,
   showExport = true,
+  showExpandAll = false,
   quickFilterTestId,
 }: {
   children?: any;
@@ -120,6 +147,7 @@ export const DataGridToolbar = ({
   showQuickFilter?: boolean;
   showFilter?: boolean;
   showExport?: boolean;
+  showExpandAll?: boolean;
   quickFilterTestId?: string;
 }) => (
   <Toolbar>
@@ -131,6 +159,7 @@ export const DataGridToolbar = ({
         <Box sx={{ flexGrow: 1 }} />
       </>
     )}
+    {showExpandAll && <ExpandAllButton />}
     {showColumns && (
       <Tooltip title="Columns">
         <ColumnsPanelTrigger

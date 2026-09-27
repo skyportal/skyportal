@@ -28,6 +28,7 @@ import { showNotification } from "baselayer/components/Notifications";
 import { useAppDispatch } from "../../types/hooks";
 import Button from "../Button";
 import StyledDataGrid, { DataGridToolbar } from "../StyledDataGrid";
+import ExpandableCell from "../ExpandableCell";
 
 import { filterOutEmptyValues } from "../../API";
 import { useGetGcnEventsQuery } from "../../ducks/gcnEvents";
@@ -44,12 +45,6 @@ import GcnEventAllocationTriggers from "./GcnEventAllocationTriggers";
 const PAGE_SIZE_OPTIONS = [10, 25, 50, 100];
 
 const useStyles = makeStyles()((theme) => ({
-  tags: {
-    margin: "0 1px 1px 0",
-    "& > div": {
-      margin: "0.25rem",
-    },
-  },
   gcnEventLink: {
     padding: 0,
     color:
@@ -253,44 +248,36 @@ const GcnEvents = () => {
     handleTableSorting({ name: field, direction: sort });
   };
 
-  const renderGcnTags = (params: any) => {
-    const gcnTags: any[] = [];
-    params.row?.tags?.forEach((tag: any) => {
-      gcnTags.push(tag);
-    });
-    const gcnTagsUnique = [...new Set(gcnTags)];
-    return gcnTagsUnique.map((tag) => (
-      <Chip
-        size="small"
-        key={tag}
-        label={tag}
-        className={classes.tags}
-        style={{
-          backgroundColor:
-            gcn_tags_classes && tag in gcn_tags_classes
-              ? gcn_tags_classes[tag]
-              : "#999999",
-        }}
-      />
-    ));
-  };
+  const renderGcnTags = (params: any) => (
+    <ExpandableCell
+      items={[...new Set<string>(params.row?.tags ?? [])].map((tag) => (
+        <Chip
+          size="small"
+          key={tag}
+          label={tag}
+          sx={{ bgcolor: gcn_tags_classes?.[tag] ?? "#999999" }}
+        />
+      ))}
+    />
+  );
 
   const renderAllocationTriggers = (params: any) => (
     <GcnEventAllocationTriggers gcnEvent={params.row} showPassed />
   );
 
-  const renderLocalizationTags = (params: any) => {
-    const localizationTags: any[] = [];
-    params.row.localizations?.forEach((loc: any) => {
-      loc.tags?.forEach((tag: any) => {
-        localizationTags.push(tag.text);
-      });
-    });
-    const localizationTagsUnique = [...new Set(localizationTags)];
-    return localizationTagsUnique.map((tag) => (
-      <Chip size="small" key={tag} label={tag} className={classes.tags} />
-    ));
-  };
+  const renderLocalizationTags = (params: any) => (
+    <ExpandableCell
+      items={[
+        ...new Set<string>(
+          params.row.localizations?.flatMap((loc: any) =>
+            (loc.tags ?? []).map((tag: any) => tag.text),
+          ),
+        ),
+      ].map((tag) => (
+        <Chip size="small" key={tag} label={tag} />
+      ))}
+    />
+  );
 
   const expandButton = (
     setShowAll: (...a: any[]) => void,
@@ -438,7 +425,12 @@ const GcnEvents = () => {
 
   const CustomToolbar = function GcnEventsToolbar() {
     return (
-      <DataGridToolbar showQuickFilter={false} showExport={false}>
+      <DataGridToolbar
+        title="GCN Events"
+        showQuickFilter={false}
+        showExport={false}
+        showExpandAll
+      >
         <Tooltip title="Filter Table">
           <IconButton
             size="small"
@@ -495,12 +487,6 @@ const GcnEvents = () => {
           <div className={(classes as any).paperContent}>
             {gcnEvents ? (
               <>
-                <Typography
-                  variant="h6"
-                  style={{ padding: "0.5rem 0.75rem 0" }}
-                >
-                  GCN Events
-                </Typography>
                 <Tabs
                   value={tab}
                   onChange={(_event, value) => setTab(value)}
@@ -518,6 +504,7 @@ const GcnEvents = () => {
                     rows={(gcnEvents as any).events || []}
                     columns={columns}
                     getRowId={(row: any) => row.dateobs}
+                    getRowHeight={() => "auto"}
                     paginationMode="server"
                     sortingMode="server"
                     rowCount={totalMatches}
