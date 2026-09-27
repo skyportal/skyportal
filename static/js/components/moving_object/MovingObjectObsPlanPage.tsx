@@ -52,6 +52,43 @@ const PlaceHolder = () => {
   );
 };
 
+const COLUMNS = [
+  {
+    field: "start_time",
+    headerName: "Start Time",
+    flex: 1.5,
+    minWidth: 180,
+  },
+  {
+    field: "field_id",
+    headerName: "Field ID",
+    flex: 1,
+    minWidth: 90,
+  },
+  { field: "band", headerName: "Band", flex: 1, minWidth: 80 },
+  {
+    field: "airmass",
+    headerName: "Airmass",
+    flex: 1,
+    minWidth: 110,
+    valueFormatter: (value: number) => value.toFixed(2),
+  },
+  {
+    field: "moon_distance",
+    headerName: "Moon Distance",
+    flex: 1,
+    minWidth: 110,
+    valueFormatter: (value: number) => value.toFixed(2),
+  },
+  {
+    field: "sun_altitude",
+    headerName: "Sun Altitude",
+    flex: 1,
+    minWidth: 110,
+    valueFormatter: (value: number) => value.toFixed(2),
+  },
+];
+
 const MovingObjectObsPlanPage = () => {
   const { classes } = useStyles();
   const { data: instruments = [] } = useGetInstrumentsQuery() as {
@@ -106,7 +143,7 @@ const MovingObjectObsPlanPage = () => {
         dispatch(
           showNotification("Observation plan generated successfully", "info"),
         );
-        setPlanData(result);
+        setPlanData(result.map((row: any, id: number) => ({ ...row, id })));
       }
     } catch {
       // error notification is handled by the base query
@@ -251,47 +288,8 @@ const MovingObjectObsPlanPage = () => {
         </Paper>
       </Grid>
       <Grid size={{ lg: 7, md: 12 }}>
-        <Paper elevation={1}>
-          <StyledDataGrid
-            autoHeight
-            rows={planData.map((row, id) => ({ ...row, id }))}
-            columns={[
-              {
-                field: "start_time",
-                headerName: "Start Time",
-                flex: 1.5,
-                minWidth: 180,
-              },
-              {
-                field: "field_id",
-                headerName: "Field ID",
-                flex: 1,
-                minWidth: 90,
-              },
-              { field: "band", headerName: "Band", flex: 1, minWidth: 80 },
-              {
-                field: "airmass",
-                headerName: "Airmass",
-                flex: 1,
-                minWidth: 110,
-                valueFormatter: (value: number) => value.toFixed(2),
-              },
-              {
-                field: "moon_distance",
-                headerName: "Moon Distance",
-                flex: 1,
-                minWidth: 110,
-                valueFormatter: (value: number) => value.toFixed(2),
-              },
-              {
-                field: "sun_altitude",
-                headerName: "Sun Altitude",
-                flex: 1,
-                minWidth: 110,
-                valueFormatter: (value: number) => value.toFixed(2),
-              },
-            ]}
-          />
+        <Paper elevation={1} sx={{ height: "calc(100vh - 5.25rem)" }}>
+          <StyledDataGrid rows={planData} columns={COLUMNS} />
         </Paper>
       </Grid>
       <Dialog open={loading} maxWidth="sm" fullWidth>
