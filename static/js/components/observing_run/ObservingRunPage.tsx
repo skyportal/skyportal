@@ -1,245 +1,184 @@
-import { useGetProfileQuery, useIsReadOnly } from "../../ducks/profile";
-import { useGetGroupsQuery } from "../../ducks/groups";
 import { useState } from "react";
-import { Link } from "react-router-dom";
-import EditIcon from "@mui/icons-material/Edit";
-import DeleteIcon from "@mui/icons-material/Delete";
-import Box from "@mui/material/Box";
-import List from "@mui/material/List";
-import ListItem from "@mui/material/ListItem";
-import ListItemText from "@mui/material/ListItemText";
-import Typography from "@mui/material/Typography";
+import { Link as RouterLink } from "react-router-dom";
 import Grid from "@mui/material/Grid";
-import { ToggleButton, ToggleButtonGroup } from "@mui/material";
-import { showNotification } from "baselayer/components/Notifications";
-
+import Box from "@mui/material/Box";
+import IconButton from "@mui/material/IconButton";
+import Link from "@mui/material/Link";
+import ToggleButton from "@mui/material/ToggleButton";
+import ToggleButtonGroup from "@mui/material/ToggleButtonGroup";
 import Dialog from "@mui/material/Dialog";
 import DialogTitle from "@mui/material/DialogTitle";
 import DialogContent from "@mui/material/DialogContent";
-
+import EditIcon from "@mui/icons-material/Edit";
+import DeleteIcon from "@mui/icons-material/Delete";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 import duration from "dayjs/plugin/duration";
 import relativeTime from "dayjs/plugin/relativeTime";
-import { useDeleteObservingRunMutation } from "../../ducks/observingRun";
-import { useGetObservingRunsQuery } from "../../ducks/observingRuns";
-import { useGetTelescopesQuery } from "../../ducks/telescopes";
+import { showNotification } from "baselayer/components/Notifications";
 
 import { useAppDispatch } from "../../types/hooks";
-import Button from "../Button";
-import Paper from "../Paper";
+import { useGetProfileQuery, useIsReadOnly } from "../../ducks/profile";
+import { useGetGroupsQuery } from "../../ducks/groups";
+import { useGetInstrumentsQuery } from "../../ducks/instruments";
+import { useGetTelescopesQuery } from "../../ducks/telescopes";
+import { useDeleteObservingRunMutation } from "../../ducks/observingRun";
+import { useGetObservingRunsQuery } from "../../ducks/observingRuns";
+import StyledDataGrid, { DataGridToolbar } from "../StyledDataGrid";
 import ConfirmDeletionDialog from "../ConfirmDeletionDialog";
 import { observingRunTitle } from "./AssignmentForm";
 import NewObservingRun from "./NewObservingRun";
 import ModifyObservingRun from "./ModifyObservingRun";
-import { useGetInstrumentsQuery } from "../../ducks/instruments";
 
 dayjs.extend(utc);
 dayjs.extend(duration);
 dayjs.extend(relativeTime);
 
-export const observingRunInfo = (
-  observingRun: any,
-  instrumentList: any[],
-  telescopeList: any[],
-) => {
-  const { instrument_id } = observingRun;
-  const instrument = instrumentList?.filter((i) => i.id === instrument_id)[0];
-  const telescope_id = instrument?.telescope_id;
-  const telescope = telescopeList?.filter((t) => t.id === telescope_id)[0];
-
-  if (!observingRun?.calendar_date || !instrument?.name || !telescope?.name)
-    return null;
-
-  const nowDate = dayjs().utc();
-  const runDate = dayjs(observingRun?.calendar_date);
-  const dt = dayjs.duration(runDate.diff(nowDate));
-
-  let result = dt.humanize(true);
-  if (observingRun?.observers) {
-    result += ` / observers: ${observingRun.observers}`;
-  }
-  if (observingRun?.duration) {
-    result += ` / # of nights: ${observingRun.duration}`;
-  }
-
-  return result;
-};
-
-interface ObservingRunListProps {
-  observingRuns: any[];
-  managePermission: boolean;
+interface RunsToolbarProps {
+  displayAll: boolean;
+  setDisplayAll: (displayAll: boolean) => void;
 }
 
-const ObservingRunList = ({
-  observingRuns,
-  managePermission,
-}: ObservingRunListProps) => {
-  const dispatch = useAppDispatch();
-  const { data: instrumentList = [] } = useGetInstrumentsQuery();
-  const { data: telescopeList = [] } = useGetTelescopesQuery();
-  const groups = useGetGroupsQuery().data?.all ?? [];
-  const [deleteObservingRunMutation] = useDeleteObservingRunMutation();
-  const [observingRunToEdit, setObservingRunToEdit] = useState<number | null>(
-    null,
+const RunsToolbar = ({ displayAll, setDisplayAll }: RunsToolbarProps) => (
+  <DataGridToolbar title="Observing Runs" showExport={false}>
+    <ToggleButtonGroup
+      size="small"
+      value={displayAll}
+      exclusive
+      onChange={(_e, value) => value !== null && setDisplayAll(value)}
+    >
+      <ToggleButton value={false}>Upcoming runs</ToggleButton>
+      <ToggleButton value={true}>All runs</ToggleButton>
+    </ToggleButtonGroup>
+  </DataGridToolbar>
+);
+
+const isUpcoming = (run: any) => {
+  const msUntilEnd = dayjs(run.calendar_date)
+    .add(run.duration - 1, "day")
+    .diff(dayjs().utc().subtract(1.5, "day"));
+  return (
+    msUntilEnd > 0 && msUntilEnd < dayjs.duration(1, "month").asMilliseconds()
   );
-  const [observingRunToDelete, setObservingRunToDelete] = useState<
-    number | null
-  >(null);
+};
+
+const ObservingRunPage = () => {
+  const dispatch = useAppDispatch();
+  const isReadOnly = useIsReadOnly();
+  const permissions = useGetProfileQuery().data?.permissions;
+  const managePermission =
+    permissions?.includes("System admin") ||
+    permissions?.includes("Manage observing runs");
+  const { data: observingRuns = [] } = useGetObservingRunsQuery();
+  const { data: instruments = [] } = useGetInstrumentsQuery();
+  const { data: telescopes = [] } = useGetTelescopesQuery();
+  const groups = useGetGroupsQuery().data?.all ?? [];
+  const [deleteObservingRun] = useDeleteObservingRunMutation();
+  const [runToEdit, setRunToEdit] = useState<number | null>(null);
+  const [runToDelete, setRunToDelete] = useState<number | null>(null);
   const [displayAll, setDisplayAll] = useState(false);
 
-  const nowDate = dayjs()
-    .utc()
-    .subtract(1.5, "day")
-    .format("YYYY-MM-DDTHH:mm:ssZ");
-  const dt_month = dayjs.duration(1, "month");
+  const rows = displayAll
+    ? [...observingRuns].sort((a, b) =>
+        dayjs(b.calendar_date).diff(dayjs(a.calendar_date)),
+      )
+    : observingRuns.filter(isUpcoming);
 
-  let observingRunsToShow: any[] = [];
-  if (!displayAll) {
-    observingRuns?.forEach((run) => {
-      const dt: any = dayjs.duration(
-        dayjs(run.calendar_date)
-          .add(run.duration - 1, "day")
-          .diff(nowDate),
-      );
-      if (dt.$ms < (dt_month as any).$ms && dt.$ms > 0) {
-        observingRunsToShow.push(run);
-      }
-    });
-  } else {
-    observingRunsToShow = [...observingRuns].sort((a, b) =>
-      dayjs(b.calendar_date).diff(dayjs(a.calendar_date)),
-    );
-  }
-
-  const deleteObservingRun = async () => {
-    if (observingRunToDelete === null) {
-      return;
-    }
+  const deleteRun = async () => {
     try {
-      await deleteObservingRunMutation(observingRunToDelete).unwrap();
+      await deleteObservingRun(runToDelete!).unwrap();
       dispatch(showNotification("Observing run deleted"));
-      setObservingRunToDelete(null);
+      setRunToDelete(null);
     } catch {
       // error notification handled by the base query
     }
   };
 
-  return (
-    <Paper>
-      <Box
-        sx={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          flexWrap: "wrap",
-        }}
-      >
-        <Typography variant="h6">List of Observing Runs</Typography>
+  const columns: any[] = [
+    {
+      field: "title",
+      headerName: "Run",
+      flex: 3,
+      minWidth: 300,
+      valueGetter: (_value: any, run: any) =>
+        observingRunTitle(run, instruments, telescopes, groups),
+      renderCell: ({ row, value }: any) => (
+        <Link component={RouterLink} to={`/run/${row.id}`} underline="hover">
+          {value}
+        </Link>
+      ),
+    },
+    {
+      field: "calendar_date",
+      headerName: "Starts",
+      flex: 1,
+      minWidth: 120,
+      valueFormatter: (value: string) =>
+        dayjs.duration(dayjs(value).diff(dayjs().utc())).humanize(true),
+    },
+    { field: "observers", headerName: "Observers", flex: 1, minWidth: 120 },
+    { field: "duration", headerName: "Nights", minWidth: 80 },
+    ...(managePermission
+      ? [
+          {
+            field: "actions",
+            headerName: "",
+            sortable: false,
+            filterable: false,
+            minWidth: 100,
+            renderCell: ({ row }: any) => (
+              <Box sx={{ display: "flex" }}>
+                <IconButton onClick={() => setRunToEdit(row.id)}>
+                  <EditIcon />
+                </IconButton>
+                <IconButton
+                  color="error"
+                  onClick={() => setRunToDelete(row.id)}
+                >
+                  <DeleteIcon />
+                </IconButton>
+              </Box>
+            ),
+          },
+        ]
+      : []),
+  ];
 
-        <ToggleButtonGroup
-          value={displayAll}
-          exclusive
-          onChange={(_e, newValue) => {
-            if (newValue !== null) setDisplayAll(newValue);
-          }}
-        >
-          <ToggleButton value={false}>Upcoming runs</ToggleButton>
-          <ToggleButton value={true}>All runs</ToggleButton>
-        </ToggleButtonGroup>
-      </Box>
-      <List component="nav">
-        {observingRunsToShow?.length > 0 ? (
-          observingRunsToShow.map((run) => (
-            <ListItem key={run.id}>
-              <ListItemText
-                primary={
-                  <Link to={`/run/${run.id}`} role="link">
-                    {observingRunTitle(
-                      run,
-                      instrumentList,
-                      telescopeList,
-                      groups,
-                    )}
-                  </Link>
-                }
-                secondary={observingRunInfo(run, instrumentList, telescopeList)}
-              />
-              {managePermission && (
-                <>
-                  <Button
-                    onClick={() => setObservingRunToEdit(run.id)}
-                    size="small"
-                  >
-                    <EditIcon />
-                  </Button>
-                  <Button
-                    onClick={() => setObservingRunToDelete(run.id)}
-                    size="small"
-                    color="error"
-                  >
-                    <DeleteIcon />
-                  </Button>
-                </>
-              )}
-            </ListItem>
-          ))
-        ) : (
-          <Typography
-            variant="body1"
-            color="textSecondary"
-            sx={{
-              mt: 2,
-            }}
-          >
-            No observing runs to show.
-          </Typography>
-        )}
-      </List>
-      <Dialog
-        open={observingRunToEdit !== null}
-        onClose={() => setObservingRunToEdit(null)}
-      >
+  return (
+    <Grid container spacing={3}>
+      <Grid size={{ lg: 8, sm: 12 }}>
+        <StyledDataGrid
+          autoHeight
+          rows={rows}
+          columns={columns}
+          initialState={{ pagination: { paginationModel: { pageSize: 100 } } }}
+          pageSizeOptions={[25, 50, 100]}
+          localeText={{ noRowsLabel: "No observing runs to show." }}
+          slots={{ toolbar: RunsToolbar }}
+          slotProps={{ toolbar: { displayAll, setDisplayAll } }}
+          showToolbar
+        />
+      </Grid>
+      {!isReadOnly && (
+        <Grid size={{ lg: 4, sm: 12 }}>
+          <NewObservingRun />
+        </Grid>
+      )}
+      <Dialog open={runToEdit !== null} onClose={() => setRunToEdit(null)}>
         <DialogTitle>Edit Observing Run</DialogTitle>
         <DialogContent dividers>
           <ModifyObservingRun
-            run_id={observingRunToEdit}
-            onClose={() => setObservingRunToEdit(null)}
+            run_id={runToEdit}
+            onClose={() => setRunToEdit(null)}
           />
         </DialogContent>
       </Dialog>
       <ConfirmDeletionDialog
-        deleteFunction={deleteObservingRun}
-        dialogOpen={observingRunToDelete !== null}
-        closeDialog={() => setObservingRunToDelete(null)}
+        deleteFunction={deleteRun}
+        dialogOpen={runToDelete !== null}
+        closeDialog={() => setRunToDelete(null)}
         resourceName="observing run"
       />
-    </Paper>
-  );
-};
-
-const ObservingRunPage = () => {
-  const { data: observingRunList = [] } = useGetObservingRunsQuery();
-  const { data: currentUser } = useGetProfileQuery();
-  const isReadOnly = useIsReadOnly();
-
-  const managePermission =
-    currentUser?.permissions?.includes("System admin") ||
-    currentUser?.permissions?.includes("Manage observing runs");
-
-  return (
-    <Grid container spacing={3}>
-      <Grid size={{ md: 6, sm: 12 }}>
-        <ObservingRunList
-          observingRuns={observingRunList}
-          managePermission={!!managePermission}
-        />
-      </Grid>
-      {!isReadOnly && (
-        <Grid size={{ md: 6, sm: 12 }}>
-          <NewObservingRun />
-        </Grid>
-      )}
     </Grid>
   );
 };
