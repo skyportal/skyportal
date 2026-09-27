@@ -1025,8 +1025,8 @@ const SharingServicesPage = () => {
         getRowId={(row: any) => row.id}
         getRowHeight={() => "auto"}
         sx={{ "& .MuiDataGrid-cell": { whiteSpace: "normal", py: 1 } }}
-        hideFooter
-        initialState={{ pagination: { paginationModel: { pageSize: 100 } } }}
+        pageSizeOptions={[25, 50, 100, { value: -1, label: "All" }]}
+        initialState={{ pagination: { paginationModel: { pageSize: -1 } } }}
         slots={{ toolbar: SharingServicesToolbar }}
         slotProps={{
           toolbar: {

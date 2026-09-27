@@ -65,7 +65,6 @@ const FilterCatalog = ({ brokerId }: { brokerId?: number }) => {
     groupList.find((g) => g.id === id)?.name ?? `group ${id}`;
   const streamName = (id: number) =>
     streamList.find((s) => s.id === id)?.name ?? `stream ${id}`;
-  // Only brokers that accept filters can be attached to.
   const attachable = brokerList.filter(
     (b) => b.active && b.filter_kind !== "none",
   );

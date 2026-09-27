@@ -36,7 +36,7 @@ const ACTIVE_STATUSES = ["queued", "pending", "running"];
 const statusColor = (status: string) => {
   if (status === "completed") return "success";
   if (ACTIVE_STATUSES.includes(status)) return "warning";
-  return "error"; // failure, cancelled, timed_out
+  return "error";
 };
 
 // SkyPortal timestamps are naive UTC; append Z so they parse as UTC, not local.
@@ -66,7 +66,6 @@ const HealthTile = ({
   </Paper>
 );
 
-// Selectable time windows for the health summary (by last_activity).
 const HEALTH_WINDOWS = [
   { key: "1h", label: "1 hour", ms: HOUR_MS },
   { key: "24h", label: "24 hours", ms: DAY_MS },
@@ -75,7 +74,6 @@ const HEALTH_WINDOWS = [
   { key: "all", label: "Lifetime", ms: Infinity },
 ];
 
-// Per-status buckets for the tiles/donut (analysis status is an enum).
 const STATUS_BUCKETS: { status: string; label: string; color: string }[] = [
   { status: "completed", label: "Completed", color: COMPLETED_COLOR },
   { status: "queued", label: "Queued", color: "#0288d1" },
@@ -87,11 +85,7 @@ const STATUS_BUCKETS: { status: string; label: string; color: string }[] = [
 ];
 const OTHER_COLOR = "#bdbdbd";
 
-// Health summary for analysis requests: per-status split within a selectable
-// time window. Computed client-side from the fetched analyses (status +
-// last_activity timestamp); the numbers and donut update on selection.
 const AnalysisHealth = ({ analyses }: { analyses: any[] }) => {
-  // captured at mount (recomputed on refetch/revisit) — keeps render pure
   const [now] = useState(() => Date.now());
   const [windowKey, setWindowKey] = useState("24h");
   const win =
@@ -198,8 +192,6 @@ const AnalysisHealth = ({ analyses }: { analyses: any[] }) => {
   );
 };
 
-// Tab 1: global status view of all accessible analysis requests (ObjAnalysis),
-// the analysis-side analog of the Follow-up Requests page.
 const AnalysisRequestList = () => {
   const { classes } = useStyles();
   const { data: analyses } = useGetAnalysesQuery({
@@ -286,19 +278,14 @@ const AnalysisRequestList = () => {
           columns={columns}
           getRowId={(row: any) => row.id}
           initialState={{
-            pagination: { paginationModel: { pageSize: 25 } },
             sorting: { sortModel: [{ field: "created_at", sort: "desc" }] },
           }}
-          pageSizeOptions={[10, 25, 50, 100]}
         />
       </Paper>
     </div>
   );
 };
 
-// Tab 2: per-service overview of configured default (auto-triggered) analyses.
-// Defaults are nested under each service, so we render one read-only list per
-// service (configuration lives on the Analysis Services page).
 const DefaultAnalysesOverview = () => {
   const { classes } = useStyles();
   const { data: analysisServices } = useGetAnalysisServicesQuery();

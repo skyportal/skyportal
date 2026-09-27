@@ -14,8 +14,6 @@ import StyledDataGrid, { DataGridToolbar } from "../StyledDataGrid";
 import GalaxyTableFilterForm from "./GalaxyTableFilterForm";
 import { filterOutEmptyValues } from "../../API";
 
-const PAGE_SIZE_OPTIONS = [2, 10, 25, 50, 100];
-
 interface GalaxyTableProps {
   galaxies?: any[] | null;
   totalMatches?: number;
@@ -32,22 +30,17 @@ const GalaxyTable = ({
   handleTableChange = false,
   onFilterSubmit = undefined,
   pageNumber = 1,
-  numPerPage = 10,
+  numPerPage = 25,
   serverSide = true,
 }: GalaxyTableProps) => {
   const [filterFormSubmitted, setFilterFormSubmitted] = useState(false);
   const [filterOpen, setFilterOpen] = useState(false);
-  // The search box is intentionally uncontrolled: keeping its current value in
-  // a ref (instead of state) means typing a character does not change the
-  // memoized toolbar's dependencies, so the toolbar — and the search <input> —
-  // are never remounted mid-typing. A controlled value here caused the input
-  // element reference to go stale between keystrokes (StaleElementReference).
+  // Uncontrolled via a ref: a controlled value remounted the input mid-typing (stale element).
   const searchTextRef = useRef("");
   const [sortModel, setSortModel] = useState<any[]>([]);
   const [rowsPerPage, setRowsPerPage] = useState(numPerPage);
 
   const handleFilterSubmit = async (formData: any) => {
-    // Remove empty position
     if (
       formData?.position &&
       !formData?.position?.ra &&
@@ -58,7 +51,6 @@ const GalaxyTable = ({
     }
 
     const data = filterOutEmptyValues(formData) as any;
-    // Expand cone search params
     if ("position" in data) {
       data.ra = data.position.ra;
       data.dec = data.position.dec;
@@ -80,11 +72,7 @@ const GalaxyTable = ({
     handleFilterSubmit(params);
   };
 
-  // Memoized so the toolbar (filter button + search field) keeps a stable
-  // identity across the re-render that happens when the galaxy list loads;
-  // otherwise MUI remounts it and any element reference a test is interacting
-  // with goes stale. Declared before the early return so the hook runs every
-  // render (rules-of-hooks).
+  // Memoized: a toolbar remount on list load leaves test element references stale.
   const CustomToolbar = useMemo(
     () =>
       function GalaxyTableToolbar() {
@@ -117,8 +105,6 @@ const GalaxyTable = ({
           </DataGridToolbar>
         );
       },
-    // The toolbar reads/writes the search value through a ref, so it never
-    // needs to be rebuilt as the user types.
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [],
   );
@@ -127,8 +113,6 @@ const GalaxyTable = ({
     return <p>No galaxies available...</p>;
   }
 
-  // Synthesize the mui-datatables onTableChange(action, tableState) contract
-  // from the DataGrid handlers so callers (GalaxyPage) stay unchanged.
   const emitTableChange = (action: any, model: any) => {
     if (typeof handleTableChange !== "function") {
       return;
@@ -317,7 +301,6 @@ const GalaxyTable = ({
             onPaginationModelChange={handlePaginationModelChange}
             sortModel={sortModel}
             onSortModelChange={handleSortModelChange}
-            pageSizeOptions={PAGE_SIZE_OPTIONS}
             slots={{ toolbar: CustomToolbar }}
             showToolbar
           />

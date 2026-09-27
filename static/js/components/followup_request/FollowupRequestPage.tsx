@@ -33,8 +33,6 @@ dayjs.extend(utc);
 
 const FollowupRequestLists = FollowupRequestListsBase as any;
 
-const defaultNumPerPage = 10;
-
 const FollowupRequestPage = () => {
   const { data: telescopeList = [] } = useGetTelescopesQuery();
   const { data: instrumentList = [] } = useGetInstrumentsQuery();
@@ -60,7 +58,7 @@ const FollowupRequestPage = () => {
 
   const [fetchParams, setFetchParams] = useState<any>({
     pageNumber: 1,
-    numPerPage: defaultNumPerPage,
+    numPerPage: 25,
     startDate: defaultStartDate,
     endDate: defaultEndDate,
     sortBy: "created_at",
@@ -145,7 +143,6 @@ const FollowupRequestPage = () => {
           setDownloadProgressCurrent(allFollowupRequests.length);
           setDownloadProgressTotal(data.totalMatches);
         } catch {
-          // break the loop and set progress to 0 and show error message
           setDownloadProgressCurrent(0);
           setDownloadProgressTotal(0);
           if (allFollowupRequests?.length === 0) {

@@ -155,8 +155,7 @@ const GalaxyList = () => {
     try {
       await deleteCatalogMutation(catalogToDelete).unwrap();
       dispatch(showNotification("Catalog deleting... please be patient."));
-      // The mutation invalidates the Galaxies tag, which refetches the catalog
-      // list automatically.
+      // Galaxies tag invalidation refetches the list.
       closeDialog();
     } catch {
       // error notification handled by the baseQuery
@@ -220,14 +219,12 @@ const GalaxyList = () => {
   );
 };
 
-const defaultNumPerPage = 10;
-
 const GalaxyPage = () => {
   const { classes } = useStyles();
 
   const [fetchParams, setFetchParams] = useState<any>({
     pageNumber: 1,
-    numPerPage: defaultNumPerPage,
+    numPerPage: 25,
   });
 
   const { data: galaxies } = useGetGalaxiesQuery(fetchParams);

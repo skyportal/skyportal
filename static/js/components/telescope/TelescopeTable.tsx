@@ -276,8 +276,7 @@ const TelescopeTable = ({
     },
   ].filter(Boolean);
 
-  // Memoized (like SourceTable/GalaxyTable) so the toolbar slot keeps a stable
-  // identity; an inline slot remounts each render and loops the grid.
+  // Memoized: an inline toolbar slot remounts each render and loops the grid.
   const CustomToolbar = useMemo(
     () =>
       function TelescopeTableToolbar() {
@@ -305,9 +304,9 @@ const TelescopeTable = ({
         getRowId={(row: any) => row.id}
         onRowClick={(params: any) => navigate(`/telescope/${params.row.id}`)}
         sx={{ "& .MuiDataGrid-row": { cursor: "pointer" } }}
-        hideFooter
+        pageSizeOptions={[25, 50, 100, { value: -1, label: "All" }]}
         initialState={{
-          pagination: { paginationModel: { pageSize: 100 } },
+          pagination: { paginationModel: { pageSize: -1 } },
         }}
         slots={{ toolbar: CustomToolbar }}
         showToolbar

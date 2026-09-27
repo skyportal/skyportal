@@ -164,15 +164,12 @@ const DecisionDialog = ({
   const endorsing = decision === "endorsed";
   const action = endorsing ? "Endorse" : "Decline";
 
-  // A group is only usable with the streams that feed its filters, so it can
-  // be offered once the applicant is being given all of them.
   const availableGroups = myGroups.filter((group: any) =>
     groupStreams(group).every((stream: any) => streamIDs.includes(stream.id)),
   );
 
   const chooseStreams = (selected: number[]) => {
     setStreamIDs(selected);
-    // Narrowing the streams can strand a group that was already picked.
     setGroupIDs((picked) =>
       picked.filter((id) =>
         groupStreams(myGroups.find((group: any) => group.id === id)).every(
@@ -470,7 +467,6 @@ const UserApplications = () => {
               numPerPage: model.pageSize,
             })
           }
-          pageSizeOptions={[25, 50, 100]}
           showToolbar
           slots={{ toolbar: DataGridToolbar }}
         />

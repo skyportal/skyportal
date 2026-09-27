@@ -82,8 +82,7 @@ const useStyles = makeStyles()(() => ({
 
 interface AnalysisListProps {
   obj_id: string;
-  // "obj" (a source) by default; pass "gcn_event" with a dateobs as obj_id to
-  // list analyses run on a GCN event.
+  // "gcn_event" expects the event dateobs as obj_id.
   analysisResourceType?: string;
 }
 
@@ -108,8 +107,7 @@ const AnalysisList = ({
   const [shareTarget, setShareTarget] = useState<any>(null);
   const [shareGroupIds, setShareGroupIds] = useState<number[]>([]);
 
-  // For a source, keep only this object's analyses; gcn_event analyses are
-  // already scoped to the event server-side and carry no obj_id.
+  // gcn_event analyses are scoped server-side and carry no obj_id.
   let analysesList: any[] = [];
   if (analyses !== undefined && analyses !== null) {
     analysesList =
@@ -137,7 +135,6 @@ const AnalysisList = ({
 
   const openShare = (row: any) => {
     setShareTarget(row);
-    // Prefill with the row's multi-user groups; a private run starts empty.
     setShareGroupIds(
       (row.groups ?? [])
         .filter((g: any) => g.id !== singleUserGroup?.id)
@@ -147,7 +144,6 @@ const AnalysisList = ({
 
   const submitShare = () => {
     if (!shareTarget) return;
-    // No groups picked means "make private": scope to the single-user group.
     const group_ids = shareGroupIds.length
       ? shareGroupIds
       : singleUserGroup
@@ -159,7 +155,6 @@ const AnalysisList = ({
   };
 
   const renderShare = (params: any) => {
-    // Re-sharing is only wired up for obj analyses.
     if (analysisResourceType !== "obj") return null;
     if (!profile || params.row.author_id !== profile.id) return null;
     return (
@@ -302,8 +297,6 @@ const AnalysisList = ({
     const plotUrl = `/api/obj/analysis/${analysis.id}/plots/0`;
     return (
       <div>
-        {/* Inline thumbnail (click for full size); hides itself if there's no
-            plot to render. */}
         <a href={plotUrl} data-testid={`analysis_plots_${analysis.id}`}>
           <img
             src={plotUrl}
@@ -476,16 +469,10 @@ const AnalysisList = ({
             </Typography>
             <StyledDataGrid
               autoHeight
-              // Grow each row to its content; the default fixed height clipped
-              // the stacked action buttons (e.g. Display Results under Download).
               getRowHeight={() => "auto"}
               rows={analysesList || []}
               columns={columns}
               getRowId={(row: any) => row.id}
-              initialState={{
-                pagination: { paginationModel: { pageSize: 10 } },
-              }}
-              pageSizeOptions={[1, 10, 15]}
               showToolbar
             />
           </AccordionDetails>

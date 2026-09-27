@@ -13,6 +13,7 @@ export interface CollaborationUser {
 
 export interface SourceInterest {
   id: number;
+  obj_id: string;
   created_at: string;
   title: string;
   description: string | null;
@@ -22,6 +23,10 @@ export interface SourceInterest {
 
 export const sourceInterestsApi = skyportalApi.injectEndpoints({
   endpoints: (build) => ({
+    getAllSourceInterests: build.query<SourceInterest[], void>({
+      query: () => "api/source_interests",
+      providesTags: ["SourceInterest"],
+    }),
     getSourceInterests: build.query<SourceInterest[], string>({
       query: (obj_id) => `api/sources/${obj_id}/interests`,
       providesTags: ["SourceInterest"],
@@ -62,6 +67,7 @@ invalidateOnMessage("skyportal/REFRESH_SOURCE_INTERESTS", (payload) => [
 ]);
 
 export const {
+  useGetAllSourceInterestsQuery,
   useGetSourceInterestsQuery,
   useSetSourceInterestMutation,
   useDeleteSourceInterestMutation,

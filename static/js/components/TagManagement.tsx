@@ -286,10 +286,6 @@ const TagManagement = () => {
           columns={columns}
           getRowId={(row: any) => row.id}
           loading={loading}
-          pageSizeOptions={[10, 25, 50, 100]}
-          initialState={{
-            pagination: { paginationModel: { pageSize: 10, page: 0 } },
-          }}
           slots={{ toolbar: CustomToolbar }}
           showToolbar
         />

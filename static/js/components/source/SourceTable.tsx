@@ -50,7 +50,7 @@ import SearchableSelect from "../SearchableSelect";
 import { showNotification } from "baselayer/components/Notifications";
 import { useAppDispatch } from "../../types/hooks";
 import Button from "../Button";
-import StyledDataGridBase, { DataGridToolbar } from "../StyledDataGrid";
+import StyledDataGrid, { DataGridToolbar } from "../StyledDataGrid";
 import DisplayPhotStats from "./DisplayPhotStats";
 
 import { dec_to_dms, mjd_to_utc, ra_to_hours } from "../../units";
@@ -85,30 +85,16 @@ import {
 import ConfirmSourceInGCN from "./ConfirmSourceInGCN";
 import ConfirmDeletionDialog from "../ConfirmDeletionDialog";
 
-// Loaded on demand: each pulls in bundles (rjsf, plots) the list never needs
-// until a row is expanded or a dialog is opened.
 const SourceDetailPanel = React.lazy(() => import("./SourceDetailPanel"));
 const SourceTableFilterForm = React.lazy(
   () => import("./SourceTableFilterForm"),
 );
 const NewSource = React.lazy(() => import("./NewSource"));
 
-// StyledDataGrid is a .jsx component whose propTypes make `sx` look required to
-// tsc; cast to any so call sites don't need to pass it.
-const StyledDataGrid: any = StyledDataGridBase;
-
-// Page-size options preserved from the previous mui-datatables config. The
-// community DataGrid throws above MAX_PAGE_SIZE (100), so stop there.
-const PAGE_SIZE_OPTIONS = [1, 5, 10, 25, 50, 75, 100];
-
-// Shared empty defaults. Inline `= []` / `= {}` defaults allocate a new value on
-// every render, which permanently invalidates the `columns` memo below (it
-// depends on them) and forces the grid to rebuild every column each render.
+// Inline `= []` defaults would invalidate the `columns` memo every render.
 const EMPTY_ARRAY: any[] = [];
 const EMPTY_OBJECT: Record<string, any> = {};
 
-// Map each DataGrid column `field` to the field name the server expects for
-// sorting. Columns absent from this map are not server-sortable.
 const SERVER_SORT_FIELD: Record<string, string> = {
   id: "id",
   alias: "alias",
@@ -172,10 +158,6 @@ const RenderShowClassification = React.memo(({ source }: { source: any }) => {
   const [deleteClassificationsMutation] = useDeleteClassificationsMutation();
   const [addClassificationVote] = useAddClassificationVoteMutation();
   const { data: currentUser } = useGetProfileQuery();
-  // The old global `group` slice (a single most-recently-fetched group) no
-  // longer exists: the group duck is now RTK Query keyed by id, and no specific
-  // group id is in scope here. As before, when no group is loaded the
-  // membership lookup resolves to undefined.
   const groupUsers: any = undefined;
   const currentGroupUser = groupUsers?.filter(
     (groupUser: any) => groupUser.user_id === currentUser?.id,
@@ -395,8 +377,7 @@ const RenderShowLabelling = React.memo(({ source }: { source: any }) => {
 });
 RenderShowLabelling.displayName = "RenderShowLabelling";
 
-// Module scope on purpose: a toolbar built inside the table is a new component
-// type on every keystroke, which remounts the search input and drops focus.
+// Module scope: defined inside the table it remounts the search input and drops focus.
 const SourceTableToolbar = ({
   title,
   searchBy,
@@ -435,8 +416,6 @@ const SourceTableToolbar = ({
               <SearchableSelect
                 options={columnPickerOptions}
                 getOptionLabel={(o: any) => o.label}
-                // Nothing until the user types, then capped matches, so a large
-                // registry never floods the dropdown.
                 filterOptions={(opts: any, state: any) =>
                   filterColumnPickerOptions(opts, state.inputValue)
                 }
@@ -557,8 +536,6 @@ interface SourceTableProps {
   isLoading?: boolean;
 }
 
-// Data grid with pull-out rows containing a summary of each source.
-// This component is used in GroupSources, SourceList and Favorites page.
 const SourceTable = ({
   sources,
   title = "Sources",
@@ -567,7 +544,7 @@ const SourceTable = ({
   paginateCallback,
   pageNumber = 1,
   totalMatches = 0,
-  numPerPage = 30,
+  numPerPage = 25,
   sortingCallback = null,
   downloadCallback = null,
   includeGcnStatus = false,
@@ -576,9 +553,6 @@ const SourceTable = ({
   fixedHeader = false,
   isLoading = false,
 }: SourceTableProps) => {
-  // sourceStatus should be one of either "saved" (default) or "requested" to add a button to agree to save the source.
-  // If groupID is not given, show all data available to user's accessible groups
-
   const [acceptSaveRequest] = useAcceptSaveRequestMutation();
   const [declineSaveRequest] = useDeclineSaveRequestMutation();
   const { data: taxonomyList = EMPTY_ARRAY } = useGetTaxonomiesQuery();
@@ -612,9 +586,7 @@ const SourceTable = ({
     { skip: !includeGcnStatus || !gcnEvent?.dateobs || !sources },
   );
   const { data: tagOptions = EMPTY_ARRAY } = useGetTagOptionsQuery();
-  // Available annotation origin/key pairs, keyed by origin: { origin: [{ key: type }] }
   const { data: annotationsInfo } = useGetAnnotationsInfoQuery(undefined);
-  // Distinct top-level altdata keys: { keys: [{ key: type }] }
   const { data: altdataInfo } = useGetAltdataInfoQuery();
   const { data: currentUser } = useGetProfileQuery();
   const [updateUserPreferences] = useUpdateUserPreferencesMutation();
@@ -627,8 +599,6 @@ const SourceTable = ({
     [currentUser],
   );
 
-  // Columns hidden by default, keyed by DataGrid field. Mirrors the previous
-  // defaultDisplayedColumns list (which only enumerated visible labels).
   const [columnVisibilityModel, setColumnVisibilityModel] = useState<
     Record<string, boolean>
   >(() => {
@@ -660,9 +630,7 @@ const SourceTable = ({
     }
   }, [sources]);
 
-  // field -> origin/key for every discoverable annotation. A cheap map, NOT a
-  // column each: the registry is unbounded (per-object `ls_dr9-<objid>` origins),
-  // so only saved fields become columns (below). Powers the picker + round-trip.
+  // Not one column each: the registry is unbounded (per-object `ls_dr9-<objid>` origins).
   const annotationColumnMeta = useMemo(
     () => buildAnnotationColumnMeta(annotationsInfo),
     [annotationsInfo],
@@ -672,13 +640,11 @@ const SourceTable = ({
     [altdataInfo],
   );
 
-  // Picker options: every discoverable field (Autocomplete caps what renders).
   const columnPickerOptions = useMemo(
     () => buildColumnPickerOptions(annotationColumnMeta, altdataColumnMeta),
     [annotationColumnMeta, altdataColumnMeta],
   );
 
-  // Add a discoverable field to the saved selection (= what's materialized).
   const handleAddColumn = useCallback(
     (field: string) => {
       if (!field) return;
@@ -697,8 +663,6 @@ const SourceTable = ({
     [savedAnnotationColumns, savedAltdataColumns, updateUserPreferences],
   );
 
-  // Unchecking a saved annotation/altdata column in the panel drops it from the
-  // saved selection (and so unmaterializes it); re-add via the toolbar picker.
   const handleColumnVisibilityModelChange = useCallback(
     (model: Record<string, boolean>) => {
       setColumnVisibilityModel(model);
@@ -740,7 +704,6 @@ const SourceTable = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchBy]);
 
-  // Query on the settled text, so a name costs one request, not one per letter.
   const debouncedSearchText = useDebounced(searchText, 400);
   const appliedSearchText = useRef("");
   useEffect(() => {
@@ -772,8 +735,7 @@ const SourceTable = ({
   );
 
   const handlePaginationModelChange = (model: any) => {
-    // The grid also emits this when it merely clamps an out-of-range page, so
-    // ignore no-op changes: refetching on those loops back into the grid.
+    // The grid also emits this when clamping the page; refetching on no-ops loops.
     if (model.page === pageNumber - 1 && model.pageSize === rowsPerPage) {
       return;
     }
@@ -807,7 +769,6 @@ const SourceTable = ({
     );
   };
 
-  // helper functions shared by renderers and CSV download
   const getGroups = (source: any) =>
     source.groups?.filter((group: any) => group.active);
   const navigate = useNavigate();
@@ -839,8 +800,6 @@ const SourceTable = ({
     return usernames[usernames.length - 1];
   };
 
-  // Build the DataGrid column definitions. Each renderCell receives the row
-  // (the source object) directly, replacing mui-datatables' dataIndex lookups.
   const columns = useMemo(() => {
     const renderObjId = (params: any) => {
       const objid = params.row.id;
@@ -1197,9 +1156,6 @@ const SourceTable = ({
       );
     };
 
-    // Leading expand/detail column. For normal rows it renders the expand
-    // toggle; for the synthetic detail rows it renders the pull-out panel,
-    // spanning the full width of the grid via colSpan.
     const cols: any[] = [
       {
         field: "__expand",
@@ -1429,8 +1385,6 @@ const SourceTable = ({
     ];
 
     if (includeGcnStatus) {
-      // Insert GCN columns right after the classification column, matching the
-      // previous splice positions.
       const insertAt = cols.findIndex((c) => c.field === "classification") + 1;
       cols.splice(
         insertAt,
@@ -1472,9 +1426,6 @@ const SourceTable = ({
       });
     }
 
-    // Materialize a column only for each annotation the user has saved (the
-    // global registry is unbounded — see annotationColumnMeta). Field encodes
-    // the server sort string, so server-side sort works via SERVER_SORT_FIELD.
     savedAnnotationColumns.forEach((field) => {
       const { origin, key } = originKeyForAnnotationField(
         field,
@@ -1495,7 +1446,6 @@ const SourceTable = ({
       });
     });
 
-    // Likewise, only saved altdata keys become columns.
     savedAltdataColumns.forEach((field) => {
       const key = altdataKeyForField(field, altdataColumnMeta);
       cols.push({
@@ -1532,8 +1482,6 @@ const SourceTable = ({
     openedRows,
   ]);
 
-  // Interleave a synthetic detail row after each expanded source. getRowHeight
-  // returns "auto" for those rows so the pull-out content sizes itself.
   const displayRows = useMemo(() => {
     const out: any[] = [];
     (sources || []).forEach((source: any) => {
@@ -1554,10 +1502,7 @@ const SourceTable = ({
     [],
   );
 
-  // Must be a stable object. An inline literal re-runs the grid's pagination
-  // sync effect every render, and while the model is out of range (e.g. a page
-  // size change lands before the new page of results does) the grid re-emits
-  // onPaginationModelChange each time, looping back through paginateCallback.
+  // Must be stable: an inline literal makes the grid re-emit page changes in a loop.
   const paginationModel = useMemo(
     () => ({ page: pageNumber - 1, pageSize: rowsPerPage }),
     [pageNumber, rowsPerPage],
@@ -1565,7 +1510,6 @@ const SourceTable = ({
 
   const handleFilterSubmit = async (formData: any) => {
     setLoading(true);
-    // Remove empty position
     if (
       !formData.position.ra &&
       !formData.position.dec &&
@@ -1576,8 +1520,6 @@ const SourceTable = ({
 
     const data: any = filterOutEmptyValues(formData);
 
-    // the method above drops any empty or false params, but we make sure to keep requireDetections
-    // if it is False, as it's default is to be True
     if (formData.requireDetections === false) {
       data.requireDetections = false;
     }
@@ -1591,7 +1533,6 @@ const SourceTable = ({
       }),
     );
 
-    // Expand cone search params
     if ("position" in data) {
       data.ra = data.position.ra;
       data.dec = data.position.dec;
@@ -1768,8 +1709,6 @@ const SourceTable = ({
           display: "flex",
           flexDirection: "column",
           width: "100%",
-          // Fill what the app layout leaves below the top bar and its page
-          // padding, so the grid ends at the bottom of the viewport.
           height: fixedHeader ? "calc(100vh - 5.25rem)" : "65vh",
         }}
       >
@@ -1799,10 +1738,8 @@ const SourceTable = ({
           onPaginationModelChange={handlePaginationModelChange}
           sortModel={sortModel}
           onSortModelChange={handleSortModelChange}
-          pageSizeOptions={PAGE_SIZE_OPTIONS}
           disableColumnFilter
-          // Keep all columns mounted so colSpan on the detail row works;
-          // row virtualization stays on, which is the performance win.
+          // Keeps all columns mounted so colSpan on the detail row works.
           columnBufferPx={3000}
           slots={TOOLBAR_SLOT}
           slotProps={toolbarSlotProps}

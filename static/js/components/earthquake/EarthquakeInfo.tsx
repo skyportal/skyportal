@@ -39,9 +39,7 @@ const useStyles = makeStyles()((theme) => ({
   },
 }));
 
-const defaultNumPerPage = 10;
-
-const PAGE_SIZE_OPTIONS = [10, 25, 50, 100];
+const defaultNumPerPage = 25;
 
 const Earthquake = () => {
   const { classes } = useStyles();
@@ -60,7 +58,6 @@ const Earthquake = () => {
   const { events, totalMatches } = earthquakes;
 
   const handlePageChange = (pageNumber: number, numPerPage: number) => {
-    // Save state for future
     setFetchParams({
       ...fetchParams,
       pageNumber,
@@ -84,7 +81,6 @@ const Earthquake = () => {
       params.statusKeep = filterData.statusKeep;
       params.statusRemove = filterData.statusRemove;
     }
-    // Save state for future
     setFetchParams(params);
   };
 
@@ -172,7 +168,6 @@ const Earthquake = () => {
               pageSize: fetchParams.numPerPage,
             }}
             onPaginationModelChange={handlePaginationModelChange}
-            pageSizeOptions={PAGE_SIZE_OPTIONS}
             slots={{ toolbar: CustomToolbar }}
             showToolbar
           />

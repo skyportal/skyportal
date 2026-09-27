@@ -121,7 +121,7 @@ const SourceList = () => {
         paginateCallback={handleSourceTablePagination}
         totalMatches={sourcesState?.totalMatches || 0}
         pageNumber={sourcesState?.pageNumber || 1}
-        numPerPage={sourcesState?.numPerPage || 30}
+        numPerPage={sourcesState?.numPerPage || 25}
         sortingCallback={handleSourceTableSorting}
         downloadCallback={handleSourcesDownload}
         fixedHeader

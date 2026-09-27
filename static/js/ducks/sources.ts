@@ -108,7 +108,7 @@ const QUERY_KEYS = [
 ] as const;
 
 const addFilterParamDefaults = (filterParams: FilterParams): FilterParams => ({
-  numPerPage: 30,
+  numPerPage: 25,
   ...filterParams,
   includeColorMagnitude: true,
   includeThumbnails: true,

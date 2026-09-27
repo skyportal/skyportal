@@ -326,7 +326,6 @@ const AllocationTable = ({
         rows={allocations || []}
         columns={columns}
         getRowId={(row: any) => row.id}
-        hideFooter
         slots={{ toolbar: CustomToolbar }}
         showToolbar
       />
