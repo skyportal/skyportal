@@ -6,6 +6,7 @@ import Tooltip from "@mui/material/Tooltip";
 import IconButton from "@mui/material/IconButton";
 import DialogContent from "@mui/material/DialogContent";
 import DialogTitle from "@mui/material/DialogTitle";
+import dayjs from "dayjs";
 
 import { Group } from "../../types/domain";
 import StyledDataGrid from "../StyledDataGrid";
@@ -48,10 +49,17 @@ const SourceSaveHistory = ({ groups }: SourceSaveHistoryProps) => {
                 valueGetter: (_value: any, row: Group) =>
                   row.saved_by?.username,
               },
-              { field: "saved_at", headerName: "Time (UTC)", flex: 1 },
+              {
+                field: "saved_at",
+                headerName: "Time (UTC)",
+                width: 180,
+                valueFormatter: (value: string) =>
+                  dayjs(value).format("YYYY-MM-DD HH:mm:ss"),
+              },
             ]}
             initialState={{
               sorting: { sortModel: [{ field: "saved_at", sort: "desc" }] },
+              pagination: { paginationModel: { pageSize: 100 } },
             }}
           />
         </DialogContent>
