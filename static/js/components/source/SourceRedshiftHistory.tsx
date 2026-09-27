@@ -82,6 +82,7 @@ const SourceRedshiftHistory = ({
             ]}
             initialState={{
               sorting: { sortModel: [{ field: "set_at_utc", sort: "desc" }] },
+              pagination: { paginationModel: { pageSize: 100 } },
             }}
           />
         </DialogContent>

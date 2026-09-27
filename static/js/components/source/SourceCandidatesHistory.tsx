@@ -160,6 +160,9 @@ const SourceCandidatesHistory = ({
                   )?.name || "N/A",
               },
             ]}
+            initialState={{
+              pagination: { paginationModel: { pageSize: 100 } },
+            }}
           />
         </DialogContent>
       </Dialog>
