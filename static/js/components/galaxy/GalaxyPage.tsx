@@ -220,14 +220,12 @@ const GalaxyList = () => {
   );
 };
 
-const defaultNumPerPage = 10;
-
 const GalaxyPage = () => {
   const { classes } = useStyles();
 
   const [fetchParams, setFetchParams] = useState<any>({
     pageNumber: 1,
-    numPerPage: defaultNumPerPage,
+    numPerPage: 25,
   });
 
   const { data: galaxies } = useGetGalaxiesQuery(fetchParams);

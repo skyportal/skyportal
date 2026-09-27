@@ -48,6 +48,8 @@ import { useGetProfileQuery } from "../../../../ducks/profile";
 import PipelineViewer from "./PipelineViewer";
 import FullscreenResultsDialog from "./FullscreenResultsDialog";
 
+const PAGE_SIZE = 50;
+
 const useStyles = makeStyles()((_theme) => ({
   timeRange: {
     display: "grid",
@@ -168,7 +170,6 @@ const MongoQueryDialog = () => {
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalDocuments, setTotalDocuments] = useState(0);
-  const [pageSize] = useState(50);
   const [isLoadingPage, setIsLoadingPage] = useState(false);
   const [pageCursors, setPageCursors] = useState<Map<any, any>>(new Map());
   const [pageDataCache, setPageDataCache] = useState<Map<any, any>>(new Map()); // Cache actual page data
@@ -405,7 +406,7 @@ const MongoQueryDialog = () => {
     countOnly = false,
     cursor: any = null,
     direction = "forward",
-    limit = pageSize + 1,
+    limit = PAGE_SIZE + 1,
   ): Promise<any> => {
     const { startDate, endDate } = getConvertedDatesFromForm(getValues);
 
@@ -459,14 +460,14 @@ const MongoQueryDialog = () => {
           lastId: null,
         };
       }
-      let hasMore = originalData.length > pageSize;
+      let hasMore = originalData.length > PAGE_SIZE;
       let data;
 
       if (direction === "backward") {
-        data = hasMore ? originalData.slice(0, pageSize + 1) : originalData;
+        data = hasMore ? originalData.slice(0, PAGE_SIZE + 1) : originalData;
         data = [...data].reverse();
       } else {
-        data = hasMore ? originalData.slice(0, pageSize + 1) : originalData;
+        data = hasMore ? originalData.slice(0, PAGE_SIZE + 1) : originalData;
       }
 
       const processedResult = {
@@ -588,7 +589,7 @@ const MongoQueryDialog = () => {
         const cachedData = pageDataCache.get(newPage);
         setDisplayResults({ data: cachedData });
         setCurrentPage(newPage);
-        cachedData.length < pageSize + 1
+        cachedData.length < PAGE_SIZE + 1
           ? setHasNextPage(false)
           : setHasNextPage(true);
         setIsLoadingPage(false);
@@ -631,7 +632,7 @@ const MongoQueryDialog = () => {
 
         setCurrentPage(newPage);
       } else {
-        const lastPageOffsetCalc = totalDocuments - (newPage - 1) * pageSize;
+        const lastPageOffsetCalc = totalDocuments - (newPage - 1) * PAGE_SIZE;
         const countQueryResult = await executeQuery(
           false,
           null,
@@ -854,11 +855,11 @@ const MongoQueryDialog = () => {
                             : "primary"
                       }
                     />
-                    {totalDocuments > pageSize &&
+                    {totalDocuments > PAGE_SIZE &&
                       (displayResults.data?.length ?? 0) > 0 && (
                         <Chip
                           label={`Page ${currentPage} of ${Math.ceil(
-                            totalDocuments / pageSize,
+                            totalDocuments / PAGE_SIZE,
                           )}`}
                           size="small"
                           variant="outlined"
@@ -1089,11 +1090,11 @@ const MongoQueryDialog = () => {
                         >
                           <Stack spacing={2}>
                             {/* Cursor-based pagination controls - show if there are multiple pages OR if hasNext is true OR if results exist */}
-                            {(totalDocuments > pageSize ||
+                            {(totalDocuments > PAGE_SIZE ||
                               hasNextPage ||
                               currentPage > 1 ||
                               (displayResults.data?.length ?? 0) >=
-                                pageSize) && (
+                                PAGE_SIZE) && (
                               <Box
                                 sx={{
                                   display: "flex",
@@ -1144,7 +1145,7 @@ const MongoQueryDialog = () => {
                                   onClick={(e: any) =>
                                     handlePageChange(
                                       e,
-                                      Math.ceil(totalDocuments / pageSize),
+                                      Math.ceil(totalDocuments / PAGE_SIZE),
                                     )
                                   }
                                   disabled={
@@ -1172,11 +1173,11 @@ const MongoQueryDialog = () => {
                                 : totalDocuments > 0
                                   ? `Showing page ${currentPage} (${Math.min(
                                       displayResults.data?.length || 0,
-                                      pageSize,
+                                      PAGE_SIZE,
                                     )} results on this page)`
                                   : `Showing ${Math.min(
                                       displayResults.data?.length || 0,
-                                      pageSize,
+                                      PAGE_SIZE,
                                     )} results (cursor-based pagination)`}
                             </Typography>
                           </Stack>
@@ -1242,7 +1243,7 @@ const MongoQueryDialog = () => {
         queryCompleted={queryCompleted}
         totalDocuments={totalDocuments}
         currentPage={currentPage}
-        pageSize={pageSize}
+        pageSize={PAGE_SIZE}
         hasNextPage={hasNextPage}
         isLoadingPage={isLoadingPage}
         expandedCells={expandedCells}
