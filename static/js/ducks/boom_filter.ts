@@ -60,8 +60,8 @@ export const boomFilterApi = skyportalApi.injectEndpoints({
         body: flags,
       }),
     }),
-    // Slow: runs the filter over a night of alerts on the broker. Records the
-    // verdict server-side (keyed on fid) so the version can then be activated.
+    // Starts validation in the background: the version's verdict is pending on
+    // the filter until the broker has replayed a night of alerts.
     validateBoomFilter: build.mutation<any, { filter_id: any; fid?: any }>({
       query: ({ filter_id, fid }) => ({
         url: `${brokerFilterBase()}/filters/${filter_id}/validate`,
@@ -83,7 +83,9 @@ export const {
 // Shared read of the current broker filter version, keyed by the :fid route
 // param. Replaces the ambient `state.boom_filter_v` slice that many builder
 // components read; RTK Query dedupes so they all share one request/cache entry.
-export const useBoomFilterVersion = () => {
+export const useBoomFilterVersion = (
+  options: { pollingInterval?: number } = {},
+) => {
   const { fid } = useParams();
-  return useGetBoomFilterVersionQuery(fid ?? "", { skip: !fid });
+  return useGetBoomFilterVersionQuery(fid ?? "", { skip: !fid, ...options });
 };

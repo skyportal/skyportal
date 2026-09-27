@@ -85,7 +85,10 @@ interface FilterVersionDiffProps {
   versions: any[];
   activeFid?: string;
   // Per-fid BOOM validation verdicts, from the filter's altdata.
-  validations?: Record<string, { passed?: boolean; message?: string }>;
+  validations?: Record<
+    string,
+    { passed?: boolean; message?: string; pending?: boolean }
+  >;
 }
 
 const FilterVersionDiff = ({
@@ -123,11 +126,12 @@ const FilterVersionDiff = ({
   const label = (version: any) => {
     const verdict = validations?.[version.fid];
     const stamp = version?.created_at?.toString().slice(0, 19);
-    const state =
-      verdict?.passed === true
-        ? " — validated"
+    const state = verdict?.pending
+      ? ", validating"
+      : verdict?.passed === true
+        ? ", validated"
         : verdict?.passed === false
-          ? " — failed validation"
+          ? ", failed validation"
           : "";
     return `${version.fid}: ${stamp}${
       version.fid === activeFid ? " (active)" : ""
