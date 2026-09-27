@@ -1,6 +1,5 @@
 import Form from "@rjsf/mui";
 import validator from "@rjsf/validator-ajv8";
-
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 
@@ -10,11 +9,21 @@ import { useSubmitEarthquakeMutation } from "../../ducks/earthquake";
 
 dayjs.extend(utc);
 
+const validate = (formData: any, errors: any) => {
+  if (formData.longitude < -180 || formData.longitude > 180) {
+    errors.longitude.addError("Longitude must be between -180 and 180.");
+  }
+  if (formData.latitude < -90 || formData.latitude > 90) {
+    errors.latitude.addError("Latitude must be between -90 and 90.");
+  }
+  return errors;
+};
+
 const NewEarthquake = () => {
   const dispatch = useAppDispatch();
   const [submitEarthquake] = useSubmitEarthquakeMutation();
 
-  const handleSubmit = async ({ formData }: { formData: any }) => {
+  const handleSubmit = async ({ formData }: any) => {
     try {
       await submitEarthquake(formData).unwrap();
       dispatch(showNotification("Earthquake saved"));
@@ -23,50 +32,19 @@ const NewEarthquake = () => {
     }
   };
 
-  const defaultDate = dayjs()
-    .utc()
-    .format("YYYY-MM-DDTHH:mm:ssZ")
-    .replace("+00:00", "");
-
-  function validate(formData: any, errors: any) {
-    if (formData.longitude < -180 || formData.longitude > 180) {
-      errors.longitude.addError("Longitude must be between -180 and 180.");
-    }
-    if (formData.latitude < -90 || formData.latitude > 90) {
-      errors.latitude.addError("Latitude must be between -90 and 90.");
-    }
-
-    return errors;
-  }
-
-  const earthquakeFormSchema = {
+  const schema = {
     type: "object",
     properties: {
-      event_id: {
-        type: "string",
-        title: "Name",
-      },
+      event_id: { type: "string", title: "Name" },
       date: {
         type: "string",
         title: "Date (UTC)",
-        default: defaultDate,
+        default: dayjs().utc().format("YYYY-MM-DDTHH:mm:ss"),
       },
-      latitude: {
-        type: "number",
-        title: "Latitude [deg]",
-      },
-      longitude: {
-        type: "number",
-        title: "Longitude [deg]",
-      },
-      depth: {
-        type: "number",
-        title: "Depth [m]",
-      },
-      magnitude: {
-        type: "number",
-        title: "Magnitude",
-      },
+      latitude: { type: "number", title: "Latitude [deg]" },
+      longitude: { type: "number", title: "Longitude [deg]" },
+      depth: { type: "number", title: "Depth [m]" },
+      magnitude: { type: "number", title: "Magnitude" },
     },
     required: [
       "event_id",
@@ -80,9 +58,9 @@ const NewEarthquake = () => {
 
   return (
     <Form
-      schema={earthquakeFormSchema as any}
+      schema={schema as any}
       validator={validator}
-      onSubmit={handleSubmit as any}
+      onSubmit={handleSubmit}
       customValidate={validate}
     />
   );
