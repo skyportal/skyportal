@@ -1,7 +1,7 @@
 import { useState } from "react";
 
 import { useGetMMADetectorsQuery } from "../../ducks/mmadetector";
-import MapListPage from "../MapListPage";
+import ListPanelPage from "../ListPanelPage";
 import NewMMADetector from "./NewMMADetector";
 import MMADetectorEventsDialog from "./MMADetectorEventsDialog";
 
@@ -11,8 +11,9 @@ const MMADetectorPage = () => {
 
   return (
     <>
-      <MapListPage
+      <ListPanelPage
         name="MMADetector"
+        permission="Manage allocations"
         markers={mmadetectors.map((mmadetector: any) => ({
           lat: mmadetector.lat,
           lon: mmadetector.lon,

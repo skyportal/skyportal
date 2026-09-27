@@ -1,7 +1,7 @@
 import { Link } from "react-router-dom";
 
 import { useGetEarthquakesQuery } from "../../ducks/earthquake";
-import MapListPage from "../MapListPage";
+import ListPanelPage from "../ListPanelPage";
 import NewEarthquake from "./NewEarthquake";
 
 const EarthquakesPage = () => {
@@ -9,8 +9,9 @@ const EarthquakesPage = () => {
   const located = earthquakes.filter((earthquake) => earthquake.notices?.[0]);
 
   return (
-    <MapListPage
+    <ListPanelPage
       name="Earthquake"
+      permission="Manage allocations"
       markers={located.map(({ event_id, notices: [notice] }) => ({
         lat: notice.lat,
         lon: notice.lon,
