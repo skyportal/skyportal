@@ -512,7 +512,7 @@ def test_update_redshift_and_history(page, user, public_source):
         page.locator("//div[@role='gridcell' and text()='0.0001']").first
     ).to_be_visible()
     expect(
-        page.locator(f"//div[@role='gridcell' and text()='{user.username}']").first
+        page.locator(f"//div[@role='gridcell']//*[text()='{user.username}']").first
     ).to_be_visible()
 
 
@@ -540,7 +540,7 @@ def test_update_redshift_and_history_without_error(page, user, public_source):
         page.locator("//div[@role='gridcell' and text()='0.9998']").first
     ).to_be_visible()
     expect(
-        page.locator(f"//div[@role='gridcell' and text()='{user.username}']").first
+        page.locator(f"//div[@role='gridcell']//*[text()='{user.username}']").first
     ).to_be_visible()
 
 
