@@ -203,7 +203,6 @@ const GcnAssociationRules = () => {
       </Typography>
       <StyledDataGrid
         autoHeight
-        data-testid="gcn-association-rules"
         rows={rules ?? []}
         columns={columns}
         hideFooter

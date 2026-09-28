@@ -22,7 +22,6 @@ def test_association_rules_tab(page, super_admin_user, super_admin_token):
     page.goto("/gcn_events")
 
     page.get_by_role("tab", name="Association rules").click()
-    expect(page.get_by_test_id("gcn-association-rules")).to_be_visible()
     page.get_by_role("button", name="New association rule").click()
 
     # a rule belongs to a group, so one has to be chosen

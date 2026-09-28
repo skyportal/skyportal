@@ -108,7 +108,11 @@ const TokenList = ({ tokens }: TokenListProps) => {
       width: 90,
       sortable: false,
       renderCell: ({ row }: any) => (
-        <IconButton color="error" onClick={() => deleteToken(row.id)}>
+        <IconButton
+          aria-label="Delete token"
+          color="error"
+          onClick={() => deleteToken(row.id)}
+        >
           <DeleteIcon />
         </IconButton>
       ),
