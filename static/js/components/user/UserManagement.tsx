@@ -29,6 +29,7 @@ import StyledDataGrid, {
   FULL_PAGE_HEIGHT,
   FULL_PAGE_HEIGHT_WITH_TABS,
 } from "../StyledDataGrid";
+import ExpandableCell from "../ExpandableCell";
 import FormValidationError from "../FormValidationError";
 import Spinner from "../Spinner";
 import UserInvitations from "./UserInvitations";
@@ -115,6 +116,7 @@ const UsersToolbar = ({ includeExpired, onToggleExpired }: any) => (
   <DataGridToolbar
     title="Manage Users"
     showFilter
+    showExpandAll
     quickFilterTestId="users-quick-filter"
   >
     <FormControlLabel
@@ -349,14 +351,16 @@ const UserManagement = () => {
         >
           <AddCircleIcon color="disabled" sx={{ fontSize: "1.125rem" }} />
         </IconButton>
-        {items(user)?.map((item: any) => (
-          <Chip
-            key={itemKey(item)}
-            label={itemLabel(item)}
-            onDelete={() => onDelete(user, item)}
-            data-testid={`${deleteTestId}_${user.id}_${itemKey(item)}`}
-          />
-        ))}
+        <ExpandableCell
+          items={(items(user) ?? []).map((item: any) => (
+            <Chip
+              key={itemKey(item)}
+              label={itemLabel(item)}
+              onDelete={() => onDelete(user, item)}
+              data-testid={`${deleteTestId}_${user.id}_${itemKey(item)}`}
+            />
+          ))}
+        />
       </Box>
     );
   };
@@ -643,16 +647,11 @@ const UserManagement = () => {
           <Tab label="Invitations" />
         </Tabs>
       )}
-      <Box
-        sx={{
-          height: invitationsEnabled
-            ? FULL_PAGE_HEIGHT_WITH_TABS
-            : FULL_PAGE_HEIGHT,
-          width: "100%",
-          display: tab === 0 ? "block" : "none",
-        }}
-      >
+      {tab === 0 && (
         <StyledDataGrid
+          height={
+            invitationsEnabled ? FULL_PAGE_HEIGHT_WITH_TABS : FULL_PAGE_HEIGHT
+          }
           columns={columns}
           rows={usersManagementData?.users || []}
           getRowId={(row: any) => row.id}
@@ -669,7 +668,7 @@ const UserManagement = () => {
           }}
           showToolbar
         />
-      </Box>
+      )}
       {invitationsEnabled && tab === 1 && <UserInvitations />}
       {addDialogs.map((dialog) => (
         <AddEntitiesDialog
