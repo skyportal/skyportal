@@ -1,4 +1,5 @@
 import copy
+import datetime
 from typing import Annotated, Any
 
 import sqlalchemy as sa
@@ -26,6 +27,7 @@ from sqlalchemy.orm.attributes import flag_modified
 from tornado.ioloop import IOLoop
 
 from baselayer.app.access import auth_or_token, permissions
+from baselayer.app.models import new_session
 from baselayer.log import make_log
 
 from ...broker_apis._photometry import db_photometry_points, super_obj_obj_ids
@@ -34,7 +36,6 @@ from ...enum_types import ALLOWED_BROKER_CLASSNAMES
 from ...models import (
     Broker,
     BrokerCredential,
-    DBSession,
     Filter,
     GroupUser,
     Instrument,
@@ -980,13 +981,20 @@ def _store_version_validation(altdata, verdict):
     boom.setdefault("validations", {})[verdict.get("fid")] = {
         "passed": bool(verdict.get("passed")),
         "message": verdict.get("message"),
-        **({"pending": True} if verdict.get("pending") else {}),
+        **(
+            {
+                "pending": True,
+                "started_at": datetime.datetime.now(datetime.UTC).isoformat(),
+            }
+            if verdict.get("pending")
+            else {}
+        ),
     }
 
 
 def _validate_version(broker_id, filter_id, fid):
     """Validate a filter version in a thread and attach its verdict."""
-    with DBSession() as session:
+    with new_session() as session:
         broker = session.get(Broker, broker_id)
         f = session.get(Filter, filter_id)
         try:

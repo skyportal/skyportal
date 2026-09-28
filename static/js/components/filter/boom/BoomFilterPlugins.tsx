@@ -115,6 +115,7 @@ const BoomFilterPlugins = () => {
   const {
     data: filter_v = {},
     isLoading,
+    fulfilledTimeStamp = 0,
     refetch: refetchFilterVersion,
   } = useBoomFilterVersion();
   const [editFilterVersion] = useEditBoomFilterVersionMutation();
@@ -138,8 +139,12 @@ const BoomFilterPlugins = () => {
       ? altdata.boom?.validation
       : undefined);
   const isValidated = !!validation?.passed;
-  const validating = startingValidation || !!validation?.pending;
-  useBoomFilterVersion({ pollingInterval: validation?.pending ? 5000 : 0 });
+  const pending =
+    !!validation?.pending &&
+    fulfilledTimeStamp - Date.parse(validation.started_at) < 15 * 60 * 1000;
+  const interrupted = !!validation?.pending && !pending;
+  const validating = startingValidation || pending;
+  useBoomFilterVersion({ pollingInterval: pending ? 10000 : 0 });
 
   const wasPending = useRef(false);
   useEffect(() => {
@@ -235,6 +240,15 @@ const BoomFilterPlugins = () => {
       icon={<CircularProgress size={12} />}
       label="Validating…"
     />
+  ) : interrupted ? (
+    <Tooltip title="The validation did not finish, please validate again.">
+      <Chip
+        size="small"
+        color="warning"
+        icon={<HelpOutlineIcon />}
+        label="Validation interrupted"
+      />
+    </Tooltip>
   ) : validation ? (
     <Tooltip title={isValidated ? "" : (validation.message ?? "")}>
       <Chip
