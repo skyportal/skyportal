@@ -502,10 +502,18 @@ def test_update_redshift_and_history(page, user, public_source):
     expect(page.locator("//*[contains(., '0.0001')]").first).to_be_visible()
 
     page.locator("//*[@data-testid='redshiftHistoryIconButton']").first.click()
-    expect(page.locator("//th[text()='Set By']").first).to_be_visible()
-    expect(page.locator("//td[text()='0.9999']").first).to_be_visible()
-    expect(page.locator("//td[text()='0.0001']").first).to_be_visible()
-    expect(page.locator(f"//td[text()='{user.username}']").first).to_be_visible()
+    expect(
+        page.locator("//*[@role='columnheader' and @data-field='set_by_user_id']").first
+    ).to_be_visible()
+    expect(
+        page.locator("//div[@role='gridcell' and text()='0.9999']").first
+    ).to_be_visible()
+    expect(
+        page.locator("//div[@role='gridcell' and text()='0.0001']").first
+    ).to_be_visible()
+    expect(
+        page.locator(f"//div[@role='gridcell']//*[text()='{user.username}']").first
+    ).to_be_visible()
 
 
 @pytest.mark.flaky(reruns=2)
@@ -525,9 +533,15 @@ def test_update_redshift_and_history_without_error(page, user, public_source):
     expect(page.locator("//*[contains(., '0.9998')]").first).to_be_visible()
 
     page.locator("//*[@data-testid='redshiftHistoryIconButton']").first.click()
-    expect(page.locator("//th[text()='Set By']").first).to_be_visible()
-    expect(page.locator("//td[text()='0.9998']").first).to_be_visible()
-    expect(page.locator(f"//td[text()='{user.username}']").first).to_be_visible()
+    expect(
+        page.locator("//*[@role='columnheader' and @data-field='set_by_user_id']").first
+    ).to_be_visible()
+    expect(
+        page.locator("//div[@role='gridcell' and text()='0.9998']").first
+    ).to_be_visible()
+    expect(
+        page.locator(f"//div[@role='gridcell']//*[text()='{user.username}']").first
+    ).to_be_visible()
 
 
 @pytest.mark.flaky(reruns=2)

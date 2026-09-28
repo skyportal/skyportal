@@ -603,10 +603,8 @@ const ObservationPlanRequestLists = ({
         <StyledDataGrid
           autoHeight
           getRowHeight={() => "auto"}
-          data-testid={`${instLookUp[instrument_id].name}_grid`}
           rows={requestsGroupedByInstId[instrument_id]}
           columns={getDataTableColumns(instrument_id)}
-          getRowId={(row: any) => row.id}
           disableColumnFilter
           showToolbar
         />

@@ -74,13 +74,9 @@ const pin = (offset: number, axis: "vw" | "vh", size: number) =>
 
 interface CommentPanelProps {
   inline?: boolean;
-  assistant?: boolean;
 }
 
-const CommentPanel = ({
-  inline = false,
-  assistant = false,
-}: CommentPanelProps) => {
+const CommentPanel = ({ inline = false }: CommentPanelProps) => {
   const {
     target,
     inline: commentsInline,
@@ -132,7 +128,7 @@ const CommentPanel = ({
       !commentsInline ||
       target.type !== "source" ||
       target.origin === "scanning");
-  const showAssistant = (!inline || assistant) && assistantEnabled;
+  const showAssistant = !inline && assistantEnabled;
   const isComments = showComments && (space === "comments" || !showAssistant);
   const activeSpace: ChatSpace = isComments ? "comments" : "assistant";
   const visible = inline || open;
@@ -349,7 +345,7 @@ const CommentPanel = ({
         flexDirection: "column",
         overflow: "hidden",
         ...(inline
-          ? { height: assistant ? "26rem" : "60vh" }
+          ? { height: "60vh" }
           : {
               position: "fixed",
               right: panelRight,

@@ -279,8 +279,6 @@ app:
       component: broker/BrokerList
     - path: "/brokers/:brokerId"
       component: broker/Broker
-    - path: "/brokers/:brokerId/filter/:fid"
-      component: broker/BrokerFilterPage
     - path: "/user/:id"
       component: user/PublicProfile
     - path: "/upload_photometry/:id"

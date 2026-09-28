@@ -15,11 +15,7 @@ def test_add_filter(page, super_admin_user, public_group):
     filter_name = str(uuid.uuid4())
     page.get_by_role("button", name="add filter").first.click()
     page.locator('//input[@name="filter_name"]').first.fill(filter_name)
-    page.locator('//button[@type="submit"]').first.click()
-    expect(page.locator(f'//span[contains(.,"{filter_name}")]')).to_have_count(1)
-
-    # go to filter page
-    page.locator(f'//span[contains(.,"{filter_name}")]').first.click()
+    page.locator('//button[@data-testid="add-filter-dialog-submit"]').first.click()
     expect(page.locator(f'//h6[contains(.,"{filter_name}")]').first).to_be_visible()
 
 

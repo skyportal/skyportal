@@ -1456,8 +1456,6 @@ async def post_broker_filter_version(handler, args):
     record = await handler.api("GET", f"/api/brokers/{broker_id}/filters/{filter_id}")
     versions = _versions(record)
     fid = versions[-1][0] if versions else None
-    # The POST validates the new version; surface that verdict, since
-    # activation is refused without a passing one.
     boom = ((record or {}).get("altdata") or {}).get("boom") or {}
     return {
         "id": (result or {}).get("id", filter_id),
@@ -1469,10 +1467,11 @@ async def post_broker_filter_version(handler, args):
 
 @tool(
     "validate_broker_filter_version",
-    "Ask the broker whether a filter version is fit to run, and record the "
-    "verdict. Activation is gated on this: posting a version validates it "
-    "automatically, so call this only when that verdict is missing or when a "
-    "failure has since been fixed.",
+    "Ask the broker whether a filter version is fit to run. The check runs in "
+    "the background and takes minutes: the version is marked pending, then "
+    "get_broker_filter shows the verdict. Activation is gated on it; posting a "
+    "version starts this automatically, so call it only when that verdict is "
+    "missing or a failure has since been fixed.",
     {
         "broker_id": _prop("integer", "Broker ID."),
         "filter_id": _prop("integer", "Filter ID."),

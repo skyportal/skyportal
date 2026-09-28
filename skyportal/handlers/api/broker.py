@@ -1,4 +1,5 @@
 import copy
+import datetime
 from typing import Annotated, Any
 
 import sqlalchemy as sa
@@ -26,6 +27,7 @@ from sqlalchemy.orm.attributes import flag_modified
 from tornado.ioloop import IOLoop
 
 from baselayer.app.access import auth_or_token, permissions
+from baselayer.app.models import new_session
 from baselayer.log import make_log
 
 from ...broker_apis._photometry import db_photometry_points, super_obj_obj_ids
@@ -896,9 +898,10 @@ class BrokerFilterValidateHandler(BaseHandler):
         """
         ---
         summary: Validate a broker filter version for activation
-        description: Run the broker's activation validation for a filter version
-          without changing state, and record the result on the filter so it can
-          be activated (skyportal gates activation on this).
+        description: Start the broker's activation validation for a filter
+          version in the background. The version is marked pending on the
+          filter until the verdict is recorded there (skyportal gates
+          activation on it).
         tags:
           - brokers
         responses:
@@ -929,23 +932,10 @@ class BrokerFilterValidateHandler(BaseHandler):
             ).first()
             if f is None or not isinstance(f.altdata, dict) or "boom" not in f.altdata:
                 return self.error("Filter not found or not broker-managed.")
-            boom_filter_id = (f.altdata.get("boom") or {}).get("filter_id")
-            try:
-                result = broker.broker_class.validate_filter(
-                    broker,
-                    session,
-                    boom_filter_id=boom_filter_id,
-                    fid=body.fid,
-                )
-            except Exception as e:
-                return self.error(f"Error validating filter on {broker.name}: {e}")
-            # Record the verdict per version (fid) so each version keeps its own
-            # result and message; activation reads this. Validating one version no
-            # longer clobbers another's verdict.
-            _store_version_validation(f.altdata, result)
-            flag_modified(f, "altdata")
-            session.commit()
-            return self.success(data=result)
+            if not body.fid:
+                return self.error("fid is required.")
+            _start_version_validation(session, broker, f, body.fid)
+            return self.success(data={"fid": body.fid, "pending": True})
 
 
 def _get_broker(handler, session, broker_id):
@@ -985,6 +975,40 @@ def _store_version_validation(altdata, verdict):
         "passed": bool(verdict.get("passed")),
         "message": verdict.get("message"),
     }
+
+
+def _start_version_validation(session, broker, f, fid):
+    f.altdata["boom"].setdefault("validations", {})[fid] = {
+        "passed": False,
+        "message": None,
+        "pending": True,
+        "started_at": datetime.datetime.now(datetime.UTC).isoformat(),
+    }
+    flag_modified(f, "altdata")
+    session.commit()
+    # Replays a night of alerts, longer than the proxy timeout.
+    IOLoop.current().run_in_executor(None, _validate_version, broker.id, f.id, fid)
+
+
+def _validate_version(broker_id, filter_id, fid):
+    # DBSession's scope is a contextvar, not propagated to executor threads.
+    with new_session() as session:
+        broker = session.get(Broker, broker_id)
+        f = session.get(Filter, filter_id)
+        try:
+            verdict = broker.broker_class.validate_filter(
+                broker,
+                session,
+                boom_filter_id=f.altdata["boom"]["filter_id"],
+                fid=fid,
+            )
+        except Exception as e:
+            log(f"Validation of filter {filter_id} version {fid}: {e}")
+            verdict = {"fid": fid, "passed": False, "message": f"Error: {e}"}
+        session.refresh(f)
+        _store_version_validation(f.altdata, verdict)
+        flag_modified(f, "altdata")
+        session.commit()
 
 
 class BrokerFilterModulesHandler(BaseHandler):
@@ -1337,23 +1361,10 @@ class BrokerFiltersHandler(BaseHandler):
                     flag_modified(f, "altdata")
             except Exception as e:
                 return self.error(f"Error creating filter on {broker.name}: {e}")
-            # Validate the new version now so its verdict (pass, or the failure
-            # reason) is attached immediately, rather than only once the user
-            # remembers to validate it. Best-effort: a slow/failed validation must
-            # not fail the save -- the user can still validate manually.
             if broker.broker_class.implements()["validate_filter"]:
-                try:
-                    verdict = broker.broker_class.validate_filter(
-                        broker,
-                        session,
-                        boom_filter_id=(f.altdata.get("boom") or {}).get("filter_id"),
-                        fid=new_fid,
-                    )
-                    _store_version_validation(f.altdata, verdict)
-                    flag_modified(f, "altdata")
-                except Exception as e:
-                    log(f"Auto-validation of filter {f.id} version {new_fid}: {e}")
-            session.commit()
+                _start_version_validation(session, broker, f, new_fid)
+            else:
+                session.commit()
             return self.success(data={"id": f.id})
 
     @permissions(["Upload data"])

@@ -217,7 +217,6 @@ const AnnotationBuilderContent = ({
         ...filterBuilderStyles.container,
       }}
     >
-      {/* Header */}
       <Box
         sx={{
           display: "flex",
@@ -235,9 +234,7 @@ const AnnotationBuilderContent = ({
           >
             Back to Filters
           </Button>
-          <Typography variant="h4" sx={{ color: "text.primary" }}>
-            Annotations
-          </Typography>
+          <Typography variant="h6">Annotations</Typography>
         </Box>
         <Button
           variant="outlined"

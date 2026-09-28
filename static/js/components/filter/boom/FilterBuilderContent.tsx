@@ -1,5 +1,12 @@
 import { useMemo, useState, useEffect, useCallback } from "react";
-import { Alert, Button, Box, Typography } from "@mui/material";
+import {
+  Alert,
+  Button,
+  Box,
+  CircularProgress,
+  Tooltip,
+  Typography,
+} from "@mui/material";
 import {
   Code as CodeIcon,
   Note as NoteIcon,
@@ -29,7 +36,6 @@ import { useFilterSchema } from "../../../ducks/boom_filter_modules";
 interface FilterBuilderContentProps {
   onToggleAnnotationBuilder?: (...a: any[]) => void;
   filter?: any;
-  setInlineNewVersion?: (...a: any[]) => void;
   setShowAnnotationBuilder?: (...a: any[]) => void;
   // Survey override for callers without a filter version (Lasair query builder).
   survey?: string;
@@ -62,7 +68,6 @@ const collectAllBlockIds = (blocks: any, isRoot = true): any[] => {
 const FilterBuilderContent = ({
   onToggleAnnotationBuilder,
   filter,
-  setInlineNewVersion,
   setShowAnnotationBuilder,
   survey,
 }: FilterBuilderContentProps) => {
@@ -86,8 +91,10 @@ const FilterBuilderContent = ({
   } = useFilterBuilder();
   const navigate = useNavigate();
   const dispatch = useAppDispatch();
-  const { data: filter_v } = useBoomFilterVersion();
-  const [updateGroupFilter] = useUpdateBoomGroupFilterMutation();
+  const { data: filter_v, refetch: refetchFilterVersion } =
+    useBoomFilterVersion();
+  const [updateGroupFilter, { isLoading: saving }] =
+    useUpdateBoomGroupFilterMutation();
   const {
     data: store_schema,
     isError: schemaError,
@@ -387,7 +394,6 @@ const FilterBuilderContent = ({
     }
 
     try {
-      // Use the current local filter data (which includes user modifications)
       const currentFilters =
         localFilterData || contextFilters || filtersToRender;
 
@@ -402,14 +408,10 @@ const FilterBuilderContent = ({
         filters: versionData,
         name: filter_v?.name,
       });
-      dispatch(showNotification("Filter saved to boom database!"));
       if (!result.error) {
-        if (setInlineNewVersion) {
-          setInlineNewVersion(false);
-        }
-        if (setShowAnnotationBuilder) {
-          setShowAnnotationBuilder(false);
-        }
+        dispatch(showNotification("Filter saved to boom database!"));
+        refetchFilterVersion();
+        setShowAnnotationBuilder?.(false);
       }
     } catch (err) {
       console.error("Error saving filter:", err);
@@ -435,12 +437,10 @@ const FilterBuilderContent = ({
         flexDirection: "column",
         gap: 2,
         ...filterBuilderStyles.container,
-        // Ensure this container allows sticky positioning
         position: "relative",
         height: "100%",
       }}
     >
-      {/* Header with buttons */}
       <Box
         sx={{
           display: "flex",
@@ -449,26 +449,27 @@ const FilterBuilderContent = ({
           mb: 2,
         }}
       >
-        <Typography variant="h2" sx={{ color: "text.primary" }}>
-          Filter Builder
-        </Typography>
+        <Typography variant="h6">Filter Builder</Typography>
         <Box sx={{ display: "flex", gap: 2 }}>
-          <Button
-            type="button"
-            data-testid="tour-filter-save"
-            variant="contained"
-            startIcon={<SaveIcon />}
-            onClick={handleSaveFilter}
-            disabled={!hasValidQuery() || !!rawPipeline}
-            sx={{
-              backgroundColor: hasValidQuery() ? "primary.main" : undefined,
-              "&:hover": {
-                backgroundColor: hasValidQuery() ? "primary.dark" : undefined,
-              },
-            }}
+          <Tooltip
+            describeChild
+            title="Save the whole filter as a new version. It does not run on live alerts until that version is validated and activated."
           >
-            Save
-          </Button>
+            <span>
+              <Button
+                type="button"
+                data-testid="tour-filter-save"
+                variant="contained"
+                startIcon={
+                  saving ? <CircularProgress size={16} /> : <SaveIcon />
+                }
+                onClick={handleSaveFilter}
+                disabled={saving || !hasValidQuery() || !!rawPipeline}
+              >
+                {saving ? "Saving…" : "Save"}
+              </Button>
+            </span>
+          </Tooltip>
           <Button
             type="button"
             variant="outlined"

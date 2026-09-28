@@ -401,17 +401,14 @@ const ConditionComponentInner = ({
     );
   }
 
-  // Regular condition rendering
   return (
     <Box
       key={conditionOrBlock.id}
       data-testid="tour-filter-condition"
       sx={{
-        ml: 2,
-        pr: "140px",
         display: "grid",
         gridTemplateColumns:
-          "auto minmax(250px, 2fr) minmax(200px, 1fr) minmax(250px, 2fr)",
+          "auto minmax(160px, 2fr) minmax(120px, 1fr) minmax(160px, 2fr)",
         gap: 1,
         alignItems: "center",
         position: "relative",

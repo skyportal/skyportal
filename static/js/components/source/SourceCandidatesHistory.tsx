@@ -1,34 +1,19 @@
 import { useState } from "react";
+import { Link } from "react-router-dom";
+import Chip from "@mui/material/Chip";
+import MuiLink from "@mui/material/Link";
 import HistoryIcon from "@mui/icons-material/History";
 import Dialog from "@mui/material/Dialog";
 import DialogContent from "@mui/material/DialogContent";
 import DialogTitle from "@mui/material/DialogTitle";
-import { makeStyles } from "tss-react/mui";
-import Table from "@mui/material/Table";
-import TableBody from "@mui/material/TableBody";
-import TableCell from "@mui/material/TableCell";
-import TableHead from "@mui/material/TableHead";
-import TableRow from "@mui/material/TableRow";
 import Tooltip from "@mui/material/Tooltip";
-import Typography from "@mui/material/Typography";
 import TextField from "@mui/material/TextField";
 import Search from "@mui/icons-material/Search";
+import dayjs from "dayjs";
 
 import { useGetGroupsQuery } from "../../ducks/groups";
 import { useGetStreamsQuery } from "../../ducks/streams";
-
-const useStyles = makeStyles()(() => ({
-  historyIcon: {
-    height: "1.4rem",
-    cursor: "pointer",
-    color: "gray",
-  },
-  dialogTitle: {
-    display: "flex",
-    justifyContent: "space-between",
-    alignItems: "center",
-  },
-}));
+import StyledDataGrid from "../StyledDataGrid";
 
 interface CandidateHistoryItem {
   id?: number;
@@ -36,6 +21,8 @@ interface CandidateHistoryItem {
   passed_at?: string;
   passed_at_utc?: string;
   filter?: {
+    id?: number;
+    broker_id?: number | null;
     name?: string;
     group_id?: number;
     stream_id?: number;
@@ -49,89 +36,117 @@ interface SourceCandidatesHistoryProps {
 const SourceCandidatesHistory = ({
   candidates = [],
 }: SourceCandidatesHistoryProps) => {
-  const { classes } = useStyles();
   const { data: streams = [] } = useGetStreamsQuery();
   const userAccessible = useGetGroupsQuery().data?.userAccessible ?? [];
 
   const [search, setSearch] = useState("");
-
   const [dialogOpen, setDialogOpen] = useState(false);
 
-  if (!(candidates && candidates.length > 0)) {
-    return null;
-  }
-
-  const filteredCandidates =
-    search?.trim()?.length > 0
-      ? candidates.filter((candidate) => {
-          const filter = candidate?.filter?.name || "";
-          return filter.toLowerCase().includes(search.toLowerCase());
-        })
-      : candidates;
+  if (!candidates.length) return null;
 
   return (
     <>
       <Tooltip title="Candidates History" placement="top">
         <HistoryIcon
-          data-testid="candidatesHistoryIconButton"
-          className={classes.historyIcon}
-          onClick={() => {
-            setDialogOpen(true);
-          }}
+          sx={{ height: "1.4rem", cursor: "pointer", color: "gray" }}
+          onClick={() => setDialogOpen(true)}
         />
       </Tooltip>
       <Dialog
         open={dialogOpen}
         onClose={() => setDialogOpen(false)}
+        fullWidth
         maxWidth="md"
       >
-        <DialogTitle className={classes.dialogTitle}>
-          <Typography variant="h6">Candidates History</Typography>
+        <DialogTitle
+          sx={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+          }}
+        >
+          Candidates History
           <TextField
             label="Search by Filter"
             size="small"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            slotProps={{
-              input: {
-                endAdornment: <Search />,
-              },
-            }}
+            slotProps={{ input: { endAdornment: <Search /> } }}
           />
         </DialogTitle>
         <DialogContent>
-          <Table>
-            <TableHead>
-              <TableRow>
-                <TableCell>Candidate ID</TableCell>
-                <TableCell>Passed at (UTC)</TableCell>
-                <TableCell>Filter</TableCell>
-                <TableCell>Group</TableCell>
-                <TableCell>Stream</TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {(filteredCandidates || []).map((historyItem) => (
-                <TableRow key={`candidate-history-${historyItem.id}`}>
-                  <TableCell>{historyItem?.passing_alert_id}</TableCell>
-                  <TableCell>{historyItem?.passed_at}</TableCell>
-                  <TableCell>{historyItem?.filter?.name}</TableCell>
-                  <TableCell>
-                    {userAccessible?.find(
-                      (group: any) =>
-                        group.id === historyItem?.filter?.group_id,
-                    )?.name || "N/A"}
-                  </TableCell>
-                  <TableCell>
-                    {streams?.find(
-                      (stream: any) =>
-                        stream.id === historyItem?.filter?.stream_id,
-                    )?.name || "N/A"}
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+          <StyledDataGrid
+            autoHeight
+            rows={
+              search.trim()
+                ? candidates.filter((candidate) =>
+                    (candidate.filter?.name ?? "")
+                      .toLowerCase()
+                      .includes(search.toLowerCase()),
+                  )
+                : candidates
+            }
+            columns={[
+              {
+                field: "passing_alert_id",
+                headerName: "Candidate ID",
+                flex: 1,
+              },
+              {
+                field: "passed_at",
+                headerName: "Passed at (UTC)",
+                width: 180,
+                valueFormatter: (value: string) =>
+                  dayjs(value).format("YYYY-MM-DD HH:mm:ss"),
+              },
+              {
+                field: "filter",
+                headerName: "Filter",
+                flex: 1,
+                valueGetter: (_value: any, row: CandidateHistoryItem) =>
+                  row.filter?.name,
+                renderCell: ({ value, row }: any) =>
+                  row.filter && (
+                    <MuiLink component={Link} to={`/filter/${row.filter.id}`}>
+                      {value}
+                    </MuiLink>
+                  ),
+              },
+              {
+                field: "group",
+                headerName: "Group",
+                flex: 1,
+                valueGetter: (_value: any, row: CandidateHistoryItem) =>
+                  userAccessible.find(
+                    (group: any) => group.id === row.filter?.group_id,
+                  )?.name || "N/A",
+                renderCell: ({ value, row }: any) =>
+                  row.filter?.group_id ? (
+                    <Chip
+                      size="small"
+                      label={value}
+                      component={Link}
+                      to={`/group/${row.filter.group_id}`}
+                      clickable
+                    />
+                  ) : (
+                    value
+                  ),
+              },
+              {
+                field: "stream",
+                headerName: "Stream",
+                flex: 1,
+                valueGetter: (_value: any, row: CandidateHistoryItem) =>
+                  streams.find(
+                    (stream: any) => stream.id === row.filter?.stream_id,
+                  )?.name || "N/A",
+              },
+            ]}
+            initialState={{
+              pagination: { paginationModel: { pageSize: 100 } },
+            }}
+          />
         </DialogContent>
       </Dialog>
     </>
