@@ -141,7 +141,7 @@ const BoomFilterPlugins = () => {
   const isValidated = !!validation?.passed;
   const pending =
     !!validation?.pending &&
-    fulfilledTimeStamp - Date.parse(validation.started_at) < 15 * 60 * 1000;
+    fulfilledTimeStamp - Date.parse(validation.started_at) < 10 * 60 * 1000;
   const interrupted = !!validation?.pending && !pending;
   const validating = startingValidation || pending;
   useBoomFilterVersion({ pollingInterval: pending ? 10000 : 0 });
