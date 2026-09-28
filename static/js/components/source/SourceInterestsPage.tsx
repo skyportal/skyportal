@@ -10,7 +10,10 @@ import { GridColDef, GridSortModel, ToolbarButton } from "@mui/x-data-grid";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 
-import StyledDataGrid, { DataGridToolbar } from "../StyledDataGrid";
+import StyledDataGrid, {
+  DataGridToolbar,
+  FULL_PAGE_HEIGHT,
+} from "../StyledDataGrid";
 import {
   SourceInterest,
   useGetAllSourceInterestsQuery,
@@ -141,7 +144,7 @@ const SourceInterestsPage = () => {
       sortModel={sortModel}
       onSortModelChange={setSortModel}
       sx={{
-        height: "calc(100vh - 5.25rem)",
+        height: FULL_PAGE_HEIGHT,
         "& .MuiDataGrid-cell": {
           whiteSpace: "normal",
           display: "flex",
