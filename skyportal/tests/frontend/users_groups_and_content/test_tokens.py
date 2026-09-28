@@ -39,7 +39,7 @@ def test_delete_token(page, user, view_only_token):
     page.goto(f"/become_user/{user.id}")
     page.goto("/profile")
     expect(page.locator(f'//input[@value="{view_only_token}"]').first).to_be_visible()
-    page.locator('//button[contains(text(),"Delete")]').first.click()
+    page.locator('[data-testid="DeleteIcon"]').first.click()
     expect(page.locator(f'//input[@value="{view_only_token}"]').first).to_be_hidden()
 
 
