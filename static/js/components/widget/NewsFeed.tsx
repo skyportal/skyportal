@@ -20,6 +20,7 @@ import {
 } from "../../ducks/profile";
 import { useGetNewsFeedQuery } from "../../ducks/newsFeed";
 import { useActiveTeam } from "../../ducks/teams";
+import WidgetLoading from "./WidgetLoading";
 
 dayjs.extend(relativeTime);
 dayjs.extend(utc);
@@ -206,7 +207,7 @@ interface NewsFeedProps {
 const NewsFeed = ({ classes }: NewsFeedProps) => {
   const { classes: styles } = useStyles();
   const { activeTeam } = useActiveTeam();
-  const { data: items } = useGetNewsFeedQuery(
+  const { data: items, isLoading } = useGetNewsFeedQuery(
     activeTeam ? { teamID: activeTeam.id } : undefined,
   );
   const { data: profile } = useGetProfileQuery();
@@ -259,6 +260,7 @@ const NewsFeed = ({ classes }: NewsFeedProps) => {
             />
           </div>
         </div>
+        {isLoading && <WidgetLoading />}
         <div
           className={styles.newsFeed}
           style={{

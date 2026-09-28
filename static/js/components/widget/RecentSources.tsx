@@ -1,4 +1,6 @@
 import { useEffect, useState } from "react";
+import Box from "@mui/material/Box";
+import Skeleton from "@mui/material/Skeleton";
 import { Link } from "react-router-dom";
 
 import dayjs from "dayjs";
@@ -9,7 +11,6 @@ import Typography from "@mui/material/Typography";
 import Paper from "@mui/material/Paper";
 import { makeStyles } from "tss-react/mui";
 import DragHandleIcon from "@mui/icons-material/DragHandle";
-import CircularProgress from "@mui/material/CircularProgress";
 import Chip from "@mui/material/Chip";
 import DynamicTagDisplay from "./DynamicTagDisplay";
 
@@ -161,15 +162,6 @@ export const useSourceListStyles = makeStyles<{
   paper: {
     backgroundColor: "#F0F8FF",
   },
-  // These rules help keep the progress wheel centered. Taken from the first example: https://material-ui.com/components/progress/
-  progress: {
-    display: "flex",
-    // The below color rule is not for the progress container, but for CircularProgress. This component only accepts 'primary', 'secondary', or 'inherit'.
-    color: theme.palette.info.main,
-    "& > * + *": {
-      marginLeft: theme.spacing(2),
-    },
-  },
   tagsContainer: {
     display: "flex",
     flexWrap: "wrap",
@@ -189,6 +181,33 @@ export const useSourceListStyles = makeStyles<{
   },
 }));
 
+export const SourceListSkeleton = () => (
+  <Box sx={{ overflow: "hidden" }}>
+    {[...Array(4)].map((_, index) => (
+      <Box
+        key={index}
+        sx={{
+          display: "flex",
+          gap: 1,
+          p: "0.4rem",
+          mb: "0.4rem",
+          border: 1,
+          borderColor: "divider",
+          borderRadius: "8px",
+        }}
+      >
+        <Skeleton variant="rounded" width="6.6em" height="6.6em" />
+        <Box sx={{ flex: 1 }}>
+          <Skeleton variant="text" width="60%" height={24} />
+          <Skeleton variant="text" width="40%" />
+          <Skeleton variant="text" width="40%" />
+          <Skeleton variant="rounded" width="5rem" height={22} sx={{ mt: 1 }} />
+        </Box>
+      </Box>
+    ))}
+  </Box>
+);
+
 const defaultPrefs: any = {
   maxNumSources: "25",
   groupIds: [],
@@ -197,14 +216,14 @@ const defaultPrefs: any = {
 };
 
 interface RecentSourcesListProps {
-  sources?: any[] | undefined;
+  sources: any[];
   styles: any;
   search?: boolean;
   displayTNS?: boolean;
 }
 
 const RecentSourcesList = ({
-  sources = undefined,
+  sources,
   styles,
   search = false,
   displayTNS = true,
@@ -212,17 +231,13 @@ const RecentSourcesList = ({
   const [thumbnailIdxs, setThumbnailIdxs] = useState<any>({});
 
   useEffect(() => {
-    sources?.forEach((source) => {
+    sources.forEach((source) => {
       setThumbnailIdxs((prevState: any) => ({
         ...prevState,
         [source.obj_id]: 0,
       }));
     });
   }, [sources]);
-
-  if (sources === undefined) {
-    return <CircularProgress />;
-  }
 
   if (sources.length === 0 && !search) {
     return <div>No recent sources available.</div>;
@@ -416,7 +431,7 @@ const RecentSources = ({ classes }: RecentSourcesProps) => {
   const { classes: styles } = useSourceListStyles({ invertThumbnails });
 
   const { activeTeam } = useActiveTeam();
-  const { data: recentSources } = useGetRecentSourcesQuery(
+  const { data: recentSources, isLoading } = useGetRecentSourcesQuery(
     activeTeam ? { teamID: activeTeam.id } : undefined,
   );
   const prefs =
@@ -448,11 +463,15 @@ const RecentSources = ({ classes }: RecentSourcesProps) => {
             />
           </div>
         </div>
-        <RecentSourcesList
-          sources={recentSources}
-          styles={styles}
-          displayTNS={recentSourcesPrefs?.displayTNS !== false}
-        />
+        {isLoading ? (
+          <SourceListSkeleton />
+        ) : (
+          <RecentSourcesList
+            sources={recentSources ?? []}
+            styles={styles}
+            displayTNS={recentSourcesPrefs?.displayTNS !== false}
+          />
+        )}
       </div>
     </Paper>
   );

@@ -12,6 +12,7 @@ import {
 } from "../../ducks/profile";
 import { useGetSourceCountsQuery } from "../../ducks/sourceCounts";
 import { useActiveTeam } from "../../ducks/teams";
+import WidgetLoading from "./WidgetLoading";
 
 const useStyles = makeStyles()(() => ({
   counter: {
@@ -41,7 +42,7 @@ interface SourceCountsProps {
 const SourceCounts = ({ classes, sinceDaysAgo }: SourceCountsProps) => {
   const { classes: styles } = useStyles();
   const { activeTeam } = useActiveTeam();
-  const { data: sourceCounts } = useGetSourceCountsQuery(
+  const { data: sourceCounts, isLoading } = useGetSourceCountsQuery(
     activeTeam ? { teamID: activeTeam.id } : undefined,
   );
   const { data: profile } = useGetProfileQuery();
@@ -71,22 +72,26 @@ const SourceCounts = ({ classes, sinceDaysAgo }: SourceCountsProps) => {
             />
           </div>
         </div>
-        <div className={styles.counter}>
-          <Typography align="center" variant="h4">
-            <b>
-              <CountUp
-                {...({ id: "sourceCounter" } as any)}
-                isCounting
-                end={sourceCounts?.count}
-                duration={1.0}
-              />
-            </b>
-          </Typography>
-          <Typography align="center" variant="body1">
-            New Sources <br />
-            <i>Last {sourceCounts?.sinceDaysAgo} days</i>
-          </Typography>
-        </div>
+        {isLoading ? (
+          <WidgetLoading />
+        ) : (
+          <div className={styles.counter}>
+            <Typography align="center" variant="h4">
+              <b>
+                <CountUp
+                  {...({ id: "sourceCounter" } as any)}
+                  isCounting
+                  end={sourceCounts?.count}
+                  duration={1.0}
+                />
+              </b>
+            </Typography>
+            <Typography align="center" variant="body1">
+              New Sources <br />
+              <i>Last {sourceCounts?.sinceDaysAgo} days</i>
+            </Typography>
+          </div>
+        )}
       </div>
     </Paper>
   );

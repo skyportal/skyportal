@@ -20,12 +20,12 @@ import {
   useUpdateUserPreferencesMutation,
 } from "../../ducks/profile";
 import WidgetPrefsDialog from "./WidgetPrefsDialog";
-import { useSourceListStyles } from "./RecentSources";
+import { SourceListSkeleton, useSourceListStyles } from "./RecentSources";
 import { useGetTopSourcesQuery } from "../../ducks/topSources";
 import { useActiveTeam } from "../../ducks/teams";
 
 interface TopSourcesListProps {
-  sources?: any[];
+  sources: any[];
   styles: Record<string, any>;
   displayTNS?: boolean;
 }
@@ -129,7 +129,7 @@ const TopSourcesList = ({
   );
 
   useEffect(() => {
-    sources?.forEach((source) => {
+    sources.forEach((source) => {
       setThumbnailIdxs((prevState) => ({
         ...prevState,
         [source.obj_id]: 0,
@@ -138,10 +138,6 @@ const TopSourcesList = ({
   }, [sources]);
 
   const { classes: topSourceSpecificStyles } = useStyles();
-  if (sources === undefined) {
-    return <div>Loading top sources...</div>;
-  }
-
   if (sources.length === 0) {
     return <div>No top sources available.</div>;
   }
@@ -149,7 +145,7 @@ const TopSourcesList = ({
   return (
     <div className={topSourceSpecificStyles.sourceListContainer}>
       <ul className={styles["sourceList"]}>
-        {sources?.map((source) => {
+        {sources.map((source) => {
           const topsourceName = `${source.obj_id}`;
           let classification = null;
           if (source.classifications.length > 0) {
@@ -307,7 +303,7 @@ const TopSources = ({ classes }: TopSourcesProps) => {
   });
 
   const { activeTeam } = useActiveTeam();
-  const { data: sourceViews } = useGetTopSourcesQuery(
+  const { data: sourceViews, isLoading } = useGetTopSourcesQuery(
     activeTeam ? { teamID: activeTeam.id } : undefined,
   );
   const prefs = (profile?.preferences as any)?.topSources || defaultPrefs;
@@ -405,11 +401,15 @@ const TopSources = ({ classes }: TopSourcesProps) => {
             />
           </div>
         </div>
-        <TopSourcesList
-          sources={sourceViews || []}
-          styles={sourceListStyles}
-          displayTNS={topSourcesPrefs?.displayTNS !== false}
-        />
+        {isLoading ? (
+          <SourceListSkeleton />
+        ) : (
+          <TopSourcesList
+            sources={sourceViews || []}
+            styles={sourceListStyles}
+            displayTNS={topSourcesPrefs?.displayTNS !== false}
+          />
+        )}
       </div>
     </Paper>
   );
