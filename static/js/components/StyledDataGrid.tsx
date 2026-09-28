@@ -26,7 +26,7 @@ import { useContext } from "react";
 import { ExpandAllContext, ExpandAllProvider } from "./ExpandableCell";
 
 export const FULL_PAGE_HEIGHT = "calc(100vh - 5.25rem)";
-export const FULL_PAGE_HEIGHT_WITH_TABS = "calc(100vh - 5.25rem - 48px - 1rem)";
+export const FULL_PAGE_HEIGHT_WITH_TABS = "calc(100vh - 5.25rem - 49px - 1rem)";
 
 const baseSx = (theme: any) => ({
   border: `1px solid ${theme.palette.divider}`,
