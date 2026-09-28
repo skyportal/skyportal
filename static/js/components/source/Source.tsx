@@ -281,9 +281,6 @@ const SourceContent = ({ source }: SourceContentProps) => {
 
   const [showStarList, setShowStarList] = useState(false);
   const [showPhotometry, setShowPhotometry] = useState(false);
-  // Stable identity so PhotometryTable's memoized toolbar (keyed on onClose)
-  // is not rebuilt — and its close button not remounted — when Source
-  // re-renders as photometry loads (which caused a StaleElementReference).
   const closePhotometryTable = useCallback(() => setShowPhotometry(false), []);
   const [rightPanelVisible, setRightPanelVisible] = useState(true);
   const commentPanel = useCommentPanel();

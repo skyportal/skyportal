@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+import React, { ReactNode, useState, useMemo } from "react";
 import Dialog from "@mui/material/Dialog";
 import DialogContent from "@mui/material/DialogContent";
 import Slide from "@mui/material/Slide";
@@ -15,7 +15,6 @@ import Box from "@mui/material/Box";
 import Button from "@mui/material/Button";
 import { makeStyles } from "tss-react/mui";
 import CircularProgress from "@mui/material/CircularProgress";
-import Typography from "@mui/material/Typography";
 
 import StyledDataGrid, { DataGridToolbar } from "../StyledDataGrid";
 import UpdatePhotometry from "./UpdatePhotometry";
@@ -93,6 +92,39 @@ interface PhotometryTableProps {
   setMagsys?: ((...a: any[]) => void) | null;
   t0?: number | null;
 }
+
+const PhotometryTableToolbar = ({
+  title,
+  controls,
+  onDownload,
+  onClose,
+}: {
+  title: string;
+  controls: ReactNode;
+  onDownload: () => void;
+  onClose: () => void;
+}) => (
+  <DataGridToolbar title={title} showExport={false}>
+    {controls}
+    <Button
+      size="small"
+      startIcon={<DownloadIcon />}
+      onClick={onDownload}
+      data-testid="open-photometry-download-button"
+    >
+      Download
+    </Button>
+    <Tooltip title="Close Table">
+      <IconButton
+        onClick={onClose}
+        data-testid="close-photometry-table-button"
+        size="small"
+      >
+        <CloseIcon />
+      </IconButton>
+    </Tooltip>
+  </DataGridToolbar>
+);
 
 const PhotometryTable = ({
   obj_id,
@@ -391,35 +423,6 @@ const PhotometryTable = ({
     permissions,
   ]);
 
-  const CustomToolbar = useMemo(
-    () =>
-      function PhotometryTableToolbar() {
-        return (
-          <DataGridToolbar showQuickFilter showExport={false}>
-            <Button
-              size="small"
-              startIcon={<DownloadIcon />}
-              onClick={() => setDownloadOptionsOpen(true)}
-              data-testid="open-photometry-download-button"
-            >
-              Download
-            </Button>
-            <Box sx={{ flexGrow: 1 }} />
-            <Tooltip title="Close Table">
-              <IconButton
-                onClick={onClose}
-                data-testid="close-photometry-table-button"
-                size="small"
-              >
-                <CloseIcon />
-              </IconButton>
-            </Tooltip>
-          </DataGridToolbar>
-        );
-      },
-    [onClose],
-  );
-
   let bodyContent = null;
   if (photometryData == null) {
     bodyContent = (
@@ -431,28 +434,8 @@ const PhotometryTable = ({
     bodyContent = <p>Source has no photometry.</p>;
   } else {
     bodyContent = (
-      <div>
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            flexDirection: "row",
-            gap: "1rem",
-            marginBottom: "0.5rem",
-          }}
-        >
-          <Typography variant="h6" noWrap>
-            {`Photometry of ${obj_id}`}
-          </Typography>
-          {magsys && typeof setMagsys === "function" && (
-            <PhotometryMagsys magsys={magsys} setMagsys={setMagsys} />
-          )}
-          <PhotometryExtinction
-            showExtinction={showExtinction}
-            setShowExtinction={setShowExtinction}
-          />
-        </div>
-        <Box sx={{ height: "calc(100vh - 8rem)", width: "100%" }}>
+      <>
+        <Box sx={{ flex: 1, minHeight: 0, width: "100%" }}>
           <StyledDataGrid
             rows={data}
             getRowId={(row: any) =>
@@ -466,7 +449,25 @@ const PhotometryTable = ({
               pagination: { paginationModel: { pageSize: 100 } },
             }}
             pageSizeOptions={[50, 100, { value: -1, label: "All" }]}
-            slots={{ toolbar: CustomToolbar }}
+            slots={{ toolbar: PhotometryTableToolbar }}
+            slotProps={{
+              toolbar: {
+                title: `Photometry of ${obj_id}`,
+                controls: (
+                  <>
+                    {magsys && typeof setMagsys === "function" && (
+                      <PhotometryMagsys magsys={magsys} setMagsys={setMagsys} />
+                    )}
+                    <PhotometryExtinction
+                      showExtinction={showExtinction}
+                      setShowExtinction={setShowExtinction}
+                    />
+                  </>
+                ),
+                onDownload: () => setDownloadOptionsOpen(true),
+                onClose,
+              },
+            }}
             showToolbar
           />
         </Box>
@@ -485,7 +486,7 @@ const PhotometryTable = ({
           onDownload={handleDownloadClose}
           t0={t0}
         />
-      </div>
+      </>
     );
   }
 
@@ -498,7 +499,9 @@ const PhotometryTable = ({
         transition: Transition,
       }}
     >
-      <DialogContent>{bodyContent}</DialogContent>
+      <DialogContent sx={{ display: "flex", flexDirection: "column" }}>
+        {bodyContent}
+      </DialogContent>
     </Dialog>
   );
 };
