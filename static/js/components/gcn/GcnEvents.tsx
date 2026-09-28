@@ -21,7 +21,10 @@ import dayjs from "dayjs";
 import { showNotification } from "baselayer/components/Notifications";
 
 import { useAppDispatch } from "../../types/hooks";
-import StyledDataGrid, { DataGridToolbar } from "../StyledDataGrid";
+import StyledDataGrid, {
+  DataGridToolbar,
+  FULL_PAGE_HEIGHT_WITH_TABS,
+} from "../StyledDataGrid";
 import ExpandableCell from "../ExpandableCell";
 
 import { filterOutEmptyValues } from "../../API";
@@ -301,7 +304,7 @@ const GcnEvents = () => {
       </Tabs>
       {tab === 0 ? (
         <StyledDataGrid
-          autoHeight
+          height={FULL_PAGE_HEIGHT_WITH_TABS}
           rows={gcnEvents.events || []}
           columns={columns}
           getRowId={(row: any) => row.dateobs}
