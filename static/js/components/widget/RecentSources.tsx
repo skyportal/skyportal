@@ -1,6 +1,7 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import Box from "@mui/material/Box";
 import Skeleton from "@mui/material/Skeleton";
+import ImageNotSupportedOutlined from "@mui/icons-material/ImageNotSupportedOutlined";
 import { Link } from "react-router-dom";
 
 import dayjs from "dayjs";
@@ -22,6 +23,7 @@ import {
 import { useGetRecentSourcesQuery } from "../../ducks/recentSources";
 import { useActiveTeam } from "../../ducks/teams";
 import WidgetPrefsDialog from "./WidgetPrefsDialog";
+import { isPlaceholder } from "../thumbnail/ThumbnailList";
 
 dayjs.extend(relativeTime);
 dayjs.extend(utc);
@@ -181,6 +183,51 @@ export const useSourceListStyles = makeStyles<{
   },
 }));
 
+interface SourceStampProps {
+  source: any;
+  styles: any;
+}
+
+export const SourceStamp = ({ source, styles }: SourceStampProps) => {
+  const [failed, setFailed] = useState(0);
+  const thumbnail = source.thumbnails.filter(
+    (t: any) => !isPlaceholder(t.public_url),
+  )[failed];
+
+  return (
+    <Link to={`/source/${source.obj_id}`} className={styles.stampContainer}>
+      {thumbnail ? (
+        <img
+          className={
+            thumbnail.is_grayscale
+              ? `${styles.stamp} ${styles.inverted}`
+              : styles.stamp
+          }
+          src={thumbnail.public_url}
+          alt={source.obj_id}
+          loading="lazy"
+          onError={() => setFailed(failed + 1)}
+        />
+      ) : (
+        <Box
+          sx={{
+            width: "6.6em",
+            height: "6.6em",
+            borderRadius: "4px",
+            flexShrink: 0,
+            bgcolor: "action.hover",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+          }}
+        >
+          <ImageNotSupportedOutlined color="disabled" />
+        </Box>
+      )}
+    </Link>
+  );
+};
+
 export const SourceListSkeleton = () => (
   <Box sx={{ overflow: "hidden" }}>
     {[...Array(4)].map((_, index) => (
@@ -228,17 +275,6 @@ const RecentSourcesList = ({
   search = false,
   displayTNS = true,
 }: RecentSourcesListProps) => {
-  const [thumbnailIdxs, setThumbnailIdxs] = useState<any>({});
-
-  useEffect(() => {
-    sources.forEach((source) => {
-      setThumbnailIdxs((prevState: any) => ({
-        ...prevState,
-        [source.obj_id]: 0,
-      }));
-    });
-  }, [sources]);
-
   if (sources.length === 0 && !search) {
     return <div>No recent sources available.</div>;
   }
@@ -269,10 +305,6 @@ const RecentSourcesList = ({
             }
           }
 
-          const imgClasses = source.thumbnails[thumbnailIdxs[source.obj_id]]
-            ?.is_grayscale
-            ? `${styles.stamp} ${styles.inverted}`
-            : `${styles.stamp}`;
           return (
             <li key={`recentSources_${source.obj_id}_${idx}`}>
               <Paper
@@ -282,34 +314,7 @@ const RecentSourcesList = ({
                 className={styles.sourceItemWithButton}
               >
                 <div className={styles.sourceItem}>
-                  <Link
-                    to={`/source/${source.obj_id}`}
-                    className={styles.stampContainer}
-                  >
-                    <img
-                      className={imgClasses}
-                      src={
-                        source.thumbnails[thumbnailIdxs[source.obj_id]]
-                          ?.public_url ||
-                        "/static/images/currently_unavailable.png"
-                      }
-                      alt={source.obj_id}
-                      loading="lazy"
-                      onError={(e) => {
-                        // avoid infinite loop
-                        if (
-                          thumbnailIdxs[source.obj_id] ===
-                          source.thumbnails.length - 1
-                        ) {
-                          (e.target as any).onerror = null;
-                        }
-                        setThumbnailIdxs((prevState: any) => ({
-                          ...prevState,
-                          [source.obj_id]: prevState[source.obj_id] + 1,
-                        }));
-                      }}
-                    />
-                  </Link>
+                  <SourceStamp source={source} styles={styles} />
                   <div className={styles.sourceContainer}>
                     <div className={styles.sourceHeaderContainer}>
                       <div className={styles.sourceInfoContainer}>

@@ -35,6 +35,14 @@ const ON_DEMAND_TYPES = ["sm", "hst", "chandra", "jwst"];
 // paginate={false} to show every thumbnail wrapped across rows instead.
 const MAX_VISIBLE_THUMBNAILS = 3;
 
+// Drop placeholder tiles (no url yet, no coverage, or the cutout service was
+// unavailable) so cycling only shows real cutouts. Loading tiles (src "#")
+// are kept — they resolve to a real image or disappear on refresh.
+export const isPlaceholder = (src?: string | null) =>
+  !src ||
+  src.includes("outside_survey") ||
+  src.includes("currently_unavailable");
+
 const thumbnailTypes = [...ALERT_THUMBNAIL_TYPES, ...ARCHIVAL_THUMBNAIL_TYPES];
 
 const sortThumbnailsByDate = (a: any, b: any) => {
@@ -154,13 +162,6 @@ const ThumbnailList = ({
     });
   }
 
-  // Drop placeholder tiles (no url yet, no coverage, or the cutout service was
-  // unavailable) so cycling only shows real cutouts. Loading tiles (src "#")
-  // are kept — they resolve to a real image or disappear on refresh.
-  const isPlaceholder = (src?: string | null) =>
-    !src ||
-    src.includes("outside_survey") ||
-    src.includes("currently_unavailable");
   const shownTiles = tiles.filter(
     (t) => !isPlaceholder(t.src) && !unavailable.has(t.key),
   );
