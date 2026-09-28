@@ -92,6 +92,7 @@ interface ListPanelPageProps {
   permission: string;
   main?: ReactNode;
   markers?: WorldMapMarker[];
+  listHeader?: ReactNode;
 }
 
 const ListPanelPage = ({
@@ -101,6 +102,7 @@ const ListPanelPage = ({
   permission,
   main,
   markers = [],
+  listHeader,
 }: ListPanelPageProps) => {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("lg"));
@@ -134,6 +136,7 @@ const ListPanelPage = ({
                   <Typography variant="h6" sx={{ fontWeight: "500" }}>
                     List of {name}s
                   </Typography>
+                  {listHeader}
                   <ItemList items={items} isMobile />
                 </>
               ) : (
@@ -179,7 +182,10 @@ const ListPanelPage = ({
               {canManage && (showForm || listInMain) ? (
                 form
               ) : (
-                <ItemList items={items} isMobile={false} />
+                <>
+                  {listHeader}
+                  <ItemList items={items} isMobile={false} />
+                </>
               )}
             </Paper>
           </Grid>
