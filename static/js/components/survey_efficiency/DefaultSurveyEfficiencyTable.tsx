@@ -9,7 +9,10 @@ import DialogContent from "@mui/material/DialogContent";
 import { showNotification } from "baselayer/components/Notifications";
 import { useAppDispatch } from "../../types/hooks";
 import { useDeleteDefaultSurveyEfficiencyMutation } from "../../ducks/default_survey_efficiencies";
-import StyledDataGrid, { DataGridToolbar } from "../StyledDataGrid";
+import StyledDataGrid, {
+  DataGridToolbar,
+  FULL_PAGE_HEIGHT_WITH_TABS,
+} from "../StyledDataGrid";
 import ConfirmDeletionDialog from "../ConfirmDeletionDialog";
 import NewDefaultSurveyEfficiency from "./NewDefaultSurveyEfficiency";
 import { useIsReadOnly } from "../../ducks/profile";
@@ -174,12 +177,13 @@ const DefaultSurveyEfficiencyTable = ({
   );
 
   return (
-    <div>
+    <>
       <StyledDataGrid
-        autoHeight
+        sx={{ height: FULL_PAGE_HEIGHT_WITH_TABS }}
         rows={default_survey_efficiencies || []}
         columns={columns}
         getRowId={(row: any) => row.id}
+        getRowHeight={() => "auto"}
         pageSizeOptions={[25, 50, 100, { value: -1, label: "All" }]}
         initialState={{ pagination: { paginationModel: { pageSize: -1 } } }}
         slots={{ toolbar: CustomToolbar }}
@@ -197,7 +201,7 @@ const DefaultSurveyEfficiencyTable = ({
         closeDialog={closeDeleteDialog}
         resourceName="default survey efficiency"
       />
-    </div>
+    </>
   );
 };
 

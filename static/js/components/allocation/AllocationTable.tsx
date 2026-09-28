@@ -15,7 +15,10 @@ import Box from "@mui/material/Box";
 
 import { showNotification } from "baselayer/components/Notifications";
 import { useAppDispatch } from "../../types/hooks";
-import StyledDataGrid, { DataGridToolbar } from "../StyledDataGrid";
+import StyledDataGrid, {
+  DataGridToolbar,
+  FULL_PAGE_HEIGHT_WITH_TABS,
+} from "../StyledDataGrid";
 import ExpandableCell from "../ExpandableCell";
 import { useDeleteAllocationMutation } from "../../ducks/allocation";
 import ConfirmDeletionDialog from "../ConfirmDeletionDialog";
@@ -323,7 +326,7 @@ const AllocationTable = ({
   return (
     <Box
       sx={{
-        height: fixedHeader ? "calc(100vh - 201px)" : "auto",
+        height: fixedHeader ? FULL_PAGE_HEIGHT_WITH_TABS : "auto",
         width: "100%",
       }}
     >

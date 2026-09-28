@@ -1,6 +1,7 @@
-import React from "react";
-import { TabContext, TabList, TabPanel } from "@mui/lab";
+import { useState } from "react";
+import Box from "@mui/material/Box";
 import Tab from "@mui/material/Tab";
+import Tabs from "@mui/material/Tabs";
 
 import { useGetDefaultSurveyEfficienciesQuery } from "../../ducks/default_survey_efficiencies";
 import { useGetDefaultObservationPlansQuery } from "../../ducks/default_observation_plans";
@@ -30,41 +31,45 @@ const AllocationList = () => {
     currentUser?.permissions?.includes(specificPermission) ||
     false;
 
-  const [tabIndex, setTabIndex] = React.useState(1);
+  const [tab, setTab] = useState(0);
 
-  if (tabIndex == 1 && allocationList == null) return <Spinner />;
+  if (tab === 0 && allocationList == null) return <Spinner />;
 
   return (
-    <TabContext value={tabIndex}>
-      <TabList onChange={(_, newValue) => setTabIndex(newValue)} centered>
-        <Tab label="Allocations" value={1} />
-        <Tab label="Default Observation Plans" value={2} />
-        <Tab label="Default Survey Efficiencies" value={3} />
-      </TabList>
-      <TabPanel value={1}>
+    <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
+      <Tabs
+        value={tab}
+        onChange={(_event, value) => setTab(value)}
+        sx={{ borderBottom: 1, borderColor: "divider" }}
+      >
+        <Tab label="Allocations" />
+        <Tab label="Default Observation Plans" />
+        <Tab label="Default Survey Efficiencies" />
+      </Tabs>
+      {tab === 0 && (
         <AllocationTable
           instruments={instrumentList}
           telescopes={telescopeList}
           groups={groups as any}
           allocations={allocationList as any}
           managePermission={hasPermission("Manage allocations")}
-          fixedHeader={true}
+          fixedHeader
         />
-      </TabPanel>
-      <TabPanel value={2}>
+      )}
+      {tab === 1 && (
         <DefaultObservationPlanTable
           default_observation_plans={defaultObservationPlanList}
           instruments={instrumentList}
           telescopes={telescopeList}
           managePermission={hasPermission("Manage observation plans")}
         />
-      </TabPanel>
-      <TabPanel value={3}>
+      )}
+      {tab === 2 && (
         <DefaultSurveyEfficiencyTable
           default_survey_efficiencies={defaultSurveyEfficiencyList}
         />
-      </TabPanel>
-    </TabContext>
+      )}
+    </Box>
   );
 };
 

@@ -19,12 +19,21 @@ export const ExpandAllProvider = ({ children }: { children: ReactNode }) => {
   );
 };
 
-interface ExpandableCellProps {
-  items: ReactNode[];
-  maxVisible?: number;
-}
+type ExpandableCellProps = { maxVisible?: number } & (
+  | { items: ReactNode[]; count?: never; render?: never }
+  | {
+      items?: never;
+      count: number;
+      render: (visible: number, collapsible: boolean) => ReactNode;
+    }
+);
 
-const ExpandableCell = ({ items, maxVisible = 3 }: ExpandableCellProps) => {
+const ExpandableCell = ({
+  items,
+  count = items?.length ?? 0,
+  render = (visible) => items?.slice(0, visible),
+  maxVisible = 3,
+}: ExpandableCellProps) => {
   const { expandAll } = useContext(ExpandAllContext);
   const [override, setOverride] = useState<{
     expanded: boolean;
@@ -35,13 +44,33 @@ const ExpandableCell = ({ items, maxVisible = 3 }: ExpandableCellProps) => {
 
   return (
     <Box
-      sx={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 0.5 }}
+      sx={
+        items
+          ? {
+              display: "flex",
+              flexWrap: "wrap",
+              alignItems: "center",
+              gap: 0.5,
+            }
+          : { position: "relative" }
+      }
     >
-      {expanded ? items : items.slice(0, maxVisible)}
-      {items.length > maxVisible && (
+      {render(expanded ? count : maxVisible, count > maxVisible)}
+      {count > maxVisible && (
         <IconButton
           size="small"
           aria-label={expanded ? "Show less" : "Show more"}
+          sx={
+            items
+              ? {}
+              : {
+                  position: "absolute",
+                  bottom: "0.5em",
+                  left: "50%",
+                  transform: "translateX(-50%)",
+                  color: "grey.400",
+                }
+          }
           onClick={() => setOverride({ expanded: !expanded, expandAll })}
         >
           {expanded ? (

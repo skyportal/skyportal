@@ -5,14 +5,19 @@ import AddIcon from "@mui/icons-material/Add";
 import Dialog from "@mui/material/Dialog";
 import DialogTitle from "@mui/material/DialogTitle";
 import DialogContent from "@mui/material/DialogContent";
+import Box from "@mui/material/Box";
 import Chip from "@mui/material/Chip";
 import { JSONTree } from "react-json-tree";
 
 import { showNotification } from "baselayer/components/Notifications";
 import { useAppDispatch } from "../../types/hooks";
 import { useDeleteDefaultObservationPlanMutation } from "../../ducks/default_observation_plans";
-import StyledDataGrid, { DataGridToolbar } from "../StyledDataGrid";
+import StyledDataGrid, {
+  DataGridToolbar,
+  FULL_PAGE_HEIGHT_WITH_TABS,
+} from "../StyledDataGrid";
 import Button from "../Button";
+import ExpandableCell from "../ExpandableCell";
 import ConfirmDeletionDialog from "../ConfirmDeletionDialog";
 import NewDefaultObservationPlan from "./NewDefaultObservationPlan";
 
@@ -84,13 +89,24 @@ const DefaultObservationPlanTable = ({
   };
 
   const renderPayload = (params: any) => {
-    const default_observation_plan = params.row;
-    if (!default_observation_plan?.payload) return null;
-
+    const entries = Object.entries(params.row.payload ?? {});
     return (
-      <div style={{ whiteSpace: "nowrap" }}>
-        <JSONTree data={default_observation_plan.payload} hideRoot />
-      </div>
+      <ExpandableCell
+        count={entries.length}
+        render={(visible, collapsible) => (
+          <Box
+            sx={{
+              whiteSpace: "nowrap",
+              ...(collapsible && { "& > ul": { pb: "2.5rem !important" } }),
+            }}
+          >
+            <JSONTree
+              data={Object.fromEntries(entries.slice(0, visible))}
+              hideRoot
+            />
+          </Box>
+        )}
+      />
     );
   };
 
@@ -161,7 +177,7 @@ const DefaultObservationPlanTable = ({
   ];
 
   const CustomToolbar = () => (
-    <DataGridToolbar title="Default Observation Plans">
+    <DataGridToolbar title="Default Observation Plans" showExpandAll>
       {managePermission && (
         <IconButton size="small" onClick={() => setNewDialogOpen(true)}>
           <AddIcon />
@@ -171,12 +187,13 @@ const DefaultObservationPlanTable = ({
   );
 
   return (
-    <div>
+    <>
       <StyledDataGrid
-        autoHeight
+        sx={{ height: FULL_PAGE_HEIGHT_WITH_TABS }}
         rows={default_observation_plans || []}
         columns={columns}
         getRowId={(row: any) => row.id}
+        getRowHeight={() => "auto"}
         pageSizeOptions={[25, 50, 100, { value: -1, label: "All" }]}
         initialState={{ pagination: { paginationModel: { pageSize: -1 } } }}
         slots={{ toolbar: CustomToolbar }}
@@ -198,7 +215,7 @@ const DefaultObservationPlanTable = ({
         closeDialog={closeDeleteDialog}
         resourceName="default observation plan"
       />
-    </div>
+    </>
   );
 };
 
