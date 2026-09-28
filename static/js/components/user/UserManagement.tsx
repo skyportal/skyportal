@@ -3,6 +3,8 @@ import { Controller, useForm } from "react-hook-form";
 
 import Chip from "@mui/material/Chip";
 import Box from "@mui/material/Box";
+import Tab from "@mui/material/Tab";
+import Tabs from "@mui/material/Tabs";
 import { createFilterOptions } from "@mui/material/Autocomplete";
 import SearchableSelect from "../SearchableSelect";
 import AddCircleIcon from "@mui/icons-material/AddCircle";
@@ -22,7 +24,11 @@ import utc from "dayjs/plugin/utc";
 
 import { showNotification } from "baselayer/components/Notifications";
 import Button from "../Button";
-import StyledDataGrid, { DataGridToolbar } from "../StyledDataGrid";
+import StyledDataGrid, {
+  DataGridToolbar,
+  FULL_PAGE_HEIGHT,
+  FULL_PAGE_HEIGHT_WITH_TABS,
+} from "../StyledDataGrid";
 import FormValidationError from "../FormValidationError";
 import Spinner from "../Spinner";
 import UserInvitations from "./UserInvitations";
@@ -193,6 +199,7 @@ const UserManagement = () => {
   const [deleteUserAcl] = useDeleteUserAclMutation();
   const [addUserRoles] = useAddUserRolesMutation();
   const [deleteUserRole] = useDeleteUserRoleMutation();
+  const [tab, setTab] = useState(0);
   const [includeExpired, setIncludeExpired] = useState(false);
   const [openDialog, setOpenDialog] = useState<string | null>(null);
   const [removeExpirationOpen, setRemoveExpirationOpen] = useState(false);
@@ -626,7 +633,25 @@ const UserManagement = () => {
 
   return (
     <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
-      <Box sx={{ height: "calc(100vh - 161px)", width: "100%" }}>
+      {invitationsEnabled && (
+        <Tabs
+          value={tab}
+          onChange={(_event, value) => setTab(value)}
+          sx={{ borderBottom: 1, borderColor: "divider" }}
+        >
+          <Tab label="Users" />
+          <Tab label="Invitations" />
+        </Tabs>
+      )}
+      <Box
+        sx={{
+          height: invitationsEnabled
+            ? FULL_PAGE_HEIGHT_WITH_TABS
+            : FULL_PAGE_HEIGHT,
+          width: "100%",
+          display: tab === 0 ? "block" : "none",
+        }}
+      >
         <StyledDataGrid
           columns={columns}
           rows={usersManagementData?.users || []}
@@ -645,7 +670,7 @@ const UserManagement = () => {
           showToolbar
         />
       </Box>
-      {invitationsEnabled && <UserInvitations />}
+      {invitationsEnabled && tab === 1 && <UserInvitations />}
       {addDialogs.map((dialog) => (
         <AddEntitiesDialog
           key={dialog.name}
