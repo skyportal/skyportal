@@ -1,9 +1,7 @@
 import { useState } from "react";
-import { Link as RouterLink } from "react-router-dom";
 import Grid from "@mui/material/Grid";
 import Box from "@mui/material/Box";
 import IconButton from "@mui/material/IconButton";
-import Link from "@mui/material/Link";
 import ToggleButton from "@mui/material/ToggleButton";
 import ToggleButtonGroup from "@mui/material/ToggleButtonGroup";
 import Dialog from "@mui/material/Dialog";
@@ -26,7 +24,7 @@ import { useDeleteObservingRunMutation } from "../../ducks/observingRun";
 import { useGetObservingRunsQuery } from "../../ducks/observingRuns";
 import StyledDataGrid, { DataGridToolbar } from "../StyledDataGrid";
 import ConfirmDeletionDialog from "../ConfirmDeletionDialog";
-import { observingRunTitle } from "./AssignmentForm";
+import ObservingRunTitle, { observingRunTitle } from "./ObservingRunTitle";
 import NewObservingRun from "./NewObservingRun";
 import ModifyObservingRun from "./ModifyObservingRun";
 
@@ -102,10 +100,8 @@ const ObservingRunPage = () => {
       minWidth: 300,
       valueGetter: (_value: any, run: any) =>
         observingRunTitle(run, instruments, telescopes, groups),
-      renderCell: ({ row, value }: any) => (
-        <Link component={RouterLink} to={`/run/${row.id}`} underline="hover">
-          {value}
-        </Link>
+      renderCell: ({ row }: any) => (
+        <ObservingRunTitle run={row} link sx={{ py: 1 }} />
       ),
     },
     {
@@ -145,12 +141,13 @@ const ObservingRunPage = () => {
   ];
 
   return (
-    <Grid container spacing={3}>
+    <Grid container spacing={2}>
       <Grid size={{ lg: 8, sm: 12 }}>
         <StyledDataGrid
           autoHeight
           rows={rows}
           columns={columns}
+          getRowHeight={() => "auto"}
           initialState={{ pagination: { paginationModel: { pageSize: 100 } } }}
           localeText={{ noRowsLabel: "No observing runs to show." }}
           slots={{ toolbar: RunsToolbar }}

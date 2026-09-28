@@ -1,11 +1,12 @@
-import { useGetGroupsQuery } from "../../ducks/groups";
-import { useGetTelescopesQuery } from "../../ducks/telescopes";
 import React, { Suspense, useState } from "react";
+import { Link as RouterLink } from "react-router-dom";
+import dayjs from "dayjs";
 
 import Typography from "@mui/material/Typography";
 import IconButton from "@mui/material/IconButton";
 import Grid from "@mui/material/Grid";
 import Chip from "@mui/material/Chip";
+import Tooltip from "@mui/material/Tooltip";
 import BuildIcon from "@mui/icons-material/Build";
 import CloudIcon from "@mui/icons-material/Cloud";
 import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
@@ -30,7 +31,7 @@ import Button from "../Button";
 import StyledDataGrid, { DataGridToolbar } from "../StyledDataGrid";
 import AssignmentForm from "../observing_run/AssignmentForm";
 import ThumbnailList from "../thumbnail/ThumbnailList";
-import { observingRunTitle } from "./AssignmentForm";
+import ObservingRunTitle from "./ObservingRunTitle";
 import { ObservingRunStarList } from "../StarList";
 import withRouter from "../withRouter";
 
@@ -45,7 +46,6 @@ import { dec_to_dms, ra_to_hours } from "../../units";
 import SkyCam from "../SkyCam";
 import VegaPhotometry from "../plot/VegaPhotometry";
 import Spinner from "../Spinner";
-import { useGetInstrumentsQuery } from "../../ducks/instruments";
 import Box from "@mui/material/Box";
 
 const AirmassPlot = React.lazy(() => import("../plot/AirmassPlot"));
@@ -199,9 +199,6 @@ const RunSummary = ({ route }: RunSummaryProps) => {
     data: any;
   };
   const [putObservingRunNotObserved] = usePutObservingRunNotObservedMutation();
-  const { data: instrumentList = [] } = useGetInstrumentsQuery();
-  const { data: telescopeList = [] } = useGetTelescopesQuery();
-  const groups = (useGetGroupsQuery().data?.all ?? null) as any;
   const [dialog, setDialog] = useState(false);
   const [openedRows, setOpenedRows] = useState<any[]>([]);
 
@@ -235,7 +232,7 @@ const RunSummary = ({ route }: RunSummaryProps) => {
     {
       field: "__expand",
       headerName: "",
-      width: 56,
+      width: 64,
       sortable: false,
       filterable: false,
       hideable: false,
@@ -245,7 +242,7 @@ const RunSummary = ({ route }: RunSummaryProps) => {
         if (params.row.__detail) {
           const assignment = params.row.__source;
           return (
-            <div style={{ width: "100%" }}>
+            <Box sx={{ width: "100%" }}>
               <Grid
                 container
                 direction="row"
@@ -275,7 +272,7 @@ const RunSummary = ({ route }: RunSummaryProps) => {
                   </Suspense>
                 </Grid>
               </Grid>
-            </div>
+            </Box>
           );
         }
         const expanded = openedRows.includes(params.row.id);
@@ -295,12 +292,13 @@ const RunSummary = ({ route }: RunSummaryProps) => {
       field: "target_name",
       headerName: "Target Name",
       flex: 1,
-      minWidth: 120,
+      minWidth: 140,
       valueGetter: (_value: any, row: any) => row.obj?.id,
-      renderCell: (params: any) => {
-        const objid = params.row.obj?.id;
-        return <a href={`/source/${objid}`}>{objid}</a>;
-      },
+      renderCell: ({ value }: any) => (
+        <Link component={RouterLink} to={`/source/${value}`} underline="hover">
+          {value}
+        </Link>
+      ),
     },
     {
       field: "status",
@@ -316,10 +314,11 @@ const RunSummary = ({ route }: RunSummaryProps) => {
         return (
           <Typography
             variant="body2"
-            style={{
-              backgroundColor: colors[1],
+            sx={{
+              bgcolor: colors[1],
               color: colors[0],
-              padding: "0.25rem 0.75rem 0.25rem 0.75rem",
+              px: 1.5,
+              py: 0.5,
               borderRadius: "1rem",
               maxWidth: "fit-content",
               whiteSpace: status.includes("error") ? "normal" : "nowrap",
@@ -336,6 +335,8 @@ const RunSummary = ({ route }: RunSummaryProps) => {
       headerName: "Date Requested",
       flex: 1,
       minWidth: 150,
+      valueFormatter: (value: string) =>
+        dayjs(value).format("YYYY-MM-DD HH:mm"),
     },
     {
       field: "ra",
@@ -343,26 +344,32 @@ const RunSummary = ({ route }: RunSummaryProps) => {
       flex: 1,
       minWidth: 100,
       valueGetter: (_value: any, row: any) => row.obj?.ra,
-      renderCell: (params: any) => (
-        <div>
-          {params.row.obj?.ra}
-          <br />
-          {params.row.obj?.ra != null && ra_to_hours(params.row.obj.ra)}
-        </div>
+      renderCell: ({ value }: any) => (
+        <Box>
+          <div>{value}</div>
+          {value != null && (
+            <Typography variant="caption" sx={{ color: "text.secondary" }}>
+              {ra_to_hours(value)}
+            </Typography>
+          )}
+        </Box>
       ),
     },
     {
       field: "dec",
       headerName: "Dec",
       flex: 1,
-      minWidth: 100,
+      minWidth: 110,
       valueGetter: (_value: any, row: any) => row.obj?.dec,
-      renderCell: (params: any) => (
-        <div>
-          {params.row.obj?.dec}
-          <br />
-          {params.row.obj?.dec != null && dec_to_dms(params.row.obj.dec)}
-        </div>
+      renderCell: ({ value }: any) => (
+        <Box>
+          <div>{value}</div>
+          {value != null && (
+            <Typography variant="caption" sx={{ color: "text.secondary" }}>
+              {dec_to_dms(value)}
+            </Typography>
+          )}
+        </Box>
       ),
     },
     {
@@ -421,19 +428,15 @@ const RunSummary = ({ route }: RunSummaryProps) => {
       field: "groups",
       headerName: "Groups",
       flex: 1,
-      minWidth: 120,
+      minWidth: 220,
       sortable: false,
-      renderCell: (params: any) => {
-        const assignment = params.row;
-        return assignment.accessible_group_names?.map((name: string) => (
-          <Chip
-            sx={{ m: 0.5 }}
-            label={name.substring(0, 15)}
-            size="small"
-            key={name}
-          />
-        ));
-      },
+      renderCell: ({ row }: any) => (
+        <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.5 }}>
+          {row.accessible_group_names?.map((name: string) => (
+            <Chip label={name.substring(0, 15)} size="small" key={name} />
+          ))}
+        </Box>
+      ),
     },
     {
       field: "finder",
@@ -446,19 +449,19 @@ const RunSummary = ({ route }: RunSummaryProps) => {
         const assignment = params.row;
         return (
           <>
-            <IconButton size="small">
-              <Link href={`/api/sources/${assignment.obj.id}/finder`}>
-                <PictureAsPdfIcon />
-              </Link>
+            <IconButton
+              size="small"
+              href={`/api/sources/${assignment.obj.id}/finder`}
+            >
+              <PictureAsPdfIcon />
             </IconButton>
-            <IconButton size="small">
-              <Link
-                href={`/source/${assignment.obj.id}/finder`}
-                rel="noopener noreferrer"
-                target="_blank"
-              >
-                <ImageAspectRatioIcon />
-              </Link>
+            <IconButton
+              size="small"
+              href={`/source/${assignment.obj.id}/finder`}
+              rel="noopener noreferrer"
+              target="_blank"
+            >
+              <ImageAspectRatioIcon />
             </IconButton>
           </>
         );
@@ -489,56 +492,70 @@ const RunSummary = ({ route }: RunSummaryProps) => {
     }
   });
 
-  function CustomToolbar() {
-    return (
-      <DataGridToolbar showQuickFilter={false} title="Targets">
-        <IconButton name="clouds" onClick={() => setDialog(true)}>
-          <CloudIcon />
-        </IconButton>
-      </DataGridToolbar>
-    );
-  }
-
   return (
-    <Box sx={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
-      <Typography variant="h5" color="textSecondary">
-        Plan for:{" "}
-        <b>
-          {observingRunTitle(
-            observingRun,
-            instrumentList,
-            telescopeList,
-            groups,
+    <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
+      <Paper
+        sx={{
+          p: 2,
+          display: "flex",
+          flexWrap: "wrap",
+          alignItems: "center",
+          justifyContent: "space-between",
+          gap: 2,
+        }}
+      >
+        <ObservingRunTitle run={observingRun} variant="h5" />
+        <Box
+          sx={{
+            display: "flex",
+            flexWrap: "wrap",
+            alignItems: "center",
+            gap: 1,
+          }}
+        >
+          <Chip
+            label={`${observingRun.duration} night${observingRun.duration > 1 ? "s" : ""}`}
+          />
+          {observingRun.observers && (
+            <Chip label={`Observers: ${observingRun.observers}`} />
           )}
-        </b>
-      </Typography>
+          <Tooltip title="Weather lost the night: mark all pending targets as not observed">
+            <Button
+              secondary
+              name="clouds"
+              endIcon={<CloudIcon />}
+              onClick={() => setDialog(true)}
+            >
+              Clouded out
+            </Button>
+          </Tooltip>
+        </Box>
+      </Paper>
       <StyledDataGrid
         autoHeight
         rows={displayRows}
         columns={columns}
-        getRowId={(row: any) => row.id}
-        getRowHeight={(params: any) => (params.model.__detail ? "auto" : null)}
+        getRowHeight={() => "auto"}
         columnBufferPx={3000}
-        slots={{ toolbar: CustomToolbar }}
+        slots={{ toolbar: DataGridToolbar }}
+        slotProps={{ toolbar: { title: "Targets", showQuickFilter: false } }}
         showToolbar
       />
-      <Grid container spacing={1} style={{ marginTop: "0.5rem" }}>
-        <Grid size={{ xs: 12, sm: 12, md: 12, lg: 8, xl: 8 }}>
-          <Paper style={{ padding: "0.5rem" }}>
-            <Typography gutterBottom variant="h6">
-              Starlist and Offsets
-            </Typography>
+      <Grid container spacing={2}>
+        <Grid size={{ xs: 12, lg: 8 }}>
+          <Paper sx={{ p: 2 }}>
+            <Typography variant="h6">Starlist and Offsets</Typography>
             <ObservingRunStarList observingRunId={observingRun.id} />
           </Paper>
         </Grid>
-        <Grid size={{ xs: 12, sm: 12, md: 12, lg: 4, xl: 4 }}>
+        <Grid size={{ xs: 12, lg: 4 }}>
           <SkyCam telescope={observingRun.instrument.telescope} />
         </Grid>
       </Grid>
       <Dialog open={dialog} onClose={closeDialog} maxWidth="md">
         <DialogContent dividers>
           Is your observing run clouded out and want to set all pending objects
-          to not observered?
+          to not observed?
         </DialogContent>
         <DialogActions>
           <Button secondary autoFocus onClick={closeDialog}>

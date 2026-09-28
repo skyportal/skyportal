@@ -226,12 +226,13 @@ def test_observing_run_page(page, view_only_user, red_transients_run):
         observingrun_title = (
             f"{run.calendar_date} "
             f"{run.instrument.name}/"
-            f"{run.instrument.telescope.nickname} "
-            f"(PI: {run.pi} / "
-            f"Group: {run.group.name})"
+            f"{run.instrument.telescope.nickname}"
         )
         expect(
             page.locator(f'//*[text()="{observingrun_title}"]').first
+        ).to_be_visible()
+        expect(
+            page.locator(f'//*[text()="PI: {run.pi} · Group: {run.group.name}"]').first
         ).to_be_visible()
 
 
@@ -247,9 +248,7 @@ def test_add_run_to_observing_run_page(
     observingrun_title = (
         f"{red_transients_run.calendar_date} "
         f"{red_transients_run.instrument.name}/"
-        f"{red_transients_run.instrument.telescope.nickname} "
-        f"(PI: {red_transients_run.pi} / "
-        f"Group: {red_transients_run.group.name})"
+        f"{red_transients_run.instrument.telescope.nickname}"
     )
     expect(page.locator(f'//*[text()="{observingrun_title}"]').first).to_be_visible()
 
@@ -277,6 +276,11 @@ def test_add_run_to_observing_run_page(
 
     expect(
         page.locator(
-            f"""//*[text()='2021-01-02 {lris.name}/{lris.telescope.nickname} (PI: {pi_name} / Group: {public_group.name})']"""
+            f"""//*[text()='2021-01-02 {lris.name}/{lris.telescope.nickname}']"""
+        ).first
+    ).to_be_visible()
+    expect(
+        page.locator(
+            f"""//*[text()='PI: {pi_name} · Group: {public_group.name}']"""
         ).first
     ).to_be_visible()
