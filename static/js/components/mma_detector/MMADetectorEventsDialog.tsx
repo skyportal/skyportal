@@ -1,21 +1,17 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 
+import Box from "@mui/material/Box";
+import Chip from "@mui/material/Chip";
 import Dialog from "@mui/material/Dialog";
 import DialogContent from "@mui/material/DialogContent";
 import DialogTitle from "@mui/material/DialogTitle";
-import Table from "@mui/material/Table";
-import TableBody from "@mui/material/TableBody";
-import TableCell from "@mui/material/TableCell";
-import TableHead from "@mui/material/TableHead";
-import TablePagination from "@mui/material/TablePagination";
-import TableRow from "@mui/material/TableRow";
-import Typography from "@mui/material/Typography";
+import MuiLink from "@mui/material/Link";
 import dayjs from "dayjs";
 
+import StyledDataGrid from "../StyledDataGrid";
+import { useGetConfigQuery } from "../../ducks/config";
 import { useGetGcnEventsQuery } from "../../ducks/gcnEvents";
-
-const numPerPage = 25;
 
 interface MMADetectorEventsDialogProps {
   mmadetector: any;
@@ -26,16 +22,17 @@ const MMADetectorEventsDialog = ({
   mmadetector,
   onClose,
 }: MMADetectorEventsDialogProps) => {
-  const [pageNumber, setPageNumber] = useState(1);
-
-  const { data, isFetching } = useGetGcnEventsQuery({
-    mmadetectorIds: `${mmadetector.id}`,
-    numPerPage,
-    pageNumber,
+  const [paginationModel, setPaginationModel] = useState({
+    page: 0,
+    pageSize: 25,
   });
 
-  const events = (data as any)?.events ?? [];
-  const totalMatches = (data as any)?.totalMatches ?? 0;
+  const tagColors = (useGetConfigQuery().data as any)?.gcnTagsClasses ?? {};
+  const { data, isFetching } = useGetGcnEventsQuery({
+    mmadetectorIds: `${mmadetector.id}`,
+    numPerPage: paginationModel.pageSize,
+    pageNumber: paginationModel.page + 1,
+  });
 
   return (
     <Dialog open onClose={onClose} maxWidth="md" fullWidth>
@@ -43,44 +40,65 @@ const MMADetectorEventsDialog = ({
         {mmadetector.name} ({mmadetector.nickname})
       </DialogTitle>
       <DialogContent dividers>
-        {!isFetching && totalMatches === 0 ? (
-          <Typography variant="body2" sx={{ color: "text.secondary" }}>
-            No GCN events are linked to this detector.
-          </Typography>
-        ) : (
-          <>
-            <Table size="small" data-testid="mmadetector-events-table">
-              <TableHead>
-                <TableRow>
-                  <TableCell>Event</TableCell>
-                  <TableCell>Aliases</TableCell>
-                  <TableCell>Tags</TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {events.map((gcnEvent: any) => (
-                  <TableRow key={gcnEvent.dateobs} hover>
-                    <TableCell>
-                      <Link to={`/gcn_events/${gcnEvent.dateobs}`}>
-                        {dayjs(gcnEvent.dateobs).format("YYYY-MM-DD HH:mm:ss")}
-                      </Link>
-                    </TableCell>
-                    <TableCell>{(gcnEvent.aliases ?? []).join(", ")}</TableCell>
-                    <TableCell>{(gcnEvent.tags ?? []).join(", ")}</TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-            <TablePagination
-              component="div"
-              count={totalMatches}
-              page={pageNumber - 1}
-              onPageChange={(_, page) => setPageNumber(page + 1)}
-              rowsPerPage={numPerPage}
-              rowsPerPageOptions={[numPerPage]}
-            />
-          </>
-        )}
+        <StyledDataGrid
+          slotProps={{ root: { "data-testid": "mmadetector-events-table" } }}
+          autoHeight
+          rows={data?.events ?? []}
+          getRowId={(row: any) => row.dateobs}
+          getRowHeight={() => "auto"}
+          sx={{
+            "& .MuiDataGrid-cell": {
+              whiteSpace: "normal",
+              display: "flex",
+              alignItems: "center",
+            },
+          }}
+          columns={[
+            {
+              field: "dateobs",
+              headerName: "Event (UTC)",
+              width: 180,
+              renderCell: ({ value }: any) => (
+                <MuiLink component={Link} to={`/gcn_events/${value}`}>
+                  {dayjs(value).format("YYYY-MM-DD HH:mm:ss")}
+                </MuiLink>
+              ),
+            },
+            {
+              field: "aliases",
+              headerName: "Aliases",
+              width: 200,
+              valueGetter: (value: any) => (value ?? []).join(", "),
+            },
+            {
+              field: "tags",
+              headerName: "Tags",
+              flex: 1,
+              minWidth: 120,
+              valueGetter: (value: any) => (value ?? []).join(", "),
+              renderCell: ({ row }: any) => (
+                <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.5 }}>
+                  {[...new Set<string>(row.tags ?? [])].map((tag) => (
+                    <Chip
+                      key={tag}
+                      size="small"
+                      label={tag}
+                      sx={{ backgroundColor: tagColors[tag] ?? "#999999" }}
+                    />
+                  ))}
+                </Box>
+              ),
+            },
+          ]}
+          loading={isFetching}
+          paginationMode="server"
+          rowCount={data?.totalMatches ?? 0}
+          paginationModel={paginationModel}
+          onPaginationModelChange={setPaginationModel}
+          localeText={{
+            noRowsLabel: "No GCN events are linked to this detector.",
+          }}
+        />
       </DialogContent>
     </Dialog>
   );

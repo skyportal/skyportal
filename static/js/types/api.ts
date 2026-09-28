@@ -1578,7 +1578,7 @@ export interface paths {
         put?: never;
         /**
          * Validate a broker filter version for activation
-         * @description Run the broker's activation validation for a filter version without changing state, and record the result on the filter so it can be activated (skyportal gates activation on this).
+         * @description Start the broker's activation validation for a filter version in the background. The version is marked pending on the filter until the verdict is recorded there (skyportal gates activation on it).
          */
         post: {
             parameters: {

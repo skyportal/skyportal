@@ -17,33 +17,23 @@ const FilterPlugins = () => {
   const brokerId = filter?.broker_id;
   const broker = brokers?.find((b) => b.id === brokerId);
 
-  if (!brokerId) {
-    return (
-      <>
-        <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+  if (brokerId && broker?.broker_classname !== "LASAIRBROKER") {
+    // Set synchronously, before BoomFilterPlugins' mount effects read it.
+    setBrokerFilterTarget(brokerId);
+    return <BoomFilterPlugins />;
+  }
+
+  return (
+    <>
+      {broker ? (
+        <LasairFilterEditor broker={broker} filterId={filter.id} />
+      ) : (
+        <Typography variant="body2" color="text.secondary">
           This filter is not attached to a broker. To attach it, go to a broker
           page and use the &ldquo;Filters&rdquo; tab to attach this existing
           filter.
         </Typography>
-        <GcnCrossmatchPlugin />
-      </>
-    );
-  }
-
-  if (broker?.broker_classname === "LASAIRBROKER") {
-    return (
-      <>
-        <LasairFilterEditor broker={broker} filterId={filter?.id} />
-        <GcnCrossmatchPlugin />
-      </>
-    );
-  }
-
-  // Set synchronously, before BoomFilterPlugins' mount effects read it.
-  setBrokerFilterTarget(brokerId);
-  return (
-    <>
-      <BoomFilterPlugins />
+      )}
       <GcnCrossmatchPlugin />
     </>
   );

@@ -1,47 +1,35 @@
 import { Fragment, useState } from "react";
 import { Link } from "react-router-dom";
-import { Controller, useForm, useWatch } from "react-hook-form";
-import DeleteIcon from "@mui/icons-material/Delete";
 import AddIcon from "@mui/icons-material/Add";
-import EditIcon from "@mui/icons-material/Edit";
 import CheckIcon from "@mui/icons-material/Check";
 import CloseIcon from "@mui/icons-material/Close";
-import Tooltip from "@mui/material/Tooltip";
-import List from "@mui/material/List";
-import ListItem from "@mui/material/ListItem";
-import ListItemSecondaryAction from "@mui/material/ListItemSecondaryAction";
-import ListItemText from "@mui/material/ListItemText";
-import IconButton from "@mui/material/IconButton";
-import TextField from "@mui/material/TextField";
-import OpenInNewIcon from "@mui/icons-material/OpenInNew";
-import Typography from "@mui/material/Typography";
-import useMediaQuery from "@mui/material/useMediaQuery";
-
+import DeleteIcon from "@mui/icons-material/Delete";
+import EditIcon from "@mui/icons-material/Edit";
+import Box from "@mui/material/Box";
 import Dialog from "@mui/material/Dialog";
 import DialogActions from "@mui/material/DialogActions";
 import DialogContent from "@mui/material/DialogContent";
-import DialogContentText from "@mui/material/DialogContentText";
 import DialogTitle from "@mui/material/DialogTitle";
-
-import { Box } from "@mui/material";
-import InputLabel from "@mui/material/InputLabel";
-import MenuItem from "@mui/material/MenuItem";
-import FormHelperText from "@mui/material/FormHelperText";
-import FormControl from "@mui/material/FormControl";
-import Select from "@mui/material/Select";
-import Paper from "@mui/material/Paper";
+import IconButton from "@mui/material/IconButton";
+import List from "@mui/material/List";
+import ListItem from "@mui/material/ListItem";
 import ListItemButton from "@mui/material/ListItemButton";
+import ListItemText from "@mui/material/ListItemText";
+import MenuItem from "@mui/material/MenuItem";
+import Paper from "@mui/material/Paper";
+import TextField from "@mui/material/TextField";
+import Tooltip from "@mui/material/Tooltip";
+import Typography from "@mui/material/Typography";
 import { showNotification } from "baselayer/components/Notifications";
 
 import Button from "../Button";
 import ConfirmFilterDeletionDialog from "../filter/ConfirmFilterDeletionDialog";
+import NewFilterDialog from "../filter/NewFilterDialog";
 
 import { useAppDispatch } from "../../types/hooks";
-import { useGetBrokersQuery } from "../../ducks/brokers";
 import {
-  useAddGroupFilterMutation,
   useDeleteGroupFilterMutation,
-  useUpdateFilterNameMutation,
+  useUpdateFilterMutation,
 } from "../../ducks/filter";
 import { groupApi } from "../../ducks/group";
 import {
@@ -53,402 +41,252 @@ interface GroupFiltersStreamsProps {
   group: any;
   currentUser: any;
   isAdmin: (...args: any[]) => any;
-  theme: any;
 }
 
 const GroupFiltersStreams = ({
   group,
   currentUser,
   isAdmin,
-  theme,
 }: GroupFiltersStreamsProps) => {
-  const [filterStream, setFilterStream] = useState<any>(null);
+  const [filterStreamId, setFilterStreamId] = useState<number | null>(null);
   const [addStreamOpen, setAddStreamOpen] = useState(false);
-  const [editingFilterId, setEditingFilterId] = useState<any>(null);
+  const [newStreamId, setNewStreamId] = useState<number | "">("");
+  const [editingFilterId, setEditingFilterId] = useState<number | null>(null);
   const [editNameInput, setEditNameInput] = useState("");
   const [filterToDelete, setFilterToDelete] = useState<any>(null);
   const dispatch = useAppDispatch();
   const { data: streams } = useGetStreamsQuery();
-  const { data: brokers } = useGetBrokersQuery();
-  const [addGroupFilter] = useAddGroupFilterMutation();
   const [deleteGroupFilter] = useDeleteGroupFilterMutation();
   const [addGroupStream] = useAddGroupStreamMutation();
-  const [updateFilterName] = useUpdateFilterNameMutation();
+  const [updateFilter] = useUpdateFilterMutation();
 
-  const { register, handleSubmit, control, reset } = useForm();
-  const selectedBrokerId = useWatch({ control, name: "broker_id" });
+  const canEdit = isAdmin(currentUser);
+  const groupStreamIds = group.streams?.map((stream: any) => stream.id) ?? [];
+  const refreshGroup = () =>
+    dispatch(groupApi.util.invalidateTags([{ type: "Group", id: group.id }]));
 
-  const { handleSubmit: handleSubmit2, control: control2 } = useForm();
-
-  const fullScreen = !useMediaQuery(theme.breakpoints.up("md"));
-
-  const handleAddFilterDialogClose = () => {
-    setFilterStream(null);
-  };
-
-  const handleAddFilterDialogOpen = (stream: any) => {
-    reset({ filter_name: "", broker_id: "" });
-    setFilterStream(stream);
-  };
-
-  const handleAddStreamClose = () => {
+  const onAddStream = async () => {
+    const { error } = await addGroupStream({
+      group_id: group.id,
+      stream_id: newStreamId,
+    });
+    if (error) return;
+    dispatch(showNotification("Added stream to group"));
+    refreshGroup();
     setAddStreamOpen(false);
   };
-  const onSubmitAddFilter = async (data: any) => {
-    try {
-      await addGroupFilter({
-        name: data.filter_name,
-        group_id: group.id,
-        stream_id: filterStream.id,
-        broker_id: data.broker_id || null,
-      }).unwrap();
-      dispatch(showNotification("Added filter to group"));
-      dispatch(groupApi.util.invalidateTags([{ type: "Group", id: group.id }]));
-      handleAddFilterDialogClose();
-    } catch {
-      // error notification handled by the base query
-    }
-  };
-
-  const onSubmitAddStream = async (data: any) => {
-    try {
-      await addGroupStream({
-        group_id: group.id,
-        stream_id: data.stream_id,
-      }).unwrap();
-      dispatch(showNotification("Added stream to group"));
-      dispatch(groupApi.util.invalidateTags([{ type: "Group", id: group.id }]));
-      setAddStreamOpen(false);
-    } catch {
-      // error notification handled by the base query
-    }
-  };
-
-  const filterBrokers = (brokers ?? []).filter(
-    (broker) => broker.active && broker.filter_kind !== "none",
-  );
-
-  const groupStreamIds = group?.streams?.map((stream: any) => stream.id);
-
-  const isStreamIdInStreams = (sid: any) =>
-    streams?.map((stream: any) => stream.id).includes(sid);
-
-  const filtersByStreamId = (group.filters ?? []).reduce(
-    (acc: any, filter: any) => {
-      (acc[filter.stream_id] ??= []).push(filter);
-      return acc;
-    },
-    {},
-  );
 
   const handleDeleteFilter = async () => {
-    try {
-      await deleteGroupFilter({ filter_id: filterToDelete.id }).unwrap();
-      dispatch(showNotification("Deleted filter from group"));
-    } catch {
-      // error notification handled by the base query
-    }
+    const { error } = await deleteGroupFilter({ filter_id: filterToDelete.id });
+    if (!error) dispatch(showNotification("Deleted filter from group"));
     setFilterToDelete(null);
-    dispatch(groupApi.util.invalidateTags([{ type: "Group", id: group.id }]));
-  };
-
-  const handleStartRename = (filter: any) => {
-    setEditingFilterId(filter.id);
-    setEditNameInput(filter.name);
-  };
-
-  const handleCancelRename = () => {
-    setEditingFilterId(null);
-    setEditNameInput("");
+    refreshGroup();
   };
 
   const handleSaveRename = async () => {
-    const trimmed = editNameInput.trim();
-    if (!trimmed) {
+    const name = editNameInput.trim();
+    if (!name) {
       dispatch(showNotification("Filter name cannot be empty.", "error"));
       return;
     }
-    try {
-      await updateFilterName({
-        filter_id: editingFilterId,
-        name: trimmed,
-      }).unwrap();
+    const { error } = await updateFilter({ filter_id: editingFilterId!, name });
+    if (!error) {
       dispatch(showNotification("Filter name updated."));
-      dispatch(groupApi.util.invalidateTags([{ type: "Group", id: group.id }]));
-    } catch {
-      // error notification handled by the base query
+      refreshGroup();
     }
     setEditingFilterId(null);
-    setEditNameInput("");
   };
 
   if (!streams?.length) return null;
 
   return (
-    <Box sx={{ p: 1.5 }}>
+    <Box sx={{ display: "flex", flexDirection: "column", gap: 1, p: 1.5 }}>
       <Typography variant="h6">Streams and filters</Typography>
-      <Paper sx={{ mb: 1 }}>
+      <Paper>
         <List component="nav">
-          {group.streams?.map((stream: any) => (
-            <Fragment key={stream.id}>
-              <ListItem
-                secondaryAction={
-                  isAdmin(currentUser) && (
-                    <Tooltip
-                      title={`Add filter to stream "${stream.name}"`}
-                      placement={"left"}
-                    >
-                      <IconButton
-                        edge="end"
-                        aria-label="add filter"
-                        onClick={() => handleAddFilterDialogOpen(stream)}
+          {group.streams?.length ? (
+            group.streams.map((stream: any) => (
+              <Fragment key={stream.id}>
+                <ListItem
+                  secondaryAction={
+                    canEdit && (
+                      <Tooltip
+                        title={`Add filter to stream "${stream.name}"`}
+                        placement="left"
                       >
-                        <AddIcon />
-                      </IconButton>
-                    </Tooltip>
-                  )
-                }
-              >
-                <ListItemText primary={stream.name} />
-              </ListItem>
-              <List disablePadding>
-                {(filtersByStreamId[stream.id] ?? []).map((filter: any) =>
-                  editingFilterId === filter.id ? (
-                    <ListItem key={filter.id} sx={{ pl: 2 }}>
-                      <TextField
-                        value={editNameInput}
-                        onChange={(e: any) => setEditNameInput(e.target.value)}
-                        size="small"
-                        variant="outlined"
-                        slotProps={{
-                          htmlInput: { "data-testid": "filter-name-input" },
-                        }}
-                        onKeyDown={(e: any) => {
-                          if (e.key === "Enter") handleSaveRename();
-                          if (e.key === "Escape") handleCancelRename();
-                        }}
-                        autoFocus
-                      />
-                      <ListItemSecondaryAction>
                         <IconButton
-                          size="small"
-                          onClick={handleSaveRename}
-                          aria-label="save filter name"
-                          data-testid="save-filter-name-button"
+                          edge="end"
+                          aria-label="add filter"
+                          onClick={() => setFilterStreamId(stream.id)}
                         >
-                          <CheckIcon fontSize="small" />
+                          <AddIcon />
                         </IconButton>
-                        <IconButton
-                          size="small"
-                          onClick={handleCancelRename}
-                          aria-label="cancel filter rename"
+                      </Tooltip>
+                    )
+                  }
+                >
+                  <ListItemText primary={stream.name} />
+                </ListItem>
+                <List disablePadding>
+                  {(group.filters ?? [])
+                    .filter((filter: any) => filter.stream_id === stream.id)
+                    .map((filter: any) =>
+                      editingFilterId === filter.id ? (
+                        <ListItem
+                          key={filter.id}
+                          secondaryAction={
+                            <>
+                              <IconButton
+                                size="small"
+                                onClick={handleSaveRename}
+                                aria-label="save filter name"
+                                data-testid="save-filter-name-button"
+                              >
+                                <CheckIcon fontSize="small" />
+                              </IconButton>
+                              <IconButton
+                                size="small"
+                                onClick={() => setEditingFilterId(null)}
+                                aria-label="cancel filter rename"
+                              >
+                                <CloseIcon fontSize="small" />
+                              </IconButton>
+                            </>
+                          }
                         >
-                          <CloseIcon fontSize="small" />
-                        </IconButton>
-                      </ListItemSecondaryAction>
-                    </ListItem>
-                  ) : (
-                    <ListItemButton
-                      key={filter.id}
-                      component={Link}
-                      to={`/filter/${filter.id}`}
-                    >
-                      <ListItemText sx={{ pl: 2 }} primary={filter.name} />
-                      {isAdmin(currentUser) && (
-                        <ListItemSecondaryAction>
-                          <Tooltip
-                            title={`Rename filter "${filter.name}"`}
-                            placement={"left"}
+                          <TextField
+                            value={editNameInput}
+                            onChange={(e) => setEditNameInput(e.target.value)}
+                            size="small"
+                            slotProps={{
+                              htmlInput: { "data-testid": "filter-name-input" },
+                            }}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter") handleSaveRename();
+                              if (e.key === "Escape") setEditingFilterId(null);
+                            }}
+                            autoFocus
+                          />
+                        </ListItem>
+                      ) : (
+                        <ListItem
+                          key={filter.id}
+                          disablePadding
+                          secondaryAction={
+                            canEdit && (
+                              <>
+                                <Tooltip
+                                  title={`Rename filter "${filter.name}"`}
+                                  placement="left"
+                                >
+                                  <IconButton
+                                    onClick={() => {
+                                      setEditingFilterId(filter.id);
+                                      setEditNameInput(filter.name);
+                                    }}
+                                    aria-label="rename filter"
+                                    data-testid={`rename-filter-${filter.id}`}
+                                  >
+                                    <EditIcon />
+                                  </IconButton>
+                                </Tooltip>
+                                <Tooltip
+                                  title={`Delete filter "${filter.name}"`}
+                                  placement="left"
+                                >
+                                  <IconButton
+                                    onClick={() => setFilterToDelete(filter)}
+                                    color="error"
+                                    aria-label="delete filter"
+                                  >
+                                    <DeleteIcon />
+                                  </IconButton>
+                                </Tooltip>
+                              </>
+                            )
+                          }
+                        >
+                          <ListItemButton
+                            component={Link}
+                            to={`/filter/${filter.id}`}
                           >
-                            <IconButton
-                              onClick={(e: any) => {
-                                e.preventDefault();
-                                e.stopPropagation();
-                                handleStartRename(filter);
-                              }}
-                              aria-label="rename filter"
-                              data-testid={`rename-filter-${filter.id}`}
-                            >
-                              <EditIcon />
-                            </IconButton>
-                          </Tooltip>
-                          <Tooltip
-                            title={`Delete filter "${filter.name}"`}
-                            placement={"left"}
-                          >
-                            <Button
-                              onClick={(e: any) => {
-                                e.preventDefault();
-                                e.stopPropagation();
-                                setFilterToDelete(filter);
-                              }}
-                              color="error"
-                              aria-label="delete filter"
-                            >
-                              <DeleteIcon />
-                            </Button>
-                          </Tooltip>
-                        </ListItemSecondaryAction>
-                      )}
-                    </ListItemButton>
-                  ),
-                )}
-              </List>
-            </Fragment>
-          ))}
+                            <ListItemText
+                              sx={{ pl: 2 }}
+                              primary={filter.name}
+                            />
+                          </ListItemButton>
+                        </ListItem>
+                      ),
+                    )}
+                </List>
+              </Fragment>
+            ))
+          ) : (
+            <ListItem>
+              <ListItemText secondary="No streams available for this group." />
+            </ListItem>
+          )}
         </List>
       </Paper>
       {currentUser.permissions.includes("System admin") && (
         <Button
           primary
-          onClick={() => setAddStreamOpen(true)}
-          disabled={group?.streams?.length >= streams.length}
+          onClick={() => {
+            setNewStreamId("");
+            setAddStreamOpen(true);
+          }}
+          disabled={groupStreamIds.length >= streams.length}
+          sx={{ alignSelf: "flex-start" }}
         >
           Add stream
         </Button>
       )}
       <Dialog
-        fullScreen={fullScreen}
         open={addStreamOpen}
-        onClose={handleAddStreamClose}
-        aria-labelledby="responsive-dialog-title"
+        onClose={() => setAddStreamOpen(false)}
+        maxWidth="sm"
+        fullWidth
       >
-        <form onSubmit={handleSubmit2(onSubmitAddStream)}>
-          <DialogTitle id="responsive-dialog-title">
-            Add Stream to group
-          </DialogTitle>
-          <DialogContent dividers>
-            <FormControl required fullWidth>
-              <InputLabel>Alert stream</InputLabel>
-              <Controller
-                name="stream_id"
-                defaultValue={0}
-                control={control2}
-                rules={{ validate: isStreamIdInStreams }}
-                render={({ field: { onChange, value } }) => (
-                  <Select
-                    label="Select stream"
-                    labelId="alert-stream-select-required-label"
-                    onChange={onChange}
-                    value={value}
-                  >
-                    {streams?.map(
-                      (stream: any) =>
-                        // display only streams that are not yet added
-                        !groupStreamIds?.includes(stream.id) && (
-                          <MenuItem value={stream.id} key={stream.id}>
-                            {stream.name}
-                          </MenuItem>
-                        ),
-                    )}
-                  </Select>
-                )}
-              />
-              <FormHelperText>Required</FormHelperText>
-            </FormControl>
-          </DialogContent>
-          <DialogActions>
-            <Button
-              primary
-              type="submit"
-              data-testid="add-stream-dialog-submit"
-            >
-              Add
-            </Button>
-            <Button secondary autoFocus onClick={handleAddStreamClose}>
-              Dismiss
-            </Button>
-          </DialogActions>
-        </form>
+        <DialogTitle>Add stream to group</DialogTitle>
+        <DialogContent dividers>
+          <TextField
+            select
+            fullWidth
+            size="small"
+            id="alert-stream-select-required"
+            label="Alert stream"
+            value={newStreamId}
+            onChange={(e) => setNewStreamId(Number(e.target.value))}
+          >
+            {streams
+              .filter((stream: any) => !groupStreamIds.includes(stream.id))
+              .map((stream: any) => (
+                <MenuItem value={stream.id} key={stream.id}>
+                  {stream.name}
+                </MenuItem>
+              ))}
+          </TextField>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setAddStreamOpen(false)}>Cancel</Button>
+          <Button
+            primary
+            disabled={newStreamId === ""}
+            onClick={onAddStream}
+            data-testid="add-stream-dialog-submit"
+          >
+            Add
+          </Button>
+        </DialogActions>
       </Dialog>
-      <Dialog
-        fullScreen={fullScreen}
-        open={Boolean(filterStream)}
-        onClose={handleAddFilterDialogClose}
-        aria-labelledby="responsive-dialog-title"
-      >
-        <form onSubmit={handleSubmit(onSubmitAddFilter)}>
-          <DialogTitle id="responsive-dialog-title">
-            {`Create a new filter for "${filterStream?.name}"`}
-          </DialogTitle>
-          <DialogContent dividers>
-            <DialogContentText>
-              Please refer to the &nbsp;
-              <a
-                href="https://fritz-marshal.org/doc/user_guide.html#alert-filters-in-fritz"
-                target="_blank"
-                rel="noreferrer"
-              >
-                docs <OpenInNewIcon style={{ fontSize: "small" }} />
-              </a>
-              &nbsp; for an extensive guide on Alert filters in Fritz.
-            </DialogContentText>
-            <Controller
-              render={({ field: { onChange, value } }) => (
-                <TextField
-                  autoFocus
-                  required
-                  margin="dense"
-                  name="filter_name"
-                  label="Filter Name"
-                  type="text"
-                  fullWidth
-                  inputRef={
-                    register("filter_name", {
-                      required: true,
-                      minLength: 3,
-                    }) as any
-                  }
-                  onChange={onChange}
-                  value={value}
-                />
-              )}
-              name="filter_name"
-              control={control}
-            />
-            {filterBrokers.length > 0 && (
-              <FormControl required fullWidth margin="dense">
-                <InputLabel id="add-filter-broker-label">Broker</InputLabel>
-                <Controller
-                  name="broker_id"
-                  defaultValue=""
-                  control={control}
-                  render={({ field: { onChange, value } }) => (
-                    <Select
-                      label="Broker"
-                      labelId="add-filter-broker-label"
-                      onChange={onChange}
-                      value={value}
-                    >
-                      {filterBrokers.map((broker) => (
-                        <MenuItem value={broker.id} key={broker.id}>
-                          {broker.name}
-                        </MenuItem>
-                      ))}
-                    </Select>
-                  )}
-                />
-                <FormHelperText>
-                  The broker that will run this filter
-                </FormHelperText>
-              </FormControl>
-            )}
-          </DialogContent>
-          <DialogActions>
-            <Button
-              primary
-              type="submit"
-              disabled={filterBrokers.length > 0 && !selectedBrokerId}
-              data-testid="add-filter-dialog-submit"
-            >
-              Add
-            </Button>
-            <Button secondary autoFocus onClick={handleAddFilterDialogClose}>
-              Dismiss
-            </Button>
-          </DialogActions>
-        </form>
-      </Dialog>
+      {filterStreamId !== null && (
+        <NewFilterDialog
+          open
+          onClose={() => setFilterStreamId(null)}
+          groupId={group.id}
+          streamId={filterStreamId}
+        />
+      )}
       <ConfirmFilterDeletionDialog
         filter={filterToDelete}
         closeDialog={() => setFilterToDelete(null)}

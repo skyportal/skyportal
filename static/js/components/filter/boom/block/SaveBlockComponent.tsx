@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Button, Typography } from "@mui/material";
+import { Button, Tooltip, Typography } from "@mui/material";
 import SaveIcon from "@mui/icons-material/Save";
 
 interface SaveBlockComponentProps {
@@ -12,6 +12,22 @@ interface SaveBlockComponentProps {
   block: any;
 }
 
+const isComplete = (b: any): boolean => {
+  if (b.category === "block") {
+    return b.children.length > 0 && b.children.every(isComplete);
+  }
+  if (b.category !== "condition") return false;
+  if (b.isListVariable) return !!b.field;
+  if (
+    ["$exists", "$isNumber", "$anyElementTrue", "$allElementsTrue"].includes(
+      b.operator,
+    )
+  ) {
+    return true;
+  }
+  return !!b.field && !!b.operator && b.value !== "" && b.value != null;
+};
+
 const SaveBlockComponent = ({
   setSaveDialog,
   setSaveName,
@@ -21,99 +37,53 @@ const SaveBlockComponent = ({
   isCollapsed,
   block,
 }: SaveBlockComponentProps) => {
-  const [localSaveError, setLocalSaveError] = useState("");
-
-  // TODO: Implement robust validation logic for the block
-  const validateBlock = (b: any): boolean => {
-    if (b.category === "condition") {
-      if (b.isListVariable) {
-        return !!b.field;
-      }
-
-      // Operators that don't require a value or accept boolean/special values
-      const operatorsWithOptionalValue = [
-        "$exists",
-        "$isNumber",
-        "$anyElementTrue",
-        "$allElementsTrue",
-      ];
-      if (operatorsWithOptionalValue.includes(b.operator)) {
-        return true; // Value is optional or can be any type (including false)
-      }
-
-      // Check if field and operator are present
-      if (!b.field || !b.operator) {
-        return false;
-      }
-
-      // Regular conditions need field, operator, and value
-      return b.value !== "" && b.value !== null && b.value !== undefined;
-    }
-    if (b.category === "block") {
-      return b.children.length > 0 && b.children.every(validateBlock);
-    }
-    return false;
-  };
+  const [showError, setShowError] = useState(false);
 
   const handleSaveBlock = () => {
-    if (!validateBlock(block)) {
-      setLocalSaveError("Please fill all fields before saving.");
-      setTimeout(() => setLocalSaveError(""), 3000);
+    if (!isComplete(block)) {
+      setShowError(true);
+      setTimeout(() => setShowError(false), 3000);
       return;
     }
-
-    try {
-      setFilters((prevFilters: any[]) => {
-        const updateBlock = (b: any): any => {
-          if (b.id !== block.id) {
-            return {
-              ...b,
-              children: b.children
-                ? b.children.map((child: any) =>
-                    child.category === "block" ? updateBlock(child) : child,
-                  )
-                : [],
-            };
-          }
-          return { ...b, isTrue: true };
-        };
-        return prevFilters.map(updateBlock);
-      });
-      const updatedBlock = { ...block, isTrue: true };
-      setSaveDialog({ open: true, block: updatedBlock });
-      setSaveName("");
-      setSaveError("");
-    } catch (error) {
-      console.error("Error saving block:", error);
-      setLocalSaveError("An error occurred while saving. Please try again.");
-      setTimeout(() => setLocalSaveError(""), 3000);
-    }
+    const markTrue = (b: any): any =>
+      b.id === block.id
+        ? { ...b, isTrue: true }
+        : {
+            ...b,
+            children: (b.children ?? []).map((child: any) =>
+              child.category === "block" ? markTrue(child) : child,
+            ),
+          };
+    setFilters((prevFilters: any[]) => prevFilters.map(markTrue));
+    setSaveDialog({ open: true, block: { ...block, isTrue: true } });
+    setSaveName("");
+    setSaveError("");
   };
 
   return (
     <>
-      {/* Save Block Button (always right-aligned) */}
-      {!isCustomBlock || !isCollapsed ? (
-        <Button
-          size="medium"
-          startIcon={<SaveIcon />}
-          variant="outlined"
-          onClick={handleSaveBlock}
-          sx={{
-            minHeight: 40, // Match the typical height of a small Select component
-            px: 2, // Add some horizontal padding to match Select width better
-          }}
+      {(!isCustomBlock || !isCollapsed) && (
+        <Tooltip
+          describeChild
+          title="Save this block as a reusable custom block, to insert in any filter from Add. It does not save the filter."
         >
-          Save Block
-        </Button>
-      ) : null}
-      {localSaveError && (
+          <Button
+            startIcon={<SaveIcon />}
+            variant="outlined"
+            onClick={handleSaveBlock}
+            sx={{ minHeight: 40, px: 2 }}
+          >
+            Save Block
+          </Button>
+        </Tooltip>
+      )}
+      {showError && (
         <Typography
           variant="caption"
           color="error"
           sx={{ mt: 1, display: "block" }}
         >
-          {localSaveError}
+          Please fill all fields before saving.
         </Typography>
       )}
     </>

@@ -1,13 +1,3 @@
-/**
- * Broker filter-version duck (the pipeline-filter builder at
- * `/brokers/{id}/filter/{fid}`).
- *
- * RTK Query conversion of the old `boom_filter` action/reducer duck: the ambient
- * `state.boom_filter_v` slice (read by every builder component) becomes the
- * shared `useBoomFilterVersion()` hook, which RTK Query dedupes so all consumers
- * share one request/cache entry. Endpoints target the active broker via
- * `brokerFilterBase()` (`/api/brokers/{id}`), set by the /brokers page.
- */
 import { useParams } from "react-router-dom";
 
 import { skyportalApi } from "../api/skyportalApi";
@@ -38,8 +28,6 @@ export const boomFilterApi = skyportalApi.injectEndpoints({
         body: { altdata, filters, name },
       }),
     }),
-    // Toggle a filter's auto-save/annotate/followup flags and its auto-save
-    // ignore-groups (stored in the filter's altdata; PATCH).
     updateBoomFilterFlags: build.mutation<
       any,
       {
@@ -60,8 +48,7 @@ export const boomFilterApi = skyportalApi.injectEndpoints({
         body: flags,
       }),
     }),
-    // Slow: runs the filter over a night of alerts on the broker. Records the
-    // verdict server-side (keyed on fid) so the version can then be activated.
+    // Returns at once: the verdict stays pending on the filter until the replay ends.
     validateBoomFilter: build.mutation<any, { filter_id: any; fid?: any }>({
       query: ({ filter_id, fid }) => ({
         url: `${brokerFilterBase()}/filters/${filter_id}/validate`,
@@ -80,10 +67,9 @@ export const {
   useValidateBoomFilterMutation,
 } = boomFilterApi;
 
-// Shared read of the current broker filter version, keyed by the :fid route
-// param. Replaces the ambient `state.boom_filter_v` slice that many builder
-// components read; RTK Query dedupes so they all share one request/cache entry.
-export const useBoomFilterVersion = () => {
+export const useBoomFilterVersion = (
+  options: { pollingInterval?: number } = {},
+) => {
   const { fid } = useParams();
-  return useGetBoomFilterVersionQuery(fid ?? "", { skip: !fid });
+  return useGetBoomFilterVersionQuery(fid ?? "", { skip: !fid, ...options });
 };
