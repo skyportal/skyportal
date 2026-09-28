@@ -1,5 +1,4 @@
 import { useState } from "react";
-import CircularProgress from "@mui/material/CircularProgress";
 import Dialog from "@mui/material/Dialog";
 import DialogContent from "@mui/material/DialogContent";
 import DialogTitle from "@mui/material/DialogTitle";
@@ -31,23 +30,11 @@ const RetrieveSpatialCatalogSources = ({
   setSourcesArgs,
 }: RetrieveSpatialCatalogSourcesProps) => {
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [queryInProgress, setQueryInProgress] = useState(false);
 
-  if (!entry?.entry_name) {
-    return <div />;
-  }
+  if (!entry?.entry_name) return null;
 
-  const openDialog = () => {
-    setDialogOpen(true);
-  };
-
-  const closeDialog = () => {
+  const handleFilterSubmit = (formData: any) => {
     setDialogOpen(false);
-  };
-
-  const handleFilterSubmit = async (formData: any) => {
-    setQueryInProgress(true);
-    closeDialog();
 
     if (
       !formData.position.ra &&
@@ -70,43 +57,23 @@ const RetrieveSpatialCatalogSources = ({
       entryName: entry.entry_name,
       filterParams: data,
     });
-
-    setQueryInProgress(false);
   };
 
   return (
-    <div>
-      <Button
-        primary
-        onClick={() => {
-          openDialog();
-        }}
-        size="small"
-        type="submit"
-        data-testid={`retrieveSources_${entry.id}`}
-      >
+    <>
+      <Button primary onClick={() => setDialogOpen(true)} size="small">
         Retrieve Sources
       </Button>
-      <Dialog open={dialogOpen} onClose={closeDialog}>
+      <Dialog open={dialogOpen} onClose={() => setDialogOpen(false)}>
         <DialogTitle>Query Spatial Catalog Sources</DialogTitle>
         <DialogContent>
-          <div>
-            {queryInProgress ? (
-              <div>
-                <CircularProgress />
-              </div>
-            ) : (
-              <div>
-                <SourceTableFilterForm
-                  handleFilterSubmit={handleFilterSubmit}
-                  spatialCatalogQuery={false}
-                />
-              </div>
-            )}
-          </div>
+          <SourceTableFilterForm
+            handleFilterSubmit={handleFilterSubmit}
+            spatialCatalogQuery={false}
+          />
         </DialogContent>
       </Dialog>
-    </div>
+    </>
   );
 };
 
@@ -123,25 +90,6 @@ const SpatialCatalogTable = ({
     return <p>No entries available...</p>;
   }
 
-  const renderData = (params: any) => {
-    const entry = params.row;
-    return <div>{JSON.stringify(entry.data)}</div>;
-  };
-
-  const renderRetrieveSources = (params: any) => {
-    const entry = params.row;
-
-    return (
-      <div>
-        <RetrieveSpatialCatalogSources
-          entry={entry}
-          catalog={catalog}
-          setSourcesArgs={setSourcesArgs}
-        />
-      </div>
-    );
-  };
-
   const columns: any[] = [
     {
       field: "entry_name",
@@ -154,7 +102,7 @@ const SpatialCatalogTable = ({
       headerName: "Entry data",
       flex: 2,
       minWidth: 240,
-      renderCell: renderData,
+      renderCell: ({ row }: any) => JSON.stringify(row.data),
     },
     {
       field: "retrieve_sources",
@@ -162,7 +110,13 @@ const SpatialCatalogTable = ({
       flex: 1,
       minWidth: 180,
       filterable: false,
-      renderCell: renderRetrieveSources,
+      renderCell: ({ row }: any) => (
+        <RetrieveSpatialCatalogSources
+          entry={row}
+          catalog={catalog}
+          setSourcesArgs={setSourcesArgs}
+        />
+      ),
     },
   ];
 

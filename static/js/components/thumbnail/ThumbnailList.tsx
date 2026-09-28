@@ -35,9 +35,7 @@ const ON_DEMAND_TYPES = ["sm", "hst", "chandra", "jwst"];
 // paginate={false} to show every thumbnail wrapped across rows instead.
 const MAX_VISIBLE_THUMBNAILS = 3;
 
-// Drop placeholder tiles (no url yet, no coverage, or the cutout service was
-// unavailable) so cycling only shows real cutouts. Loading tiles (src "#")
-// are kept — they resolve to a real image or disappear on refresh.
+// Loading tiles (src "#") are kept: they resolve to a real image on refresh.
 export const isPlaceholder = (src?: string | null) =>
   !src ||
   src.includes("outside_survey") ||

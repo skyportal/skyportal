@@ -6,7 +6,6 @@ import DialogTitle from "@mui/material/DialogTitle";
 import DialogContent from "@mui/material/DialogContent";
 import IconButton from "@mui/material/IconButton";
 import Tooltip from "@mui/material/Tooltip";
-import Box from "@mui/material/Box";
 import AddIcon from "@mui/icons-material/Add";
 import DownloadIcon from "@mui/icons-material/Download";
 import FilterListIcon from "@mui/icons-material/FilterList";
@@ -166,41 +165,6 @@ const ExecutedObservationsTable = ({
     });
   };
 
-  const renderSaveSource = (params: any) => {
-    const observation = params.row;
-    const formData = {
-      id: observation.target_name?.replace(/ /g, "_"),
-      ra: observation.field.ra,
-      dec: observation.field.dec,
-    };
-    if (!observation.target_name || !canUploadData) {
-      return <div />;
-    }
-    return (
-      <Box sx={{ display: "flex", flexFlow: "row wrap", gap: "0.2rem" }}>
-        {isSaving === formData.id ? (
-          <div>
-            <CircularProgress />
-          </div>
-        ) : (
-          <div>
-            <Button
-              primary
-              onClick={() => {
-                handleSave(formData);
-              }}
-              size="small"
-              type="submit"
-              data-testid={`saveObservation_${formData.id}`}
-            >
-              Save Source
-            </Button>
-          </div>
-        )}
-      </Box>
-    );
-  };
-
   const columns: any[] = [
     {
       field: "telescope_name",
@@ -211,13 +175,8 @@ const ExecutedObservationsTable = ({
       filterable: false,
       valueGetter: (_value: any, row: any) =>
         instrumentsLookup[row.instrument_id]?.telescope?.name || "",
-      renderCell: (params: any) => {
-        const instrument = instrumentsLookup[params.row.instrument_id] || null;
-        if (!instrument) {
-          return <div>Loading...</div>;
-        }
-        return <div>{instrument?.telescope?.name || ""}</div>;
-      },
+      renderCell: ({ row, value }: any) =>
+        instrumentsLookup[row.instrument_id] ? value : "Loading...",
     },
     {
       field: "instrument_name",
@@ -227,13 +186,8 @@ const ExecutedObservationsTable = ({
       filterable: false,
       valueGetter: (_value: any, row: any) =>
         instrumentsLookup[row.instrument_id]?.name || "",
-      renderCell: (params: any) => {
-        const instrument = instrumentsLookup[params.row.instrument_id] || null;
-        if (!instrument) {
-          return <div>Loading...</div>;
-        }
-        return <div>{instrument?.name || ""}</div>;
-      },
+      renderCell: ({ row, value }: any) =>
+        instrumentsLookup[row.instrument_id] ? value : "Loading...",
     },
     {
       field: "observation_id",
@@ -328,7 +282,20 @@ const ExecutedObservationsTable = ({
       minWidth: 130,
       sortable: false,
       filterable: false,
-      renderCell: renderSaveSource,
+      renderCell: ({ row }: any) => {
+        if (!row.target_name || !canUploadData) return null;
+        const formData = {
+          id: row.target_name.replace(/ /g, "_"),
+          ra: row.field.ra,
+          dec: row.field.dec,
+        };
+        if (isSaving === formData.id) return <CircularProgress />;
+        return (
+          <Button primary onClick={() => handleSave(formData)} size="small">
+            Save Source
+          </Button>
+        );
+      },
     },
   ];
 

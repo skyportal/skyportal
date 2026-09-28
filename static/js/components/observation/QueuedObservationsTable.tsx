@@ -118,13 +118,8 @@ const QueuedObservationsTable = ({
       filterable: false,
       valueGetter: (_value: any, row: any) =>
         instrumentsLookup[row.instrument_id]?.telescope?.name || "",
-      renderCell: (params: any) => {
-        const instrument = instrumentsLookup[params.row.instrument_id] || null;
-        if (!instrument) {
-          return <div>Loading...</div>;
-        }
-        return <div>{instrument?.telescope?.name || ""}</div>;
-      },
+      renderCell: ({ row, value }: any) =>
+        instrumentsLookup[row.instrument_id] ? value : "Loading...",
     },
     {
       field: "instrument_name",
@@ -134,13 +129,8 @@ const QueuedObservationsTable = ({
       filterable: false,
       valueGetter: (_value: any, row: any) =>
         instrumentsLookup[row.instrument_id]?.name || "",
-      renderCell: (params: any) => {
-        const instrument = instrumentsLookup[params.row.instrument_id] || null;
-        if (!instrument) {
-          return <div>Loading...</div>;
-        }
-        return <div>{instrument?.name || ""}</div>;
-      },
+      renderCell: ({ row, value }: any) =>
+        instrumentsLookup[row.instrument_id] ? value : "Loading...",
     },
     {
       field: "queue_name",
