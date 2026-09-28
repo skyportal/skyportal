@@ -171,7 +171,7 @@ const PhotometryTable = ({
     return params;
   }, [showExtinction, magsys]);
 
-  const { data: photometryData } = useFetchSourcePhotometryQuery(
+  const { data: photometryData, isFetching } = useFetchSourcePhotometryQuery(
     { id: obj_id, params: queryParams },
     { skip: !obj_id || !open },
   );
@@ -429,73 +429,6 @@ const PhotometryTable = ({
     permissions,
   ]);
 
-  let bodyContent = null;
-  if (photometryData == null) {
-    bodyContent = (
-      <div>
-        <CircularProgress color="secondary" />
-      </div>
-    );
-  } else if (data.length === 0) {
-    bodyContent = <p>Source has no photometry.</p>;
-  } else {
-    bodyContent = (
-      <>
-        <Box sx={{ flex: 1, minHeight: 0, width: "100%" }}>
-          <StyledDataGrid
-            rows={data}
-            getRowId={(row: any) =>
-              row.id ??
-              `${row.obj_id}-${row.instrument_id}-${row.filter}-${row.mjd}`
-            }
-            columns={columns}
-            columnVisibilityModel={columnVisibilityModel}
-            onColumnVisibilityModelChange={setColumnVisibilityModel}
-            initialState={{
-              pagination: { paginationModel: { pageSize: 100 } },
-            }}
-            pageSizeOptions={[50, 100, { value: -1, label: "All" }]}
-            slots={{ toolbar: PhotometryTableToolbar }}
-            slotProps={{
-              toolbar: {
-                title: `Photometry of ${obj_id}`,
-                controls: (
-                  <>
-                    {magsys && typeof setMagsys === "function" && (
-                      <PhotometryMagsys magsys={magsys} setMagsys={setMagsys} />
-                    )}
-                    <PhotometryExtinction
-                      showExtinction={showExtinction}
-                      setShowExtinction={setShowExtinction}
-                    />
-                  </>
-                ),
-                onDownload: () => setDownloadOptionsOpen(true),
-                onClose,
-              },
-            }}
-            showToolbar
-          />
-        </Box>
-        <ConfirmDeletionDialog
-          deleteFunction={handleDelete}
-          dialogOpen={deleteDialogOpen}
-          closeDialog={closeDeleteDialog}
-          resourceName="Photometry Point"
-        />
-        <PhotometryDownload
-          open={downloadOptionsOpen}
-          onClose={handleDownloadClose}
-          data={data}
-          objId={obj_id}
-          usePhotometryValidation={usePhotometryValidation}
-          onDownload={handleDownloadClose}
-          t0={t0}
-        />
-      </>
-    );
-  }
-
   return (
     <Dialog
       fullScreen
@@ -506,7 +439,64 @@ const PhotometryTable = ({
       }}
     >
       <DialogContent sx={{ display: "flex", flexDirection: "column" }}>
-        {bodyContent}
+        <>
+          <Box sx={{ flex: 1, minHeight: 0, width: "100%" }}>
+            <StyledDataGrid
+              rows={data}
+              getRowId={(row: any) =>
+                row.id ??
+                `${row.obj_id}-${row.instrument_id}-${row.filter}-${row.mjd}`
+              }
+              columns={columns}
+              loading={isFetching}
+              localeText={{ noRowsLabel: "Source has no photometry." }}
+              columnVisibilityModel={columnVisibilityModel}
+              onColumnVisibilityModelChange={setColumnVisibilityModel}
+              initialState={{
+                pagination: { paginationModel: { pageSize: 100 } },
+              }}
+              pageSizeOptions={[50, 100, { value: -1, label: "All" }]}
+              slots={{ toolbar: PhotometryTableToolbar }}
+              slotProps={{
+                toolbar: {
+                  title: `Photometry of ${obj_id}`,
+                  controls: (
+                    <>
+                      {magsys && typeof setMagsys === "function" && (
+                        <PhotometryMagsys
+                          magsys={magsys}
+                          setMagsys={setMagsys}
+                        />
+                      )}
+                      <PhotometryExtinction
+                        showExtinction={showExtinction}
+                        setShowExtinction={setShowExtinction}
+                      />
+                    </>
+                  ),
+                  onDownload: () => setDownloadOptionsOpen(true),
+                  onClose,
+                },
+              }}
+              showToolbar
+            />
+          </Box>
+          <ConfirmDeletionDialog
+            deleteFunction={handleDelete}
+            dialogOpen={deleteDialogOpen}
+            closeDialog={closeDeleteDialog}
+            resourceName="Photometry Point"
+          />
+          <PhotometryDownload
+            open={downloadOptionsOpen}
+            onClose={handleDownloadClose}
+            data={data}
+            objId={obj_id}
+            usePhotometryValidation={usePhotometryValidation}
+            onDownload={handleDownloadClose}
+            t0={t0}
+          />
+        </>
       </DialogContent>
     </Dialog>
   );
