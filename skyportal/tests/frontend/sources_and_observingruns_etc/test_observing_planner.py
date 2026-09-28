@@ -109,7 +109,7 @@ def test_observing_run_skycam_component(
     page.goto(f"/run/{red_transients_run.id}")
     expect(
         page.locator(
-            f'//b[contains(text(), "{red_transients_run.instrument.name}")]'
+            f'//h5[contains(text(), "{red_transients_run.instrument.name}")]'
         ).first
     ).to_be_visible()
     expect(page.locator('//*[text()="Skycam"]').first).to_be_visible()
@@ -124,7 +124,7 @@ def test_observing_run_skycam_component(
     page.goto(f"/run/{red_transients_run.id}")
     expect(
         page.locator(
-            f'//b[contains(text(), "{red_transients_run.instrument.name}")]'
+            f'//h5[contains(text(), "{red_transients_run.instrument.name}")]'
         ).first
     ).to_be_visible()
     expect(
