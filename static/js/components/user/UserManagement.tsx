@@ -457,15 +457,15 @@ const UserManagement = () => {
       headerName: "Name",
       minWidth: 150,
       valueGetter: (_value: any, row: any) =>
-        [row.first_name, row.last_name].filter(Boolean).join(" "),
-      renderCell: ({ row }: any) =>
-        editableCell(row, ["first_name", "last_name"]),
-    },
-    {
-      field: "username",
-      headerName: "Username",
-      minWidth: 130,
-      renderCell: ({ row }: any) => editableCell(row, "username"),
+        [row.first_name, row.last_name, row.username].filter(Boolean).join(" "),
+      renderCell: ({ row }: any) => (
+        <Box>
+          {editableCell(row, ["first_name", "last_name"])}
+          <Box sx={{ color: "text.secondary", fontSize: "0.8rem" }}>
+            {editableCell(row, "username")}
+          </Box>
+        </Box>
+      ),
     },
     {
       field: "created_at",
