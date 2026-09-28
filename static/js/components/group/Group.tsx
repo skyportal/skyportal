@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { useTheme } from "@mui/material/styles";
 
 import Box from "@mui/material/Box";
@@ -35,7 +35,8 @@ const Group = () => {
   const [isDeleting, setIsDeleting] = useState(false);
 
   const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
-  const [tab, setTab] = useState(0);
+  const [searchParams] = useSearchParams();
+  const [tab, setTab] = useState(searchParams.get("tab") === "filters" ? 2 : 0);
 
   const handleConfirmDeleteDialogClose = () => {
     setConfirmDeleteOpen(false);
