@@ -18,10 +18,6 @@ import NewAPIQueuedObservation from "./NewAPIQueuedObservation";
 import { useGetInstrumentsQuery } from "../../ducks/instruments";
 import { useHasPermission } from "../../ducks/profile";
 
-const PAGE_SIZE_OPTIONS = [10, 25, 50, 100];
-
-// Map each DataGrid column `field` to the field name the server expects for
-// sorting. Columns absent from this map are not server-sortable.
 const SERVER_SORT_FIELD: Record<string, string> = {
   instrument_name: "instrument_name",
   field_id: "field_id",
@@ -62,7 +58,7 @@ const QueuedObservationsTable = ({
   handleTableChange = false,
   handleFilterSubmit = false,
   pageNumber = 1,
-  numPerPage = 10,
+  numPerPage = 25,
   serverSide = true,
   filterModel,
   onFilterModelChange,
@@ -91,8 +87,6 @@ const QueuedObservationsTable = ({
     setNewDialogOpen(false);
   };
 
-  // Synthesize the mui-datatables onTableChange(action, tableState) contract
-  // from the DataGrid handlers so callers (ObservationPage) stay unchanged.
   const emitTableChange = (action: any, model: any, currentSort: any) => {
     if (typeof handleTableChange !== "function") {
       return;
@@ -255,7 +249,6 @@ const QueuedObservationsTable = ({
       observation.field ? observation.field?.dec : "";
 
     downloadCallback().then((data: any) => {
-      // if there is no data, cancel download
       if (!data?.length) {
         return;
       }
@@ -360,7 +353,6 @@ const QueuedObservationsTable = ({
             onPaginationModelChange={handlePaginationModelChange}
             sortModel={sortModel}
             onSortModelChange={handleSortModelChange}
-            pageSizeOptions={PAGE_SIZE_OPTIONS}
             filterModel={filterModel}
             onFilterModelChange={onFilterModelChange}
             slots={{ toolbar: CustomToolbar }}

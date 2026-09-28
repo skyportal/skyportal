@@ -14,8 +14,6 @@ import StyledDataGrid, {
 import GalaxyTableFilterForm from "./GalaxyTableFilterForm";
 import { filterOutEmptyValues } from "../../API";
 
-const PAGE_SIZE_OPTIONS = [2, 10, 25, 50, 100];
-
 const GalaxyTableToolbar = ({
   title,
   onFilterClick,
@@ -65,7 +63,6 @@ const GalaxyTable = ({
   const [rowsPerPage, setRowsPerPage] = useState(numPerPage);
 
   const handleFilterSubmit = async (formData: any) => {
-    // Remove empty position
     if (
       formData?.position &&
       !formData?.position?.ra &&
@@ -76,7 +73,6 @@ const GalaxyTable = ({
     }
 
     const data = filterOutEmptyValues(formData) as any;
-    // Expand cone search params
     if ("position" in data) {
       data.ra = data.position.ra;
       data.dec = data.position.dec;
@@ -92,8 +88,6 @@ const GalaxyTable = ({
     return <p>No galaxies available...</p>;
   }
 
-  // Synthesize the mui-datatables onTableChange(action, tableState) contract
-  // from the DataGrid handlers so callers (GalaxyPage) stay unchanged.
   const emitTableChange = (action: any, model: any) => {
     if (typeof handleTableChange !== "function") {
       return;
@@ -281,7 +275,6 @@ const GalaxyTable = ({
         onPaginationModelChange={handlePaginationModelChange}
         sortModel={sortModel}
         onSortModelChange={handleSortModelChange}
-        pageSizeOptions={PAGE_SIZE_OPTIONS}
         filterMode={serverSide ? "server" : "client"}
         onFilterModelChange={(model: any) =>
           serverSide &&

@@ -152,7 +152,6 @@ const ObservingRunPage = () => {
           rows={rows}
           columns={columns}
           initialState={{ pagination: { paginationModel: { pageSize: 100 } } }}
-          pageSizeOptions={[25, 50, 100]}
           localeText={{ noRowsLabel: "No observing runs to show." }}
           slots={{ toolbar: RunsToolbar }}
           slotProps={{ toolbar: { displayAll, setDisplayAll } }}

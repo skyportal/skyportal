@@ -60,7 +60,6 @@ const GroupUsers = ({
 
   const openManageUserPopover = Boolean(anchorEl);
   const popoverId = openManageUserPopover ? "manage-user-popover" : undefined;
-  // Mobile manage user popover
   const mobile = !useMediaQuery(theme.breakpoints.up("sm"));
 
   const renderUsername = (params: any) => {
@@ -125,7 +124,6 @@ const GroupUsers = ({
     );
   };
 
-  // Map first and last name into a single name field
   const groupUsers = group?.users?.map((user: any) => ({
     name: `${user.first_name ? user.first_name : ""} ${
       user.last_name ? user.last_name : ""
@@ -179,9 +177,7 @@ const GroupUsers = ({
         getRowHeight={() => "auto"}
         initialState={{
           columns: { columnVisibilityModel: { name: hasNames } },
-          pagination: { paginationModel: { pageSize: 25 } },
         }}
-        pageSizeOptions={[10, 25, 50, 100, 200]}
         columnBufferPx={3000}
         showToolbar
       />

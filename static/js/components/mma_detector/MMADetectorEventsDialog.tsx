@@ -10,7 +10,7 @@ import { useGetConfigQuery } from "../../ducks/config";
 import StyledDataGrid, { DataGridToolbar } from "../StyledDataGrid";
 import ExpandableCell from "../ExpandableCell";
 
-const numPerPage = 10;
+const numPerPage = 25;
 
 interface MMADetectorEventsDialogProps {
   mmadetector: any;

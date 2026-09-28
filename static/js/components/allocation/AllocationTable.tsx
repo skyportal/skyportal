@@ -334,7 +334,6 @@ const AllocationTable = ({
         getRowId={(row: any) => row.id}
         getRowHeight={() => "auto"}
         initialState={{ columns: { columnVisibilityModel: { id: false } } }}
-        hideFooter
         slots={{ toolbar: CustomToolbar }}
         showToolbar
       />

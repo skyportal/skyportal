@@ -47,7 +47,6 @@ import { useAppDispatch } from "../../types/hooks";
 
 dayjs.extend(utc);
 
-const PAGE_SIZE_OPTIONS = [10, 25, 50, 100, 200];
 const DEFAULT_NUM_PER_PAGE = 25;
 
 const SAMPLE_CSV_TEXT = `example1@gmail.com,1,3,false
@@ -172,7 +171,6 @@ const UserInvitations = () => {
   const { data: currentUser } = useGetProfileQuery();
   const { data: streams } = useGetStreamsQuery();
   const allGroups = useGetGroupsQuery().data?.all;
-  // Invite links must name a backend; offer the first configured one.
   const authBackends = (useGetConfigQuery().data as any)?.authBackends ?? [];
   const [rowsPerPage, setRowsPerPage] = useState(DEFAULT_NUM_PER_PAGE);
   const [fetchParams, setFetchParams] = useState<any>({
@@ -532,7 +530,6 @@ const UserInvitations = () => {
             pageSize: rowsPerPage,
           }}
           onPaginationModelChange={handlePaginationModelChange}
-          pageSizeOptions={PAGE_SIZE_OPTIONS}
           disableColumnFilter
           slots={{ toolbar: InvitationsToolbar }}
           slotProps={{

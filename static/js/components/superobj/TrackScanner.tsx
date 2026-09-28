@@ -20,7 +20,6 @@ import {
 } from "../../ducks/superObjs";
 import SaveTrackButton from "./SaveTrackButton";
 
-/** The alert cutouts, in the order a reviewer reads them down a column. */
 const CUTOUT_TYPES = ["new", "ref", "sub"] as const;
 const CUTOUT_LABELS: Record<string, string> = {
   new: "Science",
@@ -28,10 +27,8 @@ const CUTOUT_LABELS: Record<string, string> = {
   sub: "Difference",
 };
 
-/** BOOM writes one of these on a track's earliest epoch, carrying the orbit. */
 const TRACK_ANNOTATION_ORIGIN = "boom:track";
 
-/** At or above this digest2 score the MPC treats a track as an NEO candidate. */
 const NEO_DIGEST2_THRESHOLD = 65;
 
 const trackOrbit = (track: SuperObj): Record<string, unknown> => {
@@ -48,15 +45,7 @@ const trackOrbit = (track: SuperObj): Record<string, unknown> => {
 const num = (value: unknown, digits = 3) =>
   typeof value === "number" ? value.toFixed(digits) : null;
 
-/**
- * The track's distinct detections.
- *
- * A detection may belong to more than one of a track's tracklets, and each
- * tracklet row arrives as its own Obj, so the same detection can appear several
- * times. Keyed on position rather than Obj id for that reason: the repeats are
- * one detection recorded twice, at one time and one place, and a moving object
- * does not revisit a position within a track.
- */
+// Keyed on position, not Obj id: a detection shared by tracklets arrives as distinct Objs.
 const distinctEpochs = (track: SuperObj): SuperObjEpoch[] => {
   const seen = new Set<string>();
   return track.objs.filter((epoch) => {
@@ -72,11 +61,6 @@ const distinctEpochs = (track: SuperObj): SuperObjEpoch[] => {
 const cutoutUrl = (epoch: SuperObjEpoch, type: string) =>
   (epoch.thumbnails || []).find((t) => t.type === type)?.public_url || null;
 
-/**
- * One epoch's column of cutouts. A reviewer judges a linkage by reading across
- * the row: a real moving object steps cleanly between epochs, while a bad
- * linkage mixes unrelated sources.
- */
 const EpochColumn = ({ epoch }: { epoch: SuperObjEpoch }) => (
   <Stack spacing={0.5} sx={{ minWidth: 104 }}>
     {CUTOUT_TYPES.map((type) => {
@@ -114,7 +98,6 @@ const EpochColumn = ({ epoch }: { epoch: SuperObjEpoch }) => (
   </Stack>
 );
 
-/** One track: how it was built, then a column of cutouts per detection epoch. */
 const TrackRow = ({
   track,
   userGroups,
@@ -129,11 +112,6 @@ const TrackRow = ({
   const epochs = distinctEpochs(track);
   const repeats = track.objs.length - epochs.length;
 
-  // How the track was assembled, not how good it is. Measured against labelled
-  // tracks, the fit residual does not separate real linkages from merged ones:
-  // the failures fell at 0.19 to 0.28 arcsec while correct tracks ran from 0.01
-  // to 1.58, so a reviewer trusting a low residual would be wrong. Sky span and
-  // motion regularity separate no better. The cutouts are the judgement.
   const facts: [string, string | null][] = [
     ["detections", String(epochs.length)],
     ["tracklets", num(orbit["n_tracklets"], 0)],
@@ -222,18 +200,9 @@ const TrackRow = ({
   );
 };
 
-/**
- * Review linked moving-object tracks.
- *
- * A track is a SuperObj with one Obj per detection epoch, so a reviewer needs
- * every epoch side by side rather than the scanning page's one row per
- * detection. Single-epoch moving-object SuperObjs are known bodies recorded by
- * the solar-system ingest and are filtered out here for the same reason they
- * are never submitted: the MPC already has them.
- */
 const TrackScanner = () => {
   const [page, setPage] = useState(0);
-  const [perPage, setPerPage] = useState(10);
+  const [perPage, setPerPage] = useState(25);
   const [onlyMultiEpoch, setOnlyMultiEpoch] = useState(true);
   const userGroups = useGetGroupsQuery().data?.userAccessible ?? [];
 
@@ -297,7 +266,7 @@ const TrackScanner = () => {
           setPerPage(parseInt(e.target.value, 10));
           setPage(0);
         }}
-        rowsPerPageOptions={[10, 25, 50]}
+        rowsPerPageOptions={[25, 50, 100]}
       />
     </Box>
   );

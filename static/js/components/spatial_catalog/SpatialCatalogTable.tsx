@@ -49,7 +49,6 @@ const RetrieveSpatialCatalogSources = ({
     setQueryInProgress(true);
     closeDialog();
 
-    // Remove empty position
     if (
       !formData.position.ra &&
       !formData.position.dec &&
@@ -59,7 +58,6 @@ const RetrieveSpatialCatalogSources = ({
     }
 
     const data = filterOutEmptyValues(formData) as any;
-    // Expand cone search params
     if ("position" in data) {
       data.ra = data.position.ra;
       data.dec = data.position.dec;
@@ -174,10 +172,6 @@ const SpatialCatalogTable = ({
       rows={catalog.entries}
       columns={columns}
       getRowId={(row: any) => row.id}
-      initialState={{
-        pagination: { paginationModel: { pageSize: 25 } },
-      }}
-      pageSizeOptions={[2, 10, 25, 50, 100]}
       slots={{ toolbar: DataGridToolbar }}
       slotProps={{ toolbar: { title: catalog.catalog_name } }}
       showToolbar

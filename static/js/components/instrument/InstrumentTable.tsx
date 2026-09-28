@@ -67,8 +67,6 @@ const InstrumentTable = ({
     }
   };
 
-  // Enrich instruments with telescope info and combined API classnames so the
-  // table can search/sort/filter on those fields client-side.
   const enrichedInstruments = useMemo(() => {
     const telescopeById = new Map(telescopes?.map((t) => [t.id, t]) || []);
     return (instruments || []).map((instrument) => {
@@ -256,8 +254,10 @@ const InstrumentTable = ({
         rows={enrichedInstruments}
         columns={columns}
         getRowId={(row: any) => row.id}
+        pageSizeOptions={[25, 50, 100, { value: -1, label: "All" }]}
         initialState={{
           columns: { columnVisibilityModel: { id: false } },
+          pagination: { paginationModel: { pageSize: -1 } },
         }}
         slots={{ toolbar: CustomToolbar }}
         showToolbar

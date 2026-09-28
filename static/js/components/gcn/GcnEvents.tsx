@@ -35,7 +35,6 @@ import DefaultGcnTagPage from "./DefaultGcnTagPage";
 import Crossmatch from "./CrossmatchGcnEvents";
 import GcnEventAllocationTriggers from "./GcnEventAllocationTriggers";
 
-const PAGE_SIZE_OPTIONS = [25, 50, 100];
 const DEFAULT_NUM_PER_PAGE = 25;
 const FILTER_KEYS = [
   "startDate",
@@ -322,7 +321,6 @@ const GcnEvents = () => {
           }
           sortModel={sortModel}
           onSortModelChange={handleSortModelChange}
-          pageSizeOptions={PAGE_SIZE_OPTIONS}
           disableColumnFilter
           slots={{ toolbar: GcnEventsToolbar }}
           slotProps={{

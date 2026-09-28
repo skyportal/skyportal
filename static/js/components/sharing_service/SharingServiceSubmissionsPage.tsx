@@ -308,7 +308,6 @@ const SharingServiceSubmissionsPage = () => {
           setPage(model.page + 1);
           setRowsPerPage(model.pageSize);
         }}
-        pageSizeOptions={[25, 50, 100, 200]}
         initialState={{
           columns: {
             columnVisibilityModel: {

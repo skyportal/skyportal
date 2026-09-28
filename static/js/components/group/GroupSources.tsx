@@ -25,9 +25,9 @@ interface GroupSourcesProps {
 const GroupSources = ({ route }: GroupSourcesProps) => {
   const dispatch = useAppDispatch();
   const groups = useGetGroupsQuery().data?.userAccessible ?? [];
-  const [savedSourcesRowsPerPage, setSavedSourcesRowsPerPage] = useState(10);
+  const [savedSourcesRowsPerPage, setSavedSourcesRowsPerPage] = useState(25);
   const [pendingSourcesRowsPerPage, setPendingSourcesRowsPerPage] =
-    useState(10);
+    useState(25);
   const [sorting, setSorting] = useState<any>(null);
   const [filtering, setFiltering] = useState<any>(null);
   const [downloadProgressCurrent, setDownloadProgressCurrent] = useState(0);
@@ -36,12 +36,12 @@ const GroupSources = ({ route }: GroupSourcesProps) => {
   const [savedQueryParams, setSavedQueryParams] = useState<any>({
     group_ids: [route.id],
     pageNumber: 1,
-    numPerPage: 10,
+    numPerPage: 25,
   });
   const [pendingQueryParams, setPendingQueryParams] = useState<any>({
     group_ids: [route.id],
     pageNumber: 1,
-    numPerPage: 10,
+    numPerPage: 25,
   });
 
   const { data: savedSourcesState } =
@@ -160,7 +160,6 @@ const GroupSources = ({ route }: GroupSourcesProps) => {
           setDownloadProgressCurrent(sourceAll.length);
           setDownloadProgressTotal(savedSourcesState.totalMatches);
         } catch {
-          // break the loop and set progress to 0 and show error message
           setDownloadProgressCurrent(0);
           setDownloadProgressTotal(0);
           if (sourceAll?.length === 0) {
