@@ -12,7 +12,6 @@ import QuestionMarkIcon from "@mui/icons-material/QuestionMark";
 import PriorityHigh from "@mui/icons-material/PriorityHigh";
 import Tooltip from "@mui/material/Tooltip";
 import Box from "@mui/material/Box";
-import Button from "@mui/material/Button";
 import { makeStyles } from "tss-react/mui";
 import CircularProgress from "@mui/material/CircularProgress";
 
@@ -32,6 +31,7 @@ import { useGetConfigQuery } from "../../ducks/config";
 import { useGetProfileQuery } from "../../ducks/profile";
 
 const DEFAULT_HIDDEN_COLUMNS = [
+  "id",
   "instrument_id",
   "ra",
   "dec",
@@ -71,6 +71,7 @@ const COLUMN_PRECISION: Record<string, number> = {
   mag: 4,
   magerr: 4,
   limiting_mag: 2,
+  snr: 2,
 };
 
 const formatCell = (key: string) => (value: any) => {
@@ -106,14 +107,15 @@ const PhotometryTableToolbar = ({
 }) => (
   <DataGridToolbar title={title} showExport={false}>
     {controls}
-    <Button
-      size="small"
-      startIcon={<DownloadIcon />}
-      onClick={onDownload}
-      data-testid="open-photometry-download-button"
-    >
-      Download
-    </Button>
+    <Tooltip title="Download">
+      <IconButton
+        size="small"
+        onClick={onDownload}
+        data-testid="open-photometry-download-button"
+      >
+        <DownloadIcon />
+      </IconButton>
+    </Tooltip>
     <Tooltip title="Close Table">
       <IconButton
         onClick={onClose}
@@ -264,7 +266,7 @@ const PhotometryTable = ({
       field: key,
       headerName: key,
       flex: 1,
-      minWidth: 90,
+      minWidth: key === "mjd" ? 110 : Math.max(90, key.length * 9 + 40),
       valueFormatter: formatCell(key),
     }));
 
@@ -273,7 +275,7 @@ const PhotometryTable = ({
       field: "UTC",
       headerName: "UTC",
       flex: 1,
-      minWidth: 160,
+      minWidth: 180,
       valueGetter: (_value: any, row: any) =>
         mjd_to_utc(row.mjd).replace("T", " "),
     };
@@ -299,7 +301,7 @@ const PhotometryTable = ({
       field: "owner",
       headerName: "owner",
       flex: 1,
-      minWidth: 100,
+      minWidth: 150,
       valueGetter: (_value: any, row: any) => row.owner?.username || "",
     });
 
@@ -307,7 +309,7 @@ const PhotometryTable = ({
       field: "streams",
       headerName: "streams",
       flex: 1,
-      minWidth: 120,
+      minWidth: 180,
       valueGetter: (_value: any, row: any) =>
         (row.streams || []).map((stream: any) => stream.name).join(", "),
     });
