@@ -245,11 +245,9 @@ const InstrumentTable = ({
   };
 
   return (
-    <Box
-      sx={{ width: "100%", ...(fixedHeader && { height: FULL_PAGE_HEIGHT }) }}
-    >
+    <>
       <StyledDataGrid
-        autoHeight={!fixedHeader}
+        height={fixedHeader ? FULL_PAGE_HEIGHT : "auto"}
         rows={enrichedInstruments}
         columns={columns}
         getRowId={(row: any) => row.id}
@@ -294,7 +292,7 @@ const InstrumentTable = ({
         closeDialog={closeDeleteDialog}
         resourceName="instrument"
       />
-    </Box>
+    </>
   );
 };
 

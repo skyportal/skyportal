@@ -179,7 +179,7 @@ const DefaultSurveyEfficiencyTable = ({
   return (
     <>
       <StyledDataGrid
-        sx={{ height: FULL_PAGE_HEIGHT_WITH_TABS }}
+        height={FULL_PAGE_HEIGHT_WITH_TABS}
         rows={default_survey_efficiencies || []}
         columns={columns}
         getRowId={(row: any) => row.id}

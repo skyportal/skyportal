@@ -168,7 +168,7 @@ const SpatialCatalogTable = ({
 
   return (
     <StyledDataGrid
-      sx={{ height: FULL_PAGE_HEIGHT }}
+      height={FULL_PAGE_HEIGHT}
       rows={catalog.entries}
       columns={columns}
       getRowId={(row: any) => row.id}

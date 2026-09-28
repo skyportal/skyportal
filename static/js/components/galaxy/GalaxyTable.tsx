@@ -3,7 +3,6 @@ import IconButton from "@mui/material/IconButton";
 import Tooltip from "@mui/material/Tooltip";
 import Dialog from "@mui/material/Dialog";
 import DialogContent from "@mui/material/DialogContent";
-import Box from "@mui/material/Box";
 import InfoIcon from "@mui/icons-material/Info";
 import FilterListIcon from "@mui/icons-material/FilterList";
 
@@ -252,16 +251,9 @@ const GalaxyTable = ({
   ];
 
   return (
-    <Box
-      sx={{
-        width: "100%",
-        display: "flex",
-        flexDirection: "column",
-        ...(fixedHeader && { height: FULL_PAGE_HEIGHT }),
-      }}
-    >
+    <>
       <StyledDataGrid
-        autoHeight={!fixedHeader}
+        height={fixedHeader ? FULL_PAGE_HEIGHT : "auto"}
         rows={galaxies}
         columns={columns}
         getRowId={(row: any) => row.id ?? `${row.name}_${row.ra}_${row.dec}`}
@@ -299,7 +291,7 @@ const GalaxyTable = ({
           <GalaxyTableFilterForm handleFilterSubmit={handleFilterSubmit} />
         </DialogContent>
       </Dialog>
-    </Box>
+    </>
   );
 };
 

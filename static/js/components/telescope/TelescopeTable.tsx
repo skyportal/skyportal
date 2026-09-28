@@ -300,8 +300,9 @@ const TelescopeTable = ({
   );
 
   return (
-    <Box sx={{ width: "100%", height: FULL_PAGE_HEIGHT }}>
+    <>
       <StyledDataGrid
+        height={FULL_PAGE_HEIGHT}
         rows={telescopes || []}
         columns={columns}
         getRowId={(row: any) => row.id}
@@ -342,7 +343,7 @@ const TelescopeTable = ({
         closeDialog={() => setTelescopeToDelete(null)}
         resourceName="telescope"
       />
-    </Box>
+    </>
   );
 };
 

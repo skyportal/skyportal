@@ -324,14 +324,9 @@ const AllocationTable = ({
   );
 
   return (
-    <Box
-      sx={{
-        height: fixedHeader ? FULL_PAGE_HEIGHT_WITH_TABS : "auto",
-        width: "100%",
-      }}
-    >
+    <>
       <StyledDataGrid
-        autoHeight={!fixedHeader}
+        height={fixedHeader ? FULL_PAGE_HEIGHT_WITH_TABS : "auto"}
         rows={allocations || []}
         columns={columns}
         getRowId={(row: any) => row.id}
@@ -369,7 +364,7 @@ const AllocationTable = ({
         closeDialog={() => setAllocationToDelete(null)}
         resourceName="allocation"
       />
-    </Box>
+    </>
   );
 };
 

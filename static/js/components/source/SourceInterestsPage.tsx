@@ -136,6 +136,7 @@ const SourceInterestsPage = () => {
 
   return (
     <StyledDataGrid
+      height={FULL_PAGE_HEIGHT}
       loading={!interests}
       rows={rows}
       columns={COLUMNS}
@@ -144,7 +145,6 @@ const SourceInterestsPage = () => {
       sortModel={sortModel}
       onSortModelChange={setSortModel}
       sx={{
-        height: FULL_PAGE_HEIGHT,
         "& .MuiDataGrid-cell": {
           whiteSpace: "normal",
           display: "flex",

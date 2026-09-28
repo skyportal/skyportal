@@ -65,6 +65,7 @@ const baseSx = (theme: any) => ({
 interface StyledDataGridProps {
   sx?: any;
   initialState?: any;
+  height?: string;
   [key: string]: any;
 }
 
@@ -73,13 +74,20 @@ const LooseDataGrid = DataGrid as any;
 const StyledDataGrid = ({
   sx,
   initialState,
+  height,
   ...props
 }: StyledDataGridProps) => (
   <ExpandAllProvider>
     <LooseDataGrid
       density="standard"
       disableRowSelectionOnClick
-      sx={[baseSx, ...(Array.isArray(sx) ? sx : [sx])]}
+      autoHeight={height === "auto"}
+      sx={[
+        baseSx,
+        // DataGrid's default flex: 1 overrides height inside flex columns.
+        !!height && height !== "auto" && { height, flex: "none" },
+        ...(Array.isArray(sx) ? sx : [sx]),
+      ]}
       initialState={{
         ...initialState,
         pagination: {
