@@ -2,7 +2,6 @@ import React, { ReactNode, useState, useMemo } from "react";
 import Dialog from "@mui/material/Dialog";
 import DialogContent from "@mui/material/DialogContent";
 import Slide from "@mui/material/Slide";
-import CloseIcon from "@mui/icons-material/Close";
 import DownloadIcon from "@mui/icons-material/Download";
 import IconButton from "@mui/material/IconButton";
 import CheckIcon from "@mui/icons-material/Check";
@@ -105,7 +104,12 @@ const PhotometryTableToolbar = ({
   onDownload: () => void;
   onClose: () => void;
 }) => (
-  <DataGridToolbar title={title} showExport={false}>
+  <DataGridToolbar
+    title={title}
+    showExport={false}
+    onClose={onClose}
+    closeTestId="close-photometry-table-button"
+  >
     {controls}
     <Tooltip title="Download">
       <IconButton
@@ -114,15 +118,6 @@ const PhotometryTableToolbar = ({
         data-testid="open-photometry-download-button"
       >
         <DownloadIcon />
-      </IconButton>
-    </Tooltip>
-    <Tooltip title="Close Table">
-      <IconButton
-        onClick={onClose}
-        data-testid="close-photometry-table-button"
-        size="small"
-      >
-        <CloseIcon />
       </IconButton>
     </Tooltip>
   </DataGridToolbar>

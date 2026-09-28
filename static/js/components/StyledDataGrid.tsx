@@ -19,6 +19,7 @@ import ViewColumnIcon from "@mui/icons-material/ViewColumn";
 import FilterListIcon from "@mui/icons-material/FilterList";
 import FileDownloadIcon from "@mui/icons-material/FileDownload";
 import SearchIcon from "@mui/icons-material/Search";
+import CloseIcon from "@mui/icons-material/Close";
 import UnfoldMoreIcon from "@mui/icons-material/UnfoldMore";
 import UnfoldLessIcon from "@mui/icons-material/UnfoldLess";
 import { useContext } from "react";
@@ -131,6 +132,8 @@ export const DataGridToolbar = ({
   showExport = true,
   showExpandAll = false,
   quickFilterTestId,
+  onClose,
+  closeTestId,
 }: {
   children?: any;
   title?: string;
@@ -140,6 +143,8 @@ export const DataGridToolbar = ({
   showExport?: boolean;
   showExpandAll?: boolean;
   quickFilterTestId?: string;
+  onClose?: () => void;
+  closeTestId?: string;
 }) => (
   <Toolbar>
     {title && (
@@ -217,6 +222,17 @@ export const DataGridToolbar = ({
           )}
         />
       </QuickFilter>
+    )}
+    {onClose && (
+      <Tooltip title="Close">
+        <ToolbarButton
+          aria-label="Close"
+          data-testid={closeTestId}
+          onClick={onClose}
+        >
+          <CloseIcon fontSize="small" />
+        </ToolbarButton>
+      </Tooltip>
     )}
   </Toolbar>
 );
