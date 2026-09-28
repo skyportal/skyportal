@@ -203,3 +203,25 @@ def test_thinking_is_disabled_unless_asked_for():
         "enable_thinking": False
     }
     assert "chat_template_kwargs" not in chat_payload("m", [], [], thinking=True)
+
+
+def test_an_attempt_is_bounded_so_a_second_one_fits():
+    # A stalled request holds whatever it is given. The failures seen had the
+    # whole budget left when they hung -- 299.99997 of 300 seconds -- so one
+    # unbounded attempt is the difference between a retry and a lost turn.
+    from skyportal.utils.assistant import attempt_timeouts
+
+    assert attempt_timeouts(300, 150) == [150, 150]
+    assert attempt_timeouts(200, 150) == [150, 50]
+    # Too little left to be worth a round trip: one attempt, as before, and
+    # the sliver goes unused rather than buying a doomed request.
+    assert attempt_timeouts(150.5, 150) == [150]
+    assert attempt_timeouts(60, 150) == [60]
+    assert attempt_timeouts(0, 150) == []
+
+
+def test_the_attempts_never_exceed_the_budget():
+    from skyportal.utils.assistant import attempt_timeouts
+
+    for budget in (1, 30, 149, 150, 151, 299, 300, 600):
+        assert sum(attempt_timeouts(budget, 150)) <= budget

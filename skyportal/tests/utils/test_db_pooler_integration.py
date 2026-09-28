@@ -70,6 +70,7 @@ auth_type = trust
 auth_file = {tmp_path / "userlist.txt"}
 admin_users = {DB["user"]}
 ignore_startup_parameters = extra_float_digits, options
+server_reset_query_always = 1
 logfile = {tmp_path / "pgbouncer.log"}
 pidfile = {tmp_path / "pgbouncer.pid"}
 """
@@ -199,3 +200,28 @@ def test_many_clients_multiplex_onto_small_backend_pool(pgbouncer):
     assert all(ok) and len(ok) == n_clients  # every client served, none rejected
     assert peak["clients"] > POOL_SIZE  # more clients than the pool at once
     assert peak["servers"] <= POOL_SIZE  # ... yet backend connections stay bounded
+
+
+def test_a_session_setting_does_not_outlive_its_client(pgbouncer):
+    """A backend handed back to the pool means the same thing to whoever gets
+    it next.
+
+    In transaction pooling pgbouncer runs its reset query only when
+    server_reset_query_always is on. Without it, anything a client SETs stays
+    on that backend: one left read-only this way refused writes for unrelated
+    users, from one backend, while every other connection was fine.
+    """
+    poison = (
+        f"host=127.0.0.1 port={pgbouncer} dbname={DB['database']} user={DB['user']}"
+    )
+    if DB.get("password"):
+        poison += f" password={DB['password']}"
+
+    with psycopg.connect(poison, autocommit=True) as conn:
+        conn.execute("SET default_transaction_read_only = on")
+
+    # Every backend in the pool, so the poisoned one cannot simply be missed.
+    for _ in range(POOL_SIZE * 4):
+        with psycopg.connect(poison, autocommit=True) as conn:
+            setting = conn.execute("SHOW default_transaction_read_only").fetchone()[0]
+            assert setting == "off", "a client inherited another's session state"

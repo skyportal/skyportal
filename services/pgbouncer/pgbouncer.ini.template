@@ -13,6 +13,7 @@ default_pool_size = {{ database.pooler.default_pool_size }}
 max_client_conn = {{ database.pooler.max_client_conn }}
 server_tls_sslmode = {{ database.pooler.server_tls_sslmode }}
 {% if database.pooler.idle_transaction_timeout %}idle_transaction_timeout = {{ database.pooler.idle_transaction_timeout }}{% endif %}
+{% if database.pooler.server_reset_query_always %}server_reset_query_always = 1{% endif %}
 # psycopg3 sends these; transaction mode must not reject them.
 ignore_startup_parameters = extra_float_digits, options
 # Auth is deployment-specific; adjust to match your Postgres (md5/scram/auth_query).

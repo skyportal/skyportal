@@ -150,6 +150,7 @@ def test_mcp_tools_list(view_only_token):
         "attach_filter_to_broker",
         "get_broker_filter",
         "diff_broker_filter_versions",
+        "convert_time",
         "run_broker_filter",
         "post_broker_filter_version",
         "validate_broker_filter_version",
@@ -1107,3 +1108,56 @@ def test_an_expr_nested_deep_in_a_pipeline_is_still_found():
         {"$match": {"$and": [{"$or": [{"$expr": {"$gte": ["$y", 3]}}]}]}},
     ]
     assert _expr_comparisons(buried) == [("y", "$gte", ["$y", 3])]
+
+
+def test_a_julian_date_is_converted_rather_than_reasoned_about():
+    # A JD day begins at noon UTC, so the integer part is not the calendar
+    # date. Asked what JD 2461310.0261 was, the assistant answered the 25th;
+    # it is the 26th, at 12:37 UTC.
+    result = asyncio.run(TOOLS["convert_time"]["fn"](None, {"jd": 2461310.0261}))
+    assert result["iso"] == "2026-09-26T12:37:35Z"
+    assert result["mjd"] == 61309.5261
+    assert result["day_of_week"] == "Saturday"
+
+
+def test_every_time_format_reaches_the_same_moment():
+    fn = TOOLS["convert_time"]["fn"]
+    by_jd = asyncio.run(fn(None, {"jd": 2461310.0261}))
+    by_mjd = asyncio.run(fn(None, {"mjd": 61309.5261}))
+    by_iso = asyncio.run(fn(None, {"iso": "2026-09-26T12:37:35"}))
+    assert by_jd == by_mjd == by_iso
+
+
+def test_converting_needs_exactly_one_time():
+    fn = TOOLS["convert_time"]["fn"]
+    with pytest.raises(ToolError):
+        asyncio.run(fn(None, {}))
+    with pytest.raises(ToolError):
+        asyncio.run(fn(None, {"jd": 2461310.0, "mjd": 61309.5}))
+    with pytest.raises(ToolError):
+        asyncio.run(fn(None, {"iso": "not a time"}))
+
+
+def test_a_count_carries_the_window_it_was_taken_over():
+    # The span is the one thing the count does not show. The same filter read
+    # 80 over thirty days and 1 over two; the difference was attributed to a
+    # threshold that changed in between, and the rate was 81/2 nights rather
+    # than 81/30.
+    from skyportal.handlers.mcp import _with_window
+
+    wide = _with_window({"count": 80}, 2461281.2, 2461311.2)
+    assert wide["window"]["nights"] == 30.0
+    assert wide["window"]["count_per_night"] == 2.67
+    assert wide["window"]["start"] == "2026-08-28T16:48:00Z"
+
+    narrow = _with_window({"count": 1}, 2461309.0, 2461311.0143)
+    assert narrow["window"]["nights"] == 2.014
+    assert narrow["window"]["count_per_night"] == 0.5
+
+
+def test_a_result_without_a_window_is_left_alone():
+    from skyportal.handlers.mcp import _with_window
+
+    assert _with_window({"count": 3}, None, None) == {"count": 3}
+    # Sorted previews return rows rather than a count; nothing to divide.
+    assert "count_per_night" not in _with_window({"results": []}, 1.0, 2.0)["window"]

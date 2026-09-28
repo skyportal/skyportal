@@ -1373,6 +1373,50 @@ def _reject_expr_comparisons(pipeline):
     )
 
 
+def _iso_for_jd(jd):
+    """A Julian Date as an ISO UTC string, or None if it is not one."""
+    try:
+        from astropy.time import Time
+
+        return Time(float(jd), format="jd").isot[:19] + "Z"
+    except Exception:
+        return None
+
+
+@tool(
+    "convert_time",
+    "Convert between the time formats the alert stream uses: Julian Date, "
+    "Modified Julian Date and ISO UTC. Use it rather than converting by hand. "
+    "A JD day begins at noon UTC, so the integer part is not the calendar "
+    "date: JD 2461310.0261 is 2026-09-26 12:37 UTC, not the 25th. Give exactly "
+    "one of jd, mjd or iso and the other two come back with it.",
+    {
+        "jd": _prop("number", "Julian Date to convert."),
+        "mjd": _prop("number", "Modified Julian Date to convert."),
+        "iso": _prop("string", "ISO UTC timestamp, e.g. 2026-09-26T12:37:35."),
+    },
+)
+async def convert_time(handler, args):
+    from astropy.time import Time
+
+    given = {
+        k: v for k, v in args.items() if k in ("jd", "mjd", "iso") and v is not None
+    }
+    if len(given) != 1:
+        raise ToolError("Give exactly one of jd, mjd or iso.")
+    kind, value = next(iter(given.items()))
+    try:
+        moment = Time(float(value), format=kind) if kind != "iso" else Time(str(value))
+    except Exception as exc:
+        raise ToolError(f"Not a time I can read: {value!r} ({exc}).") from exc
+    return {
+        "jd": round(float(moment.jd), 6),
+        "mjd": round(float(moment.mjd), 6),
+        "iso": moment.isot[:19] + "Z",
+        "day_of_week": moment.datetime.strftime("%A"),
+    }
+
+
 @tool(
     "run_broker_filter",
     "Preview which alerts a pipeline passes, without saving anything. The way "
@@ -1422,7 +1466,34 @@ async def run_broker_filter(handler, args):
         now = Time.now().jd
         args["start_jd"] = round(now - 1, 4)
         args["end_jd"] = round(now, 4)
-    return await handler.api("POST", f"/api/brokers/{broker_id}/filter/test", body=args)
+    result = await handler.api(
+        "POST", f"/api/brokers/{broker_id}/filter/test", body=args
+    )
+    return _with_window(result, args.get("start_jd"), args.get("end_jd"))
+
+
+def _with_window(result, start_jd, end_jd):
+    """State the window the count covers, in days and in dates.
+
+    A count means nothing without the span it was taken over, and the span is
+    the one thing the caller cannot see in the number. Two previews of one
+    filter, over two days and over thirty, read as 1 and 80: attributed to the
+    threshold that changed in between rather than to the window, and divided by
+    the wrong number of nights on the way to a rate.
+    """
+    if not isinstance(result, dict) or start_jd is None or end_jd is None:
+        return result
+    nights = round(float(end_jd) - float(start_jd), 3)
+    window = {
+        "start_jd": start_jd,
+        "end_jd": end_jd,
+        "nights": nights,
+        "start": _iso_for_jd(start_jd),
+        "end": _iso_for_jd(end_jd),
+    }
+    if nights > 0 and isinstance(result.get("count"), int):
+        window["count_per_night"] = round(result["count"] / nights, 2)
+    return {**result, "window": window}
 
 
 @tool(

@@ -785,6 +785,15 @@ database:
     # Seconds before the pooler force-closes a connection left idle in a
     # transaction; guards the pool against leaked transactions (0 = disabled).
     idle_transaction_timeout: 0
+    # Hand back a clean backend after every transaction, not only after a
+    # session. In transaction pooling pgbouncer runs its reset query only when
+    # this is on, so anything a client SETs -- a read-only default, a
+    # search_path, a temp table -- stays on that backend and is inherited by
+    # whoever it is handed to next. One backend left read-only this way failed
+    # writes for unrelated users while every other connection was fine. The
+    # reset costs a round trip per transaction, which is the price of a
+    # connection meaning the same thing to everyone who gets it.
+    server_reset_query_always: true
     # How the pooler connects to Postgres, in pgbouncer's own terms (disable,
     # allow, prefer, require, verify-ca, verify-full). pgbouncer defaults to
     # disable before 1.24, and a managed Postgres often refuses an unencrypted
