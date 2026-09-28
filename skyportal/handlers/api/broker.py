@@ -934,15 +934,8 @@ class BrokerFilterValidateHandler(BaseHandler):
                 return self.error("Filter not found or not broker-managed.")
             if not body.fid:
                 return self.error("fid is required.")
-            verdict = {"fid": body.fid, "pending": True}
-            _store_version_validation(f.altdata, verdict)
-            flag_modified(f, "altdata")
-            session.commit()
-            # Replays a night of alerts, longer than the proxy timeout.
-            IOLoop.current().run_in_executor(
-                None, _validate_version, broker.id, f.id, body.fid
-            )
-            return self.success(data=verdict)
+            _start_version_validation(session, broker, f, body.fid)
+            return self.success(data={"fid": body.fid, "pending": True})
 
 
 def _get_broker(handler, session, broker_id):
@@ -981,19 +974,24 @@ def _store_version_validation(altdata, verdict):
     boom.setdefault("validations", {})[verdict.get("fid")] = {
         "passed": bool(verdict.get("passed")),
         "message": verdict.get("message"),
-        **(
-            {
-                "pending": True,
-                "started_at": datetime.datetime.now(datetime.UTC).isoformat(),
-            }
-            if verdict.get("pending")
-            else {}
-        ),
     }
 
 
+def _start_version_validation(session, broker, f, fid):
+    f.altdata["boom"].setdefault("validations", {})[fid] = {
+        "passed": False,
+        "message": None,
+        "pending": True,
+        "started_at": datetime.datetime.now(datetime.UTC).isoformat(),
+    }
+    flag_modified(f, "altdata")
+    session.commit()
+    # Replays a night of alerts, longer than the proxy timeout.
+    IOLoop.current().run_in_executor(None, _validate_version, broker.id, f.id, fid)
+
+
 def _validate_version(broker_id, filter_id, fid):
-    """Validate a filter version in a thread and attach its verdict."""
+    # DBSession's scope is a contextvar, not propagated to executor threads.
     with new_session() as session:
         broker = session.get(Broker, broker_id)
         f = session.get(Filter, filter_id)
@@ -1363,15 +1361,10 @@ class BrokerFiltersHandler(BaseHandler):
                     flag_modified(f, "altdata")
             except Exception as e:
                 return self.error(f"Error creating filter on {broker.name}: {e}")
-            validates = broker.broker_class.implements()["validate_filter"]
-            if validates:
-                _store_version_validation(f.altdata, {"fid": new_fid, "pending": True})
-                flag_modified(f, "altdata")
-            session.commit()
-            if validates:
-                IOLoop.current().run_in_executor(
-                    None, _validate_version, broker.id, f.id, new_fid
-                )
+            if broker.broker_class.implements()["validate_filter"]:
+                _start_version_validation(session, broker, f, new_fid)
+            else:
+                session.commit()
             return self.success(data={"id": f.id})
 
     @permissions(["Upload data"])

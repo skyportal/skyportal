@@ -23,11 +23,9 @@ interface SourceRedshiftHistoryProps {
 }
 
 const SourceRedshiftHistory = ({
-  redshiftHistory = null,
+  redshiftHistory,
 }: SourceRedshiftHistoryProps) => {
-  // Only names, to label who set each redshift.
   const allUsers = useGetUsersQuery({ slim: true }).data?.users ?? [];
-
   const [dialogOpen, setDialogOpen] = useState(false);
 
   return (
@@ -36,9 +34,7 @@ const SourceRedshiftHistory = ({
         data-testid="redshiftHistoryIconButton"
         fontSize="small"
         sx={{ height: "0.75rem", cursor: "pointer" }}
-        onClick={() => {
-          setDialogOpen(true);
-        }}
+        onClick={() => setDialogOpen(true)}
       />
       <Dialog
         open={dialogOpen}

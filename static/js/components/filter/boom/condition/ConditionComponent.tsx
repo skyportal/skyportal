@@ -401,7 +401,6 @@ const ConditionComponentInner = ({
     );
   }
 
-  // Regular condition rendering
   return (
     <Box
       key={conditionOrBlock.id}

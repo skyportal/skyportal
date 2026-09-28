@@ -465,8 +465,8 @@ const BlockHeader = ({
         backgroundColor: isStickyHeader ? "background.paper" : "transparent",
         borderRadius: isStickyHeader ? "8px 8px 0 0" : "0",
         p: isStickyHeader ? 2 : 1,
-        mx: isStickyHeader ? -2 : 0, // Compensate for container padding
-        mt: isStickyHeader ? -2 : 0, // Compensate for container padding
+        mx: isStickyHeader ? -2 : 0,
+        mt: isStickyHeader ? -2 : 0,
         mb: isStickyHeader ? 1 : 0,
         border: isStickyHeader ? 1 : 0,
         borderColor: isStickyHeader ? "grey.300" : "transparent",

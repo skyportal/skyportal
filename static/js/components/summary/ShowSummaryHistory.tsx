@@ -23,50 +23,38 @@ interface SummaryHistoryItem {
 }
 
 interface ShowSummaryHistoryProps {
-  obj_id?: string | null;
-  // Names the resource in the dialog title when it is not an obj.
-  label?: string | null;
-  summaries?: SummaryHistoryItem[] | null;
+  obj_id?: string;
+  label?: string;
+  summaries?: SummaryHistoryItem[];
   button?: boolean;
 }
 
 const ShowSummaryHistory = ({
-  obj_id = null,
-  label = null,
-  summaries = null,
+  obj_id,
+  label,
+  summaries = [],
   button = false,
 }: ShowSummaryHistoryProps) => {
   const allUsers = useGetUsersQuery().data?.users ?? [];
-
   const [dialogOpen, setDialogOpen] = useState(false);
 
   return (
     <>
-      {button ? (
-        <Tooltip title="Show history of object summaries">
-          <Button
-            secondary
-            size="small"
-            onClick={() => {
-              setDialogOpen(true);
-            }}
-          >
+      <Tooltip title="Show history of object summaries">
+        {button ? (
+          <Button secondary size="small" onClick={() => setDialogOpen(true)}>
             Summaries
           </Button>
-        </Tooltip>
-      ) : (
-        <Tooltip title="Show history of object summaries">
+        ) : (
           <span>
             <HistoryIcon
               fontSize="small"
               sx={{ height: "1rem", cursor: "pointer" }}
-              onClick={() => {
-                setDialogOpen(true);
-              }}
+              onClick={() => setDialogOpen(true)}
             />
           </span>
-        </Tooltip>
-      )}
+        )}
+      </Tooltip>
       <Dialog
         open={dialogOpen}
         fullWidth
@@ -79,7 +67,7 @@ const ShowSummaryHistory = ({
             autoHeight
             getRowHeight={() => "auto"}
             sx={{ "& .MuiDataGrid-cell": { whiteSpace: "normal" } }}
-            rows={(summaries ?? []).map((row, id) => ({ ...row, id }))}
+            rows={summaries.map((row, id) => ({ ...row, id }))}
             columns={[
               { field: "summary", headerName: "Summary", flex: 3 },
               {
@@ -90,12 +78,11 @@ const ShowSummaryHistory = ({
                   allUsers.find((user: any) => user.id === value)?.username,
                 renderCell: ({ row, value }: any) => (
                   <Box>
-                    {row.is_bot && typeof row.analysis_id === "number" ? (
-                      <Box sx={{ pr: "0.5rem" }}>
+                    {row.is_bot && typeof row.analysis_id === "number" && (
+                      <Box>
                         <Tooltip title="Link to analysis page" placement="top">
                           <Link
                             to={`/source/${obj_id}/analysis/${row.analysis_id}`}
-                            role="link"
                           >
                             <Button primary size="small">
                               <SmartToyIcon fontSize="small" />
@@ -103,7 +90,7 @@ const ShowSummaryHistory = ({
                           </Link>
                         </Tooltip>
                       </Box>
-                    ) : null}
+                    )}
                     {value && (
                       <Chip
                         size="small"

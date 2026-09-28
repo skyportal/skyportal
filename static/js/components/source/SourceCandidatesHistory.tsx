@@ -7,7 +7,6 @@ import Dialog from "@mui/material/Dialog";
 import DialogContent from "@mui/material/DialogContent";
 import DialogTitle from "@mui/material/DialogTitle";
 import Tooltip from "@mui/material/Tooltip";
-import Typography from "@mui/material/Typography";
 import TextField from "@mui/material/TextField";
 import Search from "@mui/icons-material/Search";
 import dayjs from "dayjs";
@@ -41,29 +40,16 @@ const SourceCandidatesHistory = ({
   const userAccessible = useGetGroupsQuery().data?.userAccessible ?? [];
 
   const [search, setSearch] = useState("");
-
   const [dialogOpen, setDialogOpen] = useState(false);
 
-  if (!candidates?.length) {
-    return null;
-  }
-
-  const filteredCandidates =
-    search?.trim()?.length > 0
-      ? candidates.filter((candidate) => {
-          const filter = candidate?.filter?.name || "";
-          return filter.toLowerCase().includes(search.toLowerCase());
-        })
-      : candidates;
+  if (!candidates.length) return null;
 
   return (
     <>
       <Tooltip title="Candidates History" placement="top">
         <HistoryIcon
           sx={{ height: "1.4rem", cursor: "pointer", color: "gray" }}
-          onClick={() => {
-            setDialogOpen(true);
-          }}
+          onClick={() => setDialogOpen(true)}
         />
       </Tooltip>
       <Dialog
@@ -79,23 +65,27 @@ const SourceCandidatesHistory = ({
             alignItems: "center",
           }}
         >
-          <Typography variant="h6">Candidates History</Typography>
+          Candidates History
           <TextField
             label="Search by Filter"
             size="small"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            slotProps={{
-              input: {
-                endAdornment: <Search />,
-              },
-            }}
+            slotProps={{ input: { endAdornment: <Search /> } }}
           />
         </DialogTitle>
         <DialogContent>
           <StyledDataGrid
             autoHeight
-            rows={filteredCandidates}
+            rows={
+              search.trim()
+                ? candidates.filter((candidate) =>
+                    (candidate.filter?.name ?? "")
+                      .toLowerCase()
+                      .includes(search.toLowerCase()),
+                  )
+                : candidates
+            }
             columns={[
               {
                 field: "passing_alert_id",

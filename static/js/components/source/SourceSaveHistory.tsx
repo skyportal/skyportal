@@ -2,7 +2,6 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 import Chip from "@mui/material/Chip";
 import HistoryIcon from "@mui/icons-material/History";
-import Box from "@mui/material/Box";
 import Dialog from "@mui/material/Dialog";
 import Tooltip from "@mui/material/Tooltip";
 import IconButton from "@mui/material/IconButton";
@@ -21,36 +20,32 @@ const SourceSaveHistory = ({ groups }: SourceSaveHistoryProps) => {
   const [dialogOpen, setDialogOpen] = useState(false);
 
   return (
-    <Box sx={{ display: "inline-block" }}>
+    <>
       <Tooltip title="Source save history">
-        <span>
-          <IconButton
-            aria-label="source-save-history"
-            onClick={() => {
-              setDialogOpen(true);
-            }}
-            size="small"
-            sx={{ display: "inline-block" }}
-          >
-            <HistoryIcon sx={{ fontSize: "1rem" }} />
-          </IconButton>
-        </span>
+        <IconButton
+          aria-label="source-save-history"
+          onClick={() => setDialogOpen(true)}
+          size="small"
+          sx={{ display: "inline-block" }}
+        >
+          <HistoryIcon sx={{ fontSize: "1rem" }} />
+        </IconButton>
       </Tooltip>
       <Dialog open={dialogOpen} onClose={() => setDialogOpen(false)} fullWidth>
         <DialogTitle>Save History</DialogTitle>
         <DialogContent>
           <StyledDataGrid
             autoHeight
-            rows={groups ?? []}
+            rows={groups}
             columns={[
               {
                 field: "name",
                 headerName: "Group Name",
                 flex: 1,
-                renderCell: ({ row }: { row: Group }) => (
+                renderCell: ({ value, row }: any) => (
                   <Chip
                     size="small"
-                    label={row.name}
+                    label={value}
                     component={Link}
                     to={`/group/${row.id}`}
                     clickable
@@ -89,7 +84,7 @@ const SourceSaveHistory = ({ groups }: SourceSaveHistoryProps) => {
           />
         </DialogContent>
       </Dialog>
-    </Box>
+    </>
   );
 };
 

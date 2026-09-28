@@ -12,15 +12,11 @@ import Tooltip from "@mui/material/Tooltip";
 import Typography from "@mui/material/Typography";
 
 import Button from "../Button";
-import {
-  useGetFilterQuery,
-  useUpdateFilterAltdataMutation,
-} from "../../ducks/filter";
+import { useGetFilterQuery, useUpdateFilterMutation } from "../../ducks/filter";
 
 const KEY = "gcn_crossmatch";
 
-/** Settings a filter's crossmatch inherits; blank means "use the default". */
-const SETTINGS: { key: string; label: string; help: string }[] = [
+const SETTINGS = [
   {
     key: "cumprob",
     label: "Credible region",
@@ -51,7 +47,7 @@ const SETTINGS: { key: string; label: string; help: string }[] = [
 const GcnCrossmatchPlugin = () => {
   const { fid } = useParams();
   const { data: filter } = useGetFilterQuery(fid ?? "", { skip: !fid }) as any;
-  const [updateAltdata] = useUpdateFilterAltdataMutation();
+  const [updateFilter] = useUpdateFilterMutation();
 
   const [enabled, setEnabled] = useState(false);
   const [tags, setTags] = useState("");
@@ -61,33 +57,23 @@ const GcnCrossmatchPlugin = () => {
   const stored = filter?.altdata?.[KEY];
 
   useEffect(() => {
-    if (!filter) return;
     const config = stored ?? {};
     setEnabled(Boolean(config.enabled));
     setTags((config.filters?.gcn_tags ?? []).join(", "));
     setValues(
       Object.fromEntries(
-        SETTINGS.map(({ key }) => [
-          key,
-          config[key] === undefined || config[key] === null
-            ? ""
-            : String(config[key]),
-        ]),
+        SETTINGS.map(({ key }) => [key, String(config[key] ?? "")]),
       ),
     );
   }, [filter, stored]);
 
-  if (!filter) return <></>;
+  if (!filter) return null;
 
   const handleSave = async () => {
     const config: Record<string, any> = { enabled };
     SETTINGS.forEach(({ key }) => {
-      const raw = values[key];
-      // an empty box means "inherit", not "zero"
-      if (raw !== undefined && raw !== "") {
-        const parsed = Number(raw);
-        if (!Number.isNaN(parsed)) config[key] = parsed;
-      }
+      const parsed = Number(values[key]);
+      if (values[key] && !Number.isNaN(parsed)) config[key] = parsed;
     });
     const gcnTags = tags
       .split(",")
@@ -95,7 +81,7 @@ const GcnCrossmatchPlugin = () => {
       .filter(Boolean);
     if (gcnTags.length) config["filters"] = { gcn_tags: gcnTags };
 
-    await updateAltdata({
+    await updateFilter({
       filter_id: filter.id,
       altdata: { ...(filter.altdata ?? {}), [KEY]: config },
     });
@@ -144,7 +130,7 @@ const GcnCrossmatchPlugin = () => {
             key={key}
             size="small"
             label={label}
-            helperText={`${help} — blank inherits the default`}
+            helperText={`${help} (blank inherits the default)`}
             value={values[key] ?? ""}
             onChange={(event) => {
               setValues({ ...values, [key]: event.target.value });
@@ -152,24 +138,21 @@ const GcnCrossmatchPlugin = () => {
             }}
           />
         ))}
-        <div>
+        <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
           <Tooltip
             describeChild
             title="Save these crossmatch settings. They are stored on the filter, apart from its versions, and apply whichever version is active."
           >
-            <Button primary onClick={handleSave} name="saveGcnCrossmatch">
+            <Button primary onClick={handleSave}>
               Save
             </Button>
           </Tooltip>
           {saved && (
-            <Typography
-              variant="body2"
-              sx={{ color: "text.secondary", display: "inline", ml: 1 }}
-            >
+            <Typography variant="body2" sx={{ color: "text.secondary" }}>
               Saved
             </Typography>
           )}
-        </div>
+        </Box>
       </Stack>
     </Paper>
   );

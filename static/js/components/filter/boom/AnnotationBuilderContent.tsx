@@ -217,7 +217,6 @@ const AnnotationBuilderContent = ({
         ...filterBuilderStyles.container,
       }}
     >
-      {/* Header */}
       <Box
         sx={{
           display: "flex",

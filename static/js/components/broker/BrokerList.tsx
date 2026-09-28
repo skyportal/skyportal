@@ -40,15 +40,12 @@ import NewFilterDialog from "../filter/NewFilterDialog";
 
 const Form = withTheme(MuiTheme);
 
-const capabilityChips = (caps: Record<string, boolean>) =>
+const capabilityLabels = (caps: Record<string, boolean>) =>
   [
-    { label: "search", on: Boolean(caps?.["query_alerts"]) },
-    { label: "ingest", on: Boolean(caps?.["run_ingestion"]) },
-    {
-      label: "filter",
-      on: Boolean(caps?.["filter_modules"] || caps?.["test_filter"]),
-    },
-  ].filter((c) => c.on);
+    caps?.["query_alerts"] && "search",
+    caps?.["run_ingestion"] && "ingest",
+    (caps?.["filter_modules"] || caps?.["test_filter"]) && "filter",
+  ].filter(Boolean) as string[];
 
 const NEW_BROKER_FORM_ID = "new-broker-form";
 
@@ -57,13 +54,11 @@ const optionalSchema = (node: any): any => {
   const { required, properties, ...rest } = node;
   return {
     ...rest,
-    ...(properties
-      ? {
-          properties: Object.fromEntries(
-            Object.entries(properties).map(([k, v]) => [k, optionalSchema(v)]),
-          ),
-        }
-      : {}),
+    ...(properties && {
+      properties: Object.fromEntries(
+        Object.entries(properties).map(([k, v]) => [k, optionalSchema(v)]),
+      ),
+    }),
   };
 };
 
@@ -101,18 +96,6 @@ const DEFAULT_TOGGLES = [
   },
 ] as const;
 
-const defaultBlockedReason = (
-  b: any,
-  toggle: (typeof DEFAULT_TOGGLES)[number],
-  isSystemAdmin: boolean,
-) => {
-  if (!isSystemAdmin) return "Only system admins can change the defaults.";
-  if (b[toggle.field]) return "";
-  if (!b.capabilities?.[toggle.capability]) return toggle.unsupported;
-  if (!b.active) return "Activate this broker to make it the default.";
-  return "";
-};
-
 const BrokerList = () => {
   const navigate = useNavigate();
   const { data: brokers, isLoading } = useGetBrokersQuery();
@@ -132,7 +115,7 @@ const BrokerList = () => {
   const [addOpen, setAddOpen] = useState(false);
   const [newFilterOpen, setNewFilterOpen] = useState(false);
   const [editing, setEditing] = useState<Broker | null>(null);
-  const schema = newClass ? apis?.[newClass]?.formSchemaConfig : null;
+  const schema = apis?.[newClass]?.formSchemaConfig;
 
   const openDialog = (broker: Broker | null) => {
     setEditing(broker);
@@ -176,12 +159,10 @@ const BrokerList = () => {
       headerName: "Capabilities",
       minWidth: 200,
       valueGetter: (value: Record<string, boolean>) =>
-        capabilityChips(value)
-          .map((c) => c.label)
-          .join(", "),
+        capabilityLabels(value).join(", "),
       renderCell: ({ row }: { row: Broker }) =>
-        capabilityChips(row.capabilities).map((c) => (
-          <Chip key={c.label} size="small" label={c.label} sx={{ mr: 0.5 }} />
+        capabilityLabels(row.capabilities).map((label) => (
+          <Chip key={label} size="small" label={label} sx={{ mr: 0.5 }} />
         )),
     },
     {
@@ -220,7 +201,15 @@ const BrokerList = () => {
       minWidth: 150,
       renderCell: ({ row }: { row: Broker }) => {
         const isDefault = Boolean(row[toggle.field]);
-        const blocked = defaultBlockedReason(row, toggle, isSystemAdmin);
+        const blocked = !isSystemAdmin
+          ? "Only system admins can change the defaults."
+          : isDefault
+            ? ""
+            : !row.capabilities?.[toggle.capability]
+              ? toggle.unsupported
+              : !row.active
+                ? "Activate this broker to make it the default."
+                : "";
         const pendingKey = `${row.id}:${toggle.field}`;
         return pendingDefaults.includes(pendingKey) ? (
           <CircularProgress size={20} sx={{ m: "5px" }} />

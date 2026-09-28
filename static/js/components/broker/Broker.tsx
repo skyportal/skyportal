@@ -32,51 +32,24 @@ import { dec_to_deg, ra_to_deg } from "../../units";
 
 const PAGE_SIZE = 12;
 
-const asArray = (result: unknown): unknown[] | null => {
-  if (Array.isArray(result)) return result;
-  if (
-    result &&
-    typeof result === "object" &&
-    Array.isArray((result as { objects?: unknown[] }).objects)
-  ) {
-    return (result as { objects: unknown[] }).objects;
-  }
-  return null;
-};
-
-interface NormalizedAlert extends AlertOption {
-  objectId?: string;
-}
-
-const normalizeAlert = (a: any): NormalizedAlert => {
-  const cand = a?.candidate ?? a ?? {};
-  return {
-    // `object`/`diaObjectId` are the objectId in Lasair cone/LSST result rows.
-    objectId:
-      a?.objectId ??
-      a?.diaObjectId ??
-      a?.object_id ??
-      a?.object ??
-      cand?.objectId,
-    candid: cand?.candid ?? a?.candid ?? a?._id ?? cand?.diaSourceId,
-    ra: cand?.ra ?? a?.ra,
-    dec: cand?.dec ?? a?.dec,
-    magpsf: cand?.magpsf ?? a?.magpsf ?? cand?.mag,
-    jd: cand?.jd ?? a?.jd,
-    raw: a,
-  };
-};
-
 // Mirrors the backend's survey_from_object_id.
-const surveyFromObjectId = (
+const pickSurvey = (
+  override: string | null,
   objectId: string,
   surveys: string[],
-): string | undefined => {
+) => {
   const id = objectId.trim();
-  let survey;
-  if (/^ZTF\d{2}[a-z]{7}$/.test(id)) survey = "ZTF";
-  else if (/^\d+$/.test(id)) survey = "LSST";
-  return survey && surveys.includes(survey) ? survey : undefined;
+  const guessed = /^ZTF\d{2}[a-z]{7}$/.test(id)
+    ? "ZTF"
+    : /^\d+$/.test(id)
+      ? "LSST"
+      : undefined;
+  return (
+    override ||
+    (guessed && surveys.includes(guessed) ? guessed : undefined) ||
+    surveys[0] ||
+    "ZTF"
+  );
 };
 
 const TooltipTab = ({ tooltip, ...tabProps }: any) => (
@@ -117,27 +90,34 @@ const Broker = () => {
   const error = mode === "preview" ? filterError : alertError;
   const isFetching = alertFetching || filterFetching;
 
-  const broker = (brokers || []).find((b) => b.id === brokerId);
+  const broker = brokers?.find((b) => b.id === brokerId);
   const surveys = broker?.surveys ?? [];
-  const searchSurvey =
-    survey || surveyFromObjectId(objectId, surveys) || surveys[0] || "ZTF";
-  const canQuery = Boolean(broker?.capabilities?.["query_alerts"]);
-  const canPreview = Boolean(broker?.capabilities?.["test_filter"]);
+  const searchSurvey = pickSurvey(survey, objectId, surveys);
   const hasFilters = Boolean(broker && broker.filter_kind !== "none");
-  const TABS = [
+  const tabs = [
     {
       label: "Alerts",
-      enabled: canQuery,
-      reason: `${broker?.name} does not support alerts query.`,
+      disabledReason: broker?.capabilities?.["query_alerts"]
+        ? ""
+        : `${broker?.name} does not support alerts query.`,
     },
     {
       label: "Filters",
-      enabled: hasFilters,
-      reason: `${broker?.name} does not support filters.`,
+      disabledReason: hasFilters
+        ? ""
+        : `${broker?.name} does not support filters.`,
     },
-    { label: "Credentials", enabled: true, reason: "" },
+    { label: "Credentials", disabledReason: "" },
   ];
-  const activeTab = TABS[tab]?.enabled ? tab : TABS.findIndex((t) => t.enabled);
+  const activeTab = tabs[tab]?.disabledReason
+    ? tabs.findIndex((t) => !t.disabledReason)
+    : tab;
+
+  const startQuery = (newMode: typeof mode) => {
+    setMode(newMode);
+    setPage(1);
+    setFilters([]);
+  };
 
   const search = (params: {
     objectId: string;
@@ -146,9 +126,7 @@ const Broker = () => {
     dec?: string;
     radius?: string;
   }) => {
-    setMode("search");
-    setPage(1);
-    setFilters([]);
+    startQuery("search");
     setQueriedSurvey(params.survey);
     triggerAlerts({
       brokerId,
@@ -168,35 +146,29 @@ const Broker = () => {
   useEffect(() => {
     if (autoSearched.current || !broker) return;
     autoSearched.current = true;
-    const oid = searchParams.get("objectId") || "";
-    const uRa = searchParams.get("ra") || "";
-    const uDec = searchParams.get("dec") || "";
-    const uRadius = searchParams.get("radius") || "";
-    if (!oid && !uRa) return;
+    const params = {
+      objectId: searchParams.get("objectId") || "",
+      ra: searchParams.get("ra") || "",
+      dec: searchParams.get("dec") || "",
+      radius: searchParams.get("radius") || "",
+    };
+    if (!params.objectId && !params.ra) return;
 
-    const uSurvey =
-      searchParams.get("survey") ||
-      surveyFromObjectId(oid, broker.surveys ?? []) ||
-      broker.surveys?.[0] ||
-      "ZTF";
-    setObjectId(oid);
-    setRa(uRa);
-    setDec(uDec);
-    setRadius(uRadius);
+    const uSurvey = pickSurvey(
+      searchParams.get("survey"),
+      params.objectId,
+      surveys,
+    );
+    setObjectId(params.objectId);
+    setRa(params.ra);
+    setDec(params.dec);
+    setRadius(params.radius);
     setSurvey(uSurvey);
-    search({
-      objectId: oid,
-      ra: uRa,
-      dec: uDec,
-      radius: uRadius,
-      survey: uSurvey,
-    });
+    search({ ...params, survey: uSurvey });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [broker]);
 
   const coneDisabled = objectId.trim() !== "";
-  const coneReason =
-    "Disabled while an Object ID is set: the search is done by object, not by position.";
   const coneFields = [
     {
       label: "RA (deg)",
@@ -213,34 +185,43 @@ const Broker = () => {
     { label: "Radius (arcsec)", value: radius, set: setRadius },
   ];
 
-  const onPreview = (params: Record<string, unknown>) => {
-    setMode("preview");
-    setPage(1);
-    setFilters([]);
-    triggerFilter({ brokerId, params });
-  };
-
-  const rows = asArray(data);
+  const rows: unknown[] | null = Array.isArray(data)
+    ? data
+    : Array.isArray((data as any)?.objects)
+      ? (data as any).objects
+      : null;
   const flatRows = useMemo(() => (rows ?? []).map((r) => flatten(r)), [rows]);
   const fields = useMemo(() => fieldsOf(flatRows), [flatRows]);
   const kept = rows?.filter((_r, i) =>
     matchesFilters(flatRows[i] ?? {}, filters),
   );
 
-  const byObject = new Map<string, NormalizedAlert[]>();
-  // candid is optional: Lasair cone rows have none.
-  (kept ?? []).map(normalizeAlert).forEach((a) => {
-    if (a.objectId)
-      byObject.set(a.objectId, [...(byObject.get(a.objectId) ?? []), a]);
+  const byObject = new Map<string, AlertOption[]>();
+  (kept ?? []).forEach((a: any) => {
+    const cand = a?.candidate ?? a ?? {};
+    const oid =
+      a?.objectId ??
+      a?.diaObjectId ??
+      a?.object_id ??
+      a?.object ??
+      cand?.objectId;
+    if (!oid) return;
+    byObject.set(oid, [
+      ...(byObject.get(oid) ?? []),
+      {
+        candid: cand?.candid ?? a?.candid ?? a?._id ?? cand?.diaSourceId,
+        ra: cand?.ra ?? a?.ra,
+        dec: cand?.dec ?? a?.dec,
+        magpsf: cand?.magpsf ?? a?.magpsf ?? cand?.mag,
+        jd: cand?.jd ?? a?.jd,
+        raw: a,
+      },
+    ]);
   });
-  const objectGroups = [...byObject].map(([oid, alerts]) => ({
-    objectId: oid,
-    alerts,
-  }));
-  const pageCount = Math.ceil(objectGroups.length / PAGE_SIZE);
+  const pageCount = Math.ceil(byObject.size / PAGE_SIZE);
   const current = Math.min(page, pageCount);
   const start = (current - 1) * PAGE_SIZE;
-  const pageGroups = objectGroups.slice(start, start + PAGE_SIZE);
+  const pageGroups = [...byObject].slice(start, start + PAGE_SIZE);
 
   if (brokersLoading) return <Spinner />;
 
@@ -286,15 +267,15 @@ const Broker = () => {
         <>
           <Tabs
             sx={{ borderBottom: 1, borderColor: "divider", mb: 2 }}
-            value={activeTab === -1 ? false : activeTab}
+            value={activeTab}
             onChange={(_event, value) => setTab(value)}
           >
-            {TABS.map((t) => (
+            {tabs.map((t) => (
               <TooltipTab
                 key={t.label}
                 label={t.label}
-                disabled={!t.enabled}
-                tooltip={t.enabled ? "" : t.reason}
+                disabled={Boolean(t.disabledReason)}
+                tooltip={t.disabledReason}
               />
             ))}
           </Tabs>
@@ -337,7 +318,13 @@ const Broker = () => {
                 </Tooltip>
               )}
               {coneFields.map(({ label, placeholder, value, set }) => (
-                <Tooltip key={label} title={coneDisabled ? coneReason : ""}>
+                <Tooltip
+                  key={label}
+                  title={
+                    coneDisabled &&
+                    "Disabled while an Object ID is set: the search is done by object, not by position."
+                  }
+                >
                   <span>
                     <TextField
                       size="small"
@@ -367,17 +354,21 @@ const Broker = () => {
           )}
 
           {activeTab === 1 &&
-            (broker.broker_classname === "LASAIRBROKER" && canPreview ? (
+            (broker.broker_classname === "LASAIRBROKER" &&
+            broker.capabilities?.["test_filter"] ? (
               <LasairFilterBuilder
                 brokerId={brokerId}
                 survey={searchSurvey}
-                onPreview={onPreview}
+                onPreview={(params) => {
+                  startQuery("preview");
+                  triggerFilter({ brokerId, params });
+                }}
               />
             ) : broker.broker_classname === "BOOMBROKER" ? (
               <FilterCatalog brokerId={brokerId} />
             ) : (
               <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                {`${broker.name} — filter editor coming soon.`}
+                {`${broker.name}: filter editor coming soon.`}
               </Typography>
             ))}
 
@@ -410,12 +401,12 @@ const Broker = () => {
               )}
 
               {data !== undefined &&
-                (objectGroups.length > 0 ? (
+                (byObject.size > 0 ? (
                   <>
                     <Typography variant="subtitle2" gutterBottom>
-                      {`${objectGroups.length} object${
-                        objectGroups.length === 1 ? "" : "s"
-                      } — showing ${start + 1}–${start + pageGroups.length}`}
+                      {`${byObject.size} object${
+                        byObject.size === 1 ? "" : "s"
+                      }, showing ${start + 1}–${start + pageGroups.length}`}
                     </Typography>
                     <Box
                       sx={{
@@ -427,14 +418,14 @@ const Broker = () => {
                         gap: 2,
                       }}
                     >
-                      {pageGroups.map((g) => (
+                      {pageGroups.map(([oid, alerts]) => (
                         <BrokerAlertCard
-                          key={g.objectId}
+                          key={oid}
                           brokerId={brokerId}
                           brokerClassname={broker.broker_classname}
-                          objectId={g.objectId}
+                          objectId={oid}
                           survey={queriedSurvey || searchSurvey}
-                          alerts={g.alerts}
+                          alerts={alerts}
                           expanded={pageGroups.length === 1}
                         />
                       ))}

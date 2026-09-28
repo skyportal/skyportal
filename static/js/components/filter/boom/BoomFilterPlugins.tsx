@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { type ReactNode, useEffect, useRef, useState } from "react";
 import FormControlLabel from "@mui/material/FormControlLabel";
 import Switch from "@mui/material/Switch";
 import Tab from "@mui/material/Tab";
@@ -60,7 +60,7 @@ const Section = ({
 }: {
   title: string;
   nested?: boolean;
-  children: any;
+  children: ReactNode;
 }) => (
   <Box
     sx={{
@@ -163,7 +163,7 @@ const BoomFilterPlugins = () => {
     }
   }, [validation, dispatch]);
   const canActivate = filter_v.active || isValidated || isAdmin;
-  const versions: any[] = filter_v.fv ?? [];
+  const versions = filter_v.fv ?? [];
   const noVersion = isLoading || versions.length === 0;
   const autoSaveOn = !!filter_v.autosave;
   const autoFollowupDefaultId: number | null =
@@ -189,85 +189,76 @@ const BoomFilterPlugins = () => {
     message: string,
   ) => {
     setBusy(Object.keys(patch)[0] ?? null);
-    const result: any = await editFilterVersion({
+    const result = await editFilterVersion({
       filter_id: filter_v.id,
       active: filter_v.active,
       active_fid: filter_v.active_fid,
       ...patch,
     });
-    if (!result.error) dispatch(showNotification(message));
+    if (!("error" in result)) dispatch(showNotification(message));
     await refetchFilterVersion();
     setBusy(null);
   };
 
   const handleAutoFollowupToggle = async (checked: boolean) => {
-    // The flag is only set once a default request is created in the config.
     if (checked) {
       setFollowupConfigOpen(true);
       return;
     }
-    if (autoFollowupDefaultId) {
-      try {
-        await deleteDefaultFollowup(autoFollowupDefaultId).unwrap();
-      } catch {
-        // notification handled by baseQuery
-      }
-    }
+    if (autoFollowupDefaultId)
+      await deleteDefaultFollowup(autoFollowupDefaultId);
     setFollowupConfigOpen(false);
     updateFlags({ autoFollowup: false, autoFollowupDefaultId: null });
   };
 
   const handleValidate = async () => {
-    try {
-      await validateFilter({
-        filter_id: filter_v.id,
-        fid: filter_v.active_fid,
-      }).unwrap();
+    const result = await validateFilter({
+      filter_id: filter_v.id,
+      fid: filter_v.active_fid,
+    });
+    if (!("error" in result)) {
       dispatch(
         showNotification("Validation started, this can take a few minutes."),
       );
-    } catch {
-      // notification handled by baseQuery
     }
     refetchFilterVersion();
   };
 
-  const validationChip = isLoading ? (
-    <Chip size="small" icon={<CircularProgress size={12} />} label="Loading…" />
-  ) : noVersion ? null : validating ? (
-    <Chip
-      size="small"
-      icon={<CircularProgress size={12} />}
-      label="Validating…"
-    />
-  ) : interrupted ? (
-    <Tooltip title="The validation did not finish, please validate again.">
+  const validationChip =
+    isLoading || (!noVersion && validating) ? (
       <Chip
         size="small"
-        color="warning"
-        icon={<HelpOutlineIcon />}
-        label="Validation interrupted"
+        icon={<CircularProgress size={12} />}
+        label={isLoading ? "Loading…" : "Validating…"}
       />
-    </Tooltip>
-  ) : validation ? (
-    <Tooltip title={isValidated ? "" : (validation.message ?? "")}>
-      <Chip
-        size="small"
-        color={isValidated ? "success" : "error"}
-        icon={isValidated ? <CheckCircleIcon /> : <CancelIcon />}
-        label={isValidated ? "Validated" : "Validation failed"}
-      />
-    </Tooltip>
-  ) : (
-    !filter_v.active && (
-      <Chip
-        size="small"
-        variant="outlined"
-        icon={<HelpOutlineIcon />}
-        label="Not validated"
-      />
-    )
-  );
+    ) : noVersion ? null : interrupted ? (
+      <Tooltip title="The validation did not finish, please validate again.">
+        <Chip
+          size="small"
+          color="warning"
+          icon={<HelpOutlineIcon />}
+          label="Validation interrupted"
+        />
+      </Tooltip>
+    ) : validation ? (
+      <Tooltip title={isValidated ? "" : (validation.message ?? "")}>
+        <Chip
+          size="small"
+          color={isValidated ? "success" : "error"}
+          icon={isValidated ? <CheckCircleIcon /> : <CancelIcon />}
+          label={isValidated ? "Validated" : "Validation failed"}
+        />
+      </Tooltip>
+    ) : (
+      !filter_v.active && (
+        <Chip
+          size="small"
+          variant="outlined"
+          icon={<HelpOutlineIcon />}
+          label="Not validated"
+        />
+      )
+    );
 
   return (
     <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
@@ -471,7 +462,7 @@ const BoomFilterPlugins = () => {
               filterId={filter_v.id}
               groupId={filter_v.group_id}
               existingDefaultId={autoFollowupDefaultId}
-              onLinked={async (id: number | null) => {
+              onLinked={(id: number | null) => {
                 if (id != null) setFollowupConfigOpen(false);
                 updateFlags({
                   autoFollowup: id != null,
@@ -484,7 +475,7 @@ const BoomFilterPlugins = () => {
       </Paper>
       <Tabs
         value={tab}
-        onChange={(_event, value) => setTab(value)}
+        onChange={(_, value) => setTab(value)}
         sx={{ borderBottom: 1, borderColor: "divider" }}
       >
         <Tab label="Filter builder" />

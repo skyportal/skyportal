@@ -1,7 +1,6 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import Paper from "@mui/material/Paper";
 import Grid from "@mui/material/Grid";
-import { makeStyles } from "tss-react/mui";
 import Form from "@rjsf/mui";
 import validator from "@rjsf/validator-ajv8";
 import dayjs from "dayjs";
@@ -16,42 +15,6 @@ import StyledDataGrid from "../StyledDataGrid";
 import { useAppDispatch } from "../../types/hooks";
 import { usePostMovingObjectObsPlanMutation } from "../../ducks/moving_object";
 import { useGetInstrumentsQuery } from "../../ducks/instruments";
-
-const useStyles = makeStyles()((theme) => ({
-  root: {
-    width: "100%",
-    backgroundColor: theme.palette.background.paper,
-    whiteSpace: "pre-line",
-  },
-  paperContent: {
-    padding: "1rem",
-    marginBottom: "1rem",
-  },
-  spinner: {
-    margin: "auto",
-    fontWeight: "bold",
-    fontSize: "1.25rem",
-    textAlign: "center",
-  },
-}));
-
-const PlaceHolder = () => {
-  const { classes } = useStyles();
-  return (
-    <div className={classes.spinner}>
-      <TextLoop interval={1500}>
-        <span>Retrieving data from JPL Horizons</span>
-        <span>Calculating airmass</span>
-        <span>Checking moon distance</span>
-        <span>Checking sun altitude</span>
-        <span>Finding observable fields</span>
-        <span>Generating observation plan</span>
-      </TextLoop>{" "}
-      <br /> <br />
-      <CircularProgress color="primary" />
-    </div>
-  );
-};
 
 const COLUMNS = [
   {
@@ -92,66 +55,39 @@ const COLUMNS = [
 ];
 
 const MovingObjectObsPlanPage = () => {
-  const { classes } = useStyles();
-  const { data: instruments = [] } = useGetInstrumentsQuery() as {
-    data: any[];
-  };
+  const { data: instruments = [] } = useGetInstrumentsQuery();
   const dispatch = useAppDispatch();
-  const [postMovingObjectObsPlan] = usePostMovingObjectObsPlanMutation();
+  const [postMovingObjectObsPlan, { isLoading }] =
+    usePostMovingObjectObsPlanMutation();
 
-  const [instrumentOptions, setInstrumentOptions] = useState<any>({
-    enum: [],
-    enumNames: [],
-  });
   const [formData, setFormData] = useState<any>({});
-
   const [planData, setPlanData] = useState<any[]>([]);
-  const [loading, setLoading] = useState(false);
 
-  const defaultStartTime = new Date();
-  const defaultEndTime = new Date();
-  defaultEndTime.setHours(defaultEndTime.getHours() + 24);
+  const validInstruments = instruments.filter(
+    (instrument: any) =>
+      (instrument.filters?.length ?? 0) > 0 && instrument.has_fields === true,
+  );
 
-  useEffect(() => {
-    const valid_instruments = (instruments || []).filter(
-      (instrument: any) =>
-        (instrument.filters?.length ?? 0) > 0 &&
-        (instrument as any).has_fields === true,
-    );
-
-    setInstrumentOptions({
-      enum: valid_instruments.map((instrument: any) => instrument.id),
-      enumNames: valid_instruments.map((instrument: any) => instrument.name),
-    });
-  }, [instruments]);
-
-  async function onFormSubmit(params: any) {
-    setLoading(true);
-    let name = params.formData.name.replace(/\s/g, "");
-    // `name` is the URL path param; the API rejects unknown body keys, so keep
-    // it out of the request body.
-    let data = Object.fromEntries(
-      Object.entries(params.formData).filter(
-        ([k, v]) => k !== "name" && v != null,
+  const onFormSubmit = async ({ formData: submitted }: any) => {
+    const { data: result } = await postMovingObjectObsPlan({
+      name: submitted.name.replace(/\s/g, ""),
+      // name is a path param and the API rejects unknown body keys
+      data: Object.fromEntries(
+        Object.entries(submitted).filter(([k, v]) => k !== "name" && v != null),
       ),
-    );
-    try {
-      const result = await postMovingObjectObsPlan({ name, data }).unwrap();
-      if (result.length === 0) {
-        dispatch(
-          showNotification("No fields found for the given criteria", "warning"),
-        );
-      } else {
-        dispatch(
-          showNotification("Observation plan generated successfully", "info"),
-        );
-        setPlanData(result.map((row: any, id: number) => ({ ...row, id })));
-      }
-    } catch {
-      // error notification is handled by the base query
+    });
+    if (!result) return;
+    if (result.length === 0) {
+      dispatch(
+        showNotification("No fields found for the given criteria", "warning"),
+      );
+    } else {
+      dispatch(
+        showNotification("Observation plan generated successfully", "info"),
+      );
+      setPlanData(result.map((row: any, id: number) => ({ ...row, id })));
     }
-    setLoading(false);
-  }
+  };
 
   const formSchema = {
     type: "object",
@@ -164,19 +100,19 @@ const MovingObjectObsPlanPage = () => {
       instrument_id: {
         type: "integer",
         title: "Instrument",
-        enum: instrumentOptions.enum,
+        enum: validInstruments.map((instrument: any) => instrument.id),
       },
       start_time: {
         type: "string",
         format: "date-time",
         title: "Start Time (UTC)",
-        default: defaultStartTime.toISOString().split(".")[0],
+        default: new Date().toISOString().split(".")[0],
       },
       end_time: {
         type: "string",
         format: "date-time",
         title: "End Time (UTC)",
-        default: defaultEndTime.toISOString().split(".")[0],
+        default: dayjs().add(1, "day").toISOString().split(".")[0],
       },
       exposure_count: {
         type: "number",
@@ -192,9 +128,8 @@ const MovingObjectObsPlanPage = () => {
         type: "string",
         title: "Filter",
         enum:
-          (instruments || []).filter(
-            (i: any) => i.id === formData.instrument_id,
-          )[0]?.filters || [],
+          instruments.find((i: any) => i.id === formData.instrument_id)
+            ?.filters || [],
       },
       primary_only: {
         type: "boolean",
@@ -232,71 +167,62 @@ const MovingObjectObsPlanPage = () => {
     ],
   };
 
-  // we want to have a form with a nice layout, with 2 columns
   const uiSchema = {
-    instrument_id: { "ui:enumNames": instrumentOptions.enumNames },
+    instrument_id: {
+      "ui:enumNames": validInstruments.map(
+        (instrument: any) => instrument.name,
+      ),
+    },
     "ui:grid": [
-      {
-        name: 12,
-      },
-      {
-        instrument_id: 6,
-        filter: 6,
-      },
-      {
-        start_time: 6,
-        end_time: 6,
-      },
-      {
-        exposure_count: 6,
-        exposure_time: 6,
-      },
-      {
-        primary_only: 12,
-      },
-      {
-        airmass_limit: 4,
-        moon_distance_limit: 4,
-        sun_altitude_limit: 4,
-      },
+      { name: 12 },
+      { instrument_id: 6, filter: 6 },
+      { start_time: 6, end_time: 6 },
+      { exposure_count: 6, exposure_time: 6 },
+      { primary_only: 12 },
+      { airmass_limit: 4, moon_distance_limit: 4, sun_altitude_limit: 4 },
     ],
   };
-
-  if (!instruments) {
-    return (
-      <Paper>
-        <div className={classes.paperContent}>
-          <CircularProgress />
-        </div>
-      </Paper>
-    );
-  }
 
   return (
     <Grid container spacing={2}>
       <Grid size={{ lg: 5, md: 12 }}>
-        <Paper elevation={1}>
-          <div className={classes.paperContent}>
-            <Form
-              schema={formSchema as any}
-              formData={formData}
-              onChange={(e) => setFormData(e.formData)}
-              onSubmit={onFormSubmit}
-              validator={validator}
-              uiSchema={uiSchema as any}
-              templates={{ ObjectFieldTemplate: MyObjectFieldTemplate }}
-            />
-          </div>
+        <Paper sx={{ p: "1rem", mb: "1rem" }}>
+          <Form
+            schema={formSchema as any}
+            formData={formData}
+            onChange={(e) => setFormData(e.formData)}
+            onSubmit={onFormSubmit}
+            validator={validator}
+            uiSchema={uiSchema as any}
+            templates={{ ObjectFieldTemplate: MyObjectFieldTemplate }}
+          />
         </Paper>
       </Grid>
       <Grid size={{ lg: 7, md: 12 }}>
-        <Paper elevation={1} sx={{ height: "calc(100vh - 5.25rem)" }}>
+        <Paper sx={{ height: "calc(100vh - 5.25rem)" }}>
           <StyledDataGrid rows={planData} columns={COLUMNS} />
         </Paper>
       </Grid>
-      <Dialog open={loading} maxWidth="sm" fullWidth>
-        <DialogContent>
-          <PlaceHolder />
+      <Dialog open={isLoading} maxWidth="sm" fullWidth>
+        <DialogContent
+          sx={{
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            gap: "2rem",
+            fontWeight: "bold",
+            fontSize: "1.25rem",
+          }}
+        >
+          <TextLoop interval={1500}>
+            <span>Retrieving data from JPL Horizons</span>
+            <span>Calculating airmass</span>
+            <span>Checking moon distance</span>
+            <span>Checking sun altitude</span>
+            <span>Finding observable fields</span>
+            <span>Generating observation plan</span>
+          </TextLoop>
+          <CircularProgress color="primary" />
         </DialogContent>
       </Dialog>
     </Grid>

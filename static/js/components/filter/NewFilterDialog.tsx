@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { type FormEvent, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 import Button from "@mui/material/Button";
@@ -52,29 +52,20 @@ const NewFilterDialog = ({
     stream === "" ||
     (filterBrokers.length > 0 && broker === "");
 
-  const onCreate = async () => {
-    if (incomplete) return;
-    try {
-      const { id } = (await addGroupFilter({
-        name,
-        group_id: group,
-        stream_id: stream,
-        broker_id: broker || null,
-      }).unwrap()) as { id: number };
-      navigate(`/filter/${id}`);
-    } catch {
-      // error notification is surfaced by the base query
-    }
+  const onCreate = async (e: FormEvent) => {
+    e.preventDefault();
+    const { data } = await addGroupFilter({
+      name,
+      group_id: group,
+      stream_id: stream,
+      broker_id: broker || null,
+    });
+    if (data) navigate(`/filter/${data.id}`);
   };
 
   return (
     <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
-      <form
-        onSubmit={(e) => {
-          e.preventDefault();
-          onCreate();
-        }}
-      >
+      <form onSubmit={onCreate}>
         <DialogTitle>New filter</DialogTitle>
         <DialogContent dividers>
           <Stack spacing={2}>

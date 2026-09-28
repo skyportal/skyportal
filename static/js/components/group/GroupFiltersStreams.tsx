@@ -6,22 +6,17 @@ import CloseIcon from "@mui/icons-material/Close";
 import DeleteIcon from "@mui/icons-material/Delete";
 import EditIcon from "@mui/icons-material/Edit";
 import Box from "@mui/material/Box";
-import MuiButton from "@mui/material/Button";
 import Dialog from "@mui/material/Dialog";
 import DialogActions from "@mui/material/DialogActions";
 import DialogContent from "@mui/material/DialogContent";
 import DialogTitle from "@mui/material/DialogTitle";
-import FormControl from "@mui/material/FormControl";
 import IconButton from "@mui/material/IconButton";
-import InputLabel from "@mui/material/InputLabel";
 import List from "@mui/material/List";
 import ListItem from "@mui/material/ListItem";
 import ListItemButton from "@mui/material/ListItemButton";
-import ListItemSecondaryAction from "@mui/material/ListItemSecondaryAction";
 import ListItemText from "@mui/material/ListItemText";
 import MenuItem from "@mui/material/MenuItem";
 import Paper from "@mui/material/Paper";
-import Select from "@mui/material/Select";
 import TextField from "@mui/material/TextField";
 import Tooltip from "@mui/material/Tooltip";
 import Typography from "@mui/material/Typography";
@@ -34,7 +29,7 @@ import NewFilterDialog from "../filter/NewFilterDialog";
 import { useAppDispatch } from "../../types/hooks";
 import {
   useDeleteGroupFilterMutation,
-  useUpdateFilterNameMutation,
+  useUpdateFilterMutation,
 } from "../../ducks/filter";
 import { groupApi } from "../../ducks/group";
 import {
@@ -63,7 +58,7 @@ const GroupFiltersStreams = ({
   const { data: streams } = useGetStreamsQuery();
   const [deleteGroupFilter] = useDeleteGroupFilterMutation();
   const [addGroupStream] = useAddGroupStreamMutation();
-  const [updateFilterName] = useUpdateFilterNameMutation();
+  const [updateFilter] = useUpdateFilterMutation();
 
   const canEdit = isAdmin(currentUser);
   const groupStreamIds = group.streams?.map((stream: any) => stream.id) ?? [];
@@ -71,45 +66,33 @@ const GroupFiltersStreams = ({
     dispatch(groupApi.util.invalidateTags([{ type: "Group", id: group.id }]));
 
   const onAddStream = async () => {
-    try {
-      await addGroupStream({
-        group_id: group.id,
-        stream_id: newStreamId,
-      }).unwrap();
-      dispatch(showNotification("Added stream to group"));
-      refreshGroup();
-      setAddStreamOpen(false);
-    } catch {
-      // error notification handled by the base query
-    }
+    const { error } = await addGroupStream({
+      group_id: group.id,
+      stream_id: newStreamId,
+    });
+    if (error) return;
+    dispatch(showNotification("Added stream to group"));
+    refreshGroup();
+    setAddStreamOpen(false);
   };
 
   const handleDeleteFilter = async () => {
-    try {
-      await deleteGroupFilter({ filter_id: filterToDelete.id }).unwrap();
-      dispatch(showNotification("Deleted filter from group"));
-    } catch {
-      // error notification handled by the base query
-    }
+    const { error } = await deleteGroupFilter({ filter_id: filterToDelete.id });
+    if (!error) dispatch(showNotification("Deleted filter from group"));
     setFilterToDelete(null);
     refreshGroup();
   };
 
   const handleSaveRename = async () => {
-    const trimmed = editNameInput.trim();
-    if (!trimmed) {
+    const name = editNameInput.trim();
+    if (!name) {
       dispatch(showNotification("Filter name cannot be empty.", "error"));
       return;
     }
-    try {
-      await updateFilterName({
-        filter_id: editingFilterId!,
-        name: trimmed,
-      }).unwrap();
+    const { error } = await updateFilter({ filter_id: editingFilterId!, name });
+    if (!error) {
       dispatch(showNotification("Filter name updated."));
       refreshGroup();
-    } catch {
-      // error notification handled by the base query
     }
     setEditingFilterId(null);
   };
@@ -117,9 +100,9 @@ const GroupFiltersStreams = ({
   if (!streams?.length) return null;
 
   return (
-    <Box sx={{ p: 1.5 }}>
+    <Box sx={{ display: "flex", flexDirection: "column", gap: 1, p: 1.5 }}>
       <Typography variant="h6">Streams and filters</Typography>
-      <Paper sx={{ mb: 1 }}>
+      <Paper>
         <List component="nav">
           {group.streams?.length ? (
             group.streams.map((stream: any) => (
@@ -149,7 +132,28 @@ const GroupFiltersStreams = ({
                     .filter((filter: any) => filter.stream_id === stream.id)
                     .map((filter: any) =>
                       editingFilterId === filter.id ? (
-                        <ListItem key={filter.id} sx={{ pl: 2 }}>
+                        <ListItem
+                          key={filter.id}
+                          secondaryAction={
+                            <>
+                              <IconButton
+                                size="small"
+                                onClick={handleSaveRename}
+                                aria-label="save filter name"
+                                data-testid="save-filter-name-button"
+                              >
+                                <CheckIcon fontSize="small" />
+                              </IconButton>
+                              <IconButton
+                                size="small"
+                                onClick={() => setEditingFilterId(null)}
+                                aria-label="cancel filter rename"
+                              >
+                                <CloseIcon fontSize="small" />
+                              </IconButton>
+                            </>
+                          }
+                        >
                           <TextField
                             value={editNameInput}
                             onChange={(e) => setEditNameInput(e.target.value)}
@@ -163,69 +167,55 @@ const GroupFiltersStreams = ({
                             }}
                             autoFocus
                           />
-                          <ListItemSecondaryAction>
-                            <IconButton
-                              size="small"
-                              onClick={handleSaveRename}
-                              aria-label="save filter name"
-                              data-testid="save-filter-name-button"
-                            >
-                              <CheckIcon fontSize="small" />
-                            </IconButton>
-                            <IconButton
-                              size="small"
-                              onClick={() => setEditingFilterId(null)}
-                              aria-label="cancel filter rename"
-                            >
-                              <CloseIcon fontSize="small" />
-                            </IconButton>
-                          </ListItemSecondaryAction>
                         </ListItem>
                       ) : (
-                        <ListItemButton
+                        <ListItem
                           key={filter.id}
-                          component={Link}
-                          to={`/filter/${filter.id}`}
+                          disablePadding
+                          secondaryAction={
+                            canEdit && (
+                              <>
+                                <Tooltip
+                                  title={`Rename filter "${filter.name}"`}
+                                  placement="left"
+                                >
+                                  <IconButton
+                                    onClick={() => {
+                                      setEditingFilterId(filter.id);
+                                      setEditNameInput(filter.name);
+                                    }}
+                                    aria-label="rename filter"
+                                    data-testid={`rename-filter-${filter.id}`}
+                                  >
+                                    <EditIcon />
+                                  </IconButton>
+                                </Tooltip>
+                                <Tooltip
+                                  title={`Delete filter "${filter.name}"`}
+                                  placement="left"
+                                >
+                                  <IconButton
+                                    onClick={() => setFilterToDelete(filter)}
+                                    color="error"
+                                    aria-label="delete filter"
+                                  >
+                                    <DeleteIcon />
+                                  </IconButton>
+                                </Tooltip>
+                              </>
+                            )
+                          }
                         >
-                          <ListItemText sx={{ pl: 2 }} primary={filter.name} />
-                          {canEdit && (
-                            <ListItemSecondaryAction>
-                              <Tooltip
-                                title={`Rename filter "${filter.name}"`}
-                                placement="left"
-                              >
-                                <IconButton
-                                  onClick={(e) => {
-                                    e.preventDefault();
-                                    e.stopPropagation();
-                                    setEditingFilterId(filter.id);
-                                    setEditNameInput(filter.name);
-                                  }}
-                                  aria-label="rename filter"
-                                  data-testid={`rename-filter-${filter.id}`}
-                                >
-                                  <EditIcon />
-                                </IconButton>
-                              </Tooltip>
-                              <Tooltip
-                                title={`Delete filter "${filter.name}"`}
-                                placement="left"
-                              >
-                                <IconButton
-                                  onClick={(e) => {
-                                    e.preventDefault();
-                                    e.stopPropagation();
-                                    setFilterToDelete(filter);
-                                  }}
-                                  color="error"
-                                  aria-label="delete filter"
-                                >
-                                  <DeleteIcon />
-                                </IconButton>
-                              </Tooltip>
-                            </ListItemSecondaryAction>
-                          )}
-                        </ListItemButton>
+                          <ListItemButton
+                            component={Link}
+                            to={`/filter/${filter.id}`}
+                          >
+                            <ListItemText
+                              sx={{ pl: 2 }}
+                              primary={filter.name}
+                            />
+                          </ListItemButton>
+                        </ListItem>
                       ),
                     )}
                 </List>
@@ -246,6 +236,7 @@ const GroupFiltersStreams = ({
             setAddStreamOpen(true);
           }}
           disabled={groupStreamIds.length >= streams.length}
+          sx={{ alignSelf: "flex-start" }}
         >
           Add stream
         </Button>
@@ -258,36 +249,34 @@ const GroupFiltersStreams = ({
       >
         <DialogTitle>Add stream to group</DialogTitle>
         <DialogContent dividers>
-          <FormControl size="small" fullWidth>
-            <InputLabel id="alert-stream-select-required-label">
-              Alert stream
-            </InputLabel>
-            <Select
-              label="Alert stream"
-              labelId="alert-stream-select-required-label"
-              value={newStreamId}
-              onChange={(e) => setNewStreamId(e.target.value as number)}
-            >
-              {streams
-                .filter((stream: any) => !groupStreamIds.includes(stream.id))
-                .map((stream: any) => (
-                  <MenuItem value={stream.id} key={stream.id}>
-                    {stream.name}
-                  </MenuItem>
-                ))}
-            </Select>
-          </FormControl>
+          <TextField
+            select
+            fullWidth
+            size="small"
+            id="alert-stream-select-required"
+            label="Alert stream"
+            value={newStreamId}
+            onChange={(e) => setNewStreamId(Number(e.target.value))}
+          >
+            {streams
+              .filter((stream: any) => !groupStreamIds.includes(stream.id))
+              .map((stream: any) => (
+                <MenuItem value={stream.id} key={stream.id}>
+                  {stream.name}
+                </MenuItem>
+              ))}
+          </TextField>
         </DialogContent>
         <DialogActions>
-          <MuiButton onClick={() => setAddStreamOpen(false)}>Cancel</MuiButton>
-          <MuiButton
-            variant="contained"
+          <Button onClick={() => setAddStreamOpen(false)}>Cancel</Button>
+          <Button
+            primary
             disabled={newStreamId === ""}
             onClick={onAddStream}
             data-testid="add-stream-dialog-submit"
           >
             Add
-          </MuiButton>
+          </Button>
         </DialogActions>
       </Dialog>
       {filterStreamId !== null && (

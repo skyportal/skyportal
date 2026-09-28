@@ -394,7 +394,6 @@ const FilterBuilderContent = ({
     }
 
     try {
-      // Use the current local filter data (which includes user modifications)
       const currentFilters =
         localFilterData || contextFilters || filtersToRender;
 
@@ -412,9 +411,7 @@ const FilterBuilderContent = ({
       if (!result.error) {
         dispatch(showNotification("Filter saved to boom database!"));
         refetchFilterVersion();
-        if (setShowAnnotationBuilder) {
-          setShowAnnotationBuilder(false);
-        }
+        setShowAnnotationBuilder?.(false);
       }
     } catch (err) {
       console.error("Error saving filter:", err);
@@ -440,12 +437,10 @@ const FilterBuilderContent = ({
         flexDirection: "column",
         gap: 2,
         ...filterBuilderStyles.container,
-        // Ensure this container allows sticky positioning
         position: "relative",
         height: "100%",
       }}
     >
-      {/* Header with buttons */}
       <Box
         sx={{
           display: "flex",
@@ -470,14 +465,6 @@ const FilterBuilderContent = ({
                 }
                 onClick={handleSaveFilter}
                 disabled={saving || !hasValidQuery() || !!rawPipeline}
-                sx={{
-                  backgroundColor: hasValidQuery() ? "primary.main" : undefined,
-                  "&:hover": {
-                    backgroundColor: hasValidQuery()
-                      ? "primary.dark"
-                      : undefined,
-                  },
-                }}
               >
                 {saving ? "Saving…" : "Save"}
               </Button>

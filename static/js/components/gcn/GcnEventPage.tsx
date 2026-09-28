@@ -6,6 +6,7 @@ import { useAppDispatch } from "../../types/hooks";
 import Cancel from "@mui/icons-material/Cancel";
 import GetAppIcon from "@mui/icons-material/GetApp";
 import useMediaQuery from "@mui/material/useMediaQuery";
+import Box from "@mui/material/Box";
 import Chip from "@mui/material/Chip";
 import DialogTitle from "@mui/material/DialogTitle";
 import Drawer from "@mui/material/Drawer";
@@ -379,15 +380,13 @@ const GcnEventPage = ({ route }: GcnEventPageProps) => {
               variant={gcnEvent.summary ? "outlined" : undefined}
             >
               <ShowSummaries summaries={gcnEvent.summary_history || []} />
-              <div
-                style={{
+              <Box
+                sx={{
                   display: "flex",
-                  flexDirection: "row",
                   justifyContent: gcnEvent.summary
                     ? "flex-end"
                     : "space-between",
                   alignItems: "center",
-                  width: "100%",
                 }}
               >
                 {!gcnEvent.summary && (
@@ -395,33 +394,35 @@ const GcnEventPage = ({ route }: GcnEventPageProps) => {
                     No summary yet.
                   </p>
                 )}
-                <div style={{ display: "flex", alignItems: "center" }}>
+                <Box sx={{ display: "flex", alignItems: "center" }}>
                   {permission && (
-                    <UpdateSummary
-                      summary={gcnEvent.summary}
-                      summaryHistory={gcnEvent.summary_history}
-                      onSave={async (summary) => {
-                        await updateGcnEvent({
-                          dateobs,
-                          payload: { summary },
-                        }).unwrap();
-                        dispatch(
-                          showNotification(
-                            "Event summary successfully updated.",
-                          ),
-                        );
-                      }}
-                    />
+                    <>
+                      <UpdateSummary
+                        summary={gcnEvent.summary}
+                        summaryHistory={gcnEvent.summary_history}
+                        onSave={async (summary) => {
+                          await updateGcnEvent({
+                            dateobs,
+                            payload: { summary },
+                          }).unwrap();
+                          dispatch(
+                            showNotification(
+                              "Event summary successfully updated.",
+                            ),
+                          );
+                        }}
+                      />
+                      <GenerateGcnEventSummary dateobs={dateobs} />
+                    </>
                   )}
-                  {permission && <GenerateGcnEventSummary dateobs={dateobs} />}
                   {gcnEvent.summary_history?.length > 0 && (
                     <ShowSummaryHistory
                       summaries={gcnEvent.summary_history}
                       label={dateobs}
                     />
                   )}
-                </div>
-              </div>
+                </Box>
+              </Box>
             </Paper>
             <GcnAliases gcnEvent={gcnEvent} show_title />
             <GcnAdvocates gcnEvent={gcnEvent} show_title />

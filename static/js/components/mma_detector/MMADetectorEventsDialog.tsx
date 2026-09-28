@@ -43,7 +43,7 @@ const MMADetectorEventsDialog = ({
         <StyledDataGrid
           slotProps={{ root: { "data-testid": "mmadetector-events-table" } }}
           autoHeight
-          rows={(data as any)?.events ?? []}
+          rows={data?.events ?? []}
           getRowId={(row: any) => row.dateobs}
           getRowHeight={() => "auto"}
           sx={{
@@ -58,9 +58,9 @@ const MMADetectorEventsDialog = ({
               field: "dateobs",
               headerName: "Event (UTC)",
               width: 180,
-              renderCell: ({ row }: any) => (
-                <MuiLink component={Link} to={`/gcn_events/${row.dateobs}`}>
-                  {dayjs(row.dateobs).format("YYYY-MM-DD HH:mm:ss")}
+              renderCell: ({ value }: any) => (
+                <MuiLink component={Link} to={`/gcn_events/${value}`}>
+                  {dayjs(value).format("YYYY-MM-DD HH:mm:ss")}
                 </MuiLink>
               ),
             },
@@ -92,7 +92,7 @@ const MMADetectorEventsDialog = ({
           ]}
           loading={isFetching}
           paginationMode="server"
-          rowCount={(data as any)?.totalMatches ?? 0}
+          rowCount={data?.totalMatches ?? 0}
           paginationModel={paginationModel}
           onPaginationModelChange={setPaginationModel}
           localeText={{

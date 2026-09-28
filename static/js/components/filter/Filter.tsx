@@ -56,18 +56,12 @@ const AssistantHint = () => {
 
 const Filter = () => {
   const dispatch = useAppDispatch();
-
   const { fid } = useParams();
 
   const { data: filter, error: filterError } = useGetFilterQuery(fid ?? "", {
     skip: !fid,
   }) as any;
-  const filterLoadError = filterError
-    ? ((filterError as any)?.error ?? "Failed to load filter")
-    : "";
-
   const group_id = filter?.group_id;
-  const stream_id = filter?.stream_id;
   const brokerId = filter?.broker_id;
 
   useCommentTarget(
@@ -79,20 +73,17 @@ const Filter = () => {
   }) as any;
 
   useEffect(() => {
-    if (groupError) {
-      const message = (groupError as any)?.error ?? "Failed to load group";
-      if (message.length > 1) {
-        dispatch(showNotification(message, "error"));
-      }
-    }
+    if (!groupError) return;
+    const message = (groupError as any)?.error ?? "Failed to load group";
+    if (message.length > 1) dispatch(showNotification(message, "error"));
   }, [groupError, dispatch]);
 
-  const { data: stream } = useGetStreamQuery(stream_id ?? "", {
-    skip: !stream_id,
+  const { data: stream } = useGetStreamQuery(filter?.stream_id ?? "", {
+    skip: !filter?.stream_id,
   });
 
-  if (filterLoadError) return filterLoadError;
-
+  if (filterError)
+    return (filterError as any)?.error ?? "Failed to load filter";
   if (filter == null) return <Spinner />;
 
   return (

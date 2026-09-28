@@ -27,14 +27,6 @@ const UpdateSummary = ({
   const [text, setText] = useState("");
   const [saving, setSaving] = useState(false);
 
-  const openDialog = () => {
-    const latest = (summaryHistory ?? []).find(
-      (s) => s?.summary && (showAISummaries || s.is_bot === false),
-    );
-    setText(latest?.summary ?? "");
-    setDialogOpen(true);
-  };
-
   const save = async (value: string | null) => {
     setSaving(true);
     try {
@@ -52,7 +44,14 @@ const UpdateSummary = ({
         <EditIcon
           fontSize="small"
           sx={{ height: "1rem", cursor: "pointer" }}
-          onClick={openDialog}
+          onClick={() => {
+            setText(
+              summaryHistory?.find(
+                (s) => s.summary && (showAISummaries || s.is_bot === false),
+              )?.summary ?? "",
+            );
+            setDialogOpen(true);
+          }}
         />
       </Tooltip>
       <Dialog

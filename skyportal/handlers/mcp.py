@@ -1456,7 +1456,6 @@ async def post_broker_filter_version(handler, args):
     record = await handler.api("GET", f"/api/brokers/{broker_id}/filters/{filter_id}")
     versions = _versions(record)
     fid = versions[-1][0] if versions else None
-    # Validation starts in the background, so this verdict is usually pending.
     boom = ((record or {}).get("altdata") or {}).get("boom") or {}
     return {
         "id": (result or {}).get("id", filter_id),

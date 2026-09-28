@@ -605,7 +605,6 @@ const ObservationPlanRequestLists = ({
           getRowHeight={() => "auto"}
           rows={requestsGroupedByInstId[instrument_id]}
           columns={getDataTableColumns(instrument_id)}
-          getRowId={(row: any) => row.id}
           disableColumnFilter
           showToolbar
         />

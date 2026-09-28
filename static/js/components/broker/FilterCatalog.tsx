@@ -69,12 +69,8 @@ const FilterCatalog = ({ brokerId }: { brokerId?: number }) => {
   };
 
   const handleDeleteFilter = async () => {
-    try {
-      await deleteFilter({ filter_id: filterToDelete!.id }).unwrap();
-      dispatch(showNotification("Deleted filter"));
-    } catch {
-      // error notification handled by the base query
-    }
+    const res = await deleteFilter({ filter_id: filterToDelete!.id });
+    if ("data" in res) dispatch(showNotification("Deleted filter"));
     setFilterToDelete(null);
   };
 
@@ -217,60 +213,35 @@ const FilterCatalog = ({ brokerId }: { brokerId?: number }) => {
           value={query.name}
           onChange={(e) => updateQuery({ name: e.target.value })}
         />
-        <TextField
-          select
-          size="small"
-          label="Group"
-          value={query.groupID}
-          onChange={(e) =>
-            updateQuery({ groupID: e.target.value as number | "" })
-          }
-          sx={{ minWidth: 160 }}
-        >
-          <MenuItem value="">All groups</MenuItem>
-          {groupList.map((g) => (
-            <MenuItem key={g.id} value={g.id}>
-              {g.name}
-            </MenuItem>
-          ))}
-        </TextField>
-        <TextField
-          select
-          size="small"
-          label="Stream"
-          value={query.streamID}
-          onChange={(e) =>
-            updateQuery({ streamID: e.target.value as number | "" })
-          }
-          sx={{ minWidth: 160 }}
-        >
-          <MenuItem value="">All streams</MenuItem>
-          {streamList.map((s) => (
-            <MenuItem key={s.id} value={s.id}>
-              {s.name}
-            </MenuItem>
-          ))}
-        </TextField>
-        {!brokerId && (
+        {[
+          { key: "groupID" as const, label: "Group", options: groupList },
+          { key: "streamID" as const, label: "Stream", options: streamList },
+          ...(brokerId
+            ? []
+            : [
+                { key: "brokerID" as const, label: "Broker", options: brokers },
+              ]),
+        ].map(({ key, label, options }) => (
           <TextField
+            key={key}
             select
             size="small"
-            label="Broker"
-            value={query.brokerID}
+            label={label}
+            value={query[key]}
             onChange={(e) =>
-              updateQuery({ brokerID: e.target.value as number | "none" })
+              updateQuery({ [key]: e.target.value } as FilterCatalogQuery)
             }
             sx={{ minWidth: 160 }}
           >
-            <MenuItem value="">All brokers</MenuItem>
-            {brokers.map((b) => (
-              <MenuItem key={b.id} value={b.id}>
-                {b.name}
+            <MenuItem value="">{`All ${label.toLowerCase()}s`}</MenuItem>
+            {options.map((o) => (
+              <MenuItem key={o.id} value={o.id}>
+                {o.name}
               </MenuItem>
             ))}
-            <MenuItem value="none">No broker</MenuItem>
+            {key === "brokerID" && <MenuItem value="none">No broker</MenuItem>}
           </TextField>
-        )}
+        ))}
         <Typography variant="body2" color="text.secondary">
           {`${total} filter${total === 1 ? "" : "s"}`}
         </Typography>
