@@ -113,7 +113,7 @@ const ListPanelPage = ({
 
   return (
     <Suspense fallback={<Spinner />}>
-      <Grid container spacing={3}>
+      <Grid container spacing={2}>
         <Grid
           size={{ lg: 8, md: 6, sm: 12 }}
           sx={
