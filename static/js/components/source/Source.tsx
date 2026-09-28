@@ -1289,22 +1289,18 @@ const SourceContent = ({ source }: SourceContentProps) => {
                 )}
               </div>
             </div>
-            <div style={{ maxWidth: "fit-content" }}>
-              {/* 3 columns over 2 rows (6 at a time); cycle through the rest. */}
-              <ThumbnailList
-                ra={source.ra}
-                dec={source.dec}
-                thumbnails={source.thumbnails}
-                objID={source.id}
-                size="100%"
-                minSize={rightPanelVisible || downLg ? "6rem" : "10rem"}
-                maxSize={rightPanelVisible || downLg ? "13rem" : "20rem"}
-                titleSize={downSm ? "0.55rem" : undefined}
-                useGrid={false}
-                columns={3}
-                noMargin
-              />
-            </div>
+            <ThumbnailList
+              ra={source.ra}
+              dec={source.dec}
+              thumbnails={source.thumbnails}
+              objID={source.id}
+              size="100%"
+              minSize={rightPanelVisible || downLg ? "6rem" : "10rem"}
+              titleSize={downSm ? "0.55rem" : undefined}
+              useGrid={false}
+              columns={rightPanelVisible || downLg ? 3 : 6}
+              noMargin
+            />
           </Paper>
         </Grid>
         <Grid
