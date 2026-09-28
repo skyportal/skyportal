@@ -325,12 +325,16 @@ const PhotometryTable = ({
           const phot = params.row;
           const validation = phot?.validations?.[0];
           let statusIcon = <QuestionMarkIcon color="primary" />;
+          let statusLabel = "Ambiguous";
           if (!validation) {
             statusIcon = <PriorityHigh color="primary" />;
+            statusLabel = "Not vetted";
           } else if (validation.validated === true) {
             statusIcon = <CheckIcon {...({ color: "green" } as any)} />;
+            statusLabel = "Validated";
           } else if (validation.validated === false) {
             statusIcon = <ClearIcon color="secondary" />;
+            statusLabel = "Rejected";
           }
           return (
             <div
@@ -342,7 +346,7 @@ const PhotometryTable = ({
               }}
               {...({ name: `${phot.id}_validation_status` } as any)}
             >
-              {statusIcon}
+              <Tooltip title={statusLabel}>{statusIcon}</Tooltip>
               {isSaved(phot) && (
                 <PhotometryValidation
                   phot={phot}
