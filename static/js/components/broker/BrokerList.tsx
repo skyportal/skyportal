@@ -334,7 +334,7 @@ const BrokerList = () => {
             minHeight: 0,
             "& .MuiDataGrid-row": { cursor: "pointer" },
           }}
-          data-testid="tour-brokers-list"
+          slotProps={{ root: { "data-testid": "tour-brokers-list" } }}
         />
       )}
 

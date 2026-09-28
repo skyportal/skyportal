@@ -41,7 +41,7 @@ const MMADetectorEventsDialog = ({
       </DialogTitle>
       <DialogContent dividers>
         <StyledDataGrid
-          data-testid="mmadetector-events-table"
+          slotProps={{ root: { "data-testid": "mmadetector-events-table" } }}
           autoHeight
           rows={(data as any)?.events ?? []}
           getRowId={(row: any) => row.dateobs}
