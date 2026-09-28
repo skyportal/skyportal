@@ -14,7 +14,10 @@ import EditIcon from "@mui/icons-material/Edit";
 
 import { showNotification } from "baselayer/components/Notifications";
 import { useDeleteInstrumentMutation } from "../../ducks/instrument";
-import StyledDataGrid, { DataGridToolbar } from "../StyledDataGrid";
+import StyledDataGrid, {
+  DataGridToolbar,
+  FULL_PAGE_HEIGHT,
+} from "../StyledDataGrid";
 import { useAppDispatch } from "../../types";
 import ConfirmDeletionDialog from "../ConfirmDeletionDialog";
 import InstrumentForm from "./InstrumentForm";
@@ -243,11 +246,7 @@ const InstrumentTable = ({
 
   return (
     <Box
-      sx={
-        fixedHeader
-          ? { height: "calc(100vh - 6rem)", width: "100%" }
-          : { width: "100%" }
-      }
+      sx={{ width: "100%", ...(fixedHeader && { height: FULL_PAGE_HEIGHT }) }}
     >
       <StyledDataGrid
         autoHeight={!fixedHeader}
