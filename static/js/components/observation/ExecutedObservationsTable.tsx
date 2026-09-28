@@ -1,14 +1,11 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import Paper from "@mui/material/Paper";
-import { makeStyles } from "tss-react/mui";
 import CircularProgress from "@mui/material/CircularProgress";
 import Dialog from "@mui/material/Dialog";
 import DialogTitle from "@mui/material/DialogTitle";
 import DialogContent from "@mui/material/DialogContent";
 import IconButton from "@mui/material/IconButton";
 import Tooltip from "@mui/material/Tooltip";
-import Typography from "@mui/material/Typography";
 import Box from "@mui/material/Box";
 import AddIcon from "@mui/icons-material/Add";
 import DownloadIcon from "@mui/icons-material/Download";
@@ -19,7 +16,10 @@ import MenuItem from "@mui/material/MenuItem";
 import { showNotification } from "baselayer/components/Notifications";
 import { useAppDispatch } from "../../types/hooks";
 import Button from "../Button";
-import StyledDataGrid, { DataGridToolbar } from "../StyledDataGrid";
+import StyledDataGrid, {
+  DataGridToolbar,
+  FULL_PAGE_HEIGHT_WITH_TABS,
+} from "../StyledDataGrid";
 import ObservationFilterForm from "./ObservationFilterForm";
 import NewObservation from "./NewObservation";
 import NewAPIObservation from "./NewAPIObservation";
@@ -37,26 +37,6 @@ const SERVER_SORT_FIELD: Record<string, string> = {
   limmag: "limmag",
 };
 
-const useStyles = makeStyles()((theme: any) => ({
-  container: {
-    width: "100%",
-    overflow: "scroll",
-  },
-  actionButtons: {
-    display: "flex",
-    flexFlow: "row wrap",
-    gap: "0.2rem",
-  },
-  eventTags: {
-    marginLeft: "0.5rem",
-    "& > div": {
-      margin: "0.25rem",
-      color: "white",
-      background: theme.palette.primary.main,
-    },
-  },
-}));
-
 interface ExecutedObservationsTableProps {
   observations: any[];
   totalMatches?: number;
@@ -66,6 +46,7 @@ interface ExecutedObservationsTableProps {
   pageNumber?: number;
   numPerPage?: number;
   serverSide?: boolean;
+  fixedHeader?: boolean;
   filterModel?: any;
   onFilterModelChange?: ((model: any) => void) | undefined;
 }
@@ -79,10 +60,10 @@ const ExecutedObservationsTable = ({
   pageNumber = 1,
   numPerPage = 25,
   serverSide = true,
+  fixedHeader = false,
   filterModel,
   onFilterModelChange,
 }: ExecutedObservationsTableProps) => {
-  const { classes } = useStyles();
   const navigate = useNavigate();
   const dispatch = useAppDispatch();
   const canUploadData = useHasPermission("Upload data");
@@ -196,7 +177,7 @@ const ExecutedObservationsTable = ({
       return <div />;
     }
     return (
-      <div className={classes.actionButtons}>
+      <Box sx={{ display: "flex", flexFlow: "row wrap", gap: "0.2rem" }}>
         {isSaving === formData.id ? (
           <div>
             <CircularProgress />
@@ -216,7 +197,7 @@ const ExecutedObservationsTable = ({
             </Button>
           </div>
         )}
-      </div>
+      </Box>
     );
   };
 
@@ -425,7 +406,7 @@ const ExecutedObservationsTable = ({
   };
 
   const CustomToolbar = () => (
-    <DataGridToolbar showExport={false}>
+    <DataGridToolbar title="Executed Observations" showExport={false}>
       <Tooltip title="Filter Table">
         <IconButton
           size="small"
@@ -461,74 +442,64 @@ const ExecutedObservationsTable = ({
   );
 
   return (
-    <div>
-      <Paper className={classes.container}>
-        <Typography variant="h6" style={{ padding: "0.5rem" }}>
-          Executed Observations
-        </Typography>
-        <Box sx={{ height: "60vh", width: "100%" }}>
-          <StyledDataGrid
-            rows={observations}
-            columns={columns}
-            getRowId={(row: any) =>
-              row.id ?? `${row.instrument_id}_${row.observation_id}`
-            }
-            paginationMode={serverSide ? "server" : "client"}
-            sortingMode={serverSide ? "server" : "client"}
-            rowCount={totalMatches}
-            paginationModel={{
-              page: pageNumber - 1,
-              pageSize: rowsPerPage,
-            }}
-            onPaginationModelChange={handlePaginationModelChange}
-            sortModel={sortModel}
-            onSortModelChange={handleSortModelChange}
-            filterModel={filterModel}
-            onFilterModelChange={onFilterModelChange}
-            slots={{ toolbar: CustomToolbar }}
-            showToolbar
-          />
-        </Box>
-        <Menu
-          open={Boolean(addMenuPos)}
-          onClose={handleClose}
-          anchorReference="anchorPosition"
-          anchorPosition={addMenuPos ?? undefined}
-        >
-          <MenuItem onClick={openNewFromFileDialog}>Add from File</MenuItem>
-          <MenuItem onClick={openNewFromAPIDialog}>Add from API</MenuItem>
-        </Menu>
-        <Dialog
-          open={newDialogFromFileOpen}
-          onClose={closeNewFromFileDialog}
-          maxWidth="md"
-        >
-          <DialogTitle>Add Executed Observations (from file)</DialogTitle>
-          <DialogContent dividers>
-            <NewObservation onClose={closeNewFromFileDialog} />
-          </DialogContent>
-        </Dialog>
-        <Dialog
-          open={newDialogFromAPIOpen}
-          onClose={closeNewFromAPIDialog}
-          maxWidth="md"
-        >
-          <DialogTitle>Add Executed Observations (from API)</DialogTitle>
-          <DialogContent dividers>
-            <NewAPIObservation onClose={closeNewFromAPIDialog} />
-          </DialogContent>
-        </Dialog>
-        <Dialog
-          open={filterOpen}
-          onClose={() => setFilterOpen(false)}
-          fullWidth
-        >
-          <DialogContent>
-            <ObservationFilterForm handleFilterSubmit={handleFilterSubmit} />
-          </DialogContent>
-        </Dialog>
-      </Paper>
-    </div>
+    <>
+      <StyledDataGrid
+        height={fixedHeader ? FULL_PAGE_HEIGHT_WITH_TABS : "60vh"}
+        rows={observations}
+        columns={columns}
+        getRowId={(row: any) =>
+          row.id ?? `${row.instrument_id}_${row.observation_id}`
+        }
+        paginationMode={serverSide ? "server" : "client"}
+        sortingMode={serverSide ? "server" : "client"}
+        rowCount={totalMatches}
+        paginationModel={{
+          page: pageNumber - 1,
+          pageSize: rowsPerPage,
+        }}
+        onPaginationModelChange={handlePaginationModelChange}
+        sortModel={sortModel}
+        onSortModelChange={handleSortModelChange}
+        filterModel={filterModel}
+        onFilterModelChange={onFilterModelChange}
+        slots={{ toolbar: CustomToolbar }}
+        showToolbar
+      />
+      <Menu
+        open={Boolean(addMenuPos)}
+        onClose={handleClose}
+        anchorReference="anchorPosition"
+        anchorPosition={addMenuPos ?? undefined}
+      >
+        <MenuItem onClick={openNewFromFileDialog}>Add from File</MenuItem>
+        <MenuItem onClick={openNewFromAPIDialog}>Add from API</MenuItem>
+      </Menu>
+      <Dialog
+        open={newDialogFromFileOpen}
+        onClose={closeNewFromFileDialog}
+        maxWidth="md"
+      >
+        <DialogTitle>Add Executed Observations (from file)</DialogTitle>
+        <DialogContent dividers>
+          <NewObservation onClose={closeNewFromFileDialog} />
+        </DialogContent>
+      </Dialog>
+      <Dialog
+        open={newDialogFromAPIOpen}
+        onClose={closeNewFromAPIDialog}
+        maxWidth="md"
+      >
+        <DialogTitle>Add Executed Observations (from API)</DialogTitle>
+        <DialogContent dividers>
+          <NewAPIObservation onClose={closeNewFromAPIDialog} />
+        </DialogContent>
+      </Dialog>
+      <Dialog open={filterOpen} onClose={() => setFilterOpen(false)} fullWidth>
+        <DialogContent>
+          <ObservationFilterForm handleFilterSubmit={handleFilterSubmit} />
+        </DialogContent>
+      </Dialog>
+    </>
   );
 };
 
