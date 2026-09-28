@@ -117,14 +117,7 @@ const SourceCandidatesHistory = ({
                   row.filter?.name,
                 renderCell: ({ value, row }: any) =>
                   row.filter && (
-                    <MuiLink
-                      component={Link}
-                      to={
-                        row.filter.broker_id
-                          ? `/brokers/${row.filter.broker_id}/filter/${row.filter.id}`
-                          : `/filter/${row.filter.id}`
-                      }
-                    >
+                    <MuiLink component={Link} to={`/filter/${row.filter.id}`}>
                       {value}
                     </MuiLink>
                   ),

@@ -86,16 +86,9 @@ const FilterCatalog = ({ brokerId }: { brokerId?: number }) => {
       minWidth: 200,
       renderCell: ({ row: f }: { row: BrokerFilter }) => (
         <>
-          {f.broker_id ? (
-            <MuiLink
-              component={Link}
-              to={`/brokers/${f.broker_id}/filter/${f.id}`}
-            >
-              {f.name}
-            </MuiLink>
-          ) : (
-            f.name
-          )}
+          <MuiLink component={Link} to={`/filter/${f.id}`}>
+            {f.name}
+          </MuiLink>
           {Boolean(f.altdata?.["boom"]) && (
             <Chip
               size="small"

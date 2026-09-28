@@ -1,6 +1,6 @@
 /**
  * Broker filter-version duck (the pipeline-filter builder at
- * `/brokers/{id}/filter/{fid}`).
+ * `/filter/{fid}`).
  *
  * RTK Query conversion of the old `boom_filter` action/reducer duck: the ambient
  * `state.boom_filter_v` slice (read by every builder component) becomes the

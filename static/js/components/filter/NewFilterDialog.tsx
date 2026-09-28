@@ -61,7 +61,7 @@ const NewFilterDialog = ({
         stream_id: stream,
         broker_id: broker || null,
       }).unwrap()) as { id: number };
-      navigate(broker ? `/brokers/${broker}/filter/${id}` : `/filter/${id}`);
+      navigate(`/filter/${id}`);
     } catch {
       // error notification is surfaced by the base query
     }
