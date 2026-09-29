@@ -1,3 +1,6 @@
+import glob
+import itertools
+import json
 import re
 import subprocess
 
@@ -111,3 +114,19 @@ def parse_gitlog(gitlog):
         parsed_log.append(log_fields)
 
     return parsed_log
+
+
+def load_gitlog(files="data/gitlog*.json"):
+    """Parsed git log of the running code, newest commit first.
+
+    Builds without a `.git` directory (e.g. Docker images) write it to `files`.
+    """
+    gitlogs = []
+    for gitlog in glob.glob(files):
+        with open(gitlog) as f:
+            gitlogs.append(json.load(f))
+    if not gitlogs:
+        gitlogs = [get_gitlog()]
+
+    parsed_log = itertools.chain(*(parse_gitlog(gitlog) for gitlog in gitlogs))
+    return sorted(parsed_log, key=lambda x: x["time"], reverse=True)
