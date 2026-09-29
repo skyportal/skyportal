@@ -293,7 +293,7 @@ def test_post_and_delete_sharing_service(
     )
     assert status == 400
     assert (
-        "Either publish to TNS or publish to Hermes must be set to True"
+        "At least one of publish to TNS, Hermes or TROVE must be set to True"
         in data["message"]
     )
 
