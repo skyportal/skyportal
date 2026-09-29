@@ -123,6 +123,7 @@ export const TAG_TYPES = [
   "BrokerCredential",
   "DBStats",
   "DBInfo",
+  "Deployments",
   "Acls",
   "Earthquake",
   "Earthquakes",
