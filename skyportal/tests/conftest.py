@@ -41,6 +41,7 @@ from skyportal.models import (
     DefaultGcnTag,
     DefaultObservationPlanRequest,
     DefaultSurveyEfficiencyRequest,
+    Deployment,
     EarthquakeEvent,
     EarthquakeMeasured,
     EarthquakeNotice,
@@ -555,6 +556,24 @@ def broker():
     obj = (
         DBSession()
         .execute(sa.select(Broker).filter(Broker.id == broker_id))
+        .scalars()
+        .first()
+    )
+    if obj is not None:
+        DBSession().delete(obj)
+        DBSession().commit()
+
+
+@pytest.fixture()
+def deployment():
+    d = Deployment(version=f"test-{uuid.uuid4()}")
+    DBSession.add(d)
+    DBSession.commit()
+    deployment_id = d.id
+    yield d
+    obj = (
+        DBSession()
+        .execute(sa.select(Deployment).filter(Deployment.id == deployment_id))
         .scalars()
         .first()
     )

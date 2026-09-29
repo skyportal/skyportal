@@ -219,13 +219,13 @@ class DeploymentHandler(BaseHandler):
                     .limit(MAX_DEPLOYMENTS + 1)
                 )
             ).all()
+            deployments = with_changes(deployments, gitlog)[:MAX_DEPLOYMENTS]
             system = (
                 await system_info(session)
                 if self.current_user.is_system_admin
                 else None
             )
 
-        deployments = with_changes(deployments, gitlog)[:MAX_DEPLOYMENTS]
         return self.success(
             data={
                 "title": cfg["app.title"],

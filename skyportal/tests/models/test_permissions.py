@@ -95,6 +95,7 @@ def _recover_session_after_test():
 # ``public_candidate_object`` is a Candidate). Drives the coverage ratchet.
 FIXTURE_MODEL = {
     "broker": "Broker",
+    "deployment": "Deployment",
     "user_broker_credential": "BrokerCredential",
     "invitation": "Invitation",
     "user_application": "UserApplication",
@@ -275,6 +276,23 @@ CASES = [
     ("super_admin_user", "broker", "read", True),
     ("super_admin_user", "broker", "update", True),
     ("super_admin_user", "broker", "delete", True),
+    # --- Deployment  (deployment): read public, create/update/delete sysadmin-only ---
+    ("user", "deployment", "create", False),
+    ("user", "deployment", "read", True),
+    ("user", "deployment", "update", False),
+    ("user", "deployment", "delete", False),
+    ("user_group2", "deployment", "create", False),
+    ("user_group2", "deployment", "read", True),
+    ("user_group2", "deployment", "update", False),
+    ("user_group2", "deployment", "delete", False),
+    ("group_admin_user", "deployment", "create", False),
+    ("group_admin_user", "deployment", "read", True),
+    ("group_admin_user", "deployment", "update", False),
+    ("group_admin_user", "deployment", "delete", False),
+    ("super_admin_user", "deployment", "create", True),
+    ("super_admin_user", "deployment", "read", True),
+    ("super_admin_user", "deployment", "update", True),
+    ("super_admin_user", "deployment", "delete", True),
     # --- BrokerCredential (user_broker_credential) ---
     ("user", "user_broker_credential", "create", True),
     ("user", "user_broker_credential", "read", True),
