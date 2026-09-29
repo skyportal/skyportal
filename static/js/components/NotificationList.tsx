@@ -26,6 +26,7 @@ import ScienceIcon from "@mui/icons-material/ScienceOutlined";
 import SendIcon from "@mui/icons-material/SendOutlined";
 import VisibilityIcon from "@mui/icons-material/VisibilityOutlined";
 import AutorenewIcon from "@mui/icons-material/AutorenewOutlined";
+import RocketLaunchIcon from "@mui/icons-material/RocketLaunchOutlined";
 
 import dayjs from "dayjs";
 import relativeTime from "dayjs/plugin/relativeTime";
@@ -64,6 +65,7 @@ const typeIcon = (notificationType?: string | null, url?: string | null) => {
     return <SendIcon />;
   if (type.includes("observation")) return <VisibilityIcon />;
   if (type.includes("api")) return <AutorenewIcon />;
+  if (type.includes("deployment")) return <RocketLaunchIcon />;
 
   // many notifications have no type at all, so fall back on where they point to
   const target = url || "";

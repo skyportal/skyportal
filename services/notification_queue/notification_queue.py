@@ -24,6 +24,7 @@ from skyportal.models import (
     Classification,
     Comment,
     DBSession,
+    Deployment,
     EventObservationPlan,
     FacilityTransaction,
     FollowupRequest,
@@ -165,6 +166,7 @@ def user_preferences(target, notification_setting, resource_type):
             "mention",
             "analysis_services",
             "observation_plans",
+            "deployments",
         ]:
             if not prefs.get(resource_type, False):
                 return
@@ -283,6 +285,9 @@ def send_email_notification(target):
 
         elif resource_type == "group_admission_request":
             subject = f"{cfg['app.title']} - New group admission request"
+
+        elif resource_type == "deployments":
+            subject = f"{cfg['app.title']} - New deployment"
 
         if subject and target["user"]["contact_email"]:
             try:
@@ -516,6 +521,7 @@ def api(queue):
             is_analysis_service = target_class_name == "ObjAnalysis"
             is_observation_plan = target_class_name == "EventObservationPlan"
             is_followup_request = target_class_name == "FollowupRequest"
+            is_deployment = target_class_name == "Deployment"
 
             with DBSession() as session:
                 try:
@@ -626,6 +632,24 @@ def api(queue):
                                 sa.select(EventObservationPlan).where(
                                     EventObservationPlan.id == target_id
                                 )
+                            )
+                            .first()
+                            .to_dict()
+                        )
+                    elif is_deployment:
+                        users = session.scalars(
+                            sa.select(User).where(
+                                User.preferences["notifications"]["deployments"][
+                                    "active"
+                                ]
+                                .astext.cast(sa.Boolean)
+                                .is_(True)
+                            )
+                        ).all()
+                        target_class = Deployment
+                        target_data = (
+                            session.scalars(
+                                sa.select(Deployment).where(Deployment.id == target_id)
                             )
                             .first()
                             .to_dict()
@@ -1266,6 +1290,30 @@ def api(queue):
                                             },
                                         }
                                         queue.append(target)
+                                elif is_deployment:
+                                    commit = target_data["commit"] or {}
+                                    text = (
+                                        f"New deployment of *{cfg['app.title']}*: "
+                                        f"SkyPortal *{target_data['version']}*"
+                                    )
+                                    if commit.get("sha"):
+                                        text += f" ({commit['sha']}: {commit.get('description', '')})"
+                                    notification = UserNotification(
+                                        user=user,
+                                        text=text,
+                                        notification_type="deployments",
+                                        url="/deployments",
+                                    )
+                                    session.add(notification)
+                                    session.commit()
+                                    target = {
+                                        **notification.to_dict(),
+                                        "user": {
+                                            **notification.user.to_dict(),
+                                            "preferences": notification.user.preferences,
+                                        },
+                                    }
+                                    queue.append(target)
                                 elif is_group_admission_request:
                                     user_from_request = session.scalars(
                                         sa.select(User).where(

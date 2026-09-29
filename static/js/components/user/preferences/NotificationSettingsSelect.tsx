@@ -164,7 +164,8 @@ const NotificationSettingsSelect = ({
       notificationResourceType === "mention" ||
       notificationResourceType === "analysis_services" ||
       notificationResourceType === "observation_plans" ||
-      notificationResourceType === "reminders"
+      notificationResourceType === "reminders" ||
+      notificationResourceType === "deployments"
     ) {
       const prefs: any = {
         notifications: {
@@ -233,7 +234,8 @@ const NotificationSettingsSelect = ({
       notificationResourceType === "mention" ||
       notificationResourceType === "analysis_services" ||
       notificationResourceType === "observation_plans" ||
-      notificationResourceType === "reminders"
+      notificationResourceType === "reminders" ||
+      notificationResourceType === "deployments"
     ) {
       if (type === "sms") {
         const reversed = [...valueSMS].reverse();
@@ -318,7 +320,8 @@ const NotificationSettingsSelect = ({
       notificationResourceType === "mention" ||
       notificationResourceType === "analysis_services" ||
       notificationResourceType === "observation_plans" ||
-      notificationResourceType === "reminders"
+      notificationResourceType === "reminders" ||
+      notificationResourceType === "deployments"
     ) {
       const prefs = {
         notifications: {
