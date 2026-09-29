@@ -914,7 +914,7 @@ def add_followup_request_using_frontend_and_verify_SLACK(
 
     # we are not pointing to a real slack channel, so it should fail
     expect(
-        page.locator("""//div[contains(text(), "failed to submit")]""").first
+        page.locator("""//span[contains(text(), "failed to submit")]""").first
     ).to_be_visible()
     # the first observation choice (index 0) is the ztfr band
     expect(page.locator("""//div[contains(text(), "ztfr")]""").first).to_be_visible()

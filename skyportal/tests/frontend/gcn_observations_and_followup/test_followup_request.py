@@ -32,6 +32,7 @@ def test_followup_request_frontend(
     page.goto("/followup_requests")
 
     table = page.locator('//*[@data-testid="followup-requests-table"]')
+    table.locator('//button[@aria-label="Expand all"]').click()
     expect(table.locator('//div[contains(., "IFU")]').first).to_be_visible()
     expect(table.locator('//div[contains(., "5")]').first).to_be_visible()
     expect(table.locator('//div[contains(., "submitted")]').first).to_be_visible()
