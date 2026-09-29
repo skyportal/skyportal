@@ -208,7 +208,7 @@ const FollowupRequestTable = ({
       renderCell: ({ value }: any) => <JsonCell data={value} />,
     },
     statusColumn,
-    { ...transactionsColumn, sortable: false },
+    transactionsColumn,
     {
       field: "actions",
       headerName: "Actions",
@@ -272,7 +272,7 @@ const FollowupRequestTable = ({
           instrumentFormParams={instrumentFormParams}
           onClose={() => setRequestIdToEdit(null)}
           requestType={requestTypeOf(requestToEdit)}
-          serverSide
+          refresh
         />
       )}
       <FollowupScheduleDialog

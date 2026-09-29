@@ -91,6 +91,6 @@ export const watcherColumn = (refresh: boolean) => ({
   sortable: false,
   filterable: false,
   renderCell: ({ row }: any) => (
-    <WatcherButton followupRequest={row} serverSide={refresh} />
+    <WatcherButton followupRequest={row} refresh={refresh} />
   ),
 });

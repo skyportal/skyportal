@@ -161,16 +161,16 @@ const FollowupRequestFilters = ({
             { label: "All", status: "", color: "text.primary", count: total },
             ...STATUS_FILTERS.map((filter, index) => ({
               ...filter,
-              color:
-                filter.color === "default"
-                  ? "text.secondary"
-                  : `${filter.color}.main`,
               count: counts[index],
             })),
+            ...(other > 0
+              ? [{ label: "Other", status: "other", color: "", count: other }]
+              : []),
           ].map(({ label, status, color, count }) => (
             <ToggleButton
               key={label}
               value={status}
+              disabled={status === "other"}
               sx={{ flexDirection: "column", minWidth: "6rem", py: 0.5 }}
             >
               <Typography variant="h6" sx={{ color }}>
@@ -179,16 +179,6 @@ const FollowupRequestFilters = ({
               <Typography variant="caption">{label}</Typography>
             </ToggleButton>
           ))}
-          {other > 0 && (
-            <ToggleButton
-              value="other"
-              disabled
-              sx={{ flexDirection: "column", minWidth: "6rem", py: 0.5 }}
-            >
-              <Typography variant="h6">{other}</Typography>
-              <Typography variant="caption">Other</Typography>
-            </ToggleButton>
-          )}
         </ToggleButtonGroup>
       </Box>
       <Box

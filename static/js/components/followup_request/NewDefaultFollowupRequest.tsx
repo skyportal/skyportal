@@ -17,6 +17,7 @@ import {
 } from "../../ducks/instruments";
 import GroupShareSelect from "../group/GroupShareSelect";
 import { localeSafeFields } from "./LocaleSafeNumberField";
+import { allocationLabel } from "../../utils/format";
 
 const REMOVED_KEYS = ["start_date", "end_date", "queue_name"];
 
@@ -75,14 +76,6 @@ const NewDefaultFollowupRequest = () => {
     (key: string) => !REMOVED_KEYS.includes(key),
   );
 
-  const instrumentLabel = (instrumentId: number) => {
-    const instrument = instrumentList.find(({ id }) => id === instrumentId);
-    const telescope = telescopeList.find(
-      ({ id }: any) => id === instrument?.telescope_id,
-    );
-    return `${telescope?.name} / ${instrument?.name}`;
-  };
-
   return (
     <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
       <Box>
@@ -97,9 +90,12 @@ const NewDefaultFollowupRequest = () => {
         >
           {allocations.map((option: any) => (
             <MenuItem value={option.id} key={option.id}>
-              {`${instrumentLabel(option.instrument_id)} - ${
-                allGroups.find(({ id }) => id === option.group_id)?.name
-              } (PI ${option.pi})`}
+              {allocationLabel(
+                option,
+                instrumentList,
+                telescopeList,
+                allGroups,
+              )}
             </MenuItem>
           ))}
         </Select>

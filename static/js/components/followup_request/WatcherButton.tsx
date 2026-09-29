@@ -12,12 +12,12 @@ import {
 
 interface WatcherButtonProps {
   followupRequest: { id: number; watchers?: { user_id?: number }[] };
-  serverSide?: boolean;
+  refresh?: boolean;
 }
 
 const WatcherButton = ({
   followupRequest,
-  serverSide = false,
+  refresh = false,
 }: WatcherButtonProps) => {
   const { data: currentUser } = useGetProfileQuery();
   const [addToWatchList] = useAddToWatchListMutation();
@@ -32,7 +32,7 @@ const WatcherButton = ({
     const mutation = isWatching ? removeFromWatchList : addToWatchList;
     await mutation({
       id: followupRequest.id,
-      params: serverSide ? { refreshRequests: true } : {},
+      params: refresh ? { refreshRequests: true } : {},
     });
     setIsSubmitting(false);
   };

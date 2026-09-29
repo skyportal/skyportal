@@ -17,7 +17,7 @@ interface EditFollowupRequestDialogProps {
   instrumentFormParams: Record<string, any>;
   onClose: () => void;
   requestType?: string;
-  serverSide?: boolean;
+  refresh?: boolean;
 }
 
 const EditFollowupRequestDialog = ({
@@ -25,7 +25,7 @@ const EditFollowupRequestDialog = ({
   instrumentFormParams,
   onClose,
   requestType = "triggered",
-  serverSide = false,
+  refresh = false,
 }: EditFollowupRequestDialogProps) => {
   const [editFollowupRequestMutation] = useEditFollowupRequestMutation();
   const { payload = {} } = followupRequest;
@@ -38,7 +38,7 @@ const EditFollowupRequestDialog = ({
         allocation_id: followupRequest.allocation.id,
         obj_id: followupRequest.obj_id,
         payload: formData,
-        ...(serverSide && { refreshRequests: true }),
+        ...(refresh && { refreshRequests: true }),
       },
       requestID: followupRequest.id,
     });

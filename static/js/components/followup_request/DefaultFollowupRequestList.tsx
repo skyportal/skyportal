@@ -24,6 +24,7 @@ import StyledDataGrid, {
 } from "../StyledDataGrid";
 import NewDefaultFollowupRequest from "./NewDefaultFollowupRequest";
 import JsonCell from "./JsonCell";
+import { PLAIN_LINKS_SX } from "./columns";
 
 const DefaultFollowupRequestToolbar = ({ onAdd }: { onAdd?: () => void }) => (
   <DataGridToolbar
@@ -176,13 +177,7 @@ const DefaultFollowupRequestList = ({
       <StyledDataGrid
         height={FULL_PAGE_HEIGHT_WITH_TABS}
         getRowHeight={() => "auto"}
-        sx={{
-          "& .MuiDataGrid-cell a:not(.MuiLink-root):not(.MuiButtonBase-root)": {
-            color: "inherit",
-            fontWeight: "inherit",
-            "&:hover": { textDecoration: "underline" },
-          },
-        }}
+        sx={PLAIN_LINKS_SX}
         rows={default_followup_requests}
         columns={columns}
         slots={{ toolbar: DefaultFollowupRequestToolbar }}

@@ -1,6 +1,7 @@
 import { useGetAllocationsApiClassnameQuery } from "../../ducks/allocations";
 import { useGetInstrumentsQuery } from "../../ducks/instruments";
 import { useGetTelescopesQuery } from "../../ducks/telescopes";
+import { instrumentLabel } from "../../utils/format";
 
 const useTriggeredAllocations = () => {
   const { data: telescopeList = [] } = useGetTelescopesQuery();
@@ -16,10 +17,7 @@ const useTriggeredAllocations = () => {
     )
     .map((instrument: any) => ({
       ...instrument,
-      label: `${
-        telescopeList.find(({ id }: any) => id === instrument.telescope_id)
-          ?.name
-      } / ${instrument.name}`,
+      label: instrumentLabel(instrument, telescopeList),
     }))
     .sort((a: any, b: any) => a.label.localeCompare(b.label));
 

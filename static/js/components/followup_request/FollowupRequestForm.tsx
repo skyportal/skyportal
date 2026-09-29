@@ -30,6 +30,7 @@ import {
   rangeIsActive,
 } from "../allocation/AllocationTable";
 import { localeSafeFields } from "./LocaleSafeNumberField";
+import { allocationLabel } from "../../utils/format";
 
 const DAY_MS = 24 * 3600 * 1000;
 
@@ -240,14 +241,6 @@ const FollowupRequestForm = ({
     };
   }
 
-  const instrumentLabel = (instrumentId: number) => {
-    const instrument = instrumentList.find(({ id }) => id === instrumentId);
-    const telescope = telescopeList.find(
-      ({ id }: any) => id === instrument?.telescope_id,
-    );
-    return `${telescope?.name} / ${instrument?.name}`;
-  };
-
   return (
     <Box sx={{ display: "flex", flexDirection: "column", gap: 1, mb: 2 }}>
       <Box>
@@ -273,9 +266,12 @@ const FollowupRequestForm = ({
               key={option.id}
               sx={{ whiteSpace: "break-spaces" }}
             >
-              {`${instrumentLabel(option.instrument_id)} - ${
-                allGroups.find(({ id }) => id === option.group_id)?.name
-              } (PI ${option.pi})`}
+              {allocationLabel(
+                option,
+                instrumentList,
+                telescopeList,
+                allGroups,
+              )}
               {!isSomeActiveRangeOrNoRange(option.validity_ranges) && (
                 <Tooltip
                   title="This allocation is currently inactive. You can still submit requests for valid future dates."

@@ -46,3 +46,28 @@ export const userLabel = (
     last_name,
   )}${usernameLabel}${emailLabel}${affiliationsLabel}`;
 };
+
+/**
+ * Return a label for an instrument formatted as "Telescope / Instrument".
+ *
+ * Example:
+ *  instrumentLabel(instrument, telescopes) => "Palomar 60-inch / SEDM"
+ */
+export const instrumentLabel = (instrument, telescopes) =>
+  `${telescopes.find(({ id }) => id === instrument?.telescope_id)?.name} / ${
+    instrument?.name
+  }`;
+
+/**
+ * Return a label for an allocation formatted as "Telescope / Instrument - Group (PI name)".
+ *
+ * Example:
+ *  allocationLabel(allocation, instruments, telescopes, groups) => "Palomar 60-inch / SEDM - Program A (PI Jane Doe)"
+ */
+export const allocationLabel = (allocation, instruments, telescopes, groups) =>
+  `${instrumentLabel(
+    instruments.find(({ id }) => id === allocation.instrument_id),
+    telescopes,
+  )} - ${groups.find(({ id }) => id === allocation.group_id)?.name} (PI ${
+    allocation.pi
+  })`;
