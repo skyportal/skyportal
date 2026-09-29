@@ -47,6 +47,7 @@ export const ROUTE_SCHEMA_MAP = {
   "GET /api/default_observation_plan/{default_observation_plan_id}": { schema: "DefaultObservationPlanRequest" as const, list: false },
   "GET /api/default_survey_efficiency": { schema: "DefaultSurveyEfficiencyRequest" as const, list: true },
   "GET /api/default_survey_efficiency/{default_survey_efficiency_id}": { schema: "DefaultSurveyEfficiencyRequest" as const, list: false },
+  "GET /api/deployments": { schema: "DeploymentsResponse" as const, list: false },
   "GET /api/earthquake": { schema: "EarthquakeEvent" as const, list: true, wrapper: "events" as const },
   "GET /api/earthquake/{earthquake_id}/mmadetector/{mma_detector_id}/measurements": { schema: "EarthquakeMeasured" as const, list: false },
   "GET /api/earthquake/{event_id}": { schema: "EarthquakeEvent" as const, list: false },

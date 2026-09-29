@@ -20525,6 +20525,48 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/deployments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get deployments and instance information
+         * @description Running version, deployment history with the commits each deployment
+         *     brought, and (for system admins) details on the host, database and
+         *     services.
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Success"] & {
+                            data?: components["schemas"]["DeploymentsResponse"];
+                        };
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/config": {
         parameters: {
             query?: never;
@@ -26372,6 +26414,48 @@ export interface components {
             status: "success";
             message?: string;
             data?: components["schemas"]["DefaultSurveyEfficiencyRequestNoID"][];
+        };
+        Deployment: {
+            /** @description SkyPortal version string */
+            version: string;
+            /** @description Git log entry of the deployed commit (see `utils.gitlog.parse_gitlog`) */
+            commit?: {
+                [key: string]: unknown;
+            } | null;
+            /** @description Unique object identifier. */
+            id?: number;
+        };
+        SingleDeployment: {
+            /** @enum {string} */
+            status: "success";
+            message?: string;
+            data?: components["schemas"]["Deployment"];
+        };
+        ArrayOfDeployments: {
+            /** @enum {string} */
+            status: "success";
+            message?: string;
+            data?: components["schemas"]["Deployment"][];
+        };
+        DeploymentNoID: {
+            /** @description SkyPortal version string */
+            version: string;
+            /** @description Git log entry of the deployed commit (see `utils.gitlog.parse_gitlog`) */
+            commit?: {
+                [key: string]: unknown;
+            } | null;
+        };
+        SingleDeploymentNoID: {
+            /** @enum {string} */
+            status: "success";
+            message?: string;
+            data?: components["schemas"]["DeploymentNoID"];
+        };
+        ArrayOfDeploymentNoIDs: {
+            /** @enum {string} */
+            status: "success";
+            message?: string;
+            data?: components["schemas"]["DeploymentNoID"][];
         };
         EarthquakeEvent: {
             /** @description The user that saved this EarthquakeEvent */
@@ -47681,6 +47765,241 @@ export interface components {
              * @default null
              */
             remove_obj_ids: string[] | null;
+        };
+        /**
+         * DeploymentResponse
+         * @description One version of the code that started serving the instance.
+         */
+        DeploymentResponse: {
+            /** Id */
+            id: number;
+            /** Version */
+            version: string;
+            /** @default null */
+            commit: components["schemas"]["GitLogEntryResponse"];
+            /**
+             * Created At
+             * Format: date-time
+             * @description When this version started (UTC)
+             */
+            created_at: string;
+            /**
+             * Changes
+             * @description Commits brought over the previous deployment, newest first (capped); null when either commit is not in the running git log
+             * @default null
+             */
+            changes: components["schemas"]["GitLogEntryResponse"][] | null;
+            /**
+             * N Changes
+             * @default null
+             */
+            n_changes: number | null;
+            /**
+             * Rollback
+             * @description Whether this deployed an older commit
+             * @default false
+             */
+            rollback: boolean;
+        };
+        /**
+         * GitLogEntryResponse
+         * @description One parsed commit from the deployed SkyPortal git log.
+         */
+        GitLogEntryResponse: {
+            /**
+             * Time
+             * @default null
+             */
+            time: string | null;
+            /**
+             * Sha
+             * @default null
+             */
+            sha: string | null;
+            /**
+             * Email
+             * @default null
+             */
+            email: string | null;
+            /**
+             * Description
+             * @default null
+             */
+            description: string | null;
+            /**
+             * Pr Nr
+             * @default null
+             */
+            pr_nr: string | null;
+            /**
+             * Pr Url
+             * @default null
+             */
+            pr_url: string | null;
+            /**
+             * Commit Url
+             * @default null
+             */
+            commit_url: string | null;
+            /**
+             * Name
+             * @default null
+             */
+            name: string | null;
+        };
+        /**
+         * HostResourcesResponse
+         * @description CPU, memory and disk of the instance host (the node, in a container).
+         */
+        HostResourcesResponse: {
+            /**
+             * Cpu Count
+             * @default null
+             */
+            cpu_count: number | null;
+            /**
+             * Load Average
+             * @default null
+             */
+            load_average: number[] | null;
+            /**
+             * Memory Total
+             * @default null
+             */
+            memory_total: number | null;
+            /**
+             * Memory Available
+             * @default null
+             */
+            memory_available: number | null;
+            /**
+             * Disk Total
+             * @default null
+             */
+            disk_total: number | null;
+            /**
+             * Disk Free
+             * @default null
+             */
+            disk_free: number | null;
+        };
+        /**
+         * InstanceSystemResponse
+         * @description Host, database and service details, only returned to system admins.
+         */
+        InstanceSystemResponse: {
+            /** Hostname */
+            hostname: string;
+            /** Platform */
+            platform: string;
+            /** Python Version */
+            python_version: string;
+            /** Packages */
+            packages?: {
+                [key: string]: string;
+            };
+            /**
+             * Supervisor Available
+             * @default false
+             */
+            supervisor_available: boolean;
+            /** Services */
+            services?: components["schemas"]["ServiceResponse"][];
+            /** @default null */
+            resources: components["schemas"]["HostResourcesResponse"];
+            /**
+             * Database Name
+             * @default null
+             */
+            database_name: string | null;
+            /**
+             * Postgres Version
+             * @default null
+             */
+            postgres_version: string | null;
+            /**
+             * Database Size
+             * @default null
+             */
+            database_size: string | null;
+            /**
+             * Migration
+             * @default null
+             */
+            migration: string | null;
+        };
+        /**
+         * ServiceResponse
+         * @description A service of the instance and the processes supervisor runs for it.
+         */
+        ServiceResponse: {
+            /** Name */
+            name: string;
+            /**
+             * Status
+             * @description `disabled` in `services.disabled`; `not_configured` when enabled but supervisor runs no program for it, as its template only defines one when the config calls for the service
+             * @enum {string}
+             */
+            status: "enabled" | "disabled" | "not_configured";
+            /** Processes */
+            processes?: components["schemas"]["SupervisorProcessResponse"][];
+        };
+        /**
+         * SupervisorProcessResponse
+         * @description A process run by supervisor on the instance host.
+         */
+        SupervisorProcessResponse: {
+            /** Name */
+            name: string;
+            /** Group */
+            group: string;
+            /** State */
+            state: string;
+            /**
+             * Pid
+             * @default null
+             */
+            pid: number | null;
+            /**
+             * Memory
+             * @description Resident memory of the process and its children, in bytes
+             * @default null
+             */
+            memory: number | null;
+            /**
+             * Started At
+             * Format: date-time
+             * @default null
+             */
+            started_at: string | null;
+        };
+        /**
+         * DeploymentsResponse
+         * @description Running version and deployment history of the instance.
+         */
+        DeploymentsResponse: {
+            /** Title */
+            title: string;
+            /** Version */
+            version: string;
+            /** @default null */
+            commit: components["schemas"]["GitLogEntryResponse"];
+            /**
+             * Started At
+             * Format: date-time
+             * @description When this app process started (UTC)
+             */
+            started_at: string;
+            /**
+             * Deployed At
+             * Format: date-time
+             * @default null
+             */
+            deployed_at: string | null;
+            /** Deployments */
+            deployments?: components["schemas"]["DeploymentResponse"][];
+            /** @default null */
+            system: components["schemas"]["InstanceSystemResponse"];
         };
         /**
          * AssistantConversationPatchBody
