@@ -1622,3 +1622,48 @@ def _pipeline_from_broker_filter(remote, boom_filter_id):
         return ZTF_QUALITY_CUTS, "built-in ZTF cuts (pipeline is not a list)"
 
     return pipeline, f"broker filter {boom_filter_id} version {version.get('fid')}"
+
+
+def with_event_region(session, user, params):
+    """Add a GCN event's credible region to preview parameters, from `dateobs`.
+
+    A filter written for a counterpart search is a set of cuts *and* a patch of
+    sky, and only the crossmatch service was passing the second half: previewing
+    the same filter ran its cuts against the whole stream, so what a scanner saw
+    in the preview was not what the filter would do. Naming the event here sends
+    the same region the crossmatch sends.
+
+    `credible_level` is a percentage and defaults to the crossmatch's own.
+    """
+    from skyportal.utils.crossmatch import localization_moc, moc_ascii
+
+    dateobs = params.pop("dateobs", None)
+    credible_level = params.pop("credible_level", None)
+    if not dateobs or params.get("moc_ascii"):
+        return params
+
+    localization = session.scalar(
+        Localization.select(
+            user,
+            options=[
+                undefer(Localization.uniq),
+                undefer(Localization.probdensity),
+                undefer(Localization.contour),
+            ],
+        )
+        .where(Localization.dateobs == dateobs)
+        .order_by(Localization.created_at.desc())
+    )
+    if localization is None:
+        raise ValueError(f"No localization for event {dateobs}.")
+
+    level = (
+        int(credible_level)
+        if credible_level is not None
+        else int(DEFAULTS["credible_level"])
+    )
+    moc = localization_moc(localization, credible_level=level)
+    if moc is None:
+        raise ValueError(f"Event {dateobs} has a localization with no skymap.")
+    params["moc_ascii"] = moc_ascii(moc)
+    return params

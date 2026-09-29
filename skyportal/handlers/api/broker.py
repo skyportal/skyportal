@@ -884,6 +884,12 @@ class BrokerFilterTestHandler(BaseHandler):
                 return self.error("A filter preview needs both start_jd and end_jd.")
             params["permissions"] = alert_permissions(self.current_user, session)
             try:
+                from ...utils.gcn_crossmatch import with_event_region
+
+                params = with_event_region(session, self.current_user, params)
+            except ValueError as e:
+                return self.error(str(e))
+            try:
                 data = broker.broker_class.test_filter(broker, session, **params)
             except Exception as e:
                 return self.error(f"Error running filter on {broker.name}: {e}")
