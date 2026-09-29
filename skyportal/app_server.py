@@ -944,6 +944,11 @@ def make_app(cfg, baselayer_handlers, baselayer_settings, process=None, env=None
         print("-" * 78)
 
     model_util.provision_public_group()
+    if not process:
+        try:
+            model_util.record_deployment()
+        except Exception as e:
+            log(f"Could not record the deployment: {e}")
     app.openapi_spec = openapi.spec_from_handlers(handlers)
 
     return app
