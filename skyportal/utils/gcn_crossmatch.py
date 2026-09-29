@@ -358,6 +358,29 @@ def build_annotation_data(
     return data
 
 
+def describes_later_alert(payload, existing):
+    """Whether `payload` is from a later alert than the entry already stored.
+
+    An object can match one event on many alerts, and the broker returns them
+    newest first, so writing each in turn left the oldest as the last word: a
+    source whose latest alert was 1.8 days before an EP trigger was annotated
+    at -30.7, from an archival match a month earlier. Scanners read delta_t as
+    the latest alert's offset from the trigger, and were reading the earliest.
+
+    delta_t is alert_jd - event_jd and the event is fixed within a key, so
+    comparing it compares the alerts. An entry that carries no delta_t says
+    nothing about when it was, and loses to one that does.
+    """
+    if not existing:
+        return True
+    later, earlier = payload.get("delta_t"), existing.get("delta_t")
+    if later is None:
+        return False
+    if earlier is None:
+        return True
+    return later > earlier
+
+
 async def annotate_match(
     session, user, obj_id, event_key, event_dateobs, group_ids, data
 ):
@@ -391,9 +414,18 @@ async def annotate_match(
         session.add(annotation)
     else:
         merged = dict(annotation.data or {})
-        if (merged.get(event_key) or {}).get("prior_activity"):
+        existing = merged.get(event_key) or {}
+        # Sticky: an archival match showing the object was active before the
+        # trigger stays true however many alerts follow it.
+        if existing.get("prior_activity") or payload.get("prior_activity"):
             payload["prior_activity"] = True
-        merged[event_key] = payload
+        if describes_later_alert(payload, existing):
+            merged[event_key] = payload
+        elif payload.get("prior_activity") and not existing.get("prior_activity"):
+            # The older alert owns nothing here but what it proves.
+            merged[event_key] = {**existing, "prior_activity": True}
+        else:
+            return
         annotation.data = merged
         flag_modified(annotation, "data")
 
