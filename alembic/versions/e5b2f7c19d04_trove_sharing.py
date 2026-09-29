@@ -4,7 +4,7 @@ TROVE upserts a target on its name and returns no submission id, so the
 columns mirror the Hermes ones rather than the TNS ones.
 
 Revision ID: e5b2f7c19d04
-Revises: 2db498b66cfd
+Revises: b8f3d21c07ae
 Create Date: 2026-09-29
 
 """
@@ -16,7 +16,7 @@ from alembic import op
 
 # revision identifiers, used by Alembic.
 revision = "e5b2f7c19d04"
-down_revision = "2db498b66cfd"
+down_revision = "b8f3d21c07ae"
 branch_labels = None
 depends_on = None
 

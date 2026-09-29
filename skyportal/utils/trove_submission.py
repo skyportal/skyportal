@@ -19,8 +19,11 @@ log = make_log("trove_submission_utils")
 env, cfg = load_env()
 
 TROVE_URL = cfg.get("app.trove.endpoint")
+TROVE_TEST_URL = cfg.get("app.trove.test_endpoint")
 
-DEFAULT_TIMEOUT = 30
+# TROVE scores each target on upload, which measures at 25-30s apiece. A
+# timeout still leaves the target created, so a tight one reports a false error.
+DEFAULT_TIMEOUT = 180
 MJD_TO_JD = 2400000.5
 
 # Only ever PUBLIC: nothing here is private to the instance sending it, and a
@@ -161,9 +164,14 @@ def submit_to_trove(submission_request, sharing_service, user, photometry, sessi
     obj_id = submission_request.obj_id
     response = None
     try:
-        if not TROVE_URL:
+        # Testing mode goes to TROVE's test deployment rather than sending nothing,
+        # so the whole path is exercised without touching the real database.
+        testing = sharing_service.testing
+        endpoint = TROVE_TEST_URL if testing else TROVE_URL
+        if not endpoint:
+            setting = "test_endpoint" if testing else "endpoint"
             raise ValueError(
-                "TROVE endpoint is not configured. Please set 'app.trove.endpoint' in the configuration."
+                f"TROVE endpoint is not configured. Please set 'app.trove.{setting}' in the configuration."
             )
 
         obj = session.scalar(Obj.select(user).where(Obj.id == obj_id))
@@ -191,24 +199,17 @@ def submit_to_trove(submission_request, sharing_service, user, photometry, sessi
         username = altdata.get("username")
         password = altdata.get("password")
 
-        # Snapshot what we still need, then commit so the DB connection is
-        # released before the TROVE HTTP call (no idle-in-transaction).
-        testing = sharing_service.testing
+        # Commit so the DB connection is released before the TROVE HTTP call
+        # (no idle-in-transaction).
         session.commit()
 
-        if testing:
-            status = "Testing mode, not submitted to TROVE."
-            notif_text = f"Testing mode, {obj_id} not submitted to TROVE."
-            log(
-                f"Testing mode: skipped TROVE submission of {obj_id} for sharing service {sharing_service_id}"
-            )
-        else:
-            response = post_targets(TROVE_URL, username, password, [target])
-            status = f"Successfully submitted {obj_id} to TROVE."
-            notif_text = status
-            log(
-                f"Successfully submitted {obj_id} to TROVE for sharing service {sharing_service_id}"
-            )
+        response = post_targets(endpoint, username, password, [target])
+        where = "TROVE test server" if testing else "TROVE"
+        status = f"Successfully submitted {obj_id} to {where}."
+        notif_text = status
+        log(
+            f"Successfully submitted {obj_id} to {where} for sharing service {sharing_service_id}"
+        )
     except Exception as e:
         log(str(e))
         status = f"Error: {e}"
