@@ -15,6 +15,7 @@ def click_add_button(page, testid):
 def test_bulk_invite_users(page, super_admin_user, public_group, public_stream):
     page.goto(f"/become_user/{super_admin_user.id}")
     page.goto("/user_management")
+    page.get_by_role("tab", name="Invitations").click()
 
     user1_email = str(uuid.uuid4().hex)[:8] + "@skyportal.com"
     user2_email = str(uuid.uuid4().hex)[:8] + "@skyportal.com"
@@ -62,6 +63,7 @@ def test_invite_single_user(page, super_admin_user, public_group, public_stream)
 def test_delete_invitation(page, super_admin_user, public_group, public_stream):
     page.goto(f"/become_user/{super_admin_user.id}")
     page.goto("/user_management")
+    page.get_by_role("tab", name="Invitations").click()
 
     user_email = str(uuid.uuid4().hex)[:8] + "@skyportal.com"
     csv = f"{user_email},{public_stream.id},{public_group.id},false"
@@ -90,6 +92,7 @@ def test_add_invitation_stream(
 ):
     page.goto(f"/become_user/{super_admin_user.id}")
     page.goto("/user_management")
+    page.get_by_role("tab", name="Invitations").click()
 
     user_email = str(uuid.uuid4().hex)[:8] + "@skyportal.com"
     csv = f"{user_email},{public_stream.id},{public_group.id},false"
@@ -119,6 +122,7 @@ def test_edit_invitation_role(
 ):
     page.goto(f"/become_user/{super_admin_user.id}")
     page.goto("/user_management")
+    page.get_by_role("tab", name="Invitations").click()
 
     user_email = str(uuid.uuid4().hex)[:8] + "@skyportal.com"
     csv = f"{user_email},{public_stream.id},{public_group.id},false"

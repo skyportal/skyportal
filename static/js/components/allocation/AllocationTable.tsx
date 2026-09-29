@@ -15,7 +15,11 @@ import Box from "@mui/material/Box";
 
 import { showNotification } from "baselayer/components/Notifications";
 import { useAppDispatch } from "../../types/hooks";
-import StyledDataGrid, { DataGridToolbar } from "../StyledDataGrid";
+import StyledDataGrid, {
+  DataGridToolbar,
+  FULL_PAGE_HEIGHT_WITH_TABS,
+} from "../StyledDataGrid";
+import ExpandableCell from "../ExpandableCell";
 import { useDeleteAllocationMutation } from "../../ducks/allocation";
 import ConfirmDeletionDialog from "../ConfirmDeletionDialog";
 import AllocationForm from "./AllocationForm";
@@ -107,24 +111,26 @@ const AllocationTable = ({
     return <Chip label={group?.name} />;
   };
 
-  const getShareGroups = (params: any) => {
-    const allocation = params.row;
-    if (!allocation?.default_share_group_ids?.length) return null;
-    return allocation.default_share_group_ids.map((share_group_id: any) => (
-      <Chip
-        key={share_group_id}
-        label={groups?.find((g) => g.id === share_group_id)?.name || ""}
-      />
-    ));
-  };
+  const getShareGroups = (params: any) => (
+    <ExpandableCell
+      items={(params.row.default_share_group_ids ?? []).map(
+        (share_group_id: any) => (
+          <Chip
+            key={share_group_id}
+            label={groups?.find((g) => g.id === share_group_id)?.name || ""}
+          />
+        ),
+      )}
+    />
+  );
 
-  const getAllocationUsers = (params: any) => {
-    const allocation = params.row;
-    if (!allocation?.allocation_users?.length) return null;
-    return allocation.allocation_users.map((user: any) => (
-      <Chip key={user.id} label={userLabel(user, true, true, true)} />
-    ));
-  };
+  const getAllocationUsers = (params: any) => (
+    <ExpandableCell
+      items={(params.row.allocation_users ?? []).map((user: any) => (
+        <Chip key={user.id} label={userLabel(user, true, true, true)} />
+      ))}
+    />
+  );
 
   const renderValidityRanges = (params: any) => {
     const validity_ranges = (params.row?.validity_ranges || []).filter(
@@ -237,6 +243,9 @@ const AllocationTable = ({
       minWidth: 120,
       filterable: false,
       valueGetter: (_value: any, row: any) => row.pi || "",
+      renderCell: (params: any) => (
+        <Link to={`/allocation/${params.row.id}`}>{params.value}</Link>
+      ),
     },
     {
       field: "Group",
@@ -301,7 +310,7 @@ const AllocationTable = ({
   ].filter(Boolean);
 
   const CustomToolbar = () => (
-    <DataGridToolbar title={title}>
+    <DataGridToolbar title={title} showExpandAll>
       {managePermission && (
         <IconButton
           name="new_allocation"
@@ -315,17 +324,14 @@ const AllocationTable = ({
   );
 
   return (
-    <Box
-      sx={{
-        height: fixedHeader ? "calc(100vh - 201px)" : "auto",
-        width: "100%",
-      }}
-    >
+    <>
       <StyledDataGrid
-        autoHeight={!fixedHeader}
+        height={fixedHeader ? FULL_PAGE_HEIGHT_WITH_TABS : "auto"}
         rows={allocations || []}
         columns={columns}
         getRowId={(row: any) => row.id}
+        getRowHeight={() => "auto"}
+        initialState={{ columns: { columnVisibilityModel: { id: false } } }}
         slots={{ toolbar: CustomToolbar }}
         showToolbar
       />
@@ -358,7 +364,7 @@ const AllocationTable = ({
         closeDialog={() => setAllocationToDelete(null)}
         resourceName="allocation"
       />
-    </Box>
+    </>
   );
 };
 

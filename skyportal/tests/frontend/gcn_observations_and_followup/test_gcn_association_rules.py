@@ -22,7 +22,7 @@ def test_association_rules_tab(page, super_admin_user, super_admin_token):
     page.goto("/gcn_events")
 
     page.get_by_role("tab", name="Association rules").click()
-    expect(page.get_by_test_id("gcn-association-rules")).to_be_visible()
+    page.get_by_role("button", name="New association rule").click()
 
     # a rule belongs to a group, so one has to be chosen
     page.get_by_label("Group").click()
@@ -34,10 +34,10 @@ def test_association_rules_tab(page, super_admin_user, super_admin_token):
     # wait for the row itself, not just any "9 s" on the page: the API is read
     # straight afterwards and the mutation has to have landed first
     expect(
-        page.get_by_role("cell", name="gravitational-wave × neutrino")
+        page.get_by_role("gridcell", name="gravitational-wave × neutrino")
     ).to_be_visible()
     # 0.0001 d shown in the unit that reads: 8.64 s
-    expect(page.get_by_role("cell", name="9 s")).to_be_visible()
+    expect(page.get_by_role("gridcell", name="9 s")).to_be_visible()
 
     status, data = api("GET", "gcn_association_rules", token=super_admin_token)
     assert status == 200, data
@@ -100,8 +100,9 @@ def test_association_rule_tags_from_the_page(page, super_admin_user, super_admin
     page.goto(f"/become_user/{super_admin_user.id}")
     page.goto("/gcn_events")
     page.get_by_role("tab", name="Association rules").click()
+    page.get_by_role("button", name="New association rule").click()
 
-    # the first column's tag picker; its options are that messenger's own tags
+    # the first event's tag picker; its options are that messenger's own tags
     page.get_by_test_id("association-tags-1").locator("[role=combobox]").click()
     page.get_by_role("option", name="BNS", exact=True).click()
     page.keyboard.press("Escape")

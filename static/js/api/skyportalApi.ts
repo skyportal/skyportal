@@ -141,7 +141,6 @@ export const TAG_TYPES = [
   "Weather",
   "Allocation",
   "Config",
-  "EarthquakeStatus",
   "FollowupRequest",
   "Group",
   "Invitation",

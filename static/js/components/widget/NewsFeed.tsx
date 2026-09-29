@@ -1,12 +1,13 @@
 import ReactMarkdown from "react-markdown";
-import { Link } from "react-router-dom";
+import { Link as RouterLink } from "react-router-dom";
 
 import Avatar from "@mui/material/Avatar";
+import Box from "@mui/material/Box";
+import Link from "@mui/material/Link";
 import Paper from "@mui/material/Paper";
 import Tooltip from "@mui/material/Tooltip";
 import Typography from "@mui/material/Typography";
 import DragHandleIcon from "@mui/icons-material/DragHandle";
-import { makeStyles } from "tss-react/mui";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 import relativeTime from "dayjs/plugin/relativeTime";
@@ -20,6 +21,7 @@ import {
 } from "../../ducks/profile";
 import { useGetNewsFeedQuery } from "../../ducks/newsFeed";
 import { useActiveTeam } from "../../ducks/teams";
+import WidgetLoading from "./WidgetLoading";
 
 dayjs.extend(relativeTime);
 dayjs.extend(utc);
@@ -36,161 +38,71 @@ const defaultPrefs = {
   },
 };
 
-const useStyles = makeStyles()((theme) => ({
-  newsFeed: {
-    display: "flex",
-    flexDirection: "column",
-    overflowY: "scroll",
-    paddingLeft: "0.3125rem",
-    backgroundColor: theme.palette.background.default,
-  },
-  entry: {
-    display: "flex",
-    flexDirection: "row",
-    padding: "0.3125rem 0.625rem 0.625rem 0.3125rem",
-    marginBottom: "0.625rem",
-    marginRight: "0.3125rem",
-    alignItems: "center",
-  },
-  entryMessage: {
-    maxWidth: "350px",
-    marginBottom: "0.2em",
-    "& > p": {
-      margin: 0,
-    },
-  },
-  entryContent: {
-    paddingTop: "0.3em",
-    paddingBottom: "0.1em",
-    display: "flex",
-    flexDirection: "column",
-  },
-  entryAvatar: {
-    marginRight: "0.6em",
-  },
-  entryIdent: {
-    display: "flex",
-    flexDirection: "row",
-    alignItems: "baseline",
-    color: "#aaa",
-    fontSize: "80%",
-  },
-  entryTime: {
-    marginLeft: "0.5em",
-  },
-  entrySourceId: {
-    marginRight: "0.5em",
-    fontSize: "105%",
-    "& > a": {
-      color: "#9b9a9a !important",
-    },
-  },
-  entryTitle: {
-    fontSize: "0.875em !important",
-    padding: "0.3125rem 0.625rem !important",
-  },
-}));
+const emojiSupport = (text: any) =>
+  text.value.replace(/:\w+:/gi, (name: string) => emoji.getUnicode(name));
 
-interface NewsFeedItemProps {
-  item: any;
-}
-
-const NewsFeedItem = ({ item }: NewsFeedItemProps) => {
-  const { classes: styles } = useStyles();
-  const emojiSupport = (text: any) =>
-    text.value.replace(/:\w+:/gi, (name: string) => emoji.getUnicode(name));
-
-  let entryAvatar = null;
-  let entryTitle;
-  // Use switch-case to make it easy to add future newsfeed types
-  switch (item.type) {
-    case "comment":
-    case "photometry":
-    case "spectrum":
-    case "classification":
-      entryAvatar = (
-        <UserAvatar
-          size={32}
-          userId={item.author_info.id}
-          firstName={item.author_info.first_name}
-          lastName={item.author_info.last_name}
-          username={item.author_info.username}
-          gravatarUrl={item.author_info.gravatar_url}
-          isBot={item.author_info?.is_bot || false}
-        />
-      );
-      entryTitle = null;
-      break;
-    case "source":
-      entryAvatar = (
+const NewsFeedItem = ({ item }: { item: any }) => {
+  const avatar =
+    item.type === "source" ? (
+      <Tooltip title="New source" arrow placement="top-start">
         <Avatar
-          alt="S"
-          style={{
+          sx={{
             width: 32,
             height: 32,
-            backgroundColor: "#141b44",
+            bgcolor: "#141b44",
             color: "white",
-            fontSize: "10px",
+            fontSize: "0.75rem",
           }}
         >
           S
         </Avatar>
-      );
-
-      entryTitle = "New source";
-      break;
-    default:
-      break;
-  }
+      </Tooltip>
+    ) : (
+      <UserAvatar
+        size={32}
+        userId={item.author_info.id}
+        firstName={item.author_info.first_name}
+        lastName={item.author_info.last_name}
+        username={item.author_info.username}
+        gravatarUrl={item.author_info.gravatar_url}
+        isBot={item.author_info?.is_bot || false}
+      />
+    );
 
   return (
     <Paper
-      key={`newsFeedItem_${item.time}`}
-      className={styles.entry}
-      elevation={1}
+      variant="outlined"
+      data-testid="newsFeedItem"
+      sx={{
+        display: "flex",
+        alignItems: "center",
+        gap: 1.5,
+        p: 1,
+        borderRadius: "8px",
+        transition: "background-color 0.3s ease",
+        "&:hover": { bgcolor: "action.hover" },
+      }}
     >
-      {entryTitle !== null ? (
-        <Tooltip
-          title={entryTitle}
-          arrow
-          placement="top-start"
-          classes={{ tooltip: styles.entryTitle }}
-        >
-          <div className={styles.entryAvatar}>{entryAvatar}</div>
-        </Tooltip>
-      ) : (
-        <div className={styles.entryAvatar}>{entryAvatar}</div>
-      )}
-      <div className={styles.entryContent}>
-        <ReactMarkdown
-          className={styles.entryMessage}
-          components={{ text: emojiSupport } as any}
-        >
-          {item.message.replace(
-            /(?<!\w)([@#])([\w-@]+)/g,
-            (_match: string, symbol: string, username: string) => {
-              return `***${symbol}${username}***`;
-            },
-          )}
-        </ReactMarkdown>
-        <div className={styles.entryIdent}>
-          <span className={styles.entrySourceId}>
-            <Link to={`/source/${item.source_id}`}>
-              {item?.classification ? (
-                <div>
-                  Source: {item.source_id} ({item.classification})
-                </div>
-              ) : (
-                <div>Source: {item.source_id}</div>
-              )}
-            </Link>
-          </span>
-          <span> &#124; </span>
-          <span className={styles.entryTime}>
-            {dayjs().to(dayjs.utc(`${item.time}Z`))}
-          </span>
-        </div>
-      </div>
+      <Box sx={{ flexShrink: 0 }}>{avatar}</Box>
+      <Box sx={{ minWidth: 0 }}>
+        <Box sx={{ "& p": { m: 0 }, overflowWrap: "anywhere" }}>
+          <ReactMarkdown components={{ text: emojiSupport } as any}>
+            {item.message.replace(
+              /(?<!\w)([@#])([\w-@]+)/g,
+              (_match: string, symbol: string, username: string) =>
+                `***${symbol}${username}***`,
+            )}
+          </ReactMarkdown>
+        </Box>
+        <Typography variant="caption" sx={{ color: "text.secondary" }}>
+          <Link component={RouterLink} to={`/source/${item.source_id}`}>
+            {item.source_id}
+            {item.classification && ` (${item.classification})`}
+          </Link>
+          {" · "}
+          <span>{dayjs().to(dayjs.utc(`${item.time}Z`))}</span>
+        </Typography>
+      </Box>
     </Paper>
   );
 };
@@ -204,9 +116,8 @@ interface NewsFeedProps {
 }
 
 const NewsFeed = ({ classes }: NewsFeedProps) => {
-  const { classes: styles } = useStyles();
   const { activeTeam } = useActiveTeam();
-  const { data: items } = useGetNewsFeedQuery(
+  const { data: items, isLoading } = useGetNewsFeedQuery(
     activeTeam ? { teamID: activeTeam.id } : undefined,
   );
   const { data: profile } = useGetProfileQuery();
@@ -259,12 +170,16 @@ const NewsFeed = ({ classes }: NewsFeedProps) => {
             />
           </div>
         </div>
-        <div
-          className={styles.newsFeed}
-          style={{
-            height: "calc(100% - 2.5rem)",
+        {isLoading && <WidgetLoading />}
+        <Box
+          sx={{
+            display: "flex",
+            flexDirection: "column",
+            gap: 1,
             overflowY: "auto",
-            paddingTop: "0.1rem",
+            minHeight: 0,
+            flex: 1,
+            pt: 1,
           }}
         >
           {items?.map((item: any) => (
@@ -273,7 +188,7 @@ const NewsFeed = ({ classes }: NewsFeedProps) => {
               item={item}
             />
           ))}
-        </div>
+        </Box>
       </div>
     </Paper>
   );

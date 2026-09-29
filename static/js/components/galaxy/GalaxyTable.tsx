@@ -1,18 +1,37 @@
-import { useMemo, useRef, useState } from "react";
-import CircularProgress from "@mui/material/CircularProgress";
+import { useState } from "react";
 import IconButton from "@mui/material/IconButton";
 import Tooltip from "@mui/material/Tooltip";
 import Dialog from "@mui/material/Dialog";
 import DialogContent from "@mui/material/DialogContent";
-import Typography from "@mui/material/Typography";
-import Box from "@mui/material/Box";
-import TextField from "@mui/material/TextField";
 import InfoIcon from "@mui/icons-material/Info";
 import FilterListIcon from "@mui/icons-material/FilterList";
 
-import StyledDataGrid, { DataGridToolbar } from "../StyledDataGrid";
+import StyledDataGrid, {
+  DataGridToolbar,
+  FULL_PAGE_HEIGHT,
+} from "../StyledDataGrid";
 import GalaxyTableFilterForm from "./GalaxyTableFilterForm";
 import { filterOutEmptyValues } from "../../API";
+
+const GalaxyTableToolbar = ({
+  title,
+  onFilterClick,
+}: {
+  title: string;
+  onFilterClick: () => void;
+}) => (
+  <DataGridToolbar title={title} quickFilterTestId="galaxy-search-input">
+    <Tooltip title="Filter Table">
+      <IconButton
+        size="small"
+        data-testid="Filter Table-iconButton"
+        onClick={onFilterClick}
+      >
+        <FilterListIcon />
+      </IconButton>
+    </Tooltip>
+  </DataGridToolbar>
+);
 
 interface GalaxyTableProps {
   galaxies?: any[] | null;
@@ -22,6 +41,8 @@ interface GalaxyTableProps {
   pageNumber?: number;
   numPerPage?: number;
   serverSide?: boolean;
+  fixedHeader?: boolean;
+  title?: string;
 }
 
 const GalaxyTable = ({
@@ -32,11 +53,11 @@ const GalaxyTable = ({
   pageNumber = 1,
   numPerPage = 25,
   serverSide = true,
+  fixedHeader = false,
+  title = "Galaxies",
 }: GalaxyTableProps) => {
   const [filterFormSubmitted, setFilterFormSubmitted] = useState(false);
   const [filterOpen, setFilterOpen] = useState(false);
-  // Uncontrolled via a ref: a controlled value remounted the input mid-typing (stale element).
-  const searchTextRef = useRef("");
   const [sortModel, setSortModel] = useState<any[]>([]);
   const [rowsPerPage, setRowsPerPage] = useState(numPerPage);
 
@@ -61,53 +82,6 @@ const GalaxyTable = ({
     onFilterSubmit?.(data);
     setFilterFormSubmitted(true);
   };
-
-  const handleSearchChange = (value: string) => {
-    const params: any = {
-      pageNumber: 1,
-    };
-    if (value?.length > 0) {
-      params.galaxyName = value;
-    }
-    handleFilterSubmit(params);
-  };
-
-  // Memoized: a toolbar remount on list load leaves test element references stale.
-  const CustomToolbar = useMemo(
-    () =>
-      function GalaxyTableToolbar() {
-        return (
-          <DataGridToolbar showQuickFilter={false}>
-            <Tooltip title="Filter Table">
-              <IconButton
-                size="small"
-                data-testid="Filter Table-iconButton"
-                onClick={() => setFilterOpen(true)}
-              >
-                <FilterListIcon />
-              </IconButton>
-            </Tooltip>
-            <TextField
-              size="small"
-              variant="standard"
-              placeholder="Search Galaxy Name…"
-              data-testid="galaxy-search-input"
-              defaultValue={searchTextRef.current}
-              onChange={(e) => {
-                searchTextRef.current = e.target.value;
-              }}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") {
-                  handleSearchChange(searchTextRef.current);
-                }
-              }}
-            />
-          </DataGridToolbar>
-        );
-      },
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [],
-  );
 
   if (!galaxies) {
     return <p>No galaxies available...</p>;
@@ -277,52 +251,47 @@ const GalaxyTable = ({
   ];
 
   return (
-    <div>
-      {galaxies ? (
-        <Box sx={{ width: "100%" }}>
-          <Typography variant="h6" style={{ padding: "0.5rem" }}>
-            Galaxies
-          </Typography>
-          <StyledDataGrid
-            autoHeight
-            title="Galaxies"
-            rows={galaxies}
-            columns={columns}
-            getRowId={(row: any) =>
-              row.id ?? `${row.name}_${row.ra}_${row.dec}`
-            }
-            paginationMode={serverSide ? "server" : "client"}
-            sortingMode={serverSide ? "server" : "client"}
-            rowCount={totalMatches}
-            paginationModel={{
-              page: pageNumber - 1,
-              pageSize: rowsPerPage,
-            }}
-            onPaginationModelChange={handlePaginationModelChange}
-            sortModel={sortModel}
-            onSortModelChange={handleSortModelChange}
-            slots={{ toolbar: CustomToolbar }}
-            showToolbar
-          />
-          <Dialog
-            open={filterOpen}
-            onClose={() => setFilterOpen(false)}
-            fullWidth
-          >
-            <DialogContent>
-              {filterFormSubmitted && (
-                <div>
-                  <InfoIcon /> &nbsp; Filters submitted to server!
-                </div>
-              )}
-              <GalaxyTableFilterForm handleFilterSubmit={handleFilterSubmit} />
-            </DialogContent>
-          </Dialog>
-        </Box>
-      ) : (
-        <CircularProgress />
-      )}
-    </div>
+    <>
+      <StyledDataGrid
+        height={fixedHeader ? FULL_PAGE_HEIGHT : "auto"}
+        rows={galaxies}
+        columns={columns}
+        getRowId={(row: any) => row.id ?? `${row.name}_${row.ra}_${row.dec}`}
+        paginationMode={serverSide ? "server" : "client"}
+        sortingMode={serverSide ? "server" : "client"}
+        rowCount={totalMatches}
+        paginationModel={{
+          page: pageNumber - 1,
+          pageSize: rowsPerPage,
+        }}
+        onPaginationModelChange={handlePaginationModelChange}
+        sortModel={sortModel}
+        onSortModelChange={handleSortModelChange}
+        filterMode={serverSide ? "server" : "client"}
+        onFilterModelChange={(model: any) =>
+          serverSide &&
+          onFilterSubmit?.({
+            galaxyName: model.quickFilterValues?.join(" ") || undefined,
+            pageNumber: 1,
+          })
+        }
+        slots={{ toolbar: GalaxyTableToolbar }}
+        slotProps={{
+          toolbar: { title, onFilterClick: () => setFilterOpen(true) },
+        }}
+        showToolbar
+      />
+      <Dialog open={filterOpen} onClose={() => setFilterOpen(false)} fullWidth>
+        <DialogContent>
+          {filterFormSubmitted && (
+            <div>
+              <InfoIcon /> &nbsp; Filters submitted to server!
+            </div>
+          )}
+          <GalaxyTableFilterForm handleFilterSubmit={handleFilterSubmit} />
+        </DialogContent>
+      </Dialog>
+    </>
   );
 };
 

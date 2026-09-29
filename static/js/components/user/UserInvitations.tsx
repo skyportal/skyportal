@@ -30,6 +30,7 @@ import utc from "dayjs/plugin/utc";
 
 import { showNotification } from "baselayer/components/Notifications";
 import Button from "../Button";
+import ExpandableCell from "../ExpandableCell";
 import StyledDataGrid, { DataGridToolbar } from "../StyledDataGrid";
 import FormValidationError from "../FormValidationError";
 import ConfirmDeletionDialog from "../ConfirmDeletionDialog";
@@ -88,7 +89,11 @@ const InvitationsToolbar = ({
   onOpenFilters,
   onDeleteFilter,
 }: any) => (
-  <DataGridToolbar title="Pending Invitations" showQuickFilter={false}>
+  <DataGridToolbar
+    title="Pending Invitations"
+    showQuickFilter={false}
+    showExpandAll
+  >
     <Tooltip title="Filter Table">
       <IconButton size="small" onClick={onOpenFilters}>
         <FilterListIcon />
@@ -415,14 +420,16 @@ const UserInvitations = () => {
         >
           <AddCircleIcon color="disabled" sx={{ fontSize: "1.125rem" }} />
         </IconButton>
-        {invitation[field]?.map((entity: any) => (
-          <Chip
-            label={entity.name}
-            onDelete={() => handleDeleteEntity(invitation, kind, entity.id)}
-            key={entity.id}
-            id={`invitation${singular}Chip_${invitation.id}_${entity.id}`}
-          />
-        ))}
+        <ExpandableCell
+          items={(invitation[field] ?? []).map((entity: any) => (
+            <Chip
+              label={entity.name}
+              onDelete={() => handleDeleteEntity(invitation, kind, entity.id)}
+              key={entity.id}
+              id={`invitation${singular}Chip_${invitation.id}_${entity.id}`}
+            />
+          ))}
+        />
       </Box>
     );
   };
