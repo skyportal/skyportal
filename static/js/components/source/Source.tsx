@@ -1587,7 +1587,6 @@ const SourceContent = ({ source }: SourceContentProps) => {
                   followupRequests={source.followup_requests}
                   instrumentList={instrumentList}
                   instrumentFormParams={instrumentFormParams}
-                  totalMatches={source.followup_requests.length}
                 />
               </div>
             </AccordionDetails>
@@ -1627,7 +1626,6 @@ const SourceContent = ({ source }: SourceContentProps) => {
                   followupRequests={source.followup_requests}
                   instrumentList={instrumentList}
                   instrumentFormParams={instrumentFormParams}
-                  totalMatches={source.followup_requests.length}
                   requestType="forced_photometry"
                 />
               </div>

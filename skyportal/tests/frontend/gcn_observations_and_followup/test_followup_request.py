@@ -31,35 +31,12 @@ def test_followup_request_frontend(
     page.goto(f"/become_user/{super_admin_user.id}")
     page.goto("/followup_requests")
 
-    filter_form = page.locator(f"//*[@data-testid='filter-followup-requests-form']")
-    filter_form.locator('//button[@type="submit"]').first.click()
+    table = page.locator('//*[@data-testid="followup-requests-table"]')
+    expect(table.locator('//div[contains(., "IFU")]').first).to_be_visible()
+    expect(table.locator('//div[contains(., "5")]').first).to_be_visible()
+    expect(table.locator('//div[contains(., "submitted")]').first).to_be_visible()
 
-    expect(
-        page.locator(
-            f'//div[contains(@data-testid, "{sedm.id}_followupRequestsTable")]//div[contains(., "IFU")]'
-        ).first
-    ).to_be_visible()
-    expect(
-        page.locator(
-            f'//div[contains(@data-testid, "{sedm.id}_followupRequestsTable")]//div[contains(., "5")]'
-        ).first
-    ).to_be_visible()
-    expect(
-        page.locator(
-            f'//div[contains(@data-testid, "{sedm.id}_followupRequestsTable")]//div[contains(., "submitted")]'
-        ).first
-    ).to_be_visible()
+    page.locator('//input[@name="sourceID"]').fill("not_the_source")
 
-    filter_form.locator('//*[@id="root_sourceID"]').first.fill("not_the_source")
-    filter_form.locator('//button[@type="submit"]').first.click()
-
-    expect(
-        page.locator(
-            f'//div[contains(@data-testid, "{sedm.id}_followupRequestsTable")]//div[contains(., "IFU")]'
-        ).first
-    ).to_be_hidden()
-    expect(
-        page.locator(
-            f'//div[contains(@data-testid, "{sedm.id}_followupRequestsTable")]//div[contains(., "submitted")]'
-        ).first
-    ).to_be_hidden()
+    expect(table.locator('//div[contains(., "IFU")]').first).to_be_hidden()
+    expect(table.locator('//div[contains(., "submitted")]').first).to_be_hidden()
