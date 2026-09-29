@@ -148,6 +148,9 @@ const SharingServiceGroup = ({
   const [autoPublishTns, setAutoPublishTns] = useState(
     sharingServiceGroup.auto_share_to_tns,
   );
+  const [autoPublishTrove, setAutoPublishTrove] = useState(
+    sharingServiceGroup.auto_share_to_trove,
+  );
   const [autoPublishHermes, setAutoPublishHermes] = useState(
     sharingServiceGroup.auto_share_to_hermes,
   );
@@ -170,6 +173,7 @@ const SharingServiceGroup = ({
     setOwner(sharingServiceGroup.owner);
     setAutoPublishTns(sharingServiceGroup.auto_share_to_tns);
     setAutoPublishHermes(sharingServiceGroup.auto_share_to_hermes);
+    setAutoPublishTrove(sharingServiceGroup.auto_share_to_trove);
     setAutoPublishAllowBots(sharingServiceGroup.auto_sharing_allow_bots);
   }, [sharingServiceGroup]);
 
@@ -216,6 +220,7 @@ const SharingServiceGroup = ({
       owner !== sharingServiceGroup.owner ||
       autoPublishTns !== sharingServiceGroup.auto_share_to_tns ||
       autoPublishHermes !== sharingServiceGroup.auto_share_to_hermes ||
+      autoPublishTrove !== sharingServiceGroup.auto_share_to_trove ||
       autoPublishAllowBots !== sharingServiceGroup.auto_sharing_allow_bots
     ) {
       results.push(
@@ -225,6 +230,7 @@ const SharingServiceGroup = ({
             owner,
             auto_share_to_tns: autoPublishTns,
             auto_share_to_hermes: autoPublishHermes,
+            auto_share_to_trove: autoPublishTrove,
             auto_sharing_allow_bots: autoPublishAllowBots,
           },
         }),
@@ -319,8 +325,26 @@ const SharingServiceGroup = ({
                 disabled={!sharingService.enable_sharing_with_hermes}
               />
             </Tooltip>
+            <Tooltip
+              title={
+                sharingService.enable_sharing_with_trove
+                  ? ""
+                  : "TROVE publishing is disabled for this sharingService."
+              }
+            >
+              <FormControlLabel
+                control={
+                  <Checkbox
+                    checked={autoPublishTrove}
+                    onChange={(e) => setAutoPublishTrove(e.target.checked)}
+                  />
+                }
+                label="TROVE"
+                disabled={!sharingService.enable_sharing_with_trove}
+              />
+            </Tooltip>
           </FormGroup>
-          {(autoPublishTns || autoPublishHermes) && (
+          {(autoPublishTns || autoPublishHermes || autoPublishTrove) && (
             <>
               <InputLabel>Allow bots to auto publish</InputLabel>
               <Switch
@@ -412,6 +436,7 @@ const SharingServiceGroups = ({
         owner,
         auto_share_to_tns: false,
         auto_share_to_hermes: false,
+        auto_share_to_trove: false,
         auto_sharing_allow_bots: false,
       },
     });
@@ -653,6 +678,7 @@ const SharingServicesPage = () => {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [enablePublishToTNS, setEnablePublishToTNS] = useState(true);
   const [enablePublishToHermes, setEnablePublishToHermes] = useState(true);
+  const [enablePublishToTrove, setEnablePublishToTrove] = useState(false);
   const [sharingServiceToManage, setSharingServiceToManage] = useState<any>({});
 
   const [addSharingService] = useAddSharingServiceMutation();
@@ -694,6 +720,8 @@ const SharingServicesPage = () => {
       tns_bot_id,
       tns_source_group_id,
       tns_api_key,
+      trove_username,
+      trove_password,
     } = sharingServiceToManage;
 
     const data = {
@@ -714,8 +742,16 @@ const SharingServicesPage = () => {
       ...((!isEdit || tns_api_key?.length > 0) && {
         _tns_altdata: { api_key: tns_api_key },
       }),
+      ...(trove_username?.length > 0 &&
+        trove_password?.length > 0 && {
+          _trove_altdata: {
+            username: trove_username,
+            password: trove_password,
+          },
+        }),
       enable_sharing_with_tns: enablePublishToTNS,
       enable_sharing_with_hermes: enablePublishToHermes,
+      enable_sharing_with_trove: enablePublishToTrove,
     };
 
     const result = isEdit
@@ -755,7 +791,7 @@ const SharingServicesPage = () => {
     return errors;
   };
 
-  const getFormSchema = (enableTNS: boolean) => {
+  const getFormSchema = (enableTNS: boolean, enableTrove: boolean) => {
     const isCreation = !sharingServiceToManage?.id;
     return {
       type: "object",
@@ -841,6 +877,10 @@ const SharingServicesPage = () => {
               "If enabled, the sharing service will submit TNS auto-publish as archival if there is no non-detection prior to the first detection that can be published.",
           },
         }),
+        ...(enableTrove && {
+          trove_username: { type: "string", title: "TROVE Username" },
+          trove_password: { type: "string", title: "TROVE Password" },
+        }),
       },
       required: [
         "name",
@@ -852,6 +892,9 @@ const SharingServicesPage = () => {
           ? ["tns_bot_name", "tns_bot_id", "tns_source_group_id"]
           : []),
         ...(isCreation && enableTNS ? ["tns_api_key"] : []),
+        ...(isCreation && enableTrove
+          ? ["trove_username", "trove_password"]
+          : []),
       ],
     };
   };
@@ -917,6 +960,14 @@ const SharingServicesPage = () => {
             <Chip
               size="small"
               label="Hermes"
+              color="primary"
+              variant="outlined"
+            />
+          )}
+          {row.enable_sharing_with_trove && (
+            <Chip
+              size="small"
+              label="TROVE"
               color="primary"
               variant="outlined"
             />
@@ -997,6 +1048,7 @@ const SharingServicesPage = () => {
                   setSharingServiceToManage(row);
                   setEnablePublishToTNS(row.enable_sharing_with_tns);
                   setEnablePublishToHermes(row.enable_sharing_with_hermes);
+                  setEnablePublishToTrove(row.enable_sharing_with_trove);
                   setManageDialogOpen(true);
                 }}
               >
@@ -1036,6 +1088,7 @@ const SharingServicesPage = () => {
                   setSharingServiceToManage({});
                   setEnablePublishToTNS(true);
                   setEnablePublishToHermes(true);
+                  setEnablePublishToTrove(false);
                   setManageDialogOpen(true);
                 }
               : undefined,
@@ -1100,6 +1153,30 @@ const SharingServicesPage = () => {
                   variant={enablePublishToHermes ? "filled" : "outlined"}
                 />
               </Tooltip>
+              <Tooltip
+                title={
+                  <h3>
+                    TROVE is a Treasure Trove of Optical Variables and Explosive
+                    transients. Click{" "}
+                    <a
+                      href="https://datatrove.as.arizona.edu"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      here
+                    </a>{" "}
+                    for more information.
+                  </h3>
+                }
+              >
+                <Chip
+                  label="TROVE"
+                  clickable
+                  onClick={() => setEnablePublishToTrove(!enablePublishToTrove)}
+                  color={enablePublishToTrove ? "primary" : "default"}
+                  variant={enablePublishToTrove ? "filled" : "outlined"}
+                />
+              </Tooltip>
             </Box>
           </Box>
         </DialogTitle>
@@ -1107,7 +1184,9 @@ const SharingServicesPage = () => {
           <Form
             formData={sharingServiceToManage}
             onChange={(e: any) => setSharingServiceToManage(e.formData)}
-            schema={getFormSchema(enablePublishToTNS) as any}
+            schema={
+              getFormSchema(enablePublishToTNS, enablePublishToTrove) as any
+            }
             uiSchema={{
               owner_group_ids: {
                 "ui:enumNames": groups.map((group: any) => group.name),
@@ -1120,6 +1199,8 @@ const SharingServicesPage = () => {
               stream_ids: {
                 "ui:enumNames": streams.map((stream: any) => stream.name),
               },
+              trove_password: { "ui:widget": "password" },
+              tns_api_key: { "ui:widget": "password" },
             }}
             onSubmit={submitSharingService}
             validator={validator}

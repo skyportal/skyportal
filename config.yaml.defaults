@@ -207,6 +207,9 @@ app:
     api_key:
     look_back_days: 1
 
+  trove:
+    endpoint: https://datatrove.as.arizona.edu # Base URL of the TROVE API
+
   hermes:
     endpoint: https://hermes.lco.global/api/v0 # Base URL of the Hermes API
     token: # Hermes API token for authentication (required to publish messages)

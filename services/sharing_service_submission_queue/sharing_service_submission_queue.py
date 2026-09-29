@@ -28,6 +28,7 @@ from skyportal.utils.data_access import (
 from skyportal.utils.hermes_submission import submit_to_hermes
 from skyportal.utils.services import check_loaded
 from skyportal.utils.tns_submission import check_at_report, submit_to_tns
+from skyportal.utils.trove_submission import submit_to_trove
 
 env, cfg = load_env()
 
@@ -200,9 +201,10 @@ def process_submission_request(submission_request, session):
         if (
             not submission_request.publish_to_tns
             and not submission_request.publish_to_hermes
+            and not submission_request.publish_to_trove
         ):
             raise ValueError(
-                "Submission request is not set to publish to TNS or Hermes, skipping."
+                "Submission request is not set to publish to TNS, Hermes or TROVE, skipping."
             )
 
         user = session.scalar(sa.select(User).where(User.id == user_id))
@@ -269,6 +271,15 @@ def process_submission_request(submission_request, session):
             session,
         )
 
+    if submission_request.trove_status == "processing":
+        submit_to_trove(
+            submission_request,
+            sharing_service,
+            user,
+            photometry,
+            session,
+        )
+
     if submission_request.tns_status == "processing":
         submit_to_tns(
             submission_request,
@@ -317,6 +328,12 @@ def process_submission_requests():
                                         ["pending", "processing"]
                                     ),
                                 ),
+                                and_(
+                                    SharingServiceSubmission.publish_to_trove == True,
+                                    SharingServiceSubmission.trove_status.in_(
+                                        ["pending", "processing"]
+                                    ),
+                                ),
                             )
                         )
                         .order_by(SharingServiceSubmission.created_at.asc())
@@ -327,6 +344,8 @@ def process_submission_requests():
                     else:
                         if submission_request.publish_to_hermes:
                             submission_request.hermes_status = "processing"
+                        if submission_request.publish_to_trove:
+                            submission_request.trove_status = "processing"
                         if submission_request.publish_to_tns:
                             submission_request.tns_status = "processing"
                         session.commit()
@@ -356,6 +375,8 @@ def process_submission_requests():
                             )
                             if submission_request.publish_to_hermes:
                                 submission_request.hermes_status = f"Error: {str(e)}"
+                            if submission_request.publish_to_trove:
+                                submission_request.trove_status = f"Error: {str(e)}"
                             if submission_request.publish_to_tns:
                                 submission_request.tns_status = f"Error: {str(e)}"
                             session.commit()

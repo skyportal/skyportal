@@ -65,6 +65,7 @@ class SharingServiceSubmissionHandler(BaseHandler):
         photometry_options = body.photometry_options
         publish_to_tns = body.publish_to_tns
         publish_to_hermes = body.publish_to_hermes
+        publish_to_trove = body.publish_to_trove
 
         if sharing_service_id is None:
             return self.error("Sharing service id is required")
@@ -74,9 +75,9 @@ class SharingServiceSubmissionHandler(BaseHandler):
             return self.error(f"Invalid sharing_service_id: {sharing_service_id}")
         if not obj_id:
             return self.error("obj_id is required")
-        if not publish_to_tns and not publish_to_hermes:
+        if not publish_to_tns and not publish_to_hermes and not publish_to_trove:
             return self.error(
-                "Either publish to TNS or publish to Hermes must be set to True"
+                "At least one of publish to TNS, Hermes or TROVE must be set to True"
             )
         if publish_to_hermes and not is_configured:
             return self.error("This instance is not configured to use Hermes")
@@ -142,6 +143,25 @@ class SharingServiceSubmissionHandler(BaseHandler):
                     return self.error(
                         f"Submission request for Hermes for obj_id {obj.id} and sharing service id {sharing_service.id} already exists and is: {existing_submission_request.hermes_status}"
                     )
+            if publish_to_trove:
+                if not sharing_service.enable_sharing_with_trove:
+                    return self.error(
+                        "This sharing service is not enabled for publishing to TROVE"
+                    )
+                trove_altdata = sharing_service.trove_altdata
+                if not trove_altdata.get("username") or not trove_altdata.get(
+                    "password"
+                ):
+                    return self.error("Missing TROVE username or password.")
+                existing_submission_request = (
+                    await is_existing_submission_request_async(
+                        session, obj, sharing_service_id, "TROVE"
+                    )
+                )
+                if existing_submission_request is not None:
+                    return self.error(
+                        f"Submission request for TROVE for obj_id {obj.id} and sharing service id {sharing_service.id} already exists and is: {existing_submission_request.trove_status}"
+                    )
 
             # create a SharingServiceSubmission entry with that information
             sharing_service_submission = SharingServiceSubmission(
@@ -160,6 +180,8 @@ class SharingServiceSubmissionHandler(BaseHandler):
                 tns_status="pending" if publish_to_tns else None,
                 publish_to_hermes=publish_to_hermes,
                 hermes_status="pending" if publish_to_hermes else None,
+                publish_to_trove=publish_to_trove,
+                trove_status="pending" if publish_to_trove else None,
             )
             session.add(sharing_service_submission)
             await session.commit()
@@ -297,9 +319,16 @@ class SharingServiceSubmissionHandler(BaseHandler):
                 stmt = stmt.options(joinedload(SharingServiceSubmission.obj))
 
                 if query.include_payload:
-                    stmt = stmt.options(undefer(SharingServiceSubmission.tns_payload))
+                    stmt = stmt.options(
+                        undefer(SharingServiceSubmission.tns_payload),
+                        undefer(SharingServiceSubmission.trove_payload),
+                    )
                 if query.include_response:
-                    stmt = stmt.options(undefer(SharingServiceSubmission.response))
+                    stmt = stmt.options(
+                        undefer(SharingServiceSubmission.tns_response),
+                        undefer(SharingServiceSubmission.hermes_response),
+                        undefer(SharingServiceSubmission.trove_response),
+                    )
 
                 result = await session.scalars(
                     stmt.limit(page_size).offset((page_number - 1) * page_size)

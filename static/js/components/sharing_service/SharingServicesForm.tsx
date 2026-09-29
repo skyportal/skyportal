@@ -66,6 +66,7 @@ const SharingServicesDialog = ({
     useState<any>(null);
   const [sendToTNS, setSendToTNS] = useState(false);
   const [sendToHermes, setSendToHermes] = useState(false);
+  const [sendToTrove, setSendToTrove] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
   const { data: instrumentList = [] } = useGetInstrumentsQuery();
@@ -137,6 +138,7 @@ const SharingServicesDialog = ({
       Boolean(selectedSharingService?.enable_sharing_with_tns) &&
         !isNoAffiliation,
     );
+    setSendToTrove(Boolean(selectedSharingService?.enable_sharing_with_trove));
     setSendToHermes(
       Boolean(selectedSharingService?.enable_sharing_with_hermes),
     );
@@ -153,6 +155,7 @@ const SharingServicesDialog = ({
       photometry_options: { first_and_last_detections },
       publish_to_tns: sendToTNS,
       publish_to_hermes: sendToHermes,
+      publish_to_trove: sendToTrove,
     });
     if (!("error" in result)) {
       dispatch(showNotification("Successfully queued for submission."));
@@ -260,9 +263,9 @@ const SharingServicesDialog = ({
   };
 
   const validate = (formData: any, errors: any) => {
-    if (!sendToTNS && !sendToHermes) {
+    if (!sendToTNS && !sendToHermes && !sendToTrove) {
       errors.__errors.push(
-        "Please select at least one destination (TNS or Hermes)",
+        "Please select at least one destination (TNS, Hermes or TROVE)",
       );
     }
     const publishers = formData.publishers ?? "";
@@ -373,6 +376,31 @@ const SharingServicesDialog = ({
               color={sendToHermes ? "primary" : "default"}
               variant={sendToHermes ? "filled" : "outlined"}
               disabled={!selectedSharingService?.enable_sharing_with_hermes}
+            />
+          </Tooltip>
+          <Tooltip
+            title={
+              <h3>
+                TROVE is a Treasure Trove of Optical Variables and Explosive
+                transients. Click{" "}
+                <a
+                  href="https://datatrove.as.arizona.edu"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  here
+                </a>{" "}
+                for more information.
+              </h3>
+            }
+          >
+            <Chip
+              label="TROVE"
+              clickable
+              onClick={() => setSendToTrove(!sendToTrove)}
+              color={sendToTrove ? "primary" : "default"}
+              variant={sendToTrove ? "filled" : "outlined"}
+              disabled={!selectedSharingService?.enable_sharing_with_trove}
             />
           </Tooltip>
         </Box>

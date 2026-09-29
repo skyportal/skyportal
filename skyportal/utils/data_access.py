@@ -119,10 +119,12 @@ def is_existing_submission_request(
         SharingServiceSubmission or None:
             The existing submission request if found, None otherwise.
     """
-    if service not in ["TNS", "Hermes"]:
-        raise ValueError("Invalid service name. Must be 'TNS' or 'Hermes'.")
+    if service not in ["TNS", "Hermes", "TROVE"]:
+        raise ValueError("Invalid service name. Must be 'TNS', 'Hermes' or 'TROVE'.")
     if service == "TNS":
         service_status = SharingServiceSubmission.tns_status
+    elif service == "TROVE":
+        service_status = SharingServiceSubmission.trove_status
     else:
         service_status = SharingServiceSubmission.hermes_status
 
@@ -587,11 +589,11 @@ def auto_source_publishing(session, saver, group_id, obj, publish_to):
     obj : Obj
         The source object to check for auto-publishing
     publish_to : list of str
-        The procedures to check for auto-publishing (e.g., ["TNS", "Hermes", "Public page"])
+        The procedures to check for auto-publishing (e.g., ["TNS", "Hermes", "TROVE", "Public page"])
     """
-    tns, hermes = "TNS", "Hermes"
-    if tns in publish_to or hermes in publish_to:
-        # Check if group auto publish is enabled to TNS or Hermes and a user is auto publisher
+    tns, hermes, trove = "TNS", "Hermes", "TROVE"
+    if tns in publish_to or hermes in publish_to or trove in publish_to:
+        # Check if group auto publish is enabled to an external service and a user is auto publisher
         stmt = (
             SharingServiceGroup.select(saver)
             .join(
@@ -604,6 +606,7 @@ def auto_source_publishing(session, saver, group_id, obj, publish_to):
                 sa.or_(
                     SharingServiceGroup.auto_share_to_tns,
                     SharingServiceGroup.auto_share_to_hermes,
+                    SharingServiceGroup.auto_share_to_trove,
                 ),
                 SharingServiceGroupAutoPublisher.group_user_id.in_(
                     sa.select(GroupUser.id).where(
@@ -618,56 +621,62 @@ def auto_source_publishing(session, saver, group_id, obj, publish_to):
         groups_with_auto_publisher = session.scalars(stmt).all()
         if groups_with_auto_publisher:
             external_services = {}
-            # Determine which external services (TNS, Hermes) can be auto-published
+            # Determine which external services can be auto-published
             # and the corresponding sharing service id
             for group in groups_with_auto_publisher:
                 sharing_service = group.sharing_service
-                if (
-                    not external_services.get(tns)
-                    and tns in publish_to
-                    and sharing_service.enable_sharing_with_tns
-                    and group.auto_share_to_tns
-                    and not is_existing_submission_request(
-                        session, obj, sharing_service.id, tns
-                    )
+                for service, enabled, auto_share in (
+                    (
+                        tns,
+                        sharing_service.enable_sharing_with_tns,
+                        group.auto_share_to_tns,
+                    ),
+                    (
+                        hermes,
+                        sharing_service.enable_sharing_with_hermes,
+                        group.auto_share_to_hermes,
+                    ),
+                    (
+                        trove,
+                        sharing_service.enable_sharing_with_trove,
+                        group.auto_share_to_trove,
+                    ),
                 ):
-                    external_services[tns] = sharing_service.id
-                    publish_to.remove(
-                        tns
-                    )  # Remove TNS from publish_to to avoid duplicate processing
-
-                if (
-                    not external_services.get(hermes)
-                    and hermes in publish_to
-                    and sharing_service.enable_sharing_with_hermes
-                    and group.auto_share_to_hermes
-                    and not is_existing_submission_request(
-                        session, obj, sharing_service.id, hermes
-                    )
-                ):
-                    external_services[hermes] = sharing_service.id
-                    publish_to.remove(
-                        hermes
-                    )  # Remove Hermes from publish_to to avoid duplicate processing
-                if len(external_services) == 2:
+                    if (
+                        not external_services.get(service)
+                        and service in publish_to
+                        and enabled
+                        and auto_share
+                        and not is_existing_submission_request(
+                            session, obj, sharing_service.id, service
+                        )
+                    ):
+                        external_services[service] = sharing_service.id
+                        # Drop it so no other group publishes it twice.
+                        publish_to.remove(service)
+                if len(external_services) == 3:
                     break
 
             if external_services:
                 # Merge if same sharing service is used for both
-                if external_services.get(tns) == external_services.get(hermes):
-                    external_services = {f"{tns}/{hermes}": external_services[tns]}
+                # One request per sharing service, covering every service it serves.
+                merged = {}
+                for service, sharing_service_id in external_services.items():
+                    merged.setdefault(sharing_service_id, []).append(service)
 
-                # Create submission requests
-                for service_name, sharing_service_id in external_services.items():
+                for sharing_service_id, services in merged.items():
+                    service_name = "/".join(services)
                     submission_request = SharingServiceSubmission(
                         sharing_service_id=sharing_service_id,
                         obj_id=obj.id,
                         user_id=saver.id,
                         auto_submission=True,
-                        publish_to_tns=tns in service_name,
-                        tns_status="pending" if tns in service_name else None,
-                        publish_to_hermes=hermes in service_name,
-                        hermes_status="pending" if hermes in service_name else None,
+                        publish_to_tns=tns in services,
+                        tns_status="pending" if tns in services else None,
+                        publish_to_hermes=hermes in services,
+                        hermes_status="pending" if hermes in services else None,
+                        publish_to_trove=trove in services,
+                        trove_status="pending" if trove in services else None,
                     )
                     session.add(submission_request)
                     session.commit()
@@ -676,7 +685,7 @@ def auto_source_publishing(session, saver, group_id, obj, publish_to):
                     )
             else:
                 log(
-                    "No auto-sharing services associated with this group are selected to auto publish to TNS or Hermes."
+                    "No auto-sharing services associated with this group are selected to auto publish to TNS, Hermes or TROVE."
                 )
 
     if "Public page" in publish_to:
@@ -836,10 +845,12 @@ async def is_existing_submission_request_async(
     session, obj, sharing_service_id, service, is_bot=False
 ):
     """Async equivalent of `is_existing_submission_request`."""
-    if service not in ["TNS", "Hermes"]:
-        raise ValueError("Invalid service name. Must be 'TNS' or 'Hermes'.")
+    if service not in ["TNS", "Hermes", "TROVE"]:
+        raise ValueError("Invalid service name. Must be 'TNS', 'Hermes' or 'TROVE'.")
     if service == "TNS":
         service_status = SharingServiceSubmission.tns_status
+    elif service == "TROVE":
+        service_status = SharingServiceSubmission.trove_status
     else:
         service_status = SharingServiceSubmission.hermes_status
 
@@ -894,8 +905,8 @@ async def any_group_auto_publishes(session, group_ids):
 
 async def auto_source_publishing_async(session, saver, group_id, obj, publish_to):
     """Async equivalent of `auto_source_publishing`."""
-    tns, hermes = "TNS", "Hermes"
-    if tns in publish_to or hermes in publish_to:
+    tns, hermes, trove = "TNS", "Hermes", "TROVE"
+    if tns in publish_to or hermes in publish_to or trove in publish_to:
         stmt = (
             SharingServiceGroup.select(saver)
             .options(selectinload(SharingServiceGroup.sharing_service))
@@ -909,6 +920,7 @@ async def auto_source_publishing_async(session, saver, group_id, obj, publish_to
                 sa.or_(
                     SharingServiceGroup.auto_share_to_tns,
                     SharingServiceGroup.auto_share_to_hermes,
+                    SharingServiceGroup.auto_share_to_trove,
                 ),
                 SharingServiceGroupAutoPublisher.group_user_id.in_(
                     sa.select(GroupUser.id).where(
@@ -926,46 +938,57 @@ async def auto_source_publishing_async(session, saver, group_id, obj, publish_to
             external_services = {}
             for group in groups_with_auto_publisher:
                 sharing_service = group.sharing_service
-                if (
-                    not external_services.get(tns)
-                    and tns in publish_to
-                    and sharing_service.enable_sharing_with_tns
-                    and group.auto_share_to_tns
-                    and not await is_existing_submission_request_async(
-                        session, obj, sharing_service.id, tns
-                    )
+                for service, enabled, auto_share in (
+                    (
+                        tns,
+                        sharing_service.enable_sharing_with_tns,
+                        group.auto_share_to_tns,
+                    ),
+                    (
+                        hermes,
+                        sharing_service.enable_sharing_with_hermes,
+                        group.auto_share_to_hermes,
+                    ),
+                    (
+                        trove,
+                        sharing_service.enable_sharing_with_trove,
+                        group.auto_share_to_trove,
+                    ),
                 ):
-                    external_services[tns] = sharing_service.id
-                    publish_to.remove(tns)
-
-                if (
-                    not external_services.get(hermes)
-                    and hermes in publish_to
-                    and sharing_service.enable_sharing_with_hermes
-                    and group.auto_share_to_hermes
-                    and not await is_existing_submission_request_async(
-                        session, obj, sharing_service.id, hermes
-                    )
-                ):
-                    external_services[hermes] = sharing_service.id
-                    publish_to.remove(hermes)
-                if len(external_services) == 2:
+                    if (
+                        not external_services.get(service)
+                        and service in publish_to
+                        and enabled
+                        and auto_share
+                        and not await is_existing_submission_request_async(
+                            session, obj, sharing_service.id, service
+                        )
+                    ):
+                        external_services[service] = sharing_service.id
+                        # Drop it so no other group publishes it twice.
+                        publish_to.remove(service)
+                if len(external_services) == 3:
                     break
 
             if external_services:
-                if external_services.get(tns) == external_services.get(hermes):
-                    external_services = {f"{tns}/{hermes}": external_services[tns]}
+                # One request per sharing service, covering every service it serves.
+                merged = {}
+                for service, sharing_service_id in external_services.items():
+                    merged.setdefault(sharing_service_id, []).append(service)
 
-                for service_name, sharing_service_id in external_services.items():
+                for sharing_service_id, services in merged.items():
+                    service_name = "/".join(services)
                     submission_request = SharingServiceSubmission(
                         sharing_service_id=sharing_service_id,
                         obj_id=obj.id,
                         user_id=saver.id,
                         auto_submission=True,
-                        publish_to_tns=tns in service_name,
-                        tns_status="pending" if tns in service_name else None,
-                        publish_to_hermes=hermes in service_name,
-                        hermes_status="pending" if hermes in service_name else None,
+                        publish_to_tns=tns in services,
+                        tns_status="pending" if tns in services else None,
+                        publish_to_hermes=hermes in services,
+                        hermes_status="pending" if hermes in services else None,
+                        publish_to_trove=trove in services,
+                        trove_status="pending" if trove in services else None,
                     )
                     session.add(submission_request)
                     await session.commit()
@@ -974,7 +997,7 @@ async def auto_source_publishing_async(session, saver, group_id, obj, publish_to
                     )
             else:
                 log(
-                    "No auto-sharing services associated with this group are selected to auto publish to TNS or Hermes."
+                    "No auto-sharing services associated with this group are selected to auto publish to TNS, Hermes or TROVE."
                 )
 
     if "Public page" in publish_to:

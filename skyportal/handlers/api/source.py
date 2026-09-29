@@ -1054,7 +1054,7 @@ async def post_source_async(data, user_id, session, refresh_source=True):
     # Skip the per-group publishing checks (two queries each) unless some
     # auto-publishing is actually configured for these groups.
     if await any_group_auto_publishes(session, [group.id for group in groups]):
-        publish_to = ["TNS", "Hermes", "Public page"]
+        publish_to = ["TNS", "Hermes", "TROVE", "Public page"]
         for group in groups:
             await auto_source_publishing_async(
                 session=session,
@@ -1314,7 +1314,7 @@ def post_source(data, user_id, session, refresh_source=True):
     # remove from groups that we didn't save to
     groups = [group for group in groups if group.id not in not_saved_to_group_ids]
     # Shared mutable list to ensure publish_to target is triggered only once across all groups if needed
-    publish_to = ["TNS", "Hermes", "Public page"]
+    publish_to = ["TNS", "Hermes", "TROVE", "Public page"]
     for group in groups:
         auto_source_publishing(
             session=session,

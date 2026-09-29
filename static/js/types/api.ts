@@ -37052,6 +37052,8 @@ export interface components {
             enable_sharing_with_hermes?: boolean;
             /** @description Whether to enable publishing to TNS or not. */
             enable_sharing_with_tns?: boolean;
+            /** @description Whether to enable publishing to TROVE or not. */
+            enable_sharing_with_trove?: boolean;
             /** @description Name of the TNS bot. */
             tns_bot_name?: string | null;
             /** @description ID of the TNS bot. */
@@ -37062,6 +37064,7 @@ export interface components {
             /** @description Whether to publish objects that already exist in TNS but not reported under this internal name (e.g., reported by another survey). */
             publish_existing_tns_objects?: boolean | null;
             _mpc_altdata?: string | null;
+            _trove_altdata?: string | null;
             /** @description Unique object identifier. */
             id?: number;
         };
@@ -37131,6 +37134,7 @@ export interface components {
             auto_share_to_tns?: boolean;
             auto_share_to_hermes?: boolean;
             auto_share_to_mpc?: boolean;
+            auto_share_to_trove?: boolean;
             auto_sharing_allow_bots?: boolean;
             /** @description Unique object identifier. */
             id?: number;
@@ -37199,6 +37203,7 @@ export interface components {
             auto_share_to_tns?: boolean;
             auto_share_to_hermes?: boolean;
             auto_share_to_mpc?: boolean;
+            auto_share_to_trove?: boolean;
             auto_sharing_allow_bots?: boolean;
         };
         SingleSharingServiceGroupNoID: {
@@ -37233,6 +37238,8 @@ export interface components {
             enable_sharing_with_hermes?: boolean;
             /** @description Whether to enable publishing to TNS or not. */
             enable_sharing_with_tns?: boolean;
+            /** @description Whether to enable publishing to TROVE or not. */
+            enable_sharing_with_trove?: boolean;
             /** @description Name of the TNS bot. */
             tns_bot_name?: string | null;
             /** @description ID of the TNS bot. */
@@ -37243,6 +37250,7 @@ export interface components {
             /** @description Whether to publish objects that already exist in TNS but not reported under this internal name (e.g., reported by another survey). */
             publish_existing_tns_objects?: boolean | null;
             _mpc_altdata?: string | null;
+            _trove_altdata?: string | null;
         };
         SingleSharingServiceNoID: {
             /** @enum {string} */
@@ -37304,6 +37312,18 @@ export interface components {
             hermes_status?: string | null;
             /** @description Serialized HTTP response from Hermes. */
             hermes_response?: {
+                [key: string]: unknown;
+            } | null;
+            /** @description Whether to publish to TROVE or not. */
+            publish_to_trove?: boolean;
+            /** @description Status of the TROVE submission. */
+            trove_status?: string | null;
+            /** @description Serialized HTTP response from TROVE. */
+            trove_response?: {
+                [key: string]: unknown;
+            } | null;
+            /** @description Payload published to TROVE. */
+            trove_payload?: {
                 [key: string]: unknown;
             } | null;
             /** @description Whether this is an archival submission or not. */
@@ -37383,6 +37403,18 @@ export interface components {
             hermes_status?: string | null;
             /** @description Serialized HTTP response from Hermes. */
             hermes_response?: {
+                [key: string]: unknown;
+            } | null;
+            /** @description Whether to publish to TROVE or not. */
+            publish_to_trove?: boolean;
+            /** @description Status of the TROVE submission. */
+            trove_status?: string | null;
+            /** @description Serialized HTTP response from TROVE. */
+            trove_response?: {
+                [key: string]: unknown;
+            } | null;
+            /** @description Payload published to TROVE. */
+            trove_payload?: {
                 [key: string]: unknown;
             } | null;
             /** @description Whether this is an archival submission or not. */
@@ -48332,6 +48364,12 @@ export interface components {
              * @default false
              */
             publish_to_hermes: boolean | null;
+            /**
+             * Publish To Trove
+             * @description Flag to indicate if the submission should be published to TROVE
+             * @default false
+             */
+            publish_to_trove: boolean | null;
         };
         /**
          * SharingServiceCoauthorPostBody
@@ -48390,6 +48428,12 @@ export interface components {
              * @default null
              */
             auto_share_to_hermes: (boolean | string) | null;
+            /**
+             * Auto Share To Trove
+             * @description Whether to automatically publish to TROVE
+             * @default null
+             */
+            auto_share_to_trove: (boolean | string) | null;
             /**
              * Auto Sharing Allow Bots
              * @description Whether to allow bots to automatically publish
@@ -48516,6 +48560,12 @@ export interface components {
              */
             enable_sharing_with_hermes: boolean | null;
             /**
+             * Enable Sharing With Trove
+             * @description Whether to enable publishing to TROVE or not.
+             * @default null
+             */
+            enable_sharing_with_trove: boolean | null;
+            /**
              * Enable Sharing With Tns
              * @description Whether to enable publishing to TNS or not.
              * @default null
@@ -48545,6 +48595,14 @@ export interface components {
              * @default null
              */
             _tns_altdata: ({
+                [key: string]: unknown;
+            } | string) | null;
+            /**
+             * Trove Altdata
+             * @description TROVE altdata (the account username and password), as a JSON object or string.
+             * @default null
+             */
+            _trove_altdata: ({
                 [key: string]: unknown;
             } | string) | null;
             /**

@@ -71,6 +71,7 @@ class SharingServiceGroupResponse(BaseModel):
     owner: bool | None = None
     auto_share_to_tns: bool | None = None
     auto_share_to_hermes: bool | None = None
+    auto_share_to_trove: bool | None = None
     auto_sharing_allow_bots: bool | None = None
     auto_publishers: list[SharingServiceGroupAutoPublisherResponse] = Field(
         default_factory=list
@@ -97,6 +98,7 @@ class SharingServiceResponse(BaseModel):
     photometry_options: PhotometryOptionsResponse | None = None
     enable_sharing_with_tns: bool | None = None
     enable_sharing_with_hermes: bool | None = None
+    enable_sharing_with_trove: bool | None = None
     tns_bot_name: str | None = None
     tns_bot_id: int | None = None
     tns_source_group_id: int | None = None
@@ -146,6 +148,10 @@ class SharingServiceSubmissionResponse(BaseModel):
     publish_to_hermes: bool | None = None
     hermes_status: str | None = None
     hermes_response: dict[str, Any] | None = None
+    publish_to_trove: bool | None = None
+    trove_status: str | None = None
+    trove_response: dict[str, Any] | None = None
+    trove_payload: dict[str, Any] | None = None
     archival: bool | None = None
     archival_comment: str | None = None
     auto_submission: bool | None = None
@@ -193,6 +199,7 @@ class SharingServicePost(BaseModel):
     photometry_options: PhotometryOptions | None = None
     enable_sharing_with_tns: bool | None = None
     enable_sharing_with_hermes: bool | None = None
+    enable_sharing_with_trove: bool | None = None
     tns_bot_name: str | None = None
     tns_bot_id: int | None = None
     tns_source_group_id: int | None = None
@@ -216,6 +223,7 @@ class SharingServiceSubmissionPost(BaseModel):
     photometry_options: PhotometryOptions | None = None
     publish_to_tns: bool | None = None
     publish_to_hermes: bool | None = None
+    publish_to_trove: bool | None = None
 
 
 class SharingServicePutBody(BaseModel):
@@ -255,6 +263,9 @@ class SharingServicePutBody(BaseModel):
     enable_sharing_with_hermes: bool | None = Field(
         default=None, description="Whether to enable publishing to Hermes or not."
     )
+    enable_sharing_with_trove: bool | None = Field(
+        default=None, description="Whether to enable publishing to TROVE or not."
+    )
     enable_sharing_with_tns: bool | None = Field(
         default=None, description="Whether to enable publishing to TNS or not."
     )
@@ -267,6 +278,12 @@ class SharingServicePutBody(BaseModel):
         default=None,
         alias="_tns_altdata",
         description="TNS altdata (e.g. the API key), as a JSON object or string.",
+    )
+    trove_altdata: dict | str | None = Field(
+        default=None,
+        alias="_trove_altdata",
+        description="TROVE altdata (the account username and password), as a "
+        "JSON object or string.",
     )
     publish_existing_tns_objects: bool | str | None = Field(
         default=None,
@@ -319,6 +336,9 @@ class SharingServiceGroupPutBody(BaseModel):
     )
     auto_share_to_hermes: bool | str | None = Field(
         default=None, description="Whether to automatically publish to Hermes"
+    )
+    auto_share_to_trove: bool | str | None = Field(
+        default=None, description="Whether to automatically publish to TROVE"
     )
     auto_sharing_allow_bots: bool | str | None = Field(
         default=None, description="Whether to allow bots to automatically publish"
@@ -447,6 +467,10 @@ class SharingServiceSubmissionPostBody(BaseModel):
     publish_to_hermes: bool | None = Field(
         default=False,
         description="Flag to indicate if the submission should be published to Hermes",
+    )
+    publish_to_trove: bool | None = Field(
+        default=False,
+        description="Flag to indicate if the submission should be published to TROVE",
     )
 
 

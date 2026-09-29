@@ -111,6 +111,7 @@ async def create_sharing_service(
             owner=True,
             auto_share_to_tns=False,
             auto_share_to_hermes=False,
+            auto_share_to_trove=False,
             auto_sharing_allow_bots=False,
         )
         for owner_group_id in owner_group_ids
@@ -164,13 +165,23 @@ async def update_sharing_service(
             f"No sharing service with specified ID: {existing_id}, or you are not authorized to update it"
         )
 
-    if "enable_sharing_with_tns" in data or "enable_sharing_with_hermes" in data:
+    if (
+        "enable_sharing_with_tns" in data
+        or "enable_sharing_with_hermes" in data
+        or "enable_sharing_with_trove" in data
+    ):
         for group in sharing_service.groups:
             if data.get("enable_sharing_with_tns") is False:
                 group.auto_share_to_tns = False
             if data.get("enable_sharing_with_hermes") is False:
                 group.auto_share_to_hermes = False
-            if group.auto_share_to_hermes is False and group.auto_share_to_tns is False:
+            if data.get("enable_sharing_with_trove") is False:
+                group.auto_share_to_trove = False
+            if (
+                group.auto_share_to_hermes is False
+                and group.auto_share_to_tns is False
+                and group.auto_share_to_trove is False
+            ):
                 group.auto_sharing_allow_bots = False
 
     # Fields to update as-is if present
@@ -182,6 +193,8 @@ async def update_sharing_service(
         "_tns_altdata",
         "enable_sharing_with_tns",
         "enable_sharing_with_hermes",
+        "enable_sharing_with_trove",
+        "_trove_altdata",
     ]:
         if field in data:
             setattr(sharing_service, field, data[field])
