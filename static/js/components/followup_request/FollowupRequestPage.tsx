@@ -1,251 +1,190 @@
-import { useGetProfileQuery } from "../../ducks/profile";
-import React, { useState } from "react";
+import { useState } from "react";
+import Box from "@mui/material/Box";
 import CircularProgress from "@mui/material/CircularProgress";
-import Typography from "@mui/material/Typography";
 import Grid from "@mui/material/Grid";
 import Tab from "@mui/material/Tab";
 import Tabs from "@mui/material/Tabs";
-import dayjs from "dayjs";
-import utc from "dayjs/plugin/utc";
+import Typography from "@mui/material/Typography";
 
 import { showNotification } from "baselayer/components/Notifications";
 import { useAppDispatch } from "../../types/hooks";
+import { useGetProfileQuery } from "../../ducks/profile";
 import { useGetTelescopesQuery } from "../../ducks/telescopes";
 import {
   useGetInstrumentsQuery,
   useGetInstrumentFormsQuery,
 } from "../../ducks/instruments";
 import { useGetDefaultFollowupRequestsQuery } from "../../ducks/default_followup_requests";
-import FollowupRequestListsBase from "./FollowupRequestLists";
-import FollowupHealth from "./FollowupHealth";
-import FollowupRequestSelectionForm from "./FollowupRequestSelectionForm";
-import FollowupRequestPrioritizationForm from "./FollowupRequestPrioritizationForm";
-import { DownloadProgressDialog } from "../ProgressIndicators";
-import DefaultFollowupRequestList from "./DefaultFollowupRequestList";
-import Paper from "../Paper";
-
 import {
   useGetFollowupRequestsQuery,
   useLazyGetFollowupRequestsQuery,
 } from "../../ducks/followup_requests";
+import FollowupRequestLists from "./FollowupRequestLists";
+import FollowupHealth, { WINDOWS } from "./FollowupHealth";
+import FollowupRequestSelectionForm from "./FollowupRequestSelectionForm";
+import FollowupRequestPrioritizationForm from "./FollowupRequestPrioritizationForm";
+import DefaultFollowupRequestList from "./DefaultFollowupRequestList";
+import { DownloadProgressDialog } from "../ProgressIndicators";
+import Paper from "../Paper";
+import Spinner from "../Spinner";
 
-dayjs.extend(utc);
-
-const FollowupRequestLists = FollowupRequestListsBase as any;
+const DOWNLOAD_PAGE_SIZE = 100;
 
 const FollowupRequestPage = () => {
+  const dispatch = useAppDispatch();
   const { data: telescopeList = [] } = useGetTelescopesQuery();
   const { data: instrumentList = [] } = useGetInstrumentsQuery();
   const { data: instrumentFormParams = {} } = useGetInstrumentFormsQuery();
-  const { data: defaultFollowupRequestList } =
+  const { data: defaultFollowupRequestList = [] } =
     useGetDefaultFollowupRequestsQuery();
   const { data: currentUser } = useGetProfileQuery();
-  const dispatch = useAppDispatch();
-
-  const permission =
-    currentUser?.permissions?.includes("System admin") ||
-    currentUser?.permissions?.includes("Manage allocations") ||
-    false;
-
-  const defaultStartDate = dayjs()
-    .subtract(1, "day")
-    .utc()
-    .format("YYYY-MM-DDTHH:mm:ssZ");
-  const defaultEndDate = dayjs()
-    .add(1, "day")
-    .utc()
-    .format("YYYY-MM-DDTHH:mm:ssZ");
-
-  const [fetchParams, setFetchParams] = useState<any>({
+  const [tabIndex, setTabIndex] = useState(0);
+  const [downloadProgressCurrent, setDownloadProgressCurrent] = useState(0);
+  const [downloadProgressTotal, setDownloadProgressTotal] = useState(0);
+  const [fetchParams, setFetchParams] = useState<Record<string, any>>({
     pageNumber: 1,
     numPerPage: 25,
-    startDate: defaultStartDate,
-    endDate: defaultEndDate,
     sortBy: "created_at",
     sortOrder: "desc",
   });
-
+  const [now] = useState(() => Date.now());
+  const [windowKey, setWindowKey] = useState("1w");
+  const { ms } = WINDOWS.find((w) => w.key === windowKey)!;
+  const windowStartDate =
+    ms === Infinity ? undefined : new Date(now - ms).toISOString();
+  const listParams = {
+    ...fetchParams,
+    startDate: fetchParams["startDate"] ?? windowStartDate,
+  };
   const { data: followupRequestsData } =
-    useGetFollowupRequestsQuery(fetchParams);
-  const followupRequestList = followupRequestsData?.followup_requests;
-  const totalMatches = followupRequestsData?.totalMatches ?? 0;
+    useGetFollowupRequestsQuery(listParams);
   const [triggerFetchFollowupRequests] = useLazyGetFollowupRequestsQuery();
-
-  const [downloadProgressCurrent, setDownloadProgressCurrent] = useState(0);
-  const [downloadProgressTotal, setDownloadProgressTotal] = useState(0);
-
-  const [tabIndex, setTabIndex] = React.useState(0);
-
-  const handleChangeTab = (_event: any, newValue: number) => {
-    setTabIndex(newValue);
-  };
-
-  const handlePageChange = async (page: number, numPerPage: number) => {
-    const params = {
-      ...fetchParams,
-      numPerPage,
-      pageNumber: page + 1,
-    };
-    // Updating fetchParams re-keys the followup-requests query, which refetches.
-    setFetchParams(params);
-  };
-
-  const handleTableChange = async (action: string, tableState: any) => {
-    if (action === "changePage" || action === "changeRowsPerPage") {
-      return handlePageChange(tableState.page, tableState.rowsPerPage);
-    }
-    return null;
-  };
+  const totalMatches = followupRequestsData?.totalMatches ?? 0;
 
   if (
     !instrumentList.length ||
     !telescopeList.length ||
-    Object.keys(instrumentFormParams).length === 0
+    !Object.keys(instrumentFormParams).length
   ) {
-    return "Loading information...";
+    return <Spinner />;
   }
 
-  const sortedInstrumentList = [...instrumentList];
-  sortedInstrumentList.sort((i1: any, i2: any) => {
-    if (i1.name > i2.name) {
-      return 1;
-    }
-    if (i2.name > i1.name) {
-      return -1;
-    }
-    return 0;
-  });
-
-  const telLookUp: Record<string, any> = {};
-
-  telescopeList?.forEach((tel: any) => {
-    telLookUp[tel.id] = tel;
-  });
-
   const onDownload = async () => {
+    let allFollowupRequests: any[] = [];
     setDownloadProgressTotal(totalMatches);
-    const fetchAllRequests = async (currentFetchParams: any) => {
-      let allFollowupRequests: any[] = [];
-
-      for (let i = 1; i <= Math.ceil(totalMatches / 100); i += 1) {
-        const params = {
-          ...currentFetchParams,
-          pageNumber: i,
-          numPerPage: 100,
-        };
-
-        try {
-          const data: any = await triggerFetchFollowupRequests(params).unwrap();
-          allFollowupRequests = [
-            ...allFollowupRequests,
-            ...data.followup_requests,
-          ];
-          setDownloadProgressCurrent(allFollowupRequests.length);
-          setDownloadProgressTotal(data.totalMatches);
-        } catch {
-          setDownloadProgressCurrent(0);
-          setDownloadProgressTotal(0);
-          if (allFollowupRequests?.length === 0) {
-            dispatch(
-              showNotification(
-                "Failed to fetch some follow-up requests. Download cancelled.",
-                "error",
-              ),
-            );
-          } else {
-            dispatch(
-              showNotification(
-                "Failed to fetch some follow-up requests, please try again. Follow-up requests fetched so far will be downloaded.",
-                "error",
-              ),
-            );
-          }
-          break;
-        }
-      }
-      setDownloadProgressCurrent(0);
-      setDownloadProgressTotal(0);
-      if (
-        allFollowupRequests?.length ===
-        (allFollowupRequests as any).totalMatches?.length
-      ) {
+    for (
+      let page = 1;
+      page <= Math.ceil(totalMatches / DOWNLOAD_PAGE_SIZE);
+      page += 1
+    ) {
+      const { data, error }: any = await triggerFetchFollowupRequests({
+        ...listParams,
+        pageNumber: page,
+        numPerPage: DOWNLOAD_PAGE_SIZE,
+      });
+      if (error) {
         dispatch(
-          showNotification("Follow-up requests downloaded successfully"),
+          showNotification(
+            allFollowupRequests.length
+              ? "Failed to fetch some follow-up requests, please try again. Follow-up requests fetched so far will be downloaded."
+              : "Failed to fetch some follow-up requests. Download cancelled.",
+            "error",
+          ),
         );
+        break;
       }
-      return allFollowupRequests;
-    };
-
-    return await fetchAllRequests(fetchParams);
+      allFollowupRequests = [...allFollowupRequests, ...data.followup_requests];
+      setDownloadProgressCurrent(allFollowupRequests.length);
+      setDownloadProgressTotal(data.totalMatches);
+    }
+    setDownloadProgressCurrent(0);
+    setDownloadProgressTotal(0);
+    return allFollowupRequests;
   };
 
   return (
-    <div>
-      <Tabs value={tabIndex} onChange={handleChangeTab} centered>
+    <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
+      <Tabs
+        value={tabIndex}
+        onChange={(_e, value) => setTabIndex(value)}
+        sx={{ borderBottom: 1, borderColor: "divider" }}
+      >
         <Tab label="Follow-up Requests" />
         <Tab label="Default Follow-up Requests" />
       </Tabs>
       {tabIndex === 0 && (
-        <Grid
-          container
-          size={12}
-          sx={{ paddingTop: 0, borderTop: 1, borderColor: "divider" }}
-        >
+        <Grid container spacing={2}>
           <Grid size={12}>
-            <FollowupHealth />
+            <FollowupHealth
+              windowKey={windowKey}
+              onWindowChange={(key) => {
+                setWindowKey(key);
+                setFetchParams({ ...fetchParams, pageNumber: 1 });
+              }}
+              startDate={windowStartDate}
+            />
           </Grid>
           <Grid size={{ sm: 12, md: 8 }}>
             <Paper>
               <Typography variant="h6">List of Followup Requests</Typography>
-              {!followupRequestList ? (
-                <CircularProgress />
-              ) : (
+              {followupRequestsData ? (
                 <FollowupRequestLists
-                  followupRequests={followupRequestList}
+                  followupRequests={followupRequestsData.followup_requests}
                   instrumentList={instrumentList}
                   instrumentFormParams={instrumentFormParams}
-                  pageNumber={fetchParams.pageNumber}
-                  numPerPage={fetchParams.numPerPage}
-                  handleTableChange={handleTableChange as any}
+                  pageNumber={fetchParams["pageNumber"]}
+                  numPerPage={fetchParams["numPerPage"]}
+                  onPaginationChange={(page, numPerPage) =>
+                    setFetchParams({
+                      ...fetchParams,
+                      pageNumber: page + 1,
+                      numPerPage,
+                    })
+                  }
                   totalMatches={totalMatches}
                   serverSide
                   showObject
-                  fetchParams={fetchParams}
-                  onDownload={onDownload as any}
+                  onDownload={onDownload}
                 />
+              ) : (
+                <CircularProgress />
               )}
             </Paper>
           </Grid>
-          <Grid size={{ sm: 12, md: 4 }}>
-            <Paper
-              sx={{ marginBottom: 2 }}
-              data-testid="filter-followup-requests-form"
-            >
+          <Grid
+            size={{ sm: 12, md: 4 }}
+            sx={{ display: "flex", flexDirection: "column", gap: 2 }}
+          >
+            <Paper data-testid="filter-followup-requests-form">
               <Typography variant="h6">Filter Followup Requests</Typography>
               <FollowupRequestSelectionForm
-                fetchParams={fetchParams}
+                fetchParams={listParams}
                 setFetchParams={setFetchParams}
               />
             </Paper>
             <Paper>
               <Typography variant="h6">Prioritize Followup Requests</Typography>
-              <FollowupRequestPrioritizationForm fetchParams={fetchParams} />
+              <FollowupRequestPrioritizationForm fetchParams={listParams} />
             </Paper>
-            <DownloadProgressDialog
-              current={downloadProgressCurrent}
-              total={downloadProgressTotal}
-              label="follow-up requests"
-            />
           </Grid>
         </Grid>
       )}
       {tabIndex === 1 && (
         <DefaultFollowupRequestList
-          default_followup_requests={defaultFollowupRequestList || []}
-          deletePermission={permission}
+          default_followup_requests={defaultFollowupRequestList}
+          deletePermission={
+            currentUser?.permissions?.includes("System admin") ||
+            currentUser?.permissions?.includes("Manage allocations") ||
+            false
+          }
         />
       )}
-    </div>
+      <DownloadProgressDialog
+        current={downloadProgressCurrent}
+        total={downloadProgressTotal}
+        label="follow-up requests"
+      />
+    </Box>
   );
 };
 

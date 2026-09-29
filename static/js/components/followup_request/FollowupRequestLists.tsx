@@ -1,5 +1,5 @@
-import { useMemo, useState } from "react";
-import { JSONTree } from "react-json-tree";
+import { useState } from "react";
+import { Link } from "react-router-dom";
 import CircularProgress from "@mui/material/CircularProgress";
 import Accordion from "@mui/material/Accordion";
 import AccordionSummary from "@mui/material/AccordionSummary";
@@ -8,6 +8,7 @@ import Typography from "@mui/material/Typography";
 import IconButton from "@mui/material/IconButton";
 import Tooltip from "@mui/material/Tooltip";
 import Box from "@mui/material/Box";
+import Chip from "@mui/material/Chip";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import DownloadIcon from "@mui/icons-material/Download";
 import { showNotification } from "baselayer/components/Notifications";
@@ -15,6 +16,7 @@ import { useAppDispatch } from "../../types/hooks";
 import Button from "../Button";
 import StyledDataGrid, { DataGridToolbar } from "../StyledDataGrid";
 import WatcherButton from "./WatcherButton";
+import JsonCell from "./JsonCell";
 
 import {
   useDeleteFollowupRequestMutation,
@@ -24,7 +26,7 @@ import {
 
 import EditFollowupRequestDialog from "./EditFollowupRequestDialog";
 
-const displayedColumns = [
+const DISPLAYED_COLUMNS = [
   "requester",
   "allocation",
   "start_date",
@@ -40,164 +42,110 @@ const displayedColumns = [
   "watch",
 ];
 
-const keyOrder = (a: any, b: any) => {
-  if (a === "end_date" && b === "start_date") {
-    return 1;
-  }
-  if (b === "end_date" && a === "start_date") {
-    return -1;
-  }
-
-  if (a === "end_date" || a === "start_date") {
-    return -1;
-  }
-  if (b === "end_date" || b === "start_date") {
-    return 1;
-  }
-
-  if (
-    a === "observation_type" &&
-    b !== "end_date" &&
-    b !== "start_date" &&
-    b !== "priority"
-  ) {
-    return -1;
-  }
-  if (
-    b === "observation_type" &&
-    a !== "end_date" &&
-    a !== "start_date" &&
-    a !== "priority"
-  ) {
-    return 1;
-  }
-
-  if (a === "priority" && b === "status") {
-    return -1;
-  }
-  if (b === "priority" && a === "status") {
-    return 1;
-  }
-
-  if (a === "priority" || a === "status") {
-    return 1;
-  }
-  if (b === "priority" || b === "status") {
-    return -1;
-  }
-
-  if (a < b) {
-    return -1;
-  }
-  if (a > b) {
-    return 1;
-  }
-  return 0;
+const KEY_RANK: Record<string, number> = {
+  start_date: 0,
+  end_date: 1,
+  observation_type: 2,
+  priority: 4,
+  status: 5,
 };
 
-const downloadRequestsCsv = (onDownload: any) => {
-  onDownload().then((data: any) => {
-    if (!data?.length) {
-      return;
-    }
-    const head = [
-      "obj_id",
-      "created_at",
-      "requester_id",
-      "requester_name",
-      "last_modified_by_id",
-    ];
+const keyOrder = (a: string, b: string) =>
+  (KEY_RANK[a] ?? 3) - (KEY_RANK[b] ?? 3) || (a < b ? -1 : Number(a > b));
 
-    let keys = data.reduce((r: any, a: any) => {
-      Object.keys(a.payload).forEach((key) => {
-        if (!r.includes(key)) {
-          r = [...r, key];
-        }
-      });
-      return r;
-    }, []);
+const statusColor = (status: string) => {
+  if (/fail|reject|error/i.test(status)) return "error";
+  if (/complete|committed/i.test(status)) return "success";
+  if (/submitted/i.test(status)) return "primary";
+  if (/pending/i.test(status)) return "warning";
+  return "default";
+};
 
-    if (keys.includes("priority")) {
-      keys = keys.filter((key: any) => key !== "priority");
-      keys.unshift("priority");
-    }
-    if (keys.includes("end_date")) {
-      keys = keys.filter((key: any) => key !== "end_date");
-      keys.unshift("end_date");
-    }
-    if (keys.includes("start_date")) {
-      keys = keys.filter((key: any) => key !== "start_date");
-      keys.unshift("start_date");
-    }
+const CSV_FIRST_KEYS = ["start_date", "end_date", "priority"];
 
-    keys.forEach((key: any) => {
-      head.push(`payload.${key}`);
-    });
+const csvValue = (value: any) => {
+  if (Array.isArray(value)) return value.join("/");
+  return typeof value === "string" ? value.replaceAll(",", "/") : value;
+};
 
-    head.push(
-      "status",
-      "allocation_id",
-      "allocation_pi",
-      "allocation_group_id",
-      "allocation_group_name",
-      "allocation_types",
-    );
+const downloadRequestsCsv = async (onDownload: () => Promise<any[]>) => {
+  const data = await onDownload();
+  if (!data?.length) return;
+  const payloadKeys = [
+    ...new Set(data.flatMap((request) => Object.keys(request.payload))),
+  ];
+  const keys = [
+    ...CSV_FIRST_KEYS.filter((key) => payloadKeys.includes(key)),
+    ...payloadKeys.filter((key) => !CSV_FIRST_KEYS.includes(key)),
+  ];
+  const head = [
+    "obj_id",
+    "created_at",
+    "requester_id",
+    "requester_name",
+    "last_modified_by_id",
+    ...keys.map((key) => `payload.${key}`),
+    "status",
+    "allocation_id",
+    "allocation_pi",
+    "allocation_group_id",
+    "allocation_group_name",
+    "allocation_types",
+  ];
+  const rows = data.map((request) =>
+    [
+      request.obj_id,
+      request.created_at,
+      request.requester.id,
+      request.requester.username,
+      request.last_modified_by_id,
+      ...keys.map((key) =>
+        key in request.payload ? request.payload[key] : "",
+      ),
+      request.status,
+      request.allocation.id,
+      request.allocation.pi,
+      request.allocation.group.id,
+      request.allocation.group.name,
+      request.allocation.types,
+    ]
+      .map(csvValue)
+      .join(","),
+  );
 
-    const formatDataFunc = (x: any) => {
-      const formattedData = [
-        x.obj_id,
-        x.created_at,
-        x.requester.id,
-        x.requester.username.replaceAll(",", "/"),
-        x.last_modified_by_id,
-      ];
-
-      keys.forEach((key: any) => {
-        if (key in x.payload) {
-          if (Array.isArray(x.payload[key])) {
-            formattedData.push(x.payload[key].join("/"));
-          } else if (typeof x.payload[key] === "string") {
-            if (x.payload[key].includes(",")) {
-              formattedData.push(x.payload[key].replaceAll(",", "/"));
-            } else {
-              formattedData.push(x.payload[key]);
-            }
-          } else {
-            formattedData.push(x.payload[key]);
-          }
-        } else {
-          formattedData.push("");
-        }
-      });
-
-      formattedData.push(
-        x.status.replaceAll(",", "/"),
-        x.allocation.id,
-        x.allocation.pi.replaceAll(",", "/"),
-        x.allocation.group.id,
-        x.allocation.group.name.replaceAll(",", "/"),
-        x.allocation.types.join("/"),
-      );
-      return formattedData;
-    };
-
-    const rows = data.map((x: any) => formatDataFunc(x).join(","));
-
-    const result = `${head.join(",")}\n${rows.join("\n")}`;
-
-    const blob = new Blob([result], {
+  const url = URL.createObjectURL(
+    new Blob([`${head.join(",")}\n${rows.join("\n")}`], {
       type: "text/csv;charset=utf-8;",
-    });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.setAttribute("download", "followup_requests.csv");
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
-  });
+    }),
+  );
+  const link = document.createElement("a");
+  link.href = url;
+  link.setAttribute("download", "followup_requests.csv");
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
 };
+
+const FollowupRequestToolbar = ({
+  onDownload,
+}: {
+  onDownload?: () => Promise<any[]>;
+}) => (
+  <DataGridToolbar showExport={false} showExpandAll>
+    {onDownload && (
+      <Tooltip title="Download CSV">
+        <IconButton
+          size="small"
+          aria-label="Download CSV"
+          onClick={() => downloadRequestsCsv(onDownload)}
+        >
+          <DownloadIcon />
+        </IconButton>
+      </Tooltip>
+    )}
+  </DataGridToolbar>
+);
 
 const ActionButton = ({
   loading = false,
@@ -229,13 +177,13 @@ interface FollowupRequestListsProps {
   instrumentList: any[];
   instrumentFormParams: any;
   totalMatches?: number;
-  handleTableChange?: ((...a: any[]) => void) | boolean;
+  onPaginationChange?: (page: number, pageSize: number) => void;
   pageNumber?: number;
   numPerPage?: number;
   showObject?: boolean;
   serverSide?: boolean;
   requestType?: string;
-  onDownload?: ((...a: any[]) => any) | boolean;
+  onDownload?: () => Promise<any[]>;
 }
 
 const FollowupRequestLists = ({
@@ -243,133 +191,97 @@ const FollowupRequestLists = ({
   instrumentList,
   instrumentFormParams,
   totalMatches = 0,
-  handleTableChange = false,
+  onPaginationChange,
   pageNumber = 1,
   numPerPage = 25,
   showObject = false,
   serverSide = false,
   requestType = "triggered",
-  onDownload = false,
+  onDownload,
 }: FollowupRequestListsProps) => {
   const dispatch = useAppDispatch();
   const [deleteFollowupRequestMutation] = useDeleteFollowupRequestMutation();
   const [editFollowupRequestMutation] = useEditFollowupRequestMutation();
   const [getPhotometryRequest] = useLazyGetPhotometryRequestQuery();
 
-  const [isDeleting, setIsDeleting] = useState<any>(null);
-  const [isGetting, setIsGetting] = useState<any>(null);
-  const [hasRetrieved, setHasRetrieved] = useState<any[]>([]);
-  const [isSubmitting, setIsSubmitting] = useState<any>(null);
-  const [rowsPerPage, setRowsPerPage] = useState(numPerPage);
+  const [isDeleting, setIsDeleting] = useState<number | null>(null);
+  const [isGetting, setIsGetting] = useState<number | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState<number | null>(null);
+  const [hasRetrieved, setHasRetrieved] = useState<number[]>([]);
   // Not in the cell: its DataGrid column is virtualized, a remount would close the dialog.
-  const [requestIdToEdit, setRequestIdToEdit] = useState<any>(null);
-  const [columnVisibilityModels, setColumnVisibilityModels] = useState<any>({});
-  // Memoized so MUI keeps the same component type across renders and doesn't remount it.
-  const CustomToolbar = useMemo(
-    () =>
-      function FollowupRequestToolbar() {
-        return (
-          <DataGridToolbar showExport={false}>
-            {typeof onDownload === "function" && (
-              <Tooltip title="Download CSV">
-                <IconButton
-                  size="small"
-                  aria-label="Download CSV"
-                  onClick={() => downloadRequestsCsv(onDownload)}
-                >
-                  <DownloadIcon />
-                </IconButton>
-              </Tooltip>
-            )}
-          </DataGridToolbar>
-        );
-      },
-    [onDownload],
-  );
+  const [requestIdToEdit, setRequestIdToEdit] = useState<number | null>(null);
+  const [columnVisibilityModels, setColumnVisibilityModels] = useState<
+    Record<string, any>
+  >({});
+  const refresh = serverSide ? { refreshRequests: true } : {};
 
-  const handleDelete = async (id: any) => {
+  const handleDelete = async (id: number) => {
     setIsDeleting(id);
-    const params: any = {};
-    if (serverSide) {
-      params.refreshRequests = true;
-    }
-    await deleteFollowupRequestMutation({ id, params });
+    await deleteFollowupRequestMutation({ id, params: refresh });
     setIsDeleting(null);
   };
 
-  const handleGet = async (id: any) => {
+  const handleGet = async (id: number) => {
     setIsGetting(id);
-    const params: any = {};
-    if (serverSide) {
-      params.refreshRequests = true;
-    }
-    try {
-      const data: any = await getPhotometryRequest({ id, params }).unwrap();
-      setIsGetting(null);
-      if (data?.request_status?.includes("rejected")) {
-        dispatch(showNotification("Request has been rejected.", "warning"));
-      } else {
-        dispatch(
-          showNotification(
+    const { data, error }: any = await getPhotometryRequest({
+      id,
+      params: refresh,
+    });
+    setIsGetting(null);
+    if (error) return;
+    dispatch(
+      data?.request_status?.includes("rejected")
+        ? showNotification("Request has been rejected.", "warning")
+        : showNotification(
             "Request successfully submitted, please wait for it to be processed.",
             "info",
           ),
-        );
-      }
-      setHasRetrieved([...hasRetrieved, id]);
-    } catch {
-      setIsGetting(null);
-    }
+    );
+    setHasRetrieved((ids) => [...ids, id]);
   };
 
   const handleSubmit = async (followupRequest: any) => {
     setIsSubmitting(followupRequest.id);
-    const json: any = {
-      allocation_id: followupRequest.allocation.id,
-      obj_id: followupRequest.obj_id,
-      payload: followupRequest.payload,
-    };
-    if (serverSide) {
-      json.refreshRequests = true;
-    }
     await editFollowupRequestMutation({
-      params: json,
+      params: {
+        allocation_id: followupRequest.allocation.id,
+        obj_id: followupRequest.obj_id,
+        payload: followupRequest.payload,
+        ...refresh,
+      },
       requestID: followupRequest.id,
     });
     setIsSubmitting(null);
   };
 
-  if (!Array.isArray(followupRequests)) {
-    return <p>Waiting for followup requests to load...</p>;
-  }
-
   if (requestType === "triggered" || requestType === "forced_photometry") {
-    const schema =
-      requestType === "triggered" ? "formSchema" : "formSchemaForcedPhotometry";
-    const otherSchema =
-      requestType === "triggered" ? "formSchemaForcedPhotometry" : "formSchema";
-
+    const [schema, otherSchema] =
+      requestType === "triggered"
+        ? ["formSchema", "formSchemaForcedPhotometry"]
+        : ["formSchemaForcedPhotometry", "formSchema"];
     instrumentList = instrumentList.filter(
       (inst) => instrumentFormParams[inst.id]?.[schema] != null,
     );
-
     followupRequests = followupRequests.filter(
       (request) =>
         request?.payload?.request_type === requestType ||
         (request?.allocation?.instrument_id in instrumentFormParams &&
-          instrumentFormParams[request?.allocation?.instrument_id]?.[
+          instrumentFormParams[request.allocation.instrument_id]?.[
             otherSchema
           ] == null),
     );
   }
 
   if (
-    (instrumentList.length === 0 ||
-      followupRequests.length === 0 ||
-      Object.keys(instrumentFormParams).length === 0) &&
-    !serverSide
+    !followupRequests.length ||
+    (!serverSide &&
+      (!instrumentList.length || !Object.keys(instrumentFormParams).length))
   ) {
-    return <p>No robotic followup requests found...</p>;
+    return (
+      <Typography variant="body2" sx={{ color: "text.secondary" }}>
+        No follow-up requests found.
+      </Typography>
+    );
   }
 
   const instLookUp = Object.fromEntries(
@@ -384,7 +296,7 @@ const FollowupRequestLists = ({
     {},
   );
 
-  const getDataTableColumns = (keys: any[], instrument_id: any) => {
+  const getDataTableColumns = (keys: string[], instrument_id: string) => {
     const columns: any[] = [
       {
         field: "requester.username",
@@ -392,6 +304,9 @@ const FollowupRequestLists = ({
         flex: 1,
         minWidth: 120,
         valueGetter: (_value: any, row: any) => row.requester?.username,
+        renderCell: ({ row, value }: any) => (
+          <Link to={`/user/${row.requester?.id}`}>{value}</Link>
+        ),
       },
       {
         field: "allocation.group.name",
@@ -399,6 +314,9 @@ const FollowupRequestLists = ({
         flex: 1,
         minWidth: 120,
         valueGetter: (_value: any, row: any) => row.allocation?.group?.name,
+        renderCell: ({ row, value }: any) => (
+          <Link to={`/group/${row.allocation?.group?.id}`}>{value}</Link>
+        ),
       },
       {
         field: "allocation.pi",
@@ -406,27 +324,24 @@ const FollowupRequestLists = ({
         flex: 1,
         minWidth: 120,
         valueGetter: (_value: any, row: any) => row.allocation?.pi,
+        renderCell: ({ row, value }: any) => (
+          <Link to={`/allocation/${row.allocation?.id}`}>{value}</Link>
+        ),
       },
     ];
-    const defaultVisibility: any = {};
+    const defaultVisibility: Record<string, boolean> = { Transactions: false };
 
-    if (!(instrument_id in instrumentFormParams)) {
-      return { columns, defaultVisibility };
-    }
-    const implementSubmit =
-      instrumentFormParams[instrument_id].methodsImplemented.submit;
-    const implementsDelete =
-      instrumentFormParams[instrument_id].methodsImplemented.delete;
+    const formParams = instrumentFormParams[instrument_id];
+    if (!formParams) return { columns, defaultVisibility: {} };
+    const {
+      submit: implementsSubmit,
+      delete: implementsDelete,
+      get: implementsGet,
+    } = formParams.methodsImplemented;
     const implementsEdit =
-      instrumentFormParams[instrument_id].methodsImplemented.update &&
-      requestType === "triggered";
-    const implementsGet =
-      instrumentFormParams[instrument_id].methodsImplemented.get;
-    const modifiable = implementsEdit || implementsDelete || implementsGet;
+      formParams.methodsImplemented.update && requestType === "triggered";
 
-    if (
-      instrumentFormParams[instrument_id]?.formSchema?.properties?.station_name
-    ) {
+    if (formParams.formSchema?.properties?.station_name) {
       columns.push({
         field: "station",
         headerName: "Station",
@@ -446,64 +361,62 @@ const FollowupRequestLists = ({
         minWidth: 120,
         filterable: false,
         valueGetter: (_value: any, row: any) => row.obj?.id,
-        renderCell: ({ row }: any) =>
-          row.obj ? (
-            <Button size="small">
-              <a href={`/source/${row.obj.id}`}>{row.obj.id}&nbsp;</a>
-            </Button>
-          ) : (
-            <CircularProgress />
-          ),
+        renderCell: ({ value }: any) => (
+          <Link to={`/source/${value}`}>{value}</Link>
+        ),
       });
     }
 
-    keys?.forEach((key) => {
-      const field = Object.keys(
-        instrumentFormParams[instrument_id].aliasLookup,
-      ).includes(key)
-        ? instrumentFormParams[instrument_id].aliasLookup[key]
-        : key;
-      const colField = `payload.${key}`;
+    keys.forEach((key) => {
+      const headerName = formParams.aliasLookup[key] ?? key;
+      const field = `payload.${key}`;
       columns.push({
-        field: colField,
-        headerName: field,
+        field,
+        headerName,
         flex: 1,
         minWidth: 120,
         sortable: false,
         filterable: false,
         valueGetter: (_value: any, row: any) => {
-          const v = row.payload?.[key];
-          return Array.isArray(v) ? v.join(",") : v;
+          const value = row.payload?.[key];
+          return Array.isArray(value) ? value.join(",") : value;
         },
       });
-      if (!displayedColumns.includes(field.toLowerCase())) {
-        defaultVisibility[colField] = false;
+      if (!DISPLAYED_COLUMNS.includes(headerName.toLowerCase())) {
+        defaultVisibility[field] = false;
       }
     });
 
-    columns.push({
-      field: "status",
-      headerName: "Status",
-      minWidth: 250,
-      flex: 1,
-    });
+    columns.push(
+      {
+        field: "status",
+        headerName: "Status",
+        minWidth: 250,
+        flex: 1,
+        renderCell: ({ value }: any) => (
+          <Tooltip title={value}>
+            <Chip
+              size="small"
+              variant="outlined"
+              label={value}
+              color={statusColor(value)}
+              sx={{ maxWidth: "100%" }}
+            />
+          </Tooltip>
+        ),
+      },
+      {
+        field: "Transactions",
+        headerName: "Transactions",
+        flex: 1,
+        minWidth: 150,
+        sortable: false,
+        filterable: false,
+        renderCell: ({ row }: any) => <JsonCell data={row.transactions} />,
+      },
+    );
 
-    columns.push({
-      field: "Transactions",
-      headerName: "Transactions",
-      flex: 1,
-      minWidth: 150,
-      sortable: false,
-      filterable: false,
-      renderCell: ({ row }: any) => (
-        <Box sx={{ whiteSpace: "nowrap" }}>
-          <JSONTree data={row.transactions} hideRoot />
-        </Box>
-      ),
-    });
-    defaultVisibility.Transactions = false;
-
-    if (modifiable) {
+    if (implementsEdit || implementsDelete || implementsGet) {
       columns.push({
         field: "modify",
         headerName: "Modify",
@@ -513,25 +426,15 @@ const FollowupRequestLists = ({
         filterable: false,
         renderCell: ({ row }: any) => {
           const isDeleted = row.status === "deleted";
-          const isDone = row.status === "Photometry committed to database";
-          const isSubmitted =
-            row.status.startsWith("pending") ||
-            row.status.startsWith("submitted");
           const canRetrieve =
-            !isDone &&
-            isSubmitted &&
             implementsGet &&
+            row.status !== "Photometry committed to database" &&
+            (row.status.startsWith("pending") ||
+              row.status.startsWith("submitted")) &&
             !hasRetrieved.includes(row.id);
 
           return (
-            <Box
-              sx={{
-                display: "flex",
-                flexWrap: "wrap",
-                gap: "0.2rem",
-                py: "0.3rem",
-              }}
-            >
+            <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.25, py: 0.5 }}>
               {implementsDelete && !isDeleted && (
                 <ActionButton
                   loading={isDeleting === row.id}
@@ -549,7 +452,7 @@ const FollowupRequestLists = ({
                   Retrieve
                 </ActionButton>
               )}
-              {implementSubmit && row.status.includes("failed to submit") && (
+              {implementsSubmit && row.status.includes("failed to submit") && (
                 <ActionButton
                   loading={isSubmitting === row.id}
                   onClick={() => handleSubmit(row)}
@@ -579,11 +482,7 @@ const FollowupRequestLists = ({
       sortable: false,
       filterable: false,
       renderCell: ({ row }: any) => (
-        <WatcherButton
-          followupRequest={row}
-          textMode={false}
-          serverSide={serverSide}
-        />
+        <WatcherButton followupRequest={row} serverSide={serverSide} />
       ),
     });
 
@@ -597,17 +496,6 @@ const FollowupRequestLists = ({
     }
 
     return { columns, defaultVisibility };
-  };
-
-  const handlePaginationModelChange = (model: any) => {
-    setRowsPerPage(model.pageSize);
-    if (typeof handleTableChange === "function") {
-      handleTableChange("changePage", {
-        page: model.page,
-        rowsPerPage: model.pageSize,
-        sortOrder: { direction: "none" },
-      });
-    }
   };
 
   const requestToEdit = followupRequests.find(
@@ -625,81 +513,86 @@ const FollowupRequestLists = ({
           serverSide={serverSide}
         />
       )}
-      {Object.keys(requestsGroupedByInstId).map((instrument_id) => {
-        const keys = [
-          ...new Set<string>(
-            requestsGroupedByInstId[instrument_id].flatMap((request: any) =>
-              Object.keys(request.payload),
+      {Object.entries(requestsGroupedByInstId).map(
+        ([instrument_id, requests]: [string, any]) => {
+          const keys = [
+            ...new Set<string>(
+              requests.flatMap((request: any) => Object.keys(request.payload)),
             ),
-          ),
-        ].sort(keyOrder);
+          ].sort(keyOrder);
+          const { columns, defaultVisibility } = getDataTableColumns(
+            keys,
+            instrument_id,
+          );
 
-        const { columns, defaultVisibility } = getDataTableColumns(
-          keys,
-          instrument_id,
-        );
-
-        const visibilityModel =
-          columnVisibilityModels[instrument_id] ?? defaultVisibility;
-
-        return (
-          <Accordion
-            defaultExpanded
-            sx={{ width: "100%" }}
-            key={`instrument_${instrument_id}_table_div`}
-          >
-            <AccordionSummary
-              expandIcon={<ExpandMoreIcon />}
-              aria-controls={`${instLookUp[instrument_id].name}-requests`}
-              data-testid={`${instrument_id}-requests-header`}
+          return (
+            <Accordion
+              defaultExpanded
+              sx={{ width: "100%" }}
+              key={instrument_id}
             >
-              <Typography variant="subtitle1">
-                {instLookUp[instrument_id].name} Requests
-              </Typography>
-            </AccordionSummary>
-            <AccordionDetails
-              data-testid={`${instrument_id}_followupRequestsTable`}
-              sx={{ p: 0, m: 0 }}
-            >
-              <StyledDataGrid
-                autoHeight
-                getRowHeight={() => "auto"}
-                rows={requestsGroupedByInstId[instrument_id]}
-                columns={columns}
-                getRowId={(row: any) => row.id}
-                columnVisibilityModel={visibilityModel}
-                onColumnVisibilityModelChange={(model: any) =>
-                  setColumnVisibilityModels((prev: any) => ({
-                    ...prev,
-                    [instrument_id]: model,
-                  }))
-                }
-                paginationMode={serverSide ? "server" : "client"}
-                rowCount={serverSide ? totalMatches : undefined}
-                paginationModel={
-                  serverSide
-                    ? { page: pageNumber - 1, pageSize: rowsPerPage }
-                    : undefined
-                }
-                onPaginationModelChange={
-                  serverSide ? handlePaginationModelChange : undefined
-                }
-                initialState={
-                  serverSide
-                    ? undefined
-                    : {
-                        pagination: {
-                          paginationModel: { pageSize: numPerPage },
+              <AccordionSummary
+                expandIcon={<ExpandMoreIcon />}
+                aria-controls={`${instLookUp[instrument_id].name}-requests`}
+                data-testid={`${instrument_id}-requests-header`}
+              >
+                <Typography variant="subtitle1">
+                  {instLookUp[instrument_id].name} Requests
+                </Typography>
+              </AccordionSummary>
+              <AccordionDetails
+                data-testid={`${instrument_id}_followupRequestsTable`}
+                sx={{ p: 0, m: 0 }}
+              >
+                <StyledDataGrid
+                  height="auto"
+                  getRowHeight={() => "auto"}
+                  sx={{
+                    "& .MuiDataGrid-cell a:not(.MuiLink-root):not(.MuiButtonBase-root)":
+                      {
+                        color: "inherit",
+                        fontWeight: "inherit",
+                        "&:hover": { textDecoration: "underline" },
+                      },
+                  }}
+                  rows={requests}
+                  columns={columns}
+                  columnVisibilityModel={
+                    columnVisibilityModels[instrument_id] ?? defaultVisibility
+                  }
+                  onColumnVisibilityModelChange={(model: any) =>
+                    setColumnVisibilityModels((prev) => ({
+                      ...prev,
+                      [instrument_id]: model,
+                    }))
+                  }
+                  {...(serverSide
+                    ? {
+                        paginationMode: "server",
+                        rowCount: totalMatches,
+                        paginationModel: {
+                          page: pageNumber - 1,
+                          pageSize: numPerPage,
                         },
+                        onPaginationModelChange: ({ page, pageSize }: any) =>
+                          onPaginationChange?.(page, pageSize),
                       }
-                }
-                slots={{ toolbar: CustomToolbar }}
-                showToolbar
-              />
-            </AccordionDetails>
-          </Accordion>
-        );
-      })}
+                    : {
+                        initialState: {
+                          pagination: {
+                            paginationModel: { pageSize: numPerPage },
+                          },
+                        },
+                      })}
+                  slots={{ toolbar: FollowupRequestToolbar }}
+                  slotProps={{ toolbar: { onDownload } }}
+                  showToolbar
+                />
+              </AccordionDetails>
+            </Accordion>
+          );
+        },
+      )}
     </Box>
   );
 };

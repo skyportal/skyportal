@@ -1,141 +1,51 @@
-import { useGetProfileQuery } from "../../ducks/profile";
 import { useState } from "react";
-
 import IconButton from "@mui/material/IconButton";
+import Tooltip from "@mui/material/Tooltip";
 import StarIcon from "@mui/icons-material/Star";
 import StarBorderIcon from "@mui/icons-material/StarBorder";
-import Tooltip from "@mui/material/Tooltip";
-import Button from "../Button";
 
+import { useGetProfileQuery } from "../../ducks/profile";
 import {
   useAddToWatchListMutation,
   useRemoveFromWatchListMutation,
 } from "../../ducks/followup_requests";
 
-const UnwatchButton = (
-  requestID: number,
-  textMode: boolean,
-  serverSide = false,
-) => {
-  const [removeFromWatchList] = useRemoveFromWatchListMutation();
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const handleSubmit = async () => {
-    setIsSubmitting(true);
-    const params: any = {};
-    if (serverSide) {
-      params.refreshRequests = true;
-    }
-    try {
-      await removeFromWatchList({ id: requestID, params }).unwrap();
-    } catch {
-      // error notification handled by the base query
-    }
-    setIsSubmitting(false);
-  };
-  if (textMode) {
-    return (
-      <Button
-        secondary
-        onClick={handleSubmit}
-        disabled={isSubmitting}
-        data-testid={`watchers-text-include_${requestID}`}
-      >
-        Stop watching
-      </Button>
-    );
-  }
-  return (
-    <Tooltip title="click to stop following this request">
-      <IconButton
-        onClick={handleSubmit}
-        data-testid={`watchers-include_${requestID}`}
-        disabled={isSubmitting}
-        size="large"
-      >
-        <StarIcon />
-      </IconButton>
-    </Tooltip>
-  );
-};
-
-const WatchButton = (
-  requestID: number,
-  textMode: boolean,
-  serverSide = false,
-) => {
-  const [addToWatchList] = useAddToWatchListMutation();
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const handleSubmit = async () => {
-    setIsSubmitting(true);
-    const params: any = {};
-    if (serverSide) {
-      params.refreshRequests = true;
-    }
-    try {
-      await addToWatchList({ id: requestID, params }).unwrap();
-    } catch {
-      // error notification handled by the base query
-    }
-    setIsSubmitting(false);
-  };
-  if (textMode) {
-    return (
-      <Button
-        secondary
-        onClick={handleSubmit}
-        disabled={isSubmitting}
-        data-testid={`watchers-text-exclude_${requestID}`}
-      >
-        Start watching
-      </Button>
-    );
-  }
-  return (
-    <Tooltip title="click to follow this request">
-      <IconButton
-        onClick={handleSubmit}
-        data-testid={`watchers-exclude_${requestID}`}
-        disabled={isSubmitting}
-        size="large"
-      >
-        <StarBorderIcon />
-      </IconButton>
-    </Tooltip>
-  );
-};
-
 interface WatcherButtonProps {
-  followupRequest: {
-    id: number;
-    requester?: { id?: number; username?: string };
-    instrument?: { id?: number; name?: string };
-    status?: string;
-    allocation?: { group?: { name?: string } };
-    watchers?: { id?: number; user_id?: number; username?: string }[];
-  };
-  textMode: boolean;
+  followupRequest: { id: number; watchers?: { user_id?: number }[] };
   serverSide?: boolean;
 }
 
 const WatcherButton = ({
   followupRequest,
-  textMode,
   serverSide = false,
 }: WatcherButtonProps) => {
   const { data: currentUser } = useGetProfileQuery();
+  const [addToWatchList] = useAddToWatchListMutation();
+  const [removeFromWatchList] = useRemoveFromWatchListMutation();
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const isWatching = followupRequest.watchers?.some(
+    (watcher) => watcher.user_id === currentUser?.id,
+  );
 
-  if (!followupRequest) {
-    return null;
-  }
-  const watcherIds: (number | undefined)[] = [];
-  followupRequest.watchers?.forEach((s) => {
-    watcherIds.push(s.user_id);
-  });
-  if (watcherIds.includes(currentUser?.id)) {
-    return UnwatchButton(followupRequest.id, textMode, serverSide);
-  }
+  const toggleWatch = async () => {
+    setIsSubmitting(true);
+    const mutation = isWatching ? removeFromWatchList : addToWatchList;
+    await mutation({
+      id: followupRequest.id,
+      params: serverSide ? { refreshRequests: true } : {},
+    });
+    setIsSubmitting(false);
+  };
 
-  return WatchButton(followupRequest.id, textMode, serverSide);
+  return (
+    <Tooltip
+      title={`click to ${isWatching ? "stop following" : "follow"} this request`}
+    >
+      <IconButton onClick={toggleWatch} disabled={isSubmitting} size="large">
+        {isWatching ? <StarIcon /> : <StarBorderIcon />}
+      </IconButton>
+    </Tooltip>
+  );
 };
 
 export default WatcherButton;

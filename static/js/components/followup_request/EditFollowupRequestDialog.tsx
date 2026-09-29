@@ -1,11 +1,11 @@
 import Dialog from "@mui/material/Dialog";
 import DialogContent from "@mui/material/DialogContent";
-
+import DialogTitle from "@mui/material/DialogTitle";
 import Form from "@rjsf/mui";
 import validator from "@rjsf/validator-ajv8";
+
 import { useEditFollowupRequestMutation } from "../../ducks/source";
 import { localeSafeFields } from "./LocaleSafeNumberField";
-import DialogTitle from "@mui/material/DialogTitle";
 
 interface EditFollowupRequestDialogProps {
   followupRequest: {
@@ -28,59 +28,47 @@ const EditFollowupRequestDialog = ({
   serverSide = false,
 }: EditFollowupRequestDialogProps) => {
   const [editFollowupRequestMutation] = useEditFollowupRequestMutation();
+  const { payload = {} } = followupRequest;
   const formParams =
     instrumentFormParams[followupRequest.allocation.instrument.id];
 
-  const handleSubmit = ({ formData }: { formData: any }) => {
-    const json: any = {
-      allocation_id: followupRequest.allocation.id,
-      obj_id: followupRequest.obj_id,
-      payload: formData,
-    };
-    if (serverSide) {
-      json.refreshRequests = true;
-    }
+  const handleSubmit = ({ formData }: { formData?: any }) => {
     editFollowupRequestMutation({
-      params: json,
+      params: {
+        allocation_id: followupRequest.allocation.id,
+        obj_id: followupRequest.obj_id,
+        payload: formData,
+        ...(serverSide && { refreshRequests: true }),
+      },
       requestID: followupRequest.id,
     });
     onClose();
   };
 
-  const formCopy = JSON.parse(
-    JSON.stringify(
-      requestType === "triggered"
-        ? formParams.formSchema
-        : formParams.formSchemaForcedPhotometry,
+  const schema = structuredClone(
+    requestType === "triggered"
+      ? formParams.formSchema
+      : formParams.formSchemaForcedPhotometry,
+  );
+  Object.entries(schema.properties).forEach(
+    ([key, property]: [string, any]) => {
+      if (!payload[key]) return;
+      property.default =
+        property.format === "date"
+          ? payload[key].split("T")[0].split(" ")[0]
+          : payload[key];
+    },
+  );
+  Object.values(schema.dependencies ?? {}).forEach((dependency: any) =>
+    dependency.oneOf.forEach((option: any) =>
+      Object.entries(option.properties).forEach(
+        ([key, property]: [string, any]) => {
+          if (!schema.properties[key] && payload[key])
+            property.default = payload[key];
+        },
+      ),
     ),
   );
-
-  Object.keys(formCopy.properties).forEach((key) => {
-    if (followupRequest.payload?.[key]) {
-      // a "date" field can carry time info, which the date widget rejects
-      if (formCopy.properties[key].format === "date") {
-        formCopy.properties[key].default = followupRequest.payload[key]
-          .split("T")[0]
-          .split(" ")[0];
-      } else {
-        formCopy.properties[key].default = followupRequest.payload[key];
-      }
-    }
-  });
-
-  Object.keys(formCopy.dependencies || {}).forEach((key) => {
-    formCopy.dependencies[key].oneOf.forEach((oneOf: any) => {
-      Object.keys(oneOf.properties).forEach((oneOfKey) => {
-        if (
-          !formCopy.properties[oneOfKey] &&
-          followupRequest.payload?.[oneOfKey]
-        ) {
-          oneOf.properties[oneOfKey].default =
-            followupRequest.payload[oneOfKey];
-        }
-      });
-    });
-  });
 
   const validate = (formData: any, errors: any) => {
     if (
@@ -90,7 +78,6 @@ const EditFollowupRequestDialog = ({
     ) {
       errors.start_date.addError("Start Date must come before End Date");
     }
-
     return errors;
   };
 
@@ -99,11 +86,11 @@ const EditFollowupRequestDialog = ({
       <DialogTitle>Edit Follow-up Request</DialogTitle>
       <DialogContent>
         <Form
-          schema={formCopy}
+          schema={schema}
           validator={validator}
           uiSchema={formParams.uiSchema}
           fields={localeSafeFields}
-          onSubmit={handleSubmit as any}
+          onSubmit={handleSubmit}
           customValidate={validate}
           liveValidate
         />

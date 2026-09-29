@@ -1,68 +1,48 @@
-import { useState, useRef, useEffect } from "react";
+import { useState } from "react";
 import { Link } from "react-router-dom";
+import Box from "@mui/material/Box";
+import Chip from "@mui/material/Chip";
+import Dialog from "@mui/material/Dialog";
+import DialogContent from "@mui/material/DialogContent";
+import DialogTitle from "@mui/material/DialogTitle";
 import IconButton from "@mui/material/IconButton";
+import Tooltip from "@mui/material/Tooltip";
 import AddIcon from "@mui/icons-material/Add";
 import DeleteIcon from "@mui/icons-material/Delete";
-import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
-import ExpandLessIcon from "@mui/icons-material/ExpandLess";
-import Dialog from "@mui/material/Dialog";
-import DialogTitle from "@mui/material/DialogTitle";
-import DialogContent from "@mui/material/DialogContent";
-import { JSONTree } from "react-json-tree";
 
 import { showNotification } from "baselayer/components/Notifications";
 import { useAppDispatch } from "../../types/hooks";
-import NewDefaultFollowupRequest from "./NewDefaultFollowupRequest";
-import ConfirmDeletionDialog from "../ConfirmDeletionDialog";
-import StyledDataGrid, { DataGridToolbar } from "../StyledDataGrid";
-
 import { useDeleteDefaultFollowupRequestMutation } from "../../ducks/default_followup_requests";
 import { useGetGroupsQuery } from "../../ducks/groups";
 import { useGetTelescopesQuery } from "../../ducks/telescopes";
 import { useGetInstrumentsQuery } from "../../ducks/instruments";
 import { useIsReadOnly } from "../../ducks/profile";
-import Box from "@mui/material/Box";
-import Chip from "@mui/material/Chip";
-import Tooltip from "@mui/material/Tooltip";
+import ConfirmDeletionDialog from "../ConfirmDeletionDialog";
+import StyledDataGrid, {
+  DataGridToolbar,
+  FULL_PAGE_HEIGHT_WITH_TABS,
+} from "../StyledDataGrid";
+import NewDefaultFollowupRequest from "./NewDefaultFollowupRequest";
+import JsonCell from "./JsonCell";
+
+const DefaultFollowupRequestToolbar = ({ onAdd }: { onAdd?: () => void }) => (
+  <DataGridToolbar
+    showQuickFilter={false}
+    title="Default Follow-up Requests"
+    showExpandAll
+  >
+    {onAdd && (
+      <IconButton name="new_default_followup_request" onClick={onAdd}>
+        <AddIcon />
+      </IconButton>
+    )}
+  </DataGridToolbar>
+);
 
 interface DefaultFollowupRequestListProps {
   default_followup_requests: any[];
   deletePermission: boolean;
 }
-
-const ExpandableCell = ({ children, maxHeight = 80 }: any) => {
-  const [expanded, setExpanded] = useState(false);
-  const [overflows, setOverflows] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (ref.current) setOverflows(ref.current.scrollHeight > maxHeight);
-  }, [children]);
-
-  return (
-    <Box sx={{ display: "flex", alignItems: "flex-start", gap: 0.5 }}>
-      <Box
-        ref={ref}
-        sx={{
-          flex: 1,
-          overflow: "hidden",
-          maxHeight: expanded ? "none" : maxHeight,
-        }}
-      >
-        {children}
-      </Box>
-      {(overflows || expanded) && (
-        <IconButton size="small" onClick={() => setExpanded((e) => !e)}>
-          {expanded ? (
-            <ExpandLessIcon fontSize="small" />
-          ) : (
-            <ExpandMoreIcon fontSize="small" />
-          )}
-        </IconButton>
-      )}
-    </Box>
-  );
-};
 
 const DefaultFollowupRequestList = ({
   default_followup_requests,
@@ -72,124 +52,23 @@ const DefaultFollowupRequestList = ({
   const isReadOnly = useIsReadOnly();
   const { data: instrumentList = [] } = useGetInstrumentsQuery();
   const { data: telescopeList = [] } = useGetTelescopesQuery();
-  const groups = useGetGroupsQuery().data?.all ?? null;
+  const groups = useGetGroupsQuery().data?.all;
   const [deleteDefaultFollowupRequestMutation] =
     useDeleteDefaultFollowupRequestMutation();
-
   const [newDialogOpen, setNewDialogOpen] = useState(false);
-  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [idToDelete, setIdToDelete] = useState<number | null>(null);
 
-  const openNewDialog = () => {
-    setNewDialogOpen(true);
-  };
-  const closeNewDialog = () => {
-    setNewDialogOpen(false);
-  };
-
-  const openDeleteDialog = (id: any) => {
-    setDeleteDialogOpen(true);
-    setDefaultFollowupRequestToDelete(id);
-  };
-  const closeDeleteDialog = () => {
-    setDeleteDialogOpen(false);
-    setDefaultFollowupRequestToDelete(null);
-  };
-
-  const [defaultFollowupRequestToDelete, setDefaultFollowupRequestToDelete] =
-    useState<any>(null);
-
-  const deleteDefaultFollowupRequest = () => {
-    deleteDefaultFollowupRequestMutation(defaultFollowupRequestToDelete)
+  const deleteDefaultFollowupRequest = () =>
+    deleteDefaultFollowupRequestMutation(idToDelete!)
       .unwrap()
       .then(() => {
         dispatch(showNotification("Default follow-up request deleted"));
-        closeDeleteDialog();
+        setIdToDelete(null);
       })
       .catch(() => {});
-  };
 
-  const renderAllocationName = (params: any) => {
-    const allocation = params.value;
-    if (!allocation) return null;
-    const instrument = instrumentList?.find(
-      (i) => i.id === allocation.instrument_id,
-    );
-    return (
-      <Tooltip
-        title={
-          <>
-            PI: {allocation?.["pi"] || ""}
-            <br />
-            Proposal: {allocation?.["proposal_id"] || ""}
-            <br />
-            Instrument: {instrument?.["name"] || ""}
-            <br />
-          </>
-        }
-      >
-        <Link
-          to={`/allocation/${allocation.id}`}
-          style={{ display: "flex", flexDirection: "column" }}
-        >
-          {allocation?.["pi"] || ""} / {instrument?.["name"] || ""}
-        </Link>
-      </Tooltip>
-    );
-  };
-
-  const renderTelescopeNickname = (params: any) => {
-    const allocation = params.row.allocation;
-    if (!allocation) return null;
-    const instrument = instrumentList?.find(
-      (i) => i.id === allocation.instrument_id,
-    );
-    const telescope = telescopeList?.find(
-      (t: any) => t.id === instrument?.["telescope_id"],
-    );
-    return (
-      <Link to={`/telescope/${instrument?.telescope_id}`}>
-        {telescope?.["nickname"] || ""}
-      </Link>
-    );
-  };
-
-  const renderGroup = (params: any) => {
-    const { allocation } = params.row;
-    const group = groups?.find((g: any) => g.id === allocation.group_id);
-    if (!group?.name) return null;
-    return <Chip label={group.name} />;
-  };
-
-  const renderPayload = (params: any) =>
-    params.row ? (
-      <ExpandableCell>
-        <JSONTree data={params.row.payload} hideRoot />
-      </ExpandableCell>
-    ) : (
-      ""
-    );
-
-  const renderSourceFilter = (params: any) =>
-    params.row ? (
-      <ExpandableCell>
-        <JSONTree data={params.row.source_filter} hideRoot />
-      </ExpandableCell>
-    ) : (
-      ""
-    );
-
-  const renderManage = (params: any) => {
-    if (!deletePermission) return null;
-    const default_followup_request = params.row;
-    return (
-      <IconButton
-        color="error"
-        onClick={() => openDeleteDialog(default_followup_request.id)}
-      >
-        <DeleteIcon />
-      </IconButton>
-    );
-  };
+  const instrumentOf = (allocation: any) =>
+    instrumentList.find(({ id }) => id === allocation.instrument_id);
 
   const columns: any[] = [
     {
@@ -198,7 +77,25 @@ const DefaultFollowupRequestList = ({
       flex: 1,
       minWidth: 140,
       sortable: false,
-      renderCell: renderAllocationName,
+      renderCell: ({ value: allocation }: any) => {
+        if (!allocation) return null;
+        const instrument = instrumentOf(allocation);
+        return (
+          <Tooltip
+            title={
+              <Box sx={{ display: "flex", flexDirection: "column" }}>
+                <span>PI: {allocation.pi}</span>
+                <span>Proposal: {allocation.proposal_id}</span>
+                <span>Instrument: {instrument?.name}</span>
+              </Box>
+            }
+          >
+            <Link to={`/allocation/${allocation.id}`}>
+              {allocation.pi} / {instrument?.name}
+            </Link>
+          </Tooltip>
+        );
+      },
     },
     {
       field: "telescope_nickname",
@@ -206,7 +103,19 @@ const DefaultFollowupRequestList = ({
       flex: 1,
       minWidth: 140,
       sortable: false,
-      renderCell: renderTelescopeNickname,
+      renderCell: ({ row }: any) => {
+        if (!row.allocation) return null;
+        const instrument = instrumentOf(row.allocation);
+        return (
+          <Link to={`/telescope/${instrument?.telescope_id}`}>
+            {
+              telescopeList.find(
+                ({ id }: any) => id === instrument?.telescope_id,
+              )?.nickname
+            }
+          </Link>
+        );
+      },
     },
     {
       field: "default_followup_name",
@@ -220,23 +129,33 @@ const DefaultFollowupRequestList = ({
       flex: 1,
       minWidth: 120,
       sortable: false,
-      renderCell: renderGroup,
+      renderCell: ({ row }: any) => {
+        const group = groups?.find(({ id }) => id === row.allocation.group_id);
+        return group?.name ? (
+          <Chip
+            label={group.name}
+            component={Link}
+            to={`/group/${group.id}`}
+            clickable
+          />
+        ) : null;
+      },
     },
     {
       field: "Payload",
       headerName: "Payload",
-      flex: 1,
-      minWidth: 160,
+      flex: 2,
+      minWidth: 320,
       sortable: false,
-      renderCell: renderPayload,
+      renderCell: ({ row }: any) => <JsonCell data={row.payload} />,
     },
     {
       field: "Source Filter",
       headerName: "Source Filter",
-      flex: 1,
-      minWidth: 160,
+      flex: 2,
+      minWidth: 320,
       sortable: false,
-      renderCell: renderSourceFilter,
+      renderCell: ({ row }: any) => <JsonCell data={row.source_filter} />,
     },
     deletePermission && {
       field: "manage",
@@ -244,49 +163,53 @@ const DefaultFollowupRequestList = ({
       minWidth: 60,
       sortable: false,
       filterable: false,
-      renderCell: renderManage,
+      renderCell: ({ row }: any) => (
+        <IconButton color="error" onClick={() => setIdToDelete(row.id)}>
+          <DeleteIcon />
+        </IconButton>
+      ),
     },
   ].filter(Boolean);
 
-  const CustomToolbar = () => (
-    <DataGridToolbar showQuickFilter={false} title="Default Follow-up Requests">
-      {!isReadOnly && (
-        <IconButton
-          name="new_default_followup_request"
-          onClick={() => openNewDialog()}
-        >
-          <AddIcon />
-        </IconButton>
-      )}
-    </DataGridToolbar>
-  );
-
   return (
-    <Box>
+    <>
       <StyledDataGrid
-        autoHeight
+        height={FULL_PAGE_HEIGHT_WITH_TABS}
         getRowHeight={() => "auto"}
-        rows={default_followup_requests || []}
+        sx={{
+          "& .MuiDataGrid-cell a:not(.MuiLink-root):not(.MuiButtonBase-root)": {
+            color: "inherit",
+            fontWeight: "inherit",
+            "&:hover": { textDecoration: "underline" },
+          },
+        }}
+        rows={default_followup_requests}
         columns={columns}
-        getRowId={(row: any) => row.id}
-        slots={{ toolbar: CustomToolbar }}
+        slots={{ toolbar: DefaultFollowupRequestToolbar }}
+        slotProps={{
+          toolbar: {
+            onAdd: isReadOnly ? undefined : () => setNewDialogOpen(true),
+          },
+        }}
         showToolbar
       />
-      <Dialog open={newDialogOpen} onClose={closeNewDialog} maxWidth="md">
+      <Dialog
+        open={newDialogOpen}
+        onClose={() => setNewDialogOpen(false)}
+        maxWidth="md"
+      >
         <DialogTitle>New Default Follow-up Request</DialogTitle>
         <DialogContent dividers>
-          <NewDefaultFollowupRequest
-            {...({ onClose: closeNewDialog } as any)}
-          />
+          <NewDefaultFollowupRequest />
         </DialogContent>
       </Dialog>
       <ConfirmDeletionDialog
         deleteFunction={deleteDefaultFollowupRequest}
-        dialogOpen={deleteDialogOpen}
-        closeDialog={closeDeleteDialog}
+        dialogOpen={idToDelete !== null}
+        closeDialog={() => setIdToDelete(null)}
         resourceName="default follow-up request"
       />
-    </Box>
+    </>
   );
 };
 

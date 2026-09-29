@@ -1,12 +1,12 @@
-import { useEffect, useState } from "react";
-
-import Form from "@rjsf/mui";
-import validator from "@rjsf/validator-ajv8";
-import Select from "@mui/material/Select";
+import { useState } from "react";
+import Box from "@mui/material/Box";
+import CircularProgress from "@mui/material/CircularProgress";
 import InputLabel from "@mui/material/InputLabel";
 import MenuItem from "@mui/material/MenuItem";
-import CircularProgress from "@mui/material/CircularProgress";
-import { makeStyles } from "tss-react/mui";
+import Select from "@mui/material/Select";
+import Typography from "@mui/material/Typography";
+import Form from "@rjsf/mui";
+import validator from "@rjsf/validator-ajv8";
 
 import { useGetTelescopesQuery } from "../../ducks/telescopes";
 import {
@@ -19,158 +19,77 @@ import {
   useGetInstrumentsQuery,
 } from "../../ducks/instruments";
 
-const useStyles = makeStyles()(() => ({
-  select: {
-    width: "25%",
-  },
-  container: {
-    width: "99%",
-    marginBottom: "1rem",
-  },
-  selectItem: {
-    whiteSpace: "break-spaces",
-  },
-}));
-
 interface FollowupRequestPrioritizationFormProps {
-  fetchParams?: Record<string, any> | undefined;
+  fetchParams?: Record<string, any>;
 }
 
 const FollowupRequestPrioritizationForm = ({
   fetchParams,
 }: FollowupRequestPrioritizationFormProps) => {
-  const { classes } = useStyles();
-  const { data: gcnEvents } = useGetGcnEventsQuery() as { data: any };
-
+  const { data: gcnEvents }: any = useGetGcnEventsQuery();
   const { data: telescopeList = [] } = useGetTelescopesQuery();
-  const { data: instrumentList = [] } = useGetInstrumentsQuery() as {
-    data: any[];
-  };
+  const { data: instrumentList = [] } = useGetInstrumentsQuery();
   const { data: instrumentFormParams = {} } = useGetInstrumentFormsQuery();
   const [prioritizeFollowupRequests] = usePrioritizeFollowupRequestsMutation();
-  const { data: followupRequestsData } =
-    useGetFollowupRequestsQuery(fetchParams);
-  const followupRequestList = followupRequestsData?.followup_requests;
-
-  const [isSubmittingPrioritization, setIsSubmittingPrioritization] =
-    useState(false);
+  const followupRequestList =
+    useGetFollowupRequestsQuery(fetchParams).data?.followup_requests;
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [selectedGcnEventId, setSelectedGcnEventId] = useState<any>(null);
-  const [selectedLocalizationId, setSelectedLocalizationId] =
-    useState<any>(null);
+  const [selectedLocalizationId, setSelectedLocalizationId] = useState("");
 
-  useEffect(() => {
-    // Wait for the GCN Events to load before setting the new default form
-    // fields, so that the allocations list can update.
-    if (gcnEvents?.events?.[0]?.id) {
-      setSelectedGcnEventId(gcnEvents.events[0].id);
-    }
-    // Don't want to reset everytime the component rerenders and
-    // the defaultStartDate is updated, so ignore ESLint here
-  }, [gcnEvents, setSelectedGcnEventId]);
+  const gcnEventId = selectedGcnEventId ?? gcnEvents?.events?.[0]?.id;
 
   if (!Array.isArray(followupRequestList)) {
-    return <p>Waiting for followup requests to load...</p>;
+    return (
+      <Typography variant="body2" sx={{ color: "text.secondary" }}>
+        Waiting for followup requests to load...
+      </Typography>
+    );
   }
-
   if (
     !instrumentList.length ||
     !telescopeList.length ||
     !Object.keys(instrumentFormParams).length
   ) {
-    return <p>No instruments or telescopes found...</p>;
-  }
-
-  if (!followupRequestList.length) {
-    return <p>No robotic followup requests fetched...</p>;
-  }
-
-  if (!selectedGcnEventId) {
-    return <p>No GCN Events...</p>;
-  }
-
-  const sortedInstrumentList = [...instrumentList];
-  sortedInstrumentList.sort((i1: any, i2: any) => {
-    if (i1.name > i2.name) {
-      return 1;
-    }
-    if (i2.name > i1.name) {
-      return -1;
-    }
-    return 0;
-  });
-
-  const gcnEventsLookUp: Record<string, any> = {};
-
-  gcnEvents?.events.forEach((gcnEvent: any) => {
-    gcnEventsLookUp[gcnEvent.id] = gcnEvent;
-  });
-
-  const telLookUp: Record<string, any> = {};
-
-  telescopeList?.forEach((tel: any) => {
-    telLookUp[tel.id] = tel;
-  });
-
-  const requestsGroupedByInstId = followupRequestList.reduce(
-    (r: Record<string, any[]>, a: any) => {
-      r[a.allocation.instrument.id] = [
-        ...(r[a.allocation.instrument.id] || []),
-        a,
-      ];
-      return r;
-    },
-    {},
-  );
-
-  Object.values(requestsGroupedByInstId).forEach((value: any) => {
-    value.sort();
-  });
-
-  const handleSelectedGcnEventChange = (e: any) => {
-    setSelectedGcnEventId(e.target.value);
-  };
-
-  const handleSelectedLocalizationChange = (e: any) => {
-    setSelectedLocalizationId(e.target.value);
-  };
-
-  const handleSubmitPrioritization = async ({
-    formData,
-  }: {
-    formData: any;
-  }) => {
-    setIsSubmittingPrioritization(true);
-    formData.gcnEventId = selectedGcnEventId;
-    formData.localizationId = selectedLocalizationId;
-    formData.requestIds = [];
-    (requestsGroupedByInstId[formData.instrumentId] || []).forEach(
-      (request: any) => {
-        formData.requestIds.push(request.id);
-      },
+    return (
+      <Typography variant="body2" sx={{ color: "text.secondary" }}>
+        No instruments or telescopes found...
+      </Typography>
     );
-    try {
-      await prioritizeFollowupRequests(formData).unwrap();
-    } catch {
-      // error notification handled by the base query
-    }
-    setIsSubmittingPrioritization(false);
+  }
+  if (!followupRequestList.length) {
+    return (
+      <Typography variant="body2" sx={{ color: "text.secondary" }}>
+        No robotic followup requests fetched...
+      </Typography>
+    );
+  }
+  if (!gcnEventId)
+    return (
+      <Typography variant="body2" sx={{ color: "text.secondary" }}>
+        No GCN Events...
+      </Typography>
+    );
+
+  const requestIdsOf = (instrumentId: number) =>
+    followupRequestList
+      .filter(
+        (request: any) => request.allocation.instrument.id === instrumentId,
+      )
+      .map((request: any) => request.id);
+
+  const handleSubmit = async ({ formData }: { formData?: any }) => {
+    setIsSubmitting(true);
+    await prioritizeFollowupRequests({
+      ...formData,
+      gcnEventId,
+      localizationId: selectedLocalizationId || null,
+      requestIds: requestIdsOf(formData.instrumentId),
+    });
+    setIsSubmitting(false);
   };
 
-  function validatePrioritization(formData: any, errors: any) {
-    if (formData.observationStartDate > formData.observationEndDate) {
-      errors.observationStartDate.addError(
-        "Start date must be before end date, please fix.",
-      );
-    }
-    if (!requestsGroupedByInstId[formData.instrumentId]) {
-      errors.instrumentId.addError(
-        "This instrument does not have any requests, please fix.",
-      );
-    }
-    return errors;
-  }
-
-  const FollowupRequestPrioritizationFormSchema = {
+  const schema: any = {
     type: "object",
     properties: {
       priorityType: {
@@ -184,12 +103,16 @@ const FollowupRequestPrioritizationForm = ({
       },
       instrumentId: {
         type: "integer",
-        oneOf: sortedInstrumentList.map((instrument: any) => ({
-          enum: [instrument.id],
-          title: `${instrument.name} / ${
-            telLookUp[instrument.telescope_id].name
-          }`,
-        })),
+        oneOf: [...instrumentList]
+          .sort((a, b) => a.name.localeCompare(b.name))
+          .map((instrument) => ({
+            enum: [instrument.id],
+            title: `${instrument.name} / ${
+              telescopeList.find(
+                ({ id }: any) => id === instrument.telescope_id,
+              )?.name
+            }`,
+          })),
         title: "Instrument",
         default: instrumentList[0]?.id,
       },
@@ -209,9 +132,7 @@ const FollowupRequestPrioritizationForm = ({
         oneOf: [
           {
             properties: {
-              priorityType: {
-                enum: ["magnitude"],
-              },
+              priorityType: { enum: ["magnitude"] },
               magnitudeOrdering: {
                 type: "string",
                 oneOf: [
@@ -232,56 +153,49 @@ const FollowupRequestPrioritizationForm = ({
   };
 
   return (
-    <div>
+    <>
       <Form
-        schema={FollowupRequestPrioritizationFormSchema as any}
+        schema={schema}
         validator={validator}
-        onSubmit={handleSubmitPrioritization as any}
-        {...({ validate: validatePrioritization } as any)}
-        disabled={isSubmittingPrioritization}
+        onSubmit={handleSubmit}
+        disabled={isSubmitting}
         liveValidate
       />
-      {isSubmittingPrioritization && <CircularProgress />}
+      {isSubmitting && <CircularProgress />}
       <InputLabel id="gcnEventSelectLabel">GCN Event</InputLabel>
-      <Select
-        inputProps={{ MenuProps: { disableScrollLock: true } }}
-        labelId="gcnEventSelectLabel"
-        value={selectedGcnEventId}
-        onChange={handleSelectedGcnEventChange}
-        name="followupRequestGcnEventSelect"
-        className={classes.select}
-      >
-        {gcnEvents?.events.map((gcnEvent: any) => (
-          <MenuItem
-            value={gcnEvent.id}
-            key={gcnEvent.id}
-            className={classes.selectItem}
-          >
-            {`${gcnEvent.dateobs}`}
-          </MenuItem>
-        ))}
-      </Select>
-      <Select
-        inputProps={{ MenuProps: { disableScrollLock: true } }}
-        labelId="localizationSelectLabel"
-        value={selectedLocalizationId || ""}
-        onChange={handleSelectedLocalizationChange}
-        name="observationPlanRequestLocalizationSelect"
-        className={classes.select}
-      >
-        {gcnEventsLookUp[selectedGcnEventId]?.localizations?.map(
-          (localization: any) => (
-            <MenuItem
-              value={localization.id}
-              key={localization.id}
-              className={classes.selectItem}
-            >
-              {`${localization.localization_name}`}
+      <Box sx={{ display: "flex", gap: 1 }}>
+        <Select
+          inputProps={{ MenuProps: { disableScrollLock: true } }}
+          labelId="gcnEventSelectLabel"
+          value={gcnEventId}
+          onChange={(e) => setSelectedGcnEventId(e.target.value)}
+          name="followupRequestGcnEventSelect"
+          sx={{ width: "25%" }}
+        >
+          {gcnEvents.events.map((gcnEvent: any) => (
+            <MenuItem value={gcnEvent.id} key={gcnEvent.id}>
+              {gcnEvent.dateobs}
             </MenuItem>
-          ),
-        )}
-      </Select>
-    </div>
+          ))}
+        </Select>
+        <Select
+          inputProps={{ MenuProps: { disableScrollLock: true } }}
+          labelId="localizationSelectLabel"
+          value={selectedLocalizationId}
+          onChange={(e) => setSelectedLocalizationId(e.target.value)}
+          name="observationPlanRequestLocalizationSelect"
+          sx={{ width: "25%" }}
+        >
+          {gcnEvents.events
+            .find(({ id }: any) => id === gcnEventId)
+            ?.localizations?.map((localization: any) => (
+              <MenuItem value={localization.id} key={localization.id}>
+                {localization.localization_name}
+              </MenuItem>
+            ))}
+        </Select>
+      </Box>
+    </>
   );
 };
 
