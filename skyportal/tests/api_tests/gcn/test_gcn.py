@@ -425,6 +425,7 @@ def test_gcn_Swift(super_admin_token):
     assert status == 200
     data = data["data"]
     assert data["dateobs"] == "2022-09-30T11:11:52"
+    assert "SWIFT#1125809" in data["aliases"]
     assert any(
         loc["localization_name"] == "64.71490_13.35000_0.00130"
         for loc in data["localizations"]

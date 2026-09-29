@@ -417,6 +417,11 @@ def get_notice_aliases(root, notice_type):
         if burst_id is not None:
             aliases.append(f"SVOM#{burst_id.attrib['value']}")
 
+        if urlparse(root.attrib["ivorn"]).path.lstrip("/").upper() == "SWIFT":
+            trig_id = root.find("./What/Param[@name='TrigID']")
+            if trig_id is not None:
+                aliases.append(f"SWIFT#{trig_id.attrib['value']}")
+
     except Exception as e:
         print(f"Could not find aliases in notice: {str(e)}")
 
