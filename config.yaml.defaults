@@ -412,7 +412,7 @@ app:
           url: /teams
 
         - name: Observing Runs
-          icon: LocalCafe
+          icon: NightsStay
           url: /runs
 
         - name: GCN Events
@@ -441,7 +441,7 @@ app:
           url: /source_interests
 
         - name: Shifts
-          icon: SubwayRounded
+          icon: CalendarMonth
           url: /shifts
 
         - name: Source Statistics
@@ -462,12 +462,12 @@ app:
           anonymous_ok: true
 
         - name: Instruments
-          icon: Wifi
+          icon: CameraAlt
           url: /instruments
           anonymous_ok: true
 
         - name: MMADetectors
-          icon: Abc
+          icon: Sensors
           url: /mmadetectors
 
         - name: Allocations
@@ -487,26 +487,26 @@ app:
           url: /moving_objects/obsplan
 
         - name: Earthquakes
-          icon: PieChart
+          icon: Landslide
           url: /earthquakes
           anonymous_ok: true
 
         - name: Galaxies
-          icon: TornadoOutlined
+          icon: Cyclone
           url: /galaxies
           anonymous_ok: true
 
         - name: Spatial Catalogs
-          icon: PhotoSizeSelectLargeOutlined
+          icon: Map
           url: /spatial_catalogs
           anonymous_ok: true
 
         - name: Analysis Services
-          icon: SentimentSatisfied
+          icon: Science
           url: /services
 
         - name: Recurring API
-          icon: Restore
+          icon: EventRepeat
           url: /recurring_apis
 
         - name: Assistant Queries
@@ -518,7 +518,7 @@ app:
           url: /summary_search
 
         - name: Taxonomies
-          icon: WallpaperOutlined
+          icon: AccountTree
           url: /taxonomies
 
         - name: Tag Management

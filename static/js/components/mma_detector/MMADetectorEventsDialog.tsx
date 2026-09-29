@@ -1,17 +1,16 @@
 import { useState } from "react";
-import { Link } from "react-router-dom";
-
-import Box from "@mui/material/Box";
-import Chip from "@mui/material/Chip";
+import { Link as RouterLink } from "react-router-dom";
 import Dialog from "@mui/material/Dialog";
-import DialogContent from "@mui/material/DialogContent";
-import DialogTitle from "@mui/material/DialogTitle";
-import MuiLink from "@mui/material/Link";
+import Chip from "@mui/material/Chip";
+import Link from "@mui/material/Link";
 import dayjs from "dayjs";
 
-import StyledDataGrid from "../StyledDataGrid";
-import { useGetConfigQuery } from "../../ducks/config";
 import { useGetGcnEventsQuery } from "../../ducks/gcnEvents";
+import { useGetConfigQuery } from "../../ducks/config";
+import StyledDataGrid, { DataGridToolbar } from "../StyledDataGrid";
+import ExpandableCell from "../ExpandableCell";
+
+const numPerPage = 25;
 
 interface MMADetectorEventsDialogProps {
   mmadetector: any;
@@ -22,84 +21,89 @@ const MMADetectorEventsDialog = ({
   mmadetector,
   onClose,
 }: MMADetectorEventsDialogProps) => {
-  const [paginationModel, setPaginationModel] = useState({
-    page: 0,
-    pageSize: 25,
-  });
-
-  const tagColors = (useGetConfigQuery().data as any)?.gcnTagsClasses ?? {};
+  const [page, setPage] = useState(0);
   const { data, isFetching } = useGetGcnEventsQuery({
     mmadetectorIds: `${mmadetector.id}`,
-    numPerPage: paginationModel.pageSize,
-    pageNumber: paginationModel.page + 1,
+    numPerPage,
+    pageNumber: page + 1,
   });
+  const tagColors = useGetConfigQuery().data?.["gcnTagsClasses"] as
+    Record<string, string> | undefined;
+
+  const columns = [
+    {
+      field: "dateobs",
+      headerName: "Event",
+      flex: 1,
+      minWidth: 180,
+      renderCell: ({ value }: any) => (
+        <Link
+          component={RouterLink}
+          to={`/gcn_events/${value}`}
+          underline="hover"
+        >
+          {dayjs(value).format("YYYY-MM-DD HH:mm:ss")}
+        </Link>
+      ),
+    },
+    {
+      field: "aliases",
+      headerName: "Aliases",
+      flex: 1,
+      valueGetter: (value: string[] | undefined) => value?.join(", "),
+    },
+    {
+      field: "tags",
+      headerName: "Tags",
+      flex: 2,
+      renderCell: ({ value }: any) => (
+        <ExpandableCell
+          maxVisible={6}
+          items={[...new Set<string>(value ?? [])].map((tag) => (
+            <Chip
+              key={tag}
+              size="small"
+              label={tag}
+              sx={{ bgcolor: tagColors?.[tag] ?? "#999999" }}
+            />
+          ))}
+        />
+      ),
+    },
+  ];
 
   return (
     <Dialog open onClose={onClose} maxWidth="md" fullWidth>
-      <DialogTitle>
-        {mmadetector.name} ({mmadetector.nickname})
-      </DialogTitle>
-      <DialogContent dividers>
-        <StyledDataGrid
-          slotProps={{ root: { "data-testid": "mmadetector-events-table" } }}
-          autoHeight
-          rows={data?.events ?? []}
-          getRowId={(row: any) => row.dateobs}
-          getRowHeight={() => "auto"}
-          sx={{
-            "& .MuiDataGrid-cell": {
-              whiteSpace: "normal",
-              display: "flex",
-              alignItems: "center",
-            },
-          }}
-          columns={[
-            {
-              field: "dateobs",
-              headerName: "Event (UTC)",
-              width: 180,
-              renderCell: ({ value }: any) => (
-                <MuiLink component={Link} to={`/gcn_events/${value}`}>
-                  {dayjs(value).format("YYYY-MM-DD HH:mm:ss")}
-                </MuiLink>
-              ),
-            },
-            {
-              field: "aliases",
-              headerName: "Aliases",
-              width: 200,
-              valueGetter: (value: any) => (value ?? []).join(", "),
-            },
-            {
-              field: "tags",
-              headerName: "Tags",
-              flex: 1,
-              minWidth: 120,
-              valueGetter: (value: any) => (value ?? []).join(", "),
-              renderCell: ({ row }: any) => (
-                <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.5 }}>
-                  {[...new Set<string>(row.tags ?? [])].map((tag) => (
-                    <Chip
-                      key={tag}
-                      size="small"
-                      label={tag}
-                      sx={{ backgroundColor: tagColors[tag] ?? "#999999" }}
-                    />
-                  ))}
-                </Box>
-              ),
-            },
-          ]}
-          loading={isFetching}
-          paginationMode="server"
-          rowCount={data?.totalMatches ?? 0}
-          paginationModel={paginationModel}
-          onPaginationModelChange={setPaginationModel}
-          localeText={{
-            noRowsLabel: "No GCN events are linked to this detector.",
-          }}
-        />
-      </DialogContent>
+      <StyledDataGrid
+        autoHeight
+        rows={data?.events ?? []}
+        columns={columns}
+        getRowId={(row: any) => row.dateobs}
+        getRowHeight={() => "auto"}
+        loading={isFetching}
+        paginationMode="server"
+        rowCount={data?.totalMatches ?? 0}
+        paginationModel={{ page, pageSize: numPerPage }}
+        onPaginationModelChange={(model: any) => setPage(model.page)}
+        pageSizeOptions={[numPerPage]}
+        disableColumnMenu
+        disableColumnSorting
+        localeText={{
+          noRowsLabel: "No GCN events are linked to this detector.",
+        }}
+        slots={{ toolbar: DataGridToolbar }}
+        slotProps={{
+          root: { "data-testid": "mmadetector-events-table" },
+          toolbar: {
+            title: `${mmadetector.name} (${mmadetector.nickname})`,
+            showColumns: false,
+            showQuickFilter: false,
+            showExport: false,
+            showExpandAll: true,
+          },
+        }}
+        showToolbar
+      />
     </Dialog>
   );
 };

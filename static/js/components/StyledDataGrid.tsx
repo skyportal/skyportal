@@ -19,6 +19,15 @@ import ViewColumnIcon from "@mui/icons-material/ViewColumn";
 import FilterListIcon from "@mui/icons-material/FilterList";
 import FileDownloadIcon from "@mui/icons-material/FileDownload";
 import SearchIcon from "@mui/icons-material/Search";
+import CloseIcon from "@mui/icons-material/Close";
+import UnfoldMoreIcon from "@mui/icons-material/UnfoldMore";
+import UnfoldLessIcon from "@mui/icons-material/UnfoldLess";
+import { useContext } from "react";
+
+import { ExpandAllContext, ExpandAllProvider } from "./ExpandableCell";
+
+export const FULL_PAGE_HEIGHT = "calc(100vh - 5.25rem)";
+export const FULL_PAGE_HEIGHT_WITH_TABS = "calc(100vh - 5.25rem - 49px - 1rem)";
 
 const baseSx = (theme: any) => ({
   border: `1px solid ${theme.palette.divider}`,
@@ -57,6 +66,7 @@ const baseSx = (theme: any) => ({
 interface StyledDataGridProps {
   sx?: any;
   initialState?: any;
+  height?: string;
   [key: string]: any;
 }
 
@@ -65,25 +75,53 @@ const LooseDataGrid = DataGrid as any;
 const StyledDataGrid = ({
   sx,
   initialState,
+  height,
   ...props
 }: StyledDataGridProps) => (
-  <LooseDataGrid
-    density="standard"
-    disableRowSelectionOnClick
-    sx={[baseSx, ...(Array.isArray(sx) ? sx : [sx])]}
-    initialState={{
-      ...initialState,
-      pagination: {
-        ...initialState?.pagination,
-        paginationModel: {
-          pageSize: 25,
-          ...initialState?.pagination?.paginationModel,
+  <ExpandAllProvider>
+    <LooseDataGrid
+      density="standard"
+      disableRowSelectionOnClick
+      autoHeight={height === "auto"}
+      sx={[
+        baseSx,
+        // DataGrid's default flex: 1 overrides height inside flex columns.
+        !!height && height !== "auto" && { height, flex: "none" },
+        ...(Array.isArray(sx) ? sx : [sx]),
+      ]}
+      initialState={{
+        ...initialState,
+        pagination: {
+          ...initialState?.pagination,
+          paginationModel: {
+            pageSize: 25,
+            ...initialState?.pagination?.paginationModel,
+          },
         },
-      },
-    }}
-    {...props}
-  />
+      }}
+      {...props}
+    />
+  </ExpandAllProvider>
 );
+
+const ExpandAllButton = () => {
+  const { expandAll, setExpandAll } = useContext(ExpandAllContext);
+  const label = expandAll ? "Collapse all" : "Expand all";
+  return (
+    <Tooltip title={label}>
+      <ToolbarButton
+        aria-label={label}
+        onClick={() => setExpandAll(!expandAll)}
+      >
+        {expandAll ? (
+          <UnfoldLessIcon fontSize="small" />
+        ) : (
+          <UnfoldMoreIcon fontSize="small" />
+        )}
+      </ToolbarButton>
+    </Tooltip>
+  );
+};
 
 export const DataGridToolbar = ({
   children,
@@ -92,7 +130,10 @@ export const DataGridToolbar = ({
   showQuickFilter = true,
   showFilter = false,
   showExport = true,
+  showExpandAll = false,
   quickFilterTestId,
+  onClose,
+  closeTestId,
 }: {
   children?: any;
   title?: string;
@@ -100,7 +141,10 @@ export const DataGridToolbar = ({
   showQuickFilter?: boolean;
   showFilter?: boolean;
   showExport?: boolean;
+  showExpandAll?: boolean;
   quickFilterTestId?: string;
+  onClose?: () => void;
+  closeTestId?: string;
 }) => (
   <Toolbar>
     {title && (
@@ -111,6 +155,7 @@ export const DataGridToolbar = ({
         <Box sx={{ flexGrow: 1 }} />
       </>
     )}
+    {showExpandAll && <ExpandAllButton />}
     {showColumns && (
       <Tooltip title="Columns">
         <ColumnsPanelTrigger
@@ -177,6 +222,17 @@ export const DataGridToolbar = ({
           )}
         />
       </QuickFilter>
+    )}
+    {onClose && (
+      <Tooltip title="Close">
+        <ToolbarButton
+          aria-label="Close"
+          data-testid={closeTestId}
+          onClick={onClose}
+        >
+          <CloseIcon fontSize="small" />
+        </ToolbarButton>
+      </Tooltip>
     )}
   </Toolbar>
 );

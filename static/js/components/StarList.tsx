@@ -11,6 +11,7 @@ import Tooltip from "@mui/material/Tooltip";
 import FormControl from "@mui/material/FormControl";
 import CircularProgress from "@mui/material/CircularProgress";
 import Chip from "@mui/material/Chip";
+import Typography from "@mui/material/Typography";
 import WarningAmberOutlined from "@mui/icons-material/WarningAmberOutlined";
 
 import { useAppDispatch } from "../types/hooks";
@@ -119,6 +120,10 @@ const StarListBody = ({
       </div>
       {starList === null ? (
         <CircularProgress sx={{ mt: 1 }} size={32} />
+      ) : starList.length === 0 ? (
+        <Typography sx={{ mt: 1, color: "text.secondary" }}>
+          No targets to list.
+        </Typography>
       ) : (
         <Box
           component="pre"
@@ -129,7 +134,8 @@ const StarListBody = ({
             bgcolor: "background.default",
             padding: "1em",
             borderRadius: "0.5em",
-            overflowX: "auto",
+            maxHeight: "30rem",
+            overflow: "auto",
           }}
         >
           {starList.map((item) => item.str).join("\n")}
@@ -232,7 +238,7 @@ export const ObservingRunStarList = ({
       );
 
       values.forEach((response) =>
-        starlistInfo.push(...response.value.data.starlist_info),
+        starlistInfo.push(...(response.value?.data?.starlist_info ?? [])),
       );
 
       // if the facility is P200-NGPS, we add the header to the starlist
@@ -246,6 +252,8 @@ export const ObservingRunStarList = ({
     };
     if (assignments.length > 0) {
       fetchStarList();
+    } else if (observingRun) {
+      setStarList([]);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dispatch, facility, observingRun?.id, assignments.length]);

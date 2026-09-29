@@ -3,6 +3,8 @@ import { Controller, useForm } from "react-hook-form";
 
 import Chip from "@mui/material/Chip";
 import Box from "@mui/material/Box";
+import Tab from "@mui/material/Tab";
+import Tabs from "@mui/material/Tabs";
 import { createFilterOptions } from "@mui/material/Autocomplete";
 import SearchableSelect from "../SearchableSelect";
 import AddCircleIcon from "@mui/icons-material/AddCircle";
@@ -22,7 +24,12 @@ import utc from "dayjs/plugin/utc";
 
 import { showNotification } from "baselayer/components/Notifications";
 import Button from "../Button";
-import StyledDataGrid, { DataGridToolbar } from "../StyledDataGrid";
+import StyledDataGrid, {
+  DataGridToolbar,
+  FULL_PAGE_HEIGHT,
+  FULL_PAGE_HEIGHT_WITH_TABS,
+} from "../StyledDataGrid";
+import ExpandableCell from "../ExpandableCell";
 import FormValidationError from "../FormValidationError";
 import Spinner from "../Spinner";
 import UserInvitations from "./UserInvitations";
@@ -109,6 +116,7 @@ const UsersToolbar = ({ includeExpired, onToggleExpired }: any) => (
   <DataGridToolbar
     title="Manage Users"
     showFilter
+    showExpandAll
     quickFilterTestId="users-quick-filter"
   >
     <FormControlLabel
@@ -193,6 +201,7 @@ const UserManagement = () => {
   const [deleteUserAcl] = useDeleteUserAclMutation();
   const [addUserRoles] = useAddUserRolesMutation();
   const [deleteUserRole] = useDeleteUserRoleMutation();
+  const [tab, setTab] = useState(0);
   const [includeExpired, setIncludeExpired] = useState(false);
   const [openDialog, setOpenDialog] = useState<string | null>(null);
   const [removeExpirationOpen, setRemoveExpirationOpen] = useState(false);
@@ -342,14 +351,16 @@ const UserManagement = () => {
         >
           <AddCircleIcon color="disabled" sx={{ fontSize: "1.125rem" }} />
         </IconButton>
-        {items(user)?.map((item: any) => (
-          <Chip
-            key={itemKey(item)}
-            label={itemLabel(item)}
-            onDelete={() => onDelete(user, item)}
-            data-testid={`${deleteTestId}_${user.id}_${itemKey(item)}`}
-          />
-        ))}
+        <ExpandableCell
+          items={(items(user) ?? []).map((item: any) => (
+            <Chip
+              key={itemKey(item)}
+              label={itemLabel(item)}
+              onDelete={() => onDelete(user, item)}
+              data-testid={`${deleteTestId}_${user.id}_${itemKey(item)}`}
+            />
+          ))}
+        />
       </Box>
     );
   };
@@ -446,15 +457,15 @@ const UserManagement = () => {
       headerName: "Name",
       minWidth: 150,
       valueGetter: (_value: any, row: any) =>
-        [row.first_name, row.last_name].filter(Boolean).join(" "),
-      renderCell: ({ row }: any) =>
-        editableCell(row, ["first_name", "last_name"]),
-    },
-    {
-      field: "username",
-      headerName: "Username",
-      minWidth: 130,
-      renderCell: ({ row }: any) => editableCell(row, "username"),
+        [row.first_name, row.last_name, row.username].filter(Boolean).join(" "),
+      renderCell: ({ row }: any) => (
+        <Box>
+          {editableCell(row, ["first_name", "last_name"])}
+          <Box sx={{ color: "text.secondary", fontSize: "0.8rem" }}>
+            {editableCell(row, "username")}
+          </Box>
+        </Box>
+      ),
     },
     {
       field: "created_at",
@@ -626,8 +637,21 @@ const UserManagement = () => {
 
   return (
     <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
-      <Box sx={{ height: "calc(100vh - 161px)", width: "100%" }}>
+      {invitationsEnabled && (
+        <Tabs
+          value={tab}
+          onChange={(_event, value) => setTab(value)}
+          sx={{ borderBottom: 1, borderColor: "divider" }}
+        >
+          <Tab label="Users" />
+          <Tab label="Invitations" />
+        </Tabs>
+      )}
+      {tab === 0 && (
         <StyledDataGrid
+          height={
+            invitationsEnabled ? FULL_PAGE_HEIGHT_WITH_TABS : FULL_PAGE_HEIGHT
+          }
           columns={columns}
           rows={usersManagementData?.users || []}
           getRowId={(row: any) => row.id}
@@ -644,8 +668,8 @@ const UserManagement = () => {
           }}
           showToolbar
         />
-      </Box>
-      {invitationsEnabled && <UserInvitations />}
+      )}
+      {invitationsEnabled && tab === 1 && <UserInvitations />}
       {addDialogs.map((dialog) => (
         <AddEntitiesDialog
           key={dialog.name}

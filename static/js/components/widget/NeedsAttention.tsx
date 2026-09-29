@@ -20,6 +20,7 @@ import { makeStyles } from "tss-react/mui";
 
 import { useGetDataAccessRequestsQuery } from "../../ducks/dataAccessRequests";
 import { useGetDuplicateSchedulingQuery } from "../../ducks/duplicateScheduling";
+import WidgetLoading from "./WidgetLoading";
 
 const useStyles = makeStyles()((theme) => ({
   header: {},
@@ -59,7 +60,7 @@ interface NeedsAttentionProps {
 const NeedsAttention = ({ classes }: NeedsAttentionProps) => {
   const { classes: styles } = useStyles();
 
-  const { data: requestPage } = useGetDataAccessRequestsQuery({
+  const { data: requestPage, isLoading } = useGetDataAccessRequestsQuery({
     direction: "incoming",
     status: "pending",
   });
@@ -68,9 +69,10 @@ const NeedsAttention = ({ classes }: NeedsAttentionProps) => {
   // Broadcasting it to everyone would have every client refetch on every
   // request, so poll instead -- observing plans change over minutes, not
   // seconds. Data access requests below do arrive over the websocket.
-  const { data: collisions } = useGetDuplicateSchedulingQuery(undefined, {
-    pollingInterval: 5 * 60 * 1000,
-  });
+  const { data: collisions, isLoading: collisionsLoading } =
+    useGetDuplicateSchedulingQuery(undefined, {
+      pollingInterval: 5 * 60 * 1000,
+    });
 
   const requests = requestPage?.requests ?? [];
   // One person can open several distinct requests on the same object (different
@@ -103,7 +105,9 @@ const NeedsAttention = ({ classes }: NeedsAttentionProps) => {
         </div>
 
         <div className={styles.listContainer}>
-          {nothingToDo ? (
+          {isLoading || collisionsLoading ? (
+            <WidgetLoading />
+          ) : nothingToDo ? (
             <div className={styles.quiet}>Nothing waiting on you.</div>
           ) : (
             <ul className={styles.list}>

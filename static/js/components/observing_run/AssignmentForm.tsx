@@ -5,7 +5,6 @@ import Select from "@mui/material/Select";
 import InputLabel from "@mui/material/InputLabel";
 import TextField from "@mui/material/TextField";
 import FormControl from "@mui/material/FormControl";
-import CircularProgress from "@mui/material/CircularProgress";
 import MenuItem from "@mui/material/MenuItem";
 import Typography from "@mui/material/Typography";
 import { makeStyles } from "tss-react/mui";
@@ -15,6 +14,7 @@ import utc from "dayjs/plugin/utc";
 import { useSubmitAssignmentMutation } from "../../ducks/source";
 
 import Button from "../Button";
+import { observingRunTitle } from "./ObservingRunTitle";
 import { useGetInstrumentsQuery } from "../../ducks/instruments";
 
 dayjs.extend(utc);
@@ -36,38 +36,6 @@ const useStyles = makeStyles()((theme) => ({
     margin: "0.5rem",
   },
 }));
-
-export function observingRunTitle(
-  observingRun: any,
-  instrumentList: any[],
-  telescopeList: any[],
-  groups: any[],
-) {
-  const { instrument_id } = observingRun;
-  const instrument = instrumentList?.filter((i) => i.id === instrument_id)[0];
-  const telescope_id = instrument?.telescope_id;
-  const telescope = telescopeList?.filter((t) => t.id === telescope_id)[0];
-  const group = groups?.filter((g) => g.id === observingRun.group_id)[0];
-
-  if (!observingRun?.calendar_date || !instrument?.name || !telescope?.name) {
-    return <CircularProgress />;
-  }
-
-  let result = `${observingRun?.calendar_date} ${instrument?.name}/${telescope?.nickname}`;
-
-  if (observingRun?.pi || group?.name) {
-    result += " (";
-    if (observingRun?.pi) {
-      result += `PI: ${observingRun.pi}`;
-    }
-    if (group?.name) {
-      result += ` / Group: ${group?.name}`;
-    }
-    result += ")";
-  }
-
-  return result;
-}
 
 interface AssignmentFormProps {
   obj_id: string;
