@@ -29,6 +29,7 @@ from skyportal.models import (
     EventObservationPlan,
     FacilityTransaction,
     Feedback,
+    FeedbackReply,
     FollowupRequest,
     GcnEvent,
     GcnEventExtraction,
@@ -107,6 +108,8 @@ op_options = [
 def notification_resource_type(target):
     if not target["notification_type"]:
         return None
+    if target["notification_type"].startswith("feedback"):
+        return "feedback"
     if (
         "favorite_sources" not in target["notification_type"]
         and "gcn_events" not in target["notification_type"]
@@ -298,7 +301,11 @@ def send_email_notification(target):
             subject = f"{cfg['app.title']} - New deployment"
 
         elif resource_type == "feedback":
-            subject = f"{cfg['app.title']} - New feedback"
+            subject = (
+                f"{cfg['app.title']} - Reply to your feedback"
+                if target["notification_type"] == "feedback_reply"
+                else f"{cfg['app.title']} - New feedback"
+            )
 
         if subject and target["user"]["contact_email"]:
             try:
@@ -534,6 +541,7 @@ def api(queue):
             is_followup_request = target_class_name == "FollowupRequest"
             is_deployment = target_class_name == "Deployment"
             is_feedback = target_class_name == "Feedback"
+            is_feedback_reply = target_class_name == "FeedbackReply"
 
             with DBSession() as session:
                 try:
@@ -685,6 +693,19 @@ def api(queue):
                         target_data = {
                             **feedback.to_dict(),
                             "author": feedback.author.username,
+                        }
+                    elif is_feedback_reply:
+                        target_class = FeedbackReply
+                        reply = session.scalar(
+                            sa.select(FeedbackReply).where(
+                                FeedbackReply.id == target_id
+                            )
+                        )
+                        users = [reply.feedback.author]
+                        target_data = {
+                            **reply.to_dict(),
+                            "author": reply.author.username,
+                            "category": reply.feedback.category,
                         }
                     elif is_group_admission_request:
                         target_class = GroupAdmissionRequest
@@ -1346,7 +1367,7 @@ def api(queue):
                                         },
                                     }
                                     queue.append(target)
-                                elif is_feedback:
+                                elif is_feedback or is_feedback_reply:
                                     if user.id == target_data["author_id"]:
                                         continue
                                     label = FEEDBACK_CATEGORIES.get(
@@ -1357,8 +1378,14 @@ def api(queue):
                                     )
                                     notification = UserNotification(
                                         user=user,
-                                        text=f"New {label} from *{target_data['author']}*: {snippet}",
-                                        notification_type="feedback",
+                                        text=(
+                                            f"*{target_data['author']}* replied to your {label}: {snippet}"
+                                            if is_feedback_reply
+                                            else f"New {label} from *{target_data['author']}*: {snippet}"
+                                        ),
+                                        notification_type="feedback_reply"
+                                        if is_feedback_reply
+                                        else "feedback",
                                         url="/deployments?tab=feedback",
                                     )
                                     session.add(notification)
