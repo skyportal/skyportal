@@ -51,6 +51,7 @@ from skyportal.models import (
     FacilityTransaction,
     FacilityTransactionRequest,
     Feedback,
+    FeedbackReply,
     FollowupRequest,
     FollowupRequestTargetGroup,
     FollowupRequestUser,
@@ -593,6 +594,26 @@ def feedback(user):
     obj = (
         DBSession()
         .execute(sa.select(Feedback).filter(Feedback.id == feedback_id))
+        .scalars()
+        .first()
+    )
+    if obj is not None:
+        DBSession().delete(obj)
+        DBSession().commit()
+
+
+@pytest.fixture()
+def feedback_reply(feedback, super_admin_user):
+    r = FeedbackReply(
+        feedback_id=feedback.id, author_id=super_admin_user.id, text="Fixed, thanks"
+    )
+    DBSession.add(r)
+    DBSession.commit()
+    reply_id = r.id
+    yield r
+    obj = (
+        DBSession()
+        .execute(sa.select(FeedbackReply).filter(FeedbackReply.id == reply_id))
         .scalars()
         .first()
     )

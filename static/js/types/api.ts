@@ -20661,6 +20661,41 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/feedback/{feedback_id}/replies": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Reply to a message left to the admins
+         * @description <b>Permission(s) required:</b> <em>System admin (or System admin)</em><br><br>The author of the message is notified.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    feedback_id: number;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["FeedbackReplyPostBody"];
+                };
+            };
+            responses: never;
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/config": {
         parameters: {
             query?: never;
@@ -27180,6 +27215,7 @@ export interface components {
         Feedback: {
             /** @description The User who wrote the message */
             readonly author?: components["schemas"]["User"];
+            readonly replies?: components["schemas"]["FeedbackReply"][];
             /** @description ID of the User who wrote the message */
             author_id: number;
             /** @description Kind of message: bug, change or other */
@@ -27206,6 +27242,7 @@ export interface components {
         FeedbackNoID: {
             /** @description The User who wrote the message */
             readonly author?: components["schemas"]["User"];
+            readonly replies?: components["schemas"]["FeedbackReply"][];
             /** @description ID of the User who wrote the message */
             author_id: number;
             /** @description Kind of message: bug, change or other */
@@ -27226,6 +27263,56 @@ export interface components {
             status: "success";
             message?: string;
             data?: components["schemas"]["FeedbackNoID"][];
+        };
+        FeedbackReply: {
+            /** @description The message replied to */
+            readonly feedback?: components["schemas"]["Feedback"];
+            /** @description The admin who replied */
+            readonly author?: components["schemas"]["User"];
+            /** @description ID of the message replied to */
+            feedback_id: number;
+            /** @description ID of the admin who replied */
+            author_id: number;
+            /** @description The reply */
+            text: string;
+            /** @description Unique object identifier. */
+            id?: number;
+        };
+        SingleFeedbackReply: {
+            /** @enum {string} */
+            status: "success";
+            message?: string;
+            data?: components["schemas"]["FeedbackReply"];
+        };
+        ArrayOfFeedbackReplys: {
+            /** @enum {string} */
+            status: "success";
+            message?: string;
+            data?: components["schemas"]["FeedbackReply"][];
+        };
+        FeedbackReplyNoID: {
+            /** @description The message replied to */
+            readonly feedback?: components["schemas"]["Feedback"];
+            /** @description The admin who replied */
+            readonly author?: components["schemas"]["User"];
+            /** @description ID of the message replied to */
+            feedback_id: number;
+            /** @description ID of the admin who replied */
+            author_id: number;
+            /** @description The reply */
+            text: string;
+        };
+        SingleFeedbackReplyNoID: {
+            /** @enum {string} */
+            status: "success";
+            message?: string;
+            data?: components["schemas"]["FeedbackReplyNoID"];
+        };
+        ArrayOfFeedbackReplyNoIDs: {
+            /** @enum {string} */
+            status: "success";
+            message?: string;
+            data?: components["schemas"]["FeedbackReplyNoID"][];
         };
         Filter: {
             /** @description The Filter's Stream. */
@@ -48147,7 +48234,7 @@ export interface components {
         };
         /**
          * FeedbackAuthorResponse
-         * @description The user who wrote a message.
+         * @description The user who wrote a message or a reply.
          */
         FeedbackAuthorResponse: {
             /** Id */
@@ -48156,8 +48243,24 @@ export interface components {
             username: string;
         };
         /**
+         * FeedbackReplyResponse
+         * @description An admin's reply to a message.
+         */
+        FeedbackReplyResponse: {
+            /** Id */
+            id: number;
+            /** Text */
+            text: string;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            author: components["schemas"]["FeedbackAuthorResponse"];
+        };
+        /**
          * FeedbackResponse
-         * @description A message left to the admins.
+         * @description A message left to the admins, with their replies.
          */
         FeedbackResponse: {
             /** Id */
@@ -48177,6 +48280,8 @@ export interface components {
              */
             created_at: string;
             author: components["schemas"]["FeedbackAuthorResponse"];
+            /** Replies */
+            replies?: components["schemas"]["FeedbackReplyResponse"][];
         };
         /**
          * FeedbackListResponse
@@ -48210,6 +48315,17 @@ export interface components {
         FeedbackPatchBody: {
             /** Resolved */
             resolved: boolean;
+        };
+        /**
+         * FeedbackReplyPostBody
+         * @description Request body for an admin replying to a message.
+         */
+        FeedbackReplyPostBody: {
+            /**
+             * Text
+             * @description The reply
+             */
+            text: string;
         };
         /**
          * AssistantConversationPatchBody

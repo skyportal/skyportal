@@ -29,8 +29,16 @@ class FeedbackPatchBody(BaseModel):
     resolved: bool
 
 
+class FeedbackReplyPostBody(BaseModel):
+    """Request body for an admin replying to a message."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    text: str = Field(min_length=1, max_length=10000, description="The reply")
+
+
 class FeedbackAuthorResponse(BaseModel):
-    """The user who wrote a message."""
+    """The user who wrote a message or a reply."""
 
     model_config = ConfigDict(extra="forbid")
 
@@ -38,8 +46,19 @@ class FeedbackAuthorResponse(BaseModel):
     username: str
 
 
+class FeedbackReplyResponse(BaseModel):
+    """An admin's reply to a message."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    id: int
+    text: str
+    created_at: datetime
+    author: FeedbackAuthorResponse
+
+
 class FeedbackResponse(BaseModel):
-    """A message left to the admins."""
+    """A message left to the admins, with their replies."""
 
     model_config = ConfigDict(extra="forbid")
 
@@ -49,6 +68,7 @@ class FeedbackResponse(BaseModel):
     resolved: bool
     created_at: datetime
     author: FeedbackAuthorResponse
+    replies: list[FeedbackReplyResponse] = Field(default_factory=list)
 
 
 class FeedbackListResponse(BaseModel):
@@ -65,5 +85,7 @@ __all__ = [
     "FeedbackListResponse",
     "FeedbackPatchBody",
     "FeedbackPostBody",
+    "FeedbackReplyPostBody",
+    "FeedbackReplyResponse",
     "FeedbackResponse",
 ]
