@@ -96,8 +96,9 @@ def sweep():
         default_analyses = session.scalars(
             sa.select(DefaultAnalysis).where(
                 # Only ones that opt into the detection gate.
-                DefaultAnalysis.default_analysis_parameters["min_detections"]
-                .astext.isnot(None),
+                DefaultAnalysis.default_analysis_parameters[
+                    "min_detections"
+                ].astext.isnot(None),
                 _default_analysis_under_limit(),
             )
         ).all()
