@@ -2,6 +2,7 @@ import asyncio
 import json
 import operator
 import string
+import textwrap
 import time
 from threading import Thread
 
@@ -27,6 +28,7 @@ from skyportal.models import (
     Deployment,
     EventObservationPlan,
     FacilityTransaction,
+    Feedback,
     FollowupRequest,
     GcnEvent,
     GcnEventExtraction,
@@ -39,12 +41,15 @@ from skyportal.models import (
     Localization,
     ObjAnalysis,
     ObservationPlanRequest,
+    RoleACL,
     Shift,
     ShiftUser,
     Source,
     Spectrum,
     User,
+    UserACL,
     UserNotification,
+    UserRole,
 )
 from skyportal.utils.app import get_app_base_url
 from skyportal.utils.email import send_email
@@ -67,6 +72,8 @@ from skyportal.utils.notifications import (
 
 env, cfg = load_env()
 log = make_log("notification_queue")
+
+FEEDBACK_CATEGORIES = {"bug": "bug report", "change": "change request"}
 
 init_db(**cfg["database"])
 
@@ -167,6 +174,7 @@ def user_preferences(target, notification_setting, resource_type):
             "analysis_services",
             "observation_plans",
             "deployments",
+            "feedback",
         ]:
             if not prefs.get(resource_type, False):
                 return
@@ -288,6 +296,9 @@ def send_email_notification(target):
 
         elif resource_type == "deployments":
             subject = f"{cfg['app.title']} - New deployment"
+
+        elif resource_type == "feedback":
+            subject = f"{cfg['app.title']} - New feedback"
 
         if subject and target["user"]["contact_email"]:
             try:
@@ -522,6 +533,7 @@ def api(queue):
             is_observation_plan = target_class_name == "EventObservationPlan"
             is_followup_request = target_class_name == "FollowupRequest"
             is_deployment = target_class_name == "Deployment"
+            is_feedback = target_class_name == "Feedback"
 
             with DBSession() as session:
                 try:
@@ -654,6 +666,26 @@ def api(queue):
                             .first()
                             .to_dict()
                         )
+                    elif is_feedback:
+                        admin_ids = sa.union(
+                            sa.select(UserACL.user_id).where(
+                                UserACL.acl_id == "System admin"
+                            ),
+                            sa.select(UserRole.user_id)
+                            .join(RoleACL, RoleACL.role_id == UserRole.role_id)
+                            .where(RoleACL.acl_id == "System admin"),
+                        )
+                        users = session.scalars(
+                            sa.select(User).where(User.id.in_(admin_ids))
+                        ).all()
+                        target_class = Feedback
+                        feedback = session.scalar(
+                            sa.select(Feedback).where(Feedback.id == target_id)
+                        )
+                        target_data = {
+                            **feedback.to_dict(),
+                            "author": feedback.author.username,
+                        }
                     elif is_group_admission_request:
                         target_class = GroupAdmissionRequest
                         target_data = (
@@ -1303,6 +1335,31 @@ def api(queue):
                                         text=text,
                                         notification_type="deployments",
                                         url="/deployments",
+                                    )
+                                    session.add(notification)
+                                    session.commit()
+                                    target = {
+                                        **notification.to_dict(),
+                                        "user": {
+                                            **notification.user.to_dict(),
+                                            "preferences": notification.user.preferences,
+                                        },
+                                    }
+                                    queue.append(target)
+                                elif is_feedback:
+                                    if user.id == target_data["author_id"]:
+                                        continue
+                                    label = FEEDBACK_CATEGORIES.get(
+                                        target_data["category"], "message"
+                                    )
+                                    snippet = textwrap.shorten(
+                                        target_data["text"], 120, placeholder="..."
+                                    )
+                                    notification = UserNotification(
+                                        user=user,
+                                        text=f"New {label} from *{target_data['author']}*: {snippet}",
+                                        notification_type="feedback",
+                                        url="/deployments?tab=feedback",
                                     )
                                     session.add(notification)
                                     session.commit()
