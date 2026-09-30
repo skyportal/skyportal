@@ -66,6 +66,7 @@ from skyportal.handlers.api import (
     DefaultGcnTagHandler,
     DefaultObservationPlanRequestHandler,
     DefaultSurveyEfficiencyRequestHandler,
+    DeploymentHandler,
     DuplicateSchedulingHandler,
     EarthquakeHandler,
     EarthquakeMeasurementHandler,
@@ -73,6 +74,8 @@ from skyportal.handlers.api import (
     EarthquakeStatusHandler,
     EnumTypesHandler,
     FacilityMessageHandler,
+    FeedbackHandler,
+    FeedbackReplyHandler,
     FilterHandler,
     FinderChartFacilitiesHandler,
     FollowupAPIsHandler,
@@ -688,6 +691,9 @@ skyportal_handlers = [
     (r"/api/db_stats", StatsHandler),
     (r"/api/db_stats/history", StatsHistoryHandler),
     (r"/api/sysinfo", SysInfoHandler),
+    (r"/api/deployments", DeploymentHandler),
+    (r"/api/feedback(/[0-9]+)?", FeedbackHandler),
+    (r"/api/feedback/([0-9]+)/replies", FeedbackReplyHandler),
     (r"/api/config", ConfigHandler),
     (r"/api/assistant/conversations", AssistantConversationHandler),
     (r"/api/assistant/messages", AssistantMessageHandler),
@@ -944,6 +950,11 @@ def make_app(cfg, baselayer_handlers, baselayer_settings, process=None, env=None
         print("-" * 78)
 
     model_util.provision_public_group()
+    if not process:
+        try:
+            model_util.record_deployment()
+        except Exception as e:
+            log(f"Could not record the deployment: {e}")
     app.openapi_spec = openapi.spec_from_handlers(handlers)
 
     return app

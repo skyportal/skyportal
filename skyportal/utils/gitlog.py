@@ -1,5 +1,10 @@
+import glob
+import itertools
+import json
 import re
 import subprocess
+from datetime import datetime
+from functools import cache
 
 from baselayer.log import make_log
 
@@ -111,3 +116,19 @@ def parse_gitlog(gitlog):
         parsed_log.append(log_fields)
 
     return parsed_log
+
+
+@cache
+def load_gitlog(files="data/gitlog*.json"):
+    """Parsed git log of the running code, newest first; images without .git ship it in `files`."""
+    gitlogs = []
+    for gitlog in glob.glob(files):
+        with open(gitlog) as f:
+            gitlogs.append(json.load(f))
+    if not gitlogs:
+        gitlogs = [get_gitlog()]
+
+    parsed_log = itertools.chain(*(parse_gitlog(gitlog) for gitlog in gitlogs))
+    return sorted(
+        parsed_log, key=lambda x: datetime.fromisoformat(x["time"]), reverse=True
+    )

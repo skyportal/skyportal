@@ -118,6 +118,12 @@ const NOTIFICATIONS = [
     tooltip:
       "Enable to receive notifications when your reminders fire. Click the settings icon to configure email, SMS, or Slack delivery.",
   },
+  {
+    key: "deployments",
+    label: "Deployments",
+    tooltip:
+      "This allows you to be notified each time a new version of the application is deployed. The deployment history is on the Deployments page.",
+  },
 ];
 
 const FAVORITE_SOURCES_TOGGLES = [

@@ -1,7 +1,9 @@
 import asyncio
+import html
 import json
 import operator
 import string
+import textwrap
 import time
 from threading import Thread
 
@@ -24,8 +26,11 @@ from skyportal.models import (
     Classification,
     Comment,
     DBSession,
+    Deployment,
     EventObservationPlan,
     FacilityTransaction,
+    Feedback,
+    FeedbackReply,
     FollowupRequest,
     GcnEvent,
     GcnEventExtraction,
@@ -38,12 +43,15 @@ from skyportal.models import (
     Localization,
     ObjAnalysis,
     ObservationPlanRequest,
+    RoleACL,
     Shift,
     ShiftUser,
     Source,
     Spectrum,
     User,
+    UserACL,
     UserNotification,
+    UserRole,
 )
 from skyportal.utils.app import get_app_base_url
 from skyportal.utils.email import send_email
@@ -55,6 +63,9 @@ from skyportal.utils.gcn_extraction_tags import (
     wants_classification,
 )
 from skyportal.utils.notifications import (
+    escape_markdown,
+    escape_slack,
+    feedback_notification_text,
     gcn_email_notification,
     gcn_notification_content,
     gcn_slack_notification,
@@ -66,6 +77,8 @@ from skyportal.utils.notifications import (
 
 env, cfg = load_env()
 log = make_log("notification_queue")
+
+FEEDBACK_CATEGORIES = {"bug": "bug report", "change": "change request"}
 
 init_db(**cfg["database"])
 
@@ -99,6 +112,8 @@ op_options = [
 def notification_resource_type(target):
     if not target["notification_type"]:
         return None
+    if target["notification_type"].startswith("feedback"):
+        return "feedback"
     if (
         "favorite_sources" not in target["notification_type"]
         and "gcn_events" not in target["notification_type"]
@@ -165,6 +180,8 @@ def user_preferences(target, notification_setting, resource_type):
             "mention",
             "analysis_services",
             "observation_plans",
+            "deployments",
+            "feedback",
         ]:
             if not prefs.get(resource_type, False):
                 return
@@ -209,6 +226,11 @@ def send_slack_notification(target):
                         target=target, data=target["content"]
                     ),
                 }
+            )
+        elif resource_type == "feedback" and target.get("content"):
+            text = feedback_notification_text(target["content"], escape_slack)
+            data = json.dumps(
+                {"url": integration_url, "text": f"{text} ({app_url}{target['url']})"}
             )
         else:
             data = json.dumps(
@@ -283,6 +305,21 @@ def send_email_notification(target):
 
         elif resource_type == "group_admission_request":
             subject = f"{cfg['app.title']} - New group admission request"
+
+        elif resource_type == "deployments":
+            subject = f"{cfg['app.title']} - New deployment"
+
+        elif resource_type == "feedback":
+            subject = (
+                f"{cfg['app.title']} - Reply to your feedback"
+                if target["notification_type"] == "feedback_reply"
+                else f"{cfg['app.title']} - New feedback"
+            )
+            if target.get("content"):
+                text = feedback_notification_text(
+                    target["content"], html.escape, bold=""
+                )
+                body = f"<p>{text}</p><p><a href='{app_url}{target['url']}'>View in {cfg['app.title']}</a></p>"
 
         if subject and target["user"]["contact_email"]:
             try:
@@ -516,6 +553,9 @@ def api(queue):
             is_analysis_service = target_class_name == "ObjAnalysis"
             is_observation_plan = target_class_name == "EventObservationPlan"
             is_followup_request = target_class_name == "FollowupRequest"
+            is_deployment = target_class_name == "Deployment"
+            is_feedback = target_class_name == "Feedback"
+            is_feedback_reply = target_class_name == "FeedbackReply"
 
             with DBSession() as session:
                 try:
@@ -630,6 +670,57 @@ def api(queue):
                             .first()
                             .to_dict()
                         )
+                    elif is_deployment:
+                        users = session.scalars(
+                            sa.select(User).where(
+                                User.preferences["notifications"]["deployments"][
+                                    "active"
+                                ]
+                                .astext.cast(sa.Boolean)
+                                .is_(True)
+                            )
+                        ).all()
+                        target_class = Deployment
+                        target_data = (
+                            session.scalars(
+                                sa.select(Deployment).where(Deployment.id == target_id)
+                            )
+                            .first()
+                            .to_dict()
+                        )
+                    elif is_feedback:
+                        admin_ids = sa.union(
+                            sa.select(UserACL.user_id).where(
+                                UserACL.acl_id == "System admin"
+                            ),
+                            sa.select(UserRole.user_id)
+                            .join(RoleACL, RoleACL.role_id == UserRole.role_id)
+                            .where(RoleACL.acl_id == "System admin"),
+                        )
+                        users = session.scalars(
+                            sa.select(User).where(User.id.in_(admin_ids))
+                        ).all()
+                        target_class = Feedback
+                        feedback = session.scalar(
+                            sa.select(Feedback).where(Feedback.id == target_id)
+                        )
+                        target_data = {
+                            **feedback.to_dict(),
+                            "author": feedback.author.username,
+                        }
+                    elif is_feedback_reply:
+                        target_class = FeedbackReply
+                        reply = session.scalar(
+                            sa.select(FeedbackReply).where(
+                                FeedbackReply.id == target_id
+                            )
+                        )
+                        users = [reply.feedback.author]
+                        target_data = {
+                            **reply.to_dict(),
+                            "author": reply.author.username,
+                            "category": reply.feedback.category,
+                        }
                     elif is_group_admission_request:
                         target_class = GroupAdmissionRequest
                         target_data = (
@@ -1266,6 +1357,65 @@ def api(queue):
                                             },
                                         }
                                         queue.append(target)
+                                elif is_deployment:
+                                    commit = target_data["commit"] or {}
+                                    text = (
+                                        f"New deployment of *{cfg['app.title']}*: "
+                                        f"SkyPortal *{target_data['version']}*"
+                                    )
+                                    if commit.get("sha"):
+                                        text += f" ({commit['sha']}: {commit.get('description', '')})"
+                                    notification = UserNotification(
+                                        user=user,
+                                        text=text,
+                                        notification_type="deployments",
+                                        url="/deployments",
+                                    )
+                                    session.add(notification)
+                                    session.commit()
+                                    target = {
+                                        **notification.to_dict(),
+                                        "user": {
+                                            **notification.user.to_dict(),
+                                            "preferences": notification.user.preferences,
+                                        },
+                                    }
+                                    queue.append(target)
+                                elif is_feedback or is_feedback_reply:
+                                    if user.id == target_data["author_id"]:
+                                        continue
+                                    label = FEEDBACK_CATEGORIES.get(
+                                        target_data["category"], "message"
+                                    )
+                                    content = {
+                                        "author": target_data["author"],
+                                        "label": label,
+                                        "snippet": textwrap.shorten(
+                                            target_data["text"], 120, placeholder="..."
+                                        ),
+                                        "reply": is_feedback_reply,
+                                    }
+                                    notification = UserNotification(
+                                        user=user,
+                                        text=feedback_notification_text(
+                                            content, escape_markdown
+                                        ),
+                                        notification_type="feedback_reply"
+                                        if is_feedback_reply
+                                        else "feedback",
+                                        url="/deployments?tab=feedback",
+                                    )
+                                    session.add(notification)
+                                    session.commit()
+                                    target = {
+                                        **notification.to_dict(),
+                                        "user": {
+                                            **notification.user.to_dict(),
+                                            "preferences": notification.user.preferences,
+                                        },
+                                        "content": content,
+                                    }
+                                    queue.append(target)
                                 elif is_group_admission_request:
                                     user_from_request = session.scalars(
                                         sa.select(User).where(

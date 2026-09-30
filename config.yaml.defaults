@@ -290,6 +290,8 @@ app:
     - path: "/about"
       component: About
       anonymous_ok: true
+    - path: "/deployments"
+      component: deployment/Deployments
     - path: "/runs"
       component: observing_run/ObservingRunPage
     - path: "/run/:id"
@@ -534,6 +536,10 @@ app:
           icon: HowToReg
           enabled_if: canDecideUserApplications # a /api/config flag
           url: /user_applications
+
+        - name: Deployments
+          icon: RocketLaunch
+          url: /deployments
 
     - name: Admin
       icon: AdminPanelSettings
