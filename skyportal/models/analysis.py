@@ -703,12 +703,61 @@ def _default_analysis_under_limit():
     )
 
 
+# ZTF filter names counted toward the detection gate (bare g/r/i tolerated too).
+_G_FILTERS = {"ztfg", "g"}
+_R_FILTERS = {"ztfr", "r"}
+_ZTF_FILTERS = {"ztfg", "ztfr", "ztfi", "g", "r", "i"}
+
+
+def _ztf_detection_counts(session, obj_id, snr=5.0):
+    """(total, g, r) ZTF detections at or above ``snr``, for the detection gate."""
+    from .photometry import Photometry
+
+    counts = dict(
+        session.execute(
+            sa.select(Photometry.filter, func.count())
+            .where(Photometry.obj_id == obj_id, Photometry.snr >= snr)
+            .group_by(Photometry.filter)
+        ).all()
+    )
+    g = sum(n for f, n in counts.items() if f in _G_FILTERS)
+    r = sum(n for f, n in counts.items() if f in _R_FILTERS)
+    total = sum(n for f, n in counts.items() if f in _ZTF_FILTERS)
+    return total, g, r
+
+
+def _insufficient_photometry(session, default_analysis, obj_id):
+    """True if this default analysis declares a detection threshold the object's
+    light curve does not yet meet -- so we defer rather than submit a job we'd only
+    withhold. A default analysis without ``min_detections`` is never gated."""
+    params = default_analysis.default_analysis_parameters or {}
+    if params.get("min_detections") is None:
+        return False
+    min_det = int(params["min_detections"])
+    min_band = int(params.get("min_per_band", 0))
+    total, g, r = _ztf_detection_counts(
+        session, obj_id, float(params.get("detection_snr", 5.0))
+    )
+    if total < min_det or g < min_band or r < min_band:
+        log(
+            f"Default analysis {default_analysis.analysis_service.name}: deferring "
+            f"{obj_id} ({total} det, g={g} r={r} < {min_det}/{min_band}); "
+            "awaiting more photometry"
+        )
+        return True
+    return False
+
+
 def _run_default_analysis(default_analysis_id, author_id, obj_id, notification):
     """Bump the per-day counter and post one default analysis for ``obj_id``.
 
     ID-based and dispatched via ``run_async`` so it executes after the triggering
     transaction commits — otherwise a brand-new obj (save-to-group trigger) is not
     yet visible to this fresh session and post_analysis fails with "Obj not found".
+
+    Skips submission when the default analysis declares a detection threshold the
+    light curve does not yet meet (see _insufficient_photometry): the analysis_rerun
+    service fires it once enough photometry lands, so no doomed job is submitted.
     """
     import time
 
@@ -739,6 +788,10 @@ def _run_default_analysis(default_analysis_id, author_id, obj_id, notification):
                 )
             ).first()
             if default_analysis is None:
+                return
+
+            # Don't submit a job we'd only gate on too-sparse a light curve.
+            if _insufficient_photometry(db_session, default_analysis, obj_id):
                 return
 
             now = utcnow_naive().strftime("%Y-%m-%dT%H:%M:%S.%f")

@@ -1,13 +1,15 @@
-"""Re-run default analyses that were withheld for insufficient data, once the
-light curve has grown enough to classify.
+"""Fire default analyses that were deferred for too-sparse a light curve, once the
+object has enough photometry to classify.
 
-Default analyses fire once, on save-to-group (see create_default_analysis_on_save),
-and never again -- so a source saved with two detections is frozen at that data.
-Classifiers that gate on a sparse light curve (ORACLE, FLARE) mark the run
-``insufficient_data`` in the webhook message (stored in ObjAnalysis.status_message).
-This service periodically finds those gated runs whose object now meets the
-detection threshold and re-triggers the same default analysis, which posts the
-confident classification. Once a non-gated run lands, the object is skipped.
+Default analyses fire once, on save-to-group (create_default_analysis_on_save), and
+never again -- and a default analysis that declares a detection threshold
+(min_detections in its parameters) is *deferred* rather than submitted when the
+light curve is too sparse, so no doomed OSG job runs (see _run_default_analysis /
+_insufficient_photometry). Those deferred sources leave no analysis record, so this
+service periodically finds sources saved to such a default analysis's group that now
+meet the threshold and have no successful (or in-flight) run yet, and fires the
+default analysis -- which now passes the gate and submits. Once a good run lands,
+the source is skipped.
 """
 
 import time
@@ -15,13 +17,16 @@ import traceback
 from datetime import timedelta
 
 import sqlalchemy as sa
-from sqlalchemy import Integer
 
 from baselayer.app.env import load_env
 from baselayer.app.models import DBSession, init_db
 from baselayer.log import make_log
 from skyportal.models import DefaultAnalysis, ObjAnalysis, Photometry, Source
-from skyportal.models.analysis import _default_analysis_under_limit, _run_default_analysis
+from skyportal.models.analysis import (
+    _default_analysis_under_limit,
+    _insufficient_photometry,
+    _run_default_analysis,
+)
 from skyportal.utils.naive_datetime import utcnow_naive
 from skyportal.utils.services import check_loaded
 
@@ -34,107 +39,74 @@ log = make_log("analysis_rerun")
 _RR = cfg.get("analysis_rerun", {}) or {}
 INTERVAL = int(_RR.get("interval_seconds", 3600))
 LOOKBACK_DAYS = int(_RR.get("lookback_days", 14))
-# Match the classifier bridges' gate (oracle_bridge/flare_bridge): >=N detections
-# with >=2 each in g and r, counted at >=5 sigma.
-MIN_DETECTIONS = int(_RR.get("min_detections", 8))
-MIN_PER_BAND = int(_RR.get("min_per_band", 2))
-DETECTION_SNR = float(_RR.get("detection_snr", 5.0))
-
-# The marker a gated run leaves in ObjAnalysis.status_message (ORACLE's withheld
-# message and FLARE's triage verdict both contain it).
-MARKER = "insufficient_data"
-
-_G = {"ztfg", "g"}
-_R = {"ztfr", "r"}
-_DET = {"ztfg", "ztfr", "ztfi", "g", "r", "i"}
 
 
-def _sufficient(session, obj_id, min_detections, min_per_band):
-    """(enough?, total, g, r) from the object's >=5-sigma ZTF detections."""
-    counts = dict(
-        session.execute(
-            sa.select(Photometry.filter, sa.func.count())
-            .where(Photometry.obj_id == obj_id, Photometry.snr >= DETECTION_SNR)
-            .group_by(Photometry.filter)
-        ).all()
+def _sweep_default_analysis(session, default_analysis, cutoff):
+    group_id = (default_analysis.source_filter or {}).get("group_id")
+    if group_id is None:
+        return
+
+    # Sources saved to the group with recent photometry (so we only look at ones
+    # that could have crossed the threshold) and no run that already blocks a
+    # re-fire: a pending run (in flight) or a completed, non-gated one (classified).
+    recent_objs = (
+        sa.select(Photometry.obj_id).where(Photometry.created_at >= cutoff).distinct()
     )
-    g = sum(n for f, n in counts.items() if f in _G)
-    r = sum(n for f, n in counts.items() if f in _R)
-    total = sum(n for f, n in counts.items() if f in _DET)
-    return total >= min_detections and g >= min_per_band and r >= min_per_band, total, g, r
-
-
-def _maybe_rerun(session, obj_id, service_id):
-    # Only act if the LATEST run for this (obj, service) is a completed, gated one:
-    # a pending re-run or an already-classified (non-gated) run means skip.
-    latest = session.scalars(
-        sa.select(ObjAnalysis)
+    blocking = sa.exists().where(
+        ObjAnalysis.obj_id == Source.obj_id,
+        ObjAnalysis.analysis_service_id == default_analysis.analysis_service_id,
+        sa.or_(
+            ObjAnalysis.status == "pending",
+            sa.and_(
+                ObjAnalysis.status == "completed",
+                ~sa.func.coalesce(ObjAnalysis.status_message, "").ilike(
+                    "%insufficient_data%"
+                ),
+            ),
+        ),
+    )
+    obj_ids = session.scalars(
+        sa.select(Source.obj_id)
+        .distinct()
         .where(
-            ObjAnalysis.obj_id == obj_id,
-            ObjAnalysis.analysis_service_id == service_id,
+            Source.group_id == int(group_id),
+            Source.obj_id.in_(recent_objs),
+            ~blocking,
         )
-        .order_by(ObjAnalysis.created_at.desc())
-    ).first()
-    if latest is None or latest.status != "completed":
-        return
-    if MARKER not in (latest.status_message or ""):
-        return
-
-    group_ids = session.scalars(
-        sa.select(Source.group_id).where(Source.obj_id == obj_id)
     ).all()
-    if not group_ids:
-        return
-    default_analysis = session.scalars(
-        sa.select(DefaultAnalysis).where(
-            DefaultAnalysis.analysis_service_id == service_id,
-            DefaultAnalysis.source_filter["group_id"].astext.cast(Integer).in_(group_ids),
-            _default_analysis_under_limit(),
+
+    for obj_id in obj_ids:
+        # _run_default_analysis re-checks the gate and only submits if sufficient;
+        # skip the ones still too sparse so we don't churn through them each sweep.
+        if _insufficient_photometry(session, default_analysis, obj_id):
+            continue
+        log(f"firing {default_analysis.analysis_service.name} on {obj_id}")
+        _run_default_analysis(
+            default_analysis.id,
+            default_analysis.author_id,
+            obj_id,
+            f"Deferred {default_analysis.analysis_service.name} on {obj_id}: "
+            "light curve now meets the detection threshold",
         )
-    ).first()
-    if default_analysis is None:
-        return
-
-    # The DefaultAnalysis is the source of truth for the threshold (the classifier
-    # bridge reads the same params); the config values are only a fallback.
-    da_params = default_analysis.default_analysis_parameters or {}
-    min_detections = int(da_params.get("min_detections", MIN_DETECTIONS))
-    min_per_band = int(da_params.get("min_per_band", MIN_PER_BAND))
-    ok, total, g, r = _sufficient(session, obj_id, min_detections, min_per_band)
-    if not ok:
-        return  # still too sparse; nothing changed since the gated run
-
-    log(
-        f"re-running {default_analysis.analysis_service.name} on {obj_id} "
-        f"({total} det, g={g} r={r}) -- was {MARKER}"
-    )
-    _run_default_analysis(
-        default_analysis.id,
-        default_analysis.author_id,
-        obj_id,
-        f"Re-run of {default_analysis.analysis_service.name} on {obj_id}: "
-        f"light curve now has {total} detections",
-    )
 
 
 def sweep():
     cutoff = utcnow_naive() - timedelta(days=LOOKBACK_DAYS)
     with DBSession() as session:
-        pairs = session.execute(
-            sa.select(ObjAnalysis.obj_id, ObjAnalysis.analysis_service_id)
-            .where(
-                ObjAnalysis.status == "completed",
-                ObjAnalysis.status_message.ilike(f"%{MARKER}%"),
-                ObjAnalysis.modified >= cutoff,
+        default_analyses = session.scalars(
+            sa.select(DefaultAnalysis).where(
+                # Only ones that opt into the detection gate.
+                DefaultAnalysis.default_analysis_parameters["min_detections"]
+                .astext.isnot(None),
+                _default_analysis_under_limit(),
             )
-            .distinct()
         ).all()
-        log(f"{len(pairs)} gated (obj, service) pair(s) in the last {LOOKBACK_DAYS}d")
-        for obj_id, service_id in pairs:
+        log(f"{len(default_analyses)} gated default analysis(es) to sweep")
+        for default_analysis in default_analyses:
             try:
-                _maybe_rerun(session, obj_id, service_id)
+                _sweep_default_analysis(session, default_analysis, cutoff)
             except Exception as e:
-                log(f"error on {obj_id}/{service_id}: {e}")
+                log(f"error on default analysis {default_analysis.id}: {e}")
                 traceback.print_exc()
 
 

@@ -1510,19 +1510,16 @@ health_monitor:
   # How long do we give apps after restart to become healthy
   startup_grace_seconds: 30
 
-# analysis_rerun service: re-fires a default analysis that a classifier withheld
-# for insufficient data (marked "insufficient_data" in the run's status_message)
-# once the object's light curve grows past the threshold. A DefaultAnalysis's own
-# default_analysis_parameters (min_detections/min_per_band) are the source of truth
-# and win per-analysis -- these are only the fallback -- and should match the
-# classifier bridges (ORACLE/FLARE): >=min_detections with >=min_per_band each in g
-# and r, at >=detection_snr sigma.
+# analysis_rerun service: fires default analyses that were deferred because the
+# light curve was too sparse (a default analysis whose default_analysis_parameters
+# declare min_detections is deferred rather than submitted; see _run_default_analysis)
+# once the object crosses the threshold. The threshold lives on each DefaultAnalysis
+# (min_detections / min_per_band / detection_snr in its parameters), so it is not
+# configured here; these are only the sweep cadence and how far back to look for
+# newly-active sources.
 analysis_rerun:
   interval_seconds: 3600
   lookback_days: 14
-  min_detections: 8
-  min_per_band: 2
-  detection_snr: 5.0
 
 analysis_services:
   analysis_folder: persistentdata/analysis
