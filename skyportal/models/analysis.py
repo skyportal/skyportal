@@ -703,27 +703,18 @@ def _default_analysis_under_limit():
     )
 
 
-# ZTF filter names counted toward the detection gate (bare g/r/i tolerated too).
-_G_FILTERS = {"ztfg", "g"}
-_R_FILTERS = {"ztfr", "r"}
-_ZTF_FILTERS = {"ztfg", "ztfr", "ztfi", "g", "r", "i"}
-
-
-def _ztf_detection_counts(session, obj_id, snr=5.0):
-    """(total, g, r) ZTF detections at or above ``snr``, for the detection gate."""
+def _detection_count(session, obj_id, snr=5.0):
+    """Number of >=``snr`` detections (any filter) for an obj, for the detection gate."""
     from .photometry import Photometry
 
-    counts = dict(
-        session.execute(
-            sa.select(Photometry.filter, func.count())
+    return int(
+        session.scalar(
+            sa.select(func.count())
+            .select_from(Photometry)
             .where(Photometry.obj_id == obj_id, Photometry.snr >= snr)
-            .group_by(Photometry.filter)
-        ).all()
+        )
+        or 0
     )
-    g = sum(n for f, n in counts.items() if f in _G_FILTERS)
-    r = sum(n for f, n in counts.items() if f in _R_FILTERS)
-    total = sum(n for f, n in counts.items() if f in _ZTF_FILTERS)
-    return total, g, r
 
 
 def _insufficient_photometry(session, default_analysis, obj_id):
@@ -734,15 +725,11 @@ def _insufficient_photometry(session, default_analysis, obj_id):
     if params.get("min_detections") is None:
         return False
     min_det = int(params["min_detections"])
-    min_band = int(params.get("min_per_band", 0))
-    total, g, r = _ztf_detection_counts(
-        session, obj_id, float(params.get("detection_snr", 5.0))
-    )
-    if total < min_det or g < min_band or r < min_band:
+    n = _detection_count(session, obj_id, float(params.get("detection_snr", 5.0)))
+    if n < min_det:
         log(
             f"Default analysis {default_analysis.analysis_service.name}: deferring "
-            f"{obj_id} ({total} det, g={g} r={r} < {min_det}/{min_band}); "
-            "awaiting more photometry"
+            f"{obj_id} ({n} detections < {min_det}); awaiting more photometry"
         )
         return True
     return False
