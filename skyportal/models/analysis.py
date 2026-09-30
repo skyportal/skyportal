@@ -703,33 +703,35 @@ def _default_analysis_under_limit():
     )
 
 
-def _detection_count(session, obj_id, snr=5.0):
-    """Number of >=``snr`` detections (any filter) for an obj, for the detection gate."""
-    from .photometry import Photometry
-
-    return int(
-        session.scalar(
-            sa.select(func.count())
-            .select_from(Photometry)
-            .where(Photometry.obj_id == obj_id, Photometry.snr >= snr)
-        )
-        or 0
-    )
-
-
 def _insufficient_photometry(session, default_analysis, obj_id):
     """True if this default analysis declares a detection threshold the object's
     light curve does not yet meet -- so we defer rather than submit a job we'd only
-    withhold. A default analysis without ``min_detections`` is never gated."""
+    withhold. Reads the precomputed PhotStat (SkyPortal's own detection threshold,
+    forced photometry excluded); ``min_detections`` is the total (any filter) and
+    the optional ``min_detections_per_filter`` dict adds per-band minima. A default
+    analysis without ``min_detections`` is never gated."""
+    from .phot_stat import PhotStat
+
     params = default_analysis.default_analysis_parameters or {}
     if params.get("min_detections") is None:
         return False
     min_det = int(params["min_detections"])
-    n = _detection_count(session, obj_id, float(params.get("detection_snr", 5.0)))
-    if n < min_det:
+    per_filter_min = params.get("min_detections_per_filter") or {}
+
+    stat = session.scalar(sa.select(PhotStat).where(PhotStat.obj_id == obj_id))
+    total = int((stat.num_det_no_forced_phot_global if stat else 0) or 0)
+    per_filter = (stat.num_det_per_filter if stat else {}) or {}
+
+    short = []
+    if total < min_det:
+        short.append(f"{total} det < {min_det}")
+    for filt, need in per_filter_min.items():
+        if int(per_filter.get(filt, 0)) < int(need):
+            short.append(f"{filt}={int(per_filter.get(filt, 0))} < {need}")
+    if short:
         log(
             f"Default analysis {default_analysis.analysis_service.name}: deferring "
-            f"{obj_id} ({n} detections < {min_det}); awaiting more photometry"
+            f"{obj_id} ({'; '.join(short)}); awaiting more photometry"
         )
         return True
     return False

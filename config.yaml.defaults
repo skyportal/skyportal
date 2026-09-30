@@ -1513,10 +1513,11 @@ health_monitor:
 # analysis_rerun service: fires default analyses that were deferred because the
 # light curve was too sparse (a default analysis whose default_analysis_parameters
 # declare min_detections is deferred rather than submitted; see _run_default_analysis)
-# once the object crosses the threshold. The threshold lives on each DefaultAnalysis
-# (min_detections, and optionally detection_snr, in its parameters -- detections are
-# counted in any filter), so it is not configured here; these are only the sweep
-# cadence and how far back to look for newly-active sources.
+# once the object crosses the threshold. The threshold lives on each DefaultAnalysis:
+# min_detections (total, any filter) and an optional min_detections_per_filter dict
+# (e.g. {"ztfg": 2, "ztfr": 2}), read from the precomputed PhotStat (SkyPortal's own
+# detection threshold, forced photometry excluded). Not configured here; these are
+# only the sweep cadence and how far back to look for newly-active sources.
 analysis_rerun:
   interval_seconds: 3600
   lookback_days: 14
