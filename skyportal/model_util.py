@@ -249,8 +249,7 @@ def provision_skybot():
 
 
 def record_deployment():
-    """Record the running version if it differs from the last one recorded,
-    and notify the users who subscribed to deployments."""
+    """Record the running version if new, and notify users subscribed to deployments."""
     gitlog = load_gitlog()
     commit = gitlog[0] if gitlog else None
     with DBSession() as session:

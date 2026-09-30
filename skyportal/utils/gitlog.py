@@ -3,6 +3,7 @@ import itertools
 import json
 import re
 import subprocess
+from functools import cache
 
 from baselayer.log import make_log
 
@@ -116,11 +117,9 @@ def parse_gitlog(gitlog):
     return parsed_log
 
 
+@cache
 def load_gitlog(files="data/gitlog*.json"):
-    """Parsed git log of the running code, newest commit first.
-
-    Builds without a `.git` directory (e.g. Docker images) write it to `files`.
-    """
+    """Parsed git log of the running code, newest first; images without .git ship it in `files`."""
     gitlogs = []
     for gitlog in glob.glob(files):
         with open(gitlog) as f:
