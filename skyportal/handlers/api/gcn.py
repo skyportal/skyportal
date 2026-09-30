@@ -136,7 +136,10 @@ from ...utils.gcn import (
     get_contour,
     get_dateobs,
     get_designation_date,
+    get_frb_mission,
     get_json_aliases,
+    get_json_dateobs,
+    get_json_properties,
     get_json_tags,
     get_json_trigger_id,
     get_notice_aliases,
@@ -934,10 +937,7 @@ async def post_gcnevent_from_json(
 
     # A retraction (e.g. an IGWN gwalert) carries no trigger_time; its dateobs is
     # resolved from the existing event matched below via ref_ID/aliases.
-    dateobs = None
-    if payload.get("trigger_time"):
-        dateobs = Time(payload["trigger_time"], format="isot", precision=0)
-        dateobs = Time(dateobs.iso).datetime
+    dateobs = get_json_dateobs(payload)
 
     trigger_id = get_json_trigger_id(payload)
 
@@ -1030,13 +1030,15 @@ async def post_gcnevent_from_json(
 
     await link_detectors_to_event(session, user, event, tag_texts)
 
-    # Store classification/astro/FAR properties (e.g. from an IGWN gwalert).
-    if payload.get("properties"):
+    # Store classification/astro/FAR properties (e.g. from an IGWN gwalert) or
+    # the observables of an FRB notice, so the event can be filtered on them.
+    properties = get_json_properties(payload)
+    if properties:
         session.add(
             GcnProperty(
                 dateobs=event.dateobs,
                 sent_by_id=user.id,
-                data=payload["properties"],
+                data=properties,
             )
         )
     await session.commit()
@@ -1050,6 +1052,8 @@ async def post_gcnevent_from_json(
         instrument = payload["instrument"]
     elif "type" in payload:
         instrument = payload["type"].replace(" ", "-")
+    elif get_frb_mission(payload) is not None:
+        instrument = get_frb_mission(payload)
     else:
         instrument = "Unknown"
 

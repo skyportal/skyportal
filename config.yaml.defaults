@@ -1392,6 +1392,11 @@ gcn:
       - igwn.gwalert
       - gcn.notices.einstein_probe.wxt.alert
       - gcn.notices.swift.bat.guano
+      # FRB notices. Both facilities publish the same core schema, so they
+      # share an ingestion path. CHIME runs at a few notices a day, of which
+      # roughly a quarter are retractions of an earlier detection.
+      - gcn.notices.dsa110.frb
+      - gcn.notices.chime.frb
       # - gcn.notices.icecube.lvk_nu_track_search
   # Circulars are prose follow-up reports. Ingesting them keeps each event's
   # circular list and aliases current in real time, where the TACH backfill

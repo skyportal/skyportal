@@ -25,8 +25,11 @@ from skyportal.models import GcnEvent, User
 from skyportal.utils.gcn import (
     from_igwn_gwalert,
     get_dateobs,
+    get_json_dateobs,
+    get_json_trigger_id,
     get_skymap_metadata,
     get_trigger,
+    is_retraction,
 )
 from skyportal.utils.notifications import post_notification
 from skyportal.utils.services import check_loaded
@@ -258,6 +261,31 @@ def poll_events(*args, **kwargs):
                             )
                             return
                         session.user_or_token = user
+
+                        # A retraction withdraws an event. Where the stream
+                        # sends one for an event we never ingested, creating it
+                        # here would invent the detection being withdrawn.
+                        if alert_type == "json" and is_retraction(payload):
+                            trigger_id = get_json_trigger_id(payload)
+                            retracted_dateobs = get_json_dateobs(payload)
+                            existing_event = None
+                            if trigger_id is not None:
+                                existing_event = await session.scalar(
+                                    sa.select(GcnEvent).where(
+                                        GcnEvent.trigger_id == trigger_id
+                                    )
+                                )
+                            if existing_event is None and retracted_dateobs is not None:
+                                existing_event = await session.scalar(
+                                    sa.select(GcnEvent).where(
+                                        GcnEvent.dateobs == retracted_dateobs
+                                    )
+                                )
+                            if existing_event is None:
+                                log(
+                                    f"No event found to retract for gcn_event from {message.topic()}, skipping"
+                                )
+                                return
 
                         # skip ingesting a retraction if the event does not exist
                         # (VOEvent path; JSON retractions are resolved by alias in
