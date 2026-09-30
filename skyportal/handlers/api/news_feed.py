@@ -1,3 +1,5 @@
+from datetime import UTC, datetime, timedelta
+
 import sqlalchemy as sa
 from skyportal_py_models.news_feed import (
     DEFAULT_NEWSFEED_ITEMS,
@@ -20,6 +22,12 @@ from ...models import (
 )
 from ...utils.data_access import team_scoped_group_ids
 from ..base import BaseHandler
+
+# The feed is recent activity, so it is read newest-first within a window the
+# created_at index can answer directly; ordering everything a user can see
+# costs about a second on a large instance. Widened only when a window comes
+# up short, so a quiet group still fills its feed.
+FEED_WINDOWS_DAYS = (30, 365, None)
 
 
 class NewsFeedHandler(BaseHandler):
@@ -126,8 +134,11 @@ class NewsFeedHandler(BaseHandler):
             except ValueError as e:
                 return self.error(str(e))
 
-            async def fetch_newest(
-                model, include_bot_comments=False, include_ml_classifications=False
+            def build_newest_stmt(
+                model,
+                window_days,
+                include_bot_comments,
+                include_ml_classifications,
             ):
                 stmt = model.select(self.associated_user_object).options(
                     *loader_options.get(model, [])
@@ -173,13 +184,38 @@ class NewsFeedHandler(BaseHandler):
                             )
                         )
                     )
-                stmt = (
-                    stmt.order_by(desc(model.created_at or model.saved_at))
+                if window_days is not None:
+                    since = datetime.now(UTC).replace(tzinfo=None) - timedelta(
+                        days=window_days
+                    )
+                    stmt = stmt.where(model.created_at > since)
+                return (
+                    stmt.order_by(desc(model.created_at))
                     .distinct(model.obj_id, model.created_at)
                     .limit(n_items)
                 )
-                fetch_result = await session.scalars(stmt)
-                newest = fetch_result.unique().all()
+
+            async def fetch_newest(
+                model, include_bot_comments=False, include_ml_classifications=False
+            ):
+                newest = []
+                windows = list(FEED_WINDOWS_DAYS)
+                while windows:
+                    window_days = windows.pop(0)
+                    stmt = build_newest_stmt(
+                        model,
+                        window_days,
+                        include_bot_comments,
+                        include_ml_classifications,
+                    )
+                    fetch_result = await session.scalars(stmt)
+                    newest = fetch_result.unique().all()
+                    if len(newest) >= n_items:
+                        break
+                    if not newest:
+                        # Nothing at all in this window, so widening by one
+                        # step will not fill it either; only no bound can.
+                        windows = windows[-1:]
 
                 if model == Comment:
                     for comment in newest:
