@@ -187,6 +187,7 @@ const SidebarAndHeader = () => {
 
   function mouseLeave() {
     clearTimeout(timerRef.current);
+    if (!temporaryOpen) return;
     setTemporaryOpen(false);
     {% for group in app.sidebar -%}
       {% if not group.name.startswith('main') %}
