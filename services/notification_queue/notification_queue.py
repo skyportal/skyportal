@@ -1,4 +1,5 @@
 import asyncio
+import html
 import json
 import operator
 import string
@@ -62,6 +63,9 @@ from skyportal.utils.gcn_extraction_tags import (
     wants_classification,
 )
 from skyportal.utils.notifications import (
+    escape_markdown,
+    escape_slack,
+    feedback_notification_text,
     gcn_email_notification,
     gcn_notification_content,
     gcn_slack_notification,
@@ -223,6 +227,11 @@ def send_slack_notification(target):
                     ),
                 }
             )
+        elif resource_type == "feedback" and target.get("content"):
+            text = feedback_notification_text(target["content"], escape_slack)
+            data = json.dumps(
+                {"url": integration_url, "text": f"{text} ({app_url}{target['url']})"}
+            )
         else:
             data = json.dumps(
                 {
@@ -306,6 +315,11 @@ def send_email_notification(target):
                 if target["notification_type"] == "feedback_reply"
                 else f"{cfg['app.title']} - New feedback"
             )
+            if target.get("content"):
+                text = feedback_notification_text(
+                    target["content"], html.escape, bold=""
+                )
+                body = f"<p>{text}</p><p><a href='{app_url}{target['url']}'>View in {cfg['app.title']}</a></p>"
 
         if subject and target["user"]["contact_email"]:
             try:
@@ -1373,15 +1387,18 @@ def api(queue):
                                     label = FEEDBACK_CATEGORIES.get(
                                         target_data["category"], "message"
                                     )
-                                    snippet = textwrap.shorten(
-                                        target_data["text"], 120, placeholder="..."
-                                    )
+                                    content = {
+                                        "author": target_data["author"],
+                                        "label": label,
+                                        "snippet": textwrap.shorten(
+                                            target_data["text"], 120, placeholder="..."
+                                        ),
+                                        "reply": is_feedback_reply,
+                                    }
                                     notification = UserNotification(
                                         user=user,
-                                        text=(
-                                            f"*{target_data['author']}* replied to your {label}: {snippet}"
-                                            if is_feedback_reply
-                                            else f"New {label} from *{target_data['author']}*: {snippet}"
+                                        text=feedback_notification_text(
+                                            content, escape_markdown
                                         ),
                                         notification_type="feedback_reply"
                                         if is_feedback_reply
@@ -1396,6 +1413,7 @@ def api(queue):
                                             **notification.user.to_dict(),
                                             "preferences": notification.user.preferences,
                                         },
+                                        "content": content,
                                     }
                                     queue.append(target)
                                 elif is_group_admission_request:
