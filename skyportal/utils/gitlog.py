@@ -3,6 +3,7 @@ import itertools
 import json
 import re
 import subprocess
+from datetime import datetime
 from functools import cache
 
 from baselayer.log import make_log
@@ -128,4 +129,6 @@ def load_gitlog(files="data/gitlog*.json"):
         gitlogs = [get_gitlog()]
 
     parsed_log = itertools.chain(*(parse_gitlog(gitlog) for gitlog in gitlogs))
-    return sorted(parsed_log, key=lambda x: x["time"], reverse=True)
+    return sorted(
+        parsed_log, key=lambda x: datetime.fromisoformat(x["time"]), reverse=True
+    )
