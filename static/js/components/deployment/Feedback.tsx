@@ -16,6 +16,9 @@ import BugReportIcon from "@mui/icons-material/BugReportOutlined";
 import LightbulbIcon from "@mui/icons-material/LightbulbOutlined";
 import ChatIcon from "@mui/icons-material/ChatBubbleOutlineOutlined";
 import SendIcon from "@mui/icons-material/SendOutlined";
+import ScheduleIcon from "@mui/icons-material/Schedule";
+import QuestionAnswerIcon from "@mui/icons-material/QuestionAnswerOutlined";
+import CheckCircleIcon from "@mui/icons-material/CheckCircleOutlineOutlined";
 
 import { showNotification } from "baselayer/components/Notifications";
 import Button from "../Button";
@@ -24,6 +27,7 @@ import { useAppDispatch } from "../../types/hooks";
 import {
   useAddFeedbackMutation,
   useGetFeedbackQuery,
+  useReplyToFeedbackMutation,
   useUpdateFeedbackMutation,
   type Feedback,
   type FeedbackCategory,
@@ -41,17 +45,79 @@ const CATEGORIES: Record<
   other: { label: "Other", icon: <ChatIcon /> },
 };
 
+const status = (message: Feedback) => {
+  if (message.resolved)
+    return {
+      label: "Resolved",
+      color: "success" as const,
+      icon: <CheckCircleIcon />,
+    };
+  if (message.replies?.length)
+    return {
+      label: "Answered",
+      color: "primary" as const,
+      icon: <QuestionAnswerIcon />,
+    };
+  return { label: "Open", color: "warning" as const, icon: <ScheduleIcon /> };
+};
+
+const Posted = ({ at }: { at: string }) => {
+  const date = dayjs.utc(at);
+  return (
+    <Tooltip title={date.local().format("MMM D, YYYY HH:mm")}>
+      <Typography variant="caption" color="text.secondary">
+        {date.fromNow()}
+      </Typography>
+    </Tooltip>
+  );
+};
+
+const TextSend = ({
+  label,
+  placeholder,
+  minRows,
+  loading,
+  onSend,
+}: {
+  label: string;
+  placeholder: string;
+  minRows: number;
+  loading: boolean;
+  onSend: (text: string) => Promise<unknown>;
+}) => {
+  const [text, setText] = useState("");
+  return (
+    <>
+      <TextField
+        label={label}
+        placeholder={placeholder}
+        multiline
+        minRows={minRows}
+        value={text}
+        onChange={(event) => setText(event.target.value)}
+      />
+      <Box>
+        <Button
+          async
+          loading={loading}
+          disabled={!text.trim()}
+          onClick={async () => {
+            await onSend(text);
+            setText("");
+          }}
+          endIcon={<SendIcon />}
+        >
+          Send
+        </Button>
+      </Box>
+    </>
+  );
+};
+
 const FeedbackForm = ({ title }: { title: string }) => {
   const [category, setCategory] = useState<FeedbackCategory>("bug");
-  const [text, setText] = useState("");
   const [addFeedback, { isLoading }] = useAddFeedbackMutation();
   const dispatch = useAppDispatch();
-
-  const send = async () => {
-    await addFeedback({ category, text }).unwrap();
-    setText("");
-    dispatch(showNotification("Thanks, your message was sent to the admins"));
-  };
 
   return (
     <Stack spacing={2}>
@@ -72,25 +138,18 @@ const FeedbackForm = ({ title }: { title: string }) => {
           </ToggleButton>
         ))}
       </ToggleButtonGroup>
-      <TextField
+      <TextSend
         label="Message"
         placeholder="What happened, or what would you like to change?"
-        multiline
         minRows={4}
-        value={text}
-        onChange={(event) => setText(event.target.value)}
+        loading={isLoading}
+        onSend={async (text) => {
+          await addFeedback({ category, text }).unwrap();
+          dispatch(
+            showNotification("Thanks, your message was sent to the admins"),
+          );
+        }}
       />
-      <Box>
-        <Button
-          async
-          loading={isLoading}
-          disabled={!text.trim()}
-          onClick={send}
-          endIcon={<SendIcon />}
-        >
-          Send
-        </Button>
-      </Box>
     </Stack>
   );
 };
@@ -102,12 +161,14 @@ const Message = ({
   message: Feedback;
   isAdmin: boolean;
 }) => {
+  const [replying, setReplying] = useState(false);
   const [updateFeedback] = useUpdateFeedbackMutation();
+  const [replyToFeedback, { isLoading }] = useReplyToFeedbackMutation();
   const { label, icon } = CATEGORIES[message.category];
-  const created = dayjs.utc(message.created_at);
+  const replies = message.replies ?? [];
 
   return (
-    <Box sx={{ py: 1.5, opacity: message.resolved ? 0.6 : 1 }}>
+    <Box sx={{ py: 1.5 }}>
       <Stack
         direction="row"
         spacing={1}
@@ -119,33 +180,62 @@ const Message = ({
             {message.author.username}
           </Typography>
         )}
-        <Tooltip title={created.local().format("MMM D, YYYY HH:mm")}>
-          <Typography variant="caption" color="text.secondary">
-            {created.fromNow()}
-          </Typography>
-        </Tooltip>
+        <Posted at={message.created_at} />
         <Box sx={{ flexGrow: 1 }} />
-        {isAdmin ? (
-          <Button
-            size="small"
-            onClick={() =>
-              updateFeedback({ id: message.id, resolved: !message.resolved })
-            }
-          >
-            {message.resolved ? "Reopen" : "Mark as resolved"}
-          </Button>
-        ) : (
-          <Chip
-            size="small"
-            variant="outlined"
-            label={message.resolved ? "Resolved" : "Open"}
-            color={message.resolved ? "success" : "default"}
-          />
+        <Chip size="small" {...status(message)} />
+        {isAdmin && (
+          <>
+            <Button size="small" onClick={() => setReplying(!replying)}>
+              Reply
+            </Button>
+            <Button
+              size="small"
+              onClick={() =>
+                updateFeedback({ id: message.id, resolved: !message.resolved })
+              }
+            >
+              {message.resolved ? "Reopen" : "Mark as resolved"}
+            </Button>
+          </>
         )}
       </Stack>
       <Typography variant="body2" sx={{ mt: 1, whiteSpace: "pre-wrap" }}>
         {message.text}
       </Typography>
+      {(replies.length > 0 || replying) && (
+        <Stack
+          spacing={1.5}
+          sx={{ mt: 1.5, ml: 1, pl: 2, borderLeft: 2, borderColor: "divider" }}
+        >
+          {replies.map((reply) => (
+            <Box key={reply.id}>
+              <Stack direction="row" spacing={1} sx={{ alignItems: "center" }}>
+                <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                  {reply.author.username}
+                </Typography>
+                <Posted at={reply.created_at} />
+              </Stack>
+              <Typography variant="body2" sx={{ whiteSpace: "pre-wrap" }}>
+                {reply.text}
+              </Typography>
+            </Box>
+          ))}
+          {replying && (
+            <Stack spacing={1}>
+              <TextSend
+                label="Reply"
+                placeholder={`Reply to ${message.author.username}`}
+                minRows={2}
+                loading={isLoading}
+                onSend={async (text) => {
+                  await replyToFeedback({ id: message.id, text }).unwrap();
+                  setReplying(false);
+                }}
+              />
+            </Stack>
+          )}
+        </Stack>
+      )}
     </Box>
   );
 };
@@ -165,13 +255,13 @@ const FeedbackTab = ({
   return (
     <Stack spacing={3}>
       <FeedbackForm title={title} />
-      {isAdmin && (
-        <Box>
-          <NotificationToggle type="feedback" label="Also by email or Slack">
-            As an admin, you get an in-app notification for every new message.
-          </NotificationToggle>
-        </Box>
-      )}
+      <Box>
+        <NotificationToggle type="feedback" label="Also by email or Slack">
+          {isAdmin
+            ? "As an admin, you get an in-app notification for every new message."
+            : "You get an in-app notification when an admin replies to one of your messages."}
+        </NotificationToggle>
+      </Box>
       <Box>
         <Typography sx={{ fontWeight: 600 }}>
           {isAdmin ? "Messages from users" : "Your messages"}

@@ -27,6 +27,17 @@ export const feedbackApi = skyportalApi.injectEndpoints({
       }),
       invalidatesTags: ["Feedback"],
     }),
+    replyToFeedback: build.mutation<
+      { id: number },
+      { id: number; text: string }
+    >({
+      query: ({ id, ...body }) => ({
+        url: `api/feedback/${id}/replies`,
+        method: "POST",
+        body,
+      }),
+      invalidatesTags: ["Feedback"],
+    }),
   }),
 });
 
@@ -36,4 +47,5 @@ export const {
   useGetFeedbackQuery,
   useAddFeedbackMutation,
   useUpdateFeedbackMutation,
+  useReplyToFeedbackMutation,
 } = feedbackApi;
