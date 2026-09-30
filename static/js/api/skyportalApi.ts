@@ -124,6 +124,7 @@ export const TAG_TYPES = [
   "DBStats",
   "DBInfo",
   "Deployments",
+  "Feedback",
   "Acls",
   "Earthquake",
   "Earthquakes",

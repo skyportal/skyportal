@@ -1,5 +1,5 @@
 import { Fragment, ReactNode, useState } from "react";
-import { Link as RouterLink } from "react-router-dom";
+import { Link as RouterLink, useSearchParams } from "react-router-dom";
 import dayjs from "dayjs";
 import relativeTime from "dayjs/plugin/relativeTime";
 import utc from "dayjs/plugin/utc";
@@ -8,12 +8,10 @@ import Box from "@mui/material/Box";
 import Chip, { ChipProps } from "@mui/material/Chip";
 import Collapse from "@mui/material/Collapse";
 import Divider from "@mui/material/Divider";
-import FormControlLabel from "@mui/material/FormControlLabel";
 import Grid from "@mui/material/Grid";
 import Link from "@mui/material/Link";
 import Paper from "@mui/material/Paper";
 import Stack from "@mui/material/Stack";
-import Switch from "@mui/material/Switch";
 import Tab from "@mui/material/Tab";
 import Tabs from "@mui/material/Tabs";
 import Tooltip from "@mui/material/Tooltip";
@@ -40,6 +38,7 @@ import StorageIcon from "@mui/icons-material/StorageOutlined";
 import Inventory2Icon from "@mui/icons-material/Inventory2Outlined";
 import MemoryIcon from "@mui/icons-material/MemoryOutlined";
 import NotificationsActiveIcon from "@mui/icons-material/NotificationsActiveOutlined";
+import FeedbackIcon from "@mui/icons-material/FeedbackOutlined";
 import CheckCircleIcon from "@mui/icons-material/CheckCircleOutlineOutlined";
 import ErrorIcon from "@mui/icons-material/ErrorOutlineOutlined";
 import PauseCircleIcon from "@mui/icons-material/PauseCircleOutlineOutlined";
@@ -55,11 +54,9 @@ import {
   type GitLogEntry,
   type InstanceSystem,
 } from "../../ducks/deployments";
-import {
-  useGetProfileQuery,
-  useUpdateUserPreferencesMutation,
-} from "../../ducks/profile";
-import NotificationSettingsSelect from "../user/preferences/NotificationSettingsSelect";
+import { useGetFeedbackQuery } from "../../ducks/feedback";
+import FeedbackTab from "./Feedback";
+import NotificationToggle from "./NotificationToggle";
 
 dayjs.extend(relativeTime);
 dayjs.extend(utc);
@@ -313,44 +310,6 @@ const DeploymentItem = ({
         )}
       </TimelineContent>
     </TimelineItem>
-  );
-};
-
-const DeploymentNotifications = () => {
-  const { data: profile } = useGetProfileQuery();
-  const [updateUserPreferences] = useUpdateUserPreferencesMutation();
-  const active =
-    profile?.preferences["notifications"]?.deployments?.active === true;
-
-  return (
-    <>
-      <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-        Get notified each time a new version is deployed. Delivery by email or
-        Slack is set with the settings button, and your contact details in your{" "}
-        <RouterLink to="/profile">profile</RouterLink>.
-      </Typography>
-      <Stack direction="row" sx={{ alignItems: "center" }}>
-        <FormControlLabel
-          control={
-            <Switch
-              checked={active}
-              name="deployments"
-              onChange={(event) =>
-                updateUserPreferences({
-                  notifications: {
-                    deployments: { active: event.target.checked },
-                  },
-                })
-              }
-            />
-          }
-          label={active ? "Notifications on" : "Notifications off"}
-        />
-        {active && (
-          <NotificationSettingsSelect notificationResourceType="deployments" />
-        )}
-      </Stack>
-    </>
   );
 };
 
@@ -783,12 +742,19 @@ const InstanceDetails = ({ system }: { system: InstanceSystem }) => (
 
 const Deployments = () => {
   const { data, isLoading, isError } = useGetDeploymentsQuery();
-  const [tab, setTab] = useState("history");
+  const { data: feedback = [] } = useGetFeedbackQuery();
+  const [searchParams, setSearchParams] = useSearchParams();
 
   if (isLoading) return <Spinner />;
   if (isError || !data)
     return <Typography>Could not load the deployment information.</Typography>;
 
+  const isAdmin = Boolean(data.system);
+  const tabs = ["history", "feedback", "notifications"];
+  if (isAdmin) tabs.push("instance");
+  const requested = searchParams.get("tab") ?? "";
+  const tab = tabs.includes(requested) ? requested : "history";
+  const openFeedback = feedback.filter((message) => !message.resolved).length;
   const deployments = data.deployments ?? [];
   const deployedAt = utcDate(data.deployed_at);
   const startedAt = utcDate(data.started_at);
@@ -865,7 +831,9 @@ const Deployments = () => {
       <Paper variant="outlined" sx={{ borderRadius: 2 }}>
         <Tabs
           value={tab}
-          onChange={(_, value) => setTab(value)}
+          onChange={(_, value) =>
+            setSearchParams({ tab: value }, { replace: true })
+          }
           variant="scrollable"
           sx={{ px: { xs: 1, md: 2 }, borderBottom: 1, borderColor: "divider" }}
         >
@@ -876,12 +844,22 @@ const Deployments = () => {
             label={`Deployment history (${deployments.length})`}
           />
           <Tab
+            value="feedback"
+            icon={<FeedbackIcon />}
+            iconPosition="start"
+            label={
+              isAdmin && openFeedback
+                ? `Feedback (${openFeedback})`
+                : "Feedback"
+            }
+          />
+          <Tab
             value="notifications"
             icon={<NotificationsActiveIcon />}
             iconPosition="start"
             label="Notifications"
           />
-          {data.system && (
+          {isAdmin && (
             <Tab
               value="instance"
               icon={<DnsIcon />}
@@ -902,8 +880,14 @@ const Deployments = () => {
           )}
         </Tabs>
         <Box sx={{ p: { xs: 2, md: 3 } }}>
-          {tab === "notifications" ? (
-            <DeploymentNotifications />
+          {tab === "feedback" ? (
+            <FeedbackTab title={data.title} isAdmin={isAdmin} />
+          ) : tab === "notifications" ? (
+            <NotificationToggle type="deployments">
+              Get notified each time a new version is deployed. Delivery by
+              email or Slack is set with the settings button, and your contact
+              details in your <RouterLink to="/profile">profile</RouterLink>.
+            </NotificationToggle>
           ) : tab === "instance" && data.system ? (
             <InstanceDetails system={data.system} />
           ) : deployments.length === 0 ? (
