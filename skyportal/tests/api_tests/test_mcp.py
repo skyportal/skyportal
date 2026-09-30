@@ -1120,6 +1120,26 @@ def test_a_julian_date_is_converted_rather_than_reasoned_about():
     assert result["day_of_week"] == "Saturday"
 
 
+def test_the_calendar_date_turns_over_at_half_a_julian_day():
+    # The .5 boundary: same integer part, next calendar day, midnight not noon.
+    fn = TOOLS["convert_time"]["fn"]
+    before = asyncio.run(fn(None, {"jd": 2461310.25}))
+    after = asyncio.run(fn(None, {"jd": 2461310.5}))
+    assert before["iso"] == "2026-09-26T18:00:00Z"
+    assert after["iso"] == "2026-09-27T00:00:00Z"
+    assert after["day_of_week"] == "Sunday"
+
+
+def test_the_utc_field_spells_out_the_moment_to_quote():
+    fn = TOOLS["convert_time"]["fn"]
+    assert asyncio.run(fn(None, {"jd": 2461310.5}))["utc"] == (
+        "2026-09-27 00:00:00 UTC (Sunday)"
+    )
+    assert asyncio.run(fn(None, {"jd": 2461310.0261}))["utc"] == (
+        "2026-09-26 12:37:35 UTC (Saturday)"
+    )
+
+
 def test_every_time_format_reaches_the_same_moment():
     fn = TOOLS["convert_time"]["fn"]
     by_jd = asyncio.run(fn(None, {"jd": 2461310.0261}))

@@ -993,7 +993,10 @@ class DuplicateSchedulingHandler(BaseHandler):
                         Group.discoverable_data.is_(True),
                         FollowupRequest.requester_id.notin_(_owners_hiding_data()),
                     )
-                    .distinct()
+                    # No DISTINCT: the joins are 1:1 so it only collapses rare
+                    # identical rows, but DISTINCT over the selected JSONB payload
+                    # makes Postgres sort/hash every payload (~1.7s in production).
+                    # The reported rows are deduplicated in Python below instead.
                 )
             ).all()
 
@@ -1027,18 +1030,24 @@ class DuplicateSchedulingHandler(BaseHandler):
             # Only report requests whose window overlaps one of ours; a request
             # with no readable window could be for any night, so it is reported
             # rather than assumed harmless.
-            return self.success(
-                data=[
+            data = []
+            seen = set()
+            for row in rows:
+                if not any(
+                    _windows_overlap(mine_window, _request_window(row[4]))
+                    for mine_window in my_windows.get(row[0], [(None, None)])
+                ):
+                    continue
+                key = (row[0], row[1], row[2], row[3])
+                if key in seen:
+                    continue
+                seen.add(key)
+                data.append(
                     {
                         "obj_id": row[0],
                         "instrument_name": row[1],
                         "group_name": row[2],
                         "status": row[3],
                     }
-                    for row in rows
-                    if any(
-                        _windows_overlap(mine_window, _request_window(row[4]))
-                        for mine_window in my_windows.get(row[0], [(None, None)])
-                    )
-                ]
-            )
+                )
+            return self.success(data=data)

@@ -1387,8 +1387,11 @@ def _iso_for_jd(jd):
     "convert_time",
     "Convert between the time formats the alert stream uses: Julian Date, "
     "Modified Julian Date and ISO UTC. Use it rather than converting by hand. "
-    "A JD day begins at noon UTC, so the integer part is not the calendar "
-    "date: JD 2461310.0261 is 2026-09-26 12:37 UTC, not the 25th. Give exactly "
+    "A JD day begins at noon UTC, so the calendar date turns over at fraction "
+    ".5 rather than at the integer: JD 2461310.0261 is 2026-09-26 12:37 UTC, "
+    "and JD 2461310.5 is 2026-09-27 00:00 UTC, not noon on the 26th. Report "
+    "the answer by quoting the returned utc field rather than putting the "
+    "date into your own words. Give exactly "
     "one of jd, mjd or iso and the other two come back with it.",
     {
         "jd": _prop("number", "Julian Date to convert."),
@@ -1409,11 +1412,14 @@ async def convert_time(handler, args):
         moment = Time(float(value), format=kind) if kind != "iso" else Time(str(value))
     except Exception as exc:
         raise ToolError(f"Not a time I can read: {value!r} ({exc}).") from exc
+    # A spelled-out UTC the answer can quote: the numbers alone leave the
+    # calendar date to be restated, which is where the .5 boundary gets lost.
     return {
         "jd": round(float(moment.jd), 6),
         "mjd": round(float(moment.mjd), 6),
         "iso": moment.isot[:19] + "Z",
         "day_of_week": moment.datetime.strftime("%A"),
+        "utc": moment.datetime.strftime("%Y-%m-%d %H:%M:%S UTC (%A)"),
     }
 
 
