@@ -48241,6 +48241,21 @@ export interface components {
             id: number;
             /** Username */
             username: string;
+            /**
+             * First Name
+             * @default null
+             */
+            first_name: string | null;
+            /**
+             * Last Name
+             * @default null
+             */
+            last_name: string | null;
+            /**
+             * Gravatar Url
+             * @default null
+             */
+            gravatar_url: string | null;
         };
         /**
          * FeedbackReplyResponse

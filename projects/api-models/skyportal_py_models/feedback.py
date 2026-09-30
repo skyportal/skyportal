@@ -44,6 +44,9 @@ class FeedbackAuthorResponse(BaseModel):
 
     id: int
     username: str
+    first_name: str | None = None
+    last_name: str | None = None
+    gravatar_url: str | None = None
 
 
 class FeedbackReplyResponse(BaseModel):

@@ -1,10 +1,11 @@
-import { Fragment, ReactElement, useState } from "react";
+import { ReactElement, useState } from "react";
 import dayjs from "dayjs";
 import relativeTime from "dayjs/plugin/relativeTime";
 import utc from "dayjs/plugin/utc";
+import { alpha } from "@mui/material/styles";
 import Box from "@mui/material/Box";
 import Chip from "@mui/material/Chip";
-import Divider from "@mui/material/Divider";
+import Paper from "@mui/material/Paper";
 import Stack from "@mui/material/Stack";
 import TextField from "@mui/material/TextField";
 import ToggleButton from "@mui/material/ToggleButton";
@@ -19,9 +20,13 @@ import SendIcon from "@mui/icons-material/SendOutlined";
 import ScheduleIcon from "@mui/icons-material/Schedule";
 import QuestionAnswerIcon from "@mui/icons-material/QuestionAnswerOutlined";
 import CheckCircleIcon from "@mui/icons-material/CheckCircleOutlineOutlined";
+import ReplyIcon from "@mui/icons-material/Reply";
+import DoneIcon from "@mui/icons-material/Done";
+import UndoIcon from "@mui/icons-material/Undo";
 
 import { showNotification } from "baselayer/components/Notifications";
 import Button from "../Button";
+import UserAvatar, { getUserRealName } from "../user/UserAvatar";
 import NotificationToggle from "./NotificationToggle";
 import { useAppDispatch } from "../../types/hooks";
 import {
@@ -45,21 +50,57 @@ const CATEGORIES: Record<
   other: { label: "Other", icon: <ChatIcon /> },
 };
 
-const status = (message: Feedback) => {
-  if (message.resolved)
-    return {
-      label: "Resolved",
-      color: "success" as const,
-      icon: <CheckCircleIcon />,
-    };
-  if (message.replies?.length)
-    return {
-      label: "Answered",
-      color: "primary" as const,
-      icon: <QuestionAnswerIcon />,
-    };
-  return { label: "Open", color: "warning" as const, icon: <ScheduleIcon /> };
+const TOGGLES_SX = {
+  "& .MuiToggleButton-root": { color: "text.secondary" },
+  "& .MuiToggleButton-root.Mui-selected": { color: "text.primary" },
 };
+
+const STATUSES = {
+  open: { label: "Open", color: "warning", icon: <ScheduleIcon /> },
+  answered: {
+    label: "Answered",
+    color: "primary",
+    icon: <QuestionAnswerIcon />,
+  },
+  resolved: { label: "Resolved", color: "success", icon: <CheckCircleIcon /> },
+} as const;
+
+type Status = keyof typeof STATUSES;
+
+const statusOf = (message: Feedback): Status =>
+  message.resolved ? "resolved" : message.replies?.length ? "answered" : "open";
+
+const Author = ({
+  author,
+  size,
+}: {
+  author: Feedback["author"];
+  size: number;
+}) => (
+  <UserAvatar
+    size={size}
+    username={author.username}
+    firstName={author.first_name ?? null}
+    lastName={author.last_name ?? null}
+    gravatarUrl={author.gravatar_url ?? ""}
+    userId={author.id}
+  />
+);
+
+const Signature = ({
+  author,
+  at,
+}: {
+  author: Feedback["author"];
+  at: string;
+}) => (
+  <>
+    <Typography variant="body2" sx={{ fontWeight: 600 }}>
+      {getUserRealName(author.first_name, author.last_name) || author.username}
+    </Typography>
+    <Posted at={at} />
+  </>
+);
 
 const Posted = ({ at }: { at: string }) => {
   const date = dayjs.utc(at);
@@ -130,6 +171,7 @@ const FeedbackForm = ({ title }: { title: string }) => {
         size="small"
         value={category}
         onChange={(_, value) => value && setCategory(value)}
+        sx={TOGGLES_SX}
       >
         {Object.entries(CATEGORIES).map(([value, { label, icon }]) => (
           <ToggleButton key={value} value={value} sx={{ gap: 1, px: 2 }}>
@@ -165,63 +207,67 @@ const Message = ({
   const [updateFeedback] = useUpdateFeedbackMutation();
   const [replyToFeedback, { isLoading }] = useReplyToFeedbackMutation();
   const { label, icon } = CATEGORIES[message.category];
-  const replies = message.replies ?? [];
+  const status = STATUSES[statusOf(message)];
 
   return (
-    <Box sx={{ py: 1.5 }}>
-      <Stack
-        direction="row"
-        spacing={1}
-        sx={{ alignItems: "center", flexWrap: "wrap", rowGap: 1 }}
-      >
-        <Chip size="small" variant="outlined" icon={icon} label={label} />
-        {isAdmin && (
-          <Typography variant="body2" sx={{ fontWeight: 600 }}>
-            {message.author.username}
+    <Paper
+      variant="outlined"
+      sx={{
+        p: 2,
+        borderRadius: 2,
+        borderLeft: 4,
+        borderLeftColor: `${status.color}.main`,
+      }}
+    >
+      <Stack direction="row" spacing={1.5}>
+        <Author author={message.author} size={36} />
+        <Box sx={{ flexGrow: 1, minWidth: 0 }}>
+          <Stack
+            direction="row"
+            spacing={1}
+            sx={{ alignItems: "center", flexWrap: "wrap", rowGap: 0.5 }}
+          >
+            <Signature author={message.author} at={message.created_at} />
+            <Chip size="small" variant="outlined" icon={icon} label={label} />
+            <Box sx={{ flexGrow: 1 }} />
+            <Chip size="small" {...status} />
+          </Stack>
+          <Typography variant="body2" sx={{ mt: 0.75, whiteSpace: "pre-wrap" }}>
+            {message.text}
           </Typography>
-        )}
-        <Posted at={message.created_at} />
-        <Box sx={{ flexGrow: 1 }} />
-        <Chip size="small" {...status(message)} />
-        {isAdmin && (
-          <>
-            <Button size="small" onClick={() => setReplying(!replying)}>
-              Reply
-            </Button>
-            <Button
-              size="small"
-              onClick={() =>
-                updateFeedback({ id: message.id, resolved: !message.resolved })
-              }
+          {(message.replies ?? []).map((reply) => (
+            <Stack
+              key={reply.id}
+              direction="row"
+              spacing={1.5}
+              sx={{
+                mt: 1.5,
+                p: 1.5,
+                borderRadius: 2,
+                bgcolor: (theme) =>
+                  alpha(
+                    theme.palette.primary.main,
+                    theme.palette.mode === "dark" ? 0.12 : 0.06,
+                  ),
+              }}
             >
-              {message.resolved ? "Reopen" : "Mark as resolved"}
-            </Button>
-          </>
-        )}
-      </Stack>
-      <Typography variant="body2" sx={{ mt: 1, whiteSpace: "pre-wrap" }}>
-        {message.text}
-      </Typography>
-      {(replies.length > 0 || replying) && (
-        <Stack
-          spacing={1.5}
-          sx={{ mt: 1.5, ml: 1, pl: 2, borderLeft: 2, borderColor: "divider" }}
-        >
-          {replies.map((reply) => (
-            <Box key={reply.id}>
-              <Stack direction="row" spacing={1} sx={{ alignItems: "center" }}>
-                <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                  {reply.author.username}
+              <Author author={reply.author} size={28} />
+              <Box sx={{ minWidth: 0 }}>
+                <Stack
+                  direction="row"
+                  spacing={1}
+                  sx={{ alignItems: "center" }}
+                >
+                  <Signature author={reply.author} at={reply.created_at} />
+                </Stack>
+                <Typography variant="body2" sx={{ whiteSpace: "pre-wrap" }}>
+                  {reply.text}
                 </Typography>
-                <Posted at={reply.created_at} />
-              </Stack>
-              <Typography variant="body2" sx={{ whiteSpace: "pre-wrap" }}>
-                {reply.text}
-              </Typography>
-            </Box>
+              </Box>
+            </Stack>
           ))}
           {replying && (
-            <Stack spacing={1}>
+            <Stack spacing={1} sx={{ mt: 1.5 }}>
               <TextSend
                 label="Reply"
                 placeholder={`Reply to ${message.author.username}`}
@@ -234,9 +280,91 @@ const Message = ({
               />
             </Stack>
           )}
-        </Stack>
+          {isAdmin && (
+            <Stack
+              direction="row"
+              spacing={1}
+              sx={{ mt: 1, justifyContent: "flex-end" }}
+            >
+              <Button
+                size="small"
+                endIcon={<ReplyIcon />}
+                onClick={() => setReplying(!replying)}
+              >
+                {replying ? "Cancel" : "Reply"}
+              </Button>
+              <Button
+                size="small"
+                endIcon={message.resolved ? <UndoIcon /> : <DoneIcon />}
+                onClick={() =>
+                  updateFeedback({
+                    id: message.id,
+                    resolved: !message.resolved,
+                  })
+                }
+              >
+                {message.resolved ? "Reopen" : "Mark as resolved"}
+              </Button>
+            </Stack>
+          )}
+        </Box>
+      </Stack>
+    </Paper>
+  );
+};
+
+const RANK: Record<Status, number> = { open: 0, answered: 1, resolved: 2 };
+
+const MessageList = ({
+  messages,
+  isAdmin,
+}: {
+  messages: Feedback[];
+  isAdmin: boolean;
+}) => {
+  const [filter, setFilter] = useState<Status | "all">("all");
+  const count = (status: Status) =>
+    messages.filter((message) => statusOf(message) === status).length;
+  const shown = messages
+    .filter((message) => filter === "all" || statusOf(message) === filter)
+    .sort((a, b) => RANK[statusOf(a)] - RANK[statusOf(b)]);
+
+  return (
+    <Stack spacing={1.5}>
+      <Stack
+        direction="row"
+        sx={{ alignItems: "center", flexWrap: "wrap", gap: 1 }}
+      >
+        <Typography sx={{ fontWeight: 600, flexGrow: 1 }}>
+          {isAdmin ? "Messages from users" : "Your messages"}
+        </Typography>
+        {messages.length > 0 && (
+          <ToggleButtonGroup
+            exclusive
+            size="small"
+            value={filter}
+            onChange={(_, value) => value && setFilter(value)}
+            sx={TOGGLES_SX}
+          >
+            <ToggleButton value="all">All ({messages.length})</ToggleButton>
+            {(Object.keys(STATUSES) as Status[]).map((status) => (
+              <ToggleButton key={status} value={status}>
+                {STATUSES[status].label} ({count(status)})
+              </ToggleButton>
+            ))}
+          </ToggleButtonGroup>
+        )}
+      </Stack>
+      {shown.length === 0 ? (
+        <Typography variant="body2" color="text.secondary">
+          {messages.length ? "No message with this status." : "No message yet."}
+        </Typography>
+      ) : (
+        shown.map((message) => (
+          <Message key={message.id} message={message} isAdmin={isAdmin} />
+        ))
       )}
-    </Box>
+    </Stack>
   );
 };
 
@@ -248,9 +376,6 @@ const FeedbackTab = ({
   isAdmin: boolean;
 }) => {
   const { data: messages = [] } = useGetFeedbackQuery();
-  const sorted = [...messages].sort(
-    (a, b) => Number(a.resolved) - Number(b.resolved),
-  );
 
   return (
     <Stack spacing={3}>
@@ -262,23 +387,7 @@ const FeedbackTab = ({
             : "You get an in-app notification when an admin replies to one of your messages."}
         </NotificationToggle>
       </Box>
-      <Box>
-        <Typography sx={{ fontWeight: 600 }}>
-          {isAdmin ? "Messages from users" : "Your messages"}
-        </Typography>
-        {sorted.length === 0 ? (
-          <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-            No message yet.
-          </Typography>
-        ) : (
-          sorted.map((message, index) => (
-            <Fragment key={message.id}>
-              {index > 0 && <Divider />}
-              <Message message={message} isAdmin={isAdmin} />
-            </Fragment>
-          ))
-        )}
-      </Box>
+      <MessageList messages={messages} isAdmin={isAdmin} />
     </Stack>
   );
 };

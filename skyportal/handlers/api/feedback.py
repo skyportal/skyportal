@@ -13,7 +13,14 @@ from ..base import BaseHandler
 
 
 def author_dict(record):
-    return {"id": record.author.id, "username": record.author.username}
+    author = record.author
+    return {
+        "id": author.id,
+        "username": author.username,
+        "first_name": author.first_name,
+        "last_name": author.last_name,
+        "gravatar_url": author.gravatar_url,
+    }
 
 
 def message_dict(message):
