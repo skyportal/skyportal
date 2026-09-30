@@ -20567,6 +20567,100 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/feedback/{feedback_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Retrieve messages left to the admins
+         * @description The requesting user's own messages, or every message for system admins.
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    feedback_id: number;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Success"] & {
+                            data?: components["schemas"]["FeedbackListResponse"];
+                        };
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Mark a message left to the admins as handled, or reopen it
+         * @description <b>Permission(s) required:</b> <em>System admin (or System admin)</em><br><br>
+         */
+        patch: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    feedback_id: number;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["FeedbackPatchBody"];
+                };
+            };
+            responses: never;
+        };
+        trace?: never;
+    };
+    "/api/feedback": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Leave a message to the admins
+         * @description Report a bug, request a change or say anything else. System admins are notified.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["FeedbackPostBody"];
+                };
+            };
+            responses: never;
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/config": {
         parameters: {
             query?: never;
@@ -27082,6 +27176,56 @@ export interface components {
             status: "success";
             message?: string;
             data?: components["schemas"]["FacilityTransactionRequestNoID"][];
+        };
+        Feedback: {
+            /** @description The User who wrote the message */
+            readonly author?: components["schemas"]["User"];
+            /** @description ID of the User who wrote the message */
+            author_id: number;
+            /** @description Kind of message: bug, change or other */
+            category: string;
+            /** @description The message */
+            text: string;
+            /** @description Whether an admin has handled the message */
+            resolved?: boolean;
+            /** @description Unique object identifier. */
+            id?: number;
+        };
+        SingleFeedback: {
+            /** @enum {string} */
+            status: "success";
+            message?: string;
+            data?: components["schemas"]["Feedback"];
+        };
+        ArrayOfFeedbacks: {
+            /** @enum {string} */
+            status: "success";
+            message?: string;
+            data?: components["schemas"]["Feedback"][];
+        };
+        FeedbackNoID: {
+            /** @description The User who wrote the message */
+            readonly author?: components["schemas"]["User"];
+            /** @description ID of the User who wrote the message */
+            author_id: number;
+            /** @description Kind of message: bug, change or other */
+            category: string;
+            /** @description The message */
+            text: string;
+            /** @description Whether an admin has handled the message */
+            resolved?: boolean;
+        };
+        SingleFeedbackNoID: {
+            /** @enum {string} */
+            status: "success";
+            message?: string;
+            data?: components["schemas"]["FeedbackNoID"];
+        };
+        ArrayOfFeedbackNoIDs: {
+            /** @enum {string} */
+            status: "success";
+            message?: string;
+            data?: components["schemas"]["FeedbackNoID"][];
         };
         Filter: {
             /** @description The Filter's Stream. */
@@ -48000,6 +48144,72 @@ export interface components {
             deployments?: components["schemas"]["DeploymentResponse"][];
             /** @default null */
             system: components["schemas"]["InstanceSystemResponse"];
+        };
+        /**
+         * FeedbackAuthorResponse
+         * @description The user who wrote a message.
+         */
+        FeedbackAuthorResponse: {
+            /** Id */
+            id: number;
+            /** Username */
+            username: string;
+        };
+        /**
+         * FeedbackResponse
+         * @description A message left to the admins.
+         */
+        FeedbackResponse: {
+            /** Id */
+            id: number;
+            /**
+             * Category
+             * @enum {string}
+             */
+            category: "bug" | "change" | "other";
+            /** Text */
+            text: string;
+            /** Resolved */
+            resolved: boolean;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            author: components["schemas"]["FeedbackAuthorResponse"];
+        };
+        /**
+         * FeedbackListResponse
+         * @description The messages the requesting user can read: their own, or all for admins.
+         */
+        FeedbackListResponse: {
+            /** Messages */
+            messages?: components["schemas"]["FeedbackResponse"][];
+        };
+        /**
+         * FeedbackPostBody
+         * @description Request body for leaving a message to the admins.
+         */
+        FeedbackPostBody: {
+            /**
+             * Category
+             * @description bug report, change request, or other
+             * @enum {string}
+             */
+            category: "bug" | "change" | "other";
+            /**
+             * Text
+             * @description The message
+             */
+            text: string;
+        };
+        /**
+         * FeedbackPatchBody
+         * @description Request body for marking a message as handled.
+         */
+        FeedbackPatchBody: {
+            /** Resolved */
+            resolved: boolean;
         };
         /**
          * AssistantConversationPatchBody

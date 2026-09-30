@@ -50,6 +50,7 @@ from skyportal.models import (
     EventObservationPlanStatistics,
     FacilityTransaction,
     FacilityTransactionRequest,
+    Feedback,
     FollowupRequest,
     FollowupRequestTargetGroup,
     FollowupRequestUser,
@@ -574,6 +575,24 @@ def deployment():
     obj = (
         DBSession()
         .execute(sa.select(Deployment).filter(Deployment.id == deployment_id))
+        .scalars()
+        .first()
+    )
+    if obj is not None:
+        DBSession().delete(obj)
+        DBSession().commit()
+
+
+@pytest.fixture()
+def feedback(user):
+    f = Feedback(author_id=user.id, category="bug", text="The button is broken")
+    DBSession.add(f)
+    DBSession.commit()
+    feedback_id = f.id
+    yield f
+    obj = (
+        DBSession()
+        .execute(sa.select(Feedback).filter(Feedback.id == feedback_id))
         .scalars()
         .first()
     )

@@ -76,6 +76,7 @@ from .earthquake import (
 )
 from .enum_types import EnumTypesHandler
 from .facility_listener import FacilityMessageHandler
+from .feedback import FeedbackHandler
 from .filter import FilterHandler
 from .followup_apis import FollowupAPIsHandler
 from .followup_request import (
