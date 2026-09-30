@@ -49,7 +49,7 @@ _R = {"ztfr", "r"}
 _DET = {"ztfg", "ztfr", "ztfi", "g", "r", "i"}
 
 
-def _sufficient(session, obj_id):
+def _sufficient(session, obj_id, min_detections, min_per_band):
     """(enough?, total, g, r) from the object's >=5-sigma ZTF detections."""
     counts = dict(
         session.execute(
@@ -61,7 +61,7 @@ def _sufficient(session, obj_id):
     g = sum(n for f, n in counts.items() if f in _G)
     r = sum(n for f, n in counts.items() if f in _R)
     total = sum(n for f, n in counts.items() if f in _DET)
-    return total >= MIN_DETECTIONS and g >= MIN_PER_BAND and r >= MIN_PER_BAND, total, g, r
+    return total >= min_detections and g >= min_per_band and r >= min_per_band, total, g, r
 
 
 def _maybe_rerun(session, obj_id, service_id):
@@ -80,10 +80,6 @@ def _maybe_rerun(session, obj_id, service_id):
     if MARKER not in (latest.status_message or ""):
         return
 
-    ok, total, g, r = _sufficient(session, obj_id)
-    if not ok:
-        return  # still too sparse; nothing changed since the gated run
-
     group_ids = session.scalars(
         sa.select(Source.group_id).where(Source.obj_id == obj_id)
     ).all()
@@ -98,6 +94,15 @@ def _maybe_rerun(session, obj_id, service_id):
     ).first()
     if default_analysis is None:
         return
+
+    # The DefaultAnalysis is the source of truth for the threshold (the classifier
+    # bridge reads the same params); the config values are only a fallback.
+    da_params = default_analysis.default_analysis_parameters or {}
+    min_detections = int(da_params.get("min_detections", MIN_DETECTIONS))
+    min_per_band = int(da_params.get("min_per_band", MIN_PER_BAND))
+    ok, total, g, r = _sufficient(session, obj_id, min_detections, min_per_band)
+    if not ok:
+        return  # still too sparse; nothing changed since the gated run
 
     log(
         f"re-running {default_analysis.analysis_service.name} on {obj_id} "
