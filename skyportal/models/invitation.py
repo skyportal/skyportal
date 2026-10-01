@@ -1,5 +1,7 @@
 __all__ = ["Invitation"]
 
+import html
+
 import sqlalchemy as sa
 from sqlalchemy import event
 from sqlalchemy.dialects import postgresql as psql
@@ -69,7 +71,6 @@ def send_user_invite_email(mapper, connection, target):
         f"{app_base_url}/login/{default_auth_backend()}/?invite_token={target.token}"
     )
     if cfg.get("invitations.disable_emailing", False) is True:
-        # If email sending is disabled, log the invite link for testing purposes
         log(
             f"Invitation created with token {target.token}; invite link: {link_location}"
         )
@@ -90,8 +91,33 @@ def send_user_invite_email(mapper, connection, target):
         send_email(
             recipients=[target.user_email],
             subject=cfg["invitations.email_subject"],
-            body=(
-                f"{cfg['invitations.email_body_preamble']}<br /><br />"
-                f'Please click <a href="{link_location}">here</a> to join.'
-            ),
+            body=invite_body(target, link_location),
         )
+
+
+def invite_body(target, link_location):
+    site = html.escape(cfg["app.title"])
+    inviter = target.invited_by
+    if inviter:
+        who = html.escape(
+            " ".join(p for p in (inviter.first_name, inviter.last_name) if p)
+            or inviter.username
+        )
+        intro = f"{who} has invited you to join <b>{site}</b>."
+    else:
+        intro = f"You have been invited to join <b>{site}</b>."
+
+    preamble = (cfg["invitations.email_body_preamble"] or "").strip()
+    if preamble and not preamble.startswith("<"):
+        preamble = f"<p>{preamble}</p>"
+
+    return (
+        f"<p>{intro}</p>"
+        f"{preamble}"
+        f'<p>To accept, open <a href="{link_location}">{link_location}</a></p>'
+        f"<p>Signing in without opening that link will not work: it carries the "
+        f"invitation itself.</p>"
+        f"<p>The link is good for {cfg['invitations.days_until_expiry']} days.</p>"
+        f"<p>If you were not expecting this, you can ignore the message; "
+        f"nothing is created until the link is opened.</p>"
+    )
