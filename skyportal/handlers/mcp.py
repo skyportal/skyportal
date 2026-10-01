@@ -68,6 +68,9 @@ digits adds a second point at the same epoch rather than replacing it.
 - A broker filter version is identified by a uuid, not a number, and posting \
 one does not activate it. Preview with run_broker_filter before activating: a \
 pipeline that returns nothing there will pass nothing in production.
+- get_broker_alerts trims each alert to its photometry and vetting fields. A \
+field you do not see there may still be in the packet, so pass full=true \
+before concluding the survey did not record it.
 - An empty result is usually a wrong field name rather than an empty sky. \
 Check the shape of one record before concluding that nothing matched.
 
@@ -1185,6 +1188,226 @@ async def get_alert_schema(handler, args):
                 filter(None, (_note_owner(p, notes) for p, _ in shown))
             )
         },
+    }
+
+
+# The fields a light curve or an alert cut is judged on. A ZTF alert carries
+# its whole previous-detection history and three cutouts, which is far more
+# than a caller reading alerts needs and more than a model can hold.
+_ALERT_SUMMARY_FIELDS = (
+    "jd",
+    "fid",
+    "magpsf",
+    "sigmapsf",
+    "diffmaglim",
+    "ra",
+    "dec",
+    "rb",
+    "drb",
+    "isdiffpos",
+    "ndethist",
+    "jdstarthist",
+    "sgscore1",
+    "distpsnr1",
+    "ssdistnr",
+    "ssmagnr",
+    "programid",
+)
+
+
+def _summarize_alert(record):
+    """One alert trimmed to its identifiers and the candidate fields above."""
+    if not isinstance(record, dict):
+        return record
+    candidate = record.get("candidate") or {}
+    summary = {
+        "objectId": record.get("objectId"),
+        "candid": record.get("candid"),
+    }
+    summary.update({k: candidate[k] for k in _ALERT_SUMMARY_FIELDS if k in candidate})
+    history = record.get("prv_candidates")
+    if isinstance(history, list):
+        summary["n_prv_candidates"] = len(history)
+    return summary
+
+
+def _summarize_alerts(data, full):
+    if full:
+        return data
+    if isinstance(data, list):
+        return [_summarize_alert(record) for record in data]
+    return _summarize_alert(data)
+
+
+@tool(
+    "list_brokers",
+    "The brokers this token can query, with the ids the other broker tools "
+    "need and the operations each one supports. Start here: broker_id is not "
+    "guessable, and a broker only answers the operations it lists.",
+    {},
+)
+async def list_brokers(handler, args):
+    brokers = await handler.api("GET", "/api/brokers")
+    # altdata carries the broker's credentials, so it is never returned.
+    return [
+        {
+            "id": b.get("id"),
+            "name": b.get("name"),
+            "active": b.get("active"),
+            "surveys": b.get("surveys"),
+            "supports": sorted(
+                name for name, ok in (b.get("capabilities") or {}).items() if ok is True
+            ),
+        }
+        for b in (brokers or [])
+    ]
+
+
+@tool(
+    "get_broker_alerts",
+    "Alerts from a broker, by object, by position, or one by candid. Returns "
+    "each alert trimmed to its photometry and vetting fields; pass full=true "
+    "for whole packets, which are large. Bound a positional search in time "
+    "with jd_start and jd_end, otherwise it returns every alert ever recorded "
+    "at that position. Use convert_time to turn a date into a JD.",
+    {
+        "broker_id": _prop("integer", "Broker ID, from list_brokers."),
+        "object_id": _prop(
+            "string",
+            "Survey object id to fetch the alert history of, e.g. ZTF21aagwbjr.",
+        ),
+        "candid": _prop("string", "Candid of a single alert to fetch."),
+        "ra": _prop("number", "RA of a positional search, in degrees."),
+        "dec": _prop("number", "Declination of a positional search, in degrees."),
+        "radius": _prop("number", "Radius of a positional search."),
+        "radius_units": _prop(
+            "string", "Units of radius: deg, arcmin or arcsec (default arcsec)."
+        ),
+        "jd_start": _prop("number", "Earliest alert JD."),
+        "jd_end": _prop("number", "Latest alert JD."),
+        "survey": _prop("string", "Survey to query, e.g. ZTF."),
+        "full": _prop(
+            "boolean",
+            "Return whole alert packets instead of the trimmed fields.",
+        ),
+    },
+    required=("broker_id",),
+    passthrough="GET /api/brokers/{broker_id}/alerts",
+)
+async def get_broker_alerts(handler, args):
+    args = dict(args)
+    broker_id = args.pop("broker_id")
+    full = bool(args.pop("full", False))
+    candid = args.pop("candid", None)
+    # The provider names it objectId; accept the snake_case form as well.
+    object_id = args.pop("object_id", None)
+    if object_id is not None:
+        args.setdefault("objectId", object_id)
+    if candid is None and not args:
+        raise ToolError(
+            "Give object_id, candid, or ra/dec/radius to search for alerts."
+        )
+
+    path = f"/api/brokers/{int(broker_id)}/alerts"
+    if candid is not None:
+        path += f"/{candid}"
+        args = {}
+    data = await handler.api("GET", path, query=args or None)
+    return _summarize_alerts(data, full)
+
+
+@tool(
+    "get_broker_alert_photometry",
+    "An object's alert photometry from a broker, as a light curve rather than "
+    "as alert packets. This is the cheap way to ask how an object behaved; "
+    "get_broker_alerts is for the per-alert vetting fields. Omit broker_id to "
+    "use the instance's default broker for the survey.",
+    {
+        "object_id": _prop("string", "Survey object id, e.g. ZTF20abwysqy."),
+        "broker_id": _prop("integer", "Broker ID. Defaults to the configured one."),
+        "survey": _prop("string", "Survey the photometry is fetched for."),
+        "format": _prop("string", "mag, flux or both (default mag)."),
+        "magsys": _prop("string", "Magnitude system (default ab)."),
+    },
+    required=("object_id",),
+    passthrough="GET /api/brokers/{broker_id}/alerts/{object_id}/photometry",
+)
+async def get_broker_alert_photometry(handler, args):
+    args = dict(args)
+    object_id = args.pop("object_id")
+    broker_id = args.pop("broker_id", None)
+    path = (
+        f"/api/brokers/{int(broker_id)}/alerts/{object_id}/photometry"
+        if broker_id is not None
+        else f"/api/brokers/photometry/{object_id}"
+    )
+    return await handler.api("GET", path, query=args or None)
+
+
+@tool(
+    "crossmatch_broker_catalogs",
+    "Cross-match a position against the broker's reference catalogs (Gaia, "
+    "PS1, AllWISE and the like), returning the matches keyed by catalog. What "
+    "to call to decide whether a candidate sits on a star or a known galaxy; "
+    "it searches catalogs rather than alerts.",
+    {
+        "broker_id": _prop("integer", "Broker ID, from list_brokers."),
+        "ra": _prop("number", "RA in degrees."),
+        "dec": _prop("number", "Declination in degrees."),
+        "radius": _prop("number", "Search radius, in radius_units."),
+        "radius_units": _prop(
+            "string", "Units of radius: deg, arcmin or arcsec (default arcsec)."
+        ),
+    },
+    required=("broker_id", "ra", "dec", "radius"),
+)
+async def crossmatch_broker_catalogs(handler, args):
+    args = dict(args)
+    broker_id = args.pop("broker_id")
+    return await handler.api(
+        "GET", f"/api/brokers/{int(broker_id)}/cone_search", query=args
+    )
+
+
+@tool(
+    "get_counterpart_search_defaults",
+    "The ZTF quality cuts and window the GCN crossmatch service runs with, as "
+    "a starting point to edit rather than a filter to adopt. The pipeline is "
+    "accepted by run_broker_filter unchanged, so an exploratory search over a "
+    "GRB or gravitational-wave region starts here and tightens from the counts "
+    "it returns. The cuts reference ZTF candidate fields; check get_alert_schema "
+    "before reusing them for another survey.",
+    {},
+)
+async def get_counterpart_search_defaults(handler, args):
+    from copy import deepcopy
+
+    from skyportal.utils.gcn_crossmatch import DEFAULTS, ZTF_QUALITY_CUTS
+
+    # Deep-copied: the caller is meant to edit this, and the constant is the
+    # one the crossmatch service runs with.
+    return {
+        "pipeline": deepcopy(ZTF_QUALITY_CUTS),
+        "suggested": {
+            "credible_level": DEFAULTS["credible_level"],
+            "days_before_trigger": DEFAULTS["delta_t_before"],
+            "days_after_trigger": DEFAULTS["delta_t_after"],
+            "sort_order": "Ascending",
+        },
+        "notes": [
+            "Pass the pipeline to run_broker_filter with dateobs set to the "
+            "event, so the cuts run inside its credible region; without "
+            "dateobs they run against the whole stream.",
+            "start_jd is the trigger JD less days_before_trigger and end_jd is "
+            "the trigger JD plus days_after_trigger; convert_time turns the "
+            "event time into a JD.",
+            "A counterpart search sorts Ascending to keep the alerts nearest "
+            "the trigger; the service's own default is Descending, which suits "
+            "a live feed rather than a search of the past.",
+            "The cuts remove bogus subtractions, known solar-system objects "
+            "and point sources; loosening them raises recovery and the "
+            "candidate count together, which is the trade worth measuring.",
+        ],
     }
 
 

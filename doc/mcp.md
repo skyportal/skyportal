@@ -65,20 +65,21 @@ filter by `origin` when you care which pipeline it came from.
 
 ## Broker filters
 
-Nine tools cover a filter from nothing to running on the live alert stream, so
+Ten tools cover a filter from nothing to running on the live alert stream, so
 an assistant can build one from a description of what the user wants to catch.
 
-| Tool                             | Purpose                                                              |
-| -------------------------------- | -------------------------------------------------------------------- |
-| `get_filter_targets`             | The groups, streams and filter-capable brokers the token can use     |
-| `get_alert_schema`               | Fields a pipeline may reference, as dotted paths with their types    |
-| `post_filter`                    | Create the filter on a group and stream                              |
-| `run_broker_filter`              | Preview: a count, or the alerts themselves when `sort_by` is given   |
-| `post_broker_filter_version`     | Add a compiled pipeline as a new version                             |
-| `validate_broker_filter_version` | Ask the broker whether a version is fit to run                       |
-| `activate_broker_filter_version` | Make a version the one the broker runs                               |
-| `get_broker_filter`              | Read a filter: its versions, which is active, its auto-save settings |
-| `diff_broker_filter_versions`    | Unified diff of two versions' pipelines                              |
+| Tool                              | Purpose                                                              |
+| --------------------------------- | -------------------------------------------------------------------- |
+| `get_filter_targets`              | The groups, streams and filter-capable brokers the token can use     |
+| `get_counterpart_search_defaults` | ZTF quality cuts and window to start from, as an editable pipeline   |
+| `get_alert_schema`                | Fields a pipeline may reference, as dotted paths with their types    |
+| `post_filter`                     | Create the filter on a group and stream                              |
+| `run_broker_filter`               | Preview: a count, or the alerts themselves when `sort_by` is given   |
+| `post_broker_filter_version`      | Add a compiled pipeline as a new version                             |
+| `validate_broker_filter_version`  | Ask the broker whether a version is fit to run                       |
+| `activate_broker_filter_version`  | Make a version the one the broker runs                               |
+| `get_broker_filter`               | Read a filter: its versions, which is active, its auto-save settings |
+| `diff_broker_filter_versions`     | Unified diff of two versions' pipelines                              |
 
 Three things about this sequence are not visible from the schemas, so they are
 also stated in the server's `instructions`:
@@ -94,10 +95,49 @@ also stated in the server's `instructions`:
 - **Activation is gated on validation.** Posting a version validates it and
   `post_broker_filter_version` returns that verdict; activating a version with
   no passing verdict is refused.
+- **There is a starting point, so nobody writes cuts from nothing.**
+  `get_counterpart_search_defaults` returns the cuts and window the GCN
+  crossmatch service runs with, deep-copied so editing the result does not
+  touch what the service uses. It suggests `sort_order: Ascending`, which
+  keeps the alerts nearest the trigger, where the service's own default keeps
+  the newest.
 
 `get_filter_targets` passes on only the broker fields a filter needs.
 `GET /api/brokers` returns each broker's `altdata`, which holds its Kafka
 credentials, and none of that reaches the model.
+
+## Broker data
+
+Four tools read the alert stream itself, rather than the filters that run on
+it: what a survey saw at a position, what an object did over time, and what
+catalogs say is already there.
+
+| Tool                          | Purpose                                                         |
+| ----------------------------- | --------------------------------------------------------------- |
+| `list_brokers`                | Broker ids and the operations each one supports                 |
+| `get_broker_alerts`           | Alerts by object, by position and time window, or one by candid |
+| `get_broker_alert_photometry` | An object's alert photometry as a light curve                   |
+| `crossmatch_broker_catalogs`  | A position against the broker's reference catalogs              |
+
+- **`broker_id` is not guessable, and capabilities differ.** `list_brokers`
+  reports both, and strips `altdata` for the reason given above. A broker
+  answers only the operations it lists.
+- **Alerts come back trimmed.** A ZTF packet carries three cutouts and the
+  object's whole previous-detection history; `get_broker_alerts` returns the
+  photometry and vetting fields with the history reduced to a count, and
+  `full=true` for the whole packet when that is really wanted.
+- **Bound a positional search in time.** Without `jd_start` and `jd_end` a cone
+  search returns every alert ever recorded at that position, which for a
+  well-observed field is large and rarely what was meant. `convert_time` turns
+  a date into the JD these take.
+- **`crossmatch_broker_catalogs` searches catalogs, not alerts.** It answers
+  whether a candidate sits on a known star or galaxy, which is a different
+  question from what the survey detected there.
+- **A GCN region is not a cone.** `get_broker_alerts` searches a cone in time;
+  an event's credible region reaches the broker only through
+  `run_broker_filter` with `dateobs`, which the preview endpoint turns into a
+  MOC. Searching an old GRB means that tool, with
+  `get_counterpart_search_defaults` for the pipeline to start from.
 
 ## What the assistant may call
 
