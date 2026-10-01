@@ -44,7 +44,6 @@ import { useAddAnnotationMutation } from "../../ducks/source";
 import {
   photometryApi,
   useFetchSourcePhotometryQuery,
-  useLazyFetchSourcePhotometryQuery,
 } from "../../ducks/photometry";
 
 import {
@@ -375,7 +374,7 @@ const PhotometryPlot = ({
 
   const { data: profile } = useGetProfileQuery();
   const { data: config } = useGetConfigQuery() as { data: any };
-  const [fetchPhotometryTrigger] = useLazyFetchSourcePhotometryQuery();
+  const dispatch = useAppDispatch();
 
   // Analysis-service model fits to overlay (self-fetched unless passed in).
   const { data: objAnalyses } = useGetAnalysesQuery({
@@ -581,9 +580,7 @@ const PhotometryPlot = ({
     }
   };
 
-  // Params for the main object's photometry query. Duplicate sources are fetched
-  // lazily with the same magsys and format.
-  const mainPhotParams = useMemo<any>(() => {
+  const photometryParams = useMemo<any>(() => {
     // "both" so the flux view can plot the measured flux. A magnitude cannot
     // express a non-detection, whose flux is at or below zero.
     const params: any = { magsys, format: "both" };
@@ -599,7 +596,7 @@ const PhotometryPlot = ({
   }, [magsys, showExtinctionCorrection, effectiveModelFits]);
 
   const { data: mainPhotometry } = useFetchSourcePhotometryQuery(
-    { id: obj_id, params: mainPhotParams },
+    { id: obj_id, params: photometryParams },
     { skip: !obj_id },
   );
 
@@ -619,14 +616,12 @@ const PhotometryPlot = ({
     associated_objs?.map((a) => a.obj_id) || [],
   );
 
-  // Read any cached photometry for the selected duplicate sources (fetched
-  // lazily below) without re-subscribing per id.
   const duplicatesPhotometryById = useAppSelector((state) => {
     const result: Record<string, any> = {};
     selectedDuplicates.forEach((dup) => {
       result[dup] = photometryApi.endpoints.fetchSourcePhotometry.select({
         id: dup,
-        params: { magsys },
+        params: photometryParams,
       })(state as any).data;
     });
     return result;
@@ -1650,18 +1645,17 @@ const PhotometryPlot = ({
   }, [config]);
 
   useEffect(() => {
-    // grab the photometry for the selected duplicates from the cache
-    if (selectedDuplicates.length > 0) {
-      selectedDuplicates.forEach((dup) => {
-        if (!photometry[dup]) {
-          fetchPhotometryTrigger({
-            id: dup,
-            params: { magsys, format: "both" },
-          });
-        }
-      });
-    }
-  }, [fetchPhotometryTrigger, selectedDuplicates, magsys, photometry]);
+    // Not a lazy query: it keeps only its last subscription.
+    const subscriptions = selectedDuplicates.map((dup) =>
+      dispatch(
+        photometryApi.endpoints.fetchSourcePhotometry.initiate({
+          id: dup,
+          params: photometryParams,
+        }),
+      ),
+    );
+    return () => subscriptions.forEach((s) => s.unsubscribe());
+  }, [dispatch, selectedDuplicates, photometryParams]);
 
   useEffect(() => {
     if (profile?.id && defaultVisibleFilters === null) {
