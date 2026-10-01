@@ -43,7 +43,7 @@ dependencies = [
     "timezonefinder==8.3.0",
     "astroplan==0.10.1",
     "email-validator==2.3.0",
-    "alembic==1.18.4",
+    "alembic==1.20.0",
     "paramiko==5.0.0",
     "scp==0.16.1",
     "requests_toolbelt==1.0.0",
