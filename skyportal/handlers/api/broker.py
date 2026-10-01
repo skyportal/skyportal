@@ -86,6 +86,18 @@ def strip_secrets(altdata, paths):
     return data
 
 
+def secrets_set(altdata, paths):
+    """The given dotted paths that hold a non-empty value in ``altdata``."""
+    found = []
+    for path in paths:
+        node = altdata or {}
+        for key in path.split("."):
+            node = node.get(key) if isinstance(node, dict) else None
+        if node:
+            found.append(path)
+    return found
+
+
 def merge_altdata(stored, incoming):
     """Overlay ``incoming`` on ``stored``; blank values keep what is stored.
 
@@ -159,9 +171,9 @@ def broker_to_dict(broker, include_altdata=False):
         "filter_kind": broker.broker_class.filter_kind,
     }
     if include_altdata:
-        data["altdata"] = strip_secrets(
-            broker.altdata, broker.broker_class.secret_config_fields()
-        )
+        paths = broker.broker_class.secret_config_fields()
+        data["altdata"] = strip_secrets(broker.altdata, paths)
+        data["secrets_set"] = secrets_set(broker.altdata, paths)
     return data
 
 

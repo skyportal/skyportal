@@ -482,6 +482,7 @@ def test_broker_requires_admin_and_redacts_altdata(super_admin_token, view_only_
     assert status == 200
     assert data["data"]["altdata"]["base_url"] == "https://broker.test"
     assert "token" not in data["data"]["altdata"]
+    assert data["data"]["secrets_set"] == ["token"]
 
     # so editing another field must not wipe the stored credential
     status, _ = api(
@@ -493,10 +494,11 @@ def test_broker_requires_admin_and_redacts_altdata(super_admin_token, view_only_
     assert status == 200
     status, data = api("GET", f"brokers/{broker_id}", token=super_admin_token)
     assert data["data"]["altdata"]["base_url"] == "https://broker2.test"
+    assert data["data"]["secrets_set"] == ["token"]
 
 
 def test_altdata_merge_and_redaction():
-    from skyportal.handlers.api.broker import merge_altdata, strip_secrets
+    from skyportal.handlers.api.broker import merge_altdata, secrets_set, strip_secrets
 
     stored = {
         "base_url": "https://a",
@@ -509,6 +511,10 @@ def test_altdata_merge_and_redaction():
         "scimma": {"user": "u"},
     }
     assert stored["token"] == "secret"
+    assert secrets_set(stored, ["token", "scimma.password", "kafka.password"]) == [
+        "token",
+        "scimma.password",
+    ]
 
     # blank means "keep what is stored", at any depth
     merged = merge_altdata(

@@ -62,6 +62,22 @@ const optionalSchema = (node: any): any => {
   };
 };
 
+const STORED_SECRET_UI = {
+  "ui:placeholder": "••••••••",
+  "ui:help": "Saved. Leave blank to keep it.",
+  "ui:options": { mui: { slotProps: { inputLabel: { shrink: true } } } },
+};
+
+const markStoredSecret = (ui: any, path: string): any => {
+  const [key = "", ...rest] = path.split(".");
+  return {
+    ...ui,
+    [key]: rest.length
+      ? markStoredSecret(ui?.[key], rest.join("."))
+      : { ...ui?.[key], ...STORED_SECRET_UI },
+  };
+};
+
 const DEFAULT_TOGGLES = [
   {
     field: "default_alert_search",
@@ -374,7 +390,10 @@ const BrokerList = () => {
             <Form
               id={NEW_BROKER_FORM_ID}
               schema={editing ? optionalSchema(schema) : schema}
-              uiSchema={apis?.[newClass]?.uiSchema || {}}
+              uiSchema={(editing?.secrets_set ?? []).reduce(
+                markStoredSecret,
+                apis?.[newClass]?.uiSchema || {},
+              )}
               formData={formData}
               validator={validator}
               onChange={(e) => setFormData(e.formData)}
