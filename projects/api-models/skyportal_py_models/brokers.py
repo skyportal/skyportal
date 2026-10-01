@@ -46,7 +46,8 @@ class BrokerResponse(BaseModel):
     ``broker_to_dict`` hand-builds this payload rather than calling
     ``to_dict()``, so ``created_at``/``modified`` are never returned even though
     the row carries them. ``altdata`` is only present for system admins, with
-    the provider's secret config fields stripped out.
+    the provider's secret config fields stripped out and reported by path in
+    ``secrets_set``.
     """
 
     model_config = ConfigDict(extra="forbid")
@@ -77,6 +78,7 @@ class BrokerResponse(BaseModel):
     filter_kind: BrokerFilterKind | None = None
     # Free-form per-instance provider configuration (endpoints, credentials).
     altdata: dict[str, Any] | None = None
+    secrets_set: list[str] = Field(default_factory=list)
 
 
 class BrokerPostResponse(BaseModel):

@@ -98,13 +98,13 @@ def _request(broker, method, path, *, params=None, json=None, timeout=DEFAULT_TI
     return payload.get("data", payload) if isinstance(payload, dict) else payload
 
 
-def _survey(broker, kwargs, object_id=None):
+def _survey(kwargs, object_id=None):
     return (
         kwargs.get("survey")
         or survey_from_object_id(
             object_id or kwargs.get("objectId"), BOOMBROKER.surveys
         )
-        or (broker.altdata or {}).get("survey", DEFAULT_SURVEY)
+        or DEFAULT_SURVEY
     )
 
 
@@ -523,7 +523,7 @@ class BOOMBROKER(BrokerAPI):
     Mongo-style ``/queries/find`` and ``/queries/cone_search``,
     ``/queries/pipeline`` for the full object, and ``/surveys/{survey}/cutouts``.
     Configure a ``Broker`` with ``altdata = {"protocol", "host", "port",
-    "username", "password", "survey"}``.
+    "username", "password", "kafka"}``.
     """
 
     parallel_ingestion = True  # shared Kafka consumer group
@@ -536,11 +536,16 @@ class BOOMBROKER(BrokerAPI):
 
     form_json_schema_config = {
         "type": "object",
+        "description": (
+            "BOOM is reached two ways: its REST API serves alert search, "
+            "cutouts and filters, and its Kafka stream feeds ingestion. Each "
+            "has its own host and credentials. Both ZTF and LSST are served."
+        ),
         "required": ["host"],
         "properties": {
             "protocol": {
                 "type": "string",
-                "title": "Protocol",
+                "title": "API protocol",
                 "default": "https",
                 "description": "http or https.",
             },
@@ -551,26 +556,27 @@ class BOOMBROKER(BrokerAPI):
             },
             "port": {
                 "type": "integer",
-                "title": "Port",
+                "title": "API port",
                 "default": 443,
                 "description": "BOOM API port.",
             },
-            "username": {"type": "string", "title": "Username"},
-            "password": {"type": "string", "title": "Password"},
-            "survey": {
+            "username": {
                 "type": "string",
-                "enum": ["ZTF", "LSST"],
-                "default": DEFAULT_SURVEY,
-                "title": "Survey",
-                "description": "Survey this connection serves.",
+                "title": "API username",
+                "description": "BOOM account used to log in to the API.",
             },
+            "password": {"type": "string", "title": "API password"},
             # Declared so the SASL password is rendered as one and, more to the
             # point, stripped from the broker a reader is served: what is not in
             # this schema is not in secret_config_fields either.
             "kafka": {
                 "type": "object",
-                "title": "Kafka stream",
-                "description": "BOOM's results stream, consumed for ingestion.",
+                "title": "Kafka stream (ingestion only)",
+                "description": (
+                    "BOOM's filter results stream, consumed when Ingest is on. "
+                    "It uses Kafka's own SCRAM credentials, separate from the "
+                    "API login."
+                ),
                 "properties": {
                     "host": {"type": "string", "title": "Kafka host"},
                     "port": {"type": "integer", "title": "Kafka port"},
@@ -611,7 +617,7 @@ class BOOMBROKER(BrokerAPI):
     @staticmethod
     def query_alerts(broker, session, **kwargs):
         object_id = kwargs.get("objectId")
-        survey = _survey(broker, kwargs, object_id)
+        survey = _survey(kwargs, object_id)
         catalog = f"{survey}_alerts"
         ra, dec, radius = kwargs.get("ra"), kwargs.get("dec"), kwargs.get("radius")
         scope = {**_scope_filter(kwargs, survey), **_epoch_filter(kwargs)}
@@ -651,7 +657,7 @@ class BOOMBROKER(BrokerAPI):
     @staticmethod
     def get_alert(broker, alert_id, session, **kwargs):
         # Full object: brightest alert joined with its aux history.
-        survey = _survey(broker, kwargs, alert_id)
+        survey = _survey(kwargs, alert_id)
         catalog = f"{survey}_alerts"
         programids = _programids(kwargs, survey)
         pipeline = [
@@ -696,7 +702,7 @@ class BOOMBROKER(BrokerAPI):
 
     @staticmethod
     def get_cutouts(broker, alert_id, session, **kwargs):
-        survey = _survey(broker, kwargs)
+        survey = _survey(kwargs)
         scope = _scope_filter(kwargs, survey)
         if scope:
             try:
@@ -745,7 +751,7 @@ class BOOMBROKER(BrokerAPI):
         positions. The track carries candids only, and a vetting view needs
         jd/ra/dec/mag/band, so fetching them here keeps that one round trip.
         """
-        survey = _survey(broker, kwargs)
+        survey = _survey(kwargs)
         found = _request(
             broker,
             "POST",
@@ -837,7 +843,7 @@ class BOOMBROKER(BrokerAPI):
         there. Taken from the same night so it exercises the epoch and observing
         code the real query uses, not just the network path.
         """
-        survey = _survey(broker, kwargs)
+        survey = _survey(kwargs)
         scope = _scope_filter(kwargs, survey)
         found = _request(
             broker,
@@ -1118,7 +1124,7 @@ class BOOMBROKER(BrokerAPI):
         single matching module (or ``None``) instead of the list."""
         elements = kwargs.get("elements", "schema")
         if elements == "schema":
-            survey = _survey(broker, kwargs)
+            survey = _survey(kwargs)
             # BOOM's schema describes the packet; a pipeline runs against
             # the document BOOM enriched. Fill in what it writes and does
             # not yet declare.
@@ -1239,7 +1245,7 @@ class BOOMBROKER(BrokerAPI):
         survey = kwargs.get("survey")
         if survey is None and kwargs.get("selectedCollection"):
             survey = str(kwargs["selectedCollection"]).split("_")[0]
-        survey = survey or _survey(broker, kwargs)
+        survey = survey or _survey(kwargs)
 
         programids = _programids(kwargs, survey)
         if kwargs.get("filter_id") is not None:

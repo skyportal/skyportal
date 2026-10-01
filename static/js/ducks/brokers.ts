@@ -18,6 +18,7 @@ export interface Broker {
   surveys: string[];
   filter_kind: string;
   altdata?: Record<string, unknown>;
+  secrets_set?: string[];
 }
 
 export interface BrokerAPIInfo {
