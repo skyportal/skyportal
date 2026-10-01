@@ -1,0 +1,46 @@
+name: Changeset
+
+# The app and the packages under projects/ share one changelog, built from
+# changesets: a Markdown file under .changeset/ per pull request, describing the
+# change (see doc/contributing.md). A PR that can reach users needs one, or the
+# `skip-changelog` label.
+
+on:
+  pull_request:
+    types: [opened, reopened, synchronize, labeled, unlabeled]
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  changeset:
+    if: ${{ github.head_ref != 'release' && !contains(github.event.pull_request.labels.*.name, 'skip-changelog') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check for a changeset
+        env:
+          BASE: ${{ github.base_ref }}
+        run: |
+          set -euo pipefail
+          changed=$(git diff --name-only "origin/$BASE...HEAD")
+
+          # Docs, CI and the changesets themselves reach nobody downstream.
+          relevant=$(grep -vE '^(doc/|\.github/|\.changeset/)|\.md$' <<< "$changed" || true)
+
+          if [ -z "$relevant" ]; then
+            echo "Nothing user-facing changed; no changeset needed."
+            exit 0
+          fi
+
+          if grep -q '^\.changeset/.*\.md$' <<< "$changed"; then
+            echo "Changeset found."
+          else
+            echo "::error::This PR needs a changeset under .changeset/ (run 'knope document-change', see doc/contributing.md) or the 'skip-changelog' label."
+            exit 1
+          fi

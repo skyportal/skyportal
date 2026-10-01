@@ -68,6 +68,53 @@ full set, as does every push to `main`. Add the `run-all-tests` label
 and re-run the workflow to force a full run; see
 `.github/workflows/ci_scope.yaml`.
 
+### Changesets
+
+Every pull request that can reach a user carries a changeset: a small
+Markdown file under `.changeset/` describing the change. They keep the
+changelog out of the merge conflict path, and let each PR document its
+own change in the author's words rather than a reviewer's reading of
+the commit title.
+
+Write one with [Knope](https://knope.tech) (`knope document-change`),
+or by hand:
+
+```markdown
+---
+default: bugfix
+---
+
+# Short, user-facing summary of the change
+
+An optional longer description.
+```
+
+The type picks the section of the changelog the entry lands in:
+`breaking`, `feature`, `bugfix`, `docs`, `refactor` or `other`. It does
+not affect the version, which is the release date, so call out a
+`breaking` change when you make one: the version number cannot warn
+anyone on your behalf.
+
+A PR that only touches `doc/`, `.github/` or Markdown skips the
+requirement automatically. Anything else that users will never notice
+can skip it with the `skip-changelog` label.
+
+### Releasing
+
+The app and the packages under `projects/` share one version and are
+released together, always, with no way to release one without the
+others. The version is the date: `YYYY.MM.MICRO`, where the micro
+counts releases within the month (`2026.9.0`, `2026.9.1`, then
+`2026.10.0`). The segments are unpadded, because PEP 440 strips a
+leading zero from a version anyway.
+
+There is one release pull request, from the `release` branch. It stays
+open, it is rewritten every time a changeset lands on `main`, and it
+can be merged whenever the pending changes are worth releasing.
+Merging it tags `vYYYY.MM.MICRO`, creates the GitHub release from the
+changelog, and uploads `skyportal-py` and `skyportal-py-models` to
+PyPI.
+
 ### Reviews
 
 All code that goes into SkyPortal is reviewed by two team members
