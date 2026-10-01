@@ -1748,6 +1748,54 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/brokers/{broker_id}/watchlists": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Broker watchlists
+         * @description List the watchlists a new filter on this broker can be restricted to, empty for a broker without watchlists.
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    broker_id: number;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Success"];
+                    };
+                };
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/brokers/filters": {
         parameters: {
             query?: never;
@@ -41157,6 +41205,12 @@ export interface components {
              * @default null
              */
             autosave: boolean | null;
+            /**
+             * Watchlist
+             * @description Watchlist catalog the broker filter runs against, set when the filter is first created on the broker.
+             * @default null
+             */
+            watchlist: string | null;
         };
         /**
          * BrokerFiltersPatchBody

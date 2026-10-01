@@ -1029,6 +1029,41 @@ def _validate_version(broker_id, filter_id, fid):
         session.commit()
 
 
+class BrokerWatchlistsHandler(BaseHandler):
+    @auth_or_token
+    def get(self, broker_id: int):
+        """
+        ---
+        summary: Broker watchlists
+        description: List the watchlists a new filter on this broker can be
+          restricted to, empty for a broker without watchlists.
+        tags:
+          - brokers
+        responses:
+          200:
+            content:
+              application/json:
+                schema: Success
+          400:
+            content:
+              application/json:
+                schema: Error
+        """
+        with self.Session() as session:
+            broker = _get_broker(self, session, broker_id)
+            if broker is None:
+                return self.error(f"No broker with id {broker_id}")
+            if not broker.active:
+                return self.error(f"Broker {broker.name} is not active")
+            if not broker.broker_class.implements()["get_watchlists"]:
+                return self.success(data=[])
+            try:
+                data = broker.broker_class.get_watchlists(broker, session)
+            except Exception as e:
+                return self.error(f"Error fetching watchlists from {broker.name}: {e}")
+            return self.success(data=data)
+
+
 class BrokerFilterModulesHandler(BaseHandler):
     @auth_or_token
     def get(
@@ -1330,6 +1365,15 @@ class BrokerFiltersHandler(BaseHandler):
             ).first()
             if f is None:
                 return self.error(f"Cannot find a filter with ID: {filter_id}.")
+            bound = (f.altdata.get("boom") or {}) if isinstance(f.altdata, dict) else {}
+            if (
+                bound.get("filter_id") is not None
+                and body.watchlist
+                and body.watchlist != bound.get("watchlist")
+            ):
+                return self.error(
+                    "A broker filter's watchlist can only be set when it is created."
+                )
             if f.stream is None or not isinstance(f.stream.altdata, dict):
                 return self.error(
                     "The filter's stream has no altdata (collection/selector)."
@@ -1350,6 +1394,7 @@ class BrokerFiltersHandler(BaseHandler):
                         pipeline=body.altdata,
                         survey=survey,
                         permissions=perms,
+                        watchlist=body.watchlist,
                     )
                     f.broker_id = broker.id
                     new_fid = resp["active_fid"]
@@ -1357,7 +1402,14 @@ class BrokerFiltersHandler(BaseHandler):
                     # whatever else the filter was configured with.
                     stored.update(
                         {
-                            "boom": {"filter_id": resp["id"]},
+                            "boom": {
+                                "filter_id": resp["id"],
+                                **(
+                                    {"watchlist": body.watchlist}
+                                    if body.watchlist
+                                    else {}
+                                ),
+                            },
                             "autoAnnotate": stored.get("autoAnnotate", True),
                             "autoFollowup": stored.get("autoFollowup", False),
                             "filters": [{"fid": new_fid, "version": body.filters}],

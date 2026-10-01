@@ -1258,6 +1258,63 @@ def test_boom_filter_activation_requires_validation(
         api("DELETE", f"brokers/{broker_id}", token=super_admin_token)
 
 
+def test_boom_filter_watchlist_cannot_change(super_admin_token, public_filter):
+    import sqlalchemy as sa
+    from sqlalchemy.orm.attributes import flag_modified
+
+    from skyportal.models import DBSession, Filter
+
+    status, data = api(
+        "POST",
+        "brokers",
+        data=_broker_payload(
+            broker_classname="BOOMBROKER",
+            altdata={"host": "boom.test", "username": "x", "password": "y"},
+        ),
+        token=super_admin_token,
+    )
+    assert status == 200
+    broker_id = data["data"]["id"]
+    _force_active(broker_id)
+    try:
+        f = (
+            DBSession()
+            .scalars(sa.select(Filter).where(Filter.id == public_filter.id))
+            .first()
+        )
+        f.altdata = {"boom": {"filter_id": "boom-test-id", "watchlist": "watchlist_a"}}
+        flag_modified(f, "altdata")
+        DBSession().commit()
+
+        status, data = api(
+            "POST",
+            f"brokers/{broker_id}/filters/{public_filter.id}",
+            data={"altdata": [{"$match": {}}], "watchlist": "watchlist_b"},
+            token=super_admin_token,
+        )
+        assert status == 400
+        assert "only be set when it is created" in data["message"]
+    finally:
+        api("DELETE", f"brokers/{broker_id}", token=super_admin_token)
+
+
+def test_broker_without_watchlists_lists_none(super_admin_token):
+    status, data = api(
+        "POST", "brokers", data=_broker_payload(), token=super_admin_token
+    )
+    assert status == 200
+    broker_id = data["data"]["id"]
+    _force_active(broker_id)
+    try:
+        status, data = api(
+            "GET", f"brokers/{broker_id}/watchlists", token=super_admin_token
+        )
+        assert status == 200
+        assert data["data"] == []
+    finally:
+        api("DELETE", f"brokers/{broker_id}", token=super_admin_token)
+
+
 def test_broker_credentials_crud(
     super_admin_token,
     view_only_token,
