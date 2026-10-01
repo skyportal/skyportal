@@ -145,6 +145,7 @@ def test_mcp_tools_list(view_only_token):
         "post_observation_plan",
         "get_observation_plans",
         "get_filter_targets",
+        "get_counterpart_search_defaults",
         "get_alert_schema",
         "search_filters",
         "attach_filter_to_broker",
@@ -157,6 +158,10 @@ def test_mcp_tools_list(view_only_token):
         "activate_broker_filter_version",
         "post_group",
         "post_filter",
+        "list_brokers",
+        "get_broker_alerts",
+        "get_broker_alert_photometry",
+        "crossmatch_broker_catalogs",
     }
     tools = {t["name"]: t for t in result["tools"]}
     for t in tools.values():
