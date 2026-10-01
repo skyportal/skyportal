@@ -80,7 +80,7 @@ dependencies = [
     "simsurvey==0.7.5",  # requires matplotlib monkey-patch, see models/__init__.py
     "noaodatalab==2.20.0",
     "black==26.5.1",
-    "click==8.4.2",
+    "click==8.5.0",
     # BOOM's filter-module store; skyportal/broker_apis/boom.py imports it directly.
     "pymongo>=4.6, <5.0",
     "afterglowpy==0.8.1",
