@@ -20,13 +20,23 @@ export const boomFilterApi = skyportalApi.injectEndpoints({
     }),
     updateBoomGroupFilter: build.mutation<
       any,
-      { filter_id: any; altdata?: any; filters?: any; name?: any }
+      {
+        filter_id: any;
+        altdata?: any;
+        filters?: any;
+        name?: any;
+        watchlist?: string | null;
+      }
     >({
-      query: ({ filter_id, altdata, filters, name }) => ({
+      query: ({ filter_id, altdata, filters, name, watchlist }) => ({
         url: `${brokerFilterBase()}/filters/${filter_id}`,
         method: "POST",
-        body: { altdata, filters, name },
+        body: { altdata, filters, name, ...(watchlist ? { watchlist } : {}) },
       }),
+    }),
+    // Keyed by the broker base URL, so switching brokers refetches.
+    getBrokerWatchlists: build.query<string[], string>({
+      query: (base) => `${base}/watchlists`,
     }),
     updateBoomFilterFlags: build.mutation<
       any,
@@ -61,6 +71,7 @@ export const boomFilterApi = skyportalApi.injectEndpoints({
 
 export const {
   useGetBoomFilterVersionQuery,
+  useGetBrokerWatchlistsQuery,
   useEditBoomFilterVersionMutation,
   useUpdateBoomGroupFilterMutation,
   useUpdateBoomFilterFlagsMutation,
