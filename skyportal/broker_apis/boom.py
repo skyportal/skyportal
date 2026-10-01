@@ -536,11 +536,16 @@ class BOOMBROKER(BrokerAPI):
 
     form_json_schema_config = {
         "type": "object",
+        "description": (
+            "BOOM is reached two ways: its REST API serves alert search, "
+            "cutouts and filters, and its Kafka stream feeds ingestion. Each "
+            "has its own host and credentials. Both ZTF and LSST are served."
+        ),
         "required": ["host"],
         "properties": {
             "protocol": {
                 "type": "string",
-                "title": "Protocol",
+                "title": "API protocol",
                 "default": "https",
                 "description": "http or https.",
             },
@@ -551,19 +556,27 @@ class BOOMBROKER(BrokerAPI):
             },
             "port": {
                 "type": "integer",
-                "title": "Port",
+                "title": "API port",
                 "default": 443,
                 "description": "BOOM API port.",
             },
-            "username": {"type": "string", "title": "Username"},
-            "password": {"type": "string", "title": "Password"},
+            "username": {
+                "type": "string",
+                "title": "API username",
+                "description": "BOOM account used to log in to the API.",
+            },
+            "password": {"type": "string", "title": "API password"},
             # Declared so the SASL password is rendered as one and, more to the
             # point, stripped from the broker a reader is served: what is not in
             # this schema is not in secret_config_fields either.
             "kafka": {
                 "type": "object",
-                "title": "Kafka stream",
-                "description": "BOOM's results stream, consumed for ingestion.",
+                "title": "Kafka stream (ingestion only)",
+                "description": (
+                    "BOOM's filter results stream, consumed when Ingest is on. "
+                    "It uses Kafka's own SCRAM credentials, separate from the "
+                    "API login."
+                ),
                 "properties": {
                     "host": {"type": "string", "title": "Kafka host"},
                     "port": {"type": "integer", "title": "Kafka port"},
