@@ -48193,7 +48193,7 @@ export interface components {
             pid: number | null;
             /**
              * Memory
-             * @description Resident memory of the process and its children, in bytes
+             * @description Proportional memory of the process and its children, in bytes
              * @default null
              */
             memory: number | null;

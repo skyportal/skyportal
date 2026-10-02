@@ -62,12 +62,19 @@ def with_changes(deployments, gitlog):
     return result
 
 
+def proportional_memory(process):
+    try:
+        return process.memory_full_info().pss
+    except (psutil.AccessDenied, AttributeError):
+        return process.memory_info().rss
+
+
 def resident_memory(pid):
-    """Resident memory of a process and its children, in bytes."""
+    """Proportional memory of a process and its children, in bytes."""
     try:
         process = psutil.Process(pid)
         processes = [process, *process.children(recursive=True)]
-        return sum(p.memory_info().rss for p in processes)
+        return sum(proportional_memory(p) for p in processes)
     except (psutil.Error, ValueError):
         return None
 
