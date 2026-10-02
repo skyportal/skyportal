@@ -246,6 +246,9 @@ const AutocompleteFields = ({
       // Expand groups that have matching options
       if (groupsWithMatches.size > 0) {
         setCollapsedGroups((prev: any) => {
+          if (![...groupsWithMatches].some((group: any) => prev.has(group))) {
+            return prev;
+          }
           const newCollapsed = new Set(prev);
           groupsWithMatches.forEach((groupName: any) => {
             newCollapsed.delete(groupName);
