@@ -881,6 +881,14 @@ services:
     # - thumbnail_queue
     # - tns_retrieval_queue
 
+zygote:
+  services: "*"
+  exclude:
+    - sn_analysis_service
+    - ngsf_analysis_service
+    - spectral_cube_analysis_service
+    - health_monitor
+
 # Alert brokers (BOOM, Fink, Lasair, ...) are configured at runtime as
 # `Broker` database records (name + provider class + encrypted credentials), not
 # here; see doc/broker_plugins.md. Providers are registered in
