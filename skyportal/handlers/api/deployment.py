@@ -62,6 +62,15 @@ def with_changes(deployments, gitlog):
     return result
 
 
+def service_pid(pid):
+    """The pid of the service a zygote launcher stands in for, else `pid`."""
+    try:
+        with open(f"run/zygote/{pid}.pid") as f:
+            return int(f.read())
+    except (OSError, ValueError):
+        return pid
+
+
 def proportional_memory(process):
     try:
         return process.memory_full_info().pss
@@ -69,12 +78,18 @@ def proportional_memory(process):
         return process.memory_info().rss
 
 
-def resident_memory(pid):
-    """Proportional memory of a process and its children, in bytes."""
+def tree_memory(process, services):
+    return proportional_memory(process) + sum(
+        tree_memory(child, services)
+        for child in process.children()
+        if child.pid not in services
+    )
+
+
+def service_memory(pid, services):
+    """Memory of a process and its children that are not services, in bytes."""
     try:
-        process = psutil.Process(pid)
-        processes = [process, *process.children(recursive=True)]
-        return sum(proportional_memory(p) for p in processes)
+        return tree_memory(psutil.Process(pid), services)
     except (psutil.Error, ValueError):
         return None
 
@@ -82,20 +97,25 @@ def resident_memory(pid):
 def supervisor_processes():
     transport = SupervisorTransport("dummy", "dummy", "unix://run/supervisor.sock")
     proxy = ServerProxy("http://127.0.0.1", transport=transport)
+    infos = proxy.supervisor.getAllProcessInfo()
+    pids = {info["pid"]: service_pid(info["pid"]) for info in infos if info["pid"]}
+    services = set(pids.values())
     return [
         {
             "name": info["name"],
             "group": info["group"],
             "state": info["statename"],
             "pid": info["pid"] or None,
-            "memory": resident_memory(info["pid"]) if info["pid"] else None,
+            "memory": service_memory(pids[info["pid"]], services)
+            if info["pid"]
+            else None,
             "started_at": datetime.fromtimestamp(info["start"], UTC).replace(
                 tzinfo=None
             )
             if info["start"]
             else None,
         }
-        for info in proxy.supervisor.getAllProcessInfo()
+        for info in infos
     ]
 
 
