@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import { useConditionContext } from "../../../../hooks/useContexts";
 import {
   Button,
@@ -191,6 +192,26 @@ const ListVariableInput = ({
   } = useConditionContext();
   const { data: boomFilterVersion } = useBoomFilterVersion();
   const currentStream = boomFilterVersion?.stream?.name;
+  const fieldOptions = useMemo(
+    () =>
+      getFieldOptionsWithVariable(
+        fieldOptionsList,
+        customVariables,
+        customListVariables,
+        customSwitchCases || [],
+        [],
+        conditionOrBlock.createdAt,
+        currentStream,
+      ),
+    [
+      fieldOptionsList,
+      customVariables,
+      customListVariables,
+      customSwitchCases,
+      conditionOrBlock.createdAt,
+      currentStream,
+    ],
+  );
   const operator =
     listVariable.listCondition?.operator || listVariable.operator;
   const selectedOperator = conditionOrBlock.operator;
@@ -200,15 +221,7 @@ const ListVariableInput = ({
     return (
       <AutocompleteFields
         key={`${conditionOrBlock.id}.right`}
-        fieldOptions={getFieldOptionsWithVariable(
-          fieldOptionsList,
-          customVariables,
-          customListVariables,
-          customSwitchCases || [],
-          [],
-          conditionOrBlock.createdAt,
-          currentStream,
-        )}
+        fieldOptions={fieldOptions}
         value={(() => {
           const val = conditionOrBlock.value;
           if (!val) return "";
@@ -268,15 +281,7 @@ const ListVariableInput = ({
     return (
       <AutocompleteFields
         key={`${conditionOrBlock.id}.right`}
-        fieldOptions={getFieldOptionsWithVariable(
-          fieldOptionsList,
-          customVariables,
-          customListVariables,
-          customSwitchCases || [],
-          [],
-          conditionOrBlock.createdAt,
-          currentStream,
-        )}
+        fieldOptions={fieldOptions}
         value={(() => {
           const val = conditionOrBlock.value;
           if (!val) return "";
@@ -418,11 +423,9 @@ const RegularValueInput = ({
   } = useConditionContext();
   const { data: boomFilterVersion } = useBoomFilterVersion();
   const currentStream = boomFilterVersion?.stream?.name;
-
-  return (
-    <AutocompleteFields
-      key={`${conditionOrBlock.id}.right`}
-      fieldOptions={getFieldOptionsWithVariable(
+  const fieldOptions = useMemo(
+    () =>
+      getFieldOptionsWithVariable(
         fieldOptionsList,
         customVariables,
         customListVariables,
@@ -430,7 +433,21 @@ const RegularValueInput = ({
         [],
         conditionOrBlock.createdAt,
         currentStream,
-      )}
+      ),
+    [
+      fieldOptionsList,
+      customVariables,
+      customListVariables,
+      customSwitchCases,
+      conditionOrBlock.createdAt,
+      currentStream,
+    ],
+  );
+
+  return (
+    <AutocompleteFields
+      key={`${conditionOrBlock.id}.right`}
+      fieldOptions={fieldOptions}
       value={(() => {
         // Check if this is an aggregation operator that should be shown on the left
         const isAggregationOnLeft =
@@ -505,7 +522,7 @@ const ValueInput = ({
   createDefaultBlock,
 }: ValueInputProps) => {
   const schema = useFilterSchema().data;
-  const fieldOptions = flattenFieldOptions(schema);
+  const fieldOptions = useMemo(() => flattenFieldOptions(schema), [schema]);
 
   const { customListVariables, customVariables, fieldOptionsList } =
     useConditionContext();
