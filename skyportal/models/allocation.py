@@ -25,6 +25,7 @@ from baselayer.app.models import (
 )
 
 from ..enum_types import ALLOWED_ALLOCATION_TYPES, allowed_allocation_types
+from .app_secret import secret_key
 from .group import GroupUser, accessible_by_group_members
 
 _, cfg = load_env()
@@ -140,9 +141,7 @@ class Allocation(Base):
         doc="The Instrument the allocation is associated with.",
     )
 
-    _altdata = sa.Column(
-        StringEncryptedType(JSONType, cfg["app.secret_key"], AesEngine, "pkcs5")
-    )
+    _altdata = sa.Column(StringEncryptedType(JSONType, secret_key, AesEngine, "pkcs5"))
 
     allocation_users = relationship(
         "AllocationUser",

@@ -14,6 +14,8 @@ from sqlalchemy_utils.types.encrypted.encrypted_type import (
 from baselayer.app.env import load_env
 from baselayer.app.models import AccessibleIfUserMatches, Base
 
+from .app_secret import secret_key
+
 _, cfg = load_env()
 
 
@@ -55,7 +57,7 @@ class BrokerCredential(Base):
     )
 
     _altdata = sa.Column(
-        StringEncryptedType(JSONType, cfg["app.secret_key"], AesEngine, "pkcs5"),
+        StringEncryptedType(JSONType, secret_key, AesEngine, "pkcs5"),
         doc="The credentials themselves: the upstream API token and any stream "
         "username/password. Never serialized back to a client.",
     )
