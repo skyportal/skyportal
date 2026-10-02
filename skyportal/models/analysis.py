@@ -691,6 +691,17 @@ def delete_assoc_analysis_data_from_disk(mapper, connection, target):
         analysis.delete_data()
 
 
+def _default_analysis_gated():
+    """SQL clause: DefaultAnalysis opts into the detection gate.
+
+    default_analysis_parameters is json in the database, but JSONType does not
+    carry the comparator that indexes one, so the type is named here.
+    """
+    return sa.type_coerce(DefaultAnalysis.default_analysis_parameters, psql.JSON)[
+        "min_detections"
+    ].astext.isnot(None)
+
+
 def _default_analysis_under_limit():
     """SQL clause: DefaultAnalysis still under its per-day cap (or window rolled over)."""
     return or_(
