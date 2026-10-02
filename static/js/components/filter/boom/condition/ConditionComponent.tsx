@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useCurrentBuilder } from "../../../../hooks/useContexts";
 import { Box, IconButton } from "@mui/material";
 import ClearIcon from "@mui/icons-material/Clear";
@@ -128,7 +128,10 @@ const ConditionComponentInner = ({
   const final_schema = schema?.versions?.find(
     (v: any) => v.vid === schema.active_id,
   )?.schema;
-  const fieldOptions = flattenFieldOptions(final_schema);
+  const fieldOptions = useMemo(
+    () => flattenFieldOptions(final_schema),
+    [final_schema],
+  );
 
   // Custom hooks
   usePopoverRegistry(
@@ -181,14 +184,26 @@ const ConditionComponentInner = ({
     ? conditionOrBlock.createdAt
     : null;
 
-  const fieldOptionsWithVariable = getFieldOptionsWithVariable(
-    fieldOptionsList,
-    customVariables,
-    customListVariables,
-    customSwitchCases || [],
-    fieldOptions,
-    contextTime,
-    currentStream,
+  const fieldOptionsWithVariable = useMemo(
+    () =>
+      getFieldOptionsWithVariable(
+        fieldOptionsList,
+        customVariables,
+        customListVariables,
+        customSwitchCases || [],
+        fieldOptions,
+        contextTime,
+        currentStream,
+      ),
+    [
+      fieldOptionsList,
+      customVariables,
+      customListVariables,
+      customSwitchCases,
+      fieldOptions,
+      contextTime,
+      currentStream,
+    ],
   );
 
   const operatorOptions = conditionOrBlock.field
