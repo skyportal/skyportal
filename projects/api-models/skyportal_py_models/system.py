@@ -71,7 +71,7 @@ class SupervisorProcessResponse(BaseModel):
     pid: int | None = None
     memory: int | None = Field(
         default=None,
-        description="Resident memory of the process and its children, in bytes",
+        description="Proportional memory of the service process and its children, in bytes",
     )
     started_at: datetime | None = None
 
