@@ -31,7 +31,10 @@ import utc from "dayjs/plugin/utc";
 import { showNotification } from "baselayer/components/Notifications";
 import Button from "../Button";
 import ExpandableCell from "../ExpandableCell";
-import StyledDataGrid, { DataGridToolbar } from "../StyledDataGrid";
+import StyledDataGrid, {
+  DataGridToolbar,
+  FULL_PAGE_HEIGHT_WITH_TABS,
+} from "../StyledDataGrid";
 import FormValidationError from "../FormValidationError";
 import ConfirmDeletionDialog from "../ConfirmDeletionDialog";
 import { useGetProfileQuery } from "../../ducks/profile";
@@ -524,7 +527,7 @@ const UserInvitations = () => {
     <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
       <Box data-testid="pendingInvitations">
         <StyledDataGrid
-          autoHeight
+          height={FULL_PAGE_HEIGHT_WITH_TABS}
           columns={columns}
           rows={invitationsData?.invitations || []}
           getRowId={(row: any) => row.id}
