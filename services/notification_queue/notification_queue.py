@@ -33,6 +33,7 @@ from skyportal.models import (
     Feedback,
     FeedbackReply,
     FollowupRequest,
+    FollowupRequestUser,
     GcnEvent,
     GcnEventExtraction,
     GcnNotice,
@@ -680,10 +681,14 @@ def api(queue):
                             notification_user_ids = {
                                 allocation_user.user_id
                                 for allocation_user in allocation.allocation_users
-                            } | {
-                                watcher["user_id"]
-                                for watcher in target_data.get("watchers", [])
-                            }
+                            } | set(
+                                session.scalars(
+                                    sa.select(FollowupRequestUser.user_id).where(
+                                        FollowupRequestUser.followuprequest_id
+                                        == target_id
+                                    )
+                                )
+                            )
                             notification_user_ids.add(target_data["requester_id"])
                             notification_user_ids.add(
                                 target_data["last_modified_by_id"]
