@@ -71,7 +71,7 @@ const toTile = (t: any): Tile => ({
 });
 
 const timestamp = (t: any) => {
-  const stamp = t.modified ?? t.created_at;
+  const stamp = t.observed_at ?? t.modified ?? t.created_at;
   return stamp ? dayjs(stamp) : null;
 };
 
@@ -83,7 +83,10 @@ const latestTimestamp = (thumbnails: any[]) =>
 const alertTile = (t: any): Tile => ({
   ...toTile(t),
   survey: t.survey ?? undefined,
-  detail: t.type === "new" ? timestamp(t)?.format("YYYY-MM-DD") : undefined,
+  detail:
+    t.type === "new" && t.observed_at
+      ? dayjs(t.observed_at).format("YYYY-MM-DD")
+      : undefined,
   fieldOfView: SURVEY_FIELD_OF_VIEW_ARCSEC[t.survey ?? ""],
 });
 
