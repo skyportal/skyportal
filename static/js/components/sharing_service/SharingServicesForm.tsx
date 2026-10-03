@@ -138,10 +138,10 @@ const SharingServicesDialog = ({
       Boolean(selectedSharingService?.enable_sharing_with_tns) &&
         !isNoAffiliation,
     );
-    setSendToTrove(Boolean(selectedSharingService?.enable_sharing_with_trove));
     setSendToHermes(
       Boolean(selectedSharingService?.enable_sharing_with_hermes),
     );
+    setSendToTrove(Boolean(selectedSharingService?.enable_sharing_with_trove));
   }, [selectedSharingServiceId, selectedSharingService, isNoAffiliation]);
 
   const handleSubmit = async ({ formData }: { formData: any }) => {

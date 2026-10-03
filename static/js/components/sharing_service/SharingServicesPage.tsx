@@ -148,11 +148,11 @@ const SharingServiceGroup = ({
   const [autoPublishTns, setAutoPublishTns] = useState(
     sharingServiceGroup.auto_share_to_tns,
   );
-  const [autoPublishTrove, setAutoPublishTrove] = useState(
-    sharingServiceGroup.auto_share_to_trove,
-  );
   const [autoPublishHermes, setAutoPublishHermes] = useState(
     sharingServiceGroup.auto_share_to_hermes,
+  );
+  const [autoPublishTrove, setAutoPublishTrove] = useState(
+    sharingServiceGroup.auto_share_to_trove,
   );
   const [autoPublishAllowBots, setAutoPublishAllowBots] = useState(
     sharingServiceGroup.auto_sharing_allow_bots || false,
@@ -742,8 +742,8 @@ const SharingServicesPage = () => {
       ...((!isEdit || tns_api_key?.length > 0) && {
         _tns_altdata: { api_key: tns_api_key },
       }),
-      ...(trove_username?.length > 0 &&
-        trove_password?.length > 0 && {
+      ...(trove_username &&
+        trove_password && {
           _trove_altdata: {
             username: trove_username,
             password: trove_password,
