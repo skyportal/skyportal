@@ -667,6 +667,35 @@ def api(queue):
                                 # this happens if the followup request is deleted
                                 # in the future, maybe we'll want to notify on deletion?
                                 return
+                            if target_data["status"].startswith(
+                                ("submitted", "In progress")
+                            ):
+                                return
+                            allocation = session.scalars(
+                                sa.select(Allocation).where(
+                                    Allocation.id == target_data["allocation_id"]
+                                )
+                            ).first()
+                            instrument = allocation.instrument
+                            notification_user_ids = {
+                                allocation_user.user_id
+                                for allocation_user in allocation.allocation_users
+                            } | {
+                                watcher["user_id"]
+                                for watcher in target_data.get("watchers", [])
+                            }
+                            notification_user_ids.add(target_data["requester_id"])
+                            notification_user_ids.add(
+                                target_data["last_modified_by_id"]
+                            )
+                            notification_user_ids.update(
+                                shift_users_with_access(session, allocation.id)
+                            )
+                            last_modified_by = session.scalars(
+                                sa.select(User).where(
+                                    User.id == target_data["last_modified_by_id"]
+                                )
+                            ).first()
                     elif is_analysis_service:
                         users = session.scalars(
                             sa.select(User).where(
@@ -1219,45 +1248,6 @@ def api(queue):
                                             }
                                             queue.append(target)
                                 elif is_followup_request:
-                                    if target_data["status"].startswith(
-                                        ("submitted", "In progress")
-                                    ):
-                                        continue
-                                    allocation_id = target_data["allocation_id"]
-                                    allocation = session.scalars(
-                                        sa.select(Allocation).where(
-                                            Allocation.id == allocation_id
-                                        )
-                                    ).first()
-                                    notification_user_ids = [
-                                        allocation_user.user.id
-                                        for allocation_user in allocation.allocation_users
-                                    ] + [
-                                        watcher["user_id"]
-                                        for watcher in target_data.get("watchers", [])
-                                    ]
-                                    notification_user_ids.append(
-                                        target_data["requester_id"]
-                                    )
-                                    notification_user_ids.append(
-                                        target_data["last_modified_by_id"]
-                                    )
-
-                                    last_modified_by = session.scalars(
-                                        sa.select(User).where(
-                                            User.id
-                                            == target_data["last_modified_by_id"]
-                                        )
-                                    ).first()
-
-                                    notification_user_ids += shift_users_with_access(
-                                        session, allocation_id
-                                    )
-                                    notification_user_ids = list(
-                                        set(notification_user_ids)
-                                    )
-
-                                    instrument = allocation.instrument
                                     if user.id in notification_user_ids:
                                         notification = UserNotification(
                                             user=user,
