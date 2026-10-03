@@ -44,7 +44,6 @@ export const getThumbnailAltAndLink = (
   name: string,
   ra: number,
   dec: number,
-  survey?: string,
 ) => {
   let alt = "";
   let link = "";
@@ -96,11 +95,6 @@ export const getThumbnailAltAndLink = (
     default:
       break;
   }
-  // Prefix alert cutouts with their survey (e.g. "ZTF NEW") so a source's own
-  // and its linked cross-survey tiles are distinguishable.
-  if (survey && ["new", "ref", "sub"].includes(name)) {
-    thumbnailName = `${survey.toUpperCase()} ${thumbnailName}`;
-  }
   return { alt, link, thumbnailName };
 };
 
@@ -112,9 +106,11 @@ interface ThumbnailProps {
   ra: number;
   dec: number;
   name: string;
-  // Survey the cutout came from (e.g. ZTF, LSST); prefixes the title for alert
-  // cutouts. Undefined for archival/legacy tiles.
+  // Survey the cutout came from (e.g. ZTF, LSST), shown beside the title for
+  // alert cutouts. Undefined for archival/legacy tiles.
   survey?: string | undefined;
+  detail?: string | undefined;
+  fieldOfView?: string | undefined;
   src: string;
   size: string;
   minSize: string;
@@ -132,6 +128,8 @@ const Thumbnail = ({
   dec,
   name,
   survey,
+  detail,
+  fieldOfView,
   src,
   size,
   minSize,
@@ -218,12 +216,13 @@ const Thumbnail = ({
     };
   }, [src, name, isFetched, retry]);
 
-  const { alt, link, thumbnailName } = getThumbnailAltAndLink(
-    name,
-    ra,
-    dec,
-    survey,
-  );
+  const { alt, link, thumbnailName } = getThumbnailAltAndLink(name, ra, dec);
+  const headerDetail = [
+    survey && ["new", "ref", "sub"].includes(name) && survey.toUpperCase(),
+    detail,
+  ]
+    .filter(Boolean)
+    .join(" · ");
   const imgClasses = grayscale
     ? `${classes.media} ${classes.inverted}`
     : `${classes.media}`;
@@ -231,8 +230,35 @@ const Thumbnail = ({
   const getThumbnailCard = (
     <>
       <CardHeader
-        sx={{ padding: "0.4rem 0.6rem" }}
-        title={thumbnailName}
+        sx={{
+          padding: "0.4rem 0.6rem",
+          "& .MuiCardHeader-content": { minWidth: 0 },
+        }}
+        title={
+          <Box
+            title={headerDetail}
+            sx={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "baseline",
+              gap: "0.4em",
+            }}
+          >
+            <span>{thumbnailName}</span>
+            {headerDetail && (
+              <Box
+                component="span"
+                sx={{
+                  fontWeight: "normal",
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                }}
+              >
+                {headerDetail}
+              </Box>
+            )}
+          </Box>
+        }
         slotProps={{
           title: {
             sx: {
@@ -282,6 +308,25 @@ const Thumbnail = ({
                   alt="crosshairs"
                 />
               )
+            )}
+            {status === "loaded" && fieldOfView && (
+              <Box
+                component="span"
+                title="Field of view"
+                sx={{
+                  position: "absolute",
+                  left: "0.3rem",
+                  bottom: "0.3rem",
+                  padding: "0 0.3em",
+                  borderRadius: "0.2rem",
+                  backgroundColor: "rgba(0, 0, 0, 0.55)",
+                  color: "white",
+                  fontSize: titleSize,
+                  lineHeight: 1.5,
+                }}
+              >
+                {fieldOfView}
+              </Box>
             )}
           </>
         ) : (
