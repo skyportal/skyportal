@@ -82,9 +82,10 @@ class SharingServiceResponse(BaseModel):
     """A service publishing objects externally (``SharingService``).
 
     ``owner_group_ids`` is not a column: the endpoint derives it from the
-    owning entries of ``groups`` and injects it. The encrypted TNS credentials
-    (``_tns_altdata``) are never serialized, and the ``submissions``
-    relationship is never eager-loaded, so neither is declared.
+    owning entries of ``groups`` and injects it. The encrypted TNS and TROVE
+    credentials (``_tns_altdata``, ``_trove_altdata``) are never serialized,
+    and the ``submissions`` relationship is never eager-loaded, so neither is
+    declared.
     """
 
     model_config = ConfigDict(extra="forbid")
@@ -204,6 +205,7 @@ class SharingServicePost(BaseModel):
     tns_bot_id: int | None = None
     tns_source_group_id: int | None = None
     tns_altdata: dict[str, Any] | None = Field(default=None, alias="_tns_altdata")
+    trove_altdata: dict[str, Any] | None = Field(default=None, alias="_trove_altdata")
     publish_existing_tns_objects: bool | None = None
 
 
