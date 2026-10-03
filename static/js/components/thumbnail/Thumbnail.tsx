@@ -1,5 +1,5 @@
 import { useGetProfileQuery } from "../../ducks/profile";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import Card from "@mui/material/Card";
 import { makeStyles } from "tss-react/mui";
 import Skeleton from "@mui/material/Skeleton";
@@ -37,8 +37,6 @@ const useStyles = makeStyles<{
     left: 0,
   },
 }));
-
-const MAXIMUM_NB_OF_RETRIES = 3;
 
 export const getThumbnailAltAndLink = (
   name: string,
@@ -118,9 +116,7 @@ interface ThumbnailProps {
   titleSize: string;
   grayscale: boolean;
   noMargin?: boolean;
-  // Called when the thumbnail resolves to "no coverage" (blank), so the parent
-  // list can drop it from the display.
-  onUnavailable?: () => void;
+  message?: string | undefined;
 }
 
 const Thumbnail = ({
@@ -137,18 +133,9 @@ const Thumbnail = ({
   titleSize,
   grayscale,
   noMargin = false,
-  onUnavailable,
+  message,
 }: ThumbnailProps) => {
-  const isFetched = name === "ls" || name === "sdss";
-  // Keep the latest callback in a ref so the fetch effect doesn't re-run when
-  // the parent passes a new closure identity.
-  const onUnavailableRef = useRef(onUnavailable);
-  useEffect(() => {
-    onUnavailableRef.current = onUnavailable;
-  }, [onUnavailable]);
-  const [status, setStatus] = useState(defaultState(src));
-  const [retry, setRetry] = useState(0);
-  const [imgSrc, setImgSrc] = useState<string | null>(isFetched ? null : src);
+  const [status, setStatus] = useState(message ?? defaultState(src));
   const invertThumbnails =
     useGetProfileQuery().data?.preferences?.["invertThumbnails"];
   const { classes } = useStyles({
@@ -160,61 +147,8 @@ const Thumbnail = ({
   });
 
   useEffect(() => {
-    setStatus(defaultState(src));
-    setRetry(0);
-    setImgSrc(isFetched ? null : src);
-  }, [src, isFetched]);
-
-  useEffect(() => {
-    if (!isFetched || src === "#") return undefined;
-
-    let cancelled = false;
-    let objectUrl: string | null = null;
-    fetch(src)
-      .then((r) => {
-        if (r.status === 429) {
-          if (retry < MAXIMUM_NB_OF_RETRIES) {
-            // If the request fail due to too many requests, retry after 2 seconds.
-            setTimeout(() => {
-              if (!cancelled) setRetry((prev) => prev + 1);
-            }, 2000);
-            return null;
-          }
-          setStatus("Too Many Requests");
-          return null;
-        }
-        if (r.status === 404 && r.statusText.includes("(ra, dec) is outside")) {
-          setStatus("Outside Survey Area");
-          onUnavailableRef.current?.();
-          return null;
-        }
-        if (!r.ok) {
-          setStatus("Currently Unavailable");
-          return null;
-        }
-        return r.blob();
-      })
-      .then((blob) => {
-        if (cancelled || !blob) return;
-        // If the request succeed but the image is too small for Legacy Survey,
-        // It means the image is a grey placeholder for "outside survey area".
-        if (name === "ls" && blob.size < 1500) {
-          setStatus("Outside Survey Area");
-          onUnavailableRef.current?.();
-          return;
-        }
-        objectUrl = URL.createObjectURL(blob);
-        setImgSrc(objectUrl);
-      })
-      .catch(() => {
-        if (!cancelled) setStatus("Currently Unavailable");
-      });
-
-    return () => {
-      cancelled = true;
-      if (objectUrl) URL.revokeObjectURL(objectUrl);
-    };
-  }, [src, name, isFetched, retry]);
+    setStatus(message ?? defaultState(src));
+  }, [src, message]);
 
   const { alt, link, thumbnailName } = getThumbnailAltAndLink(name, ra, dec);
   const headerDetail = [
@@ -273,28 +207,25 @@ const Thumbnail = ({
       <Box sx={{ position: "relative", aspectRatio: "1 / 1" }}>
         {status === "loading" || status === "loaded" ? (
           <>
-            {imgSrc && (
-              <CardMedia
-                component="img"
-                src={imgSrc}
-                alt={alt}
-                className={imgClasses}
-                title={alt}
-                loading="lazy"
-                style={{
-                  opacity: status === "loaded" ? 1 : 0,
-                  ...(imgSrc?.startsWith("data:")
-                    ? { imageRendering: "pixelated" }
-                    : {}),
-                }}
-                onLoad={() => setStatus("loaded")}
-                onError={(e: any) => {
-                  e.target.onerror = null;
-                  if (src === "#" || isFetched) return;
-                  setStatus("Currently Unavailable");
-                }}
-              />
-            )}
+            <CardMedia
+              component="img"
+              src={src}
+              alt={alt}
+              className={imgClasses}
+              title={alt}
+              loading="lazy"
+              style={{
+                opacity: status === "loaded" ? 1 : 0,
+                ...(src.startsWith("data:")
+                  ? { imageRendering: "pixelated" }
+                  : {}),
+              }}
+              onLoad={() => setStatus("loaded")}
+              onError={(e: any) => {
+                e.target.onerror = null;
+                setStatus("Currently Unavailable");
+              }}
+            />
             {status === "loading" ? (
               <Skeleton
                 className={`${classes.media} ${classes.overlay}`}

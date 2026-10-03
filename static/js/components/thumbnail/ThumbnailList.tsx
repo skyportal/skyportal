@@ -22,6 +22,8 @@ const ARCHIVAL_THUMBNAIL_TYPES = [
   "jwst",
 ];
 const ON_DEMAND_TYPES = ["sm", "hst", "chandra", "jwst"];
+const FETCHED_TYPES = ["sdss", "ls"];
+const MAXIMUM_NB_OF_RETRIES = 3;
 const MAX_VISIBLE_THUMBNAILS = 3;
 const thumbnailTypes = [...ALERT_THUMBNAIL_TYPES, ...ARCHIVAL_THUMBNAIL_TYPES];
 const SURVEY_FIELD_OF_VIEW_ARCSEC: Record<string, number> = {
@@ -43,6 +45,7 @@ interface Tile {
   survey?: string | undefined;
   detail?: string | undefined;
   fieldOfView?: number | undefined;
+  message?: string | undefined;
   src: string;
   grayscale: boolean;
 }
@@ -143,6 +146,74 @@ const pageLabels = (pages: Block[][][]) => {
   });
 };
 
+interface FetchedCutout {
+  url?: string;
+  message?: string;
+  unavailable?: boolean;
+}
+
+const fetchCutout = async (
+  src: string,
+  name: string,
+  signal: AbortSignal,
+  retry = 0,
+): Promise<FetchedCutout> => {
+  const response = await fetch(src, { signal });
+  if (response.status === 429) {
+    if (retry >= MAXIMUM_NB_OF_RETRIES) return { message: "Too Many Requests" };
+    await new Promise((resolve) => setTimeout(resolve, 2000));
+    return fetchCutout(src, name, signal, retry + 1);
+  }
+  if (
+    response.status === 404 &&
+    response.statusText.includes("(ra, dec) is outside")
+  ) {
+    return { unavailable: true };
+  }
+  if (!response.ok) return { message: "Currently Unavailable" };
+  const blob = await response.blob();
+  // Legacy Survey answers outside its footprint with a small grey placeholder.
+  if (name === "ls" && blob.size < 1500) return { unavailable: true };
+  return { url: URL.createObjectURL(blob) };
+};
+
+const useFetchedCutouts = (thumbnails: any[]) => {
+  const requests = JSON.stringify(
+    thumbnails
+      .filter(
+        (t) => FETCHED_TYPES.includes(t.type) && !isPlaceholder(t.public_url),
+      )
+      .map((t) => [`${t.id}`, t.type, t.public_url]),
+  );
+  const [results, setResults] = useState<Record<string, FetchedCutout>>({});
+
+  useEffect(() => {
+    const controller = new AbortController();
+    const urls: string[] = [];
+    setResults({});
+    (JSON.parse(requests) as [string, string, string][]).forEach(
+      ([key, name, src]) => {
+        fetchCutout(src, name, controller.signal)
+          .catch((): FetchedCutout => ({ message: "Currently Unavailable" }))
+          .then((result) => {
+            if (controller.signal.aborted) {
+              if (result.url) URL.revokeObjectURL(result.url);
+              return;
+            }
+            if (result.url) urls.push(result.url);
+            setResults((prev) => ({ ...prev, [key]: result }));
+          });
+      },
+    );
+    return () => {
+      controller.abort();
+      urls.forEach((url) => URL.revokeObjectURL(url));
+    };
+  }, [requests]);
+
+  return results;
+};
+
 interface ThumbnailListProps {
   ra: number;
   dec: number;
@@ -173,11 +244,7 @@ const ThumbnailList = ({
   columns = undefined,
 }: ThumbnailListProps) => {
   const [pageIndex, setPageIndex] = useState(0);
-  const [unavailable, setUnavailable] = useState<Set<string>>(() => new Set());
-  useEffect(() => {
-    setUnavailable(new Set());
-    setPageIndex(0);
-  }, [objID]);
+  useEffect(() => setPageIndex(0), [objID]);
   const [generateSurveyThumbnail, { isLoading: onDemandLoading }] =
     useGenerateSurveyThumbnailMutation();
 
@@ -188,13 +255,18 @@ const ThumbnailList = ({
   const latestArchival = ARCHIVAL_THUMBNAIL_TYPES.flatMap((type) =>
     sortedThumbnails.filter((t) => t.type === type).slice(0, 1),
   );
-  // PanSTARRS is resolved asynchronously on the backend after the source loads.
-  const archivalTiles = ARCHIVAL_THUMBNAIL_TYPES.flatMap((type) => {
-    const latest = latestArchival.find((t) => t.type === type);
-    if (latest) return [toTile(latest)];
-    return type === "ps1" && latestArchival.length > 0
-      ? [{ key: "ps1-loading", name: "ps1", src: "#", grayscale: false }]
-      : [];
+  const fetched = useFetchedCutouts(latestArchival);
+  const archivalTiles = latestArchival.flatMap((t): Tile[] => {
+    if (!FETCHED_TYPES.includes(t.type)) return [toTile(t)];
+    const result = fetched[`${t.id}`];
+    if (!result || result.unavailable) return [];
+    return [
+      {
+        ...toTile(t),
+        src: result.url ?? t.public_url,
+        message: result.message,
+      },
+    ];
   });
 
   const groups = [
@@ -203,11 +275,20 @@ const ThumbnailList = ({
   ]
     .map((group) => ({
       ...group,
-      tiles: group.tiles.filter(
-        (t) => !isPlaceholder(t.src) && !unavailable.has(t.key),
-      ),
+      tiles: group.tiles.filter((t) => !isPlaceholder(t.src)),
     }))
     .filter((group) => group.tiles.length > 0);
+
+  const preload = JSON.stringify(
+    groups
+      .flatMap((group) => group.tiles.map((t) => t.src))
+      .filter((src) => !src.startsWith("blob:") && !src.startsWith("data:")),
+  );
+  useEffect(() => {
+    (JSON.parse(preload) as string[]).forEach((src) => {
+      new Image().src = src;
+    });
+  }, [preload]);
 
   const perRow = columns ?? MAX_VISIBLE_THUMBNAILS;
   const rowsPerPage = columns ? 2 : 1;
@@ -242,11 +323,7 @@ const ThumbnailList = ({
       noMargin={!useGrid && noMargin}
       grayscale={tile.grayscale}
       titleSize={titleSize}
-      onUnavailable={() =>
-        setUnavailable((prev) =>
-          prev.has(tile.key) ? prev : new Set(prev).add(tile.key),
-        )
-      }
+      message={tile.message}
     />
   );
 
