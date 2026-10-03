@@ -190,7 +190,8 @@ const UserInvitations = ({
     pageNumber: 1,
     numPerPage: DEFAULT_NUM_PER_PAGE,
   });
-  const { data: invitationsData } = useGetInvitationsQuery(fetchParams);
+  const { data: invitationsData, isFetching: invitationsFetching } =
+    useGetInvitationsQuery(fetchParams);
   const [inviteUser] = useInviteUserMutation();
   const [updateInvitation] = useUpdateInvitationMutation();
   const [deleteInvitation] = useDeleteInvitationMutation();
@@ -545,6 +546,7 @@ const UserInvitations = ({
           rows={invitationsData?.invitations || []}
           getRowId={(row: any) => row.id}
           getRowHeight={() => "auto"}
+          loading={invitationsFetching}
           paginationMode="server"
           sortingMode="server"
           rowCount={invitationsData?.totalMatches ?? 0}
