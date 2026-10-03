@@ -62,6 +62,7 @@ from skyportal.models import (
 )
 from skyportal.utils.crossmatch import (
     DEFAULT_CUMPROB,
+    cone_from_localization_name,
     credible_levels_in_localization,
     equatorial_to_galactic,
     great_circle_distance,
@@ -124,6 +125,8 @@ DEFAULTS = {
 }
 
 ANNOTATION_ORIGIN = "GCN-crossmatch"
+
+SKYMAP_COLUMNS = ["uniq", "probdensity", "distmu", "distsigma", "distnorm", "contour"]
 
 # Brokers rate-limit per account, not per query, so a 429 means every later call
 # this window fails too -- and the quota is shared with the rest of the app, so
@@ -550,6 +553,12 @@ async def ingest_match_photometry(session, user, broker, obj_id, survey, permiss
         return False
 
 
+async def load_skymap(session, localization):
+    """Fetch a localization's deferred skymap columns, unless already loaded."""
+    if sa.inspect(localization).unloaded.intersection(SKYMAP_COLUMNS):
+        await session.refresh(localization, SKYMAP_COLUMNS)
+
+
 async def process_event_filter(
     session, user, event, localization, filter_, state, config=None, archival=False
 ):
@@ -561,6 +570,8 @@ async def process_event_filter(
     counterpart.
     """
     cumprob = float(conf(config, "cumprob"))
+    if cone_from_localization_name(localization.localization_name) is None:
+        await load_skymap(session, localization)
     cone = search_cone(
         localization,
         max_radius_deg=float(conf(config, "max_radius_deg")),
@@ -577,6 +588,7 @@ async def process_event_filter(
         filter_.broker.broker_class.implements().get("filter_pipeline") == "mongo"
     )
     if cone is None and supports_moc:
+        await load_skymap(session, localization)
         moc = localization_moc(
             localization,
             credible_level=max(
@@ -760,7 +772,7 @@ async def process_event_filter(
     event_dateobs = event.dateobs
     state_id = state.id
     user_id = user.id
-    distance_at = distance_lookup(localization)
+    distance_at = distance_lookup(localization) if levels else None
 
     for index in sorted(levels):
         alert = keep[index]
@@ -860,15 +872,22 @@ async def associate_events(session, user, config=None):
         return 0
 
     dateobs_list = sorted(event.dateobs for event in recent)
+    skymaps = {}
+
+    async def skymap(dateobs):
+        if dateobs not in skymaps:
+            skymaps[dateobs] = await newest_localization(session, user, dateobs)
+        return skymaps[dateobs]
+
     found = 0
     for index, dateobs in enumerate(dateobs_list):
-        localization = await newest_localization(session, user, dateobs)
-        if localization is None:
-            continue
         for other in dateobs_list[index + 1 :]:
             if other - dateobs > window:
                 break  # sorted, so everything later is further away
-            other_localization = await newest_localization(session, user, other)
+            localization = await skymap(dateobs)
+            if localization is None:
+                break
+            other_localization = await skymap(other)
             if other_localization is None:
                 continue
             try:
@@ -904,6 +923,7 @@ async def associate_events(session, user, config=None):
                 )
             )
             found += 1
+        skymaps.pop(dateobs, None)
     await session.commit()
     if found:
         log(f"Recorded {found} new event association(s)")
@@ -1003,21 +1023,17 @@ async def retract_superseded_matches(
 
 
 async def newest_localization(session, user, dateobs):
-    """The most recent localization for an event, with its skymap loaded."""
-    return await session.scalar(
-        Localization.select(
-            user,
-            options=[
-                undefer(Localization.uniq),
-                undefer(Localization.probdensity),
-                # a skymap-named localization bounds its cone from the contour,
-                # which is deferred and cannot lazy-load in an async session
-                undefer(Localization.contour),
-            ],
+    """The most recent localization's skymap for an event, as a plain row."""
+    return (
+        await session.execute(
+            Localization.select(
+                user, columns=[Localization.uniq, Localization.probdensity]
+            )
+            .where(Localization.dateobs == dateobs)
+            .order_by(Localization.created_at.desc())
+            .limit(1)
         )
-        .where(Localization.dateobs == dateobs)
-        .order_by(Localization.created_at.desc())
-    )
+    ).first()
 
 
 async def run_cycle(config=None, user_id=1):
@@ -1106,16 +1122,8 @@ async def run_cycle(config=None, user_id=1):
                         selectinload(GcnEvent._tags),
                         # tags eagerly: event_matches reads them, and a lazy
                         # load in an async session raises MissingGreenlet.
-                        selectinload(GcnEvent.localizations).options(
-                            selectinload(Localization.tags),
-                            # deferred arrays: distance_lookup reads them, and a
-                            # lazy load in an async session raises MissingGreenlet
-                            undefer(Localization.uniq),
-                            undefer(Localization.probdensity),
-                            undefer(Localization.contour),
-                            undefer(Localization.distmu),
-                            undefer(Localization.distsigma),
-                            undefer(Localization.distnorm),
+                        selectinload(GcnEvent.localizations).selectinload(
+                            Localization.tags
                         ),
                     )
                 )
@@ -1261,6 +1269,7 @@ async def run_cycle(config=None, user_id=1):
                                 f"{filter_.name} ({broker.name}): {message}"
                             )
                     await session.commit()
+                session.expire(localization, SKYMAP_COLUMNS)
 
         try:
             await associate_events(session, user, config)
@@ -1365,7 +1374,11 @@ def distance_lookup(localization):
     expensive, so it happens once per localization and is then indexed per
     candidate.
     """
-    if not localization.is_3d:
+    # is_3d would lazy-load a cone's unloaded arrays; from_cone has no distance
+    if (
+        cone_from_localization_name(localization.localization_name) is not None
+        or not localization.is_3d
+    ):
         return lambda ra, dec: None
 
     try:
