@@ -48,9 +48,12 @@ docker-images: docker-local
 
 docker-local: ## Build docker images locally
 	cd baselayer && git submodule update --init --remote
+	@# the image has no .git, so sysinfo and deployments read the log from data/
+	PYTHONPATH=. python3 -c "import json; from skyportal.utils.gitlog import get_gitlog; json.dump(get_gitlog(), open('data/gitlog-skyportal.json', 'w'))"
 	docker build -t $(DOCKER_IMAGENAME) \
 		--build-arg SKYPORTAL_UID=$(SKYPORTAL_UID) \
-		--build-arg SKYPORTAL_GID=$(SKYPORTAL_GID) .
+		--build-arg SKYPORTAL_GID=$(SKYPORTAL_GID) . ; \
+		status=$$?; rm -f data/gitlog-skyportal.json; exit $$status
 
 doc_reqs: | baselayer/Makefile
 	uv sync --group docs --inexact

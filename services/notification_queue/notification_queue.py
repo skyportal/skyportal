@@ -1,8 +1,11 @@
 import asyncio
+import html
 import json
 import operator
 import string
+import textwrap
 import time
+from concurrent.futures import ThreadPoolExecutor
 from threading import Thread
 
 import arrow
@@ -24,9 +27,13 @@ from skyportal.models import (
     Classification,
     Comment,
     DBSession,
+    Deployment,
     EventObservationPlan,
     FacilityTransaction,
+    Feedback,
+    FeedbackReply,
     FollowupRequest,
+    FollowupRequestUser,
     GcnEvent,
     GcnEventExtraction,
     GcnNotice,
@@ -38,12 +45,15 @@ from skyportal.models import (
     Localization,
     ObjAnalysis,
     ObservationPlanRequest,
+    RoleACL,
     Shift,
     ShiftUser,
     Source,
     Spectrum,
     User,
+    UserACL,
     UserNotification,
+    UserRole,
 )
 from skyportal.utils.app import get_app_base_url
 from skyportal.utils.email import send_email
@@ -55,6 +65,9 @@ from skyportal.utils.gcn_extraction_tags import (
     wants_classification,
 )
 from skyportal.utils.notifications import (
+    escape_markdown,
+    escape_slack,
+    feedback_notification_text,
     gcn_email_notification,
     gcn_notification_content,
     gcn_slack_notification,
@@ -66,6 +79,8 @@ from skyportal.utils.notifications import (
 
 env, cfg = load_env()
 log = make_log("notification_queue")
+
+FEEDBACK_CATEGORIES = {"bug": "bug report", "change": "change request"}
 
 init_db(**cfg["database"])
 
@@ -99,6 +114,8 @@ op_options = [
 def notification_resource_type(target):
     if not target["notification_type"]:
         return None
+    if target["notification_type"].startswith("feedback"):
+        return "feedback"
     if (
         "favorite_sources" not in target["notification_type"]
         and "gcn_events" not in target["notification_type"]
@@ -165,6 +182,8 @@ def user_preferences(target, notification_setting, resource_type):
             "mention",
             "analysis_services",
             "observation_plans",
+            "deployments",
+            "feedback",
         ]:
             if not prefs.get(resource_type, False):
                 return
@@ -209,6 +228,11 @@ def send_slack_notification(target):
                         target=target, data=target["content"]
                     ),
                 }
+            )
+        elif resource_type == "feedback" and target.get("content"):
+            text = feedback_notification_text(target["content"], escape_slack)
+            data = json.dumps(
+                {"url": integration_url, "text": f"{text} ({app_url}{target['url']})"}
             )
         else:
             data = json.dumps(
@@ -283,6 +307,21 @@ def send_email_notification(target):
 
         elif resource_type == "group_admission_request":
             subject = f"{cfg['app.title']} - New group admission request"
+
+        elif resource_type == "deployments":
+            subject = f"{cfg['app.title']} - New deployment"
+
+        elif resource_type == "feedback":
+            subject = (
+                f"{cfg['app.title']} - Reply to your feedback"
+                if target["notification_type"] == "feedback_reply"
+                else f"{cfg['app.title']} - New feedback"
+            )
+            if target.get("content"):
+                text = feedback_notification_text(
+                    target["content"], html.escape, bold=""
+                )
+                body = f"<p>{text}</p><p><a href='{app_url}{target['url']}'>View in {cfg['app.title']}</a></p>"
 
         if subject and target["user"]["contact_email"]:
             try:
@@ -456,12 +495,27 @@ def push_frontend_notification(target):
 
 
 def users_on_shift(session):
-    users = session.scalars(
-        sa.select(ShiftUser).where(
-            ShiftUser.shift_id == Shift.id,
-        )
+    now = arrow.utcnow().datetime
+    return session.scalars(
+        sa.select(ShiftUser.user_id)
+        .join(Shift, Shift.id == ShiftUser.shift_id)
+        .where(Shift.start_date <= now, Shift.end_date >= now)
+        .distinct()
     ).all()
-    return [user.user_id for user in users]
+
+
+def shift_users_with_access(session, allocation_id):
+    shift_users = session.scalars(
+        sa.select(User).where(User.id.in_(users_on_shift(session)))
+    ).all()
+    return [
+        shift_user.id
+        for shift_user in shift_users
+        if session.scalar(
+            Allocation.select(shift_user).where(Allocation.id == allocation_id)
+        )
+        is not None
+    ]
 
 
 queue = []
@@ -488,18 +542,39 @@ def service(queue):
 
 
 def api(queue):
+    processor = ThreadPoolExecutor(max_workers=1)
+
     class QueueHandler(tornado.web.RequestHandler):
         def get(self):
             self.set_header("Content-Type", "application/json")
             self.write({"status": "success", "data": {"queue_length": len(queue)}})
 
-        async def post(self):
+        def post(self):
             try:
                 data = tornado.escape.json_decode(self.request.body)
             except json.JSONDecodeError:
                 self.set_status(400)
                 return self.write({"status": "error", "message": "Malformed JSON data"})
+            if "target_class_name" not in data or "target_id" not in data:
+                self.set_status(400)
+                return self.write(
+                    {
+                        "status": "error",
+                        "message": "Missing target_class_name or target_id",
+                    }
+                )
 
+            processor.submit(self.process, data)
+            self.write(
+                {
+                    "status": "success",
+                    "message": "Notification request accepted into queue",
+                    "data": {"queue_length": len(queue)},
+                }
+            )
+
+        @staticmethod
+        def process(data):
             target_class_name = data["target_class_name"]
             target_id = data["target_id"]
             target_content = None
@@ -516,6 +591,9 @@ def api(queue):
             is_analysis_service = target_class_name == "ObjAnalysis"
             is_observation_plan = target_class_name == "EventObservationPlan"
             is_followup_request = target_class_name == "FollowupRequest"
+            is_deployment = target_class_name == "Deployment"
+            is_feedback = target_class_name == "Feedback"
+            is_feedback_reply = target_class_name == "FeedbackReply"
 
             with DBSession() as session:
                 try:
@@ -590,6 +668,31 @@ def api(queue):
                                 # this happens if the followup request is deleted
                                 # in the future, maybe we'll want to notify on deletion?
                                 return
+                            if target_data["status"].startswith(
+                                ("submitted", "In progress")
+                            ):
+                                return
+                            allocation = session.scalars(
+                                sa.select(Allocation).where(
+                                    Allocation.id == target_data["allocation_id"]
+                                )
+                            ).first()
+                            instrument = allocation.instrument
+                            notification_user_ids = {
+                                allocation_user.user_id
+                                for allocation_user in allocation.allocation_users
+                            } | set(
+                                session.scalars(
+                                    sa.select(FollowupRequestUser.user_id).where(
+                                        FollowupRequestUser.followuprequest_id
+                                        == target_id
+                                    )
+                                )
+                            )
+                            notification_user_ids.add(target_data["requester_id"])
+                            notification_user_ids.update(
+                                shift_users_with_access(session, allocation.id)
+                            )
                     elif is_analysis_service:
                         users = session.scalars(
                             sa.select(User).where(
@@ -630,6 +733,57 @@ def api(queue):
                             .first()
                             .to_dict()
                         )
+                    elif is_deployment:
+                        users = session.scalars(
+                            sa.select(User).where(
+                                User.preferences["notifications"]["deployments"][
+                                    "active"
+                                ]
+                                .astext.cast(sa.Boolean)
+                                .is_(True)
+                            )
+                        ).all()
+                        target_class = Deployment
+                        target_data = (
+                            session.scalars(
+                                sa.select(Deployment).where(Deployment.id == target_id)
+                            )
+                            .first()
+                            .to_dict()
+                        )
+                    elif is_feedback:
+                        admin_ids = sa.union(
+                            sa.select(UserACL.user_id).where(
+                                UserACL.acl_id == "System admin"
+                            ),
+                            sa.select(UserRole.user_id)
+                            .join(RoleACL, RoleACL.role_id == UserRole.role_id)
+                            .where(RoleACL.acl_id == "System admin"),
+                        )
+                        users = session.scalars(
+                            sa.select(User).where(User.id.in_(admin_ids))
+                        ).all()
+                        target_class = Feedback
+                        feedback = session.scalar(
+                            sa.select(Feedback).where(Feedback.id == target_id)
+                        )
+                        target_data = {
+                            **feedback.to_dict(),
+                            "author": feedback.author.username,
+                        }
+                    elif is_feedback_reply:
+                        target_class = FeedbackReply
+                        reply = session.scalar(
+                            sa.select(FeedbackReply).where(
+                                FeedbackReply.id == target_id
+                            )
+                        )
+                        users = [reply.feedback.author]
+                        target_data = {
+                            **reply.to_dict(),
+                            "author": reply.author.username,
+                            "category": reply.feedback.category,
+                        }
                     elif is_group_admission_request:
                         target_class = GroupAdmissionRequest
                         target_data = (
@@ -1063,22 +1217,11 @@ def api(queue):
                                                 "requester_id"
                                             ]
                                         )
-                                        shift_user_ids = users_on_shift(session)
-                                        for shift_user_id in shift_user_ids:
-                                            user = session.scalar(
-                                                sa.select(User).where(
-                                                    User.id == shift_user_id
-                                                )
+                                        notification_user_ids += (
+                                            shift_users_with_access(
+                                                session, allocation_id
                                             )
-                                            check_access = session.scalar(
-                                                Allocation.select(user).where(
-                                                    Allocation.id == allocation_id
-                                                )
-                                            )
-                                            if check_access is not None:
-                                                notification_user_ids.append(
-                                                    shift_user_id
-                                                )
+                                        )
                                         notification_user_ids = list(
                                             set(notification_user_ids)
                                         )
@@ -1093,66 +1236,24 @@ def api(queue):
                                             )
                                             session.add(notification)
                                             session.commit()
-                                            queue.append(notification.id)
+                                            target = {
+                                                **notification.to_dict(),
+                                                "user": {
+                                                    **notification.user.to_dict(),
+                                                    "preferences": notification.user.preferences,
+                                                },
+                                            }
+                                            queue.append(target)
                                 elif is_followup_request:
-                                    if target_data["status"].startswith("submitted"):
-                                        continue
-                                    allocation_id = target_data["allocation_id"]
-                                    allocation = session.scalars(
-                                        sa.select(Allocation).where(
-                                            Allocation.id == allocation_id
-                                        )
-                                    ).first()
-                                    notification_user_ids = [
-                                        allocation_user.user.id
-                                        for allocation_user in allocation.allocation_users
-                                    ] + [
-                                        watcher["user_id"]
-                                        for watcher in target_data.get("watchers", [])
-                                    ]
-                                    notification_user_ids.append(
-                                        target_data["requester_id"]
-                                    )
-                                    notification_user_ids.append(
-                                        target_data["last_modified_by_id"]
-                                    )
-
-                                    last_modified_by = session.scalars(
-                                        sa.select(User).where(
-                                            User.id
-                                            == target_data["last_modified_by_id"]
-                                        )
-                                    ).first()
-
-                                    shift_user_ids = users_on_shift(session)
-                                    for shift_user_id in shift_user_ids:
-                                        user = session.scalar(
-                                            sa.select(User).where(
-                                                User.id == shift_user_id
-                                            )
-                                        )
-                                        check_access = session.scalar(
-                                            Allocation.select(user).where(
-                                                Allocation.id == allocation_id
-                                            )
-                                        )
-                                        if check_access is not None:
-                                            notification_user_ids.append(shift_user_id)
-                                    notification_user_ids = list(
-                                        set(notification_user_ids)
-                                    )
-
-                                    instrument = allocation.instrument
                                     if user.id in notification_user_ids:
                                         notification = UserNotification(
                                             user=user,
-                                            text=f"Follow-up submission for object *{target_data['obj_id']}* by *{instrument.name}* updated by user *{last_modified_by.username}*",
+                                            text=f"Follow-up request for object *{target_data['obj_id']}* by *{instrument.name}*: {textwrap.shorten(target_data['status'], 120, placeholder='...')}",
                                             notification_type="facility_transactions",
                                             url=f"/source/{target_data['obj_id']}",
                                         )
                                         session.add(notification)
                                         session.commit()
-                                        target = notification.to_dict()
                                         target = {
                                             **notification.to_dict(),
                                             "user": {
@@ -1266,6 +1367,65 @@ def api(queue):
                                             },
                                         }
                                         queue.append(target)
+                                elif is_deployment:
+                                    commit = target_data["commit"] or {}
+                                    text = (
+                                        f"New deployment of *{cfg['app.title']}*: "
+                                        f"SkyPortal *{target_data['version']}*"
+                                    )
+                                    if commit.get("sha"):
+                                        text += f" ({commit['sha']}: {commit.get('description', '')})"
+                                    notification = UserNotification(
+                                        user=user,
+                                        text=text,
+                                        notification_type="deployments",
+                                        url="/deployments",
+                                    )
+                                    session.add(notification)
+                                    session.commit()
+                                    target = {
+                                        **notification.to_dict(),
+                                        "user": {
+                                            **notification.user.to_dict(),
+                                            "preferences": notification.user.preferences,
+                                        },
+                                    }
+                                    queue.append(target)
+                                elif is_feedback or is_feedback_reply:
+                                    if user.id == target_data["author_id"]:
+                                        continue
+                                    label = FEEDBACK_CATEGORIES.get(
+                                        target_data["category"], "message"
+                                    )
+                                    content = {
+                                        "author": target_data["author"],
+                                        "label": label,
+                                        "snippet": textwrap.shorten(
+                                            target_data["text"], 120, placeholder="..."
+                                        ),
+                                        "reply": is_feedback_reply,
+                                    }
+                                    notification = UserNotification(
+                                        user=user,
+                                        text=feedback_notification_text(
+                                            content, escape_markdown
+                                        ),
+                                        notification_type="feedback_reply"
+                                        if is_feedback_reply
+                                        else "feedback",
+                                        url="/deployments?tab=feedback",
+                                    )
+                                    session.add(notification)
+                                    session.commit()
+                                    target = {
+                                        **notification.to_dict(),
+                                        "user": {
+                                            **notification.user.to_dict(),
+                                            "preferences": notification.user.preferences,
+                                        },
+                                        "content": content,
+                                    }
+                                    queue.append(target)
                                 elif is_group_admission_request:
                                     user_from_request = session.scalars(
                                         sa.select(User).where(
@@ -1621,22 +1781,9 @@ def api(queue):
 
                     if failure_count == nb_users and nb_users > 0:
                         log("Failed to notify all users")
-                        raise Exception("Failed to notify all users")
-                    self.set_status(200)
-                    return self.write(
-                        {
-                            "status": "success",
-                            "message": f"Notification accepted into queue for {nb_users - failure_count} out of {nb_users} users",
-                            "data": {"queue_length": len(queue)},
-                        }
-                    )
                 except Exception as e:
                     log(f"Error processing notification: {str(e)}")
                     DBSession().rollback()
-                    self.set_status(400)
-                    return self.write(
-                        {"status": "error", "message": "Error processing notification"}
-                    )
 
     app = tornado.web.Application([(r"/", QueueHandler)])
     try:

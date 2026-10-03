@@ -14,8 +14,10 @@ from .classification import *
 from .comment import *
 from .cosmo import cosmo
 from .data_access_request import *
+from .deployment import *
 from .earthquake import *
 from .facility_transaction import *
+from .feedback import *
 from .filter import *
 from .followup_request import *
 from .galaxy import *

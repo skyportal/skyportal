@@ -187,6 +187,7 @@ const SidebarAndHeader = () => {
 
   function mouseLeave() {
     clearTimeout(timerRef.current);
+    if (!temporaryOpen) return;
     setTemporaryOpen(false);
     {% for group in app.sidebar -%}
       {% if not group.name.startswith('main') %}
@@ -292,6 +293,8 @@ const SidebarAndHeader = () => {
         data-testid="tour-nav-gcn"
         {%- elif item.url == '/brokers' %}
         data-testid="tour-nav-brokers"
+        {%- elif item.url == '/deployments' %}
+        data-testid="tour-nav-deployments"
         {%- endif %}
         disablePadding
         sx={{ "{{ display: 'block' }}" }}
@@ -338,7 +341,15 @@ const SidebarAndHeader = () => {
       false) && (
     {% endif %}
     <>
-      <ListItem {...({ name: "sidebar{{ group.name }}Button" } as any)} disablePadding sx={{ "{{ display: 'block' }}"}} className={classes.link}>
+      <ListItem
+        {...({ name: "sidebar{{ group.name }}Button" } as any)}
+        {%- if group.name == 'Other' %}
+        data-testid="tour-nav-other"
+        {%- endif %}
+        disablePadding
+        sx={{ "{{ display: 'block' }}"}}
+        className={classes.link}
+      >
         <ListItemButton
             sx={{"{{
               minHeight: 48,

@@ -3,6 +3,7 @@ import json
 import os
 import pathlib
 import random
+import time
 import uuid
 from itertools import cycle, islice
 from tempfile import mkdtemp
@@ -65,35 +66,38 @@ print("Setting test database to:", cfg["database"])
 init_db(**cfg["database"])
 
 
-def resilient_delete(model, obj_id):
+def resilient_delete(model, obj_id, attempts=5):
     """Delete a row by id in a factory teardown, recovering from stale-cascade
     failures.
 
     Frontend tests routinely modify association rows (e.g. group_users) through
     the app. That leaves the shared ORM session's cascade relationships stale, so
     the teardown's ``delete`` flush raises StaleDataError ("expected to delete N
-    row(s); only M matched") and poisons the session for every later test. On
-    failure we roll back, drop all cached state, and retry against current DB
-    state so a single teardown can never cascade across the suite.
+    row(s); only M matched") and poisons the session for every later test. The
+    cascade can also deadlock with app background work still writing to the
+    deleted rows (e.g. localization properties). On failure we roll back, drop
+    all cached state, and retry against current DB state a few times, so a
+    single teardown can never cascade across the suite.
     """
-    obj = (
-        DBSession()
-        .execute(sa.select(model).filter(model.id == obj_id))
-        .scalars()
-        .first()
-    )
-    if obj is None:
-        return
-    try:
-        DBSession().delete(obj)
-        DBSession().commit()
-    except Exception:
-        DBSession().rollback()
-        DBSession().expire_all()
-        obj = DBSession().get(model, obj_id)
-        if obj is not None:
+    for attempt in range(attempts):
+        obj = (
+            DBSession()
+            .execute(sa.select(model).filter(model.id == obj_id))
+            .scalars()
+            .first()
+        )
+        if obj is None:
+            return
+        try:
             DBSession().delete(obj)
             DBSession().commit()
+            return
+        except Exception:
+            DBSession().rollback()
+            DBSession().expire_all()
+            if attempt == attempts - 1:
+                raise
+            time.sleep(attempt + 1)
 
 
 def load_localization_data(path):

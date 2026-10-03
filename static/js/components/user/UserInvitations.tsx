@@ -1,10 +1,9 @@
 import { useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 
-import Paper from "@mui/material/Paper";
 import Chip from "@mui/material/Chip";
+import TextField from "@mui/material/TextField";
 import Typography from "@mui/material/Typography";
-import TextareaAutosize from "@mui/material/TextareaAutosize";
 import Box from "@mui/material/Box";
 import Select from "@mui/material/Select";
 import MenuItem from "@mui/material/MenuItem";
@@ -31,7 +30,10 @@ import utc from "dayjs/plugin/utc";
 import { showNotification } from "baselayer/components/Notifications";
 import Button from "../Button";
 import ExpandableCell from "../ExpandableCell";
-import StyledDataGrid, { DataGridToolbar } from "../StyledDataGrid";
+import StyledDataGrid, {
+  DataGridToolbar,
+  FULL_PAGE_HEIGHT_WITH_TABS,
+} from "../StyledDataGrid";
 import FormValidationError from "../FormValidationError";
 import ConfirmDeletionDialog from "../ConfirmDeletionDialog";
 import { useGetProfileQuery } from "../../ducks/profile";
@@ -75,6 +77,33 @@ const chipCellSx = {
   ".MuiDataGrid-cell:hover & > .MuiIconButton-root": { display: "inline-flex" },
 } as const;
 
+const dialogFormSx = {
+  display: "flex",
+  flexDirection: "column",
+  gap: 2,
+  mt: 1,
+} as const;
+
+const formatDate = (date?: string) =>
+  date ? dayjs.utc(date).format("YYYY/MM/DD") : "";
+
+const parseList = (value: string, options?: any) =>
+  PapaParse.parse(value.trim(), { delimiter: " ", ...options }).data[0];
+
+const parseCsv = (csv: string) =>
+  PapaParse.parse(csv.trim(), { delimiter: ",", skipEmptyLines: "greedy" })
+    .data as any[];
+
+const validateBulkInvite = (csv: string) => {
+  const rows = parseCsv(csv);
+  if (!rows.length) return "Please enter at least one invitation";
+  const invalid = rows.find(
+    (row) =>
+      row.length < 4 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(row[0].trim()),
+  );
+  return invalid ? `Invalid line: ${invalid.join(",")}` : true;
+};
+
 const renderExpirationDateHeader = () => (
   <Box sx={{ display: "flex", alignItems: "center" }}>
     Expiration Date
@@ -99,12 +128,12 @@ const InvitationsToolbar = ({
         <FilterListIcon />
       </IconButton>
     </Tooltip>
-    {filters.map((chip: string) => (
+    {Object.entries(filters).map(([key, value]) => (
       <Chip
-        key={chip}
-        label={chip}
+        key={key}
+        label={`${key}: ${value}`}
         size="small"
-        onDelete={() => onDeleteFilter(chip)}
+        onDelete={() => onDeleteFilter(key)}
       />
     ))}
   </DataGridToolbar>
@@ -114,27 +143,23 @@ const AddEntitiesDialog = ({
   kind,
   open,
   onClose,
-  email,
-  options,
+  invitation,
+  entities,
   control,
   error,
   onSubmit,
 }: any) => {
-  const singular = ENTITIES[kind as EntityKind].singular.toLowerCase();
+  const { field, singular } = ENTITIES[kind as EntityKind];
   return (
     <Dialog open={open} onClose={onClose}>
       <DialogTitle>
-        {`Add selected ${singular}s to invitation for ${email}:`}
+        {`Add selected ${singular.toLowerCase()}s to invitation for ${invitation?.user_email}:`}
       </DialogTitle>
       <DialogContent>
-        <Box
-          component="form"
-          onSubmit={onSubmit}
-          sx={{ display: "flex", flexDirection: "column", gap: 2, mt: 1 }}
-        >
+        <Box component="form" onSubmit={onSubmit} sx={dialogFormSx}>
           {error && (
             <FormValidationError
-              message={`Please select at least one ${singular}`}
+              message={`Please select at least one ${singular.toLowerCase()}`}
             />
           )}
           <Controller
@@ -148,7 +173,10 @@ const AddEntitiesDialog = ({
                 label={`Select ${kind}`}
                 value={value}
                 onChange={(_e, data) => onChange(data)}
-                options={options}
+                options={entities.filter(
+                  (entity: any) =>
+                    !invitation?.[field]?.some((e: any) => e.id === entity.id),
+                )}
                 getOptionLabel={(entity: any) => entity.name}
                 filterSelectedOptions
                 error={error}
@@ -171,23 +199,27 @@ const AddEntitiesDialog = ({
   );
 };
 
-const UserInvitations = () => {
+const UserInvitations = ({
+  bulkInviteOpen,
+  onCloseBulkInvite,
+}: {
+  bulkInviteOpen: boolean;
+  onCloseBulkInvite: () => void;
+}) => {
   const dispatch = useAppDispatch();
   const { data: currentUser } = useGetProfileQuery();
   const { data: streams } = useGetStreamsQuery();
   const allGroups = useGetGroupsQuery().data?.all;
   const authBackends = (useGetConfigQuery().data as any)?.authBackends ?? [];
-  const [rowsPerPage, setRowsPerPage] = useState(DEFAULT_NUM_PER_PAGE);
   const [fetchParams, setFetchParams] = useState<any>({
     pageNumber: 1,
     numPerPage: DEFAULT_NUM_PER_PAGE,
   });
-  const { data: invitationsData } = useGetInvitationsQuery(fetchParams);
+  const { data: invitationsData, isFetching: invitationsFetching } =
+    useGetInvitationsQuery(fetchParams);
   const [inviteUser] = useInviteUserMutation();
   const [updateInvitation] = useUpdateInvitationMutation();
   const [deleteInvitation] = useDeleteInvitationMutation();
-  const [csvData, setCsvData] = useState("");
-  const [tableFilterList, setTableFilterList] = useState<string[]>([]);
   const [filterOpen, setFilterOpen] = useState(false);
   const [openDialog, setOpenDialog] = useState<string | null>(null);
   const [clickedInvitation, setClickedInvitation] = useState<any>(null);
@@ -208,6 +240,22 @@ const UserInvitations = () => {
     return <div>Access denied: Insufficient permissions.</div>;
 
   const groups = allGroups.filter((group) => !group["single_user_group"]);
+  const { pageNumber, numPerPage, ...filters } = fetchParams;
+  const closeDialog = () => setOpenDialog(null);
+
+  const runAndNotify = async (
+    action: () => Promise<unknown>,
+    message: string,
+  ) => {
+    try {
+      await action();
+      dispatch(showNotification(message));
+      return true;
+    } catch {
+      // error notification handled by the base query
+      return false;
+    }
+  };
 
   const updateAndNotify = async (
     invitationID: any,
@@ -215,16 +263,14 @@ const UserInvitations = () => {
     message = "Invitation successfully updated.",
     resetValues?: any,
   ) => {
-    try {
-      await updateInvitation({ invitationID, payload }).unwrap();
-      dispatch(showNotification(message));
-      if (resetValues) {
-        reset(resetValues);
-        setOpenDialog(null);
-        setClickedInvitation(null);
-      }
-    } catch {
-      // error notification handled by the base query
+    const updated = await runAndNotify(
+      () => updateInvitation({ invitationID, payload }).unwrap(),
+      message,
+    );
+    if (updated && resetValues) {
+      reset(resetValues);
+      closeDialog();
+      setClickedInvitation(null);
     }
   };
 
@@ -277,80 +323,49 @@ const UserInvitations = () => {
     );
   };
 
-  const handleDeleteInvitation = async () => {
-    setOpenDialog(null);
-    try {
-      await deleteInvitation(clickedInvitation.id).unwrap();
-      dispatch(showNotification("Invitation successfully deleted."));
-    } catch {
-      // error notification handled by the base query
-    }
+  const handleDeleteInvitation = () => {
+    closeDialog();
+    return runAndNotify(
+      () => deleteInvitation(clickedInvitation.id).unwrap(),
+      "Invitation successfully deleted.",
+    );
   };
 
-  const handleClickAddUsers = async () => {
-    const parseList = (value: string, options?: any) =>
-      PapaParse.parse(value.trim(), { delimiter: " ", ...options }).data[0];
-    const rows = PapaParse.parse(csvData.trim(), {
-      delimiter: ",",
-      skipEmptyLines: "greedy",
-    }).data as any[];
-    try {
-      await Promise.all(
-        rows.map((row: any) =>
-          inviteUser({
-            userEmail: row[0].trim(),
-            streamIDs: parseList(row[1]),
-            groupIDs: parseList(row[2]),
-            groupAdmin: parseList(row[3], {
-              dynamicTyping: true,
-              quotes: false,
-            }),
-            userExpirationDate: row[4]?.trim(),
-          }).unwrap(),
+  const handleBulkInvite = async (formData: any) => {
+    const rows = parseCsv(formData.bulkInviteCSV);
+    const invited = await runAndNotify(
+      () =>
+        Promise.all(
+          rows.map((row) =>
+            inviteUser({
+              userEmail: row[0].trim(),
+              streamIDs: parseList(row[1]),
+              groupIDs: parseList(row[2]),
+              groupAdmin: parseList(row[3], {
+                dynamicTyping: true,
+                quotes: false,
+              }),
+              userExpirationDate: row[4]?.trim(),
+            }).unwrap(),
+          ),
         ),
-      );
-      dispatch(showNotification("User(s) invitation(s) successfully created."));
-      setCsvData("");
-    } catch {
-      // error notification handled by the base query
+      "User(s) invitation(s) successfully created.",
+    );
+    if (invited) {
+      reset({ bulkInviteCSV: "" });
+      onCloseBulkInvite();
     }
   };
 
   const handleFilterSubmit = (formData: any) => {
-    Object.keys(formData).forEach(
-      (key) => !formData[key] && delete formData[key],
-    );
-    setTableFilterList(
-      Object.entries(formData).map(([key, value]) => `${key}: ${value}`),
-    );
     setFetchParams({
       pageNumber: 1,
-      numPerPage: fetchParams.numPerPage,
-      ...formData,
+      numPerPage,
+      ...Object.fromEntries(
+        Object.entries(formData).filter(([, value]) => value),
+      ),
     });
     setFilterOpen(false);
-  };
-
-  const handleFilterChipDelete = (chip: string) => {
-    const data: any = {};
-    tableFilterList
-      .filter((c) => c !== chip)
-      .forEach((filterChip) => {
-        const [key, value] = filterChip.split(": ");
-        if (key) {
-          data[key] = value;
-        }
-      });
-    handleFilterSubmit(data);
-  };
-
-  const handlePaginationModelChange = (model: any) => {
-    setRowsPerPage(model.pageSize);
-    setFetchParams({
-      ...fetchParams,
-      numPerPage: model.pageSize,
-      pageNumber: model.page + 1,
-    });
   };
 
   const openInvitationDialog = (invitation: any, dialog: string) => {
@@ -359,9 +374,8 @@ const UserInvitations = () => {
   };
 
   const handleCopyInvitationLink = (invitation: any) => {
-    const appBaseUrl = `${window.location.protocol}//${window.location.host}`;
     navigator.clipboard.writeText(
-      `${appBaseUrl}/login/${authBackends[0]?.name}/?invite_token=${invitation.token}`,
+      `${window.location.origin}/login/${authBackends[0]?.name}/?invite_token=${invitation.token}`,
     );
     dispatch(
       showNotification(
@@ -395,7 +409,7 @@ const UserInvitations = () => {
 
   const renderRole = ({ row: invitation }: any) => (
     <Box sx={cellSx}>
-      {invitation.role_id}
+      <Chip label={invitation.role_id} />
       <IconButton
         aria-label="edit-invitation-role"
         data-testid={`editInvitationRoleButton${invitation.user_email}`}
@@ -443,9 +457,7 @@ const UserInvitations = () => {
           : undefined,
       }}
     >
-      {invitation.user_expiration_date
-        ? dayjs.utc(invitation.user_expiration_date).format("YYYY/MM/DD")
-        : ""}
+      {formatDate(invitation.user_expiration_date)}
       <IconButton
         aria-label="edit-expiration"
         onClick={() => openInvitationDialog(invitation, "date")}
@@ -461,7 +473,7 @@ const UserInvitations = () => {
     {
       field: "role",
       headerName: "Role",
-      minWidth: 120,
+      minWidth: 150,
       renderCell: renderRole,
     },
     {
@@ -483,6 +495,12 @@ const UserInvitations = () => {
       valueGetter: (_value: any, row: any) => row.invited_by?.username,
     },
     {
+      field: "created_at",
+      headerName: "Sent At",
+      minWidth: 120,
+      valueGetter: (_value: any, row: any) => formatDate(row.created_at),
+    },
+    {
       field: "user_expiration_date",
       headerName: "User Expiration Date",
       minWidth: 180,
@@ -498,7 +516,6 @@ const UserInvitations = () => {
   ].map((column: any) => ({
     flex: 1,
     sortable: false,
-    filterable: false,
     ...column,
   }));
 
@@ -521,110 +538,110 @@ const UserInvitations = () => {
   };
 
   return (
-    <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
+    <>
       <Box data-testid="pendingInvitations">
         <StyledDataGrid
-          autoHeight
+          height={FULL_PAGE_HEIGHT_WITH_TABS}
           columns={columns}
           rows={invitationsData?.invitations || []}
-          getRowId={(row: any) => row.id}
           getRowHeight={() => "auto"}
+          loading={invitationsFetching}
           paginationMode="server"
-          sortingMode="server"
           rowCount={invitationsData?.totalMatches ?? 0}
-          paginationModel={{
-            page: fetchParams.pageNumber - 1,
-            pageSize: rowsPerPage,
-          }}
-          onPaginationModelChange={handlePaginationModelChange}
+          paginationModel={{ page: pageNumber - 1, pageSize: numPerPage }}
+          onPaginationModelChange={(model: any) =>
+            setFetchParams({
+              ...fetchParams,
+              numPerPage: model.pageSize,
+              pageNumber: model.page + 1,
+            })
+          }
           disableColumnFilter
           slots={{ toolbar: InvitationsToolbar }}
           slotProps={{
             toolbar: {
-              filters: tableFilterList,
+              filters,
               onOpenFilters: () => setFilterOpen(true),
-              onDeleteFilter: handleFilterChipDelete,
+              onDeleteFilter: (key: string) =>
+                handleFilterSubmit({ ...filters, [key]: undefined }),
             },
           }}
           showToolbar
         />
       </Box>
-      <Paper
-        variant="outlined"
-        sx={{
-          p: 2,
-          display: "flex",
-          flexDirection: "column",
-          alignItems: "flex-start",
-          gap: 2,
-        }}
-      >
-        <Typography variant="h6">Bulk Invite New Users</Typography>
-        <Box>
-          <Typography variant="body2" sx={{ fontFamily: "monospace" }}>
-            email,streamIDs,groupIDs,groupAdmin,expirationDate
-          </Typography>
-          <Typography variant="caption" color="text.secondary">
+      <Dialog open={bulkInviteOpen} onClose={onCloseBulkInvite} fullWidth>
+        <DialogTitle>Bulk invite new users</DialogTitle>
+        <DialogContent>
+          <Typography
+            variant="caption"
+            sx={{ display: "block", color: "text.secondary" }}
+          >
             One invitation per line, no space after the commas. Stream IDs,
             group IDs and the true/false admin flags are space-separated lists;
             the expiration date is optional.
           </Typography>
-        </Box>
-        <TextareaAutosize
-          placeholder={SAMPLE_CSV_TEXT}
-          name="bulkInviteCSVInput"
-          style={{ height: "15rem", width: "50rem" }}
-          onChange={(e) => setCsvData(e.target.value)}
-          value={csvData}
-        />
-        <Button
-          secondary
-          data-testid="bulkAddUsersButton"
-          onClick={handleClickAddUsers}
-        >
-          Add Users
-        </Button>
-      </Paper>
+          <Box
+            component="form"
+            onSubmit={handleSubmit(handleBulkInvite)}
+            sx={dialogFormSx}
+          >
+            {!!errors["bulkInviteCSV"] && (
+              <FormValidationError
+                message={String(errors["bulkInviteCSV"].message)}
+              />
+            )}
+            <Controller
+              name="bulkInviteCSV"
+              control={control}
+              rules={{ validate: validateBulkInvite }}
+              defaultValue=""
+              render={({ field: { onChange, value } }) => (
+                <TextField
+                  multiline
+                  minRows={8}
+                  name="bulkInviteCSVInput"
+                  label="email,streamIDs,groupIDs,groupAdmin,expirationDate"
+                  placeholder={SAMPLE_CSV_TEXT}
+                  value={value}
+                  onChange={onChange}
+                  error={!!errors["bulkInviteCSV"]}
+                  slotProps={{
+                    htmlInput: { sx: { fontFamily: "monospace" } },
+                  }}
+                />
+              )}
+            />
+            <Box>
+              <Button primary type="submit" data-testid="bulkAddUsersButton">
+                Submit
+              </Button>
+            </Box>
+          </Box>
+        </DialogContent>
+      </Dialog>
       <Dialog open={filterOpen} onClose={() => setFilterOpen(false)} fullWidth>
         <DialogContent>
           <Form
             schema={filterFormSchema as any}
             validator={validator}
-            onSubmit={
-              (({ formData }: { formData: any }) => {
-                handleFilterSubmit(formData);
-              }) as any
-            }
+            onSubmit={({ formData }: any) => handleFilterSubmit(formData)}
           />
         </DialogContent>
       </Dialog>
-      <AddEntitiesDialog
-        kind="Groups"
-        open={openDialog === "groups"}
-        onClose={() => setOpenDialog(null)}
-        email={clickedInvitation?.user_email}
-        options={groups.filter(
-          (group) =>
-            !clickedInvitation?.groups?.some((g: any) => g.id === group.id),
-        )}
-        control={control}
-        error={!!errors["invitationGroups"]}
-        onSubmit={handleSubmit(handleAddEntities("Groups"))}
-      />
-      <AddEntitiesDialog
-        kind="Streams"
-        open={openDialog === "streams"}
-        onClose={() => setOpenDialog(null)}
-        email={clickedInvitation?.user_email}
-        options={streams.filter(
-          (stream: any) =>
-            !clickedInvitation?.streams?.some((s: any) => s.id === stream.id),
-        )}
-        control={control}
-        error={!!errors["invitationStreams"]}
-        onSubmit={handleSubmit(handleAddEntities("Streams"))}
-      />
-      <Dialog open={openDialog === "role"} onClose={() => setOpenDialog(null)}>
+      {(["Groups", "Streams"] as const).map((kind) => (
+        <AddEntitiesDialog
+          key={kind}
+          kind={kind}
+          open={openDialog === ENTITIES[kind].field}
+          onClose={closeDialog}
+          invitation={clickedInvitation}
+          entities={kind === "Groups" ? groups : streams}
+          control={control}
+          error={!!errors[`invitation${kind}`]}
+          onSubmit={handleSubmit(handleAddEntities(kind))}
+        />
+      ))}
+      <Dialog open={openDialog === "role"} onClose={closeDialog}>
         <DialogTitle>
           {`Edit user role for ${clickedInvitation?.user_email}:`}
         </DialogTitle>
@@ -632,7 +649,7 @@ const UserInvitations = () => {
           <Box
             component="form"
             onSubmit={handleSubmit(handleUpdateInvitationRole)}
-            sx={{ display: "flex", flexDirection: "column", gap: 2, mt: 1 }}
+            sx={dialogFormSx}
           >
             {!!errors["invitationRole"] && (
               <FormValidationError message="Please select one role" />
@@ -669,13 +686,13 @@ const UserInvitations = () => {
           </Box>
         </DialogContent>
       </Dialog>
-      <Dialog open={openDialog === "date"} onClose={() => setOpenDialog(null)}>
+      <Dialog open={openDialog === "date"} onClose={closeDialog}>
         <DialogTitle>Edit user expiration date:</DialogTitle>
         <DialogContent>
           <Box
             component="form"
             onSubmit={handleSubmit(handleEditUserExpirationDate)}
-            sx={{ display: "flex", flexDirection: "column", gap: 2, mt: 1 }}
+            sx={dialogFormSx}
           >
             <Controller
               render={({ field: { onChange, value } }) => (
@@ -701,11 +718,11 @@ const UserInvitations = () => {
       </Dialog>
       <ConfirmDeletionDialog
         dialogOpen={openDialog === "delete"}
-        closeDialog={() => setOpenDialog(null)}
+        closeDialog={closeDialog}
         deleteFunction={handleDeleteInvitation}
         resourceName={`invitation for ${clickedInvitation?.user_email}`}
       />
-    </Box>
+    </>
   );
 };
 

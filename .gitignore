@@ -54,6 +54,7 @@ doc/erd-data.html
 
 # gitlog info
 data/gitlog.txt
+data/gitlog*.json
 
 # test results
 test-results/

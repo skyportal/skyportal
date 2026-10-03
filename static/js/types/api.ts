@@ -20525,6 +20525,177 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/deployments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get deployments and instance information
+         * @description Running version, deployment history with the commits each deployment
+         *     brought, and (for system admins) details on the host, database and
+         *     services.
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Success"] & {
+                            data?: components["schemas"]["DeploymentsResponse"];
+                        };
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/feedback/{feedback_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Retrieve messages left to the admins
+         * @description The requesting user's own messages, or every message for system admins.
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    feedback_id: number;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Success"] & {
+                            data?: components["schemas"]["FeedbackListResponse"];
+                        };
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Mark a message left to the admins as handled, or reopen it
+         * @description <b>Permission(s) required:</b> <em>System admin (or System admin)</em><br><br>
+         */
+        patch: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    feedback_id: number;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["FeedbackPatchBody"];
+                };
+            };
+            responses: never;
+        };
+        trace?: never;
+    };
+    "/api/feedback": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Leave a message to the admins
+         * @description Report a bug, request a change or say anything else. System admins are notified.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["FeedbackPostBody"];
+                };
+            };
+            responses: never;
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/feedback/{feedback_id}/replies": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Reply to a message left to the admins
+         * @description <b>Permission(s) required:</b> <em>System admin (or System admin)</em><br><br>The author of the message is notified.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    feedback_id: number;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["FeedbackReplyPostBody"];
+                };
+            };
+            responses: never;
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/config": {
         parameters: {
             query?: never;
@@ -26373,6 +26544,48 @@ export interface components {
             message?: string;
             data?: components["schemas"]["DefaultSurveyEfficiencyRequestNoID"][];
         };
+        Deployment: {
+            /** @description SkyPortal version string */
+            version: string;
+            /** @description Git log entry of the deployed commit (see `utils.gitlog.parse_gitlog`) */
+            commit?: {
+                [key: string]: unknown;
+            } | null;
+            /** @description Unique object identifier. */
+            id?: number;
+        };
+        SingleDeployment: {
+            /** @enum {string} */
+            status: "success";
+            message?: string;
+            data?: components["schemas"]["Deployment"];
+        };
+        ArrayOfDeployments: {
+            /** @enum {string} */
+            status: "success";
+            message?: string;
+            data?: components["schemas"]["Deployment"][];
+        };
+        DeploymentNoID: {
+            /** @description SkyPortal version string */
+            version: string;
+            /** @description Git log entry of the deployed commit (see `utils.gitlog.parse_gitlog`) */
+            commit?: {
+                [key: string]: unknown;
+            } | null;
+        };
+        SingleDeploymentNoID: {
+            /** @enum {string} */
+            status: "success";
+            message?: string;
+            data?: components["schemas"]["DeploymentNoID"];
+        };
+        ArrayOfDeploymentNoIDs: {
+            /** @enum {string} */
+            status: "success";
+            message?: string;
+            data?: components["schemas"]["DeploymentNoID"][];
+        };
         EarthquakeEvent: {
             /** @description The user that saved this EarthquakeEvent */
             readonly sent_by?: components["schemas"]["User"];
@@ -26998,6 +27211,108 @@ export interface components {
             status: "success";
             message?: string;
             data?: components["schemas"]["FacilityTransactionRequestNoID"][];
+        };
+        Feedback: {
+            /** @description The User who wrote the message */
+            readonly author?: components["schemas"]["User"];
+            readonly replies?: components["schemas"]["FeedbackReply"][];
+            /** @description ID of the User who wrote the message */
+            author_id: number;
+            /** @description Kind of message: bug, change or other */
+            category: string;
+            /** @description The message */
+            text: string;
+            /** @description Whether an admin has handled the message */
+            resolved?: boolean;
+            /** @description Unique object identifier. */
+            id?: number;
+        };
+        SingleFeedback: {
+            /** @enum {string} */
+            status: "success";
+            message?: string;
+            data?: components["schemas"]["Feedback"];
+        };
+        ArrayOfFeedbacks: {
+            /** @enum {string} */
+            status: "success";
+            message?: string;
+            data?: components["schemas"]["Feedback"][];
+        };
+        FeedbackNoID: {
+            /** @description The User who wrote the message */
+            readonly author?: components["schemas"]["User"];
+            readonly replies?: components["schemas"]["FeedbackReply"][];
+            /** @description ID of the User who wrote the message */
+            author_id: number;
+            /** @description Kind of message: bug, change or other */
+            category: string;
+            /** @description The message */
+            text: string;
+            /** @description Whether an admin has handled the message */
+            resolved?: boolean;
+        };
+        SingleFeedbackNoID: {
+            /** @enum {string} */
+            status: "success";
+            message?: string;
+            data?: components["schemas"]["FeedbackNoID"];
+        };
+        ArrayOfFeedbackNoIDs: {
+            /** @enum {string} */
+            status: "success";
+            message?: string;
+            data?: components["schemas"]["FeedbackNoID"][];
+        };
+        FeedbackReply: {
+            /** @description The message replied to */
+            readonly feedback?: components["schemas"]["Feedback"];
+            /** @description The admin who replied */
+            readonly author?: components["schemas"]["User"];
+            /** @description ID of the message replied to */
+            feedback_id: number;
+            /** @description ID of the admin who replied */
+            author_id: number;
+            /** @description The reply */
+            text: string;
+            /** @description Unique object identifier. */
+            id?: number;
+        };
+        SingleFeedbackReply: {
+            /** @enum {string} */
+            status: "success";
+            message?: string;
+            data?: components["schemas"]["FeedbackReply"];
+        };
+        ArrayOfFeedbackReplys: {
+            /** @enum {string} */
+            status: "success";
+            message?: string;
+            data?: components["schemas"]["FeedbackReply"][];
+        };
+        FeedbackReplyNoID: {
+            /** @description The message replied to */
+            readonly feedback?: components["schemas"]["Feedback"];
+            /** @description The admin who replied */
+            readonly author?: components["schemas"]["User"];
+            /** @description ID of the message replied to */
+            feedback_id: number;
+            /** @description ID of the admin who replied */
+            author_id: number;
+            /** @description The reply */
+            text: string;
+        };
+        SingleFeedbackReplyNoID: {
+            /** @enum {string} */
+            status: "success";
+            message?: string;
+            data?: components["schemas"]["FeedbackReplyNoID"];
+        };
+        ArrayOfFeedbackReplyNoIDs: {
+            /** @enum {string} */
+            status: "success";
+            message?: string;
+            data?: components["schemas"]["FeedbackReplyNoID"][];
         };
         Filter: {
             /** @description The Filter's Stream. */
@@ -47713,6 +48028,351 @@ export interface components {
              * @default null
              */
             remove_obj_ids: string[] | null;
+        };
+        /**
+         * DeploymentResponse
+         * @description One version of the code that started serving the instance.
+         */
+        DeploymentResponse: {
+            /** Id */
+            id: number;
+            /** Version */
+            version: string;
+            /** @default null */
+            commit: components["schemas"]["GitLogEntryResponse"];
+            /**
+             * Created At
+             * Format: date-time
+             * @description When this version started (UTC)
+             */
+            created_at: string;
+            /**
+             * Changes
+             * @description Commits brought over the previous deployment, newest first (capped); null when either commit is not in the running git log
+             * @default null
+             */
+            changes: components["schemas"]["GitLogEntryResponse"][] | null;
+            /**
+             * N Changes
+             * @default null
+             */
+            n_changes: number | null;
+            /**
+             * Rollback
+             * @description Whether this deployed an older commit
+             * @default false
+             */
+            rollback: boolean;
+        };
+        /**
+         * GitLogEntryResponse
+         * @description One parsed commit from the deployed SkyPortal git log.
+         */
+        GitLogEntryResponse: {
+            /**
+             * Time
+             * @default null
+             */
+            time: string | null;
+            /**
+             * Sha
+             * @default null
+             */
+            sha: string | null;
+            /**
+             * Email
+             * @default null
+             */
+            email: string | null;
+            /**
+             * Description
+             * @default null
+             */
+            description: string | null;
+            /**
+             * Pr Nr
+             * @default null
+             */
+            pr_nr: string | null;
+            /**
+             * Pr Url
+             * @default null
+             */
+            pr_url: string | null;
+            /**
+             * Commit Url
+             * @default null
+             */
+            commit_url: string | null;
+            /**
+             * Name
+             * @default null
+             */
+            name: string | null;
+        };
+        /**
+         * HostResourcesResponse
+         * @description CPU, memory and disk of the instance host (the node, in a container).
+         */
+        HostResourcesResponse: {
+            /**
+             * Cpu Count
+             * @default null
+             */
+            cpu_count: number | null;
+            /**
+             * Load Average
+             * @default null
+             */
+            load_average: number[] | null;
+            /**
+             * Memory Total
+             * @default null
+             */
+            memory_total: number | null;
+            /**
+             * Memory Available
+             * @default null
+             */
+            memory_available: number | null;
+            /**
+             * Disk Total
+             * @default null
+             */
+            disk_total: number | null;
+            /**
+             * Disk Free
+             * @default null
+             */
+            disk_free: number | null;
+        };
+        /**
+         * InstanceSystemResponse
+         * @description Host, database and service details, only returned to system admins.
+         */
+        InstanceSystemResponse: {
+            /** Hostname */
+            hostname: string;
+            /** Platform */
+            platform: string;
+            /** Python Version */
+            python_version: string;
+            /** Packages */
+            packages?: {
+                [key: string]: string;
+            };
+            /**
+             * Supervisor Available
+             * @default false
+             */
+            supervisor_available: boolean;
+            /** Services */
+            services?: components["schemas"]["ServiceResponse"][];
+            /** @default null */
+            resources: components["schemas"]["HostResourcesResponse"];
+            /**
+             * Database Name
+             * @default null
+             */
+            database_name: string | null;
+            /**
+             * Postgres Version
+             * @default null
+             */
+            postgres_version: string | null;
+            /**
+             * Database Size
+             * @default null
+             */
+            database_size: string | null;
+            /**
+             * Migration
+             * @default null
+             */
+            migration: string | null;
+        };
+        /**
+         * ServiceResponse
+         * @description A service of the instance and the processes supervisor runs for it.
+         */
+        ServiceResponse: {
+            /** Name */
+            name: string;
+            /**
+             * Status
+             * @description `disabled` in `services.disabled`; `not_configured` when enabled but supervisor runs no program for it, as its template only defines one when the config calls for the service
+             * @enum {string}
+             */
+            status: "enabled" | "disabled" | "not_configured";
+            /** Processes */
+            processes?: components["schemas"]["SupervisorProcessResponse"][];
+        };
+        /**
+         * SupervisorProcessResponse
+         * @description A process run by supervisor on the instance host.
+         */
+        SupervisorProcessResponse: {
+            /** Name */
+            name: string;
+            /** Group */
+            group: string;
+            /** State */
+            state: string;
+            /**
+             * Pid
+             * @default null
+             */
+            pid: number | null;
+            /**
+             * Memory
+             * @description Proportional memory of the service process and its children, in bytes
+             * @default null
+             */
+            memory: number | null;
+            /**
+             * Started At
+             * Format: date-time
+             * @default null
+             */
+            started_at: string | null;
+        };
+        /**
+         * DeploymentsResponse
+         * @description Running version and deployment history of the instance.
+         */
+        DeploymentsResponse: {
+            /** Title */
+            title: string;
+            /** Version */
+            version: string;
+            /** @default null */
+            commit: components["schemas"]["GitLogEntryResponse"];
+            /**
+             * Started At
+             * Format: date-time
+             * @description When this app process started (UTC)
+             */
+            started_at: string;
+            /**
+             * Deployed At
+             * Format: date-time
+             * @default null
+             */
+            deployed_at: string | null;
+            /** Deployments */
+            deployments?: components["schemas"]["DeploymentResponse"][];
+            /** @default null */
+            system: components["schemas"]["InstanceSystemResponse"];
+        };
+        /**
+         * FeedbackAuthorResponse
+         * @description The user who wrote a message or a reply.
+         */
+        FeedbackAuthorResponse: {
+            /** Id */
+            id: number;
+            /** Username */
+            username: string;
+            /**
+             * First Name
+             * @default null
+             */
+            first_name: string | null;
+            /**
+             * Last Name
+             * @default null
+             */
+            last_name: string | null;
+            /**
+             * Gravatar Url
+             * @default null
+             */
+            gravatar_url: string | null;
+        };
+        /**
+         * FeedbackReplyResponse
+         * @description An admin's reply to a message.
+         */
+        FeedbackReplyResponse: {
+            /** Id */
+            id: number;
+            /** Text */
+            text: string;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            author: components["schemas"]["FeedbackAuthorResponse"];
+        };
+        /**
+         * FeedbackResponse
+         * @description A message left to the admins, with their replies.
+         */
+        FeedbackResponse: {
+            /** Id */
+            id: number;
+            /**
+             * Category
+             * @enum {string}
+             */
+            category: "bug" | "change" | "other";
+            /** Text */
+            text: string;
+            /** Resolved */
+            resolved: boolean;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            author: components["schemas"]["FeedbackAuthorResponse"];
+            /** Replies */
+            replies?: components["schemas"]["FeedbackReplyResponse"][];
+        };
+        /**
+         * FeedbackListResponse
+         * @description The messages the requesting user can read: their own, or all for admins.
+         */
+        FeedbackListResponse: {
+            /** Messages */
+            messages?: components["schemas"]["FeedbackResponse"][];
+        };
+        /**
+         * FeedbackPostBody
+         * @description Request body for leaving a message to the admins.
+         */
+        FeedbackPostBody: {
+            /**
+             * Category
+             * @description bug report, change request, or other
+             * @enum {string}
+             */
+            category: "bug" | "change" | "other";
+            /**
+             * Text
+             * @description The message
+             */
+            text: string;
+        };
+        /**
+         * FeedbackPatchBody
+         * @description Request body for marking a message as handled.
+         */
+        FeedbackPatchBody: {
+            /** Resolved */
+            resolved: boolean;
+        };
+        /**
+         * FeedbackReplyPostBody
+         * @description Request body for an admin replying to a message.
+         */
+        FeedbackReplyPostBody: {
+            /**
+             * Text
+             * @description The reply
+             */
+            text: string;
         };
         /**
          * AssistantConversationPatchBody

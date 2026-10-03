@@ -1779,7 +1779,23 @@ class AnalysisHandler(BaseHandler):
                 analyses = result.unique().all()
 
                 ret_array = []
+                # Load every accessible AnalysisService for these analyses in ONE
+                # access-controlled query keyed by id, rather than one query per
+                # distinct service inside the loop (the N+1 seen in production).
+                service_ids = {a.analysis_service_id for a in analyses}
                 analysis_services_dict = {}
+                if service_ids:
+                    services = await session.scalars(
+                        AnalysisService.select(self.current_user).where(
+                            AnalysisService.id.in_(service_ids)
+                        )
+                    )
+                    for s in services.unique().all():
+                        analysis_services_dict[s.id] = {
+                            "analysis_service_name": s.display_name,
+                            "analysis_service_description": s.description,
+                            "analysis_serivce_display_as_summary": s.is_summary,
+                        }
                 for a in analyses:
                     # Per-source queries (objID) feed the photometry overlay and
                     # need the full record + model light curve (loaded from disk).
@@ -1841,24 +1857,8 @@ class AnalysisHandler(BaseHandler):
                             "analysis_service_id": a.analysis_service_id,
                         }
 
-                    if a.analysis_service_id not in analysis_services_dict:
-                        stmt = AnalysisService.select(self.current_user).where(
-                            AnalysisService.id == a.analysis_service_id
-                        )
-                        analysis_service = await session.scalar(stmt)
-                        if analysis_service is not None:
-                            analysis_services_dict.update(
-                                {
-                                    a.analysis_service_id: {
-                                        "analysis_service_name": analysis_service.display_name,
-                                        "analysis_service_description": analysis_service.description,
-                                        "analysis_serivce_display_as_summary": analysis_service.is_summary,
-                                    }
-                                }
-                            )
-
-                    if a.analysis_service_id in analysis_services_dict:
-                        service_info = analysis_services_dict[a.analysis_service_id]
+                    service_info = analysis_services_dict.get(a.analysis_service_id)
+                    if service_info is not None:
                         analysis_dict["analysis_service_name"] = service_info[
                             "analysis_service_name"
                         ]
@@ -1866,11 +1866,11 @@ class AnalysisHandler(BaseHandler):
                             "analysis_service_description"
                         ]
 
-                    if (
-                        query.summaryOnly
-                        and not service_info["analysis_serivce_display_as_summary"]
+                    if query.summaryOnly and (
+                        service_info is None
+                        or not service_info["analysis_serivce_display_as_summary"]
                     ):
-                        # the analysis service is not a summary service, so skip returning this analysis
+                        # not a summary service (or not accessible); skip returning it
                         continue
                     ret_array.append(analysis_dict)
             elif analysis_resource_type.lower() == "gcn_event":

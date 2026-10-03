@@ -22,6 +22,19 @@ import {
   useUpdateUserPreferencesMutation,
 } from "../../../ducks/profile";
 
+const RESOURCE_TYPES = [
+  "gcn_events",
+  "sources",
+  "favorite_sources",
+  "facility_transactions",
+  "mention",
+  "analysis_services",
+  "observation_plans",
+  "reminders",
+  "deployments",
+  "feedback",
+];
+
 const useStyles = makeStyles()((theme) => ({
   typography: {
     padding: theme.spacing(2),
@@ -156,16 +169,7 @@ const NotificationSettingsSelect = ({
   };
 
   const prefToggled = (event: any) => {
-    if (
-      notificationResourceType === "gcn_events" ||
-      notificationResourceType === "sources" ||
-      notificationResourceType === "favorite_sources" ||
-      notificationResourceType === "facility_transactions" ||
-      notificationResourceType === "mention" ||
-      notificationResourceType === "analysis_services" ||
-      notificationResourceType === "observation_plans" ||
-      notificationResourceType === "reminders"
-    ) {
+    if (RESOURCE_TYPES.includes(notificationResourceType)) {
       const prefs: any = {
         notifications: {
           [notificationResourceType]: {},
@@ -225,16 +229,7 @@ const NotificationSettingsSelect = ({
   };
 
   const onChangeInverted = (type: string) => {
-    if (
-      notificationResourceType === "gcn_events" ||
-      notificationResourceType === "sources" ||
-      notificationResourceType === "favorite_sources" ||
-      notificationResourceType === "facility_transactions" ||
-      notificationResourceType === "mention" ||
-      notificationResourceType === "analysis_services" ||
-      notificationResourceType === "observation_plans" ||
-      notificationResourceType === "reminders"
-    ) {
+    if (RESOURCE_TYPES.includes(notificationResourceType)) {
       if (type === "sms") {
         const reversed = [...valueSMS].reverse();
         const prefs = {
@@ -310,16 +305,7 @@ const NotificationSettingsSelect = ({
   };
 
   const handleChangeCommitted = (type: string, newValue: any) => {
-    if (
-      notificationResourceType === "gcn_events" ||
-      notificationResourceType === "sources" ||
-      notificationResourceType === "favorite_sources" ||
-      notificationResourceType === "facility_transactions" ||
-      notificationResourceType === "mention" ||
-      notificationResourceType === "analysis_services" ||
-      notificationResourceType === "observation_plans" ||
-      notificationResourceType === "reminders"
-    ) {
+    if (RESOURCE_TYPES.includes(notificationResourceType)) {
       const prefs = {
         notifications: {
           [notificationResourceType]: {

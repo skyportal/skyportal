@@ -1387,8 +1387,11 @@ def _iso_for_jd(jd):
     "convert_time",
     "Convert between the time formats the alert stream uses: Julian Date, "
     "Modified Julian Date and ISO UTC. Use it rather than converting by hand. "
-    "A JD day begins at noon UTC, so the integer part is not the calendar "
-    "date: JD 2461310.0261 is 2026-09-26 12:37 UTC, not the 25th. Give exactly "
+    "A JD day begins at noon UTC, so the calendar date turns over at fraction "
+    ".5 rather than at the integer: JD 2461310.0261 is 2026-09-26 12:37 UTC, "
+    "and JD 2461310.5 is 2026-09-27 00:00 UTC, not noon on the 26th. Report "
+    "the answer by quoting the returned utc field rather than putting the "
+    "date into your own words. Give exactly "
     "one of jd, mjd or iso and the other two come back with it.",
     {
         "jd": _prop("number", "Julian Date to convert."),
@@ -1409,11 +1412,14 @@ async def convert_time(handler, args):
         moment = Time(float(value), format=kind) if kind != "iso" else Time(str(value))
     except Exception as exc:
         raise ToolError(f"Not a time I can read: {value!r} ({exc}).") from exc
+    # A spelled-out UTC the answer can quote: the numbers alone leave the
+    # calendar date to be restated, which is where the .5 boundary gets lost.
     return {
         "jd": round(float(moment.jd), 6),
         "mjd": round(float(moment.mjd), 6),
         "iso": moment.isot[:19] + "Z",
         "day_of_week": moment.datetime.strftime("%A"),
+        "utc": moment.datetime.strftime("%Y-%m-%d %H:%M:%S UTC (%A)"),
     }
 
 
@@ -1423,7 +1429,10 @@ async def convert_time(handler, args):
     "to check a filter before activating it: a pipeline that returns nothing "
     "here will pass nothing in production. Returns a count on its own, which "
     "is what to tune a threshold against; pass sort_by to get the alerts "
-    "themselves. A pipeline broker needs both start_jd and end_jd.",
+    "themselves. A pipeline broker needs both start_jd and end_jd. Pass dateobs "
+    "to bound the search by a GCN event's credible region, as the crossmatch "
+    "service does; a counterpart filter previewed without it runs against the "
+    "whole sky and passes far more than it would in production.",
     {
         "broker_id": _prop("integer", "Broker ID."),
         "pipeline": _prop(
@@ -1450,6 +1459,16 @@ async def convert_time(handler, args):
         ),
         "end_jd": _prop("number", "Latest alert JD. Defaults to now."),
         "limit": _prop("integer", "Maximum alerts to return."),
+        "dateobs": _prop(
+            "string",
+            "GCN event whose credible region bounds the search, e.g. "
+            "2026-09-25T04:20:00. A counterpart filter is a set of cuts and a "
+            "patch of sky; without this the cuts run against the whole stream "
+            "and the preview does not match what the filter does.",
+        ),
+        "credible_level": _prop(
+            "integer", "Percentage of the event's credible region (default 90)."
+        ),
     },
     required=("broker_id", "pipeline"),
     passthrough="POST /api/brokers/{broker_id}/filter/test",

@@ -7,6 +7,7 @@ import Tab from "@mui/material/Tab";
 import Tabs from "@mui/material/Tabs";
 import { createFilterOptions } from "@mui/material/Autocomplete";
 import SearchableSelect from "../SearchableSelect";
+import AddIcon from "@mui/icons-material/Add";
 import AddCircleIcon from "@mui/icons-material/AddCircle";
 import HelpIcon from "@mui/icons-material/Help";
 import EditIcon from "@mui/icons-material/Edit";
@@ -205,6 +206,7 @@ const UserManagement = () => {
   const [includeExpired, setIncludeExpired] = useState(false);
   const [openDialog, setOpenDialog] = useState<string | null>(null);
   const [removeExpirationOpen, setRemoveExpirationOpen] = useState(false);
+  const [bulkInviteOpen, setBulkInviteOpen] = useState(false);
   const [clickedUser, setClickedUser] = useState<any>(null);
   const {
     data: usersManagementData,
@@ -638,14 +640,32 @@ const UserManagement = () => {
   return (
     <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
       {invitationsEnabled && (
-        <Tabs
-          value={tab}
-          onChange={(_event, value) => setTab(value)}
-          sx={{ borderBottom: 1, borderColor: "divider" }}
+        <Box
+          sx={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            borderBottom: 1,
+            borderColor: "divider",
+          }}
         >
-          <Tab label="Users" />
-          <Tab label="Invitations" />
-        </Tabs>
+          <Tabs value={tab} onChange={(_event, value) => setTab(value)}>
+            <Tab label="Users" />
+            <Tab label="Invitations" />
+          </Tabs>
+          <Button
+            primary
+            size="small"
+            endIcon={<AddIcon />}
+            data-testid="bulkInviteUsersButton"
+            onClick={() => {
+              setTab(1);
+              setBulkInviteOpen(true);
+            }}
+          >
+            Bulk Invite
+          </Button>
+        </Box>
       )}
       {tab === 0 && (
         <StyledDataGrid
@@ -669,7 +689,12 @@ const UserManagement = () => {
           showToolbar
         />
       )}
-      {invitationsEnabled && tab === 1 && <UserInvitations />}
+      {invitationsEnabled && tab === 1 && (
+        <UserInvitations
+          bulkInviteOpen={bulkInviteOpen}
+          onCloseBulkInvite={() => setBulkInviteOpen(false)}
+        />
+      )}
       {addDialogs.map((dialog) => (
         <AddEntitiesDialog
           key={dialog.name}

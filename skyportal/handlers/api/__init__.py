@@ -67,6 +67,7 @@ from .data_access_request import (
 )
 from .data_sharing import BulkDataShareHandler, SpectrumGroupsHandler
 from .db_stats import StatsHandler, StatsHistoryHandler
+from .deployment import DeploymentHandler
 from .earthquake import (
     EarthquakeHandler,
     EarthquakeMeasurementHandler,
@@ -75,6 +76,7 @@ from .earthquake import (
 )
 from .enum_types import EnumTypesHandler
 from .facility_listener import FacilityMessageHandler
+from .feedback import FeedbackHandler, FeedbackReplyHandler
 from .filter import FilterHandler
 from .followup_apis import FollowupAPIsHandler
 from .followup_request import (

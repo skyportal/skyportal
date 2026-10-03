@@ -294,6 +294,8 @@ app:
     - path: "/about"
       component: About
       anonymous_ok: true
+    - path: "/deployments"
+      component: deployment/Deployments
     - path: "/runs"
       component: observing_run/ObservingRunPage
     - path: "/run/:id"
@@ -538,6 +540,10 @@ app:
           icon: HowToReg
           enabled_if: canDecideUserApplications # a /api/config flag
           url: /user_applications
+
+        - name: Deployments
+          icon: RocketLaunch
+          url: /deployments
 
     - name: Admin
       icon: AdminPanelSettings
@@ -878,6 +884,14 @@ services:
     # - spectral_cube_analysis_service
     # - thumbnail_queue
     # - tns_retrieval_queue
+
+zygote:
+  services: "*"
+  exclude:
+    - sn_analysis_service
+    - ngsf_analysis_service
+    - spectral_cube_analysis_service
+    - health_monitor
 
 # Alert brokers (BOOM, Fink, Lasair, ...) are configured at runtime as
 # `Broker` database records (name + provider class + encrypted credentials), not
@@ -1396,6 +1410,11 @@ gcn:
       - igwn.gwalert
       - gcn.notices.einstein_probe.wxt.alert
       - gcn.notices.swift.bat.guano
+      # FRB notices. Both facilities publish the same core schema, so they
+      # share an ingestion path. CHIME runs at a few notices a day, of which
+      # roughly a quarter are retractions of an earlier detection.
+      - gcn.notices.dsa110.frb
+      - gcn.notices.chime.frb
       # - gcn.notices.icecube.lvk_nu_track_search
   # Circulars are prose follow-up reports. Ingesting them keeps each event's
   # circular list and aliases current in real time, where the TACH backfill
@@ -1513,6 +1532,18 @@ health_monitor:
   request_timeout_seconds: 30
   # How long do we give apps after restart to become healthy
   startup_grace_seconds: 30
+
+# analysis_rerun service: fires default analyses that were deferred because the
+# light curve was too sparse (a default analysis whose default_analysis_parameters
+# declare min_detections is deferred rather than submitted; see _run_default_analysis)
+# once the object crosses the threshold. The threshold lives on each DefaultAnalysis:
+# min_detections (total, any filter) and an optional min_detections_per_filter dict
+# (e.g. {"ztfg": 2, "ztfr": 2}), read from the precomputed PhotStat (SkyPortal's own
+# detection threshold, forced photometry excluded). Not configured here; these are
+# only the sweep cadence and how far back to look for newly-active sources.
+analysis_rerun:
+  interval_seconds: 3600
+  lookback_days: 14
 
 analysis_services:
   analysis_folder: persistentdata/analysis

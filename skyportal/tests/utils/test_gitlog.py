@@ -1,3 +1,5 @@
+import json
+
 from skyportal.utils import gitlog
 
 log = """
@@ -46,3 +48,21 @@ def test_gitlog_parse():
     assert e2["pr_nr"] is None
     assert e2["pr_url"] == ""
     assert e2["commit_url"] == "https://github.com/skyportal/skyportal/commit/d487cce7d"
+
+
+def test_load_gitlog_sorts_by_time_not_by_string(tmp_path):
+    # 10:00+02:00 is 08:00 UTC, older than 08:19-05:00 (13:19 UTC)
+    (tmp_path / "gitlog-test.json").write_text(
+        json.dumps(
+            {
+                "pr_url_base": "",
+                "commit_url_base": "",
+                "log": [
+                    "[2026-09-29T10:00:00+02:00 aaaaaaa a@b.c] Older",
+                    "[2026-09-29T08:19:35-05:00 bbbbbbb a@b.c] Newer",
+                ],
+            }
+        )
+    )
+    entries = gitlog.load_gitlog(str(tmp_path / "gitlog*.json"))
+    assert [e["sha"] for e in entries] == ["bbbbbbb", "aaaaaaa"]

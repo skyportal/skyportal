@@ -156,6 +156,20 @@ def get_igwn_gwalert_tags(payload):
     return tags
 
 
+# GCN publishes one FRB notice topic per facility (gcn.notices.<mission>.frb),
+# all sharing the core Alert/Localization/DispersionMeasure vocabulary. The
+# notices carry no mission field of their own, so the topic names it.
+FRB_NOTICE_MISSIONS = {
+    "chime.frb": "CHIME",
+    "dsa110.frb": "DSA-110",
+}
+
+
+def get_frb_mission(payload):
+    """Mission of a GCN FRB notice, or None if this is not one."""
+    return FRB_NOTICE_MISSIONS.get(payload.get("notice_type"))
+
+
 def get_json_tags(payload):
     tags = []
     if "instrument" in payload:
@@ -168,6 +182,12 @@ def get_json_tags(payload):
     if payload.get("superevent_id") is not None:
         tags += get_igwn_gwalert_tags(payload)
 
+    mission = get_frb_mission(payload)
+    if mission is not None:
+        tags += ["FRB", "Radio", mission]
+        if is_retraction(payload):
+            tags.append("retracted")
+
     return tags
 
 
@@ -179,6 +199,8 @@ def get_json_trigger_id(payload):
             ids = [ids]
         if ids:
             return str(ids[0])
+    if get_frb_mission(payload) is not None and payload.get("id") is not None:
+        return str(payload["id"])
     return None
 
 
@@ -186,7 +208,36 @@ def get_json_aliases(payload):
     """Aliases of a GCN JSON notice, using the INSTRUMENT#ID convention that
     get_notice_aliases applies to VOEvent notices."""
     trigger_id = get_json_trigger_id(payload)
-    return [f"EP#{trigger_id}"] if trigger_id else []
+    if not trigger_id:
+        return []
+    prefix = get_frb_mission(payload) or "EP"
+    return [f"{prefix}#{trigger_id}"]
+
+
+def get_json_dateobs(payload):
+    """UTC event time of a GCN JSON notice, rounded to the nearest second."""
+    if not payload.get("trigger_time"):
+        return None
+    dateobs = Time(payload["trigger_time"], format="isot", precision=0)
+    return Time(dateobs.iso).datetime
+
+
+FRB_PROPERTY_FIELDS = ("dm", "dm_error", "snr", "importance", "event_duration")
+
+
+def get_json_properties(payload):
+    """Numeric properties of a GCN JSON notice, stored as a GcnProperty so the
+    event can be filtered on them."""
+    if payload.get("properties"):
+        return payload["properties"]
+    if get_frb_mission(payload) is None:
+        return None
+    properties = {
+        field: payload[field]
+        for field in FRB_PROPERTY_FIELDS
+        if isinstance(payload.get(field), int | float)
+    }
+    return properties or None
 
 
 def from_igwn_gwalert(payload):
@@ -483,6 +534,8 @@ def is_retraction(root):
         retraction = root.get("retraction")
         if retraction:
             return True
+        if str(root.get("alert_type", "")).lower() == "retraction":
+            return True
     else:
         retraction = root.find("./What/Param[@name='Retraction']")
         if retraction is not None:
@@ -491,6 +544,18 @@ def is_retraction(root):
                 return True
 
     return False
+
+
+def error_radius(ra_dec_error):
+    """Radius enclosing a notice's localization uncertainty [deg].
+
+    The GCN core Localization schema allows either a circular radius or an
+    ellipse given as (semi-major, semi-minor, position angle). The semi-major
+    axis is the radius of the circle that contains the ellipse.
+    """
+    if isinstance(ra_dec_error, list | tuple):
+        return ra_dec_error[0] if ra_dec_error else None
+    return ra_dec_error
 
 
 def get_skymap_cone(root):
@@ -507,7 +572,7 @@ def get_skymap_cone(root):
         else:
             ra = root.get("ra")
             dec = root.get("dec")
-            error = root.get("ra_dec_error")
+            error = error_radius(root.get("ra_dec_error"))
     else:
         mission = urlparse(root.attrib["ivorn"]).path.lstrip("/")
         # Try error cone
@@ -528,6 +593,11 @@ def get_skymap_cone(root):
         # AMON reports a 90% radius, so for AMON, we have to convert.
         if mission == "AMON":
             error /= gaussian_sigmas_for(0.90)
+
+    # An update or retraction carries no position; so does a JSON notice whose
+    # stream omits one.
+    if None in (ra, dec, error):
+        return None, None, None
 
     if error < 0:
         return None, None, None

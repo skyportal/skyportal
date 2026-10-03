@@ -1,5 +1,6 @@
 import datetime
 import json
+import re
 
 import aiohttp
 import lxml
@@ -489,6 +490,26 @@ def source_email_notification(target, data=None):
         )
 
 
+MARKDOWN_SPECIAL = re.compile(r"([\\`*_{}\[\]()#+\-.!|<>~])")
+
+
+def escape_markdown(text):
+    return MARKDOWN_SPECIAL.sub(r"\\\1", text)
+
+
+def escape_slack(text):
+    return text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+
+
+def feedback_notification_text(content, escape, bold="*"):
+    """Announce a feedback message or reply, escaping the user text for its channel."""
+    author = f"{bold}{escape(content['author'])}{bold}"
+    snippet = escape(content["snippet"])
+    if content["reply"]:
+        return f"{author} replied to your {content['label']}: {snippet}"
+    return f"New {content['label']} from {author}: {snippet}"
+
+
 def post_notification(request_body, timeout=2):
     notifications_microservice_url = (
         f"http://{cfg['hosts.notification_queue']}:{cfg['ports.notification_queue']}"
@@ -499,9 +520,9 @@ def post_notification(request_body, timeout=2):
         )
     except requests.exceptions.ReadTimeout:
         log(
-            f"Notification request timed out for {request_body['target_class_name']} with ID {request_body['target_id']}"
+            f"Notification request timed out for {request_body['target_class_name']} with ID {request_body['target_id']}, the queue will still process it"
         )
-        return False
+        return True
     except Exception as e:
         log(
             f"Notification request failed for {request_body['target_class_name']} with ID {request_body['target_id']}: {e}"
