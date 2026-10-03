@@ -433,6 +433,11 @@ class BrokerFiltersPostBody(BaseModel):
         default=None,
         description="Whether candidates passing the filter are auto-saved as sources.",
     )
+    watchlist: str | None = Field(
+        default=None,
+        description="Watchlist catalog the broker filter runs against, set when "
+        "the filter is first created on the broker.",
+    )
 
 
 class BrokerFiltersPatchBody(BaseModel):

@@ -188,6 +188,11 @@ class BrokerAPI(_Base):
         raise NotImplementedError
 
     @staticmethod
+    def get_watchlists(broker, session, **kwargs):
+        """Watchlists a new filter can be restricted to."""
+        raise NotImplementedError
+
+    @staticmethod
     def validate_filter(broker, session, **kwargs):
         """Validate a filter version for activation without changing state."""
         raise NotImplementedError

@@ -1176,22 +1176,31 @@ class BOOMBROKER(BrokerAPI):
         pipeline = kwargs["pipeline"]
         boom_filter_id = kwargs.get("boom_filter_id")
         if boom_filter_id is None:
-            return _request(
-                broker,
-                "POST",
-                "filters",
-                json={
-                    "name": kwargs["name"],
-                    "pipeline": pipeline,
-                    "survey": kwargs["survey"],
-                    "permissions": kwargs["permissions"],
-                },
-            )
+            payload = {
+                "name": kwargs["name"],
+                "pipeline": pipeline,
+                "survey": kwargs["survey"],
+                "permissions": kwargs["permissions"],
+            }
+            # Fixed for the filter's lifetime: BOOM only takes it at creation.
+            if kwargs.get("watchlist"):
+                payload["watchlist"] = kwargs["watchlist"]
+            return _request(broker, "POST", "filters", json=payload)
         return _request(
             broker,
             "POST",
             f"filters/{boom_filter_id}/versions",
             json={"pipeline": pipeline},
+        )
+
+    @staticmethod
+    def get_watchlists(broker, session, **kwargs):
+        """The watchlist catalogs this broker's BOOM account may bind a filter to."""
+        catalogs = _request(broker, "GET", "catalogs") or []
+        return sorted(
+            str(c["name"])
+            for c in catalogs
+            if isinstance(c, dict) and str(c.get("name", "")).startswith("watchlist_")
         )
 
     @staticmethod

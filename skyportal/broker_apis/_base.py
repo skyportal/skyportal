@@ -23,6 +23,7 @@ class _Base:
         "cone_search",
         "get_filters",
         "create_filter",
+        "get_watchlists",
         "update_filter",
         "delete_filter",
         "test_filter",

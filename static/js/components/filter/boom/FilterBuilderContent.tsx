@@ -3,7 +3,10 @@ import {
   Alert,
   Button,
   Box,
+  Chip,
   CircularProgress,
+  MenuItem,
+  TextField,
   Tooltip,
   Typography,
 } from "@mui/material";
@@ -29,8 +32,10 @@ import { showNotification } from "baselayer/components/Notifications";
 
 import {
   useBoomFilterVersion,
+  useGetBrokerWatchlistsQuery,
   useUpdateBoomGroupFilterMutation,
 } from "../../../ducks/boom_filter";
+import { brokerFilterBase } from "../../../ducks/brokerFilterTarget";
 import { useFilterSchema } from "../../../ducks/boom_filter_modules";
 
 interface FilterBuilderContentProps {
@@ -95,6 +100,13 @@ const FilterBuilderContent = ({
     useBoomFilterVersion();
   const [updateGroupFilter, { isLoading: saving }] =
     useUpdateBoomGroupFilterMutation();
+  const onBroker = !!filter?.altdata?.boom?.filter_id;
+  const boundWatchlist = filter?.altdata?.boom?.watchlist;
+  const [watchlist, setWatchlist] = useState("");
+  const { data: watchlists = [] } = useGetBrokerWatchlistsQuery(
+    brokerFilterBase(),
+    { skip: !filter || onBroker },
+  );
   const {
     data: store_schema,
     isError: schemaError,
@@ -407,6 +419,7 @@ const FilterBuilderContent = ({
         altdata: mongoQuery,
         filters: versionData,
         name: filter_v?.name,
+        watchlist: onBroker ? null : watchlist || null,
       });
       if (!result.error) {
         dispatch(showNotification("Filter saved to boom database!"));
@@ -450,7 +463,33 @@ const FilterBuilderContent = ({
         }}
       >
         <Typography variant="h6">Filter Builder</Typography>
-        <Box sx={{ display: "flex", gap: 2 }}>
+        <Box sx={{ display: "flex", gap: 2, alignItems: "center" }}>
+          {!onBroker && watchlists.length > 0 && (
+            <Tooltip
+              describeChild
+              title="Run the filter only on alerts matching this watchlist. It cannot be changed once the filter is saved."
+            >
+              <TextField
+                select
+                size="small"
+                label="Watchlist"
+                value={watchlist}
+                onChange={(e) => setWatchlist(e.target.value)}
+                sx={{ minWidth: 200 }}
+                data-testid="filter-watchlist-select"
+              >
+                <MenuItem value="">None</MenuItem>
+                {watchlists.map((name) => (
+                  <MenuItem key={name} value={name}>
+                    {name}
+                  </MenuItem>
+                ))}
+              </TextField>
+            </Tooltip>
+          )}
+          {onBroker && boundWatchlist && (
+            <Chip size="small" label={`Watchlist: ${boundWatchlist}`} />
+          )}
           <Tooltip
             describeChild
             title="Save the whole filter as a new version. It does not run on live alerts until that version is validated and activated."

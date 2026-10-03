@@ -373,6 +373,39 @@ def test_boom_test_filter_caps_stream_scope_by_requester(monkeypatch):
     assert calls[0]["json"]["permissions"] == {"ZTF": [1]}
 
 
+def test_boom_create_filter_sends_a_watchlist_only_when_given(monkeypatch):
+    calls = _capture_boom_request(monkeypatch, result={"id": "f", "active_fid": "v"})
+    broker = _MockBroker({"survey": "ZTF"})
+    filter_kwargs = {
+        "name": "supernovae",
+        "pipeline": [{"$match": {}}],
+        "survey": "ZTF",
+        "permissions": {"ZTF": [1]},
+    }
+    BOOMBROKER.create_filter(
+        broker, None, watchlist="watchlist_supernovas", **filter_kwargs
+    )
+    BOOMBROKER.create_filter(broker, None, **filter_kwargs)
+    assert calls[0]["json"]["watchlist"] == "watchlist_supernovas"
+    assert "watchlist" not in calls[1]["json"]
+
+
+def test_boom_get_watchlists_keeps_only_watchlists(monkeypatch):
+    _capture_boom_request(
+        monkeypatch,
+        result=[
+            {"name": "watchlist_wtp"},
+            {"name": "Gaia_DR3"},
+            {"name": "ZTF_alerts"},
+            {"name": "watchlist_supernovas"},
+        ],
+    )
+    assert BOOMBROKER.get_watchlists(_MockBroker({}), None) == [
+        "watchlist_supernovas",
+        "watchlist_wtp",
+    ]
+
+
 def test_boom_query_cassette():
     broker = _MockBroker(
         {
