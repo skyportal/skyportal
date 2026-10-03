@@ -690,9 +690,6 @@ def api(queue):
                                 )
                             )
                             notification_user_ids.add(target_data["requester_id"])
-                            notification_user_ids.add(
-                                target_data["last_modified_by_id"]
-                            )
                             notification_user_ids.update(
                                 shift_users_with_access(session, allocation.id)
                             )
