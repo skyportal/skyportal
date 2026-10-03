@@ -460,3 +460,28 @@ def test_super_obj_thumbnail_aggregation(
         assert {("ZTF", obj1), ("LSST", obj2)} <= new_pairs(data)
     finally:
         teardown()
+
+
+def test_candidates_page_with_linked_objs(
+    view_only_token, public_candidate, public_candidate2, public_group
+):
+    obj1 = public_candidate.id
+    obj2 = public_candidate2.id
+    super_obj_id, teardown = _link_super_obj([obj1, obj2])
+    try:
+        status, data = api(
+            "GET",
+            "candidates",
+            params={"groupIDs": public_group.id, "includeAssociatedObjs": True},
+            token=view_only_token,
+        )
+        assert status == 200, data
+        candidates = {c["id"]: c for c in data["data"]["candidates"]}
+        assert set(candidates) == {obj1, obj2}
+        for obj_id, other_id in [(obj1, obj2), (obj2, obj1)]:
+            assert [s["id"] for s in candidates[obj_id]["super_objs"]] == [super_obj_id]
+            assert [a["obj_id"] for a in candidates[obj_id]["associated_objs"]] == [
+                other_id
+            ]
+    finally:
+        teardown()
