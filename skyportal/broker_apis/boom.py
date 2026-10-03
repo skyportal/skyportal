@@ -28,6 +28,7 @@ VALIDATE_TIMEOUT = 180  # seconds
 TEST_TIMEOUT = 600  # seconds
 RADIUS_UNIT_MAP = {"deg": "Degrees", "arcmin": "Arcminutes", "arcsec": "Arcseconds"}
 NO_CUTOUT_PROJECTION = {"cutoutScience": 0, "cutoutTemplate": 0, "cutoutDifference": 0}
+FILTER_LINKS_TTL = timedelta(minutes=1)
 
 cutouts_cache = Cache(
     cache_dir=f"{cache_folder}/broker_cutouts",
@@ -937,18 +938,30 @@ class BOOMBROKER(BrokerAPI):
         # and the actual Kafka group agree.
         group_id = kafka.get("group_id") or f"skyportal-broker-{broker.id}"
 
-        # Map BOOM filter ids -> skyportal Filter ids once at startup (shared,
-        # read-only across the consumers below).
-        async with async_plain_session_factory() as session:
-            boom_map = {}
-            filters = (await session.scalars(sa.select(Filter))).all()
-            for f in filters:
-                boom = (f.altdata or {}).get("boom")
-                if boom and boom.get("filter_id") is not None:
-                    boom_map[boom["filter_id"]] = f.id
-            # Filters marked `altdata['sso']` route their alerts to the
-            # solar-system ingest instead of the sidereal one.
-            sso_targets = sso_filter_targets(filters)
+        lock = asyncio.Lock()
+        cache = {}
+
+        async def filter_links():
+            async with lock:
+                if cache and datetime.now(UTC) < cache["expiry"]:
+                    return cache["links"]
+                try:
+                    async with async_plain_session_factory() as session:
+                        boom_map = {}
+                        filters = (await session.scalars(sa.select(Filter))).all()
+                        for f in filters:
+                            boom = (f.altdata or {}).get("boom")
+                            if boom and boom.get("filter_id") is not None:
+                                boom_map[boom["filter_id"]] = f.id
+                        # Filters marked `altdata['sso']` route their alerts to the
+                        # solar-system ingest instead of the sidereal one.
+                        cache["links"] = boom_map, sso_filter_targets(filters)
+                except Exception as e:
+                    if not cache:
+                        raise
+                    log(f"BOOM filter links reload failed, keeping the last ones: {e}")
+                cache["expiry"] = datetime.now(UTC) + FILTER_LINKS_TTL
+                return cache["links"]
 
         # N consumers sharing one group id; Kafka rebalances partitions across
         # them. Defaults to 1.
@@ -966,8 +979,7 @@ class BOOMBROKER(BrokerAPI):
                         kafka,
                         topics,
                         group_id,
-                        boom_map,
-                        sso_targets,
+                        filter_links,
                         default_filter_ids,
                         stop,
                         max_messages,
@@ -985,8 +997,7 @@ class BOOMBROKER(BrokerAPI):
         kafka,
         topics,
         group_id,
-        boom_map,
-        sso_targets,
+        filter_links,
         default_filter_ids,
         stop,
         max_messages,
@@ -1029,6 +1040,7 @@ class BOOMBROKER(BrokerAPI):
 
                 survey = _record_survey(record)
                 data = _normalize_boom_alert(record)
+                boom_map, sso_targets = await filter_links()
                 # Route to the skyportal Filters mapped to the passing BOOM filters.
                 passed = [
                     boom_map[f["filter_id"]]

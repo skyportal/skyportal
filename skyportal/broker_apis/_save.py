@@ -571,9 +571,9 @@ async def _ingest_object(
             )
 
     # BOOM saves Sources via the ORM, bypassing post_source's auto-publish hook;
-    # fire it here so TNS/Hermes/Public-page auto-publishers react to new saves.
+    # fire it here so TNS/Hermes/TROVE/Public-page auto-publishers react to new saves.
     if saved_group_ids and await any_group_auto_publishes(session, saved_group_ids):
-        publish_to = ["TNS", "Hermes", "Public page"]
+        publish_to = ["TNS", "Hermes", "TROVE", "Public page"]
         for gid in saved_group_ids:
             saver = user_by_id.get(group_saver_id.get(gid), user)
             # The submission lookup underneath reads the session's actor instead

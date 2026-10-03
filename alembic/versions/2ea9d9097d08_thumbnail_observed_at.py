@@ -1,7 +1,7 @@
 """thumbnail observed_at
 
 Revision ID: 2ea9d9097d08
-Revises: 58c918ffe430
+Revises: e5b2f7c19d04
 Create Date: 2026-10-03
 
 Adds the time of the alert observation a survey cutout comes from. Existing rows
@@ -13,7 +13,7 @@ import sqlalchemy as sa
 from alembic import op
 
 revision = "2ea9d9097d08"
-down_revision = "58c918ffe430"
+down_revision = "e5b2f7c19d04"
 branch_labels = None
 depends_on = None
 
