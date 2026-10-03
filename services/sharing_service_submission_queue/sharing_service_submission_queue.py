@@ -183,7 +183,7 @@ def build_reporters_and_remarks_string(
     return reporters, remarks, warning
 
 
-def process_submission_request(submission_request, session):
+def process_submission_request(submission_request, session, trove=False):
     """Process a TNS submission request.
 
     Parameters
@@ -235,6 +235,12 @@ def process_submission_request(submission_request, session):
             submission_request.auto_submission,
         )
 
+        if trove:
+            submit_to_trove(
+                submission_request, sharing_service, user, photometry, session
+            )
+            return
+
         reporters, remarks, warning = build_reporters_and_remarks_string(
             submission_request, source, sharing_service.acknowledgments, session
         )
@@ -268,15 +274,6 @@ def process_submission_request(submission_request, session):
             photometry,
             reporters,
             remarks,
-            session,
-        )
-
-    if submission_request.trove_status == "processing":
-        submit_to_trove(
-            submission_request,
-            sharing_service,
-            user,
-            photometry,
             session,
         )
 
@@ -328,12 +325,6 @@ def process_submission_requests():
                                         ["pending", "processing"]
                                     ),
                                 ),
-                                and_(
-                                    SharingServiceSubmission.publish_to_trove == True,
-                                    SharingServiceSubmission.trove_status.in_(
-                                        ["pending", "processing"]
-                                    ),
-                                ),
                             )
                         )
                         .order_by(SharingServiceSubmission.created_at.asc())
@@ -344,8 +335,6 @@ def process_submission_requests():
                     else:
                         if submission_request.publish_to_hermes:
                             submission_request.hermes_status = "processing"
-                        if submission_request.publish_to_trove:
-                            submission_request.trove_status = "processing"
                         if submission_request.publish_to_tns:
                             submission_request.tns_status = "processing"
                         session.commit()
@@ -375,8 +364,6 @@ def process_submission_requests():
                             )
                             if submission_request.publish_to_hermes:
                                 submission_request.hermes_status = f"Error: {str(e)}"
-                            if submission_request.publish_to_trove:
-                                submission_request.trove_status = f"Error: {str(e)}"
                             if submission_request.publish_to_tns:
                                 submission_request.tns_status = f"Error: {str(e)}"
                             session.commit()
@@ -398,6 +385,57 @@ def process_submission_requests():
             log(f"Error in submission request loop, retrying: {e}")
             time.sleep(5)
             continue
+
+
+def process_trove_submission_requests():
+    session_context_id.set(uuid.uuid4().hex)
+
+    while True:
+        try:
+            with DBSession() as session:
+                session.execute(
+                    sa.text(f"SET statement_timeout = '{STATEMENT_TIMEOUT}'")
+                )
+                submission_request = session.scalar(
+                    sa.select(SharingServiceSubmission)
+                    .where(
+                        SharingServiceSubmission.publish_to_trove.is_(True),
+                        SharingServiceSubmission.trove_status.in_(
+                            ["pending", "processing"]
+                        ),
+                    )
+                    .order_by(SharingServiceSubmission.created_at.asc())
+                )
+                if submission_request is None:
+                    time.sleep(5)
+                    continue
+
+                submission_request.trove_status = "processing"
+                session.commit()
+                submission_request_id = submission_request.id
+
+                try:
+                    process_submission_request(submission_request, session, trove=True)
+                except Exception as e:
+                    session.rollback()
+                    log(
+                        f"Error processing TROVE submission request {submission_request_id}: {e}"
+                    )
+                    submission_request = session.get(
+                        SharingServiceSubmission, submission_request_id
+                    )
+                    submission_request.trove_status = f"Error: {e}"
+                    session.commit()
+                    Flow().push(
+                        "*",
+                        "skyportal/REFRESH_SHARING_SERVICE_SUBMISSIONS",
+                        payload={
+                            "sharing_service_id": submission_request.sharing_service_id
+                        },
+                    )
+        except Exception as e:
+            log(f"Error in TROVE submission request loop, retrying: {e}")
+            time.sleep(5)
 
 
 def validate_submission_requests():
@@ -643,14 +681,16 @@ def validate_submission_requests():
 def service(*args, **kwargs):
     t = Thread(target=process_submission_requests)
     t2 = Thread(target=validate_submission_requests)
+    t3 = Thread(target=process_trove_submission_requests)
     t.start()
     t2.start()
+    t3.start()
     while True:
         log("Sharing service submission queue heartbeat")
         time.sleep(120)
-        # Exit if either worker thread died (e.g. DB connection drop in a context
+        # Exit if any worker thread died (e.g. DB connection drop in a context
         # manager exit, outside the loop's try/except) so supervisor restarts us.
-        if not (t.is_alive() and t2.is_alive()):
+        if not (t.is_alive() and t2.is_alive() and t3.is_alive()):
             log("A sharing service worker thread died, exiting for supervisor restart")
             sys.exit(1)
 
