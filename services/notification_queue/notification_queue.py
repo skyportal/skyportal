@@ -29,7 +29,6 @@ from skyportal.models import (
     DBSession,
     Deployment,
     EventObservationPlan,
-    FacilityTransaction,
     Feedback,
     FeedbackReply,
     FollowupRequest,
@@ -579,7 +578,6 @@ def api(queue):
             target_id = data["target_id"]
             target_content = None
 
-            is_facility_transaction = target_class_name == "FacilityTransaction"
             is_gcn_notice = target_class_name == "GcnNotice"
             is_gcn_localization = target_class_name == "Localization"
             is_gcn_tag = target_class_name == "GcnTag"
@@ -634,7 +632,7 @@ def api(queue):
                         target_data = target.to_dict()
                         target_content = gcn_notification_content(target, session)
 
-                    elif is_facility_transaction or is_followup_request:
+                    elif is_followup_request:
                         users = session.scalars(
                             sa.select(User).where(
                                 User.preferences["notifications"][
@@ -644,55 +642,42 @@ def api(queue):
                                 .is_(True)
                             )
                         ).all()
-                        if is_facility_transaction:
-                            target_class = FacilityTransaction
-                            target_data = (
-                                session.scalars(
-                                    sa.select(FacilityTransaction).where(
-                                        FacilityTransaction.id == target_id
-                                    )
-                                )
-                                .first()
-                                .to_dict()
+                        target_class = FollowupRequest
+                        target_data = session.scalars(
+                            sa.select(FollowupRequest).where(
+                                FollowupRequest.id == target_id
                             )
-                        elif is_followup_request:
-                            target_class = FollowupRequest
-                            target_data = session.scalars(
-                                sa.select(FollowupRequest).where(
-                                    FollowupRequest.id == target_id
-                                )
-                            ).first()
-                            try:
-                                target_data = target_data.to_dict()
-                            except Exception:
-                                # this happens if the followup request is deleted
-                                # in the future, maybe we'll want to notify on deletion?
-                                return
-                            if target_data["status"].startswith(
-                                ("submitted", "In progress")
-                            ):
-                                return
-                            allocation = session.scalars(
-                                sa.select(Allocation).where(
-                                    Allocation.id == target_data["allocation_id"]
-                                )
-                            ).first()
-                            instrument = allocation.instrument
-                            notification_user_ids = {
-                                allocation_user.user_id
-                                for allocation_user in allocation.allocation_users
-                            } | set(
-                                session.scalars(
-                                    sa.select(FollowupRequestUser.user_id).where(
-                                        FollowupRequestUser.followuprequest_id
-                                        == target_id
-                                    )
+                        ).first()
+                        try:
+                            target_data = target_data.to_dict()
+                        except Exception:
+                            # this happens if the followup request is deleted
+                            # in the future, maybe we'll want to notify on deletion?
+                            return
+                        if target_data["status"].startswith(
+                            ("submitted", "In progress")
+                        ):
+                            return
+                        allocation = session.scalars(
+                            sa.select(Allocation).where(
+                                Allocation.id == target_data["allocation_id"]
+                            )
+                        ).first()
+                        instrument = allocation.instrument
+                        notification_user_ids = {
+                            allocation_user.user_id
+                            for allocation_user in allocation.allocation_users
+                        } | set(
+                            session.scalars(
+                                sa.select(FollowupRequestUser.user_id).where(
+                                    FollowupRequestUser.followuprequest_id == target_id
                                 )
                             )
-                            notification_user_ids.add(target_data["requester_id"])
-                            notification_user_ids.update(
-                                shift_users_with_access(session, allocation.id)
-                            )
+                        )
+                        notification_user_ids.add(target_data["requester_id"])
+                        notification_user_ids.update(
+                            shift_users_with_access(session, allocation.id)
+                        )
                     elif is_analysis_service:
                         users = session.scalars(
                             sa.select(User).where(
@@ -1154,96 +1139,6 @@ def api(queue):
                                         }
                                         queue.append(target)
 
-                                elif is_facility_transaction:
-                                    if "observation_plan_request" in target_data:
-                                        allocation_id = target_data[
-                                            "observation_plan_request"
-                                        ]["allocation_id"]
-                                        allocation = session.scalars(
-                                            sa.select(Allocation).where(
-                                                Allocation.id == allocation_id
-                                            )
-                                        ).first()
-                                        notification_user_ids = [
-                                            allocation_user.user.id
-                                            for allocation_user in allocation.allocation_users
-                                        ]
-                                        notification_user_ids.append(
-                                            target_data["observation_plan_request"][
-                                                "requester_id"
-                                            ]
-                                        )
-                                        instrument = allocation.instrument
-                                        localization_id = target_data[
-                                            "observation_plan_request"
-                                        ]["localization_id"]
-                                        localization = session.scalars(
-                                            sa.select(Localization).where(
-                                                Localization.id == localization_id
-                                            )
-                                        ).first()
-                                        if user.id in notification_user_ids:
-                                            notification = UserNotification(
-                                                user=user,
-                                                text=f"New Observation Plan submission for GcnEvent *{localization.dateobs}* for *{instrument.name}* by user *{target_data['observation_plan_request']['requester']['username']}*",
-                                                notification_type="facility_transactions",
-                                                url=f"/gcn_events/{str(localization.dateobs).replace(' ', 'T')}",
-                                            )
-                                            session.add(notification)
-                                            session.commit()
-                                            target = {
-                                                **notification.to_dict(),
-                                                "user": {
-                                                    **notification.user.to_dict(),
-                                                    "preferences": notification.user.preferences,
-                                                },
-                                            }
-                                            queue.append(target)
-                                    elif "followup_request" in target_data:
-                                        allocation_id = target_data["followup_request"][
-                                            "allocation_id"
-                                        ]
-                                        allocation = session.scalars(
-                                            sa.select(Allocation).where(
-                                                Allocation.id == allocation_id
-                                            )
-                                        ).first()
-                                        notification_user_ids = [
-                                            allocation_user.user.id
-                                            for allocation_user in allocation.allocation_users
-                                        ]
-                                        notification_user_ids.append(
-                                            target_data["followup_request"][
-                                                "requester_id"
-                                            ]
-                                        )
-                                        notification_user_ids += (
-                                            shift_users_with_access(
-                                                session, allocation_id
-                                            )
-                                        )
-                                        notification_user_ids = list(
-                                            set(notification_user_ids)
-                                        )
-
-                                        instrument = allocation.instrument
-                                        if user.id in notification_user_ids:
-                                            notification = UserNotification(
-                                                user=user,
-                                                text=f"New Follow-up submission for object *{target_data['followup_request']['obj_id']}* by *{instrument.name}* by user *{target_data['followup_request']['requester']['username']}*",
-                                                notification_type="facility_transactions",
-                                                url=f"/source/{target_data['followup_request']['obj_id']}",
-                                            )
-                                            session.add(notification)
-                                            session.commit()
-                                            target = {
-                                                **notification.to_dict(),
-                                                "user": {
-                                                    **notification.user.to_dict(),
-                                                    "preferences": notification.user.preferences,
-                                                },
-                                            }
-                                            queue.append(target)
                                 elif is_followup_request:
                                     if user.id in notification_user_ids:
                                         notification = UserNotification(
