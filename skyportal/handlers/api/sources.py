@@ -2219,6 +2219,8 @@ async def get_sources(
 
         else:
             all_obj_ids = []
+            total_matches = None
+            page_offset = 0
 
             if use_cache and query_id is not None:
                 cache_filename = cache[query_id]
@@ -2396,8 +2398,12 @@ async def get_sources(
                             """
                         )
 
+                    total_column = (
+                        "" if use_cache else ", COUNT(*) OVER () AS total_matches"
+                    )
+
                     # ADD QUERY STATEMENTS
-                    statement = f"""SELECT {OBJ_ID_TOKEN} AS id, MAX(sources.saved_at) AS most_recent_saved_at
+                    statement = f"""SELECT {OBJ_ID_TOKEN} AS id, MAX(sources.saved_at) AS most_recent_saved_at{total_column}
                         FROM {SOURCES_FROM_TOKEN}
                         {" ".join(joins)}
                         WHERE {" AND ".join(statements)}
@@ -2466,6 +2472,11 @@ async def get_sources(
                             f"""ORDER BY {SORT_BY[sort_by]} {sort_order.upper()}"""
                         )
 
+                    if not use_cache:
+                        statement += (
+                            f", {OBJ_ID_TOKEN} LIMIT {end - start} OFFSET {start}"
+                        )
+
                     statement = (
                         text(resolve_obj_join(statement))
                         .bindparams(*query_params)
@@ -2477,12 +2488,15 @@ async def get_sources(
 
                     startTime = time.time()
 
-                    results = await session.execute(statement)
+                    results = (await session.execute(statement)).all()
                     all_obj_ids = [r[0] for r in results]
                     if len(all_obj_ids) != len(set(all_obj_ids)):
                         raise ValueError(
                             f"Duplicate obj_ids in query results, query is incorrect: {all_obj_ids}"
                         )
+                    if not use_cache:
+                        total_matches = results[0].total_matches if results else 0
+                        page_offset = start
 
                     endTime = time.time()
                     if verbose:
@@ -2499,7 +2513,8 @@ async def get_sources(
                     cache[query_id] = all_obj_ids_bytes
                     data["queryID"] = query_id
 
-            objs, total_matches = [], len(all_obj_ids)
+            if total_matches is None:
+                total_matches = len(all_obj_ids)
             data["totalMatches"] = total_matches
             if start > total_matches:
                 return data
@@ -2508,7 +2523,7 @@ async def get_sources(
 
             startTime = time.time()
 
-            obj_ids = all_obj_ids[start:end]
+            obj_ids = all_obj_ids[start - page_offset : end - page_offset]
             if isinstance(obj_ids, np.ndarray):
                 obj_ids = obj_ids.tolist()
             objs_result = await session.scalars(

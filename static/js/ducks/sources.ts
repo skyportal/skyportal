@@ -125,7 +125,6 @@ const withQueryCache = (params: FilterParams): FilterParams => {
     else delete p["useCache"];
   } else {
     delete p["queryID"];
-    p["useCache"] = true;
   }
   return p;
 };
