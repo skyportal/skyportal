@@ -486,6 +486,13 @@ const UserInvitations = () => {
       valueGetter: (_value: any, row: any) => row.invited_by?.username,
     },
     {
+      field: "created_at",
+      headerName: "Sent At",
+      minWidth: 120,
+      valueGetter: (_value: any, row: any) =>
+        row.created_at ? dayjs.utc(row.created_at).format("YYYY/MM/DD") : "",
+    },
+    {
       field: "user_expiration_date",
       headerName: "User Expiration Date",
       minWidth: 180,
