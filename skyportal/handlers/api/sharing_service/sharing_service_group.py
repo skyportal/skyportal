@@ -192,8 +192,7 @@ class SharingServiceGroupHandler(BaseHandler):
                     group_id=group_id,
                     auto_share_to_tns=auto_share_to_tns,
                     auto_share_to_hermes=auto_share_to_hermes,
-                    # The column is NOT NULL, and a client need not send it.
-                    auto_share_to_trove=bool(auto_share_to_trove),
+                    auto_share_to_trove=auto_share_to_trove,
                     auto_sharing_allow_bots=auto_sharing_allow_bots,
                     owner=owner,
                 )

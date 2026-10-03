@@ -138,8 +138,6 @@ class SharingService(Base):
     def mpc_altdata(self, value):
         self._mpc_altdata = value
 
-    # TROVE authenticates as a real account rather than a bot, so the endpoint
-    # and HTTP Basic credentials live here together.
     _trove_altdata = sa.Column(
         StringEncryptedType(JSONType, cfg["app.secret_key"], AesEngine, "pkcs5")
     )
@@ -372,8 +370,6 @@ class SharingServiceSubmission(Base):
         sa.Column(psql.JSONB, doc="Serialized HTTP response from Hermes.")
     )
 
-    # TROVE upserts on the target name and returns no submission id, so a
-    # re-send adds points to the same target rather than creating another.
     publish_to_trove = sa.Column(
         sa.Boolean,
         nullable=False,
