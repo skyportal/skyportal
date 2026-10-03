@@ -556,13 +556,13 @@ const FilterBuilderContent = ({
                   shown here. The pipeline below is read-only.
                   {lastEditableVersion
                     ? ` Version ${String(lastEditableVersion.fid).slice(0, 8)} is the most recent one that is still editable: activate it to carry on in the builder.`
-                    : " Edit it through the broker API."}
+                    : " Use Import JSON to replace it with a new version."}
                 </>
               ) : (
                 <>
-                  This filter was imported as a raw MongoDB pipeline, so it
-                  can&apos;t be edited in the block builder. It&apos;s shown
-                  read-only below; edit it through the broker API.
+                  This filter is a raw MongoDB pipeline that the block builder
+                  can&apos;t show as blocks, so it&apos;s shown read-only below.
+                  Use Import JSON to replace it with a new version.
                 </>
               )}
             </Alert>
