@@ -62,6 +62,12 @@ class Thumbnail(Base):
         nullable=False,
         doc="ID of the thumbnail's obj.",
     )
+    observed_at = sa.Column(
+        sa.DateTime,
+        nullable=True,
+        doc="UTC time of the alert observation the cutout comes from; NULL for "
+        "archival thumbnails and when unknown.",
+    )
     is_grayscale = sa.Column(
         sa.Boolean(),
         nullable=True,

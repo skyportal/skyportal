@@ -42,6 +42,7 @@ async def post_thumbnail(data, user_id, session):
     """
 
     obj_id, ttype = data["obj_id"], data["ttype"]
+    observed_at = data.get("observed_at")
     user = await session.get(User, user_id)
 
     if await session.scalar(Obj.select(user).where(Obj.id == obj_id)) is None:
@@ -122,6 +123,7 @@ async def post_thumbnail(data, user_id, session):
                     file_uri=file_uri,
                     public_url=public_url,
                     is_grayscale=is_grayscale,
+                    observed_at=observed_at,
                 )
                 .on_conflict_do_update(
                     index_elements=["obj_id", "type", "survey"],
@@ -130,6 +132,7 @@ async def post_thumbnail(data, user_id, session):
                         "file_uri": file_uri,
                         "public_url": public_url,
                         "is_grayscale": is_grayscale,
+                        "observed_at": observed_at,
                         "modified": utcnow,
                     },
                 )
@@ -150,6 +153,7 @@ async def post_thumbnail(data, user_id, session):
             t.file_uri = file_uri
             t.public_url = public_url
             t.is_grayscale = is_grayscale
+            t.observed_at = observed_at
             await session.flush()
             thumbnail_id = t.id
 
@@ -544,7 +548,14 @@ async def recreate_thumbnails_from_broker(obj_id, user_id, session):
             )
             if not cutouts:
                 continue
-            await add_thumbnails(obj_id, cutouts, survey, session, user_id=user_id)
+            await add_thumbnails(
+                obj_id,
+                cutouts,
+                survey,
+                session,
+                user_id=user_id,
+                jd=(data.get("candidate") or {}).get("jd"),
+            )
             return True
         except Exception as e:
             log(f"Could not rebuild thumbnails for {obj_id} from {broker.name}: {e}")
