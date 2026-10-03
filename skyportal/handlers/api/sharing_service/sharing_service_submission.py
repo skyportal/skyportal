@@ -101,6 +101,11 @@ class SharingServiceSubmissionHandler(BaseHandler):
                 )
             )
 
+            if sharing_service is None:
+                return self.error(
+                    f"No sharing service available with ID {sharing_service_id}"
+                )
+
             if publish_to_tns:
                 tns_altdata = sharing_service.tns_altdata
                 if not tns_altdata:
@@ -108,10 +113,12 @@ class SharingServiceSubmissionHandler(BaseHandler):
                 if "api_key" not in tns_altdata:
                     return self.error("Missing TNS API key.")
 
-            if sharing_service is None:
-                return self.error(
-                    f"No sharing service available with ID {sharing_service_id}"
-                )
+            if publish_to_trove:
+                trove_altdata = sharing_service.trove_altdata
+                if not trove_altdata:
+                    return self.error("Missing TROVE information.")
+                if "username" not in trove_altdata or "password" not in trove_altdata:
+                    return self.error("Missing TROVE username or password.")
 
             if archival is True:
                 if len(archival_comment) == 0:
@@ -144,15 +151,6 @@ class SharingServiceSubmissionHandler(BaseHandler):
                         f"Submission request for Hermes for obj_id {obj.id} and sharing service id {sharing_service.id} already exists and is: {existing_submission_request.hermes_status}"
                     )
             if publish_to_trove:
-                if not sharing_service.enable_sharing_with_trove:
-                    return self.error(
-                        "This sharing service is not enabled for publishing to TROVE"
-                    )
-                trove_altdata = sharing_service.trove_altdata
-                if not trove_altdata.get("username") or not trove_altdata.get(
-                    "password"
-                ):
-                    return self.error("Missing TROVE username or password.")
                 existing_submission_request = (
                     await is_existing_submission_request_async(
                         session, obj, sharing_service_id, "TROVE"
