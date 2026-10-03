@@ -237,8 +237,8 @@ def sso_key_for(data=None, annotations_by_filter_id=None):
 def sso_filter_targets(filters):
     """Map Filter id -> group id to auto-save to, or None to only scan.
 
-    Built once when a broker's ingestion loop starts, so the per-alert check is
-    a lookup rather than a query. `autosave` keeps its usual meaning: without it
+    Cached by a broker's ingestion loop, so the per-alert check is a lookup
+    rather than a query. `autosave` keeps its usual meaning: without it
     the object is a candidate to scan rather than a saved source, which is what
     someone filtering for, say, active asteroids wants instead of every
     designation the survey sees.
