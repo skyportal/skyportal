@@ -674,11 +674,6 @@ def api(queue):
                             notification_user_ids.update(
                                 shift_users_with_access(session, allocation.id)
                             )
-                            last_modified_by = session.scalars(
-                                sa.select(User).where(
-                                    User.id == target_data["last_modified_by_id"]
-                                )
-                            ).first()
                     elif is_analysis_service:
                         users = session.scalars(
                             sa.select(User).where(
@@ -1234,7 +1229,7 @@ def api(queue):
                                     if user.id in notification_user_ids:
                                         notification = UserNotification(
                                             user=user,
-                                            text=f"Follow-up submission for object *{target_data['obj_id']}* by *{instrument.name}* updated by user *{last_modified_by.username}*",
+                                            text=f"Follow-up request for object *{target_data['obj_id']}* by *{instrument.name}*: {textwrap.shorten(target_data['status'], 120, placeholder='...')}",
                                             notification_type="facility_transactions",
                                             url=f"/source/{target_data['obj_id']}",
                                         )
