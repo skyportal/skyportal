@@ -191,10 +191,10 @@ async def update_sharing_service(
         "tns_bot_id",
         "tns_source_group_id",
         "_tns_altdata",
+        "_trove_altdata",
         "enable_sharing_with_tns",
         "enable_sharing_with_hermes",
         "enable_sharing_with_trove",
-        "_trove_altdata",
     ]:
         if field in data:
             setattr(sharing_service, field, data[field])
@@ -249,6 +249,9 @@ class SharingServiceHandler(BaseHandler):
             if isinstance(data["_tns_altdata"], dict):
                 data["_tns_altdata"] = json.dumps(data["_tns_altdata"])
             data["_tns_altdata"] = data["_tns_altdata"].replace("'", '"')
+
+        if isinstance(data.get("_trove_altdata"), dict):
+            data["_trove_altdata"] = json.dumps(data["_trove_altdata"])
 
         owner_group_ids = get_list_typed(data.pop("owner_group_ids", []), int)
 
