@@ -56,10 +56,12 @@ const nestedSx = { borderLeft: 3, borderColor: "primary.light", pl: 2 };
 const Section = ({
   title,
   nested = false,
+  grid = false,
   children,
 }: {
   title: string;
   nested?: boolean;
+  grid?: boolean;
   children: ReactNode;
 }) => (
   <Box
@@ -74,7 +76,15 @@ const Section = ({
       {title}
     </Typography>
     <Box
-      sx={{ display: "flex", alignItems: "center", gap: 2, flexWrap: "wrap" }}
+      sx={
+        grid
+          ? {
+              display: "grid",
+              gridTemplateColumns: "repeat(auto-fill, minmax(14rem, 1fr))",
+              gap: 2,
+            }
+          : { display: "flex", alignItems: "center", gap: 2, flexWrap: "wrap" }
+      }
     >
       {children}
     </Box>
@@ -380,7 +390,7 @@ const BoomFilterPlugins = () => {
           />
         </Section>
         {autoSaveOn && (
-          <Section title="Auto-save options" nested>
+          <Section title="Auto-save options" nested grid>
             <TextField
               select
               size="small"
@@ -401,7 +411,6 @@ const BoomFilterPlugins = () => {
                       .join(", "),
                 },
               }}
-              sx={{ minWidth: 240 }}
             >
               {allGroups.map((g: any) => (
                 <MenuItem key={g.id} value={g.id}>
@@ -409,22 +418,24 @@ const BoomFilterPlugins = () => {
                 </MenuItem>
               ))}
             </TextField>
-            <TextField
-              size="small"
-              type="number"
-              label="Junk skip radius (arcsec)"
-              placeholder="2"
-              helperText="Default 2″; 0 = exact match only"
-              key={`radius-${altdata.autoSaveIgnoreRadius ?? ""}`}
-              defaultValue={altdata.autoSaveIgnoreRadius ?? ""}
-              onBlur={(e) =>
-                updateOnBlur(
-                  "autoSaveIgnoreRadius",
-                  e.target.value.trim() === "" ? null : Number(e.target.value),
-                )
-              }
-              sx={{ minWidth: 160 }}
-            />
+            <Tooltip title="Default 2″; 0 = exact match only">
+              <TextField
+                size="small"
+                type="number"
+                label="Junk skip radius (arcsec)"
+                placeholder="2"
+                key={`radius-${altdata.autoSaveIgnoreRadius ?? ""}`}
+                defaultValue={altdata.autoSaveIgnoreRadius ?? ""}
+                onBlur={(e) =>
+                  updateOnBlur(
+                    "autoSaveIgnoreRadius",
+                    e.target.value.trim() === ""
+                      ? null
+                      : Number(e.target.value),
+                  )
+                }
+              />
+            </Tooltip>
             <TextField
               select
               size="small"
@@ -433,7 +444,6 @@ const BoomFilterPlugins = () => {
               onChange={(e) =>
                 updateFlags({ autoSaveSaverId: e.target.value || null })
               }
-              sx={{ minWidth: 180 }}
             >
               <MenuItem value="">
                 <em>Bot (default)</em>
@@ -452,7 +462,6 @@ const BoomFilterPlugins = () => {
               onBlur={(e) =>
                 updateOnBlur("autoSaveComment", e.target.value || null)
               }
-              sx={{ minWidth: 240 }}
             />
           </Section>
         )}
