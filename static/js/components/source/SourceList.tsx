@@ -36,21 +36,13 @@ const SourceList = () => {
       ...filterData,
       pageNumber,
       numPerPage,
-      queryID: pageNumber > 1 ? (sourcesState?.queryID ?? null) : null,
     };
     if (sortData?.name) {
       data.sortBy = sortData.name;
       data.sortOrder = sortData.direction;
     }
     setQueryParams(data);
-    fetchSourcesTrigger(data)
-      .unwrap()
-      .catch(() => {
-        if (!data.queryID) return;
-        const retry = { ...data, queryID: null };
-        setQueryParams(retry);
-        fetchSourcesTrigger(retry);
-      });
+    fetchSourcesTrigger(data);
   };
 
   const handleSourceTableSorting = (sortData: any, filterData: any) =>
@@ -78,6 +70,7 @@ const SourceList = () => {
           ...queryParams,
           pageNumber: i,
           numPerPage,
+          useCache: true,
           queryID: i > 1 ? downloadQueryID : null,
         }).unwrap();
         downloadQueryID = result?.queryID ?? downloadQueryID;
