@@ -872,15 +872,22 @@ async def associate_events(session, user, config=None):
         return 0
 
     dateobs_list = sorted(event.dateobs for event in recent)
+    skymaps = {}
+
+    async def skymap(dateobs):
+        if dateobs not in skymaps:
+            skymaps[dateobs] = await newest_localization(session, user, dateobs)
+        return skymaps[dateobs]
+
     found = 0
     for index, dateobs in enumerate(dateobs_list):
-        localization = await newest_localization(session, user, dateobs)
-        if localization is None:
-            continue
         for other in dateobs_list[index + 1 :]:
             if other - dateobs > window:
                 break  # sorted, so everything later is further away
-            other_localization = await newest_localization(session, user, other)
+            localization = await skymap(dateobs)
+            if localization is None:
+                break
+            other_localization = await skymap(other)
             if other_localization is None:
                 continue
             try:
@@ -916,6 +923,7 @@ async def associate_events(session, user, config=None):
                 )
             )
             found += 1
+        skymaps.pop(dateobs, None)
     await session.commit()
     if found:
         log(f"Recorded {found} new event association(s)")
@@ -1015,21 +1023,17 @@ async def retract_superseded_matches(
 
 
 async def newest_localization(session, user, dateobs):
-    """The most recent localization for an event, with its skymap loaded."""
-    return await session.scalar(
-        Localization.select(
-            user,
-            options=[
-                undefer(Localization.uniq),
-                undefer(Localization.probdensity),
-                # a skymap-named localization bounds its cone from the contour,
-                # which is deferred and cannot lazy-load in an async session
-                undefer(Localization.contour),
-            ],
+    """The most recent localization's skymap for an event, as a plain row."""
+    return (
+        await session.execute(
+            Localization.select(
+                user, columns=[Localization.uniq, Localization.probdensity]
+            )
+            .where(Localization.dateobs == dateobs)
+            .order_by(Localization.created_at.desc())
+            .limit(1)
         )
-        .where(Localization.dateobs == dateobs)
-        .order_by(Localization.created_at.desc())
-    )
+    ).first()
 
 
 async def run_cycle(config=None, user_id=1):
