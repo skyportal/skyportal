@@ -12,6 +12,12 @@ def click_add_button(page, testid):
     cell.locator(f"css=[data-testid='{testid}']").first.click()
 
 
+def bulk_invite(page, csv):
+    page.locator("//*[@data-testid='bulkInviteUsersButton']").first.click()
+    page.locator("//textarea[@name='bulkInviteCSVInput']").first.fill(csv)
+    page.locator("//*[@data-testid='bulkAddUsersButton']").first.click()
+
+
 def test_bulk_invite_users(page, super_admin_user, public_group, public_stream):
     page.goto(f"/become_user/{super_admin_user.id}")
     page.goto("/user_management")
@@ -24,10 +30,8 @@ def test_bulk_invite_users(page, super_admin_user, public_group, public_stream):
 {user2_email},{public_stream.id},{public_group.id},false
     """
 
-    page.locator("//textarea[@name='bulkInviteCSVInput']").first.fill(csv)
-    page.locator("//*[@data-testid='bulkAddUsersButton']").first.click()
+    bulk_invite(page, csv)
 
-    # Check that the users show up in pending invitations
     expect(
         page.locator(
             f"//*[@data-testid='pendingInvitations']//*[text()='{user1_email}']"
@@ -68,8 +72,7 @@ def test_delete_invitation(page, super_admin_user, public_group, public_stream):
     user_email = str(uuid.uuid4().hex)[:8] + "@skyportal.com"
     csv = f"{user_email},{public_stream.id},{public_group.id},false"
 
-    page.locator("//textarea[@name='bulkInviteCSVInput']").first.fill(csv)
-    page.locator("//*[@data-testid='bulkAddUsersButton']").first.click()
+    bulk_invite(page, csv)
 
     expect(
         page.locator(
@@ -97,8 +100,7 @@ def test_add_invitation_stream(
     user_email = str(uuid.uuid4().hex)[:8] + "@skyportal.com"
     csv = f"{user_email},{public_stream.id},{public_group.id},false"
 
-    page.locator("//textarea[@name='bulkInviteCSVInput']").first.fill(csv)
-    page.locator("//*[@data-testid='bulkAddUsersButton']").first.click()
+    bulk_invite(page, csv)
 
     expect(
         page.locator(
@@ -127,8 +129,7 @@ def test_edit_invitation_role(
     user_email = str(uuid.uuid4().hex)[:8] + "@skyportal.com"
     csv = f"{user_email},{public_stream.id},{public_group.id},false"
 
-    page.locator("//textarea[@name='bulkInviteCSVInput']").first.fill(csv)
-    page.locator("//*[@data-testid='bulkAddUsersButton']").first.click()
+    bulk_invite(page, csv)
 
     expect(
         page.locator(
@@ -145,8 +146,7 @@ def test_edit_invitation_role(
         f"//*[@data-testid='editInvitationRoleButton{user_email}']"
     ).first.click()
     page.locator("//*[@data-testid='invitationRoleSelect']").first.click()
-    # scope to the open dropdown option ("View only" also appears elsewhere on
-    # the page, and the unscoped .first can land on a non-clickable match)
+    # "View only" also appears outside the dropdown, so scope to the open option
     page.locator('//li[@role="option"][normalize-space(.)="View only"]').first.click()
     page.locator("//*[@data-testid='submitEditRoleButton']").first.click()
     expect(
