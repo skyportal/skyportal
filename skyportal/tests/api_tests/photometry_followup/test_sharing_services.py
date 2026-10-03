@@ -1,6 +1,16 @@
 import uuid
 
+import pytest
+
 from skyportal.tests import api
+from skyportal.tests.fixtures import InstrumentFactory
+
+
+@pytest.fixture()
+def alfosc():
+    instrument = InstrumentFactory(name="ALFOSC")
+    yield instrument
+    InstrumentFactory.teardown(instrument)
 
 
 def test_post_and_delete_sharing_service(
@@ -407,3 +417,70 @@ def test_post_and_delete_sharing_service(
     status, data = api("DELETE", f"sharing_service/{id}", token=super_admin_token)
     assert status == 200
     assert data["status"] == "success"
+
+
+def test_trove_submission(public_group, super_admin_token, public_source, alfosc):
+    status, data = api(
+        "PUT",
+        "sharing_service",
+        data={
+            "name": str(uuid.uuid4()),
+            "owner_group_ids": [public_group.id],
+            "instrument_ids": [alfosc.id],
+            "enable_sharing_with_tns": False,
+            "enable_sharing_with_trove": True,
+            "_trove_altdata": {"username": "user", "password": "password"},
+        },
+        token=super_admin_token,
+    )
+    assert status == 200
+    sharing_service_id = data["data"]["id"]
+
+    request_data = {
+        "sharing_service_id": sharing_service_id,
+        "obj_id": public_source.id,
+        "publish_to_trove": True,
+        "publishers": "test publisher string",
+        "archival": False,
+    }
+    status, data = api(
+        "POST", "sharing_service/submission", data=request_data, token=super_admin_token
+    )
+    assert status == 200
+
+    status, data = api(
+        "GET",
+        "sharing_service/submission",
+        params={"sharing_service_id": sharing_service_id},
+        token=super_admin_token,
+    )
+    assert status == 200
+    (submission,) = data["data"]["submissions"]
+    assert submission["trove_status"] == "pending"
+    assert submission["tns_status"] is None
+    assert submission["hermes_status"] is None
+
+    status, data = api(
+        "POST", "sharing_service/submission", data=request_data, token=super_admin_token
+    )
+    assert status == 400
+    assert "Submission request for TROVE" in data["message"]
+
+    status, data = api(
+        "PUT",
+        f"sharing_service/{sharing_service_id}",
+        data={"_trove_altdata": {}},
+        token=super_admin_token,
+    )
+    assert status == 200
+
+    status, data = api(
+        "POST", "sharing_service/submission", data=request_data, token=super_admin_token
+    )
+    assert status == 400
+    assert "Missing TROVE information" in data["message"]
+
+    status, data = api(
+        "DELETE", f"sharing_service/{sharing_service_id}", token=super_admin_token
+    )
+    assert status == 200
