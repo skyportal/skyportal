@@ -1,10 +1,9 @@
 import { useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 
-import Paper from "@mui/material/Paper";
 import Chip from "@mui/material/Chip";
+import TextField from "@mui/material/TextField";
 import Typography from "@mui/material/Typography";
-import TextareaAutosize from "@mui/material/TextareaAutosize";
 import Box from "@mui/material/Box";
 import Select from "@mui/material/Select";
 import MenuItem from "@mui/material/MenuItem";
@@ -174,7 +173,13 @@ const AddEntitiesDialog = ({
   );
 };
 
-const UserInvitations = () => {
+const UserInvitations = ({
+  bulkInviteOpen,
+  onCloseBulkInvite,
+}: {
+  bulkInviteOpen: boolean;
+  onCloseBulkInvite: () => void;
+}) => {
   const dispatch = useAppDispatch();
   const { data: currentUser } = useGetProfileQuery();
   const { data: streams } = useGetStreamsQuery();
@@ -314,6 +319,7 @@ const UserInvitations = () => {
       );
       dispatch(showNotification("User(s) invitation(s) successfully created."));
       setCsvData("");
+      onCloseBulkInvite();
     } catch {
       // error notification handled by the base query
     }
@@ -559,42 +565,40 @@ const UserInvitations = () => {
           showToolbar
         />
       </Box>
-      <Paper
-        variant="outlined"
-        sx={{
-          p: 2,
-          display: "flex",
-          flexDirection: "column",
-          alignItems: "flex-start",
-          gap: 2,
-        }}
-      >
-        <Typography variant="h6">Bulk Invite New Users</Typography>
-        <Box>
-          <Typography variant="body2" sx={{ fontFamily: "monospace" }}>
-            email,streamIDs,groupIDs,groupAdmin,expirationDate
-          </Typography>
-          <Typography variant="caption" color="text.secondary">
+      <Dialog open={bulkInviteOpen} onClose={onCloseBulkInvite} fullWidth>
+        <DialogTitle>Bulk invite new users</DialogTitle>
+        <DialogContent>
+          <Typography
+            variant="caption"
+            sx={{ display: "block", color: "text.secondary" }}
+          >
             One invitation per line, no space after the commas. Stream IDs,
             group IDs and the true/false admin flags are space-separated lists;
             the expiration date is optional.
           </Typography>
-        </Box>
-        <TextareaAutosize
-          placeholder={SAMPLE_CSV_TEXT}
-          name="bulkInviteCSVInput"
-          style={{ height: "15rem", width: "50rem" }}
-          onChange={(e) => setCsvData(e.target.value)}
-          value={csvData}
-        />
-        <Button
-          secondary
-          data-testid="bulkAddUsersButton"
-          onClick={handleClickAddUsers}
-        >
-          Add Users
-        </Button>
-      </Paper>
+          <Box
+            component="form"
+            onSubmit={handleSubmit(handleClickAddUsers)}
+            sx={{ display: "flex", flexDirection: "column", gap: 2, mt: 1 }}
+          >
+            <TextField
+              multiline
+              minRows={8}
+              name="bulkInviteCSVInput"
+              label="email,streamIDs,groupIDs,groupAdmin,expirationDate"
+              placeholder={SAMPLE_CSV_TEXT}
+              value={csvData}
+              onChange={(e) => setCsvData(e.target.value)}
+              slotProps={{ htmlInput: { sx: { fontFamily: "monospace" } } }}
+            />
+            <Box>
+              <Button primary type="submit" data-testid="bulkAddUsersButton">
+                Submit
+              </Button>
+            </Box>
+          </Box>
+        </DialogContent>
+      </Dialog>
       <Dialog open={filterOpen} onClose={() => setFilterOpen(false)} fullWidth>
         <DialogContent>
           <Form
