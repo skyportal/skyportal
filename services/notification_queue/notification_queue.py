@@ -493,12 +493,27 @@ def push_frontend_notification(target):
 
 
 def users_on_shift(session):
-    users = session.scalars(
-        sa.select(ShiftUser).where(
-            ShiftUser.shift_id == Shift.id,
-        )
+    now = arrow.utcnow().datetime
+    return session.scalars(
+        sa.select(ShiftUser.user_id)
+        .join(Shift, Shift.id == ShiftUser.shift_id)
+        .where(Shift.start_date <= now, Shift.end_date >= now)
+        .distinct()
     ).all()
-    return [user.user_id for user in users]
+
+
+def shift_users_with_access(session, allocation_id):
+    shift_users = session.scalars(
+        sa.select(User).where(User.id.in_(users_on_shift(session)))
+    ).all()
+    return [
+        shift_user.id
+        for shift_user in shift_users
+        if session.scalar(
+            Allocation.select(shift_user).where(Allocation.id == allocation_id)
+        )
+        is not None
+    ]
 
 
 queue = []
@@ -1154,22 +1169,11 @@ def api(queue):
                                                 "requester_id"
                                             ]
                                         )
-                                        shift_user_ids = users_on_shift(session)
-                                        for shift_user_id in shift_user_ids:
-                                            user = session.scalar(
-                                                sa.select(User).where(
-                                                    User.id == shift_user_id
-                                                )
+                                        notification_user_ids += (
+                                            shift_users_with_access(
+                                                session, allocation_id
                                             )
-                                            check_access = session.scalar(
-                                                Allocation.select(user).where(
-                                                    Allocation.id == allocation_id
-                                                )
-                                            )
-                                            if check_access is not None:
-                                                notification_user_ids.append(
-                                                    shift_user_id
-                                                )
+                                        )
                                         notification_user_ids = list(
                                             set(notification_user_ids)
                                         )
@@ -1184,9 +1188,18 @@ def api(queue):
                                             )
                                             session.add(notification)
                                             session.commit()
-                                            queue.append(notification.id)
+                                            target = {
+                                                **notification.to_dict(),
+                                                "user": {
+                                                    **notification.user.to_dict(),
+                                                    "preferences": notification.user.preferences,
+                                                },
+                                            }
+                                            queue.append(target)
                                 elif is_followup_request:
-                                    if target_data["status"].startswith("submitted"):
+                                    if target_data["status"].startswith(
+                                        ("submitted", "In progress")
+                                    ):
                                         continue
                                     allocation_id = target_data["allocation_id"]
                                     allocation = session.scalars(
@@ -1215,20 +1228,9 @@ def api(queue):
                                         )
                                     ).first()
 
-                                    shift_user_ids = users_on_shift(session)
-                                    for shift_user_id in shift_user_ids:
-                                        user = session.scalar(
-                                            sa.select(User).where(
-                                                User.id == shift_user_id
-                                            )
-                                        )
-                                        check_access = session.scalar(
-                                            Allocation.select(user).where(
-                                                Allocation.id == allocation_id
-                                            )
-                                        )
-                                        if check_access is not None:
-                                            notification_user_ids.append(shift_user_id)
+                                    notification_user_ids += shift_users_with_access(
+                                        session, allocation_id
+                                    )
                                     notification_user_ids = list(
                                         set(notification_user_ids)
                                     )
@@ -1243,7 +1245,6 @@ def api(queue):
                                         )
                                         session.add(notification)
                                         session.commit()
-                                        target = notification.to_dict()
                                         target = {
                                             **notification.to_dict(),
                                             "user": {
