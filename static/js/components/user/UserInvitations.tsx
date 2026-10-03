@@ -90,6 +90,20 @@ const formatDate = (date?: string) =>
 const parseList = (value: string, options?: any) =>
   PapaParse.parse(value.trim(), { delimiter: " ", ...options }).data[0];
 
+const parseCsv = (csv: string) =>
+  PapaParse.parse(csv.trim(), { delimiter: ",", skipEmptyLines: "greedy" })
+    .data as any[];
+
+const validateBulkInvite = (csv: string) => {
+  const rows = parseCsv(csv);
+  if (!rows.length) return "Please enter at least one invitation";
+  const invalid = rows.find(
+    (row) =>
+      row.length < 4 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(row[0].trim()),
+  );
+  return invalid ? `Invalid line: ${invalid.join(",")}` : true;
+};
+
 const renderExpirationDateHeader = () => (
   <Box sx={{ display: "flex", alignItems: "center" }}>
     Expiration Date
@@ -318,10 +332,7 @@ const UserInvitations = ({
   };
 
   const handleBulkInvite = async (formData: any) => {
-    const rows = PapaParse.parse(formData.bulkInviteCSV.trim(), {
-      delimiter: ",",
-      skipEmptyLines: "greedy",
-    }).data as any[];
+    const rows = parseCsv(formData.bulkInviteCSV);
     const invited = await runAndNotify(
       () =>
         Promise.all(
@@ -575,12 +586,14 @@ const UserInvitations = ({
             sx={dialogFormSx}
           >
             {!!errors["bulkInviteCSV"] && (
-              <FormValidationError message="Please enter at least one invitation" />
+              <FormValidationError
+                message={String(errors["bulkInviteCSV"].message)}
+              />
             )}
             <Controller
               name="bulkInviteCSV"
               control={control}
-              rules={{ validate: (value: string) => !!value.trim() }}
+              rules={{ validate: validateBulkInvite }}
               defaultValue=""
               render={({ field: { onChange, value } }) => (
                 <TextField
