@@ -206,7 +206,6 @@ const UserInvitations = ({
   const [inviteUser] = useInviteUserMutation();
   const [updateInvitation] = useUpdateInvitationMutation();
   const [deleteInvitation] = useDeleteInvitationMutation();
-  const [csvData, setCsvData] = useState("");
   const [filterOpen, setFilterOpen] = useState(false);
   const [openDialog, setOpenDialog] = useState<string | null>(null);
   const [clickedInvitation, setClickedInvitation] = useState<any>(null);
@@ -318,8 +317,8 @@ const UserInvitations = ({
     );
   };
 
-  const handleBulkInvite = async () => {
-    const rows = PapaParse.parse(csvData.trim(), {
+  const handleBulkInvite = async (formData: any) => {
+    const rows = PapaParse.parse(formData.bulkInviteCSV.trim(), {
       delimiter: ",",
       skipEmptyLines: "greedy",
     }).data as any[];
@@ -342,7 +341,7 @@ const UserInvitations = ({
       "User(s) invitation(s) successfully created.",
     );
     if (invited) {
-      setCsvData("");
+      reset({ bulkInviteCSV: "" });
       onCloseBulkInvite();
     }
   };
@@ -575,15 +574,29 @@ const UserInvitations = ({
             onSubmit={handleSubmit(handleBulkInvite)}
             sx={dialogFormSx}
           >
-            <TextField
-              multiline
-              minRows={8}
-              name="bulkInviteCSVInput"
-              label="email,streamIDs,groupIDs,groupAdmin,expirationDate"
-              placeholder={SAMPLE_CSV_TEXT}
-              value={csvData}
-              onChange={(e) => setCsvData(e.target.value)}
-              slotProps={{ htmlInput: { sx: { fontFamily: "monospace" } } }}
+            {!!errors["bulkInviteCSV"] && (
+              <FormValidationError message="Please enter at least one invitation" />
+            )}
+            <Controller
+              name="bulkInviteCSV"
+              control={control}
+              rules={{ validate: (value: string) => !!value.trim() }}
+              defaultValue=""
+              render={({ field: { onChange, value } }) => (
+                <TextField
+                  multiline
+                  minRows={8}
+                  name="bulkInviteCSVInput"
+                  label="email,streamIDs,groupIDs,groupAdmin,expirationDate"
+                  placeholder={SAMPLE_CSV_TEXT}
+                  value={value}
+                  onChange={onChange}
+                  error={!!errors["bulkInviteCSV"]}
+                  slotProps={{
+                    htmlInput: { sx: { fontFamily: "monospace" } },
+                  }}
+                />
+              )}
             />
             <Box>
               <Button primary type="submit" data-testid="bulkAddUsersButton">
