@@ -5,6 +5,7 @@ import operator
 import string
 import textwrap
 import time
+from concurrent.futures import ThreadPoolExecutor
 from threading import Thread
 
 import arrow
@@ -32,6 +33,7 @@ from skyportal.models import (
     Feedback,
     FeedbackReply,
     FollowupRequest,
+    FollowupRequestUser,
     GcnEvent,
     GcnEventExtraction,
     GcnNotice,
@@ -540,18 +542,39 @@ def service(queue):
 
 
 def api(queue):
+    processor = ThreadPoolExecutor(max_workers=1)
+
     class QueueHandler(tornado.web.RequestHandler):
         def get(self):
             self.set_header("Content-Type", "application/json")
             self.write({"status": "success", "data": {"queue_length": len(queue)}})
 
-        async def post(self):
+        def post(self):
             try:
                 data = tornado.escape.json_decode(self.request.body)
             except json.JSONDecodeError:
                 self.set_status(400)
                 return self.write({"status": "error", "message": "Malformed JSON data"})
+            if "target_class_name" not in data or "target_id" not in data:
+                self.set_status(400)
+                return self.write(
+                    {
+                        "status": "error",
+                        "message": "Missing target_class_name or target_id",
+                    }
+                )
 
+            processor.submit(self.process, data)
+            self.write(
+                {
+                    "status": "success",
+                    "message": "Notification request accepted into queue",
+                    "data": {"queue_length": len(queue)},
+                }
+            )
+
+        @staticmethod
+        def process(data):
             target_class_name = data["target_class_name"]
             target_id = data["target_id"]
             target_content = None
@@ -645,6 +668,31 @@ def api(queue):
                                 # this happens if the followup request is deleted
                                 # in the future, maybe we'll want to notify on deletion?
                                 return
+                            if target_data["status"].startswith(
+                                ("submitted", "In progress")
+                            ):
+                                return
+                            allocation = session.scalars(
+                                sa.select(Allocation).where(
+                                    Allocation.id == target_data["allocation_id"]
+                                )
+                            ).first()
+                            instrument = allocation.instrument
+                            notification_user_ids = {
+                                allocation_user.user_id
+                                for allocation_user in allocation.allocation_users
+                            } | set(
+                                session.scalars(
+                                    sa.select(FollowupRequestUser.user_id).where(
+                                        FollowupRequestUser.followuprequest_id
+                                        == target_id
+                                    )
+                                )
+                            )
+                            notification_user_ids.add(target_data["requester_id"])
+                            notification_user_ids.update(
+                                shift_users_with_access(session, allocation.id)
+                            )
                     elif is_analysis_service:
                         users = session.scalars(
                             sa.select(User).where(
@@ -1197,49 +1245,10 @@ def api(queue):
                                             }
                                             queue.append(target)
                                 elif is_followup_request:
-                                    if target_data["status"].startswith(
-                                        ("submitted", "In progress")
-                                    ):
-                                        continue
-                                    allocation_id = target_data["allocation_id"]
-                                    allocation = session.scalars(
-                                        sa.select(Allocation).where(
-                                            Allocation.id == allocation_id
-                                        )
-                                    ).first()
-                                    notification_user_ids = [
-                                        allocation_user.user.id
-                                        for allocation_user in allocation.allocation_users
-                                    ] + [
-                                        watcher["user_id"]
-                                        for watcher in target_data.get("watchers", [])
-                                    ]
-                                    notification_user_ids.append(
-                                        target_data["requester_id"]
-                                    )
-                                    notification_user_ids.append(
-                                        target_data["last_modified_by_id"]
-                                    )
-
-                                    last_modified_by = session.scalars(
-                                        sa.select(User).where(
-                                            User.id
-                                            == target_data["last_modified_by_id"]
-                                        )
-                                    ).first()
-
-                                    notification_user_ids += shift_users_with_access(
-                                        session, allocation_id
-                                    )
-                                    notification_user_ids = list(
-                                        set(notification_user_ids)
-                                    )
-
-                                    instrument = allocation.instrument
                                     if user.id in notification_user_ids:
                                         notification = UserNotification(
                                             user=user,
-                                            text=f"Follow-up submission for object *{target_data['obj_id']}* by *{instrument.name}* updated by user *{last_modified_by.username}*",
+                                            text=f"Follow-up request for object *{target_data['obj_id']}* by *{instrument.name}*: {textwrap.shorten(target_data['status'], 120, placeholder='...')}",
                                             notification_type="facility_transactions",
                                             url=f"/source/{target_data['obj_id']}",
                                         )
@@ -1772,22 +1781,9 @@ def api(queue):
 
                     if failure_count == nb_users and nb_users > 0:
                         log("Failed to notify all users")
-                        raise Exception("Failed to notify all users")
-                    self.set_status(200)
-                    return self.write(
-                        {
-                            "status": "success",
-                            "message": f"Notification accepted into queue for {nb_users - failure_count} out of {nb_users} users",
-                            "data": {"queue_length": len(queue)},
-                        }
-                    )
                 except Exception as e:
                     log(f"Error processing notification: {str(e)}")
                     DBSession().rollback()
-                    self.set_status(400)
-                    return self.write(
-                        {"status": "error", "message": "Error processing notification"}
-                    )
 
     app = tornado.web.Application([(r"/", QueueHandler)])
     try:

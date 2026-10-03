@@ -520,9 +520,9 @@ def post_notification(request_body, timeout=2):
         )
     except requests.exceptions.ReadTimeout:
         log(
-            f"Notification request timed out for {request_body['target_class_name']} with ID {request_body['target_id']}"
+            f"Notification request timed out for {request_body['target_class_name']} with ID {request_body['target_id']}, the queue will still process it"
         )
-        return False
+        return True
     except Exception as e:
         log(
             f"Notification request failed for {request_body['target_class_name']} with ID {request_body['target_id']}: {e}"
