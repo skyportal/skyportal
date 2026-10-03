@@ -772,7 +772,7 @@ async def process_event_filter(
     event_dateobs = event.dateobs
     state_id = state.id
     user_id = user.id
-    distance_at = distance_lookup(localization)
+    distance_at = distance_lookup(localization) if levels else None
 
     for index in sorted(levels):
         alert = keep[index]
