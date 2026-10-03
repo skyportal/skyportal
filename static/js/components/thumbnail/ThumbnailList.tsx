@@ -4,6 +4,8 @@ import dayjs from "dayjs";
 import Box from "@mui/material/Box";
 import Grid from "@mui/material/Grid";
 import Button from "@mui/material/Button";
+import FormControlLabel from "@mui/material/FormControlLabel";
+import Switch from "@mui/material/Switch";
 import Tab from "@mui/material/Tab";
 import Tabs from "@mui/material/Tabs";
 import Tooltip from "@mui/material/Tooltip";
@@ -244,6 +246,7 @@ const ThumbnailList = ({
   columns = undefined,
 }: ThumbnailListProps) => {
   const [pageIndex, setPageIndex] = useState(0);
+  const [sameScale, setSameScale] = useState(false);
   useEffect(() => setPageIndex(0), [objID]);
   const [generateSurveyThumbnail, { isLoading: onDemandLoading }] =
     useGenerateSurveyThumbnailMutation();
@@ -300,6 +303,14 @@ const ThumbnailList = ({
   const currentPage = Math.min(pageIndex, Math.max(0, pages.length - 1));
   const track = columns ? "minmax(0, 1fr)" : "max-content";
 
+  const fieldsOfView = [
+    ...new Set(
+      groups.flatMap((group) => group.tiles.map((t) => t.fieldOfView ?? 0)),
+    ),
+  ].filter(Boolean);
+  const widestFieldOfView = Math.max(...fieldsOfView);
+  const scaleMatched = sameScale && fieldsOfView.length > 1;
+
   const showOnDemandButton =
     Boolean(objID) &&
     !latestArchival.some(
@@ -314,7 +325,16 @@ const ThumbnailList = ({
       survey={tile.survey}
       detail={tile.detail}
       fieldOfView={
-        tile.fieldOfView ? formatFieldOfView(tile.fieldOfView) : undefined
+        tile.fieldOfView
+          ? formatFieldOfView(
+              scaleMatched ? widestFieldOfView : tile.fieldOfView,
+            )
+          : undefined
+      }
+      zoom={
+        scaleMatched && tile.fieldOfView
+          ? tile.fieldOfView / widestFieldOfView
+          : 1
       }
       src={tile.src}
       size={size}
@@ -345,28 +365,63 @@ const ThumbnailList = ({
 
   const content = (
     <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
-      {pages.length > 1 && (
-        <Tabs
-          value={currentPage}
-          onChange={(_, value) => setPageIndex(value)}
-          variant="fullWidth"
+      {(pages.length > 1 || fieldsOfView.length > 1) && (
+        <Box
           sx={{
-            minHeight: "auto",
-            borderBottom: 1,
-            borderColor: "divider",
-            "& .MuiTab-root": {
-              minHeight: "auto",
-              padding: "0.4rem 0.75rem",
-              fontSize: "0.8rem",
-              fontWeight: "bold",
-              textTransform: "none",
-            },
+            display: "flex",
+            alignItems: "center",
+            ...(pages.length > 1 && {
+              borderBottom: 1,
+              borderColor: "divider",
+            }),
           }}
         >
-          {pageLabels(pages).map((label) => (
-            <Tab key={label} label={label} />
-          ))}
-        </Tabs>
+          {pages.length > 1 && (
+            <Tabs
+              value={currentPage}
+              onChange={(_, value) => setPageIndex(value)}
+              variant="fullWidth"
+              sx={{
+                flex: 1,
+                minHeight: "auto",
+                "& .MuiTab-root": {
+                  minHeight: "auto",
+                  padding: "0.4rem 0.75rem",
+                  fontSize: "0.8rem",
+                  fontWeight: "bold",
+                  textTransform: "none",
+                },
+              }}
+            >
+              {pageLabels(pages).map((label) => (
+                <Tab key={label} label={label} />
+              ))}
+            </Tabs>
+          )}
+          {fieldsOfView.length > 1 && (
+            <Tooltip
+              title={`Show every alert cutout at the ${formatFieldOfView(widestFieldOfView)} field of view`}
+            >
+              <FormControlLabel
+                control={
+                  <Switch
+                    size="small"
+                    checked={sameScale}
+                    onChange={(event) => setSameScale(event.target.checked)}
+                  />
+                }
+                label="Same scale"
+                sx={{
+                  marginLeft: "auto",
+                  marginRight: 0,
+                  paddingLeft: 1,
+                  whiteSpace: "nowrap",
+                  "& .MuiFormControlLabel-label": { fontSize: "0.8rem" },
+                }}
+              />
+            </Tooltip>
+          )}
+        </Box>
       )}
       <Box
         sx={{

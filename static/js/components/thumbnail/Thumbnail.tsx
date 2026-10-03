@@ -109,6 +109,7 @@ interface ThumbnailProps {
   survey?: string | undefined;
   detail?: string | undefined;
   fieldOfView?: string | undefined;
+  zoom?: number;
   src: string;
   size: string;
   minSize: string;
@@ -126,6 +127,7 @@ const Thumbnail = ({
   survey,
   detail,
   fieldOfView,
+  zoom = 1,
   src,
   size,
   minSize,
@@ -204,7 +206,13 @@ const Thumbnail = ({
           },
         }}
       />
-      <Box sx={{ position: "relative", aspectRatio: "1 / 1" }}>
+      <Box
+        sx={{
+          position: "relative",
+          aspectRatio: "1 / 1",
+          ...(zoom !== 1 && { backgroundColor: "black" }),
+        }}
+      >
         {status === "loading" || status === "loaded" ? (
           <>
             <CardMedia
@@ -219,6 +227,7 @@ const Thumbnail = ({
                 ...(src.startsWith("data:")
                   ? { imageRendering: "pixelated" }
                   : {}),
+                ...(zoom !== 1 ? { transform: `scale(${zoom})` } : {}),
               }}
               onLoad={() => setStatus("loaded")}
               onError={(e: any) => {
