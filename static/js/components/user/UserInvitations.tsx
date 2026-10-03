@@ -398,7 +398,7 @@ const UserInvitations = () => {
 
   const renderRole = ({ row: invitation }: any) => (
     <Box sx={cellSx}>
-      {invitation.role_id}
+      <Chip label={invitation.role_id} />
       <IconButton
         aria-label="edit-invitation-role"
         data-testid={`editInvitationRoleButton${invitation.user_email}`}
@@ -464,7 +464,7 @@ const UserInvitations = () => {
     {
       field: "role",
       headerName: "Role",
-      minWidth: 120,
+      minWidth: 150,
       renderCell: renderRole,
     },
     {
