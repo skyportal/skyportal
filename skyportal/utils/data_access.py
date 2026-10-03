@@ -497,13 +497,15 @@ def get_publishable_source_and_photometry(
         if group.group_id in user_accessible_group_ids
     ]
 
-    # if auto_submission, check if the group has auto-publish enabled for TNS or Hermes
+    # if auto_submission, check if the group has auto-publish enabled for TNS, Hermes or TROVE
     # and if the user is an auto-publisher for that group
     if is_auto_submission:
         valid_groups = [
             group
             for group in valid_groups
-            if group.auto_share_to_tns or group.auto_share_to_hermes
+            if group.auto_share_to_tns
+            or group.auto_share_to_hermes
+            or group.auto_share_to_trove
         ]
         if not valid_groups:
             raise ValueError(
@@ -621,7 +623,7 @@ def auto_source_publishing(session, saver, group_id, obj, publish_to):
         groups_with_auto_publisher = session.scalars(stmt).all()
         if groups_with_auto_publisher:
             external_services = {}
-            # Determine which external services can be auto-published
+            # Determine which external services (TNS, Hermes, TROVE) can be auto-published
             # and the corresponding sharing service id
             for group in groups_with_auto_publisher:
                 sharing_service = group.sharing_service
@@ -652,18 +654,18 @@ def auto_source_publishing(session, saver, group_id, obj, publish_to):
                         )
                     ):
                         external_services[service] = sharing_service.id
-                        # Drop it so no other group publishes it twice.
+                        # Remove it from publish_to to avoid duplicate processing
                         publish_to.remove(service)
                 if len(external_services) == 3:
                     break
 
             if external_services:
-                # Merge if same sharing service is used for both
-                # One request per sharing service, covering every service it serves.
+                # Merge the services that use the same sharing service
                 merged = {}
                 for service, sharing_service_id in external_services.items():
                     merged.setdefault(sharing_service_id, []).append(service)
 
+                # Create submission requests
                 for sharing_service_id, services in merged.items():
                     service_name = "/".join(services)
                     submission_request = SharingServiceSubmission(
@@ -891,6 +893,7 @@ async def any_group_auto_publishes(session, group_ids):
                         sa.or_(
                             SharingServiceGroup.auto_share_to_tns,
                             SharingServiceGroup.auto_share_to_hermes,
+                            SharingServiceGroup.auto_share_to_trove,
                         ),
                     ),
                     sa.exists().where(
@@ -965,13 +968,11 @@ async def auto_source_publishing_async(session, saver, group_id, obj, publish_to
                         )
                     ):
                         external_services[service] = sharing_service.id
-                        # Drop it so no other group publishes it twice.
                         publish_to.remove(service)
                 if len(external_services) == 3:
                     break
 
             if external_services:
-                # One request per sharing service, covering every service it serves.
                 merged = {}
                 for service, sharing_service_id in external_services.items():
                     merged.setdefault(sharing_service_id, []).append(service)
