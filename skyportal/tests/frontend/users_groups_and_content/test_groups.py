@@ -215,7 +215,9 @@ def test_cannot_add_stream_group_users_cant_access(
     page.locator(f'//li[contains(.,"{public_stream2.name}")]').first.click()
     page.locator('//button[@data-testid="add-stream-dialog-submit"]').first.click()
     expect(
-        page.locator('//*[contains(.,"Not all users have stream access with")]').first
+        page.locator(
+            f'//*[contains(.,"Not all users have access to stream {public_stream2.name}")]'
+        ).first
     ).to_be_visible()
 
 

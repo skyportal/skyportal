@@ -27,6 +27,7 @@ from ...models import (
     GroupUser,
     Obj,
     Source,
+    Stream,
     StreamUser,
     Token,
     User,
@@ -769,22 +770,29 @@ class GroupStreamHandler(BaseHandler):
 
             # Validate every group member has access to the stream via SQL
             # (avoid lazy `group.users`/`user.streams`).
-            missing_count = await session.scalar(
-                sa.select(sa.func.count())
-                .select_from(GroupUser)
-                .where(
-                    GroupUser.group_id == group_id,
-                    ~sa.exists().where(
-                        sa.and_(
-                            StreamUser.user_id == GroupUser.user_id,
-                            StreamUser.stream_id == stream_id,
-                        )
-                    ),
+            missing_usernames = (
+                await session.scalars(
+                    sa.select(User.username)
+                    .join(GroupUser, GroupUser.user_id == User.id)
+                    .where(
+                        GroupUser.group_id == group_id,
+                        ~sa.exists().where(
+                            sa.and_(
+                                StreamUser.user_id == GroupUser.user_id,
+                                StreamUser.stream_id == stream_id,
+                            )
+                        ),
+                    )
+                    .order_by(User.username)
                 )
-            )
-            if missing_count and missing_count > 0:
+            ).all()
+            if missing_usernames:
+                stream_name = await session.scalar(
+                    sa.select(Stream.name).where(Stream.id == stream_id)
+                )
                 return self.error(
-                    f"Not all users have stream access with ID {stream_id}",
+                    f"Not all users have access to stream {stream_name or stream_id}: "
+                    f"{', '.join(missing_usernames)}",
                     status=403,
                 )
 
