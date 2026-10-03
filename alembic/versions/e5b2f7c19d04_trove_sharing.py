@@ -1,11 +1,8 @@
-"""Publish sources and photometry to TROVE
-
-TROVE upserts a target on its name and returns no submission id, so the
-columns mirror the Hermes ones rather than the TNS ones.
+"""trove sharing
 
 Revision ID: e5b2f7c19d04
-Revises: b8f3d21c07ae
-Create Date: 2026-09-29
+Revises: 58c918ffe430
+Create Date: 2026-10-03
 
 """
 
@@ -16,7 +13,7 @@ from alembic import op
 
 # revision identifiers, used by Alembic.
 revision = "e5b2f7c19d04"
-down_revision = "b8f3d21c07ae"
+down_revision = "58c918ffe430"
 branch_labels = None
 depends_on = None
 
