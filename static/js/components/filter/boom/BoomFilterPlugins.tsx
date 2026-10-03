@@ -176,6 +176,7 @@ const BoomFilterPlugins = () => {
   const versions = filter_v.fv ?? [];
   const noVersion = isLoading || versions.length === 0;
   const autoSaveOn = !!filter_v.autosave;
+  const autoSaveIgnoreGroupIds: number[] = altdata.autoSaveIgnoreGroupIds ?? [];
   const autoFollowupDefaultId: number | null =
     altdata.autoFollowupDefaultId ?? null;
 
@@ -395,7 +396,7 @@ const BoomFilterPlugins = () => {
               select
               size="small"
               label="Skip if already in"
-              value={altdata.autoSaveIgnoreGroupIds ?? []}
+              value={autoSaveIgnoreGroupIds}
               onChange={(e) =>
                 updateFlags({ autoSaveIgnoreGroupIds: e.target.value })
               }
@@ -412,11 +413,17 @@ const BoomFilterPlugins = () => {
                 },
               }}
             >
-              {allGroups.map((g: any) => (
-                <MenuItem key={g.id} value={g.id}>
-                  {g.name}
-                </MenuItem>
-              ))}
+              {allGroups
+                .filter(
+                  (g: any) =>
+                    !g.single_user_group ||
+                    autoSaveIgnoreGroupIds.includes(g.id),
+                )
+                .map((g: any) => (
+                  <MenuItem key={g.id} value={g.id}>
+                    {g.name}
+                  </MenuItem>
+                ))}
             </TextField>
             <Tooltip title="Default 2″; 0 = exact match only">
               <TextField
