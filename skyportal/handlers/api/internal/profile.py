@@ -220,6 +220,7 @@ class ProfileHandler(BaseHandler):
                         sa.or_(
                             SharingServiceGroup.auto_share_to_tns.is_(True),
                             SharingServiceGroup.auto_share_to_hermes.is_(True),
+                            SharingServiceGroup.auto_share_to_trove.is_(True),
                         ),
                         SharingServiceGroup.auto_sharing_allow_bots.is_(False),
                     )

@@ -119,8 +119,8 @@ def update_sharing_service(
         use :func:`update_sharing_service_group` to change ownership.
         Instruments are only replaced when ``instrument_ids`` is non-empty,
         while ``stream_ids`` always replaces the current streams. Disabling
-        TNS or Hermes sharing also clears the matching auto-sharing flags on
-        every group of the service.
+        TNS, Hermes or TROVE sharing also clears the matching auto-sharing
+        flags on every group of the service.
     """
     response = client.put(
         f"/api/sharing_service/{sharing_service_id}",
@@ -154,11 +154,11 @@ def post_sharing_service_submission(
     client : httpx.Client
         Client from :func:`skyportal_py.create_client`.
     payload : SharingServiceSubmissionPost
-        The submission to queue. At least one of ``publish_to_tns`` and
-        ``publish_to_hermes`` must be true, ``publishers`` must be a
-        non-empty string, and ``archival_comment`` is required when
-        ``archival`` is true. Submitting the same object to the same
-        destination twice through the same service is rejected. The
+        The submission to queue. At least one of ``publish_to_tns``,
+        ``publish_to_hermes`` and ``publish_to_trove`` must be true,
+        ``publishers`` must be a non-empty string, and ``archival_comment``
+        is required when ``archival`` is true. Submitting the same object to
+        the same destination twice through the same service is rejected. The
         submission is queued and processed asynchronously; poll
         :func:`fetch_sharing_service_submissions` for its status.
     """
@@ -288,6 +288,7 @@ def update_sharing_service_group(  # noqa: PLR0913 -- mirrors the endpoint's req
     owner: bool | None = None,
     auto_share_to_tns: bool | None = None,
     auto_share_to_hermes: bool | None = None,
+    auto_share_to_trove: bool | None = None,
     auto_sharing_allow_bots: bool | None = None,
 ) -> SharingServiceGroupPutResponse:
     """Give a group access to a sharing service, or edit its settings.
@@ -303,7 +304,7 @@ def update_sharing_service_group(  # noqa: PLR0913 -- mirrors the endpoint's req
     owner : bool, optional
         Whether the group owns the sharing service. Ownership cannot be
         removed from the only owning group.
-    auto_share_to_tns, auto_share_to_hermes : bool, optional
+    auto_share_to_tns, auto_share_to_hermes, auto_share_to_trove : bool, optional
         Whether new sources saved to the group are published automatically.
     auto_sharing_allow_bots : bool, optional
         Whether bot users may act as auto-publishers. It cannot be turned
@@ -321,6 +322,8 @@ def update_sharing_service_group(  # noqa: PLR0913 -- mirrors the endpoint's req
         payload["auto_share_to_tns"] = auto_share_to_tns
     if auto_share_to_hermes is not None:
         payload["auto_share_to_hermes"] = auto_share_to_hermes
+    if auto_share_to_trove is not None:
+        payload["auto_share_to_trove"] = auto_share_to_trove
     if auto_sharing_allow_bots is not None:
         payload["auto_sharing_allow_bots"] = auto_sharing_allow_bots
     response = client.put(

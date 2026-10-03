@@ -116,7 +116,7 @@ class SourceGroupsHandler(BaseHandler):
             await session.commit()
 
             # Shared mutable list to ensure publish_to target is triggered only once across all groups if needed
-            publish_to = ["TNS", "Hermes", "Public page"]
+            publish_to = ["TNS", "Hermes", "TROVE", "Public page"]
             for group_id in saved_to_group_ids:
                 await auto_source_publishing_async(
                     session=session,
