@@ -1245,7 +1245,6 @@ def api(queue):
                                         )
                                         session.add(notification)
                                         session.commit()
-                                        target = notification.to_dict()
                                         target = {
                                             **notification.to_dict(),
                                             "user": {
