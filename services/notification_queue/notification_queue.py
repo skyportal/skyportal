@@ -1188,7 +1188,14 @@ def api(queue):
                                             )
                                             session.add(notification)
                                             session.commit()
-                                            queue.append(notification.id)
+                                            target = {
+                                                **notification.to_dict(),
+                                                "user": {
+                                                    **notification.user.to_dict(),
+                                                    "preferences": notification.user.preferences,
+                                                },
+                                            }
+                                            queue.append(target)
                                 elif is_followup_request:
                                     if target_data["status"].startswith(
                                         ("submitted", "In progress")
