@@ -32,7 +32,6 @@ def test_bulk_invite_users(page, super_admin_user, public_group, public_stream):
 
     bulk_invite(page, csv)
 
-    # Check that the users show up in pending invitations
     expect(
         page.locator(
             f"//*[@data-testid='pendingInvitations']//*[text()='{user1_email}']"
@@ -147,8 +146,7 @@ def test_edit_invitation_role(
         f"//*[@data-testid='editInvitationRoleButton{user_email}']"
     ).first.click()
     page.locator("//*[@data-testid='invitationRoleSelect']").first.click()
-    # scope to the open dropdown option ("View only" also appears elsewhere on
-    # the page, and the unscoped .first can land on a non-clickable match)
+    # "View only" also appears outside the dropdown, so scope to the open option
     page.locator('//li[@role="option"][normalize-space(.)="View only"]').first.click()
     page.locator("//*[@data-testid='submitEditRoleButton']").first.click()
     expect(
