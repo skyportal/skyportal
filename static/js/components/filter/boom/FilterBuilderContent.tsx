@@ -9,6 +9,7 @@ import {
 } from "@mui/material";
 import {
   Code as CodeIcon,
+  ContentPaste as ContentPasteIcon,
   Note as NoteIcon,
   Save as SaveIcon,
 } from "@mui/icons-material";
@@ -22,8 +23,10 @@ import AddListConditionDialog from "./dialog/AddListConditionDialog";
 import AddSwitchDialog from "./dialog/AddSwitchDialog";
 import SaveBlockDialogMenu from "./block/SaveBlockDialogMenu";
 import MongoQueryDialog from "./dialog/MongoQueryDialog";
+import ImportPipelineDialog from "./dialog/ImportPipelineDialog";
 import PipelineViewer from "./dialog/PipelineViewer";
 import { isRawMongoPipeline } from "./pipelineFormat";
+import { decompilePipeline } from "../../../utils/mongoPipelineDecompiler";
 import { filterBuilderStyles } from "../../../styles/componentStyles";
 import { showNotification } from "baselayer/components/Notifications";
 
@@ -116,6 +119,7 @@ const FilterBuilderContent = ({
   // showing the broker's pipeline rather than an imported raw filter.
   const [noBlockTree, setNoBlockTree] = useState(false);
   const [expandedStages, setExpandedStages] = useState<Set<any>>(new Set());
+  const [importOpen, setImportOpen] = useState(false);
   const handleStageToggle = useCallback((index: number) => {
     setExpandedStages((prev) => {
       const next = new Set(prev);
@@ -386,6 +390,23 @@ const FilterBuilderContent = ({
     setMongoDialog({ open: true });
   };
 
+  const handleImportPipeline = (pipeline: any[]) => {
+    const tree = decompilePipeline(pipeline);
+    setNoBlockTree(false);
+    setProjectionFields?.([]);
+    handleFilterUpdate(tree ?? pipeline);
+    dispatch(
+      tree
+        ? showNotification(
+            "Pipeline converted to blocks. Click Save to keep it as a new version.",
+          )
+        : showNotification(
+            "This pipeline can't be shown as blocks, so it stays read-only. Click Save to keep it as a new version.",
+            "warning",
+          ),
+    );
+  };
+
   const handleSaveFilter = async () => {
     const mongoQuery = generateMongoQuery();
     if (!mongoQuery || (Array.isArray(mongoQuery) && mongoQuery.length === 0)) {
@@ -464,7 +485,11 @@ const FilterBuilderContent = ({
                   saving ? <CircularProgress size={16} /> : <SaveIcon />
                 }
                 onClick={handleSaveFilter}
-                disabled={saving || !hasValidQuery() || !!rawPipeline}
+                disabled={
+                  saving ||
+                  !hasValidQuery() ||
+                  (!!rawPipeline && !hasBeenModified)
+                }
               >
                 {saving ? "Saving…" : "Save"}
               </Button>
@@ -484,6 +509,14 @@ const FilterBuilderContent = ({
             }}
           >
             Add Annotations
+          </Button>
+          <Button
+            type="button"
+            variant="outlined"
+            startIcon={<ContentPasteIcon />}
+            onClick={() => setImportOpen(true)}
+          >
+            Import JSON
           </Button>
           <Button
             type="button"
@@ -573,6 +606,11 @@ const FilterBuilderContent = ({
       <AddSwitchDialog />
       <SaveBlockDialogMenu />
       <MongoQueryDialog />
+      <ImportPipelineDialog
+        open={importOpen}
+        onClose={() => setImportOpen(false)}
+        onImport={handleImportPipeline}
+      />
     </Box>
   );
 };
