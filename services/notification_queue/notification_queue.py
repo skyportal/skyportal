@@ -493,12 +493,13 @@ def push_frontend_notification(target):
 
 
 def users_on_shift(session):
-    users = session.scalars(
-        sa.select(ShiftUser).where(
-            ShiftUser.shift_id == Shift.id,
-        )
+    now = arrow.utcnow().datetime
+    return session.scalars(
+        sa.select(ShiftUser.user_id)
+        .join(Shift, Shift.id == ShiftUser.shift_id)
+        .where(Shift.start_date <= now, Shift.end_date >= now)
+        .distinct()
     ).all()
-    return [user.user_id for user in users]
 
 
 def shift_users_with_access(session, allocation_id):
