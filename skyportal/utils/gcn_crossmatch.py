@@ -37,6 +37,7 @@ import healpy
 import numpy as np
 import sqlalchemy as sa
 from astropy.time import Time
+from sqlalchemy.dialects.postgresql import JSONB, JSONPATH
 from sqlalchemy.orm import selectinload, undefer
 from sqlalchemy.orm.attributes import flag_modified
 
@@ -127,6 +128,13 @@ DEFAULTS = {
 ANNOTATION_ORIGIN = "GCN-crossmatch"
 
 SKYMAP_COLUMNS = ["uniq", "probdensity", "distmu", "distsigma", "distnorm", "contour"]
+
+# A superset of same_event: a dateobs not in isoformat()'s shape is left to it.
+EVENT_ENTRY_PATH = (
+    '$.* ? (@.dateobs == $iso || @.dateobs == $iso_us || @.dateobs.type() == "number"'
+    ' || (@.dateobs.type() == "string" && !(@.dateobs like_regex'
+    ' "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}([.][0-9]{6})?$")))'
+)
 
 # Brokers rate-limit per account, not per query, so a 429 means every later call
 # this window fails too -- and the quota is shared with the rest of the app, so
@@ -955,6 +963,10 @@ async def retract_superseded_matches(
         except (TypeError, ValueError):
             return False
 
+    stamps = {
+        "iso": event.dateobs.isoformat(),
+        "iso_us": event.dateobs.isoformat(timespec="microseconds"),
+    }
     rows = (
         await session.execute(
             sa.select(Annotation, Obj.ra, Obj.dec)
@@ -965,6 +977,11 @@ async def retract_superseded_matches(
                 Candidate.filter_id == filter_.id,
                 Obj.ra.isnot(None),
                 Obj.dec.isnot(None),
+                sa.func.jsonb_path_exists(
+                    Annotation.data,
+                    sa.cast(EVENT_ENTRY_PATH, JSONPATH),
+                    sa.cast(stamps, JSONB),
+                ),
             )
             .distinct()
         )
