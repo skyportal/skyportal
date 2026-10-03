@@ -5,6 +5,7 @@ import operator
 import string
 import textwrap
 import time
+from concurrent.futures import ThreadPoolExecutor
 from threading import Thread
 
 import arrow
@@ -540,18 +541,39 @@ def service(queue):
 
 
 def api(queue):
+    processor = ThreadPoolExecutor(max_workers=1)
+
     class QueueHandler(tornado.web.RequestHandler):
         def get(self):
             self.set_header("Content-Type", "application/json")
             self.write({"status": "success", "data": {"queue_length": len(queue)}})
 
-        async def post(self):
+        def post(self):
             try:
                 data = tornado.escape.json_decode(self.request.body)
             except json.JSONDecodeError:
                 self.set_status(400)
                 return self.write({"status": "error", "message": "Malformed JSON data"})
+            if "target_class_name" not in data or "target_id" not in data:
+                self.set_status(400)
+                return self.write(
+                    {
+                        "status": "error",
+                        "message": "Missing target_class_name or target_id",
+                    }
+                )
 
+            processor.submit(self.process, data)
+            self.write(
+                {
+                    "status": "success",
+                    "message": "Notification request accepted into queue",
+                    "data": {"queue_length": len(queue)},
+                }
+            )
+
+        @staticmethod
+        def process(data):
             target_class_name = data["target_class_name"]
             target_id = data["target_id"]
             target_content = None
@@ -1772,22 +1794,9 @@ def api(queue):
 
                     if failure_count == nb_users and nb_users > 0:
                         log("Failed to notify all users")
-                        raise Exception("Failed to notify all users")
-                    self.set_status(200)
-                    return self.write(
-                        {
-                            "status": "success",
-                            "message": f"Notification accepted into queue for {nb_users - failure_count} out of {nb_users} users",
-                            "data": {"queue_length": len(queue)},
-                        }
-                    )
                 except Exception as e:
                     log(f"Error processing notification: {str(e)}")
                     DBSession().rollback()
-                    self.set_status(400)
-                    return self.write(
-                        {"status": "error", "message": "Error processing notification"}
-                    )
 
     app = tornado.web.Application([(r"/", QueueHandler)])
     try:
