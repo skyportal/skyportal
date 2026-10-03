@@ -1301,7 +1301,16 @@ class CandidateHandler(BaseHandler):
                             session,
                         )
 
-                    candidate_list.append(recursive_to_dict(obj))
+                    candidate_info = obj.to_dict()
+                    candidate_info["super_objs"] = [
+                        {
+                            "id": super_obj.id,
+                            "name": super_obj.name,
+                            "is_roid": super_obj.is_roid,
+                        }
+                        for super_obj in obj.super_objs
+                    ]
+                    candidate_list.append(recursive_to_dict(candidate_info))
                     # frontend ws-refresh keys on internal_key (dropped by Obj.to_dict)
                     candidate_list[-1]["internal_key"] = obj.internal_key
                     candidate_list[-1] = await include_requested_obj_data(
