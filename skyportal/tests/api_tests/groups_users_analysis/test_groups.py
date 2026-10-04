@@ -179,6 +179,51 @@ def test_add_delete_stream_group(
     assert status == 200
 
 
+def test_add_stream_to_group_ignores_system_admins_without_stream_access(
+    super_admin_token, public_group_no_streams, public_stream
+):
+    import sqlalchemy as sa
+
+    from skyportal.models import DBSession, Role
+    from skyportal.tests.fixtures import UserFactory
+
+    super_admin_role = (
+        DBSession().scalars(sa.select(Role).where(Role.id == "Super admin")).first()
+    )
+    admin = UserFactory(groups=[public_group_no_streams], roles=[super_admin_role])
+    admin_id = admin.id
+    member = None
+    try:
+        status, data = api(
+            "POST",
+            f"groups/{public_group_no_streams.id}/streams",
+            data={"stream_id": public_stream.id},
+            token=super_admin_token,
+        )
+        assert status == 200
+        status, data = api(
+            "DELETE",
+            f"groups/{public_group_no_streams.id}/streams/{public_stream.id}",
+            token=super_admin_token,
+        )
+        assert status == 200
+
+        member = UserFactory(groups=[public_group_no_streams])
+        status, data = api(
+            "POST",
+            f"groups/{public_group_no_streams.id}/streams",
+            data={"stream_id": public_stream.id},
+            token=super_admin_token,
+        )
+        assert status == 403
+        assert member.username in data["message"]
+        assert admin.username not in data["message"]
+    finally:
+        if member is not None:
+            UserFactory.teardown(member.id)
+        UserFactory.teardown(admin_id)
+
+
 def test_non_su_add_stream_to_group(
     manage_groups_token, public_group_no_streams, public_stream
 ):

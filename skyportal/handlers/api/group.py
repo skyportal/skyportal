@@ -32,6 +32,7 @@ from ...models import (
     Token,
     User,
     UserNotification,
+    system_admin_user_ids,
 )
 from ..base import BaseHandler
 
@@ -776,6 +777,7 @@ class GroupStreamHandler(BaseHandler):
                     .join(GroupUser, GroupUser.user_id == User.id)
                     .where(
                         GroupUser.group_id == group_id,
+                        GroupUser.user_id.not_in(system_admin_user_ids()),
                         ~sa.exists().where(
                             sa.and_(
                                 StreamUser.user_id == GroupUser.user_id,
