@@ -53,12 +53,14 @@ interface AnnotationsTableProps {
   annotations: any[];
   spectrumAnnotations?: any[];
   canExpand?: boolean;
+  title?: string;
 }
 
 const AnnotationsTable = ({
   annotations,
   spectrumAnnotations = [],
   canExpand = true,
+  title = "",
 }: AnnotationsTableProps) => {
   const { classes } = useStyles();
   const [deleteSourceAnnotation] = useDeleteSourceAnnotationMutation();
@@ -104,7 +106,10 @@ const AnnotationsTable = ({
     () =>
       function AnnotationsTableToolbar() {
         return (
-          <DataGridToolbar quickFilterTestId="annotations-quick-filter">
+          <DataGridToolbar
+            title={title}
+            quickFilterTestId="annotations-quick-filter"
+          >
             {canExpand && (
               <IconButton
                 name="expand_annotations"
@@ -116,7 +121,7 @@ const AnnotationsTable = ({
           </DataGridToolbar>
         );
       },
-    [canExpand],
+    [canExpand, title],
   );
 
   // `annotations` is frozen RTK Query data: build a new array, `.push` throws.

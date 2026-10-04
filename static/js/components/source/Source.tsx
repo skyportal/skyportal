@@ -397,39 +397,26 @@ const SourceContent = ({ source }: SourceContentProps) => {
           order: { xs: 6, md: 4, lg: 3 },
         }}
       >
-        <Accordion
-          defaultExpanded
-          disableGutters
-          className={classes.flexColumn}
-        >
-          <AccordionSummary
-            expandIcon={<ExpandMoreIcon />}
-            aria-controls="annotations-content"
-            id="annotations-header"
-          >
-            <Typography className={classes.accordionHeading}>
-              Auto-annotations
-            </Typography>
-          </AccordionSummary>
-          <AccordionDetails
+        <Paper id="annotations-content" className={classes.flexColumn}>
+          <div
             style={{
-              padding: 0,
               display: "flex",
               flexDirection: "column",
               minHeight: downLarge || isRightPanelVisible ? "52vh" : "60vh",
             }}
           >
             <AnnotationsTable
+              title="Auto-annotations"
               annotations={source.annotations}
               spectrumAnnotations={spectrumAnnotations}
             />
-          </AccordionDetails>
+          </div>
           {!isReadOnly && (
-            <AccordionDetails style={{ padding: "0.5rem" }}>
+            <div style={{ padding: "0.5rem" }}>
               <SourceAnnotationButtons source={source} />
-            </AccordionDetails>
+            </div>
           )}
-        </Accordion>
+        </Paper>
       </Grid>
       {source?.gcn_notes?.length > 0 && (
         <Grid
