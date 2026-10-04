@@ -30,6 +30,7 @@ __all__ = [
     "GroupScanReport",
     "GroupGcnEvent",
     "GroupObservingRun",
+    "system_admin_user_ids",
 ]
 
 import sqlalchemy as sa
@@ -37,7 +38,10 @@ import sqlalchemy as sa
 from baselayer.app.models import (
     AccessibleIfUserMatches,
     CustomUserAccessControl,
+    RoleACL,
     User,
+    UserACL,
+    UserRole,
     join_model,
     restricted,
 )
@@ -288,6 +292,16 @@ GroupSourceNotification.update = GroupSourceNotification.delete = (
     accessible_by_group_admins | AccessibleIfUserMatches("sourcenotification.sent_by")
 )
 
+
+def system_admin_user_ids():
+    return sa.union(
+        sa.select(UserACL.user_id).where(UserACL.acl_id == "System admin"),
+        sa.select(UserRole.user_id)
+        .join(RoleACL, RoleACL.role_id == UserRole.role_id)
+        .where(RoleACL.acl_id == "System admin"),
+    )
+
+
 GroupStream = join_model("group_streams", Group, Stream)
 GroupStream.__doc__ = "Join table mapping Groups to Streams."
 GroupStream.update = restricted
@@ -318,8 +332,8 @@ GroupStream.create = (
     accessible_by_group_admins
     & GroupStream.read
     & CustomUserAccessControl(
-        # Can only add a stream to a group if all users in the group have
-        # access to the stream.
+        # Can only add a stream to a group if all users in the group, system
+        # admins aside, have access to the stream.
         # Also, cannot add stream access to single user groups.
         lambda cls, user_or_token: (
             sa.select(cls)
@@ -336,7 +350,12 @@ GroupStream.create = (
             .group_by(cls.id)
             .having(
                 sa.or_(
-                    sa.func.bool_and(StreamUser.stream_id.isnot(None)),
+                    sa.func.bool_and(
+                        sa.or_(
+                            StreamUser.stream_id.isnot(None),
+                            User.id.in_(system_admin_user_ids()),
+                        )
+                    ),
                     sa.func.bool_and(User.id.is_(None)),
                 )
             )
