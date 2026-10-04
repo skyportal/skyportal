@@ -132,28 +132,7 @@ const GroupFiltersStreams = ({
                     .filter((filter: any) => filter.stream_id === stream.id)
                     .map((filter: any) =>
                       editingFilterId === filter.id ? (
-                        <ListItem
-                          key={filter.id}
-                          secondaryAction={
-                            <>
-                              <IconButton
-                                size="small"
-                                onClick={handleSaveRename}
-                                aria-label="save filter name"
-                                data-testid="save-filter-name-button"
-                              >
-                                <CheckIcon fontSize="small" />
-                              </IconButton>
-                              <IconButton
-                                size="small"
-                                onClick={() => setEditingFilterId(null)}
-                                aria-label="cancel filter rename"
-                              >
-                                <CloseIcon fontSize="small" />
-                              </IconButton>
-                            </>
-                          }
-                        >
+                        <ListItem key={filter.id}>
                           <TextField
                             value={editNameInput}
                             onChange={(e) => setEditNameInput(e.target.value)}
@@ -167,54 +146,66 @@ const GroupFiltersStreams = ({
                             }}
                             autoFocus
                           />
+                          <IconButton
+                            size="small"
+                            color="success"
+                            onClick={handleSaveRename}
+                            aria-label="save filter name"
+                            data-testid="save-filter-name-button"
+                          >
+                            <CheckIcon fontSize="small" />
+                          </IconButton>
+                          <IconButton
+                            size="small"
+                            color="error"
+                            onClick={() => setEditingFilterId(null)}
+                            aria-label="cancel filter rename"
+                          >
+                            <CloseIcon fontSize="small" />
+                          </IconButton>
                         </ListItem>
                       ) : (
-                        <ListItem
-                          key={filter.id}
-                          disablePadding
-                          secondaryAction={
-                            canEdit && (
-                              <>
-                                <Tooltip
-                                  title={`Rename filter "${filter.name}"`}
-                                  placement="left"
-                                >
-                                  <IconButton
-                                    onClick={() => {
-                                      setEditingFilterId(filter.id);
-                                      setEditNameInput(filter.name);
-                                    }}
-                                    aria-label="rename filter"
-                                    data-testid={`rename-filter-${filter.id}`}
-                                  >
-                                    <EditIcon />
-                                  </IconButton>
-                                </Tooltip>
-                                <Tooltip
-                                  title={`Delete filter "${filter.name}"`}
-                                  placement="left"
-                                >
-                                  <IconButton
-                                    onClick={() => setFilterToDelete(filter)}
-                                    color="error"
-                                    aria-label="delete filter"
-                                  >
-                                    <DeleteIcon />
-                                  </IconButton>
-                                </Tooltip>
-                              </>
-                            )
-                          }
-                        >
+                        <ListItem key={filter.id} disablePadding>
                           <ListItemButton
                             component={Link}
                             to={`/filter/${filter.id}`}
+                            sx={{ flexGrow: 0, pr: 1 }}
                           >
                             <ListItemText
                               sx={{ pl: 2 }}
                               primary={filter.name}
                             />
                           </ListItemButton>
+                          {canEdit && (
+                            <>
+                              <Tooltip title={`Rename filter "${filter.name}"`}>
+                                <IconButton
+                                  size="small"
+                                  onClick={() => {
+                                    setEditingFilterId(filter.id);
+                                    setEditNameInput(filter.name);
+                                  }}
+                                  aria-label="rename filter"
+                                  data-testid={`rename-filter-${filter.id}`}
+                                >
+                                  <EditIcon sx={{ fontSize: 16 }} />
+                                </IconButton>
+                              </Tooltip>
+                              <Tooltip
+                                title={`Delete filter "${filter.name}"`}
+                                placement="left"
+                              >
+                                <IconButton
+                                  onClick={() => setFilterToDelete(filter)}
+                                  color="error"
+                                  aria-label="delete filter"
+                                  sx={{ ml: "auto", mr: 2 }}
+                                >
+                                  <DeleteIcon />
+                                </IconButton>
+                              </Tooltip>
+                            </>
+                          )}
                         </ListItem>
                       ),
                     )}
