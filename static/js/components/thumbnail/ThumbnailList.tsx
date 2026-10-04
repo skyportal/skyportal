@@ -285,17 +285,6 @@ const ThumbnailList = ({
     }))
     .filter((group) => group.tiles.length > 0);
 
-  const preload = JSON.stringify(
-    groups
-      .flatMap((group) => group.tiles.map((t) => t.src))
-      .filter((src) => !src.startsWith("blob:") && !src.startsWith("data:")),
-  );
-  useEffect(() => {
-    (JSON.parse(preload) as string[]).forEach((src) => {
-      new Image().src = src;
-    });
-  }, [preload]);
-
   const perRow = columns ?? MAX_VISIBLE_THUMBNAILS;
   const rowsPerPage = columns ? 2 : 1;
   const rows = packRows(groups, perRow);
@@ -305,6 +294,23 @@ const ThumbnailList = ({
   }
   const currentPage = Math.min(pageIndex, Math.max(0, pages.length - 1));
   const track = columns ? "minmax(0, 1fr)" : "max-content";
+
+  const shown = new Set(
+    (pages[currentPage] ?? []).flat().flatMap((block) => block.tiles),
+  );
+  const preload = JSON.stringify(
+    pages
+      .flat(2)
+      .flatMap((block) => block.tiles)
+      .filter((t) => !shown.has(t))
+      .map((t) => t.src)
+      .filter((src) => !src.startsWith("blob:") && !src.startsWith("data:")),
+  );
+  useEffect(() => {
+    (JSON.parse(preload) as string[]).forEach((src) => {
+      new Image().src = src;
+    });
+  }, [preload]);
 
   const fieldsOfView = [
     ...new Set(
