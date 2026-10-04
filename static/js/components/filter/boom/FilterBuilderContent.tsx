@@ -242,12 +242,10 @@ const FilterBuilderContent = ({
           setFilters(emptyFilter);
         }
       }
-    } else if (!localFilterData) {
-      const emptyFilter = createEmptyFilterWithDefaultCondition();
-      setLocalFilterData(emptyFilter);
-      if (setFilters) {
-        setFilters(emptyFilter);
-      }
+    } else {
+      setLocalFilterData(
+        (prev: any) => prev ?? createEmptyFilterWithDefaultCondition(),
+      );
     }
   }, [
     filter,
@@ -255,7 +253,6 @@ const FilterBuilderContent = ({
     hasBeenModified,
     createEmptyFilterWithDefaultCondition,
     setCollapsedBlocks,
-    localFilterData,
     setLocalFilterData,
     setProjectionFields,
   ]);
