@@ -398,19 +398,11 @@ const SourceContent = ({ source }: SourceContentProps) => {
         }}
       >
         <Paper id="annotations-content" className={classes.flexColumn}>
-          <div
-            style={{
-              display: "flex",
-              flexDirection: "column",
-              minHeight: downLarge || isRightPanelVisible ? "52vh" : "60vh",
-            }}
-          >
-            <AnnotationsTable
-              title="Auto-annotations"
-              annotations={source.annotations}
-              spectrumAnnotations={spectrumAnnotations}
-            />
-          </div>
+          <AnnotationsTable
+            title="Auto-annotations"
+            annotations={source.annotations}
+            spectrumAnnotations={spectrumAnnotations}
+          />
           {!isReadOnly && (
             <div style={{ padding: "0.5rem" }}>
               <SourceAnnotationButtons source={source} />

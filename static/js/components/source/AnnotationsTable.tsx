@@ -253,9 +253,7 @@ const AnnotationsTable = ({
 
   return (
     <div className={classes.container}>
-      <Box
-        sx={{ width: "100%", flex: 1, minHeight: canExpand ? "22rem" : "78vh" }}
-      >
+      <Box sx={{ width: "100%", flex: 1, minHeight: canExpand ? 0 : "78vh" }}>
         <StyledDataGrid
           columns={columns}
           rows={tableData}
