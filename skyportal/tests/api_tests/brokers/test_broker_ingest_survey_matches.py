@@ -166,3 +166,37 @@ def test_survey_match_ingest_is_idempotent(super_admin_user, survey_instruments)
         assert sorted(links) == sorted({main_id, lsst_id}), "links not deduped"
     finally:
         _cleanup([main_id, lsst_id])
+
+
+def test_counterpart_cutouts_are_dated_by_their_alert(
+    monkeypatch, super_admin_user, survey_instruments
+):
+    """BOOM returns a counterpart's cutouts with the candid of the alert they come
+    from; the thumbnails take that alert's date from the counterpart photometry."""
+    from skyportal.broker_apis import _thumbnails, boom
+
+    main_id = f"ZTF{uuid.uuid4().hex[:10]}"
+    lsst_id = str(uuid.uuid4().int)[:18]
+    record = _record(lsst_id)
+    point = record["survey_matches"]["lsst"]["photometry"][0]
+    record["survey_matches"]["lsst"]["photometry"] = [
+        {**point, "jd": 2461230.5, "candid": 41},
+        {**point, "jd": 2461232.5, "candid": 42},
+    ]
+    posted = []
+
+    async def fake_add_thumbnails(obj_id, cutouts, survey, session, user_id=1, jd=None):
+        posted.append((obj_id, survey, jd))
+
+    monkeypatch.setattr(
+        boom,
+        "_request",
+        lambda broker, method, path, **kw: {"candid": 41, "cutoutScience": b"fits"},
+    )
+    monkeypatch.setattr(_thumbnails, "add_thumbnails", fake_add_thumbnails)
+    _make_obj(main_id)
+    try:
+        _ingest_matches(record, main_id, "ZTF", super_admin_user.id, broker=object())
+        assert posted == [(lsst_id, "LSST", 2461230.5)]
+    finally:
+        _cleanup([main_id, lsst_id])

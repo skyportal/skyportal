@@ -39684,6 +39684,11 @@ export interface components {
             survey?: string | null;
             /** @description ID of the thumbnail's obj. */
             obj_id: string;
+            /**
+             * Format: date-time
+             * @description UTC time of the alert observation the cutout comes from; NULL for archival thumbnails and when unknown.
+             */
+            observed_at?: string | null;
             /** @description Whether the thumbnail is (mostly) grayscale. NULL until a remote (public_url-only) thumbnail is classified by the thumbnail_queue service. */
             is_grayscale?: boolean | null;
             /** @description Unique object identifier. */
@@ -39719,6 +39724,11 @@ export interface components {
             survey?: string | null;
             /** @description ID of the thumbnail's obj. */
             obj_id: string;
+            /**
+             * Format: date-time
+             * @description UTC time of the alert observation the cutout comes from; NULL for archival thumbnails and when unknown.
+             */
+            observed_at?: string | null;
             /** @description Whether the thumbnail is (mostly) grayscale. NULL until a remote (public_url-only) thumbnail is classified by the thumbnail_queue service. */
             is_grayscale?: boolean | null;
         };

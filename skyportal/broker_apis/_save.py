@@ -528,7 +528,9 @@ async def _ingest_object(
         try:
             from ._thumbnails import add_thumbnails
 
-            await add_thumbnails(object_id, cutouts, survey, session, user_id=user.id)
+            await add_thumbnails(
+                object_id, cutouts, survey, session, user_id=user.id, jd=cand.get("jd")
+            )
         except Exception as e:
             log(f"Failed to add thumbnails for {object_id}: {e}")
 

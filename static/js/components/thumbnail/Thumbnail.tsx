@@ -1,5 +1,5 @@
 import { useGetProfileQuery } from "../../ducks/profile";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import Card from "@mui/material/Card";
 import { makeStyles } from "tss-react/mui";
 import Skeleton from "@mui/material/Skeleton";
@@ -38,13 +38,10 @@ const useStyles = makeStyles<{
   },
 }));
 
-const MAXIMUM_NB_OF_RETRIES = 3;
-
 export const getThumbnailAltAndLink = (
   name: string,
   ra: number,
   dec: number,
-  survey?: string,
 ) => {
   let alt = "";
   let link = "";
@@ -96,11 +93,6 @@ export const getThumbnailAltAndLink = (
     default:
       break;
   }
-  // Prefix alert cutouts with their survey (e.g. "ZTF NEW") so a source's own
-  // and its linked cross-survey tiles are distinguishable.
-  if (survey && ["new", "ref", "sub"].includes(name)) {
-    thumbnailName = `${survey.toUpperCase()} ${thumbnailName}`;
-  }
   return { alt, link, thumbnailName };
 };
 
@@ -112,9 +104,12 @@ interface ThumbnailProps {
   ra: number;
   dec: number;
   name: string;
-  // Survey the cutout came from (e.g. ZTF, LSST); prefixes the title for alert
-  // cutouts. Undefined for archival/legacy tiles.
+  // Survey the cutout came from (e.g. ZTF, LSST), shown beside the title for
+  // alert cutouts. Undefined for archival/legacy tiles.
   survey?: string | undefined;
+  detail?: string | undefined;
+  fieldOfView?: string | undefined;
+  zoom?: number;
   src: string;
   size: string;
   minSize: string;
@@ -122,9 +117,7 @@ interface ThumbnailProps {
   titleSize: string;
   grayscale: boolean;
   noMargin?: boolean;
-  // Called when the thumbnail resolves to "no coverage" (blank), so the parent
-  // list can drop it from the display.
-  onUnavailable?: () => void;
+  message?: string | undefined;
 }
 
 const Thumbnail = ({
@@ -132,6 +125,9 @@ const Thumbnail = ({
   dec,
   name,
   survey,
+  detail,
+  fieldOfView,
+  zoom = 1,
   src,
   size,
   minSize,
@@ -139,18 +135,9 @@ const Thumbnail = ({
   titleSize,
   grayscale,
   noMargin = false,
-  onUnavailable,
+  message,
 }: ThumbnailProps) => {
-  const isFetched = name === "ls" || name === "sdss";
-  // Keep the latest callback in a ref so the fetch effect doesn't re-run when
-  // the parent passes a new closure identity.
-  const onUnavailableRef = useRef(onUnavailable);
-  useEffect(() => {
-    onUnavailableRef.current = onUnavailable;
-  }, [onUnavailable]);
-  const [status, setStatus] = useState(defaultState(src));
-  const [retry, setRetry] = useState(0);
-  const [imgSrc, setImgSrc] = useState<string | null>(isFetched ? null : src);
+  const [status, setStatus] = useState(message ?? defaultState(src));
   const invertThumbnails =
     useGetProfileQuery().data?.preferences?.["invertThumbnails"];
   const { classes } = useStyles({
@@ -162,68 +149,16 @@ const Thumbnail = ({
   });
 
   useEffect(() => {
-    setStatus(defaultState(src));
-    setRetry(0);
-    setImgSrc(isFetched ? null : src);
-  }, [src, isFetched]);
+    setStatus(message ?? defaultState(src));
+  }, [src, message]);
 
-  useEffect(() => {
-    if (!isFetched || src === "#") return undefined;
-
-    let cancelled = false;
-    let objectUrl: string | null = null;
-    fetch(src)
-      .then((r) => {
-        if (r.status === 429) {
-          if (retry < MAXIMUM_NB_OF_RETRIES) {
-            // If the request fail due to too many requests, retry after 2 seconds.
-            setTimeout(() => {
-              if (!cancelled) setRetry((prev) => prev + 1);
-            }, 2000);
-            return null;
-          }
-          setStatus("Too Many Requests");
-          return null;
-        }
-        if (r.status === 404 && r.statusText.includes("(ra, dec) is outside")) {
-          setStatus("Outside Survey Area");
-          onUnavailableRef.current?.();
-          return null;
-        }
-        if (!r.ok) {
-          setStatus("Currently Unavailable");
-          return null;
-        }
-        return r.blob();
-      })
-      .then((blob) => {
-        if (cancelled || !blob) return;
-        // If the request succeed but the image is too small for Legacy Survey,
-        // It means the image is a grey placeholder for "outside survey area".
-        if (name === "ls" && blob.size < 1500) {
-          setStatus("Outside Survey Area");
-          onUnavailableRef.current?.();
-          return;
-        }
-        objectUrl = URL.createObjectURL(blob);
-        setImgSrc(objectUrl);
-      })
-      .catch(() => {
-        if (!cancelled) setStatus("Currently Unavailable");
-      });
-
-    return () => {
-      cancelled = true;
-      if (objectUrl) URL.revokeObjectURL(objectUrl);
-    };
-  }, [src, name, isFetched, retry]);
-
-  const { alt, link, thumbnailName } = getThumbnailAltAndLink(
-    name,
-    ra,
-    dec,
-    survey,
-  );
+  const { alt, link, thumbnailName } = getThumbnailAltAndLink(name, ra, dec);
+  const headerDetail = [
+    survey && ["new", "ref", "sub"].includes(name) && survey.toUpperCase(),
+    detail,
+  ]
+    .filter(Boolean)
+    .join(" · ");
   const imgClasses = grayscale
     ? `${classes.media} ${classes.inverted}`
     : `${classes.media}`;
@@ -231,8 +166,35 @@ const Thumbnail = ({
   const getThumbnailCard = (
     <>
       <CardHeader
-        sx={{ padding: "0.4rem 0.6rem" }}
-        title={thumbnailName}
+        sx={{
+          padding: "0.4rem 0.6rem",
+          "& .MuiCardHeader-content": { minWidth: 0 },
+        }}
+        title={
+          <Box
+            title={headerDetail}
+            sx={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "baseline",
+              gap: "0.4em",
+            }}
+          >
+            <span>{thumbnailName}</span>
+            {headerDetail && (
+              <Box
+                component="span"
+                sx={{
+                  fontWeight: "normal",
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                }}
+              >
+                {headerDetail}
+              </Box>
+            )}
+          </Box>
+        }
         slotProps={{
           title: {
             sx: {
@@ -244,31 +206,35 @@ const Thumbnail = ({
           },
         }}
       />
-      <Box sx={{ position: "relative", aspectRatio: "1 / 1" }}>
+      <Box
+        sx={{
+          position: "relative",
+          aspectRatio: "1 / 1",
+          ...(zoom !== 1 && { backgroundColor: "black" }),
+        }}
+      >
         {status === "loading" || status === "loaded" ? (
           <>
-            {imgSrc && (
-              <CardMedia
-                component="img"
-                src={imgSrc}
-                alt={alt}
-                className={imgClasses}
-                title={alt}
-                loading="lazy"
-                style={{
-                  opacity: status === "loaded" ? 1 : 0,
-                  ...(imgSrc?.startsWith("data:")
-                    ? { imageRendering: "pixelated" }
-                    : {}),
-                }}
-                onLoad={() => setStatus("loaded")}
-                onError={(e: any) => {
-                  e.target.onerror = null;
-                  if (src === "#" || isFetched) return;
-                  setStatus("Currently Unavailable");
-                }}
-              />
-            )}
+            <CardMedia
+              component="img"
+              src={src}
+              alt={alt}
+              className={imgClasses}
+              title={alt}
+              loading="lazy"
+              style={{
+                opacity: status === "loaded" ? 1 : 0,
+                ...(src.startsWith("data:")
+                  ? { imageRendering: "pixelated" }
+                  : {}),
+                ...(zoom !== 1 ? { transform: `scale(${zoom})` } : {}),
+              }}
+              onLoad={() => setStatus("loaded")}
+              onError={(e: any) => {
+                e.target.onerror = null;
+                setStatus("Currently Unavailable");
+              }}
+            />
             {status === "loading" ? (
               <Skeleton
                 className={`${classes.media} ${classes.overlay}`}
@@ -282,6 +248,25 @@ const Thumbnail = ({
                   alt="crosshairs"
                 />
               )
+            )}
+            {status === "loaded" && fieldOfView && (
+              <Box
+                component="span"
+                title="Field of view"
+                sx={{
+                  position: "absolute",
+                  left: "0.3rem",
+                  bottom: "0.3rem",
+                  padding: "0 0.3em",
+                  borderRadius: "0.2rem",
+                  backgroundColor: "rgba(0, 0, 0, 0.55)",
+                  color: "white",
+                  fontSize: titleSize,
+                  lineHeight: 1.5,
+                }}
+              >
+                {fieldOfView}
+              </Box>
             )}
           </>
         ) : (

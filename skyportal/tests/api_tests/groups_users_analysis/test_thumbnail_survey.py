@@ -5,6 +5,7 @@ import asyncio
 import base64
 import io
 import os
+from datetime import datetime
 
 import pytest
 import sqlalchemy as sa
@@ -21,7 +22,7 @@ def _png_b64():
     return base64.b64encode(buf.getvalue()).decode("utf-8")
 
 
-def _post(user, obj_id, ttype="new", survey=None):
+def _post(user, obj_id, ttype="new", survey=None, observed_at=None):
     async def _run():
         async with baselayer_models.async_plain_session_factory() as session:
             return await post_thumbnail(
@@ -30,6 +31,7 @@ def _post(user, obj_id, ttype="new", survey=None):
                     "data": _png_b64(),
                     "ttype": ttype,
                     "survey": survey,
+                    "observed_at": observed_at,
                 },
                 user.id,
                 session,
@@ -124,3 +126,16 @@ def test_survey_cannot_escape_the_thumbnail_folder(
         _post(super_admin_user, bare_source.id, survey=survey)
 
     assert _thumbnails(bare_source.id) == []
+
+
+def test_repost_replaces_the_observation_time(super_admin_user, bare_source):
+    """Each new alert rewrites the cutout, so its observation time must follow."""
+    first = datetime(2026, 7, 10, 8, 2, 11)
+    second = datetime(2026, 9, 30, 4, 32, 12)
+    _post(super_admin_user, bare_source.id, survey="ZTF", observed_at=first)
+    assert _thumbnails(bare_source.id)[0].observed_at == first
+
+    _post(super_admin_user, bare_source.id, survey="ZTF", observed_at=second)
+    thumbnails = _thumbnails(bare_source.id)
+    assert len(thumbnails) == 1
+    assert thumbnails[0].observed_at == second

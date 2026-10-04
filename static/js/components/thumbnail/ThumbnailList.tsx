@@ -3,11 +3,12 @@ import dayjs from "dayjs";
 
 import Box from "@mui/material/Box";
 import Grid from "@mui/material/Grid";
-import IconButton from "@mui/material/IconButton";
 import Button from "@mui/material/Button";
+import FormControlLabel from "@mui/material/FormControlLabel";
+import Switch from "@mui/material/Switch";
+import Tab from "@mui/material/Tab";
+import Tabs from "@mui/material/Tabs";
 import Tooltip from "@mui/material/Tooltip";
-import ChevronLeftIcon from "@mui/icons-material/ChevronLeft";
-import ChevronRightIcon from "@mui/icons-material/ChevronRight";
 
 import Thumbnail from "./Thumbnail";
 import { useGenerateSurveyThumbnailMutation } from "../../ducks/candidate/candidates";
@@ -23,13 +24,200 @@ const ARCHIVAL_THUMBNAIL_TYPES = [
   "jwst",
 ];
 const ON_DEMAND_TYPES = ["sm", "hst", "chandra", "jwst"];
+const FETCHED_TYPES = ["sdss", "ls"];
+const MAXIMUM_NB_OF_RETRIES = 3;
 const MAX_VISIBLE_THUMBNAILS = 3;
 const thumbnailTypes = [...ALERT_THUMBNAIL_TYPES, ...ARCHIVAL_THUMBNAIL_TYPES];
+const SURVEY_FIELD_OF_VIEW_ARCSEC: Record<string, number> = {
+  ZTF: 64,
+  LSST: 6,
+};
+
+const formatFieldOfView = (arcsec: number) =>
+  arcsec >= 60 ? `${Math.round(arcsec / 60)}′` : `${arcsec}″`;
 
 export const isPlaceholder = (src?: string | null) =>
   !src ||
   src.includes("outside_survey") ||
   src.includes("currently_unavailable");
+
+interface Tile {
+  key: string;
+  name: string;
+  survey?: string | undefined;
+  detail?: string | undefined;
+  fieldOfView?: number | undefined;
+  message?: string | undefined;
+  src: string;
+  grayscale: boolean;
+}
+
+interface TileGroup {
+  key: string;
+  label: string;
+  tiles: Tile[];
+}
+
+interface Block {
+  group: TileGroup;
+  tiles: Tile[];
+}
+
+const toTile = (t: any): Tile => ({
+  key: `${t.id}`,
+  name: t.type,
+  src: t.public_url,
+  grayscale: t.is_grayscale,
+});
+
+const timestamp = (t: any) => {
+  const stamp = t.observed_at ?? t.modified ?? t.created_at;
+  return stamp ? dayjs(stamp) : null;
+};
+
+const latestTimestamp = (thumbnails: any[]) =>
+  thumbnails
+    .map(timestamp)
+    .reduce((a, b) => (a && (!b || a.isAfter(b)) ? a : b), null);
+
+const alertTile = (t: any): Tile => ({
+  ...toTile(t),
+  survey: t.survey ?? undefined,
+  detail:
+    t.type === "new" && t.observed_at
+      ? dayjs(t.observed_at).format("YYYY-MM-DD")
+      : undefined,
+  fieldOfView: SURVEY_FIELD_OF_VIEW_ARCSEC[t.survey ?? ""],
+});
+
+const alertGroups = (sortedThumbnails: any[], objID?: string) => {
+  const bySurvey = new Map<string, any[]>();
+  sortedThumbnails
+    .filter((t) => ALERT_THUMBNAIL_TYPES.includes(t.type))
+    .forEach((t) => {
+      const survey = t.survey ?? "";
+      const group = bySurvey.get(survey) ?? [];
+      if (!group.some((g) => g.type === t.type)) {
+        bySurvey.set(survey, [...group, t]);
+      }
+    });
+
+  return [...bySurvey.entries()]
+    .map(([survey, group]) => ({
+      survey,
+      group,
+      own: group.some((t) => t.obj_id === objID),
+      updated: latestTimestamp(group),
+    }))
+    .sort(
+      (a, b) =>
+        Number(b.own) - Number(a.own) ||
+        (b.updated?.valueOf() ?? 0) - (a.updated?.valueOf() ?? 0),
+    )
+    .map(({ survey, group }): TileGroup => ({
+      key: survey || "alert",
+      label: survey || "Alert",
+      tiles: ALERT_THUMBNAIL_TYPES.flatMap((type) =>
+        group.filter((t) => t.type === type),
+      ).map(alertTile),
+    }));
+};
+
+const packRows = (groups: TileGroup[], perRow: number) => {
+  const rows: Block[][] = [];
+  let used = perRow;
+  groups.forEach((group) => {
+    for (let i = 0; i < group.tiles.length; i += perRow) {
+      const tiles = group.tiles.slice(i, i + perRow);
+      if (used + tiles.length > perRow) {
+        rows.push([]);
+        used = 0;
+      }
+      rows[rows.length - 1]!.push({ group, tiles });
+      used += tiles.length;
+    }
+  });
+  return rows;
+};
+
+const pageLabels = (pages: Block[][][]) => {
+  const labels = pages.map((page) =>
+    [...new Set(page.flat().map((block) => block.group.label))].join(" · "),
+  );
+  return labels.map((label, i) => {
+    const count = labels.filter((l) => l === label).length;
+    if (count === 1) return label;
+    return `${label} ${labels.slice(0, i + 1).filter((l) => l === label).length}`;
+  });
+};
+
+interface FetchedCutout {
+  url?: string;
+  message?: string;
+  unavailable?: boolean;
+}
+
+const fetchCutout = async (
+  src: string,
+  name: string,
+  signal: AbortSignal,
+  retry = 0,
+): Promise<FetchedCutout> => {
+  const response = await fetch(src, { signal });
+  if (response.status === 429) {
+    if (retry >= MAXIMUM_NB_OF_RETRIES) return { message: "Too Many Requests" };
+    await new Promise((resolve) => setTimeout(resolve, 2000));
+    return fetchCutout(src, name, signal, retry + 1);
+  }
+  if (
+    response.status === 404 &&
+    response.statusText.includes("(ra, dec) is outside")
+  ) {
+    return { unavailable: true };
+  }
+  if (!response.ok) return { message: "Currently Unavailable" };
+  const blob = await response.blob();
+  // Legacy Survey answers outside its footprint with a small grey placeholder.
+  if (name === "ls" && blob.size < 1500) return { unavailable: true };
+  return { url: URL.createObjectURL(blob) };
+};
+
+const useFetchedCutouts = (thumbnails: any[]) => {
+  const requests = JSON.stringify(
+    thumbnails
+      .filter(
+        (t) => FETCHED_TYPES.includes(t.type) && !isPlaceholder(t.public_url),
+      )
+      .map((t) => [`${t.id}`, t.type, t.public_url]),
+  );
+  const [results, setResults] = useState<Record<string, FetchedCutout>>({});
+
+  useEffect(() => {
+    const controller = new AbortController();
+    const urls: string[] = [];
+    setResults({});
+    (JSON.parse(requests) as [string, string, string][]).forEach(
+      ([key, name, src]) => {
+        fetchCutout(src, name, controller.signal)
+          .catch((): FetchedCutout => ({ message: "Currently Unavailable" }))
+          .then((result) => {
+            if (controller.signal.aborted) {
+              if (result.url) URL.revokeObjectURL(result.url);
+              return;
+            }
+            if (result.url) urls.push(result.url);
+            setResults((prev) => ({ ...prev, [key]: result }));
+          });
+      },
+    );
+    return () => {
+      controller.abort();
+      urls.forEach((url) => URL.revokeObjectURL(url));
+    };
+  }, [requests]);
+
+  return results;
+};
 
 interface ThumbnailListProps {
   ra: number;
@@ -60,111 +248,114 @@ const ThumbnailList = ({
   objID = undefined,
   columns = undefined,
 }: ThumbnailListProps) => {
-  const [offset, setOffset] = useState(0);
-  const [unavailable, setUnavailable] = useState<Set<string>>(() => new Set());
-  useEffect(() => setUnavailable(new Set()), [objID]);
+  const [pageIndex, setPageIndex] = useState(0);
+  const [sameScale, setSameScale] = useState(false);
+  useEffect(() => setPageIndex(0), [objID]);
   const [generateSurveyThumbnail, { isLoading: onDemandLoading }] =
     useGenerateSurveyThumbnailMutation();
 
-  const sortedThumbnails = [...(thumbnails ?? [])].sort((a, b) =>
-    dayjs(b.created_at).diff(a.created_at),
-  );
-  const latestThumbnails = thumbnailTypes
-    .filter((type) => displayTypes.includes(type))
-    .flatMap((type) => {
-      const ofType = sortedThumbnails.filter((t) => t.type === type);
-      if (!ALERT_THUMBNAIL_TYPES.includes(type)) return ofType.slice(0, 1);
-      const bySurvey = new Map<string, any>();
-      ofType.forEach((t) => {
-        if (!bySurvey.has(t.survey ?? "")) bySurvey.set(t.survey ?? "", t);
-      });
-      return [...bySurvey.entries()]
-        .sort(([a], [b]) => a.localeCompare(b))
-        .map(([, t]) => t);
-    });
+  const sortedThumbnails = [...(thumbnails ?? [])]
+    .filter((t) => displayTypes.includes(t.type))
+    .sort((a, b) => dayjs(b.created_at).diff(a.created_at));
 
-  const tiles = latestThumbnails.map((t) => ({
-    key: `${t.id}`,
-    name: t.type,
-    survey: t.survey ?? undefined,
-    src: t.public_url,
-    grayscale: t.is_grayscale,
-  }));
-  // PanSTARRS is resolved asynchronously on the backend after the source loads.
-  if (
-    latestThumbnails.some((t) => ARCHIVAL_THUMBNAIL_TYPES.includes(t.type)) &&
-    displayTypes.includes("ps1") &&
-    !latestThumbnails.some((t) => t.type === "ps1")
-  ) {
-    tiles.push({
-      key: "ps1-loading",
-      name: "ps1",
-      survey: undefined,
-      src: "#",
-      grayscale: false,
-    });
+  const latestArchival = ARCHIVAL_THUMBNAIL_TYPES.flatMap((type) =>
+    sortedThumbnails.filter((t) => t.type === type).slice(0, 1),
+  );
+  const fetched = useFetchedCutouts(latestArchival);
+  const archivalTiles = latestArchival.flatMap((t): Tile[] => {
+    if (!FETCHED_TYPES.includes(t.type)) return [toTile(t)];
+    const result = fetched[`${t.id}`];
+    if (!result || result.unavailable) return [];
+    return [
+      {
+        ...toTile(t),
+        src: result.url ?? t.public_url,
+        message: result.message,
+      },
+    ];
+  });
+
+  const groups = [
+    ...alertGroups(sortedThumbnails, objID),
+    { key: "archival", label: "Archival", tiles: archivalTiles },
+  ]
+    .map((group) => ({
+      ...group,
+      tiles: group.tiles.filter((t) => !isPlaceholder(t.src)),
+    }))
+    .filter((group) => group.tiles.length > 0);
+
+  const perRow = columns ?? MAX_VISIBLE_THUMBNAILS;
+  const rowsPerPage = columns ? 2 : 1;
+  const rows = packRows(groups, perRow);
+  const pages: Block[][][] = [];
+  for (let i = 0; i < rows.length; i += rowsPerPage) {
+    pages.push(rows.slice(i, i + rowsPerPage));
   }
-  const shownTiles = tiles.filter(
-    (t) => !isPlaceholder(t.src) && !unavailable.has(t.key),
-  );
+  const currentPage = Math.min(pageIndex, Math.max(0, pages.length - 1));
+  const track = columns ? "minmax(0, 1fr)" : "max-content";
 
-  const windowSize = columns ? columns * 2 : MAX_VISIBLE_THUMBNAILS;
-  const step = columns ? windowSize : 1;
-  const maxOffset = Math.max(0, shownTiles.length - windowSize);
-  const clampedOffset = Math.min(offset, maxOffset);
-  const visibleTiles = shownTiles.slice(
-    clampedOffset,
-    clampedOffset + windowSize,
+  const shown = new Set(
+    (pages[currentPage] ?? []).flat().flatMap((block) => block.tiles),
   );
-  const showControls = shownTiles.length > windowSize;
+  const preload = JSON.stringify(
+    pages
+      .flat(2)
+      .flatMap((block) => block.tiles)
+      .filter((t) => !shown.has(t))
+      .map((t) => t.src)
+      .filter((src) => !src.startsWith("blob:") && !src.startsWith("data:")),
+  );
+  useEffect(() => {
+    (JSON.parse(preload) as string[]).forEach((src) => {
+      new Image().src = src;
+    });
+  }, [preload]);
+
+  const fieldsOfView = [
+    ...new Set(
+      groups.flatMap((group) => group.tiles.map((t) => t.fieldOfView ?? 0)),
+    ),
+  ].filter(Boolean);
+  const widestFieldOfView = Math.max(...fieldsOfView);
+  const scaleMatched = sameScale && fieldsOfView.length > 1;
+
   const showOnDemandButton =
     Boolean(objID) &&
-    !latestThumbnails.some(
+    !latestArchival.some(
       (t) => ON_DEMAND_TYPES.includes(t.type) && !isPlaceholder(t.public_url),
     );
 
-  const renderTile = (tile: (typeof tiles)[number]) => (
-    <Grid key={tile.key}>
-      <Thumbnail
-        ra={ra}
-        dec={dec}
-        name={tile.name}
-        survey={tile.survey}
-        src={tile.src}
-        size={size}
-        minSize={minSize ?? size}
-        maxSize={maxSize ?? size}
-        noMargin={!useGrid && noMargin}
-        grayscale={tile.grayscale}
-        titleSize={titleSize}
-        onUnavailable={() =>
-          setUnavailable((prev) =>
-            prev.has(tile.key) ? prev : new Set(prev).add(tile.key),
-          )
-        }
-      />
-    </Grid>
+  const renderTile = (tile: Tile) => (
+    <Thumbnail
+      ra={ra}
+      dec={dec}
+      name={tile.name}
+      survey={tile.survey}
+      detail={tile.detail}
+      fieldOfView={
+        tile.fieldOfView
+          ? formatFieldOfView(
+              scaleMatched ? widestFieldOfView : tile.fieldOfView,
+            )
+          : undefined
+      }
+      zoom={
+        scaleMatched && tile.fieldOfView
+          ? tile.fieldOfView / widestFieldOfView
+          : 1
+      }
+      src={tile.src}
+      size={size}
+      minSize={minSize ?? size}
+      maxSize={maxSize ?? size}
+      noMargin={!useGrid && noMargin}
+      grayscale={tile.grayscale}
+      titleSize={titleSize}
+      message={tile.message}
+    />
   );
-  const prevButton = (
-    <IconButton
-      size="small"
-      aria-label="previous thumbnails"
-      disabled={clampedOffset === 0}
-      onClick={() => setOffset(Math.max(0, clampedOffset - step))}
-    >
-      <ChevronLeftIcon />
-    </IconButton>
-  );
-  const nextButton = (
-    <IconButton
-      size="small"
-      aria-label="next thumbnails"
-      disabled={clampedOffset >= maxOffset}
-      onClick={() => setOffset(Math.min(maxOffset, clampedOffset + step))}
-    >
-      <ChevronRightIcon />
-    </IconButton>
-  );
+
   const onDemandButton = (
     <Tooltip title="Load SkyMapper, HST, Chandra & JWST cutouts">
       <span>
@@ -181,46 +372,96 @@ const ThumbnailList = ({
     </Tooltip>
   );
 
-  if (columns) {
-    return (
-      <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
-        <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-          {showControls && prevButton}
-          <Box
-            sx={{
-              display: "grid",
-              gap: 1,
-              gridTemplateColumns: `repeat(${columns}, 1fr)`,
-              flex: "1 1 auto",
-            }}
-          >
-            {visibleTiles.map(renderTile)}
-          </Box>
-          {showControls && nextButton}
+  const content = (
+    <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
+      {(pages.length > 1 || fieldsOfView.length > 1) && (
+        <Box
+          sx={{
+            display: "flex",
+            alignItems: "center",
+            ...(pages.length > 1 && {
+              borderBottom: 1,
+              borderColor: "divider",
+            }),
+          }}
+        >
+          {pages.length > 1 && (
+            <Tabs
+              value={currentPage}
+              onChange={(_, value) => setPageIndex(value)}
+              variant="fullWidth"
+              sx={{
+                flex: 1,
+                minHeight: "auto",
+                "& .MuiTab-root": {
+                  minHeight: "auto",
+                  padding: "0.4rem 0.75rem",
+                  fontSize: "0.8rem",
+                  fontWeight: "bold",
+                  textTransform: "none",
+                },
+              }}
+            >
+              {pageLabels(pages).map((label) => (
+                <Tab key={label} label={label} />
+              ))}
+            </Tabs>
+          )}
+          {fieldsOfView.length > 1 && (
+            <Tooltip
+              title={`Show every alert cutout at the ${formatFieldOfView(widestFieldOfView)} field of view`}
+            >
+              <FormControlLabel
+                control={
+                  <Switch
+                    size="small"
+                    checked={sameScale}
+                    onChange={(event) => setSameScale(event.target.checked)}
+                  />
+                }
+                label="Same scale"
+                sx={{
+                  marginLeft: "auto",
+                  marginRight: 0,
+                  paddingLeft: 1,
+                  whiteSpace: "nowrap",
+                  "& .MuiFormControlLabel-label": { fontSize: "0.8rem" },
+                }}
+              />
+            </Tooltip>
+          )}
         </Box>
-        {showOnDemandButton && <div>{onDemandButton}</div>}
+      )}
+      <Box
+        sx={{
+          display: "grid",
+          gap: 1,
+          gridTemplateColumns: `repeat(${perRow}, ${track})`,
+        }}
+      >
+        {(pages[currentPage] ?? []).flatMap((row, rowIndex) =>
+          row
+            .flatMap((block) => block.tiles)
+            .map((tile, columnIndex) => (
+              <Box
+                key={tile.key}
+                sx={{
+                  gridRow: rowIndex + 1,
+                  gridColumn: columnIndex + 1,
+                  minWidth: 0,
+                }}
+              >
+                {renderTile(tile)}
+              </Box>
+            )),
+        )}
       </Box>
-    );
-  }
+      {showOnDemandButton && <div>{onDemandButton}</div>}
+    </Box>
+  );
 
-  const items = (
-    <>
-      {showControls && <Grid>{prevButton}</Grid>}
-      {visibleTiles.map(renderTile)}
-      {showControls && <Grid>{nextButton}</Grid>}
-      {showOnDemandButton && <Grid>{onDemandButton}</Grid>}
-    </>
-  );
-  if (!useGrid) return items;
-  return (
-    <Grid
-      container
-      spacing={1}
-      sx={{ flexWrap: "nowrap", alignItems: "center" }}
-    >
-      {items}
-    </Grid>
-  );
+  if (!useGrid && !columns) return <Grid>{content}</Grid>;
+  return content;
 };
 
 export default ThumbnailList;
