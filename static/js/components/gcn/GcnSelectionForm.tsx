@@ -646,7 +646,7 @@ const GcnSelectionForm = ({ dateobs }: GcnSelectionFormProps) => {
     localization: !!gcnEvent?.localizations?.length,
     sources: !!gcnEventSources,
     galaxies: !!gcnEventGalaxies,
-    instruments: !!sortedInstrumentList,
+    instrument: !!skymapInstrument,
     observations: !!gcnEventObservations,
   };
 
