@@ -1258,6 +1258,34 @@ def test_boom_filter_activation_requires_validation(
         api("DELETE", f"brokers/{broker_id}", token=super_admin_token)
 
 
+def test_filter_catalog_sorts_by_active(super_admin_token, public_filter):
+    params = {
+        "name": public_filter.name,
+        "groupID": public_filter.group_id,
+        "numPerPage": 100,
+    }
+    status, by_name = api(
+        "GET", "brokers/filters", params=params, token=super_admin_token
+    )
+    assert status == 200
+    status, by_active = api(
+        "GET",
+        "brokers/filters",
+        params={**params, "sortBy": "active", "sortOrder": "desc"},
+        token=super_admin_token,
+    )
+    assert status == 200
+    assert by_active["data"]["totalMatches"] == by_name["data"]["totalMatches"]
+    rows = {f["id"]: f for f in by_active["data"]["filters"]}
+    assert rows.keys() == {f["id"] for f in by_name["data"]["filters"]}
+    assert rows[public_filter.id]["active"] is None
+
+    status, _ = api(
+        "GET", "brokers/filters", params={"sortBy": "group"}, token=super_admin_token
+    )
+    assert status == 400
+
+
 def test_broker_credentials_crud(
     super_admin_token,
     view_only_token,

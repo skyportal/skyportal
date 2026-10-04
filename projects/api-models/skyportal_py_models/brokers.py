@@ -172,6 +172,7 @@ class BrokerFilterResponse(BaseModel):
     broker_id: int | None = None
     autosave: bool | None = None
     altdata: dict[str, Any] | None = None
+    active: bool | None = None
 
 
 class BrokerFilterDetailResponse(BaseModel):
@@ -580,6 +581,17 @@ class BrokerFilterCatalogGetQuery(BaseModel):
     brokerID: str | None = Field(
         default=None,
         description='A broker id, or "none" for filters attached to no broker.',
+    )
+    sortBy: Literal["name", "active"] = Field(
+        default="name",
+        description=(
+            "Field to sort by. Options are 'name' (default) or 'active' (the "
+            "broker-side state, filters the broker can't report last)."
+        ),
+    )
+    sortOrder: Literal["asc", "desc"] = Field(
+        default="asc",
+        description="Sort order - 'asc' for ascending (default) or 'desc' for descending.",
     )
 
 

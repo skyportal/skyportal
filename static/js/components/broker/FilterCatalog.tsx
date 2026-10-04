@@ -13,6 +13,7 @@ import Select from "@mui/material/Select";
 import TextField from "@mui/material/TextField";
 import Tooltip from "@mui/material/Tooltip";
 import Typography from "@mui/material/Typography";
+import { GridSortModel } from "@mui/x-data-grid";
 import { showNotification } from "baselayer/components/Notifications";
 
 import {
@@ -38,6 +39,7 @@ const FilterCatalog = ({ brokerId }: { brokerId?: number }) => {
     streamID: "",
     brokerID: "",
   });
+  const [sortModel, setSortModel] = useState<GridSortModel>([]);
   const [targets, setTargets] = useState<Record<number, number>>({});
   const [filterToDelete, setFilterToDelete] = useState<BrokerFilter | null>(
     null,
@@ -49,6 +51,10 @@ const FilterCatalog = ({ brokerId }: { brokerId?: number }) => {
     numPerPage,
     name: query.name || undefined,
     brokerID: brokerId ?? query.brokerID,
+    ...(sortModel[0]?.sort && {
+      sortBy: "active",
+      sortOrder: sortModel[0].sort,
+    }),
   });
   const { data: brokers = [] } = useGetBrokersQuery();
   const { data: groups } = useGetGroupsQuery();
@@ -80,6 +86,7 @@ const FilterCatalog = ({ brokerId }: { brokerId?: number }) => {
       headerName: "Name",
       flex: 1,
       minWidth: 200,
+      sortable: false,
       renderCell: ({ row: f }: { row: BrokerFilter }) => (
         <>
           <MuiLink component={Link} to={`/filter/${f.id}`}>
@@ -101,6 +108,7 @@ const FilterCatalog = ({ brokerId }: { brokerId?: number }) => {
       headerName: "Group",
       flex: 1,
       minWidth: 140,
+      sortable: false,
       renderCell: ({ row: f }: { row: BrokerFilter }) => (
         <Chip
           size="small"
@@ -119,6 +127,7 @@ const FilterCatalog = ({ brokerId }: { brokerId?: number }) => {
       headerName: "Stream",
       flex: 1,
       minWidth: 140,
+      sortable: false,
       valueGetter: (value: number) =>
         streamList.find((s) => s.id === value)?.name ?? `stream ${value}`,
     },
@@ -130,6 +139,7 @@ const FilterCatalog = ({ brokerId }: { brokerId?: number }) => {
             headerName: "Broker",
             flex: 1,
             minWidth: 290,
+            sortable: false,
             renderCell: ({ row: f }: { row: BrokerFilter }) =>
               f.broker_id ? (
                 brokerName(f.broker_id)
@@ -177,11 +187,26 @@ const FilterCatalog = ({ brokerId }: { brokerId?: number }) => {
           },
         ]),
     {
+      field: "active",
+      headerName: "Active",
+      width: 110,
+      sortingOrder: ["desc", "asc", null],
+      renderCell: ({ row: f }: { row: BrokerFilter }) =>
+        f.active != null && (
+          <Chip
+            size="small"
+            label={f.active ? "active" : "inactive"}
+            color={f.active ? "success" : "default"}
+          />
+        ),
+    },
+    {
       field: "actions",
       headerName: "Actions",
       align: "right",
       headerAlign: "right",
       width: 100,
+      sortable: false,
       renderCell: ({ row: f }: { row: BrokerFilter }) =>
         f.group_admin && (
           <Tooltip title={`Delete filter "${f.name}"`} placement="left">
@@ -252,10 +277,15 @@ const FilterCatalog = ({ brokerId }: { brokerId?: number }) => {
         columns={columns}
         loading={isFetching}
         localeText={{ noRowsLabel: "No filter matches this search." }}
-        disableColumnSorting
         disableColumnMenu
         sx={{ flex: 1, minHeight: 0 }}
         paginationMode="server"
+        sortingMode="server"
+        sortModel={sortModel}
+        onSortModelChange={(model: GridSortModel) => {
+          setSortModel(model);
+          setPage(0);
+        }}
         rowCount={total}
         paginationModel={{ page, pageSize: numPerPage }}
         onPaginationModelChange={(model: {

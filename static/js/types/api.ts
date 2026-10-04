@@ -1774,6 +1774,10 @@ export interface paths {
                     streamID?: number | null;
                     /** @description A broker id, or "none" for filters attached to no broker. */
                     brokerID?: string | null;
+                    /** @description Field to sort by. Options are 'name' (default) or 'active' (the broker-side state, filters the broker can't report last). */
+                    sortBy?: "name" | "active";
+                    /** @description Sort order - 'asc' for ascending (default) or 'desc' for descending. */
+                    sortOrder?: "asc" | "desc";
                 };
                 header?: never;
                 path?: never;

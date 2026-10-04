@@ -62,6 +62,7 @@ export interface BrokerFilter {
   broker_id: number | null;
   altdata?: Record<string, unknown>;
   group_admin?: boolean;
+  active?: boolean | null;
 }
 
 export interface FilterCatalogQuery {
@@ -71,6 +72,8 @@ export interface FilterCatalogQuery {
   groupID?: number | "" | undefined;
   streamID?: number | "" | undefined;
   brokerID?: number | "" | "none" | undefined;
+  sortBy?: "name" | "active" | undefined;
+  sortOrder?: "asc" | "desc" | undefined;
 }
 
 const DEFAULT_FIELDS = [

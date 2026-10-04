@@ -1190,7 +1190,10 @@ class BOOMBROKER(BrokerAPI):
 
     @staticmethod
     def get_filters(broker, session, **kwargs):
-        """Fetch a BOOM filter's versions/active state by BOOM filter id."""
+        """Fetch a BOOM filter's versions/active state by BOOM filter id, or every
+        filter the account can see when no id is given."""
+        if kwargs.get("boom_filter_id") is None:
+            return _request(broker, "GET", "filters")
         return _request(broker, "GET", f"filters/{kwargs['boom_filter_id']}")
 
     @staticmethod

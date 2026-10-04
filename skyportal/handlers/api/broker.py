@@ -971,6 +971,38 @@ async def _get_broker_async(handler, session, broker_id):
     ).first()
 
 
+async def _broker_filter_states(handler, session, filters):
+    by_broker = {}
+    for f in filters:
+        boom = f.altdata.get("boom") if isinstance(f.altdata, dict) else None
+        if (
+            f.broker_id is not None
+            and isinstance(boom, dict)
+            and boom.get("filter_id") is not None
+        ):
+            by_broker.setdefault(f.broker_id, {})[boom["filter_id"]] = f.id
+    states = {}
+    for broker_id, ids in by_broker.items():
+        broker = await _get_broker_async(handler, session, broker_id)
+        if (
+            broker is None
+            or not broker.active
+            or not broker.broker_class.implements()["get_filters"]
+        ):
+            continue
+        try:
+            remote = await IOLoop.current().run_in_executor(
+                None, broker.broker_class.get_filters, broker, session
+            )
+        except Exception as e:
+            log(f"Could not list the filters of broker {broker.name}: {e}")
+            continue
+        for r in remote or []:
+            if r.get("id") in ids:
+                states[ids[r["id"]]] = bool(r.get("active"))
+    return states
+
+
 def _version_validation(altdata, fid):
     """The stored validation verdict for a filter version, or None.
 
@@ -1623,13 +1655,32 @@ class BrokerFilterCatalogHandler(BaseHandler):
             total_matches = await session.scalar(
                 sa.select(sa.func.count()).select_from(stmt.subquery())
             )
-            filters = (
-                await session.scalars(
-                    stmt.order_by(Filter.name, Filter.id)
-                    .limit(n_per_page)
-                    .offset((page_number - 1) * n_per_page)
+            offset = (page_number - 1) * n_per_page
+            if query.sortBy == "active":
+                filters = (
+                    await session.scalars(stmt.order_by(Filter.name, Filter.id))
+                ).all()
+                active = await _broker_filter_states(self, session, filters)
+                rank = (
+                    {True: 0, False: 1}
+                    if query.sortOrder == "desc"
+                    else {False: 0, True: 1}
                 )
-            ).all()
+                filters = sorted(filters, key=lambda f: rank.get(active.get(f.id), 2))[
+                    offset : offset + n_per_page
+                ]
+            else:
+                order = (
+                    (Filter.name.desc(), Filter.id.desc())
+                    if query.sortOrder == "desc"
+                    else (Filter.name, Filter.id)
+                )
+                filters = (
+                    await session.scalars(
+                        stmt.order_by(*order).limit(n_per_page).offset(offset)
+                    )
+                ).all()
+                active = await _broker_filter_states(self, session, filters)
             user = self.associated_user_object
             manages_groups = bool(
                 {"System admin", "Manage groups"} & set(user.permissions)
@@ -1659,6 +1710,7 @@ class BrokerFilterCatalogHandler(BaseHandler):
                             "altdata": f.altdata,
                             "group_admin": manages_groups
                             or f.group_id in admin_group_ids,
+                            "active": active.get(f.id),
                         }
                         for f in filters
                     ],
