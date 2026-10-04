@@ -831,6 +831,23 @@ def test_observation_plan_tool_schemas():
         assert TOOLS[name]["inputSchema"]["required"] == []
 
 
+def test_the_plan_tools_point_at_the_cheap_way_to_judge_a_schedule():
+    """Statistics come back by default; the pointings are a large response, so a
+    caller told only about the latter pulls far more than it needs."""
+    description = TOOLS["get_observation_plans"]["description"]
+    assert "statistics" in description
+    assert "num_observations" in description
+    assert "includePlannedObservations" in description
+
+
+def test_posting_a_plan_says_it_returns_only_a_request_id():
+    """Planning is asynchronous, so a caller that reads the response as the
+    schedule itself waits for observations that were never in it."""
+    description = TOOLS["post_observation_plan"]["description"]
+    assert "asynchronously" in description
+    assert "get_observation_plans" in description
+
+
 def test_every_state_changing_tool_is_marked_as_writing():
     """The assistant offers only readOnlyHint tools, so a write mis-marked as
     read-only is one it may call unprompted."""

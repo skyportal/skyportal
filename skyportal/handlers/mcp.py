@@ -909,9 +909,10 @@ async def get_observation_plan_form(handler, args):
     "post_observation_plan",
     "Request an observation plan for a GCN event localization. The payload must "
     "validate against that instrument's schema from get_observation_plan_form "
-    "and must carry a queue_name unique across all plans. Planning runs "
-    "asynchronously: poll get_observation_plans for the status and the "
-    "scheduled observations.",
+    "and must carry a queue_name unique across all plans. start_date and end_date "
+    "bound the observing window and are usually taken from the event's dateobs "
+    "onwards. Planning runs asynchronously and returns only the request id: poll "
+    "get_observation_plans for the status and the resulting statistics.",
     {
         "allocation_id": _prop(
             "integer",
@@ -945,8 +946,13 @@ async def post_observation_plan(handler, args):
 @tool(
     "get_observation_plans",
     "Observation plan requests and their status. Give observation_plan_request_id "
-    "for one, or dateobs to list an event's plans. The planned observations are "
-    "included only with includePlannedObservations, which is a large response.",
+    "for one, or dateobs to list an event's plans. Planning is asynchronous, so a "
+    "plan just posted reads as pending or running for a minute or two and a "
+    "failure explains itself in `status`. A complete plan carries a statistics "
+    "block summarising what was scheduled, including num_observations, "
+    "probability, area and unique_filters, which is usually all that is needed to "
+    "judge a schedule. The pointings themselves come back only with "
+    "includePlannedObservations, which is a large response.",
     {
         "observation_plan_request_id": _prop("integer", "One plan request."),
         "dateobs": _prop("string", "Only plans for this event's dateobs."),
