@@ -301,6 +301,9 @@ def triggering_detection(data):
 
 async def _link_designation(session, obj_id, designation):
     """Link this detection stream to any other Obj for the same body."""
+    from ..broker_apis._save import SUPER_OBJ_LOCK, xact_lock
+
+    await xact_lock(session, SUPER_OBJ_LOCK)
     # Eager-load: touching a lazy collection under an async session raises.
     super_obj = await session.scalar(
         sa.select(SuperObj)
@@ -372,9 +375,11 @@ async def ingest_sso_alert(
     """
     from ..broker_apis._save import (
         _normalize_band,
+        add_source,
         build_photometry_groups,
         get_or_create_obj,
         programid_to_stream_ids,
+        xact_lock,
     )
     from ..handlers.api.photometry import add_external_photometry
     from ..models import Instrument
@@ -395,6 +400,7 @@ async def ingest_sso_alert(
             f"Instrument '{instrument_name(survey)}' not found in the database."
         )
 
+    await xact_lock(session, obj_id)
     obj, is_new = await get_or_create_obj(session, obj_id, origin=survey)
 
     obj.is_roid = True
@@ -494,13 +500,12 @@ async def ingest_sso_alert(
             )
         )
         if source is None:
-            session.add(
-                Source(
-                    obj_id=obj_id,
-                    group_id=group_id,
-                    saved_by_id=user.id,
-                    active=True,
-                )
+            await add_source(
+                session,
+                obj_id=obj_id,
+                group_id=group_id,
+                saved_by_id=user.id,
+                active=True,
             )
         else:
             source.active = True

@@ -163,6 +163,36 @@ async def get_or_create_obj(session, obj_id, **columns):
     return obj, inserted is not None
 
 
+# Transaction-scoped only: pgbouncer pools connections per transaction.
+async def xact_lock(session, key):
+    import sqlalchemy as sa
+
+    await session.execute(
+        sa.select(sa.func.pg_advisory_xact_lock(sa.func.hashtextextended(key, 0)))
+    )
+
+
+# Always the last lock of its transaction, after any object lock, so none can deadlock.
+SUPER_OBJ_LOCK = "super_objs"
+
+
+async def add_source(session, **columns):
+    import sqlalchemy as sa
+
+    from ..models import Source
+
+    try:
+        async with session.begin_nested():
+            # obj_id, not obj=: rolling back would expire the Obj (MissingGreenlet).
+            session.add(Source(**columns))
+            await session.flush()
+    except sa.exc.IntegrityError as e:
+        if "sources_forward_ind" not in str(e.orig):
+            raise
+        return False
+    return True
+
+
 def build_photometry_groups(object_id, survey, data, instrument_id, programid2streamid):
     """Transform a standard alert object's photometry arrays into per-(survey,
     programid) groups in skyportal units, keyed by the stream that gates them.
@@ -386,6 +416,7 @@ async def _ingest_object(
     # Ingestion: register as a Candidate under each filter, deduped on the passing
     # alert (the same alert may be re-consumed).
     if filter_ids:
+        await xact_lock(session, object_id)
         for fid in filter_ids:
             exists = await session.scalar(
                 sa.select(Candidate).where(
@@ -450,7 +481,10 @@ async def _ingest_object(
                 # Attribute the save (and the comment/TNS actions below) to a
                 # configured user if set, else the bot.
                 saver_id = altdata.get("autoSaveSaverId") or user.id
-                session.add(Source(obj=obj, group_id=f.group_id, saved_by_id=saver_id))
+                if not await add_source(
+                    session, obj_id=object_id, group_id=f.group_id, saved_by_id=saver_id
+                ):
+                    continue
                 saved_group_ids.append(f.group_id)
                 group_saver_id[f.group_id] = saver_id
                 comment_text = (altdata.get("autoSaveComment") or "").strip()
@@ -657,7 +691,7 @@ async def save_object_photometry(data, survey, session, user, cutouts=None):
 async def associate_super_obj(session, obj_id, associated_obj_ids):
     """Group ``obj_id`` and ``associated_obj_ids`` under one SuperObj (the
     cross-survey "same physical object" link), creating it on first association
-    and adding any not-yet-linked matches otherwise."""
+    and otherwise merging the ones they already belong to into the oldest."""
     import sqlalchemy as sa
 
     from ..models import ObjToSuperObj, SuperObj
@@ -665,24 +699,37 @@ async def associate_super_obj(session, obj_id, associated_obj_ids):
     associated_obj_ids = {m for m in associated_obj_ids if m and m != obj_id}
     if not associated_obj_ids:
         return
-    super_obj = await session.scalar(
-        sa.select(SuperObj).join(ObjToSuperObj).where(ObjToSuperObj.obj_id == obj_id)
-    )
-    if super_obj is None:
+    obj_ids = {obj_id, *associated_obj_ids}
+    await xact_lock(session, SUPER_OBJ_LOCK)
+    super_obj_ids = (
+        await session.scalars(
+            sa.select(ObjToSuperObj.super_obj_id)
+            .join(SuperObj)
+            .where(
+                ObjToSuperObj.obj_id.in_(obj_ids),
+                # Never a named or moving-object SuperObj: those are curated elsewhere.
+                SuperObj.name.is_(None),
+                SuperObj.is_roid.is_not(True),
+            )
+            .distinct()
+            .order_by(ObjToSuperObj.super_obj_id)
+        )
+    ).all()
+    if not super_obj_ids:
         super_obj = SuperObj()
         session.add(super_obj)
         await session.flush()  # assign super_obj.id before linking
-        session.add(ObjToSuperObj(obj_id=obj_id, super_obj_id=super_obj.id))
-        linked = set()
-    else:
-        linked = set(
-            (
-                await session.scalars(
-                    sa.select(ObjToSuperObj.obj_id).where(
-                        ObjToSuperObj.super_obj_id == super_obj.id
-                    )
-                )
-            ).all()
+        super_obj_ids = [super_obj.id]
+    super_obj_id, *merged_ids = super_obj_ids
+    members = (
+        await session.execute(
+            sa.select(ObjToSuperObj.obj_id, ObjToSuperObj.super_obj_id).where(
+                ObjToSuperObj.super_obj_id.in_(super_obj_ids)
+            )
         )
-    for match_id in associated_obj_ids - linked:
-        session.add(ObjToSuperObj(obj_id=match_id, super_obj_id=super_obj.id))
+    ).all()
+    linked = {m for m, s in members if s == super_obj_id}
+    if merged_ids:
+        await session.execute(sa.delete(SuperObj).where(SuperObj.id.in_(merged_ids)))
+    for member_id in (obj_ids | {m for m, _ in members}) - linked:
+        session.add(ObjToSuperObj(obj_id=member_id, super_obj_id=super_obj_id))
