@@ -10,6 +10,7 @@ import {
   MenuItem,
   TextField,
   InputLabel,
+  Tooltip,
 } from "@mui/material";
 import {
   Code as CodeIcon,
@@ -226,32 +227,52 @@ const AnnotationBuilderContent = ({
         }}
       >
         <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
-          <Button
-            variant="outlined"
-            startIcon={<ArrowBackIcon />}
-            onClick={handleBackToFilters}
-            sx={{ "&:hover": { backgroundColor: "primary.50" } }}
+          <Tooltip
+            describeChild
+            title="Go back to the filter conditions. The annotations are kept and saved with the filter when you click Save."
           >
-            Back to Filters
-          </Button>
+            <Button
+              variant="outlined"
+              startIcon={<ArrowBackIcon />}
+              onClick={handleBackToFilters}
+              sx={{ "&:hover": { backgroundColor: "primary.50" } }}
+            >
+              Back to Filters
+            </Button>
+          </Tooltip>
           <Typography variant="h6">Annotations</Typography>
         </Box>
-        <Button
-          variant="outlined"
-          startIcon={<CodeIcon />}
-          onClick={() => filterContext.setMongoDialog({ open: true })}
-          disabled={!hasValidFilterQuery()}
-          sx={{
-            borderColor: hasValidFilterQuery() ? "primary.main" : undefined,
-            color: hasValidFilterQuery() ? "primary.main" : undefined,
-            "&:hover": {
-              borderColor: hasValidFilterQuery() ? "primary.dark" : undefined,
-              backgroundColor: hasValidFilterQuery() ? "primary.50" : undefined,
-            },
-          }}
+        <Tooltip
+          describeChild
+          title={
+            hasValidFilterQuery()
+              ? "See the MongoDB pipeline built from the filter and these annotations, and run it on past alerts to check the result. Nothing is saved."
+              : "Add at least one complete condition to the filter to test it."
+          }
         >
-          Test/Preview filter output
-        </Button>
+          <span>
+            <Button
+              variant="outlined"
+              startIcon={<CodeIcon />}
+              onClick={() => filterContext.setMongoDialog({ open: true })}
+              disabled={!hasValidFilterQuery()}
+              sx={{
+                borderColor: hasValidFilterQuery() ? "primary.main" : undefined,
+                color: hasValidFilterQuery() ? "primary.main" : undefined,
+                "&:hover": {
+                  borderColor: hasValidFilterQuery()
+                    ? "primary.dark"
+                    : undefined,
+                  backgroundColor: hasValidFilterQuery()
+                    ? "primary.50"
+                    : undefined,
+                },
+              }}
+            >
+              Test/Preview filter output
+            </Button>
+          </span>
+        </Tooltip>
       </Box>
 
       {/* Projection Fields */}
