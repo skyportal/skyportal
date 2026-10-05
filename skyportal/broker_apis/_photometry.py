@@ -12,7 +12,7 @@ from baselayer.app.env import load_env
 from baselayer.log import make_log
 
 from ..utils.cache import Cache, cache_folder, dict_to_bytes
-from ..utils.survey import survey_from_object_id
+from ..utils.survey import instrument_name, survey_from_object_id
 from .interface import survey_permissions
 
 _, cfg = load_env()
@@ -152,10 +152,12 @@ async def fetch_broker_groups(cls, broker, object_id, survey, session):
         return {}
 
     instrument_id = await session.scalar(
-        sa.select(Instrument.id).where(Instrument.name == survey)
+        sa.select(Instrument.id).where(Instrument.name == instrument_name(survey))
     )
     if instrument_id is None:
-        raise ValueError(f"Instrument '{survey}' not found in the database.")
+        raise ValueError(
+            f"Instrument '{instrument_name(survey)}' not found in the database."
+        )
     programid2streamid = await programid_to_stream_ids(session)
 
     try:

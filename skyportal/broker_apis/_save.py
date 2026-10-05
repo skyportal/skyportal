@@ -13,13 +13,21 @@ log = make_log("broker/save")
 
 # AB zeropoint per survey, matching the units points arrive in: flux in nJy is
 # scaled to Jy and takes 8.9, magnitudes are converted to uJy and take 23.9.
-ZP_PER_SURVEY = {"LSST": 8.9, "ZTF": 23.9, "WINTER": 8.9}
+ZP_PER_SURVEY = {"LSST": 8.9, "ZTF": 23.9, "WINTER": 8.9, "DECAM": 8.9}
 
 # Surveys whose filters are not named <survey><band>. Keys are normalized bands,
 # so any survey prefix is already stripped. An unmapped band raises rather than
 # storing a point under a filter that would misreport it. WINTER has no k filter.
 BAND_TO_FILTER_PER_SURVEY = {
     "WINTER": {"y": "desy", "j": "2massj", "h": "2massh"},
+    "DECAM": {
+        "u": "sdssu",
+        "g": "desg",
+        "r": "desr",
+        "i": "desi",
+        "z": "desz",
+        "y": "desy",
+    },
 }
 
 # A "detection" must clear this S/N unless a Filter's criteria override it. Broker
@@ -52,7 +60,7 @@ def _normalize_band(band):
     """Collapse survey-prefixed band names to a bare filter letter so per-band
     criteria are provider-agnostic (``ztfg`` -> ``g``, ``g`` -> ``g``)."""
     b = str(band or "").lower()
-    for prefix in ("ztf", "lsst", "atlas", "winter"):
+    for prefix in ("ztf", "lsst", "atlas", "winter", "decam"):
         if b.startswith(prefix) and len(b) > len(prefix):
             return b[len(prefix) :].lstrip("_")
     return b
@@ -310,6 +318,7 @@ async def _ingest_object(
         auto_source_publishing_async,
     )
     from ..utils.naive_datetime import utcnow_naive
+    from ..utils.survey import instrument_name
 
     object_id = data["objectId"]
     cand = data.get("candidate") or {}
@@ -326,10 +335,12 @@ async def _ingest_object(
             return {"id": object_id}
 
     instrument_id = await session.scalar(
-        sa.select(Instrument.id).where(Instrument.name == survey)
+        sa.select(Instrument.id).where(Instrument.name == instrument_name(survey))
     )
     if instrument_id is None:
-        raise ValueError(f"Instrument '{survey}' not found in the database.")
+        raise ValueError(
+            f"Instrument '{instrument_name(survey)}' not found in the database."
+        )
 
     programid2streamid = await programid_to_stream_ids(session)
 

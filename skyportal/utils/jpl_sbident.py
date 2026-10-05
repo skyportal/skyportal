@@ -59,11 +59,12 @@ async def obscode_for_survey(session, survey):
     import sqlalchemy as sa
 
     from ..models import Instrument, Telescope
+    from .survey import instrument_name
 
     obscode = await session.scalar(
         sa.select(Telescope.mpc_obscode)
         .join(Instrument, Instrument.telescope_id == Telescope.id)
-        .where(Instrument.name == survey)
+        .where(Instrument.name == instrument_name(survey))
     )
     return obscode or GEOCENTRIC_OBSCODE
 

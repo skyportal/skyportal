@@ -43,6 +43,7 @@ from ...models import (
     Photometry,
     Stream,
 )
+from ...utils.survey import survey_from_instrument
 from ..base import BaseHandler
 from .filter import delete_filter_on_broker
 
@@ -568,7 +569,11 @@ class PhotometryAlertHandler(BaseHandler):
             survey = self.get_argument("survey", None)
             ra = dec = None
             if phot is not None:
-                survey = phot.instrument.name if phot.instrument else survey
+                survey = (
+                    survey_from_instrument(phot.instrument.name)
+                    if phot.instrument
+                    else survey
+                )
                 obj = await session.scalar(
                     Obj.select(self.current_user).where(Obj.id == phot.obj_id)
                 )

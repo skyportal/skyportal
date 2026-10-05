@@ -37,10 +37,13 @@ An alert becomes a candidate only if all of these are true:
 
 ## Names do not have to match
 
-Three names are involved and they are set independently.
+Four names are involved and they are set independently.
 
 - The **survey** name is what the alert carries, and it is the key into
   `ZP_PER_SURVEY`.
+- The **instrument** is the one named after the survey, unless
+  `INSTRUMENT_PER_SURVEY` in `skyportal/utils/survey.py` maps it to another
+  (`DECAM` is stored under `DECam`).
 - The **stream** name is a SkyPortal label for the same data.
 - The **topic** is the broker's, usually `<survey>_alerts_results`.
 
