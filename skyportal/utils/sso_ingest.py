@@ -372,6 +372,7 @@ async def ingest_sso_alert(
     """
     from ..broker_apis._save import (
         _normalize_band,
+        add_source,
         build_photometry_groups,
         get_or_create_obj,
         programid_to_stream_ids,
@@ -494,13 +495,12 @@ async def ingest_sso_alert(
             )
         )
         if source is None:
-            session.add(
-                Source(
-                    obj_id=obj_id,
-                    group_id=group_id,
-                    saved_by_id=user.id,
-                    active=True,
-                )
+            await add_source(
+                session,
+                obj_id=obj_id,
+                group_id=group_id,
+                saved_by_id=user.id,
+                active=True,
             )
         else:
             source.active = True

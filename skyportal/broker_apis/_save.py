@@ -163,6 +163,23 @@ async def get_or_create_obj(session, obj_id, **columns):
     return obj, inserted is not None
 
 
+async def add_source(session, **columns):
+    import sqlalchemy as sa
+
+    from ..models import Source
+
+    try:
+        async with session.begin_nested():
+            # obj_id, not obj=: rolling back would expire the Obj (MissingGreenlet).
+            session.add(Source(**columns))
+            await session.flush()
+    except sa.exc.IntegrityError as e:
+        if "sources_forward_ind" not in str(e.orig):
+            raise
+        return False
+    return True
+
+
 def build_photometry_groups(object_id, survey, data, instrument_id, programid2streamid):
     """Transform a standard alert object's photometry arrays into per-(survey,
     programid) groups in skyportal units, keyed by the stream that gates them.
@@ -450,7 +467,10 @@ async def _ingest_object(
                 # Attribute the save (and the comment/TNS actions below) to a
                 # configured user if set, else the bot.
                 saver_id = altdata.get("autoSaveSaverId") or user.id
-                session.add(Source(obj=obj, group_id=f.group_id, saved_by_id=saver_id))
+                if not await add_source(
+                    session, obj_id=object_id, group_id=f.group_id, saved_by_id=saver_id
+                ):
+                    continue
                 saved_group_ids.append(f.group_id)
                 group_saver_id[f.group_id] = saver_id
                 comment_text = (altdata.get("autoSaveComment") or "").strip()

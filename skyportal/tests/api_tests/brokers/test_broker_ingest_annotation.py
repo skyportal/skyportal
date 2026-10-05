@@ -277,6 +277,39 @@ def test_broker_ingest_survives_a_concurrent_obj_insert(
     assert candidate is not None
 
 
+def test_broker_ingest_autosave_survives_a_concurrent_save(
+    super_admin_user, public_filter, ztf_instrument, obj_id
+):
+    public_filter.autosave = True
+    DBSession().add(public_filter)
+    DBSession().add(Obj(id=obj_id, ra=10.0, dec=20.0))
+    DBSession().commit()
+
+    with baselayer_models.new_session() as other, ThreadPoolExecutor(1) as pool:
+        other.add(
+            Source(
+                obj_id=obj_id,
+                group_id=public_filter.group_id,
+                saved_by_id=super_admin_user.id,
+            )
+        )
+        other.flush()
+        ingesting = pool.submit(
+            ingest, obj_id, super_admin_user.id, public_filter.id, {}
+        )
+        time.sleep(1)
+        other.commit()
+        ingesting.result()
+
+    candidate = DBSession().scalar(
+        sa.select(Candidate).where(
+            Candidate.obj_id == obj_id, Candidate.filter_id == public_filter.id
+        )
+    )
+    assert candidate is not None
+    assert fetch_source(obj_id, public_filter) is not None
+
+
 def test_broker_ingest_keeps_the_candidate_when_photometry_fails(
     super_admin_user, public_filter, ztf_instrument, obj_id
 ):
