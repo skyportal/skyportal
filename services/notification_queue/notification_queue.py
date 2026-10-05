@@ -926,6 +926,7 @@ def api(queue):
                                     f"{event_tag} from extraction {target_id}"
                                 )
 
+                    users = [user for user in users if user.is_active()]
                     failure_count = 0
                     nb_users = len(users)
                     for user in users:
@@ -1661,6 +1662,8 @@ def api(queue):
                                 )
                             ).all()
                             for _mentioned_user in _mentioned_users:
+                                if not _mentioned_user.is_active():
+                                    continue
                                 queue.append(
                                     {
                                         "text": _mention_text,
