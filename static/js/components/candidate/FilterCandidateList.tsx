@@ -73,6 +73,7 @@ const formValues = (profile: any) => ({
   groupIDs: profile?.groupIDs || [],
   filterIDs: [],
   savedStatus: profile?.savedStatus || "all",
+  savedGroupIDs: profile?.savedGroupIDs || [],
   rejectedStatus: profile?.rejectedStatus || "show",
   redshiftMinimum: profile?.redshiftMinimum || "",
   redshiftMaximum: profile?.redshiftMaximum || "",
@@ -207,9 +208,11 @@ const FilterCandidateList = ({
   const showCrossmatchCuts =
     Boolean(availableAnnotationsInfo?.[GCN_CROSSMATCH_ORIGIN]) ||
     gcnNumberFields.some(({ name }) => isFilled(values[name]));
+  const savedGroupIDs: number[] = values.savedGroupIDs ?? [];
+  const showSavedGroups = values.savedStatus?.endsWith("Selected");
   const savedStatusOptions = savedStatusSelectOptions.filter(
     ({ value }) =>
-      groupIDs.length !== 1 ||
+      (savedGroupIDs.length || groupIDs.length) !== 1 ||
       !sameForOneGroup.includes(value) ||
       value === values.savedStatus,
   );
@@ -315,6 +318,7 @@ const FilterCandidateList = ({
       pageNumber: 1,
       numPerPage,
       savedStatus: formData.savedStatus,
+      savedGroupIDs: showSavedGroups ? formData.savedGroupIDs : undefined,
       ...(filterIDs.length > 0
         ? { filterIDs }
         : { groupIDs: formData.groupIDs }),
@@ -534,6 +538,25 @@ const FilterCandidateList = ({
                     </MenuItem>
                   ))}
                 </FormTextField>
+                {showSavedGroups && (
+                  <Controller
+                    name="savedGroupIDs"
+                    control={control}
+                    render={({ field: { onChange, value } }) => (
+                      <GroupSelect
+                        groups={userAccessibleGroups}
+                        value={value}
+                        onChange={onChange}
+                        label="Saved status groups"
+                        checkboxTestId="savedStatusGroupCheckbox"
+                        helperText="Defaults to the scanning groups"
+                        textFieldProps={{
+                          "data-testid": "savedStatusGroupSelect",
+                        }}
+                      />
+                    )}
+                  />
+                )}
                 <Controller
                   name="rejectedStatus"
                   control={control}
