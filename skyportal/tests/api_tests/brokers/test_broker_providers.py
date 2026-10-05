@@ -333,6 +333,65 @@ def test_boom_query_alerts_lsst_scoped_by_stream(monkeypatch, permissions, expec
     assert filter_ == expected
 
 
+@pytest.mark.parametrize(
+    ("permissions", "expected"),
+    [
+        ({"DECAM": [1]}, {}),
+        ({"ZTF": [1, 2, 3]}, {"_id": {"$in": []}}),
+    ],
+)
+def test_boom_query_alerts_decam_scoped_by_stream(monkeypatch, permissions, expected):
+    """A DECam object id routes to DECAM_alerts, which has no programid: access
+    is the DECam stream, not a programid clause."""
+    calls = _capture_boom_request(monkeypatch)
+    broker = _MockBroker({"survey": "ZTF"})
+    BOOMBROKER.query_alerts(
+        broker, None, objectId="A202609132028318m134013", permissions=permissions
+    )
+    assert calls[0]["json"]["catalog_name"] == "DECAM_alerts"
+    filter_ = dict(calls[0]["json"]["filter"])
+    assert filter_.pop("objectId") == "A202609132028318m134013"
+    assert filter_ == expected
+
+
+def test_boom_get_alert_decam_exposes_aperture_photometry(monkeypatch):
+    """DECam history carries magap and a uJy difference flux; get_alert serves
+    it as nJy psfFlux and magpsf, on the same scale as the Kafka photometry."""
+    record = {
+        "objectId": "A202609132028318m134013",
+        "candidate": {
+            "magap": 18.162868,
+            "sigmagap": 0.0045,
+            "forcediffimflux": 197.17543,
+            "forcediffimfluxunc": 0.82192,
+        },
+        "prv_candidates": [
+            {
+                "jd": 2461284.59611032,
+                "band": "i",
+                "magap": 18.162868,
+                "sigmagap": 0.0045,
+                "forcediffimflux": 197.17543,
+                "forcediffimfluxunc": 0.82192,
+            }
+        ],
+    }
+    calls = _capture_boom_request(monkeypatch, result=[record])
+    data = BOOMBROKER.get_alert(
+        _MockBroker({"survey": "ZTF"}),
+        "A202609132028318m134013",
+        None,
+        permissions={"DECAM": [1]},
+    )
+    assert calls[0]["json"]["catalog_name"] == "DECAM_alerts"
+    assert {"$sort": {"candidate.magap": 1}} in calls[0]["json"]["pipeline"]
+    point = data["prv_candidates"][0]
+    assert point["psfFlux"] == pytest.approx(197175.43)
+    assert point["psfFluxErr"] == pytest.approx(821.92)
+    assert point["magpsf"] == 18.162868
+    assert data["candidate"]["sigmapsf"] == 0.0045
+
+
 def test_boom_get_alert_drops_out_of_scope_history(monkeypatch):
     record = {
         "objectId": "ZTF20aapnxry",
@@ -869,6 +928,41 @@ def test_build_photometry_groups_winter_refuses_unresolved_bands():
             build_photometry_groups(
                 "WNTR25abcde", "WINTER", data, 1087, {("WINTER", 1): [1005]}
             )
+
+
+def test_build_photometry_groups_decam_on_the_instrument_filters():
+    """A DECam point from BOOM's Kafka photometry (nJy, band "decami") lands on
+    the DECam instrument's des* filters with the Jy zeropoint, at its magap."""
+    import math
+
+    data = {
+        "prv_candidates": [
+            {
+                "jd": 2461284.59611032,
+                "band": "decami",
+                "psfFlux": 197175.43,
+                "psfFluxErr": 821.92,
+                "programid": 1,
+            },
+        ],
+    }
+    g = build_photometry_groups(
+        "A202609132028318m134013", "DECAM", data, 54, {("DECAM", 1): [1006]}
+    )[("DECAM", 1)]
+    assert g["filter"] == ["desi"]
+    assert g["zp"][0] == 8.9
+    assert -2.5 * math.log10(g["flux"][0]) + g["zp"][0] == pytest.approx(
+        18.163, abs=1e-3
+    )
+
+
+def test_decam_survey_maps_to_the_decam_instrument():
+    from skyportal.utils.survey import instrument_name, survey_from_instrument
+
+    assert instrument_name("DECAM") == "DECam"
+    assert survey_from_instrument("DECam") == "DECAM"
+    assert instrument_name("ZTF") == "ZTF"
+    assert survey_from_instrument("ZTF") == "ZTF"
 
 
 def test_build_photometry_groups_survey_prefixed_band_not_doubled():

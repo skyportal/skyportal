@@ -377,6 +377,7 @@ async def ingest_sso_alert(
     )
     from ..handlers.api.photometry import add_external_photometry
     from ..models import Instrument
+    from .survey import instrument_name
 
     cand = data.get("candidate") or {}
     detection = triggering_detection(data) or {}
@@ -386,10 +387,12 @@ async def ingest_sso_alert(
     obj_id = designation_to_obj_id(designation)
 
     instrument_id = await session.scalar(
-        sa.select(Instrument.id).where(Instrument.name == survey)
+        sa.select(Instrument.id).where(Instrument.name == instrument_name(survey))
     )
     if instrument_id is None:
-        raise ValueError(f"Instrument '{survey}' not found in the database.")
+        raise ValueError(
+            f"Instrument '{instrument_name(survey)}' not found in the database."
+        )
 
     obj = await session.scalar(sa.select(Obj).where(Obj.id == obj_id))
     is_new = obj is None

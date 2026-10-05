@@ -785,8 +785,12 @@ def test_configured_surveys_per_record():
     providers (Lasair), but stay the full list for multi-survey ones (BOOM)."""
     from skyportal.broker_apis import BOOMBROKER, LASAIRBROKER
 
-    # BOOM serves both surveys from one connection (survey is a per-query kwarg)
-    assert set(BOOMBROKER.configured_surveys({"survey": "ZTF"})) == {"ZTF", "LSST"}
+    # BOOM serves every survey from one connection (survey is a per-query kwarg)
+    assert set(BOOMBROKER.configured_surveys({"survey": "ZTF"})) == {
+        "ZTF",
+        "LSST",
+        "DECAM",
+    }
 
     # Lasair's ZTF/LSST are separate deployments (distinct endpoint + token)
     assert LASAIRBROKER.configured_surveys(

@@ -49,6 +49,11 @@ import PipelineViewer from "./PipelineViewer";
 import FullscreenResultsDialog from "./FullscreenResultsDialog";
 
 const PAGE_SIZE = 50;
+const ALERT_COLLECTIONS: Record<string, string> = {
+  ZTF: "ZTF_alerts",
+  LSST: "LSST_alerts",
+  DECAM: "DECAM_alerts",
+};
 
 const useStyles = makeStyles()((_theme) => ({
   timeRange: {
@@ -148,11 +153,7 @@ const MongoQueryDialog = () => {
     data: [],
   });
   const [selectedCollection, setSelectedCollection] = useState(
-    filter_stream === "ZTF"
-      ? "ZTF_alerts"
-      : filter_stream === "LSST"
-        ? "LSST_alerts"
-        : "",
+    ALERT_COLLECTIONS[filter_stream?.toUpperCase() ?? ""] ?? "",
   );
   const [isRunning, setIsRunning] = useState(false);
   const [queryError, setQueryError] = useState<any>(null);
@@ -217,11 +218,7 @@ const MongoQueryDialog = () => {
 
   useEffect(() => {
     const newCollection =
-      filter_stream === "ZTF"
-        ? "ZTF_alerts"
-        : filter_stream === "LSST"
-          ? "LSST_alerts"
-          : "";
+      ALERT_COLLECTIONS[filter_stream?.toUpperCase() ?? ""] ?? "";
 
     if (
       newCollection !== selectedCollection &&
