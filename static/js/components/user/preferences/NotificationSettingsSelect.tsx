@@ -353,7 +353,7 @@ const NotificationSettingsSelect = ({
                           onChange={prefToggled}
                         />
                       }
-                      label="In the app"
+                      label="In-app"
                     />
                     <Tooltip
                       title="Show deployments in the notification bell. Turn off to receive them only through the channels below."

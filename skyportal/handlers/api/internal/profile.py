@@ -285,6 +285,9 @@ class ProfileHandler(BaseHandler):
             for k, v in preferences.items():
                 if isinstance(v, dict):
                     preferences[k] = {key: val for key, val in v.items() if val != ""}
+            deployments = preferences.get("notifications", {}).get("deployments", {})
+            if deployments.get("active") is True and "in_app" not in deployments:
+                deployments["in_app"] = {"active": True}
             user_prefs = deepcopy(
                 await session.scalar(
                     sa.select(User.preferences)

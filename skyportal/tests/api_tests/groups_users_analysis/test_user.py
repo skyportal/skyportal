@@ -376,3 +376,24 @@ def test_an_ordinary_user_still_cannot_read_it(
     status, data = api("GET", f"user/{user.id}", token=view_only_token2)
     assert status == 200, data
     assert "contact_email" not in data["data"]
+
+
+def test_subscribing_to_deployments_turns_in_app_on(view_only_token):
+    def deployments():
+        status, data = api("GET", "internal/profile", token=view_only_token)
+        assert status == 200, data
+        return data["data"]["preferences"]["notifications"]["deployments"]
+
+    prefs = {"notifications": {"deployments": {"in_app": {"active": False}}}}
+    status, data = api(
+        "PATCH", "internal/profile", data={"preferences": prefs}, token=view_only_token
+    )
+    assert status == 200, data
+    assert deployments()["in_app"]["active"] is False
+
+    prefs = {"notifications": {"deployments": {"active": True}}}
+    status, data = api(
+        "PATCH", "internal/profile", data={"preferences": prefs}, token=view_only_token
+    )
+    assert status == 200, data
+    assert deployments()["in_app"]["active"] is True
