@@ -376,6 +376,7 @@ async def ingest_sso_alert(
         build_photometry_groups,
         get_or_create_obj,
         programid_to_stream_ids,
+        xact_lock,
     )
     from ..handlers.api.photometry import add_external_photometry
     from ..models import Instrument
@@ -396,6 +397,7 @@ async def ingest_sso_alert(
             f"Instrument '{instrument_name(survey)}' not found in the database."
         )
 
+    await xact_lock(session, obj_id)
     obj, is_new = await get_or_create_obj(session, obj_id, origin=survey)
 
     obj.is_roid = True

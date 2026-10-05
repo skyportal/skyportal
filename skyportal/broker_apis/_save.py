@@ -163,6 +163,15 @@ async def get_or_create_obj(session, obj_id, **columns):
     return obj, inserted is not None
 
 
+# Transaction-scoped only: pgbouncer pools connections per transaction.
+async def xact_lock(session, key):
+    import sqlalchemy as sa
+
+    await session.execute(
+        sa.select(sa.func.pg_advisory_xact_lock(sa.func.hashtextextended(key, 0)))
+    )
+
+
 async def add_source(session, **columns):
     import sqlalchemy as sa
 
@@ -403,6 +412,7 @@ async def _ingest_object(
     # Ingestion: register as a Candidate under each filter, deduped on the passing
     # alert (the same alert may be re-consumed).
     if filter_ids:
+        await xact_lock(session, object_id)
         for fid in filter_ids:
             exists = await session.scalar(
                 sa.select(Candidate).where(

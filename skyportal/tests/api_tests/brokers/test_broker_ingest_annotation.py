@@ -372,3 +372,31 @@ def test_broker_ingest_keeps_the_candidate_when_the_photometry_insert_fails(
     assert candidate is not None
     score = DBSession().scalar(sa.select(Obj.score).where(Obj.id == obj_id))
     assert score == pytest.approx(0.99)
+
+
+def test_broker_ingest_registers_a_concurrently_reconsumed_alert_once(
+    super_admin_user, public_filter, ztf_instrument, obj_id, monkeypatch
+):
+    from skyportal.broker_apis import _save
+
+    def slow_photometry_groups(*args):
+        time.sleep(2)
+        return {}
+
+    monkeypatch.setattr(_save, "build_photometry_groups", slow_photometry_groups)
+    DBSession().add(Obj(id=obj_id, ra=10.0, dec=20.0))
+    DBSession().commit()
+
+    with ThreadPoolExecutor(2) as pool:
+        first = pool.submit(ingest, obj_id, super_admin_user.id, public_filter.id, {})
+        time.sleep(1)
+        second = pool.submit(ingest, obj_id, super_admin_user.id, public_filter.id, {})
+        first.result()
+        second.result()
+
+    candidates = DBSession().scalars(
+        sa.select(Candidate).where(
+            Candidate.obj_id == obj_id, Candidate.filter_id == public_filter.id
+        )
+    )
+    assert len(candidates.all()) == 1
