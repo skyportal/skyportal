@@ -1,4 +1,5 @@
 import datetime
+import re
 import time
 import uuid
 
@@ -35,6 +36,20 @@ def open_scan_filters(page):
     button = page.locator("//button[@data-testid='scanFiltersButton']").first
     if button.get_attribute("aria-expanded") != "true":
         button.click()
+    expect(page.locator("//*[@data-testid='scanFiltersPanel']")).to_have_class(
+        re.compile("MuiCollapse-entered")
+    )
+
+
+def toggle_classifications(page, *names):
+    page.locator("//div[@id='classifications-select']").first.click()
+    for name in names:
+        option = page.locator(f"//li[@data-value='{name}']").first
+        selected = option.get_attribute("aria-selected") == "true"
+        option.click()
+        expect(option).to_have_attribute("aria-selected", str(not selected).lower())
+    page.keyboard.press("Escape")
+    expect(page.locator(f"//li[@data-value='{names[-1]}']")).to_be_hidden()
 
 
 def search_candidates(page):
@@ -609,18 +624,13 @@ def test_candidate_classifications_filtering(
     page.goto("/candidates")
     select_scan_group(page, public_group.id)
     open_scan_filters(page)
-    page.locator("//div[@id='classifications-select']").first.click()
-    page.locator("//li[@data-value='Algol']").first.click()
-    page.keyboard.press("Escape")
+    toggle_classifications(page, "Algol")
 
     search_candidates(page)
     expect(page.locator(f'//a[@data-testid="{candidate_id}"]').first).to_be_visible()
 
     open_scan_filters(page)
-    page.locator("//div[@id='classifications-select']").first.click()
-    page.locator("//li[@data-value='Algol']").first.click()
-    page.locator("//li[@data-value='AGN']").first.click()
-    page.keyboard.press("Escape")
+    toggle_classifications(page, "Algol", "AGN")
     search_candidates(page)
     expect(page.locator(f'//a[@data-testid="{candidate_id}"]').first).to_be_hidden()
 

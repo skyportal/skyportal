@@ -503,7 +503,7 @@ const FilterCandidateList = ({
             setSelectedScanningProfile={setSelectedScanningProfile}
           />
         </Box>
-        <Collapse in={moreFiltersOpen}>
+        <Collapse in={moreFiltersOpen} data-testid="scanFiltersPanel">
           <Box
             sx={{
               mt: 0.5,
