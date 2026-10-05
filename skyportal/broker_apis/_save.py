@@ -529,10 +529,6 @@ async def _ingest_object(
                     pd, user, session, apply_default_share=False
                 )
             except Exception as e:
-                # Leaving a failed statement uncommitted poisons the session:
-                # everything after it raises MissingGreenlet instead of its own
-                # error, so the thumbnails and the candidate go too.
-                await session.rollback()
                 log(f"Failed to add photometry for {object_id}: {e}")
 
     # Best-effort science/template/difference thumbnails if the provider gave us
