@@ -65,10 +65,50 @@ def test_annotations_info(upload_data_token, annotation_token, public_group):
     # Clear this user's cache so the new annotation is reflected.
     status, profile = api("GET", "internal/profile", token=annotation_token)
     assert status == 200
-    del annotations_info_cache[f"annotations_info_{profile['data']['id']}"]
+    del annotations_info_cache[f"annotations_info_by_group_{profile['data']['id']}"]
 
     status, data = api("GET", "internal/annotations_info", token=annotation_token)
     assert status == 200
     assert data["status"] == "success"
     assert origin in data["data"]
     assert any(key in entry for entry in data["data"][origin])
+
+
+def test_annotations_info_restricted_to_groups(
+    upload_data_token, annotation_token, public_group, public_group2
+):
+    obj_id = str(uuid.uuid4())
+    status, data = api(
+        "POST",
+        "sources",
+        data={
+            "id": obj_id,
+            "ra": 212.0,
+            "dec": -22.33,
+            "group_ids": [public_group.id],
+        },
+        token=upload_data_token,
+    )
+    assert status == 200
+
+    origin = f"origin_{uuid.uuid4().hex}"
+    status, data = api(
+        "POST",
+        f"sources/{obj_id}/annotations",
+        data={"origin": origin, "data": {"value": 1.0}, "group_ids": [public_group.id]},
+        token=annotation_token,
+    )
+    assert status == 200
+
+    status, profile = api("GET", "internal/profile", token=annotation_token)
+    assert status == 200
+    del annotations_info_cache[f"annotations_info_by_group_{profile['data']['id']}"]
+
+    for group_id, visible in ((public_group.id, True), (public_group2.id, False)):
+        status, data = api(
+            "GET",
+            f"internal/annotations_info?groupIDs={group_id}",
+            token=annotation_token,
+        )
+        assert status == 200
+        assert (origin in data["data"]) == visible

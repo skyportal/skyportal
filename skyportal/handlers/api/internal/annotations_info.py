@@ -2,12 +2,13 @@ from collections import defaultdict
 
 import numpy as np
 from sqlalchemy import func, literal
+from sqlalchemy.orm import aliased
 
 from baselayer.app.access import auth_or_token
 from baselayer.app.env import load_env
 from baselayer.log import make_log
 
-from ....models import Annotation
+from ....models import Annotation, GroupAnnotation
 from ....utils.cache import Cache, cache_folder, dict_to_bytes
 from ...base import BaseHandler
 
@@ -29,6 +30,15 @@ class AnnotationsInfoHandler(BaseHandler):
         """
         ---
         description: Collects valid annotation origin/key pairs to filter on for scanning
+        parameters:
+          - in: query
+            name: groupIDs
+            nullable: true
+            schema:
+              type: string
+            description: |
+              Comma-separated group IDs; only annotations shared with one of these
+              groups are considered.
         responses:
           200:
             content:
@@ -51,20 +61,26 @@ class AnnotationsInfoHandler(BaseHandler):
         # For example, if given that an annotation field is numeric we should
         # have min/max fields on the form.
 
+        group_ids = self.get_query_argument("groupIDs", None)
         try:
-            cache_key = f"annotations_info_{self.associated_user_object.id}"
+            group_ids = {int(g) for g in group_ids.split(",")} if group_ids else set()
+        except ValueError:
+            return self.error(f"Invalid groupIDs: {group_ids}")
+
+        try:
+            cache_key = f"annotations_info_by_group_{self.associated_user_object.id}"
             cached = cache[cache_key]
             if cached is not None:
-                data = np.load(cached, allow_pickle=True)
-                return self.success(data=data.item())
+                info = np.load(cached, allow_pickle=True).item()
             else:
                 annotations = func.jsonb_each(Annotation.data).table_valued(
                     "key", "value"
                 )
+                group_annotation = aliased(GroupAnnotation)
                 async with self.AsyncSession() as session:
                     # Objs are read-public, so no need to check that annotations belong to an unreadable obj
                     # Instead, just check for annotation group membership
-                    result = await session.execute(
+                    keys_result = await session.execute(
                         Annotation.select(
                             session.user_or_token, columns=[Annotation.origin]
                         )
@@ -75,13 +91,23 @@ class AnnotationsInfoHandler(BaseHandler):
                         .outerjoin(annotations, literal(True))
                         .distinct()
                     )
-                    results = result.all()
+                    groups_result = await session.execute(
+                        Annotation.select(
+                            session.user_or_token, columns=[Annotation.origin]
+                        )
+                        .add_columns(group_annotation.group_id)
+                        .join(
+                            group_annotation,
+                            group_annotation.annotation_id == Annotation.id,
+                        )
+                        .distinct()
+                    )
 
                     # Restructure query results so that records are grouped by origin in a
                     # nice, nested dictionary
                     grouped = defaultdict(list)
                     keys_seen = defaultdict(set)
-                    for annotation in results:
+                    for annotation in keys_result.all():
                         if annotation.key not in keys_seen[annotation.origin]:
                             grouped[annotation.origin].append(
                                 {annotation.key: annotation.type}
@@ -89,8 +115,20 @@ class AnnotationsInfoHandler(BaseHandler):
 
                         keys_seen[annotation.origin].add(annotation.key)
 
-                    cache[cache_key] = dict_to_bytes(grouped)
-                    return self.success(data=grouped)
+                    groups_by_origin = defaultdict(set)
+                    for row in groups_result.all():
+                        groups_by_origin[row.origin].add(row.group_id)
+
+                info = {"keys": dict(grouped), "groups": dict(groups_by_origin)}
+                cache[cache_key] = dict_to_bytes(info)
+
+            return self.success(
+                data={
+                    origin: keys
+                    for origin, keys in info["keys"].items()
+                    if not group_ids or info["groups"].get(origin, set()) & group_ids
+                }
+            )
 
         except Exception as e:
             log(f"Failed to get annotations info: {e}")
