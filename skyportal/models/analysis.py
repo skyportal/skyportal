@@ -46,6 +46,7 @@ from ..enum_types import (
     allowed_external_authentication_types,
 )
 from ..utils.naive_datetime import utcnow_naive
+from .app_secret import secret_key
 from .classification import Classification
 from .group import Group, accessible_by_groups_members
 from .source import Source
@@ -138,7 +139,7 @@ class AnalysisService(Base):
     )
 
     _authinfo = sa.Column(
-        StringEncryptedType(JSONType, cfg["app.secret_key"], AesEngine, "pkcs5"),
+        StringEncryptedType(JSONType, secret_key, AesEngine, "pkcs5"),
         nullable=True,
         doc=("Contains authentication credentials for the service."),
     )
