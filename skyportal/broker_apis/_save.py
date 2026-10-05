@@ -139,6 +139,22 @@ async def programid_to_stream_ids(session):
     return mapper
 
 
+async def get_or_create_obj(session, obj_id, **columns):
+    import sqlalchemy as sa
+    from sqlalchemy.dialects.postgresql import insert as pg_insert
+
+    from ..models import Obj
+
+    inserted = await session.scalar(
+        pg_insert(Obj)
+        .values(id=obj_id, **columns)
+        .on_conflict_do_nothing(index_elements=["id"])
+        .returning(Obj.id)
+    )
+    obj = await session.scalar(sa.select(Obj).where(Obj.id == obj_id))
+    return obj, inserted is not None
+
+
 def build_photometry_groups(object_id, survey, data, instrument_id, programid2streamid):
     """Transform a standard alert object's photometry arrays into per-(survey,
     programid) groups in skyportal units, keyed by the stream that gates them.
@@ -333,19 +349,16 @@ async def _ingest_object(
 
     programid2streamid = await programid_to_stream_ids(session)
 
-    obj = await session.scalar(sa.select(Obj).where(Obj.id == object_id))
-    created = obj is None
-    if created:
-        obj = Obj(
-            id=object_id,
-            ra=cand.get("ra"),
-            dec=cand.get("dec"),
-            ra_dis=cand.get("ra"),
-            dec_dis=cand.get("dec"),
-            score=cand.get("drb"),
-            origin=survey,
-        )
-        session.add(obj)
+    obj, created = await get_or_create_obj(
+        session,
+        object_id,
+        ra=cand.get("ra"),
+        dec=cand.get("dec"),
+        ra_dis=cand.get("ra"),
+        dec_dis=cand.get("dec"),
+        score=cand.get("drb"),
+        origin=survey,
+    )
 
     # Save-as-source: attach to groups (only meaningful on first save).
     if group_ids:

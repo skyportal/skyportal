@@ -1,5 +1,7 @@
 import asyncio
+import time
 import uuid
+from concurrent.futures import ThreadPoolExecutor
 
 import pytest
 import sqlalchemy as sa
@@ -251,3 +253,24 @@ def test_broker_ingest_dates_thumbnails_with_boom_alert_epoch(
     asyncio.run(_run())
 
     assert dates == [2461317.5]
+
+
+def test_broker_ingest_survives_a_concurrent_obj_insert(
+    super_admin_user, public_filter, ztf_instrument, obj_id
+):
+    with baselayer_models.new_session() as other, ThreadPoolExecutor(1) as pool:
+        other.add(Obj(id=obj_id, ra=10.0, dec=20.0))
+        other.flush()
+        ingesting = pool.submit(
+            ingest, obj_id, super_admin_user.id, public_filter.id, {}
+        )
+        time.sleep(1)
+        other.commit()
+        ingesting.result()
+
+    candidate = DBSession().scalar(
+        sa.select(Candidate).where(
+            Candidate.obj_id == obj_id, Candidate.filter_id == public_filter.id
+        )
+    )
+    assert candidate is not None
