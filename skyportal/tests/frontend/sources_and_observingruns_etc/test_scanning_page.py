@@ -27,6 +27,10 @@ def select_profile_group(page, group_id):
     page.keyboard.press("Escape")
 
 
+def open_candidate_annotations(page, candidate_id):
+    page.locator(f'//*[@data-testid="annotations-tab-{candidate_id}"]').first.click()
+
+
 def open_scan_filters(page):
     button = page.locator("//button[@data-testid='scanFiltersButton']").first
     if button.get_attribute("aria-expanded") != "true":
@@ -504,6 +508,8 @@ def test_submit_annotations_sorting(
     expect(
         page.locator(f'//a[@data-testid="{public_candidate.id}"]').first
     ).to_be_visible()
+    open_candidate_annotations(page, public_candidate.id)
+    open_candidate_annotations(page, public_candidate2.id)
 
     expect(
         page.locator(
@@ -681,6 +687,7 @@ def test_candidate_annotations_search(
     expect(
         page.locator(f'//a[@data-testid="{public_candidate.id}"]').first
     ).to_be_visible()
+    open_candidate_annotations(page, public_candidate.id)
 
     # Both annotation entries show before filtering.
     expect(page.locator('//*[contains(text(),"alphafield:")]').first).to_be_visible()
@@ -977,6 +984,7 @@ def test_add_scanning_profile(
 
     page.locator('//div[@data-testid="profile-name"]//input').first.fill("profile1")
     page.locator('//div[@data-testid="timeRange"]//input').first.fill("48")
+    select_profile_group(page, public_group.id)
 
     page.locator("//*[@data-testid='profileSavedStatusSelect']").first.click()
     saved_status_option = "saved to at least one group I have access to"
@@ -1003,8 +1011,6 @@ def test_add_scanning_profile(
         '//div[@data-testid="profileAnnotationSortingOrderSelect"]'
     ).first.click()
     page.locator('//li[text()="Descending"]').first.click()
-
-    select_profile_group(page, public_group.id)
 
     page.locator('//button[@data-testid="saveScanningProfileButton"]').first.click()
     expect(

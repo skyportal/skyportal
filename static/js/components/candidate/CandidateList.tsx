@@ -156,6 +156,7 @@ const CandidateTabs = ({ candidate, filterGroups }: CandidateTabsProps) => {
           <Tab
             value="annotations"
             label={`Annotations (${candidate.annotations.length})`}
+            data-testid={`annotations-tab-${candidate.id}`}
           />
           <Tab
             value="comments"
