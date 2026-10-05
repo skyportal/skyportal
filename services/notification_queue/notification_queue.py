@@ -485,6 +485,8 @@ def push_frontend_notification(target):
             "Error sending frontend notification: user_id or user.id not found in notification's target"
         )
         return
+    if target.get("id") is None:
+        return
     resource_type = notification_resource_type(target)
     log(
         f"Sent frontend notification to user {user_id}, body: {target['text']}, resource_type: {resource_type}"
@@ -537,7 +539,7 @@ def service(queue):
             send_email_notification(notification)
             send_slack_notification(notification)
         except Exception as e:
-            log(f"Error processing notification ID {notification['id']}: {str(e)}")
+            log(f"Error processing notification ID {notification.get('id')}: {str(e)}")
 
 
 def api(queue):
@@ -1271,21 +1273,33 @@ def api(queue):
                                     )
                                     if commit.get("sha"):
                                         text += f" ({commit['sha']}: {commit.get('description', '')})"
-                                    notification = UserNotification(
-                                        user=user,
-                                        text=text,
-                                        notification_type="deployments",
-                                        url="/deployments",
-                                    )
-                                    session.add(notification)
-                                    session.commit()
-                                    target = {
-                                        **notification.to_dict(),
-                                        "user": {
-                                            **notification.user.to_dict(),
-                                            "preferences": notification.user.preferences,
-                                        },
+                                    user_target = {
+                                        **user.to_dict(),
+                                        "preferences": user.preferences,
                                     }
+                                    in_app = pref["deployments"].get("in_app", {})
+                                    if in_app.get("active", False):
+                                        notification = UserNotification(
+                                            user=user,
+                                            text=text,
+                                            notification_type="deployments",
+                                            url="/deployments",
+                                        )
+                                        session.add(notification)
+                                        session.commit()
+                                        target = {
+                                            **notification.to_dict(),
+                                            "user": user_target,
+                                        }
+                                    else:
+                                        # other channels only: no row, no in-app entry
+                                        target = {
+                                            "text": text,
+                                            "notification_type": "deployments",
+                                            "url": "/deployments",
+                                            "user_id": user.id,
+                                            "user": user_target,
+                                        }
                                     queue.append(target)
                                 elif is_feedback or is_feedback_reply:
                                     if user.id == target_data["author_id"]:
