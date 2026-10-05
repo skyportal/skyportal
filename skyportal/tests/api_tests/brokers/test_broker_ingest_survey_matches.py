@@ -4,7 +4,9 @@ counterpart Obj and link it to the primary via a SuperObj (the "same physical
 object" grouping). These tests cover ``_ingest_survey_matches``."""
 
 import asyncio
+import time
 import uuid
+from concurrent.futures import ThreadPoolExecutor
 
 import pytest
 import sqlalchemy as sa
@@ -95,6 +97,13 @@ def _ingest_matches(record, main_obj_id, main_survey, user_id, broker=None):
             )
 
     asyncio.run(_run())
+
+
+def _links(obj_ids):
+    stmt = sa.select(ObjToSuperObj.obj_id, ObjToSuperObj.super_obj_id).where(
+        ObjToSuperObj.obj_id.in_(obj_ids)
+    )
+    return DBSession().execute(stmt).all()
 
 
 def test_survey_match_creates_counterpart_obj_and_super_obj(
@@ -198,5 +207,77 @@ def test_counterpart_cutouts_are_dated_by_their_alert(
     try:
         _ingest_matches(record, main_id, "ZTF", super_admin_user.id, broker=object())
         assert posted == [(lsst_id, "LSST", 2461230.5)]
+    finally:
+        _cleanup([main_id, lsst_id])
+
+
+def test_survey_matches_merge_into_one_super_obj(super_admin_user, survey_instruments):
+    ztf_ids = [f"ZTF{uuid.uuid4().hex[:10]}" for _ in range(3)]
+    lsst_ids = [str(uuid.uuid4().int)[:18] for _ in range(2)]
+    for ztf_id in ztf_ids:
+        _make_obj(ztf_id)
+    try:
+        _ingest_matches(_record(lsst_ids[0]), ztf_ids[0], "ZTF", super_admin_user.id)
+        _ingest_matches(_record(lsst_ids[0]), ztf_ids[1], "ZTF", super_admin_user.id)
+        _ingest_matches(_record(lsst_ids[1]), ztf_ids[2], "ZTF", super_admin_user.id)
+        _ingest_matches(_record(lsst_ids[1]), ztf_ids[0], "ZTF", super_admin_user.id)
+
+        links = _links(ztf_ids + lsst_ids)
+        assert sorted(o for o, _ in links) == sorted(ztf_ids + lsst_ids)
+        assert len({s for _, s in links}) == 1
+    finally:
+        _cleanup(ztf_ids + lsst_ids)
+
+
+def test_survey_match_leaves_a_named_super_obj_alone(
+    super_admin_user, survey_instruments
+):
+    main_id = f"ZTF{uuid.uuid4().hex[:10]}"
+    lsst_id = str(uuid.uuid4().int)[:18]
+    _make_obj(main_id)
+    named = SuperObj(
+        name=f"AT{uuid.uuid4().hex[:8]}",
+        objs=[DBSession().scalar(sa.select(Obj).where(Obj.id == main_id))],
+    )
+    DBSession().add(named)
+    DBSession().commit()
+    named_id = named.id
+    try:
+        _ingest_matches(_record(lsst_id), main_id, "ZTF", super_admin_user.id)
+
+        links = _links([main_id, lsst_id])
+        assert [o for o, s in links if s == named_id] == [main_id]
+        assert len({s for _, s in links}) == 2
+    finally:
+        _cleanup([main_id, lsst_id])
+
+
+def test_concurrent_survey_matches_share_one_super_obj(
+    monkeypatch, super_admin_user, survey_instruments
+):
+    from skyportal.broker_apis import _save
+
+    associate = _save.associate_super_obj
+
+    async def slow_associate(*args):
+        await associate(*args)
+        await asyncio.sleep(2)
+
+    monkeypatch.setattr(_save, "associate_super_obj", slow_associate)
+    main_id = f"ZTF{uuid.uuid4().hex[:10]}"
+    lsst_id = str(uuid.uuid4().int)[:18]
+    _make_obj(main_id)
+    try:
+        with ThreadPoolExecutor(2) as pool:
+            args = (_record(lsst_id), main_id, "ZTF", super_admin_user.id)
+            first = pool.submit(_ingest_matches, *args)
+            time.sleep(1)
+            second = pool.submit(_ingest_matches, *args)
+            first.result()
+            second.result()
+
+        links = _links([main_id, lsst_id])
+        assert sorted(o for o, _ in links) == sorted([main_id, lsst_id])
+        assert len({s for _, s in links}) == 1
     finally:
         _cleanup([main_id, lsst_id])

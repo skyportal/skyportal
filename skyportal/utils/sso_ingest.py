@@ -301,6 +301,9 @@ def triggering_detection(data):
 
 async def _link_designation(session, obj_id, designation):
     """Link this detection stream to any other Obj for the same body."""
+    from ..broker_apis._save import SUPER_OBJ_LOCK, xact_lock
+
+    await xact_lock(session, SUPER_OBJ_LOCK)
     # Eager-load: touching a lazy collection under an async session raises.
     super_obj = await session.scalar(
         sa.select(SuperObj)
