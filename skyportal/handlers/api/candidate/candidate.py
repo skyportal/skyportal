@@ -843,6 +843,12 @@ class CandidateHandler(BaseHandler):
                 # params are set.
                 order_by = [candidate_subquery.c.passed_at.desc().nullslast(), Obj.id]
 
+            # drop inaccessible groups first, so a stale list falls back too
+            if saved_group_ids:
+                accessible_ids = await accessible_group_ids_async(
+                    session.user_or_token, session
+                )
+                saved_group_ids = [g for g in saved_group_ids if g in accessible_ids]
             q = await get_subquery_for_saved_status(
                 q,
                 saved_status,

@@ -208,7 +208,10 @@ const FilterCandidateList = ({
   const showCrossmatchCuts =
     Boolean(availableAnnotationsInfo?.[GCN_CROSSMATCH_ORIGIN]) ||
     gcnNumberFields.some(({ name }) => isFilled(values[name]));
-  const savedGroupIDs: number[] = values.savedGroupIDs ?? [];
+  // a profile can keep groups the user has since lost access to
+  const savedGroupIDs: number[] = (values.savedGroupIDs ?? []).filter(
+    (id: number) => userAccessibleGroups.some((group) => group.id === id),
+  );
   const showSavedGroups = values.savedStatus?.endsWith("Selected");
   const savedStatusOptions = savedStatusSelectOptions.filter(
     ({ value }) =>
@@ -318,7 +321,7 @@ const FilterCandidateList = ({
       pageNumber: 1,
       numPerPage,
       savedStatus: formData.savedStatus,
-      savedGroupIDs: showSavedGroups ? formData.savedGroupIDs : undefined,
+      savedGroupIDs: showSavedGroups ? savedGroupIDs : undefined,
       ...(filterIDs.length > 0
         ? { filterIDs }
         : { groupIDs: formData.groupIDs }),

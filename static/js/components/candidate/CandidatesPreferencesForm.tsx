@@ -118,13 +118,14 @@ const CandidatesPreferencesForm = ({
   };
 
   const onSubmit = (formData: any) => {
+    const savedGroupIDs = formData.savedGroupIDs.filter((id: number) =>
+      groups?.userAccessible?.some((group) => group.id === id),
+    );
     const data: any = {
       name: formData.name,
       groupIDs: formData.groupIDs,
       savedStatus: formData.savedStatus,
-      ...(showSavedGroups && formData.savedGroupIDs.length > 0
-        ? { savedGroupIDs: formData.savedGroupIDs }
-        : {}),
+      ...(showSavedGroups && savedGroupIDs.length > 0 ? { savedGroupIDs } : {}),
       rejectedStatus: formData.rejectedStatus,
       default: editingProfile ? editingProfile.default : true,
     };

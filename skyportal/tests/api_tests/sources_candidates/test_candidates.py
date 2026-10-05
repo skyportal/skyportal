@@ -1362,13 +1362,14 @@ def test_candidate_list_not_saved_to_other_group(
         )
         assert status == 200
 
-    status, data = api(
-        "POST",
-        "sources",
-        data={"id": obj_id1, "group_ids": [public_group2.id]},
-        token=upload_data_token_two_groups,
-    )
-    assert status == 200
+    for obj_id, group in [(obj_id1, public_group2), (obj_id2, public_group)]:
+        status, data = api(
+            "POST",
+            "sources",
+            data={"id": obj_id, "group_ids": [group.id]},
+            token=upload_data_token_two_groups,
+        )
+        assert status == 200
 
     # scan public_group's filter, checking saved status against public_group2
     params = {
@@ -1387,13 +1388,19 @@ def test_candidate_list_not_saved_to_other_group(
     assert obj_id1 not in ids
     assert obj_id2 in ids
 
-    # without savedGroupIDs, the check is against public_group
-    status, data = api(
-        "GET", "candidates", params=params, token=view_only_token_two_groups
-    )
-    assert status == 200
-    ids = {c["id"] for c in data["data"]["candidates"]}
-    assert {obj_id1, obj_id2} <= ids
+    # without savedGroupIDs, or with only inaccessible ones, the check is
+    # against public_group
+    for extra in [{}, {"savedGroupIDs": "999999999"}]:
+        status, data = api(
+            "GET",
+            "candidates",
+            params={**params, **extra},
+            token=view_only_token_two_groups,
+        )
+        assert status == 200
+        ids = {c["id"] for c in data["data"]["candidates"]}
+        assert obj_id1 in ids
+        assert obj_id2 not in ids
 
 
 def test_candidate_list_not_saved_to_all_selected_groups(
