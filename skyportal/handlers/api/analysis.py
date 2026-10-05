@@ -89,10 +89,12 @@ _, cfg = load_env()
 DEFAULT_ANALYSES_DAILY_LIMIT = 1000
 
 # Core analysis parameters that SkyPortal consumes itself (e.g. to preprocess
-# the photometry) rather than passing through to a service's own schema. They
-# are allowed for any service, so they're excluded from the
-# optional_analysis_parameters subset check.
-RESERVED_ANALYSIS_PARAMETERS = frozenset({"correct_extinction"})
+# the photometry, or to decide whether to submit at all) rather than passing
+# through to a service's own schema. They are allowed for any service, so
+# they're excluded from the optional_analysis_parameters subset check.
+RESERVED_ANALYSIS_PARAMETERS = frozenset(
+    {"correct_extinction", "min_detections", "min_detections_per_filter"}
+)
 
 
 def unknown_analysis_parameters(params, optional_analysis_parameters):
