@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import useTabParam from "../../hooks/useTabParam";
 
 import { withTheme } from "@rjsf/core";
 import { Theme as MuiTheme } from "@rjsf/mui";
@@ -127,7 +128,7 @@ const BrokerList = () => {
   const [formData, setFormData] = useState<Record<string, unknown>>({});
 
   const [pendingDefaults, setPendingDefaults] = useState<string[]>([]);
-  const [tab, setTab] = useState(0);
+  const [tab, setTab] = useTabParam(["brokers", "filters"]);
   const [addOpen, setAddOpen] = useState(false);
   const [newFilterOpen, setNewFilterOpen] = useState(false);
   const [editing, setEditing] = useState<Broker | null>(null);
