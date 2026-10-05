@@ -32,7 +32,7 @@ export const candidateApi = skyportalApi.injectEndpoints({
       RouteData<"GET /api/candidates/{obj_id}">,
       number | string
     >({
-      query: (id) => `api/candidates/${id}`,
+      query: (id) => `api/candidates/${id}?includeComments=true`,
       providesTags: ["Candidate"],
     }),
   }),

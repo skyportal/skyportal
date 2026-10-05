@@ -3,7 +3,6 @@ import Dialog from "@mui/material/Dialog";
 import DialogContent from "@mui/material/DialogContent";
 import DialogTitle from "@mui/material/DialogTitle";
 import { showNotification } from "baselayer/components/Notifications";
-import { useForm } from "react-hook-form";
 import AddIcon from "@mui/icons-material/Add";
 import IconButton from "@mui/material/IconButton";
 import Tooltip from "@mui/material/Tooltip";
@@ -30,60 +29,47 @@ const AddClassificationsScanningPage = ({
   >([]);
   const dispatch = useAppDispatch();
   const [addClassification] = useAddClassificationMutation();
-
   const { data: taxonomyList } = useGetTaxonomiesQuery();
-  const latestTaxonomyList = taxonomyList?.filter((t: any) => t.isLatest);
-  const classificationsAndTaxonomyIds: Record<string, number> = {};
-  latestTaxonomyList?.forEach((taxonomy: any) => {
-    const currentClasses = allowedClasses(taxonomy.hierarchy);
-    currentClasses?.forEach((option: any) => {
-      classificationsAndTaxonomyIds[option.class] = taxonomy.id;
-    });
-  });
 
-  const { handleSubmit } = useForm();
-
-  if (!canClassify) {
-    return null;
-  }
-
-  const openDialog = () => {
-    setDialogOpen(true);
-  };
-
-  const closeDialog = () => {
-    setDialogOpen(false);
-  };
+  if (!canClassify) return null;
 
   const onSubmit = () => {
+    const taxonomyIds = Object.fromEntries(
+      (taxonomyList ?? [])
+        .filter((taxonomy: any) => taxonomy.isLatest)
+        .flatMap((taxonomy) =>
+          allowedClasses(taxonomy.hierarchy).map((option) => [
+            option.class,
+            taxonomy.id,
+          ]),
+        ),
+    );
     selectedClassifications.forEach(async (classification) => {
-      const data = {
-        taxonomy_id: classificationsAndTaxonomyIds[classification],
+      const { error } = await addClassification({
+        taxonomy_id: taxonomyIds[classification],
         obj_id,
         classification,
         probability: 1,
-      };
-      try {
-        await addClassification(data).unwrap();
+      });
+      if (!error) {
         dispatch(showNotification(`Classification ${classification} saved`));
-      } catch {
-        // error notification handled by the baseQuery
       }
     });
     setSelectedClassifications([]);
-    closeDialog();
+    setDialogOpen(false);
   };
+
   return (
     <>
       <Tooltip title="Add Classifications">
         <IconButton
-          onClick={openDialog}
+          onClick={() => setDialogOpen(true)}
           data-testid={`addClassificationsButton_${obj_id}`}
         >
           <AddIcon fontSize="small" />
         </IconButton>
       </Tooltip>
-      <Dialog open={dialogOpen} onClose={closeDialog}>
+      <Dialog open={dialogOpen} onClose={() => setDialogOpen(false)}>
         <DialogTitle>Add Classifications</DialogTitle>
         <DialogContent>
           <Box sx={{ pt: "0.4rem", mb: "0.8rem" }}>
@@ -97,7 +83,7 @@ const AddClassificationsScanningPage = ({
           <Button
             primary
             data-testid="addClassificationsButtonInDialog"
-            onClick={handleSubmit(onSubmit)}
+            onClick={onSubmit}
           >
             Add Classifications
           </Button>

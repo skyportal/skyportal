@@ -35,7 +35,6 @@ export interface RootState {
   // Retained client-UI portion of the candidates duck.
   candidates: {
     selectedAnnotationSortOptions: any;
-    filterFormData: any;
   };
 }
 

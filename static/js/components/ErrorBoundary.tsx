@@ -24,6 +24,7 @@ interface ErrorBoundaryProps {
   dispatch: (action: any) => void;
   version?: string | null;
   children?: React.ReactNode;
+  fallback?: React.ReactNode;
 }
 
 interface ErrorBoundaryState {
@@ -87,7 +88,8 @@ class ErrorBoundary extends React.Component<
 
   override render() {
     const { hasError, stack, displayStack } = this.state;
-    const { children } = this.props;
+    const { children, fallback } = this.props;
+    if (hasError && fallback) return fallback;
     if (hasError) {
       return (
         <div

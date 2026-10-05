@@ -1,314 +1,186 @@
-import { useEffect, useState } from "react";
-import { Controller, useForm } from "react-hook-form";
-
-import FormControlLabel from "@mui/material/FormControlLabel";
-import Checkbox from "@mui/material/Checkbox";
-import { DateTimePicker } from "@mui/x-date-pickers/DateTimePicker";
-import { AdapterDateFns } from "@mui/x-date-pickers/AdapterDateFns";
-import { LocalizationProvider } from "@mui/x-date-pickers";
-import IconButton from "@mui/material/IconButton";
-import RestartAltIcon from "@mui/icons-material/RestartAlt";
-import VisibilityIcon from "@mui/icons-material/Visibility";
-import VisibilityOffIcon from "@mui/icons-material/VisibilityOff";
-import Paper from "@mui/material/Paper";
-import SearchIcon from "@mui/icons-material/Search";
-import Input from "@mui/material/Input";
-import InputLabel from "@mui/material/InputLabel";
-import Select from "@mui/material/Select";
-import MenuItem from "@mui/material/MenuItem";
-import TextField from "@mui/material/TextField";
-import Tooltip from "@mui/material/Tooltip";
-import Grid from "@mui/material/Grid";
-import Switch from "@mui/material/Switch";
-import Typography from "@mui/material/Typography";
-import SearchableSelect from "../SearchableSelect";
-import { makeStyles } from "tss-react/mui";
+import { useEffect, useRef, useState } from "react";
+import { Controller, useForm, useWatch } from "react-hook-form";
+import type { Control, FieldErrors } from "react-hook-form";
+import { skipToken } from "@reduxjs/toolkit/query";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 
+import Box from "@mui/material/Box";
+import Checkbox from "@mui/material/Checkbox";
+import Collapse from "@mui/material/Collapse";
+import FormControlLabel from "@mui/material/FormControlLabel";
+import MenuItem from "@mui/material/MenuItem";
+import Paper from "@mui/material/Paper";
+import TextField from "@mui/material/TextField";
+import Tooltip from "@mui/material/Tooltip";
+import ExpandLessIcon from "@mui/icons-material/ExpandLess";
+import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
+import RestartAltIcon from "@mui/icons-material/RestartAlt";
+import SearchIcon from "@mui/icons-material/Search";
+import { DateTimePicker } from "@mui/x-date-pickers/DateTimePicker";
+
+import { pickParams } from "../../API";
 import { useAppDispatch } from "../../types/hooks";
+import type { Group } from "../../types";
 import {
-  useGetAnnotationsInfoQuery,
-  setFilterFormData,
   setCandidatesAnnotationSortOptions,
+  useGetAnnotationsInfoQuery,
 } from "../../ducks/candidate/candidates";
 import { useGetFiltersQuery } from "../../ducks/filter";
 import { useGetGcnEventsQuery } from "../../ducks/gcnEvents";
+import { useGetGroupsQuery } from "../../ducks/groups";
 import { useGetProfileQuery } from "../../ducks/profile";
-import { useGetTaxonomiesQuery } from "../../ducks/taxonomies";
+import Button from "../Button";
+import FormValidationError from "../FormValidationError";
+import SearchableSelect from "../SearchableSelect";
+import ClassificationSelect from "../classification/ClassificationSelect";
 import CandidatesPreferences from "./CandidatesPreferences";
 import { filterAnnotationOrigins } from "./annotationSortOptions";
-import FormValidationError from "../FormValidationError";
-import { allowedClasses } from "../classification/ClassificationForm";
-import ClassificationSelect from "../classification/ClassificationSelect";
-import GenerateReportForm from "./scan_reports/GenerateReportForm";
-import Button from "../Button";
-import { Link } from "react-router-dom";
-import { Group } from "../../types";
+import {
+  FormTextField,
+  GroupSelect,
+  Section,
+  SwitchField,
+  annotationKeys,
+  column,
+  gcnNumberFields,
+  savedStatusSelectOptions,
+  sortingOrderLabels,
+  twoColumns,
+  useScanGroups,
+} from "./scanFormFields";
 
 dayjs.extend(utc);
 
-const useStyles = makeStyles()((theme) => ({
-  filterListContainer: {
-    padding: "1rem 1rem 0 1rem",
-    display: "flex",
-    flexFlow: "column nowrap",
-  },
-  headerRow: {
-    display: "flex",
-    flexFlow: "row wrap",
-    columnGap: "1rem",
-    marginBottom: "0.5rem",
-    alignItems: "center",
-    justifyContent: "space-between",
-  },
-  pages: {
-    marginTop: "1rem",
-    "& > div": {
-      display: "inline-block",
-      marginRight: "1rem",
-    },
-  },
-  jumpToPage: {
-    marginTop: "0.3125rem",
-    display: "flex",
-    flexFlow: "row nowrap",
-    alignItems: "flex-end",
-    "& > button": {
-      marginLeft: "0.5rem",
-    },
-  },
-  formRow: {
-    margin: "1rem 0",
-  },
-  gcnGrid: {
-    marginTop: "0.5rem",
-    display: "grid",
-    gridTemplateColumns: "1fr 1fr 1fr",
-    gridColumnGap: "0.75rem",
-    gridRowGap: "1rem",
-  },
-  redshiftField: {
-    display: "inline-block",
-    marginRight: "0.5rem",
-  },
-  savedStatusSelect: {
-    margin: 0,
-    "& input": {
-      fontSize: "1rem",
-    },
-  },
-  annotationSorting: {
-    paddingTop: "0.5rem",
-    display: "grid",
-    gridTemplateColumns: "1fr 1fr 1fr",
-    gap: "0.5rem",
-  },
-  redshiftFiltering: {
-    display: "grid",
-    gridTemplateColumns: "1fr 1fr",
-    gap: "0.5rem",
-  },
-  savedFiltering: {
-    paddingTop: "1rem",
-    display: "grid",
-    [theme.breakpoints.down("sm")]: {
-      gridTemplateColumns: "1fr",
-    },
-    [theme.breakpoints.up("md")]: {
-      gridTemplateColumns: "2fr 1fr",
-    },
-    gap: "0.5rem",
-  },
-  rejectCandidatesSelect: {
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    [theme.breakpoints.down("sm")]: {
-      paddingTop: 0,
-    },
-    [theme.breakpoints.up("md")]: {
-      paddingTop: "1.5rem",
-    },
-  },
-  timeRange: {
-    display: "grid",
-    gridTemplateColumns: "1fr 1fr",
-    gap: "0.5rem",
-  },
-  title: {
-    fontSize: "1.1rem",
-  },
-  body: {
-    fontSize: "1rem",
-    lineHeight: "1.1rem",
-  },
-  groupOptions: {
-    paddingTop: "0.5rem",
-    display: "flex",
-    flexFlow: "row wrap",
-    alignItems: "flex-start",
-    columnGap: "2rem",
-    rowGap: "1rem",
-  },
-  simplePadding: {
-    padding: "1rem",
-  },
-  reset: {
-    // hide on small screens
-    [theme.breakpoints.down("lg")]: {
-      display: "none",
-    },
-    [theme.breakpoints.up("lg")]: {
-      display: "flex",
-      alignItems: "center",
-      justifyContent: "center",
-    },
-  },
-}));
+const sameForOneGroup = ["savedToAllSelected", "notSavedToAllSelected"];
 
-const savedStatusSelectOptions = [
-  { value: "all", label: "regardless of saved status" },
-  { value: "savedToAllSelected", label: "saved to all selected groups" },
-  {
-    value: "savedToAnySelected",
-    label: "saved to at least one of the selected groups",
-  },
-  {
-    value: "savedToAnyAccessible",
-    label: "saved to at least one group I have access to",
-  },
-  {
-    value: "notSavedToAnyAccessible",
-    label: "not saved to any of group I have access to",
-  },
-  {
-    value: "notSavedToAnySelected",
-    label: "not saved to any of the selected groups",
-  },
-  {
-    value: "notSavedToAllSelected",
-    label: "not saved to all of the selected groups",
-  },
-];
+const GCN_CROSSMATCH_ORIGIN = "GCN-crossmatch";
+
+const isFilled = (value: any) => value !== "" && value != null;
+
+const defaultDates = (timeRange?: string) => {
+  const endDate = new Date();
+  endDate.setSeconds(0, 0);
+  const startDate = new Date(endDate);
+  if (timeRange)
+    startDate.setHours(startDate.getHours() - parseInt(timeRange, 10));
+  else startDate.setDate(startDate.getDate() - 1);
+  return { startDate, endDate: timeRange ? endDate : null };
+};
+
+const formValues = (profile: any) => ({
+  ...defaultDates(profile?.timeRange),
+  groupIDs: profile?.groupIDs || [],
+  filterIDs: [],
+  savedStatus: profile?.savedStatus || "all",
+  rejectedStatus: profile?.rejectedStatus || "show",
+  redshiftMinimum: profile?.redshiftMinimum || "",
+  redshiftMaximum: profile?.redshiftMaximum || "",
+  classifications: profile?.classifications || [],
+  classificationsWith: profile?.classificationsWith !== false,
+  ...Object.fromEntries(
+    gcnNumberFields.map(({ name }) => [name, profile?.[name] ?? ""]),
+  ),
+  gcneventid: "",
+  localizationid: "",
+  localizationCumprob: 0.95,
+  firstDetectionAfter: "",
+  lastDetectionBefore: "",
+  numberDetections: 1,
+  requireDetections: true,
+  excludeForcedPhotometry: false,
+  filterOrigin: null,
+  filterKey: null,
+  filterValue: "",
+  filterMin: "",
+  filterMax: "",
+  sortingOrigin: profile?.sortingOrigin || null,
+  sortingKey: profile?.sortingKey || null,
+  sortingOrder: profile?.sortingOrder || null,
+});
+
+// "true"/"false" become booleans: the endpoint casts the stored value to boolean for those.
+const buildAnnotationFilter = (f: any) => {
+  if (!f.filterOrigin || !f.filterKey) return null;
+  const filter = { origin: f.filterOrigin, key: f.filterKey };
+  if (isFilled(f.filterValue)) {
+    const value = String(f.filterValue);
+    const lowered = value.trim().toLowerCase();
+    const parsed =
+      lowered === "true" ? true : lowered === "false" ? false : value;
+    return JSON.stringify({ ...filter, value: parsed });
+  }
+  return isFilled(f.filterMin) && isFilled(f.filterMax)
+    ? JSON.stringify({
+        ...filter,
+        min: String(f.filterMin),
+        max: String(f.filterMax),
+      })
+    : null;
+};
+
+interface FormCheckboxProps {
+  name: string;
+  control: Control<any>;
+  label: string;
+  tooltip: string;
+}
+
+const FormCheckbox = ({ name, control, label, tooltip }: FormCheckboxProps) => (
+  <Tooltip title={tooltip}>
+    <FormControlLabel
+      label={label}
+      control={
+        <Controller
+          name={name}
+          control={control}
+          render={({ field }) => (
+            <Checkbox
+              checked={Boolean(field.value)}
+              onChange={(event) => field.onChange(event.target.checked)}
+            />
+          )}
+        />
+      }
+    />
+  </Tooltip>
+);
 
 interface FilterCandidateListProps {
-  userAccessibleGroups: Group[];
-  setQueryInProgress: (...a: any[]) => void;
-  setFilterGroups: (...a: any[]) => void;
+  setFilterGroups: (groups: Group[]) => void;
   numPerPage: number;
-  annotationFilterList?: string | null;
-  setSortOrder: (...a: any[]) => void;
   setSearchParams: (params: Record<string, any>) => void;
 }
 
 const FilterCandidateList = ({
-  userAccessibleGroups,
-  setQueryInProgress,
   setFilterGroups,
   numPerPage,
-  annotationFilterList = null,
-  setSortOrder,
   setSearchParams,
 }: FilterCandidateListProps) => {
-  const { classes } = useStyles() as { classes: any };
-
-  const { data: availableAnnotationsInfo } =
-    useGetAnnotationsInfoQuery(undefined);
   const dispatch = useAppDispatch();
+  const { data: allFilters = [] } = useGetFiltersQuery();
+  const { data: groups } = useGetGroupsQuery();
+  const userAccessibleGroups = groups?.userAccessible ?? [];
   const { data: userProfile } = useGetProfileQuery();
-
-  const { scanningProfiles, useAMPM } = (userProfile?.preferences ?? {}) as any;
-
-  const defaultScanningProfile = scanningProfiles?.find(
+  const { scanningProfiles = [], useAMPM } = (userProfile?.preferences ??
+    {}) as any;
+  const defaultScanningProfile = scanningProfiles.find(
     (profile: any) => profile.default,
   );
-  const [searchCount, setSearchCount] = useState(0);
+
   const [selectedScanningProfile, setSelectedScanningProfile] = useState<any>(
     defaultScanningProfile,
   );
-  const [generateReportDialogOpen, setGenerateReportDialogOpen] =
-    useState(false);
-
-  useEffect(() => {
-    // Once the default profile is fully fetched, set it to the selected.
-    //
-    // This effect can also trigger on an edit action dispatched by
-    // CandidatesPreferencesForm.jsx, where the default profile may not
-    // necessarily change, but is replaced by a copy of itself (since the
-    // entirety of the preferences.scanningProfiles array in the Redux store
-    // is replaced by the profileActions.updateUserPreferences() call)
-    // To make sure we don't override the currently loaded profile in this
-    // scenario (as it may be different from the default), we assign
-    // the selectedScanningProfile if it exists already or the default
-    // otherwise (indicating the first render of the page)
-    setSelectedScanningProfile(
-      selectedScanningProfile || defaultScanningProfile,
-    );
-
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [defaultScanningProfile]);
-
-  const defaultStartDate = new Date();
-  // The DateTimePicker only exposes minute precision
-  defaultStartDate.setSeconds(0, 0);
-  let defaultEndDate = null;
-  if (selectedScanningProfile?.timeRange) {
-    defaultEndDate = new Date();
-    defaultEndDate.setSeconds(0, 0);
-    defaultStartDate.setHours(
-      defaultStartDate.getHours() -
-        parseInt(selectedScanningProfile.timeRange, 10),
-    );
-  } else {
-    defaultStartDate.setDate(defaultStartDate.getDate() - 1);
-  }
-
-  // Get unique classification names, in alphabetical order
-  const { data: taxonomyList } = useGetTaxonomiesQuery();
-  const latestTaxonomyList = taxonomyList?.filter((t: any) => t.isLatest);
-  let classifications: any[] = [];
-  latestTaxonomyList?.forEach((taxonomy: any) => {
-    const currentClasses = allowedClasses(taxonomy.hierarchy)?.map(
-      (option: any) => option.class,
-    );
-    classifications = classifications.concat(currentClasses);
-  });
-  classifications = Array.from(new Set(classifications)).sort();
-
-  const [selectedClassifications, setSelectedClassifications] = useState<any[]>(
-    selectedScanningProfile?.classifications || [],
-  );
-
-  const [classificationsWith, setClassificationsWith] = useState(
-    selectedScanningProfile?.classificationsWith !== false,
-  );
-
   const [gcnEventsParams, setGcnEventsParams] = useState<Record<string, any>>(
     {},
   );
+  const [moreFiltersOpen, setMoreFiltersOpen] = useState(false);
+  const [searchCount, setSearchCount] = useState(0);
+
+  const [gcnEvent, setGcnEvent] = useState<any>(null);
   const { data: gcnEvents } = useGetGcnEventsQuery(gcnEventsParams) as {
     data: any;
   };
-
-  const gcnEventsLookUp: Record<string, any> = {};
-
-  gcnEvents?.events.forEach((gcnEvent: any) => {
-    gcnEventsLookUp[gcnEvent.id] = gcnEvent;
-  });
-
-  const [selectedGcnEventId, setSelectedGcnEventId] = useState<any>(null);
-
-  const [filterGroupsInput, setFilterGroupsInput] = useState("");
-
-  const [filterGroupOptions, setFilterGroupOptions] = useState<any[]>([]);
-
-  const [showAllGroups, setShowAllGroups] = useState(true);
-
-  const [annotationFilteringKeyOptions, setAnnotationFilteringKeyOptions] =
-    useState<any[]>([]);
-  const [annotationSortingKeyOptions, setAnnotationSortingKeyOptions] =
-    useState<any[]>([]);
 
   const {
     handleSubmit,
@@ -316,1336 +188,702 @@ const FilterCandidateList = ({
     control,
     reset,
     formState: { errors },
-  } = useForm<any>({
-    defaultValues: {
-      startDate: defaultStartDate,
-      endDate: defaultEndDate,
-    },
-  });
+  } = useForm<any>({ defaultValues: formValues(selectedScanningProfile) });
+  const resetFields = (values: Record<string, any>) =>
+    reset({ ...getValues(), ...values });
 
-  // Filters accessible to the user, used to optionally narrow a scan to specific
-  // filters within the selected groups (e.g. isolate a single broker filter that
-  // shares a group with others).
-  const { data: allFilters } = useGetFiltersQuery();
-  // Re-read at each render; group toggles call reset(), which re-renders here.
-  const scanSelectedGroupIDs = getValues("groupIDs") || [];
-  const availableFilters = (allFilters || []).filter((f: any) =>
-    scanSelectedGroupIDs.includes(f.group_id),
+  const values = useWatch({ control });
+  const groupIDs: number[] = values.groupIDs ?? [];
+  const scanGroups = useScanGroups(groupIDs);
+  const availableFilters = allFilters.filter((f: any) =>
+    groupIDs.includes(f.group_id),
   );
+  const showFilterSelect =
+    availableFilters.length >
+    new Set(availableFilters.map((f: any) => f.group_id)).size;
+  const { data: availableAnnotationsInfo } = useGetAnnotationsInfoQuery(
+    groupIDs.length ? groupIDs : skipToken,
+  );
+  const showCrossmatchCuts =
+    Boolean(availableAnnotationsInfo?.[GCN_CROSSMATCH_ORIGIN]) ||
+    gcnNumberFields.some(({ name }) => isFilled(values[name]));
+  const savedStatusOptions = savedStatusSelectOptions.filter(
+    ({ value }) =>
+      groupIDs.length !== 1 ||
+      !sameForOneGroup.includes(value) ||
+      value === values.savedStatus,
+  );
+  const annotationOrigins = Object.keys(availableAnnotationsInfo ?? {});
+  const activeFilterCount = [
+    values.savedStatus !== "all",
+    values.rejectedStatus === "hide",
+    values.classifications?.length > 0,
+    isFilled(values.redshiftMinimum) || isFilled(values.redshiftMaximum),
+    isFilled(values.gcneventid),
+    gcnNumberFields.some(({ name }) => isFilled(values[name])),
+    isFilled(values.filterOrigin),
+    isFilled(values.sortingOrigin),
+  ].filter(Boolean).length;
+
+  const selectGroups = (ids: number[]) =>
+    setFilterGroups(
+      userAccessibleGroups.filter((group) => ids.includes(group.id)),
+    );
+
+  const resetForm = () => {
+    reset(formValues(selectedScanningProfile));
+    setGcnEvent(null);
+    selectGroups(selectedScanningProfile?.groupIDs || []);
+  };
+
+  // An edit replaces every profile with a copy, so keep the one already loaded.
+  useEffect(() => {
+    setSelectedScanningProfile(
+      (current: any) => current || defaultScanningProfile,
+    );
+  }, [defaultScanningProfile]);
+
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(resetForm, [selectedScanningProfile]);
 
   useEffect(() => {
-    // set the default values for the firstDetectionAfter and lastDetectionBefore
+    selectGroups(getValues("groupIDs"));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [groups]);
 
-    let defaultFirstDetectionAfter = " ";
-    let defaultLastDetectionBefore = " ";
-    if (selectedGcnEventId && selectedGcnEventId !== "") {
-      defaultFirstDetectionAfter = dayjs
-        .utc(gcnEventsLookUp[selectedGcnEventId]?.dateobs)
-        .format("YYYY-MM-DD HH:mm:ss");
-      defaultLastDetectionBefore = dayjs
-        .utc(gcnEventsLookUp[selectedGcnEventId]?.dateobs)
-        .add(7, "day")
-        .format("YYYY-MM-DD HH:mm:ss");
-    }
-    const newFormData: any = {
-      ...getValues(),
-      firstDetectionAfter: defaultFirstDetectionAfter,
-      lastDetectionBefore: defaultLastDetectionBefore,
-    };
-    if (!selectedGcnEventId) {
-      delete newFormData.firstDetectionAfter;
-      delete newFormData.lastDetectionBefore;
-      delete newFormData.numberDetections;
-      delete newFormData.localizationCumprob;
-    } else {
-      newFormData.numberDetections = 1;
-      newFormData.localizationCumprob = 0.95;
-    }
-
-    reset(newFormData);
-  }, [selectedGcnEventId]);
-
-  const resetFormFields = (
-    startDate: any,
-    endDate: any,
-    scanningProfile: any,
-  ) => {
-    if (scanningProfile?.groupIDs && userAccessibleGroups.length > 0) {
-      setFilterGroups(
-        userAccessibleGroups.filter((group) =>
-          selectedScanningProfile.groupIDs.includes(group.id),
-        ),
-      );
-    }
-    setSelectedGcnEventId("");
-    setSelectedClassifications(scanningProfile?.classifications || []);
-    setClassificationsWith(scanningProfile?.classificationsWith !== false);
-    if (availableAnnotationsInfo) {
-      const newOptions = scanningProfile?.sortingOrigin
-        ? (availableAnnotationsInfo[scanningProfile?.sortingOrigin] || [])
-            .map((annotation: any) => Object.keys(annotation || {}))
-            .flat()
-        : [];
-      setAnnotationSortingKeyOptions(newOptions);
-    }
-    reset({
-      startDate,
-      endDate,
-      groupIDs: scanningProfile?.groupIDs || [],
-      filterIDs: [],
-      classifications: scanningProfile?.classifications || [],
-      redshiftMinimum: scanningProfile?.redshiftMinimum || "",
-      redshiftMaximum: scanningProfile?.redshiftMaximum || "",
-      rejectedStatus: scanningProfile?.rejectedStatus || "show",
-      savedStatus: scanningProfile?.savedStatus || "all",
-      sortingOrigin: scanningProfile?.sortingOrigin || null,
-      sortingKey: scanningProfile?.sortingKey || null,
-      sortingOrder: scanningProfile?.sortingOrder || null,
-      gcneventid: "",
-      localizationid: "",
-      firstDetectionAfter: "",
-      lastDetectionBefore: "",
-      numberDetections: "",
-      localizationCumprob: "",
-      maxSgscore: scanningProfile?.maxSgscore ?? "",
-      maxCredibleLevel: scanningProfile?.maxCredibleLevel ?? "",
-      minDistpsnr: scanningProfile?.minDistpsnr ?? "",
-      minNdethist: scanningProfile?.minNdethist ?? "",
-      minAbsGalacticLatitude: scanningProfile?.minAbsGalacticLatitude ?? "",
-      promptDeltaT: scanningProfile?.promptDeltaT ?? "",
-      maxDeltaT: scanningProfile?.maxDeltaT ?? "",
-      filterOrigin: null,
-      filterKey: null,
-      filterValue: "",
-      filterMin: "",
-      filterMax: "",
+  const selectGcnEvent = (event: any) => {
+    const dateobs = event && dayjs.utc(event.dateobs);
+    setGcnEvent(event);
+    resetFields({
+      gcneventid: event?.id ?? "",
+      localizationid: event?.localizations[0]?.id ?? "",
+      firstDetectionAfter: dateobs ? dateobs.format("YYYY-MM-DD HH:mm:ss") : "",
+      lastDetectionBefore: dateobs
+        ? dateobs.add(7, "day").format("YYYY-MM-DD HH:mm:ss")
+        : "",
+      numberDetections: 1,
+      localizationCumprob: 0.95,
     });
   };
 
-  useEffect(() => {
-    resetFormFields(defaultStartDate, defaultEndDate, selectedScanningProfile);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedScanningProfile]);
-
-  // Populate the group/annotation-sort options when those queries land, WITHOUT
-  // resetting the form.
-  useEffect(() => {
-    if (selectedScanningProfile?.groupIDs && userAccessibleGroups.length > 0) {
-      setFilterGroups(
-        userAccessibleGroups.filter((group) =>
-          selectedScanningProfile.groupIDs.includes(group.id),
-        ),
-      );
-    }
-  }, [userAccessibleGroups, selectedScanningProfile]);
-
-  useEffect(() => {
-    if (availableAnnotationsInfo) {
-      setAnnotationSortingKeyOptions(
-        selectedScanningProfile?.sortingOrigin
-          ? (
-              availableAnnotationsInfo[selectedScanningProfile.sortingOrigin] ||
-              []
-            )
-              .map((annotation: any) => Object.keys(annotation || {}))
-              .flat()
-          : [],
-      );
-    }
-  }, [availableAnnotationsInfo, selectedScanningProfile]);
-
-  // Set initial form values in the redux state
-  useEffect(() => {
-    dispatch(
-      setFilterFormData({
-        // savedStatus: "all",
-        startDate: defaultStartDate.toISOString(),
-      }),
-    );
-    // Don't want to reset everytime the component rerenders and
-    // the defaultStartDate is updated, so ignore ESLint here
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [dispatch]);
-
-  useEffect(() => {
-    // when the search bar for groups is updated, update the list of groups
-    if (filterGroupsInput) {
-      setFilterGroupOptions(
-        userAccessibleGroups.filter((group) =>
-          group.name.toLowerCase().includes(filterGroupsInput.toLowerCase()),
-        ),
-      );
-    } else {
-      // if the bar is empty show all groups
-      setFilterGroupOptions(userAccessibleGroups);
-    }
-  }, [filterGroupsInput, userAccessibleGroups]);
-
   const validateDates = () => {
-    const formState = getValues();
-    if (!!formState.startDate && !!formState.endDate) {
-      return formState.startDate <= formState.endDate;
-    }
-    return true;
+    const { startDate, endDate } = getValues();
+    return !startDate || !endDate || startDate <= endDate;
   };
 
-  // The endpoint takes either a value or both bounds, so a half-filled
-  // annotation filter is rejected here rather than server-side.
   const validateAnnotationFilter = () => {
     const f = getValues();
     if (!f.filterOrigin) return true;
     if (!f.filterKey) return false;
-    const hasValue = String(f.filterValue ?? "") !== "";
-    const hasMin = String(f.filterMin ?? "") !== "";
-    const hasMax = String(f.filterMax ?? "") !== "";
-    return hasValue ? !hasMin && !hasMax : hasMin && hasMax;
-  };
-
-  // "true"/"false" become booleans: the endpoint casts the stored value to
-  // boolean for those, and compares as text otherwise.
-  const buildAnnotationFilter = (f: any) => {
-    if (!f.filterOrigin || !f.filterKey) return null;
-    const value = String(f.filterValue ?? "");
-    if (value !== "") {
-      const lowered = value.trim().toLowerCase();
-      const parsed =
-        lowered === "true" ? true : lowered === "false" ? false : value;
-      return JSON.stringify({
-        origin: f.filterOrigin,
-        key: f.filterKey,
-        value: parsed,
-      });
-    }
-    const min = String(f.filterMin ?? "");
-    const max = String(f.filterMax ?? "");
-    if (min !== "" && max !== "") {
-      return JSON.stringify({
-        origin: f.filterOrigin,
-        key: f.filterKey,
-        min,
-        max,
-      });
-    }
-    return null;
+    return isFilled(f.filterValue)
+      ? !isFilled(f.filterMin) && !isFilled(f.filterMax)
+      : isFilled(f.filterMin) && isFilled(f.filterMax);
   };
 
   const validateSorting = () => {
-    const formState = getValues();
+    const f = getValues();
     return (
-      formState.sortingOrigin === null ||
-      (formState.sortingKey !== null && formState.sortingOrder !== null)
+      f.sortingOrigin === null ||
+      (f.sortingKey !== null && f.sortingOrder !== null)
     );
   };
 
-  const onSubmit = async (formData: any) => {
-    setQueryInProgress(true);
-    // Optionally narrow the scan to specific filters within the selected groups.
-    // The backend treats groupIDs and filterIDs as mutually exclusive (groupIDs
-    // wins), so when filters are chosen we send filterIDs and omit groupIDs.
-    const selectedFilterIDs = (formData.filterIDs || []).filter((id: number) =>
-      (allFilters || []).some(
-        (f: any) => f.id === id && formData.groupIDs.includes(f.group_id),
-      ),
+  const onSubmit = (formData: any) => {
+    const filterIDs = showFilterSelect
+      ? formData.filterIDs.filter((id: number) =>
+          availableFilters.some((f: any) => f.id === id),
+        )
+      : [];
+    const sorting = formData.sortingOrigin
+      ? {
+          origin: formData.sortingOrigin,
+          key: formData.sortingKey,
+          order: formData.sortingOrder,
+        }
+      : null;
+    dispatch(setCandidatesAnnotationSortOptions(sorting));
+    setSearchCount(searchCount + 1);
+    setMoreFiltersOpen(false);
+    selectGroups(
+      filterIDs.length > 0
+        ? availableFilters
+            .filter((f: any) => filterIDs.includes(f.id))
+            .map((f: any) => f.group_id)
+        : formData.groupIDs,
     );
-    const data: any = { savedStatus: formData.savedStatus };
-    if (selectedFilterIDs.length > 0) {
-      data.filterIDs = selectedFilterIDs;
-    } else {
-      data.groupIDs = formData.groupIDs;
-    }
-    // decide if to show rejected candidates
-    if (formData.rejectedStatus === "hide") {
-      data.listNameReject = "rejected_candidates";
-    }
-    // Convert dates to ISO for parsing on back-end
-    if (formData.startDate) {
-      data.startDate = formData.startDate.toISOString();
-    }
-    if (formData.endDate) {
-      data.endDate = formData.endDate.toISOString();
-    }
-    if (selectedClassifications.length > 0) {
-      if (!classificationsWith) {
-        data.classificationsReject = selectedClassifications;
-      } else {
-        data.classifications = selectedClassifications;
-      }
-    }
-    if (formData.redshiftMinimum) {
-      data.minRedshift = formData.redshiftMinimum;
-    }
-    if (formData.redshiftMaximum) {
-      data.maxRedshift = formData.redshiftMaximum;
-    }
-    // These read the GCN crossmatch annotation, so a candidate without one
-    // cannot pass them. Off unless a scanning profile sets them, so a scan of
-    // a group that is not crossmatched is unaffected.
-    if (formData.maxSgscore !== "" && formData.maxSgscore != null) {
-      data.maxSgscore = formData.maxSgscore;
-    }
-    if (formData.maxCredibleLevel !== "" && formData.maxCredibleLevel != null) {
-      data.maxCredibleLevel = formData.maxCredibleLevel;
-    }
-    if (formData.minDistpsnr !== "" && formData.minDistpsnr != null) {
-      data.minDistpsnr = formData.minDistpsnr;
-    }
-    if (formData.minNdethist !== "" && formData.minNdethist != null) {
-      data.minNdethist = formData.minNdethist;
-    }
-    if (
-      formData.minAbsGalacticLatitude !== "" &&
-      formData.minAbsGalacticLatitude != null
-    ) {
-      data.minAbsGalacticLatitude = formData.minAbsGalacticLatitude;
-    }
-    if (formData.promptDeltaT !== "" && formData.promptDeltaT != null) {
-      data.promptDeltaT = formData.promptDeltaT;
-    }
-    if (formData.maxDeltaT !== "" && formData.maxDeltaT != null) {
-      data.maxDeltaT = formData.maxDeltaT;
-    }
-    if (formData.gcneventid !== "" || formData.localizationid !== "") {
-      // data.gcneventid = formData.gcneventid;
-      // data.localizationid = formData.localizationid;
-      data.localizationDateobs = gcnEventsLookUp[formData.gcneventid]?.dateobs;
-      data.localizationName = gcnEventsLookUp[
-        formData.gcneventid
-      ]?.localizations?.filter((l: any) => l.id === formData.localizationid)[0]
-        ?.localization_name;
-      if (formData.localizationCumprob) {
-        data.localizationCumprob = formData.localizationCumprob;
-      }
-      if (formData.firstDetectionAfter) {
-        data.firstDetectionAfter = formData.firstDetectionAfter;
-      }
-      if (formData.lastDetectionBefore) {
-        data.lastDetectionBefore = formData.lastDetectionBefore;
-      }
-      if (formData.numberDetections) {
-        data.numberDetections = formData.numberDetections;
-      }
-      if (formData.requireDetections === false) {
-        data.requireDetections = false;
-      }
-      if (formData.excludeForcedPhotometry) {
-        data.excludeForcedPhotometry = formData.excludeForcedPhotometry;
-      }
-    }
-    if (formData.sortingOrigin) {
-      data.sortByAnnotationOrigin = formData.sortingOrigin;
-      data.sortByAnnotationKey = formData.sortingKey;
-      data.sortByAnnotationOrder = formData.sortingOrder;
-    } else {
-      // Clear annotation sort params, if a default sort is not defined
-      dispatch(setCandidatesAnnotationSortOptions(null));
-      setSortOrder(null);
-    }
-
-    // Submit a new search for candidates
-    const annotationFilter = buildAnnotationFilter(formData);
-    if (annotationFilter) {
-      data.annotationFilterList = annotationFilter;
-    } else if (annotationFilterList) {
-      data.annotationFilterList = annotationFilterList;
-    }
-    // Which groups to display columns for: the selected filters' groups when
-    // scanning by filter, otherwise the selected groups.
-    const displayGroupIDs =
-      selectedFilterIDs.length > 0
-        ? [
-            ...new Set(
-              selectedFilterIDs.map(
-                (id: number) =>
-                  (allFilters || []).find((f: any) => f.id === id)?.group_id,
-              ),
-            ),
-          ]
-        : formData.groupIDs;
-    setFilterGroups(
-      userAccessibleGroups?.filter((g) => displayGroupIDs.includes(g.id)),
-    );
-    const fetchParams = { ...data };
-
-    if (data.sortByAnnotationOrigin) {
-      setSortOrder(data.sortByAnnotationOrder);
-      dispatch(
-        setCandidatesAnnotationSortOptions({
-          key: data.sortByAnnotationKey,
-          origin: data.sortByAnnotationOrigin,
-          order: data.sortByAnnotationOrder,
-        }),
-      );
-    }
-
-    // Save form-specific data, formatted for the API query
-    dispatch(setFilterFormData(data));
-
-    // Trigger a new search in CandidateList when the search button is clicked and reset to page 1.
-    const nextSearchCount = searchCount + 1;
-    setSearchCount(nextSearchCount);
     setSearchParams({
       pageNumber: 1,
       numPerPage,
-      ...fetchParams,
-      _searchCount: nextSearchCount,
+      savedStatus: formData.savedStatus,
+      ...(filterIDs.length > 0
+        ? { filterIDs }
+        : { groupIDs: formData.groupIDs }),
+      listNameReject:
+        formData.rejectedStatus === "hide" ? "rejected_candidates" : undefined,
+      startDate: formData.startDate?.toISOString(),
+      endDate: formData.endDate?.toISOString(),
+      [formData.classificationsWith
+        ? "classifications"
+        : "classificationsReject"]: formData.classifications,
+      minRedshift: formData.redshiftMinimum,
+      maxRedshift: formData.redshiftMaximum,
+      ...pickParams(
+        formData,
+        gcnNumberFields.map(({ name }) => name),
+      ),
+      ...((formData.gcneventid || formData.localizationid) && {
+        localizationDateobs: gcnEvent?.dateobs,
+        localizationName: gcnEvent?.localizations?.find(
+          (l: any) => l.id === formData.localizationid,
+        )?.localization_name,
+        ...pickParams(formData, [
+          "localizationCumprob",
+          "firstDetectionAfter",
+          "lastDetectionBefore",
+          "numberDetections",
+          "requireDetections",
+          "excludeForcedPhotometry",
+        ]),
+      }),
+      sortByAnnotationOrigin: sorting?.origin,
+      sortByAnnotationKey: sorting?.key,
+      sortByAnnotationOrder: sorting?.order,
+      annotationFilterList: buildAnnotationFilter(formData),
+      _searchCount: searchCount + 1,
     });
   };
 
+  const onInvalid = (invalid: FieldErrors) => {
+    if (
+      invalid["filterOrigin"] ||
+      invalid["sortingOrigin"] ||
+      invalid["sortingKey"]
+    )
+      setMoreFiltersOpen(true);
+  };
+
+  const submit = handleSubmit(onSubmit, onInvalid);
+
+  const autoSearched = useRef(false);
+  useEffect(() => {
+    if (autoSearched.current || !groups || !userProfile) return;
+    if (selectedScanningProfile !== defaultScanningProfile) return;
+    autoSearched.current = true;
+    if (defaultScanningProfile?.groupIDs?.length) submit();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [groups, userProfile, selectedScanningProfile]);
+
   return (
-    <form onSubmit={handleSubmit(onSubmit)}>
-      <div className={classes.headerRow}>
-        <Typography variant="h5">
-          <b>Scan candidates for sources</b>
-        </Typography>
-        <div
-          style={{
+    <>
+      <Paper
+        component="form"
+        variant="outlined"
+        onSubmit={submit}
+        sx={{ p: 1.5, pb: 0.5 }}
+      >
+        <Box
+          sx={{
             display: "flex",
+            flexWrap: "wrap",
             alignItems: "center",
-            columnGap: "0.75rem",
+            gap: 1.5,
           }}
         >
-          <Tooltip
-            title="Reset all filters and search parameters to default (or selected profile)"
-            className={classes.reset}
-          >
-            <IconButton
-              onClick={() => {
-                resetFormFields(
-                  defaultStartDate,
-                  defaultEndDate,
-                  selectedScanningProfile,
-                );
-              }}
+          {scanningProfiles.length > 0 && (
+            <TextField
+              select
+              size="small"
+              label="Scanning profile"
+              data-testid="scanningProfileSelect"
+              value={selectedScanningProfile?.name ?? ""}
+              onChange={(event) =>
+                setSelectedScanningProfile(
+                  scanningProfiles.find(
+                    (p: any) => p.name === event.target.value,
+                  ) ?? null,
+                )
+              }
+              sx={{ width: 170 }}
             >
-              <RestartAltIcon />
-            </IconButton>
+              <MenuItem value="">None</MenuItem>
+              {scanningProfiles.map((profile: any) => (
+                <MenuItem key={profile.name} value={profile.name}>
+                  {profile.name}
+                </MenuItem>
+              ))}
+            </TextField>
+          )}
+          {[
+            ["startDate", "Start (Local Time)"],
+            ["endDate", "End (Local Time)"],
+          ].map(([name, label]) => (
+            <Controller
+              key={name}
+              name={name as string}
+              control={control}
+              rules={{ validate: validateDates }}
+              render={({ field: { onChange, value } }) => (
+                <DateTimePicker
+                  value={value}
+                  onChange={(newValue: Date | null) => {
+                    newValue?.setSeconds(0, 0);
+                    onChange(newValue);
+                  }}
+                  label={label}
+                  ampm={useAMPM}
+                  slotProps={{
+                    textField: {
+                      size: "small",
+                      error: Boolean(errors["startDate"] || errors["endDate"]),
+                      sx: { width: 225 },
+                    },
+                  }}
+                />
+              )}
+            />
+          ))}
+          <Controller
+            name="groupIDs"
+            control={control}
+            render={({ field }) => (
+              <GroupSelect
+                groups={scanGroups}
+                value={field.value}
+                onChange={(ids) => {
+                  field.onChange(ids);
+                  selectGroups(ids);
+                }}
+                checkboxTestId="filteringFormGroupCheckbox"
+                textFieldProps={{ "data-testid": "scanGroupSelect" }}
+                sx={{ flex: 2, minWidth: 280 }}
+              />
+            )}
+          />
+          {showFilterSelect && (
+            <Controller
+              name="filterIDs"
+              control={control}
+              render={({ field: { onChange, value } }) => (
+                <SearchableSelect
+                  multiple
+                  options={availableFilters}
+                  getOptionLabel={(option: any) => option?.name ?? ""}
+                  isOptionEqualToValue={(o: any, v: any) => o.id === v.id}
+                  value={availableFilters.filter((f: any) =>
+                    value.includes(f.id),
+                  )}
+                  onChange={(_event, newValue: any) =>
+                    onChange(newValue.map((f: any) => f.id))
+                  }
+                  label="Filters"
+                  placeholder={value.length > 0 ? "" : "All"}
+                  textFieldProps={{ "data-testid": "scanFilterSelect" }}
+                  sx={{ flex: 1, minWidth: 160 }}
+                />
+              )}
+            />
+          )}
+          <Tooltip title="Search results are cached between pagination requests, and are re-computed each time this Search button is clicked">
+            <Button primary type="submit" endIcon={<SearchIcon />}>
+              Search
+            </Button>
           </Tooltip>
+        </Box>
+        <Box sx={{ display: "flex", gap: 1, mt: 0.5 }}>
+          <Button
+            size="small"
+            onClick={() => setMoreFiltersOpen(!moreFiltersOpen)}
+            endIcon={moreFiltersOpen ? <ExpandLessIcon /> : <ExpandMoreIcon />}
+            aria-expanded={moreFiltersOpen}
+            data-testid="scanFiltersButton"
+          >
+            More filters{activeFilterCount > 0 && ` (${activeFilterCount})`}
+          </Button>
           <CandidatesPreferences
+            hasProfiles={scanningProfiles.length > 0}
             selectedScanningProfile={selectedScanningProfile}
             setSelectedScanningProfile={setSelectedScanningProfile}
           />
-          <Tooltip title="Generate a report of saved candidates">
-            <Button secondary onClick={() => setGenerateReportDialogOpen(true)}>
-              Generate report
-            </Button>
-          </Tooltip>
-          <Tooltip title="View previously generated scanning reports">
-            <Button secondary component={Link} to="/candidates/scan_reports">
-              View reports
-            </Button>
-          </Tooltip>
-          <GenerateReportForm
-            dialogOpen={generateReportDialogOpen}
-            setDialogOpen={setGenerateReportDialogOpen}
-          />
-          <Tooltip title="Search results are cached between pagination requests, and are re-computed each time this Search button is clicked">
-            <div>
-              <Button primary type="submit" endIcon={<SearchIcon />}>
-                Search
-              </Button>
-            </div>
-          </Tooltip>
-        </div>
-      </div>
-      <Grid container columnSpacing={{ xs: 0, lg: 1.5 }} rowSpacing={1.5}>
-        <Grid size={{ xs: 12, lg: 6 }}>
-          <Paper
-            variant="outlined"
-            className={classes.simplePadding}
-            style={{
-              height: "100%",
-              display: "flex",
-              flexDirection: "column",
+        </Box>
+        <Collapse in={moreFiltersOpen}>
+          <Box
+            sx={{
+              mt: 0.5,
+              pt: 2,
+              borderTop: 1,
+              borderColor: "divider",
+              display: "grid",
+              gridTemplateColumns: {
+                xs: "1fr",
+                md: "1fr 1fr",
+                lg: "1fr 1fr 1fr",
+              },
+              gap: 3,
             }}
           >
-            <div className={classes.formRow} style={{ marginTop: 0 }}>
-              <Typography variant="h6" className={classes.title}>
-                Selected scanning profile:&nbsp;
-                {selectedScanningProfile
-                  ? selectedScanningProfile.name || "No name"
-                  : "None"}
-              </Typography>
-              <Typography variant="subtitle2">
-                <i>
-                  Click <q>Manage Scanning Profiles</q> to select a new profile.
-                </i>
-              </Typography>
-            </div>
-            <div>
-              {(errors["startDate"] || errors["endDate"]) && (
-                <FormValidationError message="Invalid date range." />
-              )}
-              <div className={classes.timeRange}>
-                <Controller
-                  render={({ field: { onChange, value } }) => (
-                    <LocalizationProvider dateAdapter={AdapterDateFns}>
-                      <DateTimePicker
-                        value={value}
-                        onChange={(newValue) => {
-                          if (newValue) newValue.setSeconds(0, 0);
-                          onChange(newValue);
-                        }}
-                        label="Start (Local Time)"
-                        ampm={useAMPM}
-                        slotProps={{ textField: { variant: "outlined" } }}
-                      />
-                    </LocalizationProvider>
-                  )}
-                  rules={{ validate: validateDates }}
-                  name="startDate"
-                  control={control}
-                  defaultValue={defaultStartDate}
-                />
-                <Controller
-                  render={({ field: { onChange, value } }) => (
-                    <LocalizationProvider dateAdapter={AdapterDateFns}>
-                      <DateTimePicker
-                        value={value}
-                        onChange={(newValue) => {
-                          if (newValue) newValue.setSeconds(0, 0);
-                          onChange(newValue);
-                        }}
-                        label="End (Local Time)"
-                        ampm={useAMPM}
-                        slotProps={{ textField: { variant: "outlined" } }}
-                      />
-                    </LocalizationProvider>
-                  )}
-                  rules={{ validate: validateDates }}
-                  name="endDate"
-                  control={control}
-                  defaultValue={defaultEndDate}
-                />
-              </div>
-            </div>
-            <div className={classes.savedFiltering}>
-              <div className={classes.savedStatusSelect}>
-                <Typography variant="h6" className={classes.title}>
-                  Show candidates...
-                </Typography>
-                <Controller
+            <Box sx={column}>
+              <Section title="Saved status">
+                <FormTextField
+                  select
                   name="savedStatus"
                   control={control}
-                  {...({
-                    input: <Input data-testid="savedStatusSelect" />,
-                  } as any)}
-                  render={({ field: { onChange } }) => (
-                    <Select
-                      key={
-                        selectedScanningProfile?.savedStatus
-                          ? "notLoadedYet"
-                          : "loaded"
-                      }
-                      onChange={onChange}
-                      defaultValue={
-                        selectedScanningProfile?.savedStatus || "all"
-                      }
-                      data-testid="savedStatusSelect"
-                      style={{ minWidth: "100%" }}
-                    >
-                      {savedStatusSelectOptions?.map((option) => (
-                        <MenuItem key={option.value} value={option.value}>
-                          {option.label}
-                        </MenuItem>
-                      ))}
-                    </Select>
-                  )}
-                />
-              </div>
-              <div className={classes.rejectCandidatesSelect}>
-                <InputLabel id="rejectedCandidatesLabel">
-                  Hide Rejected
-                </InputLabel>
+                  data-testid="savedStatusSelect"
+                  fullWidth
+                >
+                  {savedStatusOptions.map((option) => (
+                    <MenuItem key={option.value} value={option.value}>
+                      {option.label}
+                    </MenuItem>
+                  ))}
+                </FormTextField>
                 <Controller
                   name="rejectedStatus"
                   control={control}
-                  defaultValue={
-                    selectedScanningProfile?.rejectedStatus || "show"
-                  }
                   render={({ field: { onChange, value } }) => (
-                    <Switch
+                    <SwitchField
+                      label="Hide rejected candidates"
                       checked={value === "hide"}
                       onChange={(event) =>
                         onChange(event.target.checked ? "hide" : "show")
                       }
                       data-testid="rejectedStatusSelect"
-                      slotProps={{
-                        input: { "aria-label": "controlled" },
-                      }}
                     />
                   )}
                 />
-              </div>
-            </div>
-            <div
-              className={classes.formRow}
-              style={{
-                marginTop: 0,
-                marginBottom: 0,
-                paddingTop: "1rem",
-                display: "flex",
-                flexDirection: "column",
-                height: "100%",
-              }}
-            >
-              <div style={{ display: "flex", alignItems: "center" }}>
-                <Typography variant="h6" className={classes.title}>
-                  Program Selection
-                </Typography>
-                {/* we want an eye (show/hide) icon to quickly show/hide the groups that are not selected */}
-                <Tooltip title="Show/Hide unselected groups, useful to only see selected groups">
-                  <IconButton
-                    onClick={() => setShowAllGroups(!showAllGroups)}
-                    size="small"
-                    style={{ marginLeft: "0.25rem" }}
-                  >
-                    {showAllGroups ? <VisibilityIcon /> : <VisibilityOffIcon />}
-                  </IconButton>
-                </Tooltip>
-                {getValues().groupIDs?.length === 0 && (
-                  <FormValidationError message="Select at least one group." />
-                )}
-              </div>
-              <Paper
-                variant="outlined"
-                className={classes.simplePadding}
-                style={{ height: "100%" }}
-              >
-                <TextField
-                  label="Search"
-                  variant="outlined"
-                  style={{ minWidth: "100%", marginBottom: "0.5rem" }}
-                  size="small"
-                  onChange={(event) => setFilterGroupsInput(event.target.value)}
+              </Section>
+              <Section title="Classifications">
+                <Controller
+                  name="classifications"
+                  control={control}
+                  render={({ field: { onChange, value } }) => (
+                    <ClassificationSelect
+                      selectedClassifications={value}
+                      setSelectedClassifications={onChange}
+                      showShortcuts
+                    />
+                  )}
                 />
-                <div
-                  style={{
-                    height: "10rem",
-                    overflowY: "auto",
-                  }}
-                >
-                  <div className={classes.groupOptions}>
-                    {filterGroupOptions.map((group) => (
-                      // if the group.id is not in getValues().groupIDs, then we want to hide it
-                      <div
-                        key={group.id}
-                        style={{
-                          display:
-                            !showAllGroups &&
-                            !getValues().groupIDs.includes(group.id)
-                              ? "none"
-                              : "flex",
-                          alignItems: "center",
-                          justifyContent: "flex-start",
-                        }}
-                      >
-                        <Checkbox
-                          key={`filteringFormGroupCheckbox-${group.id}`}
-                          onChange={(event) => {
-                            const selectedGroupIDs = getValues().groupIDs;
-                            if (
-                              selectedGroupIDs.includes(group.id) &&
-                              !event.target.checked
-                            ) {
-                              const newSelectedGroupIDs =
-                                selectedGroupIDs.filter(
-                                  (id: any) => id !== group.id,
-                                );
-                              setFilterGroups(
-                                userAccessibleGroups.filter((g) =>
-                                  newSelectedGroupIDs.includes(g.id),
-                                ),
-                              );
-                              reset({
-                                ...getValues(),
-                                groupIDs: newSelectedGroupIDs,
-                              });
-                            } else if (
-                              !selectedGroupIDs.includes(group.id) &&
-                              event.target.checked
-                            ) {
-                              const newSelectedGroupIDs = [
-                                ...selectedGroupIDs,
-                                group.id,
-                              ];
-                              setFilterGroups(
-                                userAccessibleGroups.filter((g) =>
-                                  newSelectedGroupIDs.includes(g.id),
-                                ),
-                              );
-                              reset({
-                                ...getValues(),
-                                groupIDs: newSelectedGroupIDs,
-                              });
-                            }
-                          }}
-                          checked={getValues().groupIDs.includes(group.id)}
-                          data-testid={`filteringFormGroupCheckbox-${group.id}`}
-                          style={{
-                            margin: 0,
-                            padding: 0,
-                            marginRight: "0.2rem",
-                          }}
-                        />
-                        <Typography
-                          variant="body1"
-                          className={classes.body}
-                          key={`filteringFormGroupLabel-${group.id}`}
-                        >
-                          {group.name}
-                        </Typography>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </Paper>
-              <Typography
-                variant="h6"
-                className={classes.title}
-                style={{ marginTop: "0.5rem" }}
-              >
-                Filter(s)&nbsp;
-                <span style={{ fontWeight: "normal", fontSize: "0.8rem" }}>
-                  (optional — scan specific filters within the selected groups)
-                </span>
-              </Typography>
-              <Controller
-                name="filterIDs"
-                control={control}
-                defaultValue={[]}
-                render={({ field: { onChange, value } }) => (
-                  <SearchableSelect
-                    multiple
-                    options={availableFilters}
-                    disabled={availableFilters.length === 0}
-                    getOptionLabel={(option: any) => option?.name ?? ""}
-                    isOptionEqualToValue={(o: any, v: any) => o.id === v.id}
-                    value={availableFilters.filter((f: any) =>
-                      (value || []).includes(f.id),
+                {values.classifications?.length > 0 && (
+                  <Controller
+                    name="classificationsWith"
+                    control={control}
+                    render={({ field: { onChange, value } }) => (
+                      <SwitchField
+                        label={`${value ? "With" : "Without"} these classifications`}
+                        checked={value}
+                        onChange={(event) => onChange(event.target.checked)}
+                      />
                     )}
-                    onChange={(_event, newValue: any) =>
-                      onChange(newValue.map((f: any) => f.id))
-                    }
-                    placeholder={
-                      availableFilters.length === 0
-                        ? "Select group(s) first"
-                        : "All filters in selected group(s)"
-                    }
-                    textFieldProps={{ "data-testid": "scanFilterSelect" }}
                   />
                 )}
-              />
-            </div>
-          </Paper>
-        </Grid>
-        <Grid size={{ xs: 12, lg: 6 }}>
-          <Paper variant="outlined" className={classes.simplePadding}>
-            <div className={classes.savedFiltering} style={{ marginTop: 0 }}>
-              <div className={classes.savedStatusSelect}>
-                <Typography
-                  variant="h6"
-                  className={classes.title}
-                  style={{ marginBottom: "0.5rem" }}
-                >
-                  Classification(s)
-                </Typography>
-                <ClassificationSelect
-                  selectedClassifications={selectedClassifications}
-                  setSelectedClassifications={setSelectedClassifications}
-                  showShortcuts
-                />
-              </div>
-              <div className={classes.rejectCandidatesSelect}>
-                <Switch
-                  checked={classificationsWith}
-                  onChange={(event) =>
-                    setClassificationsWith(event.target.checked)
+              </Section>
+              <Section title="Redshift">
+                <Box sx={twoColumns}>
+                  {[
+                    ["redshiftMinimum", "minimum-redshift", "Minimum"],
+                    ["redshiftMaximum", "maximum-redshift", "Maximum"],
+                  ].map(([name, id, label]) => (
+                    <FormTextField
+                      key={name}
+                      name={name as string}
+                      control={control}
+                      id={id}
+                      label={label}
+                      type="number"
+                      slotProps={{
+                        htmlInput: { step: 0.001 },
+                        inputLabel: { shrink: true },
+                      }}
+                    />
+                  ))}
+                </Box>
+              </Section>
+            </Box>
+            <Box sx={column}>
+              <Section title="GCN event">
+                <SearchableSelect
+                  id="gcn-event-filtering"
+                  label="Dateobs/Name"
+                  options={gcnEvents?.events || []}
+                  getOptionLabel={(option: any) =>
+                    `${option?.dateobs}${option?.aliases?.length > 0 ? ` (${option.aliases})` : ""}`
                   }
+                  onInputChange={(event, value) => {
+                    const typed =
+                      ["change", "clear"].includes(event?.type) && value;
+                    const cleared = event?.type === "click" && value === "";
+                    if (typed || cleared)
+                      setGcnEventsParams({ partialdateobs: value });
+                  }}
+                  value={gcnEvent}
+                  isOptionEqualToValue={(o: any, v: any) => o.id === v.id}
+                  onChange={(_event, newValue: any) => selectGcnEvent(newValue)}
                 />
-                <InputLabel>
-                  {`${
-                    classificationsWith ? "With" : "Without"
-                  } classification(s)`}
-                </InputLabel>
-              </div>
-            </div>
-            <div className={classes.formRow}>
-              <Typography variant="h6" className={classes.title}>
-                Redshift
-              </Typography>
-              <div className={classes.redshiftFiltering}>
-                <Controller
-                  render={({ field: { onChange, value } }) => (
-                    <TextField
-                      id="minimum-redshift"
-                      label="Minimum"
-                      type="number"
-                      margin="dense"
-                      style={{ minWidth: "100%" }}
-                      onChange={(event) => onChange(event.target.value)}
-                      value={value}
-                      slotProps={{
-                        htmlInput: { step: 0.001 },
-                        inputLabel: { shrink: true },
-                      }}
-                    />
-                  )}
-                  name="redshiftMinimum"
-                  control={control}
-                  defaultValue=""
-                />
-                <Controller
-                  render={({ field: { onChange, value } }) => (
-                    <TextField
-                      id="maximum-redshift"
-                      label="Maximum"
-                      type="number"
-                      margin="dense"
-                      style={{ minWidth: "100%" }}
-                      onChange={(event) => onChange(event.target.value)}
-                      value={value}
-                      slotProps={{
-                        htmlInput: { step: 0.001 },
-                        inputLabel: { shrink: true },
-                      }}
-                    />
-                  )}
-                  name="redshiftMaximum"
-                  control={control}
-                  defaultValue=""
-                />
-              </div>
-            </div>
-            <div className={classes.formRow} style={{ marginBottom: 0 }}>
-              <Typography variant="h6" className={classes.title}>
-                GCN Events
-              </Typography>
-              <div className={classes.gcnGrid}>
-                <Controller
-                  render={() => (
-                    <SearchableSelect
-                      id="gcn-event-filtering"
-                      label="Dateobs/Name"
-                      options={gcnEvents?.events || []}
-                      getOptionLabel={(option: any) =>
-                        `${option?.dateobs}${
-                          option?.aliases?.length > 0
-                            ? ` (${option?.aliases})`
-                            : ""
-                        }` || ""
-                      }
-                      className={classes.select}
-                      onInputChange={(event, value) => {
-                        if (
-                          ((event?.type === "change" ||
-                            event?.type === "clear") &&
-                            value !== null &&
-                            value !== "") ||
-                          (event?.type === "click" && value === "")
-                        ) {
-                          setGcnEventsParams({ partialdateobs: value });
-                        }
-                      }}
-                      onChange={(_event, newValue: any) => {
-                        if (newValue !== null) {
-                          reset({
-                            ...getValues(),
-                            gcneventid: newValue.id === -1 ? "" : newValue.id,
-                            localizationid:
-                              newValue.id === -1
-                                ? ""
-                                : gcnEventsLookUp[newValue.id]?.localizations[0]
-                                    ?.id || "",
-                          });
-                          setSelectedGcnEventId(newValue.id);
-                        } else {
-                          reset({
-                            ...getValues(),
-                            gcneventid: "",
-                            localizationid: "",
-                          });
-                          setSelectedGcnEventId("");
-                        }
-                      }}
-                    />
-                  )}
-                  name="gcneventid"
-                  control={control}
-                />
-                <Controller
-                  render={({ field: { onChange, value } }) => (
-                    <Select
-                      inputProps={{
-                        MenuProps: { disableScrollLock: true },
-                      }}
-                      labelId="localizationSelectLabel"
-                      value={value || ""}
-                      onChange={(event) => onChange(event.target.value)}
-                      className={classes.select}
-                      disabled={!selectedGcnEventId}
-                    >
-                      {gcnEventsLookUp[selectedGcnEventId]?.localizations?.map(
-                        (localization: any) => (
+                {gcnEvent && (
+                  <>
+                    <Box sx={twoColumns}>
+                      <FormTextField
+                        select
+                        name="localizationid"
+                        control={control}
+                        label="Localization"
+                      >
+                        {gcnEvent.localizations?.map((localization: any) => (
                           <MenuItem
                             value={localization.id}
                             key={localization.id}
-                            className={classes.selectItem}
                           >
-                            {`${localization.localization_name}`}
+                            {localization.localization_name}
                           </MenuItem>
-                        ),
-                      )}
-                    </Select>
-                  )}
-                  name="localizationid"
-                  control={control}
-                  defaultValue=""
-                />
-                <Controller
-                  render={({ field: { onChange } }) => (
-                    <TextField
-                      id="cumprob"
-                      label="Cumulative Probability"
-                      type="number"
-                      onChange={(event) => onChange(event.target.value)}
-                      defaultValue={0.95}
-                      slotProps={{
-                        htmlInput: { step: 0.01, min: 0, max: 1 },
-                      }}
-                    />
-                  )}
-                  name="localizationCumprob"
-                  control={control}
-                />
-                <Controller
-                  render={({ field: { onChange, value } }) => (
-                    <TextField
-                      id="maxSgscore"
-                      label="Max star score (sgscore)"
-                      type="number"
-                      value={value ?? ""}
-                      onChange={(event) => onChange(event.target.value)}
-                      slotProps={{ htmlInput: { step: 0.05, min: 0, max: 1 } }}
-                    />
-                  )}
-                  name="maxSgscore"
-                  control={control}
-                />
-                <Controller
-                  render={({ field: { onChange, value } }) => (
-                    <TextField
-                      id="maxCredibleLevel"
-                      label="Max credible level"
-                      type="number"
-                      value={value ?? ""}
-                      onChange={(event) => onChange(event.target.value)}
-                      slotProps={{ htmlInput: { step: 0.05, min: 0, max: 1 } }}
-                    />
-                  )}
-                  name="maxCredibleLevel"
-                  control={control}
-                />
-                <Controller
-                  render={({ field: { onChange, value } }) => (
-                    <TextField
-                      id="minDistpsnr"
-                      label="Min PS1 distance [arcsec]"
-                      type="number"
-                      value={value ?? ""}
-                      onChange={(event) => onChange(event.target.value)}
-                      slotProps={{ htmlInput: { step: 0.5, min: 0 } }}
-                    />
-                  )}
-                  name="minDistpsnr"
-                  control={control}
-                />
-                <Controller
-                  render={({ field: { onChange, value } }) => (
-                    <TextField
-                      id="minNdethist"
-                      label="Min detections in history"
-                      type="number"
-                      value={value ?? ""}
-                      onChange={(event) => onChange(event.target.value)}
-                      slotProps={{ htmlInput: { step: 1, min: 0 } }}
-                    />
-                  )}
-                  name="minNdethist"
-                  control={control}
-                />
-                <Controller
-                  render={({ field: { onChange, value } }) => (
-                    <TextField
-                      id="minAbsGalacticLatitude"
-                      label="Min |galactic latitude| [deg]"
-                      type="number"
-                      value={value ?? ""}
-                      onChange={(event) => onChange(event.target.value)}
-                      slotProps={{ htmlInput: { step: 1, min: 0, max: 90 } }}
-                    />
-                  )}
-                  name="minAbsGalacticLatitude"
-                  control={control}
-                />
-                <Controller
-                  render={({ field: { onChange, value } }) => (
-                    <TextField
-                      id="promptDeltaT"
-                      label="Always show within [days] of event"
-                      type="number"
-                      value={value ?? ""}
-                      onChange={(event) => onChange(event.target.value)}
-                      slotProps={{ htmlInput: { step: 0.5, min: 0 } }}
-                    />
-                  )}
-                  name="promptDeltaT"
-                  control={control}
-                />
-                <Controller
-                  render={({ field: { onChange, value } }) => (
-                    <TextField
-                      id="maxDeltaT"
-                      label="Max days since event"
-                      type="number"
-                      value={value ?? ""}
-                      onChange={(event) => onChange(event.target.value)}
-                      slotProps={{ htmlInput: { step: 0.5, min: 0 } }}
-                    />
-                  )}
-                  name="maxDeltaT"
-                  control={control}
-                />
-                <Controller
-                  render={({ field: { onChange, value } }) => (
-                    <TextField
-                      type="text"
-                      value={value || " "}
-                      onChange={(event) => onChange(event.target.value)}
-                      label="First Detection After (UTC)"
-                    />
-                  )}
-                  name="firstDetectionAfter"
-                  control={control}
-                />
-                <Controller
-                  render={({ field: { onChange, value } }) => (
-                    <TextField
-                      type="text"
-                      value={value || " "}
-                      onChange={(event) => onChange(event.target.value)}
-                      label="Last Detection Before (UTC)"
-                    />
-                  )}
-                  name="lastDetectionBefore"
-                  control={control}
-                />
-                <Controller
-                  render={({ field: { onChange } }) => (
-                    <TextField
-                      id="minNbDect"
-                      label="Minimum Number of Detections"
-                      type="number"
-                      onChange={(event) => onChange(event.target.value)}
-                      defaultValue={1}
-                      slotProps={{
-                        htmlInput: { step: 1, min: 1 },
-                      }}
-                    />
-                  )}
-                  name="numberDetections"
-                  control={control}
-                />
-              </div>
-              <Tooltip title="If unchecked, ignore all constraints on detections.">
-                <FormControlLabel
-                  control={
-                    <Controller
-                      render={({ field: { onChange, value } }) => (
-                        <Checkbox
-                          onChange={(event) => {
-                            onChange(event.target.checked);
-                          }}
-                          checked={value}
-                        />
-                      )}
-                      name="requireDetections"
-                      control={control}
-                      defaultValue
-                    />
-                  }
-                  label="Require detections"
-                />
-              </Tooltip>
-              <Tooltip title="If checked, do not account for forced photometry when applying detections constraints">
-                <FormControlLabel
-                  control={
-                    <Controller
-                      render={({ field: { onChange, value } }) => (
-                        <Checkbox
-                          onChange={(event) => {
-                            onChange(event.target.checked);
-                          }}
-                          checked={value}
-                        />
-                      )}
-                      name="excludeForcedPhotometry"
-                      control={control}
-                      defaultValue={false}
-                    />
-                  }
-                  label="Ignore Forced Photometry"
-                />
-              </Tooltip>
-            </div>
-            <div
-              className={classes.formRow}
-              style={{ marginTop: "0.5rem", marginBottom: 0 }}
-            >
-              <Typography variant="h6" className={classes.title}>
-                Annotation Filtering
-              </Typography>
-              {errors["filterOrigin"] && (
-                <FormValidationError message="Choose an origin and key, then either a value or both bounds" />
+                        ))}
+                      </FormTextField>
+                      <FormTextField
+                        name="localizationCumprob"
+                        control={control}
+                        id="cumprob"
+                        label="Cumulative Probability"
+                        type="number"
+                        slotProps={{
+                          htmlInput: { step: 0.01, min: 0, max: 1 },
+                        }}
+                      />
+                      <FormTextField
+                        name="firstDetectionAfter"
+                        control={control}
+                        label="First Detection After (UTC)"
+                        slotProps={{ inputLabel: { shrink: true } }}
+                      />
+                      <FormTextField
+                        name="lastDetectionBefore"
+                        control={control}
+                        label="Last Detection Before (UTC)"
+                        slotProps={{ inputLabel: { shrink: true } }}
+                      />
+                      <FormTextField
+                        name="numberDetections"
+                        control={control}
+                        id="minNbDect"
+                        label="Minimum Number of Detections"
+                        type="number"
+                        slotProps={{ htmlInput: { step: 1, min: 1 } }}
+                      />
+                    </Box>
+                    <Box>
+                      <FormCheckbox
+                        name="requireDetections"
+                        control={control}
+                        label="Require detections"
+                        tooltip="If unchecked, ignore all constraints on detections."
+                      />
+                      <FormCheckbox
+                        name="excludeForcedPhotometry"
+                        control={control}
+                        label="Ignore Forced Photometry"
+                        tooltip="If checked, do not account for forced photometry when applying detections constraints"
+                      />
+                    </Box>
+                  </>
+                )}
+              </Section>
+              {showCrossmatchCuts && (
+                <Section title="GCN crossmatch cuts">
+                  <Box sx={twoColumns}>
+                    {gcnNumberFields.map(({ name, label, ...htmlInput }) => (
+                      <FormTextField
+                        key={name}
+                        name={name}
+                        control={control}
+                        id={name}
+                        label={label}
+                        type="number"
+                        slotProps={{ htmlInput }}
+                      />
+                    ))}
+                  </Box>
+                </Section>
               )}
-              <div className={classes.annotationSorting}>
-                <div style={{ minWidth: "100%" }}>
+            </Box>
+            <Box sx={column}>
+              <Section
+                title="Annotation filtering"
+                error={
+                  Boolean(errors["filterOrigin"]) &&
+                  "Choose an origin and key, then either a value or both bounds"
+                }
+              >
+                <Box sx={twoColumns}>
                   <Controller
                     name="filterOrigin"
                     control={control}
-                    defaultValue={null}
+                    rules={{ validate: validateAnnotationFilter }}
                     render={({ field: { onChange, value } }) => (
                       <SearchableSelect
                         id="annotationFilteringOriginSelect"
                         label="Origin"
                         data-testid="annotationFilteringOriginSelect"
-                        options={Object.keys(availableAnnotationsInfo || [])}
+                        options={annotationOrigins}
                         filterOptions={(options, state) =>
                           filterAnnotationOrigins(options, state.inputValue)
                         }
-                        style={{ minWidth: "100%" }}
                         value={value}
-                        onChange={(_event, newValue) => {
-                          onChange(newValue);
-                          if (newValue === null) {
-                            reset({
-                              ...getValues(),
-                              filterOrigin: null,
-                              filterKey: null,
-                              filterValue: "",
-                              filterMin: "",
-                              filterMax: "",
-                            });
-                            setAnnotationFilteringKeyOptions([]);
-                          } else {
-                            setAnnotationFilteringKeyOptions(
-                              (availableAnnotationsInfo[newValue] || [])
-                                .map((annotation: any) =>
-                                  Object.keys(annotation || {}),
-                                )
-                                .flat(),
-                            );
-                          }
-                        }}
+                        onChange={(_event, origin) =>
+                          origin
+                            ? onChange(origin)
+                            : resetFields({
+                                filterOrigin: null,
+                                filterKey: null,
+                                filterValue: "",
+                                filterMin: "",
+                                filterMax: "",
+                              })
+                        }
                       />
                     )}
-                    rules={{ validate: validateAnnotationFilter }}
                   />
-                </div>
-                <div style={{ minWidth: "100%" }}>
                   <Controller
                     name="filterKey"
                     control={control}
-                    defaultValue={null}
                     render={({ field: { onChange, value } }) => (
                       <SearchableSelect
                         id="annotationFilteringKeySelect"
                         label="Key"
                         data-testid="annotationFilteringKeySelect"
-                        options={annotationFilteringKeyOptions}
-                        style={{ minWidth: "100%" }}
+                        options={annotationKeys(
+                          availableAnnotationsInfo,
+                          values.filterOrigin,
+                        )}
                         value={value}
-                        onChange={(_event, newValue) => onChange(newValue)}
+                        onChange={(_event, key) => onChange(key)}
                       />
                     )}
                   />
-                </div>
-                <div style={{ minWidth: "100%" }}>
-                  <Controller
-                    name="filterValue"
-                    control={control}
-                    render={({ field: { onChange, value } }) => (
-                      <Tooltip title="Exact match. Use true or false for a boolean; leave blank to filter on a numeric range instead.">
-                        <TextField
-                          id="annotationFilteringValue"
-                          label="Value"
-                          type="text"
-                          value={value ?? ""}
-                          onChange={(event) => onChange(event.target.value)}
-                          style={{ minWidth: "100%" }}
-                        />
-                      </Tooltip>
-                    )}
-                  />
-                </div>
-                <div
-                  style={{ display: "flex", gap: "0.5rem", minWidth: "100%" }}
-                >
-                  <Controller
+                </Box>
+                <Tooltip title="Exact match. Use true or false for a boolean; leave blank to filter on a numeric range instead.">
+                  <Box>
+                    <FormTextField
+                      name="filterValue"
+                      control={control}
+                      id="annotationFilteringValue"
+                      label="Value"
+                      fullWidth
+                    />
+                  </Box>
+                </Tooltip>
+                <Box sx={twoColumns}>
+                  <FormTextField
                     name="filterMin"
                     control={control}
-                    render={({ field: { onChange, value } }) => (
-                      <TextField
-                        id="annotationFilteringMin"
-                        label="Min"
-                        type="number"
-                        value={value ?? ""}
-                        onChange={(event) => onChange(event.target.value)}
-                      />
-                    )}
+                    id="annotationFilteringMin"
+                    label="Min"
+                    type="number"
                   />
-                  <Controller
+                  <FormTextField
                     name="filterMax"
                     control={control}
-                    render={({ field: { onChange, value } }) => (
-                      <TextField
-                        id="annotationFilteringMax"
-                        label="Max"
-                        type="number"
-                        value={value ?? ""}
-                        onChange={(event) => onChange(event.target.value)}
-                      />
-                    )}
+                    id="annotationFilteringMax"
+                    label="Max"
+                    type="number"
                   />
-                </div>
-              </div>
-            </div>
-            <div
-              className={classes.formRow}
-              style={{ marginTop: "0.5rem", marginBottom: 0 }}
-            >
-              <Typography variant="h6" className={classes.title}>
-                Annotation Sorting
-              </Typography>
-              {errors["sortingOrigin"] && (
-                <FormValidationError message="All sorting fields must be left empty or all filled out" />
-              )}
-              <div className={classes.annotationSorting}>
-                <div style={{ minWidth: "100%" }}>
+                </Box>
+              </Section>
+              <Section
+                title="Annotation sorting"
+                error={
+                  Boolean(errors["sortingOrigin"]) &&
+                  "All sorting fields must be left empty or all filled out"
+                }
+              >
+                <Box sx={twoColumns}>
                   <Controller
                     name="sortingOrigin"
                     control={control}
-                    defaultValue={
-                      selectedScanningProfile?.sortingOrigin || null
-                    }
+                    rules={{ validate: validateSorting }}
                     render={({ field: { onChange, value } }) => (
                       <SearchableSelect
                         id="annotationSortingOriginSelect"
                         label="Origin"
                         data-testid="annotationSortingOriginSelect"
-                        options={Object.keys(availableAnnotationsInfo || [])}
+                        options={annotationOrigins}
                         filterOptions={(options, state) =>
                           filterAnnotationOrigins(options, state.inputValue)
                         }
-                        style={{ minWidth: "100%" }}
                         value={value}
-                        onChange={(_event, newValue) => {
-                          if (newValue === null) {
-                            reset({
-                              ...getValues(),
-                              sortingOrigin: newValue,
-                              sortingKey: null,
-                              sortingOrder: null,
-                            });
-                            setAnnotationSortingKeyOptions([]);
-                          } else {
-                            onChange(newValue);
-                            const newOptions = (
-                              availableAnnotationsInfo[newValue] || []
-                            )
-                              .map((annotation: any) =>
-                                Object.keys(annotation || {}),
-                              )
-                              .flat();
-                            setAnnotationSortingKeyOptions(newOptions);
-                          }
-                        }}
+                        onChange={(_event, origin) =>
+                          origin
+                            ? onChange(origin)
+                            : resetFields({
+                                sortingOrigin: null,
+                                sortingKey: null,
+                                sortingOrder: null,
+                              })
+                        }
                       />
                     )}
-                    rules={{ validate: validateSorting }}
                   />
-                </div>
-                <div style={{ minWidth: "100%" }}>
                   <Controller
                     name="sortingKey"
                     control={control}
-                    defaultValue={selectedScanningProfile?.sortingKey || null}
+                    rules={{ validate: validateSorting }}
                     render={({ field: { onChange, value } }) => (
                       <SearchableSelect
                         id="annotationSortingKeySelect"
                         label="Key"
                         data-testid="annotationSortingKeySelect"
-                        options={annotationSortingKeyOptions}
-                        style={{ minWidth: "100%" }}
+                        options={annotationKeys(
+                          availableAnnotationsInfo,
+                          values.sortingOrigin,
+                        )}
                         value={value}
-                        onChange={(_event, newValue) => {
-                          if (newValue === null) {
-                            reset({
-                              ...getValues(),
-                              sortingKey: newValue,
+                        onChange={(_event, key) => {
+                          if (key === null)
+                            resetFields({
+                              sortingKey: null,
                               sortingOrder: null,
                             });
-                          } else if (getValues().sortingOrder === null) {
-                            reset({
-                              ...getValues(),
-                              sortingKey: newValue,
+                          else if (getValues("sortingOrder") === null)
+                            resetFields({
+                              sortingKey: key,
                               sortingOrder: "asc",
                             });
-                          } else {
-                            onChange(newValue);
-                          }
+                          else onChange(key);
                         }}
                       />
                     )}
-                    rules={{ validate: validateSorting }}
                   />
-                </div>
-                <div style={{ minWidth: "100%" }}>
                   <Controller
                     name="sortingOrder"
                     control={control}
-                    defaultValue={
-                      selectedScanningProfile?.sortingOrder || "asc"
-                    }
                     render={({ field: { onChange, value } }) => (
                       <SearchableSelect
                         id="annotationSortingOrderSelect"
                         label="Order"
                         data-testid="annotationSortingOrderSelect"
                         options={["asc", "desc"]}
-                        style={{ minWidth: "100%" }}
                         value={value}
-                        getOptionLabel={(option) => {
-                          if (option === "asc") {
-                            return "Ascending";
-                          }
-                          if (option === "desc") {
-                            return "Descending";
-                          }
-                          return "None";
-                        }}
-                        onChange={(_event, newValue) => {
-                          onChange(newValue);
-                        }}
+                        getOptionLabel={(option) =>
+                          sortingOrderLabels[option] ?? "None"
+                        }
+                        onChange={(_event, order) => onChange(order)}
                       />
                     )}
                   />
-                </div>
-              </div>
-            </div>
-          </Paper>
-        </Grid>
-      </Grid>
-    </form>
+                </Box>
+              </Section>
+            </Box>
+          </Box>
+          <Box sx={{ display: "flex", justifyContent: "flex-end", mt: 1 }}>
+            <Tooltip title="Reset all filters and search parameters to default (or selected profile)">
+              <Button onClick={resetForm} endIcon={<RestartAltIcon />}>
+                Reset
+              </Button>
+            </Tooltip>
+          </Box>
+        </Collapse>
+      </Paper>
+      {(errors["startDate"] || errors["endDate"]) && (
+        <FormValidationError message="Invalid date range." />
+      )}
+    </>
   );
 };
 

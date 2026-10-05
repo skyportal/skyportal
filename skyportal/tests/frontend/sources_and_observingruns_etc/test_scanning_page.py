@@ -11,6 +11,32 @@ from skyportal.tests import api, expect_vega_plot
 from ....utils.naive_datetime import utcnow_naive
 
 
+def select_scan_group(page, group_id):
+    page.locator("//*[@data-testid='scanGroupSelect']//input").first.click()
+    page.locator(
+        f'//*[@data-testid="filteringFormGroupCheckbox-{group_id}"]'
+    ).first.click()
+    page.keyboard.press("Escape")
+
+
+def select_profile_group(page, group_id):
+    page.locator("//*[@data-testid='profileGroupSelect']//input").first.click()
+    page.locator(
+        f'//*[@data-testid="profileFilteringFormGroupCheckbox-{group_id}"]'
+    ).first.click()
+    page.keyboard.press("Escape")
+
+
+def open_scan_filters(page):
+    button = page.locator("//button[@data-testid='scanFiltersButton']").first
+    if button.get_attribute("aria-expanded") != "true":
+        button.click()
+
+
+def search_candidates(page):
+    page.locator('//button[text()="Search"]').first.click()
+
+
 @pytest.mark.flaky(reruns=2)
 def test_candidate_pagination_replaces_page(
     page,
@@ -44,10 +70,8 @@ def test_candidate_pagination_replaces_page(
 
     page.goto(f"/become_user/{user.id}")
     page.goto("/candidates")
-    page.locator(
-        f'//*[@data-testid="filteringFormGroupCheckbox-{public_group.id}"]'
-    ).first.click()
-    page.locator('//button[text()="Search"]').first.click()
+    select_scan_group(page, public_group.id)
+    search_candidates(page)
 
     expect(
         page.locator('//*[contains(., "Found 51 candidates.")]').first
@@ -70,6 +94,7 @@ def test_candidate_group_filtering(
     public_candidate,
     public_filter,
     public_group,
+    public_filter2,
     upload_data_token,
     super_admin_token,
 ):
@@ -93,33 +118,27 @@ def test_candidate_group_filtering(
         )
         assert status == 200
 
-    status, data = api(
+    new_group_id = public_filter2.group_id
+    status, _ = api(
         "POST",
-        "groups",
-        data={"name": str(uuid.uuid4()), "group_admins": [user.id]},
+        f"groups/{new_group_id}/users",
+        data={"userID": user.id, "admin": False},
         token=super_admin_token,
     )
-    new_group_id = data["data"]["id"]
     assert status == 200
 
     page.goto(f"/become_user/{user.id}")
     page.goto("/candidates")
-    group_checkbox = page.locator(
-        f'//*[@data-testid="filteringFormGroupCheckbox-{public_group.id}"]'
-    ).first
-    group_checkbox.click()
-    submit_button = page.locator('//button[text()="Search"]').first
-    submit_button.click()
+    select_scan_group(page, public_group.id)
+    search_candidates(page)
 
     expect(
         page.locator('//*[contains(., "Found 6 candidates.")]').first
     ).to_be_visible()
 
-    group_checkbox.click()
-    page.locator(
-        f'//*[@data-testid="filteringFormGroupCheckbox-{new_group_id}"]'
-    ).first.click()
-    submit_button.click()
+    select_scan_group(page, public_group.id)
+    select_scan_group(page, new_group_id)
+    search_candidates(page)
 
     expect(
         page.locator('//*[contains(., "Found 0 candidates.")]').first
@@ -178,12 +197,9 @@ def test_candidate_filter_selection(
 
     page.goto(f"/become_user/{user.id}")
     page.goto("/candidates")
-    page.locator(
-        f'//*[@data-testid="filteringFormGroupCheckbox-{public_group.id}"]'
-    ).first.click()
+    select_scan_group(page, public_group.id)
 
-    submit_button = page.locator('//button[text()="Search"]').first
-    submit_button.click()
+    search_candidates(page)
 
     # Scanning the whole group shows both filters' candidates (3 + 2).
     expect(
@@ -197,7 +213,7 @@ def test_candidate_filter_selection(
     filter_input.click()
     filter_input.fill(filter2_name)
     page.get_by_role("option", name=filter2_name).first.click()
-    submit_button.click()
+    search_candidates(page)
 
     expect(
         page.locator('//*[contains(., "Found 2 candidates.")]').first
@@ -252,20 +268,20 @@ def test_candidate_saved_status_filtering(
 
     page.goto(f"/become_user/{user.id}")
     page.goto("/candidates")
-    page.locator(
-        f'//*[@data-testid="filteringFormGroupCheckbox-{public_group.id}"]'
-    ).first.click()
+    select_scan_group(page, public_group.id)
+    open_scan_filters(page)
     page.locator("//*[@data-testid='savedStatusSelect']").first.click()
     page.locator("//li[@data-value='notSavedToAnyAccessible']").first.click()
-    page.locator('//button[text()="Search"]').first.click()
+    search_candidates(page)
 
     expect(
         page.locator('//*[contains(., "Found 1 candidates.")]').first
     ).to_be_visible()
 
+    open_scan_filters(page)
     page.locator("//*[@data-testid='savedStatusSelect']").first.click()
     page.locator("//li[@data-value='savedToAnyAccessible']").first.click()
-    page.locator('//button[text()="Search"]').first.click()
+    search_candidates(page)
 
     expect(
         page.locator('//*[contains(., "Found 5 candidates.")]').first
@@ -278,10 +294,8 @@ def test_save_candidate_quick_save(
 ):
     page.goto(f"/become_user/{group_admin_user.id}")
     page.goto("/candidates")
-    page.locator(
-        f'//*[@data-testid="filteringFormGroupCheckbox-{public_group.id}"]'
-    ).first.click()
-    page.locator('//button[text()="Search"]').first.click()
+    select_scan_group(page, public_group.id)
+    search_candidates(page)
     expect(
         page.locator(f'//a[@data-testid="{public_candidate.id}"]').first
     ).to_be_visible()
@@ -289,10 +303,8 @@ def test_save_candidate_quick_save(
         f'//button[@name="initialSaveCandidateButton{public_candidate.id}"]'
     ).first.click()
     page.goto("/candidates")
-    page.locator(
-        f'//*[@data-testid="filteringFormGroupCheckbox-{public_group.id}"]'
-    ).first.click()
-    page.locator('//button[text()="Search"]').first.click()
+    select_scan_group(page, public_group.id)
+    search_candidates(page)
     expect(
         page.locator(f'//a[@data-testid="{public_candidate.id}"]').first
     ).to_be_visible()
@@ -315,19 +327,17 @@ def wait_for_posted_comment(obj_id, comment_text, token, timeout=30):
         time.sleep(1)
 
 
-def open_candidate_comment_panel(page, public_group, public_candidate):
-    """Search the candidate out and open its chat, from a freshly loaded page."""
-    page.locator(
-        f'//*[@data-testid="filteringFormGroupCheckbox-{public_group.id}"]'
-    ).first.click()
-    page.locator('//button[text()="Search"]').first.click()
+def open_candidate_comments(page, public_group, public_candidate):
+    """Search the candidate out and open its comments tab, from a freshly loaded page."""
+    select_scan_group(page, public_group.id)
+    search_candidates(page)
 
-    comment_button = page.locator(
-        f'//*[@data-testid="comment-candidate-{public_candidate.id}"]'
+    comments_tab = page.locator(
+        f'//*[@data-testid="comments-tab-{public_candidate.id}"]'
     ).first
-    expect(comment_button).to_be_visible()
-    comment_button.click()
-    expect(page.locator('//*[@data-testid="source-chat"]').first).to_be_visible()
+    expect(comments_tab).to_be_visible()
+    comments_tab.click()
+    expect(page.locator('//form[@data-testid="comment-form"]').first).to_be_visible()
 
 
 def expect_scanning_comment(page, comment_text):
@@ -339,12 +349,12 @@ def expect_scanning_comment(page, comment_text):
 
 
 @pytest.mark.flaky(reruns=2)
-def test_comment_from_candidate_opens_scanning_panel(
+def test_comment_from_candidate_tab(
     page, group_admin_user, public_group, public_candidate, comment_token
 ):
     page.goto(f"/become_user/{group_admin_user.id}")
     page.goto("/candidates")
-    open_candidate_comment_panel(page, public_group, public_candidate)
+    open_candidate_comments(page, public_group, public_candidate)
 
     comment_text = str(uuid.uuid4())
     comment_box = page.locator(
@@ -369,7 +379,7 @@ def test_comment_from_candidate_opens_scanning_panel(
     except AssertionError:
         # Comments occasionally fail to render on first paint under CI load.
         page.goto("/candidates")
-        open_candidate_comment_panel(page, public_group, public_candidate)
+        open_candidate_comments(page, public_group, public_candidate)
         expect_scanning_comment(page, comment_text)
 
 
@@ -379,10 +389,8 @@ def test_save_candidate_select_groups(
 ):
     page.goto(f"/become_user/{group_admin_user.id}")
     page.goto("/candidates")
-    page.locator(
-        f'//*[@data-testid="filteringFormGroupCheckbox-{public_group.id}"]'
-    ).first.click()
-    page.locator('//button[text()="Search"]').first.click()
+    select_scan_group(page, public_group.id)
+    search_candidates(page)
     expect(
         page.locator(f'//a[@data-testid="{public_candidate.id}"]').first
     ).to_be_visible()
@@ -405,10 +413,8 @@ def test_save_candidate_select_groups(
         f'//button[@name="finalSaveCandidateButton{public_candidate.id}"]'
     ).first.click()
     page.goto("/candidates")
-    page.locator(
-        f'//*[@data-testid="filteringFormGroupCheckbox-{public_group.id}"]'
-    ).first.click()
-    page.locator('//button[text()="Search"]').first.click()
+    select_scan_group(page, public_group.id)
+    search_candidates(page)
     expect(page.locator('//span[text()="Previously Saved"]').first).to_be_visible()
 
 
@@ -418,10 +424,8 @@ def test_save_candidate_no_groups_error_message(
 ):
     page.goto(f"/become_user/{group_admin_user.id}")
     page.goto("/candidates")
-    page.locator(
-        f'//*[@data-testid="filteringFormGroupCheckbox-{public_group.id}"]'
-    ).first.click()
-    page.locator('//button[text()="Search"]').first.click()
+    select_scan_group(page, public_group.id)
+    search_candidates(page)
     expect(
         page.locator(f'//a[@data-testid="{public_candidate.id}"]').first
     ).to_be_visible()
@@ -486,10 +490,9 @@ def test_submit_annotations_sorting(
 
     page.goto(f"/become_user/{view_only_user.id}")
     page.goto("/candidates")
-    page.locator(
-        f'//*[@data-testid="filteringFormGroupCheckbox-{public_group.id}"]'
-    ).first.click()
+    select_scan_group(page, public_group.id)
 
+    open_scan_filters(page)
     page.locator('//input[@id="annotationSortingOriginSelect"]').first.click()
     page.locator(f'//li[text()="{origin}"]').first.click()
     page.locator('//input[@id="annotationSortingKeySelect"]').first.click()
@@ -497,7 +500,7 @@ def test_submit_annotations_sorting(
     page.locator('//input[@id="annotationSortingOrderSelect"]').first.click()
     page.locator('//li[text()="Ascending"]').first.click()
 
-    page.locator('//button[text()="Search"]').first.click()
+    search_candidates(page)
     expect(
         page.locator(f'//a[@data-testid="{public_candidate.id}"]').first
     ).to_be_visible()
@@ -591,21 +594,21 @@ def test_candidate_classifications_filtering(
 
     page.goto(f"/become_user/{user.id}")
     page.goto("/candidates")
-    page.locator(
-        f'//*[@data-testid="filteringFormGroupCheckbox-{public_group.id}"]'
-    ).first.click()
+    select_scan_group(page, public_group.id)
+    open_scan_filters(page)
     page.locator("//div[@id='classifications-select']").first.click()
     page.locator("//li[@data-value='Algol']").first.click()
     page.keyboard.press("Escape")
 
-    page.locator('//button[text()="Search"]').first.click()
+    search_candidates(page)
     expect(page.locator(f'//a[@data-testid="{candidate_id}"]').first).to_be_visible()
 
+    open_scan_filters(page)
     page.locator("//div[@id='classifications-select']").first.click()
     page.locator("//li[@data-value='Algol']").first.click()
     page.locator("//li[@data-value='AGN']").first.click()
     page.keyboard.press("Escape")
-    page.locator('//button[text()="Search"]').first.click()
+    search_candidates(page)
     expect(page.locator(f'//a[@data-testid="{candidate_id}"]').first).to_be_hidden()
 
 
@@ -634,6 +637,7 @@ def test_candidate_classifications_filter_searchable(
 
     page.goto(f"/become_user/{user.id}")
     page.goto("/candidates")
+    open_scan_filters(page)
     page.locator("//div[@id='classifications-select']").first.click()
     # Both options present before searching.
     expect(page.locator("//li[@data-value='Algol']").first).to_be_visible()
@@ -672,10 +676,8 @@ def test_candidate_annotations_search(
 
     page.goto(f"/become_user/{view_only_user.id}")
     page.goto("/candidates")
-    page.locator(
-        f'//*[@data-testid="filteringFormGroupCheckbox-{public_group.id}"]'
-    ).first.click()
-    page.locator('//button[text()="Search"]').first.click()
+    select_scan_group(page, public_group.id)
+    search_candidates(page)
     expect(
         page.locator(f'//a[@data-testid="{public_candidate.id}"]').first
     ).to_be_visible()
@@ -736,12 +738,11 @@ def test_candidate_redshift_filtering(
 
     page.goto(f"/become_user/{user.id}")
     page.goto("/candidates")
-    page.locator(
-        f'//*[@data-testid="filteringFormGroupCheckbox-{public_group.id}"]'
-    ).first.click()
+    select_scan_group(page, public_group.id)
+    open_scan_filters(page)
     page.locator("//input[@id='minimum-redshift']").first.fill("0")
     page.locator("//input[@id='maximum-redshift']").first.fill("0.5")
-    page.locator('//button[text()="Search"]').first.click()
+    search_candidates(page)
     expect(page.locator(f'//a[@data-testid="{obj_id1}"]').first).to_be_visible()
     expect(page.locator(f'//a[@data-testid="{obj_id2}"]').first).to_be_hidden()
 
@@ -774,19 +775,18 @@ def test_candidate_rejection_filtering(
 
     page.goto(f"/become_user/{user.id}")
     page.goto("/candidates")
-    page.locator(
-        f'//*[@data-testid="filteringFormGroupCheckbox-{public_group.id}"]'
-    ).first.click()
-    page.locator('//button[text()="Search"]').first.click()
+    select_scan_group(page, public_group.id)
+    search_candidates(page)
 
     page.locator(f'//*[@data-testid="rejected-visible_{candidate_id}"]').first.click()
-    page.locator('//button[text()="Search"]').first.click()
+    search_candidates(page)
     expect(
         page.locator(f'//*[@data-testid="rejected_invisible_{candidate_id}"]').first
     ).to_be_visible()
 
+    open_scan_filters(page)
     page.locator('//*[@data-testid="rejectedStatusSelect"]').first.click()
-    page.locator('//button[text()="Search"]').first.click()
+    search_candidates(page)
     expect(
         page.locator('//*[contains(., "Found 0 candidates.")]').first
     ).to_be_visible()
@@ -852,9 +852,7 @@ def test_candidate_date_filtering(
 
     page.goto(f"/become_user/{user.id}")
     page.goto("/candidates")
-    page.locator(
-        f'//*[@data-testid="filteringFormGroupCheckbox-{public_group2.id}"]'
-    ).first.click()
+    select_scan_group(page, public_group2.id)
     # x-date-pickers v9 renders an accessible sectioned field (role="group",
     # named by its label); the value <input> is now aria-hidden, so target the
     # section group and type the digits into it.
@@ -870,7 +868,7 @@ def test_candidate_date_filtering(
     start_date_input.press_sequentially(minus_2.strftime("%m%d%Y%I%M%p"))
     end_date_input.click(position={"x": 8, "y": 10})
     end_date_input.press_sequentially(minus_1.strftime("%m%d%Y%I%M%p"))
-    page.locator('//button[text()="Search"]').first.click()
+    search_candidates(page)
     expect(page.locator('//*[contains(., "Found 0 candidates")]').first).to_be_visible()
 
     # Scan between [now] and [now + 1 minute]
@@ -878,7 +876,7 @@ def test_candidate_date_filtering(
     start_date_input.press_sequentially(now.strftime("%m%d%Y%I%M%p"))
     end_date_input.click(position={"x": 8, "y": 10})
     end_date_input.press_sequentially(plus_1.strftime("%m%d%Y%I%M%p"))
-    page.locator('//button[text()="Search"]').first.click()
+    search_candidates(page)
     expect(page.locator('//*[contains(., "Found 0 candidates")]').first).to_be_hidden()
     expect(page.locator('//*[contains(., "Found 5 candidates")]').first).to_be_visible()
 
@@ -944,10 +942,8 @@ def test_candidate_lightcurve_renders(
 
     page.goto(f"/become_user/{user.id}")
     page.goto("/candidates")
-    page.locator(
-        f'//*[@data-testid="filteringFormGroupCheckbox-{public_group2.id}"]'
-    ).first.click()
-    page.locator('//button[text()="Search"]').first.click()
+    select_scan_group(page, public_group2.id)
+    search_candidates(page)
     expect(page.locator(f'//a[@data-testid="{candidate_id}"]').first).to_be_visible()
 
     # Vega renders the lightcurve into a .vega-embed svg; it never appears if Vega
@@ -957,7 +953,7 @@ def test_candidate_lightcurve_renders(
 
 
 def test_add_scanning_profile(
-    page, user, public_group, public_source, annotation_token
+    page, user, public_group, public_filter, public_source, annotation_token
 ):
     status, _ = api(
         "POST",
@@ -982,10 +978,8 @@ def test_add_scanning_profile(
     page.locator('//div[@data-testid="profile-name"]//input').first.fill("profile1")
     page.locator('//div[@data-testid="timeRange"]//input').first.fill("48")
 
-    page.locator(
-        '//div[@role="combobox" and (@aria-labelledby="savedStatusSelectLabel" or @id="savedStatusSelectLabel")]'
-    ).first.click()
-    saved_status_option = "and is saved to at least one group I have access to"
+    page.locator("//*[@data-testid='profileSavedStatusSelect']").first.click()
+    saved_status_option = "saved to at least one group I have access to"
     page.locator(f'//li[text()="{saved_status_option}"]').first.click()
 
     page.locator('//div[@data-testid="profile-minimum-redshift"]//input').first.fill(
@@ -994,7 +988,6 @@ def test_add_scanning_profile(
     page.locator('//div[@data-testid="profile-maximum-redshift"]//input').first.fill(
         "1.0"
     )
-    page.locator('//div[@data-testid="annotation-sorting-accordion"]').first.click()
     # Origin and key are searchable selects. Type rather than click: the
     # dropdown arrow covers the middle of the input in this dialog and swallows
     # the click, and typing is what the field is there for.
@@ -1011,32 +1004,31 @@ def test_add_scanning_profile(
     ).first.click()
     page.locator('//li[text()="Descending"]').first.click()
 
-    page.locator(
-        f'//span[@data-testid="profileFilteringFormGroupCheckbox-{public_group.id}"]'
-    ).first.click()
+    select_profile_group(page, public_group.id)
 
     page.locator('//button[@data-testid="saveScanningProfileButton"]').first.click()
-    expect(page.locator(f'//div[text()="{saved_status_option}"]').first).to_be_visible()
+    expect(
+        page.locator('//div[@data-field="savedStatus"]', has_text=saved_status_option)
+    ).to_be_visible()
 
     page.locator('//button[@data-testid="closeScanningProfilesButton"]').first.click()
+    open_scan_filters(page)
     expect(
         page.locator('//input[@id="minimum-redshift"][@value="0.0"]').first
     ).to_be_visible()
     expect(
         page.locator('//input[@id="maximum-redshift"][@value="1.0"]').first
     ).to_be_visible()
-    expect(
-        page.locator(
-            f'//span[@data-testid="filteringFormGroupCheckbox-{public_group.id}"]'
-        ).first
-    ).to_be_visible()
+    expect(page.locator("//*[@data-testid='scanGroupSelect']").first).to_contain_text(
+        public_group.name
+    )
     expect(
         page.locator('//input[@value="offset_from_host_galaxy"]').first
     ).to_be_visible()
     expect(page.locator('//input[@value="Descending"]').first).to_be_visible()
 
 
-def test_delete_scanning_profile(page, user, public_group):
+def test_delete_scanning_profile(page, user, public_group, public_filter):
     page.goto(f"/become_user/{user.id}")
     page.goto("/candidates")
     page.locator('//button[@data-testid="manageScanningProfilesButton"]').first.click()
@@ -1046,12 +1038,10 @@ def test_delete_scanning_profile(page, user, public_group):
     page.locator('//div[@data-testid="profile-name"]//input').first.fill("profile1")
     page.locator('//div[@data-testid="timeRange"]//input').first.fill("123")
 
-    page.locator(
-        f'//span[@data-testid="profileFilteringFormGroupCheckbox-{public_group.id}"]'
-    ).first.click()
+    select_profile_group(page, public_group.id)
 
     page.locator('//button[@data-testid="saveScanningProfileButton"]').first.click()
-    expect(page.locator('//div[text()="123hrs"]').first).to_be_visible()
+    expect(page.locator('//div[text()="123h"]').first).to_be_visible()
 
     page.locator(".MuiDataGrid-virtualScroller").first.evaluate(
         "el => el.scrollTo({ left: el.scrollWidth })"
@@ -1059,12 +1049,12 @@ def test_delete_scanning_profile(page, user, public_group):
     page.locator(
         '//div[@data-field="manage"]//button[contains(@class, "MuiIconButton-colorError")]'
     ).first.click()
-    expect(page.locator('//div[text()="123hrs"]').first).to_be_hidden()
+    expect(page.locator('//div[text()="123h"]').first).to_be_hidden()
 
 
 @pytest.mark.flaky(reruns=2)
 def test_load_scanning_profile(
-    page, user, public_group, public_source, annotation_token
+    page, user, public_group, public_filter, public_source, annotation_token
 ):
     page.goto(f"/become_user/{user.id}")
     page.goto("/candidates")
@@ -1077,9 +1067,7 @@ def test_load_scanning_profile(
         "0.5"
     )
     page.locator('//div[@data-testid="profile-name"]//input').first.fill("profile1")
-    page.locator(
-        f'//span[@data-testid="profileFilteringFormGroupCheckbox-{public_group.id}"]'
-    ).first.click()
+    select_profile_group(page, public_group.id)
     page.locator('//button[@data-testid="saveScanningProfileButton"]').first.click()
     expect(page.locator('//div[contains(text(), "0.5")]').first).to_be_visible()
 
@@ -1089,15 +1077,14 @@ def test_load_scanning_profile(
         "1.0"
     )
     page.locator('//div[@data-testid="profile-name"]//input').first.fill("profile2")
-    page.locator(
-        f'//span[@data-testid="profileFilteringFormGroupCheckbox-{public_group.id}"]'
-    ).first.click()
+    select_profile_group(page, public_group.id)
     page.locator('//button[@data-testid="saveScanningProfileButton"]').first.click()
     expect(page.locator('//div[contains(text(), "1.0")]').first).to_be_visible()
 
-    page.locator('//span[@data-testid="loaded_0"]').first.click()
-
     page.locator('//button[@data-testid="closeScanningProfilesButton"]').first.click()
+    page.locator("//*[@data-testid='scanningProfileSelect']").first.click()
+    page.locator('//li[text()="profile1"]').first.click()
+    open_scan_filters(page)
     expect(
         page.locator('//input[@id="maximum-redshift"][@value="0.5"]').first
     ).to_be_visible()
@@ -1130,10 +1117,8 @@ def test_user_without_save_access_cannot_save(
 
     page.goto(f"/become_user/{user_group2.id}")
     page.goto("/candidates")
-    page.locator(
-        f'//*[@data-testid="filteringFormGroupCheckbox-{public_group.id}"]'
-    ).first.click()
-    page.locator('//button[text()="Search"]').first.click()
+    select_scan_group(page, public_group.id)
+    search_candidates(page)
     expect(
         page.locator(f'//a[@data-testid="{public_candidate.id}"]').first
     ).to_be_visible()
@@ -1171,19 +1156,15 @@ def test_add_classification_on_scanning_page(
     )
     assert status == 200
     page.goto("/candidates")
-    page.locator(
-        f'//*[@data-testid="filteringFormGroupCheckbox-{public_group.id}"]'
-    ).first.click()
-    page.locator('//button[text()="Search"]').first.click()
+    select_scan_group(page, public_group.id)
+    search_candidates(page)
     page.locator(
         f'//button[@data-testid="saveCandidateButton_{candidate_id}"]'
     ).first.click()
 
     page.goto("/candidates")
-    page.locator(
-        f'//*[@data-testid="filteringFormGroupCheckbox-{public_group.id}"]'
-    ).first.click()
-    page.locator('//button[text()="Search"]').first.click()
+    select_scan_group(page, public_group.id)
+    search_candidates(page)
 
     page.locator(
         f'//button[@data-testid="addClassificationsButton_{candidate_id}"]'
