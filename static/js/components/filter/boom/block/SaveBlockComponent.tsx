@@ -1,6 +1,6 @@
 import { useState } from "react";
-import { Button, Tooltip, Typography } from "@mui/material";
-import SaveIcon from "@mui/icons-material/Save";
+import { IconButton, Tooltip, Typography } from "@mui/material";
+import BookmarkAddIcon from "@mui/icons-material/BookmarkAddOutlined";
 
 interface SaveBlockComponentProps {
   setSaveDialog: (...a: any[]) => void;
@@ -67,14 +67,13 @@ const SaveBlockComponent = ({
           describeChild
           title="Save this block as a reusable custom block, to insert in any filter from Add. It does not save the filter."
         >
-          <Button
-            startIcon={<SaveIcon />}
-            variant="outlined"
+          <IconButton
+            size="small"
+            aria-label="Save as a custom block"
             onClick={handleSaveBlock}
-            sx={{ minHeight: 40, px: 2 }}
           >
-            Save Block
-          </Button>
+            <BookmarkAddIcon fontSize="small" />
+          </IconButton>
         </Tooltip>
       )}
       {showError && (

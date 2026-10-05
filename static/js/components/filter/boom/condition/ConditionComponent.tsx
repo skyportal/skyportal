@@ -24,6 +24,7 @@ import ValueInput, {
   ConditionalValueInput,
 } from "./ValueInputs";
 import SpecialOperatorInputs from "./SpecialOperatorInputs";
+import ConditionTypeMenu from "./ConditionTypeMenu";
 
 interface FieldSelectorProps {
   conditionOrBlock: any;
@@ -102,6 +103,7 @@ interface ConditionComponentInnerProps {
   customListVariables: any[];
   customSwitchCases: any[];
   isListDialogOpen?: boolean;
+  disableSwitchOption?: boolean;
 }
 
 const ConditionComponentInner = ({
@@ -116,6 +118,7 @@ const ConditionComponentInner = ({
   customListVariables,
   customSwitchCases,
   isListDialogOpen = false,
+  disableSwitchOption = false,
 }: ConditionComponentInnerProps) => {
   const [openEquationIds, setOpenEquationIds] = useState<any>([]);
   const [selectedChip, setSelectedChip] = useState("");
@@ -423,12 +426,27 @@ const ConditionComponentInner = ({
       sx={{
         display: "grid",
         gridTemplateColumns:
-          "auto minmax(160px, 2fr) minmax(120px, 1fr) minmax(160px, 2fr)",
+          "auto auto minmax(160px, 2fr) minmax(120px, 1fr) minmax(160px, 2fr)",
         gap: 1,
         alignItems: "center",
         position: "relative",
         transition: "all 0.2s ease",
-        p: 1,
+        px: 0.5,
+        pt: 1.5,
+        pb: 0.75,
+        "& .MuiOutlinedInput-root": { minHeight: 36 },
+        "& .MuiOutlinedInput-root.MuiInputBase-sizeSmall": {
+          py: "0 !important",
+        },
+        "& .MuiInputBase-input": {
+          py: "5px !important",
+          fontSize: "0.875rem",
+        },
+        "& .MuiInputLabel-root:not(.MuiInputLabel-shrink)": {
+          transform: "translate(14px, 8px) scale(1)",
+          fontSize: "0.875rem",
+        },
+        "& .MuiChip-root": { height: 20 },
         borderRadius: 1,
         border: 1,
         borderColor: isYoungestHovered ? "primary.light" : "transparent",
@@ -450,6 +468,14 @@ const ConditionComponentInner = ({
       >
         <ClearIcon fontSize="small" />
       </IconButton>
+
+      <ConditionTypeMenu
+        condition={conditionOrBlock}
+        block={block}
+        filters={filters}
+        setFilters={setFilters}
+        disableSwitchOption={disableSwitchOption}
+      />
 
       {/* Field Autocomplete */}
       <FieldSelector
@@ -529,6 +555,7 @@ interface ConditionComponentProps {
   setListConditionDialog: (...a: any[]) => void;
   localFilters?: any;
   setLocalFilters?: any;
+  disableSwitchOption?: boolean;
 }
 
 const ConditionComponent = ({
@@ -539,6 +566,7 @@ const ConditionComponent = ({
   setListConditionDialog,
   localFilters = null,
   setLocalFilters = null,
+  disableSwitchOption = false,
 }: ConditionComponentProps) => {
   const {
     filters: contextFilters,
@@ -573,6 +601,7 @@ const ConditionComponent = ({
         fieldOptionsList={fieldOptionsList}
         customListVariables={customListVariables || []}
         customSwitchCases={customSwitchCases || []}
+        disableSwitchOption={disableSwitchOption}
         isListDialogOpen={isListDialogOpen}
       />
     </ConditionProvider>

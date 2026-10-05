@@ -1,5 +1,5 @@
-import { useState } from "react";
 import { Paper, Box } from "@mui/material";
+import { alpha } from "@mui/material/styles";
 import {
   useFilterBuilder,
   useCurrentBuilder,
@@ -18,7 +18,17 @@ interface BlockComponentProps {
   setLocalFilters?: ((...a: any[]) => void) | null;
   stickyBlockId?: string | null;
   disableSwitchOption?: boolean;
+  depth?: number;
+  sentencePrefix?: string;
 }
+
+const NESTING_COLORS = [
+  "primary",
+  "secondary",
+  "success",
+  "warning",
+  "info",
+] as const;
 
 const BlockComponent = ({
   block,
@@ -30,8 +40,9 @@ const BlockComponent = ({
   setLocalFilters = null,
   stickyBlockId = null,
   disableSwitchOption = false,
+  depth = 1,
+  sentencePrefix,
 }: BlockComponentProps) => {
-  const [activeBlockForAdd, setActiveBlockForAdd] = useState<any>(null);
   const { setListConditionDialog } = useFilterBuilder();
   const { collapsedBlocks } = useCurrentBuilder();
 
@@ -41,6 +52,8 @@ const BlockComponent = ({
   const isCollapsed = !isRoot && !!collapsedBlocks?.[block.id];
   const isStickyHeader = block.id === stickyBlockId;
   const padding = isRoot && !isCollapsed ? 2 : 1;
+  const nestingColor =
+    NESTING_COLORS[(depth - 1) % NESTING_COLORS.length] ?? "primary";
 
   return (
     <Paper
@@ -54,11 +67,14 @@ const BlockComponent = ({
         pt: isStickyHeader ? 0 : padding,
         borderRadius: 2,
         ...(!isRoot && {
-          pr: 0,
-          borderLeft: 3,
-          borderColor: "primary.light",
-          borderRadius: 0,
-          backgroundColor: "transparent",
+          ml: 1.5,
+          border: 1,
+          borderColor: "divider",
+          borderLeft: 4,
+          borderLeftColor: `${nestingColor}.main`,
+          borderRadius: 1,
+          backgroundColor: (theme: any) =>
+            alpha(theme.palette[nestingColor].main, 0.04),
         }),
       }}
       aria-label={`${block.category} block${
@@ -74,11 +90,10 @@ const BlockComponent = ({
           isCustomBlock: !!customBlockName,
           isCollapsed,
         }}
-        uiState={{ activeBlockForAdd, setActiveBlockForAdd }}
         localFilters={localFilters}
         setLocalFilters={setLocalFilters}
         isStickyHeader={isStickyHeader}
-        disableSwitchOption={disableSwitchOption}
+        sentencePrefix={sentencePrefix}
       />
       {!isCollapsed && (
         <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
@@ -96,6 +111,7 @@ const BlockComponent = ({
                   setLocalFilters={setLocalFilters}
                   stickyBlockId={stickyBlockId}
                   disableSwitchOption={disableSwitchOption}
+                  depth={isRoot ? 1 : depth + 1}
                 />
               ) : (
                 <ConditionComponent
@@ -107,6 +123,7 @@ const BlockComponent = ({
                   localFilters={localFilters}
                   setLocalFilters={setLocalFilters}
                   setListConditionDialog={setListConditionDialog}
+                  disableSwitchOption={disableSwitchOption}
                 />
               ),
             )}

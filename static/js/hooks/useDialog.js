@@ -2,6 +2,7 @@ import { useState, useCallback, useEffect } from "react";
 import { v4 as uuidv4 } from "uuid";
 import { getArrayFieldSubOptions } from "../constants/filterConstants";
 import { useCurrentBuilder } from "./useContexts";
+import { replaceOrAppend } from "../components/filter/boom/block/blockTree";
 
 export const useDialogStates = () => {
   // Dialog states
@@ -561,6 +562,16 @@ export const useListConditionSave = () => {
       // Helper function to add condition to block
       const addConditionToBlock = (block) => {
         if (block.id === listConditionDialog.blockId) {
+          if (listConditionDialog.replaceConditionId) {
+            return {
+              ...block,
+              children: replaceOrAppend(
+                block.children,
+                newCondition,
+                listConditionDialog.replaceConditionId,
+              ),
+            };
+          }
           let updatedChildren = [...block.children];
 
           // If conditionId is provided, delete the original condition

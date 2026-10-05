@@ -583,6 +583,7 @@ const FilterBuilderContent = ({
                 block={block}
                 parentBlockId={null}
                 isRoot={index === 0}
+                sentencePrefix="Keep alerts that"
                 fieldOptionsList={fieldOptions}
                 stickyBlockId={getMostNestedNonCollapsedBlock.blockId}
                 localFilters={filtersToRender}
