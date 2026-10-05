@@ -98,19 +98,26 @@ class ErrorBoundary extends React.Component<
       return (
         <div
           style={{
-            padding: "clamp(1rem, 5vw, 5rem)",
+            padding: "0.5rem clamp(1rem, 5vw, 5rem) 0",
             width: "min(90%, 1000px)",
             marginLeft: "auto",
             marginRight: "auto",
           }}
         >
-          <div style={{ textAlign: "center", paddingBottom: "1rem" }}>
+          <div style={{ textAlign: "center" }}>
             <img
               src="/static/images/something_wrong.svg"
-              style={{ maxWidth: "250px", width: "80%" }}
+              style={{ height: "min(250px, 100vh - 450px, 35vw)" }}
               alt="Something went wrong"
             />
-            <h1>Oh dear! Something went wrong.</h1>
+            <h1
+              style={{
+                margin: "0.5rem 0",
+                fontSize: "clamp(1.5rem, 5vw, 2rem)",
+              }}
+            >
+              Oh dear! Something went wrong.
+            </h1>
           </div>
 
           <p>
