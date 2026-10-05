@@ -2,7 +2,7 @@ import sys
 import time
 import traceback
 import uuid
-from datetime import UTC, datetime, timedelta
+from datetime import timedelta
 from threading import Thread
 
 import requests
@@ -26,6 +26,7 @@ from skyportal.utils.data_access import (
     validate_photometry_options,
 )
 from skyportal.utils.hermes_submission import submit_to_hermes
+from skyportal.utils.naive_datetime import utcnow_naive
 from skyportal.utils.services import check_loaded
 from skyportal.utils.tns_submission import check_at_report, submit_to_tns
 from skyportal.utils.trove_submission import submit_to_trove
@@ -458,7 +459,7 @@ def validate_submission_requests():
                                 "%504 - Gateway Time-out%"
                             ),
                             SharingServiceSubmission.modified
-                            < datetime.now(UTC) - timedelta(minutes=5),
+                            < utcnow_naive() - timedelta(minutes=5),
                         )
                     ).all()
                     log(
@@ -645,7 +646,7 @@ def validate_submission_requests():
                         # Sometimes TNS accepts a report but it disappears.
                         # If it's been <1 min since last update, wait; otherwise, mark as pending to retry.
                         if (
-                            datetime.now(UTC) - submission_request.modified
+                            utcnow_naive() - submission_request.modified
                         ).total_seconds() > 60:
                             submission_request.tns_status = "pending"
                             submission_request.tns_submission_id = None
