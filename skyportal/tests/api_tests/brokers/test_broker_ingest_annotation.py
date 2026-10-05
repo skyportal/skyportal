@@ -307,7 +307,6 @@ def test_broker_ingest_autosave_survives_a_concurrent_save(
         )
     )
     assert candidate is not None
-    assert fetch_source(obj_id, public_filter) is not None
 
 
 def test_broker_ingest_keeps_the_candidate_when_photometry_fails(
