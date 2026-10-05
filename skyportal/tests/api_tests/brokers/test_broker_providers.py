@@ -584,6 +584,7 @@ def _boom_record(photometry):
         "objectId": "BOOM_norm",
         "candid": 42,
         "survey": "ZTF",
+        "jd": 2459000.5,
         "ra": 234.22,
         "dec": -22.33,
         "drb": 0.99,
@@ -593,7 +594,7 @@ def _boom_record(photometry):
 
 def test_boom_normalize_maps_detection_and_candidate():
     """A detection maps flux -> psfFlux (nJy) with band/jd/programid preserved,
-    and candidate ra/dec/drb come off the record."""
+    and candidate jd/ra/dec/drb come off the record."""
     d = _normalize_boom_alert(
         _boom_record(
             [
@@ -609,7 +610,12 @@ def test_boom_normalize_maps_detection_and_candidate():
     )
     _assert_standard_shape(d)
     assert d["candid"] == 42
-    assert d["candidate"] == {"ra": 234.22, "dec": -22.33, "drb": 0.99}
+    assert d["candidate"] == {
+        "jd": 2459000.5,
+        "ra": 234.22,
+        "dec": -22.33,
+        "drb": 0.99,
+    }
     p = d["prv_candidates"][0]
     assert (p["psfFlux"], p["psfFluxErr"], p["band"], p["jd"], p["programid"]) == (
         1.0e4,

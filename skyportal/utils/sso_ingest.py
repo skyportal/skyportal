@@ -283,14 +283,14 @@ def triggering_detection(data):
     """The alert's own detection, picked out of the position-keyed history.
 
     Providers differ: some put the detection in ``candidate``, while BOOM's
-    normalized alert leaves only ``ra``/``dec``/``drb`` there and carries the
-    real photometry in ``prv_candidates``, identified by the alert's own JD.
+    normalized alert has no band there and carries the real photometry in
+    ``prv_candidates``, identified by the alert's own JD.
     """
     cand = data.get("candidate") or {}
     if cand.get("jd") is not None and cand.get("band") is not None:
         return cand
 
-    jd = data.get("jd", cand.get("jd"))
+    jd = cand.get("jd")
     if jd is None:
         return None
     for point in data.get("prv_candidates") or []:
@@ -408,7 +408,7 @@ async def ingest_sso_alert(
         obj.ra, obj.dec = ra, dec
         obj.healpix = ha.constants.HPX.lonlat_to_healpix(ra * u.deg, dec * u.deg)
         altdata = dict(obj.altdata or {})
-        altdata["last_detection_jd"] = detection.get("jd", data.get("jd"))
+        altdata["last_detection_jd"] = detection.get("jd", cand.get("jd"))
         separation = _first_value(data, SEPARATION_KEYS, annotations_by_filter_id)
         if separation is not None:
             altdata["last_separation_arcsec"] = separation
