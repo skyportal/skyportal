@@ -342,6 +342,29 @@ const NotificationSettingsSelect = ({
           <DialogTitle onClose={handleClose}>Notification Settings</DialogTitle>
           <DialogContent dividers>
             <div>
+              {notificationResourceType === "deployments" && (
+                <div className={classes.pref}>
+                  <FormGroup row className={classes.form_group}>
+                    <FormControlLabel
+                      control={
+                        <Switch
+                          checked={handleChecked("in_app")}
+                          name="in_app"
+                          onChange={prefToggled}
+                        />
+                      }
+                      label="In the app"
+                    />
+                    <Tooltip
+                      title="Show deployments in the notification bell. Turn off to receive them only through the channels below."
+                      placement="right"
+                      classes={{ tooltip: classes.tooltip }}
+                    >
+                      <HelpOutlineOutlinedIcon />
+                    </Tooltip>
+                  </FormGroup>
+                </div>
+              )}
               <div className={classes.pref}>
                 <FormGroup row className={classes.form_group}>
                   <FormControlLabel
