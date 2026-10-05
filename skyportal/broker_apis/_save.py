@@ -446,8 +446,8 @@ async def _ingest_object(
                 if comment_text:
                     autosave_comments.append((f.group_id, comment_text, saver_id))
 
-    # autoflush is off on skyportal's async session; flush so the new Obj (and any
-    # Candidate rows) are visible to add_external_photometry's existence check.
+    # autoflush is off on skyportal's async session; flush so new Candidate rows
+    # are visible to add_external_photometry's existence check.
     if created or filter_ids:
         await session.flush()
 
