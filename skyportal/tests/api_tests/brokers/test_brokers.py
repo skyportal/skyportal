@@ -876,11 +876,17 @@ def test_boombroker_cone_search():
         json={"access_token": "tok", "expires_in": 3600},
         status=200,
     )
-    # a reference catalog plus a survey/alert catalog that must be filtered out
     responses.add(
         responses.GET,
         "https://boom.test/catalogs",
-        json={"data": [{"name": "Gaia_DR3"}, {"name": "ZTF_alerts"}]},
+        json={
+            "data": [
+                {"name": "Gaia_DR3", "crossmatch": True},
+                {"name": "ZTF_alerts", "crossmatch": False},
+                {"name": "watchlist_private", "crossmatch": False},
+                {"name": "css_dets"},
+            ]
+        },
         status=200,
     )
     responses.add(
@@ -905,8 +911,11 @@ def test_boombroker_cone_search():
         _boom_broker(), 80.0, 20.0, 5.0, None, radius_units="arcsec"
     )
 
-    # ZTF_alerts (survey) is excluded; only the reference catalog is searched
     assert set(result.keys()) == {"Gaia_DR3"}
+    cone_calls = [c for c in responses.calls if c.request.url.endswith("cone_search")]
+    assert [json.loads(c.request.body)["catalog_name"] for c in cone_calls] == [
+        "Gaia_DR3"
+    ]
     source = result["Gaia_DR3"][0]
     assert source["_id"] == "42"  # coerced to str
     assert source["ra"] == 80.0  # GeoJSON longitude (-100) shifted +180

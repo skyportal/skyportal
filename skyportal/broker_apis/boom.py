@@ -493,8 +493,6 @@ async def _ingest_survey_matches(
         await session.commit()
 
 
-# Collections that belong to surveys/alerts, not reference catalogs.
-_SURVEY_CATALOG_PREFIXES = ("ZTF_", "LSST_", "DECAM_", "PTF_", "PGIR_", "WNTR_")
 _CATALOGS_TTL = timedelta(hours=1)
 # base_url -> (catalog_names, expiry); the reference-catalog list is stable, so
 # cache it to avoid hitting /catalogs on every cross-match.
@@ -502,7 +500,7 @@ _CATALOGS_CACHE: dict = {}
 
 
 def _reference_catalogs(broker):
-    """BOOM's non-survey (reference) catalog names, cached per host with a TTL."""
+    """BOOM's reference catalogs (its crossmatch config), cached per host with a TTL."""
     base_url = _base_url(broker.altdata or {})
     cached = _CATALOGS_CACHE.get(base_url)
     if cached and datetime.now(UTC) < cached[1]:
@@ -511,9 +509,8 @@ def _reference_catalogs(broker):
     names = [
         str(c["name"])
         for c in catalogs
-        if isinstance(c, dict)
-        and c.get("name")
-        and not str(c["name"]).startswith(_SURVEY_CATALOG_PREFIXES)
+        # An older BOOM sends no flag: search nothing rather than every collection.
+        if isinstance(c, dict) and c.get("name") and c.get("crossmatch") is True
     ]
     _CATALOGS_CACHE[base_url] = (names, datetime.now(UTC) + _CATALOGS_TTL)
     return names
