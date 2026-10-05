@@ -1,4 +1,3 @@
-import Box from "@mui/material/Box";
 import { useGetTaxonomiesQuery } from "../../ducks/taxonomies";
 import { allowedClasses } from "./ClassificationForm";
 import ClassificationShortcutButtons from "./ClassificationShortcutButtons";
@@ -39,13 +38,11 @@ const ClassificationSelect = ({
         searchable
       />
       {showShortcuts && (
-        <Box sx={{ mt: "0.4rem" }}>
-          <ClassificationShortcutButtons
-            selectedClassifications={selectedClassifications}
-            setSelectedClassifications={setSelectedClassifications}
-            inDialog={inDialog}
-          />
-        </Box>
+        <ClassificationShortcutButtons
+          selectedClassifications={selectedClassifications}
+          setSelectedClassifications={setSelectedClassifications}
+          inDialog={inDialog}
+        />
       )}
     </>
   );

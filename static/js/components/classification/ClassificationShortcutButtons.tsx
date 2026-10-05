@@ -1,3 +1,4 @@
+import Box from "@mui/material/Box";
 import { useGetProfileQuery } from "../../ducks/profile";
 import Button from "../Button";
 
@@ -15,7 +16,11 @@ const ClassificationShortcutButtons = ({
   const classificationShortcuts = (
     useGetProfileQuery().data?.preferences as any
   )?.classificationShortcuts;
-  if (!classificationShortcuts) return null;
+  if (
+    !classificationShortcuts ||
+    Object.keys(classificationShortcuts).length === 0
+  )
+    return null;
 
   const handleClassificationShortcutClick = (
     shortcutClassifications: string[],
@@ -25,19 +30,25 @@ const ClassificationShortcutButtons = ({
     ]);
   };
 
-  return Object.entries(classificationShortcuts)?.map(
-    ([shortcutName, shortcutClassifications]) => (
-      <Button
-        secondary
-        key={shortcutName}
-        data-testid={shortcutName + (inDialog ? `_inDialog` : "")}
-        onClick={() =>
-          handleClassificationShortcutClick(shortcutClassifications as string[])
-        }
-      >
-        Select {shortcutName}
-      </Button>
-    ),
+  return (
+    <Box sx={{ mt: "0.4rem" }}>
+      {Object.entries(classificationShortcuts).map(
+        ([shortcutName, shortcutClassifications]) => (
+          <Button
+            secondary
+            key={shortcutName}
+            data-testid={shortcutName + (inDialog ? `_inDialog` : "")}
+            onClick={() =>
+              handleClassificationShortcutClick(
+                shortcutClassifications as string[],
+              )
+            }
+          >
+            Select {shortcutName}
+          </Button>
+        ),
+      )}
+    </Box>
   );
 };
 
