@@ -1,30 +1,24 @@
 import { useState } from "react";
-import EditIcon from "@mui/icons-material/Edit";
+import { useForm } from "react-hook-form";
+import TravelExploreIcon from "@mui/icons-material/TravelExplore";
+import Box from "@mui/material/Box";
 import Dialog from "@mui/material/Dialog";
+import DialogActions from "@mui/material/DialogActions";
 import DialogContent from "@mui/material/DialogContent";
+import DialogContentText from "@mui/material/DialogContentText";
 import DialogTitle from "@mui/material/DialogTitle";
-import Form from "@rjsf/mui";
-import validator from "@rjsf/validator-ajv8";
-import { makeStyles } from "tss-react/mui";
+import IconButton from "@mui/material/IconButton";
+import TextField from "@mui/material/TextField";
+import Tooltip from "@mui/material/Tooltip";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 
 import { showNotification } from "baselayer/components/Notifications";
 import { useAddMPCMutation } from "../../ducks/source";
 import { useAppDispatch } from "../../types/hooks";
+import Button from "../Button";
 
 dayjs.extend(utc);
-
-const useStyles = makeStyles()(() => ({
-  saveButton: {
-    textAlign: "center",
-    margin: "1rem",
-  },
-  editIcon: {
-    height: "0.75rem",
-    cursor: "pointer",
-  },
-}));
 
 interface UpdateSourceMPCProps {
   source: {
@@ -36,71 +30,114 @@ interface UpdateSourceMPCProps {
 }
 
 const UpdateSourceMPC = ({ source }: UpdateSourceMPCProps) => {
-  const { classes } = useStyles();
   const dispatch = useAppDispatch();
   const [addMPC] = useAddMPCMutation();
-
   const [dialogOpen, setDialogOpen] = useState(false);
-  const nowDate = dayjs().utc().format("YYYY-MM-DDTHH:mm:ss");
-  const defaultDate = source.first_detected ? source.first_detected : nowDate;
-
-  const handleSubmit = async ({ formData }: { formData: any }) => {
-    try {
-      await addMPC({ id: source.id, formData }).unwrap();
-      dispatch(showNotification("Successfully queried the MPC"));
-    } catch {
-      dispatch(showNotification("Failed to query the MPC", "error"));
-    }
+  const {
+    register,
+    handleSubmit,
+    formState: { isSubmitting },
+  } = useForm({
+    defaultValues: {
+      date: (
+        source.first_detected ?? dayjs.utc().format("YYYY-MM-DDTHH:mm")
+      ).slice(0, 16),
+      search_radius: 1,
+      limiting_magnitude: 24,
+      obscode: "500",
+    },
+  });
+  const field = (
+    name: "date" | "search_radius" | "limiting_magnitude" | "obscode",
+  ) => {
+    const { ref, ...rest } = register(name, {
+      valueAsNumber: name === "search_radius" || name === "limiting_magnitude",
+    });
+    return { ...rest, inputRef: ref, size: "small" as const, required: true };
   };
 
-  const mpcFormSchema = {
-    type: "object",
-    properties: {
-      date: {
-        type: "string",
-        format: "date-time",
-        title: "Start Date [UTC]",
-        default: defaultDate,
-      },
-      search_radius: {
-        type: "number",
-        title: "Search Radius [arcmin]",
-        default: 1,
-      },
-      limiting_magnitude: {
-        type: "number",
-        title: "Limiting Magnitude [mag]",
-        default: 24.0,
-      },
-      obscode: {
-        type: "string",
-        title: "Minor planet center observatory code",
-        default: "500",
-      },
-    },
+  const onSubmit = async (formData: Record<string, any>) => {
+    const { error } = await addMPC({ id: source.id, formData });
+    if (error) return;
+    dispatch(
+      showNotification(
+        "MPC query sent. The MPC name will appear once the MPC answers.",
+      ),
+    );
+    setDialogOpen(false);
   };
 
   return (
     <>
-      <EditIcon
-        data-testid="updateMPCIconButton"
-        fontSize="small"
-        className={classes.editIcon}
-        onClick={() => {
-          setDialogOpen(true);
-        }}
-      />
-      <Dialog open={dialogOpen} onClose={() => setDialogOpen(false)}>
-        <DialogTitle>Query MPC</DialogTitle>
-        <DialogContent>
-          <div>
-            <Form
-              schema={mpcFormSchema as any}
-              validator={validator}
-              onSubmit={handleSubmit as any}
-            />
-          </div>
-        </DialogContent>
+      <Tooltip title="Search the Minor Planet Center for a known solar system object at this position">
+        <IconButton
+          size="small"
+          data-testid="updateMPCIconButton"
+          onClick={() => setDialogOpen(true)}
+        >
+          <TravelExploreIcon fontSize="small" />
+        </IconButton>
+      </Tooltip>
+      <Dialog
+        open={dialogOpen}
+        onClose={() => setDialogOpen(false)}
+        maxWidth="xs"
+        fullWidth
+      >
+        <form onSubmit={handleSubmit(onSubmit)}>
+          <DialogTitle>Query the Minor Planet Center</DialogTitle>
+          <DialogContent>
+            <DialogContentText sx={{ mb: 2 }}>
+              Look for a known solar system object near this position. Its name
+              is added to the source when one is found.
+            </DialogContentText>
+            <Box
+              sx={{
+                display: "grid",
+                gridTemplateColumns: "1fr 1fr",
+                gap: 2,
+                pt: 1,
+              }}
+            >
+              <TextField
+                {...field("date")}
+                type="datetime-local"
+                label="Date (UTC)"
+                slotProps={{ inputLabel: { shrink: true } }}
+                sx={{ gridColumn: "1 / -1" }}
+              />
+              <TextField
+                {...field("search_radius")}
+                type="number"
+                label="Search radius [arcmin]"
+                slotProps={{ htmlInput: { step: 0.1, min: 0 } }}
+              />
+              <TextField
+                {...field("limiting_magnitude")}
+                type="number"
+                label="Limiting magnitude"
+                slotProps={{ htmlInput: { step: 0.1 } }}
+              />
+              <TextField
+                {...field("obscode")}
+                label="Observatory code"
+                helperText="500 is the geocenter"
+                sx={{ gridColumn: "1 / -1" }}
+              />
+            </Box>
+          </DialogContent>
+          <DialogActions sx={{ px: 3, pb: 2 }}>
+            <Button onClick={() => setDialogOpen(false)}>Cancel</Button>
+            <Button
+              primary
+              type="submit"
+              disabled={isSubmitting}
+              endIcon={<TravelExploreIcon />}
+            >
+              Query
+            </Button>
+          </DialogActions>
+        </form>
       </Dialog>
     </>
   );
