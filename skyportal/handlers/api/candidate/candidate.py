@@ -54,6 +54,7 @@ from ....models import (
     Source,
     Spectrum,
     SuperObj,
+    Thumbnail,
 )
 from ....utils.cache import Cache, array_to_bytes, cache_folder
 from ....utils.calculations import great_circle_distance
@@ -63,6 +64,7 @@ from ....utils.data_access import (
 )
 from ....utils.parse import get_page_and_n_per_page, parse_optional_date
 from ....utils.sizeof import SIZE_WARNING_THRESHOLD, sizeof
+from ....utils.thumbnail import latest_thumbnails
 from ...base import BaseHandler
 from .candidate_filter import get_subquery_for_saved_status
 
@@ -301,6 +303,33 @@ def add_computed_fields(candidate_info, obj):
     candidate_info["angular_diameter_distance"] = obj.angular_diameter_distance
 
 
+async def linked_thumbnails(obj_ids, session):
+    own, linked = aliased(ObjToSuperObj), aliased(ObjToSuperObj)
+    pairs = set(
+        (
+            await session.execute(
+                sa.select(own.obj_id, linked.obj_id)
+                .join(linked, linked.super_obj_id == own.super_obj_id)
+                .where(own.obj_id.in_(obj_ids), linked.obj_id != own.obj_id)
+            )
+        ).all()
+    )
+    by_obj = defaultdict(list)
+    if not pairs:
+        return by_obj
+    thumbnails = await session.scalars(
+        Thumbnail.select(session.user_or_token).where(
+            Thumbnail.obj_id.in_({linked_id for _, linked_id in pairs})
+        )
+    )
+    by_linked = defaultdict(list)
+    for t in thumbnails.all():
+        by_linked[t.obj_id].append(t)
+    for obj_id, linked_id in pairs:
+        by_obj[obj_id].extend(by_linked[linked_id])
+    return by_obj
+
+
 # The galactic pole, J2000. Latitude is derived from ra/dec rather than stored,
 # so the cut is an expression rather than a column comparison.
 _NGP_RA_DEG = 192.85948
@@ -469,6 +498,10 @@ class CandidateHandler(BaseHandler):
                 candidate_info = recursive_to_dict(c)
                 # frontend ws-refresh keys on internal_key (dropped by Obj.to_dict)
                 candidate_info["internal_key"] = c.internal_key
+                linked = await linked_thumbnails([obj_id], session)
+                candidate_info["thumbnails"] = latest_thumbnails(
+                    [*c.thumbnails, *linked[obj_id]]
+                )
 
                 if include_alerts:
                     accessible_candidates_result = await session.scalars(
@@ -1250,6 +1283,8 @@ class CandidateHandler(BaseHandler):
                     f.id: f.group_id for f in page_filters_result.all()
                 }
 
+            linked_by_obj = await linked_thumbnails(page_obj_ids, session)
+
             candidate_list = []
             if autosave:
                 from ..source import post_source_async
@@ -1302,6 +1337,9 @@ class CandidateHandler(BaseHandler):
                         )
 
                     candidate_info = obj.to_dict()
+                    candidate_info["thumbnails"] = latest_thumbnails(
+                        [*obj.thumbnails, *linked_by_obj[obj.id]]
+                    )
                     candidate_info["super_objs"] = [
                         {
                             "id": super_obj.id,
