@@ -120,6 +120,7 @@ from ...utils.scout_ephemeris import (
 )
 from ...utils.scout_ingest import ANNOTATION_ORIGIN as SCOUT_ANNOTATION_ORIGIN
 from ...utils.sizeof import SIZE_WARNING_THRESHOLD, sizeof
+from ...utils.thumbnail import latest_thumbnails
 from ..base import BaseHandler
 from .candidate.candidate import (
     update_healpix_if_relevant,
@@ -314,18 +315,10 @@ async def get_source(
     # survey for per-survey labeling. All-sky archival cutouts (sdss/ps1/...) are
     # survey-independent, so dedupe those on type alone.
     if include_thumbnails:
-        alert_types = {"new", "ref", "sub"}
-        thumbnails = (
-            await session.scalars(
-                Thumbnail.select(user).where(Thumbnail.obj_id.in_(aggregated_obj_ids))
-            )
-        ).all()
-        latest = {}
-        for t in thumbnails:
-            key = (t.survey, t.type) if t.type in alert_types else (None, t.type)
-            if key not in latest or t.created_at > latest[key].created_at:
-                latest[key] = t
-        source_info["thumbnails"] = list(latest.values())
+        thumbnails = await session.scalars(
+            Thumbnail.select(user).where(Thumbnail.obj_id.in_(aggregated_obj_ids))
+        )
+        source_info["thumbnails"] = latest_thumbnails(thumbnails.all())
 
     point = ca.Point(ra=s.ra, dec=s.dec)
 
