@@ -11,6 +11,7 @@ import StyledDataGrid, {
   FULL_PAGE_HEIGHT,
 } from "../StyledDataGrid";
 import GalaxyTableFilterForm from "./GalaxyTableFilterForm";
+import Spinner from "../Spinner";
 import { filterOutEmptyValues } from "../../API";
 
 const GalaxyTableToolbar = ({
@@ -84,7 +85,7 @@ const GalaxyTable = ({
   };
 
   if (!galaxies) {
-    return <p>No galaxies available...</p>;
+    return <Spinner context="galaxies" />;
   }
 
   const emitTableChange = (action: any, model: any) => {

@@ -5,6 +5,7 @@ import DialogTitle from "@mui/material/DialogTitle";
 import SourceTableFilterForm from "../source/SourceTableFilterForm";
 
 import Button from "../Button";
+import Spinner from "../Spinner";
 import StyledDataGrid, {
   DataGridToolbar,
   FULL_PAGE_HEIGHT,
@@ -86,7 +87,10 @@ const SpatialCatalogTable = ({
   catalog = null,
   setSourcesArgs,
 }: SpatialCatalogTableProps) => {
-  if (!catalog || catalog.entries.length === 0) {
+  if (!catalog) {
+    return <Spinner context="spatial catalog" />;
+  }
+  if (catalog.entries.length === 0) {
     return <p>No entries available...</p>;
   }
 

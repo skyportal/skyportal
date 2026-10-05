@@ -25,7 +25,8 @@ const InstrumentForm = ({
   instrumentId = null,
 }: InstrumentFormProps) => {
   const { data: instrumentList = [] } = useGetInstrumentsQuery();
-  const { data: telescopeList = [] } = useGetTelescopesQuery();
+  const { data: telescopeList = [], isLoading: telescopesLoading } =
+    useGetTelescopesQuery();
   const { data: followupApis } = useGetFollowupApisQuery();
   const { data: enum_types } = useGetEnumTypesQuery();
   const [formData, setFormData] = useState<any>({});
@@ -91,14 +92,16 @@ const InstrumentForm = ({
     }
   };
 
+  if (telescopesLoading || enum_types == null) {
+    return <CircularProgress />;
+  }
+
   if (!telescopeList.length) {
     return (
       <h3>
         No telescopes available. Add a telescope before creating an instrument.
       </h3>
     );
-  } else if (enum_types == null) {
-    return <CircularProgress />;
   }
 
   const api_classnames = [...enum_types["ALLOWED_API_CLASSNAMES"]].sort();

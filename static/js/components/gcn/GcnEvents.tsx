@@ -26,6 +26,7 @@ import StyledDataGrid, {
   FULL_PAGE_HEIGHT_WITH_TABS,
 } from "../StyledDataGrid";
 import ExpandableCell from "../ExpandableCell";
+import Spinner from "../Spinner";
 
 import { filterOutEmptyValues } from "../../API";
 import { useGetGcnEventsQuery } from "../../ducks/gcnEvents";
@@ -159,7 +160,7 @@ const GcnEvents = () => {
 
   const { data: gcnEvents } = useGetGcnEventsQuery(fetchParams);
 
-  if (!gcnEvents) return <p>No gcnEvents available...</p>;
+  if (!gcnEvents) return <Spinner context="GCN events" />;
 
   const updateParams = (patch: Record<string, any>) =>
     setFetchParams({ ...fetchParams, ...patch });

@@ -8,6 +8,7 @@ import Typography from "@mui/material/Typography";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import Tooltip from "@mui/material/Tooltip";
 import Chip from "@mui/material/Chip";
+import CircularProgress from "@mui/material/CircularProgress";
 import DeleteIcon from "@mui/icons-material/Delete";
 import { showNotification } from "baselayer/components/Notifications";
 import dayjs from "dayjs";
@@ -94,7 +95,7 @@ const AnalysisList = ({
   const dispatch = useAppDispatch();
   const [cornerAnalysis, setCornerAnalysis] = useState<any>(null);
 
-  const { data: analyses } = useGetAnalysesQuery({
+  const { data: analyses, isLoading } = useGetAnalysesQuery({
     analysis_resource_type: analysisResourceType,
     params: { objID: obj_id },
   });
@@ -114,6 +115,10 @@ const AnalysisList = ({
       analysisResourceType === "obj"
         ? analyses.filter((analysis: any) => analysis.obj_id === obj_id)
         : analyses;
+  }
+
+  if (isLoading) {
+    return <CircularProgress size={24} />;
   }
 
   if (!analysesList || analysesList.length === 0) {

@@ -6,6 +6,7 @@ import MenuItem from "@mui/material/MenuItem";
 import Switch from "@mui/material/Switch";
 import FormControlLabel from "@mui/material/FormControlLabel";
 import Tooltip from "@mui/material/Tooltip";
+import CircularProgress from "@mui/material/CircularProgress";
 import { showNotification } from "baselayer/components/Notifications";
 
 import Form from "@rjsf/mui";
@@ -55,9 +56,8 @@ interface NewPhotometryFormProps {
 const NewPhotometryForm = ({ obj_id }: NewPhotometryFormProps) => {
   const dispatch = useAppDispatch();
   const [submitPhotometry] = useSubmitPhotometryMutation();
-  const { data: instrumentList = [] } = useGetInstrumentsQuery() as {
-    data: any[];
-  };
+  const { data: instrumentList = [], isLoading: instrumentsLoading } =
+    useGetInstrumentsQuery() as { data: any[]; isLoading: boolean };
   const [selectedInstrumentId, setSelectedInstrumentId] = useState<any>(null);
   const [extinctionCorrected, setExtinctionCorrected] = useState(false);
   const groups = useGetGroupsQuery().data?.userAccessible ?? [];
@@ -217,6 +217,10 @@ const NewPhotometryForm = ({ obj_id }: NewPhotometryFormProps) => {
       "ui:enumNames": groups.map((group) => group.name),
     },
   };
+
+  if (instrumentsLoading) {
+    return <CircularProgress size={24} />;
+  }
 
   if (sortedInstrumentList.length === 0) {
     return <h3>No instruments available...</h3>;

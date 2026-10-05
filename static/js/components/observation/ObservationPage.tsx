@@ -13,6 +13,7 @@ import QueuedObservationsTable from "./QueuedObservationsTable";
 import QueueAPIDisplay from "./QueueAPIDisplay";
 import { DownloadProgressDialog } from "../ProgressIndicators";
 import Paper from "../Paper";
+import Spinner from "../Spinner";
 import SkymapTriggerAPIDisplay from "./SkymapTriggerAPIDisplay";
 
 import {
@@ -57,12 +58,8 @@ const ObservationPage = () => {
     quickFilterValues: [],
   });
 
-  if (observations == null) {
-    return <p>No observations available...</p>;
-  }
-
-  if (queuedObservations == null) {
-    return <p>No queued observations available...</p>;
+  if (observations == null || queuedObservations == null) {
+    return <Spinner context="observations" />;
   }
 
   const handleExecutedPageChange = async (
