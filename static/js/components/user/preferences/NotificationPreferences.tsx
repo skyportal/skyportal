@@ -122,7 +122,7 @@ const NOTIFICATIONS = [
     key: "deployments",
     label: "Deployments",
     tooltip:
-      "This allows you to be notified each time a new version of the application is deployed. The deployment history is on the Deployments page.",
+      "This allows you to be notified each time a new version of the application is deployed. Click the settings icon to choose how: in the app, by email, Slack, SMS or WhatsApp. The deployment history is on the Deployments page.",
   },
 ];
 
