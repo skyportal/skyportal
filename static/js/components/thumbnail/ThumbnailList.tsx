@@ -374,63 +374,28 @@ const ThumbnailList = ({
 
   const content = (
     <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
-      {(pages.length > 1 || fieldsOfView.length > 1) && (
-        <Box
+      {pages.length > 1 && (
+        <Tabs
+          value={currentPage}
+          onChange={(_, value) => setPageIndex(value)}
+          variant="fullWidth"
           sx={{
-            display: "flex",
-            alignItems: "center",
-            ...(pages.length > 1 && {
-              borderBottom: 1,
-              borderColor: "divider",
-            }),
+            minHeight: "auto",
+            borderBottom: 1,
+            borderColor: "divider",
+            "& .MuiTab-root": {
+              minHeight: "auto",
+              padding: "0.4rem 0.75rem",
+              fontSize: "0.8rem",
+              fontWeight: "bold",
+              textTransform: "none",
+            },
           }}
         >
-          {pages.length > 1 && (
-            <Tabs
-              value={currentPage}
-              onChange={(_, value) => setPageIndex(value)}
-              variant="fullWidth"
-              sx={{
-                flex: 1,
-                minHeight: "auto",
-                "& .MuiTab-root": {
-                  minHeight: "auto",
-                  padding: "0.4rem 0.75rem",
-                  fontSize: "0.8rem",
-                  fontWeight: "bold",
-                  textTransform: "none",
-                },
-              }}
-            >
-              {pageLabels(pages).map((label) => (
-                <Tab key={label} label={label} />
-              ))}
-            </Tabs>
-          )}
-          {fieldsOfView.length > 1 && (
-            <Tooltip
-              title={`Show every alert cutout at the ${formatFieldOfView(widestFieldOfView)} field of view`}
-            >
-              <FormControlLabel
-                control={
-                  <Switch
-                    size="small"
-                    checked={sameScale}
-                    onChange={(event) => setSameScale(event.target.checked)}
-                  />
-                }
-                label="Same scale"
-                sx={{
-                  marginLeft: "auto",
-                  marginRight: 0,
-                  paddingLeft: 1,
-                  whiteSpace: "nowrap",
-                  "& .MuiFormControlLabel-label": { fontSize: "0.8rem" },
-                }}
-              />
-            </Tooltip>
-          )}
-        </Box>
+          {pageLabels(pages).map((label) => (
+            <Tab key={label} label={label} />
+          ))}
+        </Tabs>
       )}
       <Box
         sx={{
@@ -456,6 +421,28 @@ const ThumbnailList = ({
             )),
         )}
       </Box>
+      {fieldsOfView.length > 1 && (
+        <Tooltip
+          title={`Show every alert cutout at the ${formatFieldOfView(widestFieldOfView)} field of view`}
+        >
+          <FormControlLabel
+            control={
+              <Switch
+                size="small"
+                checked={sameScale}
+                onChange={(event) => setSameScale(event.target.checked)}
+              />
+            }
+            label="Same scale"
+            sx={{
+              alignSelf: "flex-start",
+              marginLeft: 0,
+              whiteSpace: "nowrap",
+              "& .MuiFormControlLabel-label": { fontSize: "0.8rem" },
+            }}
+          />
+        </Tooltip>
+      )}
       {showOnDemandButton && <div>{onDemandButton}</div>}
     </Box>
   );
