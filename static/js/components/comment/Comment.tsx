@@ -110,7 +110,7 @@ const Comment = ({
   const [editing, setEditing] = useState(false);
   const { data: spectra } = useFetchSourceSpectraQuery(
     { id: objID as string },
-    { skip: !objID },
+    { skip: !objID || !spectrum_id },
   );
   const [editCommentMutation] = useEditCommentMutation();
   const [editCommentOnGcnEvent] = useEditCommentOnGcnEventMutation();

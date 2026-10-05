@@ -266,7 +266,11 @@ const CommentThread = ({
   const resolvedObjID = objID ?? obj?.id ?? null;
   const { data: spectra } = useFetchSourceSpectraQuery(
     { id: resolvedObjID as string },
-    { skip: !resolvedObjID },
+    {
+      skip:
+        !resolvedObjID ||
+        (resourceType === "sources" && !includeCommentsOnAllResourceTypes),
+    },
   );
   const { data: gcnEvent } = useGetGcnEventQuery(
     gcnEventDateobs ?? skipToken,
