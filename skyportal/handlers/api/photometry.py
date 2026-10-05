@@ -1660,6 +1660,7 @@ async def add_external_photometry(
     username = user.username
     log(f"Pending request from {username} with {len(df.index)} rows")
 
+    savepoint = await session.begin_nested()
     try:
         if duplicates in ["ignore", "update"]:
             duplicated_photometry = await find_duplicate_photometry(session, df)
@@ -1783,7 +1784,11 @@ async def add_external_photometry(
             )
         return ids, upload_id
     except Exception as e:
-        await session.rollback()
+        # Any commit closes the savepoint, including insert_new_photometry_data's.
+        if session.in_nested_transaction():
+            await savepoint.rollback()
+        else:
+            await session.rollback()
         log(f"Unable to post photometry: {e}")
         return None, None
 

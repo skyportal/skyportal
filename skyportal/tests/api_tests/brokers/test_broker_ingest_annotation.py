@@ -333,3 +333,42 @@ def test_broker_ingest_keeps_the_candidate_when_photometry_fails(
         )
     )
     assert candidate is not None
+
+
+def test_broker_ingest_keeps_the_candidate_when_the_photometry_insert_fails(
+    super_admin_user, public_filter, ztf_instrument, obj_id, monkeypatch
+):
+    from skyportal.handlers.api import photometry
+
+    async def failing_insert(
+        df, instrument_cache, group_ids, stream_ids, user, session, **kwargs
+    ):
+        await session.execute(
+            sa.update(Obj).where(Obj.id == obj_id).values(score=0.0),
+            execution_options={"synchronize_session": False},
+        )
+        raise ValueError("photometry insert failed")
+
+    monkeypatch.setattr(photometry, "insert_new_photometry_data", failing_insert)
+    public_filter.stream.altdata = {"collection": "ZTF_alerts", "selector": [1]}
+    DBSession().add(public_filter.stream)
+    DBSession().commit()
+
+    ingest(
+        obj_id,
+        super_admin_user.id,
+        public_filter.id,
+        {},
+        prv_candidates=[
+            {"jd": 2461317.5, "band": "r", "psfFlux": 1000.0, "psfFluxErr": 10.0}
+        ],
+    )
+
+    candidate = DBSession().scalar(
+        sa.select(Candidate).where(
+            Candidate.obj_id == obj_id, Candidate.filter_id == public_filter.id
+        )
+    )
+    assert candidate is not None
+    score = DBSession().scalar(sa.select(Obj.score).where(Obj.id == obj_id))
+    assert score == pytest.approx(0.99)
