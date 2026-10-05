@@ -26,7 +26,11 @@ const GcnReportTable = ({
 }: GcnReportTableProps) => {
   const { classes } = useStyles();
 
-  if (!reports || reports?.length === 0) {
+  if (!reports) {
+    return <CircularProgress size={24} />;
+  }
+
+  if (reports.length === 0) {
     return <p>No entries available...</p>;
   }
 
