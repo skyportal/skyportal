@@ -58,7 +58,6 @@ from ...models import (
     Photometry,
     Spectrum,
     User,
-    UserNotification,
 )
 from ...utils.app import get_app_base_url
 from ...utils.extinction import calculate_extinction
@@ -455,7 +454,7 @@ def post_analysis(
     groups,
     analysis_service,
     session,
-    notification=None,
+    trigger=None,
     analysis_parameters=None,
     show_parameters=False,
     show_plots=False,
@@ -691,30 +690,18 @@ def post_analysis(
         resource_id=resource_id,
     )
 
-    flow = Flow()
-    flow.push(
-        current_user.id,
-        action_type="baselayer/SHOW_NOTIFICATION",
-        payload={
-            "note": f"Sending data to analysis service {analysis_service.name} to start the analysis."
-            if notification is None
-            else notification,
-            "type": "info",
-        },
-    )
-
-    if notification is not None and notification != "":
-        try:
-            user_notification = UserNotification(
-                user=current_user,
-                text=notification,
-                notification_type="default_analysis",
-                url=f"{resource_path}/analysis/{analysis.id}",
-            )
-            session.add(user_notification)
-            session.commit()
-        except Exception as e:
-            log(f"Could not add notification: {e}")
+    if trigger is None:
+        flow = Flow()
+        flow.push(
+            current_user.id,
+            action_type="baselayer/SHOW_NOTIFICATION",
+            payload={
+                "note": f"Sending data to analysis service {analysis_service.name} to start the analysis.",
+                "type": "info",
+            },
+        )
+    else:
+        log(trigger)
 
     def analysis_done_callback(
         future,
@@ -786,7 +773,6 @@ async def post_analysis_async(
     groups,
     analysis_service,
     session,
-    notification=None,
     analysis_parameters=None,
     show_parameters=False,
     show_plots=False,
@@ -1080,25 +1066,10 @@ async def post_analysis_async(
         current_user_id_val,
         action_type="baselayer/SHOW_NOTIFICATION",
         payload={
-            "note": f"Sending data to analysis service {analysis_service_name} to start the analysis."
-            if notification is None
-            else notification,
+            "note": f"Sending data to analysis service {analysis_service_name} to start the analysis.",
             "type": "info",
         },
     )
-
-    if notification is not None and notification != "":
-        try:
-            user_notification = UserNotification(
-                user_id=current_user_id_val,
-                text=notification,
-                notification_type="default_analysis",
-                url=f"{resource_path}/analysis/{analysis_id}",
-            )
-            session.add(user_notification)
-            await session.commit()
-        except Exception as e:
-            log(f"Could not add notification: {e}")
 
     def analysis_done_callback(
         future,
