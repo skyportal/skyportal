@@ -276,13 +276,17 @@ class ObservingRunHandler(BaseHandler):
             if query.upcomingOnly:
                 # run_end_utc is backfilled lazily just below, so fall back to
                 # the calendar date for runs that have not been through that.
+                # Runs ended in the last two days are kept: with UT dates, a
+                # night looks over by the local afternoon when targets are
+                # still being assigned to it.
+                grace = datetime.timedelta(days=2)
                 today = datetime.datetime.now(datetime.UTC).date()
                 stmt = stmt.where(
                     sa.or_(
-                        ObservingRun.run_end_utc >= utcnow_naive(),
+                        ObservingRun.run_end_utc >= utcnow_naive() - grace,
                         sa.and_(
                             ObservingRun.run_end_utc.is_(None),
-                            ObservingRun.calendar_date >= today,
+                            ObservingRun.calendar_date >= today - grace,
                         ),
                     )
                 )

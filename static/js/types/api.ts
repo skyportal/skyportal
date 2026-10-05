@@ -12639,7 +12639,7 @@ export interface paths {
         get: {
             parameters: {
                 query?: {
-                    /** @description Only return runs that have not finished yet. Callers offering a run to assign a target to want these, rather than every run ever scheduled. */
+                    /** @description Only return runs that have not finished yet or finished within the last two days. Callers offering a run to assign a target to want these, rather than every run ever scheduled. */
                     upcomingOnly?: boolean;
                     /** @description Number of runs to return per paginated request. Defaults to all runs. */
                     numPerPage?: number | null;

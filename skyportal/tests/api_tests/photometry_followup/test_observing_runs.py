@@ -264,6 +264,36 @@ def test_upcoming_only_excludes_finished_runs(
     assert past_id not in upcoming_ids
 
 
+def test_upcoming_only_keeps_runs_that_just_ended(
+    lris, observing_run_token, red_transients_group
+):
+    """Run dates are UT, so last night's run is over by the local afternoon
+    when targets are still being assigned to it."""
+    yesterday = datetime.datetime.now(datetime.UTC).date() - datetime.timedelta(
+        days=1
+    )
+    status, data = api(
+        "POST",
+        "observing_run",
+        data={
+            "instrument_id": lris.id,
+            "pi": "Danny Goldstein",
+            "observers": "D. Goldstein, P. Nugent",
+            "group_id": red_transients_group.id,
+            "calendar_date": str(yesterday),
+        },
+        token=observing_run_token,
+    )
+    assert status == 200, data
+    run_id = data["data"]["id"]
+
+    status, data = api(
+        "GET", "observing_run?upcomingOnly=true", token=observing_run_token
+    )
+    assert status == 200, data
+    assert run_id in {run["id"] for run in data["data"]}
+
+
 def test_an_unknown_query_parameter_is_rejected(observing_run_token):
     """extra="forbid" on the query model: a typo should say so, not silently
     return everything."""
