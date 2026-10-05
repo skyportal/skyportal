@@ -1,4 +1,3 @@
-import { useGetGroupsQuery } from "../ducks/groups";
 import { useState, useMemo, useEffect } from "react";
 
 import Dialog from "@mui/material/Dialog";
@@ -26,10 +25,7 @@ interface TagShape {
 
 interface EditTagGroupsProps {
   tag?: TagShape | null;
-  source: {
-    id: string;
-    groups?: { id: number }[];
-  };
+  source: { id: string };
   groups: { id: number; name?: string }[];
   open: boolean;
   onClose: () => void;
@@ -49,16 +45,6 @@ const EditTagGroups = ({
   const [isDeleting, setIsDeleting] = useState(false);
   const [selectedGroupIds, setSelectedGroupIds] = useState<number[]>([]);
 
-  const { data: groupsData } = useGetGroupsQuery();
-  const userGroups = useMemo(
-    () => groupsData?.userAccessible ?? [],
-    [groupsData],
-  );
-  const userGroupIds = useMemo(
-    () => new Set(userGroups?.map((g) => g.id) || []),
-    [userGroups],
-  );
-
   // Get the tag's current group IDs that the user has access to
   const tagGroups = tag?.groups;
   const tagGroupIds = useMemo(
@@ -66,34 +52,19 @@ const EditTagGroups = ({
     [tagGroups],
   );
 
-  // Filter available groups to only those where the source is saved
-  const sourceGroupIds = useMemo(
-    () => new Set(source.groups?.map((g) => g.id) || []),
-    [source.groups],
-  );
-
   // Groups associated with this tag that the user cannot see
   const inaccessibleTagGroupCount =
     (tag?.total_group_count ?? 0) - (tag?.groups?.length ?? 0);
 
-  // Groups available for selection: user has access AND source is saved there
-  const availableGroups = useMemo(
-    () =>
-      groups?.filter(
-        (g) => userGroupIds.has(g.id) && sourceGroupIds.has(g.id),
-      ) || [],
-    [groups, userGroupIds, sourceGroupIds],
-  );
-
   // Initialize selected groups when dialog opens
   useEffect(() => {
     if (open && tag) {
-      const initialSelected = availableGroups
+      const initialSelected = groups
         .filter((g) => tagGroupIds.has(g.id))
         .map((g) => g.id);
       setSelectedGroupIds(initialSelected);
     }
-  }, [open, tag, availableGroups, tagGroupIds]);
+  }, [open, tag, groups, tagGroupIds]);
 
   const handleClose = () => {
     setSelectedGroupIds([]);
@@ -123,7 +94,7 @@ const EditTagGroups = ({
     setIsSubmitting(true);
 
     // Calculate groups to remove and add
-    const currentUserTagGroupIds = availableGroups
+    const currentUserTagGroupIds = groups
       .filter((g) => tagGroupIds.has(g.id))
       .map((g) => g.id);
 
@@ -182,13 +153,13 @@ const EditTagGroups = ({
 
   return (
     <Dialog open={open} onClose={handleClose} maxWidth="xs" fullWidth>
-      <DialogTitle>Edit tag visibility: {tag.name}</DialogTitle>
+      <DialogTitle>Edit tag “{tag.name}”</DialogTitle>
       <DialogContent>
         <Typography variant="body2" color="textSecondary" gutterBottom>
-          Select which groups can see this tag on the source.
+          Groups that can see this tag on {source.id}:
         </Typography>
 
-        {availableGroups.length > 0 ? (
+        {groups.length > 0 ? (
           <div
             style={{
               display: "flex",
@@ -196,7 +167,7 @@ const EditTagGroups = ({
               marginTop: "0.5rem",
             }}
           >
-            {availableGroups.map((group) => (
+            {groups.map((group) => (
               <FormControlLabel
                 key={group.id}
                 control={

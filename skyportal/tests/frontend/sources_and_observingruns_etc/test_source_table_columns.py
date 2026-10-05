@@ -65,7 +65,7 @@ def test_source_table_annotation_and_altdata_columns(
 
     # Clear the info caches so the new origin/key and altdata key are offered.
     del altdata_info_cache["altdata_info"]
-    del annotations_info_cache[f"annotations_info_{super_admin_user.id}"]
+    del annotations_info_cache[f"annotations_info_by_group_{super_admin_user.id}"]
 
     page.goto(f"/become_user/{super_admin_user.id}")
     assert "localhost" in page.url

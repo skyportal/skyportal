@@ -4,11 +4,14 @@ import dayjs from "dayjs";
 import Box from "@mui/material/Box";
 import Grid from "@mui/material/Grid";
 import Button from "@mui/material/Button";
+import ButtonBase from "@mui/material/ButtonBase";
+import CircularProgress from "@mui/material/CircularProgress";
 import FormControlLabel from "@mui/material/FormControlLabel";
 import Switch from "@mui/material/Switch";
 import Tab from "@mui/material/Tab";
 import Tabs from "@mui/material/Tabs";
 import Tooltip from "@mui/material/Tooltip";
+import AddPhotoAlternateOutlinedIcon from "@mui/icons-material/AddPhotoAlternateOutlined";
 
 import Thumbnail from "./Thumbnail";
 import { useGenerateSurveyThumbnailMutation } from "../../ducks/candidate/candidates";
@@ -24,6 +27,7 @@ const ARCHIVAL_THUMBNAIL_TYPES = [
   "jwst",
 ];
 const ON_DEMAND_TYPES = ["sm", "hst", "chandra", "jwst"];
+const PS1_MIN_DEC = -30;
 const FETCHED_TYPES = ["sdss", "ls"];
 const MAXIMUM_NB_OF_RETRIES = 3;
 const MAX_VISIBLE_THUMBNAILS = 3;
@@ -320,11 +324,40 @@ const ThumbnailList = ({
   const widestFieldOfView = Math.max(...fieldsOfView);
   const scaleMatched = sameScale && fieldsOfView.length > 1;
 
-  const showOnDemandButton =
-    Boolean(objID) &&
-    !latestArchival.some(
-      (t) => ON_DEMAND_TYPES.includes(t.type) && !isPlaceholder(t.public_url),
+  const hasArchival = (types: string[]) =>
+    latestArchival.some(
+      (t) => types.includes(t.type) && !isPlaceholder(t.public_url),
     );
+  const missingPS1 = dec > PS1_MIN_DEC && !hasArchival(["ps1"]);
+  const missingOnDemand = !hasArchival(ON_DEMAND_TYPES);
+  const showOnDemandButton = Boolean(objID) && (missingPS1 || missingOnDemand);
+  const requestedSurveys = [
+    ...(missingPS1 ? ["PS1"] : []),
+    ...(missingOnDemand ? ["SkyMapper", "HST", "Chandra", "JWST"] : []),
+  ].join(", ");
+  const requestCutouts = () => {
+    if (!objID) return;
+    generateSurveyThumbnail({
+      objID,
+      types: [
+        ...(missingPS1 ? ["ps1"] : []),
+        ...(missingOnDemand ? ON_DEMAND_TYPES : []),
+      ],
+    });
+  };
+
+  const pageRows = pages[currentPage] ?? [];
+  const lastRowCount =
+    pageRows[pageRows.length - 1]?.flatMap((b) => b.tiles).length ?? 0;
+  const lastPage = currentPage === pages.length - 1;
+  const freeSlot =
+    pageRows.length === 0
+      ? { row: 1, column: 1 }
+      : lastPage && lastRowCount < perRow
+        ? { row: pageRows.length, column: lastRowCount + 1 }
+        : lastPage && pageRows.length < rowsPerPage
+          ? { row: pageRows.length + 1, column: 1 }
+          : null;
 
   const renderTile = (tile: Tile) => (
     <Thumbnail
@@ -356,17 +389,47 @@ const ThumbnailList = ({
     />
   );
 
+  const onDemandTile = (
+    <Tooltip title={`Fetch ${requestedSurveys} cutouts`}>
+      <ButtonBase
+        onClick={requestCutouts}
+        disabled={onDemandLoading}
+        sx={{
+          width: "100%",
+          height: "100%",
+          minHeight: "6rem",
+          border: 1,
+          borderStyle: "dashed",
+          borderColor: "divider",
+          borderRadius: 1,
+          flexDirection: "column",
+          gap: 0.5,
+          color: "text.secondary",
+          fontSize: "0.75rem",
+          "&:hover": { borderColor: "primary.main", color: "primary.main" },
+        }}
+      >
+        {onDemandLoading ? (
+          <CircularProgress size={20} />
+        ) : (
+          <AddPhotoAlternateOutlinedIcon />
+        )}
+        More cutouts
+      </ButtonBase>
+    </Tooltip>
+  );
+
   const onDemandButton = (
-    <Tooltip title="Load SkyMapper, HST, Chandra & JWST cutouts">
+    <Tooltip title={`Fetch ${requestedSurveys} cutouts`}>
       <span>
         <Button
           size="small"
-          onClick={() =>
-            objID && generateSurveyThumbnail({ objID, types: ON_DEMAND_TYPES })
-          }
+          onClick={requestCutouts}
           disabled={onDemandLoading}
+          endIcon={<AddPhotoAlternateOutlinedIcon />}
+          sx={{ textTransform: "none" }}
         >
-          {onDemandLoading ? "Loading…" : "Request more thumbnails"}
+          More cutouts
         </Button>
       </span>
     </Tooltip>
@@ -404,7 +467,7 @@ const ThumbnailList = ({
           gridTemplateColumns: `repeat(${perRow}, ${track})`,
         }}
       >
-        {(pages[currentPage] ?? []).flatMap((row, rowIndex) =>
+        {pageRows.flatMap((row, rowIndex) =>
           row
             .flatMap((block) => block.tiles)
             .map((tile, columnIndex) => (
@@ -419,6 +482,11 @@ const ThumbnailList = ({
                 {renderTile(tile)}
               </Box>
             )),
+        )}
+        {showOnDemandButton && freeSlot && (
+          <Box sx={{ gridRow: freeSlot.row, gridColumn: freeSlot.column }}>
+            {onDemandTile}
+          </Box>
         )}
       </Box>
       {fieldsOfView.length > 1 && (
@@ -443,7 +511,7 @@ const ThumbnailList = ({
           />
         </Tooltip>
       )}
-      {showOnDemandButton && <div>{onDemandButton}</div>}
+      {showOnDemandButton && !freeSlot && <div>{onDemandButton}</div>}
     </Box>
   );
 

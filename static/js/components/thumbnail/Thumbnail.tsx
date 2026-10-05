@@ -7,6 +7,7 @@ import CardHeader from "@mui/material/CardHeader";
 import CardMedia from "@mui/material/CardMedia";
 import CardActionArea from "@mui/material/CardActionArea";
 import Box from "@mui/material/Box";
+import Tooltip from "@mui/material/Tooltip";
 
 const useStyles = makeStyles<{
   size: string;
@@ -171,29 +172,36 @@ const Thumbnail = ({
           "& .MuiCardHeader-content": { minWidth: 0 },
         }}
         title={
-          <Box
-            title={headerDetail}
-            sx={{
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "baseline",
-              gap: "0.4em",
-            }}
+          <Tooltip
+            title={[thumbnailName, headerDetail].filter(Boolean).join(" · ")}
+            placement="top"
           >
-            <span>{thumbnailName}</span>
-            {headerDetail && (
-              <Box
-                component="span"
-                sx={{
-                  fontWeight: "normal",
+            <Box
+              sx={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "baseline",
+                gap: "0.4em",
+                "& > span": {
+                  minWidth: 0,
                   overflow: "hidden",
                   textOverflow: "ellipsis",
-                }}
-              >
-                {headerDetail}
+                },
+              }}
+            >
+              <Box component="span" sx={{ flexShrink: headerDetail ? 0 : 1 }}>
+                {thumbnailName}
               </Box>
-            )}
-          </Box>
+              {headerDetail && (
+                <Box
+                  component="span"
+                  sx={{ fontWeight: "normal", flexShrink: 10 }}
+                >
+                  {headerDetail}
+                </Box>
+              )}
+            </Box>
+          </Tooltip>
         }
         slotProps={{
           title: {

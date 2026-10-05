@@ -201,6 +201,7 @@ def test_classification_shortcut(page, user, public_group, taxonomy_token):
         page, user, public_group, taxonomy_token
     )
     page.goto("/candidates")
+    page.locator("//button[@data-testid='scanFiltersButton']").first.click()
     page.locator(f'//button[@data-testid="{shortcut_name}"]').first.click()
     expect(page.locator('//span[contains(text(), "AGN")]').first).to_be_visible()
     expect(page.locator('//span[contains(text(), "AM CVn")]').first).to_be_visible()

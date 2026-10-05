@@ -2,6 +2,7 @@ import { useGetProfileQuery } from "../ducks/profile";
 import { useState } from "react";
 import AddIcon from "@mui/icons-material/Add";
 import EditIcon from "@mui/icons-material/Edit";
+import CancelIcon from "@mui/icons-material/Cancel";
 import Chip from "@mui/material/Chip";
 import Dialog from "@mui/material/Dialog";
 import DialogContent from "@mui/material/DialogContent";
@@ -25,6 +26,7 @@ import {
   useGetTagOptionsQuery,
   useCreateTagOptionMutation,
   useAddObjectTagMutation,
+  useDeleteObjectTagMutation,
 } from "../ducks/objectTags";
 import { useGetGroupsQuery } from "../ducks/groups";
 
@@ -100,6 +102,7 @@ const ObjectTags = ({ source }: ObjectTagsProps) => {
   const { data: tagOptions = [] } = useGetTagOptionsQuery();
   const [createTagOption] = useCreateTagOptionMutation();
   const [addObjectTag] = useAddObjectTagMutation();
+  const [deleteObjectTag] = useDeleteObjectTagMutation();
   const { data: currentUser } = useGetProfileQuery();
   const groups = useGetGroupsQuery().data?.userAccessible ?? [];
   const permission =
@@ -128,6 +131,11 @@ const ObjectTags = ({ source }: ObjectTagsProps) => {
   const handleOpenEditDialog = (tag: any) => {
     setEditingTag(tag);
     setEditDialogOpen(true);
+  };
+
+  const removeTag = async (tag: any) => {
+    const { error } = await deleteObjectTag({ id: tag.id });
+    if (!error) dispatch(showNotification("Tag removed from source"));
   };
 
   const handleCloseEditDialog = () => {
@@ -219,15 +227,30 @@ const ObjectTags = ({ source }: ObjectTagsProps) => {
           // its own obj_id. Surface where it came from, and don't offer to edit
           // it from this page (writes stay per-source).
           const fromLinkedObj = tag.obj_id && tag.obj_id !== source.id;
+          const editable = availableGroups.length > 0;
           const chip = (
             <Chip
               key={tag.id}
               className={styles.chip}
               label={fromLinkedObj ? `${tag.name} (${tag.obj_id})` : tag.name}
               size="small"
-              deleteIcon={fromLinkedObj ? undefined : <EditIcon />}
+              deleteIcon={
+                fromLinkedObj ? undefined : editable ? (
+                  <Tooltip title="Edit tag">
+                    <EditIcon />
+                  </Tooltip>
+                ) : (
+                  <Tooltip title="Remove tag">
+                    <CancelIcon />
+                  </Tooltip>
+                )
+              }
               onDelete={
-                fromLinkedObj ? undefined : () => handleOpenEditDialog(tag)
+                fromLinkedObj
+                  ? undefined
+                  : editable
+                    ? () => handleOpenEditDialog(tag)
+                    : () => removeTag(tag)
               }
               data-testid={`tag-chip-${tag.id}`}
               style={{
