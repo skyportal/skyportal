@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { Link, useParams } from "react-router-dom";
+import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
 
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import SmartToyIcon from "@mui/icons-material/SmartToy";
@@ -56,6 +56,8 @@ const AssistantHint = () => {
 
 const Filter = () => {
   const dispatch = useAppDispatch();
+  const navigate = useNavigate();
+  const location = useLocation();
   const { fid } = useParams();
 
   const { data: filter, error: filterError } = useGetFilterQuery(fid ?? "", {
@@ -90,9 +92,12 @@ const Filter = () => {
     <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
       <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
         <IconButton
-          component={Link}
-          to={`/group/${group_id}?tab=filters`}
-          aria-label="back to group filters"
+          aria-label="back"
+          onClick={() =>
+            location.key === "default"
+              ? navigate(`/group/${group_id}?tab=filters`)
+              : navigate(-1)
+          }
         >
           <ArrowBackIcon />
         </IconButton>
