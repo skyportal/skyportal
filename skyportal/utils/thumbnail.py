@@ -38,6 +38,15 @@ def get_thumbnail_header(thumb_type):
     return header.get(thumb_type, thumb_type.upper())
 
 
+def latest_thumbnails(thumbnails):
+    latest = {}
+    for t in thumbnails:
+        key = (t.survey, t.type) if t.type in ("new", "ref", "sub") else (None, t.type)
+        if key not in latest or t.created_at > latest[key].created_at:
+            latest[key] = t
+    return list(latest.values())
+
+
 def image_is_grayscale(
     file,
     thumb_size=thumb_size,

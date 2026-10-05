@@ -485,3 +485,38 @@ def test_candidates_page_with_linked_objs(
             ]
     finally:
         teardown()
+
+
+def test_candidate_linked_thumbnails(
+    super_admin_token,
+    view_only_token,
+    public_candidate,
+    public_candidate2,
+    public_group,
+):
+    obj1 = public_candidate.id
+    obj2 = public_candidate2.id
+    _post_thumbnail(super_admin_token, obj1, "new", "ZTF")
+    _post_thumbnail(super_admin_token, obj2, "new", "LSST")
+    _, teardown = _link_super_obj([obj1, obj2])
+    try:
+        status, data = api(
+            "GET",
+            "candidates",
+            params={"groupIDs": public_group.id},
+            token=view_only_token,
+        )
+        assert status == 200, data
+        listed = {c["id"]: c for c in data["data"]["candidates"]}[obj1]
+
+        status, data = api("GET", f"candidates/{obj1}", token=view_only_token)
+        assert status == 200, data
+
+        for candidate in [listed, data["data"]]:
+            assert {("ZTF", obj1), ("LSST", obj2)} <= {
+                (t["survey"], t["obj_id"])
+                for t in candidate["thumbnails"]
+                if t["type"] == "new"
+            }
+    finally:
+        teardown()
