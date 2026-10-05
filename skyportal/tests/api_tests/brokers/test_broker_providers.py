@@ -1339,6 +1339,366 @@ def test_build_photometry_groups_keeps_same_epoch_in_other_bands():
     assert groups[("ZTF", 1)]["filter"] == ["ztfg", "ztfr"]
 
 
+LASAIR_STREAM_MESSAGE = {
+    "objectId": "ZTF21abcdlas",
+    "objectData": {"ramean": 10.5, "decmean": -20.25},
+    "candidates": [
+        {
+            "candid": 111,
+            "jd": 2459300.5,
+            "magpsf": 18.4,
+            "sigmapsf": 0.07,
+            "fid": 1,
+            "ra": 10.5,
+            "dec": -20.25,
+        },
+        {
+            "candid": 110,
+            "jd": 2459299.5,
+            "magpsf": 18.9,
+            "sigmapsf": 0.09,
+            "fid": 2,
+            "ra": 10.5,
+            "dec": -20.25,
+        },
+    ],
+}
+
+
+def test_a_stream_message_with_a_lightcurve_needs_no_rest_call():
+    """A topic carrying candidates is ingested from the message, since the REST
+    quota sits far below stream rate."""
+    from skyportal.broker_apis import lasair
+
+    assert lasair.carries_lightcurve(LASAIR_STREAM_MESSAGE) is True
+    data = lasair._normalize_object(LASAIR_STREAM_MESSAGE, "ZTF21abcdlas")
+    assert data["objectId"] == "ZTF21abcdlas"
+    assert data["candidate"]["magpsf"] == 18.4
+    assert len(data["prv_candidates"]) == 2
+
+
+def test_an_object_id_only_message_still_needs_the_rest_call():
+    from skyportal.broker_apis import lasair
+
+    for payload in (
+        {"objectId": "ZTF21abcdlas"},
+        {"objectId": "ZTF21abcdlas", "candidates": []},
+        None,
+        "not a dict",
+    ):
+        assert lasair.carries_lightcurve(payload) is False
+
+
+# Shapes taken from live Lasair records. A diaSource carries no position, so
+# the position comes from the diaObject; the REST object holds the lists at the
+# top level and a Kafka lite_lightcurve message nests them under "alert".
+LSST_SOURCES = [
+    {
+        "diaSourceId": 1,
+        "midpointMjdTai": 60000.25,
+        "band": "r",
+        "psfFlux": 36307.8,
+        "psfFluxErr": 3630.8,
+        "reliability": 0.9,
+    },
+    {
+        "diaSourceId": 2,
+        "midpointMjdTai": 60004.25,
+        "band": "g",
+        "psfFlux": 229086.8,
+        "psfFluxErr": 2290.9,
+        "reliability": 0.9,
+    },
+    # difference-image flux below zero: a non-detection, not a measurement
+    {
+        "diaSourceId": 3,
+        "midpointMjdTai": 59998.25,
+        "band": "r",
+        "psfFlux": -140.0,
+        "psfFluxErr": 90.0,
+        "reliability": 0.4,
+    },
+]
+LSST_DIA_OBJECT = {
+    "diaObjectId": 169760235333878021,
+    "ra": 221.87087177320953,
+    "decl": -38.16173726666955,
+}
+LASAIR_LSST_REST = {
+    "diaObjectId": 169760235333878021,
+    "diaObject": LSST_DIA_OBJECT,
+    "diaSourcesList": LSST_SOURCES,
+    "diaForcedSourcesList": [],
+    "lasairData": {},
+}
+LASAIR_LSST_MESSAGE = {
+    "diaObjectId": 169760235333878021,
+    "ra": 221.87087177320953,
+    "decl": -38.16173726666955,
+    "UTC": "2026-01-29 11:40:14",
+    "alert": {
+        "diaObject": LSST_DIA_OBJECT,
+        "diaSourcesList": LSST_SOURCES,
+        "diaForcedSourcesList": [],
+    },
+}
+
+
+def test_an_lsst_record_is_recognised_whether_rest_or_stream():
+    from skyportal.broker_apis import lasair
+
+    assert lasair.carries_lightcurve(LASAIR_LSST_MESSAGE) is True
+    assert lasair._lsst_sources(LASAIR_LSST_REST) == LSST_SOURCES
+    # the plain stream option carries a position and no photometry
+    plain = {k: v for k, v in LASAIR_LSST_MESSAGE.items() if k != "alert"}
+    assert lasair.carries_lightcurve(plain) is False
+
+
+@pytest.mark.parametrize("record", [LASAIR_LSST_REST, LASAIR_LSST_MESSAGE])
+def test_lsst_fluxes_become_ab_magnitudes_and_mjd_becomes_jd(record):
+    from skyportal.broker_apis import lasair
+
+    data = lasair._normalize_object(record, "169760235333878021")
+    _assert_standard_shape(data)
+    # newest detection wins: MJD 60004.25 in g at ~18.0
+    assert data["candidate"]["jd"] == pytest.approx(60004.25 + 2400000.5)
+    assert data["candidate"]["magpsf"] == pytest.approx(18.0, abs=1e-3)
+    assert data["candidate"]["band"] == "g"
+    # a diaSource has no position, so it comes from the diaObject
+    assert data["candidate"]["ra"] == pytest.approx(221.87087177320953)
+    assert data["candidate"]["dec"] == pytest.approx(-38.16173726666955)
+    # the negative-flux source is not a detection
+    assert len(data["prv_candidates"]) == 2
+    assert all(p["magpsf"] is not None for p in data["prv_candidates"])
+
+
+def test_an_lsst_non_detection_never_becomes_a_measurement():
+    from skyportal.broker_apis import lasair
+
+    assert lasair._lsst_magnitude(-140.0, 90.0) == (None, None)
+    assert lasair._lsst_magnitude(0.0, 1.0) == (None, None)
+    # 3631 Jy is AB mag 0 by definition
+    assert lasair._lsst_magnitude(3.631e12, None)[0] == pytest.approx(0.0, abs=1e-3)
+    # error of a 5-sigma measurement
+    assert lasair._lsst_magnitude(1000.0, 200.0)[1] == pytest.approx(0.2171, abs=1e-3)
+
+
+def test_a_bare_nan_in_a_lasair_response_is_parsed_as_none():
+    """LSST records carry bare NaN, which is not JSON; response.json() defers to
+    simplejson when installed and rejects it, so every LSST fetch raised."""
+    import types
+
+    from skyportal.broker_apis import lasair
+
+    body = '{"diaObjectId": 1, "dipoleAngle": NaN, "psfFlux": 12.5}'
+    response = types.SimpleNamespace(text=body)
+    parsed = lasair._parse_json(response)
+    assert parsed["dipoleAngle"] is None
+    assert parsed["psfFlux"] == 12.5
+
+
+def test_a_ztf_record_still_normalizes_the_old_way():
+    from skyportal.broker_apis import lasair
+
+    data = lasair._normalize_object(LASAIR_STREAM_MESSAGE, "ZTF21abcdlas")
+    assert data["candidate"]["magpsf"] == 18.4
+    assert len(data["prv_candidates"]) == 2
+
+
+def test_lasair_replicates_only_when_a_stream_is_configured():
+    """Extra ingest processes may share a Kafka group, but must not each run the
+    REST poller: that spends the same account's quota again."""
+    from skyportal.broker_apis.lasair import LASAIRBROKER
+
+    assert LASAIRBROKER.parallel_ingestion({"token": "x"}) is False
+    assert LASAIRBROKER.parallel_ingestion({}) is False
+    assert (
+        LASAIRBROKER.parallel_ingestion({"kafka": {"topics": ["lasair_2mine"]}}) is True
+    )
+    assert (
+        LASAIRBROKER.parallel_ingestion({"kafka": {"topic_filter_ids": {"t": [1]}}})
+        is True
+    )
+
+
+def test_offsets_are_stored_by_us_not_by_the_clock():
+    """Auto-commit acknowledges on a timer, so a crash drops every message it
+    had reached; storing after a successful ingest replays them instead."""
+    from skyportal.broker_apis._kafka import kafka_consumer_config
+
+    config = kafka_consumer_config({"host": "h", "port": 9092}, "g")
+    # the provider sets this on the config it builds
+    config["enable.auto.offset.store"] = False
+    assert config["enable.auto.offset.store"] is False
+
+
+class FakeKafkaMessage:
+    """Enough of a confluent_kafka Message for the batch helpers."""
+
+    def __init__(self, offset, payload, topic="lasair_2mine", partition=0, err=None):
+        self._offset, self._payload = offset, payload
+        self._topic, self._partition, self._err = topic, partition, err
+
+    def topic(self):
+        return self._topic
+
+    def partition(self):
+        return self._partition
+
+    def offset(self):
+        return self._offset
+
+    def error(self):
+        return self._err
+
+    def value(self):
+        return json.dumps(self._payload).encode() if self._payload is not None else b"{"
+
+
+class FakeConsumer:
+    def __init__(self):
+        self.stored = []
+
+    def store_offsets(self, message=None):
+        self.stored.append((message.topic(), message.partition(), message.offset()))
+
+
+def _msg(offset, oid, **kw):
+    return FakeKafkaMessage(
+        offset, {"objectId": oid, "candidates": [{"jd": 1.0}]}, **kw
+    )
+
+
+def test_a_batch_keeps_only_the_newest_alert_per_object():
+    from skyportal.broker_apis import lasair
+
+    msgs = [_msg(1, "A"), _msg(2, "B"), _msg(3, "A")]
+    finished, work = lasair._prepare_batch(msgs, {}, [7])
+    assert sorted(work) == ["A", "B"]
+    # the superseded A at offset 1 needs no work, so it cannot stall the partition
+    assert ("lasair_2mine", 0, 1) in finished
+    assert work["A"][0].offset() == 3
+
+
+def test_an_undecodable_message_does_not_stall_its_partition():
+    from skyportal.broker_apis import lasair
+
+    bad = FakeKafkaMessage(1, None)  # not valid JSON
+    no_id = FakeKafkaMessage(2, {"foo": 1})  # no objectId
+    finished, work = lasair._prepare_batch([bad, no_id, _msg(3, "A")], {}, [7])
+    assert list(work) == ["A"]
+    assert ("lasair_2mine", 0, 1) in finished
+    assert ("lasair_2mine", 0, 2) in finished
+
+
+def test_offsets_are_stored_only_up_to_the_first_failure():
+    """Storing past a failure acknowledges an alert that was never ingested."""
+    from skyportal.broker_apis import lasair
+
+    msgs = [_msg(o, f"O{o}") for o in (1, 2, 3, 4)]
+    key = lambda m: (m.topic(), m.partition(), m.offset())  # noqa: E731
+    results = {
+        key(msgs[0]): True,
+        key(msgs[1]): True,
+        key(msgs[2]): False,
+        key(msgs[3]): True,
+    }
+    consumer = FakeConsumer()
+    lasair._store_batch_offsets(consumer, msgs, set(), results)
+    # offset 4 succeeded but sits behind the failure at 3, so it is replayed
+    assert consumer.stored == [("lasair_2mine", 0, 2)]
+
+
+def test_nothing_is_stored_when_the_first_message_fails():
+    from skyportal.broker_apis import lasair
+
+    msgs = [_msg(1, "A"), _msg(2, "B")]
+    key = lambda m: (m.topic(), m.partition(), m.offset())  # noqa: E731
+    consumer = FakeConsumer()
+    lasair._store_batch_offsets(
+        consumer, msgs, set(), {key(msgs[0]): False, key(msgs[1]): True}
+    )
+    assert consumer.stored == []
+
+
+def test_a_failure_on_one_partition_does_not_hold_up_another():
+    from skyportal.broker_apis import lasair
+
+    a = [_msg(1, "A", partition=0), _msg(2, "B", partition=0)]
+    b = [_msg(1, "C", partition=1), _msg(2, "D", partition=1)]
+    key = lambda m: (m.topic(), m.partition(), m.offset())  # noqa: E731
+    results = {key(a[0]): False, key(a[1]): True, key(b[0]): True, key(b[1]): True}
+    consumer = FakeConsumer()
+    lasair._store_batch_offsets(consumer, a + b, set(), results)
+    assert consumer.stored == [("lasair_2mine", 1, 2)]
+
+
+def test_a_whole_clean_batch_stores_its_last_offset():
+    from skyportal.broker_apis import lasair
+
+    msgs = [_msg(o, f"O{o}") for o in (5, 6, 7)]
+    key = lambda m: (m.topic(), m.partition(), m.offset())  # noqa: E731
+    consumer = FakeConsumer()
+    lasair._store_batch_offsets(consumer, msgs, set(), {key(m): True for m in msgs})
+    assert consumer.stored == [("lasair_2mine", 0, 7)]
+
+
+def test_a_batch_is_ingested_with_bounded_concurrency(monkeypatch):
+    import asyncio
+
+    from skyportal.broker_apis import lasair
+
+    live, peak = {"n": 0}, {"n": 0}
+
+    async def fake_ingest(broker, oid, survey, filter_ids, token=None, payload=None):
+        live["n"] += 1
+        peak["n"] = max(peak["n"], live["n"])
+        await asyncio.sleep(0.01)
+        live["n"] -= 1
+        if oid == "BAD":
+            raise RuntimeError("boom")
+
+    monkeypatch.setattr(lasair, "_ingest_object", fake_ingest)
+    msgs = [_msg(i, f"O{i}") for i in range(10)] + [_msg(99, "BAD")]
+    _finished, work = lasair._prepare_batch(msgs, {}, [1])
+    results = asyncio.run(lasair._ingest_batch(None, "LSST", "t", work, 3))
+    assert peak["n"] <= 3
+    assert sum(1 for ok in results.values() if ok) == 10
+    assert results[("lasair_2mine", 0, 99)] is False
+
+
+def test_a_live_lasair_lite_lightcurve_message_normalizes():
+    """Replayed from a real message on Lasair's lite_lightcurve tutorial topic.
+
+    A live diaSource carries band/midpointMjdTai/psfFlux/psfFluxErr/reliability
+    and no id, so the alert id falls back to the epoch.
+    """
+    from skyportal.broker_apis import lasair
+
+    with open(os.path.join(CASSETTE_DIR, "lasair_lsst_lite_lightcurve.json")) as f:
+        message = json.load(f)
+
+    assert lasair.carries_lightcurve(message) is True
+    sources = lasair._lsst_sources(message)
+    assert sources and "diaSourceId" not in sources[0]
+
+    oid = lasair._object_id_from_message(message)
+    data = lasair._normalize_object(message, oid)
+    _assert_standard_shape(data)
+    candidate = data["candidate"]
+    # the position the message itself reports
+    assert candidate["ra"] == pytest.approx(message["ra"])
+    assert candidate["dec"] == pytest.approx(message["decl"])
+    # every source is a detection here, and each became a magnitude
+    assert len(data["prv_candidates"]) == len(sources)
+    assert all(20 < p["magpsf"] < 27 for p in data["prv_candidates"])
+    # a null alert id would defeat candidate de-duplication
+    assert isinstance(candidate["candid"], int)
+    assert candidate["jd"] == pytest.approx(
+        max(s["midpointMjdTai"] for s in sources) + 2400000.5
+    )
+
+
 def test_lasair_request_retries_on_rate_limit(monkeypatch):
     """Lasair rate-limits per account; a 429 must be waited out, not dropped."""
     import types
@@ -1355,6 +1715,10 @@ def test_lasair_request_retries_on_rate_limit(monkeypatch):
         def raise_for_status(self):
             if self.status_code >= 400:
                 raise RuntimeError(f"HTTP {self.status_code}")
+
+        @property
+        def text(self):
+            return '[{"objectId": "ZTF1"}]'
 
         def json(self):
             return [{"objectId": "ZTF1"}]

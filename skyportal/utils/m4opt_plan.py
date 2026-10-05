@@ -9,7 +9,9 @@ keeps a solver that hangs or dies out of the app process.
 __all__ = [
     "M4OPTError",
     "generate_m4opt_plan",
+    "largest_feasible_schedule",
     "m4opt_enabled",
+    "observation_count",
     "read_schedule",
     "mission_for",
     "publish_plan",
@@ -72,6 +74,51 @@ def write_skymap(localization, path, event_time):
     return path
 
 
+# M4OPT must observe every field it is given, so an over-large field count is
+# infeasible rather than slow. Searching below it costs one worker round trip
+# per step, which bounds how far the search is worth taking.
+MAX_FIELD_SEARCH_STEPS = 8
+
+
+def observation_count(table):
+    """Number of exposures in a schedule, ignoring slews and other actions."""
+    if len(table) == 0:
+        return 0
+    if "action" not in table.colnames:
+        return len(table)
+    return int(np.count_nonzero(table["action"] == "observe"))
+
+
+def largest_feasible_schedule(attempt, max_fields):
+    """Schedule the most probable fields that M4OPT can actually fit.
+
+    M4OPT has to observe every field it is given for all of its visits, so
+    asking for more than the observing window holds makes the model infeasible
+    and the schedule comes back empty. Requiring more fields only ever adds
+    constraints, so feasibility is monotonic and the largest value that still
+    schedules can be found by bisection. Returns None if even a single field
+    cannot be observed, which means the window itself is empty rather than
+    over-subscribed.
+    """
+    table = attempt(max_fields)
+    if observation_count(table):
+        return table
+
+    best = None
+    low, high = 1, max_fields - 1
+    for _ in range(MAX_FIELD_SEARCH_STEPS):
+        if low > high:
+            break
+        middle = (low + high) // 2
+        table = attempt(middle)
+        if observation_count(table):
+            best = table
+            low = middle + 1
+        else:
+            high = middle - 1
+    return best
+
+
 def run_m4opt(
     localization,
     mission,
@@ -88,7 +135,8 @@ def run_m4opt(
     """Run `m4opt schedule` and return the schedule table it wrote.
 
     Times are absolute; M4OPT works relative to the event, so the window is
-    passed as a delay from the trigger plus a deadline.
+    passed as a delay from the trigger plus a deadline. `max_fields` is an
+    upper bound: fewer are scheduled when the window cannot hold that many.
     """
     config = _config()
     delay = (start_time - event_time).to(u.s)
@@ -96,103 +144,134 @@ def run_m4opt(
     if deadline <= delay:
         raise M4OPTError("The observing window ends before it starts.")
 
+    requested_fields = int(max_fields or config.get("max_fields", 50))
+
     with tempfile.TemporaryDirectory(dir=workdir) as tmp:
         skymap_path = write_skymap(
             localization, Path(tmp) / "skymap.multiorder.fits", event_time
         )
-        schedule_path = Path(tmp) / "schedule.ecsv"
 
-        command = [
-            config.get("executable") or "m4opt",
-            "schedule",
-            str(skymap_path),
-            str(schedule_path),
-            f"--mission={mission}",
-            f"--delay={delay.value}s",
-            f"--deadline={deadline.value}s",
-            f"--nside={config.get('nside', 128)}",
-            f"--timelimit={config.get('timelimit', 300)}s",
-            f"--max-fields={int(max_fields or config.get('max_fields', 50))}",
-        ]
-        # Repeat the option rather than joining: M4OPT cycles visits through
-        # the list and groups them into single-bandpass blocks.
-        command.extend(f"--bandpass={bandpass}" for bandpass in bandpasses)
-        if visits:
-            command.append(f"--visits={int(visits)}")
-        if exposure_time:
-            # A fixed exposure means the adaptive path is off, where M4OPT's
-            # open-source solver is weakest.
-            command.append(f"--exptime-min={float(exposure_time)}s")
-            command.append(f"--exptime-max={float(exposure_time)}s")
-            command.append("--no-appmag-dist")
-        command.extend(config.get("extra_args") or [])
+        def attempt(n_fields):
+            schedule_path = Path(tmp) / f"schedule-{n_fields}.ecsv"
 
-        deployment = config.get("deployment", "local")
-        if deployment == "remote":
-            endpoint = config.get("endpoint")
-            if not endpoint:
-                raise M4OPTError("M4OPT remote deployment requires an endpoint.")
-            import requests
+            command = [
+                config.get("executable") or "m4opt",
+                "schedule",
+                str(skymap_path),
+                str(schedule_path),
+                f"--mission={mission}",
+                f"--delay={delay.value}s",
+                f"--deadline={deadline.value}s",
+                f"--nside={config.get('nside', 128)}",
+                f"--timelimit={config.get('timelimit', 300)}s",
+                f"--max-fields={n_fields}",
+            ]
+            # Repeat the option rather than joining: M4OPT cycles visits through
+            # the list and groups them into single-bandpass blocks.
+            command.extend(f"--bandpass={bandpass}" for bandpass in bandpasses)
+            if visits:
+                command.append(f"--visits={int(visits)}")
+            if exposure_time:
+                # A fixed exposure means the adaptive path is off, where M4OPT's
+                # open-source solver is weakest.
+                command.append(f"--exptime-min={float(exposure_time)}s")
+                command.append(f"--exptime-max={float(exposure_time)}s")
+                command.append("--no-appmag-dist")
+            command.extend(config.get("extra_args") or [])
 
-            request = {
-                "skymap": base64.b64encode(skymap_path.read_bytes()).decode("ascii"),
-                "mission": mission,
-                "delay_seconds": float(delay.to_value(u.s)),
-                "deadline_seconds": float(deadline.to_value(u.s)),
-                "nside": int(config.get("nside", 128)),
-                "timelimit_seconds": int(config.get("timelimit", 300)),
-                "max_fields": int(max_fields or config.get("max_fields", 50)),
-                "bandpasses": list(bandpasses),
-                "visits": int(visits) if visits else None,
-                "exposure_time": float(exposure_time) if exposure_time else None,
-                "extra_args": config.get("extra_args") or [],
-            }
+            deployment = config.get("deployment", "local")
+            if deployment == "remote":
+                endpoint = config.get("endpoint")
+                if not endpoint:
+                    raise M4OPTError("M4OPT remote deployment requires an endpoint.")
+                import requests
+
+                request = {
+                    "skymap": base64.b64encode(skymap_path.read_bytes()).decode(
+                        "ascii"
+                    ),
+                    "mission": mission,
+                    "delay_seconds": float(delay.to_value(u.s)),
+                    "deadline_seconds": float(deadline.to_value(u.s)),
+                    "nside": int(config.get("nside", 128)),
+                    "timelimit_seconds": int(config.get("timelimit", 300)),
+                    "max_fields": n_fields,
+                    "bandpasses": list(bandpasses),
+                    "visits": int(visits) if visits else None,
+                    "exposure_time": float(exposure_time) if exposure_time else None,
+                    "extra_args": config.get("extra_args") or [],
+                }
+                try:
+                    response = requests.post(
+                        endpoint.rstrip("/") + "/schedule",
+                        json=request,
+                        timeout=config.get("subprocess_timeout", 3600) + 30,
+                    )
+                    response.raise_for_status()
+                    response_data = response.json()
+                    schedule_path.write_bytes(
+                        base64.b64decode(response_data["schedule"], validate=True)
+                    )
+                except (requests.RequestException, KeyError, ValueError) as e:
+                    failed = getattr(e, "response", None)
+                    detail = f": {failed.text[-2000:]}" if failed is not None else ""
+                    # A worker that answers but has no /schedule is an image built
+                    # before that route existed; it serves /solve alone, which takes
+                    # a linear model rather than a sky map, so the plan never runs.
+                    if failed is not None and failed.status_code == 404:
+                        raise M4OPTError(
+                            f"M4OPT worker at {endpoint} has no /schedule route, so it "
+                            "cannot build an observation plan. Check GET /healthz and "
+                            f"the deployed image digest{detail}"
+                        ) from e
+                    raise M4OPTError(f"M4OPT worker request failed{detail}") from e
+                return read_schedule(schedule_path)
+            if deployment != "local":
+                raise M4OPTError("M4OPT deployment must be either 'local' or 'remote'.")
+
+            env = None
+            if solver := config.get("solver"):
+                # Explicit, so an incidentally-installed solver cannot take over.
+                env = {**os.environ, "M4OPT_SOLVER": str(solver)}
+
+            log(f"Running: {' '.join(command)}")
             try:
-                response = requests.post(
-                    endpoint.rstrip("/") + "/schedule",
-                    json=request,
-                    timeout=config.get("subprocess_timeout", 3600) + 30,
+                result = subprocess.run(
+                    command,
+                    capture_output=True,
+                    text=True,
+                    timeout=config.get("subprocess_timeout", 3600),
+                    env=env,
                 )
-                response.raise_for_status()
-                response_data = response.json()
-                schedule_path.write_bytes(
-                    base64.b64decode(response_data["schedule"], validate=True)
+            except FileNotFoundError as e:
+                raise M4OPTError(f"M4OPT executable not found: {e}") from e
+            except subprocess.TimeoutExpired as e:
+                raise M4OPTError("M4OPT timed out before writing a schedule.") from e
+
+            if result.returncode != 0:
+                raise M4OPTError(
+                    f"M4OPT exited {result.returncode}: {result.stderr.strip()[-2000:]}"
                 )
-            except (requests.RequestException, KeyError, ValueError) as e:
-                detail = ""
-                if getattr(e, "response", None) is not None:
-                    detail = f": {e.response.text[-2000:]}"
-                raise M4OPTError(f"M4OPT worker request failed{detail}") from e
+            if not schedule_path.exists():
+                raise M4OPTError("M4OPT reported success but wrote no schedule.")
             return read_schedule(schedule_path)
-        if deployment != "local":
-            raise M4OPTError("M4OPT deployment must be either 'local' or 'remote'.")
 
-        env = None
-        if solver := config.get("solver"):
-            # Explicit, so an incidentally-installed solver cannot take over.
-            env = {**os.environ, "M4OPT_SOLVER": str(solver)}
-
-        log(f"Running: {' '.join(command)}")
-        try:
-            result = subprocess.run(
-                command,
-                capture_output=True,
-                text=True,
-                timeout=config.get("subprocess_timeout", 3600),
-                env=env,
+        def logged_attempt(n_fields):
+            table = attempt(n_fields)
+            log(
+                f"M4OPT scheduled {observation_count(table)} observations "
+                f"for {n_fields} fields"
             )
-        except FileNotFoundError as e:
-            raise M4OPTError(f"M4OPT executable not found: {e}") from e
-        except subprocess.TimeoutExpired as e:
-            raise M4OPTError("M4OPT timed out before writing a schedule.") from e
+            return table
 
-        if result.returncode != 0:
+        table = largest_feasible_schedule(logged_attempt, requested_fields)
+        if table is None:
             raise M4OPTError(
-                f"M4OPT exited {result.returncode}: {result.stderr.strip()[-2000:]}"
+                "M4OPT could not observe even one field between "
+                f"{start_time.iso} and {end_time.iso}. The localization is "
+                "likely outside the field of regard for the whole window."
             )
-        if not schedule_path.exists():
-            raise M4OPTError("M4OPT reported success but wrote no schedule.")
-        return read_schedule(schedule_path)
+        return table
 
 
 def _bandpass(row, table):

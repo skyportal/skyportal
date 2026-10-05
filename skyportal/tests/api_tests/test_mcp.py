@@ -145,6 +145,7 @@ def test_mcp_tools_list(view_only_token):
         "post_observation_plan",
         "get_observation_plans",
         "get_filter_targets",
+        "get_counterpart_search_defaults",
         "get_alert_schema",
         "search_filters",
         "attach_filter_to_broker",
@@ -157,6 +158,10 @@ def test_mcp_tools_list(view_only_token):
         "activate_broker_filter_version",
         "post_group",
         "post_filter",
+        "list_brokers",
+        "get_broker_alerts",
+        "get_broker_alert_photometry",
+        "crossmatch_broker_catalogs",
     }
     tools = {t["name"]: t for t in result["tools"]}
     for t in tools.values():
@@ -826,6 +831,23 @@ def test_observation_plan_tool_schemas():
         assert TOOLS[name]["inputSchema"]["required"] == []
 
 
+def test_the_plan_tools_point_at_the_cheap_way_to_judge_a_schedule():
+    """Statistics come back by default; the pointings are a large response, so a
+    caller told only about the latter pulls far more than it needs."""
+    description = TOOLS["get_observation_plans"]["description"]
+    assert "statistics" in description
+    assert "num_observations" in description
+    assert "includePlannedObservations" in description
+
+
+def test_posting_a_plan_says_it_returns_only_a_request_id():
+    """Planning is asynchronous, so a caller that reads the response as the
+    schedule itself waits for observations that were never in it."""
+    description = TOOLS["post_observation_plan"]["description"]
+    assert "asynchronously" in description
+    assert "get_observation_plans" in description
+
+
 def test_every_state_changing_tool_is_marked_as_writing():
     """The assistant offers only readOnlyHint tools, so a write mis-marked as
     read-only is one it may call unprompted."""
@@ -1108,6 +1130,147 @@ def test_an_expr_nested_deep_in_a_pipeline_is_still_found():
         {"$match": {"$and": [{"$or": [{"$expr": {"$gte": ["$y", 3]}}]}]}},
     ]
     assert _expr_comparisons(buried) == [("y", "$gte", ["$y", 3])]
+
+
+ALERT = {
+    "objectId": "ZTF21aagwbjr",
+    "candid": 1526224545015015016,
+    "candidate": {
+        "jd": 2459249.7,
+        "fid": 1,
+        "magpsf": 18.2,
+        "sigmapsf": 0.05,
+        "drb": 0.99,
+        "programid": 1,
+        "nonsense": "unused",
+    },
+    "prv_candidates": [{"jd": 2459248.7}, {"jd": 2459247.7}],
+    "cutoutScience": {"stampData": "...."},
+}
+
+
+def test_an_alert_is_trimmed_to_its_photometry_and_vetting_fields():
+    _, content = run_tool(
+        "get_broker_alerts", {"broker_id": 2, "object_id": "ZTF21aagwbjr"}, [ALERT]
+    )
+    (row,) = content
+    assert row["objectId"] == "ZTF21aagwbjr"
+    assert row["magpsf"] == 18.2 and row["drb"] == 0.99
+    # the heavy parts do not travel, and the history is reported as a count
+    assert "cutoutScience" not in row and "prv_candidates" not in row
+    assert row["n_prv_candidates"] == 2
+    assert "nonsense" not in row
+
+
+def test_full_returns_the_whole_packet():
+    _, content = run_tool(
+        "get_broker_alerts",
+        {"broker_id": 2, "object_id": "ZTF21aagwbjr", "full": True},
+        [ALERT],
+    )
+    assert content == [ALERT]
+
+
+def test_object_id_reaches_the_broker_as_objectId():
+    calls, _ = run_tool(
+        "get_broker_alerts", {"broker_id": 2, "object_id": "ZTF21aagwbjr"}, []
+    )
+    (method, path, query, _body) = calls[0]
+    assert (method, path) == ("GET", "/api/brokers/2/alerts")
+    assert query["objectId"] == "ZTF21aagwbjr"
+
+
+def test_a_time_bounded_positional_search_passes_its_window():
+    calls, _ = run_tool(
+        "get_broker_alerts",
+        {
+            "broker_id": 2,
+            "ra": 250.3,
+            "dec": 57.1,
+            "radius": 5,
+            "jd_start": 2459080.0,
+            "jd_end": 2459090.0,
+        },
+        [],
+    )
+    _, _, query, _ = calls[0]
+    assert query["jd_start"] == 2459080.0 and query["jd_end"] == 2459090.0
+
+
+def test_one_alert_is_fetched_by_candid():
+    calls, _ = run_tool("get_broker_alerts", {"broker_id": 2, "candid": "12345"}, ALERT)
+    (method, path, query, _) = calls[0]
+    assert (method, path) == ("GET", "/api/brokers/2/alerts/12345")
+    assert not query
+
+
+def test_a_search_with_nothing_to_search_on_is_refused():
+    with pytest.raises(ToolError):
+        run_tool("get_broker_alerts", {"broker_id": 2})
+
+
+def test_alert_photometry_falls_back_to_the_default_broker():
+    calls, _ = run_tool("get_broker_alert_photometry", {"object_id": "ZTF20abwysqy"})
+    assert calls[0][1] == "/api/brokers/photometry/ZTF20abwysqy"
+    calls, _ = run_tool(
+        "get_broker_alert_photometry", {"object_id": "ZTF20abwysqy", "broker_id": 2}
+    )
+    assert calls[0][1] == "/api/brokers/2/alerts/ZTF20abwysqy/photometry"
+
+
+def test_the_starting_pipeline_is_accepted_by_the_filter_preview():
+    _, content = run_tool("get_counterpart_search_defaults", {})
+    pipeline = content["pipeline"]
+    assert isinstance(pipeline, list) and pipeline
+    assert all(isinstance(stage, dict) for stage in pipeline)
+    # run_broker_filter's own schema has to accept it unchanged
+    TOOLS["run_broker_filter"]["validator"].validate(
+        {"broker_id": 2, "pipeline": pipeline}
+    )
+
+
+def test_editing_the_starting_pipeline_leaves_the_service_cuts_alone():
+    from skyportal.utils.gcn_crossmatch import ZTF_QUALITY_CUTS
+
+    _, content = run_tool("get_counterpart_search_defaults", {})
+    content["pipeline"][0]["$match"]["candidate.drb"] = {"$gt": 0.999}
+    assert ZTF_QUALITY_CUTS[0]["$match"]["candidate.drb"] == {"$gt": 0.5}
+
+
+def test_the_suggested_window_matches_the_crossmatch_service():
+    from skyportal.utils.gcn_crossmatch import DEFAULTS
+
+    _, content = run_tool("get_counterpart_search_defaults", {})
+    suggested = content["suggested"]
+    assert suggested["credible_level"] == DEFAULTS["credible_level"]
+    assert suggested["days_before_trigger"] == DEFAULTS["delta_t_before"]
+    assert suggested["days_after_trigger"] == DEFAULTS["delta_t_after"]
+    # a search of the past keeps the alerts nearest the trigger
+    assert suggested["sort_order"] == "Ascending"
+
+
+def test_listing_brokers_never_returns_their_credentials():
+    brokers = [
+        {
+            "id": 2,
+            "name": "BOOM",
+            "active": True,
+            "surveys": ["ZTF"],
+            "altdata": {"kafka": {"password": "hunter2"}},
+            "capabilities": {"query_alerts": True, "create_filter": False},
+        }
+    ]
+    _, content = run_tool("list_brokers", {}, brokers)
+    assert content == [
+        {
+            "id": 2,
+            "name": "BOOM",
+            "active": True,
+            "surveys": ["ZTF"],
+            "supports": ["query_alerts"],
+        }
+    ]
+    assert "hunter2" not in json.dumps(content)
 
 
 def test_a_julian_date_is_converted_rather_than_reasoned_about():

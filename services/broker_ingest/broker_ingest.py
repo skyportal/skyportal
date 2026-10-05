@@ -69,10 +69,13 @@ async def _active_ingestion_brokers(session):
             if not b.broker_class.implements().get("run_ingestion"):
                 continue
             # Replica processes run only providers safe to replicate across a
-            # shared Kafka consumer group; REST pollers stay on process 0.
-            if _PROCESS_INDEX > 0 and not getattr(
-                b.broker_class, "parallel_ingestion", False
-            ):
+            # shared Kafka consumer group; REST pollers stay on process 0. A
+            # provider that is one or the other depending on its configuration
+            # declares a callable and is asked about this broker.
+            parallel = getattr(b.broker_class, "parallel_ingestion", False)
+            if callable(parallel):
+                parallel = parallel(b.altdata)
+            if _PROCESS_INDEX > 0 and not parallel:
                 continue
             session.expunge(b)  # detached: used from a long-lived task
             wanted[b.id] = b
