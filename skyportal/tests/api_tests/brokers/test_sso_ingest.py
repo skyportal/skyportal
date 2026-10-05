@@ -355,7 +355,7 @@ def test_triggering_detection_picked_from_boom_history():
     data = _normalize_boom_alert(boom_record("9816", 2460000.5, 10.0, 20.0))
 
     # The shape that previously fooled the ingest into finding nothing.
-    assert data["candidate"].get("jd") is None
+    assert data["candidate"].get("band") is None
     assert len(data["prv_candidates"]) == 3
 
     detection = triggering_detection(data)

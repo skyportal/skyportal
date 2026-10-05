@@ -208,3 +208,46 @@ def test_broker_ingest_autosave_ignore_is_group_specific(
     assert fetch_source(obj_id, public_filter) is not None, (
         "object should be auto-saved when not in an ignored group"
     )
+
+
+def test_broker_ingest_dates_thumbnails_with_boom_alert_epoch(
+    super_admin_user, public_filter, ztf_instrument, obj_id, monkeypatch
+):
+    """The cutouts of a BOOM alert are dated with the alert's own epoch."""
+    from skyportal.broker_apis import _thumbnails
+    from skyportal.broker_apis.boom import _normalize_boom_alert
+
+    dates = []
+
+    async def fake_add_thumbnails(obj_id, cutouts, survey, session, user_id=1, jd=None):
+        dates.append(jd)
+
+    monkeypatch.setattr(_thumbnails, "add_thumbnails", fake_add_thumbnails)
+    data = _normalize_boom_alert(
+        {
+            "objectId": obj_id,
+            "candid": 12345,
+            "jd": 2461317.5,
+            "ra": 10.0,
+            "dec": 20.0,
+            "drb": 0.99,
+            "photometry": [],
+        }
+    )
+
+    async def _run():
+        async with baselayer_models.async_plain_session_factory() as session:
+            user = await session.get(User, super_admin_user.id)
+            await save_object_as_candidate(
+                data,
+                "ZTF",
+                session,
+                user,
+                [public_filter.id],
+                passing_alert_id=12345,
+                cutouts={"cutoutScience": b"fits"},
+            )
+
+    asyncio.run(_run())
+
+    assert dates == [2461317.5]
