@@ -1,6 +1,6 @@
 import React, { Suspense, useEffect, useMemo, useState } from "react";
 
-import CircularProgress from "@mui/material/CircularProgress";
+import Skeleton from "@mui/material/Skeleton";
 import Switch from "@mui/material/Switch";
 
 import { useGetSourcePhotometryMinimalQuery } from "../../ducks/photometry_minimal";
@@ -37,6 +37,13 @@ const findPeriodInAnnotations = (annotations: any[] = []) => {
   return null;
 };
 
+const PlotSkeleton = ({ style }: { style: React.CSSProperties }) => (
+  <Skeleton
+    variant="rounded"
+    sx={{ width: style.width ?? "100%", height: style.minHeight ?? "18rem" }}
+  />
+);
+
 interface VegaPhotometryMemoProps {
   values: any[];
   filters: string[];
@@ -70,9 +77,7 @@ const VegaPhotometryMemo = React.memo(
       <VegaPlot {...({ values: plotValues, colorScale, style } as any)} />
     );
     return (
-      <Suspense fallback={<CircularProgress color="secondary" />}>
-        {plot}
-      </Suspense>
+      <Suspense fallback={<PlotSkeleton style={style} />}>{plot}</Suspense>
     );
   },
   (prevProps, nextProps) => {
@@ -104,7 +109,8 @@ interface VegaPhotometryProps {
 
 const VegaPhotometry = (props: VegaPhotometryProps) => {
   const { sourceId, annotations = [], folded = false, style = {} } = props;
-  const { data: photometry } = useGetSourcePhotometryMinimalQuery(sourceId);
+  const { data: photometry, isLoading } =
+    useGetSourcePhotometryMinimalQuery(sourceId);
   const { data: config } = useGetConfigQuery() as { data: any };
   const [filters, setFilters] = useState<string[] | null>(null);
   const [wavelengths, setWavelengths] = useState<string[] | null>(null);
@@ -179,9 +185,12 @@ const VegaPhotometry = (props: VegaPhotometryProps) => {
 
   if (folded && !period) return "No period found.";
 
+  if (isLoading) return <PlotSkeleton style={style} />;
+
   if (!photometry?.length) return "No photometry found.";
 
-  if (!photDisplayData || !filters || !wavelengths) return <CircularProgress />;
+  if (!photDisplayData || !filters || !wavelengths)
+    return <PlotSkeleton style={style} />;
 
   return (
     <div>
