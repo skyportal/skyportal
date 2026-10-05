@@ -250,10 +250,11 @@ export const PAGE_TOURS: Record<string, TourStep[]> = {
     },
     {
       target: '[data-testid="tour-filter-operator"]',
-      title: "AND / OR logic",
+      title: "All or any",
       content:
-        "Choose whether everything inside a block must match (And) or only " +
-        "one needs to (Or). Nest blocks to build more complex logic.",
+        "Choose whether an alert has to match all the conditions of a block " +
+        "or just one of them, and whether it has to match them or not. Nest " +
+        "blocks to build more complex logic.",
     },
     {
       target: '[data-testid="tour-filter-condition"]',
@@ -264,10 +265,11 @@ export const PAGE_TOURS: Record<string, TourStep[]> = {
     },
     {
       target: '[data-testid="tour-filter-add"]',
-      title: "Add more",
+      title: "Add a condition",
       content:
-        "Add another condition, a nested block, a computed variable, or a " +
-        "reusable custom block from here.",
+        "Add another condition to this block. The menu at the start of a " +
+        "condition turns it into a computed variable, a list, a switch, a " +
+        "nested block, or one of your saved custom blocks.",
     },
     {
       target: '[data-testid="tour-filter-save"]',

@@ -1,22 +1,61 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { v4 as uuidv4 } from "uuid";
 import {
   Box,
   Button,
-  FormControl,
   Select,
   MenuItem,
-  Switch,
   Chip,
   IconButton,
+  InputBase,
+  Tooltip,
+  Typography,
 } from "@mui/material";
+import { alpha } from "@mui/material/styles";
+import AddIcon from "@mui/icons-material/Add";
 import ClearIcon from "@mui/icons-material/Clear";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import ExpandLessIcon from "@mui/icons-material/ExpandLess";
 import { blockHeaderStyles } from "../../../../styles/componentStyles";
 import { useFilterBuilder } from "../../../../hooks/useContexts";
-import CustomAddElement from "./CustomAddElement";
 import SaveBlockComponent from "./SaveBlockComponent";
+import { mapBlock } from "./blockTree";
+
+const InlineSelect = ({
+  value,
+  onChange,
+  options,
+  label,
+  onOpen,
+}: {
+  value: string;
+  onChange: (value: string) => void;
+  options: [string, string][];
+  label: string;
+  onOpen?: () => void;
+}) => (
+  <Select
+    value={value}
+    onChange={(e: any) => onChange(e.target.value)}
+    onOpen={onOpen}
+    input={<InputBase />}
+    inputProps={{ "aria-label": label }}
+    sx={{
+      fontSize: "0.875rem",
+      fontWeight: 600,
+      color: "primary.main",
+      bgcolor: (theme) => alpha(theme.palette.primary.main, 0.08),
+      borderRadius: 1,
+      "& .MuiSelect-select": { py: 0.25, pl: 1 },
+    }}
+  >
+    {options.map(([optionValue, optionLabel]) => (
+      <MenuItem key={optionValue} value={optionValue}>
+        {optionLabel}
+      </MenuItem>
+    ))}
+  </Select>
+);
 
 interface BlockHeaderProps {
   block: any;
@@ -27,14 +66,10 @@ interface BlockHeaderProps {
     isCollapsed?: boolean;
     isCustomBlock?: boolean;
   };
-  uiState: {
-    activeBlockForAdd?: any;
-    setActiveBlockForAdd: (...a: any[]) => void;
-  };
   localFilters?: any[] | null;
   setLocalFilters?: ((...a: any[]) => void) | null;
   isStickyHeader?: boolean;
-  disableSwitchOption?: boolean;
+  sentencePrefix?: string | undefined;
 }
 
 const BlockHeader = ({
@@ -42,11 +77,10 @@ const BlockHeader = ({
   parentBlockId,
   isRoot,
   blockState: { customBlockName, isCollapsed, isCustomBlock },
-  uiState: { activeBlockForAdd, setActiveBlockForAdd },
   localFilters = null,
   setLocalFilters = null,
   isStickyHeader = false,
-  disableSwitchOption = false,
+  sentencePrefix,
 }: BlockHeaderProps) => {
   const {
     filters: contextFilters,
@@ -56,10 +90,6 @@ const BlockHeader = ({
     setSaveName,
     setSaveError,
     createDefaultCondition,
-    createDefaultBlock,
-    setSpecialConditionDialog,
-    setListConditionDialog,
-    setSwitchDialog,
     customBlocks,
     updateBlockLogic,
     removeBlock,
@@ -448,10 +478,37 @@ const BlockHeader = ({
     });
   };
 
-  const isTrueLabel = block?.isTrue !== false ? "True" : "False";
+  const [operatorTipOpen, setOperatorTipOpen] = useState(false);
 
+  const handleAddCondition = () =>
+    setFilters(
+      mapBlock(filters, block.id, (current) => ({
+        ...current,
+        children: [...current.children, createDefaultCondition()],
+      })),
+    );
+
+  const handleOperatorChange = (value: string) => {
+    if (!localFilters || !setLocalFilters) {
+      updateBlockLogic(block.id, `$${value}`);
+      return;
+    }
+    setLocalFilters(
+      mapBlock(localFilters, block.id, (current) => ({
+        ...current,
+        operator: `$${value}`,
+        logic: value,
+      })),
+    );
+  };
+
+  const prefix = isRoot ? sentencePrefix : undefined;
   const isRootCustomBlock = "isTrue" in block && isCustomBlock;
   const edited = isBlockEdited(block) && isRootCustomBlock;
+  const showContent = !(isRootCustomBlock && isCollapsed);
+  const operator = (block?.operator || block?.logic || "$and")
+    .replace("$", "")
+    .toLowerCase();
 
   return (
     <Box
@@ -473,8 +530,15 @@ const BlockHeader = ({
         justifyContent: "space-between",
       }}
     >
-      <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-        {/* Collapse/Expand and Delete buttons (left) */}
+      <Box
+        sx={{
+          display: "flex",
+          alignItems: "center",
+          gap: 1,
+          flexWrap: "wrap",
+          minWidth: 0,
+        }}
+      >
         {!isRoot && (
           <>
             <Button
@@ -499,128 +563,22 @@ const BlockHeader = ({
             </IconButton>
           </>
         )}
-
-        {/* Controls (except Save) */}
-        {isRootCustomBlock && isCollapsed ? null : (
-          <>
-            <FormControl
-              size="small"
-              sx={{ minWidth: 80 }}
-              data-testid="tour-filter-operator"
-            >
-              <Select
-                value={(block?.operator || block?.logic || "$and")
-                  .replace("$", "")
-                  .toLowerCase()}
-                onChange={(e: any) => {
-                  if (localFilters && setLocalFilters) {
-                    const updatedFilters = localFilters.map(
-                      (currentBlock: any) => {
-                        const updateBlockOperator = (
-                          blockToUpdate: any,
-                        ): any => {
-                          if (blockToUpdate.id === block.id) {
-                            return {
-                              ...blockToUpdate,
-                              operator: `$${e.target.value.toLowerCase()}`,
-                              logic: e.target.value,
-                            };
-                          }
-                          if (blockToUpdate.children) {
-                            return {
-                              ...blockToUpdate,
-                              children: blockToUpdate.children.map(
-                                (child: any) =>
-                                  child.category === "block"
-                                    ? updateBlockOperator(child)
-                                    : child,
-                              ),
-                            };
-                          }
-                          return blockToUpdate;
-                        };
-                        return updateBlockOperator(currentBlock);
-                      },
-                    );
-                    setLocalFilters(updatedFilters);
-                  } else {
-                    // Fallback to context update
-                    updateBlockLogic(
-                      block.id,
-                      `$${e.target.value.toLowerCase()}`,
-                    );
-                  }
-                }}
-              >
-                <MenuItem value="and">And</MenuItem>
-                <MenuItem value="or">Or</MenuItem>
-              </Select>
-            </FormControl>
-
-            {/* Add Button with neat menu */}
-            <CustomAddElement
-              block={block}
-              uiState={{ activeBlockForAdd, setActiveBlockForAdd }}
-              customBlocks={customBlocks}
-              defaultCondition={createDefaultCondition}
-              defaultBlock={createDefaultBlock}
-              setFilters={setFilters}
-              filters={filters}
-              setSpecialConditionDialog={setSpecialConditionDialog}
-              setListConditionDialog={setListConditionDialog}
-              setSwitchDialog={setSwitchDialog}
-              setCollapsedBlocks={setCollapsedBlocks}
-              disableSwitchOption={disableSwitchOption}
-            />
-          </>
-        )}
-      </Box>
-
-      <Box
-        id={`block-${block.id}-center`}
-        sx={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          flex: 1,
-          minWidth: 200,
-        }}
-      >
-        {/* Root custom block: chip + switch grouped and centered */}
         {isRootCustomBlock && (
-          <Box
-            sx={{
-              display: "flex",
-              alignItems: "center",
-              gap: 1.5,
-              justifyContent: "center",
-            }}
-          >
+          <>
             <Chip
+              size="small"
               label={customBlockName}
               onClick={
                 edited ? () => resetBlockToOriginal(block.id) : undefined
               }
+              title={edited ? "Click to reset to original values" : undefined}
               sx={{
                 fontWeight: 600,
-                px: 1,
-                py: 0.5,
                 cursor: edited ? "pointer" : "default",
                 bgcolor: edited ? "warning.light" : "info.light",
                 color: edited ? "warning.contrastText" : "primary.contrastText",
-                border: edited ? 1 : 0,
-                borderColor: edited ? "warning.main" : "transparent",
-                transition: "all 0.2s ease",
-                "&:hover": edited
-                  ? {
-                      bgcolor: "warning.main",
-                      transform: "scale(1.02)",
-                    }
-                  : {},
               }}
-              title={edited ? "Click to reset to original values" : undefined}
             />
-
             {edited && (
               <Box
                 component="span"
@@ -629,90 +587,60 @@ const BlockHeader = ({
                 (edited)
               </Box>
             )}
-
-            {/* Switch for custom block boolean value */}
-            <Switch
-              checked={block?.isTrue !== false}
-              onChange={(e: any) => handleToggleIsTrue(e.target.checked)}
-              color="default"
-              size="medium"
-              slotProps={{
-                input: { "aria-label": "Custom block boolean value" },
-              }}
-            />
-            <Box
-              component="span"
-              sx={{
-                fontSize: "0.875rem",
-                color: "text.secondary",
-                fontWeight: 500,
-                ml: 0.5,
-              }}
-            >
-              {isTrueLabel}
-            </Box>
-          </Box>
+          </>
         )}
-
-        {/* Nested custom block: switch, centered */}
-        {!isRootCustomBlock && isCustomBlock && (
-          <Box
-            sx={{
-              display: "flex",
-              alignItems: "center",
-              gap: 0.5,
-              justifyContent: "center",
-            }}
-          >
-            <Switch
-              checked={block?.isTrue !== false}
-              onChange={(e: any) => handleToggleIsTrue(e.target.checked)}
-              color="default"
-              size="medium"
-              slotProps={{ input: { "aria-label": "Negate block logic" } }}
-            />
-            <Box
-              component="span"
-              sx={{
-                fontSize: "0.875rem",
-                color: "text.secondary",
-                fontWeight: 500,
-              }}
-            >
-              {isTrueLabel}
-            </Box>
-          </Box>
+        {prefix && (
+          <Typography variant="body2" color="text.secondary">
+            {prefix}
+          </Typography>
         )}
-
-        {/* Regular block: just switch, centered */}
-        {!isRootCustomBlock && !isCustomBlock && (
-          <Box
-            id="block-boolean-switch"
-            sx={{
-              display: "flex",
-              alignItems: "center",
-              gap: 0.5,
-              justifyContent: "center",
-            }}
-          >
-            <Switch
-              checked={block?.isTrue !== false}
-              onChange={(e: any) => handleToggleIsTrue(e.target.checked)}
-              color="default"
-              size="medium"
-              slotProps={{ input: { "aria-label": "Block boolean value" } }}
-            />
-            <Box
-              component="span"
-              sx={{
-                fontSize: "0.875rem",
-                color: "text.secondary",
-                fontWeight: 500,
-              }}
+        <InlineSelect
+          label="Whether alerts must match this block"
+          value={block?.isTrue !== false ? "match" : "not"}
+          onChange={(value) => handleToggleIsTrue(value === "match")}
+          options={[
+            ["match", prefix ? "match" : "Match"],
+            ["not", prefix ? "don't match" : "Don't match"],
+          ]}
+        />
+        {showContent && (
+          <>
+            <Tooltip
+              placement="top"
+              open={operatorTipOpen}
+              onOpen={() => setOperatorTipOpen(true)}
+              onClose={() => setOperatorTipOpen(false)}
+              title={isRoot ? "all = AND, any = OR" : ""}
             >
-              {isTrueLabel}
-            </Box>
-          </Box>
+              <Box data-testid="tour-filter-operator">
+                <InlineSelect
+                  label="How many conditions must match"
+                  value={operator}
+                  onChange={handleOperatorChange}
+                  onOpen={() => setOperatorTipOpen(false)}
+                  options={[
+                    ["and", "all"],
+                    ["or", "any"],
+                  ]}
+                />
+              </Box>
+            </Tooltip>
+            <Typography variant="body2" color="text.secondary">
+              of these conditions
+            </Typography>
+            <Tooltip title="Add a condition">
+              <Button
+                data-testid="tour-filter-add"
+                variant="contained"
+                size="small"
+                endIcon={<AddIcon />}
+                onClick={handleAddCondition}
+                sx={{ ml: 1, py: 0, minWidth: 0 }}
+              >
+                Add
+              </Button>
+            </Tooltip>
+          </>
         )}
       </Box>
 

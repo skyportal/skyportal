@@ -492,46 +492,73 @@ const FilterBuilderContent = ({
               </Button>
             </span>
           </Tooltip>
-          <Button
-            type="button"
-            variant="outlined"
-            startIcon={<NoteIcon />}
-            onClick={handleAddAnnotations}
-            disabled={!!rawPipeline}
-            sx={{
-              "&:hover": {
-                backgroundColor: "secondary.50",
-                borderColor: "secondary.main",
-              },
-            }}
+          <Tooltip
+            describeChild
+            title={
+              rawPipeline
+                ? "Annotations can only be added to a filter built with blocks."
+                : "Choose the values attached as annotations to each alert that passes this filter. They are saved with the filter when you click Save."
+            }
           >
-            Add Annotations
-          </Button>
-          <Button
-            type="button"
-            variant="outlined"
-            startIcon={<ContentPasteIcon />}
-            onClick={() => setImportOpen(true)}
+            <span>
+              <Button
+                type="button"
+                variant="outlined"
+                startIcon={<NoteIcon />}
+                onClick={handleAddAnnotations}
+                disabled={!!rawPipeline}
+                sx={{
+                  "&:hover": {
+                    backgroundColor: "secondary.50",
+                    borderColor: "secondary.main",
+                  },
+                }}
+              >
+                Add Annotations
+              </Button>
+            </span>
+          </Tooltip>
+          <Tooltip
+            describeChild
+            title="Paste a MongoDB aggregation pipeline to replace what the builder shows. It becomes blocks when possible and is only saved when you click Save."
           >
-            Import JSON
-          </Button>
-          <Button
-            type="button"
-            variant="outlined"
-            startIcon={<CodeIcon />}
-            onClick={handleShowMongoQuery}
-            disabled={!hasValidQuery()}
-            sx={{
-              borderColor: hasValidQuery() ? "primary.main" : undefined,
-              color: hasValidQuery() ? "primary.main" : undefined,
-              "&:hover": {
-                borderColor: hasValidQuery() ? "primary.dark" : undefined,
-                backgroundColor: hasValidQuery() ? "primary.50" : undefined,
-              },
-            }}
+            <Button
+              type="button"
+              variant="outlined"
+              startIcon={<ContentPasteIcon />}
+              onClick={() => setImportOpen(true)}
+            >
+              Import JSON
+            </Button>
+          </Tooltip>
+          <Tooltip
+            describeChild
+            title={
+              hasValidQuery()
+                ? "See the MongoDB pipeline built from these blocks and run it on past alerts to check which ones pass. Nothing is saved."
+                : "Add at least one complete condition to test the filter."
+            }
           >
-            Test/Preview filter output
-          </Button>
+            <span>
+              <Button
+                type="button"
+                variant="outlined"
+                startIcon={<CodeIcon />}
+                onClick={handleShowMongoQuery}
+                disabled={!hasValidQuery()}
+                sx={{
+                  borderColor: hasValidQuery() ? "primary.main" : undefined,
+                  color: hasValidQuery() ? "primary.main" : undefined,
+                  "&:hover": {
+                    borderColor: hasValidQuery() ? "primary.dark" : undefined,
+                    backgroundColor: hasValidQuery() ? "primary.50" : undefined,
+                  },
+                }}
+              >
+                Test/Preview filter output
+              </Button>
+            </span>
+          </Tooltip>
         </Box>
       </Box>
 
@@ -583,6 +610,7 @@ const FilterBuilderContent = ({
                 block={block}
                 parentBlockId={null}
                 isRoot={index === 0}
+                sentencePrefix="Keep alerts that"
                 fieldOptionsList={fieldOptions}
                 stickyBlockId={getMostNestedNonCollapsedBlock.blockId}
                 localFilters={filtersToRender}
