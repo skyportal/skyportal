@@ -2,8 +2,11 @@
 stored validation verdict, keyed per fid with a legacy single-slot fallback.
 """
 
+from types import SimpleNamespace
+
 from skyportal.handlers.api.broker import (
     BrokerFilterValidateBody,
+    _apply_pending_switch,
     _store_version_validation,
     _version_validation,
 )
@@ -56,3 +59,58 @@ def test_validate_body_accepts_a_string_fid():
     assert BrokerFilterValidateBody(fid="nbHFqW").fid == "nbHFqW"
     assert BrokerFilterValidateBody(fid=3).fid == 3
     assert BrokerFilterValidateBody().fid is None
+
+
+def _pending_filter():
+    calls = []
+    broker = SimpleNamespace(
+        broker_class=SimpleNamespace(
+            update_filter=lambda broker, session, **kwargs: calls.append(kwargs)
+        )
+    )
+    f = SimpleNamespace(
+        id=1,
+        altdata={
+            "boom": {
+                "filter_id": "boom-id",
+                "pending_switch": {"fid": "B", "by": "alice"},
+            }
+        },
+    )
+    return broker, f, calls
+
+
+def test_pending_switch_happens_when_validation_passes():
+    broker, f, calls = _pending_filter()
+    _apply_pending_switch(broker, None, f, "B", True)
+    assert calls == [
+        {
+            "boom_filter_id": "boom-id",
+            "active": True,
+            "active_fid": "B",
+            "skip_validation": True,
+        }
+    ]
+    assert "pending_switch" not in f.altdata["boom"]
+    event = f.altdata["boom"]["activations"][-1]
+    assert (event["fid"], event["active"], event["switched"], event["by"]) == (
+        "B",
+        True,
+        True,
+        "alice",
+    )
+
+
+def test_pending_switch_is_dropped_when_validation_fails():
+    broker, f, calls = _pending_filter()
+    _apply_pending_switch(broker, None, f, "B", False)
+    assert calls == []
+    assert "pending_switch" not in f.altdata["boom"]
+    assert "activations" not in f.altdata["boom"]
+
+
+def test_validating_another_version_keeps_the_pending_switch():
+    broker, f, calls = _pending_filter()
+    _apply_pending_switch(broker, None, f, "C", True)
+    assert calls == []
+    assert f.altdata["boom"]["pending_switch"]["fid"] == "B"

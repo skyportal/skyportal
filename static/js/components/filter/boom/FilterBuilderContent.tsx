@@ -4,6 +4,7 @@ import {
   Button,
   Box,
   CircularProgress,
+  Link,
   Tooltip,
   Typography,
 } from "@mui/material";
@@ -24,6 +25,10 @@ import AddSwitchDialog from "./dialog/AddSwitchDialog";
 import SaveBlockDialogMenu from "./block/SaveBlockDialogMenu";
 import MongoQueryDialog from "./dialog/MongoQueryDialog";
 import ImportPipelineDialog from "./dialog/ImportPipelineDialog";
+import SaveVersionDialog from "./dialog/SaveVersionDialog";
+import ConfirmDeletionDialog from "../../ConfirmDeletionDialog";
+import { VersionSelect } from "./FilterVersionLabel";
+import { shortFid } from "./filterVersions";
 import PipelineViewer from "./dialog/PipelineViewer";
 import { isRawMongoPipeline } from "./pipelineFormat";
 import { decompilePipeline } from "../../../utils/mongoPipelineDecompiler";
@@ -120,6 +125,16 @@ const FilterBuilderContent = ({
   const [noBlockTree, setNoBlockTree] = useState(false);
   const [expandedStages, setExpandedStages] = useState<Set<any>>(new Set());
   const [importOpen, setImportOpen] = useState(false);
+  const [saveOpen, setSaveOpen] = useState(false);
+  const [shownFid, setShownFid] = useState<string | null>(null);
+  const [pendingShowFid, setPendingShowFid] = useState<string | null>(null);
+  const [lastActiveFid, setLastActiveFid] = useState(filter?.active_fid);
+  if (filter?.active_fid !== lastActiveFid) {
+    setLastActiveFid(filter?.active_fid);
+    if (!hasBeenModified) setShownFid(null);
+    else if (shownFid === null) setShownFid(lastActiveFid);
+  }
+  const displayedFid: string | undefined = shownFid ?? filter?.active_fid;
   const handleStageToggle = useCallback((index: number) => {
     setExpandedStages((prev) => {
       const next = new Set(prev);
@@ -148,6 +163,13 @@ const FilterBuilderContent = ({
     if (hasBeenModified) {
       return;
     }
+    if (
+      displayedFid &&
+      filter?.fv &&
+      !filter.fv.some((version: any) => version.fid === displayedFid)
+    ) {
+      return;
+    }
 
     // Helper to collapse all blocks after loading filter data
     const collapseAllBlocks = (filterData: any) => {
@@ -166,10 +188,10 @@ const FilterBuilderContent = ({
     };
 
     // First, check if we have filter data in the expected structure
-    if (filter && filter.filters && filter.active_fid) {
+    if (filter && filter.filters && displayedFid) {
       // This seems to be the original working structure
       const activeFilters = filter.filters.filter(
-        (version: any) => version.fid === filter.active_fid,
+        (version: any) => version.fid === displayedFid,
       );
 
       if (activeFilters.length > 0 && activeFilters[0].version) {
@@ -209,9 +231,9 @@ const FilterBuilderContent = ({
     }
 
     // Fallback: try the pipeline structure
-    if (filter && filter.fv && filter.active_fid) {
+    if (filter && filter.fv && displayedFid) {
       const activeVersion = filter.fv.find(
-        (version: any) => version.fid === filter.active_fid,
+        (version: any) => version.fid === displayedFid,
       );
 
       if (activeVersion && activeVersion.pipeline) {
@@ -249,6 +271,7 @@ const FilterBuilderContent = ({
     }
   }, [
     filter,
+    displayedFid,
     setFilters,
     hasBeenModified,
     createEmptyFilterWithDefaultCondition,
@@ -317,6 +340,18 @@ const FilterBuilderContent = ({
     );
     return candidates.length ? candidates[candidates.length - 1] : null;
   }, [noBlockTree, filter]);
+  const openVersion = (fid: string) => {
+    setPendingShowFid(null);
+    setHasBeenModified(false);
+    setShownFid(fid === filter?.active_fid ? null : fid);
+  };
+
+  const requestOpenVersion = (fid: string) => {
+    if (fid === displayedFid) return;
+    if (hasBeenModified) setPendingShowFid(fid);
+    else openVersion(fid);
+  };
+
   const handleCopy = useCallback(() => {
     navigator.clipboard?.writeText(JSON.stringify(rawPipeline, null, 2));
   }, [rawPipeline]);
@@ -404,11 +439,11 @@ const FilterBuilderContent = ({
     );
   };
 
-  const handleSaveFilter = async () => {
+  const handleSaveFilter = async (comment: string, setAsActive: boolean) => {
     const mongoQuery = generateMongoQuery();
     if (!mongoQuery || (Array.isArray(mongoQuery) && mongoQuery.length === 0)) {
       dispatch(showNotification("No valid MongoDB query to save", "error"));
-      return;
+      return false;
     }
 
     try {
@@ -425,11 +460,25 @@ const FilterBuilderContent = ({
         altdata: mongoQuery,
         filters: versionData,
         name: filter_v?.name,
+        comment: comment || null,
+        set_as_active: setAsActive,
       });
       if (!result.error) {
-        dispatch(showNotification("Filter saved to boom database!"));
+        dispatch(
+          result.data?.switch_error
+            ? showNotification(result.data.switch_error, "warning")
+            : showNotification(
+                result.data?.pending_switch
+                  ? "Version saved. The filter switches to it once it passes validation."
+                  : "Filter saved to boom database!",
+              ),
+        );
+        setHasBeenModified(false);
+        setShownFid(result.data?.fid ?? null);
         refetchFilterVersion();
         setShowAnnotationBuilder?.(false);
+        setSaveOpen(false);
+        return true;
       }
     } catch (err) {
       console.error("Error saving filter:", err);
@@ -438,6 +487,7 @@ const FilterBuilderContent = ({
         "Failed to save filter to boom database. Please try again.";
       dispatch(showNotification(errorMessage, "error"));
     }
+    return false;
   };
 
   const handleAddAnnotations = () => {
@@ -464,10 +514,26 @@ const FilterBuilderContent = ({
           display: "flex",
           justifyContent: "space-between",
           alignItems: "center",
+          flexWrap: "wrap",
+          gap: 2,
           mb: 2,
         }}
       >
-        <Typography variant="h6">Filter Builder</Typography>
+        <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
+          <Typography variant="h6">Filter Builder</Typography>
+          {filter?.fv?.length > 0 && (
+            <VersionSelect
+              label="Version shown"
+              value={displayedFid}
+              versions={filter.fv}
+              altdata={filter.altdata}
+              activeFid={filter.active_fid}
+              showActiveState
+              minWidth="18rem"
+              onChange={requestOpenVersion}
+            />
+          )}
+        </Box>
         <Box sx={{ display: "flex", gap: 2 }}>
           <Tooltip
             describeChild
@@ -481,7 +547,7 @@ const FilterBuilderContent = ({
                 startIcon={
                   saving ? <CircularProgress size={16} /> : <SaveIcon />
                 }
-                onClick={handleSaveFilter}
+                onClick={() => setSaveOpen(true)}
                 disabled={
                   saving ||
                   !hasValidQuery() ||
@@ -578,9 +644,24 @@ const FilterBuilderContent = ({
                   This version was saved without the block builder&apos;s
                   representation of it, so only the pipeline it produced can be
                   shown here. The pipeline below is read-only.
-                  {lastEditableVersion
-                    ? ` Version ${String(lastEditableVersion.fid).slice(0, 8)} is the most recent one that is still editable: activate it to carry on in the builder.`
-                    : " Use Import JSON to replace it with a new version."}
+                  {lastEditableVersion ? (
+                    <>
+                      {` Version ${shortFid(lastEditableVersion.fid)} is the most recent one that is still editable: `}
+                      <Link
+                        component="button"
+                        variant="body2"
+                        onClick={() =>
+                          requestOpenVersion(lastEditableVersion.fid)
+                        }
+                        sx={{ verticalAlign: "baseline" }}
+                      >
+                        open it in the builder
+                      </Link>
+                      .
+                    </>
+                  ) : (
+                    " Use Import JSON to replace it with a new version."
+                  )}
                 </>
               ) : (
                 <>
@@ -635,6 +716,20 @@ const FilterBuilderContent = ({
         open={importOpen}
         onClose={() => setImportOpen(false)}
         onImport={handleImportPipeline}
+      />
+      <ConfirmDeletionDialog
+        dialogOpen={pendingShowFid !== null}
+        closeDialog={() => setPendingShowFid(null)}
+        deleteFunction={() => pendingShowFid && openVersion(pendingShowFid)}
+        resourceName="unsaved changes"
+        message="Opening another version discards the changes that are not saved yet."
+      />
+      <SaveVersionDialog
+        open={saveOpen}
+        saving={saving}
+        filter={filter}
+        onClose={() => setSaveOpen(false)}
+        onSave={handleSaveFilter}
       />
     </Box>
   );

@@ -10,22 +10,35 @@ export const boomFilterApi = skyportalApi.injectEndpoints({
     }),
     editBoomFilterVersion: build.mutation<
       any,
-      { filter_id: any; active: any; active_fid: any }
+      {
+        filter_id: any;
+        active: any;
+        active_fid: any;
+        previous_active: any;
+        previous_active_fid: any;
+      }
     >({
-      query: ({ filter_id, active, active_fid }) => ({
+      query: ({ filter_id, ...body }) => ({
         url: `${brokerFilterBase()}/filters/${filter_id}`,
         method: "PATCH",
-        body: { active, active_fid },
+        body,
       }),
     }),
     updateBoomGroupFilter: build.mutation<
       any,
-      { filter_id: any; altdata?: any; filters?: any; name?: any }
+      {
+        filter_id: any;
+        altdata?: any;
+        filters?: any;
+        name?: any;
+        comment?: string | null;
+        set_as_active?: boolean;
+      }
     >({
-      query: ({ filter_id, altdata, filters, name }) => ({
+      query: ({ filter_id, ...body }) => ({
         url: `${brokerFilterBase()}/filters/${filter_id}`,
         method: "POST",
-        body: { altdata, filters, name },
+        body,
       }),
     }),
     updateBoomFilterFlags: build.mutation<
@@ -40,6 +53,8 @@ export const boomFilterApi = skyportalApi.injectEndpoints({
         autoSaveSaverId?: number | null;
         autoSaveComment?: string | null;
         autoFollowupDefaultId?: number | null;
+        fid?: string;
+        comment?: string | null;
       }
     >({
       query: ({ filter_id, ...flags }) => ({

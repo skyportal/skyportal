@@ -2073,7 +2073,7 @@ export interface paths {
         head?: never;
         /**
          * Update a broker filter
-         * @description <b>Permission(s) required:</b> <em>Upload data (or System admin)</em><br><br>Activate a version (``active``/``active_fid``, forwarded to the broker) or toggle autoAnnotate/autoSave/autoFollowup flags.
+         * @description <b>Permission(s) required:</b> <em>Upload data (or System admin)</em><br><br>Activate a version (``active``/``active_fid``, forwarded to the broker), comment on a version (``fid``/``comment``) or toggle autoAnnotate/autoSave/autoFollowup flags.
          */
         patch: {
             parameters: {
@@ -41203,6 +41203,18 @@ export interface components {
              * @default null
              */
             autosave: boolean | null;
+            /**
+             * Comment
+             * @description Why this version was made, shown in the filter's version history.
+             * @default null
+             */
+            comment: string | null;
+            /**
+             * Set As Active
+             * @description Make the new version the active one. On an active filter, the switch happens once that version passes validation, and the current version keeps running until then.
+             * @default false
+             */
+            set_as_active: boolean;
         };
         /**
          * BrokerFiltersPatchBody
@@ -41221,6 +41233,18 @@ export interface components {
              * @default null
              */
             active_fid: (number | string) | null;
+            /**
+             * Previous Active Fid
+             * @description Active version before this change, as the client last saw it. Read from the broker when omitted.
+             * @default null
+             */
+            previous_active_fid: (number | string) | null;
+            /**
+             * Previous Active
+             * @description Whether the filter was active before this change, as the client last saw it. Read from the broker when omitted.
+             * @default null
+             */
+            previous_active: boolean | null;
             /**
              * Autoannotate
              * @description Whether to auto-annotate on filter passage.
@@ -41269,6 +41293,18 @@ export interface components {
              * @default null
              */
             autoFollowupDefaultId: (number | string) | null;
+            /**
+             * Fid
+             * @description Filter version (fid) that `comment` applies to.
+             * @default null
+             */
+            fid: string | null;
+            /**
+             * Comment
+             * @description Comment on version `fid`, shown in the filter's version history. Null or empty string clears it.
+             * @default null
+             */
+            comment: string | null;
         };
         /**
          * BrokerSaveBody

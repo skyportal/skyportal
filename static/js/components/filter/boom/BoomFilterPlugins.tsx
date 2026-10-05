@@ -17,11 +17,16 @@ import HelpOutlineIcon from "@mui/icons-material/HelpOutlineOutlined";
 import Button from "@mui/material/Button";
 import CircularProgress from "@mui/material/CircularProgress";
 import Tooltip from "@mui/material/Tooltip";
+import Alert from "@mui/material/Alert";
 import { UnifiedBuilderProvider } from "../../../contexts/UnifiedBuilderContext";
 import FilterBuilderContent from "./FilterBuilderContent";
 import AnnotationBuilderContent from "./AnnotationBuilderContent";
 import BoomFilterFollowupConfig from "./BoomFilterFollowupConfig";
 import FilterVersionDiff from "./FilterVersionDiff";
+import FilterVersionHistory from "./FilterVersionHistory";
+import { VersionSelect } from "./FilterVersionLabel";
+import VersionSwitchDialog from "./dialog/VersionSwitchDialog";
+import { shortFid } from "./filterVersions";
 import GcnCrossmatchPlugin from "../GcnCrossmatchPlugin";
 
 import { showNotification } from "baselayer/components/Notifications";
@@ -139,22 +144,55 @@ const BoomFilterPlugins = () => {
   const [showAnnotationBuilder, setShowAnnotationBuilder] = useState(false);
   const [tab, setTab] = useState(0);
   const [busy, setBusy] = useState<string | null>(null);
+  const [pendingFid, setPendingFid] = useState<string | null>(null);
 
   const altdata = filter_v.altdata ?? {};
   const isAdmin = (profile?.permissions ?? []).includes("System admin");
   // Legacy single-slot verdict, for versions validated before per-fid storage.
-  const validation =
-    altdata.boom?.validations?.[filter_v.active_fid] ??
-    (altdata.boom?.validation?.fid === filter_v.active_fid
+  const verdictOf = (fid: string) =>
+    altdata.boom?.validations?.[fid] ??
+    (altdata.boom?.validation?.fid === fid
       ? altdata.boom?.validation
       : undefined);
+  const validation = verdictOf(filter_v.active_fid);
   const isValidated = !!validation?.passed;
   const pending =
     !!validation?.pending &&
     fulfilledTimeStamp - Date.parse(validation.started_at) < 10 * 60 * 1000;
   const interrupted = !!validation?.pending && !pending;
   const validating = startingValidation || pending;
-  useBoomFilterVersion({ pollingInterval: pending ? 10000 : 0 });
+  const pendingSwitch = altdata.boom?.pending_switch;
+  useBoomFilterVersion({
+    pollingInterval: pending || pendingSwitch ? 10000 : 0,
+  });
+
+  const lastPendingSwitch = useRef<any>(null);
+  useEffect(() => {
+    if (pendingSwitch) {
+      lastPendingSwitch.current = pendingSwitch;
+      return;
+    }
+    const resolved = lastPendingSwitch.current;
+    if (!resolved) return;
+    lastPendingSwitch.current = null;
+    const verdict = filter_v.altdata?.boom?.validations?.[resolved.fid];
+    if (verdict?.passed && filter_v.active_fid === resolved.fid) {
+      dispatch(
+        showNotification(
+          `Version ${shortFid(resolved.fid)} passed validation and is now running.`,
+        ),
+      );
+    } else if (verdict?.passed === false && !verdict.pending) {
+      dispatch(
+        showNotification(
+          `Version ${shortFid(resolved.fid)} did not pass validation${
+            verdict.message ? `: ${verdict.message}` : ""
+          }. Version ${shortFid(filter_v.active_fid ?? "")} keeps running.`,
+          "warning",
+        ),
+      );
+    }
+  }, [pendingSwitch, filter_v.active_fid, filter_v.altdata, dispatch]);
 
   const wasPending = useRef(false);
   useEffect(() => {
@@ -204,11 +242,24 @@ const BoomFilterPlugins = () => {
       filter_id: filter_v.id,
       active: filter_v.active,
       active_fid: filter_v.active_fid,
+      previous_active: !!filter_v.active,
+      previous_active_fid: filter_v.active_fid,
       ...patch,
     });
     if (!("error" in result)) dispatch(showNotification(message));
     await refetchFilterVersion();
     setBusy(null);
+  };
+
+  const switchVersion = (fid: string) => {
+    setPendingFid(null);
+    const validated = !!verdictOf(fid)?.passed;
+    editVersion(
+      validated ? { active_fid: fid } : { active_fid: fid, active: false },
+      `Changed to version ${shortFid(fid)}${
+        validated ? "" : ": validate it before activating the filter."
+      }`,
+    );
   };
 
   const handleAutoFollowupToggle = async (checked: boolean) => {
@@ -304,32 +355,28 @@ const BoomFilterPlugins = () => {
           </Box>
         )}
         <Section title="Version">
-          <TextField
-            select
-            size="small"
+          <VersionSelect
             label="Active version"
-            disabled={noVersion || !filter_v.active || busy === "active_fid"}
-            value={filter_v.active_fid ?? ""}
-            onChange={(e) =>
-              editVersion(
-                { active_fid: e.target.value },
-                `Set active filter ID to ${e.target.value}`,
-              )
-            }
-            sx={{ minWidth: "12rem" }}
-          >
-            {versions.map((fv: any) => (
-              <MenuItem key={fv.fid} value={fv.fid}>
-                {fv.fid}: {fv.created_at?.toString().slice(0, 19)}
-              </MenuItem>
-            ))}
-          </TextField>
+            value={filter_v.active_fid}
+            versions={versions}
+            altdata={altdata}
+            disabled={noVersion || busy === "active_fid"}
+            onChange={(fid) => {
+              if (fid !== filter_v.active_fid) setPendingFid(fid);
+            }}
+          />
           {!noVersion && (
-            <FilterVersionDiff
-              versions={versions}
-              activeFid={filter_v.active_fid}
-              validations={altdata.boom?.validations}
-            />
+            <>
+              <FilterVersionHistory
+                filter={filter_v}
+                onChange={refetchFilterVersion}
+              />
+              <FilterVersionDiff
+                versions={versions}
+                activeFid={filter_v.active_fid}
+                altdata={altdata}
+              />
+            </>
           )}
           <Box
             sx={{ ml: "auto", display: "flex", alignItems: "center", gap: 2 }}
@@ -363,6 +410,15 @@ const BoomFilterPlugins = () => {
             />
           </Box>
         </Section>
+        {pendingSwitch && (
+          <Alert
+            severity="info"
+            icon={<CircularProgress size={16} />}
+            sx={{ py: 0 }}
+          >
+            {`Version ${shortFid(pendingSwitch.fid)} is being validated. The filter switches to it automatically if it passes, and version ${shortFid(filter_v.active_fid ?? "")} keeps running until then.`}
+          </Alert>
+        )}
         <Divider />
         <Section title="When an object passes">
           <ToggleWithHelp
@@ -489,6 +545,13 @@ const BoomFilterPlugins = () => {
           </Box>
         )}
       </Paper>
+      <VersionSwitchDialog
+        filter={filter_v}
+        toFid={pendingFid}
+        verdictOf={verdictOf}
+        onCancel={() => setPendingFid(null)}
+        onConfirm={switchVersion}
+      />
       <Tabs
         value={tab}
         onChange={(_, value) => setTab(value)}

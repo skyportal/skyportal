@@ -1199,8 +1199,9 @@ class BOOMBROKER(BrokerAPI):
     @staticmethod
     def create_filter(broker, session, **kwargs):
         """Create a filter on BOOM, or add a version to an existing one (when
-        ``boom_filter_id`` is given). Returns BOOM's response data (``id`` +
-        ``active_fid`` for a new filter, ``fid`` for a new version)."""
+        ``boom_filter_id`` is given, without making it the active version).
+        Returns BOOM's response data (``id`` + ``active_fid`` for a new filter,
+        ``fid`` for a new version)."""
         pipeline = kwargs["pipeline"]
         boom_filter_id = kwargs.get("boom_filter_id")
         if boom_filter_id is None:
@@ -1219,7 +1220,7 @@ class BOOMBROKER(BrokerAPI):
             broker,
             "POST",
             f"filters/{boom_filter_id}/versions",
-            json={"pipeline": pipeline},
+            json={"pipeline": pipeline, "set_as_active": False},
         )
 
     @staticmethod

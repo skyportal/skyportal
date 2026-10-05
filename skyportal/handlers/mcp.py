@@ -1530,6 +1530,9 @@ def _with_window(result, start_jd, end_jd):
         ),
         "filters": _prop("object", "Editable version tree kept alongside it."),
         "name": _prop("string", "Informational name for the version."),
+        "comment": _prop(
+            "string", "Why this version was made, shown in the version history."
+        ),
     },
     required=("broker_id", "filter_id", "altdata"),
     writes=True,

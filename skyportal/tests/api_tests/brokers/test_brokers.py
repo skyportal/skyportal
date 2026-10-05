@@ -1286,6 +1286,67 @@ def test_filter_catalog_sorts_by_active(super_admin_token, public_filter):
     assert status == 400
 
 
+def test_boom_filter_version_comment(
+    super_admin_token, upload_data_token, public_filter
+):
+    import sqlalchemy as sa
+    from sqlalchemy.orm.attributes import flag_modified
+
+    from skyportal.models import DBSession, Filter
+
+    status, data = api(
+        "POST",
+        "brokers",
+        data=_broker_payload(
+            broker_classname="BOOMBROKER",
+            altdata={"host": "boom.test", "username": "x", "password": "y"},
+        ),
+        token=super_admin_token,
+    )
+    assert status == 200
+    broker_id = data["data"]["id"]
+    _force_active(broker_id)
+    try:
+        f = (
+            DBSession()
+            .scalars(sa.select(Filter).where(Filter.id == public_filter.id))
+            .first()
+        )
+        f.altdata = {"boom": {"filter_id": "boom-test-id"}}
+        flag_modified(f, "altdata")
+        DBSession().commit()
+        url = f"brokers/{broker_id}/filters/{public_filter.id}"
+
+        status, data = api(
+            "PATCH",
+            url,
+            data={"comment": "Raised the drb cut"},
+            token=upload_data_token,
+        )
+        assert status == 400
+        assert "fid is required" in data["message"]
+
+        status, data = api(
+            "PATCH",
+            url,
+            data={"fid": "v1", "comment": "Raised the drb cut"},
+            token=upload_data_token,
+        )
+        assert status == 200
+        status, data = api("GET", url, token=upload_data_token)
+        versions = data["data"]["altdata"]["boom"]["versions"]
+        assert versions["v1"]["comment"] == "Raised the drb cut"
+
+        status, data = api(
+            "PATCH", url, data={"fid": "v1", "comment": ""}, token=upload_data_token
+        )
+        assert status == 200
+        status, data = api("GET", url, token=upload_data_token)
+        assert "comment" not in data["data"]["altdata"]["boom"]["versions"]["v1"]
+    finally:
+        api("DELETE", f"brokers/{broker_id}", token=super_admin_token)
+
+
 def test_broker_credentials_crud(
     super_admin_token,
     view_only_token,
