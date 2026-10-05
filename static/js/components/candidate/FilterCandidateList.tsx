@@ -483,11 +483,9 @@ const FilterCandidateList = ({
               )}
             />
           )}
-          <Tooltip title="Search results are cached between pagination requests, and are re-computed each time this Search button is clicked">
-            <Button primary type="submit" endIcon={<SearchIcon />}>
-              Search
-            </Button>
-          </Tooltip>
+          <Button primary type="submit" endIcon={<SearchIcon />}>
+            Search
+          </Button>
         </Box>
         <Box sx={{ display: "flex", gap: 1, mt: 0.5 }}>
           <Button
