@@ -123,6 +123,7 @@ from ...utils.sizeof import SIZE_WARNING_THRESHOLD, sizeof
 from ...utils.thumbnail import latest_thumbnails
 from ..base import BaseHandler
 from .candidate.candidate import (
+    serialize_comment,
     update_healpix_if_relevant,
     update_redshift_history_if_relevant,
     update_summary_history_if_relevant,
@@ -506,17 +507,7 @@ async def get_source(
         )
         comments = comments_result.unique().all()
         source_info["comments"] = sorted(
-            (
-                {
-                    **{k: v for k, v in c.to_dict().items() if k != "attachment_bytes"},
-                    "groups": [g.to_dict() for g in c.groups],
-                    "author": {
-                        **c.author.to_dict(),
-                        "gravatar_url": c.author.gravatar_url,
-                    },
-                }
-                for c in comments
-            ),
+            map(serialize_comment, comments),
             key=lambda x: x["created_at"],
             reverse=True,
         )

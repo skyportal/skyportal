@@ -172,6 +172,17 @@ async def fetch_obj_data(model, options, obj_id, session):
     return result.unique().all()
 
 
+def serialize_comment(comment):
+    return {
+        **{k: v for k, v in comment.to_dict().items() if k != "attachment_bytes"},
+        "groups": [g.to_dict() for g in comment.groups],
+        "author": {
+            **comment.author.to_dict(),
+            "gravatar_url": comment.author.gravatar_url,
+        },
+    }
+
+
 async def include_requested_obj_data(
     obj_id, candidate, query, session, include_phot_annotations
 ):
@@ -224,11 +235,17 @@ async def include_requested_obj_data(
         )
 
     if query.includeComments:
+        comments_result = await session.scalars(
+            Comment.select(
+                session.user_or_token,
+                options=[selectinload(Comment.author), selectinload(Comment.groups)],
+            )
+            .where(Comment.obj_id == obj_id)
+            .where(Comment.channel.is_(None))
+        )
         candidate["comments"] = sorted(
-            await fetch_obj_data(
-                Comment, [selectinload(Comment.author)], obj_id, session
-            ),
-            key=lambda x: x.created_at,
+            map(serialize_comment, comments_result.unique().all()),
+            key=lambda x: x["created_at"],
             reverse=True,
         )
     if query.includeFollowupRequests:
