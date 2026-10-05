@@ -333,6 +333,65 @@ def test_boom_query_alerts_lsst_scoped_by_stream(monkeypatch, permissions, expec
     assert filter_ == expected
 
 
+@pytest.mark.parametrize(
+    ("permissions", "expected"),
+    [
+        ({"DECAM": [1]}, {}),
+        ({"ZTF": [1, 2, 3]}, {"_id": {"$in": []}}),
+    ],
+)
+def test_boom_query_alerts_decam_scoped_by_stream(monkeypatch, permissions, expected):
+    """A DECam object id routes to DECAM_alerts, which has no programid: access
+    is the DECam stream, not a programid clause."""
+    calls = _capture_boom_request(monkeypatch)
+    broker = _MockBroker({"survey": "ZTF"})
+    BOOMBROKER.query_alerts(
+        broker, None, objectId="A202609132028318m134013", permissions=permissions
+    )
+    assert calls[0]["json"]["catalog_name"] == "DECAM_alerts"
+    filter_ = dict(calls[0]["json"]["filter"])
+    assert filter_.pop("objectId") == "A202609132028318m134013"
+    assert filter_ == expected
+
+
+def test_boom_get_alert_decam_exposes_aperture_photometry(monkeypatch):
+    """DECam history carries magap and a uJy difference flux; get_alert serves
+    it as nJy psfFlux and magpsf, on the same scale as the Kafka photometry."""
+    record = {
+        "objectId": "A202609132028318m134013",
+        "candidate": {
+            "magap": 18.162868,
+            "sigmagap": 0.0045,
+            "forcediffimflux": 197.17543,
+            "forcediffimfluxunc": 0.82192,
+        },
+        "prv_candidates": [
+            {
+                "jd": 2461284.59611032,
+                "band": "i",
+                "magap": 18.162868,
+                "sigmagap": 0.0045,
+                "forcediffimflux": 197.17543,
+                "forcediffimfluxunc": 0.82192,
+            }
+        ],
+    }
+    calls = _capture_boom_request(monkeypatch, result=[record])
+    data = BOOMBROKER.get_alert(
+        _MockBroker({"survey": "ZTF"}),
+        "A202609132028318m134013",
+        None,
+        permissions={"DECAM": [1]},
+    )
+    assert calls[0]["json"]["catalog_name"] == "DECAM_alerts"
+    assert {"$sort": {"candidate.magap": 1}} in calls[0]["json"]["pipeline"]
+    point = data["prv_candidates"][0]
+    assert point["psfFlux"] == pytest.approx(197175.43)
+    assert point["psfFluxErr"] == pytest.approx(821.92)
+    assert point["magpsf"] == 18.162868
+    assert data["candidate"]["sigmapsf"] == 0.0045
+
+
 def test_boom_get_alert_drops_out_of_scope_history(monkeypatch):
     record = {
         "objectId": "ZTF20aapnxry",
