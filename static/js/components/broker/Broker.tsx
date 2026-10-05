@@ -42,9 +42,11 @@ const pickSurvey = (
   const id = objectId.trim();
   const guessed = /^ZTF\d{2}[a-z]{7}$/.test(id)
     ? "ZTF"
-    : /^\d+$/.test(id)
-      ? "LSST"
-      : undefined;
+    : /^[ACT]20\d{13}[pm]\d{6}$/.test(id)
+      ? "DECAM"
+      : /^\d+$/.test(id)
+        ? "LSST"
+        : undefined;
   return (
     override ||
     (guessed && surveys.includes(guessed) ? guessed : undefined) ||

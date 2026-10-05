@@ -31,6 +31,7 @@ const thumbnailTypes = [...ALERT_THUMBNAIL_TYPES, ...ARCHIVAL_THUMBNAIL_TYPES];
 const SURVEY_FIELD_OF_VIEW_ARCSEC: Record<string, number> = {
   ZTF: 64,
   LSST: 6,
+  DECAM: 17,
 };
 
 const formatFieldOfView = (arcsec: number) =>
