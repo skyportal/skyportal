@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { useNavigate, useParams, useSearchParams } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
+import useTabParam from "../../hooks/useTabParam";
 import { useTheme } from "@mui/material/styles";
 
 import Box from "@mui/material/Box";
@@ -32,8 +33,7 @@ const Group = () => {
   const theme = useTheme();
   const navigate = useNavigate();
   const { id } = useParams();
-  const [searchParams] = useSearchParams();
-  const [tab, setTab] = useState(searchParams.get("tab") === "filters" ? 2 : 0);
+  const [tab, setTab] = useTabParam(["members", "sources", "filters"]);
   const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
 
   const { data: group, error: groupError } = useGetGroupQuery(id as string, {

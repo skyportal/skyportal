@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useParams, useSearchParams } from "react-router-dom";
+import useTabParam from "../../hooks/useTabParam";
 
 import AddIcon from "@mui/icons-material/Add";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
@@ -73,7 +74,7 @@ const Broker = () => {
   const [queriedSurvey, setQueriedSurvey] = useState("");
   const [mode, setMode] = useState<"search" | "preview">("search");
   const [page, setPage] = useState(1);
-  const [tab, setTab] = useState(0);
+  const [tab, setTab] = useTabParam(["alerts", "filters", "credentials"]);
   const [newFilterOpen, setNewFilterOpen] = useState(false);
   const [filters, setFilters] = useState<AlertFilter[]>([]);
 
