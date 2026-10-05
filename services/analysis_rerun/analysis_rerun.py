@@ -23,6 +23,7 @@ from baselayer.app.models import DBSession, init_db
 from baselayer.log import make_log
 from skyportal.models import DefaultAnalysis, ObjAnalysis, Photometry, Source
 from skyportal.models.analysis import (
+    _default_analysis_gated,
     _default_analysis_under_limit,
     _insufficient_photometry,
     _run_default_analysis,
@@ -95,10 +96,7 @@ def sweep():
     with DBSession() as session:
         default_analyses = session.scalars(
             sa.select(DefaultAnalysis).where(
-                # Only ones that opt into the detection gate.
-                DefaultAnalysis.default_analysis_parameters[
-                    "min_detections"
-                ].astext.isnot(None),
+                _default_analysis_gated(),
                 _default_analysis_under_limit(),
             )
         ).all()

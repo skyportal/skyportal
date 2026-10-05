@@ -703,6 +703,12 @@ def _default_analysis_under_limit():
     )
 
 
+def _default_analysis_gated():
+    return cast(DefaultAnalysis.default_analysis_parameters, psql.JSONB)[
+        "min_detections"
+    ].astext.isnot(None)
+
+
 def _insufficient_photometry(session, default_analysis, obj_id):
     """True if this default analysis declares a detection threshold the object's
     light curve does not yet meet -- so we defer rather than submit a job we'd only
