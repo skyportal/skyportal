@@ -70,6 +70,13 @@ class UserNotification(Base):
 @event.listens_for(EventObservationPlan, "after_insert")
 @event.listens_for(FollowupRequest, "after_update")
 def add_user_notifications(mapper, connection, target):
+    # later updates of a completed analysis would notify its completion again
+    if (
+        isinstance(target, ObjAnalysis)
+        and not inspect(target).attrs.status.history.has_changes()
+    ):
+        return
+
     # Add front-end user notifications
     @event.listens_for(inspect(target).session, "after_commit", once=True)
     def receive_after_commit(session):
