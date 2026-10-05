@@ -876,10 +876,7 @@ const SourceTable = ({
         width: 80,
         sortable: false,
         renderCell: ({ row }: any) => (
-          <DisplayPhotStats
-            photstats={row.photstats?.[0]}
-            display_header={false}
-          />
+          <DisplayPhotStats photstats={row.photstats?.[0]} />
         ),
       },
       {

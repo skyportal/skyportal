@@ -1343,10 +1343,7 @@ const SourceContent = ({ source }: SourceContentProps) => {
                     gap: "0.5rem",
                   }}
                 >
-                  <DisplayPhotStats
-                    photstats={source.photstats[0]}
-                    display_header={false}
-                  />
+                  <DisplayPhotStats photstats={source.photstats[0]} />
                   <PhotometryMagsys magsys={magsys} setMagsys={setMagsys} />
                   <div
                     style={{
