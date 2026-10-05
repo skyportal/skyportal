@@ -48,6 +48,8 @@ from .filter import delete_filter_on_broker
 
 log = make_log("api/broker")
 
+MAX_FILTER_ACTIVATIONS = 100
+
 AlertId = Annotated[
     str,
     Field(description="Alert identifier (e.g. candid) the provider keys cutouts on."),
@@ -1018,6 +1020,24 @@ def _version_validation(altdata, fid):
     return verdict or None
 
 
+def _log_activation(altdata, fid, active, switched, username):
+    activations = altdata.setdefault("boom", {}).setdefault("activations", [])
+    activations.append(
+        {
+            "fid": fid,
+            "active": active,
+            "switched": switched,
+            "by": username,
+            "at": datetime.datetime.now(datetime.UTC).isoformat(),
+        }
+    )
+    del activations[:-MAX_FILTER_ACTIVATIONS]
+
+
+def _version_info(altdata, fid):
+    return altdata.setdefault("boom", {}).setdefault("versions", {}).setdefault(fid, {})
+
+
 def _store_version_validation(altdata, verdict):
     """Persist a BOOM validation verdict under its fid in the per-fid map."""
     boom = altdata.setdefault("boom", {})
@@ -1057,8 +1077,32 @@ def _validate_version(broker_id, filter_id, fid):
             verdict = {"fid": fid, "passed": False, "message": f"Error: {e}"}
         session.refresh(f)
         _store_version_validation(f.altdata, verdict)
+        _apply_pending_switch(broker, session, f, fid, bool(verdict.get("passed")))
         flag_modified(f, "altdata")
         session.commit()
+
+
+def _apply_pending_switch(broker, session, f, fid, passed):
+    boom = f.altdata.get("boom") or {}
+    pending = boom.get("pending_switch") or {}
+    if pending.get("fid") != fid:
+        return
+    boom.pop("pending_switch")
+    if not passed:
+        return
+    try:
+        broker.broker_class.update_filter(
+            broker,
+            session,
+            boom_filter_id=boom["filter_id"],
+            active=True,
+            active_fid=fid,
+            skip_validation=True,
+        )
+    except Exception as e:
+        log(f"Switching filter {f.id} to version {fid}: {e}")
+        return
+    _log_activation(f.altdata, fid, True, True, pending.get("by"))
 
 
 class BrokerFilterModulesHandler(BaseHandler):
@@ -1411,11 +1455,53 @@ class BrokerFiltersHandler(BaseHandler):
                     flag_modified(f, "altdata")
             except Exception as e:
                 return self.error(f"Error creating filter on {broker.name}: {e}")
+            username = self.associated_user_object.username
+            version = _version_info(f.altdata, new_fid)
+            version["created_by"] = username
+            if body.comment:
+                version["comment"] = body.comment
+            switch_error = None
+            pending_switch = False
+            if boom_filter_id is not None and body.set_as_active:
+                try:
+                    current = broker.broker_class.get_filters(
+                        broker, session, boom_filter_id=boom_filter_id
+                    )
+                    if current.get("active"):
+                        f.altdata["boom"]["pending_switch"] = {
+                            "fid": new_fid,
+                            "by": username,
+                            "at": datetime.datetime.now(datetime.UTC).isoformat(),
+                        }
+                        pending_switch = True
+                    else:
+                        f.altdata["boom"].pop("pending_switch", None)
+                        broker.broker_class.update_filter(
+                            broker,
+                            session,
+                            boom_filter_id=boom_filter_id,
+                            active=False,
+                            active_fid=new_fid,
+                            skip_validation=True,
+                        )
+                        _log_activation(f.altdata, new_fid, False, True, username)
+                except Exception as e:
+                    switch_error = (
+                        "The version was saved but could not be made the active "
+                        f"one: {e}"
+                    )
             if broker.broker_class.implements()["validate_filter"]:
                 _start_version_validation(session, broker, f, new_fid)
             else:
                 session.commit()
-            return self.success(data={"id": f.id})
+            return self.success(
+                data={
+                    "id": f.id,
+                    "fid": new_fid,
+                    "switch_error": switch_error,
+                    "pending_switch": pending_switch,
+                }
+            )
 
     @permissions(["Upload data"])
     def patch(
@@ -1425,7 +1511,8 @@ class BrokerFiltersHandler(BaseHandler):
         ---
         summary: Update a broker filter
         description: Activate a version (``active``/``active_fid``, forwarded to
-          the broker) or toggle autoAnnotate/autoSave/autoFollowup flags.
+          the broker), comment on a version (``fid``/``comment``) or toggle
+          autoAnnotate/autoSave/autoFollowup flags.
         tags:
           - brokers
         responses:
@@ -1478,6 +1565,19 @@ class BrokerFiltersHandler(BaseHandler):
                                     else ""
                                 )
                             )
+                    if {
+                        "previous_active_fid",
+                        "previous_active",
+                    } <= body.model_fields_set:
+                        previous = {
+                            "active_fid": body.previous_active_fid,
+                            "active": body.previous_active,
+                        }
+                    else:
+                        previous = broker.broker_class.get_filters(
+                            broker, session, boom_filter_id=boom_filter_id
+                        )
+                    switching = body.active_fid != previous.get("active_fid")
                     broker.broker_class.update_filter(
                         broker,
                         session,
@@ -1486,6 +1586,16 @@ class BrokerFiltersHandler(BaseHandler):
                         active_fid=body.active_fid,
                         skip_validation=True,
                     )
+                    f.altdata["boom"].pop("pending_switch", None)
+                    if switching or bool(body.active) != bool(previous.get("active")):
+                        _log_activation(
+                            f.altdata,
+                            body.active_fid,
+                            bool(body.active),
+                            switching,
+                            self.associated_user_object.username,
+                        )
+                    flag_modified(f, "altdata")
                 for flag in ("autoAnnotate", "autoFollowup"):
                     if flag in body.model_fields_set:
                         f.altdata[flag] = getattr(body, flag)
@@ -1543,6 +1653,15 @@ class BrokerFiltersHandler(BaseHandler):
                         f.altdata.pop("autoFollowupDefaultId", None)
                     else:
                         f.altdata["autoFollowupDefaultId"] = int(default_id)
+                    flag_modified(f, "altdata")
+                if "comment" in body.model_fields_set:
+                    if not body.fid:
+                        return self.error("fid is required to comment on a version.")
+                    version = _version_info(f.altdata, body.fid)
+                    if body.comment:
+                        version["comment"] = body.comment
+                    else:
+                        version.pop("comment", None)
                     flag_modified(f, "altdata")
             except Exception as e:
                 return self.error(f"Error updating filter on {broker.name}: {e}")

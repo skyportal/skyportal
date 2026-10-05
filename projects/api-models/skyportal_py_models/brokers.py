@@ -434,6 +434,16 @@ class BrokerFiltersPostBody(BaseModel):
         default=None,
         description="Whether candidates passing the filter are auto-saved as sources.",
     )
+    comment: str | None = Field(
+        default=None,
+        description="Why this version was made, shown in the filter's version history.",
+    )
+    set_as_active: bool = Field(
+        default=False,
+        description="Make the new version the active one. On an active filter, "
+        "the switch happens once that version passes validation, and the "
+        "current version keeps running until then.",
+    )
 
 
 class BrokerFiltersPatchBody(BaseModel):
@@ -446,6 +456,16 @@ class BrokerFiltersPatchBody(BaseModel):
     )
     active_fid: int | str | None = Field(
         default=None, description="Filter version id (fid) to activate."
+    )
+    previous_active_fid: int | str | None = Field(
+        default=None,
+        description="Active version before this change, as the client last saw "
+        "it. Read from the broker when omitted.",
+    )
+    previous_active: bool | None = Field(
+        default=None,
+        description="Whether the filter was active before this change, as the "
+        "client last saw it. Read from the broker when omitted.",
     )
     autoAnnotate: bool | None = Field(
         default=None, description="Whether to auto-annotate on filter passage."
@@ -478,6 +498,14 @@ class BrokerFiltersPatchBody(BaseModel):
         default=None,
         description="DefaultFollowupRequest the filter's auto-followup uses. "
         "Null or empty string clears it.",
+    )
+    fid: str | None = Field(
+        default=None, description="Filter version (fid) that `comment` applies to."
+    )
+    comment: str | None = Field(
+        default=None,
+        description="Comment on version `fid`, shown in the filter's version "
+        "history. Null or empty string clears it.",
     )
 
 
