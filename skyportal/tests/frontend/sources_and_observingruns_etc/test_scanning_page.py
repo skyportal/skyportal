@@ -523,6 +523,13 @@ def test_submit_annotations_sorting(
     ).to_be_visible()
 
     page.locator("//button[@data-testid='sortOnAnnotationButton']").first.click()
+    expect(
+        page.locator(
+            f'//*[contains(@data-testid, "candidate-1")]//a[@data-testid="{public_candidate2.id}"]'
+        ).first
+    ).to_be_visible()
+    open_candidate_annotations(page, public_candidate.id)
+    open_candidate_annotations(page, public_candidate2.id)
 
     expect(
         page.locator(
