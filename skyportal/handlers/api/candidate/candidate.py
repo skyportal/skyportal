@@ -306,6 +306,47 @@ async def include_requested_obj_data(
     return candidate
 
 
+async def attach_tags(candidates, session):
+    if not candidates:
+        return
+    tags_result = await session.scalars(
+        ObjTag.select(session.user_or_token)
+        .options(selectinload(ObjTag.objtagoption))
+        .where(ObjTag.obj_id.in_([c["id"] for c in candidates]))
+    )
+    tags_by_obj = {}
+    for tag in tags_result.all():
+        tags_by_obj.setdefault(tag.obj_id, []).append(
+            {**tag.to_dict(), "name": tag.objtagoption.name}
+        )
+    for candidate in candidates:
+        candidate["tags"] = tags_by_obj.get(candidate["id"], [])
+
+
+async def attach_comment_counts(candidates, session):
+    if not candidates:
+        return
+    comment_id = sa.distinct(Comment.id)
+    result = await session.execute(
+        Comment.select(
+            session.user_or_token,
+            columns=[
+                Comment.obj_id,
+                func.count(comment_id),
+                func.count(comment_id).filter(Comment.bot.is_(True)),
+            ],
+        )
+        .where(Comment.obj_id.in_([c["id"] for c in candidates]))
+        .where(Comment.channel.is_(None))
+        .group_by(Comment.obj_id)
+    )
+    counts = {obj_id: (total, bots) for obj_id, total, bots in result.all()}
+    for candidate in candidates:
+        total, bots = counts.get(candidate["id"], (0, 0))
+        candidate["comment_count"] = total
+        candidate["bot_comment_count"] = bots
+
+
 def add_computed_fields(candidate_info, obj):
     if obj.photstats and obj.photstats[-1].last_detected_mjd is not None:
         candidate_info["last_detected_at"] = Time(
@@ -577,6 +618,8 @@ class CandidateHandler(BaseHandler):
                         classifications_result.unique().all()
                     )
                 add_computed_fields(candidate_info, c)
+                await attach_tags([candidate_info], session)
+                await attach_comment_counts([candidate_info], session)
                 candidate_info = recursive_to_dict(candidate_info)
 
                 query_size = sizeof(candidate_info)
@@ -1390,22 +1433,8 @@ class CandidateHandler(BaseHandler):
                     )
                     add_computed_fields(candidate_list[-1], obj)
 
-            # Attach each candidate's object tags (shown as chips on the scanning
-            # card), in one query keyed by obj_id to avoid an N+1.
-            candidate_obj_ids = [c["id"] for c in candidate_list]
-            if candidate_obj_ids:
-                tags_result = await session.scalars(
-                    ObjTag.select(session.user_or_token)
-                    .options(selectinload(ObjTag.objtagoption))
-                    .where(ObjTag.obj_id.in_(candidate_obj_ids))
-                )
-                tags_by_obj = {}
-                for tag in tags_result.all():
-                    tags_by_obj.setdefault(tag.obj_id, []).append(
-                        {**tag.to_dict(), "name": tag.objtagoption.name}
-                    )
-                for candidate in candidate_list:
-                    candidate["tags"] = tags_by_obj.get(candidate["id"], [])
+            await attach_tags(candidate_list, session)
+            await attach_comment_counts(candidate_list, session)
 
             query_results["candidates"] = candidate_list
             query_results = recursive_to_dict(query_results)
