@@ -737,7 +737,7 @@ def _insufficient_photometry(session, default_analysis, obj_id):
     return False
 
 
-def _run_default_analysis(default_analysis_id, author_id, obj_id, notification):
+def _run_default_analysis(default_analysis_id, author_id, obj_id, trigger):
     """Bump the per-day counter and post one default analysis for ``obj_id``.
 
     ID-based and dispatched via ``run_async`` so it executes after the triggering
@@ -813,7 +813,7 @@ def _run_default_analysis(default_analysis_id, author_id, obj_id, notification):
                 show_parameters=default_analysis.show_parameters,
                 show_plots=default_analysis.show_plots,
                 show_corner=default_analysis.show_corner,
-                notification=notification,
+                trigger=trigger,
                 session=db_session,
             )
         except Exception as e:
@@ -873,9 +873,7 @@ def create_default_analysis(mapper, connection, target):
             log(f"Error creating default analyses on classification {target.id}: {e}")
 
 
-def _run_default_gcnevent_analysis(
-    default_analysis_id, author_id, dateobs, notification
-):
+def _run_default_gcnevent_analysis(default_analysis_id, author_id, dateobs, trigger):
     """Bump the per-day counter and post one default analysis for a GCN event.
 
     The gcn_event analog of _run_default_analysis, keyed by dateobs and dispatched
@@ -946,7 +944,7 @@ def _run_default_gcnevent_analysis(
                 show_parameters=default_analysis.show_parameters,
                 show_plots=default_analysis.show_plots,
                 show_corner=default_analysis.show_corner,
-                notification=notification,
+                trigger=trigger,
                 session=db_session,
             )
         except Exception as e:
