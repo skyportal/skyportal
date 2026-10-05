@@ -1,4 +1,5 @@
 import json
+import math
 from concurrent.futures import ThreadPoolExecutor
 from datetime import UTC, datetime, timedelta
 
@@ -287,7 +288,11 @@ def _boom_photometry_to_prv(photometry):
     prv = []
     for p in photometry or []:
         flux_err = p.get("flux_err")
-        if flux_err is None or flux_err == _BOOM_SENTINEL:
+        if (
+            flux_err is None
+            or flux_err == _BOOM_SENTINEL
+            or not math.isfinite(flux_err)
+        ):
             continue
         flux = p.get("flux")
         if flux == _BOOM_SENTINEL:

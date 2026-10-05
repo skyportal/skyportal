@@ -1,5 +1,7 @@
 import asyncio
+import time
 import uuid
+from concurrent.futures import ThreadPoolExecutor
 
 import pytest
 import sqlalchemy as sa
@@ -41,7 +43,7 @@ def obj_id():
     DBSession().commit()
 
 
-def ingest(obj_id, user_id, filter_id, annotations, alert_id=12345):
+def ingest(obj_id, user_id, filter_id, annotations, alert_id=12345, **data):
     async def _run():
         async with baselayer_models.async_plain_session_factory() as session:
             user = await session.get(User, user_id)
@@ -49,6 +51,7 @@ def ingest(obj_id, user_id, filter_id, annotations, alert_id=12345):
                 {
                     "objectId": obj_id,
                     "candidate": {"ra": 10.0, "dec": 20.0, "drb": 0.99},
+                    **data,
                 },
                 "ZTF",
                 session,
@@ -251,3 +254,49 @@ def test_broker_ingest_dates_thumbnails_with_boom_alert_epoch(
     asyncio.run(_run())
 
     assert dates == [2461317.5]
+
+
+def test_broker_ingest_survives_a_concurrent_obj_insert(
+    super_admin_user, public_filter, ztf_instrument, obj_id
+):
+    with baselayer_models.new_session() as other, ThreadPoolExecutor(1) as pool:
+        other.add(Obj(id=obj_id, ra=10.0, dec=20.0))
+        other.flush()
+        ingesting = pool.submit(
+            ingest, obj_id, super_admin_user.id, public_filter.id, {}
+        )
+        time.sleep(1)
+        other.commit()
+        ingesting.result()
+
+    candidate = DBSession().scalar(
+        sa.select(Candidate).where(
+            Candidate.obj_id == obj_id, Candidate.filter_id == public_filter.id
+        )
+    )
+    assert candidate is not None
+
+
+def test_broker_ingest_keeps_the_candidate_when_photometry_fails(
+    super_admin_user, public_filter, ztf_instrument, obj_id
+):
+    public_filter.stream.altdata = {"collection": "ZTF_alerts", "selector": [1]}
+    DBSession().add(public_filter.stream)
+    DBSession().commit()
+
+    ingest(
+        obj_id,
+        super_admin_user.id,
+        public_filter.id,
+        {},
+        prv_candidates=[
+            {"jd": 2461317.5, "band": "r", "psfFlux": None, "psfFluxErr": float("inf")}
+        ],
+    )
+
+    candidate = DBSession().scalar(
+        sa.select(Candidate).where(
+            Candidate.obj_id == obj_id, Candidate.filter_id == public_filter.id
+        )
+    )
+    assert candidate is not None

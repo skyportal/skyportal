@@ -373,6 +373,7 @@ async def ingest_sso_alert(
     from ..broker_apis._save import (
         _normalize_band,
         build_photometry_groups,
+        get_or_create_obj,
         programid_to_stream_ids,
     )
     from ..handlers.api.photometry import add_external_photometry
@@ -394,11 +395,7 @@ async def ingest_sso_alert(
             f"Instrument '{instrument_name(survey)}' not found in the database."
         )
 
-    obj = await session.scalar(sa.select(Obj).where(Obj.id == obj_id))
-    is_new = obj is None
-    if is_new:
-        obj = Obj(id=obj_id, origin=survey)
-        session.add(obj)
+    obj, is_new = await get_or_create_obj(session, obj_id, origin=survey)
 
     obj.is_roid = True
     obj.mpc_name = designation

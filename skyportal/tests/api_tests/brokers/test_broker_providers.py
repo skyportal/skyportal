@@ -32,6 +32,7 @@ from skyportal.broker_apis.antares import ANTARESBROKER, _normalize_locus
 from skyportal.broker_apis.boom import (
     _BOOM_SENTINEL,
     BOOMBROKER,
+    _boom_photometry_to_prv,
     _normalize_boom_alert,
 )
 from skyportal.broker_apis.fink import (
@@ -696,6 +697,16 @@ def test_boom_normalize_sentinel_flux_is_nondetection():
     assert len(d["prv_candidates"]) == 1
     assert d["prv_candidates"][0]["psfFlux"] is None
     assert d["prv_candidates"][0]["psfFluxErr"] == 1.0e2
+
+
+def test_boom_photometry_drops_infinite_flux_err():
+    prv = _boom_photometry_to_prv(
+        [
+            {"flux": 500.0, "flux_err": 50.0, "jd": 2459000.5, "band": "g"},
+            {"flux": None, "flux_err": float("inf"), "jd": 2459001.5, "band": "r"},
+        ]
+    )
+    assert [p["jd"] for p in prv] == [2459000.5]
 
 
 def test_boom_normalize_empty_photometry():
