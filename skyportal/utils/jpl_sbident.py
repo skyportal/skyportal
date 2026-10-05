@@ -106,6 +106,8 @@ def parse_matches(payload, max_arcsec=DEFAULT_MATCH_ARCSEC):
     """
     rows = payload.get("data_second_pass") or []
     fields = payload.get("fields_second") or []
+    if not rows and not fields:
+        return []
     try:
         name_at = fields.index("Object name")
         offset_at = next(

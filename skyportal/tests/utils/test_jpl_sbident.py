@@ -82,6 +82,17 @@ def test_no_second_pass_means_no_matches():
     assert parse_matches({"fields_second": FIELDS, "data_second_pass": []}) == []
 
 
+def test_no_matching_records_means_no_matches():
+    payload = {
+        "signature": {},
+        "summary": {},
+        "sb_constraints": {"sb-kind": "a"},
+        "warning": "no matching records",
+        "observer": {},
+    }
+    assert parse_matches(payload) == []
+
+
 def test_unexpected_columns_are_refused_rather_than_guessed():
     with pytest.raises(JPLSBIdentError):
         parse_matches({"fields_second": ["Something else"], "data_second_pass": [[1]]})
