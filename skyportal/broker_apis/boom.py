@@ -1364,8 +1364,10 @@ class BOOMBROKER(BrokerAPI):
             # makes even a capped preview scan everything; this stops early.
             limit = int(kwargs.get("limit") or 50)
             results, res = [], None
-            for start_jd, end_jd in _jd_windows(
-                payload["start_jd"], payload["end_jd"], MAX_TEST_WINDOW_DAYS
+            for start_jd, end_jd in reversed(
+                _jd_windows(
+                    payload["start_jd"], payload["end_jd"], MAX_TEST_WINDOW_DAYS
+                )
             ):
                 res = _request(
                     broker,
