@@ -171,7 +171,6 @@ const MongoQueryDialog = () => {
   const [maxResultsInput, setMaxResultsInput] = useState(
     String(DEFAULT_MAX_RESULTS),
   );
-  const [shownLimit, setShownLimit] = useState(DEFAULT_MAX_RESULTS);
   const [hasMore, setHasMore] = useState(false);
   const [lastRunArgs, setLastRunArgs] = useState<RunBoomFilterArg | null>(null);
   const [exactCount, setExactCount] = useState<{
@@ -397,7 +396,6 @@ const MongoQueryDialog = () => {
       if (id !== runId.current) return;
       const rows: any[] = result?.results ?? [];
       setHasMore(rows.length > maxResults);
-      setShownLimit(maxResults);
       setDisplayResults({
         data: rows.slice(0, maxResults).sort(byJdDescending),
       });
@@ -439,7 +437,7 @@ const MongoQueryDialog = () => {
   const isValid = hasValidQuery();
   const resultCount = displayResults.data?.length ?? 0;
   const summary = hasMore
-    ? `Showing first ${shownLimit} matches (more exist)`
+    ? `Showing first ${resultCount} matches (more exist)`
     : `${resultCount} ${resultCount === 1 ? "match" : "matches"}`;
 
   return (
