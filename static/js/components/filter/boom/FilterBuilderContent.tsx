@@ -128,6 +128,7 @@ const FilterBuilderContent = ({
   const [noBlockTree, setNoBlockTree] = useState(false);
   // "mongo" edits the pipeline as raw JSON instead of blocks.
   const [editorMode, setEditorMode] = useState<"blocks" | "mongo">("blocks");
+  const [loadedFid, setLoadedFid] = useState<string | null>(null);
   const [expandedStages, setExpandedStages] = useState<Set<any>>(new Set());
   const [importOpen, setImportOpen] = useState(false);
   const [saveOpen, setSaveOpen] = useState(false);
@@ -207,6 +208,7 @@ const FilterBuilderContent = ({
           setEditorMode(
             isRawMongoPipeline(versionData.filters) ? "mongo" : "blocks",
           );
+          setLoadedFid(displayedFid);
           setLocalFilterData(versionData.filters);
           if (setFilters) {
             setFilters(versionData.filters);
@@ -722,7 +724,7 @@ const FilterBuilderContent = ({
       <Box data-testid="tour-filter-blocks">
         {mongoMode ? (
           <MongoPipelineEditor
-            key={displayedFid ?? "new"}
+            key={loadedFid ?? "new"}
             pipeline={rawPipeline}
             onChange={(pipeline) => {
               mongoTextInvalid.current = pipeline === null;
