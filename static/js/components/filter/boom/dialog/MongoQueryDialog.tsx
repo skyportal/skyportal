@@ -99,7 +99,11 @@ const byJdDescending = (a: any, b: any) =>
 
 const previewErrorMessage = (error: any) => {
   const detail =
-    typeof error?.error === "string" ? error.error : error?.data?.message;
+    error?.status === "PARSING_ERROR"
+      ? null
+      : typeof error?.error === "string"
+        ? error.error
+        : error?.data?.message;
   return `The preview failed or timed out. ${NARROW_HINT}${
     detail ? ` (${detail})` : ""
   }`;
@@ -373,6 +377,7 @@ const MongoQueryDialog = () => {
     setQueryError(null);
     resetQueryState();
     clearBoomFilter();
+    const id = runId.current;
 
     const args: RunBoomFilterArg = {
       pipeline: combineWithPipeline(generateMongoQuery()),
@@ -389,6 +394,7 @@ const MongoQueryDialog = () => {
         unsorted: true,
         limit: maxResults + 1,
       }).unwrap();
+      if (id !== runId.current) return;
       const rows: any[] = result?.results ?? [];
       setHasMore(rows.length > maxResults);
       setShownLimit(maxResults);
@@ -399,7 +405,7 @@ const MongoQueryDialog = () => {
       setQueryCompleted(true);
     } catch (error) {
       console.error("Query error:", error);
-      setQueryError(previewErrorMessage(error));
+      if (id === runId.current) setQueryError(previewErrorMessage(error));
     } finally {
       setIsRunning(false);
     }
