@@ -5,7 +5,7 @@ import { isRawMongoPipeline } from "./pipelineFormat";
 
 interface MongoPipelineEditorProps {
   pipeline: any[] | null;
-  // Receives the parsed pipeline, or null while the text is not a valid one.
+  // Receives the parsed pipeline, [] for empty text, or null for invalid text.
   onChange: (pipeline: any[] | null) => void;
 }
 
@@ -25,7 +25,7 @@ const MongoPipelineEditor = ({
       parsed = JSON.parse(value);
     } catch (e: any) {
       setError(value.trim() ? `Invalid JSON: ${e.message}` : "");
-      onChange(null);
+      onChange(value.trim() ? null : []);
       return;
     }
     if (!isRawMongoPipeline(parsed)) {

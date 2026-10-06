@@ -13,3 +13,31 @@ export const isRawMongoPipeline = (data: any): boolean =>
       Object.keys(stage).length > 0 &&
       Object.keys(stage).every((k) => k.startsWith("$")),
   );
+
+// Field paths a $match reads, e.g. "candidate.drb" in {"candidate.drb": {"$gt": 0.9}}.
+const matchedFields = (match: any, fields = new Set<string>()): Set<string> => {
+  if (Array.isArray(match)) match.forEach((m) => matchedFields(m, fields));
+  else if (match && typeof match === "object") {
+    Object.entries(match).forEach(([key, value]) => {
+      if (!key.startsWith("$")) fields.add(key);
+      matchedFields(value, fields);
+    });
+  }
+  return fields;
+};
+
+// True when a $project only keeps what the block builder projects by itself
+// (objectId, candidate.jd and the fields its conditions use), so dropping it
+// loses nothing when the pipeline is turned into blocks.
+export const isBuilderProjection = (project: any, match: any): boolean => {
+  if (!project || typeof project !== "object" || Array.isArray(project))
+    return false;
+  const used = matchedFields(match);
+  return Object.entries(project).every(
+    ([field, value]) =>
+      value === 1 &&
+      (field === "objectId" ||
+        field === "candidate.jd" ||
+        [...used].some((u) => u === field || u.startsWith(`${field}.`))),
+  );
+};

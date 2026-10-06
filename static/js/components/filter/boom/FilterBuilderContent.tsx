@@ -33,7 +33,7 @@ import { VersionSelect } from "./FilterVersionLabel";
 import { shortFid } from "./filterVersions";
 import PipelineViewer from "./dialog/PipelineViewer";
 import MongoPipelineEditor from "./MongoPipelineEditor";
-import { isRawMongoPipeline } from "./pipelineFormat";
+import { isBuilderProjection, isRawMongoPipeline } from "./pipelineFormat";
 import { decompilePipeline } from "../../../utils/mongoPipelineDecompiler";
 import { filterBuilderStyles } from "../../../styles/componentStyles";
 import { showNotification } from "baselayer/components/Notifications";
@@ -436,11 +436,13 @@ const FilterBuilderContent = ({
 
   // Blocks left when switching to MongoDB, restored if the pipeline is unchanged.
   const blocksStash = useRef<any>(null);
+  const mongoTextInvalid = useRef(false);
 
   const handleEditorModeChange = (mode: "blocks" | "mongo" | null) => {
     if (!mode || mode === editorMode) return;
-    setEditorMode(mode);
     if (mode === "mongo") {
+      setEditorMode(mode);
+      mongoTextInvalid.current = false;
       // An untouched builder still compiles to a bare $project; start empty.
       const pipeline =
         hasBeenModified && queryReady ? generateMongoQuery() : [];
@@ -453,28 +455,42 @@ const FilterBuilderContent = ({
       handleFilterUpdate(pipeline);
       return;
     }
+    // Leaving would discard the pipeline, so stay until it fits in blocks.
+    const stayInMongo = (message: string) =>
+      dispatch(showNotification(message, "warning"));
+    if (mongoTextInvalid.current) {
+      stayInMongo(
+        "Fix or clear the MongoDB pipeline before switching to the filter UI.",
+      );
+      return;
+    }
     const stash = blocksStash.current;
-    blocksStash.current = null;
     if (stash && stash.pipeline === JSON.stringify(rawPipeline ?? [])) {
+      blocksStash.current = null;
+      setEditorMode(mode);
       setProjectionFields?.(stash.projectionFields ?? []);
       handleFilterUpdate(stash.filters);
       return;
     }
-    // The builder appends its own $project, so drop a trailing one first.
+    // The builder appends its own $project, so drop a trailing one it would
+    // regenerate; any other projection keeps the pipeline out of blocks.
+    const last = rawPipeline?.[rawPipeline.length - 1];
     const matchOnly =
-      rawPipeline && "$project" in rawPipeline[rawPipeline.length - 1]
+      rawPipeline &&
+      rawPipeline.length > 1 &&
+      isBuilderProjection(last.$project, rawPipeline.slice(0, -1))
         ? rawPipeline.slice(0, -1)
         : rawPipeline;
     const tree = matchOnly ? decompilePipeline(matchOnly) : null;
-    handleFilterUpdate(tree ?? createEmptyFilterWithDefaultCondition());
     if (rawPipeline && !tree) {
-      dispatch(
-        showNotification(
-          "This pipeline can't be shown as blocks, so the builder starts empty.",
-          "warning",
-        ),
+      stayInMongo(
+        "This pipeline can't be shown as blocks. Clear it to start over in the filter UI.",
       );
+      return;
     }
+    blocksStash.current = null;
+    setEditorMode(mode);
+    handleFilterUpdate(tree ?? createEmptyFilterWithDefaultCondition());
   };
 
   const handleImportPipeline = (pipeline: any[]) => {
@@ -700,7 +716,10 @@ const FilterBuilderContent = ({
           <MongoPipelineEditor
             key={displayedFid ?? "new"}
             pipeline={rawPipeline}
-            onChange={(pipeline) => handleFilterUpdate(pipeline ?? [])}
+            onChange={(pipeline) => {
+              mongoTextInvalid.current = pipeline === null;
+              handleFilterUpdate(pipeline ?? []);
+            }}
           />
         ) : schemaUnavailable ? (
           <Alert severity="warning">
