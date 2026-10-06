@@ -17,11 +17,9 @@ export interface RunBoomFilterArg {
   start_jd: any;
   end_jd: any;
   filter_id: any;
-  // present only for the paginated "test" variant
-  sort_by?: any;
-  sort_order?: any;
-  limit?: any;
-  cursor?: any;
+  // with `unsorted`, the first `limit` matches in no order; else a count
+  unsorted?: boolean;
+  limit?: number;
 }
 
 export const boomRunFilterApi = skyportalApi.injectEndpoints({
@@ -32,6 +30,8 @@ export const boomRunFilterApi = skyportalApi.injectEndpoints({
         method: "POST",
         body,
       }),
+      // the preview dialog explains failures itself (timeouts in particular)
+      extraOptions: { suppressErrorNotification: true },
     }),
   }),
 });

@@ -78,3 +78,62 @@ def test_the_slices_leave_no_gap(monkeypatch):
     )
     for (_, _, end), (_, start, _) in zip(seen, seen[1:]):
         assert start == end
+
+
+def _capture_results(monkeypatch, per_request):
+    """Record each filters/test body, and answer it with ``per_request`` docs."""
+    seen = []
+
+    def fake_request(broker, method, path, json=None, timeout=None):
+        seen.append((path, json))
+        n = min(per_request, json.get("limit") or per_request)
+        return {
+            "pipeline": json["pipeline"],
+            "results": [{"_id": i, "objectId": f"ZTF{i}"} for i in range(n)],
+        }
+
+    monkeypatch.setattr(boom, "_request", fake_request)
+    return seen
+
+
+def test_an_unsorted_preview_sends_a_limit_and_no_sort(monkeypatch):
+    # A $sort makes BOOM order the whole window before the pipeline runs,
+    # which is what pushes a capped preview past the API timeout.
+    seen = _capture_results(monkeypatch, per_request=500)
+    result = boom.BOOMBROKER.test_filter(
+        _Broker(),
+        None,
+        survey="ZTF",
+        pipeline=[{"$match": {}}],
+        start_jd=2461307.0,
+        end_jd=2461308.0,
+        permissions={"ZTF": [1]},
+        unsorted=True,
+        limit=201,
+    )
+    assert len(seen) == 1
+    path, body = seen[0]
+    assert path == "filters/test"
+    assert body["limit"] == 201
+    assert "sort_by" not in body and "sort_order" not in body
+    assert len(result["results"]) == 201
+    assert all(isinstance(doc["_id"], str) for doc in result["results"])
+
+
+def test_an_unsorted_preview_stops_once_the_limit_is_reached(monkeypatch):
+    seen = _capture_results(monkeypatch, per_request=30)
+    result = boom.BOOMBROKER.test_filter(
+        _Broker(),
+        None,
+        survey="ZTF",
+        pipeline=[{"$match": {}}],
+        start_jd=2461300.0,
+        end_jd=2461320.0,
+        permissions={"ZTF": [1]},
+        unsorted=True,
+        limit=50,
+    )
+    # Two slices fill the limit; the third is never asked for, and the second
+    # only asks for what is still missing.
+    assert [body["limit"] for _, body in seen] == [50, 20]
+    assert len(result["results"]) == 50
