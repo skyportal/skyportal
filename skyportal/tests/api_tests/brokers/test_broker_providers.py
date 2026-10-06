@@ -1913,6 +1913,23 @@ def test_decode_cutout_accepts_gzipped_and_plain_fits():
         assert data[0][0] == 7.0, f"base64 {label}"
 
 
+def test_orient_cutout_mirrors_decam_across_the_anti_diagonal():
+    """DECam stamps are stored mirrored relative to the sky (checked against
+    Legacy Survey images), so opposite corners off the anti-diagonal swap."""
+    import numpy as np
+
+    from skyportal.broker_apis._thumbnails import orient_cutout
+
+    stamp = np.zeros((63, 63))
+    stamp[0, 0] = 1
+    stamp[-1, -1] = 2
+    stamp[0, -1] = 3
+    oriented = orient_cutout(stamp, "DECAM", {})
+    assert oriented[-1, -1] == 1
+    assert oriented[0, 0] == 2
+    assert oriented[0, -1] == 3
+
+
 def test_decode_cutout_rejects_a_url_placeholder():
     """A provider sending a URL instead of image bytes should say so clearly."""
     from skyportal.broker_apis._thumbnails import decode_cutout

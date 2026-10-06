@@ -70,6 +70,8 @@ def orient_cutout(data_array, survey, header):
     """Rotate/flip a cutout so North is up and West is right."""
     if survey.upper() == "ZTF":
         return np.flipud(data_array)
+    if survey.upper() == "DECAM":
+        return np.rot90(np.flipud(data_array))
     if survey.upper() == "LSST":
         rotpa = header.get("ROTPA")
         if rotpa is not None:
