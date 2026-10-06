@@ -1,15 +1,19 @@
 import uuid
 from types import SimpleNamespace
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 import numpy as np
 import numpy.testing as npt
 import pytest
 import requests
+from astropy import units as u
+from astropy.coordinates import SkyCoord
+from astropy.table import Table
 from requests.exceptions import ConnectionError, HTTPError, Timeout
 
 from skyportal.models import Photometry
 from skyportal.tests import api
+from skyportal.utils import offset
 from skyportal.utils.offset import (
     IRSA_SEARCH_TIMEOUT,
     _calculate_best_position_for_offset_stars,
@@ -348,3 +352,100 @@ def test_finding_chart_without_an_image_still_renders():
 
     assert rez["success"], rez.get("reason")
     assert rez["data"].find(bytes("PDF", encoding="utf8")) != -1
+
+
+def _gaia_stars_around(ra, dec, n=40):
+    rng = np.random.default_rng(0)
+    return [
+        {
+            "_id": 4000000000000000000 + i,
+            "ra": ra + rng.uniform(-1.5, 1.5) / 60,
+            "dec": dec + rng.uniform(-1.5, 1.5) / 60,
+            "phot_rp_mean_mag": rng.uniform(11, 17),
+            "pmra": rng.uniform(-20, 20),
+            "pmdec": rng.uniform(-20, 20),
+            "parallax": rng.uniform(0.1, 5),
+        }
+        for i in range(n)
+    ]
+
+
+def _gaia_tap_table(stars, ra, dec):
+    coords = SkyCoord([s["ra"] for s in stars], [s["dec"] for s in stars], unit="deg")
+    table = Table(
+        {
+            "dist": coords.separation(SkyCoord(ra, dec, unit="deg")).deg,
+            "source_id": np.array([s["_id"] for s in stars], dtype=np.int64),
+            "ra": [s["ra"] for s in stars],
+            "dec": [s["dec"] for s in stars],
+            "ref_epoch": np.full(len(stars), 2016.0),
+            "phot_rp_mean_mag": [s["phot_rp_mean_mag"] for s in stars],
+            "pmra": [s["pmra"] for s in stars],
+            "pmdec": [s["pmdec"] for s in stars],
+            "parallax": [s["parallax"] for s in stars],
+        }
+    )
+    table["dist"].unit = u.deg
+    table["ref_epoch"].unit = u.yr
+    for name in offset.OFFSET_STAR_COLUMNS:
+        table[name].unit = offset.GAIA_UNITS[name]
+    return table
+
+
+def _offset_stars(ra, dec, broker, obstime="2026-10-05T00:00:00"):
+    return get_nearby_offset_stars(
+        ra,
+        dec,
+        "testSource",
+        radius_degrees=2 / 60.0,
+        obstime=obstime,
+        use_ztfref=False,
+        gaia_broker=broker,
+    )
+
+
+def _broker(**cone_search):
+    gaia_cone_search = Mock(**cone_search)
+    return SimpleNamespace(
+        name="BOOM", broker_class=SimpleNamespace(gaia_cone_search=gaia_cone_search)
+    )
+
+
+def test_offset_stars_from_the_broker_match_the_gaia_tap():
+    ra, dec = _fresh_position()
+    stars = _gaia_stars_around(ra, dec)
+    from_broker = _offset_stars(ra, dec, broker=_broker(return_value=stars))
+    offset.offsets_memory.clear(warn=False)
+    with patch.object(
+        offset.gaia, "query", return_value=_gaia_tap_table(stars, ra, dec)
+    ):
+        from_tap = _offset_stars(ra, dec, broker=None)
+
+    assert from_broker[0] == from_tap[0]
+    assert len(from_broker[0]) > 1
+    assert from_broker[5] is True
+
+
+def test_broker_failure_falls_back_to_the_gaia_tap():
+    ra, dec = _fresh_position()
+    stars = _gaia_stars_around(ra, dec)
+    broker = _broker(side_effect=requests.exceptions.HTTPError("502"))
+    with patch.object(
+        offset.gaia, "query", return_value=_gaia_tap_table(stars, ra, dec)
+    ) as tap:
+        result = _offset_stars(ra, dec, broker=broker)
+
+    assert tap.call_count == 1
+    assert len(result[0]) > 1
+    assert result[5] is True
+
+
+def test_without_a_broker_the_gaia_tap_is_used():
+    ra, dec = _fresh_position()
+    stars = _gaia_stars_around(ra, dec)
+    with patch.object(
+        offset.gaia, "query", return_value=_gaia_tap_table(stars, ra, dec)
+    ) as tap:
+        _offset_stars(ra, dec, broker=None)
+
+    assert tap.call_count == 1

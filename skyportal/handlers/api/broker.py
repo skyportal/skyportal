@@ -125,6 +125,19 @@ DEFAULT_FIELDS = {
 }
 
 
+async def get_gaia_broker(session):
+    broker = await session.scalar(
+        sa.select(Broker).where(
+            Broker.active.is_(True), Broker.default_crossmatch.is_(True)
+        )
+    )
+    if broker is None or not broker.broker_class.implements()["gaia_cone_search"]:
+        return None
+    # Handed to a worker thread, which must not lazy-load through this async session.
+    session.expunge(broker)
+    return broker
+
+
 async def set_default(session, broker, field, value, *, check_connection=True):
     """Make ``broker`` the one holding ``field``, clearing it everywhere else.
 
