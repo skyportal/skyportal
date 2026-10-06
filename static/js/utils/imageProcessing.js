@@ -498,6 +498,18 @@ export function bytes2image(
     colored.splice(0, colored.length, ...finalImage);
   }
 
+  // DECam cutouts are mirrored across their anti-diagonal (square images)
+  if (survey.toLowerCase() === "decam") {
+    const finalImage = new Array(finalWidth * finalHeight);
+    for (let y = 0; y < finalHeight; y++) {
+      for (let x = 0; x < finalWidth; x++) {
+        finalImage[y * finalWidth + x] =
+          colored[(finalWidth - 1 - x) * finalWidth + y];
+      }
+    }
+    colored.splice(0, colored.length, ...finalImage);
+  }
+
   if (typeof document !== "undefined") {
     const canvas = document.createElement("canvas");
     canvas.width = finalWidth;
