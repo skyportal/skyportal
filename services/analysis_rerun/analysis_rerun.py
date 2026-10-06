@@ -17,6 +17,7 @@ import traceback
 from datetime import timedelta
 
 import sqlalchemy as sa
+from sqlalchemy.orm import selectinload
 
 from baselayer.app.env import load_env
 from baselayer.app.models import DBSession, init_db
@@ -87,7 +88,10 @@ def sweep():
     cutoff = utcnow_naive() - timedelta(days=LOOKBACK_DAYS)
     with DBSession() as session:
         default_analyses = session.scalars(
-            sa.select(DefaultAnalysis).where(
+            sa.select(DefaultAnalysis)
+            # Loaded now: _run_default_analysis closes this scoped session.
+            .options(selectinload(DefaultAnalysis.analysis_service))
+            .where(
                 # Only ones that opt into the detection gate.
                 _default_analysis_gated(),
                 _default_analysis_under_limit(),
