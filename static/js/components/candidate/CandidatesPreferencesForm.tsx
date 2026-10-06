@@ -10,6 +10,7 @@ import Button from "../Button";
 import SearchableSelect from "../SearchableSelect";
 import ClassificationSelect from "../classification/ClassificationSelect";
 import { useGetAnnotationsInfoQuery } from "../../ducks/candidate/candidates";
+import { useGetGroupsQuery } from "../../ducks/groups";
 import {
   useGetProfileQuery,
   useUpdateUserPreferencesMutation,
@@ -44,6 +45,7 @@ const profileValues = (profile: any) => ({
   timeRange: profile?.timeRange ?? "24",
   groupIDs: profile?.groupIDs ?? [],
   savedStatus: profile?.savedStatus ?? "all",
+  savedGroupIDs: profile?.savedGroupIDs ?? [],
   rejectedStatus: profile?.rejectedStatus ?? "show",
   redshiftMinimum: profile?.redshiftMinimum ?? "",
   redshiftMaximum: profile?.redshiftMaximum ?? "",
@@ -85,11 +87,17 @@ const CandidatesPreferencesForm = ({
     reset,
     formState: { errors },
   } = useForm<any>({ defaultValues: profileValues(editingProfile) });
-  const [groupIDs, sortingOrigin]: [number[], string | null] = useWatch({
+  const [groupIDs, sortingOrigin, savedStatus]: [
+    number[],
+    string | null,
+    string,
+  ] = useWatch({
     control,
-    name: ["groupIDs", "sortingOrigin"],
+    name: ["groupIDs", "sortingOrigin", "savedStatus"],
   });
   const scanGroups = useScanGroups(groupIDs);
+  const { data: groups } = useGetGroupsQuery();
+  const showSavedGroups = savedStatus.endsWith("Selected");
   const { data: availableAnnotationsInfo } = useGetAnnotationsInfoQuery(
     groupIDs.length ? groupIDs : skipToken,
   );
@@ -110,10 +118,14 @@ const CandidatesPreferencesForm = ({
   };
 
   const onSubmit = (formData: any) => {
+    const savedGroupIDs = formData.savedGroupIDs.filter((id: number) =>
+      groups?.userAccessible?.some((group) => group.id === id),
+    );
     const data: any = {
       name: formData.name,
       groupIDs: formData.groupIDs,
       savedStatus: formData.savedStatus,
+      ...(showSavedGroups && savedGroupIDs.length > 0 ? { savedGroupIDs } : {}),
       rejectedStatus: formData.rejectedStatus,
       default: editingProfile ? editingProfile.default : true,
     };
@@ -216,6 +228,25 @@ const CandidatesPreferencesForm = ({
                 </MenuItem>
               ))}
             </FormTextField>
+            {showSavedGroups && (
+              <Controller
+                name="savedGroupIDs"
+                control={control}
+                render={({ field: { onChange, value } }) => (
+                  <GroupSelect
+                    groups={groups?.userAccessible ?? []}
+                    value={value}
+                    onChange={onChange}
+                    label="Saved status groups"
+                    checkboxTestId="profileSavedStatusGroupCheckbox"
+                    helperText="Defaults to the scanning groups"
+                    textFieldProps={{
+                      "data-testid": "profileSavedStatusGroupSelect",
+                    }}
+                  />
+                )}
+              />
+            )}
             <Controller
               name="rejectedStatus"
               control={control}

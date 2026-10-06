@@ -62,7 +62,11 @@ from ....utils.data_access import (
     accessible_group_and_filter_ids,
     accessible_group_ids_async,
 )
-from ....utils.parse import get_page_and_n_per_page, parse_optional_date
+from ....utils.parse import (
+    get_list_typed,
+    get_page_and_n_per_page,
+    parse_optional_date,
+)
 from ....utils.sizeof import SIZE_WARNING_THRESHOLD, sizeof
 from ....utils.thumbnail import latest_thumbnails
 from ...base import BaseHandler
@@ -662,6 +666,7 @@ class CandidateHandler(BaseHandler):
         # users looking through the API docs
         query_id = query.queryID
         saved_status = query.savedStatus
+        saved_group_ids = query.savedGroupIDs
         start_date = query.startDate
         end_date = query.endDate
         group_ids = query.groupIDs
@@ -763,6 +768,13 @@ class CandidateHandler(BaseHandler):
             page_number, n_per_page = get_page_and_n_per_page(page_number, n_per_page)
         except ValueError as e:
             return self.error(str(e))
+        if saved_group_ids is not None:
+            try:
+                saved_group_ids = get_list_typed(
+                    saved_group_ids, int, error_msg="Invalid savedGroupIDs value"
+                )
+            except ValueError as e:
+                return self.error(str(e))
 
         async with self.AsyncSession() as session:
             # first, we get the list of group IDs and filter IDs
@@ -831,8 +843,18 @@ class CandidateHandler(BaseHandler):
                 # params are set.
                 order_by = [candidate_subquery.c.passed_at.desc().nullslast(), Obj.id]
 
+            # drop inaccessible groups first, so a stale list falls back too
+            if saved_group_ids:
+                accessible_ids = await accessible_group_ids_async(
+                    session.user_or_token, session
+                )
+                saved_group_ids = [g for g in saved_group_ids if g in accessible_ids]
             q = await get_subquery_for_saved_status(
-                q, saved_status, group_ids, session.user_or_token, session
+                q,
+                saved_status,
+                saved_group_ids or group_ids,
+                session.user_or_token,
+                session,
             )
 
             if min_redshift is not None:

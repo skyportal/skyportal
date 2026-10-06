@@ -3172,6 +3172,8 @@ export interface paths {
                     autosaveGroupIds?: number[] | null;
                     /** @description String indicating the saved status to filter candidate results for. Must be one of the enumerated values. */
                     savedStatus?: "all" | "savedToAllSelected" | "savedToAnySelected" | "savedToAnyAccessible" | "notSavedToAnyAccessible" | "notSavedToAnySelected" | "notSavedToAllSelected";
+                    /** @description Comma-separated string of group IDs (e.g. "1,2") that the "Selected" saved statuses check against. Defaults to the groups of the candidates' filters. */
+                    savedGroupIDs?: string | null;
                     /** @description Arrow-parseable date string (e.g. 2020-01-01). If provided, filter by Candidate.passed_at >= startDate */
                     startDate?: string | null;
                     /** @description Arrow-parseable date string (e.g. 2020-01-01). If provided, filter by Candidate.passed_at <= endDate */

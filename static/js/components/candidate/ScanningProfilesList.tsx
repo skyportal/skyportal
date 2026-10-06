@@ -146,9 +146,17 @@ const ScanningProfilesList = ({
       headerName: "Saved status",
       flex: 1.5,
       minWidth: 160,
-      renderCell: ({ value }) =>
-        savedStatusSelectOptions.find((option) => option.value === value)
-          ?.label ?? "",
+      renderCell: ({ value, row }) => {
+        const label =
+          savedStatusSelectOptions.find((option) => option.value === value)
+            ?.label ?? "";
+        const savedGroups = (row.savedGroupIDs ?? [])
+          .map((id: number) => groups.find((g) => g.id === id)?.name)
+          .filter(Boolean);
+        return savedGroups.length
+          ? `${label} (${savedGroups.join(", ")})`
+          : label;
+      },
     },
     {
       field: "rejectedStatus",
