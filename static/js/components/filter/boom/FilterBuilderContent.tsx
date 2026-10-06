@@ -473,12 +473,18 @@ const FilterBuilderContent = ({
       return;
     }
     // The builder appends its own $project, so drop a trailing one it would
-    // regenerate; any other projection keeps the pipeline out of blocks.
+    // regenerate: the one seeded from the blocks (which carries their
+    // annotations), or a plain one. Any other keeps the pipeline out of blocks.
     const last = rawPipeline?.[rawPipeline.length - 1];
+    const keepsSeededProjection =
+      !!last?.$project &&
+      JSON.stringify(last) ===
+        JSON.stringify(JSON.parse(stash?.pipeline ?? "[]").at(-1));
     const matchOnly =
       rawPipeline &&
       rawPipeline.length > 1 &&
-      isBuilderProjection(last.$project, rawPipeline.slice(0, -1))
+      (keepsSeededProjection ||
+        isBuilderProjection(last.$project, rawPipeline.slice(0, -1)))
         ? rawPipeline.slice(0, -1)
         : rawPipeline;
     const tree = matchOnly ? decompilePipeline(matchOnly) : null;
@@ -490,6 +496,8 @@ const FilterBuilderContent = ({
     }
     blocksStash.current = null;
     setEditorMode(mode);
+    if (keepsSeededProjection)
+      setProjectionFields?.(stash.projectionFields ?? []);
     handleFilterUpdate(tree ?? createEmptyFilterWithDefaultCondition());
   };
 

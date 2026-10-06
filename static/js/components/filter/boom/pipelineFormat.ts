@@ -27,8 +27,8 @@ const matchedFields = (match: any, fields = new Set<string>()): Set<string> => {
 };
 
 // True when a $project only keeps what the block builder projects by itself
-// (objectId, candidate.jd and the fields its conditions use), so dropping it
-// loses nothing when the pipeline is turned into blocks.
+// (objectId, candidate.jd and the exact fields its conditions use), so dropping
+// it loses nothing when the pipeline is turned into blocks.
 export const isBuilderProjection = (project: any, match: any): boolean => {
   if (!project || typeof project !== "object" || Array.isArray(project))
     return false;
@@ -36,8 +36,6 @@ export const isBuilderProjection = (project: any, match: any): boolean => {
   return Object.entries(project).every(
     ([field, value]) =>
       value === 1 &&
-      (field === "objectId" ||
-        field === "candidate.jd" ||
-        [...used].some((u) => u === field || u.startsWith(`${field}.`))),
+      (field === "objectId" || field === "candidate.jd" || used.has(field)),
   );
 };
