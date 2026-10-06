@@ -17,13 +17,15 @@ import traceback
 from datetime import timedelta
 
 import sqlalchemy as sa
+from sqlalchemy.orm import selectinload
 
 from baselayer.app.env import load_env
 from baselayer.app.models import DBSession, init_db
 from baselayer.log import make_log
-from skyportal.models import DefaultAnalysis, ObjAnalysis, Photometry, Source
+from skyportal.models import DefaultAnalysis, Photometry, Source
 from skyportal.models.analysis import (
     _default_analysis_gated,
+    _default_analysis_rerun_blocked,
     _default_analysis_under_limit,
     _insufficient_photometry,
     _run_default_analysis,
@@ -49,22 +51,13 @@ def _sweep_default_analysis(session, default_analysis, cutoff):
 
     # Sources saved to the group with recent photometry (so we only look at ones
     # that could have crossed the threshold) and no run that already blocks a
-    # re-fire: a pending run (in flight) or a completed, non-gated one (classified).
+    # re-fire: one in flight, a classification, or an insufficient_data result
+    # with no new detection since.
     recent_objs = (
         sa.select(Photometry.obj_id).where(Photometry.created_at >= cutoff).distinct()
     )
-    blocking = sa.exists().where(
-        ObjAnalysis.obj_id == Source.obj_id,
-        ObjAnalysis.analysis_service_id == default_analysis.analysis_service_id,
-        sa.or_(
-            ObjAnalysis.status == "pending",
-            sa.and_(
-                ObjAnalysis.status == "completed",
-                ~sa.func.coalesce(ObjAnalysis.status_message, "").ilike(
-                    "%insufficient_data%"
-                ),
-            ),
-        ),
+    blocking = _default_analysis_rerun_blocked(
+        default_analysis.analysis_service_id, Source.obj_id
     )
     obj_ids = session.scalars(
         sa.select(Source.obj_id)
@@ -95,7 +88,10 @@ def sweep():
     cutoff = utcnow_naive() - timedelta(days=LOOKBACK_DAYS)
     with DBSession() as session:
         default_analyses = session.scalars(
-            sa.select(DefaultAnalysis).where(
+            sa.select(DefaultAnalysis)
+            # Loaded now: _run_default_analysis closes this scoped session.
+            .options(selectinload(DefaultAnalysis.analysis_service))
+            .where(
                 # Only ones that opt into the detection gate.
                 _default_analysis_gated(),
                 _default_analysis_under_limit(),
