@@ -16,6 +16,7 @@ except Exception:
             return ""
 
 
+import functools
 from io import StringIO
 
 import numpy as np
@@ -40,7 +41,7 @@ from skyportal.utils.alma import ANNOTATION_ORIGIN as ALMA_ANNOTATION_ORIGIN
 from skyportal.utils.alma import query_coverage as query_alma_coverage
 from skyportal.utils.alma import summarize as summarize_alma_coverage
 from skyportal.utils.calculations import great_circle_distance
-from skyportal.utils.tap_services import GaiaQuery
+from skyportal.utils.offset import query_gaia
 
 from ...models import (
     Annotation,
@@ -48,6 +49,7 @@ from ...models import (
     Obj,
 )
 from ..base import BaseHandler
+from .broker import get_gaia_broker
 
 ObjId = Annotated[
     str, Field(description="ID of the object to retrieve the Vizier crossmatch for")
@@ -57,7 +59,21 @@ _, cfg = load_env()
 
 PS1_URL = cfg["app.ps1_endpoint"]
 
-gaia = GaiaQuery()
+GAIA_ANNOTATION_COLUMNS = (
+    "ra",
+    "dec",
+    "phot_g_mean_mag",
+    "phot_bp_mean_mag",
+    "phot_rp_mean_mag",
+    "pm",
+    "pmra",
+    "pmra_error",
+    "pmdec",
+    "pmdec_error",
+    "parallax",
+    "parallax_error",
+    "ruwe",
+)
 
 
 class GaiaQueryBody(BaseModel):
@@ -139,10 +155,10 @@ class GaiaQueryHandler(BaseHandler):
                 SELECT DISTANCE(
                 POINT('ICRS', ra, dec),
                 POINT('ICRS', {obj.ra}, {obj.dec})) AS
-                source_id, ra, dec, ref_epoch,
+                dist, source_id, ra, dec, ref_epoch,
                 phot_g_mean_mag, phot_bp_mean_mag, phot_rp_mean_mag,
-                pm, pmra, pmdec, parallax, parallax_error, parallax_over_error,
-                ruwe
+                pm, pmra, pmra_error, pmdec, pmdec_error,
+                parallax, parallax_error, parallax_over_error, ruwe
                 FROM {{main_db}}
                 WHERE 1=CONTAINS(
                 POINT('ICRS', ra, dec),
@@ -150,19 +166,28 @@ class GaiaQueryHandler(BaseHandler):
                         {radius_degrees}))
             """
 
-            with gaia as g:
-                try:
-                    df = g.query(query_string)
-                    df = df.to_pandas()
-                except Exception as e:
-                    return self.error(
-                        f"Error querying Gaia annotations for {obj_id}: {e}. Please try again later."
-                    )
-
-            if df is None:
-                return self.error(
-                    "Failed to retrieve Gaia data. Please try again later."
+            gaia_broker = await get_gaia_broker(session)
+            try:
+                gaia_table = await IOLoop.current().run_in_executor(
+                    None,
+                    functools.partial(
+                        query_gaia,
+                        obj.ra,
+                        obj.dec,
+                        radius_degrees,
+                        query_string,
+                        GAIA_ANNOTATION_COLUMNS,
+                        broker=gaia_broker,
+                    ),
                 )
+            except Exception as e:
+                return self.error(
+                    f"Error querying Gaia annotations for {obj_id}: {e}. Please try again later."
+                )
+            df = gaia_table.to_pandas()
+            if "parallax_over_error" not in df:
+                df["parallax_over_error"] = df["parallax"] / df["parallax_error"]
+
             if len(df) == 0:
                 return self.error(
                     f"No Gaia sources available within {(radius_degrees * 3600):.2f} arcseconds of the candidate."
