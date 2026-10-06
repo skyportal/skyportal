@@ -2,6 +2,7 @@ import React from "react";
 import { connect } from "react-redux";
 
 import ContentCopyIcon from "@mui/icons-material/ContentCopy";
+import FeedbackIcon from "@mui/icons-material/FeedbackOutlined";
 import Box from "@mui/material/Box";
 import Button from "@mui/material/Button";
 import IconButton from "@mui/material/IconButton";
@@ -12,6 +13,7 @@ import utc from "dayjs/plugin/utc";
 
 import type { RootState } from "../types/store";
 import { POST } from "../API";
+import { profileApi } from "../ducks/profile";
 import { sysInfoApi } from "../ducks/sysInfo";
 
 dayjs.extend(utc);
@@ -23,6 +25,7 @@ const logError = (errorInfo: any) =>
 interface ErrorBoundaryProps {
   dispatch: (action: any) => void;
   version?: string | null;
+  isAnonymous?: boolean;
   children?: React.ReactNode;
   fallback?: React.ReactNode;
 }
@@ -79,6 +82,7 @@ class ErrorBoundary extends React.Component<
     const { version } = this.props;
     return [
       `${errorTime} - This is SkyPortal ${version || "N/A"}`,
+      window.location.href,
       error && error.toString(),
       returnStack && stack,
     ]
@@ -88,25 +92,32 @@ class ErrorBoundary extends React.Component<
 
   override render() {
     const { hasError, stack, displayStack } = this.state;
-    const { children, fallback } = this.props;
+    const { isAnonymous, children, fallback } = this.props;
     if (hasError && fallback) return fallback;
     if (hasError) {
       return (
         <div
           style={{
-            padding: "clamp(1rem, 5vw, 5rem)",
+            padding: "0.5rem clamp(1rem, 5vw, 5rem) 0",
             width: "min(90%, 1000px)",
             marginLeft: "auto",
             marginRight: "auto",
           }}
         >
-          <div style={{ textAlign: "center", paddingBottom: "1rem" }}>
+          <div style={{ textAlign: "center" }}>
             <img
               src="/static/images/something_wrong.svg"
-              style={{ maxWidth: "250px", width: "80%" }}
+              style={{ height: "min(250px, 100vh - 450px, 35vw)" }}
               alt="Something went wrong"
             />
-            <h1>Oh dear! Something went wrong.</h1>
+            <h1
+              style={{
+                margin: "0.5rem 0",
+                fontSize: "clamp(1.5rem, 5vw, 2rem)",
+              }}
+            >
+              Oh dear! Something went wrong.
+            </h1>
           </div>
 
           <p>
@@ -153,15 +164,30 @@ class ErrorBoundary extends React.Component<
             </Tooltip>
             {this.errorReport(displayStack)}
           </Box>
-          {stack && (
-            <Button
-              size="small"
-              sx={{ display: "block", ml: "auto", mb: "0.5rem" }}
-              onClick={() => this.setState({ displayStack: !displayStack })}
-            >
-              {displayStack ? "Hide stack" : "Show stack"}
-            </Button>
-          )}
+          <Box sx={{ display: "flex", mb: "0.5rem" }}>
+            {stack && (
+              <Button
+                size="small"
+                onClick={() => this.setState({ displayStack: !displayStack })}
+              >
+                {displayStack ? "Hide stack" : "Show stack"}
+              </Button>
+            )}
+            {!isAnonymous && (
+              <Button
+                size="small"
+                variant="contained"
+                startIcon={<FeedbackIcon />}
+                sx={{ ml: "auto" }}
+                href={`/deployments?${new URLSearchParams({
+                  tab: "feedback",
+                  text: this.errorReport(false),
+                })}`}
+              >
+                Report this error to the admins
+              </Button>
+            )}
+          </Box>
         </div>
       );
     }
@@ -175,6 +201,8 @@ const mapStateToProps = (state: RootState) => ({
   // been fetched (it is, during app hydration). `select()` with no arg targets
   // the `void`-arg query.
   version: sysInfoApi.endpoints.getSysInfo.select()(state)?.data?.version,
+  isAnonymous:
+    profileApi.endpoints.getProfile.select()(state)?.data?.is_anonymous,
 });
 
 export default connect(mapStateToProps)(ErrorBoundary);

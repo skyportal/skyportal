@@ -1,4 +1,5 @@
 import { ReactElement, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import dayjs from "dayjs";
 import relativeTime from "dayjs/plugin/relativeTime";
 import utc from "dayjs/plugin/utc";
@@ -119,14 +120,16 @@ const TextSend = ({
   minRows,
   loading,
   onSend,
+  initialText = "",
 }: {
   label: string;
   placeholder: string;
   minRows: number;
   loading: boolean;
   onSend: (text: string) => Promise<unknown>;
+  initialText?: string;
 }) => {
-  const [text, setText] = useState("");
+  const [text, setText] = useState(initialText);
   return (
     <>
       <TextField
@@ -158,6 +161,7 @@ const TextSend = ({
 const FeedbackForm = ({ title }: { title: string }) => {
   const [category, setCategory] = useState<FeedbackCategory>("bug");
   const [addFeedback, { isLoading }] = useAddFeedbackMutation();
+  const [searchParams, setSearchParams] = useSearchParams();
   const dispatch = useAppDispatch();
 
   return (
@@ -185,8 +189,11 @@ const FeedbackForm = ({ title }: { title: string }) => {
         placeholder="What happened, or what would you like to change?"
         minRows={4}
         loading={isLoading}
+        initialText={searchParams.get("text") ?? ""}
         onSend={async (text) => {
           await addFeedback({ category, text }).unwrap();
+          searchParams.delete("text");
+          setSearchParams(searchParams, { replace: true });
           dispatch(
             showNotification("Thanks, your message was sent to the admins"),
           );
