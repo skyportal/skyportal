@@ -126,6 +126,26 @@ def parse_string_list(str_list):
         raise TypeError("Must input a string!")
 
 
+async def find_identical_spectrum(session, spec):
+    candidates = await session.scalars(
+        sa.select(Spectrum).where(
+            Spectrum.obj_id == spec.obj_id,
+            Spectrum.instrument_id == spec.instrument_id,
+            Spectrum.observed_at == spec.observed_at,
+            Spectrum.owner_id == spec.owner_id,
+        )
+    )
+    return next(
+        (
+            candidate
+            for candidate in candidates
+            if np.array_equal(candidate.wavelengths, spec.wavelengths)
+            and np.array_equal(candidate.fluxes, spec.fluxes)
+        ),
+        None,
+    )
+
+
 async def post_spectrum(data, user_id, session):
     """Post spectrum to database.
     data: dict
@@ -208,6 +228,9 @@ async def post_spectrum(data, user_id, session):
     spec.owner_id = user_id
     if spec.type is None:
         spec.type = default_spectrum_type
+    existing = await find_identical_spectrum(session, spec)
+    if existing is not None:
+        return existing.id
     session.add(spec)
     await session.flush()  # populate spec.id
 
@@ -1202,6 +1225,10 @@ class SpectrumASCIIFileHandler(BaseHandler, ASCIIHandler):
 
             spec.original_file_filename = Path(filename).name
             spec.groups = groups
+
+            existing = await find_identical_spectrum(session, spec)
+            if existing is not None:
+                return self.success(data={"id": existing.id})
 
             session.add(spec)
             await session.flush()  # populate spec.id

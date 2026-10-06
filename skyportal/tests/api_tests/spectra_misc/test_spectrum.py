@@ -2019,7 +2019,12 @@ def test_obj_spectra_external_fields(
     assert status == 200
     with_external = data["data"]["id"]
 
-    status, data = api("POST", "spectrum", data=common, token=upload_data_token)
+    status, data = api(
+        "POST",
+        "spectrum",
+        data={**common, "observed_at": str(datetime.datetime.now())},
+        token=upload_data_token,
+    )
     assert status == 200
     without_external = data["data"]["id"]
 
