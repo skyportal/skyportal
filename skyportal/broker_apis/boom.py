@@ -946,6 +946,23 @@ class BOOMBROKER(BrokerAPI):
         return results
 
     @staticmethod
+    def gaia_cone_search(broker, ra, dec, radius_degrees, columns):
+        data = _request(
+            broker,
+            "POST",
+            "queries/cone_search",
+            json={
+                "catalog_name": "Gaia_DR3",
+                "object_coordinates": {"query": [ra, dec]},
+                "radius": radius_degrees,
+                "unit": "Degrees",
+                "projection": dict.fromkeys(columns, 1),
+                "max_time_ms": 5000,
+            },
+        )
+        return data["query"]
+
+    @staticmethod
     async def run_ingestion(broker, stop=None, max_messages=None, **kwargs):
         """Consume BOOM's Kafka filter-result streams (Avro) and register each
         alert as a Candidate under the skyportal Filters mapped to the BOOM filter
