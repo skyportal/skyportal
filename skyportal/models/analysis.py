@@ -714,6 +714,30 @@ def _default_analysis_under_limit():
     )
 
 
+def _default_analysis_rerun_blocked(analysis_service_id, obj_id):
+    from .photometry import Photometry
+
+    insufficient = func.coalesce(ObjAnalysis.status_message, "").ilike(
+        "%insufficient_data%"
+    )
+    detection_since = sa.exists().where(
+        Photometry.obj_id == ObjAnalysis.obj_id,
+        Photometry.created_at > ObjAnalysis.created_at,
+        Photometry.snr > cfg["misc.photometry_detection_threshold_nsigma"],
+    )
+    return sa.exists().where(
+        ObjAnalysis.obj_id == obj_id,
+        ObjAnalysis.analysis_service_id == analysis_service_id,
+        or_(
+            ObjAnalysis.status.in_(["queued", "pending"]),
+            sa.and_(
+                ObjAnalysis.status == "completed",
+                or_(~insufficient, ~detection_since),
+            ),
+        ),
+    )
+
+
 def _insufficient_photometry(session, default_analysis, obj_id):
     """True if this default analysis declares a detection threshold the object's
     light curve does not yet meet -- so we defer rather than submit a job we'd only
