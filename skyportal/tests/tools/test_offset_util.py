@@ -426,6 +426,16 @@ def test_offset_stars_from_the_broker_match_the_gaia_tap():
     assert from_broker[5] is True
 
 
+def test_gaia_stars_are_cached():
+    ra, dec = _fresh_position()
+    broker = _broker(return_value=_gaia_stars_around(ra, dec))
+    first = _offset_stars(ra, dec, broker=broker)
+    later = _offset_stars(ra, dec, broker=broker, obstime="2026-10-06T00:00:00")
+
+    assert broker.broker_class.gaia_cone_search.call_count == 1
+    assert len(first[0]) > 1 and len(later[0]) == len(first[0])
+
+
 def test_broker_failure_falls_back_to_the_gaia_tap():
     ra, dec = _fresh_position()
     stars = _gaia_stars_around(ra, dec)
@@ -449,3 +459,13 @@ def test_without_a_broker_the_gaia_tap_is_used():
         _offset_stars(ra, dec, broker=None)
 
     assert tap.call_count == 1
+
+
+def test_gaia_outage_is_not_cached():
+    ra, dec = _fresh_position()
+    with patch.object(offset.gaia, "query", return_value=None) as tap:
+        first = _offset_stars(ra, dec, broker=None)
+        _offset_stars(ra, dec, broker=None, obstime="2026-10-06T00:00:00")
+
+    assert tap.call_count == 2
+    assert first[5] is False

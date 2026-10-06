@@ -866,6 +866,8 @@ def query_gaia(
     return r
 
 
+# Raises instead of returning None so joblib never caches a Gaia outage.
+@memcache(ignore=["broker"])
 def _gaia_stars(source_ra, source_dec, radius_degrees, query_string, broker=None):
     return query_gaia(
         source_ra,
