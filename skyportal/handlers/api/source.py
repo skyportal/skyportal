@@ -122,6 +122,7 @@ from ...utils.scout_ingest import ANNOTATION_ORIGIN as SCOUT_ANNOTATION_ORIGIN
 from ...utils.sizeof import SIZE_WARNING_THRESHOLD, sizeof
 from ...utils.thumbnail import latest_thumbnails
 from ..base import BaseHandler
+from .broker import get_gaia_broker
 from .candidate.candidate import (
     serialize_comment,
     update_healpix_if_relevant,
@@ -2116,6 +2117,7 @@ class SourceOffsetsHandler(BaseHandler):
             # it trips pgbouncer's idle_transaction_timeout. Capture first, since
             # commit expires the ORM objects.
             source_ra, source_dec = source.ra, source.dec
+            gaia_broker = await get_gaia_broker(session)
             await session.commit()
 
             offset_func = functools.partial(
@@ -2136,6 +2138,7 @@ class SourceOffsetsHandler(BaseHandler):
                 assignment_comment=comment,
                 source_mag=source_mag,
                 source_magfilter=source_magfilter,
+                gaia_broker=gaia_broker,
             )
 
             try:
@@ -2338,6 +2341,7 @@ async def get_finding_chart_callable(
         allowed_queries=2,
         queries_issued=0,
         use_ztfref=use_ztfref,
+        gaia_broker=await get_gaia_broker(session),
     )
 
 

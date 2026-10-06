@@ -122,6 +122,12 @@ class BrokerAPI(_Base):
         """Cross-match a position against the broker's archival catalogs."""
         raise NotImplementedError
 
+    @staticmethod
+    def gaia_cone_search(broker, ra, dec, radius_degrees, columns):
+        """Gaia DR3 sources within ``radius_degrees`` of a position, as dicts with
+        the Gaia ``source_id`` as ``_id`` and the requested ``columns``."""
+        raise NotImplementedError
+
     @classmethod
     async def save_as_source(cls, broker, alert_id, session, user, group_ids, **kwargs):
         """Ingest an object (``alert_id`` = objectId) as an Obj/Source + photometry.
