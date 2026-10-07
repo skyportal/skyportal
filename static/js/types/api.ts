@@ -3668,6 +3668,8 @@ export interface paths {
                     startDate?: string | null;
                     /** @description Arrow-parseable date string (e.g. 2020-01-01) for when the classification was made. If provided, filter by created_at <= endDate */
                     endDate?: string | null;
+                    /** @description Comma separated string of origins. If provided, only classifications from these origins are returned, matched without regard to case. A classification with no origin is never returned when this is given. */
+                    origin?: string | null;
                 };
                 header?: never;
                 path?: never;
@@ -3837,6 +3839,8 @@ export interface paths {
                     startDate?: string | null;
                     /** @description Arrow-parseable date string (e.g. 2020-01-01). If provided, filter by created_at <= endDate */
                     endDate?: string | null;
+                    /** @description Comma separated string of origins. If provided, only classifications from these origins are returned, matched without regard to case. A classification with no origin is never returned when this is given. */
+                    origin?: string | null;
                     /** @description Return associated taxonomy. */
                     includeTaxonomy?: boolean;
                     /** @description Number of sources to return per paginated request. Defaults to 100. Max 500. */
