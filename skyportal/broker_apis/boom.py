@@ -1326,8 +1326,9 @@ class BOOMBROKER(BrokerAPI):
 
     @staticmethod
     def test_filter(broker, session, **kwargs):
-        """Preview a pipeline against BOOM: a count, or sorted/paginated results
-        when ``sort_by`` is given (mirrors BOOM's /filters/test[/count]).
+        """Preview a pipeline against BOOM: a count, sorted results when
+        ``sort_by`` is given, or the first ``limit`` matches in no order when
+        ``unsorted`` is set (mirrors BOOM's /filters/test[/count]).
 
         The builder UI sends ``selectedCollection`` (e.g. "ZTF_alerts") + a
         ``filter_id`` rather than an explicit survey; derive the survey from the
@@ -1382,6 +1383,35 @@ class BOOMBROKER(BrokerAPI):
         # caller's own cuts.
         if kwargs.get("moc_ascii"):
             payload["moc_ascii"] = kwargs["moc_ascii"]
+        if kwargs.get("unsorted"):
+            # BOOM sorts the whole window before the pipeline runs, so a sort
+            # makes even a capped preview scan everything; this stops early.
+            limit = int(kwargs.get("limit") or 50)
+            results, res = [], None
+            for start_jd, end_jd in reversed(
+                _jd_windows(
+                    payload["start_jd"], payload["end_jd"], MAX_TEST_WINDOW_DAYS
+                )
+            ):
+                res = _request(
+                    broker,
+                    "POST",
+                    "filters/test",
+                    json={
+                        **payload,
+                        "start_jd": start_jd,
+                        "end_jd": end_jd,
+                        "limit": limit - len(results),
+                    },
+                    timeout=TEST_TIMEOUT,
+                )
+                if isinstance(res, dict) and isinstance(res.get("results"), list):
+                    results.extend(
+                        {**doc, "_id": str(doc.get("_id"))} for doc in res["results"]
+                    )
+                if len(results) >= limit:
+                    break
+            return {**res, "results": results[:limit]} if isinstance(res, dict) else res
         if kwargs.get("sort_by"):
             payload.update(
                 {

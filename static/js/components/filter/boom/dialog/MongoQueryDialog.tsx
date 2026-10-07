@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
   Dialog,
   DialogTitle,
@@ -20,17 +20,13 @@ import {
   TableHead,
   TableRow,
   Paper,
-  Stack,
   Link,
+  TextField,
 } from "@mui/material";
 import {
   Close as CloseIcon,
   PlayArrow as RunIcon,
   Fullscreen as FullscreenIcon,
-  FirstPage as FirstPageIcon,
-  LastPage as LastPageIcon,
-  ChevronLeft as ChevronLeftIcon,
-  ChevronRight as ChevronRightIcon,
   Download as DownloadIcon,
 } from "@mui/icons-material";
 import { Controller, useForm } from "react-hook-form";
@@ -43,12 +39,17 @@ import ReactJson from "react-json-view";
 import { makeStyles } from "tss-react/mui";
 import { useAppDispatch } from "../../../../types/hooks";
 import { useBoomFilterVersion } from "../../../../ducks/boom_filter";
-import { useRunBoomFilterMutation } from "../../../../ducks/boom_run_filter";
+import {
+  RunBoomFilterArg,
+  useRunBoomFilterMutation,
+} from "../../../../ducks/boom_run_filter";
 import { useGetProfileQuery } from "../../../../ducks/profile";
 import PipelineViewer from "./PipelineViewer";
 import FullscreenResultsDialog from "./FullscreenResultsDialog";
 
-const PAGE_SIZE = 50;
+const DEFAULT_MAX_RESULTS = 50;
+const MAX_RESULTS_LIMIT = 200;
+const NARROW_HINT = "Narrow the time window or the filter.";
 const ALERT_COLLECTIONS: Record<string, string> = {
   ZTF: "ZTF_alerts",
   LSST: "LSST_alerts",
@@ -80,31 +81,32 @@ const combineWithPipeline = (
   return finalPipeline;
 };
 
-const resetPaginationAndQueryState = (setters: any) => {
-  const {
-    setExpandedCells,
-    setCurrentPage,
-    setTotalDocuments,
-    setIsLoadingPage,
-    setPageCursors,
-    setLastDocumentId,
-    setHasNextPage,
-    setLastPageOffset,
-    setDisplayResults,
-    setQueryCompleted,
-  } = setters;
+const parseMaxResults = (value: string) => {
+  const n = Number(value);
+  return value.trim() !== "" &&
+    Number.isInteger(n) &&
+    n >= 1 &&
+    n <= MAX_RESULTS_LIMIT
+    ? n
+    : null;
+};
 
-  setExpandedCells(new Set());
-  setCurrentPage(1);
-  setTotalDocuments(0);
-  setIsLoadingPage(false);
-  setPageCursors(new Map());
-  setLastDocumentId(null);
-  setHasNextPage(false);
-  setLastPageOffset(0);
-  setDisplayResults({ data: [] });
+const jdOf = (row: any) => row?.candidate?.jd ?? row?.jd ?? -Infinity;
 
-  if (setQueryCompleted) setQueryCompleted(false);
+// Newest first, so the table is stable: the broker returns matches unordered.
+const byJdDescending = (a: any, b: any) =>
+  jdOf(b) - jdOf(a) || String(a?._id).localeCompare(String(b?._id));
+
+const previewErrorMessage = (error: any) => {
+  const detail =
+    error?.status === "PARSING_ERROR"
+      ? null
+      : typeof error?.error === "string"
+        ? error.error
+        : error?.data?.message;
+  return `The preview failed or timed out. ${NARROW_HINT}${
+    detail ? ` (${detail})` : ""
+  }`;
 };
 
 const getConvertedDatesFromForm = (getValues: any) => {
@@ -164,16 +166,32 @@ const MongoQueryDialog = () => {
   const [expandedCells, setExpandedCells] = useState<Set<any>>(new Set());
   const [expandedStages, setExpandedStages] = useState<Set<any>>(new Set());
   const [isFullscreen, setIsFullscreen] = useState(false);
-  const [currentPage, setCurrentPage] = useState(1);
-  const [totalDocuments, setTotalDocuments] = useState(0);
-  const [isLoadingPage, setIsLoadingPage] = useState(false);
-  const [pageCursors, setPageCursors] = useState<Map<any, any>>(new Map());
-  const [pageDataCache, setPageDataCache] = useState<Map<any, any>>(new Map());
-  const [, setLastDocumentId] = useState<any>(null);
-  const [hasNextPage, setHasNextPage] = useState(false);
   const [queryCompleted, setQueryCompleted] = useState(false);
   const [lastQueryString, setLastQueryString] = useState("");
-  const [, setLastPageOffset] = useState(0);
+  const [maxResultsInput, setMaxResultsInput] = useState(
+    String(DEFAULT_MAX_RESULTS),
+  );
+  const [hasMore, setHasMore] = useState(false);
+  const [lastRunArgs, setLastRunArgs] = useState<RunBoomFilterArg | null>(null);
+  const [exactCount, setExactCount] = useState<{
+    loading?: boolean;
+    count?: number;
+    error?: string;
+  }>({});
+  // Bumped on every reset so a count from a previous run is not shown.
+  const runId = useRef(0);
+
+  const maxResults = parseMaxResults(maxResultsInput);
+
+  const resetQueryState = () => {
+    runId.current += 1;
+    setExpandedCells(new Set());
+    setDisplayResults({ data: [] });
+    setHasMore(false);
+    setLastRunArgs(null);
+    setExactCount({});
+    setQueryCompleted(false);
+  };
 
   useEffect(() => {
     if (hasValidQuery()) {
@@ -181,18 +199,7 @@ const MongoQueryDialog = () => {
 
       if (lastQueryString && lastQueryString !== currentQueryString) {
         clearBoomFilter();
-        resetPaginationAndQueryState({
-          setExpandedCells,
-          setCurrentPage,
-          setTotalDocuments,
-          setIsLoadingPage,
-          setPageCursors,
-          setLastDocumentId,
-          setHasNextPage,
-          setLastPageOffset,
-          setDisplayResults,
-          setQueryCompleted,
-        });
+        resetQueryState();
       }
 
       setLastQueryString(currentQueryString);
@@ -200,18 +207,7 @@ const MongoQueryDialog = () => {
       if (lastQueryString) {
         clearBoomFilter();
         setLastQueryString("");
-        resetPaginationAndQueryState({
-          setExpandedCells,
-          setCurrentPage,
-          setTotalDocuments,
-          setIsLoadingPage,
-          setPageCursors,
-          setLastDocumentId,
-          setHasNextPage,
-          setLastPageOffset,
-          setDisplayResults,
-          setQueryCompleted,
-        });
+        resetQueryState();
       }
     }
   }, [hasValidQuery, getFormattedMongoQuery, lastQueryString, dispatch]);
@@ -227,18 +223,7 @@ const MongoQueryDialog = () => {
     ) {
       setSelectedCollection(newCollection);
       clearBoomFilter();
-      resetPaginationAndQueryState({
-        setExpandedCells,
-        setCurrentPage,
-        setTotalDocuments,
-        setIsLoadingPage,
-        setPageCursors,
-        setLastDocumentId,
-        setHasNextPage,
-        setLastPageOffset,
-        setDisplayResults,
-        setQueryCompleted,
-      });
+      resetQueryState();
     } else if (selectedCollection === "" && newCollection !== "") {
       setSelectedCollection(newCollection);
     }
@@ -293,18 +278,7 @@ const MongoQueryDialog = () => {
   useEffect(() => {
     if (mongoDialog?.open) {
       loadCollections();
-      resetPaginationAndQueryState({
-        setExpandedCells,
-        setCurrentPage,
-        setTotalDocuments,
-        setIsLoadingPage,
-        setPageCursors,
-        setLastDocumentId,
-        setHasNextPage,
-        setLastPageOffset,
-        setDisplayResults,
-        setQueryCompleted,
-      });
+      resetQueryState();
     }
   }, [mongoDialog?.open]);
 
@@ -324,17 +298,7 @@ const MongoQueryDialog = () => {
     setPipelineView("complete");
     setExpandedStages(new Set());
 
-    resetPaginationAndQueryState({
-      setExpandedCells,
-      setCurrentPage,
-      setTotalDocuments,
-      setIsLoadingPage,
-      setPageCursors,
-      setLastDocumentId,
-      setHasNextPage,
-      setLastPageOffset,
-      setDisplayResults,
-    });
+    resetQueryState();
   };
 
   const handleCopy = async () => {
@@ -393,107 +357,6 @@ const MongoQueryDialog = () => {
     URL.revokeObjectURL(url);
   };
 
-  const executeQuery = async (
-    countOnly = false,
-    cursor: any = null,
-    direction = "forward",
-    limit = PAGE_SIZE + 1,
-  ): Promise<any> => {
-    const { startDate, endDate } = getConvertedDatesFromForm(getValues);
-
-    const userPipeline = generateMongoQuery();
-
-    let additionalStages: any[] = [];
-
-    const pipeline = combineWithPipeline(
-      userPipeline,
-      additionalStages,
-      countOnly,
-    );
-
-    const sortOrder = direction === "backward" ? "Descending" : "Ascending";
-    const result: any = countOnly
-      ? await runBoomFilter({
-          pipeline: pipeline,
-          selectedCollection: selectedCollection,
-          start_jd: startDate,
-          end_jd: endDate,
-          filter_id: filter_id,
-        })
-      : await runBoomFilter({
-          pipeline: pipeline,
-          selectedCollection: selectedCollection,
-          start_jd: startDate,
-          end_jd: endDate,
-          filter_id: filter_id,
-          sort_by: "_id",
-          sort_order: sortOrder,
-          limit: limit,
-          cursor: cursor,
-        });
-
-    if (countOnly) {
-      return {
-        result: result,
-        hasNext: false,
-        nextCursor: null,
-      };
-    }
-    if (result.data) {
-      const originalData = result?.data?.results;
-      if (!originalData || originalData.length === 0) {
-        setDisplayResults({ data: [] });
-        return {
-          result: result,
-          hasNext: false,
-          nextCursor: null,
-          firstId: null,
-          lastId: null,
-        };
-      }
-      let hasMore = originalData.length > PAGE_SIZE;
-      let data;
-
-      if (direction === "backward") {
-        data = hasMore ? originalData.slice(0, PAGE_SIZE + 1) : originalData;
-        data = [...data].reverse();
-      } else {
-        data = hasMore ? originalData.slice(0, PAGE_SIZE + 1) : originalData;
-      }
-
-      const processedResult = {
-        ...result,
-        data: {
-          ...result.data,
-          data: data,
-        },
-      };
-
-      if (!countOnly) {
-        setDisplayResults({ data: data });
-      }
-
-      const firstId = data.length > 0 ? data[0]._id : null;
-      const lastId = data.length > 0 ? data[data.length - 1]._id : null;
-
-      return {
-        result: processedResult,
-        hasNext: hasMore,
-        nextCursor: lastId,
-        firstId: firstId,
-        lastId: lastId,
-        data: data,
-      };
-    }
-    return {
-      result: result,
-      hasNext: false,
-      nextCursor: null,
-      firstId: null,
-      lastId: null,
-    };
-  };
-
   const handleRunQuery = async () => {
     const { startDate, endDate } = getConvertedDatesFromForm(getValues);
     // BOOM rejects a query without a date window with a 400.
@@ -507,144 +370,58 @@ const MongoQueryDialog = () => {
       );
       return;
     }
+    if (maxResults === null) return;
 
     setIsRunning(true);
     setQueryError(null);
+    resetQueryState();
+    clearBoomFilter();
+    const id = runId.current;
 
-    resetPaginationAndQueryState({
-      setExpandedCells,
-      setCurrentPage,
-      setTotalDocuments,
-      setIsLoadingPage,
-      setPageCursors,
-      setLastDocumentId,
-      setHasNextPage,
-      setLastPageOffset,
-      setDisplayResults,
-      setQueryCompleted,
-    });
-
+    const args: RunBoomFilterArg = {
+      pipeline: combineWithPipeline(generateMongoQuery()),
+      selectedCollection: selectedCollection,
+      start_jd: startDate,
+      end_jd: endDate,
+      filter_id: filter_id,
+    };
     try {
-      clearBoomFilter();
-
-      const firstPageQueryResult = await executeQuery(false);
-
-      setHasNextPage(firstPageQueryResult.hasNext);
-
-      const newCursors = new Map();
-      if (firstPageQueryResult.firstId && firstPageQueryResult.lastId) {
-        newCursors.set(1, {
-          firstId: firstPageQueryResult.firstId,
-          lastId: firstPageQueryResult.lastId,
-        });
-      }
-
-      setPageCursors(newCursors);
-
-      if (firstPageQueryResult.data) {
-        const newCache = new Map();
-        newCache.set(1, firstPageQueryResult.data);
-        setPageDataCache(newCache);
-      }
-
-      const countQueryResult = await executeQuery(true);
-      const actualCount = countQueryResult.result?.data?.count;
-      setTotalDocuments(actualCount);
-
+      // No sort, so BOOM can stop at the limit; the extra row says whether
+      // more matches exist without a full count.
+      const result = await runBoomFilter({
+        ...args,
+        unsorted: true,
+        limit: maxResults + 1,
+      }).unwrap();
+      if (id !== runId.current) return;
+      const rows: any[] = result?.results ?? [];
+      setHasMore(rows.length > maxResults);
+      setDisplayResults({
+        data: rows.slice(0, maxResults).sort(byJdDescending),
+      });
+      setLastRunArgs(args);
       setQueryCompleted(true);
     } catch (error) {
       console.error("Query error:", error);
-      setQueryError((error as any).message);
+      if (id === runId.current) setQueryError(previewErrorMessage(error));
     } finally {
       setIsRunning(false);
     }
   };
 
-  const handlePageChange = async (_event: any, newPage: number) => {
-    setIsLoadingPage(true);
-    setExpandedCells(new Set());
-
+  // The count scans the whole window, so it is only run on request.
+  const handleExactCount = async () => {
+    if (!lastRunArgs) return;
+    const id = runId.current;
+    setExactCount({ loading: true });
     try {
-      if (pageDataCache.has(newPage)) {
-        const cachedData = pageDataCache.get(newPage);
-        setDisplayResults({ data: cachedData });
-        setCurrentPage(newPage);
-        cachedData.length < PAGE_SIZE + 1
-          ? setHasNextPage(false)
-          : setHasNextPage(true);
-        setIsLoadingPage(false);
-        return;
-      }
-
-      const isSequential = Math.abs(newPage - currentPage) === 1;
-
-      if (isSequential) {
-        let cursor = null;
-        let direction = "forward";
-
-        if (newPage > currentPage) {
-          const currentPageData = pageCursors.get(currentPage);
-          cursor = currentPageData?.lastId;
-          direction = "forward";
-        } else if (newPage < currentPage) {
-          const currentPageData = pageCursors.get(currentPage);
-          cursor = currentPageData?.firstId;
-          direction = "backward";
-        }
-
-        const queryResult = await executeQuery(false, cursor, direction);
-        setHasNextPage(queryResult.hasNext);
-
-        const newCursors = new Map(pageCursors);
-        if (queryResult.firstId && queryResult.lastId) {
-          newCursors.set(newPage, {
-            firstId: queryResult.firstId,
-            lastId: queryResult.lastId,
-          });
-        }
-        setPageCursors(newCursors);
-
-        if (queryResult.data) {
-          const newCache = new Map(pageDataCache);
-          newCache.set(newPage, queryResult.data);
-          setPageDataCache(newCache);
-        }
-
-        setCurrentPage(newPage);
-      } else {
-        const lastPageOffsetCalc = totalDocuments - (newPage - 1) * PAGE_SIZE;
-        const countQueryResult = await executeQuery(
-          false,
-          null,
-          "backward",
-          lastPageOffsetCalc,
-        );
-
-        setHasNextPage(countQueryResult.hasNext);
-
-        const newCursors = new Map(pageCursors);
-        if (countQueryResult.firstId && countQueryResult.lastId) {
-          newCursors.set(newPage, {
-            firstId: countQueryResult.firstId,
-            lastId: countQueryResult.lastId,
-          });
-        }
-        setPageCursors(newCursors);
-
-        if (countQueryResult.data) {
-          const newCache = new Map(pageDataCache);
-          newCache.set(newPage, countQueryResult.data);
-          setPageDataCache(newCache);
-        }
-
-        setLastPageOffset(lastPageOffsetCalc);
-        setCurrentPage(newPage);
-      }
+      const result = await runBoomFilter(lastRunArgs).unwrap();
+      if (id === runId.current) setExactCount({ count: result?.count });
     } catch (error) {
-      console.error("Page change error:", error);
-      setQueryError((error as any).message);
-    } finally {
-      setIsLoadingPage(false);
+      console.error("Count error:", error);
+      if (id === runId.current) {
+        setExactCount({ error: `Too many to count. ${NARROW_HINT}` });
+      }
     }
   };
 
@@ -658,6 +435,10 @@ const MongoQueryDialog = () => {
 
   const pipeline = generateMongoQuery();
   const isValid = hasValidQuery();
+  const resultCount = displayResults.data?.length ?? 0;
+  const summary = hasMore
+    ? `Showing first ${resultCount} matches (more exist)`
+    : `${resultCount} ${resultCount === 1 ? "match" : "matches"}`;
 
   return (
     <>
@@ -769,8 +550,30 @@ const MongoQueryDialog = () => {
                 </div>
 
                 <Box
-                  sx={{ display: "flex", gap: 2, mb: 3, alignItems: "center" }}
+                  sx={{
+                    display: "flex",
+                    gap: 2,
+                    mb: 3,
+                    alignItems: "flex-start",
+                  }}
                 >
+                  <TextField
+                    label="Max results"
+                    type="number"
+                    size="small"
+                    value={maxResultsInput}
+                    onChange={(e) => setMaxResultsInput(e.target.value)}
+                    error={maxResults === null}
+                    helperText={
+                      maxResults === null
+                        ? `Enter a whole number from 1 to ${MAX_RESULTS_LIMIT}`
+                        : " "
+                    }
+                    slotProps={{
+                      htmlInput: { min: 1, max: MAX_RESULTS_LIMIT, step: 1 },
+                    }}
+                    sx={{ width: 180 }}
+                  />
                   <Button
                     variant="contained"
                     color="primary"
@@ -782,9 +585,10 @@ const MongoQueryDialog = () => {
                     disabled={
                       isRunning ||
                       connectionStatus === "disconnected" ||
-                      !!dateValidationError
+                      !!dateValidationError ||
+                      maxResults === null
                     }
-                    sx={{ minWidth: 120 }}
+                    sx={{ minWidth: 120, height: 40 }}
                   >
                     {isRunning ? "Running..." : "Run Query"}
                   </Button>
@@ -812,32 +616,32 @@ const MongoQueryDialog = () => {
                       Query Results
                     </Typography>
                     <Chip
-                      label={
-                        queryCompleted && totalDocuments === 0
-                          ? "0 documents"
-                          : queryCompleted
-                            ? `${totalDocuments} documents`
-                            : "Loading..."
-                      }
+                      label={summary}
                       size="small"
-                      color={
-                        queryCompleted && totalDocuments === 0
-                          ? "default"
-                          : queryCompleted
-                            ? "success"
-                            : "primary"
-                      }
+                      color={resultCount === 0 ? "default" : "success"}
                     />
-                    {totalDocuments > PAGE_SIZE &&
-                      (displayResults.data?.length ?? 0) > 0 && (
+                    {hasMore &&
+                      (exactCount.count !== undefined ? (
                         <Chip
-                          label={`Page ${currentPage} of ${Math.ceil(
-                            totalDocuments / PAGE_SIZE,
-                          )}`}
+                          label={`${exactCount.count} total matches`}
                           size="small"
                           variant="outlined"
                         />
-                      )}
+                      ) : (
+                        <Button
+                          size="small"
+                          variant="outlined"
+                          onClick={handleExactCount}
+                          disabled={exactCount.loading}
+                          startIcon={
+                            exactCount.loading ? (
+                              <CircularProgress size={14} />
+                            ) : undefined
+                          }
+                        >
+                          Get exact count
+                        </Button>
+                      ))}
                     <IconButton
                       size="small"
                       onClick={handleDownloadResults}
@@ -860,7 +664,15 @@ const MongoQueryDialog = () => {
                     sx={{ mb: 2 }}
                   >
                     Generated query results — not all alert fields are shown.
+                    Rows are sorted by JD, newest first.
+                    {hasMore &&
+                      ` They are a sample of the matches the broker found first, not the latest ones.`}
                   </Typography>
+                  {exactCount.error && (
+                    <Alert severity="warning" sx={{ mb: 2 }}>
+                      {exactCount.error}
+                    </Alert>
+                  )}
                   {(displayResults.data?.length ?? 0) > 0 ? (
                     <>
                       <TableContainer
@@ -919,9 +731,8 @@ const MongoQueryDialog = () => {
                             </TableRow>
                           </TableHead>
                           <TableBody>
-                            {displayResults?.data
-                              ?.slice(0, 50)
-                              .map((row: any, rowIndex: number) => (
+                            {displayResults?.data?.map(
+                              (row: any, rowIndex: number) => (
                                 <TableRow
                                   key={rowIndex}
                                   sx={{
@@ -1048,112 +859,11 @@ const MongoQueryDialog = () => {
                                       },
                                     )}
                                 </TableRow>
-                              ))}
+                              ),
+                            )}
                           </TableBody>
                         </Table>
                       </TableContainer>
-                      {(displayResults.data?.length ?? 0) > 0 && (
-                        <Box
-                          sx={{
-                            display: "flex",
-                            justifyContent: "center",
-                            mt: 2,
-                          }}
-                        >
-                          <Stack spacing={2}>
-                            {(totalDocuments > PAGE_SIZE ||
-                              hasNextPage ||
-                              currentPage > 1 ||
-                              (displayResults.data?.length ?? 0) >=
-                                PAGE_SIZE) && (
-                              <Box
-                                sx={{
-                                  display: "flex",
-                                  justifyContent: "center",
-                                  gap: 1,
-                                  alignItems: "center",
-                                }}
-                              >
-                                <IconButton
-                                  onClick={(e: any) => handlePageChange(e, 1)}
-                                  disabled={currentPage <= 1 || isLoadingPage}
-                                  size="small"
-                                  title="First page"
-                                >
-                                  <FirstPageIcon />
-                                </IconButton>
-
-                                <IconButton
-                                  onClick={(e: any) =>
-                                    handlePageChange(e, currentPage - 1)
-                                  }
-                                  disabled={currentPage <= 1 || isLoadingPage}
-                                  size="small"
-                                  title="Previous page"
-                                >
-                                  <ChevronLeftIcon />
-                                </IconButton>
-
-                                <Typography
-                                  variant="body2"
-                                  sx={{ minWidth: 80, textAlign: "center" }}
-                                >
-                                  Page {currentPage}
-                                </Typography>
-
-                                <IconButton
-                                  onClick={(e: any) =>
-                                    handlePageChange(e, currentPage + 1)
-                                  }
-                                  disabled={!hasNextPage || isLoadingPage}
-                                  size="small"
-                                  title="Next page"
-                                >
-                                  <ChevronRightIcon />
-                                </IconButton>
-
-                                <IconButton
-                                  onClick={(e: any) =>
-                                    handlePageChange(
-                                      e,
-                                      Math.ceil(totalDocuments / PAGE_SIZE),
-                                    )
-                                  }
-                                  disabled={
-                                    !hasNextPage ||
-                                    isLoadingPage ||
-                                    totalDocuments === 0
-                                  }
-                                  size="small"
-                                  title="Last page"
-                                >
-                                  <LastPageIcon />
-                                </IconButton>
-                              </Box>
-                            )}
-
-                            <Typography
-                              variant="caption"
-                              sx={{
-                                textAlign: "center",
-                                color: "text.secondary",
-                              }}
-                            >
-                              {isLoadingPage
-                                ? "Loading..."
-                                : totalDocuments > 0
-                                  ? `Showing page ${currentPage} (${Math.min(
-                                      displayResults.data?.length || 0,
-                                      PAGE_SIZE,
-                                    )} results on this page)`
-                                  : `Showing ${Math.min(
-                                      displayResults.data?.length || 0,
-                                      PAGE_SIZE,
-                                    )} results (cursor-based pagination)`}
-                            </Typography>
-                          </Stack>
-                        </Box>
-                      )}
                     </>
                   ) : (
                     <Typography
@@ -1210,14 +920,8 @@ const MongoQueryDialog = () => {
         isFullscreen={isFullscreen}
         setIsFullscreen={setIsFullscreen}
         displayResults={displayResults}
-        queryCompleted={queryCompleted}
-        totalDocuments={totalDocuments}
-        currentPage={currentPage}
-        pageSize={PAGE_SIZE}
-        hasNextPage={hasNextPage}
-        isLoadingPage={isLoadingPage}
+        summary={summary}
         expandedCells={expandedCells}
-        handlePageChange={handlePageChange}
         handleDownloadResults={handleDownloadResults}
       />
     </>
