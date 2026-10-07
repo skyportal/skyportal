@@ -1,6 +1,8 @@
 import { lazy, Suspense, useState, useEffect } from "react";
 
+import Box from "@mui/material/Box";
 import CircularProgress from "@mui/material/CircularProgress";
+import Typography from "@mui/material/Typography";
 
 import { useAppDispatch } from "../../types/hooks";
 import { useDeleteObservationPlanFieldsMutation } from "../../ducks/gcnEvent";
@@ -9,6 +11,12 @@ import { GET } from "../../API";
 import Button from "../Button";
 
 const LocalizationPlot = lazy(() => import("../localization/LocalizationPlot"));
+
+const PLOT_LAYERS = {
+  localization: true,
+  observations: true,
+  sun_moon: true,
+};
 
 interface ObservationPlanRequest {
   id?: number;
@@ -48,18 +56,6 @@ const ObservationPlanGlobe = ({
   const dispatch = useAppDispatch();
   const [deleteObservationPlanFields] =
     useDeleteObservationPlanFieldsMutation();
-  const displayOptions = [
-    "localization",
-    "sources",
-    "galaxies",
-    "instrument",
-    "observations",
-  ];
-  const displayOptionsDefault: any = Object.fromEntries(
-    displayOptions.map((x) => [x, false]),
-  );
-  displayOptionsDefault.localization = true;
-  displayOptionsDefault.observations = true;
   const [obsList, setObsList] = useState<any>(null);
   const [fetchFailed, setFetchFailed] = useState(false);
   const [selectedObservations, setSelectedObservations] = useState<any[]>([]);
@@ -96,7 +92,7 @@ const ObservationPlanGlobe = ({
     };
     if (
       ["complete", "submitted to telescope queue"].includes(
-        observationplanRequest?.status as string,
+        observationplanRequest.status ?? "",
       )
     ) {
       fetchObsList();
@@ -104,33 +100,24 @@ const ObservationPlanGlobe = ({
     return () => {
       cancelled = true;
     };
-  }, [dispatch, setObsList, setFetchFailed, observationplanRequest]);
+  }, [dispatch, observationplanRequest]);
 
   if (fetchFailed) {
-    return <p>Could not load the skymap for this plan.</p>;
+    return (
+      <Typography variant="body2">
+        Could not load the skymap for this plan.
+      </Typography>
+    );
   }
   if (!obsList) return <CircularProgress />;
 
-  const handleDeleteObservationPlanFields = async (selectedIds: any) => {
-    await deleteObservationPlanFields({
-      id: observationplanRequest.id as number,
-      fieldIds: selectedIds,
-    });
-  };
-
   return (
-    <div
-      style={{
-        display: "flex",
-        flexDirection: "column",
-        justifyItems: "center",
-      }}
-    >
+    <Box sx={{ display: "flex", flexDirection: "column" }}>
       <Suspense fallback={<CircularProgress />}>
         <LocalizationPlot
           localization={localization}
           observations={obsList}
-          options={displayOptionsDefault}
+          options={PLOT_LAYERS}
           height={size}
           width={size}
           projection="mollweide"
@@ -138,18 +125,21 @@ const ObservationPlanGlobe = ({
           setSelectedObservations={setSelectedObservations}
         />
       </Suspense>
-      {obsList?.geojson?.filter((f: any) => f?.selected)?.length ? (
+      {obsList.geojson?.some((f: any) => f?.selected) && (
         <Button
           secondary
           onClick={() =>
-            handleDeleteObservationPlanFields(selectedObservations)
+            deleteObservationPlanFields({
+              id: observationplanRequest.id as number,
+              fieldIds: selectedObservations,
+            })
           }
-          sx={{ marginTop: "2px" }}
+          sx={{ mt: "2px" }}
         >
           Delete selected fields
         </Button>
-      ) : null}
-    </div>
+      )}
+    </Box>
   );
 };
 
