@@ -726,7 +726,7 @@ class BOOMBROKER(BrokerAPI):
                 "$project": {
                     "_id": 1,
                     "objectId": 1,
-                    "candid": 1,
+                    "candid": "$_id",
                     "candidate": 1,
                     "prv_candidates": "$aux.prv_candidates",
                     "prv_nondetections": "$aux.prv_nondetections",
