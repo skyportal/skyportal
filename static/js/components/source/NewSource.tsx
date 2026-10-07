@@ -100,24 +100,20 @@ const NewSource = ({ onClose = () => ({}) }: NewSourceProps) => {
   };
 
   return (
-    <div style={{ position: "relative" }}>
-      <Typography variant="h6" sx={{ display: "inline" }}>
-        Add a Source
-      </Typography>
+    <>
+      <Typography variant="h6">Add a Source</Typography>
+      <GroupShareSelect
+        groupList={groups}
+        setGroupIDs={setSelectedGroupIds}
+        groupIDs={selectedGroupIds}
+      />
       <Form
         schema={sourceFormSchema as any}
         validator={validator}
         onSubmit={handleSubmit as any}
         customValidate={validate}
       />
-      <div style={{ position: "absolute", bottom: "0", right: "0" }}>
-        <GroupShareSelect
-          groupList={groups}
-          setGroupIDs={setSelectedGroupIds}
-          groupIDs={selectedGroupIds}
-        />
-      </div>
-    </div>
+    </>
   );
 };
 
