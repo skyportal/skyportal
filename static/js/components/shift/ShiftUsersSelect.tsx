@@ -18,7 +18,7 @@ import ListItemIcon from "@mui/material/ListItemIcon";
 import Remove from "@mui/icons-material/Remove";
 import Add from "@mui/icons-material/Add";
 import ListItemText from "@mui/material/ListItemText";
-import { showNotification } from "../../../../baselayer/static/js/components/Notifications";
+import { showNotification } from "baselayer/components/Notifications";
 import { userLabel } from "../../utils/format";
 import Button from "../Button";
 

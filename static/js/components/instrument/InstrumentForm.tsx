@@ -114,6 +114,11 @@ const InstrumentForm = ({
     return <h3>Instrument not found !</h3>;
   }
 
+  const [, fovType, fovAttributes] =
+    instrumentToEdit?.["region_summary"]?.match(
+      /^(Rectangle|Circle) \[.*\]: \(?([^)]*)\)?$/,
+    ) || [];
+
   function validate(dataToCheck: any, errors: any) {
     if (dataToCheck.configuration_data) {
       try {
@@ -139,12 +144,12 @@ const InstrumentForm = ({
     }
     if (dataToCheck.field_fov_type && dataToCheck.field_fov_attributes) {
       const attributes = dataToCheck.field_fov_attributes.split(",");
-      if (dataToCheck.field_fov_type === "circle" && attributes.length !== 1) {
+      if (dataToCheck.field_fov_type === "Circle" && attributes.length !== 1) {
         errors.field_fov_attributes.addError(
           "For the circle option, field_fov_attributes should be a single number (radius in degrees).",
         );
       } else if (
-        dataToCheck.field_fov_type === "rectangle" &&
+        dataToCheck.field_fov_type === "Rectangle" &&
         attributes.length !== 2
       ) {
         errors.field_fov_attributes.addError(
@@ -273,19 +278,13 @@ const InstrumentForm = ({
         uniqueItems: true,
         title: "FOV Type",
         description: "Rectangle or Circle",
-        default: instrumentToEdit?.["region_summary"]
-          ? instrumentToEdit?.["region_summary"].includes("Rectangle")
-            ? "Rectangle"
-            : "Circle"
-          : undefined,
+        default: fovType,
       },
       field_fov_attributes: {
         type: "string",
         title: "FOV Attributes",
         description: "Rectangle: width,height; Circle: radius",
-        default: instrumentToEdit?.["region_summary"]?.includes("(")
-          ? instrumentToEdit?.["region_summary"].split("(")[1].split(")")[0]
-          : undefined,
+        default: fovAttributes,
       },
       sensitivity_data: {
         type: "string",
