@@ -32,7 +32,7 @@ from skyportal.utils.gcn import (
     is_retraction,
 )
 from skyportal.utils.notifications import post_notification
-from skyportal.utils.services import check_loaded
+from skyportal.utils.services import check_loaded, close_db_session
 
 env, cfg = load_env()
 
@@ -406,6 +406,8 @@ def poll_events(*args, **kwargs):
         except Exception as e:
             traceback.print_exc()
             log(f"Failed to consume gcn event: {e}")
+        finally:
+            close_db_session()
 
 
 def service():
