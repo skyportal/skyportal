@@ -478,7 +478,6 @@ def get_astrometry_backup_from_ztf(
     return ztf_astrometry
 
 
-@memcache
 def get_ztfcatalog(
     ra,
     dec,
