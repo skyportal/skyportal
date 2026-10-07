@@ -114,6 +114,11 @@ const InstrumentForm = ({
     return <h3>Instrument not found !</h3>;
   }
 
+  const [, fovType, fovAttributes] =
+    instrumentToEdit?.["region_summary"]?.match(
+      /^(Rectangle|Circle) \[.*\]: \(?([^)]*)\)?$/,
+    ) || [];
+
   function validate(dataToCheck: any, errors: any) {
     if (dataToCheck.configuration_data) {
       try {
@@ -273,19 +278,13 @@ const InstrumentForm = ({
         uniqueItems: true,
         title: "FOV Type",
         description: "Rectangle or Circle",
-        default: instrumentToEdit?.["region_summary"]
-          ? instrumentToEdit?.["region_summary"].includes("Rectangle")
-            ? "Rectangle"
-            : "Circle"
-          : undefined,
+        default: fovType,
       },
       field_fov_attributes: {
         type: "string",
         title: "FOV Attributes",
         description: "Rectangle: width,height; Circle: radius",
-        default: instrumentToEdit?.["region_summary"]?.includes("(")
-          ? instrumentToEdit?.["region_summary"].split("(")[1].split(")")[0]
-          : undefined,
+        default: fovAttributes,
       },
       sensitivity_data: {
         type: "string",
