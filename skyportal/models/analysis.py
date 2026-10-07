@@ -772,7 +772,9 @@ def _insufficient_photometry(session, default_analysis, obj_id):
     return False
 
 
-def _run_default_analysis(default_analysis_id, author_id, obj_id, trigger):
+def _run_default_analysis(
+    default_analysis_id, author_id, obj_id, trigger, spectrum_id=None
+):
     """Bump the per-day counter and post one default analysis for ``obj_id``.
 
     ID-based and dispatched via ``run_async`` so it executes after the triggering
@@ -850,6 +852,9 @@ def _run_default_analysis(default_analysis_id, author_id, obj_id, trigger):
                 show_corner=default_analysis.show_corner,
                 trigger=trigger,
                 session=db_session,
+                input_filters=None
+                if spectrum_id is None
+                else {"spectra": {"ids": [spectrum_id]}},
             )
         except Exception as e:
             log(f"Error creating default analysis with id {default_analysis_id}: {e}")
@@ -1147,6 +1152,7 @@ def create_default_analysis_on_spectrum(mapper, connection, target):
                     obj_id,
                     f"Default analysis {default_analysis.analysis_service.name} "
                     f"triggered by spectrum upload on {obj_id}",
+                    spectrum_id=target.id,
                 )
         except Exception as e:
             log(f"Error creating default analyses on spectrum upload: {e}")
