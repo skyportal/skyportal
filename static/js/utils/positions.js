@@ -1,225 +1,101 @@
-// Code taken from Vladimir Agafonkin's SunCalc library https://github.com/mourner/suncalc,
-// which unfortunately does not export these methods.
-
-const { PI } = Math;
-const { sin } = Math;
-const { cos } = Math;
-const { tan } = Math;
-const { asin } = Math;
-const atan = Math.atan2;
-const { acos } = Math;
+// Sun and Moon adapted from SunCalc (https://github.com/mourner/suncalc), BSD-2-Clause.
+const { PI, sin, cos, tan, asin, acos, atan2: atan, hypot } = Math;
 const rad = PI / 180;
+const obliquity = rad * 23.4397;
+const sunDistanceKm = 149598000;
 
-const moonRadius = 1737.4; // km
-const sunRadius = 695700; // km
+const toDays = (date) => date.valueOf() / 86400000 - 0.5 + 2440588 - 2451545;
+const raDeg = (ra) => (((ra / rad) % 360) + 360) % 360;
 
-// sun calculations are based on http://aa.quae.nl/en/reken/zonpositie.html formulas
-
-// date/time constants and conversions
-
-const dayMs = 1000 * 60 * 60 * 24;
-const J1970 = 2440588;
-const J2000 = 2451545;
-
-function toJulian(date) {
-  return date.valueOf() / dayMs - 0.5 + J1970;
-}
-function fromJulian(j) {
-  return new Date((j + 0.5 - J1970) * dayMs);
-}
-function toDays(date) {
-  return toJulian(date) - J2000;
-}
-
-// general calculations for position
-
-const e = rad * 23.4397; // obliquity of the Earth
-
-function rightAscension(l, b) {
-  return atan(sin(l) * cos(e) - tan(b) * sin(e), cos(l));
-}
-function declination(l, b) {
-  return asin(sin(b) * cos(e) + cos(b) * sin(e) * sin(l));
-}
-
-function azimuth(H, phi, dec) {
-  return atan(sin(H), cos(H) * sin(phi) - tan(dec) * cos(phi));
-}
-function altitude(H, phi, dec) {
-  return asin(sin(phi) * sin(dec) + cos(phi) * cos(dec) * cos(H));
-}
-
-function siderealTime(d, lw) {
-  return rad * (280.16 + 360.9856235 * d) - lw;
-}
-
-function astroRefraction(h) {
-  if (h < 0)
-    // the following formula works for positive altitudes only.
-    h = 0; // if h = -0.08901179 a div/0 would occur.
-
-  // formula 16.4 of "Astronomical Algorithms" 2nd edition by Jean Meeus (Willmann-Bell, Richmond) 1998.
-  // 1.02 / tan(h + 10.26 / (h + 5.10)) h in degrees, result in arc minutes -> converted to rad:
-  return 0.0002967 / Math.tan(h + 0.00312536 / (h + 0.08901179));
-}
-
-// general sun calculations
-
-function solarMeanAnomaly(d) {
-  return rad * (357.5291 + 0.98560028 * d);
-}
-
-function eclipticLongitude(M) {
-  const C = rad * (1.9148 * sin(M) + 0.02 * sin(2 * M) + 0.0003 * sin(3 * M)); // equation of center
-  const P = rad * 102.9372; // perihelion of the Earth
-
-  return M + C + P + PI;
-}
+const rightAscension = (l, b) =>
+  atan(sin(l) * cos(obliquity) - tan(b) * sin(obliquity), cos(l));
+const declination = (l, b) =>
+  asin(sin(b) * cos(obliquity) + cos(b) * sin(obliquity) * sin(l));
 
 function sunCoords(d) {
-  d = toDays(d);
-
-  const M = solarMeanAnomaly(d);
-  const L = eclipticLongitude(M);
-  const dt = 149598000;
-
-  return {
-    dec: declination(L, 0) * (180 / Math.PI),
-    ra: rightAscension(L, 0) * (180 / Math.PI),
-    dist: dt, // distance from Earth in km
-    radiusDeg: (sunRadius / dt) * (180 / Math.PI),
-  };
+  const M = rad * (357.5291 + 0.98560028 * d);
+  const C = rad * (1.9148 * sin(M) + 0.02 * sin(2 * M) + 0.0003 * sin(3 * M));
+  const L = M + C + rad * 102.9372 + PI;
+  return { ra: rightAscension(L, 0), dec: declination(L, 0) };
 }
 
 function moonCoords(d) {
-  // geocentric ecliptic coordinates of the moon
-
-  d = toDays(d);
-
-  const L = rad * (218.316 + 13.176396 * d); // ecliptic longitude
-  const M = rad * (134.963 + 13.064993 * d); // mean anomaly
-  const F = rad * (93.272 + 13.22935 * d); // mean distance
-  const l = L + rad * 6.289 * sin(M); // longitude
-  const b = rad * 5.128 * sin(F); // latitude
-  const dt = 385001 - 20905 * cos(M); // distance to the moon in km
-
+  const M = rad * (134.963 + 13.064993 * d);
+  const l = rad * (218.316 + 13.176396 * d) + rad * 6.289 * sin(M);
+  const b = rad * 5.128 * sin(rad * (93.272 + 13.22935 * d));
   return {
-    ra: rightAscension(l, b) * (180 / Math.PI),
-    dec: declination(l, b) * (180 / Math.PI),
-    dist: dt,
-    radiusDeg: (moonRadius / dt) * (180 / Math.PI),
+    ra: rightAscension(l, b),
+    dec: declination(l, b),
+    distKm: 385001 - 20905 * cos(M),
   };
 }
 
-function getMoonIllumination(d) {
-  const s = sunCoords(d);
-  const m = moonCoords(d);
-  const sdist = 149598000; // distance from Earth to Sun in km
+function sunPosition(date) {
+  const { ra, dec } = sunCoords(toDays(date));
+  return { ra: raDeg(ra), dec: dec / rad };
+}
+
+function moonPosition(date) {
+  const s = sunCoords(toDays(date));
+  const m = moonCoords(toDays(date));
+  const dRa = s.ra - m.ra;
   const phi = acos(
-    sin(s.dec) * sin(m.dec) + cos(s.dec) * cos(m.dec) * cos(s.ra - m.ra),
+    sin(s.dec) * sin(m.dec) + cos(s.dec) * cos(m.dec) * cos(dRa),
   );
-  const inc = atan(sdist * sin(phi), m.dist - sdist * cos(phi));
-  const angle = atan(
-    cos(s.dec) * sin(s.ra - m.ra),
-    sin(s.dec) * cos(m.dec) - cos(s.dec) * sin(m.dec) * cos(s.ra - m.ra),
+  const inc = atan(
+    sunDistanceKm * sin(phi),
+    m.distKm - sunDistanceKm * cos(phi),
   );
-
   return {
+    ra: raDeg(m.ra),
+    dec: m.dec / rad,
     fraction: (1 + cos(inc)) / 2,
-    phase: 0.5 + (0.5 * inc * (angle < 0 ? -1 : 1)) / Math.PI,
-    angle,
+    angle: atan(
+      cos(s.dec) * sin(dRa),
+      sin(s.dec) * cos(m.dec) - cos(s.dec) * sin(m.dec) * cos(dRa),
+    ),
   };
 }
 
-function sunGeoJSON(d) {
-  const coords = sunCoords(d);
-  return {
-    type: "Feature",
-    geometry: {
-      type: "Point",
-      coordinates: [coords.ra, coords.dec],
-    },
-    properties: {
-      radius: coords.radiusDeg,
-      ra: coords.ra,
-      dec: coords.dec,
-      dist: coords.dist,
-    },
-  };
+const galacticToEquatorialMatrix = [
+  [-0.0548755604, 0.4941094279, -0.867666149],
+  [-0.8734370902, -0.44482963, -0.1980763734],
+  [-0.4838350155, 0.7469822445, 0.4559837762],
+];
+
+function galacticToEquatorial(l, b) {
+  const g = [
+    cos(b * rad) * cos(l * rad),
+    cos(b * rad) * sin(l * rad),
+    sin(b * rad),
+  ];
+  const [x, y, z] = galacticToEquatorialMatrix.map((row) =>
+    row.reduce((sum, v, i) => sum + v * g[i], 0),
+  );
+  return [raDeg(atan(y, x)), asin(z) / rad];
 }
 
-function moonGeoJSON(d) {
-  const coords = moonCoords(d);
-  const illumination = getMoonIllumination(d);
-
-  return {
-    type: "Feature",
-    geometry: {
-      type: "Point",
-      coordinates: [coords.ra, coords.dec],
-    },
-    properties: {
-      radius: coords.radiusDeg,
-      ra: coords.ra,
-      dec: coords.dec,
-      dist: coords.dist,
-      illumination,
-    },
-  };
-}
+const radPerUnit = { arcsec: rad / 3600, arcmin: rad / 60, deg: rad, rad: 1 };
 
 function greatCircleDistance(
-  ra1_deg,
-  dec1_deg,
-  ra2_deg,
-  dec2_deg,
+  ra1Deg,
+  dec1Deg,
+  ra2Deg,
+  dec2Deg,
   unit = "arcsec",
 ) {
-  const ra1 = ra1_deg * rad;
-  const dec1 = dec1_deg * rad;
-  const ra2 = ra2_deg * rad;
-  const dec2 = dec2_deg * rad;
-
-  const delta_ra = Math.abs(ra2 - ra1);
-  const distance = Math.atan2(
-    Math.sqrt(
-      (Math.cos(dec2) * Math.sin(delta_ra)) ** 2 +
-        (Math.cos(dec1) * Math.sin(dec2) -
-          Math.sin(dec1) * Math.cos(dec2) * Math.cos(delta_ra)) **
-          2,
-    ),
-    Math.sin(dec1) * Math.sin(dec2) +
-      Math.cos(dec1) * Math.cos(dec2) * Math.cos(delta_ra),
+  const [ra1, dec1, ra2, dec2] = [ra1Deg, dec1Deg, ra2Deg, dec2Deg].map(
+    (x) => x * rad,
   );
-
-  switch (unit) {
-    case "arcsec":
-      return (distance * 180.0 * 3600) / Math.PI;
-    case "deg":
-      return (distance * 180.0) / Math.PI;
-    case "arcmin":
-      return (distance * 180.0 * 60) / Math.PI;
-    case "rad":
-      return distance;
-    default:
-      return (distance * 180.0) / Math.PI;
-  }
+  const dRa = Math.abs(ra2 - ra1);
+  const distance = atan(
+    hypot(
+      cos(dec2) * sin(dRa),
+      cos(dec1) * sin(dec2) - sin(dec1) * cos(dec2) * cos(dRa),
+    ),
+    sin(dec1) * sin(dec2) + cos(dec1) * cos(dec2) * cos(dRa),
+  );
+  return distance / (radPerUnit[unit] ?? rad);
 }
-export {
-  toJulian,
-  fromJulian,
-  toDays,
-  rightAscension,
-  declination,
-  azimuth,
-  altitude,
-  siderealTime,
-  astroRefraction,
-  solarMeanAnomaly,
-  eclipticLongitude,
-  sunCoords,
-  moonCoords,
-  sunGeoJSON,
-  moonGeoJSON,
-  greatCircleDistance,
-};
+
+export { sunPosition, moonPosition, galacticToEquatorial, greatCircleDistance };
