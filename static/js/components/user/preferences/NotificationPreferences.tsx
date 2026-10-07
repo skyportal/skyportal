@@ -92,7 +92,7 @@ const NOTIFICATIONS = [
     key: "analysis_services",
     label: "Analysis Services",
     tooltip:
-      "This allows you to be notified for all completed analysis services.",
+      "This allows you to be notified when an analysis you started is completed.",
   },
   {
     key: "favorite_sources",

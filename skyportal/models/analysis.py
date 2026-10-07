@@ -734,6 +734,7 @@ def _default_analysis_rerun_blocked(analysis_service_id, obj_id):
                 ObjAnalysis.status == "completed",
                 or_(~insufficient, ~detection_since),
             ),
+            sa.and_(ObjAnalysis.status == "failure", ~detection_since),
         ),
     )
 

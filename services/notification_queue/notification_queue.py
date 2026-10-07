@@ -681,15 +681,6 @@ def api(queue):
                             shift_users_with_access(session, allocation.id)
                         )
                     elif is_analysis_service:
-                        users = session.scalars(
-                            sa.select(User).where(
-                                User.preferences["notifications"]["analysis_services"][
-                                    "active"
-                                ]
-                                .astext.cast(sa.Boolean)
-                                .is_(True)
-                            )
-                        ).all()
                         target_class = ObjAnalysis
                         target_data = (
                             session.scalars(
@@ -700,6 +691,16 @@ def api(queue):
                             .first()
                             .to_dict()
                         )
+                        users = session.scalars(
+                            sa.select(User).where(
+                                User.id == target_data["author_id"],
+                                User.preferences["notifications"]["analysis_services"][
+                                    "active"
+                                ]
+                                .astext.cast(sa.Boolean)
+                                .is_(True),
+                            )
+                        ).all()
                     elif is_observation_plan:
                         users = session.scalars(
                             sa.select(User).where(
