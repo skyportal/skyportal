@@ -265,8 +265,8 @@ class InstrumentFieldTile(Base):
 class Instrument(Base):
     """An instrument attached to a telescope."""
 
-    read = public
-    create = update = delete = CustomUserAccessControl(manage_instrument_access_logic)
+    read = create = public
+    update = delete = CustomUserAccessControl(manage_instrument_access_logic)
 
     name = sa.Column(sa.String, unique=True, nullable=False, doc="Instrument name.")
     type = sa.Column(
