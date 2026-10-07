@@ -620,6 +620,16 @@ class BOOMBROKER(BrokerAPI):
                         "title": "SASL mechanism",
                     },
                     "group_id": {"type": "string", "title": "Consumer group id"},
+                    "topics": {
+                        "type": "array",
+                        "items": {"type": "string"},
+                        "title": "Topics",
+                        "description": (
+                            "BOOM results topics to consume, e.g. "
+                            "ZTF_alerts_results. Empty reads the ZTF, LSST and "
+                            "DECam ones."
+                        ),
+                    },
                     "auto_offset_reset": {
                         "type": "string",
                         "title": "Auto offset reset",
