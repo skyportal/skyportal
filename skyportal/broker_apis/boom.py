@@ -470,21 +470,13 @@ async def _ingest_survey_matches(
                     params={"objectId": match_obj_id},
                 )
                 if isinstance(cutouts, dict):
-                    jd = next(
-                        (
-                            p.get("jd")
-                            for p in match.get("photometry") or []
-                            if p.get("candid") == cutouts.get("candid")
-                        ),
-                        None,
-                    )
                     await add_thumbnails(
                         match_obj_id,
                         cutouts,
                         match_survey,
                         session,
                         user_id=user.id,
-                        jd=jd,
+                        jd=cutouts.get("jd"),
                     )
             except Exception as e:
                 log(f"survey match {match_survey}/{match_obj_id} cutouts failed: {e}")
