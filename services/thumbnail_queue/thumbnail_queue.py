@@ -44,7 +44,7 @@ async def set_statement_timeout(session):
 
 
 async def fetch_obj(session):
-    """Fetch the object with the most recent created_at timestamp that is missing at least one thumbnail.
+    """Fetch the most recently created object, other than a moving object, that is missing at least one thumbnail.
 
     Parameters
     ----------
@@ -54,7 +54,7 @@ async def fetch_obj(session):
     Returns
     -------
     obj : `skyportal.models.Obj` or None
-        The object with the most recent created_at timestamp that is missing at least one thumbnail.
+        The most recently created object, other than a moving object, that is missing at least one thumbnail.
     err : `Exception` or None
         The exception that occurred, if any.
     """
@@ -64,6 +64,8 @@ async def fetch_obj(session):
         stmt = (
             sa.select(Obj.id)
             .where(
+                # add_linked_thumbnails skips moving objects, so they stay missing.
+                Obj.is_roid.isnot(True),
                 ~sa.exists(
                     sa.select(Thumbnail.obj_id)
                     .where(
@@ -77,7 +79,7 @@ async def fetch_obj(session):
                         sa.func.count(sa.distinct(Thumbnail.type))
                         == len(THUMBNAIL_TYPES)
                     )
-                )
+                ),
             )
             .order_by(Obj.created_at.desc())
             .limit(1)
