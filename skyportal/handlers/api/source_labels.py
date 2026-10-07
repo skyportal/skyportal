@@ -13,15 +13,30 @@ from ..base import BaseHandler
 
 
 async def add_source_labels(session, obj_id, group_ids, labeller_id):
-    """Label the obj for each given group the labeller has not labelled it in yet."""
-    for group_id in group_ids:
-        source_label = await session.scalar(
-            SourceLabel.select(session.user_or_token)
-            .where(SourceLabel.obj_id == obj_id)
-            .where(SourceLabel.group_id == group_id)
-            .where(SourceLabel.labeller_id == labeller_id)
+    """Label the obj for each given group the labeller has not labelled it in yet.
+
+    The groups are read in one query: a classification deleted from a dozen
+    groups asked once per group, and the labels are few enough to compare in
+    memory.
+    """
+    group_ids = list(dict.fromkeys(group_ids))
+    if not group_ids:
+        return
+    labelled = {
+        label.group_id
+        for label in (
+            await session.scalars(
+                SourceLabel.select(session.user_or_token)
+                .where(SourceLabel.obj_id == obj_id)
+                .where(SourceLabel.group_id.in_(group_ids))
+                .where(SourceLabel.labeller_id == labeller_id)
+            )
         )
-        if source_label is None:
+        .unique()
+        .all()
+    }
+    for group_id in group_ids:
+        if group_id not in labelled:
             session.add(
                 SourceLabel(obj_id=obj_id, labeller_id=labeller_id, group_id=group_id)
             )
