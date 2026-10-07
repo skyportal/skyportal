@@ -144,12 +144,12 @@ const InstrumentForm = ({
     }
     if (dataToCheck.field_fov_type && dataToCheck.field_fov_attributes) {
       const attributes = dataToCheck.field_fov_attributes.split(",");
-      if (dataToCheck.field_fov_type === "circle" && attributes.length !== 1) {
+      if (dataToCheck.field_fov_type === "Circle" && attributes.length !== 1) {
         errors.field_fov_attributes.addError(
           "For the circle option, field_fov_attributes should be a single number (radius in degrees).",
         );
       } else if (
-        dataToCheck.field_fov_type === "rectangle" &&
+        dataToCheck.field_fov_type === "Rectangle" &&
         attributes.length !== 2
       ) {
         errors.field_fov_attributes.addError(
