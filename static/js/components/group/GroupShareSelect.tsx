@@ -63,7 +63,7 @@ const GroupShareSelect = ({
           <MenuItem
             key={group.id}
             value={group.id}
-            style={getStyles(group.name as any, groupIDs, theme)}
+            style={getStyles(group.id, groupIDs, theme)}
           >
             <div data-testid={`group_${group.id}`}>{group.name}</div>
           </MenuItem>
