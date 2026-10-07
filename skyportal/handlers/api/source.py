@@ -937,7 +937,7 @@ async def post_source_async(data, user_id, session, refresh_source=True):
 
     if not existing_obj:
         try:
-            obj = schema.load(data)
+            obj = schema.load(data, transient=True)
         except ValidationError as e:
             raise ValidationError(
                 f"Invalid/missing parameters: {e.normalized_messages()}"
