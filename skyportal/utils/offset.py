@@ -1066,6 +1066,8 @@ def get_nearby_offset_stars(
                 "Warning: Could not find the ZTF reference catalog"
                 f" at position {source_ra} {source_dec}"
             )
+            ztfcatalog = None
+            use_ztfref = False
         else:
             if (
                 sum(
