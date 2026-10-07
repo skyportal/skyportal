@@ -25,6 +25,7 @@ import { sourceTag } from "./sourceTags";
 export const REFRESH_SOURCE = "skyportal/REFRESH_SOURCE";
 export const REFRESH_SOURCE_POSITION = "skyportal/REFRESH_SOURCE_POSITION";
 export const REFRESH_OBJ_ANALYSES = "skyportal/REFRESH_OBJ_ANALYSES";
+const ALL_OBJ_ANALYSES = "ALL_OBJ_ANALYSES";
 
 export interface SourcePosition {
   ra?: number | undefined;
@@ -130,7 +131,15 @@ export const sourceApi = skyportalApi.injectEndpoints({
         params,
       }),
       providesTags: (_result, _error, arg) =>
-        arg?.analysis_resource_type === "gcn_event" ? ["GcnEvent"] : ["Source"],
+        arg?.analysis_resource_type === "gcn_event"
+          ? ["GcnEvent"]
+          : [
+              "Source",
+              {
+                type: "Source",
+                id: arg?.params?.["objID"] ?? ALL_OBJ_ANALYSES,
+              },
+            ],
     }),
     getAnalysis: build.query<
       RouteData<"GET /api/{analysis_resource_type}/analysis/{analysis_id}">,
@@ -759,7 +768,10 @@ invalidateOnMessage(
   REFRESH_SOURCE_POSITION,
   invalidateCachedSource("SourcePosition"),
 );
-invalidateOnMessage(REFRESH_OBJ_ANALYSES, () => ["Source"]);
+invalidateOnMessage(REFRESH_OBJ_ANALYSES, (payload, getState) => [
+  ...(invalidateCachedSource("Source")(payload, getState) ?? []),
+  { type: "Source", id: ALL_OBJ_ANALYSES },
+]);
 invalidateOnMessage("skyportal/REFRESH_GCNEVENT", () => ["GcnEvent"]);
 
 export const {
