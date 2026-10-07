@@ -578,6 +578,9 @@ def post_analysis(
                 .select(current_user)
                 .where(id_col.in_(obj_ids))
             )
+            spectrum_ids = ((input_filters or {}).get("spectra") or {}).get("ids")
+            if input_type == "spectra" and spectrum_ids:
+                stmt = stmt.where(Spectrum.id.in_(spectrum_ids))
             input_data = session.scalars(stmt).all()
             if input_type == "photometry":
                 input_data = [serialize(phot, "ab", "both") for phot in input_data]
