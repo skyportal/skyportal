@@ -35,6 +35,7 @@ STATEMENT_TIMEOUT = "120s"
 # batch per loop here, off the event loop.
 GRAYSCALE_BATCH_SIZE = 10
 REMOTE_FETCH_TIMEOUT = 10
+GRAYSCALE_IDLE_INTERVAL = 60
 
 
 async def set_statement_timeout(session):
@@ -44,7 +45,7 @@ async def set_statement_timeout(session):
 
 
 async def fetch_obj(session):
-    """Fetch the object with the most recent created_at timestamp that is missing at least one thumbnail.
+    """Fetch the most recently created object, other than a moving object, that is missing at least one thumbnail.
 
     Parameters
     ----------
@@ -54,7 +55,7 @@ async def fetch_obj(session):
     Returns
     -------
     obj : `skyportal.models.Obj` or None
-        The object with the most recent created_at timestamp that is missing at least one thumbnail.
+        The most recently created object, other than a moving object, that is missing at least one thumbnail.
     err : `Exception` or None
         The exception that occurred, if any.
     """
@@ -64,6 +65,8 @@ async def fetch_obj(session):
         stmt = (
             sa.select(Obj.id)
             .where(
+                # add_linked_thumbnails skips moving objects, so they stay missing.
+                Obj.is_roid.isnot(True),
                 ~sa.exists(
                     sa.select(Thumbnail.obj_id)
                     .where(
@@ -77,7 +80,7 @@ async def fetch_obj(session):
                         sa.func.count(sa.distinct(Thumbnail.type))
                         == len(THUMBNAIL_TYPES)
                     )
-                )
+                ),
             )
             .order_by(Obj.created_at.desc())
             .limit(1)
@@ -115,7 +118,8 @@ async def classify_pending_grayscale(session_factory=None):
     """Classify remote thumbnails the before_insert hook left as NULL.
 
     Reads a batch and releases the connection before the (slow) image fetches so
-    no transaction is held across them, then writes the results back.
+    no transaction is held across them, then writes the results back, and
+    returns whether there was anything to classify.
     `session_factory` is injectable so tests can bind it to the test database.
     """
     session_factory = session_factory or models.async_plain_session_factory
@@ -131,7 +135,7 @@ async def classify_pending_grayscale(session_factory=None):
         ).all()
 
     if not pending:
-        return
+        return False
 
     results = [
         (thumbnail_id, await asyncio.to_thread(_classify_remote_thumbnail, public_url))
@@ -147,11 +151,13 @@ async def classify_pending_grayscale(session_factory=None):
                 .values(is_grayscale=is_grayscale)
             )
         await session.commit()
+    return True
 
 
 async def _run_loop():
     # start a timer we'll use to have a heartbeat every 60 seconds
     heartbeat = time.time()
+    next_grayscale_scan = 0
     while True:
         if time.time() - heartbeat > 60:
             heartbeat = time.time()
@@ -160,10 +166,13 @@ async def _run_loop():
             # Classify remote thumbnails left NULL by before_insert (fetch runs
             # off the event loop with no txn held). Isolated so a failure here
             # doesn't stall thumbnail generation below.
-            try:
-                await classify_pending_grayscale()
-            except Exception as e:
-                log(f"Error classifying pending thumbnails: {str(e)}")
+            if time.time() >= next_grayscale_scan:
+                next_grayscale_scan = time.time() + GRAYSCALE_IDLE_INTERVAL
+                try:
+                    if await classify_pending_grayscale():
+                        next_grayscale_scan = 0
+                except Exception as e:
+                    log(f"Error classifying pending thumbnails: {str(e)}")
 
             internal_key = None
             # 1. Read/claim: find one obj missing thumbnails and snapshot what we
