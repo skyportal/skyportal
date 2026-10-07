@@ -19,7 +19,7 @@ import useMediaQuery from "@mui/material/useMediaQuery";
 import { useTheme } from "@mui/material/styles";
 import { ToggleButton, ToggleButtonGroup } from "@mui/material";
 
-import { showNotification } from "../../../../baselayer/static/js/components/Notifications";
+import { showNotification } from "baselayer/components/Notifications";
 import { useAppDispatch } from "../../types/hooks";
 import { useGetProfileQuery } from "../../ducks/profile";
 import {
