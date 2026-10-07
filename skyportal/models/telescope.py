@@ -36,7 +36,7 @@ cache = Cache(
 def manage_telescope_access_logic(cls, user_or_token):
     if user_or_token.is_system_admin:
         return sa.select(cls)
-    elif "Manage allocations" in [acl.id for acl in user_or_token.acls]:
+    elif "Manage telescopes" in [acl.id for acl in user_or_token.acls]:
         return sa.select(cls)
     else:
         # return an empty query
