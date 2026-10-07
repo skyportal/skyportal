@@ -23,7 +23,8 @@ DEFAULT_SURVEY = "ZTF"
 DEFAULT_TIMEOUT = 30  # seconds
 # Filter validation runs the pipeline over data on BOOM, so it routinely exceeds
 # the default; give the slow endpoints their own budget.
-VALIDATE_TIMEOUT = 180  # seconds
+# Below the UI's 10 min cutoff for a pending validation.
+VALIDATE_TIMEOUT = 480  # seconds
 # A filter test over a wide localization scans far more than a cone: a Fermi
 # GBM region takes minutes, where the default 30s is sized for a point query.
 TEST_TIMEOUT = 600  # seconds
