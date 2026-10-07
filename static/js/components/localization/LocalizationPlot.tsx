@@ -1,40 +1,15 @@
-// Interactive localization viewer built on Aladin Lite v3.
-//
-// This replaces the former hand-rolled d3-geo "globe" (an SVG orthographic
-// projection drawn with d3-geo-zoom). Aladin gives us a real HiPS sky
-// background, native pan/zoom/projection controls, and proper celestial
-// rendering, while we keep the same component contract (default export +
-// props) so the existing consumers — GcnSelectionForm, ObservationPlan-
-// RequestForm and ObservationPlanGlobe — need no changes.
-//
-// What we draw on top of the sky:
-//   * the localization credible-region contour (50% / 90% outlines + center)
-//   * instrument fields as clickable footprints (toggle the selected set)
-//   * executed observations as clickable footprints
-//   * sources and galaxies as clickable catalogs (labels + link-out)
-//   * the Sun and Moon for observability context
-//
-// Aladin is loaded as an npm module and bundled by rspack (its WASM renderer
-// is inlined in the dist, so no extra asset wiring is needed). `aladin-lite`
-// ships no TypeScript types, so the Aladin objects below are loosely typed —
-// only the public props are strictly typed, matching the d3-heavy code it
-// replaces.
 import { useEffect, useRef, useState } from "react";
+import Box from "@mui/material/Box";
 import CircularProgress from "@mui/material/CircularProgress";
 import Typography from "@mui/material/Typography";
 import A from "aladin-lite";
 
-import { moonGeoJSON, sunGeoJSON } from "../../utils";
+import { galacticToEquatorial, moonPosition, sunPosition } from "../../utils";
 
-// `A.init` is a promise the library kicks off at import time, and it rejects
-// when WebGL2 is missing. Mark it handled here or the rejection surfaces as an
-// uncaught page error on every page that pulls in this module, mounted or not.
+// A.init rejects without WebGL2 and would surface as a page error wherever this is imported.
 A.init.catch(() => {});
 
-// Aladin v3 renders through WebGL2 and throws if it is unavailable (headless
-// browsers, software-rendering setups). Detect it up front so we can show a
-// message instead of letting the renderer raise.
-const hasWebGL2 = (): boolean => {
+const hasWebGL2 = () => {
   try {
     return !!document.createElement("canvas").getContext("webgl2");
   } catch {
@@ -42,77 +17,90 @@ const hasWebGL2 = (): boolean => {
   }
 };
 
-// ---------------------------------------------------------------------------
-// Geometry helpers
-// ---------------------------------------------------------------------------
+const normRa = (ra: number) => ((ra % 360) + 360) % 360;
 
-// Aladin expects RA in [0, 360). GeoJSON longitudes may arrive negative.
-const normRa = (ra: number): number => ((ra % 360) + 360) % 360;
-
-// Flatten a GeoJSON feature's geometry into a list of rings, each ring being
-// an array of [ra, dec] vertices. Instrument fields arrive as LineString
-// boundaries (a single closed path), while skymap/observation contours can be
-// Polygon/MultiPolygon; handle all of them.
 const ringsOf = (feature: any): [number, number][][] => {
-  const geom = feature?.geometry;
-  if (!geom?.coordinates) return [];
-  switch (geom.type) {
-    case "Polygon":
-      return geom.coordinates;
-    case "MultiPolygon":
-      return geom.coordinates.flat();
-    case "LineString":
-      return [geom.coordinates];
-    case "MultiLineString":
-      return geom.coordinates;
-    default:
-      return [];
-  }
+  const { type, coordinates } = feature?.geometry ?? {};
+  if (!coordinates) return [];
+  if (type === "MultiPolygon") return coordinates.flat();
+  if (type === "LineString") return [coordinates];
+  return ["Polygon", "MultiLineString"].includes(type) ? coordinates : [];
 };
 
-// Build Aladin polygon footprints from a GeoJSON object. Accepts either a
-// single Feature (e.g. a skymap contour) or a FeatureCollection (e.g. an
-// instrument field's `contour_summary` or an observation), expanding every
-// ring of every contained feature into a polygon footprint.
-const featurePolygons = (geojson: any, opts: any): any[] => {
-  const features = geojson?.features ?? [geojson];
-  return features.flatMap((feature: any) =>
+const featurePolygons = (geojson: any, opts: any, id?: string): any[] =>
+  (geojson?.features ?? [geojson]).flatMap((feature: any) =>
     ringsOf(feature).map((ring) =>
-      A.polygon(
-        ring.map(([ra, dec]) => [normRa(ra), dec]),
-        opts,
+      Object.assign(
+        A.polygon(
+          ring.map(([ra, dec]) => [normRa(ra), dec]),
+          opts,
+        ),
+        id && { id },
       ),
     ),
   );
-};
 
-// Deterministic color from a filter list (mirrors the previous d3 behavior so
-// a given instrument keeps a stable, recognizable selected-field color).
-const filtersToColor = (filters: string[] = []): string => {
-  const filterStr = filters.join("");
+const filtersToColor = (filters: string[] = []) => {
   let hash = 0;
-  for (let i = 0; i < filterStr.length; i += 1) {
-    hash = filterStr.charCodeAt(i) + ((hash << 5) - hash);
+  for (const char of filters.join("")) {
+    hash = char.charCodeAt(0) + ((hash << 5) - hash);
   }
-  let color = "#";
-  for (let i = 0; i < 3; i += 1) {
-    const value = (hash >> (i * 8)) & 0xff;
-    color += `00${value.toString(16)}`.slice(-2);
-  }
-  return color;
+  return `#${[0, 8, 16]
+    .map((shift) => ((hash >> shift) & 0xff).toString(16).padStart(2, "0"))
+    .join("")}`;
 };
 
-// Rough field-of-view (deg) that comfortably frames the 90% contour.
-const fovForContour = (contour: any): number => {
+const toggleIn = (list: number[], id: number) =>
+  list.includes(id) ? list.filter((x) => x !== id) : [...list, id];
+
+const toCatalogSources = (geojson: any) =>
+  geojson.features.map((d: any) =>
+    A.source(normRa(d.geometry.coordinates[0]), d.geometry.coordinates[1], {
+      name: d.properties?.name,
+      url: d.properties?.url,
+    }),
+  );
+
+const drawSunMoon = (source: any, ctx: CanvasRenderingContext2D) => {
+  const r = 8;
+  ctx.save();
+  ctx.translate(source.x, source.y);
+  ctx.beginPath();
+  ctx.arc(0, 0, r, 0, 2 * Math.PI);
+  if (source.data.body === "sun") {
+    ctx.shadowColor = "rgba(255, 190, 0, 0.9)";
+    ctx.shadowBlur = 12;
+    ctx.fillStyle = "#ffd60a";
+    ctx.fill();
+  } else {
+    const { fraction, angle } = source.data;
+    ctx.fillStyle = "#3a3a3a";
+    ctx.strokeStyle = "#9e9e9e";
+    ctx.lineWidth = 1;
+    ctx.fill();
+    ctx.stroke();
+    // angle is a position angle (north through east) and Aladin draws east on the left.
+    ctx.rotate(Math.atan2(-Math.cos(angle), -Math.sin(angle)));
+    ctx.beginPath();
+    ctx.arc(0, 0, r, -Math.PI / 2, Math.PI / 2);
+    const k = 2 * fraction - 1;
+    ctx.ellipse(0, 0, r * Math.abs(k), r, 0, Math.PI / 2, -Math.PI / 2, k < 0);
+    ctx.fillStyle = "#f2f2f2";
+    ctx.fill();
+  }
+  ctx.restore();
+};
+
+const span = (values: number[]) => Math.max(...values) - Math.min(...values);
+
+const fovForContour = (contour: any) => {
   const ring = ringsOf(contour?.features?.[2])[0];
   if (!ring?.length) return 60;
-  const decs = ring.map((c) => c[1]);
-  const ras = ring.map((c) => normRa(c[0]));
-  const span = Math.max(
-    Math.max(...decs) - Math.min(...decs),
-    Math.max(...ras) - Math.min(...ras),
+  const size = Math.max(
+    span(ring.map((c) => c[1])),
+    span(ring.map((c) => normRa(c[0]))),
   );
-  return Math.min(180, Math.max(2, span * 1.6));
+  return Math.min(180, Math.max(2, 1.6 * size));
 };
 
 interface LocalizationPlotProps {
@@ -122,69 +110,50 @@ interface LocalizationPlotProps {
   instrument?: any;
   observations?: any;
   airmass_threshold?: number;
-  options?: any;
+  options?: Partial<
+    Record<
+      | "localization"
+      | "sources"
+      | "galaxies"
+      | "instrument"
+      | "observations"
+      | "sun_moon"
+      | "galactic_plane",
+      boolean
+    >
+  >;
   height?: number;
   width?: number;
-  // Retained for API compatibility with the previous d3 globe; Aladin manages
-  // its own view, so these are accepted but unused.
-  rotation?: any;
-  setRotation?: (...a: any[]) => void;
   selectedFields?: number[];
-  setSelectedFields?: (...a: any[]) => void;
+  setSelectedFields?: (fields: number[]) => void;
   selectedObservations?: number[];
-  setSelectedObservations?: (...a: any[]) => void;
+  setSelectedObservations?: (observations: number[]) => void;
   projection?: string | undefined;
 }
 
-// ---------------------------------------------------------------------------
-// Aladin renderer
-// ---------------------------------------------------------------------------
-
-interface AladinGlobeProps {
-  skymap?: any;
-  sources?: any;
-  galaxies?: any;
-  instrument?: any;
-  observations?: any;
-  options: any;
-  height: number;
-  width: number;
-  airmass_threshold: number;
-  selectedFields: number[];
-  setSelectedFields: (...a: any[]) => void;
-  selectedObservations: number[];
-  setSelectedObservations: (...a: any[]) => void;
-  projection?: string;
-}
-
 const AladinGlobe = ({
-  skymap = null,
+  localization,
   sources = null,
   galaxies = null,
   instrument = null,
   observations = null,
-  options,
-  height,
-  width,
-  airmass_threshold,
-  selectedFields,
-  setSelectedFields,
-  selectedObservations,
-  setSelectedObservations,
+  airmass_threshold = 2.5,
+  options = {},
+  height = 600,
+  width = 600,
+  selectedFields = [],
+  setSelectedFields = () => {},
+  selectedObservations = [],
+  setSelectedObservations = () => {},
   projection = "orthographic",
-}: AladinGlobeProps) => {
+}: LocalizationPlotProps) => {
+  const skymap = localization.contour;
   const containerRef = useRef<HTMLDivElement | null>(null);
   const aladinRef = useRef<any>(null);
-  // Persistent layers, created once and cleared/repopulated on data changes.
   const layers = useRef<any>({});
-  const didCenter = useRef(false);
-  // Flips true once Aladin's async init resolves; gates the layer effects and
-  // re-triggers them (it is in their dependency arrays).
   const [ready, setReady] = useState(false);
   const [supported] = useState(hasWebGL2);
 
-  // The footprint-click handler is registered once but needs to see the latest
-  // selection state and setters; keep them in a ref that updates every render.
   const live = useRef({
     selectedFields,
     setSelectedFields,
@@ -200,7 +169,6 @@ const AladinGlobe = ({
     };
   });
 
-  // --- init once -----------------------------------------------------------
   useEffect(() => {
     if (!supported) return undefined;
     let cancelled = false;
@@ -208,18 +176,14 @@ const AladinGlobe = ({
     A.init
       .then(() => {
         if (cancelled || !containerRef.current || aladinRef.current) return;
-
-        const center = skymap?.features?.[0]?.geometry?.coordinates;
+        const center = skymap.features?.[0]?.geometry?.coordinates;
         const aladin = A.aladin(containerRef.current, {
           survey: "P/DSS2/color",
           projection: projection === "mollweide" ? "MOL" : "SIN",
           cooFrame: "equatorial",
-          fov: skymap ? fovForContour(skymap) : 180,
-          target: center ? `${normRa(center[0])} ${center[1]}` : undefined,
+          fov: fovForContour(skymap),
+          target: center && `${normRa(center[0])} ${center[1]}`,
           showReticle: false,
-          // Minimal chrome: this is embedded in a narrow form column. Keep zoom +
-          // fullscreen (so the operator can pop out to a detailed view) and drop
-          // the controls that crowd a small inset.
           showZoomControl: true,
           showFullscreenControl: true,
           showLayersControl: false,
@@ -229,88 +193,78 @@ const AladinGlobe = ({
         });
         aladinRef.current = aladin;
 
-        // Create the persistent layers up front.
-        layers.current.contour = A.graphicOverlay({
-          name: "skymap",
-          color: "black",
-        });
-        layers.current.fields = A.graphicOverlay({
-          name: "fields",
-          color: "blue",
-        });
-        layers.current.observations = A.graphicOverlay({
-          name: "observations",
-          color: "blue",
-        });
-        layers.current.sunMoon = A.graphicOverlay({ name: "sun/moon" });
-        aladin.addOverlay(layers.current.contour);
-        aladin.addOverlay(layers.current.fields);
-        aladin.addOverlay(layers.current.observations);
-        aladin.addOverlay(layers.current.sunMoon);
+        const overlay = (name: string, color: string) => {
+          const layer = A.graphicOverlay({ name, color });
+          aladin.addOverlay(layer);
+          return layer;
+        };
+        const catalog = (opts: Record<string, any>) => {
+          const layer = A.catalog({
+            labelColumn: "name",
+            labelColor: "white",
+            ...opts,
+          });
+          aladin.addCatalog(layer);
+          return layer;
+        };
+        layers.current = {
+          contour: overlay("skymap", "black"),
+          fields: overlay("fields", "blue"),
+          observations: overlay("observations", "blue"),
+          galacticPlane: overlay("galactic plane", "magenta"),
+          // Before setReady: show()/hide() on a MOC not yet registered throws in the WASM core.
+          sunExclusion: A.MOCFromCone(
+            { ...sunPosition(new Date()), radius: 50 },
+            {
+              name: "sun exclusion",
+              color: "yellow",
+              fill: true,
+              opacity: 0.15,
+            },
+          ),
+          markers: catalog({
+            name: "labels",
+            shape: "cross",
+            color: "cyan",
+            sourceSize: 10,
+          }),
+          sources: catalog({
+            name: "sources",
+            shape: "circle",
+            color: "red",
+            sourceSize: 8,
+            onClick: "showPopup",
+          }),
+          galaxies: catalog({
+            name: "galaxies",
+            shape: "circle",
+            color: "lime",
+            sourceSize: 8,
+            onClick: "showPopup",
+          }),
+          sunMoon: catalog({
+            name: "sun/moon",
+            shape: drawSunMoon,
+            sourceSize: 16,
+            displayLabel: true,
+          }),
+        };
+        aladin.addMOC(layers.current.sunExclusion);
 
-        layers.current.markers = A.catalog({
-          name: "labels",
-          shape: "cross",
-          color: "cyan",
-          sourceSize: 10,
-          labelColumn: "name",
-          labelColor: "white",
-        });
-        layers.current.sources = A.catalog({
-          name: "sources",
-          shape: "circle",
-          color: "red",
-          sourceSize: 8,
-          onClick: "showPopup",
-          labelColumn: "name",
-          labelColor: "white",
-        });
-        layers.current.galaxies = A.catalog({
-          name: "galaxies",
-          shape: "circle",
-          color: "lime",
-          sourceSize: 8,
-          onClick: "showPopup",
-          labelColumn: "name",
-          labelColor: "white",
-        });
-        aladin.addCatalog(layers.current.markers);
-        aladin.addCatalog(layers.current.sources);
-        aladin.addCatalog(layers.current.galaxies);
-
-        // Clicking a footprint toggles the corresponding selection set. The
-        // footprint id encodes which set it belongs to ("field:<id>" /
-        // "obs:<id>"); React state changes then re-render the layer.
         aladin.on("footprintClicked", (arg: any) => {
-          const fp =
-            arg && arg.id !== undefined ? arg : (arg?.footprint ?? arg);
-          const id: string | undefined = fp?.id;
-          if (!id) return;
-          const {
-            selectedFields: sf,
-            setSelectedFields: setSf,
-            selectedObservations: so,
-            setSelectedObservations: setSo,
-          } = live.current;
-          if (id.startsWith("field:")) {
-            const fid = Number(id.slice(6));
-            setSf(
-              sf.includes(fid) ? sf.filter((x) => x !== fid) : [...sf, fid],
-            );
-          } else if (id.startsWith("obs:")) {
-            const fid = Number(id.slice(4));
-            setSo(
-              so.includes(fid) ? so.filter((x) => x !== fid) : [...so, fid],
-            );
-          }
+          const [kind, value] = (arg?.id ?? arg?.footprint?.id ?? "").split(
+            ":",
+          );
+          const id = Number(value);
+          const { selectedFields: sf, selectedObservations: so } = live.current;
+          if (kind === "field")
+            live.current.setSelectedFields(toggleIn(sf, id));
+          if (kind === "obs")
+            live.current.setSelectedObservations(toggleIn(so, id));
         });
-
-        // Clicking a source/galaxy opens its SkyPortal page.
         aladin.on("objectClicked", (obj: any) => {
-          const url = obj?.data?.url;
-          if (url) window.open(url, "_blank", "noopener");
+          if (obj?.data?.url) window.open(obj.data.url, "_blank", "noopener");
         });
-
         setReady(true);
       })
       .catch(() => {});
@@ -318,187 +272,149 @@ const AladinGlobe = ({
       cancelled = true;
       container
         ?.querySelectorAll<HTMLCanvasElement>("canvas.aladin-imageCanvas")
-        .forEach((canvas) => {
+        .forEach((canvas) =>
           canvas
             .getContext("webgl2")
             ?.getExtension("WEBGL_lose_context")
-            ?.loseContext();
-        });
+            ?.loseContext(),
+        );
       container?.replaceChildren();
       aladinRef.current = null;
       layers.current = {};
-      didCenter.current = false;
     };
-    // Mount once: Aladin is initialized a single time and the layer effects
-    // below handle all subsequent data/selection updates.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // --- skymap contour ------------------------------------------------------
   useEffect(() => {
     if (!ready) return;
-    const overlay = layers.current.contour;
-    const markers = layers.current.markers;
-    overlay.removeAll();
-    const visible = options?.localization || options?.skymap;
-    if (visible && skymap?.features) {
-      // features: [0] center, [1] 50% region, [2] 90% region
-      featurePolygons(skymap.features[2], {
-        color: "black",
-        lineWidth: 2,
-      }).forEach((p) => overlay.addFootprints(p));
-      featurePolygons(skymap.features[1], {
-        color: "grey",
-        lineWidth: 2,
-      }).forEach((p) => overlay.addFootprints(p));
-      const center = skymap.features[0]?.geometry?.coordinates;
-      if (center) {
-        markers.addSources([
-          A.source(normRa(center[0]), center[1], { name: "Center" }),
-        ]);
-      }
-      // Center the view on first data arrival.
-      if (!didCenter.current && center) {
-        aladinRef.current.gotoRaDec(normRa(center[0]), center[1]);
-        aladinRef.current.setFoV(fovForContour(skymap));
-        didCenter.current = true;
-      }
+    const { contour, markers } = layers.current;
+    contour.removeAll();
+    markers.removeAll();
+    if (!options.localization) return;
+    const [center, region50, region90] = skymap.features ?? [];
+    contour.addFootprints([
+      ...featurePolygons(region90, { color: "black", lineWidth: 2 }),
+      ...featurePolygons(region50, { color: "grey", lineWidth: 2 }),
+    ]);
+    const coords = center?.geometry?.coordinates;
+    if (coords) {
+      markers.addSources([
+        A.source(normRa(coords[0]), coords[1], { name: "Center" }),
+      ]);
     }
-  }, [ready, skymap, options?.localization, options?.skymap]);
+  }, [ready, skymap, options.localization]);
 
-  // --- instrument fields ---------------------------------------------------
   useEffect(() => {
     if (!ready) return;
-    const overlay = layers.current.fields;
-    overlay.removeAll();
-    if (options?.instrument && instrument?.fields) {
-      const filterColor = filtersToColor(instrument.filters);
-      const hasRef = instrument.fields.some(
-        (f: any) => (f.reference_filters || []).length > 0,
+    const { fields } = layers.current;
+    fields.removeAll();
+    if (!options.instrument || !instrument?.fields) return;
+    const filterColor = filtersToColor(instrument.filters);
+    const hasRef = instrument.fields.some(
+      (f: any) => f.reference_filters?.length,
+    );
+    instrument.fields.forEach((f: any) => {
+      const fieldId = Number(f.field_id);
+      const selected = selectedFields.includes(fieldId);
+      const fillColor = selected
+        ? filterColor
+        : f.airmass && f.airmass < airmass_threshold
+          ? "white"
+          : "gray";
+      fields.addFootprints(
+        featurePolygons(
+          f.contour_summary,
+          {
+            color: "blue",
+            lineWidth: selected ? 3 : 1,
+            fill: true,
+            fillColor,
+            opacity: hasRef && !f.reference_filters?.length ? 0.3 : 0.85,
+          },
+          `field:${fieldId}`,
+        ),
       );
-      instrument.fields.forEach((f: any) => {
-        const fieldId = Number(f.field_id);
-        const selected = selectedFields.includes(fieldId);
-        const references = f.reference_filters || [];
-        const fill = selected
-          ? filterColor
-          : f.airmass && f.airmass < airmass_threshold
-            ? "white"
-            : "gray";
-        const opacity = hasRef && references.length === 0 ? 0.3 : 0.85;
-        featurePolygons(f.contour_summary, {
-          color: "blue",
-          lineWidth: selected ? 3 : 1,
-          fill: true,
-          fillColor: fill,
-          opacity,
-        }).forEach((p) => {
-          p.id = `field:${fieldId}`;
-          overlay.addFootprints(p);
-        });
-      });
-    }
+    });
   }, [
     ready,
     instrument,
-    options?.instrument,
+    options.instrument,
     selectedFields,
     airmass_threshold,
   ]);
 
-  // --- executed observations ----------------------------------------------
   useEffect(() => {
     if (!ready) return;
-    const overlay = layers.current.observations;
-    overlay.removeAll();
-    if (options?.observations && observations) {
-      observations.forEach((f: any) => {
-        const fieldId = f.properties?.field_id;
-        const selected = selectedObservations.includes(fieldId);
-        featurePolygons(f, {
-          color: "blue",
-          lineWidth: 1,
-          fill: true,
-          fillColor: selected ? "red" : "white",
-          opacity: 0.6,
-        }).forEach((p) => {
-          p.id = `obs:${fieldId}`;
-          overlay.addFootprints(p);
-        });
-      });
-    }
-  }, [ready, observations, options?.observations, selectedObservations]);
-
-  // --- sources -------------------------------------------------------------
-  useEffect(() => {
-    if (!ready) return;
-    const cat = layers.current.sources;
-    cat.removeAll();
-    if (options?.sources && sources?.features) {
-      cat.addSources(
-        sources.features.map((d: any) =>
-          A.source(
-            normRa(d.geometry.coordinates[0]),
-            d.geometry.coordinates[1],
-            { name: d.properties?.name, url: d.properties?.url },
-          ),
+    const layer = layers.current.observations;
+    layer.removeAll();
+    if (!options.observations || !observations) return;
+    observations.forEach((f: any) => {
+      const fieldId = f.properties?.field_id;
+      layer.addFootprints(
+        featurePolygons(
+          f,
+          {
+            color: "blue",
+            lineWidth: 1,
+            fill: true,
+            fillColor: selectedObservations.includes(fieldId) ? "red" : "white",
+            opacity: 0.6,
+          },
+          `obs:${fieldId}`,
         ),
       );
-    }
-  }, [ready, sources, options?.sources]);
-
-  // --- galaxies ------------------------------------------------------------
-  useEffect(() => {
-    if (!ready) return;
-    const cat = layers.current.galaxies;
-    cat.removeAll();
-    if (options?.galaxies && galaxies?.features) {
-      cat.addSources(
-        galaxies.features.map((d: any) =>
-          A.source(
-            normRa(d.geometry.coordinates[0]),
-            d.geometry.coordinates[1],
-            { name: d.properties?.name, url: d.properties?.url },
-          ),
-        ),
-      );
-    }
-  }, [ready, galaxies, options?.galaxies]);
-
-  // --- sun & moon ----------------------------------------------------------
-  useEffect(() => {
-    if (!ready) return;
-    const overlay = layers.current.sunMoon;
-    const markers = layers.current.markers;
-    overlay.removeAll();
-    const now = new Date();
-    [
-      {
-        body: sunGeoJSON(now),
-        color: "yellow",
-        fill: "rgba(255,255,0,0.6)",
-        label: "Sun",
-      },
-      {
-        body: moonGeoJSON(now),
-        color: "darkgray",
-        fill: "rgba(150,150,150,0.6)",
-        label: "Moon",
-      },
-    ].forEach(({ body, color, fill, label }) => {
-      const [lon, dec] = body?.geometry?.coordinates ?? [];
-      const radius = body?.properties?.radius;
-      if (lon === undefined || dec === undefined) return;
-      const ra = normRa(lon);
-      overlay.addFootprints(
-        A.circle(ra, dec, Math.max(radius || 0, 0.3), {
-          color,
-          fillColor: fill,
-        }),
-      );
-      markers.addSources([A.source(ra, dec, { name: label })]);
     });
-  }, [ready]);
+  }, [ready, observations, options.observations, selectedObservations]);
+
+  useEffect(() => {
+    if (!ready) return;
+    layers.current.sources.removeAll();
+    if (options.sources && sources?.features) {
+      layers.current.sources.addSources(toCatalogSources(sources));
+    }
+  }, [ready, sources, options.sources]);
+
+  useEffect(() => {
+    if (!ready) return;
+    layers.current.galaxies.removeAll();
+    if (options.galaxies && galaxies?.features) {
+      layers.current.galaxies.addSources(toCatalogSources(galaxies));
+    }
+  }, [ready, galaxies, options.galaxies]);
+
+  useEffect(() => {
+    if (!ready) return;
+    const { sunMoon, sunExclusion } = layers.current;
+    sunMoon.removeAll();
+    sunExclusion[options.sun_moon ? "show" : "hide"]();
+    if (!options.sun_moon) return;
+    const sun = sunPosition(new Date());
+    const { ra, dec, fraction, angle } = moonPosition(new Date());
+    sunMoon.addSources([
+      A.source(sun.ra, sun.dec, { name: "Sun", body: "sun" }),
+      A.source(ra, dec, {
+        name: `Moon (${Math.round(fraction * 100)}%)`,
+        body: "moon",
+        fraction,
+        angle,
+      }),
+    ]);
+  }, [ready, options.sun_moon]);
+
+  useEffect(() => {
+    if (!ready) return;
+    const { galacticPlane } = layers.current;
+    galacticPlane.removeAll();
+    if (!options.galactic_plane) return;
+    [-10, 0, 10].forEach((b) =>
+      galacticPlane.addFootprints(
+        A.polyline(
+          Array.from({ length: 361 }, (_, l) => galacticToEquatorial(l, b)),
+          b === 0 ? { lineWidth: 2 } : { lineWidth: 1, opacity: 0.5 },
+        ),
+      ),
+    );
+  }, [ready, options.galactic_plane]);
 
   if (!supported) {
     return (
@@ -508,75 +424,24 @@ const AladinGlobe = ({
     );
   }
 
-  // Fill the parent column (consumers embed this in a narrow grid cell) as a
-  // square, capped at the requested size — mirroring the old SVG's responsive
-  // viewBox behavior rather than forcing a fixed pixel box that overflows.
   return (
-    <div
+    <Box
       ref={containerRef}
-      style={{
+      sx={{
         width: "100%",
-        maxWidth: `${width}px`,
-        maxHeight: `${height}px`,
+        maxWidth: width,
+        maxHeight: height,
         aspectRatio: "1 / 1",
       }}
     />
   );
 };
 
-// ---------------------------------------------------------------------------
-// Public wrapper: resolves the localization (prop or redux) and gates on load.
-// ---------------------------------------------------------------------------
-
-const LocalizationPlot = ({
-  localization = null,
-  sources = null,
-  galaxies = null,
-  instrument = null,
-  observations = null,
-  airmass_threshold = 2.5,
-  options = {
-    localization: false,
-    sources: false,
-    galaxies: false,
-    instrument: false,
-    observations: false,
-  },
-  height = 600,
-  width = 600,
-  selectedFields = [],
-  setSelectedFields = () => {},
-  selectedObservations = [],
-  setSelectedObservations = () => {},
-  projection = "orthographic",
-}: LocalizationPlotProps) => {
-  if (
-    !localization?.id ||
-    !localization?.dateobs ||
-    !localization?.localization_name ||
-    !localization?.contour
-  ) {
-    return <CircularProgress />;
-  }
-
-  return (
-    <AladinGlobe
-      skymap={localization.contour}
-      sources={sources?.geojson}
-      galaxies={galaxies?.geojson}
-      instrument={instrument}
-      observations={observations?.geojson}
-      options={options}
-      height={height}
-      width={width}
-      airmass_threshold={airmass_threshold}
-      selectedFields={selectedFields}
-      setSelectedFields={setSelectedFields}
-      selectedObservations={selectedObservations}
-      setSelectedObservations={setSelectedObservations}
-      projection={projection}
-    />
+const LocalizationPlot = (props: LocalizationPlotProps) =>
+  props.localization?.contour ? (
+    <AladinGlobe {...props} />
+  ) : (
+    <CircularProgress />
   );
-};
 
 export default LocalizationPlot;
