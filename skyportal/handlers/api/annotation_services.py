@@ -358,12 +358,15 @@ class IRSAQueryWISEHandler(BaseHandler):
             candidate_coord = SkyCoord(ra=obj.ra * u.deg, dec=obj.dec * u.deg)
 
             try:
-                df = Irsa.query_region(
-                    coordinates=candidate_coord,
-                    catalog=catalog,
-                    spatial="Cone",
-                    radius=radius_arcsec * u.arcsec,
-                ).to_pandas()
+                df = await IOLoop.current().run_in_executor(
+                    None,
+                    lambda: Irsa.query_region(
+                        coordinates=candidate_coord,
+                        catalog=catalog,
+                        spatial="Cone",
+                        radius=radius_arcsec * u.arcsec,
+                    ).to_pandas(),
+                )
             except Exception as e:
                 return self.error(
                     f"Error querying IRSA ({catalog}) for {obj_id}: {e}. Please try again later."
@@ -596,10 +599,13 @@ class VizierQueryHandler(BaseHandler):
             candidate_coord = SkyCoord(ra=obj.ra * u.deg, dec=obj.dec * u.deg)
 
             try:
-                tl = Vizier.query_region(
-                    coordinates=candidate_coord,
-                    catalog=catalog,
-                    radius=radius_arcsec * u.arcsec,
+                tl = await IOLoop.current().run_in_executor(
+                    None,
+                    lambda: Vizier.query_region(
+                        coordinates=candidate_coord,
+                        catalog=catalog,
+                        radius=radius_arcsec * u.arcsec,
+                    ),
                 )
             except Exception as e:
                 return self.error(
@@ -741,7 +747,9 @@ class DatalabQueryHandler(BaseHandler):
                               ON {catalog}.tractor.ls_id = {catalog}.photo_z.ls_id
                               where 't' = Q3C_RADIAL_QUERY(ra, dec, {obj.ra}, {obj.dec}, {radius_deg})"""
             try:
-                query = qc.query(sql=sql_query)
+                query = await IOLoop.current().run_in_executor(
+                    None, lambda: qc.query(sql=sql_query)
+                )
             except qc.queryClientError as e:
                 return self.error(f"Error initializing query: {str(e)}")
 
