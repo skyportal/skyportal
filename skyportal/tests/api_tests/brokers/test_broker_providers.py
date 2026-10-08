@@ -1475,23 +1475,21 @@ def test_a_stream_message_with_a_lightcurve_needs_no_rest_call():
     quota sits far below stream rate."""
     from skyportal.broker_apis import lasair
 
-    assert lasair.carries_lightcurve(LASAIR_STREAM_MESSAGE) is True
+    assert lasair.is_plain_stream_message(LASAIR_STREAM_MESSAGE) is False
     data = lasair._normalize_object(LASAIR_STREAM_MESSAGE, "ZTF21abcdlas")
     assert data["objectId"] == "ZTF21abcdlas"
     assert data["candidate"]["magpsf"] == 18.4
     assert len(data["prv_candidates"]) == 2
 
 
-def test_an_object_id_only_message_still_needs_the_rest_call():
+def test_an_object_id_only_message_is_the_wrong_stream():
+    """A message with nothing but an id came off the selected-columns stream,
+    which no REST call should be spent completing."""
     from skyportal.broker_apis import lasair
 
-    for payload in (
-        {"objectId": "ZTF21abcdlas"},
-        {"objectId": "ZTF21abcdlas", "candidates": []},
-        None,
-        "not a dict",
-    ):
-        assert lasair.carries_lightcurve(payload) is False
+    assert lasair.is_plain_stream_message({"objectId": "ZTF21abcdlas"}) is True
+    # Polling passes no message at all, and is the one path that does fetch.
+    assert lasair.is_plain_stream_message(None) is False
 
 
 # Shapes taken from live Lasair records. A diaSource carries no position, so
@@ -1552,11 +1550,11 @@ LASAIR_LSST_MESSAGE = {
 def test_an_lsst_record_is_recognised_whether_rest_or_stream():
     from skyportal.broker_apis import lasair
 
-    assert lasair.carries_lightcurve(LASAIR_LSST_MESSAGE) is True
+    assert lasair.is_plain_stream_message(LASAIR_LSST_MESSAGE) is False
     assert lasair._lsst_sources(LASAIR_LSST_REST) == LSST_SOURCES
     # the plain stream option carries a position and no photometry
     plain = {k: v for k, v in LASAIR_LSST_MESSAGE.items() if k != "alert"}
-    assert lasair.carries_lightcurve(plain) is False
+    assert lasair.is_plain_stream_message(plain) is True
 
 
 @pytest.mark.parametrize("record", [LASAIR_LSST_REST, LASAIR_LSST_MESSAGE])
@@ -1678,7 +1676,7 @@ def test_a_batch_keeps_only_the_newest_alert_per_object():
     from skyportal.broker_apis import lasair
 
     msgs = [_msg(1, "A"), _msg(2, "B"), _msg(3, "A")]
-    finished, work = lasair._prepare_batch(msgs, {}, [7])
+    finished, work, _unusable = lasair._prepare_batch(msgs, {}, [7])
     assert sorted(work) == ["A", "B"]
     # the superseded A at offset 1 needs no work, so it cannot stall the partition
     assert ("lasair_2mine", 0, 1) in finished
@@ -1690,10 +1688,45 @@ def test_an_undecodable_message_does_not_stall_its_partition():
 
     bad = FakeKafkaMessage(1, None)  # not valid JSON
     no_id = FakeKafkaMessage(2, {"foo": 1})  # no objectId
-    finished, work = lasair._prepare_batch([bad, no_id, _msg(3, "A")], {}, [7])
+    finished, work, _unusable = lasair._prepare_batch(
+        [bad, no_id, _msg(3, "A")], {}, [7]
+    )
     assert list(work) == ["A"]
     assert ("lasair_2mine", 0, 1) in finished
     assert ("lasair_2mine", 0, 2) in finished
+
+
+def test_a_plain_message_is_finished_so_its_partition_can_advance():
+    """Nothing about it improves on a retry, so holding its offset back would
+    pin the partition and nothing behind it would ever be acknowledged."""
+    from skyportal.broker_apis import lasair
+
+    plain = FakeKafkaMessage(1, {"diaObjectId": 1, "ra": 1.0, "decl": 2.0})
+    finished, work, unusable = lasair._prepare_batch([plain], {}, [7])
+
+    assert work == {}
+    assert ("lasair_2mine", 0, 1) in finished
+    assert "lasair_2mine" in unusable
+
+
+def test_a_topic_is_faulted_only_when_the_whole_batch_was_unusable():
+    from skyportal.broker_apis import lasair
+
+    status = {}
+    delivered = {"A": (_msg(1, "A"), {}, [7])}
+
+    # One alert arriving without its payload says nothing about a topic that is
+    # otherwise delivering.
+    assert lasair._update_topic_status(status, delivered, {"lasair_2mine": "detail"})
+    assert status["lasair_2mine"]["usable"] is True
+
+    # A batch with nothing ingestable in it does.
+    assert lasair._update_topic_status(status, {}, {"lasair_2mine": "detail"})
+    assert status["lasair_2mine"]["usable"] is False
+    assert status["lasair_2mine"]["detail"] == "detail"
+
+    # An unchanged verdict is not written through to the database again.
+    assert not lasair._update_topic_status(status, {}, {"lasair_2mine": "detail"})
 
 
 def test_offsets_are_stored_only_up_to_the_first_failure():
@@ -1765,7 +1798,7 @@ def test_a_batch_is_ingested_with_bounded_concurrency(monkeypatch):
 
     monkeypatch.setattr(lasair, "_ingest_object", fake_ingest)
     msgs = [_msg(i, f"O{i}") for i in range(10)] + [_msg(99, "BAD")]
-    _finished, work = lasair._prepare_batch(msgs, {}, [1])
+    _finished, work, _unusable = lasair._prepare_batch(msgs, {}, [1])
     results = asyncio.run(lasair._ingest_batch(None, "LSST", "t", work, 3))
     assert peak["n"] <= 3
     assert sum(1 for ok in results.values() if ok) == 10
@@ -1783,7 +1816,7 @@ def test_a_live_lasair_lite_lightcurve_message_normalizes():
     with open(os.path.join(CASSETTE_DIR, "lasair_lsst_lite_lightcurve.json")) as f:
         message = json.load(f)
 
-    assert lasair.carries_lightcurve(message) is True
+    assert lasair.is_plain_stream_message(message) is False
     sources = lasair._lsst_sources(message)
     assert sources and "diaSourceId" not in sources[0]
 

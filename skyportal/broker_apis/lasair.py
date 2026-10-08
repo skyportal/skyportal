@@ -3,6 +3,7 @@ import base64
 import json
 import math
 import time
+from datetime import UTC, datetime
 
 import numpy as np
 import requests
@@ -35,6 +36,15 @@ PROGRESS_INTERVAL = 300
 # a database round trip, so one at a time leaves the consumer waiting on the DB.
 INGEST_BATCH = 50
 INGEST_CONCURRENCY = 8
+# Which stream a Lasair filter sends is the user's choice on the filter's own
+# page, and only one of the three choices carries the photometry we need.
+PLAIN_STREAM_DETAIL = (
+    "This topic streams its Lasair filter's selected columns only, so its "
+    "alerts arrive without photometry and cannot be ingested. Set the filter's "
+    "streaming choice to 'lite lightcurve' or 'full alert' on its page in "
+    "Lasair: https://lasair-lsst.readthedocs.io/en/main/ (ZTF: "
+    "https://lasair.readthedocs.io/en/main/)"
+)
 _CUTOUT_KINDS = {
     "Science": "cutoutScience",
     "Template": "cutoutTemplate",
@@ -489,17 +499,19 @@ def _cutouts_from_object(obj, alert_id):
     return cutouts
 
 
-def carries_lightcurve(payload):
-    """Whether a stream message already holds the photometry we would otherwise
-    fetch. ZTF carries ``candidates``; LSST nests ``diaSourcesList`` under
-    ``alert``. A topic streaming object ids alone has neither, and only those
-    need the REST call."""
+def is_plain_stream_message(payload):
+    """Whether a stream message came from the wrong one of Lasair's three streams.
+
+    Lasair's own advice is to key on the alert being absent rather than empty:
+    the selected-columns stream carries no alert at all, so its absence is
+    certain, where an empty lightcurve inside one is only a quiet object. LSST
+    nests it under ``alert``, ZTF under ``candidates``.
+    """
     if not isinstance(payload, dict):
         return False
-    candidates = payload.get("candidates")
-    if isinstance(candidates, list) and candidates:
-        return True
-    return bool(_lsst_sources(payload))
+    return not isinstance(payload.get("alert"), dict) and not isinstance(
+        payload.get("candidates"), list
+    )
 
 
 def normalize_stream_message(payload, object_id):
@@ -513,25 +525,22 @@ async def _ingest_object(broker, oid, survey, filter_ids, token=None, payload=No
     which differ only in how they learn an objectId.
 
     The REST call is made only when polling, where there is no object in hand.
-    A stream message that arrives without its lightcurve is refused rather than
-    completed by that call: an active filter delivers at the rate alerts arrive,
-    which is not bounded by the account's hourly call allowance whatever tier it
-    is on, so one call per alert exhausts it.
+    A stream message is used exactly as it arrived, never topped up by that
+    call: an active filter delivers at the rate alerts arrive, which no hourly
+    call allowance bounds, so one call per alert exhausts it. A message off the
+    wrong stream is refused instead, and the consumer screens those out a batch
+    at a time, so reaching here means some other caller passed one.
     """
     from baselayer.app.models import async_plain_session_factory
 
     from ..models import Thumbnail, User
     from ._save import save_object_as_candidate
 
-    if payload is not None and not carries_lightcurve(payload):
-        raise ValueError(
-            f"Lasair topic for {oid} streams the filter's selected columns only. "
-            "Set the filter's streaming choice to 'lite lightcurve' or 'full "
-            "alert' on its page in Lasair so the alert arrives with its "
-            "photometry: https://lasair-lsst.readthedocs.io/en/main/ (ZTF: "
-            "https://lasair.readthedocs.io/en/main/)"
-        )
-    if carries_lightcurve(payload):
+    if payload is not None:
+        if is_plain_stream_message(payload):
+            raise ValueError(
+                f"Lasair message for {oid} carries no alert. {PLAIN_STREAM_DETAIL}"
+            )
         obj = payload
     else:
         obj = await asyncio.to_thread(_object, broker, oid, token)
@@ -672,6 +681,7 @@ def _credential_sets(broker, extra=None):
         sets.append(
             {
                 "label": entry.get("label") or merged.get("username") or "account",
+                "credential_id": entry.get("credential_id"),
                 "kafka": merged,
                 "token": entry.get("token"),
                 "topics": entry.get("topics") or [],
@@ -686,13 +696,18 @@ def _credential_sets(broker, extra=None):
 def _prepare_batch(msgs, topic_filter_ids, default_filter_ids):
     """Split a polled batch into work to do and messages that need none.
 
-    A message that cannot be decoded, or that carries no objectId, is finished
-    rather than failed: leaving it outstanding would stall its partition for
-    good. Where one object appears more than once, only its newest alert is
-    ingested and the earlier ones are finished, which also keeps two writes for
-    the same object out of the same batch.
+    Returns the finished messages, the work, and any topic found to be
+    streaming something we cannot ingest.
+
+    A message that cannot be decoded, that carries no objectId, or that is the
+    wrong stream for us is finished rather than failed: leaving it outstanding
+    would stall its partition for good, and none of the three gets better by
+    being tried again. Where one object appears more than once, only its newest
+    alert is ingested and the earlier ones are finished, which also keeps two
+    writes for the same object out of the same batch.
     """
     finished = set()
+    unusable = {}
     work = {}
     for msg in msgs:
         key = (msg.topic(), msg.partition(), msg.offset())
@@ -710,6 +725,10 @@ def _prepare_batch(msgs, topic_filter_ids, default_filter_ids):
             log(f"Lasair message on {msg.topic()} carried no objectId; skipping")
             finished.add(key)
             continue
+        if is_plain_stream_message(payload):
+            unusable[msg.topic()] = PLAIN_STREAM_DETAIL
+            finished.add(key)
+            continue
         superseded = work.get(oid)
         if superseded is not None:
             older = superseded[0]
@@ -719,7 +738,56 @@ def _prepare_batch(msgs, topic_filter_ids, default_filter_ids):
             payload,
             topic_filter_ids.get(msg.topic(), default_filter_ids),
         )
-    return finished, work
+    return finished, work, unusable
+
+
+def _update_topic_status(status, work, unusable):
+    """Fold a batch's outcome into the per-topic status. Returns whether it moved.
+
+    A topic absent from the status has had nothing consumed from it yet, which
+    the filter page shows differently from one known to be delivering. A topic
+    is only faulted when the whole batch was unusable: one alert arriving
+    without its payload is not evidence against a topic that is otherwise
+    delivering.
+    """
+    delivering = {msg.topic() for msg, _payload, _filter_ids in work.values()}
+    changed = False
+    for topic in delivering | set(unusable):
+        detail = None if topic in delivering else unusable[topic]
+        was = status.get(topic) or {}
+        if was.get("usable") == (detail is None) and was.get("detail") == detail:
+            continue
+        status[topic] = {
+            "usable": detail is None,
+            "detail": detail,
+            "at": datetime.now(UTC).isoformat(),
+        }
+        changed = True
+        log(
+            f"Lasair topic {topic} cannot be ingested: {detail}"
+            if detail
+            else f"Lasair topic {topic} is delivering ingestable alerts"
+        )
+    return changed
+
+
+async def _store_topic_status(credential_id, status):
+    """Mirror the status onto the credential row, which is what the filter page
+    reads. The broker's own shared account has no such row, so there it is
+    logged and nothing more."""
+    from baselayer.app.models import async_plain_session_factory
+
+    from ..models import BrokerCredential
+
+    try:
+        async with async_plain_session_factory() as session:
+            row = await session.get(BrokerCredential, credential_id)
+            if row is None:
+                return
+            row.topic_status = dict(status)
+            await session.commit()
+    except Exception as e:
+        log(f"Could not record Lasair topic status on credential {credential_id}: {e}")
 
 
 async def _ingest_batch(broker, survey, token, work, concurrency):
@@ -816,6 +884,9 @@ async def _consume_set(broker, survey, credentials, budget, stop):
     )
     ingested = 0
     last_report = time.monotonic()
+    # What the batches so far have shown about each topic, written through to
+    # the credential row whenever it changes rather than on every batch.
+    topic_status = {}
     batch_size = max(1, int(kafka.get("batch_size", INGEST_BATCH)))
     concurrency = max(1, int(kafka.get("concurrency", INGEST_CONCURRENCY)))
 
@@ -830,9 +901,13 @@ async def _consume_set(broker, survey, credentials, budget, stop):
             msgs = await asyncio.to_thread(consumer.consume, wanted, maxtimeout)
             if not msgs:
                 continue
-            finished, work = _prepare_batch(
+            finished, work, unusable = _prepare_batch(
                 msgs, topic_filter_ids, credentials["filter_ids"]
             )
+            if _update_topic_status(topic_status, work, unusable) and credentials.get(
+                "credential_id"
+            ):
+                await _store_topic_status(credentials["credential_id"], topic_status)
             results = await _ingest_batch(
                 broker, survey, credentials["token"], work, concurrency
             )

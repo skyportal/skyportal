@@ -88,28 +88,45 @@ def test_a_plain_kafka_message_is_refused_not_completed_by_an_api_call():
     import asyncio
 
     plain = {"objectId": "ZTF26aaa", "ramean": 1.0, "decmean": 2.0, "gmag": 20.1}
-    assert not lasair.carries_lightcurve(plain)
+    assert lasair.is_plain_stream_message(plain)
 
     with pytest.raises(ValueError, match="lite lightcurve"):
         asyncio.run(lasair._ingest_object(None, "ZTF26aaa", "ZTF", [1], payload=plain))
 
 
-def test_polling_still_fetches_the_object():
-    # Polling learns an objectId and nothing else, so there the REST call is the
-    # only way to get the photometry and must not be refused.
-    import asyncio
+def test_an_empty_lightcurve_is_not_blamed_on_the_stream_setting():
+    # The setting is wrong only when the alert is absent. One present but quiet
+    # is an ordinary object, and must not send the user to change a correct
+    # setting.
+    assert not lasair.is_plain_stream_message({"alert": {"diaSourcesList": []}})
+    assert not lasair.is_plain_stream_message(
+        {"objectId": "ZTF26aaa", "candidates": []}
+    )
 
-    called = []
 
-    async def fake_save(*a, **k):
-        return None
+def _real_alerts():
+    # Two messages off a live Lasair LSST topic, supplied by Lasair, with the
+    # non-finite floats nulled so they are valid JSON. One arrived without its
+    # alert, which is what the selected-columns stream looks like.
+    import json
+    import pathlib
 
-    orig = lasair._object
-    lasair._object = lambda b, oid, token=None: called.append(oid) or {}
-    try:
-        asyncio.run(lasair._ingest_object(None, "ZTF26aaa", "ZTF", [1], payload=None))
-    except Exception:
-        pass  # the DB write is not under test; the fetch having happened is
-    finally:
-        lasair._object = orig
-    assert called == ["ZTF26aaa"], "polling no longer fetches the object"
+    path = pathlib.Path(__file__).parents[1] / "data" / "lasair_lsst_stream_alerts.json"
+    return json.loads(path.read_text())
+
+
+def test_a_real_lsst_alert_normalizes_to_photometry_we_can_save():
+    plain, full = _real_alerts()
+
+    assert lasair.is_plain_stream_message(plain)
+    assert not lasair.is_plain_stream_message(full)
+
+    oid = lasair._object_id_from_message(full)
+    normalized = lasair._normalize_object(full, oid)
+    candidate = normalized["candidate"]
+    # Without any one of these the row saves as a detection with no epoch, no
+    # band or no position.
+    for key in ("candid", "ra", "dec", "jd", "band", "magpsf"):
+        assert candidate.get(key) is not None, f"{key} did not survive normalization"
+    assert normalized["prv_candidates"], "the lightcurve did not survive"
+    assert all(r["jd"] and r["band"] for r in normalized["prv_candidates"])
