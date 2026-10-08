@@ -8,6 +8,7 @@ import Box from "@mui/material/Box";
 import Button from "@mui/material/Button";
 import Chip from "@mui/material/Chip";
 import IconButton from "@mui/material/IconButton";
+import Tooltip from "@mui/material/Tooltip";
 import Typography from "@mui/material/Typography";
 
 import { showNotification } from "baselayer/components/Notifications";
@@ -88,9 +89,12 @@ const Filter = () => {
   const { data: credentials } = useGetBrokerCredentialsQuery(brokerId, {
     skip: !brokerId,
   });
+  // A topic with no status yet has had nothing consumed from it, which is not
+  // the same as one ingestion has found it cannot read.
   const myTopics = Object.entries(credentials?.topic_filter_ids ?? {})
     .filter(([, ids]) => ids.includes(filter?.id))
-    .map(([topic]) => topic);
+    .map(([topic]) => ({ topic, status: credentials?.topic_status?.[topic] }));
+  const faulted = myTopics.filter(({ status }) => status?.usable === false);
 
   if (filterError)
     return (filterError as any)?.error ?? "Failed to load filter";
@@ -122,16 +126,29 @@ const Filter = () => {
           />
         )}
         {stream && <Chip size="small" label={`Stream: ${stream["name"]}`} />}
-        {myTopics.map((topic) => (
-          <Chip
+        {myTopics.map(({ topic, status }) => (
+          <Tooltip
             key={topic}
-            size="small"
-            label={topic}
-            variant="outlined"
-            color="primary"
-          />
+            title={
+              status === undefined
+                ? "Nothing consumed from this topic yet"
+                : (status.detail ?? `Delivering as of ${status.at}`)
+            }
+          >
+            <Chip
+              size="small"
+              label={topic}
+              variant="outlined"
+              color={status?.usable === false ? "error" : "primary"}
+            />
+          </Tooltip>
         ))}
       </Box>
+      {faulted.map(({ topic, status }) => (
+        <Alert key={topic} severity="warning">
+          <b>{topic}</b>: {status?.detail}
+        </Alert>
+      ))}
       {brokerId && <AssistantHint />}
       {group && <FilterPlugins />}
     </Box>

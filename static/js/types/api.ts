@@ -25001,6 +25001,10 @@ export interface components {
             topic_filter_ids?: {
                 [key: string]: unknown;
             };
+            /** @description Per topic, what the ingestion loop last saw of it: whether its alerts can be ingested and, when they cannot, why. A topic absent from here has had nothing consumed from it yet. Shown on the pages of the filters the topic feeds. */
+            topic_status?: {
+                [key: string]: unknown;
+            };
             /** @description The credentials themselves: the upstream API token and any stream username/password. Never serialized back to a client. */
             _altdata?: string | null;
             /** @description Unique object identifier. */
@@ -25031,6 +25035,10 @@ export interface components {
             };
             /** @description Maps a topic to the skyportal Filter ids its objects become candidates for, mirroring the broker-level routing. */
             topic_filter_ids?: {
+                [key: string]: unknown;
+            };
+            /** @description Per topic, what the ingestion loop last saw of it: whether its alerts can be ingested and, when they cannot, why. A topic absent from here has had nothing consumed from it yet. Shown on the pages of the filters the topic feeds. */
+            topic_status?: {
                 [key: string]: unknown;
             };
             /** @description The credentials themselves: the upstream API token and any stream username/password. Never serialized back to a client. */

@@ -31,11 +31,19 @@ export interface BrokerAPIInfo {
   filterKind?: string;
 }
 
+/** What ingestion last saw of a topic; absent until something is consumed. */
+export interface TopicStatus {
+  usable: boolean;
+  detail: string | null;
+  at: string;
+}
+
 export interface BrokerCredential {
   id: number;
   broker_id: number;
   topics: string[];
   topic_filter_ids: Record<string, number[]>;
+  topic_status?: Record<string, TopicStatus>;
   /** Non-secret values only; secrets are reported by name in secrets_set. */
   credentials: Record<string, unknown>;
   secrets_set: string[];

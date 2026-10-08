@@ -1968,6 +1968,7 @@ class BrokerCredentialHandler(BaseHandler):
                     "broker_id": row.broker_id,
                     "topics": row.topics or [],
                     "topic_filter_ids": row.topic_filter_ids or {},
+                    "topic_status": row.topic_status or {},
                     # Secrets report presence only; the rest prefill the form.
                     "credentials": {
                         k: v for k, v in altdata.items() if k not in secret_fields
