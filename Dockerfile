@@ -98,6 +98,9 @@ RUN bash -c "\
     rm -rf .venv/lib/python3.12/site-packages/gwemopt/data/tesselations/*.tess"
 
 
+# A deployment adds to the image by placing this script in its build context.
+RUN if [ -f /skyportal/docker-extra-setup.sh ]; then bash /skyportal/docker-extra-setup.sh; fi
+
 USER skyportal
 
 # edit the exposed port to match the one in the
