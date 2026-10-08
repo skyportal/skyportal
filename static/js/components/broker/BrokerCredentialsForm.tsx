@@ -7,6 +7,8 @@ import Autocomplete from "@mui/material/Autocomplete";
 import Box from "@mui/material/Box";
 import Button from "@mui/material/Button";
 import Chip from "@mui/material/Chip";
+import MenuItem from "@mui/material/MenuItem";
+import Select from "@mui/material/Select";
 import Stack from "@mui/material/Stack";
 import TextField from "@mui/material/TextField";
 import Typography from "@mui/material/Typography";
@@ -17,6 +19,7 @@ import {
   useDeleteBrokerCredentialsMutation,
   useGetBrokerAPIsQuery,
   useGetBrokerCredentialsQuery,
+  useGetBrokerFiltersQuery,
   useLazyGetBrokerCredentialTopicsQuery,
   useSetBrokerCredentialsMutation,
 } from "../../ducks/brokers";
@@ -44,13 +47,19 @@ const BrokerCredentialsForm = ({
   const provider = apis?.[brokerClassname];
   const schema = provider?.userCredentialSchema;
 
+  const { data: brokerFilters } = useGetBrokerFiltersQuery(brokerId);
+
   const [formData, setFormData] = useState<Record<string, unknown>>({});
   const [topics, setTopics] = useState<string[]>([]);
   const [topicsError, setTopicsError] = useState<string | null>(null);
+  const [topicFilterIds, setTopicFilterIds] = useState<
+    Record<string, number[]>
+  >({});
 
   useEffect(() => {
     setFormData(stored?.credentials ?? {});
     setTopics(stored?.topics ?? []);
+    setTopicFilterIds(stored?.topic_filter_ids ?? {});
   }, [stored]);
 
   // true = preferCacheValue; saving invalidates the query, so a reopen refetches.
@@ -69,7 +78,11 @@ const BrokerCredentialsForm = ({
     try {
       await setCredentials({
         brokerId,
-        patch: { credentials: formData, topics },
+        patch: {
+          credentials: formData,
+          topics,
+          topic_filter_ids: topicFilterIds,
+        },
       }).unwrap();
       setFormData(stored?.credentials ?? {});
       dispatch(showNotification("Credentials saved."));
@@ -159,6 +172,62 @@ const BrokerCredentialsForm = ({
           )}
         />
       </Box>
+
+      {topics.length > 0 && brokerFilters && brokerFilters.length > 0 && (
+        <Box sx={{ mt: 2 }}>
+          <Typography variant="subtitle2" gutterBottom>
+            Topic → filter routing
+          </Typography>
+          <Typography variant="body2" color="text.secondary" gutterBottom>
+            Map each topic to the SkyPortal filters its objects become
+            candidates for.
+          </Typography>
+          <Stack spacing={1}>
+            {topics.map((topic) => (
+              <Stack
+                key={topic}
+                direction="row"
+                spacing={1}
+                sx={{ alignItems: "center" }}
+              >
+                <Typography
+                  variant="body2"
+                  sx={{ minWidth: 200, wordBreak: "break-all" }}
+                >
+                  {topic}
+                </Typography>
+                <Select
+                  multiple
+                  size="small"
+                  displayEmpty
+                  value={topicFilterIds[topic] ?? []}
+                  onChange={(e) =>
+                    setTopicFilterIds((prev) => ({
+                      ...prev,
+                      [topic]: e.target.value as number[],
+                    }))
+                  }
+                  renderValue={(selected) =>
+                    (selected as number[]).length === 0
+                      ? "No filter"
+                      : brokerFilters
+                          .filter((f) => (selected as number[]).includes(f.id))
+                          .map((f) => f.name)
+                          .join(", ")
+                  }
+                  sx={{ minWidth: 200 }}
+                >
+                  {brokerFilters.map((f) => (
+                    <MenuItem key={f.id} value={f.id}>
+                      {f.name}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </Stack>
+            ))}
+          </Stack>
+        </Box>
+      )}
 
       <Stack direction="row" spacing={1} sx={{ mt: 2 }}>
         <Button variant="contained" onClick={onSave} disabled={isSaving}>

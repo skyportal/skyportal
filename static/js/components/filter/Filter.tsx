@@ -24,6 +24,7 @@ import { useGetConfigQuery } from "../../ducks/config";
 import { useGetGroupQuery } from "../../ducks/group";
 import { useGetFilterQuery } from "../../ducks/filter";
 import { useGetStreamQuery } from "../../ducks/stream";
+import { useGetBrokerCredentialsQuery } from "../../ducks/brokers";
 
 const AssistantHint = () => {
   const { setSpace, setOpen } = useCommentPanel();
@@ -84,6 +85,13 @@ const Filter = () => {
     skip: !filter?.stream_id,
   });
 
+  const { data: credentials } = useGetBrokerCredentialsQuery(brokerId, {
+    skip: !brokerId,
+  });
+  const myTopics = Object.entries(credentials?.topic_filter_ids ?? {})
+    .filter(([, ids]) => ids.includes(filter?.id))
+    .map(([topic]) => topic);
+
   if (filterError)
     return (filterError as any)?.error ?? "Failed to load filter";
   if (filter == null) return <Spinner />;
@@ -114,6 +122,15 @@ const Filter = () => {
           />
         )}
         {stream && <Chip size="small" label={`Stream: ${stream["name"]}`} />}
+        {myTopics.map((topic) => (
+          <Chip
+            key={topic}
+            size="small"
+            label={topic}
+            variant="outlined"
+            color="primary"
+          />
+        ))}
       </Box>
       {brokerId && <AssistantHint />}
       {group && <FilterPlugins />}
