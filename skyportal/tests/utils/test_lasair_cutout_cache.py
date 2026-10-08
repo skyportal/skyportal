@@ -79,3 +79,37 @@ def test_an_empty_result_is_not_cached(monkeypatch):
     lasair._cached_cutouts(_Broker(), _obj(), "ZTF26aaa")
     lasair._cached_cutouts(_Broker(), _obj(), "ZTF26aaa")
     assert calls == ["ZTF26aaa", "ZTF26aaa"]
+
+
+def test_a_plain_kafka_message_is_refused_not_completed_by_an_api_call():
+    # Lasair's plain stream carries the filter's selected columns only. Fetching
+    # the rest would spend one of the hundred calls an hour per alert, so the
+    # message is refused and the error names the setting that fixes it.
+    import asyncio
+
+    plain = {"objectId": "ZTF26aaa", "ramean": 1.0, "decmean": 2.0, "gmag": 20.1}
+    assert not lasair.carries_lightcurve(plain)
+
+    with pytest.raises(ValueError, match="lite lightcurve"):
+        asyncio.run(lasair._ingest_object(None, "ZTF26aaa", "ZTF", [1], payload=plain))
+
+
+def test_polling_still_fetches_the_object():
+    # Polling learns an objectId and nothing else, so there the REST call is the
+    # only way to get the photometry and must not be refused.
+    import asyncio
+
+    called = []
+
+    async def fake_save(*a, **k):
+        return None
+
+    orig = lasair._object
+    lasair._object = lambda b, oid, token=None: called.append(oid) or {}
+    try:
+        asyncio.run(lasair._ingest_object(None, "ZTF26aaa", "ZTF", [1], payload=None))
+    except Exception:
+        pass  # the DB write is not under test; the fetch having happened is
+    finally:
+        lasair._object = orig
+    assert called == ["ZTF26aaa"], "polling no longer fetches the object"

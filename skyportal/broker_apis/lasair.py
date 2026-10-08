@@ -513,15 +513,25 @@ async def _ingest_object(broker, oid, survey, filter_ids, token=None, payload=No
     and save any annotator annotations it carried. Shared by both ingestion modes,
     which differ only in how they learn an objectId.
 
-    The REST call is made only when the caller has no object in hand: a Lasair
-    account is allowed on the order of 100 calls an hour, far below the rate of
-    the stream it is reading.
+    The REST call is made only when polling, where there is no object in hand: a
+    Lasair account is allowed on the order of 100 calls an hour, far below the
+    rate of a stream. A stream message that arrives without its lightcurve is
+    refused rather than completed by that call, because a filter streaming at
+    alert rate would exhaust the hour's calls in minutes.
     """
     from baselayer.app.models import async_plain_session_factory
 
     from ..models import Thumbnail, User
     from ._save import save_object_as_candidate
 
+    if payload is not None and not carries_lightcurve(payload):
+        raise ValueError(
+            f"Lasair topic for {oid} streams the filter's selected columns only. "
+            "Set the filter's streaming choice to 'lite lightcurve' or 'full "
+            "alert' on its page in Lasair so the alert arrives with its "
+            "photometry: https://lasair-lsst.readthedocs.io/en/main/ (ZTF: "
+            "https://lasair.readthedocs.io/en/main/)"
+        )
     if carries_lightcurve(payload):
         obj = payload
     else:
