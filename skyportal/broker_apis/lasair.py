@@ -4,14 +4,27 @@ import json
 import math
 import time
 
+import numpy as np
 import requests
 import sqlalchemy as sa
 
+from baselayer.app.env import load_env
 from baselayer.log import make_log
 
+from ..utils.cache import Cache, cache_folder, dict_to_bytes
 from .interface import BrokerAPI, altdata_filter_modules
 
 log = make_log("broker/lasair")
+
+env, cfg = load_env()
+
+# A Lasair account is allowed 100 API calls an hour, and the cutouts of an
+# object do not change, so a fetched set is kept and reused rather than asking
+# again for an object we already have.
+cutouts_cache = Cache(
+    cache_dir=f"{cache_folder}/broker_cutouts",
+    max_age=cfg.get("misc.minutes_to_keep_broker_cutouts_cache", 1440) * 60,
+)
 
 DEFAULT_ENDPOINT = "https://api.lasair.lsst.ac.uk/api"
 DEFAULT_TIMEOUT = 30
@@ -423,6 +436,26 @@ def _query(broker, selected, tables, conditions, limit=1000):
     )
 
 
+def _cached_cutouts(broker, obj, alert_id):
+    """Cutouts for an object, fetched once and reused.
+
+    The images are keyed by object because Lasair keys them that way, so every
+    later alert on the same object is served from the cache instead of costing
+    an API call out of the hundred an hour.
+    """
+    key = f"{broker.id}_{alert_id}"
+    cached = cutouts_cache[key]
+    if cached is not None:
+        try:
+            return np.load(cached, allow_pickle=True).item()["cutouts"]
+        except Exception:
+            log(f"unreadable cutout cache entry for {key}, refetching")
+    cutouts = _cutouts_from_object(obj, alert_id)
+    if cutouts:
+        cutouts_cache[key] = dict_to_bytes({"cutouts": cutouts})
+    return cutouts
+
+
 def _cutouts_from_object(obj, alert_id):
     """Base64 cutouts from an already-fetched Lasair object, so an ingest that
     holds one does not spend a second call: a Lasair account gets 100 an hour."""
@@ -504,7 +537,7 @@ async def _ingest_object(broker, oid, survey, filter_ids, token=None, payload=No
         )
         if not has_thumbnails:
             try:
-                cutouts = await asyncio.to_thread(_cutouts_from_object, obj, oid)
+                cutouts = await asyncio.to_thread(_cached_cutouts, broker, obj, oid)
             except Exception:
                 cutouts = None
         await save_object_as_candidate(
@@ -1199,7 +1232,16 @@ class LASAIRBROKER(BrokerAPI):
     @staticmethod
     def get_cutouts(broker, alert_id, session, **kwargs):
         # Lasair keys cutouts by object, not candid, so alert_id is an objectId.
-        return _cutouts_from_object(_object(broker, alert_id), alert_id)
+        # A cached set answers without fetching the object, which is what makes
+        # this cheap: the object call and the three image fetches both go away.
+        key = f"{broker.id}_{alert_id}"
+        cached = cutouts_cache[key]
+        if cached is not None:
+            try:
+                return np.load(cached, allow_pickle=True).item()["cutouts"]
+            except Exception:
+                log(f"unreadable cutout cache entry for {key}, refetching")
+        return _cached_cutouts(broker, _object(broker, alert_id), alert_id)
 
     @staticmethod
     async def run_ingestion(broker, stop=None, max_messages=None, **kwargs):
