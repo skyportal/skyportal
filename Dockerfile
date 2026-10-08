@@ -54,10 +54,7 @@ RUN bash -c "\
     rm -rf services/osg/.git && \
     uv pip install --no-cache 'htcondor>=24.0' && \
     # OSDF staging mints a token from the Pelican keypair per upload.
-    PELICAN_ARCH=\"$(dpkg --print-architecture)\" && \
-    if [ \"${PELICAN_ARCH}\" = amd64 ]; then PELICAN_ARCH=x86_64; fi && \
-    curl -fsSL \"https://github.com/PelicanPlatform/pelican/releases/download/v${PELICAN_VERSION}/pelican_Linux_${PELICAN_ARCH}.tar.gz\" \
-        | tar -xz -C /tmp && \
+    curl -fsSL \"https://github.com/PelicanPlatform/pelican/releases/download/v${PELICAN_VERSION}/pelican_Linux_$(dpkg --print-architecture | sed s/amd64/x86_64/).tar.gz\" | tar -xz -C /tmp && \
     install -m 0755 \"/tmp/pelican-${PELICAN_VERSION}/pelican\" /usr/local/bin/pelican && \
     rm -rf \"/tmp/pelican-${PELICAN_VERSION}\" && \
     pelican --version && \
