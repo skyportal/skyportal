@@ -943,10 +943,10 @@ def make_app(cfg, baselayer_handlers, baselayer_settings, process=None, env=None
     admin_token = model_util.provision_token()
     with open(".tokens.yaml", "w") as f:
         f.write(f"INITIAL_ADMIN: {admin_token.id}\n")
-    with open(".tokens.yaml") as f:
+    if env.debug:
         print("-" * 78)
         print("Tokens in .tokens.yaml:")
-        print("\n".join(f.readlines()), end="")
+        print(f"INITIAL_ADMIN: {admin_token.id}")
         print("-" * 78)
 
     model_util.provision_public_group()
