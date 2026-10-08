@@ -19,12 +19,8 @@ depends_on = None
 
 
 def upgrade():
-    # The table itself is created by create_all on startup, so on a database
-    # that predates the brokers feature there is nothing here to alter yet.
-    if "broker_credentials" not in sa.inspect(op.get_bind()).get_table_names():
-        return
     op.add_column(
-        "broker_credentials",
+        "brokercredentials",
         sa.Column(
             "topic_status",
             postgresql.JSONB(astext_type=sa.Text()),
@@ -35,6 +31,4 @@ def upgrade():
 
 
 def downgrade():
-    if "broker_credentials" not in sa.inspect(op.get_bind()).get_table_names():
-        return
-    op.drop_column("broker_credentials", "topic_status")
+    op.drop_column("brokercredentials", "topic_status")
