@@ -955,6 +955,10 @@ class LASAIRBROKER(BrokerAPI):
     def configured_surveys(cls, altdata):
         return [_survey_from_altdata(altdata)]
 
+    @staticmethod
+    def available_topics(broker, credentials=None):
+        return available_topics(broker, credentials)
+
     form_json_schema_config = {
         "type": "object",
         "required": ["endpoint"],
