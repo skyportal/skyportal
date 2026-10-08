@@ -53,9 +53,7 @@ RUN bash -c "\
     git clone --depth 1 --branch \"${OSG_PLUGIN_REV}\" \"${OSG_PLUGIN_REPO}\" services/osg && \
     rm -rf services/osg/.git && \
     uv pip install --no-cache 'htcondor>=24.0' && \
-    # The OSDF staging path mints a short-lived token from the Pelican keypair
-    # per upload, so the client has to be in the image: it is a Go binary too
-    # large to vendor, and a copy into a running pod is lost on the next deploy.
+    # OSDF staging mints a token from the Pelican keypair per upload.
     PELICAN_ARCH=\"$(dpkg --print-architecture)\" && \
     if [ \"${PELICAN_ARCH}\" = amd64 ]; then PELICAN_ARCH=x86_64; fi && \
     curl -fsSL \"https://github.com/PelicanPlatform/pelican/releases/download/v${PELICAN_VERSION}/pelican_Linux_${PELICAN_ARCH}.tar.gz\" \
