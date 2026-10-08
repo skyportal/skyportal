@@ -48,10 +48,10 @@ RUN bash -c "\
     uv venv && \
     source .venv/bin/activate && \
     uv sync --inexact && \
-    # Bake OSG plugin (NRP can't clone at runtime) + its htcondor bindings.
+    # Bake OSG plugin (NRP can't clone at runtime). Its htcondor bindings are
+    # a dependency of the deployment that uses it, not of skyportal.
     git clone --depth 1 --branch \"${OSG_PLUGIN_REV}\" \"${OSG_PLUGIN_REPO}\" services/osg && \
     rm -rf services/osg/.git && \
-    uv pip install --no-cache 'htcondor>=24.0' && \
     make system_setup && \
     \
     ./node_modules/.bin/rspack --mode=production && \
