@@ -35,8 +35,6 @@ RUN apt-get update && \
 
 ARG SKYPORTAL_UID=1000
 ARG SKYPORTAL_GID=1000
-ARG OSG_PLUGIN_REPO=https://github.com/skyportal/osg-skyportal-plugin.git
-ARG OSG_PLUGIN_REV=main
 RUN groupadd -g $SKYPORTAL_GID skyportal && \
     useradd -u $SKYPORTAL_UID -g $SKYPORTAL_GID --create-home --shell /bin/bash skyportal
 
@@ -48,10 +46,6 @@ RUN bash -c "\
     uv venv && \
     source .venv/bin/activate && \
     uv sync --inexact && \
-    # Bake OSG plugin (NRP can't clone at runtime) + its htcondor bindings.
-    git clone --depth 1 --branch \"${OSG_PLUGIN_REV}\" \"${OSG_PLUGIN_REPO}\" services/osg && \
-    rm -rf services/osg/.git && \
-    uv pip install --no-cache 'htcondor>=24.0' && \
     make system_setup && \
     \
     ./node_modules/.bin/rspack --mode=production && \
@@ -97,6 +91,10 @@ RUN bash -c "\
     # we remove some unused data from the gwemopt package to reduce the image size
     rm -rf .venv/lib/python3.12/site-packages/gwemopt/data/tesselations/*.tess"
 
+
+# A deployment adds to the image by placing this script in its build context.
+# It runs as root after the chown, so what it leaves under /skyportal is root-owned.
+RUN if [ -f /skyportal/docker-extra-setup.sh ]; then bash -euo pipefail /skyportal/docker-extra-setup.sh; fi
 
 USER skyportal
 
