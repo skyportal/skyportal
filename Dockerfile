@@ -37,6 +37,7 @@ ARG SKYPORTAL_UID=1000
 ARG SKYPORTAL_GID=1000
 ARG OSG_PLUGIN_REPO=https://github.com/skyportal/osg-skyportal-plugin.git
 ARG OSG_PLUGIN_REV=main
+ARG PELICAN_VERSION=7.27.0
 RUN groupadd -g $SKYPORTAL_GID skyportal && \
     useradd -u $SKYPORTAL_UID -g $SKYPORTAL_GID --create-home --shell /bin/bash skyportal
 
@@ -52,6 +53,16 @@ RUN bash -c "\
     git clone --depth 1 --branch \"${OSG_PLUGIN_REV}\" \"${OSG_PLUGIN_REPO}\" services/osg && \
     rm -rf services/osg/.git && \
     uv pip install --no-cache 'htcondor>=24.0' && \
+    # The OSDF staging path mints a short-lived token from the Pelican keypair
+    # per upload, so the client has to be in the image: it is a Go binary too
+    # large to vendor, and a copy into a running pod is lost on the next deploy.
+    PELICAN_ARCH=\"$(dpkg --print-architecture)\" && \
+    if [ \"${PELICAN_ARCH}\" = amd64 ]; then PELICAN_ARCH=x86_64; fi && \
+    curl -fsSL \"https://github.com/PelicanPlatform/pelican/releases/download/v${PELICAN_VERSION}/pelican_Linux_${PELICAN_ARCH}.tar.gz\" \
+        | tar -xz -C /tmp && \
+    install -m 0755 \"/tmp/pelican-${PELICAN_VERSION}/pelican\" /usr/local/bin/pelican && \
+    rm -rf \"/tmp/pelican-${PELICAN_VERSION}\" && \
+    pelican --version && \
     make system_setup && \
     \
     ./node_modules/.bin/rspack --mode=production && \
