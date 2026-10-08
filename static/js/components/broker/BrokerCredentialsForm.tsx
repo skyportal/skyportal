@@ -188,7 +188,7 @@ const BrokerCredentialsForm = ({
                 key={topic}
                 direction="row"
                 spacing={1}
-                alignItems="center"
+                sx={{ alignItems: "center" }}
               >
                 <Typography
                   variant="body2"
