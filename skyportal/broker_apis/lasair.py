@@ -18,9 +18,8 @@ log = make_log("broker/lasair")
 
 env, cfg = load_env()
 
-# A Lasair account is allowed 100 API calls an hour, and the cutouts of an
-# object do not change, so a fetched set is kept and reused rather than asking
-# again for an object we already have.
+# The cutouts of an object do not change, so a fetched set is kept and reused
+# rather than spending a call asking again for an object we already have.
 cutouts_cache = Cache(
     cache_dir=f"{cache_folder}/broker_cutouts",
     max_age=cfg.get("misc.minutes_to_keep_broker_cutouts_cache", 1440) * 60,
@@ -440,8 +439,8 @@ def _cached_cutouts(broker, obj, alert_id):
     """Cutouts for an object, fetched once and reused.
 
     The images are keyed by object because Lasair keys them that way, so every
-    later alert on the same object is served from the cache instead of costing
-    an API call out of the hundred an hour.
+    later alert on the same object is served from the cache rather than costing
+    a call.
     """
     key = f"{broker.id}_{alert_id}"
     cached = cutouts_cache[key]
@@ -513,11 +512,11 @@ async def _ingest_object(broker, oid, survey, filter_ids, token=None, payload=No
     and save any annotator annotations it carried. Shared by both ingestion modes,
     which differ only in how they learn an objectId.
 
-    The REST call is made only when polling, where there is no object in hand: a
-    Lasair account is allowed on the order of 100 calls an hour, far below the
-    rate of a stream. A stream message that arrives without its lightcurve is
-    refused rather than completed by that call, because a filter streaming at
-    alert rate would exhaust the hour's calls in minutes.
+    The REST call is made only when polling, where there is no object in hand.
+    A stream message that arrives without its lightcurve is refused rather than
+    completed by that call: an active filter delivers at the rate alerts arrive,
+    which is not bounded by the account's hourly call allowance whatever tier it
+    is on, so one call per alert exhausts it.
     """
     from baselayer.app.models import async_plain_session_factory
 

@@ -83,8 +83,8 @@ def test_an_empty_result_is_not_cached(monkeypatch):
 
 def test_a_plain_kafka_message_is_refused_not_completed_by_an_api_call():
     # Lasair's plain stream carries the filter's selected columns only. Fetching
-    # the rest would spend one of the hundred calls an hour per alert, so the
-    # message is refused and the error names the setting that fixes it.
+    # the rest would cost a call per alert, at whatever rate the filter fires,
+    # so the message is refused and the error names the setting that fixes it.
     import asyncio
 
     plain = {"objectId": "ZTF26aaa", "ramean": 1.0, "decmean": 2.0, "gmag": 20.1}
