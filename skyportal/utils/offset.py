@@ -3,6 +3,7 @@ import math
 import os
 import re
 import string
+import time
 import traceback
 import urllib
 import warnings
@@ -134,8 +135,10 @@ irsa = {
     "url_search": "https://irsa.ipac.caltech.edu/ibe/search/ztf/products/",
 }
 
-# Blocks one of the app's few worker threads, so fail fast when IRSA hangs.
-IRSA_SEARCH_TIMEOUT = (6.05, 5.0)
+# IRSA often takes over 10 s to answer.
+IRSA_SEARCH_TIMEOUT = (6.05, 20.0)
+IRSA_RETRY_DELAY = 900
+_irsa_unanswered = {}
 
 
 class ZTFRefUnavailable(Exception):
@@ -309,8 +312,12 @@ def _ztfref_url_and_epoch(ra, dec, imsize):
     url_ref_meta = os.path.join(
         irsa["url_search"], f"ref?POS={ra:f},{dec:f}&SIZE={imsize_deg:f}&ct=csv"
     )
+    key = (ra, dec, imsize)
+    if time.time() - _irsa_unanswered.get(key, -math.inf) < IRSA_RETRY_DELAY:
+        raise ZTFRefUnavailable(f"IRSA recently left {ra} {dec} unanswered")
     r = get_url(url_ref_meta, timeout=IRSA_SEARCH_TIMEOUT)
     if r is None:
+        _irsa_unanswered[key] = time.time()
         raise ZTFRefUnavailable(f"no response from IRSA for {ra} {dec}")
     if r.status_code != 200:
         raise ZTFRefUnavailable(f"IRSA returned {r.status_code} for {ra} {dec}")
@@ -478,7 +485,6 @@ def get_astrometry_backup_from_ztf(
     return ztf_astrometry
 
 
-@memcache
 def get_ztfcatalog(
     ra,
     dec,
@@ -1066,6 +1072,8 @@ def get_nearby_offset_stars(
                 "Warning: Could not find the ZTF reference catalog"
                 f" at position {source_ra} {source_dec}"
             )
+            ztfcatalog = None
+            use_ztfref = False
         else:
             if (
                 sum(

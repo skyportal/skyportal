@@ -317,22 +317,20 @@ def test_ztfref_absent_reference_is_reported_without_error():
     assert url == "" and epoch is None
 
 
-def test_ztfref_lookup_uses_the_short_timeout():
-    """The lookup sits on a worker thread, so it must not use the 20s default."""
+def test_ztfref_lookup_does_not_retry_an_unanswered_position_right_away():
+    """The lookup sits on a worker thread, so a silent IRSA must not stall every request."""
     ra, dec = _fresh_position()
-    seen = {}
+    timeouts = []
 
-    def capture(url, **kwargs):
-        seen.update(kwargs)
-        return _fake_response(body=_IRSA_CSV)
+    def silent(url, **kwargs):
+        timeouts.append(kwargs.get("timeout"))
+        return None
 
-    with patch("skyportal.utils.offset.get_url", side_effect=capture):
-        get_ztfref_url(ra, dec, 2)
+    with patch("skyportal.utils.offset.get_url", side_effect=silent):
+        assert get_ztfref_url(ra, dec, 2) == ""
+        assert get_ztfref_url(ra, dec, 2) == ""
 
-    assert seen.get("timeout") == IRSA_SEARCH_TIMEOUT
-    assert IRSA_SEARCH_TIMEOUT[1] <= 10, (
-        "read timeout is back to a thread-stalling value"
-    )
+    assert timeouts == [IRSA_SEARCH_TIMEOUT]
 
 
 def test_finding_chart_without_an_image_still_renders():
