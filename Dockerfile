@@ -93,7 +93,8 @@ RUN bash -c "\
 
 
 # A deployment adds to the image by placing this script in its build context.
-RUN if [ -f /skyportal/docker-extra-setup.sh ]; then bash /skyportal/docker-extra-setup.sh; fi
+# It runs as root after the chown, so what it leaves under /skyportal is root-owned.
+RUN if [ -f /skyportal/docker-extra-setup.sh ]; then bash -euo pipefail /skyportal/docker-extra-setup.sh; fi
 
 USER skyportal
 
