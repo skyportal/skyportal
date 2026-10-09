@@ -95,9 +95,8 @@ not affect the version, which is the release date, so call out a
 `breaking` change when you make one: the version number cannot warn
 anyone on your behalf.
 
-A PR that only touches `doc/`, `.github/` or Markdown skips the
-requirement automatically. Anything else that users will never notice
-can skip it with the `skip-changelog` label.
+A PR that users will never notice, such as a CI or documentation
+change, needs none.
 
 ### Releasing
 

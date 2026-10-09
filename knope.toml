@@ -8,6 +8,7 @@ versioned_files = [
     { path = "skyportal/__init__.py", regex = "(?m)^__version__ = \"(?<version>[^\"]+)\"$" },
 ]
 changelog = "CHANGELOG.md"
+assets = "dist/*"
 
 # Releases are dated, so a changeset says what kind of change it is rather than
 # how far the version should move.
@@ -53,7 +54,7 @@ variables = { "$version" = "Version" }
 
 [[workflows.steps]]
 type = "Command"
-command = "git commit --all -m \"chore: prepare release $version\""
+command = "git -c user.name=\"github-actions[bot]\" -c user.email=\"41898282+github-actions[bot]@users.noreply.github.com\" commit --all -m \"chore: prepare release $version\""
 variables = { "$version" = "Version" }
 
 [[workflows.steps]]
