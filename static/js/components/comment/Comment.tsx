@@ -127,39 +127,34 @@ const Comment = ({
   const editComment = (formData: any) => {
     switch (resourceType) {
       case "sources":
-        editCommentMutation({
+        return editCommentMutation({
           commentID: id,
           formData: { ...formData, obj_id: objID },
         });
-        break;
       case "spectra":
-        editCommentMutation({
+        return editCommentMutation({
           commentID: id,
           formData: { ...formData, spectrum_id },
         });
-        break;
       case "gcn_event":
-        editCommentOnGcnEvent({
+        return editCommentOnGcnEvent({
           commentID: id,
           gcnEventID: gcnEventID!,
           formData,
         });
-        break;
       case "shift":
-        editCommentOnShift({
+        return editCommentOnShift({
           commentID: id,
           formData: { ...formData, shift_id: shiftID },
         });
-        break;
       case "earthquake":
-        editCommentOnEarthquake({
+        return editCommentOnEarthquake({
           commentID: id,
           earthquakeID: earthquakeID!,
           formData,
         });
-        break;
       default:
-        break;
+        return undefined;
     }
   };
 
