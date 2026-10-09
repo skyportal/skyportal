@@ -1724,12 +1724,13 @@ class AnalysisHandler(BaseHandler):
                         AnalysisService.id == analysis.analysis_service_id
                     )
                     analysis_service = await session.scalar(stmt)
-                    analysis_dict["analysis_service_name"] = (
-                        analysis_service.display_name
-                    )
-                    analysis_dict["analysis_service_description"] = (
-                        analysis_service.description
-                    )
+                    if analysis_service is not None:
+                        analysis_dict["analysis_service_name"] = (
+                            analysis_service.display_name
+                        )
+                        analysis_dict["analysis_service_description"] = (
+                            analysis_service.description
+                        )
                     analysis_dict["num_plots"] = analysis.number_of_analysis_plots
 
                     if query.includeFilename:
