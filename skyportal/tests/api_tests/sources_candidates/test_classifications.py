@@ -218,6 +218,7 @@ def test_update_classification_probability_records_edit(
             "taxonomy_id": taxonomy_id,
             "probability": 1.0,
             "group_ids": [public_group.id],
+            "ml": True,
         },
         token=classification_token,
     )
@@ -246,6 +247,8 @@ def test_update_classification_probability_records_edit(
     assert len(data["data"]) == 1
     assert data["data"][0]["id"] == classification_id
     assert data["data"][0]["probability"] == 0
+    # ml was not in the PUT body, so it is left alone
+    assert data["data"][0]["ml"] is True
 
     edits = data["data"][0]["edits"]
     assert len(edits) == 1

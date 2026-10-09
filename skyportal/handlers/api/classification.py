@@ -359,16 +359,17 @@ class ClassificationHandler(BaseHandler):
             group_ids = data.pop("group_ids", None)
             data["id"] = classification_id
 
-            ml = data.get("ml", False)
-            if ml in [True, "True", "t", "true"]:
-                ml = True
-            elif ml in [False, "False", "f", "false"]:
-                ml = False
-            else:
-                return self.error(
-                    f"If provided, ml must be one of True, False, 'True', 'False', 't', 'f', 'true', 'false' (got {ml})"
-                )
-            data["ml"] = ml
+            if "ml" in data:
+                ml = data["ml"]
+                if ml in [True, "True", "t", "true"]:
+                    ml = True
+                elif ml in [False, "False", "f", "false"]:
+                    ml = False
+                else:
+                    return self.error(
+                        f"If provided, ml must be one of True, False, 'True', 'False', 't', 'f', 'true', 'false' (got {ml})"
+                    )
+                data["ml"] = ml
 
             schema = Classification.__schema__()
             try:
