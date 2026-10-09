@@ -1,7 +1,7 @@
 import os
 import time
 import uuid
-from datetime import timedelta
+from datetime import datetime, timedelta
 
 import numpy as np
 import pytest
@@ -370,6 +370,41 @@ def test_gcn_from_igwn_json(super_admin_token):
     assert "retracted" in data["data"]["tags"]
 
     api("DELETE", f"localization/{dateobs}/name/{skymap}", token=super_admin_token)
+    api("DELETE", f"gcn_event/{dateobs}", token=super_admin_token)
+
+
+def test_gcn_json_update_with_the_same_trigger_time(super_admin_token):
+    trigger = datetime(2019, 1, 1) + timedelta(seconds=uuid.uuid4().int % 31_536_000)
+    dateobs = trigger.strftime("%Y-%m-%dT%H:%M:%S")
+    initial = {
+        "notice_type": "chime.frb",
+        "alert_type": "initial",
+        "trigger_time": f"{dateobs}.000000",
+        "id": str(uuid.uuid4().int)[:10],
+        "ra": 120.0,
+        "dec": 30.0,
+        "ra_dec_error": [0.5, 0.5, 0],
+        "dm": 300.0,
+        "snr": 15.0,
+    }
+    update = {**initial, "alert_type": "update", "ra_dec_error": [0.1, 0.1, 0]}
+
+    for notice in (initial, update):
+        status, data = api(
+            "POST", "gcn_event", data={"json": notice}, token=super_admin_token
+        )
+        assert status == 200, data
+
+    status, data = api(
+        "POST", "gcn_event", data={"json": update}, token=super_admin_token
+    )
+    assert status == 400
+    assert "already ingested" in data["message"]
+
+    status, data = api("GET", f"gcn_event/{dateobs}", token=super_admin_token)
+    assert status == 200, data
+    assert len(data["data"]["gcn_notices"]) == 2
+
     api("DELETE", f"gcn_event/{dateobs}", token=super_admin_token)
 
 

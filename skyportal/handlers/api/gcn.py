@@ -932,6 +932,7 @@ async def post_gcnevent_from_json(
     # from_igwn_gwalert is idempotent, so this is safe if already normalized.
     if payload.get("superevent_id") is not None and payload.get("alert_type"):
         payload = from_igwn_gwalert(payload)
+    content = json.dumps(payload).encode("utf-8")
 
     user = await session.get(User, user_id)
 
@@ -984,6 +985,12 @@ async def post_gcnevent_from_json(
         dateobs = event.dateobs
     else:
         dateobs = event.dateobs
+        if await session.scalar(
+            sa.select(GcnNotice.id).where(
+                GcnNotice.dateobs == dateobs, GcnNotice.content == content
+            )
+        ):
+            raise ValueError(f"This notice was already ingested for event {dateobs}.")
         update_check = await session.scalar(
             GcnEvent.select(user, mode="update").where(GcnEvent.id == event.id)
         )
@@ -1058,9 +1065,20 @@ async def post_gcnevent_from_json(
         instrument = "Unknown"
 
     notice_type = payload.get("notice_type")
+    ivorn = f"{instrument}-{date.strftime('%Y-%m-%dT%H:%M:%S')}"
+    taken = await session.scalar(
+        sa.select(sa.func.count(GcnNotice.id)).where(
+            sa.or_(
+                GcnNotice.ivorn == ivorn,
+                GcnNotice.ivorn.startswith(f"{ivorn}-", autoescape=True),
+            )
+        )
+    )
+    if taken:
+        ivorn = f"{ivorn}-{taken + 1}"
     gcn_notice = GcnNotice(
-        content=json.dumps(payload).encode("utf-8"),
-        ivorn=f"{instrument}-{date.strftime('%Y-%m-%dT%H:%M:%S')}",
+        content=content,
+        ivorn=ivorn,
         notice_type=notice_type,
         stream=instrument,
         date=date,
