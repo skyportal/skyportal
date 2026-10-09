@@ -410,7 +410,7 @@ class ShiftUserHandler(BaseHandler):
                 UserNotification(
                     user_id=user.id,
                     text=f"You've been added to shift *{shift.name}*",
-                    url=f"/shift/{shift.id}",
+                    url=f"/shifts/{shift.id}",
                 )
             )
             await session.commit()
