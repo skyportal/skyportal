@@ -475,8 +475,9 @@ const ObservationPlanRequestForm = ({
         observation_plans: planQueues,
         combine_plans: multiPlansChecked,
       };
-      await submitObservationPlanRequest(json);
-      setPlanQueues([]);
+      const result = await submitObservationPlanRequest(json);
+      // the server creates none of the plans if any is rejected
+      if (!("error" in result)) setPlanQueues([]);
     }
     setIsSubmitting(false);
   };
