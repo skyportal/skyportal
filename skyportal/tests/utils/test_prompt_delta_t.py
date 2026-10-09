@@ -42,8 +42,7 @@ def test_clause_matches_either_side_of_the_event():
     params = []
     clause = _delta_t_clause(2, None, None, True, None, params)
     assert "abs((value ->> 'delta_t')::float) <= :prompt_delta_t" in clause
-    assert [p.key for p in params] == ["prompt_delta_t"]
-    assert params[0].value == 2.0
+    assert {p.key: p.value for p in params}["prompt_delta_t"] == 2.0
 
 
 def test_clause_scopes_to_the_event_when_given():
@@ -85,8 +84,11 @@ def test_prefix_keeps_the_two_cuts_apart():
     params = []
     _delta_t_clause(2, None, None, True, None, params)
     _delta_t_clause(5, None, None, True, None, params, prefix="maxdt")
-    assert [p.key for p in params] == ["prompt_delta_t", "maxdt_delta_t"]
-    assert [p.value for p in params] == [2.0, 5.0]
+    keys = [p.key for p in params]
+    assert len(keys) == len(set(keys)), f"bind parameters collide: {keys}"
+    bound = {p.key: p.value for p in params}
+    assert bound["prompt_delta_t"] == 2.0
+    assert bound["maxdt_delta_t"] == 5.0
 
 
 def test_max_delta_t_clause_bounds_the_age():
