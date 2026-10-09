@@ -1,4 +1,5 @@
 import hashlib
+import json
 import re
 import time
 
@@ -327,7 +328,9 @@ def get_period_exists(annotations):
 _NUMERIC_RE = r"^-?[0-9]+\.?[0-9]*([eE][-+]?[0-9]+)?$"
 
 
-def _nested_annotation_clause(param_index, condition, localization_dateobs, params):
+def _nested_annotation_clause(
+    param_index, condition, localization_dateobs, params, key=None
+):
     """A test applied to each sub-object of an annotation's data.
 
     Annotations that hold one entry per related thing (a GCN crossmatch keyed by
@@ -335,6 +338,13 @@ def _nested_annotation_clause(param_index, condition, localization_dateobs, para
     `value`, the sub-object. When an event is named, only the entry carrying that
     `dateobs` is considered; the two are compared as timestamps so a difference
     in formatting does not silently match nothing.
+
+    `key` is the field `condition` reads. Given one, the sub-objects are only
+    expanded for rows a jsonpath says could carry it, which is what makes this
+    affordable over the whole table: expanding every annotation's data costs far
+    more than the test applied to the result. The jsonpath is the looser
+    question -- lax mode also unwraps arrays -- so it can only skip rows that
+    could not have matched.
     """
     scope = ""
     if localization_dateobs is not None:
@@ -350,11 +360,26 @@ def _nested_annotation_clause(param_index, condition, localization_dateobs, para
             " AND (value ->> 'dateobs')::timestamp"
             f" = (:annotations_filter_dateobs_{param_index})::timestamp"
         )
-    return f"""EXISTS (
+    guard = ""
+    if key is not None:
+        # json.dumps quotes and escapes the key, so one carrying a quote cannot
+        # change the shape of the path.
+        params.append(
+            bindparam(
+                f"annotations_filter_jsonpath_{param_index}",
+                value=f"$.*.{json.dumps(key)}",
+                type_=sa.String,
+            )
+        )
+        guard = (
+            "annotations.data @? "
+            f"CAST(:annotations_filter_jsonpath_{param_index} AS jsonpath) AND "
+        )
+    return f"""({guard}EXISTS (
         SELECT 1 FROM jsonb_each(annotations.data) AS entry(key, value)
         WHERE jsonb_typeof(value) = 'object'
           AND ({condition}){scope}
-    )"""
+    ))"""
 
 
 PROMPT_EXEMPT_ANNOTATIONS = ("ndethist",)
@@ -382,7 +407,9 @@ def _delta_t_clause(
         f"(value ->> 'delta_t') ~ '{_NUMERIC_RE}'"
         f" AND abs((value ->> 'delta_t')::float) <= :{param}"
     )
-    nested = _nested_annotation_clause(prefix, condition, localization_dateobs, params)
+    nested = _nested_annotation_clause(
+        prefix, condition, localization_dateobs, params, key="delta_t"
+    )
     origin_clause = ""
     if origins:
         origin_str, origin_bindparams = array2sql(
@@ -583,6 +610,7 @@ def create_annotation_query(
                 f"{comp_function} (:annotations_filter_value_{param_index})::float",
                 localization_dateobs,
                 params,
+                key=annotations_filter[0].strip(),
             )
             stmts.append(
                 f"""
@@ -607,6 +635,7 @@ def create_annotation_query(
                 f"value ->> :annotations_filter_name_{param_index} IS NOT NULL",
                 localization_dateobs,
                 params,
+                key=annotations_filter[0].strip(),
             )
             stmts.append(
                 f"""
