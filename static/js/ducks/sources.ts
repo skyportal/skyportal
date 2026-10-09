@@ -251,6 +251,7 @@ export const {
   useFetchPendingGroupSourcesQuery,
   useFetchFavoriteSourcesQuery,
   useFetchGcnEventSourcesQuery,
+  useLazyFetchGcnEventSourcesQuery,
   useFetchSpatialCatalogSourcesQuery,
   useGetAltdataInfoQuery,
 } = sourcesApi;

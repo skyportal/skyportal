@@ -47,7 +47,7 @@ import {
 } from "../../ducks/observations";
 import {
   useFetchGcnEventSourcesQuery,
-  useLazyFetchSourcesQuery,
+  useLazyFetchGcnEventSourcesQuery,
 } from "../../ducks/sources";
 import { useLazyGetSourcesInGcnQuery } from "../../ducks/sourcesingcn";
 import { useGetTelescopesQuery } from "../../ducks/telescopes";
@@ -163,7 +163,7 @@ const GcnEventSourcesPage = ({
     numPerPage,
   });
   const [fetchSourcesInGcn] = useLazyGetSourcesInGcnQuery();
-  const [fetchSources] = useLazyFetchSourcesQuery();
+  const [fetchGcnEventSources] = useLazyFetchGcnEventSourcesQuery();
   const { download, progress } = useDownloadAll("sources");
 
   const query = (params: Record<string, any>) => {
@@ -181,10 +181,13 @@ const GcnEventSourcesPage = ({
       sources.totalMatches,
       sources.numPerPage,
       async (pageNumber) => {
-        const result: any = await fetchSources({
-          ...filtering,
-          pageNumber,
-          numPerPage: sources.numPerPage,
+        const result: any = await fetchGcnEventSources({
+          dateobs,
+          filterParams: {
+            ...filtering,
+            pageNumber,
+            numPerPage: sources.numPerPage,
+          },
         }).unwrap();
         // RTK Query results are frozen; copy them before attaching `gcn` below.
         return result.sources.map((source: any) => ({ ...source }));
