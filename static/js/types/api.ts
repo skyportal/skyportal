@@ -8379,7 +8379,7 @@ export interface paths {
         post?: never;
         /**
          * Delete a GCN Event
-         * @description Delete a GCN event
+         * @description <b>Permission(s) required:</b> <em>Manage GCNs (or System admin)</em><br><br>Delete a GCN event
          */
         delete: {
             parameters: {
