@@ -71,6 +71,18 @@ def test_fetch_group_exclude_users(super_admin_token, public_group):
     assert "users" not in data["data"]
 
 
+def test_fetch_group_users_omits_contact_details(view_only_token, public_group):
+    status, data = api(
+        "GET",
+        f"groups/{public_group.id}?includeGroupUsers=true",
+        token=view_only_token,
+    )
+    assert status == 200
+    assert len(data["data"]["users"]) > 0
+    for user in data["data"]["users"]:
+        assert not {"contact_email", "contact_phone", "oauth_uid"} & set(user)
+
+
 def test_token_user_request_all_groups(super_admin_token, super_admin_user):
     group_name = str(uuid.uuid4())
     status, data = api(
