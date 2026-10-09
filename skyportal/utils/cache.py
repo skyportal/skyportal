@@ -157,9 +157,12 @@ class Cache:
 
     def clean_cache(self):
         # Remove stale cache files
-        cached_files = [
-            (f.stat().st_mtime, f.absolute()) for f in self._cache_dir.glob("*")
-        ]
+        cached_files = []
+        for f in self._cache_dir.glob("*"):
+            try:
+                cached_files.append((f.stat().st_mtime, f.absolute()))
+            except FileNotFoundError:
+                continue
         cached_files = sorted(cached_files, key=lambda x: x[0], reverse=True)
 
         now = time.time()
