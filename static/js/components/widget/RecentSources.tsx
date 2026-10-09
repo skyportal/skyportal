@@ -35,7 +35,7 @@ export const useSourceListStyles = makeStyles<{
     display: "contents",
   },
   stamp: {
-    transition: "transform 0.1s",
+    transition: "transform 0.1s, opacity 0.3s",
     width: "6.6em",
     height: "6.6em",
     display: "block",
@@ -190,24 +190,38 @@ interface SourceStampProps {
 
 export const SourceStamp = ({ source, styles }: SourceStampProps) => {
   const [failed, setFailed] = useState(0);
+  const [loadedSrc, setLoadedSrc] = useState<string | null>(null);
   const thumbnail = source.thumbnails.filter(
     (t: any) => !isPlaceholder(t.public_url),
   )[failed];
+  const loaded = thumbnail && loadedSrc === thumbnail.public_url;
 
   return (
     <Link to={`/source/${source.obj_id}`} className={styles.stampContainer}>
       {thumbnail ? (
-        <img
-          className={
-            thumbnail.is_grayscale
-              ? `${styles.stamp} ${styles.inverted}`
-              : styles.stamp
-          }
-          src={thumbnail.public_url}
-          alt={source.obj_id}
-          loading="lazy"
-          onError={() => setFailed(failed + 1)}
-        />
+        <Box sx={{ position: "relative", flexShrink: 0 }}>
+          <img
+            className={
+              thumbnail.is_grayscale
+                ? `${styles.stamp} ${styles.inverted}`
+                : styles.stamp
+            }
+            style={{ opacity: loaded ? 1 : 0 }}
+            src={thumbnail.public_url}
+            alt={source.obj_id}
+            loading="lazy"
+            onLoad={() => setLoadedSrc(thumbnail.public_url)}
+            onError={() => setFailed(failed + 1)}
+          />
+          {!loaded && (
+            <Skeleton
+              variant="rounded"
+              width="100%"
+              height="100%"
+              sx={{ position: "absolute", inset: 0 }}
+            />
+          )}
+        </Box>
       ) : (
         <Box
           sx={{
