@@ -1952,7 +1952,7 @@ def test_parse_integer_spectrum_ascii(upload_data_token):
 
 
 def test_spectrum_external_reducer_and_observer(
-    upload_data_token, public_source, public_group, lris, user
+    upload_data_token, public_source, public_group, lris, user, view_only_user
 ):
     status, data = api(
         "POST",
@@ -1987,6 +1987,26 @@ def test_spectrum_external_reducer_and_observer(
     assert data["data"]["external_reducer"] == "Test external reducer"
     assert data["data"]["external_observer"] == "Test external observer"
     assert data["data"]["external_pi"] == "Test external PI"
+
+    # keep one existing contact, replace another
+    status, data = api(
+        "PUT",
+        f"spectrum/{spectrum_id}",
+        data={
+            "reduced_by": [user.id],
+            "external_reducer": "Updated external reducer",
+            "pi": [view_only_user.id],
+        },
+        token=upload_data_token,
+    )
+    assert status == 200
+    assert data["status"] == "success"
+
+    status, data = api("GET", f"spectrum/{spectrum_id}", token=upload_data_token)
+    assert status == 200
+    assert [r["id"] for r in data["data"]["reducers"]] == [user.id]
+    assert data["data"]["external_reducer"] == "Updated external reducer"
+    assert [p["id"] for p in data["data"]["pis"]] == [view_only_user.id]
 
 
 def test_obj_spectra_external_fields(
