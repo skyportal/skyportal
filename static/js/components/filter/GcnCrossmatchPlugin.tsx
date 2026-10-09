@@ -81,11 +81,11 @@ const GcnCrossmatchPlugin = () => {
       .filter(Boolean);
     if (gcnTags.length) config["filters"] = { gcn_tags: gcnTags };
 
-    await updateFilter({
+    const result = await updateFilter({
       filter_id: filter.id,
       altdata: { ...(filter.altdata ?? {}), [KEY]: config },
     });
-    setSaved(true);
+    setSaved(!("error" in result));
   };
 
   return (
