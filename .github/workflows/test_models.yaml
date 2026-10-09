@@ -34,7 +34,7 @@ jobs:
 
     services:
       postgres:
-        image: pgvector/pgvector:pg17
+        image: mirror.gcr.io/pgvector/pgvector:pg17
         env:
           POSTGRES_USER: skyportal
           POSTGRES_PASSWORD: anything
