@@ -12,7 +12,7 @@ import Plotly from "plotly.js-basic-dist";
 import createPlotlyComponent from "react-plotly.js/factory";
 
 import StyledDataGrid from "../StyledDataGrid";
-import { useGetObservationPlanRequestsQuery } from "../../ducks/observationPlans";
+import { useGetAllObservationPlanRequestsQuery } from "../../ducks/observationPlans";
 
 const useStyles = makeStyles()(() => ({
   root: { width: "100%" },
@@ -175,7 +175,7 @@ const ObservationPlanHealth = ({ requests }: { requests: any[] }) => {
 
 const ObservationPlanRequestPage = () => {
   const { classes } = useStyles();
-  const { data } = useGetObservationPlanRequestsQuery({ numPerPage: 500 });
+  const { data } = useGetAllObservationPlanRequestsQuery({ numPerPage: 500 });
   const requests = useMemo(() => (data?.requests as any[]) || [], [data]);
 
   const rows = useMemo(

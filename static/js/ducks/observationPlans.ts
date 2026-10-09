@@ -44,7 +44,7 @@ export const observationPlansApi = skyportalApi.injectEndpoints({
     }),
     // Every accessible plan request, for the status page. Date and status
     // filtering happen server-side; the page passes them straight through.
-    getObservationPlanRequests: build.query<
+    getAllObservationPlanRequests: build.query<
       ObservationPlanRequests,
       Record<string, any> | void
     >({
@@ -64,6 +64,6 @@ export const observationPlansApi = skyportalApi.injectEndpoints({
 
 export const {
   useGetAllocationObservationPlansQuery,
-  useGetObservationPlanRequestsQuery,
+  useGetAllObservationPlanRequestsQuery,
   useLazyGetPlanWithSameNameExistsQuery,
 } = observationPlansApi;
