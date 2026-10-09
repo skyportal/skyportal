@@ -852,6 +852,8 @@ class SpectrumHandler(BaseHandler):
                 )
                 .where(Spectrum.id == spectrum_id)
             )
+            if spectrum is None:
+                return self.error("Could not find spectrum.", status=403)
 
             if group_ids:
                 groups_result = await session.scalars(

@@ -1541,6 +1541,16 @@ def test_token_user_cannot_update_unowned_spectrum(
     assert status == 403
     assert data["status"] == "error"
 
+    # a spectrum that doesn't exist is an error too, not a crash
+    status, data = api(
+        "PUT",
+        "spectrum/0",
+        data={"label": "nope"},
+        token=upload_data_token,
+    )
+    assert status == 403
+    assert data["message"] == "Could not find spectrum."
+
 
 def test_admin_can_update_unowned_spectrum_data(
     upload_data_token, super_admin_token, public_source, public_group, lris
