@@ -121,7 +121,8 @@ class SourceInterestHandler(BaseHandler):
             await session.commit()
 
             self.push_all(
-                action="skyportal/REFRESH_SOURCE_INTERESTS", payload={"obj_id": obj_id}
+                action="skyportal/REFRESH_SOURCE_INTERESTS",
+                payload={"obj_key": obj.internal_key},
             )
             return self.success(data={"id": interest.id})
 
@@ -180,7 +181,11 @@ class SourceInterestHandler(BaseHandler):
             )
             await session.commit()
 
+            internal_key = await session.scalar(
+                sa.select(Obj.internal_key).where(Obj.id == obj_id)
+            )
             self.push_all(
-                action="skyportal/REFRESH_SOURCE_INTERESTS", payload={"obj_id": obj_id}
+                action="skyportal/REFRESH_SOURCE_INTERESTS",
+                payload={"obj_key": internal_key},
             )
             return self.success()
