@@ -688,5 +688,4 @@ class ShiftSummary(BaseHandler):
                 report["gcns"] = {"total": len(gcn_added_during_shifts)}
                 report["gcns"]["data"] = gcn_added_during_shifts
 
-            self.push_all(action="skyportal/FETCH_SHIFT_SUMMARY", payload=report)
             return self.success(data=report)
