@@ -49,6 +49,7 @@ const FILTER_KEYS = [
   "localizationTagKeep",
   "localizationTagRemove",
   "localizationPropertiesFilter",
+  "groupIds",
 ];
 
 type DialogName = "filter" | "new" | "crossmatch" | "defaultTag";

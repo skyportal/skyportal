@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { useSelector } from "react-redux";
 import ButtonGroup from "@mui/material/ButtonGroup";
 import TextField from "@mui/material/TextField";
 import Divider from "@mui/material/Divider";
@@ -12,6 +11,7 @@ import GcnPropertiesSelect from "./GcnPropertiesSelect";
 import LocalizationTagsSelect from "../localization/LocalizationTagsSelect";
 import LocalizationPropertiesSelect from "../localization/LocalizationPropertiesSelect";
 import SelectWithChips from "../SelectWithChips";
+import { useGetGroupsQuery } from "../../ducks/groups";
 
 const conversions: Record<string, any> = {
   FAR: {
@@ -51,9 +51,7 @@ const GcnEventsFilterForm = ({
     useState<any[]>([]);
   const [selectedGroups, setSelectedGroups] = useState<string[]>([]);
 
-  const groups = useSelector(
-    (state: any) => state.groups?.userAccessible ?? [],
-  ) as { id: number; name: string }[];
+  const groups = useGetGroupsQuery().data?.userAccessible ?? [];
 
   const { handleSubmit, register: _register, control, reset } = useForm();
 
