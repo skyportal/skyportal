@@ -64,8 +64,8 @@ const useStyles = makeStyles()((theme) => ({
 }));
 
 interface CommentComposerProps {
-  addComment?: ((...a: any[]) => void) | null;
-  editComment?: ((...a: any[]) => void) | null;
+  addComment?: ((...a: any[]) => unknown) | null;
+  editComment?: ((...a: any[]) => unknown) | null;
   commentText?: string;
   attachmentName?: string;
   onClose?: (() => void) | null;
@@ -178,17 +178,15 @@ const CommentForm = ({
     );
   };
 
-  const onSubmit = (data: any) => {
+  const onSubmit = async (data: any) => {
     const groupIDs = groups?.map((g) => g.id);
     const selectedGroupIDs = groupIDs?.filter(
       (_ID: any, idx: number) => data.group_ids[idx],
     );
     data.group_ids = selectedGroupIDs;
-    if (addComment) {
-      addComment(data);
-    } else if (editComment) {
-      editComment(data);
-    }
+    const result: any = await (addComment ?? editComment)?.(data);
+    // the base query already showed the error; keep the draft
+    if (result && "error" in result) return;
     reset();
     setTextValue("");
     setFileName("");
