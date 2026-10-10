@@ -5,14 +5,9 @@ import Form from "@rjsf/mui";
 import validator from "@rjsf/validator-ajv8";
 import { showNotification } from "baselayer/components/Notifications";
 
-import dayjs from "dayjs";
-import utc from "dayjs/plugin/utc";
-
 import { useModifyObservingRunMutation } from "../../ducks/observingRun";
 import { useGetObservingRunsQuery } from "../../ducks/observingRuns";
 import { useAppDispatch } from "../../types/hooks";
-
-dayjs.extend(utc);
 
 interface ModifyObservingRunProps {
   run_id?: number | null;
@@ -33,7 +28,7 @@ const ModifyObservingRun = ({
     if (!run) return null;
     return {
       pi: run["pi"],
-      calendar_date: dayjs(`${run["run_end_utc"]}Z`).utc().format("YYYY-MM-DD"),
+      calendar_date: run["calendar_date"],
       duration: run["duration"],
       observers: run["observers"],
       group_id: run["group_id"] ?? -1,
