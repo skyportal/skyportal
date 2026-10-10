@@ -47,6 +47,13 @@ if cfg.get("email_service") == "sendgrid" or cfg.get("email_service") == "smtp":
 log = make_log("notifications")
 
 
+def wants_in_app(preferences, notification_type):
+    prefs = ((preferences or {}).get("notifications") or {}).get(
+        notification_type
+    ) or {}
+    return (prefs.get("in_app") or {}).get("active") is not False
+
+
 def gcn_notification_content(target, session):
     dateobs = target.dateobs
     dateobs_txt = Time(dateobs).isot

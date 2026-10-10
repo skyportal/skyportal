@@ -19,6 +19,7 @@ from skyportal.models.shift import Shift
 from skyportal.utils.app import get_app_base_url
 from skyportal.utils.email import send_email
 from skyportal.utils.naive_datetime import utcnow_naive
+from skyportal.utils.notifications import wants_in_app
 from skyportal.utils.services import check_loaded
 
 env, cfg = load_env()
@@ -133,14 +134,15 @@ def send_reminders():
                         f"Failed to send reminder email to {reminder.user.contact_email}: {e}"
                     )
 
-            session.add(
-                UserNotification(
-                    user=reminder.user,
-                    text=text_to_send,
-                    notification_type=notification_type,
-                    url=url_endpoint,
+            if wants_in_app(reminder.user.preferences, "reminders"):
+                session.add(
+                    UserNotification(
+                        user=reminder.user,
+                        text=text_to_send,
+                        notification_type=notification_type,
+                        url=url_endpoint,
+                    )
                 )
-            )
             while True:
                 reminder.number_of_reminders -= 1
                 reminder.next_reminder += timedelta(days=reminder.reminder_delay)

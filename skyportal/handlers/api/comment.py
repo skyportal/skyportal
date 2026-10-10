@@ -42,6 +42,7 @@ from ...models import (
     UserNotification,
 )
 from ...utils.fits_display import get_fits_preview
+from ...utils.notifications import wants_in_app
 from ...utils.parse import get_page_and_n_per_page
 from ...utils.sizeof import SIZE_WARNING_THRESHOLD, sizeof
 from ..base import BaseHandler
@@ -772,6 +773,8 @@ class CommentHandler(BaseHandler):
                 )
                 if users_mentioned_in_comment:
                     for user_mentioned in users_mentioned_in_comment:
+                        if not wants_in_app(user_mentioned.preferences, "mention"):
+                            continue
                         session.add(
                             UserNotification(
                                 user_id=user_mentioned.id,
@@ -786,6 +789,8 @@ class CommentHandler(BaseHandler):
                 )
                 if users_mentioned_in_instrument_comment:
                     for user_mentioned in users_mentioned_in_instrument_comment:
+                        if not wants_in_app(user_mentioned.preferences, "mention"):
+                            continue
                         session.add(
                             UserNotification(
                                 user_id=user_mentioned.id,

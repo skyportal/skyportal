@@ -74,6 +74,7 @@ from skyportal.utils.notifications import (
     source_email_notification,
     source_notification_content,
     source_slack_notification,
+    wants_in_app,
 )
 
 env, cfg = load_env()
@@ -493,6 +494,25 @@ def push_frontend_notification(target):
     )
     ws_flow = Flow()
     ws_flow.push(user_id, "skyportal/FETCH_NOTIFICATIONS")
+
+
+def user_notification_target(session, user, text, notification_type, url, content=None):
+    target = {
+        "text": text,
+        "notification_type": notification_type,
+        "url": url,
+        "user_id": user.id,
+        "user": {**user.to_dict(), "preferences": user.preferences},
+        "content": content,
+    }
+    if not wants_in_app(user.preferences, notification_resource_type(target)):
+        return target
+    notification = UserNotification(
+        user=user, text=text, notification_type=notification_type, url=url
+    )
+    session.add(notification)
+    session.commit()
+    return {**notification.to_dict(), **target}
 
 
 def users_on_shift(session):
@@ -1123,44 +1143,30 @@ def api(queue):
                                                 f"with Notice Type *{notice_type}*"
                                             )
 
-                                        notification = UserNotification(
-                                            user=user,
-                                            text=text,
-                                            notification_type="gcn_events_new_tag"
-                                            if is_gcn_tag
-                                            else "gcn_events",
-                                            url=f"/gcn_events/{str(target_data['dateobs']).replace(' ', 'T')}",
+                                        queue.append(
+                                            user_notification_target(
+                                                session,
+                                                user,
+                                                text,
+                                                "gcn_events_new_tag"
+                                                if is_gcn_tag
+                                                else "gcn_events",
+                                                f"/gcn_events/{str(target_data['dateobs']).replace(' ', 'T')}",
+                                                target_content,
+                                            )
                                         )
-                                        session.add(notification)
-                                        session.commit()
-                                        target = {
-                                            **notification.to_dict(),
-                                            "user": {
-                                                **notification.user.to_dict(),
-                                                "preferences": notification.user.preferences,
-                                            },
-                                            "content": target_content,
-                                        }
-                                        queue.append(target)
 
                                 elif is_followup_request:
                                     if user.id in notification_user_ids:
-                                        notification = UserNotification(
-                                            user=user,
-                                            text=f"Follow-up request for object *{target_data['obj_id']}* by *{instrument.name}*: {textwrap.shorten(target_data['status'], 120, placeholder='...')}",
-                                            notification_type="facility_transactions",
-                                            url=f"/source/{target_data['obj_id']}",
+                                        queue.append(
+                                            user_notification_target(
+                                                session,
+                                                user,
+                                                f"Follow-up request for object *{target_data['obj_id']}* by *{instrument.name}*: {textwrap.shorten(target_data['status'], 120, placeholder='...')}",
+                                                "facility_transactions",
+                                                f"/source/{target_data['obj_id']}",
+                                            )
                                         )
-                                        session.add(notification)
-                                        session.commit()
-                                        target = {
-                                            **notification.to_dict(),
-                                            "user": {
-                                                **notification.user.to_dict(),
-                                                "preferences": notification.user.preferences,
-                                            },
-                                        }
-                                        queue.append(target)
                                 elif is_gcn_extraction:
                                     label = classification_of(target_data.get("data"))
                                     if wants_classification(pref, label):
@@ -1171,25 +1177,16 @@ def api(queue):
                                             if circular_id
                                             else "A circular"
                                         )
-                                        notification = UserNotification(
-                                            user=user,
-                                            text=(
+                                        queue.append(
+                                            user_notification_target(
+                                                session,
+                                                user,
                                                 f"{source} reports *{label}* "
-                                                f"for event *{dateobs}*"
-                                            ),
-                                            notification_type="gcn_extractions",
-                                            url=f"/gcn_events/{dateobs}",
+                                                f"for event *{dateobs}*",
+                                                "gcn_extractions",
+                                                f"/gcn_events/{dateobs}",
+                                            )
                                         )
-                                        session.add(notification)
-                                        session.commit()
-                                        target = {
-                                            **notification.to_dict(),
-                                            "user": {
-                                                **notification.user.to_dict(),
-                                                "preferences": notification.user.preferences,
-                                            },
-                                        }
-                                        queue.append(target)
                                 elif is_analysis_service:
                                     if target_data["status"] == "completed":
                                         analysis_service_id = target_data[
@@ -1201,22 +1198,15 @@ def api(queue):
                                                 == analysis_service_id
                                             )
                                         ).first()
-                                        notification = UserNotification(
-                                            user=user,
-                                            text=f"New completed analysis service for object *{target_data['obj_id']}* with name *{analysis_service.name}*",
-                                            notification_type="analysis_services",
-                                            url=f"/source/{target_data['obj_id']}",
+                                        queue.append(
+                                            user_notification_target(
+                                                session,
+                                                user,
+                                                f"New completed analysis service for object *{target_data['obj_id']}* with name *{analysis_service.name}*",
+                                                "analysis_services",
+                                                f"/source/{target_data['obj_id']}",
+                                            )
                                         )
-                                        session.add(notification)
-                                        session.commit()
-                                        target = {
-                                            **notification.to_dict(),
-                                            "user": {
-                                                **notification.user.to_dict(),
-                                                "preferences": notification.user.preferences,
-                                            },
-                                        }
-                                        queue.append(target)
                                 elif is_observation_plan:
                                     observation_plan_request_id = target_data[
                                         "observation_plan_request_id"
@@ -1250,22 +1240,15 @@ def api(queue):
                                         )
                                     ).first()
                                     if user.id in notification_user_ids:
-                                        notification = UserNotification(
-                                            user=user,
-                                            text=f"New Observation Plan submission for GcnEvent *{localization.dateobs}* for *{instrument.name}* by user *{observation_plan_request.requester.username}*",
-                                            notification_type="observation_plans",
-                                            url=f"/gcn_events/{str(localization.dateobs).replace(' ', 'T')}",
+                                        queue.append(
+                                            user_notification_target(
+                                                session,
+                                                user,
+                                                f"New Observation Plan submission for GcnEvent *{localization.dateobs}* for *{instrument.name}* by user *{observation_plan_request.requester.username}*",
+                                                "observation_plans",
+                                                f"/gcn_events/{str(localization.dateobs).replace(' ', 'T')}",
+                                            )
                                         )
-                                        session.add(notification)
-                                        session.commit()
-                                        target = {
-                                            **notification.to_dict(),
-                                            "user": {
-                                                **notification.user.to_dict(),
-                                                "preferences": notification.user.preferences,
-                                            },
-                                        }
-                                        queue.append(target)
                                 elif is_deployment:
                                     commit = target_data["commit"] or {}
                                     text = (
@@ -1274,34 +1257,15 @@ def api(queue):
                                     )
                                     if commit.get("sha"):
                                         text += f" ({commit['sha']}: {commit.get('description', '')})"
-                                    user_target = {
-                                        **user.to_dict(),
-                                        "preferences": user.preferences,
-                                    }
-                                    in_app = pref["deployments"].get("in_app", {})
-                                    if in_app.get("active", False):
-                                        notification = UserNotification(
-                                            user=user,
-                                            text=text,
-                                            notification_type="deployments",
-                                            url="/deployments",
+                                    queue.append(
+                                        user_notification_target(
+                                            session,
+                                            user,
+                                            text,
+                                            "deployments",
+                                            "/deployments",
                                         )
-                                        session.add(notification)
-                                        session.commit()
-                                        target = {
-                                            **notification.to_dict(),
-                                            "user": user_target,
-                                        }
-                                    else:
-                                        # other channels only: no row, no in-app entry
-                                        target = {
-                                            "text": text,
-                                            "notification_type": "deployments",
-                                            "url": "/deployments",
-                                            "user_id": user.id,
-                                            "user": user_target,
-                                        }
-                                    queue.append(target)
+                                    )
                                 elif is_feedback or is_feedback_reply:
                                     if user.id == target_data["author_id"]:
                                         continue
@@ -1316,27 +1280,20 @@ def api(queue):
                                         ),
                                         "reply": is_feedback_reply,
                                     }
-                                    notification = UserNotification(
-                                        user=user,
-                                        text=feedback_notification_text(
-                                            content, escape_markdown
-                                        ),
-                                        notification_type="feedback_reply"
-                                        if is_feedback_reply
-                                        else "feedback",
-                                        url="/deployments?tab=feedback",
+                                    queue.append(
+                                        user_notification_target(
+                                            session,
+                                            user,
+                                            feedback_notification_text(
+                                                content, escape_markdown
+                                            ),
+                                            "feedback_reply"
+                                            if is_feedback_reply
+                                            else "feedback",
+                                            "/deployments?tab=feedback",
+                                            content,
+                                        )
                                     )
-                                    session.add(notification)
-                                    session.commit()
-                                    target = {
-                                        **notification.to_dict(),
-                                        "user": {
-                                            **notification.user.to_dict(),
-                                            "preferences": notification.user.preferences,
-                                        },
-                                        "content": content,
-                                    }
-                                    queue.append(target)
                                 elif is_group_admission_request:
                                     user_from_request = session.scalars(
                                         sa.select(User).where(
@@ -1393,22 +1350,15 @@ def api(queue):
                                                 ).get("new_ml_classifications", False)
                                             )
                                         ):
-                                            notification = UserNotification(
-                                                user=user,
-                                                text=f"New classification on favorite source *{target_data['obj_id']}*",
-                                                notification_type="favorite_sources_new_classification",
-                                                url=f"/source/{target_data['obj_id']}",
+                                            queue.append(
+                                                user_notification_target(
+                                                    session,
+                                                    user,
+                                                    f"New classification on favorite source *{target_data['obj_id']}*",
+                                                    "favorite_sources_new_classification",
+                                                    f"/source/{target_data['obj_id']}",
+                                                )
                                             )
-                                            session.add(notification)
-                                            session.commit()
-                                            target = {
-                                                **notification.to_dict(),
-                                                "user": {
-                                                    **notification.user.to_dict(),
-                                                    "preferences": notification.user.preferences,
-                                                },
-                                            }
-                                            queue.append(target)
                                             continue
                                         if (pref is not None) and "sources" in pref:
                                             if "classifications" in pref["sources"]:
@@ -1463,23 +1413,16 @@ def api(queue):
                                                         ).all()
                                                         if len(sources) == 0:
                                                             continue
-                                                    notification = UserNotification(
-                                                        user=user,
-                                                        text=f"New classification *{target_data['classification']}* for source *{target_data['obj_id']}*",
-                                                        notification_type="sources_new_classification",
-                                                        url=f"/source/{target_data['obj_id']}",
+                                                    queue.append(
+                                                        user_notification_target(
+                                                            session,
+                                                            user,
+                                                            f"New classification *{target_data['classification']}* for source *{target_data['obj_id']}*",
+                                                            "sources_new_classification",
+                                                            f"/source/{target_data['obj_id']}",
+                                                            target_content,
+                                                        )
                                                     )
-                                                    session.add(notification)
-                                                    session.commit()
-                                                    target = {
-                                                        **notification.to_dict(),
-                                                        "user": {
-                                                            **notification.user.to_dict(),
-                                                            "preferences": notification.user.preferences,
-                                                        },
-                                                        "content": target_content,
-                                                    }
-                                                    queue.append(target)
                                     elif is_spectra:
                                         if (
                                             len(favorite_sources) > 0
@@ -1489,22 +1432,15 @@ def api(queue):
                                                 for source in favorite_sources
                                             )
                                         ):
-                                            notification = UserNotification(
-                                                user=user,
-                                                text=f"New spectrum on favorite source *{target_data['obj_id']}*",
-                                                notification_type="favorite_sources_new_spectrum",
-                                                url=f"/source/{target_data['obj_id']}",
+                                            queue.append(
+                                                user_notification_target(
+                                                    session,
+                                                    user,
+                                                    f"New spectrum on favorite source *{target_data['obj_id']}*",
+                                                    "favorite_sources_new_spectrum",
+                                                    f"/source/{target_data['obj_id']}",
+                                                )
                                             )
-                                            session.add(notification)
-                                            session.commit()
-                                            target = {
-                                                **notification.to_dict(),
-                                                "user": {
-                                                    **notification.user.to_dict(),
-                                                    "preferences": notification.user.preferences,
-                                                },
-                                            }
-                                            queue.append(target)
                                             continue
                                         if (
                                             (pref is not None)
@@ -1571,23 +1507,16 @@ def api(queue):
                                             ):
                                                 continue
 
-                                            notification = UserNotification(
-                                                user=user,
-                                                text=f"New spectrum for source *{target_data['obj_id']}*",
-                                                notification_type="sources_new_spectrum",
-                                                url=f"/source/{target_data['obj_id']}",
+                                            queue.append(
+                                                user_notification_target(
+                                                    session,
+                                                    user,
+                                                    f"New spectrum for source *{target_data['obj_id']}*",
+                                                    "sources_new_spectrum",
+                                                    f"/source/{target_data['obj_id']}",
+                                                    target_content,
+                                                )
                                             )
-                                            session.add(notification)
-                                            session.commit()
-                                            target = {
-                                                **notification.to_dict(),
-                                                "user": {
-                                                    **notification.user.to_dict(),
-                                                    "preferences": notification.user.preferences,
-                                                },
-                                                "content": target_content,
-                                            }
-                                            queue.append(target)
 
                                     elif is_comment:
                                         if (
@@ -1604,22 +1533,15 @@ def api(queue):
                                                 target_data["obj_id"] == source.obj_id
                                                 for source in favorite_sources
                                             ):
-                                                notification = UserNotification(
-                                                    user=user,
-                                                    text=f"New comment on favorite source *{target_data['obj_id']}*",
-                                                    notification_type="favorite_sources_new_comment",
-                                                    url=f"/source/{target_data['obj_id']}",
+                                                queue.append(
+                                                    user_notification_target(
+                                                        session,
+                                                        user,
+                                                        f"New comment on favorite source *{target_data['obj_id']}*",
+                                                        "favorite_sources_new_comment",
+                                                        f"/source/{target_data['obj_id']}",
+                                                    )
                                                 )
-                                                session.add(notification)
-                                                session.commit()
-                                                target = {
-                                                    **notification.to_dict(),
-                                                    "user": {
-                                                        **notification.user.to_dict(),
-                                                        "preferences": notification.user.preferences,
-                                                    },
-                                                }
-                                                queue.append(target)
                         except Exception as e:
                             failure_count += 1
                             log(
