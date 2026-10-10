@@ -461,7 +461,17 @@ def test_notification_setting_select(page, user):
 
     _enable_switch(page, "mention")
 
-    page.locator('//*[@name="notification_settings_button_mention"]').first.click()
+    def _pill(channel):
+        return page.locator(f'//*[@data-testid="channel-mention-{channel}"]').first
+
+    def _pressed(channel):
+        return page.locator(
+            f'//*[@data-testid="channel-mention-{channel}" and @aria-pressed="true"]'
+        ).first
+
+    def _set_up(kind, value):
+        page.locator(f'//*[@data-testid="{kind}_input"]').first.fill(value)
+        page.locator(f'//*[@data-testid="{kind}_save_button"]').first.click()
 
     def _enable_setting(name):
         # wait for each save: the switch flips optimistically, before the PATCH lands
@@ -475,16 +485,20 @@ def test_notification_setting_select(page, user):
             ).first
         ).to_be_visible()
 
-    _enable_setting("email")
-    _enable_setting("slack")
-    # sms toggle reveals further sms options
+    # the user has a contact email, so email turns on right away
     with _profile_patch(page):
-        page.locator('//*[@name="sms"]').first.click()
-    expect(
-        page.locator(
-            '//*[@name="sms" and contains(@class, "MuiSwitch-input")]/../../span[contains(@class,"Mui-checked")]'
-        ).first
-    ).to_be_visible()
+        _pill("email").click()
+    expect(_pressed("email")).to_be_visible()
+
+    # slack and sms are not set up yet: their pill asks for the setup first
+    _pill("slack").click()
+    _set_up("slack", "https://hooks.slack.com/services/T000/B000/test")
+    expect(_pressed("slack")).to_be_visible()
+
+    _pill("sms").click()
+    _set_up("phone", "+16125550142")
+    expect(_pressed("sms")).to_be_visible()
+
     _enable_setting("on_shift_sms")
     _enable_setting("time_slot_sms")
 
@@ -532,10 +546,9 @@ def test_notification_setting_select(page, user):
             '//*[@name="mention"]/../../span[contains(@class,"Mui-checked")]'
         ).first
     ).to_be_visible()
-
-    page.locator('//*[@name="notification_settings_button_mention"]').first.click()
-
-    for name in ("email", "slack", "sms", "on_shift_sms", "time_slot_sms"):
+    for channel in ("email", "slack", "sms"):
+        expect(_pressed(channel)).to_be_visible()
+    for name in ("on_shift_sms", "time_slot_sms"):
         expect(
             page.locator(
                 f'//*[@name="{name}" and contains(@class, "MuiSwitch-input")]/../../span[contains(@class,"Mui-checked")]'

@@ -1,29 +1,18 @@
 import React, { useState } from "react";
 
-import FormGroup from "@mui/material/FormGroup";
+import Box from "@mui/material/Box";
 import FormControlLabel from "@mui/material/FormControlLabel";
 import Switch from "@mui/material/Switch";
 import TextField from "@mui/material/TextField";
+import Typography from "@mui/material/Typography";
 
-import { makeStyles } from "tss-react/mui";
 import {
   useGetProfileQuery,
   useUpdateUserPreferencesMutation,
 } from "../../../ducks/profile";
 import CustomizeOpenAIParameters from "./CustomizeOpenAIParameters";
 
-const useStyles = makeStyles()((theme) => ({
-  textField: {
-    marginLeft: theme.spacing(1),
-    marginRight: theme.spacing(1),
-    "& p": {
-      color: "red",
-    },
-  },
-}));
-
 const OpenAIPreferences = () => {
-  const { classes } = useStyles();
   const { data: profileData } = useGetProfileQuery();
   const profile = (profileData?.preferences ?? {}) as any;
   const [updateUserPreferences] = useUpdateUserPreferencesMutation();
@@ -73,34 +62,31 @@ const OpenAIPreferences = () => {
     updateUserPreferences(prefs);
   };
 
+  const active = profile.summary?.OpenAI?.active === true;
+
   return (
-    <div>
-      <FormGroup row>
-        <FormControlLabel
-          control={
-            <Switch
-              checked={profile.summary?.OpenAI?.active === true}
-              name="active"
-              onChange={prefToggled}
-              data-testid="OpenAI_toggle"
-            />
-          }
-          label={profile?.summary?.OpenAI?.active ? "Active" : "Inactive"}
-        />
-        {profile?.summary?.OpenAI?.active && <CustomizeOpenAIParameters />}
-      </FormGroup>
-      {profile?.summary?.OpenAI?.active && (
-        <div>
+    <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
+      <FormControlLabel
+        control={
+          <Switch
+            checked={active}
+            name="active"
+            onChange={prefToggled}
+            data-testid="OpenAI_toggle"
+          />
+        }
+        label={<Typography variant="body2">Use my own key</Typography>}
+      />
+      {active && (
+        <>
           <TextField
             name="openai_apikey"
             label="API key"
-            className={classes.textField}
             fullWidth
             placeholder="API key"
             defaultValue={profile.summary?.OpenAI?.apikey}
             onChange={handleChange}
             onBlur={handleBlur}
-            margin="normal"
             data-testid="OpenAI_apikey"
             helperText={apikeyerror ? "An API key is required" : ""}
             error={apikeyerror}
@@ -108,13 +94,11 @@ const OpenAIPreferences = () => {
           <TextField
             name="base_url"
             label="API base URL (optional)"
-            className={classes.textField}
             fullWidth
             placeholder="https://api.openai.com/v1"
             defaultValue={profile.summary?.OpenAI?.base_url}
             onChange={handleBaseUrlChange}
             onBlur={handleBaseUrlBlur}
-            margin="normal"
             data-testid="OpenAI_base_url"
             helperText={
               baseUrlError
@@ -123,9 +107,10 @@ const OpenAIPreferences = () => {
             }
             error={baseUrlError}
           />
-        </div>
+          <CustomizeOpenAIParameters />
+        </>
       )}
-    </div>
+    </Box>
   );
 };
 

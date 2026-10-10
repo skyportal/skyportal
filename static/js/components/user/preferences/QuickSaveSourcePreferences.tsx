@@ -1,27 +1,18 @@
 import { useGetGroupsQuery } from "../../../ducks/groups";
 import { useEffect, useMemo, useState } from "react";
-import { makeStyles } from "tss-react/mui";
-import Select from "@mui/material/Select";
+import FormControl from "@mui/material/FormControl";
+import InputLabel from "@mui/material/InputLabel";
 import MenuItem from "@mui/material/MenuItem";
+import Select from "@mui/material/Select";
+import Typography from "@mui/material/Typography";
 
 import {
   useGetProfileQuery,
   useUpdateUserPreferencesMutation,
 } from "../../../ducks/profile";
 
-const useStyles = makeStyles()(() => ({
-  allocationSelect: {
-    width: "100%",
-  },
-  SelectItem: {
-    display: "flex",
-    justifyContent: "space-between",
-  },
-}));
-
 const QuickSaveSourcePreferences = () => {
   const [updateUserPreferences] = useUpdateUserPreferencesMutation();
-  const { classes } = useStyles();
 
   const { data: groupsData } = useGetGroupsQuery();
   const userAccessibleGroups = useMemo(
@@ -47,37 +38,36 @@ const QuickSaveSourcePreferences = () => {
     updateUserPreferences(prefs);
   };
 
+  if (!groupsData) return null;
+
+  if (userAccessibleGroups.length === 0) {
+    return (
+      <Typography variant="body2" color="textSecondary">
+        You do not have access to any group yet. Ask an administrator or a group
+        admin to add you to one.
+      </Typography>
+    );
+  }
+
   return (
-    <div className="quick-save-source-preferences">
-      {!userAccessibleGroups && <div>Loading...</div>}
-      {userAccessibleGroups && userAccessibleGroups?.length === 0 && (
-        <div>
-          You do not seem to have access to any groups. Please contact an
-          administrator or group admin to be added to a group.
-        </div>
-      )}
-      {userAccessibleGroups && userAccessibleGroups?.length > 0 && (
-        <Select
-          inputProps={{ MenuProps: { disableScrollLock: true } }}
-          labelId="quicksaveGroupsSelectLabel"
-          value={selectedGroupIds}
-          onChange={onSubmitGroupIds}
-          name="quicksaveGroupsSelect"
-          className={classes.allocationSelect}
-          multiple
-        >
-          {(userAccessibleGroups || []).map((ignore_group) => (
-            <MenuItem
-              value={ignore_group.id}
-              key={ignore_group.id}
-              className={classes.SelectItem}
-            >
-              {ignore_group.name}
-            </MenuItem>
-          ))}
-        </Select>
-      )}
-    </div>
+    <FormControl fullWidth>
+      <InputLabel id="quicksaveGroupsSelectLabel">Groups</InputLabel>
+      <Select
+        inputProps={{ MenuProps: { disableScrollLock: true } }}
+        labelId="quicksaveGroupsSelectLabel"
+        label="Groups"
+        value={selectedGroupIds}
+        onChange={onSubmitGroupIds}
+        name="quicksaveGroupsSelect"
+        multiple
+      >
+        {userAccessibleGroups.map((group) => (
+          <MenuItem value={group.id} key={group.id}>
+            {group.name}
+          </MenuItem>
+        ))}
+      </Select>
+    </FormControl>
   );
 };
 

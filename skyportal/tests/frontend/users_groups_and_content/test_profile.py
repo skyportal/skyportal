@@ -13,6 +13,7 @@ def test_token_acls_options_rendering1(page, user):
     """The form offers exactly the ACLs the user's role grants, and no others."""
     page.goto(f"/become_user/{user.id}")
     page.goto("/profile")
+    open_preferences_panel(page, "api-tokens")
     granted = len(role_acls["Full user"])
     for i in range(granted):
         expect(page.locator(f'//*[@data-testid="acls[{i}]"]').first).to_be_visible()
@@ -22,6 +23,7 @@ def test_token_acls_options_rendering1(page, user):
 def test_token_acls_options_rendering2(page, super_admin_user):
     page.goto(f"/become_user/{super_admin_user.id}")
     page.goto("/profile")
+    open_preferences_panel(page, "api-tokens")
     for i in range(6):
         expect(page.locator(f'//*[@data-testid="acls[{i}]"]').first).to_be_visible()
 
@@ -147,6 +149,7 @@ def test_join_auto_join_stream(page, user, super_admin_token):
 
     page.goto(f"/become_user/{user.id}")
     page.goto("/profile")
+    open_preferences_panel(page, "streams")
 
     join_button = page.locator(f'//*[@data-testid="joinStreamButton{stream_id}"]').first
     expect(join_button).to_be_visible()

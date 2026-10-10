@@ -1,11 +1,7 @@
 import { useState } from "react";
-import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
-import IconButton from "@mui/material/IconButton";
-import Tooltip from "@mui/material/Tooltip";
 
 import Dialog from "@mui/material/Dialog";
 import DialogContent from "@mui/material/DialogContent";
-import { makeStyles } from "tss-react/mui";
 import Form from "@rjsf/mui";
 import validator from "@rjsf/validator-ajv8";
 import DialogTitle from "@mui/material/DialogTitle";
@@ -15,18 +11,11 @@ import {
   useUpdateUserPreferencesMutation,
 } from "../../../ducks/profile";
 import { useGetConfigQuery } from "../../../ducks/config";
-
-const useStyles = makeStyles()(() => ({
-  tooltip: {
-    fontSize: "1rem",
-    maxWidth: "30rem",
-  },
-}));
+import Button from "../../Button";
 
 const CustomizeOpenAIParameters = () => {
   const [updateUserPreferences] = useUpdateUserPreferencesMutation();
   const [aiopen, setAIOpen] = useState(false);
-  const { classes } = useStyles();
 
   const site_openai_summary_parameters = (useGetConfigQuery().data as any)
     ?.summary_parameters;
@@ -205,20 +194,14 @@ const CustomizeOpenAIParameters = () => {
 
   return (
     <div>
-      <Tooltip
-        title="Expert mode: click here to edit the OpenAI summary settings."
-        placement="right"
-        classes={{ tooltip: classes.tooltip }}
+      <Button
+        secondary
+        size="small"
+        onClick={handleAIClickOpen}
+        data-testid="UpdateOpenAI"
       >
-        <IconButton
-          size="small"
-          type="submit"
-          onClick={handleAIClickOpen}
-          data-testid="UpdateOpenAI"
-        >
-          <EditOutlinedIcon />
-        </IconButton>
-      </Tooltip>
+        Customize summary settings
+      </Button>
       <Dialog open={aiopen} onClose={handleAIClose}>
         <DialogTitle>Edit OpenAI Summary Settings</DialogTitle>
         <DialogContent>
