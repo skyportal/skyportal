@@ -3465,6 +3465,7 @@ class ObservationPlanSimSurveyHandler(BaseHandler):
 
             return self.success(data={"id": survey_efficiency_analysis.id})
 
+    @auth_or_token
     async def delete(self, survey_efficiency_analysis_id: int):
         """
         ---

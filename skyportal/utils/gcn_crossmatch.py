@@ -33,6 +33,7 @@ import math
 import traceback
 from datetime import datetime, timedelta
 
+import arrow
 import healpy
 import numpy as np
 import sqlalchemy as sa
@@ -1671,6 +1672,7 @@ def with_event_region(session, user, params):
     credible_level = params.pop("credible_level", None)
     if not dateobs or params.get("moc_ascii"):
         return params
+    dateobs = arrow.get(dateobs).naive
 
     localization = session.scalar(
         Localization.select(
