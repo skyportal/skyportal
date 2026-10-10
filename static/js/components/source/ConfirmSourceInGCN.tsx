@@ -229,9 +229,20 @@ const ConfirmSourceInGCN = ({
       return;
     }
     // "Not vetted" is the absence of a verdict, so committing it removes the
-    // row rather than storing a status.
+    // row rather than storing a status. Callers without the localization and
+    // dates (the scanning page) couldn't POST a new row afterwards, so there
+    // it goes back to pending instead.
     if (selected === "not_vetted") {
-      handleNotVetted();
+      const canRecreate =
+        localization_name &&
+        localization_cumprob != null &&
+        start_date &&
+        end_date;
+      if (canRecreate) {
+        handleNotVetted();
+      } else {
+        handleVet("pending");
+      }
     } else {
       handleVet(selected);
     }
