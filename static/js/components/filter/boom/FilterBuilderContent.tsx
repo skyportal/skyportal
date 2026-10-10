@@ -807,10 +807,10 @@ const FilterBuilderContent = ({
                 <>
                   This version was saved without the block builder&apos;s
                   representation of it, so only the pipeline it produced can be
-                  shown here. The pipeline below is read-only.
-                  {lastEditableVersion ? (
+                  shown here. Switch to MongoDB to edit it.
+                  {lastEditableVersion && (
                     <>
-                      {` Version ${shortFid(lastEditableVersion.fid)} is the most recent one that is still editable: `}
+                      {` Version ${shortFid(lastEditableVersion.fid)} is the most recent one that can still be edited as blocks: `}
                       <Link
                         component="button"
                         variant="body2"
@@ -823,15 +823,12 @@ const FilterBuilderContent = ({
                       </Link>
                       .
                     </>
-                  ) : (
-                    " Use Import JSON to replace it with a new version."
                   )}
                 </>
               ) : (
                 <>
                   This filter is a raw MongoDB pipeline that the block builder
-                  can&apos;t show as blocks, so it&apos;s shown read-only below.
-                  Use Import JSON to replace it with a new version.
+                  can&apos;t show as blocks. Switch to MongoDB to edit it.
                 </>
               )}
             </Alert>
