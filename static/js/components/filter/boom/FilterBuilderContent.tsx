@@ -2,11 +2,10 @@ import { useMemo, useState, useEffect, useCallback, useRef } from "react";
 import {
   Alert,
   Button,
+  ButtonBase,
   Box,
   CircularProgress,
   Link,
-  ToggleButton,
-  ToggleButtonGroup,
   Tooltip,
   Typography,
 } from "@mui/material";
@@ -51,6 +50,11 @@ interface FilterBuilderContentProps {
   // Survey override for callers without a filter version (Lasair query builder).
   survey?: string;
 }
+
+const EDITOR_MODES = [
+  { value: "blocks", label: "Filter UI" },
+  { value: "mongo", label: "MongoDB" },
+] as const;
 
 // Helper function to recursively collect all block IDs (excluding root blocks)
 const collectAllBlockIds = (blocks: any, isRoot = true): any[] => {
@@ -440,18 +444,21 @@ const FilterBuilderContent = ({
     setMongoDialog({ open: true });
   };
 
-  const handleEditorModeChange = (mode: "blocks" | "mongo" | null) => {
-    if (!mode || mode === editorMode) return;
+  const handleEditorModeChange = (mode: "blocks" | "mongo") => {
+    if (mode === editorMode) return;
     if (mode === "mongo") {
       setEditorMode(mode);
       mongoTextInvalid.current = false;
       // An untouched builder still compiles to a bare $project; start empty.
       const pipeline =
-        hasBeenModified && queryReady ? generateMongoQuery() : [];
+        (hasBeenModified || displayedFid) && queryReady
+          ? generateMongoQuery()
+          : [];
       blocksStash.current = {
         filters: filtersToRender,
         projectionFields,
         pipeline: JSON.stringify(pipeline),
+        modified: hasBeenModified,
       };
       setProjectionFields?.([]);
       handleFilterUpdate(pipeline);
@@ -472,6 +479,7 @@ const FilterBuilderContent = ({
       setEditorMode(mode);
       setProjectionFields?.(stash.projectionFields ?? []);
       handleFilterUpdate(stash.filters);
+      setHasBeenModified(stash.modified);
       return;
     }
     // The builder appends its own $project, so drop a trailing one it would
@@ -507,6 +515,11 @@ const FilterBuilderContent = ({
     const tree = decompilePipeline(pipeline);
     setNoBlockTree(false);
     setProjectionFields?.([]);
+    if (!tree) {
+      setEditorMode("mongo");
+      blocksStash.current = null;
+      mongoTextInvalid.current = false;
+    }
     handleFilterUpdate(tree ?? pipeline);
     dispatch(
       tree
@@ -514,7 +527,7 @@ const FilterBuilderContent = ({
             "Pipeline converted to blocks. Click Save to keep it as a new version.",
           )
         : showNotification(
-            "This pipeline can't be shown as blocks, so it stays read-only. Click Save to keep it as a new version.",
+            "This pipeline can't be shown as blocks, so it opens in the MongoDB editor. Click Save to keep it as a new version.",
             "warning",
           ),
     );
@@ -602,16 +615,62 @@ const FilterBuilderContent = ({
       >
         <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
           <Typography variant="h6">Filter Builder</Typography>
-          {filter && (!filter.fv?.length || mongoMode) && (
-            <ToggleButtonGroup
-              exclusive
-              size="small"
-              value={editorMode}
-              onChange={(_, mode) => handleEditorModeChange(mode)}
+          {filter && (
+            <Box
+              sx={{
+                display: "inline-flex",
+                gap: 0.5,
+                p: 0.5,
+                borderRadius: 999,
+                border: 1,
+                borderColor: "divider",
+                backgroundColor: "background.default",
+              }}
             >
-              <ToggleButton value="blocks">Filter UI</ToggleButton>
-              <ToggleButton value="mongo">MongoDB</ToggleButton>
-            </ToggleButtonGroup>
+              {EDITOR_MODES.map(({ value, label }) => {
+                const selected = value === editorMode;
+                return (
+                  <ButtonBase
+                    key={value}
+                    aria-pressed={selected}
+                    onClick={() => handleEditorModeChange(value)}
+                    sx={{
+                      height: "1.75rem",
+                      px: 1.5,
+                      borderRadius: 999,
+                      fontSize: "0.8125rem",
+                      fontWeight: 600,
+                      whiteSpace: "nowrap",
+                      color: selected
+                        ? "primary.contrastText"
+                        : "text.secondary",
+                      backgroundColor: selected
+                        ? "primary.main"
+                        : "transparent",
+                      transition: (theme) =>
+                        theme.transitions.create(
+                          ["background-color", "color"],
+                          {
+                            duration: theme.transitions.duration.short,
+                          },
+                        ),
+                      "&:hover": {
+                        color: selected
+                          ? "primary.contrastText"
+                          : "text.primary",
+                      },
+                      "&.Mui-focusVisible": {
+                        outline: 2,
+                        outlineColor: "primary.main",
+                        outlineOffset: 2,
+                      },
+                    }}
+                  >
+                    {label}
+                  </ButtonBase>
+                );
+              })}
+            </Box>
           )}
           {filter?.fv?.length > 0 && (
             <VersionSelect
@@ -692,9 +751,13 @@ const FilterBuilderContent = ({
           <Tooltip
             describeChild
             title={
-              queryReady
-                ? "See the MongoDB pipeline built from these blocks and run it on past alerts to check which ones pass. Nothing is saved."
-                : "Add at least one complete condition to test the filter."
+              mongoMode
+                ? queryReady
+                  ? "Run this pipeline on past alerts to check which ones pass. Nothing is saved."
+                  : "Write a valid MongoDB pipeline to test the filter."
+                : queryReady
+                  ? "See the MongoDB pipeline built from these blocks and run it on past alerts to check which ones pass. Nothing is saved."
+                  : "Add at least one complete condition to test the filter."
             }
           >
             <span>
