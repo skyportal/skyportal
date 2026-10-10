@@ -87,6 +87,7 @@ SNCOSMO_TO_TNSFILTER = {
     "ps1::r": 57,
     "ps1::i": 58,
     "ps1::z": 59,
+    "ps1::y": 25,
     "ps1::w": 26,
     "ztfg": 110,
     "ztfr": 111,
