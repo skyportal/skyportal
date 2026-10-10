@@ -232,3 +232,31 @@ def test_events_list_rejects_bad_group_ids(super_admin_token):
         "GET", "gcn_event", params={"groupIds": "not-an-int"}, token=super_admin_token
     )
     assert status == 400, data
+
+
+def test_gcn_event_comments_respect_comment_groups(
+    super_admin_token, public_group2, comment_token_two_groups, view_only_token
+):
+    """A comment restricted to group2 is only returned to group2 members."""
+    dateobs, _, _ = _post_cone_event(super_admin_token)  # readable by everyone
+
+    status, data = api("GET", f"gcn_event/{dateobs}", token=view_only_token)
+    assert status == 200, data
+    gcnevent_id = data["data"]["id"]
+
+    text = str(uuid.uuid4())
+    status, data = api(
+        "POST",
+        f"gcn_event/{gcnevent_id}/comments",
+        data={"text": text, "group_ids": [public_group2.id]},
+        token=comment_token_two_groups,
+    )
+    assert status == 200, data
+
+    status, data = api("GET", f"gcn_event/{dateobs}", token=comment_token_two_groups)
+    assert status == 200, data
+    assert text in [c["text"] for c in data["data"]["comments"]]
+
+    status, data = api("GET", f"gcn_event/{dateobs}", token=view_only_token)
+    assert status == 200, data
+    assert text not in [c["text"] for c in data["data"]["comments"]]
