@@ -1,7 +1,8 @@
-import { useMemo, useState, useEffect, useCallback } from "react";
+import { useMemo, useState, useEffect, useCallback, useRef } from "react";
 import {
   Alert,
   Button,
+  ButtonBase,
   Box,
   CircularProgress,
   Link,
@@ -30,7 +31,8 @@ import ConfirmDeletionDialog from "../../ConfirmDeletionDialog";
 import { VersionSelect } from "./FilterVersionLabel";
 import { shortFid } from "./filterVersions";
 import PipelineViewer from "./dialog/PipelineViewer";
-import { isRawMongoPipeline } from "./pipelineFormat";
+import MongoPipelineEditor from "./MongoPipelineEditor";
+import { isBuilderProjection, isRawMongoPipeline } from "./pipelineFormat";
 import { decompilePipeline } from "../../../utils/mongoPipelineDecompiler";
 import { filterBuilderStyles } from "../../../styles/componentStyles";
 import { showNotification } from "baselayer/components/Notifications";
@@ -48,6 +50,11 @@ interface FilterBuilderContentProps {
   // Survey override for callers without a filter version (Lasair query builder).
   survey?: string;
 }
+
+const EDITOR_MODES = [
+  { value: "blocks", label: "Filter UI" },
+  { value: "mongo", label: "MongoDB" },
+] as const;
 
 // Helper function to recursively collect all block IDs (excluding root blocks)
 const collectAllBlockIds = (blocks: any, isRoot = true): any[] => {
@@ -123,6 +130,12 @@ const FilterBuilderContent = ({
   // True when the active version carries no block tree, so the builder is
   // showing the broker's pipeline rather than an imported raw filter.
   const [noBlockTree, setNoBlockTree] = useState(false);
+  // "mongo" edits the pipeline as raw JSON instead of blocks.
+  const [editorMode, setEditorMode] = useState<"blocks" | "mongo">("blocks");
+  // Blocks left when switching to MongoDB, restored if the pipeline is unchanged.
+  const blocksStash = useRef<any>(null);
+  const mongoTextInvalid = useRef(false);
+  const [loadedFid, setLoadedFid] = useState<string | null>(null);
   const [expandedStages, setExpandedStages] = useState<Set<any>>(new Set());
   const [importOpen, setImportOpen] = useState(false);
   const [saveOpen, setSaveOpen] = useState(false);
@@ -199,6 +212,11 @@ const FilterBuilderContent = ({
 
         if (versionData.filters) {
           setNoBlockTree(false);
+          setEditorMode(
+            isRawMongoPipeline(versionData.filters) ? "mongo" : "blocks",
+          );
+          setLoadedFid(displayedFid);
+          mongoTextInvalid.current = false;
           setLocalFilterData(versionData.filters);
           if (setFilters) {
             setFilters(versionData.filters);
@@ -219,6 +237,7 @@ const FilterBuilderContent = ({
           const editableData = versionData;
 
           setNoBlockTree(false);
+          setEditorMode("blocks");
           setLocalFilterData(editableData);
           if (setFilters) {
             setFilters(editableData);
@@ -243,6 +262,7 @@ const FilterBuilderContent = ({
           // which is a different situation from a filter imported as a raw
           // pipeline even though both end up read-only.
           setNoBlockTree(true);
+          setEditorMode("blocks");
           setLocalFilterData(pipelineData);
           if (setFilters && pipelineData) {
             setFilters(pipelineData);
@@ -322,6 +342,8 @@ const FilterBuilderContent = ({
   const rawPipeline = isRawMongoPipeline(filtersToRender)
     ? filtersToRender
     : null;
+  const mongoMode = editorMode === "mongo";
+  const queryReady = mongoMode ? !!rawPipeline : hasValidQuery();
 
   // The newest version that still has a block tree, so a version saved without
   // one does not dead-end the user.
@@ -422,10 +444,82 @@ const FilterBuilderContent = ({
     setMongoDialog({ open: true });
   };
 
+  const handleEditorModeChange = (mode: "blocks" | "mongo") => {
+    if (mode === editorMode) return;
+    if (mode === "mongo") {
+      setEditorMode(mode);
+      mongoTextInvalid.current = false;
+      // An untouched builder still compiles to a bare $project; start empty.
+      const pipeline =
+        (hasBeenModified || displayedFid) && queryReady
+          ? generateMongoQuery()
+          : [];
+      blocksStash.current = {
+        filters: filtersToRender,
+        projectionFields,
+        pipeline: JSON.stringify(pipeline),
+        modified: hasBeenModified,
+      };
+      setProjectionFields?.([]);
+      handleFilterUpdate(pipeline);
+      return;
+    }
+    // Leaving would discard the pipeline, so stay until it fits in blocks.
+    const stayInMongo = (message: string) =>
+      dispatch(showNotification(message, "warning"));
+    if (mongoTextInvalid.current) {
+      stayInMongo(
+        "Fix or clear the MongoDB pipeline before switching to the filter UI.",
+      );
+      return;
+    }
+    const stash = blocksStash.current;
+    if (stash && stash.pipeline === JSON.stringify(rawPipeline ?? [])) {
+      blocksStash.current = null;
+      setEditorMode(mode);
+      setProjectionFields?.(stash.projectionFields ?? []);
+      handleFilterUpdate(stash.filters);
+      setHasBeenModified(stash.modified);
+      return;
+    }
+    // The builder appends its own $project, so drop a trailing one it would
+    // regenerate: the one seeded from the blocks (which carries their
+    // annotations), or a plain one. Any other keeps the pipeline out of blocks.
+    const last = rawPipeline?.[rawPipeline.length - 1];
+    const keepsSeededProjection =
+      !!last?.$project &&
+      JSON.stringify(last) ===
+        JSON.stringify(JSON.parse(stash?.pipeline ?? "[]").at(-1));
+    const matchOnly =
+      rawPipeline &&
+      rawPipeline.length > 1 &&
+      (keepsSeededProjection ||
+        isBuilderProjection(last.$project, rawPipeline.slice(0, -1)))
+        ? rawPipeline.slice(0, -1)
+        : rawPipeline;
+    const tree = matchOnly ? decompilePipeline(matchOnly) : null;
+    if (rawPipeline && !tree) {
+      stayInMongo(
+        "This pipeline can't be shown as blocks. Clear it to start over in the filter UI.",
+      );
+      return;
+    }
+    blocksStash.current = null;
+    setEditorMode(mode);
+    if (keepsSeededProjection)
+      setProjectionFields?.(stash.projectionFields ?? []);
+    handleFilterUpdate(tree ?? createEmptyFilterWithDefaultCondition());
+  };
+
   const handleImportPipeline = (pipeline: any[]) => {
     const tree = decompilePipeline(pipeline);
     setNoBlockTree(false);
     setProjectionFields?.([]);
+    if (!tree) {
+      setEditorMode("mongo");
+      blocksStash.current = null;
+      mongoTextInvalid.current = false;
+    }
     handleFilterUpdate(tree ?? pipeline);
     dispatch(
       tree
@@ -433,7 +527,7 @@ const FilterBuilderContent = ({
             "Pipeline converted to blocks. Click Save to keep it as a new version.",
           )
         : showNotification(
-            "This pipeline can't be shown as blocks, so it stays read-only. Click Save to keep it as a new version.",
+            "This pipeline can't be shown as blocks, so it opens in the MongoDB editor. Click Save to keep it as a new version.",
             "warning",
           ),
     );
@@ -521,6 +615,63 @@ const FilterBuilderContent = ({
       >
         <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
           <Typography variant="h6">Filter Builder</Typography>
+          {filter && (
+            <Box
+              sx={{
+                display: "inline-flex",
+                gap: 0.5,
+                p: 0.5,
+                borderRadius: 999,
+                border: 1,
+                borderColor: "divider",
+                backgroundColor: "background.default",
+              }}
+            >
+              {EDITOR_MODES.map(({ value, label }) => {
+                const selected = value === editorMode;
+                return (
+                  <ButtonBase
+                    key={value}
+                    aria-pressed={selected}
+                    onClick={() => handleEditorModeChange(value)}
+                    sx={{
+                      height: "1.75rem",
+                      px: 1.5,
+                      borderRadius: 999,
+                      fontSize: "0.8125rem",
+                      fontWeight: 600,
+                      whiteSpace: "nowrap",
+                      color: selected
+                        ? "primary.contrastText"
+                        : "text.secondary",
+                      backgroundColor: selected
+                        ? "primary.main"
+                        : "transparent",
+                      transition: (theme) =>
+                        theme.transitions.create(
+                          ["background-color", "color"],
+                          {
+                            duration: theme.transitions.duration.short,
+                          },
+                        ),
+                      "&:hover": {
+                        color: selected
+                          ? "primary.contrastText"
+                          : "text.primary",
+                      },
+                      "&.Mui-focusVisible": {
+                        outline: 2,
+                        outlineColor: "primary.main",
+                        outlineOffset: 2,
+                      },
+                    }}
+                  >
+                    {label}
+                  </ButtonBase>
+                );
+              })}
+            </Box>
+          )}
           {filter?.fv?.length > 0 && (
             <VersionSelect
               label="Version shown"
@@ -549,9 +700,7 @@ const FilterBuilderContent = ({
                 }
                 onClick={() => setSaveOpen(true)}
                 disabled={
-                  saving ||
-                  !hasValidQuery() ||
-                  (!!rawPipeline && !hasBeenModified)
+                  saving || !queryReady || (!!rawPipeline && !hasBeenModified)
                 }
               >
                 {saving ? "Saving…" : "Save"}
@@ -561,7 +710,7 @@ const FilterBuilderContent = ({
           <Tooltip
             describeChild
             title={
-              rawPipeline
+              rawPipeline || mongoMode
                 ? "Annotations can only be added to a filter built with blocks."
                 : "Choose the values attached as annotations to each alert that passes this filter. They are saved with the filter when you click Save."
             }
@@ -572,7 +721,7 @@ const FilterBuilderContent = ({
                 variant="outlined"
                 startIcon={<NoteIcon />}
                 onClick={handleAddAnnotations}
-                disabled={!!rawPipeline}
+                disabled={!!rawPipeline || mongoMode}
                 sx={{
                   "&:hover": {
                     backgroundColor: "secondary.50",
@@ -584,25 +733,31 @@ const FilterBuilderContent = ({
               </Button>
             </span>
           </Tooltip>
-          <Tooltip
-            describeChild
-            title="Paste a MongoDB aggregation pipeline to replace what the builder shows. It becomes blocks when possible and is only saved when you click Save."
-          >
-            <Button
-              type="button"
-              variant="outlined"
-              startIcon={<ContentPasteIcon />}
-              onClick={() => setImportOpen(true)}
+          {!mongoMode && (
+            <Tooltip
+              describeChild
+              title="Paste a MongoDB aggregation pipeline to replace what the builder shows. It becomes blocks when possible and is only saved when you click Save."
             >
-              Import JSON
-            </Button>
-          </Tooltip>
+              <Button
+                type="button"
+                variant="outlined"
+                startIcon={<ContentPasteIcon />}
+                onClick={() => setImportOpen(true)}
+              >
+                Import JSON
+              </Button>
+            </Tooltip>
+          )}
           <Tooltip
             describeChild
             title={
-              hasValidQuery()
-                ? "See the MongoDB pipeline built from these blocks and run it on past alerts to check which ones pass. Nothing is saved."
-                : "Add at least one complete condition to test the filter."
+              mongoMode
+                ? queryReady
+                  ? "Run this pipeline on past alerts to check which ones pass. Nothing is saved."
+                  : "Write a valid MongoDB pipeline to test the filter."
+                : queryReady
+                  ? "See the MongoDB pipeline built from these blocks and run it on past alerts to check which ones pass. Nothing is saved."
+                  : "Add at least one complete condition to test the filter."
             }
           >
             <span>
@@ -611,13 +766,13 @@ const FilterBuilderContent = ({
                 variant="outlined"
                 startIcon={<CodeIcon />}
                 onClick={handleShowMongoQuery}
-                disabled={!hasValidQuery()}
+                disabled={!queryReady}
                 sx={{
-                  borderColor: hasValidQuery() ? "primary.main" : undefined,
-                  color: hasValidQuery() ? "primary.main" : undefined,
+                  borderColor: queryReady ? "primary.main" : undefined,
+                  color: queryReady ? "primary.main" : undefined,
                   "&:hover": {
-                    borderColor: hasValidQuery() ? "primary.dark" : undefined,
-                    backgroundColor: hasValidQuery() ? "primary.50" : undefined,
+                    borderColor: queryReady ? "primary.dark" : undefined,
+                    backgroundColor: queryReady ? "primary.50" : undefined,
                   },
                 }}
               >
@@ -630,7 +785,16 @@ const FilterBuilderContent = ({
 
       {/* Filter Blocks */}
       <Box data-testid="tour-filter-blocks">
-        {schemaUnavailable ? (
+        {mongoMode ? (
+          <MongoPipelineEditor
+            key={loadedFid ?? "new"}
+            pipeline={rawPipeline}
+            onChange={(pipeline) => {
+              mongoTextInvalid.current = pipeline === null;
+              handleFilterUpdate(pipeline ?? []);
+            }}
+          />
+        ) : schemaUnavailable ? (
           <Alert severity="warning">
             No filter schema is available for <strong>{resolvedSurvey}</strong>{" "}
             from this broker, so there are no fields to build conditions with.
@@ -643,10 +807,10 @@ const FilterBuilderContent = ({
                 <>
                   This version was saved without the block builder&apos;s
                   representation of it, so only the pipeline it produced can be
-                  shown here. The pipeline below is read-only.
-                  {lastEditableVersion ? (
+                  shown here. Switch to MongoDB to edit it.
+                  {lastEditableVersion && (
                     <>
-                      {` Version ${shortFid(lastEditableVersion.fid)} is the most recent one that is still editable: `}
+                      {` Version ${shortFid(lastEditableVersion.fid)} is the most recent one that can still be edited as blocks: `}
                       <Link
                         component="button"
                         variant="body2"
@@ -659,15 +823,12 @@ const FilterBuilderContent = ({
                       </Link>
                       .
                     </>
-                  ) : (
-                    " Use Import JSON to replace it with a new version."
                   )}
                 </>
               ) : (
                 <>
                   This filter is a raw MongoDB pipeline that the block builder
-                  can&apos;t show as blocks, so it&apos;s shown read-only below.
-                  Use Import JSON to replace it with a new version.
+                  can&apos;t show as blocks. Switch to MongoDB to edit it.
                 </>
               )}
             </Alert>
