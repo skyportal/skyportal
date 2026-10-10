@@ -1,4 +1,6 @@
 import { useState, useEffect, useRef } from "react";
+import dayjs from "dayjs";
+import utc from "dayjs/plugin/utc";
 import {
   Dialog,
   DialogTitle,
@@ -49,12 +51,13 @@ import { useGetGcnEventsQuery } from "../../../../ducks/gcnEvents";
 import PipelineViewer from "./PipelineViewer";
 import FullscreenResultsDialog from "./FullscreenResultsDialog";
 
+dayjs.extend(utc);
+
 const DEFAULT_MAX_RESULTS = 50;
 const MAX_RESULTS_LIMIT = 200;
 // Matches DEFAULTS["credible_level"] in skyportal/utils/gcn_crossmatch.py, so a
 // preview searches the same region the crossmatch service does.
 const DEFAULT_CREDIBLE_LEVEL = 90;
-// Enough to cover the events a scanner would replay without paging the picker.
 const GCN_EVENT_PAGE_SIZE = 100;
 const NARROW_HINT = "Narrow the time window or the filter.";
 const ALERT_COLLECTIONS: Record<string, string> = {
@@ -188,6 +191,7 @@ const MongoQueryDialog = () => {
   );
   const [hasMore, setHasMore] = useState(false);
   const [gcnEvent, setGcnEvent] = useState<any>(null);
+  const [gcnEventSearch, setGcnEventSearch] = useState("");
   const [credibleLevelInput, setCredibleLevelInput] = useState(
     String(DEFAULT_CREDIBLE_LEVEL),
   );
@@ -202,8 +206,10 @@ const MongoQueryDialog = () => {
 
   const maxResults = parseMaxResults(maxResultsInput);
   const gcnEvents: any[] =
-    useGetGcnEventsQuery({ numPerPage: GCN_EVENT_PAGE_SIZE }).data?.events ??
-    [];
+    useGetGcnEventsQuery(
+      { numPerPage: GCN_EVENT_PAGE_SIZE, partialdateobs: gcnEventSearch },
+      { skip: !mongoDialog?.open },
+    ).data?.events ?? [];
   const credibleLevel = parseCredibleLevel(credibleLevelInput);
 
   const resetQueryState = () => {
@@ -256,7 +262,7 @@ const MongoQueryDialog = () => {
   defaultStartDate.setDate(defaultStartDate.getDate() - 1);
   const defaultEndDate = new Date();
 
-  const { getValues, control, watch } = useForm({
+  const { getValues, setValue, control, watch } = useForm({
     startDate: defaultStartDate,
     endDate: defaultEndDate,
   } as any);
@@ -311,6 +317,15 @@ const MongoQueryDialog = () => {
     } catch (error) {
       console.error("Failed to load collections:", error);
       setConnectionStatus("disconnected");
+    }
+  };
+
+  const selectGcnEvent = (event: any) => {
+    setGcnEvent(event);
+    if (event?.dateobs) {
+      const dateobs = dayjs.utc(event.dateobs);
+      setValue("startDate" as any, dateobs.toDate() as any);
+      setValue("endDate" as any, dateobs.add(7, "day").toDate() as any);
     }
   };
 
@@ -591,7 +606,13 @@ const MongoQueryDialog = () => {
                   <Autocomplete
                     options={gcnEvents}
                     value={gcnEvent}
-                    onChange={(_e, value) => setGcnEvent(value)}
+                    onChange={(_e, value) => selectGcnEvent(value)}
+                    onInputChange={(_e, value, reason) => {
+                      if (reason === "input" || reason === "clear") {
+                        setGcnEventSearch(value);
+                      }
+                    }}
+                    filterOptions={(options) => options}
                     getOptionLabel={(option: any) =>
                       option?.aliases?.length
                         ? `${option.aliases[0]} (${option.dateobs})`
