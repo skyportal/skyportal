@@ -64,11 +64,13 @@ const useStyles = makeStyles()((theme) => ({
 }));
 
 interface CommentComposerProps {
-  addComment?: ((...a: any[]) => unknown) | null;
-  editComment?: ((...a: any[]) => unknown) | null;
+  addComment?: ((...a: any[]) => void) | null;
+  editComment?: ((...a: any[]) => void) | null;
   commentText?: string;
   attachmentName?: string;
   onClose?: (() => void) | null;
+  placeholder?: string;
+  textOnly?: boolean;
 }
 
 const CommentForm = ({
@@ -77,6 +79,8 @@ const CommentForm = ({
   commentText = "",
   attachmentName = "",
   onClose = null,
+  placeholder = "Add a comment",
+  textOnly = false,
 }: CommentComposerProps) => {
   const { classes: styles, cx } = useStyles();
   // Only usernames are needed, for the @-mention trie.
@@ -178,15 +182,17 @@ const CommentForm = ({
     );
   };
 
-  const onSubmit = async (data: any) => {
+  const onSubmit = (data: any) => {
     const groupIDs = groups?.map((g) => g.id);
     const selectedGroupIDs = groupIDs?.filter(
       (_ID: any, idx: number) => data.group_ids[idx],
     );
     data.group_ids = selectedGroupIDs;
-    const result: any = await (addComment ?? editComment)?.(data);
-    // the base query already showed the error; keep the draft
-    if (result && "error" in result) return;
+    if (addComment) {
+      addComment(data);
+    } else if (editComment) {
+      editComment(data);
+    }
     reset();
     setTextValue("");
     setFileName("");
@@ -381,7 +387,7 @@ const CommentForm = ({
               autoFocus={isEdit}
               value={textValue}
               onChange={handleTextInputChange}
-              placeholder={editComment ? "Edit comment" : "Add a comment"}
+              placeholder={editComment ? "Edit comment" : placeholder}
               name="text"
               error={!!errors["text"]}
               size="small"
@@ -396,33 +402,37 @@ const CommentForm = ({
           control={control}
           rules={{ required: textRequired }}
         />
-        <Tooltip title="Attachment">
-          <IconButton component="label" size="small">
-            <AttachFileIcon fontSize="small" />
-            <input
-              hidden
-              type="file"
-              name="attachment"
-              onChange={handleFileInputChange}
-            />
-          </IconButton>
-        </Tooltip>
-        <Tooltip
-          title={
-            selectedGroups.length
-              ? `Shared with ${selectedGroups.length} group(s)`
-              : "Customize group access (public if not specified)"
-          }
-        >
-          <IconButton
-            size="small"
-            color={selectedGroups.length ? "primary" : "default"}
-            onClick={(event) => setGroupAnchor(event.currentTarget)}
-            data-testid="customizeGroupsButton"
-          >
-            <GroupIcon fontSize="small" />
-          </IconButton>
-        </Tooltip>
+        {!textOnly && (
+          <>
+            <Tooltip title="Attachment">
+              <IconButton component="label" size="small">
+                <AttachFileIcon fontSize="small" />
+                <input
+                  hidden
+                  type="file"
+                  name="attachment"
+                  onChange={handleFileInputChange}
+                />
+              </IconButton>
+            </Tooltip>
+            <Tooltip
+              title={
+                selectedGroups.length
+                  ? `Shared with ${selectedGroups.length} group(s)`
+                  : "Customize group access (public if not specified)"
+              }
+            >
+              <IconButton
+                size="small"
+                color={selectedGroups.length ? "primary" : "default"}
+                onClick={(event) => setGroupAnchor(event.currentTarget)}
+                data-testid="customizeGroupsButton"
+              >
+                <GroupIcon fontSize="small" />
+              </IconButton>
+            </Tooltip>
+          </>
+        )}
         <Menu
           anchorEl={groupAnchor}
           open={Boolean(groupAnchor)}

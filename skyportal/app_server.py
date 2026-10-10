@@ -57,6 +57,7 @@ from skyportal.handlers.api import (
     CommentAttachmentUpdateHandler,
     CommentChannelHandler,
     CommentHandler,
+    CommentThreadHandler,
     ConfigHandler,
     DataAccessRequestHandler,
     DataAvailabilityHandler,
@@ -67,6 +68,10 @@ from skyportal.handlers.api import (
     DefaultObservationPlanRequestHandler,
     DefaultSurveyEfficiencyRequestHandler,
     DeploymentHandler,
+    DiscussionHandler,
+    DiscussionMemberHandler,
+    DiscussionMembershipHandler,
+    DiscussionMessageHandler,
     DuplicateSchedulingHandler,
     EarthquakeHandler,
     EarthquakeMeasurementHandler,
@@ -694,6 +699,11 @@ skyportal_handlers = [
     (r"/api/deployments", DeploymentHandler),
     (r"/api/feedback(/[0-9]+)?", FeedbackHandler),
     (r"/api/feedback/([0-9]+)/replies", FeedbackReplyHandler),
+    (r"/api/discussions(/[0-9]+)?", DiscussionHandler),
+    (r"/api/discussions/([0-9]+)/messages(/[0-9]+)?", DiscussionMessageHandler),
+    (r"/api/discussions/([0-9]+)/members(/[0-9]+)?", DiscussionMemberHandler),
+    (r"/api/discussions/([0-9]+)/membership", DiscussionMembershipHandler),
+    (r"/api/comment_threads", CommentThreadHandler),
     (r"/api/config", ConfigHandler),
     (r"/api/assistant/conversations", AssistantConversationHandler),
     (r"/api/assistant/messages", AssistantMessageHandler),
@@ -943,10 +953,10 @@ def make_app(cfg, baselayer_handlers, baselayer_settings, process=None, env=None
     admin_token = model_util.provision_token()
     with open(".tokens.yaml", "w") as f:
         f.write(f"INITIAL_ADMIN: {admin_token.id}\n")
-    if env.debug:
+    with open(".tokens.yaml") as f:
         print("-" * 78)
         print("Tokens in .tokens.yaml:")
-        print(f"INITIAL_ADMIN: {admin_token.id}")
+        print("\n".join(f.readlines()), end="")
         print("-" * 78)
 
     model_util.provision_public_group()

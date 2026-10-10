@@ -43,7 +43,7 @@ from ...models import (
 )
 from ...utils.fits_display import get_fits_preview
 from ...utils.notifications import wants_in_app
-from ...utils.parse import get_page_and_n_per_page
+from ...utils.parse import get_page_and_n_per_page, mentioned_usernames
 from ...utils.sizeof import SIZE_WARNING_THRESHOLD, sizeof
 from ..base import BaseHandler
 
@@ -117,12 +117,7 @@ EXTENSION_TO_CONTENT_TYPE = {
 
 
 async def users_mentioned(text, session):
-    punctuation = string.punctuation.replace("-", "").replace("@", "")
-    usernames = []
-    for word in text.replace(",", " ").split():
-        word = word.strip(punctuation)
-        if word.startswith("@"):
-            usernames.append(word.replace("@", ""))
+    usernames = mentioned_usernames(text)
     if not usernames:
         return []
     result = await session.scalars(

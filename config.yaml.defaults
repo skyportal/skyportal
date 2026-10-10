@@ -261,6 +261,8 @@ app:
       anonymous_ok: true
     - path: "/favorites"
       component: listing/FavoritesPage
+    - path: "/discussions"
+      component: discussion/Discussions
     - path: "/data_access_requests"
       component: DataAccessRequestsPage
     - path: "/source_interests"
@@ -408,6 +410,10 @@ app:
         - name: Favorites
           icon: Star
           url: /favorites
+
+        - name: Discussions
+          icon: Forum
+          url: /discussions
 
         - name: Groups
           icon: GroupWork

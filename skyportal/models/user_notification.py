@@ -12,6 +12,7 @@ from ..utils.notifications import post_notification
 from .analysis import ObjAnalysis
 from .classification import Classification
 from .comment import Comment
+from .discussion import DiscussionMessage
 from .feedback import Feedback, FeedbackReply
 from .followup_request import FollowupRequest
 from .gcn import GcnEventExtraction
@@ -63,6 +64,7 @@ class UserNotification(Base):
 @event.listens_for(Classification, "after_insert")
 @event.listens_for(Spectrum, "after_insert")
 @event.listens_for(Comment, "after_insert")
+@event.listens_for(DiscussionMessage, "after_insert")
 @event.listens_for(Feedback, "after_insert")
 @event.listens_for(FeedbackReply, "after_insert")
 @event.listens_for(GroupAdmissionRequest, "after_insert")

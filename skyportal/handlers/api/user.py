@@ -419,6 +419,7 @@ class UserHandler(BaseHandler):
                                 "username": user.username,
                                 "first_name": user.first_name,
                                 "last_name": user.last_name,
+                                "gravatar_url": user.gravatar_url,
                                 "is_bot": user.is_bot,
                             }
                             for user in users_result.all()

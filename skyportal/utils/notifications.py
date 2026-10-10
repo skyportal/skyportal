@@ -517,6 +517,20 @@ def feedback_notification_text(content, escape, bold="*"):
     return f"New {content['label']} from {author}: {snippet}"
 
 
+def discussion_notification_text(content, escape, bold="*"):
+    author = f"{bold}@{escape(content['author'])}{bold}"
+    snippet = escape(content["snippet"])
+    if content["direct"]:
+        return f"{author} sent you a message: {snippet}"
+    where = (
+        f"{bold}{escape(content['label'])}{bold}"
+        if content["label"]
+        else "a group discussion"
+    )
+    verb = "mentioned you in" if content["mentioned"] else "wrote in"
+    return f"{author} {verb} {where}: {snippet}"
+
+
 def post_notification(request_body, timeout=2):
     notifications_microservice_url = (
         f"http://{cfg['hosts.notification_queue']}:{cfg['ports.notification_queue']}"

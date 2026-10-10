@@ -42,6 +42,9 @@ from skyportal.models import (
     DefaultObservationPlanRequest,
     DefaultSurveyEfficiencyRequest,
     Deployment,
+    Discussion,
+    DiscussionMember,
+    DiscussionMessage,
     EarthquakeEvent,
     EarthquakeMeasured,
     EarthquakeNotice,
@@ -614,6 +617,59 @@ def feedback_reply(feedback, super_admin_user):
     obj = (
         DBSession()
         .execute(sa.select(FeedbackReply).filter(FeedbackReply.id == reply_id))
+        .scalars()
+        .first()
+    )
+    if obj is not None:
+        DBSession().delete(obj)
+        DBSession().commit()
+
+
+@pytest.fixture()
+def discussion(user):
+    d = Discussion(
+        name="Plans",
+        creator_id=user.id,
+        members=[DiscussionMember(user_id=user.id)],
+    )
+    DBSession.add(d)
+    DBSession.commit()
+    discussion_id = d.id
+    yield d
+    obj = (
+        DBSession()
+        .execute(sa.select(Discussion).filter(Discussion.id == discussion_id))
+        .scalars()
+        .first()
+    )
+    if obj is not None:
+        DBSession().delete(obj)
+        DBSession().commit()
+
+
+@pytest.fixture()
+def discussion_member(discussion):
+    return discussion.members[0]
+
+
+@pytest.fixture()
+def discussion_message(discussion, user):
+    m = DiscussionMessage(discussion_id=discussion.id, author_id=user.id, text="Hi")
+    DBSession.add(m)
+    DBSession.commit()
+    yield m
+
+
+@pytest.fixture()
+def group_discussion(public_group, user):
+    d = Discussion(name="Group chat", creator_id=user.id, group_id=public_group.id)
+    DBSession.add(d)
+    DBSession.commit()
+    discussion_id = d.id
+    yield d
+    obj = (
+        DBSession()
+        .execute(sa.select(Discussion).filter(Discussion.id == discussion_id))
         .scalars()
         .first()
     )

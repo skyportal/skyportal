@@ -226,4 +226,25 @@ export const FEATURE_ANNOUNCEMENTS: FeatureAnnouncement[] = [
       },
     ],
   },
+  {
+    id: "discussions-page",
+    path: /./,
+    announcedAt: "2026-10-09",
+    steps: [
+      {
+        target: '[data-testid="tour-nav-discussions"]',
+        before: async () => {
+          document
+            .querySelector('[data-testid="tour-nav-discussions"]')
+            ?.scrollIntoView({ block: "nearest" });
+        },
+        title: "Discussions",
+        content:
+          "All your conversations in one place: direct messages, group " +
+          "discussions, and the comment threads you wrote in. Message anyone " +
+          "from their profile, and choose how you are notified in your " +
+          "notification preferences.",
+      },
+    ],
+  },
 ];

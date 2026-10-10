@@ -1,9 +1,10 @@
-import { Link as RouterLink } from "react-router-dom";
+import { Link as RouterLink, useNavigate } from "react-router-dom";
 
 import Box from "@mui/material/Box";
 import Link from "@mui/material/Link";
 import Typography from "@mui/material/Typography";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
+import ChatIcon from "@mui/icons-material/ChatOutlined";
 
 import Button from "../Button";
 import Paper from "../Paper";
@@ -13,6 +14,7 @@ import withRouter from "../withRouter";
 import { chips, field, memberSince } from "./ProfileFields";
 import { useGetProfileQuery } from "../../ducks/profile";
 import { useGetUserPublicProfileQuery } from "../../ducks/users";
+import { useStartDiscussionMutation } from "../../ducks/discussions";
 
 interface PublicProfileProps {
   route?: { id: string } | undefined;
@@ -23,7 +25,11 @@ const PublicProfile = ({ route }: PublicProfileProps) => {
   const { data: profile, isError } = useGetUserPublicProfileQuery(id!, {
     skip: !id,
   });
-  const currentUserId = useGetProfileQuery().data?.id;
+  const currentUser = useGetProfileQuery().data;
+  const currentUserId = currentUser?.id;
+  const navigate = useNavigate();
+  const [startDiscussion, { isLoading: starting }] =
+    useStartDiscussionMutation();
 
   if (isError) return <div>Cannot find this user.</div>;
   if (!profile) return <Spinner />;
@@ -54,7 +60,7 @@ const PublicProfile = ({ route }: PublicProfileProps) => {
             isBot={profile.is_bot}
             noTooltip
           />
-          <Box>
+          <Box sx={{ flexGrow: 1 }}>
             <Typography variant="h5" id="publicProfileRealname">
               {getUserRealName(profile.first_name, profile.last_name)}
             </Typography>
@@ -67,6 +73,28 @@ const PublicProfile = ({ route }: PublicProfileProps) => {
               </Typography>
             )}
           </Box>
+          {currentUser &&
+            !currentUser.is_anonymous &&
+            currentUserId !== profile.id &&
+            !profile.is_bot && (
+              <Button
+                primary
+                disabled={starting}
+                onClick={() =>
+                  startDiscussion({ direct: true, user_ids: [profile.id] })
+                    .unwrap()
+                    .then(({ id: discussionId }) =>
+                      navigate(`/discussions?id=${discussionId}`),
+                    )
+                    .catch(() => {})
+                }
+                data-testid="sendMessageButton"
+                sx={{ alignSelf: "flex-start" }}
+              >
+                <ChatIcon fontSize="small" sx={{ mr: 0.75 }} />
+                Message
+              </Button>
+            )}
         </Box>
         <Box sx={{ display: "flex", flexDirection: "column", gap: 1, mt: 2 }}>
           {profile.bio && (
