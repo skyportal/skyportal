@@ -169,13 +169,14 @@ const SharingServiceGroup = ({
     group_id: sharingServiceGroup.group_id,
   };
 
+  // Re-seed on open too, so toggles from a cancelled edit don't carry over.
   useEffect(() => {
     setOwner(sharingServiceGroup.owner);
     setAutoPublishTns(sharingServiceGroup.auto_share_to_tns);
     setAutoPublishHermes(sharingServiceGroup.auto_share_to_hermes);
     setAutoPublishTrove(sharingServiceGroup.auto_share_to_trove);
     setAutoPublishAllowBots(sharingServiceGroup.auto_sharing_allow_bots);
-  }, [sharingServiceGroup]);
+  }, [sharingServiceGroup, open]);
 
   useEffect(() => {
     if (!open) return;
