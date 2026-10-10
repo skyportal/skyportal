@@ -2018,9 +2018,10 @@ async def get_sources(
                         """
                     )
                     if localization_reject_sources:
+                        # sources nobody has vetted for this event have no row
                         statements.append(
                             """
-                            gcneventobjs.status <> 'rejected'
+                            gcneventobjs.status IS DISTINCT FROM 'rejected'
                             """
                         )
                 if include_sources_in_gcn:
