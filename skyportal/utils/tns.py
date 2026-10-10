@@ -58,6 +58,12 @@ TNS_INSTRUMENT_IDS = {
     "ztf": 196,
 }
 
+TNS_RETRIEVAL_INSTRUMENT_IDS = {
+    **TNS_INSTRUMENT_IDS,
+    "asas-sn": [153, 154, 191, 192, 195],
+    "wfst": 282,
+}
+
 SNCOSMO_TO_TNSFILTER = {
     "atlasc": 71,
     "atlaso": 72,
@@ -93,9 +99,19 @@ SNCOSMO_TO_TNSFILTER = {
     "lssty": 165,
 }
 
+WFST_SNCOSMO_TO_TNSFILTER = {
+    "sdssu": 151,
+    "sdssg": 152,
+    "sdssr": 153,
+    "sdssi": 154,
+    "sdssz": 155,
+    "ps1::w": 156,
+}
+
 TNSFILTER_TO_SNCOSMO = {
-    tns_id: [name for name, i in SNCOSMO_TO_TNSFILTER.items() if i == tns_id]
-    for tns_id in SNCOSMO_TO_TNSFILTER.values()
+    tns_id: [name for name, i in filters.items() if i == tns_id]
+    for filters in (SNCOSMO_TO_TNSFILTER, WFST_SNCOSMO_TO_TNSFILTER)
+    for tns_id in filters.values()
 }
 
 SURVEYS = {
@@ -556,7 +572,7 @@ def _resolve_tns_instrument(tns_instrument_id, session):
         The matching Instrument object
     """
     inst_name = None
-    for key, value in TNS_INSTRUMENT_IDS.items():
+    for key, value in TNS_RETRIEVAL_INSTRUMENT_IDS.items():
         if isinstance(value, list):
             if tns_instrument_id in value:
                 inst_name = key
