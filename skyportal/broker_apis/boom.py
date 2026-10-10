@@ -1240,7 +1240,7 @@ class BOOMBROKER(BrokerAPI):
         ``boom_filter_id`` is given, without making it the active version).
         Returns BOOM's response data (``id`` + ``active_fid`` for a new filter,
         ``fid`` for a new version)."""
-        pipeline = kwargs["pipeline"]
+        pipeline = _ensure_project_stage(kwargs["pipeline"])
         boom_filter_id = kwargs.get("boom_filter_id")
         if boom_filter_id is None:
             return _request(

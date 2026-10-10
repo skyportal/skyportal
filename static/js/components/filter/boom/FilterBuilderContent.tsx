@@ -128,6 +128,10 @@ const FilterBuilderContent = ({
   const [noBlockTree, setNoBlockTree] = useState(false);
   // "mongo" edits the pipeline as raw JSON instead of blocks.
   const [editorMode, setEditorMode] = useState<"blocks" | "mongo">("blocks");
+  // Blocks left when switching to MongoDB, restored if the pipeline is unchanged.
+  const blocksStash = useRef<any>(null);
+  const mongoTextInvalid = useRef(false);
+  const [loadedFid, setLoadedFid] = useState<string | null>(null);
   const [expandedStages, setExpandedStages] = useState<Set<any>>(new Set());
   const [importOpen, setImportOpen] = useState(false);
   const [saveOpen, setSaveOpen] = useState(false);
@@ -207,6 +211,8 @@ const FilterBuilderContent = ({
           setEditorMode(
             isRawMongoPipeline(versionData.filters) ? "mongo" : "blocks",
           );
+          setLoadedFid(displayedFid);
+          mongoTextInvalid.current = false;
           setLocalFilterData(versionData.filters);
           if (setFilters) {
             setFilters(versionData.filters);
@@ -434,10 +440,6 @@ const FilterBuilderContent = ({
     setMongoDialog({ open: true });
   };
 
-  // Blocks left when switching to MongoDB, restored if the pipeline is unchanged.
-  const blocksStash = useRef<any>(null);
-  const mongoTextInvalid = useRef(false);
-
   const handleEditorModeChange = (mode: "blocks" | "mongo" | null) => {
     if (!mode || mode === editorMode) return;
     if (mode === "mongo") {
@@ -600,7 +602,7 @@ const FilterBuilderContent = ({
       >
         <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
           <Typography variant="h6">Filter Builder</Typography>
-          {filter && !filter.fv?.length && (
+          {filter && (!filter.fv?.length || mongoMode) && (
             <ToggleButtonGroup
               exclusive
               size="small"
@@ -722,7 +724,7 @@ const FilterBuilderContent = ({
       <Box data-testid="tour-filter-blocks">
         {mongoMode ? (
           <MongoPipelineEditor
-            key={displayedFid ?? "new"}
+            key={loadedFid ?? "new"}
             pipeline={rawPipeline}
             onChange={(pipeline) => {
               mongoTextInvalid.current = pipeline === null;
