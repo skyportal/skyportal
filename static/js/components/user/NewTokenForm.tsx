@@ -1,5 +1,6 @@
 import { useEffect } from "react";
 
+import Box from "@mui/material/Box";
 import TextField from "@mui/material/TextField";
 import Checkbox from "@mui/material/Checkbox";
 import Typography from "@mui/material/Typography";
@@ -7,7 +8,6 @@ import FormControlLabel from "@mui/material/FormControlLabel";
 
 import { Controller, useForm } from "react-hook-form";
 import Button from "../Button";
-import Paper from "../Paper";
 
 import { useCreateTokenMutation } from "../../ducks/profile";
 
@@ -43,28 +43,47 @@ const NewTokenForm = ({ availableAcls }: NewTokenFormProps) => {
   };
 
   return (
-    <Paper data-testid="tour-profile-token">
-      <Typography variant="h6" sx={{ mb: 1 }}>
-        Generate New Token for Command-Line Authentication
-      </Typography>
-      <form
-        onSubmit={handleSubmit(onSubmit)}
-        style={{ display: "flex", flexDirection: "column", gap: "1rem" }}
+    <Box
+      component="form"
+      onSubmit={handleSubmit(onSubmit)}
+      sx={{ display: "flex", flexDirection: "column", gap: 2 }}
+    >
+      <Box
+        sx={{
+          display: "flex",
+          flexWrap: "wrap",
+          alignItems: "flex-start",
+          gap: 1.5,
+        }}
       >
         <TextField
           label="Token name"
+          size="small"
           {...register("name", { required: true })}
           name="name"
           error={!!errors["name"]}
           helperText={errors["name"] ? "Required" : ""}
-          sx={{ maxWidth: "20rem" }}
+          sx={{ flex: "1 1 12rem", maxWidth: "20rem" }}
         />
-        <div>
-          <b>ACLs: </b>
+        <Button primary type="submit" sx={{ height: 40 }}>
+          Generate Token
+        </Button>
+      </Box>
+      <Box>
+        <Typography variant="caption" color="text.secondary">
+          Permissions
+        </Typography>
+        <Box
+          sx={{
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fill, minmax(12rem, 1fr))",
+            columnGap: 1,
+          }}
+        >
           {availableAcls?.map((acl, idx) => (
             <FormControlLabel
               key={acl}
-              label={acl}
+              label={<Typography variant="body2">{acl}</Typography>}
               control={
                 <Controller
                   name={`acls[${idx}]`}
@@ -72,6 +91,7 @@ const NewTokenForm = ({ availableAcls }: NewTokenFormProps) => {
                   defaultValue={false}
                   render={({ field: { onChange, value } }) => (
                     <Checkbox
+                      size="small"
                       onChange={(event) => onChange(event.target.checked)}
                       checked={value}
                       data-testid={`acls[${idx}]`}
@@ -81,12 +101,9 @@ const NewTokenForm = ({ availableAcls }: NewTokenFormProps) => {
               }
             />
           ))}
-        </div>
-        <Button secondary type="submit" sx={{ alignSelf: "flex-start" }}>
-          Generate Token
-        </Button>
-      </form>
-    </Paper>
+        </Box>
+      </Box>
+    </Box>
   );
 };
 

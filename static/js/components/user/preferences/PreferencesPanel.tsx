@@ -1,93 +1,60 @@
 import { ReactNode } from "react";
 
-import Accordion from "@mui/material/Accordion";
-import AccordionSummary from "@mui/material/AccordionSummary";
-import AccordionDetails from "@mui/material/AccordionDetails";
 import Box from "@mui/material/Box";
-import Tooltip from "@mui/material/Tooltip";
 import Typography from "@mui/material/Typography";
-import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
-import HelpOutlineOutlinedIcon from "@mui/icons-material/HelpOutlineOutlined";
-
-const smallText = {
-  fontSize: "0.8125rem",
-  "& .MuiTypography-root, & .MuiFormControlLabel-label, & .MuiInputLabel-root":
-    {
-      fontSize: "0.8125rem",
-    },
-  "& .MuiFormControl-root, & .MuiInputBase-root": { maxWidth: "25rem" },
-};
 
 export interface PreferencesSection {
   title?: string;
-  popupText?: string;
+  text?: ReactNode;
   content: ReactNode;
 }
 
-interface PreferencesPanelProps {
-  title: string;
-  popupText?: string | undefined;
-  testId?: string | undefined;
-  sections: PreferencesSection[];
-  expanded: boolean;
-  onToggle: () => void;
-}
-
-export const Help = ({ text }: { text: string }) => (
-  <Tooltip
-    title={text}
-    placement="right"
-    slotProps={{ tooltip: { sx: { maxWidth: "30rem" } } }}
-  >
-    <HelpOutlineOutlinedIcon fontSize="inherit" sx={{ ml: 0.5 }} />
-  </Tooltip>
-);
-
-const PreferencesPanel = ({
-  title,
-  testId,
-  sections,
-  expanded,
-  onToggle,
-}: PreferencesPanelProps) => (
-  <Accordion
-    disableGutters
-    elevation={0}
-    sx={{
-      "&:not(:last-of-type)": { borderBottom: 1, borderColor: "divider" },
-    }}
-    expanded={expanded}
-    onChange={onToggle}
-    data-testid={testId}
-    slotProps={{ transition: { unmountOnExit: true } }}
-  >
-    <AccordionSummary
-      expandIcon={<ExpandMoreIcon fontSize="small" />}
-      data-testid={`${title.toLowerCase().replace(/\s+/g, "-")}-panel`}
-    >
-      <Typography variant="subtitle1" sx={{ display: "flex", fontWeight: 600 }}>
-        {title}
-      </Typography>
-    </AccordionSummary>
-    <AccordionDetails
-      sx={{ display: "flex", flexDirection: "column", gap: 2, pt: 0 }}
-    >
-      {sections.map((section, index) => (
-        <div key={section.title ?? index}>
-          {section.title && (
-            <Typography
-              variant="subtitle2"
-              sx={{ display: "flex", fontWeight: 600 }}
-            >
-              {section.title}
-              {section.popupText && <Help text={section.popupText} />}
+const PreferencesPanel = ({ sections }: { sections: PreferencesSection[] }) => (
+  <Box sx={{ display: "flex", flexDirection: "column" }}>
+    {sections.map(({ title, text, content }, index) =>
+      title ? (
+        <Box
+          key={title}
+          sx={{
+            display: "grid",
+            gridTemplateColumns: { xs: "1fr", md: "16rem minmax(0, 1fr)" },
+            gap: { xs: 1.5, md: 4 },
+            paddingY: 2.5,
+            borderTop: index ? 1 : 0,
+            borderColor: "divider",
+            "&:first-of-type": { paddingTop: 0.5 },
+          }}
+        >
+          <Box>
+            <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
+              {title}
             </Typography>
-          )}
-          <Box sx={smallText}>{section.content}</Box>
-        </div>
-      ))}
-    </AccordionDetails>
-  </Accordion>
+            {text && (
+              <Typography
+                variant="body2"
+                color="text.secondary"
+                sx={{ marginTop: 0.5 }}
+              >
+                {text}
+              </Typography>
+            )}
+          </Box>
+          <Box sx={{ minWidth: 0, maxWidth: "44rem" }}>{content}</Box>
+        </Box>
+      ) : (
+        <Box
+          key={index}
+          sx={
+            index
+              ? { borderTop: 1, borderColor: "divider", paddingTop: 2.5 }
+              : undefined
+          }
+        >
+          {content}
+        </Box>
+      ),
+    )}
+  </Box>
 );
 
 export default PreferencesPanel;
