@@ -42,20 +42,26 @@ log = make_log("tns_utils")
 TNS_INSTRUMENT_IDS = {
     "alfosc": 41,
     "asas-sn": 195,
-    "atlas": [153, 159, 160, 255, 256, 167, 290],
+    "atlas": [159, 160, 255, 256, 290],
     "decam": 172,
-    "efosc2": 30,
+    "efosc2": 31,
     "gaia": 163,
-    "goodman": 136,
+    "goodman": 127,
     "goto": [218, 264, 265, 266],
     "kast": 10,
     "lsst": 287,
     "lsstcomcam": 289,  # Rubin - LSSTComCam (commissioning camera)
-    "ps1": [98, 154, 155, 257],
-    "sedm": [149, 225],
+    "ps1": [155, 257],
+    "sedm": 149,
     "sprat": 156,
     "wifes": 115,
     "ztf": 196,
+}
+
+TNS_RETRIEVAL_INSTRUMENT_IDS = {
+    **TNS_INSTRUMENT_IDS,
+    "asas-sn": [153, 154, 191, 192, 195],
+    "wfst": 282,
 }
 
 SNCOSMO_TO_TNSFILTER = {
@@ -81,6 +87,7 @@ SNCOSMO_TO_TNSFILTER = {
     "ps1::r": 57,
     "ps1::i": 58,
     "ps1::z": 59,
+    "ps1::y": 25,
     "ps1::w": 26,
     "ztfg": 110,
     "ztfr": 111,
@@ -93,7 +100,20 @@ SNCOSMO_TO_TNSFILTER = {
     "lssty": 165,
 }
 
-TNSFILTER_TO_SNCOSMO = {v: k for k, v in SNCOSMO_TO_TNSFILTER.items()}
+WFST_SNCOSMO_TO_TNSFILTER = {
+    "sdssu": 151,
+    "sdssg": 152,
+    "sdssr": 153,
+    "sdssi": 154,
+    "sdssz": 155,
+    "ps1::w": 156,
+}
+
+TNSFILTER_TO_SNCOSMO = {
+    tns_id: [name for name, i in filters.items() if i == tns_id]
+    for filters in (SNCOSMO_TO_TNSFILTER, WFST_SNCOSMO_TO_TNSFILTER)
+    for tns_id in filters.values()
+}
 
 SURVEYS = {
     "ZTF": {"discovery_data_source_id": 48, "regex": OBJECT_ID_PATTERNS["ZTF"]},
@@ -553,7 +573,7 @@ def _resolve_tns_instrument(tns_instrument_id, session):
         The matching Instrument object
     """
     inst_name = None
-    for key, value in TNS_INSTRUMENT_IDS.items():
+    for key, value in TNS_RETRIEVAL_INSTRUMENT_IDS.items():
         if isinstance(value, list):
             if tns_instrument_id in value:
                 inst_name = key
@@ -596,11 +616,12 @@ def read_tns_photometry(photometry, session):
 
     tns_filter_id = photometry["filters"]["id"]
     if tns_filter_id not in TNSFILTER_TO_SNCOSMO:
-        raise ValueError(f"Cannot find TNS ID mapping for {tns_filter_id}")
-    filter_name = TNSFILTER_TO_SNCOSMO[tns_filter_id]
+        raise ValueError(f"Cannot find TNS filter ID mapping for {tns_filter_id}")
+    filter_names = TNSFILTER_TO_SNCOSMO[tns_filter_id]
+    filter_name = next((f for f in filter_names if f in instrument.filters), None)
 
-    if filter_name not in instrument.filters:
-        raise ValueError(f"{filter_name} not in {instrument.name}")
+    if filter_name is None:
+        raise ValueError(f"{' or '.join(filter_names)} not in {instrument.name}")
 
     if is_null(photometry["limflux"]):
         data_out = {
