@@ -93,7 +93,10 @@ SNCOSMO_TO_TNSFILTER = {
     "lssty": 165,
 }
 
-TNSFILTER_TO_SNCOSMO = {v: k for k, v in SNCOSMO_TO_TNSFILTER.items()}
+TNSFILTER_TO_SNCOSMO = {
+    tns_id: [name for name, i in SNCOSMO_TO_TNSFILTER.items() if i == tns_id]
+    for tns_id in SNCOSMO_TO_TNSFILTER.values()
+}
 
 SURVEYS = {
     "ZTF": {"discovery_data_source_id": 48, "regex": OBJECT_ID_PATTERNS["ZTF"]},
@@ -596,11 +599,12 @@ def read_tns_photometry(photometry, session):
 
     tns_filter_id = photometry["filters"]["id"]
     if tns_filter_id not in TNSFILTER_TO_SNCOSMO:
-        raise ValueError(f"Cannot find TNS ID mapping for {tns_filter_id}")
-    filter_name = TNSFILTER_TO_SNCOSMO[tns_filter_id]
+        raise ValueError(f"Cannot find TNS filter ID mapping for {tns_filter_id}")
+    filter_names = TNSFILTER_TO_SNCOSMO[tns_filter_id]
+    filter_name = next((f for f in filter_names if f in instrument.filters), None)
 
-    if filter_name not in instrument.filters:
-        raise ValueError(f"{filter_name} not in {instrument.name}")
+    if filter_name is None:
+        raise ValueError(f"{' or '.join(filter_names)} not in {instrument.name}")
 
     if is_null(photometry["limflux"]):
         data_out = {
