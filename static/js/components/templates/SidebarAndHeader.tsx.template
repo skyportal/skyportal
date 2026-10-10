@@ -10,6 +10,7 @@ import ListItem from "@mui/material/ListItem";
 import ListItemButton from "@mui/material/ListItemButton";
 import ListItemIcon from "@mui/material/ListItemIcon";
 import ListItemText from "@mui/material/ListItemText";
+import Badge from "@mui/material/Badge";
 import IconButton from "@mui/material/IconButton";
 import { makeStyles } from "tss-react/mui";
 import Collapse from '@mui/material/Collapse';
@@ -33,6 +34,7 @@ import { useAppDispatch, useAppSelector } from "../../types/hooks";
 import * as Actions from "../../ducks/sidebar";
 import { useGetProfileQuery } from "../../ducks/profile";
 import { useGetBrokersQuery } from "../../ducks/brokers";
+import { useGetDiscussionsQuery } from "../../ducks/discussions";
 import { useGetConfigQuery } from "../../ducks/config";
 
 import HeaderContent from "./HeaderContent";
@@ -164,6 +166,13 @@ const SidebarAndHeader = () => {
   const { data: brokers } = useGetBrokersQuery(undefined, {
     skip: !currentUser || currentUser.is_anonymous === true,
   });
+  const { data: discussions } = useGetDiscussionsQuery(undefined, {
+    skip: !currentUser || currentUser.is_anonymous === true,
+  });
+  const unreadDiscussions = (discussions || []).reduce(
+    (total, discussion) => total + (discussion.muted ? 0 : discussion.unread),
+    0,
+  );
   const alertBroker = (brokers || []).find(
     (b) => b.active && b.capabilities?.["query_alerts"] && b.default_alert_search,
   );
@@ -295,6 +304,8 @@ const SidebarAndHeader = () => {
         data-testid="tour-nav-brokers"
         {%- elif item.url == '/deployments' %}
         data-testid="tour-nav-deployments"
+        {%- elif item.url == '/discussions' %}
+        data-testid="tour-nav-discussions"
         {%- endif %}
         disablePadding
         sx={{ "{{ display: 'block' }}" }}
@@ -312,7 +323,13 @@ const SidebarAndHeader = () => {
                 justifyContent: 'center',
               }}" }}
             >
+              {% if item.url == '/discussions' -%}
+              <Badge badgeContent={unreadDiscussions} color="primary" max={99}>
+                <{{ item.icon }}Icon className={classes.icon} />
+              </Badge>
+              {%- else -%}
               <{{ item.icon }}Icon className={classes.icon} />
+              {%- endif %}
             </ListItemIcon>
             <SidebarLinkText
               route="{{ item.url }}"

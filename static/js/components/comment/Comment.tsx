@@ -52,7 +52,7 @@ const actionButtonStyle = {
 const LINK_REGEX = /(\[[^\]]*\]\([^)]*\)|<[^\s>]+>|(?:https?:\/\/|www\.)\S+)/g;
 const MENTION_REGEX = /(?<!\w)([@#])([\w-@]+)/g;
 
-const highlightMentions = (text: string) =>
+export const highlightMentions = (text: string) =>
   text
     .split(LINK_REGEX)
     .map((chunk, index) =>
@@ -60,7 +60,7 @@ const highlightMentions = (text: string) =>
     )
     .join("");
 
-const markdownLink = ({ node, children, ...props }: any) => (
+export const markdownLink = ({ node, children, ...props }: any) => (
   <Link
     {...props}
     target="_blank"
@@ -71,6 +71,11 @@ const markdownLink = ({ node, children, ...props }: any) => (
     {children}
   </Link>
 );
+
+export const emojiSupport = (textComment: any) =>
+  textComment.value.replace(/:\w+:/gi, (name: string) =>
+    emoji.getUnicode(name) ? emoji.getUnicode(name) : name,
+  );
 
 interface CommentProps {
   resourceType?: string;
@@ -127,34 +132,39 @@ const Comment = ({
   const editComment = (formData: any) => {
     switch (resourceType) {
       case "sources":
-        return editCommentMutation({
+        editCommentMutation({
           commentID: id,
           formData: { ...formData, obj_id: objID },
         });
+        break;
       case "spectra":
-        return editCommentMutation({
+        editCommentMutation({
           commentID: id,
           formData: { ...formData, spectrum_id },
         });
+        break;
       case "gcn_event":
-        return editCommentOnGcnEvent({
+        editCommentOnGcnEvent({
           commentID: id,
           gcnEventID: gcnEventID!,
           formData,
         });
+        break;
       case "shift":
-        return editCommentOnShift({
+        editCommentOnShift({
           commentID: id,
           formData: { ...formData, shift_id: shiftID },
         });
+        break;
       case "earthquake":
-        return editCommentOnEarthquake({
+        editCommentOnEarthquake({
           commentID: id,
           earthquakeID: earthquakeID!,
           formData,
         });
+        break;
       default:
-        return undefined;
+        break;
     }
   };
 
@@ -201,11 +211,6 @@ const Comment = ({
 
     return formattedText;
   };
-
-  const emojiSupport = (textComment: any) =>
-    textComment.value.replace(/:\w+:/gi, (name: string) =>
-      emoji.getUnicode(name) ? emoji.getUnicode(name) : name,
-    );
 
   const commentMessageStyle =
     resourceType === "shift"
