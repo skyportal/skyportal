@@ -11070,7 +11070,7 @@ export interface paths {
         post?: never;
         /**
          * Delete a group admission request
-         * @description <b>Permission(s) required:</b> <em>Upload data (or System admin)</em><br><br>Delete a group admission request
+         * @description Delete a group admission request
          */
         delete: {
             parameters: {
