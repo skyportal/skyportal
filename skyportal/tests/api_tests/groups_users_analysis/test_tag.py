@@ -158,6 +158,34 @@ def test_modify_tag(super_admin_token):
     assert "Tag not found" in data["message"]
 
 
+def test_manage_sources_user_can_modify_and_delete_tag(
+    manage_sources_token, view_only_token
+):
+    """Tag options are managed with "Manage sources", not only by System admins."""
+    status, data = api(
+        "POST",
+        "objtagoption",
+        data={"name": f"ManagedTag{uuid.uuid4().hex}"},
+        token=manage_sources_token,
+    )
+    assert status == 200, data
+    tag_id = data["data"]["id"]
+
+    renamed = {"name": f"RenamedTag{uuid.uuid4().hex}"}
+    status, data = api(
+        "PATCH", f"objtagoption/{tag_id}", data=renamed, token=view_only_token
+    )
+    assert status == 403, data
+
+    status, data = api(
+        "PATCH", f"objtagoption/{tag_id}", data=renamed, token=manage_sources_token
+    )
+    assert status == 200, data
+
+    status, data = api("DELETE", f"objtagoption/{tag_id}", token=manage_sources_token)
+    assert status == 200, data
+
+
 def test_modify_tag_without_providing_color(super_admin_token):
     """Test setting tag color back to null"""
     tag_data = {"name": f"TagColorToNull{uuid.uuid4().hex}", "color": "#3a87ad"}

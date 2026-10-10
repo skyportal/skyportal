@@ -1,7 +1,7 @@
 import sqlalchemy as sa
 from sqlalchemy.orm import relationship
 
-from baselayer.app.models import Base, CustomUserAccessControl, join_model
+from baselayer.app.models import Base, CustomUserAccessControl, join_model, restricted
 from skyportal.models import User
 from skyportal.models.group import (
     Group,
@@ -29,8 +29,17 @@ def objtag_access_logic(cls, user_or_token):
     return query.where(cls.author_id == user_or_token.id)
 
 
+def objtagoption_update_delete_logic(cls, user_or_token):
+    """Users with "Manage sources" (and System admins) manage tag options."""
+    if user_or_token.is_system_admin or "Manage sources" in user_or_token.permissions:
+        return sa.select(cls)
+    return restricted.select_accessible_rows(cls, user_or_token)
+
+
 class ObjTagOption(Base):
     """Store available tags that can be associated to an object."""
+
+    update = delete = CustomUserAccessControl(objtagoption_update_delete_logic)
 
     name = sa.Column(
         sa.String,

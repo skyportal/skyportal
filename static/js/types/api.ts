@@ -13690,7 +13690,7 @@ export interface paths {
         head?: never;
         /**
          * Update a tag option
-         * @description Update an existing tag option's name and/or color
+         * @description <b>Permission(s) required:</b> <em>Manage sources (or System admin)</em><br><br>Update an existing tag option's name and/or color
          */
         patch: {
             parameters: {
