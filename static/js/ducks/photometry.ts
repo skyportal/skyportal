@@ -3,7 +3,7 @@
  * (delete, submit, update) invalidate it so the list refetches.
  */
 import { skyportalApi } from "../api/skyportalApi";
-import { invalidateOnMessage } from "../api/wsInvalidation";
+import { invalidateOnMessage, findCachedQueryArg } from "../api/wsInvalidation";
 import { photometryTag } from "./photometryTags";
 import type { RouteData } from "../types/routeSchemaMap";
 
@@ -64,10 +64,21 @@ export const photometryApi = skyportalApi.injectEndpoints({
   }),
 });
 
-// scoped to the pushed object, so one source's push cannot refetch another page's
-invalidateOnMessage(REFRESH_SOURCE_PHOTOMETRY, (payload) =>
-  payload?.obj_id != null ? photometryTag(payload.obj_id) : null,
-);
+// Broadcast to every client, so it carries the source's internal_key rather
+// than its id: translate it to the id of a cached source so only that source's
+// photometry refetches.
+invalidateOnMessage(REFRESH_SOURCE_PHOTOMETRY, (payload, getState) => {
+  const objKey = payload?.obj_key as string | undefined;
+  if (!objKey) {
+    return null;
+  }
+  const objId = findCachedQueryArg(
+    getState,
+    "getSource",
+    (data) => data?.internal_key === objKey,
+  ) as string | number | null;
+  return objId != null ? photometryTag(objId) : null;
+});
 
 export const {
   useFetchSourcePhotometryQuery,
