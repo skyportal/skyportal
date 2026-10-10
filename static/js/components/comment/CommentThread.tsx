@@ -320,25 +320,24 @@ const CommentThread = ({
     switch (resourceType) {
       case "sources":
       case "spectra":
-        addCommentMutation({
+        return addCommentMutation({
           obj_id: objID,
           spectrum_id: spectrumID,
           channel,
           ...formData,
           origin,
         });
-        break;
       case "gcn_event":
-        addCommentOnGcnEvent({ gcnevent_id: gcnEventID, ...formData });
-        break;
+        return addCommentOnGcnEvent({ gcnevent_id: gcnEventID, ...formData });
       case "shift":
-        addCommentOnShift({ shiftID, ...formData });
-        break;
+        return addCommentOnShift({ shiftID, ...formData });
       case "earthquake":
-        addCommentOnEarthquake({ earthquake_id: earthquakeID, ...formData });
-        break;
+        return addCommentOnEarthquake({
+          earthquake_id: earthquakeID,
+          ...formData,
+        });
       default:
-        break;
+        return undefined;
     }
   };
 

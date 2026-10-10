@@ -77,6 +77,7 @@ const QUERY_KEYS = [
   "maxLatestMagnitude",
   "maxPeakMagnitude",
   "maxRedshift",
+  "minAbsGalacticLatitude",
   "minLatestMagnitude",
   "minPeakMagnitude",
   "minRedshift",
@@ -86,6 +87,7 @@ const QUERY_KEYS = [
   "origin",
   "pageNumber",
   "pendingOnly",
+  "promptDeltaT",
   "queryID",
   "ra",
   "radius",
@@ -249,6 +251,7 @@ export const {
   useFetchPendingGroupSourcesQuery,
   useFetchFavoriteSourcesQuery,
   useFetchGcnEventSourcesQuery,
+  useLazyFetchGcnEventSourcesQuery,
   useFetchSpatialCatalogSourcesQuery,
   useGetAltdataInfoQuery,
 } = sourcesApi;

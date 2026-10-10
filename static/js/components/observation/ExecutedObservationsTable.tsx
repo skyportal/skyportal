@@ -80,6 +80,8 @@ const ExecutedObservationsTable = ({
   const [newDialogFromAPIOpen, setNewDialogFromAPIOpen] = useState(false);
   const [filterOpen, setFilterOpen] = useState(false);
   const [rowsPerPage, setRowsPerPage] = useState(numPerPage);
+  // client-side mode has no parent tracking the page
+  const [clientPage, setClientPage] = useState(0);
   const [sortModel, setSortModel] = useState<any[]>([]);
   const [isSaving, setIsSaving] = useState<any>(null);
 
@@ -142,6 +144,7 @@ const ExecutedObservationsTable = ({
 
   const handlePaginationModelChange = (model: any) => {
     setRowsPerPage(model.pageSize);
+    setClientPage(model.page);
     const currentSort = sortModel.length
       ? {
           name: SERVER_SORT_FIELD[sortModel[0].field] || sortModel[0].field,
@@ -421,7 +424,7 @@ const ExecutedObservationsTable = ({
         sortingMode={serverSide ? "server" : "client"}
         rowCount={totalMatches}
         paginationModel={{
-          page: pageNumber - 1,
+          page: serverSide ? pageNumber - 1 : clientPage,
           pageSize: rowsPerPage,
         }}
         onPaginationModelChange={handlePaginationModelChange}

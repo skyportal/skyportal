@@ -115,14 +115,14 @@ const ObservationPage = () => {
   const handleExecutedTableChange = (action: string, tableState: any) => {
     if (action === "changePage" || action === "changeRowsPerPage") {
       handleExecutedPageChange(
-        tableState.page + 1,
+        tableState.page,
         tableState.rowsPerPage,
         tableState.sortOrder,
       );
     }
     if (action === "sort") {
       if (tableState.sortOrder.direction === "none") {
-        handleExecutedPageChange(1, tableState.rowsPerPage, {});
+        handleExecutedPageChange(0, tableState.rowsPerPage, {});
       } else {
         handleExecutedTableSorting(tableState.sortOrder);
       }
@@ -135,7 +135,7 @@ const ObservationPage = () => {
     }
     if (action === "sort") {
       if (tableState.sortOrder.direction === "none") {
-        handleQueuedPageChange(1, tableState.rowsPerPage, {});
+        handleQueuedPageChange(0, tableState.rowsPerPage, {});
       } else {
         handleQueuedTableSorting(tableState.sortOrder);
       }
