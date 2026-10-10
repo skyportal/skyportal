@@ -1774,7 +1774,9 @@ class GcnEventTagsHandler(BaseHandler):
         detector_type = self.get_query_argument("detectorType", None)
 
         async with self.AsyncSession() as session:
-            stmt = sa.select(GcnTag.text).distinct()
+            stmt = GcnTag.select(
+                session.user_or_token, columns=[GcnTag.text]
+            ).distinct()
             if detector_type is not None:
                 stmt = stmt.where(
                     GcnTag.dateobs.in_(
@@ -1822,6 +1824,13 @@ class GcnEventTagsHandler(BaseHandler):
             return self.error(f"Invalid dateobs: {e}")
 
         async with self.AsyncSession() as session:
+            event = await session.scalar(
+                GcnEvent.select(session.user_or_token).where(
+                    GcnEvent.dateobs == dateobs_parsed
+                )
+            )
+            if event is None:
+                return self.error(f"No GCN event with dateobs {dateobs}", status=404)
             try:
                 tag = GcnTag(
                     dateobs=dateobs_parsed,

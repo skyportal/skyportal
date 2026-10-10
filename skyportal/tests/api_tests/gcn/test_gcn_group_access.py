@@ -124,6 +124,21 @@ def test_localization_tags_listing_is_access_scoped(gcn_GW190425, view_only_toke
     assert "Test" in data["data"], data["data"]
 
 
+def test_gcn_tags_listing_is_access_scoped(
+    super_admin_token, public_group2, view_only_token, view_only_token_group2
+):
+    """/api/gcn_event/tags only lists tags of events the user can read."""
+    _, _, tag = _post_cone_event(super_admin_token, group_ids=[public_group2.id])
+
+    status, data = api("GET", "gcn_event/tags", token=view_only_token_group2)
+    assert status == 200, data
+    assert tag in data["data"]
+
+    status, data = api("GET", "gcn_event/tags", token=view_only_token)
+    assert status == 200, data
+    assert tag not in data["data"]
+
+
 def test_restricted_localization_hidden_from_non_members(
     super_admin_token, public_group2, view_only_token, view_only_token_group2
 ):
