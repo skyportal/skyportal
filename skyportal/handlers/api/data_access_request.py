@@ -698,10 +698,13 @@ class DataAccessRequestHandler(BaseHandler):
                     user_id_to_refresh, "skyportal/REFRESH_DATA_ACCESS_REQUESTS", {}
                 )
             if body.status == "accepted":
+                internal_key = await session.scalar(
+                    sa.select(Obj.internal_key).where(Obj.id == request.obj_id)
+                )
                 self.flow.push(
                     request.requester_id,
                     "skyportal/REFRESH_SOURCE",
-                    {"obj_key": request.obj_id},
+                    {"obj_key": internal_key},
                 )
             return self.success()
 
