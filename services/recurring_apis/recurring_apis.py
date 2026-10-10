@@ -64,6 +64,16 @@ def perform_api_calls():
                 )
                 continue
 
+            if not recurring_api.owner.tokens:
+                recurring_api.active = False
+                record_outcome(
+                    session,
+                    recurring_api,
+                    f"Recurring API {recurring_api.id} cannot run because its owner "
+                    "has no API token, deactivating it.",
+                )
+                continue
+
             token = recurring_api.owner.tokens[0].id
             if isinstance(recurring_api.payload, str):
                 data = json.loads(recurring_api.payload)
