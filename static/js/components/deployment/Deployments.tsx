@@ -1,5 +1,5 @@
 import { Fragment, ReactNode, useState } from "react";
-import { Link as RouterLink, useSearchParams } from "react-router-dom";
+import { useSearchParams } from "react-router-dom";
 import dayjs from "dayjs";
 import relativeTime from "dayjs/plugin/relativeTime";
 import utc from "dayjs/plugin/utc";
@@ -883,10 +883,8 @@ const Deployments = () => {
           {tab === "feedback" ? (
             <FeedbackTab title={data.title} isAdmin={isAdmin} />
           ) : tab === "notifications" ? (
-            <NotificationToggle type="deployments">
-              Get notified each time a new version is deployed. Delivery by
-              email or Slack is set with the settings button, and your contact
-              details in your <RouterLink to="/profile">profile</RouterLink>.
+            <NotificationToggle type="deployments" label="Deployments">
+              Get notified each time a new version is deployed.
             </NotificationToggle>
           ) : tab === "instance" && data.system ? (
             <InstanceDetails system={data.system} />
