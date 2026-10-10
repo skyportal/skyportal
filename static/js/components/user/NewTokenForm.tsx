@@ -70,7 +70,7 @@ const NewTokenForm = ({ availableAcls }: NewTokenFormProps) => {
         </Button>
       </Box>
       <Box>
-        <Typography variant="caption" color="text.secondary">
+        <Typography variant="caption" color="textSecondary">
           Permissions
         </Typography>
         <Box

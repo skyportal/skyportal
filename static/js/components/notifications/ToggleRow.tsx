@@ -50,7 +50,7 @@ const ToggleRow = ({
       {text && (
         <Typography
           variant="caption"
-          color="text.secondary"
+          color="textSecondary"
           component="div"
           sx={{ lineHeight: 1.3 }}
         >

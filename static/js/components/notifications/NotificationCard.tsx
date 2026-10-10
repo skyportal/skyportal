@@ -112,7 +112,7 @@ export const ChannelPills = ({
       >
         <Typography
           variant="caption"
-          color="text.secondary"
+          color="textSecondary"
           sx={{ marginRight: 0.5 }}
         >
           Notify me

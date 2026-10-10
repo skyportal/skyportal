@@ -60,7 +60,7 @@ const FollowupRequestPreferences = () => {
     Object.keys(instrumentFormParams).length === 0
   ) {
     return (
-      <Typography variant="body2" color="text.secondary">
+      <Typography variant="body2" color="textSecondary">
         No allocation with an API yet.
       </Typography>
     );
@@ -92,7 +92,7 @@ const FollowupRequestPreferences = () => {
 
   if (Object.keys(instLookUp).length === 0) {
     return (
-      <Typography variant="body2" color="text.secondary">
+      <Typography variant="body2" color="textSecondary">
         Loading instruments...
       </Typography>
     );
