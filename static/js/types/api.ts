@@ -20706,6 +20706,416 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/discussions/{discussion_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Retrieve your discussions
+         * @description The direct messages and group discussions the requesting user takes part in, latest activity first, with their unread message count.
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    discussion_id: number;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Success"] & {
+                            data?: components["schemas"]["DiscussionListResponse"];
+                        };
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        /**
+         * Delete a discussion
+         * @description Delete a discussion and all its messages. Restricted to whoever started it.
+         */
+        delete: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    discussion_id: number;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: never;
+        };
+        options?: never;
+        head?: never;
+        /** Rename a discussion */
+        patch: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    discussion_id: number;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["DiscussionPatchBody"];
+                };
+            };
+            responses: never;
+        };
+        trace?: never;
+    };
+    "/api/discussions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Start a discussion
+         * @description Start a group discussion with chosen users, or with every member of a group you belong to, or a direct message with one user (the one you already have with them is returned if it exists).
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["DiscussionPostBody"];
+                };
+            };
+            responses: {
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Success"] & {
+                            data?: components["schemas"]["DiscussionPostResponse"];
+                        };
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/discussions/{discussion_id}/messages": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read a discussion
+         * @description The latest messages of a discussion, oldest first. Pass the ID of the oldest one received as `before` to get the ones preceding it.
+         */
+        get: {
+            parameters: {
+                query?: {
+                    /** @description Only messages older than this message ID. */
+                    before?: number | null;
+                    limit?: number;
+                };
+                header?: never;
+                path: {
+                    discussion_id: number;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Success"] & {
+                            data?: components["schemas"]["DiscussionMessageListResponse"];
+                        };
+                    };
+                };
+            };
+        };
+        put?: never;
+        /**
+         * Send a message
+         * @description Post a message in a discussion. Participants are notified according to their preferences, unless they muted the discussion.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    discussion_id: number;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["DiscussionMessagePostBody"];
+                };
+            };
+            responses: {
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Success"] & {
+                            data?: components["schemas"]["DiscussionPostResponse"];
+                        };
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/discussions/{discussion_id}/messages/{message_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Delete a message
+         * @description Restricted to the author of the message.
+         */
+        delete: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    discussion_id: number;
+                    message_id: number;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: never;
+        };
+        options?: never;
+        head?: never;
+        /**
+         * Edit a message
+         * @description Restricted to the author of the message.
+         */
+        patch: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    discussion_id: number;
+                    message_id: number;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["DiscussionMessagePostBody"];
+                };
+            };
+            responses: never;
+        };
+        trace?: never;
+    };
+    "/api/discussions/{discussion_id}/members": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List the members of a discussion
+         * @description The chosen members, or every member of the discussion's group.
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    discussion_id: number;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Success"] & {
+                            data?: components["schemas"]["DiscussionMemberListResponse"];
+                        };
+                    };
+                };
+            };
+        };
+        put?: never;
+        /**
+         * Add users to a discussion
+         * @description Any member can add users to a discussion between chosen users.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    discussion_id: number;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["DiscussionMembersPostBody"];
+                };
+            };
+            responses: never;
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/discussions/{discussion_id}/members/{user_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Remove a user from a discussion
+         * @description Leave a discussion between chosen users, or remove someone from one you started. The discussion is deleted when its last member leaves.
+         */
+        delete: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    discussion_id: number;
+                    user_id: number;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: never;
+        };
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/discussions/{discussion_id}/membership": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Mark a discussion as read, or mute it */
+        patch: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    discussion_id: number;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["DiscussionMembershipPatchBody"];
+                };
+            };
+            responses: never;
+        };
+        trace?: never;
+    };
+    "/api/comment_threads": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Retrieve the comment threads you are involved in
+         * @description The comment threads, on sources, GCN events, earthquakes and shifts, where the requesting user wrote, latest activity first. Comments posted through the API (bots) are left out.
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Success"] & {
+                            data?: components["schemas"]["CommentThreadListResponse"];
+                        };
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/config": {
         parameters: {
             query?: never;
@@ -26603,6 +27013,174 @@ export interface components {
             status: "success";
             message?: string;
             data?: components["schemas"]["DeploymentNoID"][];
+        };
+        Discussion: {
+            /** @description The User who started the discussion. */
+            readonly creator?: components["schemas"]["User"];
+            /** @description Group whose members take part, if any. */
+            readonly group?: components["schemas"]["Group"];
+            readonly members?: components["schemas"]["DiscussionMember"][];
+            readonly messages?: components["schemas"]["DiscussionMessage"][];
+            /** @description Name of the discussion, NULL for a direct message. */
+            name?: string | null;
+            /** @description Whether this is a direct message between two users. */
+            is_direct?: boolean;
+            /** @description ID of the User who started the discussion. */
+            creator_id?: number | null;
+            /** @description Group whose members all take part in the discussion, if any. */
+            group_id?: number | null;
+            /** @description Unique object identifier. */
+            id?: number;
+        };
+        SingleDiscussion: {
+            /** @enum {string} */
+            status: "success";
+            message?: string;
+            data?: components["schemas"]["Discussion"];
+        };
+        ArrayOfDiscussions: {
+            /** @enum {string} */
+            status: "success";
+            message?: string;
+            data?: components["schemas"]["Discussion"][];
+        };
+        DiscussionMember: {
+            /** @description The Discussion. */
+            readonly discussion?: components["schemas"]["Discussion"];
+            /** @description The member. */
+            readonly user?: components["schemas"]["User"];
+            /** @description ID of the Discussion. */
+            discussion_id: number;
+            /** @description ID of the member. */
+            user_id: number;
+            /**
+             * Format: date-time
+             * @description When the member last read the discussion.
+             */
+            last_read_at?: string | null;
+            /** @description Whether the member is notified of new messages. */
+            muted?: boolean;
+            /** @description Unique object identifier. */
+            id?: number;
+        };
+        SingleDiscussionMember: {
+            /** @enum {string} */
+            status: "success";
+            message?: string;
+            data?: components["schemas"]["DiscussionMember"];
+        };
+        ArrayOfDiscussionMembers: {
+            /** @enum {string} */
+            status: "success";
+            message?: string;
+            data?: components["schemas"]["DiscussionMember"][];
+        };
+        DiscussionMemberNoID: {
+            /** @description The Discussion. */
+            readonly discussion?: components["schemas"]["Discussion"];
+            /** @description The member. */
+            readonly user?: components["schemas"]["User"];
+            /** @description ID of the Discussion. */
+            discussion_id: number;
+            /** @description ID of the member. */
+            user_id: number;
+            /**
+             * Format: date-time
+             * @description When the member last read the discussion.
+             */
+            last_read_at?: string | null;
+            /** @description Whether the member is notified of new messages. */
+            muted?: boolean;
+        };
+        SingleDiscussionMemberNoID: {
+            /** @enum {string} */
+            status: "success";
+            message?: string;
+            data?: components["schemas"]["DiscussionMemberNoID"];
+        };
+        ArrayOfDiscussionMemberNoIDs: {
+            /** @enum {string} */
+            status: "success";
+            message?: string;
+            data?: components["schemas"]["DiscussionMemberNoID"][];
+        };
+        DiscussionMessage: {
+            /** @description The Discussion. */
+            readonly discussion?: components["schemas"]["Discussion"];
+            /** @description The User who wrote the message. */
+            readonly author?: components["schemas"]["User"];
+            /** @description ID of the Discussion. */
+            discussion_id: number;
+            /** @description ID of the User who wrote the message. */
+            author_id: number;
+            /** @description Message body. */
+            text: string;
+            /** @description Unique object identifier. */
+            id?: number;
+        };
+        SingleDiscussionMessage: {
+            /** @enum {string} */
+            status: "success";
+            message?: string;
+            data?: components["schemas"]["DiscussionMessage"];
+        };
+        ArrayOfDiscussionMessages: {
+            /** @enum {string} */
+            status: "success";
+            message?: string;
+            data?: components["schemas"]["DiscussionMessage"][];
+        };
+        DiscussionMessageNoID: {
+            /** @description The Discussion. */
+            readonly discussion?: components["schemas"]["Discussion"];
+            /** @description The User who wrote the message. */
+            readonly author?: components["schemas"]["User"];
+            /** @description ID of the Discussion. */
+            discussion_id: number;
+            /** @description ID of the User who wrote the message. */
+            author_id: number;
+            /** @description Message body. */
+            text: string;
+        };
+        SingleDiscussionMessageNoID: {
+            /** @enum {string} */
+            status: "success";
+            message?: string;
+            data?: components["schemas"]["DiscussionMessageNoID"];
+        };
+        ArrayOfDiscussionMessageNoIDs: {
+            /** @enum {string} */
+            status: "success";
+            message?: string;
+            data?: components["schemas"]["DiscussionMessageNoID"][];
+        };
+        DiscussionNoID: {
+            /** @description The User who started the discussion. */
+            readonly creator?: components["schemas"]["User"];
+            /** @description Group whose members take part, if any. */
+            readonly group?: components["schemas"]["Group"];
+            readonly members?: components["schemas"]["DiscussionMember"][];
+            readonly messages?: components["schemas"]["DiscussionMessage"][];
+            /** @description Name of the discussion, NULL for a direct message. */
+            name?: string | null;
+            /** @description Whether this is a direct message between two users. */
+            is_direct?: boolean;
+            /** @description ID of the User who started the discussion. */
+            creator_id?: number | null;
+            /** @description Group whose members all take part in the discussion, if any. */
+            group_id?: number | null;
+        };
+        SingleDiscussionNoID: {
+            /** @enum {string} */
+            status: "success";
+            message?: string;
+            data?: components["schemas"]["DiscussionNoID"];
+        };
+        ArrayOfDiscussionNoIDs: {
+            /** @enum {string} */
+            status: "success";
+            message?: string;
+            data?: components["schemas"]["DiscussionNoID"][];
         };
         EarthquakeEvent: {
             /** @description The user that saved this EarthquakeEvent */
@@ -48437,6 +49015,275 @@ export interface components {
              * @description The reply
              */
             text: string;
+        };
+        /**
+         * DiscussionGroupResponse
+         * @description The group whose members take part in a discussion.
+         */
+        DiscussionGroupResponse: {
+            /** Id */
+            id: number;
+            /** Name */
+            name: string;
+        };
+        /**
+         * DiscussionMessageResponse
+         * @description A message of a discussion.
+         */
+        DiscussionMessageResponse: {
+            /** Id */
+            id: number;
+            /** Discussion Id */
+            discussion_id: number;
+            /** Text */
+            text: string;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Modified
+             * Format: date-time
+             */
+            modified: string;
+            author: components["schemas"]["DiscussionUserResponse"];
+        };
+        /**
+         * DiscussionResponse
+         * @description A discussion, as seen by the requesting user.
+         */
+        DiscussionResponse: {
+            /** Id */
+            id: number;
+            /**
+             * Name
+             * @default null
+             */
+            name: string | null;
+            /** Is Direct */
+            is_direct: boolean;
+            /**
+             * Creator Id
+             * @default null
+             */
+            creator_id: number | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** @default null */
+            group: components["schemas"]["DiscussionGroupResponse"];
+            /**
+             * Members
+             * @description Chosen members; empty for a group discussion.
+             */
+            members?: components["schemas"]["DiscussionUserResponse"][];
+            /** Member Count */
+            member_count: number;
+            /** Muted */
+            muted: boolean;
+            /** Unread */
+            unread: number;
+            /** @default null */
+            last_message: components["schemas"]["DiscussionMessageResponse"];
+        };
+        /**
+         * DiscussionUserResponse
+         * @description A user taking part in a discussion.
+         */
+        DiscussionUserResponse: {
+            /** Id */
+            id: number;
+            /** Username */
+            username: string;
+            /**
+             * First Name
+             * @default null
+             */
+            first_name: string | null;
+            /**
+             * Last Name
+             * @default null
+             */
+            last_name: string | null;
+            /**
+             * Gravatar Url
+             * @default null
+             */
+            gravatar_url: string | null;
+            /**
+             * Is Bot
+             * @default false
+             */
+            is_bot: boolean;
+        };
+        /**
+         * DiscussionListResponse
+         * @description The discussions the requesting user takes part in, latest activity first.
+         */
+        DiscussionListResponse: {
+            /** Discussions */
+            discussions?: components["schemas"]["DiscussionResponse"][];
+        };
+        /**
+         * DiscussionPostBody
+         * @description Request body for starting a discussion.
+         */
+        DiscussionPostBody: {
+            /**
+             * Direct
+             * @description Open (or reopen) a direct message with the single user in user_ids.
+             * @default false
+             */
+            direct: boolean;
+            /**
+             * User Ids
+             * @description Users to talk with.
+             */
+            user_ids?: number[];
+            /**
+             * Group Id
+             * @description Group whose members all take part, instead of chosen users.
+             * @default null
+             */
+            group_id: number | null;
+            /**
+             * Name
+             * @default null
+             */
+            name: string | null;
+        };
+        /**
+         * DiscussionPostResponse
+         * @description The discussion started, or the existing direct message.
+         */
+        DiscussionPostResponse: {
+            /** Id */
+            id: number;
+        };
+        /**
+         * DiscussionPatchBody
+         * @description Request body for renaming a discussion.
+         */
+        DiscussionPatchBody: {
+            /** Name */
+            name: string;
+        };
+        /**
+         * DiscussionMessageListResponse
+         * @description A page of the messages of a discussion, oldest first.
+         */
+        DiscussionMessageListResponse: {
+            /** Messages */
+            messages?: components["schemas"]["DiscussionMessageResponse"][];
+            /**
+             * Has More
+             * @description Whether older messages remain.
+             */
+            has_more: boolean;
+        };
+        /**
+         * DiscussionMessagePostBody
+         * @description Request body for sending or editing a message.
+         */
+        DiscussionMessagePostBody: {
+            /** Text */
+            text: string;
+        };
+        /**
+         * DiscussionMemberListResponse
+         * @description The users taking part in a discussion.
+         */
+        DiscussionMemberListResponse: {
+            /** Members */
+            members?: components["schemas"]["DiscussionUserResponse"][];
+        };
+        /**
+         * DiscussionMembersPostBody
+         * @description Request body for adding users to a discussion.
+         */
+        DiscussionMembersPostBody: {
+            /** User Ids */
+            user_ids: number[];
+        };
+        /**
+         * DiscussionMembershipPatchBody
+         * @description Request body for the requesting user's own state in a discussion.
+         */
+        DiscussionMembershipPatchBody: {
+            /**
+             * Muted
+             * @description Stop or resume notifications for this discussion.
+             * @default null
+             */
+            muted: boolean | null;
+            /**
+             * Read
+             * @description Mark every message as read.
+             * @default null
+             */
+            read: boolean | null;
+        };
+        /**
+         * CommentThreadLastCommentResponse
+         * @description The latest comment of a thread.
+         */
+        CommentThreadLastCommentResponse: {
+            /** Id */
+            id: number;
+            /** Text */
+            text: string;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            author: components["schemas"]["DiscussionUserResponse"];
+        };
+        /**
+         * CommentThreadResponse
+         * @description A comment thread the requesting user wrote in.
+         */
+        CommentThreadResponse: {
+            /**
+             * Resource Type
+             * @enum {string}
+             */
+            resource_type: "sources" | "gcn_event" | "earthquake" | "shift";
+            /** Resource Id */
+            resource_id: string;
+            /** Label */
+            label: string;
+            /** Url */
+            url: string;
+            /**
+             * Channel
+             * @default null
+             */
+            channel: string | null;
+            last_comment: components["schemas"]["CommentThreadLastCommentResponse"];
+            /**
+             * Dateobs
+             * @description GCN events only.
+             * @default null
+             */
+            dateobs: string | null;
+            /**
+             * Event Id
+             * @description Earthquakes only.
+             * @default null
+             */
+            event_id: string | null;
+        };
+        /**
+         * CommentThreadListResponse
+         * @description Comment threads the requesting user is involved in, latest activity first.
+         */
+        CommentThreadListResponse: {
+            /** Threads */
+            threads?: components["schemas"]["CommentThreadResponse"][];
         };
         /**
          * AssistantConversationPatchBody
