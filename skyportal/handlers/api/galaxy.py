@@ -417,6 +417,9 @@ def get_galaxies(
             if len(galaxy_ids) > 0
             else []
         )
+        # IN () returns rows in no particular order; restore the sorted order
+        galaxies_by_id = {galaxy.id: galaxy for galaxy in galaxies}
+        galaxies = [galaxies_by_id[i] for i in galaxy_ids if i in galaxies_by_id]
     else:
         galaxies = session.scalars(query).all()
         total_matches = len(galaxies)
