@@ -32,7 +32,7 @@ const PreferencesPanel = ({ sections }: { sections: PreferencesSection[] }) => (
             {text && (
               <Typography
                 variant="body2"
-                color="text.secondary"
+                color="textSecondary"
                 sx={{ marginTop: 0.5 }}
               >
                 {text}

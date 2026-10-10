@@ -26,7 +26,7 @@ const JoinableStreamsList = () => {
 
   if (joinable.length === 0) {
     return (
-      <Typography variant="body2" color="text.secondary">
+      <Typography variant="body2" color="textSecondary">
         You are in every public stream.
       </Typography>
     );

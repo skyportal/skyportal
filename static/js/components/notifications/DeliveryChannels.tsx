@@ -44,7 +44,7 @@ const Destination = ({
       <Typography variant="body2" sx={{ fontWeight: 600 }}>
         {title}
       </Typography>
-      <Typography variant="body2" color="text.secondary" noWrap>
+      <Typography variant="body2" color="textSecondary" noWrap>
         {value}
       </Typography>
     </Box>
@@ -85,7 +85,7 @@ const DeliveryChannels = () => {
     >
       <Box>
         <Typography sx={{ fontWeight: 600 }}>Where notifications go</Typography>
-        <Typography variant="body2" color="text.secondary">
+        <Typography variant="body2" color="textSecondary">
           Pick the channels for each kind of notification below.
         </Typography>
       </Box>

@@ -129,7 +129,7 @@ const ChannelSetup = ({ kind, onDone, onCancel }: ChannelSetupProps) => {
       >
         <Box>
           <Typography sx={{ fontWeight: 600 }}>{title}</Typography>
-          <Typography variant="body2" color="text.secondary">
+          <Typography variant="body2" color="textSecondary">
             {text}
           </Typography>
         </Box>

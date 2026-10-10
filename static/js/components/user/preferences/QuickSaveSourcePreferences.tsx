@@ -42,7 +42,7 @@ const QuickSaveSourcePreferences = () => {
 
   if (userAccessibleGroups.length === 0) {
     return (
-      <Typography variant="body2" color="text.secondary">
+      <Typography variant="body2" color="textSecondary">
         You do not have access to any group yet. Ask an administrator or a group
         admin to add you to one.
       </Typography>

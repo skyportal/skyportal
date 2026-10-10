@@ -238,7 +238,7 @@ const NotificationGcnEvent = () => {
     >
       <Typography
         variant="caption"
-        color="text.secondary"
+        color="textSecondary"
         sx={{ marginRight: 0.5 }}
       >
         Your profiles
@@ -389,7 +389,7 @@ const NotificationGcnEvent = () => {
           New GCN notification profile
         </DialogTitle>
         <DialogContent>
-          <Typography variant="body2" color="text.secondary">
+          <Typography variant="body2" color="textSecondary">
             An event matches this profile when it passes every filter you set.
             Empty filters are ignored.
           </Typography>
