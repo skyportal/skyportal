@@ -2690,7 +2690,7 @@ class ObjPhotometryHandler(BaseHandler):
                             period = an.data[period_str]
                             modified = arrow.get(an.modified)
                 if period is None:
-                    self.error(f"No period for object {obj_id}")
+                    return self.error(f"No period for object {obj_id}")
                 for ii in range(len(data)):
                     data[ii]["phase"] = np.mod(data[ii]["mjd"], period) / period
 

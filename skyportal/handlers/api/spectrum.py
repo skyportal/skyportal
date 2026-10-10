@@ -852,6 +852,8 @@ class SpectrumHandler(BaseHandler):
                 )
                 .where(Spectrum.id == spectrum_id)
             )
+            if spectrum is None:
+                return self.error("Could not find spectrum.", status=403)
 
             if group_ids:
                 groups_result = await session.scalars(
@@ -870,7 +872,11 @@ class SpectrumHandler(BaseHandler):
                         spectrum.groups = spectrum.groups + new_groups
 
             if pi:
-                existing_pis = list(spectrum.pis)
+                # the join rows, not spectrum.pis (which holds Users)
+                pi_rows = await session.scalars(
+                    sa.select(SpectrumPI).where(SpectrumPI.spectr_id == spectrum.id)
+                )
+                existing_pis = {row.user_id: row for row in pi_rows}
                 pis = []
                 for pi_id in pi:
                     pi_user = await session.scalar(
@@ -888,16 +894,26 @@ class SpectrumHandler(BaseHandler):
                         "At least one valid user must be provided as a pi point of contact via the 'pi' parameter."
                     )
 
-                for pi_assoc in existing_pis:
-                    if pi_assoc.user_id not in [r.user_id for r in pis]:
+                for user_id, pi_assoc in existing_pis.items():
+                    if user_id not in [r.user_id for r in pis]:
                         await session.delete(pi_assoc)
 
                 for pi_assoc in pis:
-                    pi_assoc.spectr_id = spectrum.id
-                    session.add(pi_assoc)
+                    row = existing_pis.get(pi_assoc.user_id)
+                    if row is None:
+                        pi_assoc.spectr_id = spectrum.id
+                        session.add(pi_assoc)
+                    else:
+                        row.external_pi = external_pi
 
             if reduced_by:
-                existing_reducers = list(spectrum.reducers)
+                # the join rows, not spectrum.reducers (which holds Users)
+                reducer_rows = await session.scalars(
+                    sa.select(SpectrumReducer).where(
+                        SpectrumReducer.spectr_id == spectrum.id
+                    )
+                )
+                existing_reducers = {row.user_id: row for row in reducer_rows}
                 reducers = []
                 for reducer_id in reduced_by:
                     reducer = await session.scalar(
@@ -915,16 +931,26 @@ class SpectrumHandler(BaseHandler):
                         "At least one valid user must be provided as a reducer point of contact via the 'reduced_by' parameter."
                     )
 
-                for reducer_assoc in existing_reducers:
-                    if reducer_assoc.user_id not in [r.user_id for r in reducers]:
+                for user_id, reducer_assoc in existing_reducers.items():
+                    if user_id not in [r.user_id for r in reducers]:
                         await session.delete(reducer_assoc)
 
                 for reducer_assoc in reducers:
-                    reducer_assoc.spectr_id = spectrum.id
-                    session.add(reducer_assoc)
+                    row = existing_reducers.get(reducer_assoc.user_id)
+                    if row is None:
+                        reducer_assoc.spectr_id = spectrum.id
+                        session.add(reducer_assoc)
+                    else:
+                        row.external_reducer = external_reducer
 
             if observed_by:
-                existing_observers = list(spectrum.observers)
+                # the join rows, not spectrum.observers (which holds Users)
+                observer_rows = await session.scalars(
+                    sa.select(SpectrumObserver).where(
+                        SpectrumObserver.spectr_id == spectrum.id
+                    )
+                )
+                existing_observers = {row.user_id: row for row in observer_rows}
                 observers = []
                 for observer_id in observed_by:
                     observer = await session.scalar(
@@ -943,13 +969,17 @@ class SpectrumHandler(BaseHandler):
                         "observer point of contact via the 'observed_by' parameter."
                     )
 
-                for observer_assoc in existing_observers:
-                    if observer_assoc.user_id not in [o.user_id for o in observers]:
+                for user_id, observer_assoc in existing_observers.items():
+                    if user_id not in [o.user_id for o in observers]:
                         await session.delete(observer_assoc)
 
                 for observer_assoc in observers:
-                    observer_assoc.spectr_id = spectrum.id
-                    session.add(observer_assoc)
+                    row = existing_observers.get(observer_assoc.user_id)
+                    if row is None:
+                        observer_assoc.spectr_id = spectrum.id
+                        session.add(observer_assoc)
+                    else:
+                        row.external_observer = external_observer
 
             for k in data:
                 setattr(spectrum, k, data[k])

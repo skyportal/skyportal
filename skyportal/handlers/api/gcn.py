@@ -2934,7 +2934,7 @@ class GcnEventUserHandler(BaseHandler):
                 UserNotification(
                     user_id=user.id,
                     text=f"You've been added as an advocate to event *{event.dateobs}*",
-                    url=f"/gcn_events/{event.dateobs}",
+                    url=f"/gcn_events/{event.dateobs.isoformat()}",
                 )
             )
             await session.commit()
@@ -4526,7 +4526,7 @@ def add_gcn_summary(
             user=user,
             text=f"GCN summary *{gcn_summary.title}* on *{event.dateobs}* created.",
             notification_type="gcn_summary",
-            url=f"/gcn_events/{event.dateobs}",
+            url=f"/gcn_events/{event.dateobs.isoformat()}",
         )
         session.add(notification)
         session.commit()
@@ -5166,7 +5166,7 @@ def add_gcn_report(
                 user=user,
                 text=f"GCN report *{gcn_report.report_name}* on *{event.dateobs}* created.",
                 notification_type="gcn_report",
-                url=f"/gcn_events/{event.dateobs}",
+                url=f"/gcn_events/{event.dateobs.isoformat()}",
             )
             session.add(notification)
             session.commit()
