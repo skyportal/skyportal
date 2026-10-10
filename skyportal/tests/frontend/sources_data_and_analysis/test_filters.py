@@ -125,7 +125,9 @@ def test_save_filter_written_in_mongodb(
         assert state["posted"]["filters"]["filters"] == pipeline
 
         # The saved version reopens in the MongoDB editor.
-        expect(page.get_by_role("button", name="MongoDB", exact=True)).to_have_count(0)
+        expect(
+            page.get_by_role("button", name="MongoDB", exact=True)
+        ).to_have_attribute("aria-pressed", "true")
         expect(editor).to_have_value(json.dumps(pipeline, indent=2))
     finally:
         api("DELETE", f"brokers/{broker_id}", token=super_admin_token)
