@@ -28,6 +28,7 @@ import VisibilityIcon from "@mui/icons-material/VisibilityOutlined";
 import AutorenewIcon from "@mui/icons-material/AutorenewOutlined";
 import RocketLaunchIcon from "@mui/icons-material/RocketLaunchOutlined";
 import FeedbackIcon from "@mui/icons-material/FeedbackOutlined";
+import ForumIcon from "@mui/icons-material/ForumOutlined";
 
 import dayjs from "dayjs";
 import relativeTime from "dayjs/plugin/relativeTime";
@@ -52,6 +53,8 @@ const typeIcon = (notificationType?: string | null, url?: string | null) => {
   const type = (notificationType || "").toLowerCase();
   if (type.includes("mention") || type.includes("comment"))
     return <ChatBubbleIcon />;
+  if (type === "direct_messages" || type === "group_discussions")
+    return <ForumIcon />;
   if (type.includes("reminder")) return <AlarmIcon />;
   if (type.includes("report") || type.includes("summary"))
     return <ArticleIcon />;

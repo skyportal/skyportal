@@ -328,6 +328,26 @@ const NOTIFICATIONS: {
     text: "When someone mentions you in a comment.",
   },
   {
+    key: "direct_messages",
+    title: "Direct messages",
+    text: "When someone writes to you privately.",
+  },
+  {
+    key: "group_discussions",
+    title: "Group conversations",
+    text: "New messages in the conversations and groups you are part of.",
+    options: (
+      <PreferenceOptions>
+        <PreferenceOption
+          type="group_discussions"
+          field="mentions_only"
+          title="Only when someone mentions me"
+          text="Skip the other messages of your group conversations."
+        />
+      </PreferenceOptions>
+    ),
+  },
+  {
     key: "deployments",
     title: "Deployments",
     text: "Each time a new version is deployed. The history is on the Deployments page.",

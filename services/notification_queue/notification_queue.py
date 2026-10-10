@@ -28,6 +28,8 @@ from skyportal.models import (
     Comment,
     DBSession,
     Deployment,
+    DiscussionMember,
+    DiscussionMessage,
     EventObservationPlan,
     Feedback,
     FeedbackReply,
@@ -64,6 +66,7 @@ from skyportal.utils.gcn_extraction_tags import (
     wants_classification,
 )
 from skyportal.utils.notifications import (
+    discussion_notification_text,
     escape_markdown,
     escape_slack,
     feedback_notification_text,
@@ -76,11 +79,14 @@ from skyportal.utils.notifications import (
     source_slack_notification,
     wants_in_app,
 )
+from skyportal.utils.parse import mentioned_usernames
 
 env, cfg = load_env()
 log = make_log("notification_queue")
 
 FEEDBACK_CATEGORIES = {"bug": "bug report", "change": "change request"}
+
+DISCUSSION_TYPES = ("direct_messages", "group_discussions")
 
 init_db(**cfg["database"])
 
@@ -184,6 +190,8 @@ def user_preferences(target, notification_setting, resource_type):
             "observation_plans",
             "deployments",
             "feedback",
+            "direct_messages",
+            "group_discussions",
         ]:
             if not prefs.get(resource_type, False):
                 return
@@ -231,6 +239,11 @@ def send_slack_notification(target):
             )
         elif resource_type == "feedback" and target.get("content"):
             text = feedback_notification_text(target["content"], escape_slack)
+            data = json.dumps(
+                {"url": integration_url, "text": f"{text} ({app_url}{target['url']})"}
+            )
+        elif resource_type in DISCUSSION_TYPES and target.get("content"):
+            text = discussion_notification_text(target["content"], escape_slack)
             data = json.dumps(
                 {"url": integration_url, "text": f"{text} ({app_url}{target['url']})"}
             )
@@ -319,6 +332,18 @@ def send_email_notification(target):
             )
             if target.get("content"):
                 text = feedback_notification_text(
+                    target["content"], html.escape, bold=""
+                )
+                body = f"<p>{text}</p><p><a href='{app_url}{target['url']}'>View in {cfg['app.title']}</a></p>"
+
+        elif resource_type in DISCUSSION_TYPES:
+            subject = (
+                f"{cfg['app.title']} - New direct message"
+                if resource_type == "direct_messages"
+                else f"{cfg['app.title']} - New message in a group discussion"
+            )
+            if target.get("content"):
+                text = discussion_notification_text(
                     target["content"], html.escape, bold=""
                 )
                 body = f"<p>{text}</p><p><a href='{app_url}{target['url']}'>View in {cfg['app.title']}</a></p>"
@@ -614,6 +639,7 @@ def api(queue):
             is_deployment = target_class_name == "Deployment"
             is_feedback = target_class_name == "Feedback"
             is_feedback_reply = target_class_name == "FeedbackReply"
+            is_discussion_message = target_class_name == "DiscussionMessage"
 
             with DBSession() as session:
                 try:
@@ -791,6 +817,52 @@ def api(queue):
                             **reply.to_dict(),
                             "author": reply.author.username,
                             "category": reply.feedback.category,
+                        }
+                    elif is_discussion_message:
+                        target_class = DiscussionMessage
+                        message = session.scalar(
+                            sa.select(DiscussionMessage).where(
+                                DiscussionMessage.id == target_id
+                            )
+                        )
+                        discussion = message.discussion
+                        resource_type = (
+                            "direct_messages"
+                            if discussion.is_direct
+                            else "group_discussions"
+                        )
+                        if discussion.group_id is None:
+                            participants = sa.select(DiscussionMember.user_id).where(
+                                DiscussionMember.discussion_id == discussion.id
+                            )
+                        else:
+                            participants = sa.select(GroupUser.user_id).where(
+                                GroupUser.group_id == discussion.group_id
+                            )
+                        muted = sa.select(DiscussionMember.user_id).where(
+                            DiscussionMember.discussion_id == discussion.id,
+                            DiscussionMember.muted.is_(True),
+                        )
+                        users = session.scalars(
+                            sa.select(User).where(
+                                User.id.in_(participants),
+                                User.id.not_in(muted),
+                                User.id != message.author_id,
+                                User.preferences["notifications"][resource_type][
+                                    "active"
+                                ]
+                                .astext.cast(sa.Boolean)
+                                .is_(True),
+                            )
+                        ).all()
+                        target_data = {
+                            "resource_type": resource_type,
+                            "author": message.author.username,
+                            "label": discussion.name
+                            or (discussion.group.name if discussion.group else None),
+                            "text": message.text,
+                            "mentions": mentioned_usernames(message.text),
+                            "url": f"/discussions?id={discussion.id}",
                         }
                     elif is_group_admission_request:
                         target_class = GroupAdmissionRequest
@@ -1291,6 +1363,35 @@ def api(queue):
                                             if is_feedback_reply
                                             else "feedback",
                                             "/deployments?tab=feedback",
+                                            content,
+                                        )
+                                    )
+                                elif is_discussion_message:
+                                    resource_type = target_data["resource_type"]
+                                    mentioned = user.username in target_data["mentions"]
+                                    if (
+                                        pref[resource_type].get("mentions_only")
+                                        and not mentioned
+                                    ):
+                                        continue
+                                    content = {
+                                        "author": target_data["author"],
+                                        "label": target_data["label"],
+                                        "snippet": textwrap.shorten(
+                                            target_data["text"], 120, placeholder="..."
+                                        ),
+                                        "direct": resource_type == "direct_messages",
+                                        "mentioned": mentioned,
+                                    }
+                                    queue.append(
+                                        user_notification_target(
+                                            session,
+                                            user,
+                                            discussion_notification_text(
+                                                content, escape_markdown
+                                            ),
+                                            resource_type,
+                                            target_data["url"],
                                             content,
                                         )
                                     )

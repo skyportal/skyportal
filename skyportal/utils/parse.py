@@ -1,3 +1,5 @@
+import string
+
 import arrow
 
 
@@ -135,3 +137,13 @@ def parse_optional_date(value):
 
 def safe_round(number, precision):
     return round(number, precision) if isinstance(number, int | float) else None
+
+
+def mentioned_usernames(text):
+    punctuation = string.punctuation.replace("-", "").replace("@", "")
+    usernames = []
+    for word in text.replace(",", " ").split():
+        word = word.strip(punctuation)
+        if word.startswith("@"):
+            usernames.append(word.replace("@", ""))
+    return usernames
