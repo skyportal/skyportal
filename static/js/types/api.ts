@@ -18696,7 +18696,7 @@ export interface paths {
         put?: never;
         /**
          * Ingest a Spatial Catalog
-         * @description Ingest a Spatial Catalog
+         * @description <b>Permission(s) required:</b> <em>Upload data (or System admin)</em><br><br>Ingest a Spatial Catalog
          */
         post: {
             parameters: {
