@@ -1,19 +1,23 @@
+import Box from "@mui/material/Box";
 import Chip from "@mui/material/Chip";
-import Typography from "@mui/material/Typography";
 
 interface DeletableChipsProps {
   items: string[];
   onDelete: (item: string) => void;
-  title: string;
 }
 
-const DeletableChips = ({ items, onDelete, title }: DeletableChipsProps) => (
-  <div>
-    <Typography>{title}</Typography>
+const DeletableChips = ({ items, onDelete }: DeletableChipsProps) => (
+  <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1 }}>
     {items?.map((item) => (
-      <Chip key={item} label={item} onDelete={() => onDelete(item)} />
+      <Chip
+        key={item}
+        label={item}
+        color="primary"
+        variant="outlined"
+        onDelete={() => onDelete(item)}
+      />
     ))}
-  </div>
+  </Box>
 );
 
 export default DeletableChips;

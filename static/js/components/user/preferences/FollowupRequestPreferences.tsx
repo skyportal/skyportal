@@ -1,8 +1,10 @@
 import { useGetGroupsQuery } from "../../../ducks/groups";
 import { useEffect, useState } from "react";
-import Select from "@mui/material/Select";
+import FormControl from "@mui/material/FormControl";
+import InputLabel from "@mui/material/InputLabel";
 import MenuItem from "@mui/material/MenuItem";
-import { makeStyles } from "tss-react/mui";
+import Select from "@mui/material/Select";
+import Typography from "@mui/material/Typography";
 
 import { useGetTelescopesQuery } from "../../../ducks/telescopes";
 import { useGetAllocationsApiClassnameQuery } from "../../../ducks/allocations";
@@ -14,15 +16,6 @@ import {
   useGetInstrumentFormsQuery,
   useGetInstrumentsQuery,
 } from "../../../ducks/instruments";
-
-const useStyles = makeStyles()(() => ({
-  allocationSelect: {
-    width: "100%",
-  },
-  SelectItem: {
-    whiteSpace: "break-spaces",
-  },
-}));
 
 const FollowupRequestPreferences = () => {
   const { data: telescopeList = [] } = useGetTelescopesQuery();
@@ -38,7 +31,6 @@ const FollowupRequestPreferences = () => {
     defaultAllocationId || -1,
   );
 
-  const { classes } = useStyles();
   const [updateUserPreferences] = useUpdateUserPreferencesMutation();
 
   useEffect(() => {
@@ -67,7 +59,11 @@ const FollowupRequestPreferences = () => {
     telescopeList.length === 0 ||
     Object.keys(instrumentFormParams).length === 0
   ) {
-    return <h3>No allocations with an API...</h3>;
+    return (
+      <Typography variant="body2" color="text.secondary">
+        No allocation with an API yet.
+      </Typography>
+    );
   }
 
   const groupLookUp: Record<string, any> = {};
@@ -94,50 +90,48 @@ const FollowupRequestPreferences = () => {
     instLookUp[instrumentObj.id] = instrumentObj;
   });
 
+  if (Object.keys(instLookUp).length === 0) {
+    return (
+      <Typography variant="body2" color="text.secondary">
+        Loading instruments...
+      </Typography>
+    );
+  }
+
   return (
-    <div>
-      {/* show the select if the instLookUp  isn't empty (has keys) */}
-      {Object.keys(instLookUp).length > 0 ? (
-        <Select
-          inputProps={{ MenuProps: { disableScrollLock: true } }}
-          labelId="allocationSelectLabel"
-          value={selectedAllocationId}
-          onChange={handleChange}
-          name="followupRequestAllocationSelect"
-          className={classes.allocationSelect}
-        >
-          {allocationListApiClassnameOptions?.map(
-            (allocation: any) =>
-              (instLookUp[allocation.instrument_id]?.telescope_id ||
-                allocation.id === -1) && (
-                <MenuItem
-                  value={allocation.id}
-                  key={allocation.id}
-                  className={classes.SelectItem}
-                >
-                  {allocation.id === -1 ? (
-                    allocation.name
-                  ) : (
-                    <div>
-                      {`${
-                        telLookUp[
-                          instLookUp[allocation.instrument_id]?.telescope_id
-                        ]?.name
-                      } / ${instLookUp[allocation.instrument_id]?.name} - ${
-                        groupLookUp[allocation.group_id]?.name
-                      } (PI ${allocation.pi})`}
-                    </div>
-                  )}
-                </MenuItem>
-              ),
-          )}
-        </Select>
-      ) : (
-        <div>
-          <h3>Loading instrument list...</h3>
-        </div>
-      )}
-    </div>
+    <FormControl fullWidth>
+      <InputLabel id="allocationSelectLabel">Allocation</InputLabel>
+      <Select
+        inputProps={{ MenuProps: { disableScrollLock: true } }}
+        labelId="allocationSelectLabel"
+        label="Allocation"
+        value={selectedAllocationId}
+        onChange={handleChange}
+        name="followupRequestAllocationSelect"
+      >
+        {allocationListApiClassnameOptions?.map(
+          (allocation: any) =>
+            (instLookUp[allocation.instrument_id]?.telescope_id ||
+              allocation.id === -1) && (
+              <MenuItem
+                value={allocation.id}
+                key={allocation.id}
+                sx={{ whiteSpace: "break-spaces" }}
+              >
+                {allocation.id === -1
+                  ? allocation.name
+                  : `${
+                      telLookUp[
+                        instLookUp[allocation.instrument_id]?.telescope_id
+                      ]?.name
+                    } / ${instLookUp[allocation.instrument_id]?.name} - ${
+                      groupLookUp[allocation.group_id]?.name
+                    } (PI ${allocation.pi})`}
+              </MenuItem>
+            ),
+        )}
+      </Select>
+    </FormControl>
   );
 };
 

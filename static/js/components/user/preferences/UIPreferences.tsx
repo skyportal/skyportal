@@ -1,7 +1,7 @@
-import FormGroup from "@mui/material/FormGroup";
-import FormControlLabel from "@mui/material/FormControlLabel";
-import Switch from "@mui/material/Switch";
-
+import {
+  OptionTile,
+  PreferenceOptions,
+} from "../../notifications/PreferenceOption";
 import {
   useGetProfileQuery,
   useUpdateUserPreferencesMutation,
@@ -9,20 +9,26 @@ import {
 
 const TOGGLES = [
   { key: "invertThumbnails", label: "Invert thumbnails" },
-  { key: "useAMPM", label: "24 Hour or AM/PM" },
-  { key: "useRefMag", label: "Use Reference Magnitude" },
-  { key: "showBotComments", label: "Bot Comments" },
-  { key: "hideMLClassifications", label: "Hide ML-based Classifications" },
-  { key: "showSimilarSources", label: "Show Similar Sources" },
-  { key: "hideSourceSummary", label: "Hide Source Summaries on Source page" },
+  { key: "useAMPM", label: "AM/PM times", text: "Instead of 24-hour times." },
+  { key: "useRefMag", label: "Use reference magnitude" },
+  { key: "showBotComments", label: "Show bot comments" },
+  { key: "hideMLClassifications", label: "Hide ML classifications" },
+  { key: "showSimilarSources", label: "Show similar sources" },
+  {
+    key: "hideSourceSummary",
+    label: "Hide source summaries",
+    text: "On source pages.",
+  },
   {
     key: "showAISourceSummary",
-    label: "Show AI Source Summaries on Source page",
+    label: "Show AI source summaries",
+    text: "On source pages.",
     hidden: (prefs: any) => prefs?.hideSourceSummary === true,
   },
   {
     key: "hideDataFromDiscovery",
-    label: "Hide my data: never tell others it exists, or let them ask for it",
+    label: "Hide my data",
+    text: "Never tell others it exists, or let them ask for it.",
   },
 ];
 
@@ -31,28 +37,21 @@ const UIPreferences = () => {
   const preferences = profile?.preferences as any;
   const [updateUserPreferences] = useUpdateUserPreferencesMutation();
 
-  const prefToggled = (key: string) => (event: any) => {
-    updateUserPreferences({ [key]: event.target.checked });
-  };
-
   return (
-    <FormGroup>
+    <PreferenceOptions>
       {TOGGLES.filter(({ hidden }) => !hidden?.(preferences)).map(
-        ({ key, label }) => (
-          <FormControlLabel
+        ({ key, label, text }) => (
+          <OptionTile
             key={key}
-            control={
-              <Switch
-                checked={preferences?.[key] === true}
-                name={key}
-                onChange={prefToggled(key)}
-              />
-            }
-            label={label}
+            checked={preferences?.[key] === true}
+            name={key}
+            title={label}
+            text={text}
+            onToggle={(checked) => updateUserPreferences({ [key]: checked })}
           />
         ),
       )}
-    </FormGroup>
+    </PreferenceOptions>
   );
 };
 
