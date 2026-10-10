@@ -102,6 +102,7 @@ const registerReminderRefresh = (actionType: string, resourceType: string) => {
 registerReminderRefresh("skyportal/REFRESH_REMINDER_SOURCE", "source");
 registerReminderRefresh("skyportal/REFRESH_REMINDER_GCNEVENT", "gcn_event");
 registerReminderRefresh("skyportal/REFRESH_REMINDER_SOURCE_SPECTRA", "spectra");
+registerReminderRefresh("skyportal/REFRESH_REMINDER_EARTHQUAKE", "earthquake");
 registerReminderRefresh("skyportal/REFRESH_REMINDER_SHIFT", "shift");
 
 export const {
