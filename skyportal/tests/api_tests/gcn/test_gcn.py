@@ -124,6 +124,7 @@ def test_gcn_GW(super_admin_token, view_only_token):
     status, data = api(
         "DELETE", "gcn_event/2019-04-25T08:18:05", token=super_admin_token
     )
+    assert status == 200
 
 
 def test_gcn_Fermi(super_admin_token, view_only_token):
