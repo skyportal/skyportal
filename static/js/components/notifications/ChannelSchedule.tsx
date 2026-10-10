@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 
 import Box from "@mui/material/Box";
 import Checkbox from "@mui/material/Checkbox";
@@ -31,10 +31,6 @@ const ChannelSchedule = ({ type, channel }: ChannelScheduleProps) => {
   const [slot, setSlot] = useState<number[]>(
     ascending(saved.length ? saved : DEFAULT_SLOT),
   );
-
-  useEffect(() => {
-    if (saved.length) setSlot(ascending(saved));
-  }, [saved.join(",")]);
 
   const inverted = saved.length === 2 && (saved[0] ?? 0) > (saved[1] ?? 0);
   const update = (values: Record<string, unknown>) =>
