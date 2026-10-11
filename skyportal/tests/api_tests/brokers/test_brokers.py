@@ -682,6 +682,26 @@ def test_broker_alerts_inactive(super_admin_token):
     assert status == 400
 
 
+def test_broker_save_requires_group_membership(
+    super_admin_token, upload_data_token, public_group2
+):
+    status, data = api(
+        "POST", "brokers", data=_broker_payload(), token=super_admin_token
+    )
+    assert status == 200
+    broker_id = data["data"]["id"]
+
+    # Rejected before any broker fetch, so no network mocking is needed.
+    status, data = api(
+        "POST",
+        f"brokers/{broker_id}/alerts/ZTF26aaaaaaa/save",
+        data={"group_ids": [public_group2.id]},
+        token=upload_data_token,
+    )
+    assert status == 400
+    assert "groups you are a member of" in data["message"]
+
+
 # --- provider-level unit tests (no running server needed) ---
 
 
