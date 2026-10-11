@@ -64,19 +64,36 @@ export const photometryApi = skyportalApi.injectEndpoints({
   }),
 });
 
+// The id of a source in a loaded sources or candidates list (the source
+// detail panel and the scanning page plot its photometry), given its key.
+const findListedObjId = (getState: () => unknown, objKey: string) => {
+  const queries = (getState() as any)?.skyportalApi?.queries ?? {};
+  for (const entry of Object.values(queries) as any[]) {
+    const rows = entry?.data?.sources ?? entry?.data?.candidates;
+    if (Array.isArray(rows)) {
+      const match = rows.find((row: any) => row?.internal_key === objKey);
+      if (match?.id != null) {
+        return match.id as string | number;
+      }
+    }
+  }
+  return null;
+};
+
 // Broadcast to every client, so it carries the source's internal_key rather
-// than its id: translate it to the id of a cached source so only that source's
-// photometry refetches.
+// than its id: translate it to the id of a source this client has loaded, on
+// its own page or in a list, so only that source's photometry refetches.
 invalidateOnMessage(REFRESH_SOURCE_PHOTOMETRY, (payload, getState) => {
   const objKey = payload?.obj_key as string | undefined;
   if (!objKey) {
     return null;
   }
-  const objId = findCachedQueryArg(
+  const sourceId = findCachedQueryArg(
     getState,
     "getSource",
     (data) => data?.internal_key === objKey,
   ) as string | number | null;
+  const objId = sourceId ?? findListedObjId(getState, objKey);
   return objId != null ? photometryTag(objId) : null;
 });
 
