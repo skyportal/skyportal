@@ -74,3 +74,39 @@ def test_spatial_catalog(super_admin_token, upload_data_token, view_only_token):
 
     status, data = api("GET", f"spatial_catalog/{catalog_id}", token=super_admin_token)
     assert status == 400
+
+
+def test_spatial_catalog_circular_ellipse_keeps_name(super_admin_token):
+    catalog_name = str(uuid.uuid4())
+    entry_name = str(uuid.uuid4())
+
+    # amaj == amin is ingested as a cone, which must still keep the given name
+    data = {
+        "catalog_name": catalog_name,
+        "catalog_data": {
+            "name": [entry_name],
+            "ra": [33.04],
+            "dec": [53.36],
+            "amaj": [0.1],
+            "amin": [0.1],
+            "phi": [0.0],
+        },
+    }
+    status, data = api("POST", "spatial_catalog", data=data, token=super_admin_token)
+    assert status == 200
+    catalog_id = data["data"]["id"]
+
+    for n_times in range(26):
+        status, data = api(
+            "GET", f"spatial_catalog/{catalog_id}", token=super_admin_token
+        )
+        if data["status"] == "success" and len(data["data"]["entries"]) == 1:
+            break
+        time.sleep(2)
+    assert n_times < 25
+    assert data["data"]["entries"][0]["entry_name"] == entry_name
+
+    status, data = api(
+        "DELETE", f"spatial_catalog/{catalog_id}", token=super_admin_token
+    )
+    assert status == 200

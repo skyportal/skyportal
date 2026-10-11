@@ -77,8 +77,8 @@ def add_catalog(catalog_id, catalog_data):
                     skymap = from_cone(ra, dec, amaj, n_sigma=1)
                 else:
                     skymap = from_ellipse(name, ra, dec, amaj, amin, phi)
-                skymap["entry_name"] = skymap["localization_name"]
                 del skymap["localization_name"]
+                skymap["entry_name"] = name
 
                 data = {"ra": ra, "dec": dec, "amaj": amaj, "amin": amin, "phi": phi}
 
