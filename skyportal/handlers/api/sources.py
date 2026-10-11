@@ -3023,11 +3023,20 @@ async def get_sources(
                 query_str, bindparams = array2sql(
                     obj_ids, type=sa.String, prefix="obj_ids"
                 )
+                # ObjTag.read: non-admins only see tags shared with one of their groups
+                groups_filter = ""
+                if not is_admin:
+                    groups_filter = (
+                        "AND obj_tags.id IN (SELECT obj_tag_id FROM group_obj_tags "
+                        f"WHERE group_id IN {accessible_groups_query_str})"
+                    )
+                    bindparams += accessible_groups_bindparams
                 stmt = f"""
                 SELECT obj_tags.obj_id, obj_tags.id, objtagoptions.name, obj_tags.objtagoption_id
                 FROM obj_tags
                 JOIN objtagoptions ON obj_tags.objtagoption_id = objtagoptions.id
                 WHERE obj_tags.obj_id IN {query_str}
+                {groups_filter}
                 """
 
                 tags_result = await session.execute(text(stmt).bindparams(*bindparams))
