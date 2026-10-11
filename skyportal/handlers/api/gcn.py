@@ -945,12 +945,9 @@ async def post_gcnevent_from_json(
     event = None
     ref_ID = payload.get("ref_ID", None)
     if ref_ID is not None:
+        # exact match: superevent ids are often prefixes of others (S240422e/ed)
         event = await session.scalar(
-            GcnEvent.select(user).where(
-                sa.func.lower(cast(GcnEvent.aliases, sa.String)).like(
-                    f"%{ref_ID.lower()}%"
-                )
-            )
+            GcnEvent.select(user).where(GcnEvent.aliases.any(f"LVC#{ref_ID}"))
         )
 
     if event is None and trigger_id is not None:
