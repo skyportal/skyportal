@@ -420,3 +420,83 @@ def test_observation_plan_galaxy(
     retry_until(galaxy_plans_ready, timeout=60)
 
     remove_telescope_and_instrument(telescope_id, instrument_id, super_admin_token)
+
+
+def test_rejected_manual_observation_plan_persists_nothing(
+    super_admin_token, public_group, gcn_GW190814
+):
+    telescope_id, instrument_id, _, _ = add_telescope_and_instrument(
+        "ZTF", super_admin_token
+    )
+    allocation_data = {
+        "group_id": public_group.id,
+        "instrument_id": instrument_id,
+        "pi": "Shri Kulkarni",
+        "hours_allocated": 200,
+        "validity_ranges": [
+            {
+                "start_date": "2021-02-27T00:00:00.000Z",
+                "end_date": "3021-07-20T00:00:00.000Z",
+            }
+        ],
+        "proposal_id": "COO-2020A-P01",
+        "types": ["observation_plan"],
+    }
+    status, data = api(
+        "POST", "allocation", data=allocation_data, token=super_admin_token
+    )
+    assert status == 200
+    allocation_id = data["data"]["id"]
+
+    planned_observation = {
+        "dateobs": "2019-08-14T22:00:00",
+        "field_id": 1,
+        "exposure_time": 30,
+        "weight": 1.0,
+        "filt": "ztfg",
+        "planned_observation_id": 0,
+        "overhead_per_exposure": 10,
+    }
+    manual_plan = {
+        "gcnevent_id": gcn_GW190814.id,
+        "localization_id": gcn_GW190814.localizations[0].id,
+        "allocation_id": allocation_id,
+        "status": "complete",
+        "payload": {},
+        "plan_name": str(uuid.uuid4()),
+        "observation_plans": [
+            {
+                "validity_window_start": "2019-08-14T21:00:00",
+                "validity_window_end": "2019-08-15T21:00:00",
+                "status": "complete",
+                "planned_observations": [planned_observation],
+            }
+        ],
+    }
+
+    # ztfg is not one of the instrument's filters
+    status, data = api(
+        "POST", "observation_plan/manual", data=manual_plan, token=super_admin_token
+    )
+    assert status == 400
+    assert "filter" in data["message"]
+
+    # Nothing was kept, so the same plan name gets past the plan insert this time.
+    planned_observation["filt"] = "ztfr"
+    planned_observation["dateobs"] = "not a date"
+    status, data = api(
+        "POST", "observation_plan/manual", data=manual_plan, token=super_admin_token
+    )
+    assert status == 400
+    assert "Invalid planned observation dateobs" in data["message"]
+
+    status, data = api(
+        "GET",
+        "observation_plan",
+        params={"instrumentID": instrument_id},
+        token=super_admin_token,
+    )
+    assert status == 200
+    assert data["data"]["requests"] == []
+
+    remove_telescope_and_instrument(telescope_id, instrument_id, super_admin_token)

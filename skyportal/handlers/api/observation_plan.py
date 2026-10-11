@@ -1397,7 +1397,8 @@ class ObservationPlanManualRequestHandler(BaseHandler):
                 allocation_id=json_data["allocation_id"],
             )
             session.add(observation_plan_request)
-            await session.commit()
+            # Flush, not commit: a validation error below must roll back these rows.
+            await session.flush()
 
             stmt = (
                 Allocation.select(session.user_or_token)
@@ -1405,6 +1406,10 @@ class ObservationPlanManualRequestHandler(BaseHandler):
                 .options(joinedload(Allocation.instrument))
             )
             allocation = await session.scalar(stmt)
+            if allocation is None:
+                return self.error(
+                    f"Cannot access allocation with ID: {json_data['allocation_id']}"
+                )
             instrument = allocation.instrument
 
             observation_plan = json_data["observation_plans"][0]
@@ -1418,7 +1423,7 @@ class ObservationPlanManualRequestHandler(BaseHandler):
                 status=observation_plan["status"],
             )
             session.add(event_observation_plan)
-            await session.commit()
+            await session.flush()
 
             if not {
                 planned_obs["filt"]
@@ -1430,7 +1435,12 @@ class ObservationPlanManualRequestHandler(BaseHandler):
 
             planned_observations = []
             for planned_obs in observation_plan["planned_observations"]:
-                tt = Time(planned_obs["dateobs"], format="isot")
+                try:
+                    tt = Time(planned_obs["dateobs"], format="isot")
+                except ValueError:
+                    return self.error(
+                        f"Invalid planned observation dateobs: {planned_obs['dateobs']}"
+                    )
 
                 field = await session.scalar(
                     InstrumentField.select(session.user_or_token).where(
