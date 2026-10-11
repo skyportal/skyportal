@@ -94,7 +94,7 @@ def _upsert_annotation(session, obj_id, data, author_id, groups):
         annotation.data = data
 
 
-def _apply_impactor_tag(session, obj_id, impact_rating, author_id):
+def _apply_impactor_tag(session, obj_id, impact_rating, author_id, groups):
     """Tag the object while Scout rates it a possible impactor, untag when not."""
     option = session.scalar(
         sa.select(ObjTagOption).where(ObjTagOption.name == IMPACTOR_TAG)
@@ -115,7 +115,12 @@ def _apply_impactor_tag(session, obj_id, impact_rating, author_id):
     )
     if tagged and existing is None:
         session.add(
-            ObjTag(obj_id=obj_id, objtagoption_id=option.id, author_id=author_id)
+            ObjTag(
+                obj_id=obj_id,
+                objtagoption_id=option.id,
+                author_id=author_id,
+                groups=groups,
+            )
         )
     elif not tagged and existing is not None:
         session.delete(existing)
@@ -275,7 +280,11 @@ def ingest_scout_event(
         session, obj_id, _scout_annotation_data(event), author_id, groups
     )
     _apply_impactor_tag(
-        session, obj_id, (event.get("scout") or {}).get("impact_rating"), author_id
+        session,
+        obj_id,
+        (event.get("scout") or {}).get("impact_rating"),
+        author_id,
+        groups,
     )
     _link_designation(session, obj_id, tdes, event.get("iau_designation"))
 
