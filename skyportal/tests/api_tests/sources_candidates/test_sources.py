@@ -2720,6 +2720,66 @@ def test_add_and_delete_source_label(upload_data_token, view_only_token, public_
     assert len(data["data"]["labellers"]) == 0
 
 
+def test_request_save_to_group_requester_is_not_in(
+    upload_data_token, upload_data_token_two_groups, public_group, public_group2
+):
+    obj_id = str(uuid.uuid4())
+    status, data = api(
+        "POST",
+        "sources",
+        data={
+            "id": obj_id,
+            "ra": 234.22,
+            "dec": -22.33,
+            "group_ids": [public_group.id],
+        },
+        token=upload_data_token,
+    )
+    assert status == 200
+
+    def request_save(token):
+        return api(
+            "POST",
+            "source_groups",
+            data={"objId": obj_id, "inviteGroupIds": [public_group2.id]},
+            token=token,
+        )
+
+    # The requester is not in public_group2, so can't read its Source row
+    status, data = request_save(upload_data_token)
+    assert status == 200
+    status, data = request_save(upload_data_token)
+    assert status == 200
+
+    # A member saves it, so it can no longer be requested
+    status, data = request_save(upload_data_token_two_groups)
+    assert status == 200
+    status, data = request_save(upload_data_token)
+    assert status == 400
+    assert "already saved" in data["message"]
+
+    # Once unsaved, it can be requested again
+    status, data = api(
+        "POST",
+        "source_groups",
+        data={"objId": obj_id, "unsaveGroupIds": [public_group2.id]},
+        token=upload_data_token_two_groups,
+    )
+    assert status == 200
+    status, data = request_save(upload_data_token)
+    assert status == 200
+
+    status, data = api(
+        "GET",
+        f"sources/{obj_id}",
+        params={"includeRequested": True},
+        token=upload_data_token_two_groups,
+    )
+    assert status == 200
+    group = next(g for g in data["data"]["groups"] if g["id"] == public_group2.id)
+    assert group["requested"] and not group["active"]
+
+
 def test_copy_photometry_sources(
     public_group, upload_data_token, ztf_camera, view_only_token
 ):
