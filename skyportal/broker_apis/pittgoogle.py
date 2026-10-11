@@ -53,6 +53,7 @@ def _normalize_rows(object_id, rows):
             "jd": r.get("jd"),
             "magpsf": r.get("magpsf"),
             "sigmapsf": r.get("sigmapsf"),
+            "isdiffpos": r.get("isdiffpos"),
             "band": _FID_TO_BAND.get(r.get("fid")),
             "ra": r.get("ra"),
             "dec": r.get("decl"),
@@ -80,6 +81,7 @@ def _pt(c):
         "jd": c.get("jd"),
         "magpsf": c.get("magpsf"),
         "sigmapsf": c.get("sigmapsf"),
+        "isdiffpos": c.get("isdiffpos"),
         "band": _FID_TO_BAND.get(c.get("fid")),
         "ra": c.get("ra"),
         "dec": c.get("dec"),
@@ -201,6 +203,7 @@ class PITTGOOGLEBROKER(BrokerAPI):
         sql = f"""
             SELECT candidate.jd AS jd, candidate.fid AS fid,
                    candidate.magpsf AS magpsf, candidate.sigmapsf AS sigmapsf,
+                   candidate.isdiffpos AS isdiffpos,
                    candidate.ra AS ra, candidate.dec AS decl
             FROM `{_table(broker)}`
             WHERE objectId = @objectId
@@ -218,6 +221,7 @@ class PITTGOOGLEBROKER(BrokerAPI):
         sql = f"""
             SELECT objectId, candidate.jd AS jd, candidate.fid AS fid,
                    candidate.magpsf AS magpsf, candidate.sigmapsf AS sigmapsf,
+                   candidate.isdiffpos AS isdiffpos,
                    candidate.ra AS ra, candidate.dec AS decl
             FROM `{_table(broker)}`
             WHERE candidate.dec BETWEEN @dec - @deg AND @dec + @deg
