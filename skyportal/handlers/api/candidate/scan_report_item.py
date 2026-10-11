@@ -15,6 +15,7 @@ from ....models import (
     Allocation,
     Annotation,
     ClassicalAssignment,
+    Classification,
     Comment,
     FollowupRequest,
     GcnEventObj,
@@ -266,6 +267,7 @@ def _build_scan_report_item(
     associated_photstats=None,
     groups_saved_to=None,
     spectra=None,
+    classifications=None,
 ):
     """Build a report item from data already fetched for this obj (no queries)."""
     if obj.photstats:
@@ -282,17 +284,15 @@ def _build_scan_report_item(
         current_age = None
         abs_mag = None
 
-    classifications = None
-    if obj.classifications:
-        classifications = [
-            {
-                "probability": classification.probability,
-                "classification": classification.classification,
-                "ml": classification.ml,
-                "created_at": classification.created_at.isoformat(),
-            }
-            for classification in obj.classifications
-        ]
+    classifications = [
+        {
+            "probability": classification.probability,
+            "classification": classification.classification,
+            "ml": classification.ml,
+            "created_at": classification.created_at.isoformat(),
+        }
+        for classification in classifications or []
+    ] or None
 
     saved_info = None
     if sources:
@@ -496,6 +496,7 @@ async def create_scan_report_items(
     photstat_by_assoc_obj = {}  # assoc_obj_id -> PhotStat, for associated_objs' surveys
     groups_by_obj = defaultdict(list)  # obj_id -> group names currently saved to
     spectra_by_obj = defaultdict(list)  # obj_id -> spectra, newest first
+    classifications_by_obj = defaultdict(list)  # obj_id -> readable classifications
 
     # Fetch in chunks of objects: a single ``obj_id IN (...)`` over a long report
     # window (thousands of objects) pushes the planner off the obj_id index onto a
@@ -510,7 +511,6 @@ async def create_scan_report_items(
                 Obj.select(user_or_token, mode="read")
                 .options(
                     selectinload(Obj.photstats),
-                    selectinload(Obj.classifications),
                     selectinload(Obj.host),
                 )
                 .where(Obj.id.in_(chunk_obj_ids))
@@ -623,6 +623,19 @@ async def create_scan_report_items(
         ).all():
             spectra_by_obj[spectrum.obj_id].append(spectrum)
 
+        for classification in (
+            (
+                await session.scalars(
+                    Classification.select(user_or_token, mode="read")
+                    .where(Classification.obj_id.in_(chunk_obj_ids))
+                    .order_by(Classification.created_at)
+                )
+            )
+            .unique()
+            .all()
+        ):
+            classifications_by_obj[classification.obj_id].append(classification)
+
         for comment in (
             await session.scalars(
                 Comment.select(user_or_token, mode="read")
@@ -717,6 +730,7 @@ async def create_scan_report_items(
                 or None,
                 groups_saved_to=sorted(groups_by_obj.get(obj_id, [])) or None,
                 spectra=spectra_by_obj.get(obj_id, []),
+                classifications=classifications_by_obj.get(obj_id, []),
             )
         )
     return items
