@@ -262,6 +262,8 @@ class AllocationHandler(BaseHandler):
                     if request.requester is not None:
                         request_data["requester"] = request.requester.to_dict()
                     request_data["obj"] = request.obj.to_dict()
+                    # Photometry refresh broadcasts name the source by this key.
+                    request_data["internal_key"] = request.obj.internal_key
                     request_data["obj"]["thumbnails"] = [
                         thumbnail.to_dict() for thumbnail in request.obj.thumbnails
                     ]

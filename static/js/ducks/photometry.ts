@@ -64,16 +64,26 @@ export const photometryApi = skyportalApi.injectEndpoints({
   }),
 });
 
-// The id of a source in a loaded sources or candidates list (the source
-// detail panel and the scanning page plot its photometry), given its key.
+// Loaded lists whose rows carry their source's internal_key and plot its
+// photometry, with the row field that holds the source's id.
+const KEYED_LISTS: [string, string][] = [
+  ["sources", "id"], // sources table detail panel
+  ["candidates", "id"], // scanning page
+  ["assignments", "obj_id"], // observing run summary
+  ["requests", "obj_id"], // allocation follow-up requests
+];
+
+// The id of a source in one of those loaded lists, given its key.
 const findListedObjId = (getState: () => unknown, objKey: string) => {
   const queries = (getState() as any)?.skyportalApi?.queries ?? {};
   for (const entry of Object.values(queries) as any[]) {
-    const rows = entry?.data?.sources ?? entry?.data?.candidates;
-    if (Array.isArray(rows)) {
-      const match = rows.find((row: any) => row?.internal_key === objKey);
-      if (match?.id != null) {
-        return match.id as string | number;
+    for (const [listKey, idField] of KEYED_LISTS) {
+      const rows = entry?.data?.[listKey];
+      if (Array.isArray(rows)) {
+        const match = rows.find((row: any) => row?.internal_key === objKey);
+        if (match?.[idField] != null) {
+          return match[idField] as string | number;
+        }
       }
     }
   }

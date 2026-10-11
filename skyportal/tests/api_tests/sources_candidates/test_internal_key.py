@@ -1,9 +1,9 @@
 from skyportal.tests import api
 
 # Obj.internal_key anonymizes objects in websocket refresh messages. It must only
-# reach clients that can already see the object (via source/candidate responses,
-# which the frontend's ws-invalidation keys on), and must not leak through other
-# serializations. See skyportal issue #2585.
+# reach clients that can already see the object (via source, candidate, observing
+# run and allocation responses, which the frontend's ws-invalidation keys on), and
+# must not leak through other serializations. See skyportal issue #2585.
 
 
 def test_internal_key_present_on_source_detail(view_only_token, public_source):
@@ -27,6 +27,29 @@ def test_internal_key_present_on_candidate(view_only_token, public_candidate):
     )
     assert status == 200
     assert data["data"]["internal_key"] == public_candidate.internal_key
+
+
+def test_internal_key_present_on_observing_run_assignments(
+    view_only_token, red_transients_run, public_assignment, public_source
+):
+    status, data = api(
+        "GET", f"observing_run/{red_transients_run.id}", token=view_only_token
+    )
+    assert status == 200, data
+    row = next(
+        a for a in data["data"]["assignments"] if a["obj_id"] == public_source.id
+    )
+    assert row["internal_key"] == public_source.internal_key
+
+
+def test_internal_key_present_on_allocation_requests(
+    super_admin_token, public_source_followup_request, public_source
+):
+    allocation_id = public_source_followup_request.allocation_id
+    status, data = api("GET", f"allocation/{allocation_id}", token=super_admin_token)
+    assert status == 200, data
+    row = next(r for r in data["data"]["requests"] if r["obj_id"] == public_source.id)
+    assert row["internal_key"] == public_source.internal_key
 
 
 def test_internal_key_not_leaked_via_spectra(
