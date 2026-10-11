@@ -212,12 +212,9 @@ class InstrumentHandler(BaseHandler):
                     f"Instrument with name {existing_instrument.name} already exists for telescope {telescope_id}"
                 )
 
-            instrument.telescope_id = telescope.id
-            session.add(instrument)
-            await session.commit()
-
             if references is not None:
-                if not set(references["filter"]).issubset(instrument.filters):
+                # filters falls back to its column default only on flush
+                if not set(references["filter"]).issubset(instrument.filters or []):
                     return self.error(
                         "Filters in references must be a subset of the instrument filters"
                     )
@@ -236,6 +233,11 @@ class InstrumentHandler(BaseHandler):
                 if not {"ID", "RA", "Dec"}.issubset(field_data):
                     return self.error("ID, RA, and Dec required in field_data.")
 
+            instrument.telescope_id = telescope.id
+            session.add(instrument)
+            await session.commit()
+
+            if field_data is not None:
                 log(f"Started generating fields for instrument {instrument.id}")
                 # run async
                 IOLoop.current().run_in_executor(
