@@ -93,6 +93,7 @@ from ...models import (
     User,
 )
 from ...utils.asynchronous import run_async
+from ...utils.cache import Cache, cache_folder, dict_to_bytes
 from ...utils.calculations import great_circle_distance
 from ...utils.data_access import (
     accessible_group_ids_async,
@@ -142,6 +143,10 @@ MAX_NUM_DAYS_USING_LOCALIZATION = 31 * 12 * 10  # 10 years
 _, cfg = load_env()
 PHOT_DETECTION_THRESHOLD = cfg["misc.photometry_detection_threshold_nsigma"]
 log = make_log("api/source")
+offset_stars_cache = Cache(
+    cache_dir=f"{cache_folder}/offset_stars",
+    max_age=cfg.get("misc.minutes_to_keep_offset_stars_cache", 60) * 60,
+)
 
 MAX_LOCALIZATION_SOURCES = 50000
 
@@ -2141,19 +2146,46 @@ class SourceOffsetsHandler(BaseHandler):
                 gaia_broker=gaia_broker,
             )
 
-            try:
-                (
-                    starlist_info,
-                    query_string,
-                    queries_issued,
-                    noffsets,
-                    used_ztfref,
-                    gaia_available,
-                ) = await IOLoop.current().run_in_executor(None, offset_func)
-            except ValueError as e:
-                log(f"Error querying for nearby offset stars: {e}")
-                traceback.print_exc()
-                return self.error(f"Error querying for nearby offset stars: {e}")
+            cache_key = json.dumps(
+                [
+                    obj_id,
+                    facility,
+                    num_offset_stars,
+                    use_ztfref,
+                    round(ra, 6),
+                    round(dec, 6),
+                    query.obstime,
+                    priority,
+                    comment,
+                    source_mag,
+                    source_magfilter,
+                ],
+                default=str,
+            )
+            result = None
+            cached = offset_stars_cache[cache_key]
+            if cached is not None:
+                try:
+                    result = np.load(cached, allow_pickle=True).item()["result"]
+                except Exception:
+                    result = None
+            if result is None:
+                try:
+                    result = await IOLoop.current().run_in_executor(None, offset_func)
+                except ValueError as e:
+                    log(f"Error querying for nearby offset stars: {e}")
+                    traceback.print_exc()
+                    return self.error(f"Error querying for nearby offset stars: {e}")
+                if result[-1]:
+                    offset_stars_cache[cache_key] = dict_to_bytes({"result": result})
+            (
+                starlist_info,
+                query_string,
+                queries_issued,
+                noffsets,
+                used_ztfref,
+                gaia_available,
+            ) = result
 
             starlist_str = "\n".join(
                 [x["str"].replace(" ", "&nbsp;") for x in starlist_info]
