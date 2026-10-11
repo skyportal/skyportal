@@ -378,8 +378,9 @@ class NGPSAPI(FollowUpAPI):
         validate_request(request, request.allocation.instrument.to_dict()["filters"])
 
         altdata = request.allocation.altdata
+        notification_type = altdata.get("notification_type")
 
-        if altdata:
+        if notification_type == "API":
             payload = {
                 "obj_id": request.obj_id,
                 "allocation_id": request.allocation.id,
@@ -404,7 +405,20 @@ class NGPSAPI(FollowUpAPI):
                 followup_request=request,
                 initiator_id=request.last_modified_by_id,
             )
+        elif altdata and notification_type not in ("slack", "email"):
+            # as in submit(): a config that is neither an API nor a notification
+            request.status = "rejected: no valid altdata configuration found."
+            transaction = None
         else:
+            if notification_type == "slack":
+                from ..utils.notifications import request_notify_by_slack
+
+                await request_notify_by_slack(request, session, is_update=True)
+            elif notification_type == "email":
+                from ..utils.notifications import request_notify_by_email
+
+                await request_notify_by_email(request, session, is_update=True)
+
             request.status = "submitted"
 
             transaction = FacilityTransaction(
@@ -414,7 +428,8 @@ class NGPSAPI(FollowUpAPI):
                 initiator_id=request.last_modified_by_id,
             )
 
-        session.add(transaction)
+        if transaction is not None:
+            session.add(transaction)
 
         if kwargs.get("refresh_source", False):
             flow = Flow()
