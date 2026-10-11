@@ -274,6 +274,7 @@ const AnalysisPage = ({
                       <AnalysisCornerPlot
                         objId={resourceId}
                         analysisId={analysis.id}
+                        analysisResourceType={analysisResourceType}
                       />
                     </div>
                   </CardContent>

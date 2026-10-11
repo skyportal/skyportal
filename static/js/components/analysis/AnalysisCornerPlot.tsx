@@ -8,13 +8,18 @@ import CornerPlot from "../plot/CornerPlot";
 interface AnalysisCornerPlotProps {
   objId: string;
   analysisId: number;
+  analysisResourceType?: string;
 }
 
 // Client-side posterior corner plot for a single analysis. Posterior samples are
 // heavy, so they are not included in the analyses list; fetch the one analysis's
 // full data on demand and hand its posterior to CornerPlot (mirrors the on-demand
 // corner fetch in PhotometryPlot).
-const AnalysisCornerPlot = ({ objId, analysisId }: AnalysisCornerPlotProps) => {
+const AnalysisCornerPlot = ({
+  objId,
+  analysisId,
+  analysisResourceType = "obj",
+}: AnalysisCornerPlotProps) => {
   const [posterior, setPosterior] = useState<Record<string, number[]> | null>(
     null,
   );
@@ -26,7 +31,7 @@ const AnalysisCornerPlot = ({ objId, analysisId }: AnalysisCornerPlotProps) => {
     (async () => {
       try {
         const resp = await fetch(
-          `/api/obj/${objId}/analysis/${analysisId}?includeAnalysisData=true`,
+          `/api/${analysisResourceType}/${objId}/analysis/${analysisId}?includeAnalysisData=true`,
           { credentials: "same-origin" },
         );
         const j = await resp.json();
@@ -46,7 +51,7 @@ const AnalysisCornerPlot = ({ objId, analysisId }: AnalysisCornerPlotProps) => {
     return () => {
       cancelled = true;
     };
-  }, [objId, analysisId]);
+  }, [objId, analysisId, analysisResourceType]);
 
   if (loading) {
     return <CircularProgress />;
