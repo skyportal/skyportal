@@ -7,11 +7,12 @@ import healpix_alchemy as ha
 import numpy as np
 import numpy.testing as npt
 import pytest
+import sqlalchemy as sa
 from astropy.time import Time
 from dateutil import parser
 from tdtax import __version__, taxonomy
 
-from skyportal.models import cosmo
+from skyportal.models import DBSession, Obj, cosmo
 from skyportal.tests import api
 
 from ....utils.naive_datetime import utcnow_naive
@@ -2718,6 +2719,69 @@ def test_add_and_delete_source_label(upload_data_token, view_only_token, public_
     assert data["data"]["id"] == obj_id
 
     assert len(data["data"]["labellers"]) == 0
+
+
+def test_request_save_to_group_requester_is_not_in(
+    user, upload_data_token, upload_data_token_two_groups, public_group, public_group2
+):
+    obj_id = str(uuid.uuid4())
+    status, data = api(
+        "POST",
+        "sources",
+        data={
+            "id": obj_id,
+            "ra": 234.22,
+            "dec": -22.33,
+            "group_ids": [public_group.id],
+        },
+        token=upload_data_token,
+    )
+    assert status == 200
+
+    def request_save(token):
+        return api(
+            "POST",
+            "source_groups",
+            data={"objId": obj_id, "inviteGroupIds": [public_group2.id]},
+            token=token,
+        )
+
+    # A member saves it. The requester is not in public_group2 and can't read
+    # that Source row, but is still told it is already saved
+    status, data = request_save(upload_data_token_two_groups)
+    assert status == 200
+    status, data = request_save(upload_data_token)
+    assert status == 400
+    assert "already saved" in data["message"]
+
+    # Once unsaved, it can be requested again, even when already requested
+    status, data = api(
+        "POST",
+        "source_groups",
+        data={"objId": obj_id, "unsaveGroupIds": [public_group2.id]},
+        token=upload_data_token_two_groups,
+    )
+    assert status == 200
+    status, data = request_save(upload_data_token)
+    assert status == 200
+    status, data = request_save(upload_data_token)
+    assert status == 200
+
+    status, data = api(
+        "GET",
+        f"sources/{obj_id}",
+        params={"includeRequested": True},
+        token=upload_data_token_two_groups,
+    )
+    assert status == 200
+    group = next(g for g in data["data"]["groups"] if g["id"] == public_group2.id)
+    assert group["requested"] and not group["active"]
+    assert group["saved_by"]["id"] == user.id
+
+    # The row still names the user who unsaved it, which would stop the fixture
+    # teardown from deleting them; deleting the source's object removes the row.
+    DBSession().execute(sa.delete(Obj).where(Obj.id == obj_id))
+    DBSession().commit()
 
 
 def test_copy_photometry_sources(
