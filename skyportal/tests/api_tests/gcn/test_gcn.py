@@ -1260,6 +1260,15 @@ def test_default_gcn_tag_matches_on_notice_type(super_admin_token, user):
             session.commit()
 
 
+def test_gcn_events_reject_unparseable_date_range(super_admin_token):
+    for param in ["startDate", "endDate"]:
+        status, data = api(
+            "GET", "gcn_event", token=super_admin_token, params={param: "yesterday"}
+        )
+        assert status == 400, data
+        assert f"Invalid {param}" in data["message"]
+
+
 def test_gcn_events_filtered_by_mmadetector(super_admin_token):
     """The detector page links to the events a detector contributed to."""
 
