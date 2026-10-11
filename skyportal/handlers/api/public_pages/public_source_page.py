@@ -392,10 +392,11 @@ class PublicSourcePageHandler(BaseHandler):
         if page_id is None:
             return self.error("Page ID is required")
         async with self.AsyncSession() as session:
+            # remove_from_cache reads the release to build the cache key
             public_source_page = await session.scalar(
-                PublicSourcePage.select(session.user_or_token, mode="delete").where(
-                    PublicSourcePage.id == page_id
-                )
+                PublicSourcePage.select(session.user_or_token, mode="delete")
+                .options(sa.orm.selectinload(PublicSourcePage.release))
+                .where(PublicSourcePage.id == page_id)
             )
 
             if public_source_page is None:
