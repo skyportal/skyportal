@@ -964,6 +964,58 @@ def test_gcn_tach(
     assert data["tach_id"] is not None
 
 
+def test_post_gcn_circular(super_admin_token):
+    """A streamed circular is recorded on the event whose trigger id it cites."""
+    import asyncio
+    import threading
+
+    from baselayer.app import models
+    from skyportal.handlers.api.gcn import post_gcn_circular
+
+    dateobs = (
+        Time.now() - timedelta(seconds=int(np.random.randint(10**4, 10**5)))
+    ).datetime.replace(microsecond=0)
+    trigger_id = str(np.random.randint(10**8, 10**9))
+    status, data = api(
+        "POST",
+        "gcn_event",
+        data={
+            "dateobs": dateobs.isoformat(),
+            "trigger_id": trigger_id,
+            "skymap": {"ra": 10.0, "dec": 20.0, "error": 1.0},
+        },
+        token=super_admin_token,
+    )
+    assert status == 200, data
+
+    designation = f"GRB {uuid.uuid4().hex[:8]}"
+    circular = {
+        "circularId": 99999,
+        "eventId": designation,
+        "subject": "Test circular",
+        "body": f"Trigger {trigger_id}",
+    }
+    result = {}
+
+    async def run():
+        async with models.async_plain_session_factory() as session:
+            user = await session.scalar(sa.select(User).where(User.id == 1))
+            session.user_or_token = user
+            result["dateobs"] = await post_gcn_circular(circular, session)
+
+    thread = threading.Thread(target=lambda: asyncio.run(run()))
+    thread.start()
+    thread.join()
+    assert result.get("dateobs") == dateobs, result
+
+    status, data = api(
+        "GET", f"gcn_event/{dateobs.isoformat()}/tach", token=super_admin_token
+    )
+    assert status == 200, data
+    assert data["data"]["circulars"] == {"99999": "Test circular"}
+    assert designation in data["data"]["aliases"]
+
+
 def test_gcn_allocation_triggers(
     public_group,
     super_admin_token,
