@@ -78,7 +78,7 @@ def send_reminders():
                 text_to_send = (
                     f"Reminder of GCN event *{gcn_event.dateobs}*: {reminder.text}"
                 )
-                url_endpoint = f"/gcn_events/{gcn_event.dateobs}"
+                url_endpoint = f"/gcn_events/{gcn_event.dateobs.isoformat()}"
                 notification_type = "reminder_on_gcn"
             elif reminder_type == ReminderOnShift:
                 shift = session.scalars(
