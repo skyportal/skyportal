@@ -1,3 +1,4 @@
+import asyncio
 import json
 import uuid
 from types import SimpleNamespace
@@ -7,7 +8,8 @@ import pytest
 import responses
 
 from skyportal.broker_apis import GENERICBROKER, BrokerAPI
-from skyportal.tests import api
+from skyportal.models import init_db
+from skyportal.tests import api, cfg
 
 
 def _force_active(broker_id):
@@ -1445,3 +1447,39 @@ def test_broker_credentials_crud(
         assert data["data"] is None
     finally:
         api("DELETE", f"brokers/{broker_id}", token=super_admin_token)
+
+
+def test_broker_ingest_stops_brokers_no_longer_wanted(monkeypatch):
+    """A broker switched off, deactivated or deleted drops out of the listing,
+    and the service tells its running consumer to stop."""
+    from services.broker_ingest import broker_ingest
+
+    init_db(**cfg["database"])  # undo the service's import-time init_db()
+
+    stopped = []
+
+    async def run_ingestion(broker, stop=None):
+        await stop.wait()
+        stopped.append(broker.id)
+
+    broker = SimpleNamespace(
+        id=1,
+        name="fake",
+        modified=0,
+        broker_class=SimpleNamespace(run_ingestion=run_ingestion),
+    )
+    listings = [{1: broker}, {}, {}]
+
+    class _Done(BaseException):
+        pass
+
+    async def list_brokers(session):
+        if not listings:
+            raise _Done
+        return listings.pop(0)
+
+    monkeypatch.setattr(broker_ingest, "RESCAN_INTERVAL", 0.01)
+    monkeypatch.setattr(broker_ingest, "_active_ingestion_brokers", list_brokers)
+    with pytest.raises(_Done):
+        asyncio.run(broker_ingest._run_loop())
+    assert stopped == [1]
