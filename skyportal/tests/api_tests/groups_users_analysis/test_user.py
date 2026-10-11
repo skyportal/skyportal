@@ -153,6 +153,44 @@ def test_add_modify_user_adds_modifies_single_user_group(
     )
 
 
+def test_admin_rename_user_renames_single_user_group(
+    manage_groups_token, super_admin_token
+):
+    old_username = str(uuid.uuid4())
+    status, data = api(
+        "POST", "user", data={"username": old_username}, token=super_admin_token
+    )
+    assert status == 200
+    user_id = data["data"]["id"]
+
+    new_username = str(uuid.uuid4())
+    status, data = api(
+        "PATCH",
+        f"user/{user_id}",
+        data={"username": new_username},
+        token=super_admin_token,
+    )
+    assert status == 200
+
+    status, data = api(
+        "GET", "groups?includeSingleUserGroups=true", token=manage_groups_token
+    )
+    assert data["status"] == "success"
+    names = {
+        group["name"]
+        for group in data["data"]["all_groups"]
+        if group["single_user_group"]
+    }
+    assert new_username in names
+    assert old_username not in names
+
+    # The old username is free again for a new account.
+    status, data = api(
+        "POST", "user", data={"username": old_username}, token=super_admin_token
+    )
+    assert status == 200
+
+
 def test_user_list(view_only_token):
     status, data = api("GET", "user", token=view_only_token)
     assert status == 200
