@@ -1,25 +1,42 @@
 from typing import Annotated
 
+import sqlalchemy as sa
 from pydantic import Field
 from skyportal_py_models.sources import SourceLabelsDeleteBody, SourceLabelsPostBody
 
 from baselayer.app.access import auth_or_token
 
 from ...models import (
+    GroupUser,
     Obj,
     SourceLabel,
 )
 from ..base import BaseHandler
 
 
-async def add_source_labels(session, obj_id, group_ids, labeller_id):
+async def add_source_labels(
+    session, obj_id, group_ids, labeller_id, labeller_groups_only=False
+):
     """Label the obj for each given group the labeller has not labelled it in yet.
 
     The groups are read in one query: a classification deleted from a dozen
     groups asked once per group, and the labels are few enough to compare in
-    memory.
+    memory. With ``labeller_groups_only``, groups the labeller is not in are
+    skipped.
     """
     group_ids = list(dict.fromkeys(group_ids))
+    if labeller_groups_only and group_ids and not session.user_or_token.is_system_admin:
+        # A classification can be shared with groups the labeller is not in,
+        # and SourceLabel.create rejects a label there.
+        member_ids = set(
+            await session.scalars(
+                sa.select(GroupUser.group_id).where(
+                    GroupUser.user_id == labeller_id,
+                    GroupUser.group_id.in_(group_ids),
+                )
+            )
+        )
+        group_ids = [g for g in group_ids if g in member_ids]
     if not group_ids:
         return
     labelled = {
