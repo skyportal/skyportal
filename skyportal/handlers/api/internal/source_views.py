@@ -38,9 +38,17 @@ class SourceViewsHandler(BaseHandler):
         top_sources_prefs = user_prefs.get("topSources", {})
         top_sources_prefs = {**default_prefs, **top_sources_prefs}
 
-        max_num_sources = int(top_sources_prefs["maxNumSources"])
-        since_days_ago = float(top_sources_prefs["sinceDaysAgo"])
-        cutoff_day = utcnow_naive() - datetime.timedelta(days=since_days_ago)
+        try:
+            max_num_sources = int(top_sources_prefs["maxNumSources"])
+            if max_num_sources < 0:
+                raise ValueError("must not be negative")
+        except (TypeError, ValueError) as e:
+            raise ValueError(f"Invalid topSources preference maxNumSources: {e}") from e
+        try:
+            since_days_ago = float(top_sources_prefs["sinceDaysAgo"])
+            cutoff_day = utcnow_naive() - datetime.timedelta(days=since_days_ago)
+        except (TypeError, ValueError, OverflowError) as e:
+            raise ValueError(f"Invalid topSources preference sinceDaysAgo: {e}") from e
         stmt = (
             SourceView.select(
                 session.user_or_token,
@@ -79,11 +87,11 @@ class SourceViewsHandler(BaseHandler):
                     self.get_query_argument("teamID", None),
                     user_group_ids,
                 )
+                query_results = await SourceViewsHandler.get_top_source_views_and_ids(
+                    self.current_user, session, team_group_ids=team_group_ids
+                )
             except ValueError as e:
                 return self.error(str(e))
-            query_results = await SourceViewsHandler.get_top_source_views_and_ids(
-                self.current_user, session, team_group_ids=team_group_ids
-            )
             tags_result = await session.scalars(
                 ObjTag.select(session.user_or_token)
                 .options(
