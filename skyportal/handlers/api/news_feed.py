@@ -1,3 +1,4 @@
+from collections import defaultdict
 from datetime import UTC, datetime, timedelta
 
 import sqlalchemy as sa
@@ -14,7 +15,6 @@ from baselayer.app.access import auth_or_token
 from ...models import (
     Classification,
     Comment,
-    Obj,
     Photometry,
     Source,
     Spectrum,
@@ -86,16 +86,15 @@ class NewsFeedHandler(BaseHandler):
         # after the query (e.g. `s.obj`, `c.author`, `s.instrument`) needs
         # to be loaded explicitly under async; otherwise SQLAlchemy raises
         # MissingGreenlet when the iteration touches the attribute.
-        obj_with_classifications = selectinload(Obj.classifications)
         loader_options = {
-            Source: [selectinload(Source.obj).options(obj_with_classifications)],
+            Source: [selectinload(Source.obj)],
             Comment: [
                 selectinload(Comment.author),
-                selectinload(Comment.obj).options(obj_with_classifications),
+                selectinload(Comment.obj),
             ],
             Classification: [
                 selectinload(Classification.author),
-                selectinload(Classification.obj).options(obj_with_classifications),
+                selectinload(Classification.obj),
             ],
             Spectrum: [
                 # Only the metadata is needed for the feed; skip the heavy
@@ -108,12 +107,12 @@ class NewsFeedHandler(BaseHandler):
                 ),
                 selectinload(Spectrum.owner),
                 selectinload(Spectrum.instrument),
-                selectinload(Spectrum.obj).options(obj_with_classifications),
+                selectinload(Spectrum.obj),
             ],
             Photometry: [
                 selectinload(Photometry.owner),
                 selectinload(Photometry.instrument),
-                selectinload(Photometry.obj).options(obj_with_classifications),
+                selectinload(Photometry.obj),
             ],
         }
 
@@ -195,6 +194,24 @@ class NewsFeedHandler(BaseHandler):
                     .limit(n_items)
                 )
 
+            # Each item's label comes from the classifications the user can
+            # read; Obj.classifications would include other groups' ones.
+            classifications_by_obj = defaultdict(list)
+            classified_obj_ids = set()
+
+            async def load_classifications(items):
+                obj_ids = {item.obj_id for item in items} - classified_obj_ids
+                if not obj_ids:
+                    return
+                classified_obj_ids.update(obj_ids)
+                result = await session.scalars(
+                    Classification.select(self.associated_user_object).where(
+                        Classification.obj_id.in_(obj_ids)
+                    )
+                )
+                for c in result.unique().all():
+                    classifications_by_obj[c.obj_id].append(c)
+
             async def fetch_newest(
                 model, include_bot_comments=False, include_ml_classifications=False
             ):
@@ -221,18 +238,19 @@ class NewsFeedHandler(BaseHandler):
                     for comment in newest:
                         comment.author_info = comment.construct_author_info_dict()
 
+                await load_classifications(newest)
                 return newest
 
             def latest_classification(obj):
                 classification = None
                 try:
-                    if len(obj.classifications) > 0:
+                    if len(classifications_by_obj[obj.id]) > 0:
                         # Display the most recent non-zero probability class,
                         # and that isn't a ml classifier
                         sortedClasses = sorted(
                             (
                                 c
-                                for c in obj.classifications
+                                for c in classifications_by_obj[obj.id]
                                 if c.probability > 0 and c.ml is False
                             ),
                             key=lambda x: x.modified,
