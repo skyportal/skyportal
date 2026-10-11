@@ -2,6 +2,7 @@
 
 import base64
 import datetime
+import hashlib
 import os
 import re
 import tempfile
@@ -275,10 +276,12 @@ def from_igwn_gwalert(payload):
     if event.get("time"):
         out["trigger_time"] = event["time"].replace("Z", "")
     if event.get("skymap"):
-        # from_bytes expects a "name=<file>;base64,<data>" envelope; encode the
-        # alert type so successive updates get distinct localization names.
+        # from_bytes expects a "name=<file>;base64,<data>" envelope. LVK sends
+        # several alerts of one type, each with the current skymap; naming by
+        # the map's content keeps changed maps apart and skips repeated ones.
+        digest = hashlib.sha256(event["skymap"].encode()).hexdigest()[:8]
         out["healpix_file"] = (
-            f"name={superevent_id}-{alert_type}.multiorder.fits"
+            f"name={superevent_id}-{alert_type}-{digest}.multiorder.fits"
             f";base64,{event['skymap']}"
         )
     if alert_type == "RETRACTION":
