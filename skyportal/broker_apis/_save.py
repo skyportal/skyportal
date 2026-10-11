@@ -36,6 +36,8 @@ BAND_TO_FILTER_PER_SURVEY = {
 _DEFAULT_MIN_SNR = 5.0
 # sigma_mag = 2.5/ln(10) / SNR, so SNR = (2.5/ln(10)) / sigma_mag in mag space.
 _MAG_SNR_CONST = 1.0857362
+# ZTF isdiffpos values marking a negative subtraction (ALeRCE sends -1).
+_NEGATIVE_DIFFPOS = {"f", "0", "-1", "false"}
 
 # Default cone radius (arcsec) for the positional junk-group auto-save skip when a
 # filter sets ignore-groups but no explicit `autoSaveIgnoreRadius`. Set 0 to skip
@@ -240,6 +242,10 @@ def build_photometry_groups(object_id, survey, data, instrument_id, programid2st
                 mag, magerr = phot["magpsf"], phot["sigmapsf"]
                 flux = 10.0 ** (-0.4 * (mag - zp))
                 flux_err = flux * magerr * 0.9210340371976184  # ln(10)/2.5
+                # magpsf is the magnitude of |flux|; a negative subtraction
+                # (science fainter than reference) is a negative flux.
+                if str(phot.get("isdiffpos")).strip().lower() in _NEGATIVE_DIFFPOS:
+                    flux = -flux
                 columns = {"flux": flux, "fluxerr": flux_err, "zp": zp}
             else:
                 continue

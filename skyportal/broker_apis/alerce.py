@@ -109,6 +109,7 @@ def _normalize_object(object_id, meta, detections):
             "jd": (d.get("mjd") + 2400000.5) if d.get("mjd") is not None else None,
             "magpsf": _mag(d),
             "sigmapsf": _magerr(d),
+            "isdiffpos": d.get("isdiffpos"),
             "band": _FID_TO_BAND.get(d.get("fid")),
             "ra": d.get("ra"),
             "dec": d.get("dec"),
