@@ -4,6 +4,7 @@ import functools
 import io
 import json
 import os
+from concurrent.futures import ThreadPoolExecutor
 from typing import Annotated
 from urllib.parse import urljoin, urlparse
 
@@ -36,6 +37,7 @@ from baselayer.app.access import auth_or_token, permissions
 from baselayer.app.env import load_env
 from baselayer.app.flow import Flow
 from baselayer.app.model_util import recursive_to_dict
+from baselayer.app.models import new_session
 from baselayer.log import make_log
 
 from ...enum_types import (
@@ -83,6 +85,7 @@ ResourceId = Annotated[
 ]
 
 log = make_log("app/analysis")
+_analysis_executor = ThreadPoolExecutor(max_workers=8)
 
 _, cfg = load_env()
 
@@ -719,53 +722,55 @@ def post_analysis(
         Callback function for when the analysis service is done.
         Updates the Analysis object with the results/errors.
         """
-        analysis_cls = analysis_model_for(analysis_resource_type)
-        if analysis_cls is None:
-            log(f"Invalid analysis_resource_type: {analysis_resource_type}")
-            return
-        try:
-            analysis = session.get(analysis_cls, analysis_id)
-            if analysis is None:
-                logger.error(f"Analysis {analysis_id} not found")
+        with new_session() as session:
+            analysis_cls = analysis_model_for(analysis_resource_type)
+            if analysis_cls is None:
+                log(f"Invalid analysis_resource_type: {analysis_resource_type}")
                 return
-        except Exception as e:
-            log(f"Could not access Analysis {analysis_id} {e}.")
-            return
-
-        analysis.last_activity = utcnow_naive()
-        try:
-            result = future.result()
-            analysis.status = "pending" if result.status_code == 200 else "failure"
-            # truncate the return just so we dont have a huge string in the database
-            analysis.status_message = result.text[:1024]
-        except Exception:
-            analysis.status = "failure"
-            analysis.status_message = str(future.exception())[:1024]
-        finally:
-            logger(
-                f"[id={analysis_id} service={analysis_service_id}] status='{analysis.status}' message='{analysis.status_message}'"
-            )
-            session.commit()
             try:
-                flow = Flow()
-                if analysis_resource_type.lower() == "obj":
-                    flow.push(
-                        "*",
-                        "skyportal/REFRESH_OBJ_ANALYSES",
-                        payload={"obj_key": analysis.obj.internal_key},
-                    )
-                elif analysis_resource_type.lower() == "gcn_event":
-                    flow.push(
-                        "*",
-                        "skyportal/REFRESH_GCNEVENT",
-                        payload={"gcnEvent_dateobs": analysis.dateobs.isoformat()},
-                    )
+                analysis = session.get(analysis_cls, analysis_id)
+                if analysis is None:
+                    logger(f"Analysis {analysis_id} not found")
+                    return
             except Exception as e:
-                logger(f"Could not refresh analyses: {e}")
+                log(f"Could not access Analysis {analysis_id} {e}.")
+                return
+
+            analysis.last_activity = utcnow_naive()
+            try:
+                result = future.result()
+                analysis.status = "pending" if result.status_code == 200 else "failure"
+                # truncate the return just so we dont have a huge string in the database
+                analysis.status_message = result.text[:1024]
+            except Exception:
+                analysis.status = "failure"
+                analysis.status_message = str(future.exception())[:1024]
+            finally:
+                logger(
+                    f"[id={analysis_id} service={analysis_service_id}] status='{analysis.status}' message='{analysis.status_message}'"
+                )
+                session.commit()
+                try:
+                    flow = Flow()
+                    if analysis_resource_type.lower() == "obj":
+                        flow.push(
+                            "*",
+                            "skyportal/REFRESH_OBJ_ANALYSES",
+                            payload={"obj_key": analysis.obj.internal_key},
+                        )
+                    elif analysis_resource_type.lower() == "gcn_event":
+                        flow.push(
+                            "*",
+                            "skyportal/REFRESH_GCNEVENT",
+                            payload={"gcnEvent_dateobs": analysis.dateobs.isoformat()},
+                        )
+                except Exception as e:
+                    logger(f"Could not refresh analyses: {e}")
 
     # Start the analysis service in a separate thread and log any exceptions
-    x = IOLoop.current().run_in_executor(None, external_analysis_service)
-    x.add_done_callback(analysis_done_callback)
+    _analysis_executor.submit(external_analysis_service).add_done_callback(
+        analysis_done_callback
+    )
 
     return analysis.id
 
