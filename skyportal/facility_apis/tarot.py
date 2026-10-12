@@ -20,6 +20,7 @@ from ..utils import http
 from ..utils.calculations import get_next_valid_observing_time
 from ..utils.naive_datetime import utcnow_naive
 from . import FollowUpAPI
+from .interface import push_followup_refresh
 
 env, cfg = load_env()
 
@@ -816,17 +817,9 @@ class TAROTAPI(FollowUpAPI):
 
         try:
             flow = Flow()
-            if kwargs.get("refresh_source", False):
-                flow.push(
-                    "*",
-                    "skyportal/REFRESH_SOURCE",
-                    payload={"obj_key": obj_internal_key},
-                )
-            if kwargs.get("refresh_requests", False):
-                flow.push(
-                    last_modified_by_id,
-                    "skyportal/REFRESH_FOLLOWUP_REQUESTS",
-                )
+            push_followup_refresh(
+                obj_internal_key, last_modified_by_id, flow=flow, **kwargs
+            )
         except Exception as e:
             log(f"Failed to send notification: {str(e)}")
 

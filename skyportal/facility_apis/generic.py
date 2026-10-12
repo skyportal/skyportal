@@ -11,6 +11,7 @@ from baselayer.app.flow import Flow
 from ..utils import http
 from ..utils.naive_datetime import utcnow_naive
 from . import FollowUpAPI
+from .interface import push_followup_refresh
 
 env, cfg = load_env()
 
@@ -289,19 +290,7 @@ class GENERICAPI(FollowUpAPI):
 
         session.add(transaction)
 
-        if kwargs.get("refresh_source", False):
-            flow = Flow()
-            flow.push(
-                "*",
-                "skyportal/REFRESH_SOURCE",
-                payload={"obj_key": obj_internal_key},
-            )
-        if kwargs.get("refresh_requests", False):
-            flow = Flow()
-            flow.push(
-                last_modified_by_id,
-                "skyportal/REFRESH_FOLLOWUP_REQUESTS",
-            )
+        push_followup_refresh(obj_internal_key, last_modified_by_id, **kwargs)
 
     @staticmethod
     async def update(request, session, **kwargs):

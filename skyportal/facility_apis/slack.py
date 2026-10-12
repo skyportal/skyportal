@@ -13,6 +13,7 @@ from baselayer.app.flow import Flow
 from ..utils import http
 from ..utils.app import get_app_base_url
 from . import FollowUpAPI
+from .interface import push_followup_refresh
 
 env, cfg = load_env()
 
@@ -210,19 +211,7 @@ class SLACKAPI(FollowUpAPI):
                 "Can't delete requests already sent successfully to Slack."
             )
 
-        if kwargs.get("refresh_source", False):
-            flow = Flow()
-            flow.push(
-                "*",
-                "skyportal/REFRESH_SOURCE",
-                payload={"obj_key": obj_internal_key},
-            )
-        if kwargs.get("refresh_requests", False):
-            flow = Flow()
-            flow.push(
-                last_modified_by_id,
-                "skyportal/REFRESH_FOLLOWUP_REQUESTS",
-            )
+        push_followup_refresh(obj_internal_key, last_modified_by_id, **kwargs)
 
     def custom_json_schema(instrument, user, **kwargs):
         form_json_schema = {

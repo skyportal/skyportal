@@ -15,6 +15,7 @@ from ..utils import http
 from ..utils.naive_datetime import utcnow_naive
 from ..utils.offset import get_finding_chart
 from . import FollowUpAPI
+from .interface import push_followup_refresh
 
 env, cfg = load_env()
 
@@ -540,19 +541,7 @@ class SOARAPI(FollowUpAPI):
                 )
                 await session.commit()
 
-        if kwargs.get("refresh_source", False):
-            flow = Flow()
-            flow.push(
-                "*",
-                "skyportal/REFRESH_SOURCE",
-                payload={"obj_key": obj_internal_key},
-            )
-        if kwargs.get("refresh_requests", False):
-            flow = Flow()
-            flow.push(
-                last_modified_by_id,
-                "skyportal/REFRESH_FOLLOWUP_REQUESTS",
-            )
+        push_followup_refresh(obj_internal_key, last_modified_by_id, **kwargs)
 
     form_json_schema_altdata = {
         "type": "object",
