@@ -1023,7 +1023,7 @@ class ZTFMMAAPI(MMAAPI):
                 IOLoop.current().run_in_executor(None, fetch_obs)
             return queue_names
         else:
-            return ValueError(f"Error querying for queued observations: {content}")
+            raise ValueError(f"Error querying for queued observations: {content}")
 
     @staticmethod
     async def remove_queue(allocation, queue_name, username):
@@ -1053,7 +1053,7 @@ class ZTFMMAAPI(MMAAPI):
                 content = await r.text()
                 status = r.status
         if status != 200:
-            return ValueError(f"Error deleting queue: {content}")
+            raise ValueError(f"Error deleting queue: {content}")
 
         # check if there is an observation plan request associated with this queue (same queue name)
         # if so, mark it as removed from queue
