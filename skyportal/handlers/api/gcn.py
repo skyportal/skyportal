@@ -2509,10 +2509,10 @@ class GcnEventHandler(BaseHandler):
                     undefer(GcnEvent.gracedb_log),
                     undefer(GcnEvent.gracedb_labels),
                 ]
-                # event.lightcurve / gracesa parse notice.content (a deferred
-                # column), so it must be loaded even when excludeNoticeContent
-                # keeps it out of the response (handled below). Lazy-loading it
-                # here would raise MissingGreenlet under the async session.
+                # event.lightcurve parses notice.content (a deferred column), so
+                # it must be loaded even when excludeNoticeContent keeps it out of
+                # the response (handled below). Lazy-loading it here would raise
+                # MissingGreenlet under the async session.
                 options.append(
                     selectinload(GcnEvent.gcn_notices).undefer(GcnNotice.content)
                 )

@@ -917,29 +917,6 @@ class GcnEvent(Base):
                 return None
 
     @property
-    def gracesa(self):
-        """Event page URL."""
-        try:
-            notice = self.gcn_notices[0]
-        except IndexError:
-            return None
-        if notice.notice_format == "json":
-            return None
-        try:
-            root = lxml.etree.fromstring(notice.content)
-            elem = root.find(".//Param[@name='EventPage']")
-        except lxml.etree.XMLSyntaxError:
-            return None
-
-        if elem is None:
-            return None
-        else:
-            try:
-                return elem.attrib.get("value", "")
-            except Exception:
-                return None
-
-    @property
     def graceid(self):
         try:
             notice = self.gcn_notices[0]
@@ -964,80 +941,6 @@ class GcnEvent(Base):
             return None
         else:
             return elem.attrib.get("value", "")
-
-    @property
-    def ned_gwf(self):
-        """NED URL."""
-        return "https://ned.ipac.caltech.edu/gwf/events"
-
-    @property
-    def HasNS(self):
-        """Checking if GW event contains NS."""
-        try:
-            notice = self.gcn_notices[0]
-        except IndexError:
-            return None
-        if notice.notice_format == "json":
-            return None
-        try:
-            root = lxml.etree.fromstring(notice.content)
-            elem = root.find(".//Param[@name='HasNS']")
-        except lxml.etree.XMLSyntaxError:
-            return None
-
-        if elem is None:
-            return None
-        else:
-            try:
-                return "HasNS: " + elem.attrib.get("value", "")
-            except Exception:
-                return None
-
-    @property
-    def HasRemnant(self):
-        """Checking if GW event has remnant matter."""
-        try:
-            notice = self.gcn_notices[0]
-        except IndexError:
-            return None
-        if notice.notice_format == "json":
-            return None
-        try:
-            root = lxml.etree.fromstring(notice.content)
-            elem = root.find(".//Param[@name='HasRemnant']")
-        except lxml.etree.XMLSyntaxError:
-            return None
-
-        if elem is None:
-            return None
-        else:
-            try:
-                return "HasRemnant: " + elem.attrib.get("value", "")
-            except Exception:
-                return None
-
-    @property
-    def FAR(self):
-        """Returning event false alarm rate."""
-        try:
-            notice = self.gcn_notices[0]
-        except IndexError:
-            return None
-        if notice.notice_format == "json":
-            return None
-        try:
-            root = lxml.etree.fromstring(notice.content)
-            elem = root.find(".//Param[@name='FAR']")
-        except lxml.etree.XMLSyntaxError:
-            return None
-
-        if elem is None:
-            return None
-        else:
-            try:
-                return "FAR: " + elem.attrib.get("value", "")
-            except Exception:
-                return None
 
 
 def gcntrigger_allocationuser_access_logic(cls, user_or_token):
@@ -1082,15 +985,6 @@ GcnTrigger.triggered = sa.Column(
 GcnTrigger.create = GcnTrigger.update = GcnTrigger.delete = CustomUserAccessControl(
     gcntrigger_allocationuser_access_logic
 )
-
-
-def gcnevent_user_access_logic(cls, user_or_token):
-    aliased = safe_aliased(cls)
-    user_id = UserAccessControl.user_id_from_user_or_token(user_or_token)
-    query = sa.select(cls)
-    if not user_or_token.is_system_admin:
-        query = query.where(aliased.user_id == user_id)
-    return query
 
 
 GcnEventUser = join_model("gcnevent_users", GcnEvent, User)
