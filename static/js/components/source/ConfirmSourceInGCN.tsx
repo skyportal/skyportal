@@ -231,7 +231,16 @@ const ConfirmSourceInGCN = ({
     // "Not vetted" is the absence of a verdict, so committing it removes the
     // row rather than storing a status.
     if (selected === "not_vetted") {
-      handleNotVetted();
+      const canRecreate =
+        localization_name &&
+        localization_cumprob != null &&
+        start_date &&
+        end_date;
+      if (canRecreate) {
+        handleNotVetted();
+      } else {
+        handleVet("pending");
+      }
     } else {
       handleVet(selected);
     }

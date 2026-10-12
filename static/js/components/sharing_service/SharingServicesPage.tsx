@@ -175,7 +175,7 @@ const SharingServiceGroup = ({
     setAutoPublishHermes(sharingServiceGroup.auto_share_to_hermes);
     setAutoPublishTrove(sharingServiceGroup.auto_share_to_trove);
     setAutoPublishAllowBots(sharingServiceGroup.auto_sharing_allow_bots);
-  }, [sharingServiceGroup]);
+  }, [sharingServiceGroup, open]);
 
   useEffect(() => {
     if (!open) return;

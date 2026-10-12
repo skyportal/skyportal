@@ -564,11 +564,13 @@ const CommentPanel = ({ inline = false }: CommentPanelProps) => {
             )
           ) : target?.type === "source" ? (
             <CommentThread
-              key={channel}
+              key={activeChannel}
               objID={target.id}
-              channel={channel === MAIN_CHANNEL ? undefined : channel}
+              channel={
+                activeChannel === MAIN_CHANNEL ? undefined : activeChannel
+              }
               origin={target.origin}
-              pinned={channel === INTERESTED_CHANNEL}
+              pinned={activeChannel === INTERESTED_CHANNEL}
             />
           ) : (
             target && (
