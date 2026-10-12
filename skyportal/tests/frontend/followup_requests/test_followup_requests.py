@@ -49,23 +49,14 @@ def show_followup_columns(page, instrument_id, *columns):
     page.keyboard.press("Escape")
 
 
-def add_followup_request_using_frontend_and_verify_SEDMv2(
-    page, super_admin_user, public_source, super_admin_token, public_group
-):
-    """Adds a new followup request and makes sure it renders properly."""
-    _, instrument_id, _, instrument_name = add_telescope_and_instrument(
-        "SEDMv2", super_admin_token
-    )
-    add_allocation(
-        instrument_id,
-        public_group.id,
-        super_admin_token,
-        _altdata='{"access_token": "testtoken"}',
-    )
+def select_followup_allocation(page, user, source, instrument_name, group):
+    """Open `source` as `user` and pick the allocation in the follow-up form.
 
-    page.goto(f"/become_user/{super_admin_user.id}")
+    Returns the form's submit button.
+    """
+    page.goto(f"/become_user/{user.id}")
 
-    page.goto(f"/source/{public_source.id}")
+    page.goto(f"/source/{source.id}")
 
     # The form interactions below auto-wait; don't gate on the heavy Plotly
     # plots, which can take far longer to render and time the test out under load.
@@ -81,9 +72,30 @@ def add_followup_request_using_frontend_and_verify_SEDMv2(
     select_box.click()
 
     allocation = page.locator(
-        f'//li[contains(text(), "{instrument_name}")][contains(text(), "{public_group.name}")]'
+        f'//li[contains(text(), "{instrument_name}")][contains(text(), "{group.name}")]'
     ).first
     allocation.click()
+
+    return submit_button
+
+
+def add_followup_request_using_frontend_and_verify_SEDMv2(
+    page, super_admin_user, public_source, super_admin_token, public_group
+):
+    """Adds a new followup request and makes sure it renders properly."""
+    _, instrument_id, _, instrument_name = add_telescope_and_instrument(
+        "SEDMv2", super_admin_token
+    )
+    add_allocation(
+        instrument_id,
+        public_group.id,
+        super_admin_token,
+        _altdata='{"access_token": "testtoken"}',
+    )
+
+    submit_button = select_followup_allocation(
+        page, super_admin_user, public_source, instrument_name, public_group
+    )
 
     # Click somewhere outside to remove focus from instrument select
     page.keyboard.press("Escape")
@@ -129,27 +141,9 @@ def add_followup_request_using_frontend_and_verify_KAIT(
     )
     add_allocation(instrument_id, public_group.id, super_admin_token)
 
-    page.goto(f"/become_user/{super_admin_user.id}")
-
-    page.goto(f"/source/{public_source.id}")
-
-    # The form interactions below auto-wait; don't gate on the heavy Plotly
-    # plots, which can take far longer to render and time the test out under load.
-
-    submit_button_xpath = (
-        '//div[@data-testid="followup-request-form"]//button[@type="submit"]'
+    submit_button = select_followup_allocation(
+        page, super_admin_user, public_source, instrument_name, public_group
     )
-    submit_button = page.locator(submit_button_xpath).first
-
-    select_box = page.locator(
-        "//div[@id='mui-component-select-followupRequestAllocationSelect']"
-    ).first
-    select_box.click()
-
-    allocation = page.locator(
-        f'//li[contains(text(), "{instrument_name}")][contains(text(), "{public_group.name}")]'
-    ).first
-    allocation.click()
 
     # Click somewhere outside to remove focus from instrument select
     page.keyboard.press("Escape")
@@ -190,27 +184,9 @@ def add_followup_request_using_frontend_and_verify_UVOTXRT(
         _altdata='{"username": "anonymous", "secret": "anonymous"}',
     )
 
-    page.goto(f"/become_user/{super_admin_user.id}")
-
-    page.goto(f"/source/{public_source.id}")
-
-    # The form interactions below auto-wait; don't gate on the heavy Plotly
-    # plots, which can take far longer to render and time the test out under load.
-
-    submit_button_xpath = (
-        '//div[@data-testid="followup-request-form"]//button[@type="submit"]'
+    submit_button = select_followup_allocation(
+        page, super_admin_user, public_source, instrument_name, public_group
     )
-    submit_button = page.locator(submit_button_xpath).first
-
-    select_box = page.locator(
-        "//div[@id='mui-component-select-followupRequestAllocationSelect']"
-    ).first
-    select_box.click()
-
-    allocation = page.locator(
-        f'//li[contains(text(), "{instrument_name}")][contains(text(), "{public_group.name}")]'
-    ).first
-    allocation.click()
 
     # Click somewhere outside to remove focus from instrument select
     page.keyboard.press("Escape")
@@ -277,27 +253,9 @@ def add_followup_request_using_frontend_and_verify_ZTF(
         types=["triggered", "forced_photometry"],
     )
 
-    page.goto(f"/become_user/{super_admin_user.id}")
-
-    page.goto(f"/source/{public_source.id}")
-
-    # The form interactions below auto-wait; don't gate on the heavy Plotly
-    # plots, which can take far longer to render and time the test out under load.
-
-    submit_button_xpath = (
-        '//div[@data-testid="followup-request-form"]//button[@type="submit"]'
+    submit_button = select_followup_allocation(
+        page, super_admin_user, public_source, instrument_name, public_group
     )
-    submit_button = page.locator(submit_button_xpath).first
-
-    select_box = page.locator(
-        "//div[@id='mui-component-select-followupRequestAllocationSelect']"
-    ).first
-    select_box.click()
-
-    allocation = page.locator(
-        f'//li[contains(text(), "{instrument_name}")][contains(text(), "{public_group.name}")]'
-    ).first
-    allocation.click()
 
     # Click somewhere outside to remove focus from instrument select
     page.keyboard.press("Escape")
@@ -343,27 +301,9 @@ def add_followup_request_using_frontend_and_verify_Floyds(
         instrument_id, public_group.id, super_admin_token, _altdata=LCO_ALTDATA
     )
 
-    page.goto(f"/become_user/{super_admin_user.id}")
-
-    page.goto(f"/source/{public_source.id}")
-
-    # The form interactions below auto-wait; don't gate on the heavy Plotly
-    # plots, which can take far longer to render and time the test out under load.
-
-    submit_button_xpath = (
-        '//div[@data-testid="followup-request-form"]//button[@type="submit"]'
+    submit_button = select_followup_allocation(
+        page, super_admin_user, public_source, instrument_name, public_group
     )
-    submit_button = page.locator(submit_button_xpath).first
-
-    select_box = page.locator(
-        "//div[@id='mui-component-select-followupRequestAllocationSelect']"
-    ).first
-    select_box.click()
-
-    allocation = page.locator(
-        f'//li[contains(text(), "{instrument_name}")][contains(text(), "{public_group.name}")]'
-    ).first
-    allocation.click()
 
     submit_button.click()
 
@@ -403,27 +343,9 @@ def add_followup_request_using_frontend_and_verify_MUSCAT(
         instrument_id, public_group.id, super_admin_token, _altdata=LCO_ALTDATA
     )
 
-    page.goto(f"/become_user/{super_admin_user.id}")
-
-    page.goto(f"/source/{public_source.id}")
-
-    # The form interactions below auto-wait; don't gate on the heavy Plotly
-    # plots, which can take far longer to render and time the test out under load.
-
-    submit_button_xpath = (
-        '//div[@data-testid="followup-request-form"]//button[@type="submit"]'
+    submit_button = select_followup_allocation(
+        page, super_admin_user, public_source, instrument_name, public_group
     )
-    submit_button = page.locator(submit_button_xpath).first
-
-    select_box = page.locator(
-        "//div[@id='mui-component-select-followupRequestAllocationSelect']"
-    ).first
-    select_box.click()
-
-    allocation = page.locator(
-        f'//li[contains(text(), "{instrument_name}")][contains(text(), "{public_group.name}")]'
-    ).first
-    allocation.click()
 
     submit_button.click()
 
@@ -584,27 +506,9 @@ def add_followup_request_using_frontend_and_verify_Spectral(
         instrument_id, public_group.id, super_admin_token, _altdata=LCO_ALTDATA
     )
 
-    page.goto(f"/become_user/{super_admin_user.id}")
-
-    page.goto(f"/source/{public_source.id}")
-
-    # The form interactions below auto-wait; don't gate on the heavy Plotly
-    # plots, which can take far longer to render and time the test out under load.
-
-    submit_button_xpath = (
-        '//div[@data-testid="followup-request-form"]//button[@type="submit"]'
+    submit_button = select_followup_allocation(
+        page, super_admin_user, public_source, instrument_name, public_group
     )
-    submit_button = page.locator(submit_button_xpath).first
-
-    select_box = page.locator(
-        "//div[@id='mui-component-select-followupRequestAllocationSelect']"
-    ).first
-    select_box.click()
-
-    allocation = page.locator(
-        f'//li[contains(text(), "{instrument_name}")][contains(text(), "{public_group.name}")]'
-    ).first
-    allocation.click()
 
     # gp band option
     page.locator('//input[@id="root_observation_choices-0"]').first.click()
@@ -648,27 +552,9 @@ def add_followup_request_using_frontend_and_verify_Sinistro(
         instrument_id, public_group.id, super_admin_token, _altdata=LCO_ALTDATA
     )
 
-    page.goto(f"/become_user/{super_admin_user.id}")
-
-    page.goto(f"/source/{public_source.id}")
-
-    # The form interactions below auto-wait; don't gate on the heavy Plotly
-    # plots, which can take far longer to render and time the test out under load.
-
-    submit_button_xpath = (
-        '//div[@data-testid="followup-request-form"]//button[@type="submit"]'
+    submit_button = select_followup_allocation(
+        page, super_admin_user, public_source, instrument_name, public_group
     )
-    submit_button = page.locator(submit_button_xpath).first
-
-    select_box = page.locator(
-        "//div[@id='mui-component-select-followupRequestAllocationSelect']"
-    ).first
-    select_box.click()
-
-    allocation = page.locator(
-        f'//li[contains(text(), "{instrument_name}")][contains(text(), "{public_group.name}")]'
-    ).first
-    allocation.click()
 
     # gp band option
     page.locator('//input[@id="root_observation_choices-0"]').first.click()
@@ -709,27 +595,9 @@ def add_followup_request_using_frontend_and_verify_SEDM(
     )
     add_allocation(instrument_id, public_group.id, super_admin_token)
 
-    page.goto(f"/become_user/{super_admin_user.id}")
-
-    page.goto(f"/source/{public_source.id}")
-
-    # The form interactions below auto-wait; don't gate on the heavy Plotly
-    # plots, which can take far longer to render and time the test out under load.
-
-    submit_button_xpath = (
-        '//div[@data-testid="followup-request-form"]//button[@type="submit"]'
+    submit_button = select_followup_allocation(
+        page, super_admin_user, public_source, instrument_name, public_group
     )
-    submit_button = page.locator(submit_button_xpath).first
-
-    select_box = page.locator(
-        "//div[@id='mui-component-select-followupRequestAllocationSelect']"
-    ).first
-    select_box.click()
-
-    allocation = page.locator(
-        f'//li[contains(text(), "{instrument_name}")][contains(text(), "{public_group.name}")]'
-    ).first
-    allocation.click()
 
     # Click somewhere outside to remove focus from instrument select
     page.keyboard.press("Escape")
@@ -786,25 +654,9 @@ def add_followup_request_using_frontend_and_verify_SLACK(
         _altdata='{"slack_workspace": "test_workspace", "slack_channel": "test_channel", "slack_token": "test_token"}',
     )
 
-    page.goto(f"/become_user/{super_admin_user.id}")
-
-    page.goto(f"/source/{public_source.id}")
-
-    # The form interactions below auto-wait; don't gate on the heavy Plotly
-    # plots, which can take far longer to render and time the test out under load.
-
-    submit_button_xpath = (
-        '//div[@data-testid="followup-request-form"]//button[@type="submit"]'
+    submit_button = select_followup_allocation(
+        page, super_admin_user, public_source, instrument_name, public_group
     )
-    submit_button = page.locator(submit_button_xpath).first
-
-    select_box = page.locator(
-        "//div[@id='mui-component-select-followupRequestAllocationSelect']"
-    ).first
-    select_box.click()
-
-    allocation = f"//li[contains(text(), '{instrument_name}')][contains(text(), '{public_group.name}')]"
-    page.locator(allocation).first.click()
 
     # Click somewhere outside to remove focus from instrument select
     page.keyboard.press("Escape")
@@ -1188,25 +1040,9 @@ def test_submit_new_followup_request_two_groups(
     )
     add_allocation(instrument_id, public_group.id, super_admin_token)
 
-    page.goto(f"/become_user/{super_admin_user.id}")
-
-    page.goto(f"/source/{public_source_two_groups.id}")
-
-    # The form interactions below auto-wait; don't gate on the heavy Plotly
-    # plots, which can take far longer to render and time the test out under load.
-
-    submit_button_xpath = (
-        '//div[@data-testid="followup-request-form"]//button[@type="submit"]'
+    submit_button = select_followup_allocation(
+        page, super_admin_user, public_source_two_groups, instrument_name, public_group
     )
-    submit_button = page.locator(submit_button_xpath).first
-
-    select_box = page.locator(
-        "//div[@id='mui-component-select-followupRequestAllocationSelect']"
-    ).first
-    select_box.click()
-
-    allocation = f'//li[contains(text(), "{instrument_name}")][contains(text(), "{public_group.name}")]'
-    page.locator(allocation).first.click()
 
     # Click somewhere definitely outside the select list to remove focus from select
     page.keyboard.press("Escape")
