@@ -1,7 +1,6 @@
 import { skyportalApi } from "../api/skyportalApi";
 import { invalidateOnMessage, findCachedSourceId } from "../api/wsInvalidation";
-import { dataAvailabilityTag } from "./dataAvailabilityTags";
-import { sourceTag } from "./sourceTags";
+import { dataAvailabilityTag, sourceTag } from "../api/cacheTags";
 
 export interface DataOwner {
   id: number;
@@ -146,7 +145,7 @@ invalidateOnMessage("skyportal/REFRESH_DATA_ACCESS_REQUESTS", () => [
 // refresh only the cached source's availability. Without an obj id there is
 // nothing to refresh: an unscoped tag here matches every open source page.
 invalidateOnMessage("skyportal/REFRESH_SOURCE", (payload, getState) => {
-  const objId = findCachedSourceId(getState, payload?.obj_key) as string | null;
+  const objId = findCachedSourceId(getState, payload?.obj_key);
   return objId != null ? dataAvailabilityTag(objId) : null;
 });
 

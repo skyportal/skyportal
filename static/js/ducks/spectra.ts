@@ -12,7 +12,7 @@
  */
 import { skyportalApi } from "../api/skyportalApi";
 import { invalidateOnMessage, findCachedSourceId } from "../api/wsInvalidation";
-import { spectraTag } from "./spectraTags";
+import { spectraTag } from "../api/cacheTags";
 import type { RouteData } from "../types/routeSchemaMap";
 
 const REFRESH_SOURCE_SPECTRA = "skyportal/REFRESH_SOURCE_SPECTRA";

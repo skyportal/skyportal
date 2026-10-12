@@ -1,6 +1,6 @@
 import { skyportalApi } from "../api/skyportalApi";
 import { invalidateOnMessage, findCachedSourceId } from "../api/wsInvalidation";
-import { sourceTag } from "./sourceTags";
+import { sourceTag } from "../api/cacheTags";
 
 export interface CollaborationUser {
   id?: number;

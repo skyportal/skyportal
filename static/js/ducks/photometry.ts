@@ -8,7 +8,7 @@ import {
   findCachedSourceId,
   cachedQueries,
 } from "../api/wsInvalidation";
-import { photometryTag } from "./photometryTags";
+import { photometryTag } from "../api/cacheTags";
 import type { RouteData } from "../types/routeSchemaMap";
 
 const REFRESH_SOURCE_PHOTOMETRY = "skyportal/REFRESH_SOURCE_PHOTOMETRY";

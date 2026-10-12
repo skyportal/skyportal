@@ -20,7 +20,7 @@ import { buildQueryString, fileReaderPromise } from "../API";
 import { skyportalApi } from "../api/skyportalApi";
 import { invalidateOnMessage, findCachedSourceId } from "../api/wsInvalidation";
 import type { RouteData } from "../types/routeSchemaMap";
-import { sourceTag } from "./sourceTags";
+import { sourceTag } from "../api/cacheTags";
 
 export const REFRESH_SOURCE = "skyportal/REFRESH_SOURCE";
 export const REFRESH_SOURCE_POSITION = "skyportal/REFRESH_SOURCE_POSITION";
