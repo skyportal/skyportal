@@ -190,6 +190,9 @@ def user_preferences(target, notification_setting, resource_type):
                 return
             if not prefs[resource_type][notification_setting].get("active", False):
                 return
+        elif notification_setting in ["sms", "phone", "whatsapp"]:
+            if not prefs.get(resource_type, {}).get(notification_setting):
+                return
 
         return prefs
 
@@ -531,7 +534,6 @@ def service(queue):
         if notification is None:
             continue
 
-        # one failing channel must not stop the others
         for send in (
             push_frontend_notification,
             send_phone_notification,
