@@ -72,6 +72,10 @@ async def obscode_for_survey(session, survey):
 class JPLSBIdentError(Exception):
     """The identification could not be completed."""
 
+    def __init__(self, message, transient=False):
+        super().__init__(message)
+        self.transient = transient
+
 
 def _sexagesimal(degrees, is_ra):
     """Degrees as the hyphen-separated sexagesimal the API expects."""
@@ -182,12 +186,15 @@ def identify(
     try:
         response = http.get(API_URL, params=params, timeout=timeout)
     except requests.exceptions.Timeout:
-        raise JPLSBIdentError(f"JPL did not answer within {timeout}s")
+        raise JPLSBIdentError(f"JPL did not answer within {timeout}s", transient=True)
     except Exception as e:
-        raise JPLSBIdentError(f"JPL request failed: {e}")
+        raise JPLSBIdentError(f"JPL request failed: {e}", transient=True)
 
     if response.status_code != 200:
-        raise JPLSBIdentError(f"JPL returned {response.status_code}")
+        raise JPLSBIdentError(
+            f"JPL returned {response.status_code}",
+            transient=response.status_code == 429 or response.status_code >= 500,
+        )
     try:
         payload = response.json()
     except ValueError:
