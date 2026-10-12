@@ -8,7 +8,14 @@ from sqlalchemy.orm import selectinload
 
 from baselayer.app.access import auth_or_token
 
-from ....models import Obj, ObjTag, Source, SourceView, serialize_obj_tag
+from ....models import (
+    Classification,
+    Obj,
+    ObjTag,
+    Source,
+    SourceView,
+    serialize_obj_tag,
+)
 from ....utils.data_access import (
     accessible_group_ids_async,
     team_scoped_group_ids,
@@ -94,17 +101,23 @@ class SourceViewsHandler(BaseHandler):
 
             # One query for every object, rather than one each: this list is as
             # long as the top-views list, and each object pulls its thumbnails
-            # and classifications behind it.
+            # behind it.
+            obj_ids = [obj_id for _, obj_id in query_results]
             objs_result = await session.scalars(
                 Obj.select(
                     session.user_or_token,
-                    options=[
-                        selectinload(Obj.thumbnails),
-                        selectinload(Obj.classifications),
-                    ],
-                ).where(Obj.id.in_([obj_id for _, obj_id in query_results]))
+                    options=[selectinload(Obj.thumbnails)],
+                ).where(Obj.id.in_(obj_ids))
             )
             objs_by_id = {obj.id: obj for obj in objs_result.unique().all()}
+            classifications_result = await session.scalars(
+                Classification.select(session.user_or_token).where(
+                    Classification.obj_id.in_(obj_ids)
+                )
+            )
+            classifications_dict = defaultdict(list)
+            for classification in classifications_result.unique().all():
+                classifications_dict[classification.obj_id].append(classification)
 
             sources = []
             for view, obj_id in query_results:
@@ -127,7 +140,7 @@ class SourceViewsHandler(BaseHandler):
                             }
                             for t in sorted(s.thumbnails, key=lambda t: t_index(t.type))
                         ],
-                        "classifications": s.classifications,
+                        "classifications": classifications_dict.get(s.id, []),
                         "tns_name": s.tns_name,
                         "tags": tags_dict.get(s.id, []),
                     }
