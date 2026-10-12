@@ -44,13 +44,17 @@ async def set_statement_timeout(session):
     await session.execute(sa.text(f"SET statement_timeout = '{STATEMENT_TIMEOUT}'"))
 
 
-async def fetch_obj(session):
+async def fetch_obj(session, created_after=None, before=None):
     """Fetch the most recently created object, other than a moving object, that is missing at least one thumbnail.
 
     Parameters
     ----------
     session : `sqlalchemy.ext.asyncio.AsyncSession`
         The async database session to use for the query.
+    created_after : `datetime.datetime`, optional
+        Only consider objects created at or after this time.
+    before : tuple of (`datetime.datetime`, str), optional
+        Only consider objects older than this (created_at, id) pair.
 
     Returns
     -------
@@ -82,9 +86,17 @@ async def fetch_obj(session):
                     )
                 ),
             )
-            .order_by(Obj.created_at.desc())
+            .order_by(Obj.created_at.desc(), Obj.id.desc())
             .limit(1)
         )
+        if created_after is not None:
+            stmt = stmt.where(Obj.created_at >= created_after)
+        if before is not None:
+            created_at, obj_id = before
+            stmt = stmt.where(
+                Obj.created_at <= created_at,
+                sa.tuple_(Obj.created_at, Obj.id) < sa.tuple_(created_at, obj_id),
+            )
         result = await session.execute(stmt)
         objs = result.scalars().all()
         if len(objs) == 0:
