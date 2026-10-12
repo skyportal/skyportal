@@ -30,8 +30,7 @@ def objtag_access_logic(cls, user_or_token):
 
 
 def objtagoption_update_delete_logic(cls, user_or_token):
-    """Users with "Manage sources" (and System admins) manage tag options."""
-    if user_or_token.is_system_admin or "Manage sources" in user_or_token.permissions:
+    if "Manage sources" in user_or_token.permissions:
         return sa.select(cls)
     return restricted.select_accessible_rows(cls, user_or_token)
 
