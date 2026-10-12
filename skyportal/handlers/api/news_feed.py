@@ -83,19 +83,12 @@ class NewsFeedHandler(BaseHandler):
             )
 
         # Eager-load options per model. Every relationship traversed
-        # after the query (e.g. `s.obj`, `c.author`, `s.instrument`) needs
+        # after the query (e.g. `c.author`, `s.instrument`) needs
         # to be loaded explicitly under async; otherwise SQLAlchemy raises
         # MissingGreenlet when the iteration touches the attribute.
         loader_options = {
-            Source: [selectinload(Source.obj)],
-            Comment: [
-                selectinload(Comment.author),
-                selectinload(Comment.obj),
-            ],
-            Classification: [
-                selectinload(Classification.author),
-                selectinload(Classification.obj),
-            ],
+            Comment: [selectinload(Comment.author)],
+            Classification: [selectinload(Classification.author)],
             Spectrum: [
                 # Only the metadata is needed for the feed; skip the heavy
                 # wavelengths/fluxes/errors arrays and original_file_string.
@@ -107,12 +100,10 @@ class NewsFeedHandler(BaseHandler):
                 ),
                 selectinload(Spectrum.owner),
                 selectinload(Spectrum.instrument),
-                selectinload(Spectrum.obj),
             ],
             Photometry: [
                 selectinload(Photometry.owner),
                 selectinload(Photometry.instrument),
-                selectinload(Photometry.obj),
             ],
         }
 
@@ -194,8 +185,6 @@ class NewsFeedHandler(BaseHandler):
                     .limit(n_items)
                 )
 
-            # Each item's label comes from the classifications the user can
-            # read; Obj.classifications would include other groups' ones.
             classifications_by_obj = defaultdict(list)
             classified_obj_ids = set()
 
@@ -241,19 +230,20 @@ class NewsFeedHandler(BaseHandler):
                 await load_classifications(newest)
                 return newest
 
-            def latest_classification(obj):
+            def latest_classification(obj_id):
                 classification = None
                 try:
-                    if len(classifications_by_obj[obj.id]) > 0:
+                    if len(classifications_by_obj[obj_id]) > 0:
                         # Display the most recent non-zero probability class,
                         # and that isn't a ml classifier
                         sortedClasses = sorted(
                             (
                                 c
-                                for c in classifications_by_obj[obj.id]
+                                for c in classifications_by_obj[obj_id]
                                 if c.probability > 0 and c.ml is False
                             ),
                             key=lambda x: x.modified,
+                            reverse=True,
                         )
                         if len(sortedClasses) > 0:
                             classification = sortedClasses[0].classification
@@ -285,7 +275,7 @@ class NewsFeedHandler(BaseHandler):
                             "time": s.created_at,
                             "message": message,
                             "source_id": s.obj_id,
-                            "classification": latest_classification(s.obj),
+                            "classification": latest_classification(s.obj_id),
                         },
                     )
             if (
@@ -309,7 +299,7 @@ class NewsFeedHandler(BaseHandler):
                             "source_id": c.obj_id,
                             "author": c.author.username,
                             "author_info": c.author_info,
-                            "classification": latest_classification(c.obj),
+                            "classification": latest_classification(c.obj_id),
                         }
                         for c in comments
                     ]
@@ -329,7 +319,7 @@ class NewsFeedHandler(BaseHandler):
                             "message": f"New classification for {c.obj_id} added by {c.author.username}: {c.classification}",
                             "source_id": c.obj_id,
                             "author_info": basic_user_display_info(c.author),
-                            "classification": latest_classification(c.obj),
+                            "classification": latest_classification(c.obj_id),
                         }
                         for c in classifications
                     ]
@@ -349,7 +339,7 @@ class NewsFeedHandler(BaseHandler):
                             "message": f"{s.owner.first_name} {s.owner.last_name} uploaded a new spectrum taken with {s.instrument.name} for {s.obj_id}",
                             "source_id": s.obj_id,
                             "author_info": basic_user_display_info(s.owner),
-                            "classification": latest_classification(s.obj),
+                            "classification": latest_classification(s.obj_id),
                         }
                         for s in spectra
                     ]
@@ -369,7 +359,7 @@ class NewsFeedHandler(BaseHandler):
                             "message": f"{p.owner.first_name} {p.owner.last_name} uploaded new follow-up photometry taken with {p.instrument.name} for {p.obj_id}",
                             "source_id": p.obj_id,
                             "author_info": basic_user_display_info(p.owner),
-                            "classification": latest_classification(p.obj),
+                            "classification": latest_classification(p.obj_id),
                         }
                         for p in photometry
                     ]
