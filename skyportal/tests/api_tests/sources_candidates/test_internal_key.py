@@ -48,7 +48,8 @@ def test_internal_key_present_on_allocation_requests(
     allocation_id = public_source_followup_request.allocation_id
     status, data = api("GET", f"allocation/{allocation_id}", token=super_admin_token)
     assert status == 200, data
-    row = next(r for r in data["data"]["requests"] if r["obj_id"] == public_source.id)
+    requests = data["data"]["allocation"]["requests"]
+    row = next(r for r in requests if r["obj_id"] == public_source.id)
     assert row["internal_key"] == public_source.internal_key
 
 
