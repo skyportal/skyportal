@@ -8,12 +8,12 @@ from sqlalchemy.orm import selectinload
 
 from baselayer.app.access import auth_or_token, permissions
 
-from ...models import Obj, SuperObj
+from ...models import Annotation, Obj, SuperObj
 from ...utils.parse import get_page_and_n_per_page
 from ..base import BaseHandler
 
 
-def super_obj_to_dict(super_obj, epochs=False):
+def super_obj_to_dict(super_obj, epochs=False, annotations=None):
     """Serialize a SuperObj with its linked Obj positions.
 
     With ``epochs``, each Obj also carries its thumbnails and annotations, which
@@ -43,9 +43,21 @@ def super_obj_to_dict(super_obj, epochs=False):
                 for t in (obj.thumbnails or [])
             ]
             entry["annotations"] = [
-                {"origin": a.origin, "data": a.data} for a in (obj.annotations or [])
+                {"origin": a.origin, "data": a.data}
+                for a in (annotations or {}).get(obj.id, [])
             ]
     return out
+
+
+async def readable_annotations(session, super_objs):
+    obj_ids = {obj.id for super_obj in super_objs for obj in super_obj.objs}
+    rows = await session.scalars(
+        Annotation.select(session.user_or_token).where(Annotation.obj_id.in_(obj_ids))
+    )
+    by_obj = {}
+    for annotation in rows:
+        by_obj.setdefault(annotation.obj_id, []).append(annotation)
+    return by_obj
 
 
 async def load_objs(session, obj_ids):
@@ -165,10 +177,7 @@ class SuperObjHandler(BaseHandler):
         async with self.AsyncSession() as session:
             options = [selectinload(SuperObj.objs)]
             if query.includeEpochs:
-                options = [
-                    selectinload(SuperObj.objs).selectinload(Obj.thumbnails),
-                    selectinload(SuperObj.objs).selectinload(Obj.annotations),
-                ]
+                options = [selectinload(SuperObj.objs).selectinload(Obj.thumbnails)]
 
             if super_obj_id is not None:
                 try:
@@ -183,8 +192,15 @@ class SuperObjHandler(BaseHandler):
                 )
                 if super_obj is None:
                     return self.error(f"Could not load SuperObj {super_obj_id}")
+                annotations = (
+                    await readable_annotations(session, [super_obj])
+                    if query.includeEpochs
+                    else None
+                )
                 return self.success(
-                    data=super_obj_to_dict(super_obj, epochs=query.includeEpochs)
+                    data=super_obj_to_dict(
+                        super_obj, epochs=query.includeEpochs, annotations=annotations
+                    )
                 )
 
             stmt = SuperObj.select(session.user_or_token, options=options)
@@ -206,11 +222,19 @@ class SuperObjHandler(BaseHandler):
                 .limit(n_per_page)
                 .offset((page_number - 1) * n_per_page)
             )
+            super_objs = result.unique().all()
+            annotations = (
+                await readable_annotations(session, super_objs)
+                if query.includeEpochs
+                else None
+            )
             return self.success(
                 data={
                     "superObjs": [
-                        super_obj_to_dict(s, epochs=query.includeEpochs)
-                        for s in result.unique().all()
+                        super_obj_to_dict(
+                            s, epochs=query.includeEpochs, annotations=annotations
+                        )
+                        for s in super_objs
                     ],
                     "totalMatches": total,
                     "pageNumber": page_number,
