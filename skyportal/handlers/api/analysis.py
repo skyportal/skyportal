@@ -427,6 +427,61 @@ def _input_csv(
     return df.to_csv(index=False)
 
 
+def _record_service_response(
+    open_session,
+    future,
+    analysis_id,
+    analysis_service_id,
+    analysis_resource_type,
+    logger=log,
+):
+    """Store the analysis service's reply to the start request on the analysis."""
+    with open_session() as session:
+        analysis_cls = analysis_model_for(analysis_resource_type)
+        if analysis_cls is None:
+            log(f"Invalid analysis_resource_type: {analysis_resource_type}")
+            return
+        try:
+            analysis = session.get(analysis_cls, analysis_id)
+            if analysis is None:
+                logger(f"Analysis {analysis_id} not found")
+                return
+        except Exception as e:
+            log(f"Could not access Analysis {analysis_id} {e}.")
+            return
+
+        analysis.last_activity = utcnow_naive()
+        try:
+            result = future.result()
+            analysis.status = "pending" if result.status_code == 200 else "failure"
+            # truncate the return just so we dont have a huge string in the database
+            analysis.status_message = result.text[:1024]
+        except Exception:
+            analysis.status = "failure"
+            analysis.status_message = str(future.exception())[:1024]
+        finally:
+            logger(
+                f"[id={analysis_id} service={analysis_service_id}] status='{analysis.status}' message='{analysis.status_message}'"
+            )
+            session.commit()
+            try:
+                flow = Flow()
+                if analysis_resource_type.lower() == "obj":
+                    flow.push(
+                        "*",
+                        "skyportal/REFRESH_OBJ_ANALYSES",
+                        payload={"obj_key": analysis.obj.internal_key},
+                    )
+                elif analysis_resource_type.lower() == "gcn_event":
+                    flow.push(
+                        "*",
+                        "skyportal/REFRESH_GCNEVENT",
+                        payload={"gcnEvent_dateobs": analysis.dateobs.isoformat()},
+                    )
+            except Exception as e:
+                logger(f"Could not refresh analyses: {e}")
+
+
 def _localization_payload(localization):
     """Sky position (max-probability point) and a skymap reference for a GCN
     localization, best-effort. Targeted searches (e.g. PyGRB) point at ra/dec; the
@@ -734,61 +789,13 @@ def post_analysis(
     else:
         log(trigger)
 
-    def analysis_done_callback(
-        future,
-        logger=log,
+    analysis_done_callback = functools.partial(
+        _record_service_response,
+        new_session,
         analysis_id=analysis.id,
         analysis_service_id=analysis_service.id,
         analysis_resource_type=analysis_resource_type,
-    ):
-        """
-        Callback function for when the analysis service is done.
-        Updates the Analysis object with the results/errors.
-        """
-        with new_session() as session:
-            analysis_cls = analysis_model_for(analysis_resource_type)
-            if analysis_cls is None:
-                log(f"Invalid analysis_resource_type: {analysis_resource_type}")
-                return
-            try:
-                analysis = session.get(analysis_cls, analysis_id)
-                if analysis is None:
-                    logger(f"Analysis {analysis_id} not found")
-                    return
-            except Exception as e:
-                log(f"Could not access Analysis {analysis_id} {e}.")
-                return
-
-            analysis.last_activity = utcnow_naive()
-            try:
-                result = future.result()
-                analysis.status = "pending" if result.status_code == 200 else "failure"
-                # truncate the return just so we dont have a huge string in the database
-                analysis.status_message = result.text[:1024]
-            except Exception:
-                analysis.status = "failure"
-                analysis.status_message = str(future.exception())[:1024]
-            finally:
-                logger(
-                    f"[id={analysis_id} service={analysis_service_id}] status='{analysis.status}' message='{analysis.status_message}'"
-                )
-                session.commit()
-                try:
-                    flow = Flow()
-                    if analysis_resource_type.lower() == "obj":
-                        flow.push(
-                            "*",
-                            "skyportal/REFRESH_OBJ_ANALYSES",
-                            payload={"obj_key": analysis.obj.internal_key},
-                        )
-                    elif analysis_resource_type.lower() == "gcn_event":
-                        flow.push(
-                            "*",
-                            "skyportal/REFRESH_GCNEVENT",
-                            payload={"gcnEvent_dateobs": analysis.dateobs.isoformat()},
-                        )
-                except Exception as e:
-                    logger(f"Could not refresh analyses: {e}")
+    )
 
     # Start the analysis service in a separate thread and log any exceptions
     _analysis_executor.submit(external_analysis_service).add_done_callback(
@@ -816,8 +823,8 @@ async def post_analysis_async(
 
     Does the same work as the sync ``post_analysis`` but uses an
     ``AsyncSession``. The background HTTP call (via ``IOLoop.run_in_executor``)
-    is still dispatched here; its done-callback uses a sync ``DBSession`` for
-    its own writes since it runs in a thread executor.
+    is still dispatched here; its done-callback is a plain sync function, so it
+    uses the sync ``DBSession`` for its own writes.
     """
 
     # `author` and `current_user` are passed in but may originate from a
@@ -1041,64 +1048,15 @@ async def post_analysis_async(
         },
     )
 
-    def analysis_done_callback(
-        future,
-        logger=log,
+    from ...models import DBSession
+
+    analysis_done_callback = functools.partial(
+        _record_service_response,
+        DBSession,
         analysis_id=analysis_id,
         analysis_service_id=analysis_service_id,
         analysis_resource_type=analysis_resource_type,
-    ):
-        """
-        Callback function for when the analysis service is done.
-        Updates the Analysis object with the results/errors.
-        Runs in a thread executor; uses a sync DBSession.
-        """
-        from ...models import DBSession
-
-        with DBSession() as db_session:
-            analysis_cls = analysis_model_for(analysis_resource_type)
-            if analysis_cls is None:
-                log(f"Invalid analysis_resource_type: {analysis_resource_type}")
-                return
-            try:
-                analysis = db_session.get(analysis_cls, analysis_id)
-                if analysis is None:
-                    logger.error(f"Analysis {analysis_id} not found")
-                    return
-            except Exception as e:
-                log(f"Could not access Analysis {analysis_id} {e}.")
-                return
-
-            analysis.last_activity = utcnow_naive()
-            try:
-                result = future.result()
-                analysis.status = "pending" if result.status_code == 200 else "failure"
-                # truncate the return just so we dont have a huge string in the database
-                analysis.status_message = result.text[:1024]
-            except Exception:
-                analysis.status = "failure"
-                analysis.status_message = str(future.exception())[:1024]
-            finally:
-                logger(
-                    f"[id={analysis_id} service={analysis_service_id}] status='{analysis.status}' message='{analysis.status_message}'"
-                )
-                db_session.commit()
-                try:
-                    flow = Flow()
-                    if analysis_resource_type.lower() == "obj":
-                        flow.push(
-                            "*",
-                            "skyportal/REFRESH_OBJ_ANALYSES",
-                            payload={"obj_key": analysis.obj.internal_key},
-                        )
-                    elif analysis_resource_type.lower() == "gcn_event":
-                        flow.push(
-                            "*",
-                            "skyportal/REFRESH_GCNEVENT",
-                            payload={"gcnEvent_dateobs": analysis.dateobs.isoformat()},
-                        )
-                except Exception as e:
-                    logger(f"Could not refresh analyses: {e}")
+    )
 
     # Start the analysis service in a separate thread and log any exceptions
     x = IOLoop.current().run_in_executor(None, external_analysis_service)
