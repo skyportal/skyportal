@@ -1,5 +1,5 @@
 import { skyportalApi } from "../api/skyportalApi";
-import { invalidateOnMessage, findCachedQueryArg } from "../api/wsInvalidation";
+import { invalidateOnMessage, findCachedSourceId } from "../api/wsInvalidation";
 import { sourceTag } from "./sourceTags";
 
 export interface CollaborationUser {
@@ -61,20 +61,11 @@ export const sourceInterestsApi = skyportalApi.injectEndpoints({
   }),
 });
 
-// Broadcast to every client, so it carries the source's internal_key rather
-// than its id: translate it to the id of a cached source.
+// Broadcast to every client: also refresh this one's cached source, if any.
 invalidateOnMessage(
   "skyportal/REFRESH_SOURCE_INTERESTS",
   (payload, getState) => {
-    const objKey = payload?.obj_key as string | undefined;
-    if (!objKey) {
-      return ["SourceInterest"];
-    }
-    const objId = findCachedQueryArg(
-      getState,
-      "getSource",
-      (data) => data?.internal_key === objKey,
-    ) as string | number | null;
+    const objId = findCachedSourceId(getState, payload?.obj_key);
     return ["SourceInterest", ...(objId != null ? sourceTag(objId) : [])];
   },
 );

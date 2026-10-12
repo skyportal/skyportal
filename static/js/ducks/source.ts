@@ -18,7 +18,7 @@
  */
 import { buildQueryString, fileReaderPromise } from "../API";
 import { skyportalApi } from "../api/skyportalApi";
-import { invalidateOnMessage, findCachedQueryArg } from "../api/wsInvalidation";
+import { invalidateOnMessage, findCachedSourceId } from "../api/wsInvalidation";
 import type { RouteData } from "../types/routeSchemaMap";
 import { sourceTag } from "./sourceTags";
 
@@ -744,11 +744,7 @@ const invalidateCachedSource =
   (payload: any, getState: () => unknown) => {
     const objKey = payload?.obj_key;
     if (!objKey) return ["Source" as const];
-    const objId = findCachedQueryArg(
-      getState,
-      "getSource",
-      (data) => data?.internal_key === objKey,
-    ) as string | number | null;
+    const objId = findCachedSourceId(getState, objKey);
     return objId != null ? [{ type, id: objId }] : null;
   };
 

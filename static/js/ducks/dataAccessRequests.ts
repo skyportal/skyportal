@@ -1,5 +1,5 @@
 import { skyportalApi } from "../api/skyportalApi";
-import { invalidateOnMessage, findCachedQueryArg } from "../api/wsInvalidation";
+import { invalidateOnMessage, findCachedSourceId } from "../api/wsInvalidation";
 import { dataAvailabilityTag } from "./dataAvailabilityTags";
 import { sourceTag } from "./sourceTags";
 
@@ -142,20 +142,11 @@ invalidateOnMessage("skyportal/REFRESH_DATA_ACCESS_REQUESTS", () => [
 ]);
 
 // A grant lands as new photometry/spectra on the source the requester is
-// looking at. REFRESH_SOURCE is broadcast to every client for every source, and
-// carries the source's internal_key, so translate that to the obj id and
-// refresh only that source's availability. Without an obj id there is nothing
-// to refresh: an unscoped tag here matches every open source page.
+// looking at. REFRESH_SOURCE is broadcast to every client for every source, so
+// refresh only the cached source's availability. Without an obj id there is
+// nothing to refresh: an unscoped tag here matches every open source page.
 invalidateOnMessage("skyportal/REFRESH_SOURCE", (payload, getState) => {
-  const objKey = payload?.obj_key as string | undefined;
-  if (!objKey) {
-    return null;
-  }
-  const objId = findCachedQueryArg(
-    getState,
-    "getSource",
-    (data) => data?.internal_key === objKey,
-  ) as string | null;
+  const objId = findCachedSourceId(getState, payload?.obj_key) as string | null;
   return objId != null ? dataAvailabilityTag(objId) : null;
 });
 

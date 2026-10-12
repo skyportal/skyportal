@@ -3,7 +3,7 @@
  * (delete, submit, update) invalidate it so the list refetches.
  */
 import { skyportalApi } from "../api/skyportalApi";
-import { invalidateOnMessage, findCachedQueryArg } from "../api/wsInvalidation";
+import { invalidateOnMessage, findCachedSourceId } from "../api/wsInvalidation";
 import { photometryTag } from "./photometryTags";
 import type { RouteData } from "../types/routeSchemaMap";
 
@@ -99,12 +99,8 @@ invalidateOnMessage(REFRESH_SOURCE_PHOTOMETRY, (payload, getState) => {
   if (!objKey) {
     return null;
   }
-  const sourceId = findCachedQueryArg(
-    getState,
-    "getSource",
-    (data) => data?.internal_key === objKey,
-  ) as string | number | null;
-  const objId = sourceId ?? findListedObjId(getState, objKey);
+  const objId =
+    findCachedSourceId(getState, objKey) ?? findListedObjId(getState, objKey);
   return objId != null ? photometryTag(objId) : null;
 });
 
