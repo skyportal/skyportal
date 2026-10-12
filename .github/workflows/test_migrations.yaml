@@ -310,9 +310,12 @@ jobs:
 
       - name: Compare databases with migra
         run: |
-          # SQL needed to go from migrated database to fresh database
-          uv pip install migra
-          uv run migra --unsafe postgresql://skyportal:anything@localhost:5432/skyportal postgresql://skyportal:anything@localhost:5432/skyportal2 > migra.sql || true
+          # SQL needed to go from migrated database to fresh database.
+          # migra exits 2 and prints SQL when it finds differences; uv also exits 2
+          # on its own errors, so only accept 2 when migra wrote something.
+          # schemainspect still imports pkg_resources, which setuptools 82 removed.
+          # migra[pg] ships psycopg2, and SQLAlchemy 2.1 defaults postgresql:// to psycopg 3.
+          uvx --from 'migra[pg]' --with 'setuptools<82' migra --unsafe postgresql+psycopg2://skyportal:anything@localhost:5432/skyportal postgresql+psycopg2://skyportal:anything@localhost:5432/skyportal2 > migra.sql || [[ $? -eq 2 && -s migra.sql ]]
           if [[ $(cat migra.sql | wc -l) -ne 0 ]]
           then
             echo "Differences found between migrated database and fresh database. See the migra-difference artifact."
