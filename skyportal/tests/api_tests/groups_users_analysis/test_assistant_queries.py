@@ -113,6 +113,42 @@ def test_owner_can_edit_query(user, public_group):
     api("DELETE", f"assistant_queries/{query_id}", token=token)
 
 
+def test_cannot_notify_a_group_youre_not_in(user, public_group, public_group2):
+    token = _token(user)
+    query = {"name": "loud", "group_id": public_group.id, "prompt": "triage"}
+
+    status, data = api(
+        "POST",
+        "assistant_queries",
+        data={**query, "notify_groups": [public_group2.id]},
+        token=token,
+    )
+    assert_api_fail(status, data, 403)
+
+    status, data = api(
+        "POST",
+        "assistant_queries",
+        data={**query, "notify_groups": [public_group.id]},
+        token=token,
+    )
+    assert_api(status, data)
+    query_id = data["data"]["id"]
+
+    status, data = api(
+        "PATCH",
+        f"assistant_queries/{query_id}",
+        data={"notify_groups": [public_group2.id]},
+        token=token,
+    )
+    assert_api_fail(status, data, 403)
+
+    status, data = api("GET", f"assistant_queries/{query_id}", token=token)
+    assert_api(status, data)
+    assert data["data"]["notify_groups"] == [public_group.id]
+
+    api("DELETE", f"assistant_queries/{query_id}", token=token)
+
+
 def test_cannot_create_in_a_group_youre_not_in(user, public_group2):
     token = _token(user)
     status, data = api(
