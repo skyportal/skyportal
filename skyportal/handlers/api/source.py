@@ -44,7 +44,7 @@ from skyportal_py_models.sources import (
     SourcePostBody,
     SurveyThumbnailPostBody,
 )
-from sqlalchemy import func, or_
+from sqlalchemy import or_
 from sqlalchemy.orm import (
     selectinload,
 )
@@ -147,8 +147,6 @@ offset_stars_cache = Cache(
     cache_dir=f"{cache_folder}/offset_stars",
     max_age=cfg.get("misc.minutes_to_keep_offset_stars_cache", 60) * 60,
 )
-
-MAX_LOCALIZATION_SOURCES = 50000
 
 
 def confirmed_in_gcn_status_to_str(status):
@@ -778,29 +776,6 @@ async def get_source(
     return source_info
 
 
-def create_annotations_query(
-    session,
-    annotations_filter_origin=None,
-    annotations_filter_before=None,
-    annotations_filter_after=None,
-):
-    annotations_query = Annotation.select(session.user_or_token)
-    if annotations_filter_origin is not None:
-        annotations_query = annotations_query.where(
-            Annotation.origin.in_(annotations_filter_origin)
-        )
-    if annotations_filter_before:
-        annotations_query = annotations_query.where(
-            Annotation.created_at <= annotations_filter_before
-        )
-    if annotations_filter_after:
-        annotations_query = annotations_query.where(
-            Annotation.created_at >= annotations_filter_after
-        )
-
-    return annotations_query
-
-
 async def post_source_async(data, user_id, session, refresh_source=True):
     """Async equivalent of ``post_source``. Same behaviour, awaits all DB I/O."""
     warnings = []
@@ -1332,15 +1307,6 @@ def apply_active_or_requested_filtering(query, include_requested, requested_only
     if requested_only:
         query = query.where(Source.active.is_(False)).where(Source.requested.is_(True))
     return query
-
-
-def paginate_summary_query(session, query, page, num_per_page, total_matches):
-    if total_matches is None:
-        count_stmt = sa.select(func.count()).select_from(query.distinct())
-        total_matches = session.execute(count_stmt).scalar()
-    query = query.offset((page - 1) * num_per_page)
-    query = query.limit(num_per_page)
-    return {"sources": session.scalars(query).all(), "total_matches": total_matches}
 
 
 class SourceHandler(BaseHandler):

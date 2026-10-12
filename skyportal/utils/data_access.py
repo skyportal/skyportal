@@ -768,33 +768,6 @@ async def process_instrument_ids_async(
     return None
 
 
-async def filter_accessible_instrument_ids_async(
-    session, user, instrument_ids, sharing_service
-):
-    """Async equivalent of `filter_accessible_instrument_ids`."""
-    result = await session.scalars(
-        sa.select(InstrumentSharingService.instrument_id).where(
-            InstrumentSharingService.sharing_service_id == sharing_service.id
-        )
-    )
-    accessible_instrument_ids = result.all()
-    if not accessible_instrument_ids:
-        raise ValueError(
-            f"Must specify instruments on the sharing service '{sharing_service.id}' before submitting source."
-        )
-    if not instrument_ids:
-        instrument_ids = accessible_instrument_ids
-
-    instruments = await process_instrument_ids_async(
-        session, user, instrument_ids, accessible_instrument_ids
-    )
-    if not instruments:
-        raise ValueError(
-            f"None of the instruments specified for the submission request are accessible to sharing service '{sharing_service.id}'."
-        )
-    return [instrument.id for instrument in instruments]
-
-
 async def process_stream_ids_async(
     session, user, stream_ids, accessible_stream_ids=None
 ):
@@ -815,32 +788,6 @@ async def process_stream_ids_async(
             raise ValueError(f"One or more streams not found: {stream_ids}")
         return streams
     return None
-
-
-async def filter_accessible_stream_ids_async(
-    session, user, stream_ids, sharing_service, auto_submission=False
-):
-    """Async equivalent of `filter_accessible_stream_ids`."""
-    if not auto_submission and not stream_ids:
-        return None
-
-    result = await session.scalars(
-        sa.select(StreamSharingService.stream_id).where(
-            StreamSharingService.sharing_service_id == sharing_service.id
-        )
-    )
-    accessible_stream_ids = result.all()
-    if auto_submission:
-        if not accessible_stream_ids:
-            raise ValueError(
-                f"Must specify streams for sharing service {sharing_service.id} when auto-submitting source."
-            )
-        stream_ids = accessible_stream_ids
-
-    streams = await process_stream_ids_async(
-        session, user, stream_ids, accessible_stream_ids
-    )
-    return [stream.id for stream in streams]
 
 
 async def is_existing_submission_request_async(

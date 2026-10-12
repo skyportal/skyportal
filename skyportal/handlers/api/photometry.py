@@ -3,7 +3,6 @@ import json
 import traceback
 import uuid
 from collections import defaultdict
-from io import StringIO
 from typing import Annotated
 
 import arrow
@@ -307,42 +306,6 @@ def to_numeric(col):
         return pd.to_numeric(col)
     except (ValueError, TypeError):
         return col
-
-
-def save_data_using_copy(rows, table, columns, session):
-    # Prepare data
-    output = StringIO()
-    df = pd.DataFrame.from_records(rows)
-    # Coerce missing non-numbers and numbers, respectively, for SQLAlchemy
-    df.replace("NaN", "null", inplace=True)
-    df.replace(np.nan, "NaN", inplace=True)
-
-    df.to_csv(
-        output,
-        index=False,
-        sep="\t",
-        header=False,
-        encoding="utf8",
-        quotechar="'",
-    )
-    output.seek(0)
-
-    # Insert data via psycopg v3's COPY API. psycopg2 had
-    # `cursor.copy_from(file, table, sep, null, columns)`; psycopg3 expects a
-    # full `COPY ... FROM STDIN` statement and a context-managed copy object
-    # that you write rows (or raw bytes) into.
-    # Use the provided session's connection so that the COPY runs within the
-    # same database connection/transaction that holds any table-level locks.
-    connection = session.connection().connection
-    quoted_columns = ", ".join(f'"{c}"' for c in columns)
-    copy_sql = (
-        f"COPY {table} ({quoted_columns}) FROM STDIN "
-        "WITH (FORMAT text, DELIMITER E'\\t', NULL '')"
-    )
-    with connection.cursor() as cursor:
-        with cursor.copy(copy_sql) as copy:
-            copy.write(output.getvalue())
-    output.close()
 
 
 def nan_to_none(value):
@@ -1320,10 +1283,8 @@ async def insert_new_photometry_data(
         utcnow = utcnow_naive()
         # original_user_data and altdata are JSONB columns; with pg_insert.values()
         # SQLAlchemy serializes Python dicts via the column type, so we pass
-        # the raw structures (None or dict). The old COPY path needed
-        # json.dumps() strings because COPY's text protocol interprets them
-        # as JSON literals on the wire. Also normalize NaN→None (pandas leaks
-        # NaN for missing cells in object columns, and JSONB rejects NaN).
+        # the raw structures (None or dict). Also normalize NaN→None (pandas
+        # leaks NaN for missing cells in object columns, and JSONB rejects NaN).
         altdata_val = packet.get("altdata")
         if isinstance(altdata_val, float) and np.isnan(altdata_val):
             altdata_val = None
