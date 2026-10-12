@@ -74,6 +74,7 @@ import { useGetTaxonomiesQuery } from "../../ducks/taxonomies";
 import { useGetAnnotationsInfoQuery } from "../../ducks/candidate/candidates";
 import { getContrastColor } from "../ObjectTags";
 import { filterOutEmptyValues } from "../../API";
+import { download } from "../../utils/download";
 import useDebounced from "../../hooks/useDebounced";
 import { getAnnotationValueString } from "../candidate/ScanningPageCandidateAnnotations";
 import {
@@ -1208,15 +1209,7 @@ const SourceTable = ({
       });
 
       const result = `${head.map(csvCell).join(",")}\n${rows.join("\n")}`;
-      const blob = new Blob([result], { type: "text/csv;charset=utf-8;" });
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      link.href = url;
-      link.setAttribute("download", "sources.csv");
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(url);
+      download(result, "text/csv;charset=utf-8;", "sources.csv");
     });
   };
 

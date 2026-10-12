@@ -48,6 +48,7 @@ import {
 } from "../../../../ducks/boom_run_filter";
 import { useGetProfileQuery } from "../../../../ducks/profile";
 import { useGetGcnEventsQuery } from "../../../../ducks/gcnEvents";
+import { download } from "../../../../utils/download";
 import PipelineViewer from "./PipelineViewer";
 import FullscreenResultsDialog from "./FullscreenResultsDialog";
 
@@ -382,17 +383,8 @@ const MongoQueryDialog = () => {
     }
 
     const jsonString = JSON.stringify(displayResults.data, null, 2);
-    const blob = new Blob([jsonString], { type: "application/json" });
-    const url = URL.createObjectURL(blob);
-
-    const link = document.createElement("a");
-    link.href = url;
     const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
-    link.download = `query-results-${timestamp}.json`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
+    download(jsonString, "application/json", `query-results-${timestamp}.json`);
   };
 
   const handleRunQuery = async () => {
