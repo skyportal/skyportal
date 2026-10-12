@@ -38,8 +38,8 @@ const comparators: Record<string, string> = {
   le: "<=",
   eq: "=",
   ne: "!=",
-  ge: ">",
-  gt: ">=",
+  ge: ">=",
+  gt: ">",
 };
 
 const useStyles = makeStyles()((theme) => ({
