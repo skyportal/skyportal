@@ -1,5 +1,3 @@
-# Everything in this repository ships as one version, on one tag: the app, and
-# the `skyportal-py` and `skyportal-py-models` packages under projects/.
 [package]
 versioned_files = [
     "pyproject.toml",
@@ -10,8 +8,6 @@ versioned_files = [
 changelog = "CHANGELOG.md"
 assets = "dist/*"
 
-# Releases are dated, so a changeset says what kind of change it is rather than
-# how far the version should move.
 extra_changelog_sections = [
     { name = "Breaking changes", types = ["breaking"] },
     { name = "Features", types = ["feature"] },
@@ -21,10 +17,7 @@ extra_changelog_sections = [
     { name = "Other changes", types = ["other"] },
 ]
 
-# Knope applies an unscoped conventional commit to every package, so a release
-# comes from changesets only. Knope cannot compute a calendar version either,
-# so prepare_release.yaml works it out and passes `--override-version`; without
-# that override there is no bump to apply and nothing would release.
+# Changesets only; the version always comes from --override-version
 [changes]
 ignore_conventional_commits = true
 
@@ -44,8 +37,7 @@ command = "git switch -c release"
 [[workflows.steps]]
 type = "PrepareRelease"
 
-# Knope cannot version a dependency inside a pyproject.toml, so the exact pin
-# `skyportal-py` carries on `skyportal-py-models` is rewritten here.
+# Knope can't bump the skyportal-py-models pin
 [[workflows.steps]]
 type = "Command"
 shell = true

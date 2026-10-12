@@ -30,8 +30,7 @@ jobs:
             echo "No changesets in .changeset, nothing to prepare."
           fi
 
-      # uv refuses to lock with a workspace member missing, and the release
-      # commit refreshes uv.lock with the new version.
+      # uv lock needs every workspace member
       - name: Check out the baselayer submodule
         if: steps.changes.outputs.found == 'true'
         run: git submodule update --init --depth 1 baselayer
@@ -44,9 +43,7 @@ jobs:
         with:
           version: 0.23.0
 
-      # Knope has no calendar versioning, so the version is worked out here and
-      # handed to it. Three segments, unpadded: any more and Knope's override
-      # refuses to parse, and a leading zero is stripped by PEP 440 anyway.
+      # Three unpadded segments: Knope's override parses no more, PEP 440 strips zeros
       - name: Work out the version
         if: steps.changes.outputs.found == 'true'
         id: calver
@@ -61,7 +58,6 @@ jobs:
 
           today = datetime.date.today()
           prefix = f"{today.year}.{today.month}"
-          # Several releases in one month keep counting up; a new month restarts.
           micro = (
               int(current.rsplit(".", 1)[1]) + 1
               if current.startswith(f"{prefix}.")

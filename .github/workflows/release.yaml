@@ -13,15 +13,15 @@ jobs:
     if: github.head_ref == 'release' && github.event.pull_request.merged == true
     runs-on: ubuntu-latest
     permissions:
-      contents: write # tag and create the GitHub release
-      id-token: write # OIDC token for PyPI trusted publishing
+      contents: write
+      id-token: write
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
         with:
           ref: ${{ github.event.pull_request.merge_commit_sha }}
           fetch-depth: 0
 
-      # uv builds a workspace member, so every member has to be present.
+      # uv build needs every workspace member
       - name: Check out the baselayer submodule
         run: git submodule update --init --depth 1 baselayer
 
