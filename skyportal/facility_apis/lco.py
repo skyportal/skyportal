@@ -555,6 +555,71 @@ def download_observations(request_id, results, count):
 class LCOAPI(FollowUpAPI):
     """An interface to LCO operations."""
 
+    # payload builder for submit(), set by each instrument subclass
+    request_class = None
+
+    @classmethod
+    async def submit(cls, request, session, **kwargs):
+        """Submit a follow-up request to the LCO queue (all instruments).
+
+        Parameters
+        ----------
+        request: skyportal.models.FollowupRequest
+            The request to add to the queue and the SkyPortal database.
+        session: sqlalchemy.Session
+            Database session for this transaction
+        """
+
+        from ..models import Allocation, FacilityTransaction, FollowupRequest
+
+        # Reload with the lazy chains this method (and request_class) walks
+        # eager-loaded, since async sessions raise on implicit lazy loads.
+        request = await session.scalar(
+            sa.select(FollowupRequest)
+            .where(FollowupRequest.id == request.id)
+            .options(
+                selectinload(FollowupRequest.allocation).selectinload(
+                    Allocation.instrument
+                ),
+                selectinload(FollowupRequest.obj),
+            )
+        )
+
+        altdata = request.allocation.altdata
+        if not altdata:
+            raise ValueError("Missing allocation information.")
+
+        lcoreq = cls.request_class(request)
+        requestgroup = lcoreq.requestgroup
+
+        headers = {"Authorization": f"Token {altdata['API_TOKEN']}"}
+        async with aiohttp.ClientSession() as http_session:
+            async with http_session.post(
+                requestpath, headers=headers, json=requestgroup
+            ) as r:
+                content = await r.text()
+                status = r.status
+
+        if status == 201:
+            request.status = "submitted"
+        else:
+            request.status = content
+
+        transaction = FacilityTransaction(
+            request=http.serialize_aiohttp_request(
+                "POST", requestpath, headers, requestgroup
+            ),
+            response=await http.serialize_aiohttp_response(r, content),
+            followup_request=request,
+            initiator_id=request.last_modified_by_id,
+        )
+
+        session.add(transaction)
+
+        push_followup_refresh(
+            request.obj.internal_key, request.last_modified_by_id, **kwargs
+        )
+
     @staticmethod
     async def delete(request, session, **kwargs):
         """Delete a follow-up request from LCO queue (all instruments).
@@ -750,68 +815,7 @@ class LCOAPI(FollowUpAPI):
 class SINISTROAPI(LCOAPI):
     """An interface to LCO SINISTRO operations."""
 
-    # subclasses *must* implement the method below
-    @staticmethod
-    async def submit(request, session, **kwargs):
-        """Submit a follow-up request to LCO's SINISTRO.
-
-        Parameters
-        ----------
-        request: skyportal.models.FollowupRequest
-            The request to add to the queue and the SkyPortal database.
-        session: sqlalchemy.Session
-            Database session for this transaction
-        """
-
-        from ..models import Allocation, FacilityTransaction, FollowupRequest
-
-        # Reload with the lazy chains this method (and SINISTRORequest) walks
-        # eager-loaded, since async sessions raise on implicit lazy loads.
-        request = await session.scalar(
-            sa.select(FollowupRequest)
-            .where(FollowupRequest.id == request.id)
-            .options(
-                selectinload(FollowupRequest.allocation).selectinload(
-                    Allocation.instrument
-                ),
-                selectinload(FollowupRequest.obj),
-            )
-        )
-
-        altdata = request.allocation.altdata
-        if not altdata:
-            raise ValueError("Missing allocation information.")
-
-        lcoreq = SINISTRORequest(request)
-        requestgroup = lcoreq.requestgroup
-
-        headers = {"Authorization": f"Token {altdata['API_TOKEN']}"}
-        async with aiohttp.ClientSession() as http_session:
-            async with http_session.post(
-                requestpath, headers=headers, json=requestgroup
-            ) as r:
-                content = await r.text()
-                status = r.status
-
-        if status == 201:
-            request.status = "submitted"
-        else:
-            request.status = content
-
-        transaction = FacilityTransaction(
-            request=http.serialize_aiohttp_request(
-                "POST", requestpath, headers, requestgroup
-            ),
-            response=await http.serialize_aiohttp_response(r, content),
-            followup_request=request,
-            initiator_id=request.last_modified_by_id,
-        )
-
-        session.add(transaction)
-
-        push_followup_refresh(
-            request.obj.internal_key, request.last_modified_by_id, **kwargs
-        )
+    request_class = SINISTRORequest
 
     form_json_schema = {
         "type": "object",
@@ -887,69 +891,7 @@ class SINISTROAPI(LCOAPI):
 class SPECTRALAPI(LCOAPI):
     """An interface to LCO SPECTRAL operations."""
 
-    # subclasses *must* implement the method below
-    @staticmethod
-    async def submit(request, session, **kwargs):
-        """Submit a follow-up request to LCO's SPECTRAL.
-
-        Parameters
-        ----------
-        request: skyportal.models.FollowupRequest
-            The request to add to the queue and the SkyPortal database.
-        session: sqlalchemy.Session
-            Database session for this transaction
-        """
-
-        from ..models import Allocation, FacilityTransaction, FollowupRequest
-
-        # Reload with the lazy chains this method (and SPECTRALRequest) walks
-        # eager-loaded, since async sessions raise on implicit lazy loads.
-        request = await session.scalar(
-            sa.select(FollowupRequest)
-            .where(FollowupRequest.id == request.id)
-            .options(
-                selectinload(FollowupRequest.allocation).selectinload(
-                    Allocation.instrument
-                ),
-                selectinload(FollowupRequest.obj),
-            )
-        )
-
-        altdata = request.allocation.altdata
-
-        if not altdata:
-            raise ValueError("Missing allocation information.")
-
-        lcoreq = SPECTRALRequest(request)
-        requestgroup = lcoreq.requestgroup
-
-        headers = {"Authorization": f"Token {altdata['API_TOKEN']}"}
-        async with aiohttp.ClientSession() as http_session:
-            async with http_session.post(
-                requestpath, headers=headers, json=requestgroup
-            ) as r:
-                content = await r.text()
-                status = r.status
-
-        if status == 201:
-            request.status = "submitted"
-        else:
-            request.status = content
-
-        transaction = FacilityTransaction(
-            request=http.serialize_aiohttp_request(
-                "POST", requestpath, headers, requestgroup
-            ),
-            response=await http.serialize_aiohttp_response(r, content),
-            followup_request=request,
-            initiator_id=request.last_modified_by_id,
-        )
-
-        session.add(transaction)
-
-        push_followup_refresh(
-            request.obj.internal_key, request.last_modified_by_id, **kwargs
-        )
+    request_class = SPECTRALRequest
 
     form_json_schema = {
         "type": "object",
@@ -1025,68 +967,7 @@ class SPECTRALAPI(LCOAPI):
 class MUSCATAPI(LCOAPI):
     """An interface to LCO MUSCAT operations."""
 
-    # subclasses *must* implement the method below
-    @staticmethod
-    async def submit(request, session, **kwargs):
-        """Submit a follow-up request to LCO's MUSCAT.
-
-        Parameters
-        ----------
-        request: skyportal.models.FollowupRequest
-            The request to add to the queue and the SkyPortal database.
-        session: sqlalchemy.Session
-            Database session for this transaction
-        """
-
-        from ..models import Allocation, FacilityTransaction, FollowupRequest
-
-        # Reload with the lazy chains this method (and MUSCATRequest) walks
-        # eager-loaded, since async sessions raise on implicit lazy loads.
-        request = await session.scalar(
-            sa.select(FollowupRequest)
-            .where(FollowupRequest.id == request.id)
-            .options(
-                selectinload(FollowupRequest.allocation).selectinload(
-                    Allocation.instrument
-                ),
-                selectinload(FollowupRequest.obj),
-            )
-        )
-
-        altdata = request.allocation.altdata
-        if not altdata:
-            raise ValueError("Missing allocation information.")
-
-        lcoreq = MUSCATRequest(request)
-        requestgroup = lcoreq.requestgroup
-
-        headers = {"Authorization": f"Token {altdata['API_TOKEN']}"}
-        async with aiohttp.ClientSession() as http_session:
-            async with http_session.post(
-                requestpath, headers=headers, json=requestgroup
-            ) as r:
-                content = await r.text()
-                status = r.status
-
-        if status == 201:
-            request.status = "submitted"
-        else:
-            request.status = content
-
-        transaction = FacilityTransaction(
-            request=http.serialize_aiohttp_request(
-                "POST", requestpath, headers, requestgroup
-            ),
-            response=await http.serialize_aiohttp_response(r, content),
-            followup_request=request,
-            initiator_id=request.last_modified_by_id,
-        )
-
-        session.add(transaction)
-
-        push_followup_refresh(
-            request.obj.internal_key, request.last_modified_by_id, **kwargs
-        )
+    request_class = MUSCATRequest
 
     form_json_schema = {
         "type": "object",
@@ -1155,68 +1036,7 @@ class MUSCATAPI(LCOAPI):
 class FLOYDSAPI(LCOAPI):
     """An interface to LCO FLOYDS operations."""
 
-    # subclasses *must* implement the method below
-    @staticmethod
-    async def submit(request, session, **kwargs):
-        """Submit a follow-up request to LCO's FLOYDS.
-
-        Parameters
-        ----------
-        request: skyportal.models.FollowupRequest
-            The request to add to the queue and the SkyPortal database.
-        session: sqlalchemy.Session
-            Database session for this transaction
-        """
-
-        from ..models import Allocation, FacilityTransaction, FollowupRequest
-
-        # Reload with the lazy chains this method (and FLOYDSRequest) walks
-        # eager-loaded, since async sessions raise on implicit lazy loads.
-        request = await session.scalar(
-            sa.select(FollowupRequest)
-            .where(FollowupRequest.id == request.id)
-            .options(
-                selectinload(FollowupRequest.allocation).selectinload(
-                    Allocation.instrument
-                ),
-                selectinload(FollowupRequest.obj),
-            )
-        )
-
-        altdata = request.allocation.altdata
-        if not altdata:
-            raise ValueError("Missing allocation information.")
-
-        lcoreq = FLOYDSRequest(request)
-        requestgroup = lcoreq.requestgroup
-
-        headers = {"Authorization": f"Token {altdata['API_TOKEN']}"}
-        async with aiohttp.ClientSession() as http_session:
-            async with http_session.post(
-                requestpath, headers=headers, json=requestgroup
-            ) as r:
-                content = await r.text()
-                status = r.status
-
-        if status == 201:
-            request.status = "submitted"
-        else:
-            request.status = content
-
-        transaction = FacilityTransaction(
-            request=http.serialize_aiohttp_request(
-                "POST", requestpath, headers, requestgroup
-            ),
-            response=await http.serialize_aiohttp_response(r, content),
-            followup_request=request,
-            initiator_id=request.last_modified_by_id,
-        )
-
-        session.add(transaction)
-
-        push_followup_refresh(
-            request.obj.internal_key, request.last_modified_by_id, **kwargs
-        )
+    request_class = FLOYDSRequest
 
     form_json_schema = {
         "type": "object",
