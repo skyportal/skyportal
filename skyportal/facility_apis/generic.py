@@ -65,8 +65,11 @@ def validate_request(request, filters):
 class GENERICAPI(FollowUpAPI):
     """SkyPortal interface for generic imaging follow-up"""
 
-    @staticmethod
-    async def submit(request, session, **kwargs):
+    # subclasses swap in their own payload validator
+    _validate_request = staticmethod(validate_request)
+
+    @classmethod
+    async def submit(cls, request, session, **kwargs):
         """Submit a follow-up request to an instrument.
 
         Parameters
@@ -111,7 +114,9 @@ class GENERICAPI(FollowUpAPI):
             )
         )
 
-        validate_request(request, request.allocation.instrument.to_dict()["filters"])
+        cls._validate_request(
+            request, request.allocation.instrument.to_dict()["filters"]
+        )
 
         altdata = (
             request.allocation.altdata
@@ -281,8 +286,8 @@ class GENERICAPI(FollowUpAPI):
 
         push_followup_refresh(obj_internal_key, last_modified_by_id, **kwargs)
 
-    @staticmethod
-    async def update(request, session, **kwargs):
+    @classmethod
+    async def update(cls, request, session, **kwargs):
         """Update a request in the instrument queue.
 
         Parameters
@@ -309,7 +314,9 @@ class GENERICAPI(FollowUpAPI):
             )
         )
 
-        validate_request(request, request.allocation.instrument.to_dict()["filters"])
+        cls._validate_request(
+            request, request.allocation.instrument.to_dict()["filters"]
+        )
 
         altdata = request.allocation.altdata
         notification_type = altdata.get("notification_type")
