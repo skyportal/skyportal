@@ -1054,6 +1054,18 @@ async def get_sources(
             allocation_ids, type=sa.Integer, prefix="allocation"
         )
 
+        def fill_group_placeholders(statement, query_params):
+            """Expand the :accessible_group_ids and :allocation_ids placeholders."""
+            if ":accessible_group_ids" in statement:
+                statement = statement.replace(
+                    ":accessible_group_ids", accessible_groups_query_str
+                )
+                query_params.extend(accessible_groups_bindparams)
+            if ":allocation_ids" in statement:
+                statement = statement.replace(":allocation_ids", allocation_query_str)
+                query_params.extend(allocation_bindparams)
+            return statement
+
         statements = []
         # Cuts that a prompt candidate is spared; combined with the prompt
         # clause once the annotation filters have been read.
@@ -2202,16 +2214,7 @@ async def get_sources(
                             GROUP BY sources.id
                         """
 
-                        if ":accessible_group_ids" in statement:
-                            statement = statement.replace(
-                                ":accessible_group_ids", accessible_groups_query_str
-                            )
-                            query_params.extend(accessible_groups_bindparams)
-                        if ":allocation_ids" in statement:
-                            statement = statement.replace(
-                                ":allocation_ids", allocation_query_str
-                            )
-                            query_params.extend(allocation_bindparams)
+                        statement = fill_group_placeholders(statement, query_params)
 
                         statement = (
                             text(statement)
@@ -2246,16 +2249,7 @@ async def get_sources(
                         WHERE {" AND ".join(statements)}
                         GROUP BY sources.id
                     """
-                    if ":accessible_group_ids" in statement:
-                        statement = statement.replace(
-                            ":accessible_group_ids", accessible_groups_query_str
-                        )
-                        query_params.extend(accessible_groups_bindparams)
-                    if ":allocation_ids" in statement:
-                        statement = statement.replace(
-                            ":allocation_ids", allocation_query_str
-                        )
-                        query_params.extend(allocation_bindparams)
+                    statement = fill_group_placeholders(statement, query_params)
 
                     statement = (
                         text(statement).bindparams(*query_params).columns(id=sa.String)
@@ -2345,16 +2339,7 @@ async def get_sources(
                             GROUP BY {OBJ_ID_TOKEN}
                         """
 
-                        if ":accessible_group_ids" in statement:
-                            statement = statement.replace(
-                                ":accessible_group_ids", accessible_groups_query_str
-                            )
-                            query_params.extend(accessible_groups_bindparams)
-                        if ":allocation_ids" in statement:
-                            statement = statement.replace(
-                                ":allocation_ids", allocation_query_str
-                            )
-                            query_params.extend(allocation_bindparams)
+                        statement = fill_group_placeholders(statement, query_params)
 
                         statement = (
                             text(resolve_obj_join(statement))
@@ -2410,16 +2395,7 @@ async def get_sources(
                         GROUP BY {OBJ_ID_TOKEN}
                     """
 
-                    if ":accessible_group_ids" in statement:
-                        statement = statement.replace(
-                            ":accessible_group_ids", accessible_groups_query_str
-                        )
-                        query_params.extend(accessible_groups_bindparams)
-                    if ":allocation_ids" in statement:
-                        statement = statement.replace(
-                            ":allocation_ids", allocation_query_str
-                        )
-                        query_params.extend(allocation_bindparams)
+                    statement = fill_group_placeholders(statement, query_params)
 
                     statement += _order_by_clause(
                         sort_by,
@@ -2465,16 +2441,7 @@ async def get_sources(
                         GROUP BY {OBJ_ID_TOKEN}
                     """
 
-                    if ":accessible_group_ids" in statement:
-                        statement = statement.replace(
-                            ":accessible_group_ids", accessible_groups_query_str
-                        )
-                        query_params.extend(accessible_groups_bindparams)
-                    if ":allocation_ids" in statement:
-                        statement = statement.replace(
-                            ":allocation_ids", allocation_query_str
-                        )
-                        query_params.extend(allocation_bindparams)
+                    statement = fill_group_placeholders(statement, query_params)
 
                     statement += _order_by_clause(
                         sort_by,
