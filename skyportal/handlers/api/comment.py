@@ -348,66 +348,18 @@ class CommentHandler(BaseHandler):
             except (TypeError, ValueError):
                 return self.error("Must provide a valid (scalar integer) comment ID. ")
 
-            if associated_resource_type.lower() == "sources":
-                comment = await session.scalar(
-                    Comment.select(session.user_or_token).where(
-                        Comment.id == comment_id
-                    )
-                )
-                if comment is None:
-                    return self.error(
-                        "Could not find any accessible comments.", status=403
-                    )
-                comment_resource_id_str = str(comment.obj_id)
-
-            elif associated_resource_type.lower() == "spectra":
-                comment = await session.scalar(
-                    CommentOnSpectrum.select(session.user_or_token).where(
-                        CommentOnSpectrum.id == comment_id
-                    )
-                )
-                if comment is None:
-                    return self.error(
-                        "Could not find any accessible comments.", status=403
-                    )
-                comment_resource_id_str = str(comment.spectrum_id)
-            elif associated_resource_type.lower() == "gcn_event":
-                comment = await session.scalar(
-                    CommentOnGCN.select(session.user_or_token).where(
-                        CommentOnGCN.id == comment_id
-                    )
-                )
-                if comment is None:
-                    return self.error(
-                        "Could not find any accessible comments.", status=403
-                    )
-                comment_resource_id_str = str(comment.gcn_id)
-            elif associated_resource_type.lower() == "earthquake":
-                comment = await session.scalar(
-                    CommentOnEarthquake.select(session.user_or_token).where(
-                        CommentOnEarthquake.id == comment_id
-                    )
-                )
-                if comment is None:
-                    return self.error(
-                        "Could not find any accessible comments.", status=403
-                    )
-                comment_resource_id_str = str(comment.earthquake_id)
-            elif associated_resource_type.lower() == "shift":
-                comment = await session.scalar(
-                    CommentOnShift.select(session.user_or_token).where(
-                        CommentOnShift.id == comment_id
-                    )
-                )
-                if comment is None:
-                    return self.error(
-                        "Could not find any accessible comments.", status=403
-                    )
-                comment_resource_id_str = str(comment.shift_id)
-            else:
+            mapping = COMMENT_TABLES.get(associated_resource_type.lower())
+            if mapping is None:
                 return self.error(
                     f'Unsupported associated_resource_type "{associated_resource_type}".'
                 )
+            table, resource_id_col = mapping
+            comment = await session.scalar(
+                table.select(session.user_or_token).where(table.id == comment_id)
+            )
+            if comment is None:
+                return self.error("Could not find any accessible comments.", status=403)
+            comment_resource_id_str = str(getattr(comment, resource_id_col))
 
             if comment_resource_id_str != resource_id:
                 return self.error(
@@ -894,72 +846,23 @@ class CommentHandler(BaseHandler):
 
         async with self.AsyncSession() as session:
             try:
-                if associated_resource_type.lower() == "sources":
-                    schema = Comment.__schema__()
-                    c = await session.scalar(
-                        Comment.select(session.user_or_token, mode="update")
-                        .options(selectinload(Comment.groups))
-                        .where(Comment.id == comment_id)
-                    )
-                    if c is None:
-                        return self.error(
-                            "Could not find any accessible comments.", status=403
-                        )
-                    comment_resource_id_str = str(c.obj_id)
-
-                elif associated_resource_type.lower() == "spectra":
-                    schema = CommentOnSpectrum.__schema__()
-                    c = await session.scalar(
-                        CommentOnSpectrum.select(session.user_or_token, mode="update")
-                        .options(selectinload(CommentOnSpectrum.groups))
-                        .where(CommentOnSpectrum.id == comment_id)
-                    )
-                    if c is None:
-                        return self.error(
-                            "Could not find any accessible comments.", status=403
-                        )
-                    comment_resource_id_str = str(c.spectrum_id)
-
-                elif associated_resource_type.lower() == "gcn_event":
-                    schema = CommentOnGCN.__schema__()
-                    c = await session.scalar(
-                        CommentOnGCN.select(session.user_or_token, mode="update")
-                        .options(selectinload(CommentOnGCN.groups))
-                        .where(CommentOnGCN.id == comment_id)
-                    )
-                    if c is None:
-                        return self.error(
-                            "Could not find any accessible comments.", status=403
-                        )
-                    comment_resource_id_str = str(c.gcn_id)
-                elif associated_resource_type.lower() == "earthquake":
-                    schema = CommentOnEarthquake.__schema__()
-                    c = await session.scalar(
-                        CommentOnEarthquake.select(session.user_or_token, mode="update")
-                        .options(selectinload(CommentOnEarthquake.groups))
-                        .where(CommentOnEarthquake.id == comment_id)
-                    )
-                    if c is None:
-                        return self.error(
-                            "Could not find any accessible comments.", status=403
-                        )
-                    comment_resource_id_str = str(c.earthquake_id)
-                elif associated_resource_type.lower() == "shift":
-                    schema = CommentOnShift.__schema__()
-                    c = await session.scalar(
-                        CommentOnShift.select(session.user_or_token, mode="update")
-                        .options(selectinload(CommentOnShift.groups))
-                        .where(CommentOnShift.id == comment_id)
-                    )
-                    if c is None:
-                        return self.error(
-                            "Could not find any accessible comments.", status=403
-                        )
-                    comment_resource_id_str = str(c.shift_id)
-                else:
+                mapping = COMMENT_TABLES.get(associated_resource_type.lower())
+                if mapping is None:
                     return self.error(
                         f'Unsupported associated_resource_type "{associated_resource_type}".'
                     )
+                table, resource_id_col = mapping
+                schema = table.__schema__()
+                c = await session.scalar(
+                    table.select(session.user_or_token, mode="update")
+                    .options(selectinload(table.groups))
+                    .where(table.id == comment_id)
+                )
+                if c is None:
+                    return self.error(
+                        "Could not find any accessible comments.", status=403
+                    )
+                comment_resource_id_str = str(getattr(c, resource_id_col))
 
                 data = body.model_dump(exclude_unset=True)
                 group_ids = data.pop("group_ids", None)
@@ -1084,65 +987,20 @@ class CommentHandler(BaseHandler):
             return self.error("Must provide a valid (scalar integer) comment ID.")
 
         async with self.AsyncSession() as session:
-            if associated_resource_type.lower() == "sources":
-                c = await session.scalar(
-                    Comment.select(session.user_or_token, mode="delete").where(
-                        Comment.id == comment_id
-                    )
-                )
-                if c is None:
-                    return self.error(
-                        "Could not find any accessible comments.", status=403
-                    )
-                comment_resource_id_str = str(c.obj_id)
-            elif associated_resource_type.lower() == "spectra":
-                c = await session.scalar(
-                    CommentOnSpectrum.select(
-                        session.user_or_token, mode="delete"
-                    ).where(CommentOnSpectrum.id == comment_id)
-                )
-                if c is None:
-                    return self.error(
-                        "Could not find any accessible comments.", status=403
-                    )
-                comment_resource_id_str = str(c.spectrum_id)
-            elif associated_resource_type.lower() == "gcn_event":
-                c = await session.scalar(
-                    CommentOnGCN.select(session.user_or_token, mode="delete").where(
-                        CommentOnGCN.id == comment_id
-                    )
-                )
-                if c is None:
-                    return self.error(
-                        "Could not find any accessible comments.", status=403
-                    )
-                comment_resource_id_str = str(c.gcn_id)
-            elif associated_resource_type.lower() == "earthquake":
-                c = await session.scalar(
-                    CommentOnEarthquake.select(
-                        session.user_or_token, mode="delete"
-                    ).where(CommentOnEarthquake.id == comment_id)
-                )
-                if c is None:
-                    return self.error(
-                        "Could not find any accessible comments.", status=403
-                    )
-                comment_resource_id_str = str(c.earthquake_id)
-            elif associated_resource_type.lower() == "shift":
-                c = await session.scalar(
-                    CommentOnShift.select(session.user_or_token, mode="delete").where(
-                        CommentOnShift.id == comment_id
-                    )
-                )
-                if c is None:
-                    return self.error(
-                        "Could not find any accessible comments.", status=403
-                    )
-                comment_resource_id_str = str(c.shift_id)
-            else:
+            mapping = COMMENT_TABLES.get(associated_resource_type.lower())
+            if mapping is None:
                 return self.error(
                     f'Unsupported associated_resource_type "{associated_resource_type}".'
                 )
+            table, resource_id_col = mapping
+            c = await session.scalar(
+                table.select(session.user_or_token, mode="delete").where(
+                    table.id == comment_id
+                )
+            )
+            if c is None:
+                return self.error("Could not find any accessible comments.", status=403)
+            comment_resource_id_str = str(getattr(c, resource_id_col))
 
             # Resolve push-refresh targets BEFORE deletion using async lookups
             # (avoid lazy relationship access).
@@ -1267,20 +1125,12 @@ class CommentAttachmentHandler(BaseHandler):
                 "Cannot set both download and preview to True. Please set only one to True, or set both to False."
             )
 
-        if associated_resource_type.lower() == "sources":
-            table, resource_id_col = Comment, "obj_id"
-        elif associated_resource_type.lower() == "spectra":
-            table, resource_id_col = CommentOnSpectrum, "spectrum_id"
-        elif associated_resource_type.lower() == "gcn_event":
-            table, resource_id_col = CommentOnGCN, "gcn_id"
-        elif associated_resource_type.lower() == "earthquake":
-            table, resource_id_col = CommentOnEarthquake, "earthquake_id"
-        elif associated_resource_type.lower() == "shift":
-            table, resource_id_col = CommentOnShift, "shift_id"
-        else:
+        mapping = COMMENT_TABLES.get(associated_resource_type.lower())
+        if mapping is None:
             return self.error(
                 f'Unsupported associated resource type "{associated_resource_type}".'
             )
+        table, resource_id_col = mapping
 
         async with self.AsyncSession() as session:
             comment = await session.scalar(
