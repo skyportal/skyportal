@@ -1,20 +1,3 @@
-def serialize_requests_request(request):
-    if request.body is not None:
-        if isinstance(request.body, bytes):
-            body = request.body.decode()
-        else:
-            body = request.body
-    else:
-        body = ""
-
-    return {
-        "headers": dict(request.headers),
-        "body": body,
-        "url": request.url,
-        "method": request.method,
-    }
-
-
 def serialize_requests_request_xml(payload):
     return {"payload": payload}
 
@@ -43,10 +26,10 @@ def serialize_tornado_request(handler):
     }
 
 
-# --- aiohttp equivalents (facility_apis are async; aiohttp has no prepared
+# --- aiohttp serializers (facility_apis are async; aiohttp has no prepared
 # request object like `requests`, so the request side is serialized from the
-# call arguments captured at the call site). Output JSONB shape matches the
-# `requests` serializers so FacilityTransaction storage is unchanged.
+# call arguments captured at the call site). Their JSONB shape matches the
+# `requests` response serializers above, so FacilityTransaction rows look alike.
 
 
 def serialize_aiohttp_request(method, url, headers=None, body=None):
