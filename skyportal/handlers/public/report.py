@@ -49,19 +49,21 @@ class ReportHandler(BaseHandler):
         if report_id is not None:
             report_id = int(report_id)
             cache_key = f"{report_type}_{report_id}"
-            cached = cache[cache_key]
-            if cached is None:
-                with DBSession() as session:
-                    # if report_type == "gcn":
-                    report = session.scalar(
-                        sa.select(GcnReport).where(GcnReport.id == report_id)
-                    )
-                    if report is None:
-                        return self.error(f"Could not load GCN report {report_id}")
-                    if not report.published:
-                        return self.error(f"GCN report {report_id} not yet published")
-                    report.generate_report()
+            # checked on every request, so a stale cache entry can't outlive
+            # unpublishing
+            with DBSession() as session:
+                # if report_type == "gcn":
+                report = session.scalar(
+                    sa.select(GcnReport).where(GcnReport.id == report_id)
+                )
+                if report is None:
+                    return self.error(f"Could not load GCN report {report_id}")
+                if not report.published:
+                    return self.error(f"GCN report {report_id} not yet published")
                 cached = cache[cache_key]
+                if cached is None:
+                    report.generate_report()
+                    cached = cache[cache_key]
 
             data = np.load(cached, allow_pickle=True)
             data = data.item()
