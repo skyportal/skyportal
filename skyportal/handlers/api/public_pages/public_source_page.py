@@ -90,7 +90,8 @@ def get_photometry(source_id, group_ids, stream_ids, session):
 
 def get_phot_stats(source_id, phot_stats, session):
     if phot_stats is not None:
-        return phot_stats[0]
+        # an eagerly loaded empty list means the source has no PhotStat row
+        return phot_stats[0] if phot_stats else None
 
     fetched_phot_stats = session.scalar(
         PhotStat.select(session.user_or_token, mode="read").where(
