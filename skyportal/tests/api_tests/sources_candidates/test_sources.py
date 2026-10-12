@@ -2721,7 +2721,7 @@ def test_add_and_delete_source_label(upload_data_token, view_only_token, public_
 
 
 def test_copy_photometry_sources(
-    public_group, upload_data_token, ztf_camera, view_only_token
+    public_group, upload_data_token, ztf_camera, sedm, view_only_token
 ):
     obj_id1 = str(uuid.uuid4())
     obj_id2 = str(uuid.uuid4())
@@ -2787,6 +2787,23 @@ def test_copy_photometry_sources(
         token=upload_data_token,
     )
     assert status == 200
+    status, data = api(
+        "POST",
+        "photometry",
+        data={
+            "obj_id": obj_id2,
+            "mjd": 59801.2,
+            "instrument_id": sedm.id,
+            "filter": "sdssg",
+            "group_ids": [public_group.id],
+            "mag": 12.6,
+            "magerr": 0.3,
+            "limiting_mag": 22,
+            "magsys": "ab",
+        },
+        token=upload_data_token,
+    )
+    assert status == 200
 
     status, data = api(
         "POST",
@@ -2807,7 +2824,14 @@ def test_copy_photometry_sources(
     )
     assert status == 200
     assert data["status"] == "success"
-    assert any(np.isclose(p["mjd"], 59801.3) for p in data["data"]["photometry"])
+    photometry = data["data"]["photometry"]
+    # each copied point keeps its own instrument
+    points = {(p["instrument_id"], p["filter"], round(p["mjd"], 1)) for p in photometry}
+    assert points == {
+        (ztf_camera.id, "ztfg", 59801.4),
+        (ztf_camera.id, "ztfg", 59801.3),
+        (sedm.id, "sdssg", 59801.2),
+    }
 
 
 def test_deduplicate_photometry(
