@@ -16,7 +16,7 @@
  * messages are bridged to cache invalidation via `invalidateOnMessage`, so only
  * the active (currently-loaded) source's queries refetch.
  */
-import { buildQueryString } from "../API";
+import { buildQueryString, fileReaderPromise } from "../API";
 import { skyportalApi } from "../api/skyportalApi";
 import { invalidateOnMessage, findCachedQueryArg } from "../api/wsInvalidation";
 import type { RouteData } from "../types/routeSchemaMap";
@@ -48,17 +48,6 @@ export interface CommentAttachment {
   attachment: string;
   attachment_name: string;
   [key: string]: any;
-}
-
-function fileReaderPromise(
-  file: File,
-): Promise<{ body: string | ArrayBuffer | null; name: string }> {
-  return new Promise((resolve) => {
-    const filereader = new FileReader();
-    filereader.readAsDataURL(file);
-    filereader.onloadend = () =>
-      resolve({ body: filereader.result, name: file.name });
-  });
 }
 
 const sourceIncludeParams = {
