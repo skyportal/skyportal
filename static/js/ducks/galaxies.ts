@@ -5,14 +5,9 @@
  * galaxy list, the per-GCN-event galaxy list, and the list of catalog names;
  * mutations upload a catalog (ascii) and delete a catalog. All share the
  * `Galaxies` tag so a mutation refetches the active galaxy queries.
- *
- * The websocket `FETCH_GCNEVENT_GALAXIES` message is bridged to cache
- * invalidation, preserving the old guard that only refetched when the
- * currently-loaded GCN event matched the pushed event.
  */
 import { buildQueryString, pickParams } from "../API";
 import { skyportalApi } from "../api/skyportalApi";
-import { invalidateOnMessage } from "../api/wsInvalidation";
 
 const QUERY_KEYS = [
   "catalog_name",
@@ -98,19 +93,6 @@ export const galaxiesApi = skyportalApi.injectEndpoints({
     }),
   }),
 });
-
-// Websocket: the old handler refetched the GCN-event galaxy list only when the
-// currently-loaded GCN event matched the pushed event.
-invalidateOnMessage(
-  "skyportal/FETCH_GCNEVENT_GALAXIES",
-  (payload, getState) => {
-    const { gcnEvent } = (getState() as { gcnEvent?: { id?: number } }) ?? {};
-    if (gcnEvent && gcnEvent.id === payload?.gcnEvent?.id) {
-      return ["Galaxies"];
-    }
-    return null;
-  },
-);
 
 export const {
   useGetGalaxiesQuery,

@@ -147,7 +147,7 @@ const ConfirmSourceInGCN = ({
   const { classes } = useStyles() as any;
   const [open, setOpen] = useState(false);
 
-  const { control, getValues, register, reset } = useForm();
+  const { control, getValues, reset } = useForm();
 
   const { data: sourcesingcn = [] } = useGetSourcesInGcnQuery({
     dateobs,
@@ -325,7 +325,6 @@ const ConfirmSourceInGCN = ({
                           <TextField
                             label="Notes"
                             name="notes"
-                            inputRef={register("notes") as any}
                             onChange={onChange}
                             value={value}
                             defaultValue={currentNotes}

@@ -224,7 +224,7 @@ function GLS(t_data_uf: any, y_data_uf: any, kwa: any): any {
 
 const Periodogram = () => {
   const { classes } = useStyles();
-  const { handleSubmit, control, register } = useForm();
+  const { handleSubmit, control } = useForm();
   const { id } = useParams();
   const dispatch = useAppDispatch();
   const { data: photometry } = useFetchSourcePhotometryQuery(
@@ -658,7 +658,6 @@ const Periodogram = () => {
                                     label="Oversampling Factor"
                                     name="ofac"
                                     type="number"
-                                    inputRef={register("ofac") as any}
                                     className={classes.items}
                                     onChange={onChange}
                                     value={value}
@@ -678,7 +677,6 @@ const Periodogram = () => {
                                     label="Maximum number of frequencies"
                                     name="nmax"
                                     type="number"
-                                    inputRef={register("nmax") as any}
                                     className={classes.items}
                                     onChange={onChange}
                                     value={value}
@@ -698,7 +696,6 @@ const Periodogram = () => {
                                     label="Minimum Frequency [1/day]"
                                     name="fmin"
                                     type="number"
-                                    inputRef={register("fmin") as any}
                                     className={classes.items}
                                     onChange={onChange}
                                     value={value}
@@ -718,7 +715,6 @@ const Periodogram = () => {
                                     label="Maximum Frequency [1/day]"
                                     name="fmax"
                                     type="number"
-                                    inputRef={register("fmax") as any}
                                     className={classes.items}
                                     onChange={onChange}
                                     value={value}

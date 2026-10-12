@@ -47,7 +47,6 @@ const WidgetPrefsDialog = ({
 
   const {
     handleSubmit,
-    register,
     reset,
     control,
 
@@ -135,7 +134,6 @@ const WidgetPrefsDialog = ({
                           data-testid={key}
                           size="small"
                           label={key}
-                          inputRef={register(key, { required: true }) as any}
                           name={key}
                           error={!!errors[key]}
                           helperText={errors[key] ? "Required" : ""}
@@ -147,6 +145,7 @@ const WidgetPrefsDialog = ({
                       )}
                       name={key}
                       control={control}
+                      rules={{ required: true }}
                       defaultValue={initialValues[key]}
                     />
                   </div>

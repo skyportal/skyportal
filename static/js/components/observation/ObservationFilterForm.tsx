@@ -111,7 +111,7 @@ const ObservationFilterForm = ({
     return 0;
   });
 
-  const { handleSubmit, register, control, reset, getValues } = useForm();
+  const { handleSubmit, control, reset, getValues } = useForm();
 
   const handleClickReset = () => {
     reset();
@@ -136,7 +136,6 @@ const ObservationFilterForm = ({
                 size="small"
                 label="Time After"
                 name="startDate"
-                inputRef={register("startDate") as any}
                 placeholder="2012-08-30T00:00:00"
                 onChange={onChange}
                 value={value}
@@ -151,7 +150,6 @@ const ObservationFilterForm = ({
                 size="small"
                 label="Time Before"
                 name="endDate"
-                inputRef={register("endDate") as any}
                 placeholder="2012-08-30T00:00:00"
                 onChange={onChange}
                 value={value}

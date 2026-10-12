@@ -53,9 +53,6 @@ import * as remindersActions from "./ducks/reminders";
 import "./ducks/group";
 import * as instrumentActions from "./ducks/instrument";
 
-// this is used to keep track of what has been hydrated yet or not
-import * as hydrationActions from "./ducks/hydration";
-
 export default function hydrate() {
   return (dispatch) => {
     // One-shot forced refetch of the dashboard widgets (navigation + Refresh

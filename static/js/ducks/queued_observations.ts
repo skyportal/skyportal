@@ -1,11 +1,9 @@
 /**
  * Queued observations.
  *
- * RTK Query conversion of the old `FETCH_QUEUED_OBSERVATIONS` /
- * `FETCH_GCNEVENT_QUEUED_OBSERVATIONS` duck. The queued-observations list and
- * the GCN-event queued-observations list are queries; the external-API queue
- * interactions (list queues / delete a queue) are an imperative query and a
- * mutation.
+ * RTK Query conversion of the old `FETCH_QUEUED_OBSERVATIONS` duck. The
+ * queued-observations list is a query; the external-API queue interactions
+ * (list queues / delete a queue) are an imperative query and a mutation.
  *
  * The date-window defaulting that the old thunks applied is preserved inside
  * the query builders so callers can pass a sparse filterParams object. The old
@@ -14,10 +12,8 @@
  * query result.
  *
  * Websocket-driven invalidation bridges the old `messageHandler.add(...)`
- * callbacks: `REFRESH_QUEUED_OBSERVATIONS` refetches the queued-observations
- * list, and `FETCH_GCNEVENT_QUEUED_OBSERVATIONS` refetches the GCN-event queued
- * observations (the old handler gated this on the currently-loaded gcnEvent
- * matching the pushed event id; that condition is preserved).
+ * callback: `REFRESH_QUEUED_OBSERVATIONS` refetches the queued-observations
+ * list.
  *
  * Note: `requestAPIQueuedObservations` lives in `ducks/observations.ts`
  * (already migrated); consumers use that hook directly.
@@ -60,37 +56,6 @@ const withQueuedObservationDefaults = (
   return params;
 };
 
-const withGcnEventQueuedObservationDefaults = (
-  dateobs: string,
-  filterParams: FilterParams,
-): FilterParams => {
-  const params = { ...filterParams };
-  params["localizationDateobs"] = dateobs;
-
-  if (!Object.keys(params).includes("startDate")) {
-    if (dateobs) {
-      params["startDate"] = dayjs(dateobs).format("YYYY-MM-DD HH:mm:ss");
-    }
-  }
-  if (!Object.keys(params).includes("endDate")) {
-    if (dateobs) {
-      params["endDate"] = dayjs(dateobs)
-        .add(7, "day")
-        .format("YYYY-MM-DD HH:mm:ss");
-    }
-  }
-  if (!Object.keys(params).includes("numPerPage")) {
-    params["numPerPage"] = 10;
-  }
-  params["observationStatus"] = "queued";
-  return params;
-};
-
-interface FetchGcnEventQueuedObservationsArg {
-  dateobs: string;
-  filterParams?: FilterParams | undefined;
-}
-
 interface RequestAPIQueuesArg {
   id: number | string;
   data?: Record<string, unknown> | undefined;
@@ -117,24 +82,6 @@ export const queuedObservationsApi = skyportalApi.injectEndpoints({
     >({
       query: (filterParams) =>
         buildQueryString(withQueuedObservationDefaults(filterParams ?? {})),
-      providesTags: ["QueuedObservations", "Observation"],
-    }),
-    getGcnEventQueuedObservations: build.query<
-      {
-        observations: components["schemas"]["QueuedObservation"][];
-        totalMatches: number;
-        geojson?: object[] | null;
-        field_ids?: number[] | null;
-        probability?: number | null;
-        area?: number | null;
-        min_observations_per_field?: number | null;
-      },
-      FetchGcnEventQueuedObservationsArg
-    >({
-      query: ({ dateobs, filterParams }) =>
-        buildQueryString(
-          withGcnEventQueuedObservationDefaults(dateobs, filterParams ?? {}),
-        ),
       providesTags: ["QueuedObservations", "Observation"],
     }),
     requestAPIQueues: build.query<
@@ -165,27 +112,9 @@ invalidateOnMessage("skyportal/REFRESH_QUEUED_OBSERVATIONS", () => [
   "QueuedObservations",
 ]);
 
-// Websocket: the old handler refetched the GCN-event queued observations on
-// FETCH_GCNEVENT_QUEUED_OBSERVATIONS, but only when the currently-loaded
-// gcnEvent matched the pushed event id.
-invalidateOnMessage(
-  "skyportal/FETCH_GCNEVENT_QUEUED_OBSERVATIONS",
-  (payload, getState) => {
-    const { gcnEvent } = getState() as {
-      gcnEvent?: { id?: number | string } | null;
-    };
-    if (gcnEvent && gcnEvent.id === payload?.gcnEvent?.id) {
-      return ["QueuedObservations"];
-    }
-    return null;
-  },
-);
-
 export const {
   useGetQueuedObservationsQuery,
   useLazyGetQueuedObservationsQuery,
-  useGetGcnEventQueuedObservationsQuery,
-  useLazyGetGcnEventQueuedObservationsQuery,
   useRequestAPIQueuesQuery,
   useLazyRequestAPIQueuesQuery,
   useDeleteAPIQueueMutation,

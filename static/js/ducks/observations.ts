@@ -178,19 +178,6 @@ export const observationsApi = skyportalApi.injectEndpoints({
 
 invalidateOnMessage("skyportal/REFRESH_OBSERVATIONS", () => ["Observation"]);
 
-invalidateOnMessage(
-  "skyportal/FETCH_GCNEVENT_OBSERVATIONS",
-  (payload, getState) => {
-    const { gcnEvent } = getState() as {
-      gcnEvent?: { id?: number | string } | null;
-    };
-    if (gcnEvent && gcnEvent.id === payload?.gcnEvent?.id) {
-      return ["GcnEventObservation"];
-    }
-    return null;
-  },
-);
-
 export const {
   useGetObservationsQuery,
   useLazyGetObservationsQuery,
