@@ -16,7 +16,6 @@ import SmartToyIcon from "@mui/icons-material/SmartToy";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 import relativeTime from "dayjs/plugin/relativeTime";
-import emoji from "emoji-dictionary";
 
 import { useFetchSourceSpectraQuery } from "../../ducks/spectra";
 import {
@@ -40,6 +39,7 @@ import UserAvatar from "../user/UserAvatar";
 
 import CommentAttachmentPreview from "./CommentAttachmentPreview";
 import CommentForm from "./CommentForm";
+import { rehypeEmoji } from "./rehypeEmoji";
 
 dayjs.extend(relativeTime);
 dayjs.extend(utc);
@@ -71,11 +71,6 @@ export const markdownLink = ({ node, children, ...props }: any) => (
     {children}
   </Link>
 );
-
-export const emojiSupport = (textComment: any) =>
-  textComment.value.replace(/:\w+:/gi, (name: string) =>
-    emoji.getUnicode(name) ? emoji.getUnicode(name) : name,
-  );
 
 interface CommentProps {
   resourceType?: string;
@@ -319,7 +314,8 @@ const Comment = ({
             <ReactMarkdown
               className={commentMessageStyle}
               remarkPlugins={[[remarkGfm, { singleTilde: false }]]}
-              components={{ text: emojiSupport, a: markdownLink }}
+              rehypePlugins={[rehypeEmoji]}
+              components={{ a: markdownLink }}
             >
               {renderCommentText()}
             </ReactMarkdown>

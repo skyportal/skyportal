@@ -7,7 +7,6 @@ import Grid from "@mui/material/Grid";
 import Box from "@mui/material/Box";
 import { Link } from "react-router-dom";
 import ReactMarkdown from "react-markdown";
-import emoji from "emoji-dictionary";
 
 import CircularProgress from "@mui/material/CircularProgress";
 
@@ -21,6 +20,7 @@ import TableRow from "@mui/material/TableRow";
 
 import { allowedClasses } from "../classification/ClassificationForm";
 import Button from "../Button";
+import { rehypeEmoji } from "../comment/rehypeEmoji";
 
 import { useFetchSummaryQueryMutation } from "../../ducks/summary";
 import { useGetTaxonomiesQuery } from "../../ducks/taxonomies";
@@ -110,11 +110,6 @@ const SummarySearch = () => {
         setRunningQuery(false);
       });
   };
-
-  const emojiSupport = (textComment: any) =>
-    textComment.value.replace(/:\w+:/gi, (name: string) =>
-      emoji.getUnicode(name) ? emoji.getUnicode(name) : name,
-    );
 
   const formSchema: any = {
     type: "object",
@@ -324,7 +319,7 @@ const SummarySearch = () => {
                       </Box>
                     </TableCell>
                     <TableCell>
-                      <ReactMarkdown components={{ text: emojiSupport } as any}>
+                      <ReactMarkdown rehypePlugins={[rehypeEmoji]}>
                         {source?.metadata?.summary}
                       </ReactMarkdown>
                     </TableCell>
