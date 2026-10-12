@@ -6,7 +6,6 @@ import sqlalchemy as sa
 from sqlalchemy.orm import selectinload
 
 from baselayer.app.env import load_env
-from baselayer.app.flow import Flow
 from baselayer.log import make_log
 
 from ..utils import http
@@ -299,19 +298,9 @@ class NEWFIRMAPI(BLANCOAPI):
         session.add(transaction)
         await session.commit()
 
-        if kwargs.get("refresh_source", False):
-            flow = Flow()
-            flow.push(
-                "*",
-                "skyportal/REFRESH_SOURCE",
-                payload={"obj_key": request.obj.internal_key},
-            )
-        if kwargs.get("refresh_requests", False):
-            flow = Flow()
-            flow.push(
-                request.last_modified_by_id,
-                "skyportal/REFRESH_FOLLOWUP_REQUESTS",
-            )
+        push_followup_refresh(
+            request.obj.internal_key, request.last_modified_by_id, **kwargs
+        )
 
     form_json_schema = {
         "type": "object",

@@ -285,19 +285,9 @@ class SEDMAPI(FollowUpAPI):
 
         session.add(transaction)
 
-        if kwargs.get("refresh_source", False):
-            flow = Flow()
-            flow.push(
-                "*",
-                "skyportal/REFRESH_SOURCE",
-                payload={"obj_key": request.obj.internal_key},
-            )
-        if kwargs.get("refresh_requests", False):
-            flow = Flow()
-            flow.push(
-                request.last_modified_by_id,
-                "skyportal/REFRESH_FOLLOWUP_REQUESTS",
-            )
+        push_followup_refresh(
+            request.obj.internal_key, request.last_modified_by_id, **kwargs
+        )
 
         try:
             notification_type = request.allocation.altdata.get(
@@ -430,17 +420,9 @@ class SEDMAPI(FollowUpAPI):
         session.add(transaction)
 
         flow = Flow()
-        if kwargs.get("refresh_source", False):
-            flow.push(
-                "*",
-                "skyportal/REFRESH_SOURCE",
-                payload={"obj_key": request.obj.internal_key},
-            )
-        if kwargs.get("refresh_requests", False):
-            flow.push(
-                request.last_modified_by_id,
-                "skyportal/REFRESH_FOLLOWUP_REQUESTS",
-            )
+        push_followup_refresh(
+            request.obj.internal_key, request.last_modified_by_id, flow=flow, **kwargs
+        )
 
         try:
             notification_type = request.allocation.altdata.get(
