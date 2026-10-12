@@ -90,18 +90,6 @@ class Error(Response):
     status = ApispecEnumField(Enum("status", ["error"]), required=True)
 
 
-class newsFeedPrefs(_Schema):
-    numItems = fields.String()
-
-
-class UserPreferences(_Schema):
-    newsFeed = fields.Nested(newsFeedPrefs)
-
-
-class UpdateUserPreferencesRequestJSON(_Schema):
-    preferences = fields.Nested(UserPreferences)
-
-
 def success(schema_name, base_schema=None):
     schema_fields = {
         "status": ApispecEnumField(Enum("status", ["success"]), required=True),
@@ -1191,20 +1179,6 @@ class AssignmentSchema(_Schema):
     )
 
 
-class ObservationHandlerPost(_Schema):
-    telescopeName = fields.String(
-        required=True,
-        metadata={"description": ("The telescope name associated with the fields")},
-    )
-    instrumentName = fields.String(
-        required=True,
-        metadata={"description": ("The instrument name associated with the fields")},
-    )
-    observationData = fields.Dict(
-        metadata={"description": "Observation data dictionary list"}
-    )
-
-
 class ObservationExternalAPIHandlerPost(_Schema):
     # The handler pre-processes both to `astropy.time.Time` or `datetime` and
     # then calls `.load()` on this schema, so Raw is needed to pass them
@@ -1222,33 +1196,6 @@ class ObservationExternalAPIHandlerPost(_Schema):
     allocation_id = fields.Integer(
         required=True,
         metadata={"description": "Followup request allocation ID."},
-    )
-
-
-class SkymapQueueAPIHandlerPost(_Schema):
-    allocation_id = fields.Integer(
-        required=True,
-        metadata={"description": "Followup request allocation ID."},
-    )
-
-    localization_id = fields.Integer(
-        required=True,
-        metadata={"description": "Localization ID."},
-    )
-
-    integrated_probability = fields.Float(
-        required=False,
-        metadata={"description": "Integrated probability within skymap."},
-    )
-
-
-class ObservationASCIIFileHandlerPost(_Schema):
-    instrumentID = fields.String(
-        required=True,
-        metadata={"description": ("The instrument ID associated with the fields")},
-    )
-    observationData = fields.Dict(
-        metadata={"description": "Observation data Ascii string"}
     )
 
 
@@ -1280,12 +1227,6 @@ class ObservingRunPost(_Schema):
     )
 
 
-class GcnHandlerPut(_Schema):
-    dateobs = fields.String(metadata={"description": "UTC event timestamp"})
-    xml = fields.String(metadata={"description": "VOEvent XML content."})
-    json = fields.String(metadata={"description": "JSON notice content."})
-
-
 class GcnEventHandlerGet(_Schema):
     tags = fields.List(fields.String(), metadata={"description": "Event tags"})
     dateobs = fields.String(metadata={"description": "UTC event timestamp"})
@@ -1298,11 +1239,6 @@ class GcnEventHandlerGet(_Schema):
     lightcurve = fields.String(metadata={"description": "URL for light curve"})
 
 
-class GcnEventTagPost(_Schema):
-    dateobs = fields.String(metadata={"description": "UTC event timestamp"})
-    text = fields.String(metadata={"description": "GCN Event tag"})
-
-
 class LocalizationHandlerGet(_Schema):
     localization_name = fields.String(metadata={"description": "Localization name"})
     dateobs = fields.String(metadata={"description": "UTC event timestamp"})
@@ -1310,10 +1246,6 @@ class LocalizationHandlerGet(_Schema):
         fields.Float, metadata={"description": "Flattened 2D healpix map"}
     )
     contour = fields.Dict(metadata={"description": "GeoJSON contours of healpix map"})
-
-
-class GcnEventViewsHandlerGet(_Schema):
-    tags = fields.List(fields.String(), metadata={"description": "Event list"})
 
 
 class FollowupRequestPost(_Schema):
@@ -1477,43 +1409,6 @@ class ObservationPlanPost(_Schema):
     requester_id = fields.Integer(
         required=False,
         metadata={"description": "ID of the user making the request."},
-    )
-
-
-class ObservationPlanManualHandlerPost(_Schema):
-    gcnevent_id = fields.Integer(
-        required=True,
-        metadata={"description": "ID of the GcnEvent."},
-    )
-
-    status = fields.String(
-        load_default="pending submission",
-        metadata={"description": "The status of the request."},
-        required=False,
-    )
-
-    allocation_id = fields.Integer(
-        required=True,
-        metadata={"description": "Observation plan request allocation ID."},
-    )
-
-    localization_id = fields.Integer(
-        required=True,
-        metadata={"description": "Localization ID."},
-    )
-
-    target_group_ids = fields.List(
-        fields.Integer,
-        required=False,
-        metadata={
-            "description": (
-                "IDs of groups to share the results of the observation plan request with."
-            )
-        },
-    )
-
-    observation_plan_data = fields.Dict(
-        metadata={"description": "Observation plan data json"}
     )
 
 
@@ -1750,18 +1645,6 @@ class DefaultFollowupRequestPost(_Schema):
                 "Defaults to true."
             )
         },
-    )
-
-
-class DefaultSurveyEfficiencyPost(_Schema):
-    payload = fields.Dict(
-        required=False,
-        metadata={"description": "Content of the default survey efficiency analysis."},
-    )
-
-    default_observationplan_request_id = fields.Integer(
-        required=True,
-        metadata={"description": "Default observation plan request ID."},
     )
 
 
@@ -2424,57 +2307,6 @@ class FilterListItem(_Schema):
 
 class GroupIDList(_Schema):
     group_ids = fields.List(fields.Integer, required=True)
-
-
-class GalaxyHandlerPost(_Schema):
-    catalog_name = fields.String(
-        metadata={"description": "Galaxy catalog name."}, required=True
-    )
-    catalog_description = fields.String(
-        metadata={"description": "Galaxy catalog description."},
-        required=False,
-        load_default=None,
-    )
-    catalog_url = fields.String(
-        metadata={"description": "Galaxy catalog URL."},
-        required=False,
-        load_default=None,
-    )
-    catalog_data = fields.List(
-        fields.Dict(), metadata={"description": "Galaxy catalog data"}, required=True
-    )
-
-
-class GalaxyASCIIFileHandlerPost(_Schema):
-    catalogName = fields.String(
-        metadata={"description": "Galaxy catalog name."}, required=True
-    )
-    catalogDescription = fields.String(
-        metadata={"description": "Galaxy catalog description."},
-        required=False,
-        load_default=None,
-    )
-    catalogURL = fields.String(
-        metadata={"description": "Galaxy catalog URL."},
-        required=False,
-        load_default=None,
-    )
-
-    catalogData = fields.String(
-        metadata={"description": "Catalog data Ascii string"}, required=True
-    )
-
-
-class SpatialCatalogHandlerPost(_Schema):
-    catalog_name = fields.String(metadata={"description": "Spatial catalog name."})
-    catalog_data = fields.List(
-        fields.Dict(), metadata={"description": "Spatial catalog data"}
-    )
-
-
-class SpatialCatalogASCIIFileHandlerPost(_Schema):
-    catalogName = fields.String(metadata={"description": "Spatial catalog name."})
-    catalogData = fields.Dict(metadata={"description": "Catalog data Ascii string"})
 
 
 class ObjAnalysisDetail(_Schema):
