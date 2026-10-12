@@ -12,7 +12,7 @@
  * The websocket `REFRESH_EARTHQUAKE` / `REFRESH_EARTHQUAKES` messages are
  * bridged to cache invalidation via `invalidateOnMessage`.
  */
-import { buildQueryString } from "../API";
+import { buildQueryString, fileReaderPromise } from "../API";
 import { skyportalApi } from "../api/skyportalApi";
 import { invalidateOnMessage } from "../api/wsInvalidation";
 import type { RouteData } from "../types/routeSchemaMap";
@@ -27,17 +27,6 @@ interface CommentAttachment {
 interface CommentAttachmentArg {
   earthquakeID: number | string;
   commentID: number | string;
-}
-
-function fileReaderPromise(
-  file: File,
-): Promise<{ body: string | ArrayBuffer | null; name: string }> {
-  return new Promise((resolve) => {
-    const filereader = new FileReader();
-    filereader.readAsDataURL(file);
-    filereader.onloadend = () =>
-      resolve({ body: filereader.result, name: file.name });
-  });
 }
 
 export const earthquakeApi = skyportalApi.injectEndpoints({

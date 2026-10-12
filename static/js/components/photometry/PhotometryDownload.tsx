@@ -15,6 +15,7 @@ import { useAppDispatch } from "../../types/hooks";
 import Button from "../Button";
 import { mjd_to_utc } from "../../units";
 import { calculateFluxFromMag } from "../../utils/calculations";
+import { download } from "../../utils/download";
 import { PHOT_ZP } from "../../utils";
 import { getValidationStatus } from "./PhotometryValidation";
 
@@ -315,18 +316,7 @@ const PhotometryDownload = ({
 
     const head = `${downloadFormData.columns.join(",")}\n`;
     const result = head + body;
-    const blob = new Blob([result], {
-      type: "text/csv;charset=utf-8;",
-    });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = `${objId}_photometry.csv`;
-    link.style.visibility = "hidden";
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
+    download(result, "text/csv;charset=utf-8;", `${objId}_photometry.csv`);
   };
 
   const executeDownload = () => {

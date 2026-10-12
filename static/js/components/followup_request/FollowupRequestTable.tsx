@@ -9,6 +9,7 @@ import EventNoteIcon from "@mui/icons-material/EventNote";
 import LowPriorityIcon from "@mui/icons-material/LowPriority";
 
 import { useGetInstrumentFormsQuery } from "../../ducks/instruments";
+import { download } from "../../utils/download";
 import StyledDataGrid, { DataGridToolbar } from "../StyledDataGrid";
 import EditFollowupRequestDialog from "./EditFollowupRequestDialog";
 import FollowupPrioritizationDialog from "./FollowupPrioritizationDialog";
@@ -80,18 +81,11 @@ const downloadRequestsCsv = async (onDownload: () => Promise<any[]>) => {
       .join(","),
   );
 
-  const url = URL.createObjectURL(
-    new Blob([`${head.join(",")}\n${rows.join("\n")}`], {
-      type: "text/csv;charset=utf-8;",
-    }),
+  download(
+    `${head.join(",")}\n${rows.join("\n")}`,
+    "text/csv;charset=utf-8;",
+    "followup_requests.csv",
   );
-  const link = document.createElement("a");
-  link.href = url;
-  link.setAttribute("download", "followup_requests.csv");
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
-  URL.revokeObjectURL(url);
 };
 
 const ToolbarAction = ({

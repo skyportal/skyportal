@@ -18,6 +18,7 @@ import StyledDataGrid, { DataGridToolbar } from "../StyledDataGrid";
 import { TableProgressText } from "../ProgressIndicators";
 import { useDeleteSurveyEfficiencyObservationsMutation } from "../../ducks/survey_efficiency_observations";
 import { useGetInstrumentsQuery } from "../../ducks/instruments";
+import { download } from "../../utils/download";
 
 const useStyles = makeStyles()(() => ({
   observationplanRequestTable: {
@@ -266,15 +267,7 @@ const SurveyEfficiencyObservationsLists = ({
     const head = `${columnsDownload.join(",")}\n`;
     const body = data.map((row: any) => row.join(","));
     const result = head + body.join("\n");
-    const blob = new Blob([result], { type: "text/csv;charset=utf-8;" });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.setAttribute("download", "observations.csv");
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
+    download(result, "text/csv;charset=utf-8;", "observations.csv");
   };
 
   const runningCount = (survey_efficiency_analyses || []).filter(

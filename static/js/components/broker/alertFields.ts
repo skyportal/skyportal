@@ -1,3 +1,5 @@
+import { download } from "../../utils/download";
+
 export interface AlertFilter {
   field: string;
   op: string;
@@ -66,19 +68,6 @@ export const toCsv = (rows: Record<string, any>[]) => {
   const fields = fieldsOf(rows);
   const body = rows.map((r) => fields.map((f) => escape(r[f])).join(","));
   return [fields.join(","), ...body].join("\n");
-};
-
-const download = (content: string, type: string, filename: string) => {
-  const blob = new Blob([content], { type });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = filename;
-  link.style.visibility = "hidden";
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
-  URL.revokeObjectURL(url);
 };
 
 export const downloadCsv = (rows: Record<string, any>[], filename: string) =>

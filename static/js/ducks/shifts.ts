@@ -11,7 +11,7 @@
  * The websocket `REFRESH_SHIFT` / `REFRESH_SHIFTS` messages are bridged to cache
  * invalidation via `invalidateOnMessage`.
  */
-import { buildQueryString } from "../API";
+import { buildQueryString, fileReaderPromise } from "../API";
 import { skyportalApi } from "../api/skyportalApi";
 import { invalidateOnMessage } from "../api/wsInvalidation";
 import type { RouteData } from "../types/routeSchemaMap";
@@ -49,17 +49,6 @@ function shiftStringDateToDate<
     start_date: new Date(`${shift.start_date}Z`),
     end_date: new Date(`${shift.end_date}Z`),
   };
-}
-
-function fileReaderPromise(
-  file: File,
-): Promise<{ body: string | ArrayBuffer | null; name: string }> {
-  return new Promise((resolve) => {
-    const filereader = new FileReader();
-    filereader.readAsDataURL(file);
-    filereader.onloadend = () =>
-      resolve({ body: filereader.result, name: file.name });
-  });
 }
 
 export const shiftsApi = skyportalApi.injectEndpoints({
