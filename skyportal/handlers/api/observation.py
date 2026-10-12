@@ -553,6 +553,10 @@ async def get_observations(
                     Observation.instrument_field_id,
                     sa.func.count(Observation.id).label("nobs"),
                 )
+                .where(
+                    Observation.obstime >= start_date,
+                    Observation.obstime <= end_date,
+                )
                 .group_by(Observation.instrument_field_id)
                 .having(sa.func.count(Observation.id) >= min_observations_per_field)
                 .subquery()
