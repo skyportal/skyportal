@@ -2,7 +2,6 @@ import asyncio
 import html
 import json
 import operator
-import string
 import textwrap
 import time
 from concurrent.futures import ThreadPoolExecutor
@@ -1652,16 +1651,7 @@ def api(queue):
                             continue
 
                     if is_comment:
-                        _punctuation = string.punctuation.replace("-", "").replace(
-                            "@", ""
-                        )
-                        _usernames = [
-                            word.strip(_punctuation).replace("@", "")
-                            for word in target_data.get("text", "")
-                            .replace(",", " ")
-                            .split()
-                            if word.strip(_punctuation).startswith("@")
-                        ]
+                        _usernames = mentioned_usernames(target_data.get("text", ""))
                         if _usernames:
                             _author = session.scalars(
                                 sa.select(User).where(
