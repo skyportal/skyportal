@@ -51,6 +51,11 @@ export function invalidateOnMessage(
   );
 }
 
+/** The RTK Query cache entries currently in the store. */
+export function cachedQueries(getState: () => unknown): any[] {
+  return Object.values((getState() as any)?.skyportalApi?.queries ?? {});
+}
+
 /**
  * Look up the argument a cached query was fetched with, by matching on its
  * result data. Returns `null` when no matching cached query is found.
@@ -60,8 +65,7 @@ export function findCachedQueryArg(
   endpointName: string,
   match: (data: any) => boolean,
 ): unknown {
-  const queries = (getState() as any)?.skyportalApi?.queries ?? {};
-  for (const entry of Object.values(queries) as any[]) {
+  for (const entry of cachedQueries(getState)) {
     if (entry?.endpointName === endpointName && match(entry?.data)) {
       return entry.originalArgs;
     }

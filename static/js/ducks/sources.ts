@@ -2,7 +2,11 @@ import dayjs from "dayjs";
 
 import { buildQueryString, filterOutEmptyValues, pickParams } from "../API";
 import { skyportalApi } from "../api/skyportalApi";
-import { findCachedQueryArg, invalidateOnMessage } from "../api/wsInvalidation";
+import {
+  cachedQueries,
+  findCachedQueryArg,
+  invalidateOnMessage,
+} from "../api/wsInvalidation";
 
 export type FilterParams = Record<string, any>;
 
@@ -212,8 +216,7 @@ invalidateOnMessage("skyportal/REFRESH_FAVORITE_SOURCES", () =>
 );
 
 invalidateOnMessage("skyportal/REFRESH_SOURCE", (payload, getState) => {
-  const queries = (getState() as any)?.skyportalApi?.queries ?? {};
-  const onLoadedList = Object.values(queries).some(
+  const onLoadedList = cachedQueries(getState).some(
     (entry: any) =>
       entry?.endpointName !== "fetchSources" &&
       (entry?.data?.sources as any[] | undefined)?.some(
@@ -234,8 +237,7 @@ invalidateOnMessage("skyportal/FETCH_GCNEVENT_SOURCES", (payload, getState) => {
         )
       : null);
   if (dateobs == null) return null;
-  const queries = (getState() as any)?.skyportalApi?.queries ?? {};
-  const onLoadedEvent = Object.values(queries).some(
+  const onLoadedEvent = cachedQueries(getState).some(
     (entry: any) =>
       entry?.endpointName === "fetchGcnEventSources" &&
       entry?.originalArgs?.dateobs === dateobs,
