@@ -169,7 +169,6 @@ const SharingServiceGroup = ({
     group_id: sharingServiceGroup.group_id,
   };
 
-  // Re-seed on open too, so toggles from a cancelled edit don't carry over.
   useEffect(() => {
     setOwner(sharingServiceGroup.owner);
     setAutoPublishTns(sharingServiceGroup.auto_share_to_tns);
