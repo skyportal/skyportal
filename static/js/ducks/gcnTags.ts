@@ -1,12 +1,11 @@
 /**
  * GCN event tags.
  *
- * RTK Query conversion of the old `FETCH_GCN_TAGS` duck. Websocket-driven
- * invalidation refetches the tag list; mutations post/delete a tag on an event.
+ * RTK Query conversion of the old `FETCH_GCN_TAGS` duck. Mutations post/delete
+ * a tag on an event.
  */
 import { buildQueryString } from "../API";
 import { skyportalApi } from "../api/skyportalApi";
-import { invalidateOnMessage } from "../api/wsInvalidation";
 
 interface PostGcnTagArg {
   dateobs: string;
@@ -47,9 +46,6 @@ export const gcnTagsApi = skyportalApi.injectEndpoints({
     }),
   }),
 });
-
-// Websocket: the old handler refetched the full tag list on FETCH_GCN_TAGS.
-invalidateOnMessage("skyportal/FETCH_GCN_TAGS", () => ["GcnTags"]);
 
 export const {
   useGetGcnTagsQuery,
