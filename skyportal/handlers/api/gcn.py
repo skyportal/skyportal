@@ -2520,8 +2520,6 @@ class GcnEventHandler(BaseHandler):
                 if event is None:
                     return self.error("GCN event not found", status=404)
 
-                # Queried rather than loaded through event.comments/summaries,
-                # which would skip each row's own group restriction.
                 comments = (
                     await session.scalars(
                         CommentOnGCN.select(session.user_or_token)
