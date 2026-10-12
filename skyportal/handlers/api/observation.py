@@ -475,6 +475,23 @@ async def _coverage_stats_db(
     return intarea, intprob
 
 
+# sortBy values to attribute names, looked up on the executed or queued model.
+OBSERVATION_SORT_COLUMNS = {
+    "obstime": "obstime",
+    "observation_id": "observation_id",
+    "exposure_time": "exposure_time",
+    "seeing": "seeing",
+    "airmass": "airmass",
+    "limmag": "limmag",
+    "filt": "filt",
+    "instrument_name": "instrument_id",
+    "target_name": "target_name",
+    "queue_name": "queue_name",
+    "validity_window_start": "validity_window_start",
+    "validity_window_end": "validity_window_end",
+}
+
+
 @format_doc(MAX_OBSERVATIONS=MAX_OBSERVATIONS)
 async def get_observations(
     session,
@@ -776,79 +793,13 @@ async def get_observations(
         sa.select(sa.func.count()).select_from(obs_query)
     )
 
-    order_by = None
-    if sort_by is not None:
-        if sort_by == "obstime":
-            order_by = (
-                Observation.obstime
-                if sort_order == "asc"
-                else Observation.obstime.desc()
-            )
-        elif sort_by == "observation_id":
-            order_by = (
-                Observation.observation_id
-                if sort_order == "asc"
-                else Observation.observation_id.desc()
-            )
-        elif sort_by == "exposure_time":
-            order_by = (
-                Observation.exposure_time
-                if sort_order == "asc"
-                else Observation.exposure_time.desc()
-            )
-        elif sort_by == "seeing":
-            order_by = (
-                Observation.seeing if sort_order == "asc" else Observation.seeing.desc()
-            )
-        elif sort_by == "airmass":
-            order_by = (
-                Observation.airmass
-                if sort_order == "asc"
-                else Observation.airmass.desc()
-            )
-        elif sort_by == "limmag":
-            order_by = (
-                Observation.limmag if sort_order == "asc" else Observation.limmag.desc()
-            )
-        elif sort_by == "filt":
-            order_by = (
-                Observation.filt if sort_order == "asc" else Observation.filt.desc()
-            )
-        elif sort_by == "instrument_name":
-            order_by = (
-                Observation.instrument_id
-                if sort_order == "asc"
-                else Observation.instrument_id.desc()
-            )
-        elif sort_by == "target_name":
-            order_by = (
-                Observation.target_name
-                if sort_order == "asc"
-                else Observation.target_name.desc()
-            )
-        elif sort_by == "queue_name":
-            order_by = (
-                Observation.queue_name
-                if sort_order == "asc"
-                else Observation.queue_name.desc()
-            )
-        elif sort_by == "validity_window_start":
-            order_by = (
-                Observation.validity_window_start
-                if sort_order == "asc"
-                else Observation.validity_window_start.desc()
-            )
-        elif sort_by == "validity_window_end":
-            order_by = (
-                Observation.validity_window_end
-                if sort_order == "asc"
-                else Observation.validity_window_end.desc()
-            )
-        else:
-            raise ValueError(f"Sort column {sort_by} not known.")
-
-    if order_by is None:
+    if sort_by is None:
         order_by = Observation.instrument_id.desc()
+    elif sort_by in OBSERVATION_SORT_COLUMNS:
+        column = getattr(Observation, OBSERVATION_SORT_COLUMNS[sort_by])
+        order_by = column if sort_order == "asc" else column.desc()
+    else:
+        raise ValueError(f"Sort column {sort_by} not known.")
     obs_query = obs_query.order_by(order_by)
 
     if n_per_page is not None:
