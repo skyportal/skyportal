@@ -85,7 +85,7 @@ const BAND_GROUP_ORDER = ["u", "g", "r", "i", "z", "y", "other"];
 // hsc::r2) folded onto the band they sample. Johnson-Cousins, UV and NIR
 // filters, ATLAS c/o, Gaia, clear, etc. go under "other".
 const SLOAN_LIKE =
-  /^(?:sdss|ztf|ztf::|lsst|des|decam|skymapper|goto|csp|ps1::|hsc::|megacam6::|keplercam::)([ugrizy])\d?$/;
+  /^(?:sdss|ztf|ztf::|lsst|des|skymapper|goto|csp|ps1::|hsc::|megacam6::|keplercam::)([ugrizy])\d?$/;
 
 const bandGroup = (filter: string): string =>
   (filter || "").toLowerCase().match(SLOAN_LIKE)?.[1] ?? "other";
