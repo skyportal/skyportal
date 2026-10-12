@@ -1453,57 +1453,6 @@ def fetch_depot_observations(instrument_id, session, depot_url, jd_start, jd_end
     update_missing_quadrants(instrument_id, nights)
 
 
-def fetch_tap_observations(instrument_id, client, request_str):
-    """Fetch executed observations from a TAP client.
-    instrument_id : int
-        ID of the instrument
-    client : pyvo.dal.TAPService
-        An authenticated pyvo.dal.TAPService instance.
-    request_str : str
-        TAP request of the form:
-        SELECT field,rcid,fid,expid,obsjd,exptime,maglimit,ipac_gid,seeing
-        FROM ztf.ztf_current_meta_sci WHERE (obsjd BETWEEN 2459637.2474652776 AND 2459640.2474652776)
-    """
-
-    job = client.submit_job(request_str)
-    job = job.run().wait()
-    job.raise_if_error()
-    obstable = job.fetch_result().to_table()
-    obstable = obstable.filled().to_pandas()
-    if obstable.empty:
-        log(
-            f"No observations for instrument ID {instrument_id} for request: {request_str}"
-        )
-        return
-
-    obs_grouped_by_exp = obstable.groupby("expid")
-    dfs = []
-    for expid, df_group in obs_grouped_by_exp:
-        df_group_median = df_group.median()
-        df_group_median["observation_id"] = int(expid)
-        df_group_median["processed_fraction"] = len(df_group["field"]) / 64.0
-        df_group_median["filter"] = inv_bands[int(df_group_median["fid"])]
-        dfs.append(df_group_median)
-    obstable = pd.concat(dfs, axis=1).T
-    obstable.rename(
-        columns={
-            "obsjd": "obstime",
-            "field": "field_id",
-            "maglimit": "limmag",
-            "exptime": "exposure_time",
-        },
-        inplace=True,
-    )
-    obstable["target_name"] = None
-
-    # engineering data is ipac_gid = -1 and we do not want to save that
-    obstable = obstable[obstable["ipac_gid"] >= 1.0]
-
-    from skyportal.handlers.api.observation import add_observations
-
-    add_observations(instrument_id, obstable)
-
-
 def fetch_queued_observations(instrument_id, obstable, start_date, end_date):
     """Fetch queued (i.e. yet to be completed) observations from ZTF scheduler.
     instrument_id : int

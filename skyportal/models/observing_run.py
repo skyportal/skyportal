@@ -4,14 +4,11 @@ import numpy as np
 import sqlalchemy as sa
 from astropy import time as ap_time
 from astropy import units as u
-from dateutil.tz import tzutc
 from sqlalchemy.orm import relationship
 
 from baselayer.app.models import Base, accessible_by_owner
 
 from .group import accessible_by_groups_members
-
-TZINFO = tzutc()
 
 
 class ObservingRun(Base):

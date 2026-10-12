@@ -33,8 +33,6 @@ from ..base import BaseHandler
 
 log = make_log("api/spatial_catalog")
 
-MAX_SPATIAL_CATALOG_ENTRIES = 1000
-
 
 def add_catalog(catalog_id, catalog_data):
     log(f"Generating catalog with ID {catalog_id}")
