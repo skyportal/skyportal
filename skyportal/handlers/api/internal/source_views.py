@@ -101,7 +101,7 @@ class SourceViewsHandler(BaseHandler):
 
             # One query for every object, rather than one each: this list is as
             # long as the top-views list, and each object pulls its thumbnails
-            # and classifications behind it.
+            # behind it.
             obj_ids = [obj_id for _, obj_id in query_results]
             objs_result = await session.scalars(
                 Obj.select(
@@ -110,7 +110,6 @@ class SourceViewsHandler(BaseHandler):
                 ).where(Obj.id.in_(obj_ids))
             )
             objs_by_id = {obj.id: obj for obj in objs_result.unique().all()}
-            # Obj.classifications would include other groups' classifications
             classifications_result = await session.scalars(
                 Classification.select(session.user_or_token).where(
                     Classification.obj_id.in_(obj_ids)

@@ -111,7 +111,6 @@ class RecentSourcesHandler(BaseHandler):
                 ).where(Obj.id.in_(list(set(query_results))))
             )
             objs_by_id = {obj.id: obj for obj in objs_result.all()}
-            # Obj.classifications would include other groups' classifications
             classifications_result = await session.scalars(
                 Classification.select(session.user_or_token).where(
                     Classification.obj_id.in_(list(set(query_results)))
