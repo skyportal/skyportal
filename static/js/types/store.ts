@@ -6,7 +6,7 @@
  * its generated hook/selector, NOT via `state.<slice>`. There is intentionally
  * no index-signature fallback: a read of a migrated slice must be a type error.
  */
-import type { ThunkAction, ThunkDispatch } from "redux-thunk";
+import type { ThunkDispatch } from "redux-thunk";
 import type { Store, UnknownAction } from "redux";
 
 import type { skyportalApi } from "../api/skyportalApi";
@@ -23,7 +23,6 @@ export interface RootState {
     scaleProbabilities?: any;
     [key: string]: any;
   };
-  hydration: { hydratedList: any[]; hydrated: boolean };
   notifications: {
     notes: {
       id: number;
@@ -56,11 +55,3 @@ export interface AppStore extends Store<RootState, UnknownAction> {
 
 /** Thunk-aware dispatch (the app uses redux-thunk). */
 export type AppDispatch = ThunkDispatch<RootState, unknown, UnknownAction>;
-
-/** Return type for thunk action creators: `(): AppThunk<Promise<Result>>`. */
-export type AppThunk<ReturnType = void> = ThunkAction<
-  ReturnType,
-  RootState,
-  unknown,
-  UnknownAction
->;
