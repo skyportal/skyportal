@@ -8,7 +8,12 @@ import pytest
 from playwright.sync_api import Error as PlaywrightError
 from playwright.sync_api import expect
 
-from skyportal.tests import api, wait_for_gcn_event, wait_for_localization
+from skyportal.tests import (
+    api,
+    post_gcn_event_if_missing,
+    wait_for_gcn_event,
+    wait_for_localization,
+)
 
 
 def _retype(locator, value):
@@ -248,23 +253,13 @@ def test_shift_summary(
     assert status == 200
     assert data["status"] == "success"
 
-    status, data = api("GET", "gcn_event/2018-01-16T00:36:53", token=super_admin_token)
-    if status == 404:
-        datafile = (
-            f"{os.path.dirname(__file__)}/../../data/GRB180116A_Fermi_GBM_Gnd_Pos.xml"
-        )
-        with open(datafile, "rb") as fid:
-            payload = fid.read()
-        data = {"xml": payload}
-
-        status, data = api("POST", "gcn_event", data=data, token=super_admin_token)
-        assert status == 200
-        assert data["status"] == "success"
-
-        wait_for_gcn_event("2018-01-16T00:36:53", super_admin_token)
-    else:
-        assert status == 200
-        assert data["status"] == "success"
+    datafile = (
+        f"{os.path.dirname(__file__)}/../../data/GRB180116A_Fermi_GBM_Gnd_Pos.xml"
+    )
+    post_gcn_event_if_missing(
+        "2018-01-16T00:36:53", super_admin_token, xml_file=datafile
+    )
+    wait_for_gcn_event("2018-01-16T00:36:53", super_admin_token)
 
     skymap = "214.74000_28.14000_11.19000"
     localization = wait_for_localization(
