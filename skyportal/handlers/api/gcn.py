@@ -5052,8 +5052,11 @@ def add_gcn_report(
                             )
                         photometry = session.scalars(stmt).all()
                         if len(photometry) > 0:
+                            # report data is rendered on the public report page
                             source["photometry"] = [
-                                serialize(phot, "ab", "mag", annotations=False)
+                                serialize(
+                                    phot, "ab", "mag", groups=False, annotations=False
+                                )
                                 for phot in photometry
                             ]
                         else:
@@ -5534,16 +5537,20 @@ class GcnReportHandler(BaseHandler):
 
                                 stmt = Photometry.select(
                                     session.user_or_token,
-                                    options=[
-                                        joinedload(Photometry.instrument),
-                                        selectinload(Photometry.groups),
-                                    ],
+                                    options=[joinedload(Photometry.instrument)],
                                 ).where(Photometry.obj_id == source["id"])
                                 phot_result = await session.scalars(stmt)
                                 photometry = phot_result.all()
                                 if len(photometry) > 0:
+                                    # report data is rendered on the public report page
                                     source["photometry"] = [
-                                        serialize(phot, "ab", "mag", annotations=False)
+                                        serialize(
+                                            phot,
+                                            "ab",
+                                            "mag",
+                                            groups=False,
+                                            annotations=False,
+                                        )
                                         for phot in photometry
                                     ]
                                 else:

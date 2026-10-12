@@ -112,6 +112,10 @@ class DefaultGcnTag(Base):
     )
 
 
+# Photometry fields with a point's groups and group-restricted annotations
+PRIVATE_PHOTOMETRY_KEYS = ("groups", "annotations")
+
+
 class GcnReport(Base):
     """Store GCN report for events."""
 
@@ -302,6 +306,12 @@ class GcnReport(Base):
             for source in data["sources"]:
                 if source.get("photometry"):
                     from skyportal.handlers.api.photometry import get_filters_mapper
+
+                    # the page is public, so leave those out whatever is stored
+                    source["photometry"] = [
+                        {k: v for k, v in p.items() if k not in PRIVATE_PHOTOMETRY_KEYS}
+                        for p in source["photometry"]
+                    ]
 
                     source["filters_mapper"] = get_filters_mapper(source["photometry"])
 
