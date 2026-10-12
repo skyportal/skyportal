@@ -19,7 +19,6 @@ def super_obj_to_dict(super_obj, epochs=False, annotations=None):
     With ``epochs``, each Obj also carries its thumbnails and annotations, which
     is what a reviewer needs to judge a moving object: one column of cutouts per
     detection. Epochs are ordered by time so the columns read left to right.
-    ``annotations`` maps obj id to the Annotations the user can read.
     """
     objs = list(super_obj.objs)
     if epochs:
@@ -51,11 +50,6 @@ def super_obj_to_dict(super_obj, epochs=False, annotations=None):
 
 
 async def readable_annotations(session, super_objs):
-    """The Annotations the user can read on these SuperObjs' Objs, by obj id.
-
-    Obj.annotations would load every group's annotations, skipping
-    Annotation.read.
-    """
     obj_ids = {obj.id for super_obj in super_objs for obj in super_obj.objs}
     rows = await session.scalars(
         Annotation.select(session.user_or_token).where(Annotation.obj_id.in_(obj_ids))
