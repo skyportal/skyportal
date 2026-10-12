@@ -1774,7 +1774,9 @@ class GcnEventTagsHandler(BaseHandler):
         detector_type = self.get_query_argument("detectorType", None)
 
         async with self.AsyncSession() as session:
-            stmt = sa.select(GcnTag.text).distinct()
+            stmt = GcnTag.select(
+                session.user_or_token, columns=[GcnTag.text]
+            ).distinct()
             if detector_type is not None:
                 stmt = stmt.where(
                     GcnTag.dateobs.in_(
@@ -1822,6 +1824,13 @@ class GcnEventTagsHandler(BaseHandler):
             return self.error(f"Invalid dateobs: {e}")
 
         async with self.AsyncSession() as session:
+            event = await session.scalar(
+                GcnEvent.select(session.user_or_token).where(
+                    GcnEvent.dateobs == dateobs_parsed
+                )
+            )
+            if event is None:
+                return self.error(f"No GCN event with dateobs {dateobs}", status=404)
             try:
                 tag = GcnTag(
                     dateobs=dateobs_parsed,
@@ -2485,12 +2494,9 @@ class GcnEventHandler(BaseHandler):
                         Localization.probdensity
                     ),
                     selectinload(GcnEvent.localizations).undefer(Localization.contour),
-                    selectinload(GcnEvent.comments).selectinload(CommentOnGCN.author),
                     selectinload(GcnEvent.detectors),
                     selectinload(GcnEvent._tags),
                     selectinload(GcnEvent.properties),
-                    selectinload(GcnEvent.summaries).selectinload(GcnSummary.sent_by),
-                    selectinload(GcnEvent.summaries).selectinload(GcnSummary.group),
                     selectinload(GcnEvent.gcn_triggers),
                     selectinload(GcnEvent.gcnevent_users).selectinload(
                         GcnEventUser.user
@@ -2513,6 +2519,24 @@ class GcnEventHandler(BaseHandler):
                 )
                 if event is None:
                     return self.error("GCN event not found", status=404)
+
+                comments = (
+                    await session.scalars(
+                        CommentOnGCN.select(session.user_or_token)
+                        .options(selectinload(CommentOnGCN.author))
+                        .where(CommentOnGCN.gcn_id == event.id)
+                    )
+                ).all()
+                summaries = (
+                    await session.scalars(
+                        GcnSummary.select(session.user_or_token)
+                        .options(
+                            selectinload(GcnSummary.sent_by),
+                            selectinload(GcnSummary.group),
+                        )
+                        .where(GcnSummary.dateobs == event.dateobs)
+                    )
+                ).all()
 
                 # .to_dict() fetches the deferred properties, so we build the dict
                 # manually to avoid fetching the content if no_notice_content is True
@@ -2579,7 +2603,7 @@ class GcnEventHandler(BaseHandler):
                                 },
                                 "resourceType": "gcn_event",
                             }
-                            for c in event.comments
+                            for c in comments
                         ),
                         key=lambda x: x["created_at"],
                         reverse=True,
@@ -2591,7 +2615,7 @@ class GcnEventHandler(BaseHandler):
                                 "sent_by": s.sent_by.to_dict(),
                                 "group": s.group.to_dict(),
                             }
-                            for s in event.summaries
+                            for s in summaries
                         ),
                         key=lambda x: x["created_at"],
                         reverse=True,
