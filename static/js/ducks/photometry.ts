@@ -3,7 +3,7 @@
  * (delete, submit, update) invalidate it so the list refetches.
  */
 import { skyportalApi } from "../api/skyportalApi";
-import { invalidateOnMessage } from "../api/wsInvalidation";
+import { invalidateOnMessage, findCachedQueryArg } from "../api/wsInvalidation";
 import { photometryTag } from "./photometryTags";
 import type { RouteData } from "../types/routeSchemaMap";
 
@@ -64,10 +64,49 @@ export const photometryApi = skyportalApi.injectEndpoints({
   }),
 });
 
-// scoped to the pushed object, so one source's push cannot refetch another page's
-invalidateOnMessage(REFRESH_SOURCE_PHOTOMETRY, (payload) =>
-  payload?.obj_id != null ? photometryTag(payload.obj_id) : null,
-);
+// Loaded lists whose rows carry their source's internal_key and plot its
+// photometry: the path to the list in the cached data, and the row field that
+// holds the source's id.
+const KEYED_LISTS: [string[], string][] = [
+  [["sources"], "id"], // sources table detail panel
+  [["candidates"], "id"], // scanning page
+  [["assignments"], "obj_id"], // observing run summary
+  [["allocation", "requests"], "obj_id"], // allocation follow-up requests
+];
+
+// The id of a source in one of those loaded lists, given its key.
+const findListedObjId = (getState: () => unknown, objKey: string) => {
+  const queries = (getState() as any)?.skyportalApi?.queries ?? {};
+  for (const entry of Object.values(queries) as any[]) {
+    for (const [path, idField] of KEYED_LISTS) {
+      const rows = path.reduce((data: any, key) => data?.[key], entry?.data);
+      if (Array.isArray(rows)) {
+        const match = rows.find((row: any) => row?.internal_key === objKey);
+        if (match?.[idField] != null) {
+          return match[idField] as string | number;
+        }
+      }
+    }
+  }
+  return null;
+};
+
+// Broadcast to every client, so it carries the source's internal_key rather
+// than its id: translate it to the id of a source this client has loaded, on
+// its own page or in a list, so only that source's photometry refetches.
+invalidateOnMessage(REFRESH_SOURCE_PHOTOMETRY, (payload, getState) => {
+  const objKey = payload?.obj_key as string | undefined;
+  if (!objKey) {
+    return null;
+  }
+  const sourceId = findCachedQueryArg(
+    getState,
+    "getSource",
+    (data) => data?.internal_key === objKey,
+  ) as string | number | null;
+  const objId = sourceId ?? findListedObjId(getState, objKey);
+  return objId != null ? photometryTag(objId) : null;
+});
 
 export const {
   useFetchSourcePhotometryQuery,

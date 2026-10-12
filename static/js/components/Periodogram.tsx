@@ -23,6 +23,7 @@ import { useAppDispatch } from "../types/hooks";
 import Button from "./Button";
 
 import { useFetchSourcePhotometryQuery } from "../ducks/photometry";
+import { useGetSourceQuery } from "../ducks/source";
 
 const useStyles = makeStyles()((theme) => ({
   copyb: {
@@ -230,6 +231,9 @@ const Periodogram = () => {
     { id: id as string },
     { skip: !id },
   );
+  // Photometry refresh broadcasts identify the source by its internal_key,
+  // which is matched against the cached source, so keep it cached here too.
+  useGetSourceQuery(id as string, { skip: !id });
   const [bestp, setBestp] = useState<any>(null);
   const [run, setRun] = useState(false);
   const [plotted, setPlotted] = useState(false);

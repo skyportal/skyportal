@@ -205,6 +205,8 @@ class ObservingRunHandler(BaseHandler):
                         )
                         for s in sources_result.all()
                     ]
+                    # Photometry refresh broadcasts name the source by this key.
+                    a["internal_key"] = a["obj"].internal_key
                     # Facilities size exposures from the target's brightness;
                     # surface the last detection so they don't have to pull the
                     # whole photometry series for one number.

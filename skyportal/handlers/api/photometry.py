@@ -1523,7 +1523,7 @@ async def insert_new_photometry_data(
             flow.push(
                 "*",
                 "skyportal/REFRESH_SOURCE_PHOTOMETRY",
-                payload={"obj_id": obj_id},
+                payload={"obj_key": internal_key},
             )
 
     return ids, upload_id
@@ -2407,7 +2407,7 @@ class PhotometryHandler(BaseHandler):
                 flow.push(
                     "*",
                     "skyportal/REFRESH_SOURCE_PHOTOMETRY",
-                    payload={"obj_id": photometry.obj_id, "magsys": magsys},
+                    payload={"obj_key": internal_key, "magsys": magsys},
                 )
 
             return self.success()
@@ -2488,9 +2488,12 @@ class PhotometryHandler(BaseHandler):
 
             await session.commit()
 
+            internal_key = await session.scalar(
+                sa.select(Obj.internal_key).where(Obj.id == obj_id)
+            )
             self.push_all(
                 action="skyportal/REFRESH_SOURCE_PHOTOMETRY",
-                payload={"obj_id": obj_id},
+                payload={"obj_key": internal_key},
             )
 
             return self.success()

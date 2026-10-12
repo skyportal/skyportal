@@ -9,7 +9,7 @@ from skyportal_py_models.photometry import PhotometryValidationResponse
 from baselayer.app.access import permissions
 from baselayer.app.env import load_env
 
-from ...models import Photometry, PhotometryValidation
+from ...models import Obj, Photometry, PhotometryValidation
 from ..base import BaseHandler
 
 _, cfg = load_env()
@@ -169,9 +169,12 @@ class PhotometryValidationHandler(BaseHandler):
                 await session.commit()
 
             # Use the FK directly to avoid a lazy load on phot.obj.
+            internal_key = await session.scalar(
+                sa.select(Obj.internal_key).where(Obj.id == phot.obj_id)
+            )
             self.push_all(
                 action="skyportal/REFRESH_SOURCE_PHOTOMETRY",
-                payload={"obj_id": phot.obj_id, "magsys": magsys},
+                payload={"obj_key": internal_key, "magsys": magsys},
             )
             return self.success(data={"id": photometry_validation.id})
 
@@ -232,16 +235,16 @@ class PhotometryValidationHandler(BaseHandler):
                 photometry_validation.notes = notes
             await session.commit()
 
-            # Resolve the obj_id from the Photometry FK without triggering
+            # Resolve the obj from the Photometry FK without triggering
             # a lazy load on photometry_validation.photometry.obj.
-            phot_obj_id = await session.scalar(
-                sa.select(Photometry.obj_id).where(
-                    Photometry.id == photometry_validation.photometry_id
-                )
+            internal_key = await session.scalar(
+                sa.select(Obj.internal_key)
+                .join(Photometry, Photometry.obj_id == Obj.id)
+                .where(Photometry.id == photometry_validation.photometry_id)
             )
             self.push_all(
                 action="skyportal/REFRESH_SOURCE_PHOTOMETRY",
-                payload={"obj_id": phot_obj_id, "magsys": magsys},
+                payload={"obj_key": internal_key, "magsys": magsys},
             )
             return self.success(data={"id": photometry_validation.id})
 
@@ -299,10 +302,10 @@ class PhotometryValidationHandler(BaseHandler):
             if not photometry_validation:
                 return self.error("Photometry is not validated/rejected")
 
-            obj_id = await session.scalar(
-                sa.select(Photometry.obj_id).where(
-                    Photometry.id == photometry_validation.photometry_id
-                )
+            internal_key = await session.scalar(
+                sa.select(Obj.internal_key)
+                .join(Photometry, Photometry.obj_id == Obj.id)
+                .where(Photometry.id == photometry_validation.photometry_id)
             )
             photometry_validation_id = photometry_validation.id
 
@@ -311,6 +314,6 @@ class PhotometryValidationHandler(BaseHandler):
 
             self.push_all(
                 action="skyportal/REFRESH_SOURCE_PHOTOMETRY",
-                payload={"obj_id": obj_id},
+                payload={"obj_key": internal_key},
             )
             return self.success(data={"id": photometry_validation_id})
