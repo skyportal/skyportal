@@ -146,7 +146,7 @@ def delete_catalog(catalog_id):
 
 
 class SpatialCatalogHandler(BaseHandler):
-    @auth_or_token
+    @permissions(["Upload data"])
     async def post(
         self, *, body: SpatialCatalogPostBody = None
     ) -> SpatialCatalogPostResponse:

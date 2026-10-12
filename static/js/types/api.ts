@@ -11070,7 +11070,7 @@ export interface paths {
         post?: never;
         /**
          * Delete a group admission request
-         * @description <b>Permission(s) required:</b> <em>Upload data (or System admin)</em><br><br>Delete a group admission request
+         * @description Delete a group admission request
          */
         delete: {
             parameters: {
@@ -13690,7 +13690,7 @@ export interface paths {
         head?: never;
         /**
          * Update a tag option
-         * @description Update an existing tag option's name and/or color
+         * @description <b>Permission(s) required:</b> <em>Manage sources (or System admin)</em><br><br>Update an existing tag option's name and/or color
          */
         patch: {
             parameters: {
@@ -18696,7 +18696,7 @@ export interface paths {
         put?: never;
         /**
          * Ingest a Spatial Catalog
-         * @description Ingest a Spatial Catalog
+         * @description <b>Permission(s) required:</b> <em>Upload data (or System admin)</em><br><br>Ingest a Spatial Catalog
          */
         post: {
             parameters: {

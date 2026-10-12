@@ -129,7 +129,7 @@ class ObjTagOptionHandler(BaseHandler):
             self.push_all(action="skyportal/FETCH_TAG_OPTIONS")
             return self.success(new_tag)
 
-    @auth_or_token
+    @permissions(["Manage sources"])
     async def patch(self, tag_id: int, *, body: ObjTagOptionPatchBody = None):
         """
         ---

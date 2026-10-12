@@ -278,7 +278,7 @@ class GroupAdmissionRequestHandler(BaseHandler):
             )
             return self.success()
 
-    @permissions(["Upload data"])
+    @auth_or_token
     async def delete(self, admission_request_id: int):
         """
         ---
