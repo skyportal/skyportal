@@ -3,6 +3,7 @@
  * track is one of these, with an Obj per detection epoch, which is why the
  * scanning view reads a track rather than the individual epochs.
  */
+import { buildQueryString } from "../API";
 import { skyportalApi } from "../api/skyportalApi";
 
 export interface SuperObjThumbnail {
@@ -53,14 +54,8 @@ export interface SuperObjQuery {
 }
 
 const queryString = (params: SuperObjQuery) => {
-  const search = new URLSearchParams();
-  Object.entries(params).forEach(([key, value]) => {
-    if (value !== undefined && value !== null && value !== "") {
-      search.append(key, String(value));
-    }
-  });
-  const encoded = search.toString();
-  return encoded ? `?${encoded}` : "";
+  const qs = buildQueryString({ ...params });
+  return qs ? `?${qs}` : "";
 };
 
 export const superObjsApi = skyportalApi.injectEndpoints({
