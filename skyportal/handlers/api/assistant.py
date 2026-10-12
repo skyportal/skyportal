@@ -29,7 +29,7 @@ class AssistantMessagePostBody(BaseModel):
     context_id: str | None = Field(
         default=None, description="ID of the resource the user is looking at."
     )
-    notify: dict | None = Field(
+    notify: dict[str, list[int]] | None = Field(
         default=None,
         description=(
             "Who to notify with the answer once it is ready, as "
@@ -109,6 +109,9 @@ class AssistantMessageHandler(BaseHandler):
                 schema: Success
         """
         body = self.parse_body(AssistantMessagePostBody)
+        # Other keys (e.g. comment_groups) are reserved for skybot's query runs.
+        if body.notify and not body.notify.keys() <= {"users", "groups"}:
+            return self.error("`notify` may only name `users` and `groups`")
 
         if not is_enabled(cfg):
             return self.error("No assistant is configured on this instance.")
