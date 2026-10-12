@@ -26,12 +26,6 @@ def serialize_tornado_request(handler):
     }
 
 
-# --- aiohttp serializers (facility_apis are async; aiohttp has no prepared
-# request object like `requests`, so the request side is serialized from the
-# call arguments captured at the call site). Their JSONB shape matches the
-# `requests` response serializers above, so FacilityTransaction rows look alike.
-
-
 def serialize_aiohttp_request(method, url, headers=None, body=None):
     """Serialize an outgoing aiohttp request from its call arguments."""
     import json as _json
