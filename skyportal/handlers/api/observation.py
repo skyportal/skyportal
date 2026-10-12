@@ -884,6 +884,70 @@ async def get_observations(
     return data
 
 
+# Shared by the JSON and ASCII upload handlers once the data is a dict of columns.
+def _validate_and_ingest_observations(handler, instrument, observation_data):
+    unique_keys = set(observation_data.keys())
+    field_id_keys = {
+        "observation_id",
+        "field_id",
+        "obstime",
+        "filter",
+        "exposure_time",
+    }
+    radec_keys = {
+        "observation_id",
+        "RA",
+        "Dec",
+        "obstime",
+        "filter",
+        "exposure_time",
+    }
+    if not field_id_keys.issubset(unique_keys) and not radec_keys.issubset(unique_keys):
+        return handler.error(
+            "observation_id, field_id (or RA and Dec), obstime, filter, and exposure_time required in observation_data."
+        )
+
+    if (
+        ("RA" in observation_data)
+        and ("Dec" in observation_data)
+        and not ("field_id" in observation_data)
+    ):
+        if instrument.region is None:
+            return handler.error(
+                "instrument.region must not be None if providing only RA and Dec."
+            )
+
+    for filt in observation_data["filter"]:
+        if filt not in instrument.filters:
+            return handler.error(f"Filter {filt} not present in {instrument.filters}")
+
+    # fill in any missing optional parameters
+    optional_parameters = [
+        "airmass",
+        "seeing",
+        "limmag",
+        "target_name",
+    ]
+    for key in optional_parameters:
+        if key not in observation_data:
+            observation_data[key] = [None] * len(observation_data["observation_id"])
+
+    if "processed_fraction" not in observation_data:
+        observation_data["processed_fraction"] = [1] * len(
+            observation_data["observation_id"]
+        )
+
+    obstable = pd.DataFrame.from_dict(observation_data)
+    instrument_id = instrument.id
+    # run async
+    IOLoop.current().run_in_executor(
+        None,
+        lambda: add_observations(instrument_id, obstable),
+    )
+
+    return handler.success()
+
+
 class ObservationHandler(BaseHandler):
     @permissions(["Upload data"])
     async def post(self, *, body: ObservationPostBody = None):
@@ -938,72 +1002,7 @@ class ObservationHandler(BaseHandler):
             if instrument is None:
                 return self.error(message=f"Missing instrument {instrument_name}")
 
-            unique_keys = set(observation_data.keys())
-            field_id_keys = {
-                "observation_id",
-                "field_id",
-                "obstime",
-                "filter",
-                "exposure_time",
-            }
-            radec_keys = {
-                "observation_id",
-                "RA",
-                "Dec",
-                "obstime",
-                "filter",
-                "exposure_time",
-            }
-            if not field_id_keys.issubset(unique_keys) and not radec_keys.issubset(
-                unique_keys
-            ):
-                return self.error(
-                    "observation_id, field_id (or RA and Dec), obstime, filter, and exposure_time required in observation_data."
-                )
-
-            if (
-                ("RA" in observation_data)
-                and ("Dec" in observation_data)
-                and not ("field_id" in observation_data)
-            ):
-                if instrument.region is None:
-                    return self.error(
-                        "instrument.region must not be None if providing only RA and Dec."
-                    )
-
-            for filt in observation_data["filter"]:
-                if filt not in instrument.filters:
-                    return self.error(
-                        f"Filter {filt} not present in {instrument.filters}"
-                    )
-
-            # fill in any missing optional parameters
-            optional_parameters = [
-                "airmass",
-                "seeing",
-                "limmag",
-                "target_name",
-            ]
-            for key in optional_parameters:
-                if key not in observation_data:
-                    observation_data[key] = [None] * len(
-                        observation_data["observation_id"]
-                    )
-
-            if "processed_fraction" not in observation_data:
-                observation_data["processed_fraction"] = [1] * len(
-                    observation_data["observation_id"]
-                )
-
-            obstable = pd.DataFrame.from_dict(observation_data)
-            instrument_id = instrument.id
-            # run async
-            IOLoop.current().run_in_executor(
-                None,
-                lambda: add_observations(instrument_id, obstable),
-            )
-
-            return self.success()
+            return _validate_and_ingest_observations(self, instrument, observation_data)
 
     @auth_or_token
     async def get(self, *, query: ObservationGetQuery = None):
@@ -1186,72 +1185,7 @@ class ObservationASCIIFileHandler(BaseHandler):
             except Exception as e:
                 return self.error(f"Unable to read in observation file: {e}")
 
-            unique_keys = set(observation_data.keys())
-            field_id_keys = {
-                "observation_id",
-                "field_id",
-                "obstime",
-                "filter",
-                "exposure_time",
-            }
-            radec_keys = {
-                "observation_id",
-                "RA",
-                "Dec",
-                "obstime",
-                "filter",
-                "exposure_time",
-            }
-            if not field_id_keys.issubset(unique_keys) and not radec_keys.issubset(
-                unique_keys
-            ):
-                return self.error(
-                    "observation_id, field_id (or RA and Dec), obstime, filter, and exposure_time required in observation_data."
-                )
-
-            if (
-                ("RA" in observation_data)
-                and ("Dec" in observation_data)
-                and not ("field_id" in observation_data)
-            ):
-                if instrument.region is None:
-                    return self.error(
-                        "instrument.region must not be None if providing only RA and Dec."
-                    )
-
-            for filt in observation_data["filter"]:
-                if filt not in instrument.filters:
-                    return self.error(
-                        f"Filter {filt} not present in {instrument.filters}"
-                    )
-
-            # fill in any missing optional parameters
-            optional_parameters = [
-                "airmass",
-                "seeing",
-                "limmag",
-                "target_name",
-            ]
-            for key in optional_parameters:
-                if key not in observation_data:
-                    observation_data[key] = [None] * len(
-                        observation_data["observation_id"]
-                    )
-
-            if "processed_fraction" not in observation_data:
-                observation_data["processed_fraction"] = [1] * len(
-                    observation_data["observation_id"]
-                )
-
-            obstable = pd.DataFrame.from_dict(observation_data)
-            instrument_id_final = instrument.id
-            # run async
-            IOLoop.current().run_in_executor(
-                None,
-                lambda: add_observations(instrument_id_final, obstable),
-            )
-
-            return self.success()
+            return _validate_and_ingest_observations(self, instrument, observation_data)
 
 
 class ObservationExternalAPIHandler(BaseHandler):
