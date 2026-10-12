@@ -138,7 +138,6 @@ export const buildQueryString = (params: Record<string, unknown>): string => {
   return search.toString();
 };
 
-// Reads a file into the { body, name } attachment shape comment endpoints take.
 export function fileReaderPromise(
   file: File,
 ): Promise<{ body: string | ArrayBuffer | null; name: string }> {

@@ -1,4 +1,3 @@
-// Saves `content` as a file named `filename` via a temporary object URL.
 export const download = (content: string, type: string, filename: string) => {
   const blob = new Blob([content], { type });
   const url = URL.createObjectURL(blob);
