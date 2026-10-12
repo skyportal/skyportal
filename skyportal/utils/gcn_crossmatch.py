@@ -124,6 +124,8 @@ DEFAULTS = {
     # How long to leave a broker alone after it answers 429. Lasair's quota is
     # hourly, so anything shorter just spends the next window's allowance.
     "rate_limit_backoff_minutes": 60.0,
+    # Overlap with the previous search, for alerts the broker made queryable late.
+    "requery_overlap_days": 1.0,
 }
 
 ANNOTATION_ORIGIN = "GCN-crossmatch"
@@ -618,13 +620,18 @@ async def process_event_filter(
         jd_end = event_jd - float(conf(config, "delta_t_before"))
         jd_start = jd_end - float(conf(config, "archival_days"))
     else:
-        # Lower bound: resume from the newest alert already seen rather than from
-        # wall-clock, because brokers make alerts queryable some time after the
-        # alert's own JD. Anchoring on wall-clock would step over that lag and
-        # silently lose late-arriving alerts.
+        # Lower bound: resume from the newest alert already seen, or from the
+        # previous successful search less an overlap, because brokers make alerts
+        # queryable some time after the alert's own JD.
         jd_start = event_jd - float(conf(config, "delta_t_before"))
         if state.last_alert_jd is not None:
             jd_start = max(jd_start, state.last_alert_jd)
+        if state.status == "done" and state.last_queried is not None:
+            jd_start = max(
+                jd_start,
+                float(Time(state.last_queried).jd)
+                - float(conf(config, "requery_overlap_days")),
+            )
         jd_end = event_jd + float(conf(config, "delta_t_after"))
         # The history cuts cap the epoch of anything that can match: a first
         # detection no later than the trigger plus one window, and an alert no
@@ -849,7 +856,7 @@ async def process_event_filter(
             state.archival_done = True
         else:
             state.last_alert_jd = newest_jd
-        state.last_queried = utcnow_naive()
+            state.last_queried = utcnow_naive()
         state.status = "done"
         state.error = None
         state.n_matches = (state.n_matches or 0) + matched
