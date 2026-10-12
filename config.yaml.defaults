@@ -933,6 +933,7 @@ misc:
   minutes_to_keep_candidate_query_cache: 60
   minutes_to_keep_source_query_cache: 360 # 6 hours
   minutes_to_keep_annotations_info_query_cache: 360 # 6 hours
+  minutes_to_keep_offset_stars_cache: 60
   minutes_to_keep_localization_instrument_query_cache: 1440 # 1 day
   max_items_in_localization_instrument_query_cache: 100
   minutes_to_keep_public_source_pages_cache: 1440 # 1 day
