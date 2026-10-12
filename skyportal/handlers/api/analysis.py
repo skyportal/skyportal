@@ -347,6 +347,36 @@ def analysis_model_for(analysis_resource_type):
     return None
 
 
+def _analysis_inputs(analysis_parameters):
+    """Return the service inputs and whether to deredden photometry.
+
+    Strips data-URL parameters from ``analysis_parameters`` in place, after
+    copying them into the inputs, so the stored analysis keeps only file names.
+    """
+    inputs = {"analysis_parameters": analysis_parameters.copy()}
+
+    # Opt-in Galactic-extinction correction of the photometry sent to the service.
+    correct_extinction = str_to_bool(
+        analysis_parameters.get("correct_extinction"), default=False
+    )
+
+    # if any analysis_parameters is a file, we discard it and just keep its name (if possible)
+    keys_to_delete = []
+    for k, v in analysis_parameters.items():
+        if isinstance(v, str):
+            if "data:" in v and ";name=" in v:
+                keys_to_delete.append(k)
+    for k in keys_to_delete:
+        try:
+            analysis_parameters[k] = (
+                analysis_parameters[k].split(";name=")[1].split(";")[0]
+            )
+        except Exception:
+            del analysis_parameters[k]
+
+    return inputs, correct_extinction
+
+
 def _localization_payload(localization):
     """Sky position (max-probability point) and a skymap reference for a GCN
     localization, best-effort. Targeted searches (e.g. PyGRB) point at ra/dec; the
@@ -504,26 +534,7 @@ def post_analysis(
 
     input_data_types = analysis_service.input_data_types.copy()
 
-    inputs = {"analysis_parameters": analysis_parameters.copy()}
-
-    # Opt-in Galactic-extinction correction of the photometry sent to the service.
-    correct_extinction = str_to_bool(
-        analysis_parameters.get("correct_extinction"), default=False
-    )
-
-    # if any analysis_parameters is a file, we discard it and just keep its name (if possible)
-    keys_to_delete = []
-    for k, v in analysis_parameters.items():
-        if isinstance(v, str):
-            if "data:" in v and ";name=" in v:
-                keys_to_delete.append(k)
-    for k in keys_to_delete:
-        try:
-            analysis_parameters[k] = (
-                analysis_parameters[k].split(";name=")[1].split(";")[0]
-            )
-        except Exception:
-            del analysis_parameters[k]
+    inputs, correct_extinction = _analysis_inputs(analysis_parameters)
 
     if analysis_resource_type.lower() == "obj":
         obj_id = resource_id
@@ -811,26 +822,7 @@ async def post_analysis_async(
 
     input_data_types = analysis_service.input_data_types.copy()
 
-    inputs = {"analysis_parameters": analysis_parameters.copy()}
-
-    # Opt-in Galactic-extinction correction of the photometry sent to the service.
-    correct_extinction = str_to_bool(
-        analysis_parameters.get("correct_extinction"), default=False
-    )
-
-    # if any analysis_parameters is a file, we discard it and just keep its name (if possible)
-    keys_to_delete = []
-    for k, v in analysis_parameters.items():
-        if isinstance(v, str):
-            if "data:" in v and ";name=" in v:
-                keys_to_delete.append(k)
-    for k in keys_to_delete:
-        try:
-            analysis_parameters[k] = (
-                analysis_parameters[k].split(";name=")[1].split(";")[0]
-            )
-        except Exception:
-            del analysis_parameters[k]
+    inputs, correct_extinction = _analysis_inputs(analysis_parameters)
 
     if analysis_resource_type.lower() == "obj":
         obj_id = resource_id
