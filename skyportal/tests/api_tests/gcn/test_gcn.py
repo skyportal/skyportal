@@ -12,7 +12,7 @@ from astropy.time import Time
 
 from skyportal.handlers.api.gcn import _summary_context, add_default_gcn_tags
 from skyportal.models import DBSession, DefaultGcnTag, User
-from skyportal.tests import api, retry_until
+from skyportal.tests import api, post_gcn_event_if_missing, retry_until
 from skyportal.tests.external.test_moving_objects import (
     add_telescope_and_instrument,
     remove_telescope_and_instrument,
@@ -35,18 +35,9 @@ else:
 @pytest.mark.flaky(reruns=2)
 def test_gcn_GW(super_admin_token, view_only_token):
     datafile = f"{os.path.dirname(__file__)}/../../data/GW190425_initial.xml"
-    with open(datafile, "rb") as fid:
-        payload = fid.read()
-    event_data = {"xml": payload}
 
     dateobs = "2019-04-25 08:18:05"
-    status, data = api("GET", f"gcn_event/{dateobs}", token=super_admin_token)
-    if status == 404:
-        status, data = api(
-            "POST", "gcn_event", data=event_data, token=super_admin_token
-        )
-        assert status == 200
-        assert data["status"] == "success"
+    post_gcn_event_if_missing(dateobs, super_admin_token, xml_file=datafile)
 
     dateobs = "2019-04-25 08:18:05"
     status, data = api("GET", f"gcn_event/{dateobs}", token=super_admin_token)
@@ -131,19 +122,9 @@ def test_gcn_Fermi(super_admin_token, view_only_token):
     datafile = (
         f"{os.path.dirname(__file__)}/../../data/GRB180116A_Fermi_GBM_Gnd_Pos.xml"
     )
-    with open(datafile, "rb") as fid:
-        payload = fid.read()
-    event_data = {"xml": payload}
 
     dateobs = "2018-01-16 00:36:53"
-    status, data = api("GET", f"gcn_event/{dateobs}", token=super_admin_token)
-
-    if status == 404:
-        status, data = api(
-            "POST", "gcn_event", data=event_data, token=super_admin_token
-        )
-        assert status == 200
-        assert data["status"] == "success"
+    post_gcn_event_if_missing(dateobs, super_admin_token, xml_file=datafile)
 
     params = {"include2DMap": True}
     status, data = api("GET", f"gcn_event/{dateobs}", token=super_admin_token)
@@ -212,13 +193,7 @@ def test_gcn_from_moc(super_admin_token):
     }
 
     dateobs = "2022-06-18 18:31:12"
-    status, data = api("GET", f"gcn_event/{dateobs}", token=super_admin_token)
-    if status == 404:
-        status, data = api(
-            "POST", "gcn_event", data=event_data, token=super_admin_token
-        )
-        assert status == 200
-        assert data["status"] == "success"
+    post_gcn_event_if_missing(dateobs, super_admin_token, event_data=event_data)
 
     status, data = api("GET", f"gcn_event/{dateobs}", token=super_admin_token)
     assert status == 200
@@ -255,13 +230,7 @@ def test_gcn_from_json(super_admin_token):
     event_data = {"json": payload}
 
     dateobs = "2024-05-08T07:38:01"
-    status, data = api("GET", f"gcn_event/{dateobs}", token=super_admin_token)
-    if status == 404:
-        status, data = api(
-            "POST", "gcn_event", data=event_data, token=super_admin_token
-        )
-        assert status == 200
-        assert data["status"] == "success"
+    post_gcn_event_if_missing(dateobs, super_admin_token, event_data=event_data)
 
     dateobs = "2024-05-08T07:38:01"
     status, data = api("GET", f"gcn_event/{dateobs}", token=super_admin_token)
@@ -314,13 +283,7 @@ def test_gcn_from_igwn_json(super_admin_token):
         payload = fid.read()
 
     dateobs = "2026-06-05T11:57:26"
-    status, data = api("GET", f"gcn_event/{dateobs}", token=super_admin_token)
-    if status == 404:
-        status, data = api(
-            "POST", "gcn_event", data={"json": payload}, token=super_admin_token
-        )
-        assert status == 200, data
-        assert data["status"] == "success"
+    post_gcn_event_if_missing(dateobs, super_admin_token, event_data={"json": payload})
 
     status, data = api("GET", f"gcn_event/{dateobs}", token=super_admin_token)
     assert status == 200
@@ -1983,16 +1946,9 @@ def test_gcn_tags_can_be_filtered_by_messenger(super_admin_token):
 def test_gcn_event_summary(super_admin_token, view_only_token):
     """The summary round-trips, keeps a history, and clears."""
     datafile = f"{os.path.dirname(__file__)}/../../data/GW190425_initial.xml"
-    with open(datafile, "rb") as fid:
-        payload = fid.read()
 
     dateobs = "2019-04-25 08:18:05"
-    status, data = api("GET", f"gcn_event/{dateobs}", token=super_admin_token)
-    if status == 404:
-        status, data = api(
-            "POST", "gcn_event", data={"xml": payload}, token=super_admin_token
-        )
-        assert status == 200
+    post_gcn_event_if_missing(dateobs, super_admin_token, xml_file=datafile)
 
     status, data = api(
         "PATCH",
