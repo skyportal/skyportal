@@ -76,6 +76,30 @@ GAIA_ANNOTATION_COLUMNS = (
 )
 
 
+async def _annotation_groups(handler, session, group_ids):
+    """Groups to share the annotation with, or None after writing an error."""
+    if not group_ids:
+        public_group = await session.scalar(
+            sa.select(Group.id).where(Group.name == cfg["misc.public_group_name"])
+        )
+        if public_group is None:
+            return handler.error(
+                f'No group(s) were specified and the public group "{cfg["misc.public_group_name"]}" does not exist.'
+            )
+        group_ids = [public_group]
+
+    groups_result = await session.scalars(
+        Group.select(handler.current_user).where(Group.id.in_(group_ids))
+    )
+    groups = list(groups_result.unique().all())
+
+    if {g.id for g in groups} != set(group_ids):
+        return handler.error(
+            f"Cannot find one or more groups with IDs: {group_ids}.", status=403
+        )
+    return groups
+
+
 class GaiaQueryBody(BaseModel):
     """Request body for posting Gaia cross-match annotations."""
 
@@ -234,29 +258,9 @@ class GaiaQueryHandler(BaseHandler):
                 "RUWE": "ruwe",
             }
 
-            group_ids = body.group_ids
-
-            if not group_ids:
-                public_group = await session.scalar(
-                    sa.select(Group.id).where(
-                        Group.name == cfg["misc.public_group_name"]
-                    )
-                )
-                if public_group is None:
-                    return self.error(
-                        f'No group(s) were specified and the public group "{cfg["misc.public_group_name"]}" does not exist.'
-                    )
-                group_ids = [public_group]
-
-            groups_result = await session.scalars(
-                Group.select(self.current_user).where(Group.id.in_(group_ids))
-            )
-            groups = list(groups_result.unique().all())
-
-            if {g.id for g in groups} != set(group_ids):
-                return self.error(
-                    f"Cannot find one or more groups with IDs: {group_ids}.", status=403
-                )
+            groups = await _annotation_groups(self, session, body.group_ids)
+            if groups is None:
+                return
 
             annotations = []
             for index, row in df.iterrows():
@@ -328,28 +332,9 @@ class IRSAQueryWISEHandler(BaseHandler):
                     f'Cannot find source with id "{obj_id}". ', status=403
                 )
 
-            group_ids = body.group_ids
-
-            if not group_ids:
-                public_group = await session.scalar(
-                    sa.select(Group.id).where(
-                        Group.name == cfg["misc.public_group_name"]
-                    )
-                )
-                if public_group is None:
-                    return self.error(
-                        f'No group(s) were specified and the public group "{cfg["misc.public_group_name"]}" does not exist.'
-                    )
-                group_ids = [public_group]
-            groups_result = await session.scalars(
-                Group.select(self.current_user).where(Group.id.in_(group_ids))
-            )
-            groups = list(groups_result.unique().all())
-
-            if {g.id for g in groups} != set(group_ids):
-                return self.error(
-                    f"Cannot find one or more groups with IDs: {group_ids}.", status=403
-                )
+            groups = await _annotation_groups(self, session, body.group_ids)
+            if groups is None:
+                return
 
             author_id = self.associated_user_object.id
 
@@ -453,26 +438,9 @@ class ALMAQueryHandler(BaseHandler):
             if obj.ra is None or obj.dec is None:
                 return self.error(f"Source {obj_id} has no position to search on.")
 
-            group_ids = body.group_ids
-            if not group_ids:
-                public_group = await session.scalar(
-                    sa.select(Group.id).where(
-                        Group.name == cfg["misc.public_group_name"]
-                    )
-                )
-                if public_group is None:
-                    return self.error(
-                        f'No group(s) were specified and the public group "{cfg["misc.public_group_name"]}" does not exist.'
-                    )
-                group_ids = [public_group]
-            groups_result = await session.scalars(
-                Group.select(self.current_user).where(Group.id.in_(group_ids))
-            )
-            groups = list(groups_result.unique().all())
-            if {g.id for g in groups} != set(group_ids):
-                return self.error(
-                    f"Cannot find one or more groups with IDs: {group_ids}.", status=403
-                )
+            groups = await _annotation_groups(self, session, body.group_ids)
+            if groups is None:
+                return
 
             radius_arcsec = body.crossmatchRadius
             public_only = body.publicOnly
@@ -569,28 +537,9 @@ class VizierQueryHandler(BaseHandler):
                     f'Cannot find source with id "{obj_id}". ', status=403
                 )
 
-            group_ids = body.group_ids
-
-            if not group_ids:
-                public_group = await session.scalar(
-                    sa.select(Group.id).where(
-                        Group.name == cfg["misc.public_group_name"]
-                    )
-                )
-                if public_group is None:
-                    return self.error(
-                        f'No group(s) were specified and the public group "{cfg["misc.public_group_name"]}" does not exist.'
-                    )
-                group_ids = [public_group]
-            groups_result = await session.scalars(
-                Group.select(self.current_user).where(Group.id.in_(group_ids))
-            )
-            groups = list(groups_result.unique().all())
-
-            if {g.id for g in groups} != set(group_ids):
-                return self.error(
-                    f"Cannot find one or more groups with IDs: {group_ids}.", status=403
-                )
+            groups = await _annotation_groups(self, session, body.group_ids)
+            if groups is None:
+                return
 
             author_id = self.associated_user_object.id
 
@@ -702,28 +651,9 @@ class DatalabQueryHandler(BaseHandler):
                     f'Cannot find source with id "{obj_id}". ', status=403
                 )
 
-            group_ids = body.group_ids
-
-            if not group_ids:
-                public_group = await session.scalar(
-                    sa.select(Group.id).where(
-                        Group.name == cfg["misc.public_group_name"]
-                    )
-                )
-                if public_group is None:
-                    return self.error(
-                        f'No group(s) were specified and the public group "{cfg["misc.public_group_name"]}" does not exist.'
-                    )
-                group_ids = [public_group]
-            groups_result = await session.scalars(
-                Group.select(self.current_user).where(Group.id.in_(group_ids))
-            )
-            groups = list(groups_result.unique().all())
-
-            if {g.id for g in groups} != set(group_ids):
-                return self.error(
-                    f"Cannot find one or more groups with IDs: {group_ids}.", status=403
-                )
+            groups = await _annotation_groups(self, session, body.group_ids)
+            if groups is None:
+                return
 
             author_id = self.associated_user_object.id
 
@@ -888,28 +818,9 @@ class PS1QueryHandler(BaseHandler):
 
             df = df.head(num_matches)
 
-            group_ids = body.group_ids
-
-            if not group_ids:
-                public_group = await session.scalar(
-                    sa.select(Group.id).where(
-                        Group.name == cfg["misc.public_group_name"]
-                    )
-                )
-                if public_group is None:
-                    return self.error(
-                        f'No group(s) were specified and the public group "{cfg["misc.public_group_name"]}" does not exist.'
-                    )
-                group_ids = [public_group]
-            groups_result = await session.scalars(
-                Group.select(self.current_user).where(Group.id.in_(group_ids))
-            )
-            groups = list(groups_result.unique().all())
-
-            if {g.id for g in groups} != set(group_ids):
-                return self.error(
-                    f"Cannot find one or more groups with IDs: {group_ids}.", status=403
-                )
+            groups = await _annotation_groups(self, session, body.group_ids)
+            if groups is None:
+                return
 
             annotations = []
 
