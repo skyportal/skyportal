@@ -3170,25 +3170,61 @@ def add_tiles_and_properties_and_contour(
             session.close()
 
 
+def _matching_default_gcn_tags(user, event, localization, default_gcn_tags):
+    """GcnTags for the defaults whose filters match the event and localization."""
+    event_notice_types = [notice.notice_type for notice in event.gcn_notices]
+    event_tags = event.tags
+    if localization is not None:
+        localization_tags = [tag.text for tag in localization.tags]
+    else:
+        localization_tags = []
+
+    gcn_tags = []
+    for default_gcn_tag in default_gcn_tags:
+        try:
+            filters = default_gcn_tag.filters
+            if len(filters.get("gcn_tags", [])) > 0:
+                if not any(tag in event_tags for tag in filters["gcn_tags"]):
+                    continue
+            if len(filters.get("notice_types", [])) > 0:
+                if not any(
+                    notice_type in event_notice_types
+                    for notice_type in filters["notice_types"]
+                ):
+                    continue
+            if len(filters.get("localization_tags", [])) > 0:
+                if not any(
+                    tag in localization_tags for tag in filters["localization_tags"]
+                ):
+                    continue
+            tag_name = default_gcn_tag.default_tag_name
+            if tag_name not in event_tags and tag_name not in gcn_tags:
+                gcn_tags.append(tag_name)
+        except Exception as e:
+            # Don't let one malformed default stop the others, but say so:
+            # a silent pass here hid a bad filter key for a long time.
+            log(f"Skipping default GCN tag {default_gcn_tag.id}: {e}")
+
+    return [
+        GcnTag(
+            text=text,
+            dateobs=event.dateobs,
+            sent_by_id=user.id,
+        )
+        for text in gcn_tags
+    ]
+
+
 def add_default_gcn_tags(user, session, dateobs=None, localization=None):
     gcn_tags = []
     try:
         if dateobs is None and localization is None:
             return gcn_tags
         if dateobs is None:
-            event = session.scalars(
-                GcnEvent.select(user).where(GcnEvent.dateobs == localization.dateobs)
-            ).first()
-        else:
-            event = session.scalars(
-                GcnEvent.select(user).where(GcnEvent.dateobs == dateobs)
-            ).first()
-        event_notice_types = [notice.notice_type for notice in event.gcn_notices]
-        event_tags = event.tags
-        if localization is not None:
-            localization_tags = [tag.text for tag in localization.tags]
-        else:
-            localization_tags = []
+            dateobs = localization.dateobs
+        event = session.scalars(
+            GcnEvent.select(user).where(GcnEvent.dateobs == dateobs)
+        ).first()
 
         default_gcn_tags = (
             (
@@ -3201,40 +3237,9 @@ def add_default_gcn_tags(user, session, dateobs=None, localization=None):
             .unique()
             .all()
         )
-
-        for default_gcn_tag in default_gcn_tags:
-            try:
-                filters = default_gcn_tag.filters
-                if len(filters.get("gcn_tags", [])) > 0:
-                    if not any(tag in event_tags for tag in filters["gcn_tags"]):
-                        continue
-                if len(filters.get("notice_types", [])) > 0:
-                    if not any(
-                        notice_type in event_notice_types
-                        for notice_type in filters["notice_types"]
-                    ):
-                        continue
-                if len(filters.get("localization_tags", [])) > 0:
-                    if not any(
-                        tag in localization_tags for tag in filters["localization_tags"]
-                    ):
-                        continue
-                tag_name = default_gcn_tag.default_tag_name
-                if tag_name not in event_tags and tag_name not in gcn_tags:
-                    gcn_tags.append(tag_name)
-            except Exception as e:
-                # Don't let one malformed default stop the others, but say so:
-                # a silent pass here hid a bad filter key for a long time.
-                log(f"Skipping default GCN tag {default_gcn_tag.id}: {e}")
-
-        gcn_tags = [
-            GcnTag(
-                text=text,
-                dateobs=event.dateobs,
-                sent_by_id=user.id,
-            )
-            for text in gcn_tags
-        ]
+        gcn_tags = _matching_default_gcn_tags(
+            user, event, localization, default_gcn_tags
+        )
     except Exception as e:
         log(f"Unable to add default GCN tags: {str(e)}")
         gcn_tags = []
@@ -3251,66 +3256,21 @@ async def add_default_gcn_tags_async(user, session, dateobs=None, localization=N
         if dateobs is None and localization is None:
             return gcn_tags
         if dateobs is None:
-            event = await session.scalar(
-                GcnEvent.select(user)
-                .where(GcnEvent.dateobs == localization.dateobs)
-                .options(
-                    selectinload(GcnEvent.gcn_notices),
-                    selectinload(GcnEvent._tags),
-                )
+            dateobs = localization.dateobs
+        event = await session.scalar(
+            GcnEvent.select(user)
+            .where(GcnEvent.dateobs == dateobs)
+            .options(
+                selectinload(GcnEvent.gcn_notices),
+                selectinload(GcnEvent._tags),
             )
-        else:
-            event = await session.scalar(
-                GcnEvent.select(user)
-                .where(GcnEvent.dateobs == dateobs)
-                .options(
-                    selectinload(GcnEvent.gcn_notices),
-                    selectinload(GcnEvent._tags),
-                )
-            )
-        event_notice_types = [notice.notice_type for notice in event.gcn_notices]
-        event_tags = event.tags
-        if localization is not None:
-            localization_tags = [tag.text for tag in localization.tags]
-        else:
-            localization_tags = []
+        )
 
         default_gcn_tags_result = await session.scalars(DefaultGcnTag.select(user))
         default_gcn_tags = default_gcn_tags_result.unique().all()
-
-        for default_gcn_tag in default_gcn_tags:
-            try:
-                filters = default_gcn_tag.filters
-                if len(filters.get("gcn_tags", [])) > 0:
-                    if not any(tag in event_tags for tag in filters["gcn_tags"]):
-                        continue
-                if len(filters.get("notice_types", [])) > 0:
-                    if not any(
-                        notice_type in event_notice_types
-                        for notice_type in filters["notice_types"]
-                    ):
-                        continue
-                if len(filters.get("localization_tags", [])) > 0:
-                    if not any(
-                        tag in localization_tags for tag in filters["localization_tags"]
-                    ):
-                        continue
-                tag_name = default_gcn_tag.default_tag_name
-                if tag_name not in event_tags and tag_name not in gcn_tags:
-                    gcn_tags.append(tag_name)
-            except Exception as e:
-                # Don't let one malformed default stop the others, but say so:
-                # a silent pass here hid a bad filter key for a long time.
-                log(f"Skipping default GCN tag {default_gcn_tag.id}: {e}")
-
-        gcn_tags = [
-            GcnTag(
-                text=text,
-                dateobs=event.dateobs,
-                sent_by_id=user.id,
-            )
-            for text in gcn_tags
-        ]
+        gcn_tags = _matching_default_gcn_tags(
+            user, event, localization, default_gcn_tags
+        )
     except Exception as e:
         log(f"Unable to add default GCN tags: {str(e)}")
         gcn_tags = []
