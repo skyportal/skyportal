@@ -153,7 +153,10 @@ from ...utils.gcn import (
     has_skymap,
 )
 from ...utils.naive_datetime import UTCTZnaiveDateTime, utcnow_naive
-from ...utils.notifications import post_notification
+from ...utils.notifications import (
+    post_notification,
+    post_notification_in_background,
+)
 from ...utils.parse import get_page_and_n_per_page
 from ...utils.summarize import summarize, summarizer_configured, user_summarizer
 from ..base import BaseHandler
@@ -3075,19 +3078,8 @@ def add_tiles_and_properties_and_contour(
             session.commit()
 
         if notify:
-            try:
-                loop = asyncio.get_event_loop()
-            except Exception:
-                loop = asyncio.new_event_loop()
-                asyncio.set_event_loop(loop)
-
-            request_body = {
-                "target_class_name": "Localization",
-                "target_id": localization_id,
-            }
-            IOLoop.current().run_in_executor(
-                None,
-                lambda: post_notification(request_body, timeout=30),
+            post_notification_in_background(
+                {"target_class_name": "Localization", "target_id": localization_id}
             )
 
         log(f"Adding tiles for localization {localization_id}")

@@ -4,11 +4,10 @@ __all__ = ["UserNotification"]
 import sqlalchemy as sa
 from sqlalchemy import event, inspect
 from sqlalchemy.orm import relationship
-from tornado.ioloop import IOLoop
 
 from baselayer.app.models import AccessibleIfUserMatches, Base
 
-from ..utils.notifications import post_notification
+from ..utils.notifications import post_notification_in_background
 from .analysis import ObjAnalysis
 from .classification import Classification
 from .comment import Comment
@@ -91,12 +90,6 @@ def add_user_notifications(mapper, connection, target):
         except Exception:
             return
 
-        request_body = {
-            "target_class_name": target_class_name,
-            "target_id": target_id,
-        }
-
-        IOLoop.current().run_in_executor(
-            None,
-            lambda: post_notification(request_body, timeout=30),
+        post_notification_in_background(
+            {"target_class_name": target_class_name, "target_id": target_id}
         )

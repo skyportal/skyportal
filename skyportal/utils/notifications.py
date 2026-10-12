@@ -1,6 +1,7 @@
 import datetime
 import json
 import re
+from concurrent.futures import ThreadPoolExecutor
 
 import aiohttp
 import lxml
@@ -529,6 +530,14 @@ def discussion_notification_text(content, escape, bold="*"):
     )
     verb = "mentioned you in" if content["mentioned"] else "wrote in"
     return f"{author} {verb} {where}: {snippet}"
+
+
+_notification_executor = ThreadPoolExecutor(max_workers=4)
+
+
+def post_notification_in_background(request_body, timeout=30):
+    """Post a notification without waiting for it, from the event loop or any thread."""
+    _notification_executor.submit(post_notification, request_body, timeout=timeout)
 
 
 def post_notification(request_body, timeout=2):
