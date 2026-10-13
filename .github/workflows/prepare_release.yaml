@@ -9,6 +9,11 @@ on:
 permissions:
   contents: read
 
+# Runs force-push the release branch; a newer run already sees every changeset
+concurrency:
+  group: prepare-release
+  cancel-in-progress: true
+
 jobs:
   prepare-release:
     runs-on: ubuntu-latest
