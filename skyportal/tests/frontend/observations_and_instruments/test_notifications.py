@@ -150,6 +150,8 @@ def test_group_admission_requests_notifications(
     page.locator(
         f'//*[@data-testid="requestAdmissionButton{public_group2.id}"]'
     ).first.click()
+    page.get_by_label("Why do you want to join?").fill("Testing notifications")
+    page.locator('//*[@data-testid="submitAdmissionRequestButton"]').first.click()
     expect(
         page.locator(
             f'//*[@data-testid="deleteAdmissionRequestButton{public_group2.id}"]'

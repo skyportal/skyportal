@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import Box from "@mui/material/Box";
 import Paper from "@mui/material/Paper";
@@ -11,6 +11,11 @@ import CircularProgress from "@mui/material/CircularProgress";
 import DragHandleIcon from "@mui/icons-material/DragHandle";
 import CloseIcon from "@mui/icons-material/Close";
 import IconButton from "@mui/material/IconButton";
+import TextField from "@mui/material/TextField";
+import Dialog from "@mui/material/Dialog";
+import DialogActions from "@mui/material/DialogActions";
+import DialogContent from "@mui/material/DialogContent";
+import DialogTitle from "@mui/material/DialogTitle";
 
 import { showNotification } from "baselayer/components/Notifications";
 import { useAppDispatch } from "../../types/hooks";
@@ -46,6 +51,8 @@ const GroupList = ({
   const dispatch = useAppDispatch();
   const [requestGroupAdmission] = useRequestGroupAdmissionMutation();
   const [deleteAdmissionRequest] = useDeleteAdmissionRequestMutation();
+  const [requestingGroup, setRequestingGroup] = useState<any>(null);
+  const [reason, setReason] = useState("");
   const {
     id: currentUserID,
     streams: userStreams,
@@ -112,11 +119,12 @@ const GroupList = ({
     (userStreams ?? []).map((stream: any) => stream.id),
   );
 
-  const handleRequestAdmission = async (group: any) => {
+  const handleRequestAdmission = async (group: any, message?: string) => {
     try {
       await requestGroupAdmission({
         userID: currentUserID,
         groupID: group.id,
+        message,
       }).unwrap();
       dispatch(
         showNotification(
@@ -168,7 +176,14 @@ const GroupList = ({
             secondary
             size="small"
             disabled={isDisable}
-            onClick={() => handleRequestAdmission(group)}
+            onClick={() => {
+              if (group.auto_accept_requests) {
+                handleRequestAdmission(group);
+              } else {
+                setReason("");
+                setRequestingGroup(group);
+              }
+            }}
             data-testid={`requestAdmissionButton${group.id}`}
           >
             {label}
@@ -205,21 +220,64 @@ const GroupList = ({
       : []),
   ];
 
+  const closeRequestDialog = () => setRequestingGroup(null);
+
+  const submitRequest = async () => {
+    await handleRequestAdmission(requestingGroup, reason.trim());
+    closeRequestDialog();
+  };
+
   return (
-    <StyledDataGrid
-      autoHeight
-      rows={multiUserGroups}
-      columns={columns}
-      getRowId={(row: any) => row.id}
-      filterModel={filterModel}
-      onFilterModelChange={onFilterModelChange}
-      showToolbar
-      onRowClick={
-        admission ? undefined : (params: any) => navigate(getLink(params.row))
-      }
-      slots={{ toolbar: CustomToolbar }}
-      sx={admission ? {} : { "& .MuiDataGrid-row": { cursor: "pointer" } }}
-    />
+    <>
+      <StyledDataGrid
+        autoHeight
+        rows={multiUserGroups}
+        columns={columns}
+        getRowId={(row: any) => row.id}
+        filterModel={filterModel}
+        onFilterModelChange={onFilterModelChange}
+        showToolbar
+        onRowClick={
+          admission ? undefined : (params: any) => navigate(getLink(params.row))
+        }
+        slots={{ toolbar: CustomToolbar }}
+        sx={admission ? {} : { "& .MuiDataGrid-row": { cursor: "pointer" } }}
+      />
+      <Dialog
+        fullWidth
+        maxWidth="sm"
+        open={requestingGroup != null}
+        onClose={closeRequestDialog}
+      >
+        <DialogTitle>Join {requestingGroup?.name}</DialogTitle>
+        <DialogContent>
+          <TextField
+            autoFocus
+            fullWidth
+            multiline
+            minRows={3}
+            label="Why do you want to join?"
+            value={reason}
+            onChange={(event) => setReason(event.target.value)}
+            slotProps={{ htmlInput: { maxLength: 2000 } }}
+            sx={{ mt: 1 }}
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button secondary onClick={closeRequestDialog}>
+            Cancel
+          </Button>
+          <Button
+            primary
+            disabled={!reason.trim()}
+            onClick={submitRequest}
+            data-testid="submitAdmissionRequestButton"
+          >
+            Send request
+          </Button>
+        </DialogActions>
+      </Dialog>
+    </>
   );
 };
 

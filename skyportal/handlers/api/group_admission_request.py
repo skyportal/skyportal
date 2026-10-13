@@ -126,6 +126,7 @@ class GroupAdmissionRequestHandler(BaseHandler):
         body = self.parse_body(GroupAdmissionRequestPostBody)
         user_id = body.userID
         group_id = body.groupID
+        message = (body.message or "").strip() or None
 
         async with self.AsyncSession() as session:
             group = await session.scalar(
@@ -187,6 +188,7 @@ class GroupAdmissionRequestHandler(BaseHandler):
                 user_id=user_id,
                 group_id=group_id,
                 status="accepted" if auto_accept else "pending",
+                message=message,
             )
             session.add(admission_request)
 

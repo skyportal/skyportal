@@ -29572,6 +29572,8 @@ export interface components {
              * @enum {string}
              */
             status?: "pending" | "accepted" | "declined";
+            /** @description Why the User wants to join the group */
+            message?: string | null;
             /** @description Unique object identifier. */
             id?: number;
         };
@@ -29601,6 +29603,8 @@ export interface components {
              * @enum {string}
              */
             status?: "pending" | "accepted" | "declined";
+            /** @description Why the User wants to join the group */
+            message?: string | null;
         };
         SingleGroupAdmissionRequestNoID: {
             /** @enum {string} */
@@ -45010,6 +45014,12 @@ export interface components {
              * @description ID of the user requesting admission
              */
             userID: number;
+            /**
+             * Message
+             * @description Why the user wants to join the group
+             * @default null
+             */
+            message: string | null;
         };
         /**
          * GroupAdmissionRequestPostResponse

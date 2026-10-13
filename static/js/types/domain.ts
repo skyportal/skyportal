@@ -41,6 +41,7 @@ export interface GroupAdmissionRequest {
   group_id: number;
   user_id: number;
   status: "pending" | "accepted" | "declined";
+  message?: string | null;
 }
 
 export interface Classification {
