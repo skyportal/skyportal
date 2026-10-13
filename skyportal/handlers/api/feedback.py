@@ -8,12 +8,11 @@ from sqlalchemy.orm import selectinload
 
 from baselayer.app.access import auth_or_token, permissions
 
-from ...models import Feedback, FeedbackReply
+from ...models import Feedback, FeedbackReply, User
 from ..base import BaseHandler
 
 
-def author_dict(record):
-    author = record.author
+def user_dict(author):
     return {
         "id": author.id,
         "username": author.username,
@@ -30,13 +29,14 @@ def message_dict(message):
         "text": message.text,
         "resolved": message.resolved,
         "created_at": message.created_at,
-        "author": author_dict(message),
+        "author": user_dict(message.author),
+        "assignee": message.assignee and user_dict(message.assignee),
         "replies": [
             {
                 "id": reply.id,
                 "text": reply.text,
                 "created_at": reply.created_at,
-                "author": author_dict(reply),
+                "author": user_dict(reply.author),
             }
             for reply in message.replies
         ],
@@ -58,6 +58,7 @@ class FeedbackHandler(BaseHandler):
                 session.user_or_token,
                 options=[
                     selectinload(Feedback.author),
+                    selectinload(Feedback.assignee),
                     selectinload(Feedback.replies).selectinload(FeedbackReply.author),
                 ],
             ).order_by(Feedback.created_at.desc())
@@ -89,7 +90,7 @@ class FeedbackHandler(BaseHandler):
     async def patch(self, feedback_id: int, *, body: FeedbackPatchBody = None):
         """
         ---
-        summary: Mark a message left to the admins as handled, or reopen it
+        summary: Mark a message left to the admins as handled, reopen it, or assign it
         tags:
           - system info
         """
@@ -102,7 +103,14 @@ class FeedbackHandler(BaseHandler):
             )
             if message is None:
                 return self.error("Invalid feedback ID")
-            message.resolved = body.resolved
+            if body.resolved is not None:
+                message.resolved = body.resolved
+            if "assignee_id" in body.model_fields_set:
+                if body.assignee_id is not None and not await session.get(
+                    User, body.assignee_id
+                ):
+                    return self.error("Invalid assignee ID")
+                message.assignee_id = body.assignee_id
             await session.commit()
             self.push_all(action="skyportal/REFRESH_FEEDBACK")
             return self.success()
