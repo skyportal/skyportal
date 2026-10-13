@@ -31,6 +31,7 @@ from ...models import (
     UserRole,
 )
 from ..base import BaseHandler
+from .roles import includes_admin_role
 
 log = make_log("api/user")
 env, cfg = load_env()
@@ -491,6 +492,10 @@ class UserHandler(BaseHandler):
             contact_email = None
 
         async with self.AsyncSession() as session:
+            if not self.current_user.is_system_admin and await includes_admin_role(
+                session, role_ids
+            ):
+                return self.error("Only system admins can grant administrator roles.")
             try:
                 user_id = await add_user_and_setup_groups(
                     session=session,

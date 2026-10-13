@@ -283,6 +283,11 @@ class InvitationHandler(BaseHandler):
             group_ids = body.groupIDs
             stream_ids = body.streamIDs
             role_id = body.role
+            if role_id is not None and role_id not in ["Full user", "View only"]:
+                return self.error(
+                    f"Unsupported value provided for parameter `role`: {role_id}. "
+                    "Must be one of either 'Full user' or 'View only'."
+                )
             user_expiration_date = body.userExpirationDate
             if (
                 group_ids is None

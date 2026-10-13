@@ -1,10 +1,22 @@
+import sqlalchemy as sa
 from skyportal_py_models.roles import UserRolePostBody
 from sqlalchemy.orm import selectinload
 
 from baselayer.app.access import auth_or_token, permissions
 
-from ...models import Role, User, UserRole
+from ...models import Role, RoleACL, User, UserRole
 from ..base import BaseHandler
+
+ADMIN_ACL_IDS = ("System admin", "Become user")
+
+
+async def includes_admin_role(session, role_ids):
+    role_id = await session.scalar(
+        sa.select(RoleACL.role_id)
+        .where(RoleACL.role_id.in_(role_ids), RoleACL.acl_id.in_(ADMIN_ACL_IDS))
+        .limit(1)
+    )
+    return role_id is not None
 
 
 class RoleHandler(BaseHandler):
@@ -82,6 +94,10 @@ class UserRoleHandler(BaseHandler):
             invalid_role_ids = set(new_role_ids) - valid_role_ids
             if invalid_role_ids:
                 return self.error(f"Invalid role_id(s): {', '.join(invalid_role_ids)}")
+            if not self.current_user.is_system_admin and await includes_admin_role(
+                session, new_role_ids
+            ):
+                return self.error("Only system admins can grant administrator roles.")
             new_roles_result = await session.scalars(
                 Role.select(self.associated_user_object).where(
                     Role.id.in_(new_role_ids)
@@ -120,6 +136,10 @@ class UserRoleHandler(BaseHandler):
             )
             if user_role is None:
                 return self.error("User does not have specified role.")
+            if not self.current_user.is_system_admin and await includes_admin_role(
+                session, [role_id]
+            ):
+                return self.error("Only system admins can revoke administrator roles.")
             await session.delete(user_role)
             await session.commit()
             return self.success()
