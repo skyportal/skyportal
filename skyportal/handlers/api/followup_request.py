@@ -1263,10 +1263,13 @@ class FollowupRequestHandler(BaseHandler):
                     selectinload(FollowupRequest.requester),
                     selectinload(FollowupRequest.obj),
                     selectinload(FollowupRequest.watchers),
-                    selectinload(FollowupRequest.transaction_requests),
-                    selectinload(FollowupRequest.transactions),
                     selectinload(FollowupRequest.target_groups),
                 )
+                if session.user_or_token.is_admin:
+                    followup_requests = followup_requests.options(
+                        selectinload(FollowupRequest.transaction_requests),
+                        selectinload(FollowupRequest.transactions),
+                    )
                 followup_request = await session.scalar(followup_requests)
                 if followup_request is None:
                     return self.error("Could not retrieve followup request.")
