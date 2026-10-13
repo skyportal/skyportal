@@ -2137,16 +2137,19 @@ class GcnEventSurveyEfficiencyHandler(BaseHandler):
 
         async with self.AsyncSession() as session:
             event = await session.scalar(
-                GcnEvent.select(
-                    session.user_or_token,
-                    options=[selectinload(GcnEvent.survey_efficiency_analyses)],
-                ).where(GcnEvent.id == gcnevent_id)
+                GcnEvent.select(session.user_or_token).where(GcnEvent.id == gcnevent_id)
             )
             if event is None:
                 return self.error("GCN event not found", status=404)
 
+            analyses = await session.scalars(
+                SurveyEfficiencyForObservations.select(session.user_or_token).where(
+                    SurveyEfficiencyForObservations.gcnevent_id == event.id
+                )
+            )
+
             analysis_data = []
-            for analysis in event.survey_efficiency_analyses:
+            for analysis in analyses:
                 analysis_data.append(
                     {
                         **analysis.to_dict(),

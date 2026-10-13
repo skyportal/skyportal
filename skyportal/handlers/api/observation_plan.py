@@ -2231,11 +2231,7 @@ class ObservationPlanSurveyEfficiencyHandler(BaseHandler):
             stmt = (
                 ObservationPlanRequest.select(session.user_or_token)
                 .where(ObservationPlanRequest.id == observation_plan_request_id_int)
-                .options(
-                    selectinload(ObservationPlanRequest.observation_plans).selectinload(
-                        EventObservationPlan.survey_efficiency_analyses
-                    )
-                )
+                .options(selectinload(ObservationPlanRequest.observation_plans))
             )
             observation_plan_request = await session.scalar(stmt)
 
@@ -2250,8 +2246,15 @@ class ObservationPlanSurveyEfficiencyHandler(BaseHandler):
                     f"Could not find an observation_plan associated with observation_plan_request ID {observation_plan_request_id}"
                 )
 
+            analyses = await session.scalars(
+                SurveyEfficiencyForObservationPlan.select(session.user_or_token).where(
+                    SurveyEfficiencyForObservationPlan.observation_plan_id
+                    == observation_plans[0].id
+                )
+            )
+
             analysis_data = []
-            for analysis in observation_plans[0].survey_efficiency_analyses:
+            for analysis in analyses:
                 analysis_data.append(
                     {
                         **analysis.to_dict(),
