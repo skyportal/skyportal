@@ -12,6 +12,7 @@ from baselayer.app.custom_exceptions import AccessError
 
 from ...models import Group, GroupAdmissionRequest, GroupUser, User, UserNotification
 from ..base import BaseHandler
+from .user import public_user_info
 
 
 class GroupAdmissionRequestHandler(BaseHandler):
@@ -93,9 +94,8 @@ class GroupAdmissionRequestHandler(BaseHandler):
 
                 response_data = {
                     **admission_request.to_dict(),
-                    "user": admission_request.user,
+                    "user": public_user_info(admission_request.user),
                 }
-                response_data["user"] = admission_request.user
                 return self.success(data=response_data)
 
             q = GroupAdmissionRequest.select(session.user_or_token).options(
@@ -106,7 +106,10 @@ class GroupAdmissionRequestHandler(BaseHandler):
             req_result = await session.scalars(q)
             admission_requests = req_result.unique().all()
             response_data = [
-                {**admission_request.to_dict(), "user": admission_request.user}
+                {
+                    **admission_request.to_dict(),
+                    "user": public_user_info(admission_request.user),
+                }
                 for admission_request in admission_requests
             ]
             return self.success(data=response_data)
