@@ -46,7 +46,9 @@ const SETTINGS = [
 
 const GcnCrossmatchPlugin = () => {
   const { fid } = useParams();
-  const { data: filter } = useGetFilterQuery(fid ?? "", { skip: !fid }) as any;
+  const { data: filter, refetch } = useGetFilterQuery(fid ?? "", {
+    skip: !fid,
+  }) as any;
   const [updateFilter] = useUpdateFilterMutation();
 
   const [enabled, setEnabled] = useState(false);
@@ -81,9 +83,11 @@ const GcnCrossmatchPlugin = () => {
       .filter(Boolean);
     if (gcnTags.length) config["filters"] = { gcn_tags: gcnTags };
 
+    const { data: current } = await refetch();
+    if (!current) return;
     const result = await updateFilter({
       filter_id: filter.id,
-      altdata: { ...(filter.altdata ?? {}), [KEY]: config },
+      altdata: { ...(current.altdata ?? {}), [KEY]: config },
     });
     setSaved(!("error" in result));
   };
