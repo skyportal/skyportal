@@ -186,6 +186,7 @@ const AcrossVisibility = ({ objId, telescopes }: AcrossVisibilityProps) => {
                     type: "category",
                     categoryorder: "array",
                     categoryarray: yOrder,
+                    range: [-0.5, yOrder.length - 0.5],
                     automargin: true,
                   },
                 } as any
