@@ -6,7 +6,6 @@ interface SaveBlockComponentProps {
   setSaveDialog: (...a: any[]) => void;
   setSaveName: (...a: any[]) => void;
   setSaveError: (...a: any[]) => void;
-  setFilters: (...a: any[]) => void;
   isCustomBlock?: boolean | undefined;
   isCollapsed?: boolean | undefined;
   block: any;
@@ -32,7 +31,6 @@ const SaveBlockComponent = ({
   setSaveDialog,
   setSaveName,
   setSaveError,
-  setFilters,
   isCustomBlock,
   isCollapsed,
   block,
@@ -45,16 +43,6 @@ const SaveBlockComponent = ({
       setTimeout(() => setShowError(false), 3000);
       return;
     }
-    const markTrue = (b: any): any =>
-      b.id === block.id
-        ? { ...b, isTrue: true }
-        : {
-            ...b,
-            children: (b.children ?? []).map((child: any) =>
-              child.category === "block" ? markTrue(child) : child,
-            ),
-          };
-    setFilters((prevFilters: any[]) => prevFilters.map(markTrue));
     setSaveDialog({ open: true, block: { ...block, isTrue: true } });
     setSaveName("");
     setSaveError("");

@@ -648,7 +648,6 @@ const BlockHeader = ({
         setSaveDialog={setSaveDialog}
         setSaveName={setSaveName}
         setSaveError={setSaveError}
-        setFilters={setFilters}
         isCustomBlock={isCustomBlock}
         isCollapsed={isCollapsed}
         block={block}
