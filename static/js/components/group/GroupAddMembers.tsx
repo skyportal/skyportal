@@ -1,9 +1,11 @@
 import { useState } from "react";
-import AddIcon from "@mui/icons-material/Add";
+import PersonAddIcon from "@mui/icons-material/PersonAdd";
 import Dialog from "@mui/material/Dialog";
 import DialogActions from "@mui/material/DialogActions";
 import DialogContent from "@mui/material/DialogContent";
 import DialogTitle from "@mui/material/DialogTitle";
+import IconButton from "@mui/material/IconButton";
+import Tooltip from "@mui/material/Tooltip";
 import Tabs from "@mui/material/Tabs";
 import Tab from "@mui/material/Tab";
 
@@ -24,14 +26,15 @@ const GroupAddMembers = ({ groupID }: GroupAddMembersProps) => {
 
   return (
     <>
-      <Button
-        secondary
-        endIcon={<AddIcon />}
-        onClick={() => setOpen(true)}
-        data-testid="addMembersButton"
-      >
-        Add Members
-      </Button>
+      <Tooltip title="Add members">
+        <IconButton
+          color="primary"
+          onClick={() => setOpen(true)}
+          data-testid="addMembersButton"
+        >
+          <PersonAddIcon />
+        </IconButton>
+      </Tooltip>
       <Dialog
         fullWidth
         maxWidth="md"

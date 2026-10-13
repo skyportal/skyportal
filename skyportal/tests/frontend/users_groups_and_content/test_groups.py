@@ -156,7 +156,7 @@ def test_delete_group(page, super_admin_user, user, public_group):
     page.goto("/groups")
     page.get_by_role("tab", name="All Groups").click()
     page.locator(f'//div[@data-id="{public_group.id}"]').first.click()
-    page.locator('//button[contains(.,"Delete Group")]').first.click()
+    page.locator('//*[@data-testid="deleteGroupButton"]').first.click()
     page.locator('//button[contains(.,"Confirm")]').first.click()
     page.get_by_role("tab", name="All Groups").click()
     expect(page.locator(f'//div[@data-id="{public_group.id}"]').first).to_be_hidden()

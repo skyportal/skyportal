@@ -7,7 +7,10 @@ import DialogActions from "@mui/material/DialogActions";
 import DialogContent from "@mui/material/DialogContent";
 import DialogTitle from "@mui/material/DialogTitle";
 import FormControlLabel from "@mui/material/FormControlLabel";
+import IconButton from "@mui/material/IconButton";
 import TextField from "@mui/material/TextField";
+import Tooltip from "@mui/material/Tooltip";
+import EditIcon from "@mui/icons-material/Edit";
 
 import { useUpdateGroupMutation } from "../../ducks/groups";
 import Button from "../Button";
@@ -54,9 +57,11 @@ const GroupSettingsForm = ({ group }: { group: any }) => {
 
   return (
     <>
-      <Button secondary onClick={openDialog} data-testid="editGroupButton">
-        Edit Group
-      </Button>
+      <Tooltip title="Edit group">
+        <IconButton onClick={openDialog} data-testid="editGroupButton">
+          <EditIcon />
+        </IconButton>
+      </Tooltip>
       <Dialog fullWidth open={open} onClose={() => setOpen(false)}>
         <DialogTitle>Edit Group</DialogTitle>
         <DialogContent dividers>

@@ -7,6 +7,9 @@ import Box from "@mui/material/Box";
 import Typography from "@mui/material/Typography";
 import Tabs from "@mui/material/Tabs";
 import Tab from "@mui/material/Tab";
+import IconButton from "@mui/material/IconButton";
+import Tooltip from "@mui/material/Tooltip";
+import DeleteIcon from "@mui/icons-material/Delete";
 
 import Dialog from "@mui/material/Dialog";
 import DialogActions from "@mui/material/DialogActions";
@@ -97,17 +100,18 @@ const Group = () => {
           )}
         </Box>
         {canManage && (
-          <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap" }}>
+          <Box sx={{ display: "flex", gap: 0.5, mr: 1 }}>
             <GroupAddMembers groupID={group["id"] as number} />
             <GroupSettingsForm group={group} />
-            <Button
-              variant="outlined"
-              color="error"
-              onClick={() => setConfirmDeleteOpen(true)}
-              sx={{ marginRight: 2 }}
-            >
-              Delete Group
-            </Button>
+            <Tooltip title="Delete group">
+              <IconButton
+                color="error"
+                onClick={() => setConfirmDeleteOpen(true)}
+                data-testid="deleteGroupButton"
+              >
+                <DeleteIcon />
+              </IconButton>
+            </Tooltip>
           </Box>
         )}
       </Box>
