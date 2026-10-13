@@ -667,6 +667,7 @@ def post_analysis(
             show_corner,
             input_filters,
         )
+        invalid_after = analysis.invalid_after
     else:
         raise ValueError(
             f"analysis_resource_type must be one of {', '.join(['obj', 'gcn_event'])}"
