@@ -2146,6 +2146,23 @@ const PhotometryPlot = ({
       ),
     );
   };
+  // Like a legend double click: show only this group, or show all groups if
+  // it is already the only one shown. Ignores the group's own state, which
+  // the first click of the double click has just toggled.
+  const isolateBandGroup = (traces: any[]) => {
+    const others = Object.values(bandGroups)
+      .flat()
+      .filter((trace: any) => !traces.includes(trace));
+    const showAll = !others.some(isTraceShown);
+    setPlotData(
+      plotData.map((trace: any) => {
+        if (traces.includes(trace)) return { ...trace, visible: true };
+        if (others.includes(trace))
+          return { ...trace, visible: showAll ? true : "legendonly" };
+        return trace;
+      }),
+    );
+  };
 
   return (
     <div style={{ width: "100%", height: "100%" }} id="photometry-plot">
@@ -2227,7 +2244,10 @@ const PhotometryPlot = ({
                       ))}
                     </span>
                   }
-                  onClick={() => toggleBandGroup(traces)}
+                  onClick={(e) => {
+                    if (e.detail === 2) isolateBandGroup(traces);
+                    else if (e.detail < 2) toggleBandGroup(traces);
+                  }}
                 />
               );
             })}
