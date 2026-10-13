@@ -1,8 +1,13 @@
+import { Fragment, ReactNode, useState } from "react";
+
 import Box from "@mui/material/Box";
+import Button from "@mui/material/Button";
+import Collapse from "@mui/material/Collapse";
 import IconButton from "@mui/material/IconButton";
 import List from "@mui/material/List";
 import ListItem from "@mui/material/ListItem";
 import ListItemButton from "@mui/material/ListItemButton";
+import ListSubheader from "@mui/material/ListSubheader";
 import Tooltip from "@mui/material/Tooltip";
 import Typography from "@mui/material/Typography";
 import { alpha, Theme } from "@mui/material/styles";
@@ -10,8 +15,10 @@ import { alpha, Theme } from "@mui/material/styles";
 import NotificationsIcon from "@mui/icons-material/NotificationsOutlined";
 import NotificationsOffIcon from "@mui/icons-material/NotificationsOffOutlined";
 import DoneIcon from "@mui/icons-material/Done";
+import DoneAllIcon from "@mui/icons-material/DoneAll";
 import RemoveDoneIcon from "@mui/icons-material/RemoveDone";
 import DeleteIcon from "@mui/icons-material/DeleteOutlineOutlined";
+import ExpandLessIcon from "@mui/icons-material/ExpandLess";
 import ChatBubbleIcon from "@mui/icons-material/ChatBubbleOutlineOutlined";
 import CategoryIcon from "@mui/icons-material/CategoryOutlined";
 import ArticleIcon from "@mui/icons-material/ArticleOutlined";
@@ -49,38 +56,258 @@ const unreadTint = (theme: Theme, light: number, dark: number) =>
     theme.palette.mode === "dark" ? dark : light,
   );
 
-const typeIcon = (notificationType?: string | null, url?: string | null) => {
+interface Category {
+  label: string;
+  icon: ReactNode;
+}
+
+const category = (
+  notificationType?: string | null,
+  url?: string | null,
+): Category => {
   const type = (notificationType || "").toLowerCase();
   if (type.includes("mention") || type.includes("comment"))
-    return <ChatBubbleIcon />;
+    return { label: "Comments", icon: <ChatBubbleIcon /> };
   if (type === "direct_messages" || type === "group_discussions")
-    return <ForumIcon />;
-  if (type.includes("reminder")) return <AlarmIcon />;
+    return { label: "Discussions", icon: <ForumIcon /> };
+  if (type.includes("reminder"))
+    return { label: "Reminders", icon: <AlarmIcon /> };
   if (type.includes("report") || type.includes("summary"))
-    return <ArticleIcon />;
-  if (type.includes("classification")) return <CategoryIcon />;
+    return { label: "Reports", icon: <ArticleIcon /> };
+  if (type.includes("classification"))
+    return { label: "Classifications", icon: <CategoryIcon /> };
   if (type.includes("spectrum") || type.includes("photometry"))
-    return <ShowChartIcon />;
-  if (type.includes("gcn")) return <FlareIcon />;
-  if (type.includes("group") || type.includes("user")) return <GroupIcon />;
-  if (type.includes("shift")) return <EventIcon />;
-  if (type.includes("analysis")) return <ScienceIcon />;
+    return { label: "Spectra & photometry", icon: <ShowChartIcon /> };
+  if (type.includes("gcn")) return { label: "GCN events", icon: <FlareIcon /> };
+  if (type.includes("group") || type.includes("user"))
+    return { label: "Groups", icon: <GroupIcon /> };
+  if (type.includes("shift")) return { label: "Shifts", icon: <EventIcon /> };
+  if (type.includes("analysis"))
+    return { label: "Analyses", icon: <ScienceIcon /> };
   if (type.includes("facility") || type.includes("followup"))
-    return <SendIcon />;
-  if (type.includes("observation")) return <VisibilityIcon />;
-  if (type.includes("api")) return <AutorenewIcon />;
-  if (type.includes("deployment")) return <RocketLaunchIcon />;
-  if (type.includes("feedback")) return <FeedbackIcon />;
+    return { label: "Follow-up", icon: <SendIcon /> };
+  if (type.includes("observation"))
+    return { label: "Observations", icon: <VisibilityIcon /> };
+  if (type.includes("api"))
+    return { label: "Recurring APIs", icon: <AutorenewIcon /> };
+  if (type.includes("deployment"))
+    return { label: "Deployments", icon: <RocketLaunchIcon /> };
+  if (type.includes("feedback"))
+    return { label: "Feedback", icon: <FeedbackIcon /> };
 
   // many notifications have no type at all, so fall back on where they point to
   const target = url || "";
-  if (target.startsWith("/shift")) return <EventIcon />;
-  if (target.startsWith("/group")) return <GroupIcon />;
-  if (target.startsWith("/gcn_events")) return <FlareIcon />;
-  if (target.startsWith("/data_access")) return <LockIcon />;
-  if (target.startsWith("/source")) return <SourceIcon />;
-  return <NotificationsIcon />;
+  if (target.startsWith("/shift"))
+    return { label: "Shifts", icon: <EventIcon /> };
+  if (target.startsWith("/group"))
+    return { label: "Groups", icon: <GroupIcon /> };
+  if (target.startsWith("/gcn_events"))
+    return { label: "GCN events", icon: <FlareIcon /> };
+  if (target.startsWith("/data_access"))
+    return { label: "Data access", icon: <LockIcon /> };
+  if (target.startsWith("/source"))
+    return { label: "Sources", icon: <SourceIcon /> };
+  return { label: "Other", icon: <NotificationsIcon /> };
 };
+
+// like iOS, a stack sits where its newest notification would
+const stackByCategory = (items: UserNotification[]) => {
+  const stacks = new Map<string, Category & { items: UserNotification[] }>();
+  items.forEach((n) => {
+    const cat = category(n.notification_type, n.url);
+    if (!stacks.has(cat.label)) stacks.set(cat.label, { ...cat, items: [] });
+    stacks.get(cat.label)!.items.push(n);
+  });
+  return [...stacks.values()];
+};
+
+const ROW_SX = {
+  "& > .MuiListItemButton-root": { pr: 10 },
+  "& .MuiListItemSecondaryAction-root": {
+    opacity: 0,
+    transition: "opacity 150ms",
+  },
+  "&:hover .MuiListItemSecondaryAction-root, &:focus-within .MuiListItemSecondaryAction-root":
+    {
+      opacity: 1,
+    },
+  "@media (hover: none)": {
+    "& .MuiListItemSecondaryAction-root": { opacity: 1 },
+  },
+};
+
+const unreadSx = {
+  bgcolor: (theme: Theme) => unreadTint(theme, 0.07, 0.14),
+  "& > .MuiListItemButton-root:hover": {
+    bgcolor: (theme: Theme) => unreadTint(theme, 0.14, 0.22),
+  },
+};
+
+interface RowActionsProps {
+  viewed: boolean;
+  onToggleViewed: () => void;
+  onDelete: () => void;
+  testIdSuffix: string;
+  plural?: boolean;
+}
+
+const RowActions = ({
+  viewed,
+  onToggleViewed,
+  onDelete,
+  testIdSuffix,
+  plural = false,
+}: RowActionsProps) => (
+  <Box sx={{ display: "flex" }}>
+    <Tooltip
+      title={`${viewed ? "Mark unread" : "Mark read"}${plural ? " (all)" : ""}`}
+    >
+      <IconButton
+        size="small"
+        data-testid={`${
+          viewed ? "markUnreadButton" : "markReadButton"
+        }${testIdSuffix}`}
+        onClick={onToggleViewed}
+      >
+        {viewed ? (
+          <RemoveDoneIcon fontSize="small" />
+        ) : (
+          <DoneIcon fontSize="small" />
+        )}
+      </IconButton>
+    </Tooltip>
+    <Tooltip title={plural ? "Delete all" : "Delete"}>
+      <IconButton
+        size="small"
+        data-testid={`deleteNotificationButton${testIdSuffix}`}
+        onClick={onDelete}
+      >
+        <DeleteIcon fontSize="small" />
+      </IconButton>
+    </Tooltip>
+  </Box>
+);
+
+interface NotificationRowProps {
+  notification: UserNotification;
+  icon: ReactNode;
+  divider: boolean;
+  actions: ReactNode;
+  onClick: () => void;
+  // set on a collapsed stack: the row expands instead of navigating
+  moreCount?: number;
+}
+
+const NotificationRow = ({
+  notification: { id, text, url, viewed, created_at },
+  icon,
+  divider,
+  actions,
+  onClick,
+  moreCount = 0,
+}: NotificationRowProps) => {
+  const navigates = Boolean(url) && moreCount === 0;
+  return (
+    <ListItem
+      disablePadding
+      divider={divider}
+      sx={{ ...(!viewed && unreadSx), ...ROW_SX }}
+      secondaryAction={actions}
+    >
+      <ListItemButton
+        {...({
+          component: navigates ? Link : "div",
+          to: navigates ? url : undefined,
+        } as any)}
+        onClick={onClick}
+        data-testid={
+          moreCount > 0 ? `notificationStack${id}` : `notification${id}`
+        }
+        sx={{ alignItems: "flex-start", gap: 1.5, py: 1.5 }}
+      >
+        <Box
+          sx={{
+            flexShrink: 0,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            width: "2rem",
+            height: "2rem",
+            borderRadius: "50%",
+            bgcolor: (theme) =>
+              viewed
+                ? theme.palette.action.hover
+                : alpha(theme.palette.primary.main, 0.2),
+            color: viewed ? "text.secondary" : "primary.main",
+            "& svg": { fontSize: "1.2rem" },
+          }}
+        >
+          {icon}
+        </Box>
+        <Box sx={{ minWidth: 0 }}>
+          <Box
+            sx={{
+              fontSize: "0.875rem",
+              lineHeight: 1.45,
+              overflowWrap: "anywhere",
+              fontWeight: viewed ? 400 : 600,
+              "& p": { m: 0 },
+              "& em": { fontStyle: "normal", fontWeight: 600 },
+            }}
+          >
+            <ReactMarkdown>{text}</ReactMarkdown>
+          </Box>
+          {(created_at || moreCount > 0) && (
+            <Typography
+              variant="caption"
+              color="text.secondary"
+              sx={{ display: "block", mt: 0.25 }}
+            >
+              {created_at && dayjs().to(dayjs.utc(`${created_at}Z`))}
+              {created_at && moreCount > 0 && " · "}
+              {moreCount > 0 && `${moreCount} more`}
+            </Typography>
+          )}
+        </Box>
+      </ListItemButton>
+    </ListItem>
+  );
+};
+
+const STACK_RADIUS = 8;
+
+const ENTRY_SX = { px: 1, pb: 1 };
+
+const CARD_SX = {
+  border: 1,
+  borderColor: "divider",
+  borderRadius: `${STACK_RADIUS}px`,
+  overflow: "hidden",
+};
+
+// the edges of the cards hidden behind a collapsed stack
+const StackEdges = ({ count, viewed }: { count: number; viewed: boolean }) => (
+  <Box>
+    {[1, 2].slice(0, count).map((depth) => (
+      <Box
+        key={depth}
+        sx={{
+          height: 5,
+          mx: depth * 1.5,
+          borderBottomLeftRadius: STACK_RADIUS,
+          borderBottomRightRadius: STACK_RADIUS,
+          border: 1,
+          borderTop: 0,
+          borderColor: "divider",
+          bgcolor: (theme) =>
+            viewed
+              ? theme.palette.action.hover
+              : unreadTint(theme, 0.07 / depth, 0.14 / depth),
+        }}
+      />
+    ))}
+  </Box>
+);
 
 interface NotificationListProps {
   notifications: UserNotification[];
@@ -95,6 +322,14 @@ const NotificationList = ({
   onSetViewed,
   onDelete,
 }: NotificationListProps) => {
+  const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  const toggleExpanded = (key: string) =>
+    setExpanded((prev) => {
+      const next = new Set(prev);
+      if (!next.delete(key)) next.add(key);
+      return next;
+    });
+
   if (notifications.length === 0)
     return (
       <PanelEmptyState
@@ -103,118 +338,190 @@ const NotificationList = ({
       />
     );
 
+  // unread on top, read below; each keeps the API's newest-first order
+  const sections = [
+    { title: "Unread", items: notifications.filter((n) => !n.viewed) },
+    { title: "Read", items: notifications.filter((n) => n.viewed) },
+  ].filter(({ items }) => items.length > 0);
+
+  const singleActions = ({ id, viewed }: UserNotification) => (
+    <RowActions
+      viewed={viewed}
+      onToggleViewed={() => onSetViewed(id, !viewed)}
+      onDelete={() => onDelete(id)}
+      testIdSuffix={`${id}`}
+    />
+  );
+
   return (
     <List disablePadding>
-      {notifications.map(
-        ({ id, text, url, viewed, notification_type, created_at }, index) => (
-          <ListItem
-            key={id}
-            disablePadding
-            divider={index < notifications.length - 1}
-            sx={{
-              ...(!viewed && {
-                bgcolor: (theme) => unreadTint(theme, 0.07, 0.14),
-                "& > .MuiListItemButton-root:hover": {
-                  bgcolor: (theme: Theme) => unreadTint(theme, 0.14, 0.22),
-                },
-              }),
-              "& > .MuiListItemButton-root": { pr: 10 },
-              "& .MuiListItemSecondaryAction-root": {
-                opacity: 0,
-                transition: "opacity 150ms",
-              },
-              "&:hover .MuiListItemSecondaryAction-root, &:focus-within .MuiListItemSecondaryAction-root":
-                {
-                  opacity: 1,
-                },
-              "@media (hover: none)": {
-                "& .MuiListItemSecondaryAction-root": { opacity: 1 },
-              },
-            }}
-            secondaryAction={
-              <Box sx={{ display: "flex" }}>
-                <Tooltip title={viewed ? "Mark unread" : "Mark read"}>
-                  <IconButton
-                    size="small"
-                    data-testid={`${
-                      viewed ? "markUnreadButton" : "markReadButton"
-                    }${id}`}
-                    onClick={() => onSetViewed(id, !viewed)}
-                  >
-                    {viewed ? (
-                      <RemoveDoneIcon fontSize="small" />
-                    ) : (
-                      <DoneIcon fontSize="small" />
-                    )}
-                  </IconButton>
-                </Tooltip>
-                <Tooltip title="Delete">
-                  <IconButton
-                    size="small"
-                    data-testid={`deleteNotificationButton${id}`}
-                    onClick={() => onDelete(id)}
-                  >
-                    <DeleteIcon fontSize="small" />
-                  </IconButton>
-                </Tooltip>
-              </Box>
-            }
-          >
-            <ListItemButton
-              {...({
-                component: url ? Link : "div",
-                to: url || undefined,
-              } as any)}
-              onClick={() => onOpen(id, url)}
-              data-testid={`notification${id}`}
-              sx={{ alignItems: "flex-start", gap: 1.5, py: 1.5 }}
+      {sections.map(({ title, items }) => {
+        const stacks = stackByCategory(items);
+        return (
+          <Fragment key={title}>
+            <ListSubheader
+              disableSticky
+              data-testid={`notificationsSection${title}`}
+              sx={{
+                lineHeight: 2.25,
+                fontSize: "0.75rem",
+                fontWeight: 600,
+                textTransform: "uppercase",
+                letterSpacing: "0.04em",
+                color: "text.secondary",
+                bgcolor: "transparent",
+              }}
             >
-              <Box
-                sx={{
-                  flexShrink: 0,
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  width: "2rem",
-                  height: "2rem",
-                  borderRadius: "50%",
-                  bgcolor: (theme) =>
-                    viewed
-                      ? theme.palette.action.hover
-                      : alpha(theme.palette.primary.main, 0.2),
-                  color: viewed ? "text.secondary" : "primary.main",
-                  "& svg": { fontSize: "1.2rem" },
-                }}
-              >
-                {typeIcon(notification_type, url)}
-              </Box>
-              <Box sx={{ minWidth: 0 }}>
-                <Box
-                  sx={{
-                    fontSize: "0.875rem",
-                    lineHeight: 1.45,
-                    overflowWrap: "anywhere",
-                    fontWeight: viewed ? 400 : 600,
-                    "& p": { m: 0 },
-                    "& em": { fontStyle: "normal", fontWeight: 600 },
-                  }}
-                >
-                  <ReactMarkdown>{text}</ReactMarkdown>
+              {title}
+            </ListSubheader>
+            {stacks.map(({ label, icon, items: stackItems }) => {
+              const newest = stackItems[0]!; // stacks are never empty
+              const key = `${title}:${label}`;
+
+              if (stackItems.length === 1)
+                return (
+                  <Box key={newest.id} sx={ENTRY_SX}>
+                    <Box sx={CARD_SX}>
+                      <NotificationRow
+                        notification={newest}
+                        icon={icon}
+                        divider={false}
+                        actions={singleActions(newest)}
+                        onClick={() => onOpen(newest.id, newest.url)}
+                      />
+                    </Box>
+                  </Box>
+                );
+
+              const isOpen = expanded.has(key);
+              // a stack never mixes read and unread, they sit in different sections
+              const toggleStackViewed = () =>
+                stackItems.forEach((n) => onSetViewed(n.id, !newest.viewed));
+              return (
+                <Box key={key} sx={ENTRY_SX}>
+                  <Box sx={CARD_SX}>
+                    <Collapse in={isOpen} timeout={250} unmountOnExit>
+                      <Box
+                        sx={{
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "space-between",
+                          pl: 2,
+                          pr: 1,
+                          py: 0.5,
+                          borderBottom: 1,
+                          borderColor: "divider",
+                        }}
+                      >
+                        <Typography
+                          variant="subtitle2"
+                          sx={{ fontWeight: 600 }}
+                        >
+                          {label}
+                        </Typography>
+                        <Box sx={{ display: "flex", alignItems: "center" }}>
+                          <Tooltip
+                            title={
+                              newest.viewed
+                                ? "Mark all unread"
+                                : "Mark all read"
+                            }
+                          >
+                            <IconButton
+                              size="small"
+                              onClick={toggleStackViewed}
+                              data-testid={`${
+                                newest.viewed
+                                  ? "markStackUnreadButton"
+                                  : "markStackReadButton"
+                              }${newest.id}`}
+                            >
+                              {newest.viewed ? (
+                                <RemoveDoneIcon fontSize="small" />
+                              ) : (
+                                <DoneAllIcon fontSize="small" />
+                              )}
+                            </IconButton>
+                          </Tooltip>
+                          <Button
+                            size="small"
+                            endIcon={<ExpandLessIcon />}
+                            onClick={() => toggleExpanded(key)}
+                            data-testid={`collapseStack${newest.id}`}
+                            sx={{ textTransform: "none" }}
+                          >
+                            Show less
+                          </Button>
+                        </Box>
+                      </Box>
+                    </Collapse>
+                    <NotificationRow
+                      notification={newest}
+                      icon={icon}
+                      divider={isOpen}
+                      moreCount={isOpen ? 0 : stackItems.length - 1}
+                      onClick={() =>
+                        isOpen
+                          ? onOpen(newest.id, newest.url)
+                          : toggleExpanded(key)
+                      }
+                      actions={
+                        isOpen ? (
+                          singleActions(newest)
+                        ) : (
+                          <RowActions
+                            plural
+                            viewed={newest.viewed}
+                            onToggleViewed={toggleStackViewed}
+                            onDelete={() =>
+                              stackItems.forEach((n) => onDelete(n.id))
+                            }
+                            testIdSuffix={`Stack${newest.id}`}
+                          />
+                        )
+                      }
+                    />
+                    <Collapse in={isOpen} timeout={250} unmountOnExit>
+                      {stackItems.slice(1).map((n, index) => (
+                        <Box
+                          key={n.id}
+                          sx={{
+                            // cards slide out from behind the front one, one after another
+                            "@keyframes notification-stack-in": {
+                              from: {
+                                opacity: 0,
+                                transform: "translateY(-12px)",
+                              },
+                              to: { opacity: 1, transform: "none" },
+                            },
+                            animation: `notification-stack-in 220ms ease-out ${
+                              index * 40
+                            }ms both`,
+                          }}
+                        >
+                          <NotificationRow
+                            notification={n}
+                            icon={icon}
+                            divider={index < stackItems.length - 2}
+                            actions={singleActions(n)}
+                            onClick={() => onOpen(n.id, n.url)}
+                          />
+                        </Box>
+                      ))}
+                    </Collapse>
+                  </Box>
+                  <Collapse in={!isOpen} timeout={250}>
+                    <StackEdges
+                      count={stackItems.length - 1}
+                      viewed={newest.viewed}
+                    />
+                  </Collapse>
                 </Box>
-                {created_at && (
-                  <Typography
-                    variant="caption"
-                    color="text.secondary"
-                    sx={{ display: "block", mt: 0.25 }}
-                  >
-                    {dayjs().to(dayjs.utc(`${created_at}Z`))}
-                  </Typography>
-                )}
-              </Box>
-            </ListItemButton>
-          </ListItem>
-        ),
-      )}
+              );
+            })}
+          </Fragment>
+        );
+      })}
     </List>
   );
 };

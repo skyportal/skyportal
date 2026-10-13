@@ -9,6 +9,22 @@ from skyportal.tests import api
 from ....utils.naive_datetime import utcnow_naive
 
 
+def expect_notification_link(page, url):
+    """Open the notifications panel and expect a notification linking to `url`,
+    expanding stacks since a collapsed stack's front card is not a link."""
+    page.locator('//*[@data-testid="notificationsButton"]').first.click()
+    link = page.locator(f'//*[@href="{url}"]').first
+    stacks = page.locator('//*[starts-with(@data-testid, "notificationStack")]')
+    for _ in range(50):
+        if link.is_visible():
+            return
+        if stacks.count() > 0:
+            stacks.first.click()
+        else:
+            page.wait_for_timeout(200)
+    expect(link).to_be_visible()
+
+
 def post_and_verify_reminder(endpoint, token):
     reminder_text = str(uuid.uuid4())
     next_reminder = utcnow_naive() + timedelta(seconds=2)
@@ -126,8 +142,7 @@ def test_reminder_on_shift(page, public_group, super_admin_user, super_admin_tok
         f'//*[@data-testid="event_shift_name" and contains(text(), "{shift_name}")]/..'
     ).locator("visible=true").first.click()
 
-    page.locator('//*[@data-testid="notificationsButton"]').first.click()
-    expect(page.locator(f'//*[@href="/shifts/{shift_id}"]').first).to_be_visible()
+    expect_notification_link(page, f"/shifts/{shift_id}")
     page.keyboard.press("Escape")
 
     post_and_verify_reminder_frontend(page, reminder_text, shift_id)
@@ -151,8 +166,7 @@ def test_reminder_on_source(page, super_admin_user, super_admin_token):
     page.goto(f"/become_user/{super_admin_user.id}")
     page.goto(f"/source/{obj_id}")
     expect(page.locator(f'//*[contains(.,"{obj_id}")]').first).to_be_visible()
-    page.locator('//*[@data-testid="notificationsButton"]').first.click()
-    expect(page.locator(f'//*[@href="/source/{obj_id}"]').first).to_be_visible()
+    expect_notification_link(page, f"/source/{obj_id}")
     page.keyboard.press("Escape")
 
     post_and_verify_reminder_frontend(page, reminder_text, obj_id)
