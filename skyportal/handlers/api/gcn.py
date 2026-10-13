@@ -5125,14 +5125,15 @@ def add_gcn_report(
                 contents["observation_statistics"] = observation_statistics
 
             if show_survey_efficiencies:
+                stmt = SurveyEfficiencyForObservations.select(user).where(
+                    SurveyEfficiencyForObservations.gcnevent_id == event.id
+                )
                 if instrument_ids is not None:
-                    stmt = SurveyEfficiencyForObservations.select(user).where(
+                    stmt = stmt.where(
                         SurveyEfficiencyForObservations.instrument_id.in_(
                             instrument_ids
                         )
                     )
-                else:
-                    stmt = SurveyEfficiencyForObservations.select(user)
                 survey_efficiency_analyses = session.scalars(stmt).all()
 
                 contents["survey_efficiency_analyses"] = [
