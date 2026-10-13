@@ -11,6 +11,7 @@ import os
 import re
 import tempfile
 import traceback
+from collections import defaultdict
 from datetime import timedelta
 from typing import Annotated
 from urllib.parse import urlparse, urlsplit
@@ -2181,50 +2182,44 @@ class GcnEventObservationPlanRequestsHandler(BaseHandler):
             return self.error("Invalid GCN event ID", status=400)
 
         async with self.AsyncSession() as session:
-            event = await session.scalar(
-                GcnEvent.select(
+            plan_requests = await session.scalars(
+                ObservationPlanRequest.select(
                     session.user_or_token,
                     options=[
-                        selectinload(GcnEvent.observationplan_requests)
-                        .selectinload(ObservationPlanRequest.allocation)
-                        .selectinload(Allocation.instrument),
-                        selectinload(GcnEvent.observationplan_requests)
-                        .selectinload(ObservationPlanRequest.allocation)
-                        .selectinload(Allocation.group),
-                        selectinload(GcnEvent.observationplan_requests).selectinload(
-                            ObservationPlanRequest.requester
+                        selectinload(ObservationPlanRequest.allocation).selectinload(
+                            Allocation.instrument
                         ),
+                        selectinload(ObservationPlanRequest.allocation).selectinload(
+                            Allocation.group
+                        ),
+                        selectinload(ObservationPlanRequest.requester),
                         # to_dict() only serializes loaded attributes, so eager-load
-                        # the localization (dateobs/name) — otherwise it's omitted
+                        # the localization (dateobs/name), otherwise it's omitted
                         # from each request and the frontend skymap can't fetch its
                         # contour (spins).
-                        selectinload(GcnEvent.observationplan_requests).selectinload(
-                            ObservationPlanRequest.localization
-                        ),
-                        selectinload(GcnEvent.observationplan_requests)
-                        .selectinload(ObservationPlanRequest.observation_plans)
-                        .selectinload(EventObservationPlan.statistics),
+                        selectinload(ObservationPlanRequest.localization),
+                        selectinload(
+                            ObservationPlanRequest.observation_plans
+                        ).selectinload(EventObservationPlan.statistics),
                     ],
-                ).where(GcnEvent.id == gcnevent_id)
+                ).where(ObservationPlanRequest.gcnevent_id == gcnevent_id)
             )
 
             # go through some pain to get probability and area included
             # as these are properties
             request_data = []
-            if event is not None:
-                for ii, req in enumerate(event.observationplan_requests):
-                    dat = req.to_dict()
-                    plan_data = []
-                    for plan in dat["observation_plans"]:
-                        plan_dict = plan.to_dict()
-                        plan_dict["statistics"] = [
-                            statistics.to_dict()
-                            for statistics in plan_dict["statistics"]
-                        ]
-                        plan_data.append(plan_dict)
+            for req in plan_requests.all():
+                dat = req.to_dict()
+                plan_data = []
+                for plan in dat["observation_plans"]:
+                    plan_dict = plan.to_dict()
+                    plan_dict["statistics"] = [
+                        statistics.to_dict() for statistics in plan_dict["statistics"]
+                    ]
+                    plan_data.append(plan_dict)
 
-                    dat["observation_plans"] = plan_data
-                    request_data.append(dat)
+                dat["observation_plans"] = plan_data
+                request_data.append(dat)
 
             return self.success(data=request_data)
 
@@ -2649,7 +2644,6 @@ class GcnEventHandler(BaseHandler):
                         Localization.tags
                     ),
                     selectinload(GcnEvent.gcn_notices),
-                    selectinload(GcnEvent.observationplan_requests),
                     selectinload(GcnEvent.gcn_triggers),
                     selectinload(GcnEvent._tags),
                 ],
@@ -2733,8 +2727,17 @@ class GcnEventHandler(BaseHandler):
                 )
 
             events = []
-            events_result = await session.scalars(stmt)
-            for event in events_result.unique().all():
+            events_result = (await session.scalars(stmt)).unique().all()
+            plan_requests_by_event = defaultdict(list)
+            for plan_request in await session.scalars(
+                ObservationPlanRequest.select(session.user_or_token).where(
+                    ObservationPlanRequest.gcnevent_id.in_(
+                        [event.id for event in events_result]
+                    )
+                )
+            ):
+                plan_requests_by_event[plan_request.gcnevent_id].append(plan_request)
+            for event in events_result:
                 event.gcn_notices = sorted(
                     event.gcn_notices, key=lambda notice: notice.date, reverse=True
                 )
@@ -2752,6 +2755,7 @@ class GcnEventHandler(BaseHandler):
                 event_info = {
                     **event.to_dict(),
                     "tags": list(set(event.tags)),
+                    "observationplan_requests": plan_requests_by_event[event.id],
                     "localizations": sorted(
                         (
                             {
