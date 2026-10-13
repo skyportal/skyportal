@@ -207,7 +207,7 @@ def fetch_transients(allocation_id, user_id, group_ids, payload):
                 ).first()
                 if s is None:
                     source["group_ids"] = group_ids
-                    (obj_id,) = post_source(source, user_id, session)
+                    obj_id, _, _ = post_source(source, user_id, session)
                     obj_ids.append(obj_id)
 
                 if len(df.index) > 0:
@@ -403,7 +403,7 @@ def fetch_swift_transients(instrument_id, user_id, group_ids):
                 s = session.scalars(Obj.select(user).where(Obj.id == obj_name)).first()
                 if s is None:
                     data["group_ids"] = group_ids
-                    (obj_id,) = post_source(data, user_id, session)
+                    obj_id, _, _ = post_source(data, user_id, session)
                     obj_ids.append(obj_id)
                 else:
                     obj_id = s.id
@@ -629,7 +629,7 @@ def fetch_gaia_transients(instrument_id, user_id, group_ids, payload):
             s = session.scalars(Obj.select(user).where(Obj.id == name)).first()
             if s is None:
                 data["group_ids"] = group_ids
-                (obj_id,) = post_source(data, user_id, session)
+                obj_id, _, _ = post_source(data, user_id, session)
                 obj_ids.append(obj_id)
             else:
                 obj_id = s.id
@@ -763,7 +763,7 @@ def fetch_tess_transients(instrument_id, user_id, group_ids, payload):
             s = session.scalars(Obj.select(user).where(Obj.id == name)).first()
             if s is None:
                 data["group_ids"] = group_ids
-                (obj_id,) = post_source(data, user_id, session)
+                obj_id, _, _ = post_source(data, user_id, session)
                 obj_ids.append(obj_id)
             else:
                 obj_id = s.id
