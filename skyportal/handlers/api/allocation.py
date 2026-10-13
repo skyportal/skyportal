@@ -36,6 +36,7 @@ from ...models import (
 )
 from ...utils.parse import get_page_and_n_per_page
 from ..base import BaseHandler
+from .user import public_user_info
 
 
 class AllocationObservationPlanHandler(BaseHandler):
@@ -376,7 +377,8 @@ class AllocationHandler(BaseHandler):
                 {
                     **allocation.to_dict(),
                     "allocation_users": [
-                        user.user.to_dict() for user in allocation.allocation_users
+                        public_user_info(user.user)
+                        for user in allocation.allocation_users
                     ],
                 }
                 for allocation in allocations
