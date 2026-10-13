@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { makeStyles } from "tss-react/mui";
+import CancelIcon from "@mui/icons-material/Cancel";
 import Chip from "@mui/material/Chip";
 import FormControl from "@mui/material/FormControl";
 import InputLabel from "@mui/material/InputLabel";
@@ -69,6 +70,13 @@ const SelectWithChips = (props: SelectWithChipsProps) => {
       ? cumSum.filter((sum) => sum <= MAX_CHAR).length
       : -1;
 
+  const handleChange = (event: any) => {
+    onChange(event);
+    setOpts(
+      event.target.value.includes("Clear selections") ? [] : event.target.value,
+    );
+  };
+
   return (
     <FormControl className={classes.formControl}>
       <InputLabel>{label}</InputLabel>
@@ -77,19 +85,28 @@ const SelectWithChips = (props: SelectWithChipsProps) => {
         label={label}
         multiple
         value={initValue || []}
-        onChange={(event: any) => {
-          onChange(event);
-          setOpts(
-            event.target.value.includes("Clear selections")
-              ? []
-              : event.target.value,
-          );
-        }}
+        onChange={handleChange}
         onClose={() => setSearch("")}
         renderValue={(selected: any) => (
           <div className={classes.chips}>
             {selected.slice(0, max_chips_nb).map((value: any) => (
-              <Chip key={value} label={value} />
+              <Chip
+                key={value}
+                label={value}
+                onDelete={() =>
+                  handleChange({
+                    target: {
+                      value: selected.filter((v: any) => v !== value),
+                    },
+                  })
+                }
+                deleteIcon={
+                  // Keep a click on the cross from opening the menu.
+                  <CancelIcon
+                    onMouseDown={(event) => event.stopPropagation()}
+                  />
+                }
+              />
             ))}
             {selected.length > max_chips_nb && (
               <Chip label={`+${selected.length - max_chips_nb}`} />
