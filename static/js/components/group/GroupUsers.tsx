@@ -2,22 +2,15 @@ import React from "react";
 import { Link } from "react-router-dom";
 import MoreVertIcon from "@mui/icons-material/MoreVert";
 import Popover from "@mui/material/Popover";
-import Divider from "@mui/material/Divider";
 import Chip from "@mui/material/Chip";
 import Box from "@mui/material/Box";
 import useMediaQuery from "@mui/material/useMediaQuery";
 import IconButton from "@mui/material/IconButton";
-import Tabs from "@mui/material/Tabs";
-import Tab from "@mui/material/Tab";
-import Typography from "@mui/material/Typography";
 
-import StyledDataGrid from "../StyledDataGrid";
+import StyledDataGrid, { DataGridToolbar } from "../StyledDataGrid";
 import ManageUserButtons from "./GroupPageManageUserButtons";
-import AddUserForm from "./AddUserForm";
-import InviteNewUserForm from "./InviteNewUserForm";
-import AddGroupOfUsersForm from "./AddGroupOfUsersForm";
-import GroupAdmissionRequestsManagement from "./GroupAdmissionRequestsManagement";
-import { useGetConfigQuery } from "../../ducks/config";
+
+const MembersToolbar = () => <DataGridToolbar title="Members" />;
 
 interface GroupUsersProps {
   group: {
@@ -45,8 +38,6 @@ const GroupUsers = ({
 }: GroupUsersProps) => {
   const [anchorEl, setAnchorEl] = React.useState<any>(null);
   const [openedPopoverId, setOpenedPopoverId] = React.useState<any>(null);
-  const [userFormTab, setUserFormTab] = React.useState(0);
-  const { invitationsEnabled } = (useGetConfigQuery().data as any) ?? {};
 
   const handlePopoverOpen = (event: any, popoverId: any) => {
     setOpenedPopoverId(popoverId);
@@ -167,10 +158,16 @@ const GroupUsers = ({
   ];
 
   return (
-    <Box sx={{ p: 1.5 }}>
-      <Typography variant="h6">Members</Typography>
+    <Box
+      sx={{
+        p: 1.5,
+        flex: 1,
+        minHeight: 0,
+        display: "flex",
+        flexDirection: "column",
+      }}
+    >
       <StyledDataGrid
-        autoHeight
         columns={columns}
         rows={group?.users ? groupUsers : []}
         getRowId={(row: any) => row.id}
@@ -179,29 +176,10 @@ const GroupUsers = ({
           columns: { columnVisibilityModel: { name: hasNames } },
         }}
         columnBufferPx={3000}
+        disableVirtualization
         showToolbar
+        slots={{ toolbar: MembersToolbar }}
       />
-      {isAdmin(currentUser) && (
-        <Box sx={{ display: "flex", flexDirection: "column", gap: 3, mt: 2 }}>
-          <Box sx={{ borderBottom: 1, borderColor: "divider" }}>
-            <Tabs
-              value={userFormTab}
-              onChange={(_event, value) => setUserFormTab(value)}
-            >
-              <Tab label="Add a user" />
-              <Tab label="Add a group of users" />
-              {invitationsEnabled && <Tab label="Invite a new user" />}
-            </Tabs>
-          </Box>
-          {userFormTab === 0 && <AddUserForm group_id={group.id!} />}
-          {userFormTab === 1 && <AddGroupOfUsersForm groupID={group.id!} />}
-          {invitationsEnabled && userFormTab === 2 && (
-            <InviteNewUserForm group_id={group.id!} />
-          )}
-          <Divider />
-          <GroupAdmissionRequestsManagement groupID={group.id!} />
-        </Box>
-      )}
     </Box>
   );
 };

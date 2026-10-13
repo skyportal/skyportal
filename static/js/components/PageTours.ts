@@ -224,8 +224,8 @@ export const PAGE_TOURS: Record<string, TourStep[]> = {
       target: '[data-testid="tour-group-members"]',
       title: "Members & requests",
       content:
-        "See the group's members. As an admin you can add existing users here " +
-        "and approve or decline pending requests to join.",
+        "See the group's members. As an admin, add users from the top right " +
+        "and approve or decline requests to join in Admissions.",
     },
     {
       target: '[data-testid="tour-group-filters"]',

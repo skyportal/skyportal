@@ -16,8 +16,11 @@ import DialogTitle from "@mui/material/DialogTitle";
 
 import Button from "../Button";
 import Spinner from "../Spinner";
+import { FULL_PAGE_HEIGHT } from "../StyledDataGrid";
 
 import GroupUsers from "./GroupUsers";
+import GroupAddMembers from "./GroupAddMembers";
+import GroupAdmissionRequestsManagement from "./GroupAdmissionRequestsManagement";
 import GroupFiltersStreams from "./GroupFiltersStreams";
 import GroupSources from "./GroupSources";
 import GroupSettingsForm from "./GroupSettingsForm";
@@ -33,7 +36,6 @@ const Group = () => {
   const theme = useTheme();
   const navigate = useNavigate();
   const { id } = useParams();
-  const [tab, setTab] = useTabParam(["members", "sources", "filters"]);
   const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
 
   const { data: group, error: groupError } = useGetGroupQuery(id as string, {
@@ -41,6 +43,16 @@ const Group = () => {
   });
   const { data: currentUser } = useGetProfileQuery();
   const { error: streamsError } = useGetStreamsQuery();
+
+  const isAdmin = (aUser: any) =>
+    group?.["users"]?.some((u: any) => u.id === aUser.id && u.admin) ||
+    aUser.permissions?.includes("System admin") ||
+    aUser.permissions?.includes("Manage groups");
+  const canManage = currentUser != null && isAdmin(currentUser);
+  const tabNames = canManage
+    ? ["members", "admissions", "sources", "filters"]
+    : ["members", "sources", "filters"];
+  const [tab, setTab] = useTabParam(tabNames);
 
   if (groupError) return (groupError as any)?.error ?? "Failed to load group";
   if (streamsError)
@@ -52,13 +64,18 @@ const Group = () => {
     if (!error) navigate("/groups");
   };
 
-  const isAdmin = (aUser: any) =>
-    group["users"]?.some((u: any) => u.id === aUser.id && u.admin) ||
-    aUser.permissions?.includes("System admin") ||
-    aUser.permissions?.includes("Manage groups");
-
   return (
-    <Box>
+    <Box
+      sx={
+        tabNames[tab] === "members"
+          ? {
+              height: FULL_PAGE_HEIGHT,
+              display: "flex",
+              flexDirection: "column",
+            }
+          : {}
+      }
+    >
       <Box
         sx={{
           display: "flex",
@@ -79,8 +96,9 @@ const Group = () => {
             </Typography>
           )}
         </Box>
-        {isAdmin(currentUser) && (
+        {canManage && (
           <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap" }}>
+            <GroupAddMembers groupID={group["id"] as number} />
             <GroupSettingsForm group={group} />
             <Button
               variant="outlined"
@@ -99,10 +117,11 @@ const Group = () => {
         onChange={(_event, value) => setTab(value)}
       >
         <Tab label="Members" data-testid="tour-group-members" />
+        {canManage && <Tab label="Admissions" />}
         <Tab label="Sources" />
         <Tab label="Streams and filters" data-testid="tour-group-filters" />
       </Tabs>
-      {tab === 0 && (
+      {tabNames[tab] === "members" && (
         <GroupUsers
           group={group}
           currentUser={currentUser as any}
@@ -110,9 +129,16 @@ const Group = () => {
           isAdmin={isAdmin}
         />
       )}
+      {tabNames[tab] === "admissions" && (
+        <Box sx={{ p: 1.5 }}>
+          <GroupAdmissionRequestsManagement groupID={group["id"] as number} />
+        </Box>
+      )}
       {/* key: remounts on group -> group navigation to reset queries and table state */}
-      {tab === 1 && <GroupSources key={id} route={{ id: id as string }} />}
-      {tab === 2 && (
+      {tabNames[tab] === "sources" && (
+        <GroupSources key={id} route={{ id: id as string }} />
+      )}
+      {tabNames[tab] === "filters" && (
         <GroupFiltersStreams
           group={group}
           currentUser={currentUser}

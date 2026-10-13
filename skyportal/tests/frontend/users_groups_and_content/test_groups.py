@@ -80,11 +80,16 @@ def test_add_new_group_user(
     page.goto("/groups")
     page.get_by_role("tab", name="All Groups").click()
     page.locator(f'//div[@data-id="{public_group.id}"]').first.click()
+    page.locator('//*[@data-testid="addMembersButton"]').first.click()
     page.locator('//div[@data-testid="newGroupUserTextInput"]').first.click()
     page.locator(f'//li[text()="{user_no_groups.username}"]').first.click()
     if checkbox is not None:
         page.locator(f'//*[@data-testid="{checkbox}"]').first.click()
     page.locator('//button[contains(.,"Add user")]').first.click()
+    expect(
+        page.locator('//*[text()="Successfully added user to group."]').first
+    ).to_be_visible()
+    page.keyboard.press("Escape")
     expect(
         page.locator(f'//a[contains(.,"{user_no_groups.username}")]').first
     ).to_be_visible()
@@ -117,6 +122,7 @@ def test_invite_all_users_from_other_group(
         page.locator(f'//a[contains(.,"{user_group2.username}")]').first
     ).to_be_hidden()
     page.locator(f'//div[@data-id="{public_group.id}"]').first.click()
+    page.locator('//*[@data-testid="addMembersButton"]').first.click()
     page.get_by_role("tab", name="Add a group of users").click()
     page.locator('//*[@data-testid="addUsersFromGroupsTextField"]').first.click()
     page.locator(f'//li[text()="{public_group2.name}"]').first.click()
@@ -126,6 +132,7 @@ def test_invite_all_users_from_other_group(
             "//*[text()='Successfully added users from specified group(s)']"
         ).first
     ).to_be_visible()
+    page.keyboard.press("Escape")
     expect(page.locator(f'//*[text()="{user_group2.username}"]').first).to_be_visible()
 
 

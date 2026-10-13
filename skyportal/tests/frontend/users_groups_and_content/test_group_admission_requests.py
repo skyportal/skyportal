@@ -30,7 +30,7 @@ def test_group_admission_request_and_acceptance(
     assert status == 200
 
     page.goto(f"/become_user/{super_admin_user.id}")
-    page.goto(f"/group/{public_group2.id}")
+    page.goto(f"/group/{public_group2.id}?tab=admissions")
     # The group page is heavy; the admission-requests grid can render slowly under
     # load. Wait for this user's accept button directly (it's the only request on a
     # fresh group) instead of driving the grid's quick-filter, whose render timing
@@ -43,6 +43,7 @@ def test_group_admission_request_and_acceptance(
     accept_button.click()
     page.get_by_label("Show accepted").check()
     expect(page.locator('//span[text()="accepted"]').first).to_be_visible()
+    page.get_by_role("tab", name="Members", exact=True).click()
     expect(page.locator(f'//a[text()="{user.username}"]').first).to_be_visible()
 
 

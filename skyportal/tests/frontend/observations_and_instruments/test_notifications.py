@@ -158,7 +158,7 @@ def test_group_admission_requests_notifications(
         ).first
     ).to_be_visible()
     page.goto(f"/become_user/{super_admin_user.id}")
-    page.goto(f"/group/{public_group2.id}")
+    page.goto(f"/group/{public_group2.id}?tab=admissions")
     page.locator('//*[@data-testid="notificationsButton"]').first.click()
     expect(
         page.locator('//*[text()="New Group Admission Request from "]').first
@@ -173,6 +173,7 @@ def test_group_admission_requests_notifications(
     page.locator(f'//*[@data-testid="acceptRequestButton{user.id}"]').first.click()
     page.get_by_label("Show accepted").check()
     expect(page.locator('//span[text()="accepted"]').first).to_be_visible()
+    page.get_by_role("tab", name="Members", exact=True).click()
     expect(page.locator(f'//a[text()="{user.username}"]').first).to_be_visible()
 
     page.goto(f"/become_user/{user.id}")

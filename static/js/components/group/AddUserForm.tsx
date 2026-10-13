@@ -6,6 +6,8 @@ import FormControlLabel from "@mui/material/FormControlLabel";
 import Box from "@mui/material/Box";
 import SearchableSelect from "../SearchableSelect";
 
+import { showNotification } from "baselayer/components/Notifications";
+import { useAppDispatch } from "../../types/hooks";
 import { useAddGroupUserMutation } from "../../ducks/groups";
 import { useGetUsersQuery } from "../../ducks/users";
 import Button from "../Button";
@@ -29,6 +31,7 @@ interface AddUserFormProps {
 }
 
 const AddUserForm = ({ group_id }: AddUserFormProps) => {
+  const dispatch = useAppDispatch();
   const [addGroupUser] = useAddGroupUserMutation();
   const { data: usersData } = useGetUsersQuery();
   const allUsers = usersData?.users ?? [];
@@ -51,6 +54,7 @@ const AddUserForm = ({ group_id }: AddUserFormProps) => {
         ...formState,
       } as any).unwrap();
       setFormState(defaultState);
+      dispatch(showNotification("Successfully added user to group."));
     } catch {
       // error notification handled by the API layer
     }
