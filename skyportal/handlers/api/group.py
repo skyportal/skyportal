@@ -61,7 +61,7 @@ async def has_admin_access_for_group(user, group_id, session):
     sysadmin_like = await session.scalar(
         sa.select(sa.func.count())
         .select_from(combined)
-        .where(combined.c.acl_id.in_({"System admin", "Manage groups", "Manage_users"}))
+        .where(combined.c.acl_id.in_({"System admin", "Manage groups", "Manage users"}))
     )
     return bool(sysadmin_like)
 
