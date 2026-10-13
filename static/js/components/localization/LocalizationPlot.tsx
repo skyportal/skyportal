@@ -432,6 +432,11 @@ const AladinGlobe = ({
         maxWidth: width,
         maxHeight: height,
         aspectRatio: "1 / 1",
+        // Aladin's fullscreen class lifts max-width but not max-height or z-index.
+        "&.aladin-fullscreen": {
+          maxHeight: "none",
+          zIndex: (theme) => theme.zIndex.modal + 1,
+        },
       }}
     />
   );
