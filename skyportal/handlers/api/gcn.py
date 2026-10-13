@@ -5042,7 +5042,8 @@ def add_gcn_report(
                         photometry = session.scalars(stmt).all()
                         if len(photometry) > 0:
                             source["photometry"] = [
-                                serialize(phot, "ab", "mag") for phot in photometry
+                                serialize(phot, "ab", "mag", annotations=False)
+                                for phot in photometry
                             ]
                         else:
                             source["photometry"] = []
