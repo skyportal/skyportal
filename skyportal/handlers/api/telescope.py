@@ -11,6 +11,7 @@ from baselayer.app.access import auth_or_token, permissions
 
 from ...models import Allocation, AllocationUser, Instrument, Telescope
 from ..base import BaseHandler
+from .user import public_user_info
 
 
 class TelescopeHandler(BaseHandler):
@@ -151,6 +152,14 @@ class TelescopeHandler(BaseHandler):
                 if telescope is None:
                     continue
                 temp = telescope.to_dict()
+                temp["instruments"] = [
+                    {
+                        k: v
+                        for k, v in instrument.to_dict().items()
+                        if k != "allocations"
+                    }
+                    for instrument in telescope.instruments
+                ]
                 temp = {**temp, **telescope.current_time()}
                 temp["morning"] = (
                     temp["morning"].iso if isinstance(temp["morning"], Time) else False
@@ -164,7 +173,8 @@ class TelescopeHandler(BaseHandler):
                     for allocation in instrument.allocations:
                         allocation_data = allocation.to_dict()
                         allocation_data["allocation_users"] = [
-                            user.user.to_dict() for user in allocation.allocation_users
+                            public_user_info(user.user)
+                            for user in allocation.allocation_users
                         ]
                         allocations.append(allocation_data)
                 temp["allocations"] = allocations
