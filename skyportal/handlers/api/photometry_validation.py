@@ -217,6 +217,16 @@ class PhotometryValidationHandler(BaseHandler):
             return self.error(f"Error parsing query params: {e.args[0]}.")
 
         async with self.AsyncSession() as session:
+            phot = await session.scalar(
+                Photometry.select(session.user_or_token).where(
+                    Photometry.id == photometry_id
+                )
+            )
+            if phot is None:
+                return self.error(
+                    f"Cannot find photometry point with ID: {photometry_id}."
+                )
+
             stmt = PhotometryValidation.select(
                 session.user_or_token, mode="update"
             ).where(
@@ -292,6 +302,16 @@ class PhotometryValidationHandler(BaseHandler):
             return self.error(f"Error parsing query params: {e.args[0]}.")
 
         async with self.AsyncSession() as session:
+            phot = await session.scalar(
+                Photometry.select(session.user_or_token).where(
+                    Photometry.id == photometry_id
+                )
+            )
+            if phot is None:
+                return self.error(
+                    f"Cannot find photometry point with ID: {photometry_id}."
+                )
+
             stmt = PhotometryValidation.select(
                 session.user_or_token, mode="delete"
             ).where(
