@@ -78,3 +78,44 @@ def test_feedback_rejects_unknown_category(view_only_token):
         token=view_only_token,
     )
     assert status == 400
+
+
+def test_feedback_assignee(view_only_token, super_admin_token, super_admin_user):
+    status, data = api(
+        "POST",
+        "feedback",
+        data={"category": "bug", "text": "The plot is empty"},
+        token=view_only_token,
+    )
+    assert status == 200
+    feedback_id = data["data"]["id"]
+
+    status, _ = api(
+        "PATCH",
+        f"feedback/{feedback_id}",
+        data={"assignee_id": super_admin_user.id},
+        token=view_only_token,
+    )
+    assert status == 403
+
+    status, _ = api(
+        "PATCH",
+        f"feedback/{feedback_id}",
+        data={"assignee_id": super_admin_user.id},
+        token=super_admin_token,
+    )
+    assert status == 200
+    status, data = api("GET", f"feedback/{feedback_id}", token=view_only_token)
+    message = data["data"]["messages"][0]
+    assert message["assignee"]["id"] == super_admin_user.id
+    assert not message["resolved"]
+
+    status, _ = api(
+        "PATCH",
+        f"feedback/{feedback_id}",
+        data={"assignee_id": None},
+        token=super_admin_token,
+    )
+    assert status == 200
+    status, data = api("GET", f"feedback/{feedback_id}", token=super_admin_token)
+    assert data["data"]["messages"][0]["assignee"] is None

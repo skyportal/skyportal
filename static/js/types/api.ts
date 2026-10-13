@@ -20617,7 +20617,7 @@ export interface paths {
         options?: never;
         head?: never;
         /**
-         * Mark a message left to the admins as handled, or reopen it
+         * Mark a message left to the admins as handled, reopen it, or assign it
          * @description <b>Permission(s) required:</b> <em>System admin (or System admin)</em><br><br>
          */
         patch: {
@@ -27811,6 +27811,8 @@ export interface components {
         Feedback: {
             /** @description The User who wrote the message */
             readonly author?: components["schemas"]["User"];
+            /** @description The admin working on the message */
+            readonly assignee?: components["schemas"]["User"];
             readonly replies?: components["schemas"]["FeedbackReply"][];
             /** @description ID of the User who wrote the message */
             author_id: number;
@@ -27820,6 +27822,8 @@ export interface components {
             text: string;
             /** @description Whether an admin has handled the message */
             resolved?: boolean;
+            /** @description ID of the admin working on the message */
+            assignee_id?: number | null;
             /** @description Unique object identifier. */
             id?: number;
         };
@@ -27838,6 +27842,8 @@ export interface components {
         FeedbackNoID: {
             /** @description The User who wrote the message */
             readonly author?: components["schemas"]["User"];
+            /** @description The admin working on the message */
+            readonly assignee?: components["schemas"]["User"];
             readonly replies?: components["schemas"]["FeedbackReply"][];
             /** @description ID of the User who wrote the message */
             author_id: number;
@@ -27847,6 +27853,8 @@ export interface components {
             text: string;
             /** @description Whether an admin has handled the message */
             resolved?: boolean;
+            /** @description ID of the admin working on the message */
+            assignee_id?: number | null;
         };
         SingleFeedbackNoID: {
             /** @enum {string} */
@@ -48969,6 +48977,8 @@ export interface components {
              */
             created_at: string;
             author: components["schemas"]["FeedbackAuthorResponse"];
+            /** @default null */
+            assignee: components["schemas"]["FeedbackAuthorResponse"];
             /** Replies */
             replies?: components["schemas"]["FeedbackReplyResponse"][];
         };
@@ -48999,11 +49009,20 @@ export interface components {
         };
         /**
          * FeedbackPatchBody
-         * @description Request body for marking a message as handled.
+         * @description Request body for marking a message as handled, or assigning it to an admin.
          */
         FeedbackPatchBody: {
-            /** Resolved */
-            resolved: boolean;
+            /**
+             * Resolved
+             * @default null
+             */
+            resolved: boolean | null;
+            /**
+             * Assignee Id
+             * @description ID of the admin working on it; null to unassign
+             * @default null
+             */
+            assignee_id: number | null;
         };
         /**
          * FeedbackReplyPostBody

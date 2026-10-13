@@ -6,6 +6,10 @@ import utc from "dayjs/plugin/utc";
 import { alpha } from "@mui/material/styles";
 import Box from "@mui/material/Box";
 import Chip from "@mui/material/Chip";
+import Dialog from "@mui/material/Dialog";
+import DialogActions from "@mui/material/DialogActions";
+import DialogContent from "@mui/material/DialogContent";
+import DialogTitle from "@mui/material/DialogTitle";
 import Paper from "@mui/material/Paper";
 import Stack from "@mui/material/Stack";
 import TextField from "@mui/material/TextField";
@@ -24,12 +28,16 @@ import CheckCircleIcon from "@mui/icons-material/CheckCircleOutlineOutlined";
 import ReplyIcon from "@mui/icons-material/Reply";
 import DoneIcon from "@mui/icons-material/Done";
 import UndoIcon from "@mui/icons-material/Undo";
+import AssignIcon from "@mui/icons-material/AssignmentIndOutlined";
+import UnassignIcon from "@mui/icons-material/PersonRemoveOutlined";
+import TakeOverIcon from "@mui/icons-material/SwapHoriz";
 
 import { showNotification } from "baselayer/components/Notifications";
 import Button from "../Button";
 import UserAvatar, { getUserRealName } from "../user/UserAvatar";
 import NotificationToggle from "./NotificationToggle";
 import { useAppDispatch } from "../../types/hooks";
+import { useGetProfileQuery } from "../../ducks/profile";
 import {
   useAddFeedbackMutation,
   useGetFeedbackQuery,
@@ -71,15 +79,21 @@ type Status = keyof typeof STATUSES;
 const statusOf = (message: Feedback): Status =>
   message.resolved ? "resolved" : message.replies?.length ? "answered" : "open";
 
+const nameOf = (user: Feedback["author"]) =>
+  getUserRealName(user.first_name, user.last_name) || user.username;
+
 const Author = ({
   author,
   size,
+  noTooltip = false,
 }: {
   author: Feedback["author"];
   size: number;
+  noTooltip?: boolean;
 }) => (
   <UserAvatar
     size={size}
+    noTooltip={noTooltip}
     username={author.username}
     firstName={author.first_name ?? null}
     lastName={author.last_name ?? null}
@@ -97,7 +111,7 @@ const Signature = ({
 }) => (
   <>
     <Typography variant="body2" sx={{ fontWeight: 600 }}>
-      {getUserRealName(author.first_name, author.last_name) || author.username}
+      {nameOf(author)}
     </Typography>
     <Posted at={at} />
   </>
@@ -203,6 +217,69 @@ const FeedbackForm = ({ title }: { title: string }) => {
   );
 };
 
+const AssignButton = ({ message }: { message: Feedback }) => {
+  const [confirming, setConfirming] = useState(false);
+  const { data: profile } = useGetProfileQuery();
+  const [updateFeedback] = useUpdateFeedbackMutation();
+  const { assignee } = message;
+  const assign = (assigneeId: number | null) =>
+    updateFeedback({ id: message.id, assignee_id: assigneeId });
+
+  if (!profile) return null;
+  if (assignee?.id === profile.id)
+    return (
+      <Button
+        size="small"
+        endIcon={<UnassignIcon />}
+        onClick={() => assign(null)}
+      >
+        Unassign
+      </Button>
+    );
+  if (!assignee)
+    return (
+      <Button
+        size="small"
+        endIcon={<AssignIcon />}
+        onClick={() => assign(profile.id)}
+      >
+        Assign to me
+      </Button>
+    );
+  return (
+    <>
+      <Button
+        size="small"
+        endIcon={<TakeOverIcon />}
+        onClick={() => setConfirming(true)}
+      >
+        Take over
+      </Button>
+      <Dialog open={confirming} onClose={() => setConfirming(false)}>
+        <DialogTitle>Take over this message?</DialogTitle>
+        <DialogContent>
+          {nameOf(assignee)} is working on it. It will be assigned to you
+          instead.
+        </DialogContent>
+        <DialogActions>
+          <Button secondary autoFocus onClick={() => setConfirming(false)}>
+            Cancel
+          </Button>
+          <Button
+            primary
+            onClick={() => {
+              setConfirming(false);
+              assign(profile.id);
+            }}
+          >
+            Take over
+          </Button>
+        </DialogActions>
+      </Dialog>
+    </>
+  );
+};
+
 const Message = ({
   message,
   isAdmin,
@@ -237,6 +314,13 @@ const Message = ({
             <Signature author={message.author} at={message.created_at} />
             <Chip size="small" variant="outlined" icon={icon} label={label} />
             <Box sx={{ flexGrow: 1 }} />
+            {message.assignee && (
+              <Tooltip title={`Assigned to ${nameOf(message.assignee)}`}>
+                <Box sx={{ display: "inline-flex" }}>
+                  <Author author={message.assignee} size={24} noTooltip />
+                </Box>
+              </Tooltip>
+            )}
             <Chip size="small" {...status} />
           </Stack>
           <Typography variant="body2" sx={{ mt: 0.75, whiteSpace: "pre-wrap" }}>
@@ -300,6 +384,7 @@ const Message = ({
               >
                 {replying ? "Cancel" : "Reply"}
               </Button>
+              <AssignButton message={message} />
               <Button
                 size="small"
                 endIcon={message.resolved ? <UndoIcon /> : <DoneIcon />}
