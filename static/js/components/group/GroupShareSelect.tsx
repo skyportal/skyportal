@@ -8,6 +8,7 @@ import Input from "@mui/material/Input";
 import Box from "@mui/material/Box";
 
 import { Group } from "../../types";
+import RemovableChip from "../RemovableChip";
 
 const getStyles = (groupID: number, groupIDs: number[] = [], theme: any) => ({
   fontWeight:
@@ -51,7 +52,13 @@ const GroupShareSelect = ({
             return (
               <Box sx={{ display: "flex", gap: 0.5 }}>
                 {selected.map((value) => (
-                  <Chip key={value} label={groupIDToName[value]} />
+                  <RemovableChip
+                    key={value}
+                    label={groupIDToName[value]}
+                    onDelete={() =>
+                      setGroupIDs(selected.filter((id) => id !== value))
+                    }
+                  />
                 ))}
               </Box>
             );
