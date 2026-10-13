@@ -382,7 +382,7 @@ async def ingest_sso_alert(
         xact_lock,
     )
     from ..handlers.api.photometry import add_external_photometry
-    from ..models import Instrument
+    from ..models import Filter, Instrument
     from .survey import instrument_name
 
     cand = data.get("candidate") or {}
@@ -455,7 +455,7 @@ async def ingest_sso_alert(
 
         from baselayer.app.models import utcnow
 
-        from ..models import Annotation, Filter, GroupAnnotation
+        from ..models import Annotation, GroupAnnotation
 
         filters = (
             await session.scalars(
@@ -565,6 +565,15 @@ async def ingest_sso_alert(
             instrument_id,
             programid2streamid,
         )
+        photometry_group_ids = set(group_ids or [])
+        if filter_ids:
+            photometry_group_ids.update(
+                (
+                    await session.scalars(
+                        sa.select(Filter.group_id).where(Filter.id.in_(filter_ids))
+                    )
+                ).all()
+            )
         for pd in photometry_data.values():
             if not pd["mjd"]:
                 continue
@@ -580,6 +589,8 @@ async def ingest_sso_alert(
                 altdata["separation_arcsec"] = seps
             if altdata:
                 pd["altdata"] = altdata
+            if photometry_group_ids:
+                pd["group_ids"] = sorted(photometry_group_ids)
             await add_external_photometry(pd, user, session, apply_default_share=False)
 
     await _link_designation(session, obj_id, designation)
