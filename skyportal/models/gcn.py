@@ -338,13 +338,13 @@ class GcnReport(Base):
         pub_html = self.get_html()
         pub_plot = self.get_plot()
         cache[cache_key] = dict_to_bytes(
-            {"published": True, "html": pub_html, "plot": pub_plot}
+            {"published": self.published, "html": pub_html, "plot": pub_plot}
         )
 
     def publish(self):
         """Publish GcnReport."""
-        self.generate_report()
         self.published = True
+        self.generate_report()
 
     def unpublish(self):
         """Unpublish GcnReport."""
