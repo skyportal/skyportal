@@ -1017,8 +1017,8 @@ def api(queue):
                             event_tag = tag_event(
                                 session, extraction, extraction.sent_by_id
                             )
-                            if tagged or event_tag:
-                                session.commit()
+                            # also saves groups given to existing group-less tags
+                            session.commit()
                             if tagged:
                                 log(
                                     f"tagged {', '.join(tagged)} from extraction {target_id}"

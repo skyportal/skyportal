@@ -18,7 +18,6 @@ from sqlalchemy.orm import selectinload
 from baselayer.app.access import AccessError, auth_or_token, permissions
 from baselayer.app.env import load_env
 from baselayer.app.models import RoleACL, UserACL, UserRole
-from baselayer.log import make_log
 
 from ...models import (
     Filter,
@@ -80,9 +79,6 @@ async def _user_is_system_admin(user_id, session):
         .where(combined.c.acl_id == "System admin")
     )
     return bool(count)
-
-
-log = make_log("api/group")
 
 
 class GroupHandler(BaseHandler):
@@ -174,7 +170,6 @@ class GroupHandler(BaseHandler):
                     .options(
                         selectinload(Group.group_users).selectinload(GroupUser.user),
                         selectinload(Group.streams),
-                        selectinload(Group.filters),
                     )
                     .where(Group.id == group_id)
                 )
@@ -199,8 +194,21 @@ class GroupHandler(BaseHandler):
                     else None
                 )
 
-                streams = list(group.streams)
-                filters = list(group.filters)
+                # Any user can read a group, and relationship loads skip the
+                # Stream and Filter read policies, so expose only stream names
+                # and the filters the requester can read.
+                streams = [{"id": s.id, "name": s.name} for s in group.streams]
+                filters = (
+                    (
+                        await session.scalars(
+                            Filter.select(session.user_or_token).where(
+                                Filter.group_id == group_id
+                            )
+                        )
+                    )
+                    .unique()
+                    .all()
+                )
 
                 group = group.to_dict()
 
@@ -209,12 +217,6 @@ class GroupHandler(BaseHandler):
 
                 group["streams"] = streams
                 group["filters"] = filters
-                try:
-                    # commit to surface any access-control errors picked up on flush
-                    await session.commit()
-                    group["filters"] = filters
-                except AccessError as e:
-                    log(f"Insufficient filter permissions: {e}.")
 
                 return self.success(data=group)
 
