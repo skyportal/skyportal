@@ -1491,6 +1491,16 @@ class ObservationPlanSubmitHandler(BaseHandler):
             )
 
         async with self.AsyncSession() as session:
+            observation_plan_request = await session.scalar(
+                ObservationPlanRequest.select(
+                    session.user_or_token, mode="update"
+                ).where(ObservationPlanRequest.id == observation_plan_request_id_int)
+            )
+            if observation_plan_request is None:
+                return self.error(
+                    f"Cannot find ObservationPlanRequest with ID: {observation_plan_request_id}"
+                )
+
             try:
                 observation_plan_request = await send_observation_plan(
                     observation_plan_request_id_int, session

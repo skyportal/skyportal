@@ -78,6 +78,7 @@ def test_fetch_group_users_omits_contact_details(view_only_token, public_group):
         token=view_only_token,
     )
     assert status == 200
+    assert "group_users" not in data["data"]
     assert len(data["data"]["users"]) > 0
     for user in data["data"]["users"]:
         assert not {"contact_email", "contact_phone", "oauth_uid"} & set(user)
