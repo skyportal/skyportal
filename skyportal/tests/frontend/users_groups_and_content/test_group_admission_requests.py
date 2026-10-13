@@ -39,9 +39,10 @@ def test_group_admission_request_and_acceptance(
         f'//*[@data-testid="acceptRequestButton{user.id}"]'
     ).first
     expect(accept_button).to_be_visible(timeout=180000)
-    expect(page.locator('//div[text()="pending"]').first).to_be_visible()
+    expect(page.locator('//span[text()="pending"]').first).to_be_visible()
     accept_button.click()
-    expect(page.locator('//div[text()="accepted"]').first).to_be_visible()
+    page.get_by_label("Show accepted").check()
+    expect(page.locator('//span[text()="accepted"]').first).to_be_visible()
     expect(page.locator(f'//a[text()="{user.username}"]').first).to_be_visible()
 
 

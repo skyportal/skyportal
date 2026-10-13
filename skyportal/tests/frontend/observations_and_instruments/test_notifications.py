@@ -169,9 +169,10 @@ def test_group_admission_requests_notifications(
     ).to_be_hidden()
 
     filter_for_value(page, user.username, last=True)
-    expect(page.locator('//div[text()="pending"]').first).to_be_visible()
+    expect(page.locator('//span[text()="pending"]').first).to_be_visible()
     page.locator(f'//*[@data-testid="acceptRequestButton{user.id}"]').first.click()
-    expect(page.locator('//div[text()="accepted"]').first).to_be_visible()
+    page.get_by_label("Show accepted").check()
+    expect(page.locator('//span[text()="accepted"]').first).to_be_visible()
     expect(page.locator(f'//a[text()="{user.username}"]').first).to_be_visible()
 
     page.goto(f"/become_user/{user.id}")
