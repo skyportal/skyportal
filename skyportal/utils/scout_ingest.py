@@ -122,6 +122,8 @@ def _apply_impactor_tag(session, obj_id, impact_rating, author_id, groups):
                 groups=groups,
             )
         )
+    elif tagged and not existing.groups:
+        existing.groups = groups
     elif not tagged and existing is not None:
         session.delete(existing)
 

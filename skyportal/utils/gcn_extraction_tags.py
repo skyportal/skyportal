@@ -107,6 +107,8 @@ def apply_tags(session, extraction, author_id):
             )
         )
         if exists is not None:
+            if not exists.groups:
+                exists.groups = groups
             continue
         session.add(
             ObjTag(
