@@ -72,6 +72,7 @@ from skyportal.utils.notifications import (
     gcn_email_notification,
     gcn_notification_content,
     gcn_slack_notification,
+    group_admission_request_notification_text,
     mention_email_notification,
     source_email_notification,
     source_notification_content,
@@ -249,6 +250,13 @@ def send_slack_notification(target):
             data = json.dumps(
                 {"url": integration_url, "text": f"{text} ({app_url}{target['url']})"}
             )
+        elif resource_type == "group_admission_request" and target.get("content"):
+            text = group_admission_request_notification_text(
+                target["content"], escape_slack
+            )
+            data = json.dumps(
+                {"url": integration_url, "text": f"{text} ({app_url}{target['url']})"}
+            )
         else:
             data = json.dumps(
                 {
@@ -322,6 +330,11 @@ def send_email_notification(target):
 
         elif resource_type == "group_admission_request":
             subject = f"{cfg['app.title']} - New group admission request"
+            if target.get("content"):
+                text = group_admission_request_notification_text(
+                    target["content"], html.escape, bold=""
+                )
+                body = f"<p>{text}</p><p><a href='{app_url}{target['url']}'>View in {cfg['app.title']}</a></p>"
 
         elif resource_type == "deployments":
             subject = f"{cfg['app.title']} - New deployment"
@@ -1418,11 +1431,42 @@ def api(queue):
                                             Group.id == target_data["group_id"]
                                         )
                                     ).first()
+                                    shares_affiliations = (
+                                        (user_from_request.preferences or {}).get(
+                                            "publicProfile"
+                                        )
+                                        or {}
+                                    ).get("affiliations", True)
+                                    content = {
+                                        "name": " ".join(
+                                            filter(
+                                                None,
+                                                [
+                                                    user_from_request.first_name,
+                                                    user_from_request.last_name,
+                                                ],
+                                            )
+                                        ),
+                                        "username": user_from_request.username,
+                                        "affiliations": (
+                                            user_from_request.affiliations or []
+                                        )
+                                        if shares_affiliations
+                                        else [],
+                                        "group": group_from_request.name,
+                                        "message": textwrap.shorten(
+                                            target_data["message"] or "",
+                                            200,
+                                            placeholder="...",
+                                        ),
+                                    }
                                     notification = UserNotification(
                                         user=user,
-                                        text=f"New Group Admission Request from *@{user_from_request.username}* for Group *{group_from_request.name}*",
+                                        text=group_admission_request_notification_text(
+                                            content, escape_markdown
+                                        ),
                                         notification_type="group_admission_request",
-                                        url=f"/group/{group_from_request.id}",
+                                        url=f"/group/{group_from_request.id}?tab=admissions",
                                     )
                                     session.add(notification)
                                     session.commit()
@@ -1432,6 +1476,7 @@ def api(queue):
                                             **notification.user.to_dict(),
                                             "preferences": notification.user.preferences,
                                         },
+                                        "content": content,
                                     }
                                     queue.append(target)
                                 else:
