@@ -6,7 +6,7 @@ from baselayer.app.access import auth_or_token
 from baselayer.app.env import load_env
 
 from ...models import AssistantMessage
-from ...utils.assistant import is_enabled, post_to_assistant
+from ...utils.assistant import CONTEXT_DESCRIPTIONS, is_enabled, post_to_assistant
 from ..base import BaseHandler
 
 _, cfg = load_env()
@@ -114,6 +114,8 @@ class AssistantMessageHandler(BaseHandler):
             return self.error("No assistant is configured on this instance.")
         if not body.text.strip():
             return self.error("`text` must not be empty")
+        if body.context_type not in (None, *CONTEXT_DESCRIPTIONS):
+            return self.error(f"Invalid context_type: {body.context_type}")
 
         async with self.AsyncSession() as session:
             message = AssistantMessage(

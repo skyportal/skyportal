@@ -17,9 +17,10 @@ from baselayer.app.models import ACL, init_db, session_context_id
 from baselayer.log import make_log
 from skyportal.models import (
     AssistantMessage,
+    AssistantQuery,
     Comment,
     DBSession,
-    Group,
+    Filter,
     GroupUser,
     Token,
     User,
@@ -36,6 +37,7 @@ from skyportal.utils.assistant import (
     proposal,
     record_call,
 )
+from skyportal.utils.assistant_triage import SKYBOT_USERNAME
 
 _, cfg = load_env()
 log = make_log("assistant")
@@ -265,6 +267,30 @@ def service_token(session, user_id):
     return token
 
 
+def requester_of(session, message, user):
+    match = re.fullmatch(r"query:(\d+):.+", message.channel or "")
+    if match is None or not (user.is_bot and user.username == SKYBOT_USERNAME):
+        return message.user_id
+    return session.scalar(
+        sa.select(AssistantQuery.owner_id).where(AssistantQuery.id == int(match[1]))
+    )
+
+
+def may_edit_filter(session, user_id, context_id):
+    broker_id, _, filter_id = (context_id or "").partition("/")
+    if not (broker_id.isdigit() and filter_id.isdigit()):
+        return False
+    user = session.scalar(sa.select(User).where(User.id == user_id))
+    return (
+        session.scalars(
+            Filter.select(user, mode="update").where(
+                Filter.id == int(filter_id), Filter.broker_id == int(broker_id)
+            )
+        ).first()
+        is not None
+    )
+
+
 def clear_service_tokens():
     """Drop the tokens a previous run left behind by dying mid-answer."""
     session_context_id.set(uuid.uuid4().hex)
@@ -358,7 +384,8 @@ def post_triage_comment(session, author_id, notify, context_type, context_id, an
     text = (answer or "").strip()
     if not (group_ids and context_type == "source" and context_id and text):
         return
-    groups = session.scalars(sa.select(Group).where(Group.id.in_(group_ids))).all()
+    author = session.scalar(sa.select(User).where(User.id == author_id))
+    groups = [group for group in author.accessible_groups if group.id in group_ids]
     if not groups:
         return
     session.add(
@@ -457,7 +484,15 @@ def respond(message_id):
                 "first_name": user.first_name,
                 "last_name": user.last_name,
             }
-            token_id = service_token(session, user_id).id
+            requester_id = requester_of(session, message, user)
+            if requester_id is None:
+                log(f"message {message_id} is for a query that is gone; not answering")
+                return
+            if context_type == "filter" and not may_edit_filter(
+                session, requester_id, context_id
+            ):
+                context_type = context_id = None
+            token_id = service_token(session, requester_id).id
 
         # Answering takes minutes, so no connection is held while it runs.
         trace, built = [], None
