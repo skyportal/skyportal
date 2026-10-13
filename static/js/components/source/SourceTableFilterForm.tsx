@@ -8,7 +8,6 @@ import { useTheme } from "@mui/material/styles";
 import { makeStyles } from "tss-react/mui";
 import Typography from "@mui/material/Typography";
 import Input from "@mui/material/Input";
-import Chip from "@mui/material/Chip";
 import Select from "@mui/material/Select";
 import MenuItem from "@mui/material/MenuItem";
 import { Controller, useForm } from "react-hook-form";
@@ -26,6 +25,7 @@ import {
   useGetSpatialCatalogsQuery,
   useGetSpatialCatalogQuery,
 } from "../../ducks/spatialCatalogs";
+import RemovableChip from "../RemovableChip";
 
 const useStyles = makeStyles()((theme) => ({
   paperDiv: {
@@ -502,10 +502,17 @@ const SourceTableFilterForm = ({
                 renderValue={(selected: any) => (
                   <div className={classes.chips}>
                     {selected.map((classification: any) => (
-                      <Chip
+                      <RemovableChip
                         key={classification}
                         label={classification}
                         className={classes.chip}
+                        onDelete={() => {
+                          const newValue = selected.filter(
+                            (c: any) => c !== classification,
+                          );
+                          setSelectedClassifications(newValue);
+                          onChange(newValue);
+                        }}
                       />
                     ))}
                   </div>
@@ -577,10 +584,17 @@ const SourceTableFilterForm = ({
                 renderValue={(selected: any) => (
                   <div className={classes.chips}>
                     {selected.map((classification: any) => (
-                      <Chip
+                      <RemovableChip
                         key={classification}
                         label={classification}
                         className={classes.chip}
+                        onDelete={() => {
+                          const newValue = selected.filter(
+                            (c: any) => c !== classification,
+                          );
+                          setSelectedNonClassifications(newValue);
+                          onChange(newValue);
+                        }}
                       />
                     ))}
                   </div>

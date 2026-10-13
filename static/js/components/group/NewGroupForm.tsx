@@ -2,7 +2,6 @@ import React, { useState } from "react";
 
 import Box from "@mui/material/Box";
 import Select from "@mui/material/Select";
-import Chip from "@mui/material/Chip";
 import MenuItem from "@mui/material/MenuItem";
 import FormControl from "@mui/material/FormControl";
 import FormControlLabel from "@mui/material/FormControlLabel";
@@ -16,6 +15,7 @@ import { useAddNewGroupMutation } from "../../ducks/groups";
 import { useGetUsersQuery } from "../../ducks/users";
 import Button from "../Button";
 import Paper from "../Paper";
+import RemovableChip from "../RemovableChip";
 
 const NewGroupForm = () => {
   const theme = useTheme();
@@ -114,15 +114,23 @@ const NewGroupForm = () => {
               renderValue={(selected: any) => (
                 <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.5 }}>
                   {selected.map((value: number) => (
-                    <Chip
+                    <RemovableChip
                       key={value}
                       label={userIDToName[value]}
                       sx={{ margin: "0.1rem" }}
+                      onDelete={() =>
+                        setState({
+                          ...formState,
+                          group_admins: selected.filter(
+                            (id: number) => id !== value,
+                          ),
+                        })
+                      }
                     />
                   ))}
                 </Box>
               )}
-              defaultValue={[]}
+              value={formState.group_admins}
             >
               {allUsers.map((user: any) => (
                 <MenuItem

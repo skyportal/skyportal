@@ -1,6 +1,5 @@
 import { useState } from "react";
 import { makeStyles } from "tss-react/mui";
-import CancelIcon from "@mui/icons-material/Cancel";
 import Chip from "@mui/material/Chip";
 import FormControl from "@mui/material/FormControl";
 import InputLabel from "@mui/material/InputLabel";
@@ -8,6 +7,7 @@ import ListSubheader from "@mui/material/ListSubheader";
 import MenuItem from "@mui/material/MenuItem";
 import Select from "@mui/material/Select";
 import TextField from "@mui/material/TextField";
+import RemovableChip from "./RemovableChip";
 import { useTheme } from "@mui/material/styles";
 
 const useStyles = makeStyles()(() => ({
@@ -90,7 +90,7 @@ const SelectWithChips = (props: SelectWithChipsProps) => {
         renderValue={(selected: any) => (
           <div className={classes.chips}>
             {selected.slice(0, max_chips_nb).map((value: any) => (
-              <Chip
+              <RemovableChip
                 key={value}
                 label={value}
                 onDelete={() =>
@@ -99,12 +99,6 @@ const SelectWithChips = (props: SelectWithChipsProps) => {
                       value: selected.filter((v: any) => v !== value),
                     },
                   })
-                }
-                deleteIcon={
-                  // Keep a click on the cross from opening the menu.
-                  <CancelIcon
-                    onMouseDown={(event) => event.stopPropagation()}
-                  />
                 }
               />
             ))}
@@ -181,6 +175,13 @@ const SelectLabelWithChips = (props: SelectLabelWithChipsProps) => {
       ? cumSum.filter((sum) => sum <= MAX_CHAR).length
       : -1;
 
+  const handleChange = (event: any) => {
+    onChange(event);
+    setOpts(
+      event.target.value.includes("Clear selections") ? [] : event.target.value,
+    );
+  };
+
   return (
     <FormControl className={classes.formControl}>
       <InputLabel>{label}</InputLabel>
@@ -189,18 +190,21 @@ const SelectLabelWithChips = (props: SelectLabelWithChipsProps) => {
         multiple
         label={label}
         value={(initValue || []) as any}
-        onChange={(event: any) => {
-          onChange(event);
-          setOpts(
-            event.target.value.includes("Clear selections")
-              ? []
-              : event.target.value,
-          );
-        }}
+        onChange={handleChange}
         renderValue={(selected: any) => (
           <div className={classes.chips}>
             {selected.slice(0, max_chips_nb).map((value: any) => (
-              <Chip key={value.id} label={value.label} />
+              <RemovableChip
+                key={value.id}
+                label={value.label}
+                onDelete={() =>
+                  handleChange({
+                    target: {
+                      value: selected.filter((v: any) => v.id !== value.id),
+                    },
+                  })
+                }
+              />
             ))}
             {selected.length > max_chips_nb && (
               <Chip label={`+${selected.length - max_chips_nb}`} />

@@ -1,7 +1,6 @@
 import { useMemo, useState } from "react";
 import { useTheme } from "@mui/material/styles";
 import Box from "@mui/material/Box";
-import Chip from "@mui/material/Chip";
 import CircularProgress from "@mui/material/CircularProgress";
 import FormControl from "@mui/material/FormControl";
 import FormControlLabel from "@mui/material/FormControlLabel";
@@ -21,6 +20,7 @@ import {
   type DBStatsInterval,
 } from "../ducks/dbStatsHistory";
 import { BASE_LAYOUT, plotAxisTheme, plotCanvasTheme } from "../utils";
+import RemovableChip from "./RemovableChip";
 
 const Plot: any = createPlotlyComponent(Plotly);
 
@@ -174,7 +174,19 @@ const DBStatsHistory = () => {
             renderValue={(selected) => (
               <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.5 }}>
                 {(selected as string[]).map((table) => (
-                  <Chip key={table} size="small" label={labelFor(table)} />
+                  <RemovableChip
+                    key={table}
+                    size="small"
+                    label={labelFor(table)}
+                    onDelete={
+                      selected.length > 1
+                        ? () =>
+                            setTables(
+                              (selected as string[]).filter((t) => t !== table),
+                            )
+                        : undefined
+                    }
+                  />
                 ))}
               </Box>
             )}

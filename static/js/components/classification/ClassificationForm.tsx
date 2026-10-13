@@ -5,7 +5,6 @@ import MenuItem from "@mui/material/MenuItem";
 import Select from "@mui/material/Select";
 import Input from "@mui/material/Input";
 import InputLabel from "@mui/material/InputLabel";
-import Chip from "@mui/material/Chip";
 import { createFilterOptions } from "@mui/material/Autocomplete";
 import { makeStyles } from "tss-react/mui";
 import SearchableSelect from "../SearchableSelect";
@@ -16,6 +15,7 @@ import validator from "@rjsf/validator-ajv8";
 import { showNotification } from "baselayer/components/Notifications";
 import { useAppDispatch } from "../../types/hooks";
 import { useAddClassificationMutation } from "../../ducks/source";
+import RemovableChip from "../RemovableChip";
 
 const useStyles = makeStyles()(() => ({
   chips: {
@@ -143,10 +143,13 @@ const CustomGroupsWidget = ({
         renderValue={(selected: any) => (
           <div className={classes.chips}>
             {selected?.map((group: any) => (
-              <Chip
+              <RemovableChip
                 key={group}
                 label={groupIDToName[group]}
                 className={classes.chip}
+                onDelete={() =>
+                  onChange(selected.filter((g: any) => g !== group))
+                }
               />
             ))}
           </div>
