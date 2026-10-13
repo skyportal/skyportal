@@ -1738,7 +1738,7 @@ async def get_sources(
                 else:
                     statements.append(
                         f"""
-                        EXISTS (SELECT obj_id from followuprequests where followuprequests.obj_id=objs.id {"and followuprequests.allocation_id in :allocation_ids" if len(allocation_ids) > 0 else ""})
+                        EXISTS (SELECT obj_id from followuprequests where followuprequests.obj_id=objs.id {allocation_filter})
                         """
                     )
             except Exception as e:
