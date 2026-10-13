@@ -36,6 +36,7 @@ import AutorenewIcon from "@mui/icons-material/AutorenewOutlined";
 import RocketLaunchIcon from "@mui/icons-material/RocketLaunchOutlined";
 import FeedbackIcon from "@mui/icons-material/FeedbackOutlined";
 import ForumIcon from "@mui/icons-material/ForumOutlined";
+import PersonAddIcon from "@mui/icons-material/PersonAddOutlined";
 
 import dayjs from "dayjs";
 import relativeTime from "dayjs/plugin/relativeTime";
@@ -79,6 +80,8 @@ const category = (
   if (type.includes("spectrum") || type.includes("photometry"))
     return { label: "Spectra & photometry", icon: <ShowChartIcon /> };
   if (type.includes("gcn")) return { label: "GCN events", icon: <FlareIcon /> };
+  if (type === "user_application")
+    return { label: "Applications", icon: <PersonAddIcon /> };
   if (type.includes("group") || type.includes("user"))
     return { label: "Groups", icon: <GroupIcon /> };
   if (type.includes("shift")) return { label: "Shifts", icon: <EventIcon /> };
