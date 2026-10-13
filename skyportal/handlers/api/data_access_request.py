@@ -735,20 +735,28 @@ class DataAccessRequestHandler(BaseHandler):
         """Add the requested dataset to a group. Returns an error message if
         there is nothing left to share."""
         if request.data_type == "photometry":
-            photometry_ids = (
-                await session.scalars(
-                    sa.select(Photometry.id)
-                    .where(
-                        Photometry.obj_id == request.obj_id,
-                        Photometry.owner_id == request.owner_id,
-                        Photometry.instrument_id == request.instrument_id,
-                        Photometry.filter == request.filter,
+            statement = sa.select(Photometry.id).where(
+                Photometry.obj_id == request.obj_id,
+                Photometry.owner_id == request.owner_id,
+                Photometry.instrument_id == request.instrument_id,
+                Photometry.filter == request.filter,
+                Photometry.id.in_(_discoverable_photometry(request.obj_id)),
+            )
+            user_id = self.associated_user_object.id
+            if not session.user_or_token.is_admin and request.owner_id != user_id:
+                statement = statement.where(
+                    Photometry.id.in_(
+                        sa.select(GroupPhotometry.photometr_id)
+                        .join(
+                            GroupUser,
+                            GroupUser.group_id == GroupPhotometry.group_id,
+                        )
+                        .where(GroupUser.user_id == user_id, GroupUser.admin.is_(True))
                     )
-                    .distinct()
                 )
-            ).all()
+            photometry_ids = (await session.scalars(statement.distinct())).all()
             if not photometry_ids:
-                return "The requested photometry no longer exists."
+                return "There is no requested photometry left for you to share."
             await session.execute(
                 pg_insert(GroupPhotometry.__table__)
                 .values(

@@ -1763,6 +1763,10 @@ class SourceHandler(BaseHandler):
         data["id"] = obj_id
 
         async with self.AsyncSession() as session:
+            source = await session.scalar(sa.select(Obj).where(Obj.id == obj_id))
+            if source is None:
+                return self.error(f"Cannot find the object with name {obj_id}")
+
             updated_coordinates = False
             if data.get("ra", None) is not None or data.get("dec", None) is not None:
                 existing_candidates_result = await session.scalars(
@@ -1773,10 +1777,6 @@ class SourceHandler(BaseHandler):
                     return self.error(
                         "Cannot update the position of an object with candidates/alerts"
                     )
-
-                source = await session.scalar(sa.select(Obj).where(Obj.id == obj_id))
-                if source is None:
-                    return self.error(f"Cannot find the object with name {obj_id}")
 
                 if not (
                     np.isclose(data.get("ra", source.ra), source.ra)

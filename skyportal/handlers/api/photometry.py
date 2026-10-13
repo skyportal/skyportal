@@ -1970,6 +1970,21 @@ class PhotometryHandler(BaseHandler):
 
                 id_map = {}
 
+                altdata_updatable_ids = set()
+                if overwrite_altdata and not ignore_flux and duplicated_photometry:
+                    altdata_updatable_ids = {
+                        p.id
+                        for p in await session.scalars(
+                            Photometry.select(
+                                session.user_or_token, mode="update"
+                            ).where(
+                                Photometry.id.in_(
+                                    [d.id for _, d in duplicated_photometry]
+                                )
+                            )
+                        )
+                    }
+
                 updated_ids = []
                 updated_duplicate_values = []
                 # Accumulate new group/stream associations across all duplicates
@@ -2011,7 +2026,7 @@ class PhotometryHandler(BaseHandler):
                     # Matched on the full dedup index, so this is one identified
                     # row and refreshing its altdata cannot land on a different
                     # measurement -- no origin needed, unlike the flux overwrite.
-                    if overwrite_altdata and not ignore_flux:
+                    if duplicate.id in altdata_updatable_ids:
                         posted = df.loc[df_index].get("altdata")
                         if isinstance(posted, dict) and posted:
                             # Rows written by the flux overwrite below hold a JSON
