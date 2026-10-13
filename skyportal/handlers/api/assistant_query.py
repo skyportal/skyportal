@@ -125,6 +125,8 @@ class AssistantQueryHandler(BaseHandler):
           200: {content: {application/json: {schema: Success}}}
         """
         body = self.parse_body(AssistantQueryPostBody)
+        if body.context_type != "source":
+            return self.error(f"Invalid context_type: {body.context_type}")
         user_id = self.associated_user_object.id
         async with self.AsyncSession() as session:
             member = await session.scalar(

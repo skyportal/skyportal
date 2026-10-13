@@ -20,6 +20,7 @@ from skyportal.models import (
     AssistantQuery,
     Comment,
     DBSession,
+    Filter,
     GroupUser,
     Token,
     User,
@@ -275,6 +276,21 @@ def requester_of(session, message, user):
     )
 
 
+def may_edit_filter(session, user_id, context_id):
+    broker_id, _, filter_id = (context_id or "").partition("/")
+    if not (broker_id.isdigit() and filter_id.isdigit()):
+        return False
+    user = session.scalar(sa.select(User).where(User.id == user_id))
+    return (
+        session.scalars(
+            Filter.select(user, mode="update").where(
+                Filter.id == int(filter_id), Filter.broker_id == int(broker_id)
+            )
+        ).first()
+        is not None
+    )
+
+
 def clear_service_tokens():
     """Drop the tokens a previous run left behind by dying mid-answer."""
     session_context_id.set(uuid.uuid4().hex)
@@ -472,6 +488,10 @@ def respond(message_id):
             if requester_id is None:
                 log(f"message {message_id} is for a query that is gone; not answering")
                 return
+            if context_type == "filter" and not may_edit_filter(
+                session, requester_id, context_id
+            ):
+                context_type = context_id = None
             token_id = service_token(session, requester_id).id
 
         # Answering takes minutes, so no connection is held while it runs.
