@@ -8,6 +8,7 @@ from playwright.sync_api import expect
 
 from skyportal.tests import api, wait_for_gcn_event, wait_for_localization
 from skyportal.tests.frontend.observations_and_instruments.test_reminders import (
+    expect_notification_link,
     post_and_verify_reminder,
 )
 
@@ -188,10 +189,7 @@ def test_reminder_on_gcn(page, super_admin_user, super_admin_token):
     page.goto(f"/become_user/{super_admin_user.id}")
     page.goto(f"/gcn_events/{dateobs}")
     expect(page.locator('//*[contains(.,"190814 21:10:39")]').first).to_be_visible()
-    page.locator('//*[@data-testid="notificationsButton"]').first.click()
-    expect(
-        page.locator('//*[@href="/gcn_events/2019-08-14T21:10:39"]').first
-    ).to_be_visible()
+    expect_notification_link(page, "/gcn_events/2019-08-14T21:10:39")
     # close the notifications popover via Escape; clicking the button again is
     # intercepted by the popover's invisible click-away backdrop
     page.keyboard.press("Escape")
