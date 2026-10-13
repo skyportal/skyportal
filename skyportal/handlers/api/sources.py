@@ -1712,6 +1712,14 @@ async def get_sources(
         # FOLLOWUP REQUESTS
         if has_followup_request:
             # we already grabbed the allocation's ids in advance, so we can use them here
+            if is_admin:
+                allocation_filter = ""
+            elif len(allocation_ids) > 0:
+                allocation_filter = (
+                    "and followuprequests.allocation_id in :allocation_ids"
+                )
+            else:
+                allocation_filter = "and false"
             try:
                 if followup_request_status is not None:
                     query_params.append(
@@ -1724,13 +1732,13 @@ async def get_sources(
                     # if it contains the string, both lowercased, then we have a match
                     statements.append(
                         f"""
-                        EXISTS (SELECT obj_id from followuprequests where followuprequests.obj_id=objs.id and lower(followuprequests.status) LIKE '%' || lower(:has_followup_request_status) || '%' {"and followuprequests.allocation_id in :allocation_ids" if not is_admin else ""})
+                        EXISTS (SELECT obj_id from followuprequests where followuprequests.obj_id=objs.id and lower(followuprequests.status) LIKE '%' || lower(:has_followup_request_status) || '%' {allocation_filter})
                         """
                     )
                 else:
                     statements.append(
                         f"""
-                        EXISTS (SELECT obj_id from followuprequests where followuprequests.obj_id=objs.id {"and followuprequests.allocation_id in :allocation_ids" if len(allocation_ids) > 0 else ""})
+                        EXISTS (SELECT obj_id from followuprequests where followuprequests.obj_id=objs.id {allocation_filter})
                         """
                     )
             except Exception as e:

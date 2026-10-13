@@ -487,9 +487,12 @@ async def get_source(
             set_committed_value(s, "host", host)
             source_info["host"] = host.to_dict()
             source_info["host_offset"] = s.host_offset.deg * 3600.0
+            host_distance = s.host_distance
             # kpc: the separation is computed from Mpc distances, and the
             # frontend labels this field kpc.
-            source_info["host_distance"] = s.host_distance.to(u.kpc).value
+            source_info["host_distance"] = (
+                host_distance.to(u.kpc).value if host_distance is not None else None
+            )
 
     if is_token_request:
         sv = SourceView(

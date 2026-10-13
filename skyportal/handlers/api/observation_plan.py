@@ -1127,6 +1127,11 @@ class ObservationPlanRequestHandler(BaseHandler):
                         target=get_target(fields),
                         observer=observation_plan.instrument.telescope.observer,
                     )
+                    if rise_times is None or set_times is None:
+                        rise_times = set_times = [None] * len(fields)
+                    else:
+                        rise_times = rise_times.reshape(-1)
+                        set_times = set_times.reshape(-1)
                     for planned_observation, rise_time, set_time in zip(
                         observation_plan.planned_observations, rise_times, set_times
                     ):
@@ -1142,10 +1147,8 @@ class ObservationPlanRequestHandler(BaseHandler):
                             "field"
                         ]["field_id"]
 
-                        rt = rise_time.isot
-                        st = set_time.isot
-
                         try:
+                            rt = rise_time.isot
                             planned_observation_data["rise_time"] = (
                                 rt.item()  # 0-dimensional array (basically a scalar)
                                 if not (
@@ -1160,6 +1163,7 @@ class ObservationPlanRequestHandler(BaseHandler):
                             planned_observation_data["rise_time"] = ""
 
                         try:
+                            st = set_time.isot
                             planned_observation_data["set_time"] = (
                                 st.item()  # 0-dimensional array (basically a scalar)
                                 if not (

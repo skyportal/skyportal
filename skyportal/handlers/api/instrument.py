@@ -1274,7 +1274,7 @@ class InstrumentFieldHandler(BaseHandler):
 
             await session.execute(
                 sa.delete(InstrumentField).where(
-                    InstrumentFieldTile.instrument_id == instrument.id,
+                    InstrumentField.instrument_id == instrument.id,
                 )
             )
 

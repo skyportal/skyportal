@@ -271,7 +271,9 @@ def add_observations(instrument_id, obstable):
                             instrument_field_id=int(id_mapper[row["field_id"]]),
                             obstime=obstime.datetime,
                             seeing=row.get("seeing", None),
-                            limmag=float(row["limmag"]),
+                            limmag=float(row["limmag"])
+                            if pd.notna(row.get("limmag"))
+                            else None,
                             exposure_time=int(row["exposure_time"]),
                             filt=row["filter"],
                             processed_fraction=float(row["processed_fraction"]),
