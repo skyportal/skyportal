@@ -19,7 +19,6 @@ from skyportal.models import (
     AssistantMessage,
     Comment,
     DBSession,
-    Group,
     GroupUser,
     Token,
     User,
@@ -358,7 +357,8 @@ def post_triage_comment(session, author_id, notify, context_type, context_id, an
     text = (answer or "").strip()
     if not (group_ids and context_type == "source" and context_id and text):
         return
-    groups = session.scalars(sa.select(Group).where(Group.id.in_(group_ids))).all()
+    author = session.scalar(sa.select(User).where(User.id == author_id))
+    groups = [group for group in author.accessible_groups if group.id in group_ids]
     if not groups:
         return
     session.add(
