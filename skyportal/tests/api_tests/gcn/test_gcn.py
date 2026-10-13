@@ -330,7 +330,7 @@ def test_gcn_from_igwn_json(super_admin_token):
         assert tag in data["tags"]
     assert "LVC#MS260605l" in data["aliases"]
 
-    skymap = "MS260605l-PRELIMINARY.multiorder.fits"
+    skymap = "MS260605l-PRELIMINARY-c3986815.multiorder.fits"
     params = {"include2DMap": True}
     n_retries = 0
     while True:
@@ -372,6 +372,35 @@ def test_gcn_from_igwn_json(super_admin_token):
 
     api("DELETE", f"localization/{dateobs}/name/{skymap}", token=super_admin_token)
     api("DELETE", f"gcn_event/{dateobs}", token=super_admin_token)
+
+
+def test_gcn_igwn_json_superevent_id_prefix_of_another(super_admin_token):
+    # e.g. S240422e and S240422ed: the shorter id must not match the longer one
+    superevent_id = f"MS{uuid.uuid4().hex[:8]}"
+    trigger = datetime(2019, 1, 1) + timedelta(seconds=uuid.uuid4().int % 31_536_000)
+    events = {}
+    for offset, sid in enumerate((f"{superevent_id}b", superevent_id)):
+        when = (trigger + timedelta(hours=offset)).strftime("%Y-%m-%dT%H:%M:%S")
+        events[sid] = when
+        alert = {
+            "alert_type": "PRELIMINARY",
+            "time_created": f"{when}Z",
+            "superevent_id": sid,
+            "event": {"time": f"{when}Z", "significant": True},
+        }
+        status, data = api(
+            "POST", "gcn_event", data={"json": alert}, token=super_admin_token
+        )
+        assert status == 200, data
+
+    for sid, when in events.items():
+        status, data = api("GET", f"gcn_event/{when}", token=super_admin_token)
+        assert status == 200, data
+        assert data["data"]["aliases"] == [f"LVC#{sid}"]
+        assert len(data["data"]["gcn_notices"]) == 1
+
+    for when in events.values():
+        api("DELETE", f"gcn_event/{when}", token=super_admin_token)
 
 
 def test_gcn_json_update_with_the_same_trigger_time(super_admin_token):
