@@ -2298,7 +2298,7 @@ CASES = [
     # --- ScanReportItem  (public_scan_report_item)  [PREDICTED - verify in CI] ---
     ("user", "public_scan_report_item", "create", True),
     ("user", "public_scan_report_item", "read", True),
-    ("user", "public_scan_report_item", "update", False),
+    ("user", "public_scan_report_item", "update", True),
     ("user", "public_scan_report_item", "delete", False),
     ("user_group2", "public_scan_report_item", "create", False),
     ("user_group2", "public_scan_report_item", "read", False),
@@ -2306,7 +2306,7 @@ CASES = [
     ("user_group2", "public_scan_report_item", "delete", False),
     ("group_admin_user", "public_scan_report_item", "create", True),
     ("group_admin_user", "public_scan_report_item", "read", True),
-    ("group_admin_user", "public_scan_report_item", "update", False),
+    ("group_admin_user", "public_scan_report_item", "update", True),
     ("group_admin_user", "public_scan_report_item", "delete", False),
     ("super_admin_user", "public_scan_report_item", "create", True),
     ("super_admin_user", "public_scan_report_item", "read", True),

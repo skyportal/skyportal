@@ -11,6 +11,7 @@ class ScanReportItem(Base):
     """Saved candidate listed in a scanning report."""
 
     create = read = AccessibleIfRelatedRowsAreAccessible(scan_report="read")
+    update = AccessibleIfRelatedRowsAreAccessible(scan_report="update")
 
     obj_id = sa.Column(
         sa.ForeignKey("objs.id", ondelete="CASCADE"),
