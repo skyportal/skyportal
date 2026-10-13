@@ -4,11 +4,14 @@ import sqlalchemy as sa
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import relationship
 
-from baselayer.app.models import Base
+from baselayer.app.models import AccessibleIfRelatedRowsAreAccessible, Base
 
 
 class ScanReportItem(Base):
     """Saved candidate listed in a scanning report."""
+
+    create = read = AccessibleIfRelatedRowsAreAccessible(scan_report="read")
+    update = AccessibleIfRelatedRowsAreAccessible(scan_report="update")
 
     obj_id = sa.Column(
         sa.ForeignKey("objs.id", ondelete="CASCADE"),

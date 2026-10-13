@@ -583,9 +583,6 @@ async def followup_request_notification_content(target, session):
             selectinload(FollowupRequest.allocation).selectinload(Allocation.group),
             selectinload(FollowupRequest.requester),
             selectinload(FollowupRequest.obj).selectinload(Obj.thumbnails),
-            selectinload(FollowupRequest.obj)
-            .selectinload(Obj.comments)
-            .selectinload(Comment.author),
         )
     )
 
@@ -706,8 +703,13 @@ async def followup_request_notification_content(target, session):
     }
 
     if include_comments:
+        readable_comments = await session.scalars(
+            Comment.select(
+                target.requester, options=[selectinload(Comment.author)]
+            ).where(Comment.obj_id == target.obj_id)
+        )
         comments = []
-        for comment in target.obj.comments:
+        for comment in readable_comments.unique():
             comments.append(
                 (
                     f"{comment.author.username} ({str(comment.created_at).split('.')[0]}): {comment.text}",
