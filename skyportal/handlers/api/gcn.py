@@ -5046,7 +5046,8 @@ def add_gcn_report(
                         photometry = session.scalars(stmt).all()
                         if len(photometry) > 0:
                             source["photometry"] = [
-                                serialize(phot, "ab", "mag") for phot in photometry
+                                serialize(phot, "ab", "mag", annotations=False)
+                                for phot in photometry
                             ]
                         else:
                             source["photometry"] = []
@@ -5523,14 +5524,18 @@ class GcnReportHandler(BaseHandler):
                                         f"Source {source_id} not found in the database, not updating report"
                                     )
 
-                                stmt = Photometry.select(session.user_or_token).where(
-                                    Photometry.obj_id == source["id"]
-                                )
+                                stmt = Photometry.select(
+                                    session.user_or_token,
+                                    options=[
+                                        joinedload(Photometry.instrument),
+                                        selectinload(Photometry.groups),
+                                    ],
+                                ).where(Photometry.obj_id == source["id"])
                                 phot_result = await session.scalars(stmt)
                                 photometry = phot_result.all()
                                 if len(photometry) > 0:
                                     source["photometry"] = [
-                                        serialize(phot, "ab", "mag")
+                                        serialize(phot, "ab", "mag", annotations=False)
                                         for phot in photometry
                                     ]
                                 else:
