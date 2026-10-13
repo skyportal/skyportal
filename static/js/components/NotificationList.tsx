@@ -15,6 +15,7 @@ import { alpha, Theme } from "@mui/material/styles";
 import NotificationsIcon from "@mui/icons-material/NotificationsOutlined";
 import NotificationsOffIcon from "@mui/icons-material/NotificationsOffOutlined";
 import DoneIcon from "@mui/icons-material/Done";
+import DoneAllIcon from "@mui/icons-material/DoneAll";
 import RemoveDoneIcon from "@mui/icons-material/RemoveDone";
 import DeleteIcon from "@mui/icons-material/DeleteOutlineOutlined";
 import ExpandLessIcon from "@mui/icons-material/ExpandLess";
@@ -275,6 +276,15 @@ const NotificationRow = ({
 
 const STACK_RADIUS = 8;
 
+const ENTRY_SX = { px: 1, pb: 1 };
+
+const CARD_SX = {
+  border: 1,
+  borderColor: "divider",
+  borderRadius: `${STACK_RADIUS}px`,
+  overflow: "hidden",
+};
+
 // the edges of the cards hidden behind a collapsed stack
 const StackEdges = ({ count, viewed }: { count: number; viewed: boolean }) => (
   <Box>
@@ -364,41 +374,32 @@ const NotificationList = ({
             >
               {title}
             </ListSubheader>
-            {stacks.map(({ label, icon, items: stackItems }, stackIndex) => {
-              const isLastStack = stackIndex === stacks.length - 1;
+            {stacks.map(({ label, icon, items: stackItems }) => {
               const newest = stackItems[0]!; // stacks are never empty
               const key = `${title}:${label}`;
 
               if (stackItems.length === 1)
                 return (
-                  <NotificationRow
-                    key={newest.id}
-                    notification={newest}
-                    icon={icon}
-                    divider={!isLastStack}
-                    actions={singleActions(newest)}
-                    onClick={() => onOpen(newest.id, newest.url)}
-                  />
+                  <Box key={newest.id} sx={ENTRY_SX}>
+                    <Box sx={CARD_SX}>
+                      <NotificationRow
+                        notification={newest}
+                        icon={icon}
+                        divider={false}
+                        actions={singleActions(newest)}
+                        onClick={() => onOpen(newest.id, newest.url)}
+                      />
+                    </Box>
+                  </Box>
                 );
 
               const isOpen = expanded.has(key);
+              // a stack never mixes read and unread, they sit in different sections
+              const toggleStackViewed = () =>
+                stackItems.forEach((n) => onSetViewed(n.id, !newest.viewed));
               return (
-                <Box
-                  key={key}
-                  sx={{
-                    p: 1,
-                    borderBottom: isLastStack ? 0 : 1,
-                    borderColor: "divider",
-                  }}
-                >
-                  <Box
-                    sx={{
-                      border: 1,
-                      borderColor: "divider",
-                      borderRadius: `${STACK_RADIUS}px`,
-                      overflow: "hidden",
-                    }}
-                  >
+                <Box key={key} sx={ENTRY_SX}>
+                  <Box sx={CARD_SX}>
                     <Collapse in={isOpen} timeout={250} unmountOnExit>
                       <Box
                         sx={{
@@ -418,15 +419,40 @@ const NotificationList = ({
                         >
                           {label}
                         </Typography>
-                        <Button
-                          size="small"
-                          endIcon={<ExpandLessIcon />}
-                          onClick={() => toggleExpanded(key)}
-                          data-testid={`collapseStack${newest.id}`}
-                          sx={{ textTransform: "none" }}
-                        >
-                          Show less
-                        </Button>
+                        <Box sx={{ display: "flex", alignItems: "center" }}>
+                          <Tooltip
+                            title={
+                              newest.viewed
+                                ? "Mark all unread"
+                                : "Mark all read"
+                            }
+                          >
+                            <IconButton
+                              size="small"
+                              onClick={toggleStackViewed}
+                              data-testid={`${
+                                newest.viewed
+                                  ? "markStackUnreadButton"
+                                  : "markStackReadButton"
+                              }${newest.id}`}
+                            >
+                              {newest.viewed ? (
+                                <RemoveDoneIcon fontSize="small" />
+                              ) : (
+                                <DoneAllIcon fontSize="small" />
+                              )}
+                            </IconButton>
+                          </Tooltip>
+                          <Button
+                            size="small"
+                            endIcon={<ExpandLessIcon />}
+                            onClick={() => toggleExpanded(key)}
+                            data-testid={`collapseStack${newest.id}`}
+                            sx={{ textTransform: "none" }}
+                          >
+                            Show less
+                          </Button>
+                        </Box>
                       </Box>
                     </Collapse>
                     <NotificationRow
@@ -446,11 +472,7 @@ const NotificationList = ({
                           <RowActions
                             plural
                             viewed={newest.viewed}
-                            onToggleViewed={() =>
-                              stackItems.forEach((n) =>
-                                onSetViewed(n.id, !newest.viewed),
-                              )
-                            }
+                            onToggleViewed={toggleStackViewed}
                             onDelete={() =>
                               stackItems.forEach((n) => onDelete(n.id))
                             }
