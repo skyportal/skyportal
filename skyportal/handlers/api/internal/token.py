@@ -177,17 +177,14 @@ class TokenHandler(BaseHandler):
                         "permissions to update it."
                     )
 
-                if body.user_id is not None:
-                    user = await session.scalar(
-                        User.select(session.user_or_token)
-                        .options(
-                            selectinload(User.acls),
-                            selectinload(User.roles),
-                        )
-                        .where(User.id == body.user_id)
+                user = await session.scalar(
+                    User.select(session.user_or_token)
+                    .options(
+                        selectinload(User.acls),
+                        selectinload(User.roles),
                     )
-                else:
-                    user = self.associated_user_object
+                    .where(User.id == token.created_by_id)
+                )
 
                 if body.name is not None:
                     if body.name.startswith(SERVICE_TOKEN_PREFIX):
@@ -198,7 +195,7 @@ class TokenHandler(BaseHandler):
 
                 if body.acls is not None:
                     token_acls = set(body.acls)
-                    if not all(acl_id in user.permissions for acl_id in token_acls):
+                    if not self.can_grant(user, token_acls):
                         return self.error(
                             "User has attempted to grant token ACLs they do not have "
                             "access to. Please try again."
