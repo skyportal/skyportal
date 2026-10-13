@@ -152,7 +152,6 @@ class MMAAPI(FollowUpAPI):
                     "filters",
                     "maximum_airmass",
                     "integrated_probability",
-                    "galactic_latitude",
                 }
 
                 if not required_parameters.issubset(set(request.payload.keys())):
