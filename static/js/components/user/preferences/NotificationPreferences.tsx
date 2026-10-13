@@ -16,6 +16,7 @@ import NotificationGcnEvent from "./NotificationGcnEvent";
 import { useGetGroupsQuery } from "../../../ducks/groups";
 import {
   useGetProfileQuery,
+  useHasPermission,
   useUpdateUserPreferencesMutation,
 } from "../../../ducks/profile";
 import { useGetAllocationsApiClassnameQuery } from "../../../ducks/allocations";
@@ -354,15 +355,26 @@ const NOTIFICATIONS: {
   },
 ];
 
-const NotificationPreferences = () => (
-  <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
-    <DeliveryChannels />
-    {NOTIFICATIONS.map(({ key, title, text, options }) => (
-      <NotificationCard key={key} type={key} title={title} text={text}>
-        {options}
-      </NotificationCard>
-    ))}
-  </Box>
-);
+const NotificationPreferences = () => {
+  const isAdmin = useHasPermission("System admin");
+  return (
+    <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
+      <DeliveryChannels />
+      {NOTIFICATIONS.map(({ key, title, text, options }) => (
+        <NotificationCard key={key} type={key} title={title} text={text}>
+          {options}
+        </NotificationCard>
+      ))}
+      {isAdmin && (
+        <NotificationCard
+          type="feedback"
+          title="Feedback by email or Slack"
+          text="As an admin, you get an in-app notification for every new message. They are on the Deployments page."
+          channels={["email", "slack"]}
+        />
+      )}
+    </Box>
+  );
+};
 
 export default NotificationPreferences;
