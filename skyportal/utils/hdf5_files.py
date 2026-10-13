@@ -13,8 +13,21 @@ class PickledObjectError(Exception):
     pass
 
 
-class NoGlobalsUnpickler(pickle.Unpickler):
+SAFE_PICKLE_GLOBALS = {
+    ("_codecs", "encode"),
+    ("numpy", "dtype"),
+    ("numpy", "ndarray"),
+    ("numpy._core.multiarray", "scalar"),
+    ("numpy._core.multiarray", "_reconstruct"),
+    ("numpy.core.multiarray", "scalar"),
+    ("numpy.core.multiarray", "_reconstruct"),
+}
+
+
+class SafeGlobalsUnpickler(pickle.Unpickler):
     def find_class(self, module, name):
+        if (module, name) in SAFE_PICKLE_GLOBALS:
+            return super().find_class(module, name)
         raise PickledObjectError(f"{module}.{name}")
 
 
@@ -33,11 +46,11 @@ def check_no_pickled_objects(image):
                     continue
                 for encoding in ("latin1", "bytes"):
                     try:
-                        NoGlobalsUnpickler(io.BytesIO(item), encoding=encoding).load()
+                        SafeGlobalsUnpickler(io.BytesIO(item), encoding=encoding).load()
                     except PickledObjectError as e:
                         raise ValueError(
                             f'HDF5 attribute on "{name}" contains a pickled {e}, '
-                            "only plain Python values are allowed."
+                            "only plain Python and numpy values are allowed."
                         )
                     except Exception:
                         pass
