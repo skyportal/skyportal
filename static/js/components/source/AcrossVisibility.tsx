@@ -169,7 +169,11 @@ const AcrossVisibility = ({ objId, telescopes }: AcrossVisibilityProps) => {
                 {
                   height: 120 + 40 * (yOrder.length || 1),
                   margin: { l: 220, r: 20, t: 10, b: 40 },
-                  xaxis: { title: "UTC time", type: "date" },
+                  xaxis: {
+                    title: "UTC time",
+                    type: "date",
+                    range: [data.begin, data.end],
+                  },
                   yaxis: {
                     type: "category",
                     categoryorder: "array",
