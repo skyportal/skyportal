@@ -599,13 +599,16 @@ async def _find_event_for_designation(event_id, session, window_hours, text=""):
     attaching it to none. A trigger id shared by the notice and the circular
     (SVOM's "burst-id sb26060404") settles it outright, so it is tried first.
     """
+    # every lookup undefers circulars: post_gcn_circular reads it under async
     needle = event_id.replace(" ", "").lower()
     event = await session.scalar(
-        sa.select(GcnEvent).where(
+        sa.select(GcnEvent)
+        .where(
             sa.func.replace(
                 sa.func.lower(cast(GcnEvent.aliases, sa.String)), " ", ""
             ).like(f"%{needle}%")
         )
+        .options(undefer(GcnEvent.circulars))
     )
     if event is not None:
         return event
@@ -615,7 +618,9 @@ async def _find_event_for_designation(event_id, session, window_hours, text=""):
     candidates = set(re.findall(r"\b[A-Za-z0-9_-]{6,}\b", text))
     if candidates:
         event = await session.scalar(
-            sa.select(GcnEvent).where(GcnEvent.trigger_id.in_(candidates))
+            sa.select(GcnEvent)
+            .where(GcnEvent.trigger_id.in_(candidates))
+            .options(undefer(GcnEvent.circulars))
         )
         if event is not None:
             return event
@@ -627,10 +632,12 @@ async def _find_event_for_designation(event_id, session, window_hours, text=""):
     centre = datetime.datetime(day.year, day.month, day.day, 12)  # noqa: DTZ001
     events = (
         await session.scalars(
-            sa.select(GcnEvent).where(
+            sa.select(GcnEvent)
+            .where(
                 GcnEvent.dateobs >= centre - timedelta(hours=window_hours),
                 GcnEvent.dateobs <= centre + timedelta(hours=window_hours),
             )
+            .options(undefer(GcnEvent.circulars))
         )
     ).all()
     return events[0] if len(events) == 1 else None

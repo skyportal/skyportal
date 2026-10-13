@@ -91,6 +91,7 @@ from ...models import (
     DefaultObservationPlanRequest,
     EventObservationPlan,
     GcnEvent,
+    GcnNotice,
     GcnTrigger,
     Group,
     Instrument,
@@ -1995,9 +1996,13 @@ class ObservationPlanTreasureMapHandler(BaseHandler):
                     f"Could not find observation_plan_request with ID {observation_plan_request_id}"
                 )
 
+            # graceid parses the deferred notice content
             event = await session.scalar(
                 GcnEvent.select(
-                    session.user_or_token, options=[selectinload(GcnEvent.gcn_notices)]
+                    session.user_or_token,
+                    options=[
+                        selectinload(GcnEvent.gcn_notices).undefer(GcnNotice.content)
+                    ],
                 ).where(GcnEvent.id == observation_plan_request.gcnevent_id)
             )
             if event is None:
@@ -2156,9 +2161,13 @@ class ObservationPlanTreasureMapHandler(BaseHandler):
                     f"Could not find observation_plan_request with ID {observation_plan_request_id}"
                 )
 
+            # graceid parses the deferred notice content
             event = await session.scalar(
                 GcnEvent.select(
-                    session.user_or_token, options=[selectinload(GcnEvent.gcn_notices)]
+                    session.user_or_token,
+                    options=[
+                        selectinload(GcnEvent.gcn_notices).undefer(GcnNotice.content)
+                    ],
                 ).where(GcnEvent.id == observation_plan_request.gcnevent_id)
             )
             if event is None:

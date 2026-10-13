@@ -48,6 +48,7 @@ from ...models import (
     Allocation,
     ExecutedObservation,
     GcnEvent,
+    GcnNotice,
     Group,
     Instrument,
     InstrumentField,
@@ -1573,10 +1574,13 @@ class ObservationTreasureMapHandler(BaseHandler):
                 )
 
             localization_dateobs_parsed = arrow.get(localization_dateobs).naive
+            # graceid parses the deferred notice content
             event = await session.scalar(
                 GcnEvent.select(
                     session.user_or_token,
-                    options=[selectinload(GcnEvent.gcn_notices)],
+                    options=[
+                        selectinload(GcnEvent.gcn_notices).undefer(GcnNotice.content)
+                    ],
                 ).where(GcnEvent.dateobs == localization_dateobs_parsed)
             )
             if event is None:
@@ -1728,10 +1732,13 @@ class ObservationTreasureMapHandler(BaseHandler):
             else:
                 localization_dateobs_parsed = None
 
+            # graceid parses the deferred notice content
             event = await session.scalar(
                 GcnEvent.select(
                     self.current_user,
-                    options=[selectinload(GcnEvent.gcn_notices)],
+                    options=[
+                        selectinload(GcnEvent.gcn_notices).undefer(GcnNotice.content)
+                    ],
                 ).where(GcnEvent.dateobs == localization_dateobs_parsed)
             )
             if event is None:

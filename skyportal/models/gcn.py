@@ -946,7 +946,14 @@ class GcnEvent(Base):
         except IndexError:
             return None
         if notice.notice_format == "json":
-            return None
+            return next(
+                (
+                    a.split("#", 1)[1]
+                    for a in self.aliases or []
+                    if a.startswith("LVC#")
+                ),
+                None,
+            )
         try:
             root = lxml.etree.fromstring(notice.content)
             elem = root.find(".//Param[@name='GraceID']")
