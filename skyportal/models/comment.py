@@ -6,6 +6,8 @@ __all__ = [
     "CommentOnShift",
 ]
 
+import os
+
 import sqlalchemy as sa
 from sqlalchemy import event
 from sqlalchemy.ext.declarative import declared_attr
@@ -157,7 +159,12 @@ class CommentMixin:
         # there's a default value but it is best to provide a full path in the config
         root_folder = cfg.get("comments_folder", "comments_data")
 
-        full_path = save_file_data(root_folder, str(self.id), filename, file_data)
+        full_path = save_file_data(
+            os.path.join(root_folder, self.__tablename__),
+            str(self.id),
+            filename,
+            file_data,
+        )
 
         # persist the filename
         self._attachment_path = full_path
