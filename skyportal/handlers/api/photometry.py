@@ -33,6 +33,7 @@ from skyportal_py_models.photometry import (
 from sncosmo.photdata import PhotometricData
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.orm import joinedload, load_only, selectinload
+from sqlalchemy.orm.attributes import set_committed_value
 
 from baselayer.app.access import auth_or_token, permissions
 from baselayer.app.env import load_env
@@ -43,6 +44,7 @@ from ...enum_types import ALLOWED_BANDPASSES
 from ...models import (
     PHOT_ZP,
     Annotation,
+    AnnotationOnPhotometry,
     Group,
     GroupPhotometry,
     Instrument,
@@ -390,6 +392,28 @@ def _serialize_plot(phot, outsys):
             f"on obj {phot.obj_id} with filter: {filter},  "
             f"due to error: {e}"
         )
+
+
+async def load_readable_annotations(session, photometry):
+    result = await session.scalars(
+        AnnotationOnPhotometry.select(session.user_or_token)
+        .where(
+            AnnotationOnPhotometry.photometry_id
+            == sa.any_(
+                sa.bindparam(
+                    "photometry_ids",
+                    [phot.id for phot in photometry],
+                    type_=sa.ARRAY(sa.Integer),
+                )
+            )
+        )
+        .order_by(AnnotationOnPhotometry.created_at)
+    )
+    annotations = defaultdict(list)
+    for annotation in result.all():
+        annotations[annotation.photometry_id].append(annotation)
+    for phot in photometry:
+        set_committed_value(phot, "annotations", annotations[phot.id])
 
 
 def serialize(
@@ -2157,7 +2181,6 @@ class PhotometryHandler(BaseHandler):
                     .options(
                         joinedload(Photometry.instrument),
                         selectinload(Photometry.groups),
-                        selectinload(Photometry.annotations),
                     )
                     .where(Photometry.id == photometry_id)
                 )
@@ -2167,6 +2190,7 @@ class PhotometryHandler(BaseHandler):
                 return self.error(
                     f"Cannot find photometry point with ID: {photometry_id}."
                 )
+            await load_readable_annotations(session, [phot])
 
             output = serialize(phot, query.magsys, query.format)
             return self.success(data=output)
@@ -2513,8 +2537,6 @@ class ObjPhotometryHandler(BaseHandler):
                             Group.single_user_group,
                         ),
                     ]
-                    if include_annotation_info:
-                        options.append(joinedload(Photometry.annotations))
                     if include_owner_info:
                         options.append(
                             joinedload(Photometry.owner).load_only(
@@ -2568,6 +2590,8 @@ class ObjPhotometryHandler(BaseHandler):
                     .distinct()
                 )
                 photometry = (await session.scalars(stmt)).unique().all()
+                if include_annotation_info and format != "plot":
+                    await load_readable_annotations(session, photometry)
 
                 # Compute extinction for all filters
                 extinction_dict = None
@@ -2819,7 +2843,6 @@ class PhotometryRangeHandler(BaseHandler):
             stmt = Photometry.select(session.user_or_token).options(
                 joinedload(Photometry.instrument),
                 selectinload(Photometry.groups),
-                selectinload(Photometry.annotations),
             )
 
             if instrument_ids is not None:
@@ -2836,6 +2859,7 @@ class PhotometryRangeHandler(BaseHandler):
             )
 
             rows = (await session.scalars(stmt.distinct())).unique().all()
+            await load_readable_annotations(session, rows)
             output = [serialize(p, query.magsys, query.format) for p in rows]
             return self.success(data=output)
 

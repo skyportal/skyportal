@@ -70,6 +70,7 @@ from ....utils.parse import (
 from ....utils.sizeof import SIZE_WARNING_THRESHOLD, sizeof
 from ....utils.thumbnail import latest_thumbnails
 from ...base import BaseHandler
+from ..photometry import load_readable_annotations
 from .candidate_filter import get_subquery_for_saved_status
 
 MAX_NUM_DAYS_USING_LOCALIZATION = 31 * 12 * 10  # 10 years
@@ -215,10 +216,10 @@ async def include_requested_obj_data(
         phot_options = [selectinload(Photometry.instrument)]
 
         if include_phot_annotations:
-            phot_options.append(selectinload(Photometry.annotations))
             candidate["photometry"] = await fetch_obj_data(
                 Photometry, phot_options, obj_id, session
             )
+            await load_readable_annotations(session, candidate["photometry"])
             candidate["photometry"] = [
                 {
                     **phot.to_dict(),

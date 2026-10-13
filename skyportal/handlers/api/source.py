@@ -131,7 +131,11 @@ from .candidate.candidate import (
     update_summary_history_if_relevant,
 )
 from .color_mag import get_color_mag
-from .photometry import add_external_photometry, serialize
+from .photometry import (
+    add_external_photometry,
+    load_readable_annotations,
+    serialize,
+)
 from .sources import _annotation_filter_hint, get_sources
 
 ObjId = Annotated[
@@ -594,11 +598,11 @@ async def get_source(
                 options=[
                     selectinload(Photometry.instrument).load_only(Instrument.name),
                     selectinload(Photometry.groups),
-                    selectinload(Photometry.annotations),
                 ],
             ).where(Photometry.obj_id == obj_id)
         )
         photometry = photometry_result.unique().all()
+        await load_readable_annotations(session, photometry)
         source_info["photometry"] = [
             serialize(phot, "ab", "both") for phot in photometry
         ]
