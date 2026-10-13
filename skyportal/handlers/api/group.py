@@ -203,6 +203,7 @@ class GroupHandler(BaseHandler):
                 filters = list(group.filters)
 
                 group = group.to_dict()
+                group.pop("group_users", None)
 
                 if users is not None:
                     group["users"] = users
