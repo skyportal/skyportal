@@ -94,7 +94,7 @@ const SaveBlockDialogMenu = () => {
           const updatedBlock = {
             ...block,
             customBlockName: nameValue,
-            isTrue: true,
+            isTrue: block.isTrue !== false,
           };
           return updatedBlock;
         };
