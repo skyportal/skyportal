@@ -156,9 +156,13 @@ const makeExprArrayCondition = (fieldExpr, operator, value) => {
     case "$in":
       return { $in: [fieldExpr, Array.isArray(value) ? value : [value]] };
     case "$exists":
-      return { $ne: [{ $type: fieldExpr }, "missing"] };
+      return {
+        [value === false ? "$eq" : "$ne"]: [{ $type: fieldExpr }, "missing"],
+      };
     case "$isNumber":
-      return { $isNumber: fieldExpr };
+      return value === false
+        ? { $not: [{ $isNumber: fieldExpr }] }
+        : { $isNumber: fieldExpr };
     case "$lengthGt":
     case "length >":
       return { $gt: [{ $size: fieldExpr }, value] };
@@ -3407,7 +3411,9 @@ const convertSchemaFieldCondition = (
     case "$isNumber":
     case "isNumber":
       // $isNumber requires $expr, so we need to wrap it
-      return { $expr: { $isNumber: `$${field}` } };
+      return {
+        $expr: makeExprArrayCondition(`$${field}`, "$isNumber", processedValue),
+      };
     case "$anyElementTrue":
     case "$allElementsTrue":
       // For boolean list variables treated as schema fields, use booleanSwitch to determine comparison value
