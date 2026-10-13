@@ -893,6 +893,12 @@ class PhotometricSeries(conesearch_alchemy.Point, Base):
 
         full_name = os.path.join(path, filename)
 
+        root_folder = os.path.abspath(root_folder)
+        if os.path.commonpath([root_folder, os.path.abspath(full_name)]) != root_folder:
+            raise ValueError(
+                f"Full path to file {full_name} is outside of the photometric series folder."
+            )
+
         if len(full_name) > MAX_FILEPATH_LENGTH:
             raise ValueError(
                 f"Full path to file {full_name} is longer than {MAX_FILEPATH_LENGTH} characters."
