@@ -566,6 +566,7 @@ class GaiaPhotometricAlertsQueryHandler(BaseHandler):
                 fetch_gaia_transients,
                 instrument.id,
                 self.associated_user_object.id,
+                group_ids,
                 payload,
             )
 
