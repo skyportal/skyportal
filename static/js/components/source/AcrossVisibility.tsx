@@ -105,6 +105,8 @@ const AcrossVisibility = ({ objId, telescopes }: AcrossVisibilityProps) => {
   const perTelescopeErrors = (data?.single || []).filter(
     (s: AcrossSingleVisibility) => s.error,
   );
+  const notObservable =
+    !!data && data.single.every((s) => !s.error && s.windows.length === 0);
 
   return (
     <Paper className={classes.container}>
@@ -159,6 +161,12 @@ const AcrossVisibility = ({ objId, telescopes }: AcrossVisibilityProps) => {
               Some facilities failed:{" "}
               {perTelescopeErrors.map((s) => s.name).join(", ")} (the ACROSS
               calculator may have timed out; try a shorter window).
+            </Typography>
+          )}
+
+          {notObservable && !isFetching && (
+            <Typography variant="body2" gutterBottom>
+              Not observable by any selected facility in this time range.
             </Typography>
           )}
 
