@@ -689,6 +689,12 @@ class CandidateHandler(BaseHandler):
         list_name_reject = query.listNameReject
         autosave = query.autosave
         autosave_group_ids = query.autosaveGroupIds
+        if autosave and not {"Upload data", "System admin"} & set(
+            self.current_user.permissions
+        ):
+            return self.error(
+                "autosave requires the Upload data permission.", status=403
+            )
         photometry_annotations_filter = query.photometryAnnotationsFilter
         photometry_annotations_filter_origin = query.photometryAnnotationsFilterOrigin
         photometry_annotations_filter_after = query.photometryAnnotationsFilterAfter
