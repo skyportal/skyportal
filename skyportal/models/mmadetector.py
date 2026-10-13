@@ -31,7 +31,7 @@ _, cfg = load_env()
 def manage_mmadetector_access_logic(cls, user_or_token):
     if user_or_token.is_system_admin:
         return sa.select(cls)
-    elif "Manage allocations" in [acl.id for acl in user_or_token.acls]:
+    elif "Manage allocations" in user_or_token.permissions:
         return sa.select(cls)
     else:
         # return an empty query
