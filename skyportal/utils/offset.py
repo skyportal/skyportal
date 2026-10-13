@@ -10,7 +10,6 @@ import warnings
 from functools import partial, wraps
 
 import matplotlib
-import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import requests
@@ -26,6 +25,7 @@ from astropy.wcs import WCS
 from astropy.wcs.utils import pixel_to_skycoord
 from astropy.wcs.wcs import FITSFixedWarning
 from joblib import Memory, hash
+from matplotlib.figure import Figure
 from reproject import reproject_adaptive
 from scipy.ndimage import gaussian_filter
 
@@ -1550,7 +1550,7 @@ def get_finding_chart(
         return _chart_failure(f"image source {image_source} not in list")
 
     matplotlib.use("Agg")
-    fig = plt.figure(figsize=(11, 8.5), constrained_layout=False)
+    fig = Figure(figsize=(11, 8.5), constrained_layout=False)
     spec = fig.add_gridspec(
         ncols=2,
         nrows=2,
@@ -1849,7 +1849,6 @@ def get_finding_chart(
 
     buf = io.BytesIO()
     fig.savefig(buf, format=output_format)
-    plt.close(fig)
     buf.seek(0)
 
     data = {
