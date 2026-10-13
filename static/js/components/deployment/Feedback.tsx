@@ -35,7 +35,6 @@ import TakeOverIcon from "@mui/icons-material/SwapHoriz";
 import { showNotification } from "baselayer/components/Notifications";
 import Button from "../Button";
 import UserAvatar, { getUserRealName } from "../user/UserAvatar";
-import NotificationToggle from "./NotificationToggle";
 import { useAppDispatch } from "../../types/hooks";
 import { useGetProfileQuery } from "../../ducks/profile";
 import {
@@ -472,13 +471,6 @@ const FeedbackTab = ({
   return (
     <Stack spacing={3}>
       <FeedbackForm title={title} />
-      <Box>
-        <NotificationToggle type="feedback" label="Also by email or Slack">
-          {isAdmin
-            ? "As an admin, you get an in-app notification for every new message."
-            : "You get an in-app notification when an admin replies to one of your messages."}
-        </NotificationToggle>
-      </Box>
       <MessageList messages={messages} isAdmin={isAdmin} />
     </Stack>
   );
