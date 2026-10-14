@@ -4,6 +4,7 @@ from pydantic import BaseModel, ConfigDict, Field
 from baselayer.app.access import auth_or_token
 
 from ...models import AssistantQuery, AssistantQuerySubscription, GroupUser
+from ...utils.data_access import accessible_group_ids_async
 from ..base import BaseHandler
 
 
@@ -46,6 +47,14 @@ class AssistantQueryPatchBody(BaseModel):
     notify_groups: list[int] | None = None
     active: bool | None = None
     dry_run: bool | None = None
+
+
+async def _can_notify(user_or_token, session, group_ids):
+    if not group_ids:
+        return True
+    return set(group_ids) <= set(
+        await accessible_group_ids_async(user_or_token, session)
+    )
 
 
 def _serialize(query, subscriber_ids, user_id):
@@ -139,6 +148,10 @@ class AssistantQueryHandler(BaseHandler):
                     "You must be a member of the group to create a query in it.",
                     status=403,
                 )
+            if not await _can_notify(self.current_user, session, body.notify_groups):
+                return self.error(
+                    "You can only notify groups you are a member of.", status=403
+                )
             query = AssistantQuery(
                 owner_id=user_id,
                 group_id=body.group_id,
@@ -177,6 +190,12 @@ class AssistantQueryHandler(BaseHandler):
             )
             if query is None:
                 return self.error("Cannot update this query.", status=403)
+            if not await _can_notify(
+                self.current_user, session, updates.get("notify_groups")
+            ):
+                return self.error(
+                    "You can only notify groups you are a member of.", status=403
+                )
             for field, value in updates.items():
                 setattr(query, field, value)
             await session.commit()

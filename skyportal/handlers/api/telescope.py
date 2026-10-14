@@ -13,6 +13,7 @@ from baselayer.app.access import auth_or_token, permissions
 
 from ...models import Allocation, AllocationUser, Telescope
 from ..base import BaseHandler
+from .user import public_user_info
 
 
 class TelescopeHandler(BaseHandler):
@@ -178,7 +179,8 @@ class TelescopeHandler(BaseHandler):
                     for allocation in allocations_by_instrument[instrument.id]:
                         allocation_data = allocation.to_dict()
                         allocation_data["allocation_users"] = [
-                            user.user.to_dict() for user in allocation.allocation_users
+                            public_user_info(user.user)
+                            for user in allocation.allocation_users
                         ]
                         allocations.append(allocation_data)
                 temp["allocations"] = allocations
