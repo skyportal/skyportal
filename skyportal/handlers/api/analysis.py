@@ -377,6 +377,56 @@ def _analysis_inputs(analysis_parameters):
     return inputs, correct_extinction
 
 
+def _input_csv(
+    input_type, input_data, associated_resource, input_filters, correct_extinction, obj
+):
+    """Serialize one input type's rows to the CSV sent to the analysis service."""
+    if input_type == "photometry":
+        input_data = [
+            serialize(
+                phot,
+                "ab",
+                "both",
+                groups=False,
+                annotations=False,
+            )
+            for phot in input_data
+        ]
+        df = pd.DataFrame(input_data)
+        df = _add_predicted_mag_column(df)
+
+        if input_filters is not None and input_filters.get("photometry") is not None:
+            if len(input_filters.get("photometry").get("filters", [])) > 0:
+                df = df[df["filter"].isin(input_filters.get("photometry")["filters"])]
+            if len(input_filters.get("photometry").get("instruments", [])) > 0:
+                df = df[
+                    df["instrument_id"].isin(
+                        input_filters.get("photometry")["instruments"]
+                    )
+                ]
+                # record names too, as the instruments may later be edited or deleted
+                instruments = df["instrument_name"].unique().tolist()
+                input_filters["photometry"]["instruments_by_name"] = instruments
+
+        df = df[associated_resource["allowed_export_columns"]]
+        # collapse duplicate mjd/filter points, keeping the lowest-error
+        # (best) one rather than an arbitrary first
+        df = (
+            df.sort_values("magerr")
+            .drop_duplicates(["mjd", "filter"])
+            .reset_index(drop=True)
+        )
+        if correct_extinction and not df.empty:
+            df = deredden_photometry_df(df, obj.ra, obj.dec)
+    else:
+        input_data = [
+            generic_serialize(row, associated_resource["allowed_export_columns"])
+            for row in input_data
+        ]
+        df = pd.DataFrame(input_data)
+    return df.to_csv(index=False)
+
+
 def _localization_payload(localization):
     """Sky position (max-probability point) and a skymap reference for a GCN
     localization, best-effort. Targeted searches (e.g. PyGRB) point at ra/dec; the
@@ -596,56 +646,14 @@ def post_analysis(
             if input_type == "spectra" and spectrum_ids:
                 stmt = stmt.where(Spectrum.id.in_(spectrum_ids))
             input_data = session.scalars(stmt).all()
-            if input_type == "photometry":
-                input_data = [
-                    serialize(phot, "ab", "both", annotations=False)
-                    for phot in input_data
-                ]
-                df = pd.DataFrame(input_data)
-                df = _add_predicted_mag_column(df)
-
-                if (
-                    input_filters is not None
-                    and input_filters.get("photometry") is not None
-                ):
-                    if len(input_filters.get("photometry").get("filters", [])) > 0:
-                        df = df[
-                            df["filter"].isin(
-                                input_filters.get("photometry")["filters"]
-                            )
-                        ]
-                    if len(input_filters.get("photometry").get("instruments", [])) > 0:
-                        # we want to make sure that after this runs, the user can still figure out
-                        # what instrument he filtered on, non trivial when only reporting the id used
-                        # the instrument could be edited, deleted, ...
-                        # so, we grab the name and inject that in the input_filters
-                        df = df[
-                            df["instrument_id"].isin(
-                                input_filters.get("photometry")["instruments"]
-                            )
-                        ]
-                        instruments = df["instrument_name"].unique().tolist()
-                        input_filters["photometry"]["instruments_by_name"] = instruments
-
-                df = df[associated_resource["allowed_export_columns"]]
-                # collapse duplicate mjd/filter points, keeping the lowest-error
-                # (best) one rather than an arbitrary first
-                df = (
-                    df.sort_values("magerr")
-                    .drop_duplicates(["mjd", "filter"])
-                    .reset_index(drop=True)
-                )
-                if correct_extinction and not df.empty:
-                    df = deredden_photometry_df(df, obj.ra, obj.dec)
-            else:
-                input_data = [
-                    generic_serialize(
-                        row, associated_resource["allowed_export_columns"]
-                    )
-                    for row in input_data
-                ]
-                df = pd.DataFrame(input_data)
-            inputs[input_type] = df.to_csv(index=False)
+            inputs[input_type] = _input_csv(
+                input_type,
+                input_data,
+                associated_resource,
+                input_filters,
+                correct_extinction,
+                obj,
+            )
 
         invalid_after = utcnow_naive() + datetime.timedelta(
             seconds=analysis_service.timeout
@@ -888,58 +896,14 @@ async def post_analysis_async(
             input_data = (
                 result.unique().all() if input_type == "photometry" else result.all()
             )
-            if input_type == "photometry":
-                input_data = [
-                    serialize(
-                        phot,
-                        "ab",
-                        "both",
-                        groups=False,
-                        annotations=False,
-                    )
-                    for phot in input_data
-                ]
-                df = pd.DataFrame(input_data)
-                df = _add_predicted_mag_column(df)
-
-                if (
-                    input_filters is not None
-                    and input_filters.get("photometry") is not None
-                ):
-                    if len(input_filters.get("photometry").get("filters", [])) > 0:
-                        df = df[
-                            df["filter"].isin(
-                                input_filters.get("photometry")["filters"]
-                            )
-                        ]
-                    if len(input_filters.get("photometry").get("instruments", [])) > 0:
-                        df = df[
-                            df["instrument_id"].isin(
-                                input_filters.get("photometry")["instruments"]
-                            )
-                        ]
-                        instruments = df["instrument_name"].unique().tolist()
-                        input_filters["photometry"]["instruments_by_name"] = instruments
-
-                df = df[associated_resource["allowed_export_columns"]]
-                # collapse duplicate mjd/filter points, keeping the lowest-error
-                # (best) one rather than an arbitrary first
-                df = (
-                    df.sort_values("magerr")
-                    .drop_duplicates(["mjd", "filter"])
-                    .reset_index(drop=True)
-                )
-                if correct_extinction and not df.empty:
-                    df = deredden_photometry_df(df, obj.ra, obj.dec)
-            else:
-                input_data = [
-                    generic_serialize(
-                        row, associated_resource["allowed_export_columns"]
-                    )
-                    for row in input_data
-                ]
-                df = pd.DataFrame(input_data)
-            inputs[input_type] = df.to_csv(index=False)
+            inputs[input_type] = _input_csv(
+                input_type,
+                input_data,
+                associated_resource,
+                input_filters,
+                correct_extinction,
+                obj,
+            )
 
         invalid_after = utcnow_naive() + datetime.timedelta(
             seconds=analysis_service.timeout
