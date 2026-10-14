@@ -150,11 +150,11 @@ const FLUX_UNIT_FACTORS: Record<string, number> = {
 };
 
 const CADENCE_SIZE_SCALE: Record<string, number> = {
-  "1s": 0.5,
-  "1m": 1,
-  "15m": 1.5,
-  "1h": 1.9,
-  "1d": 2.3,
+  "1s": 0.4,
+  "1m": 0.7,
+  "15m": 1,
+  "1h": 1.3,
+  "1d": 1.6,
 };
 const GREYED_RGB = [170, 170, 170];
 
