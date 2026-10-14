@@ -637,7 +637,7 @@ def generate_plan(
             skymap_raster["PROB"][ind[ii]] = 0.0
             map_struct["skymap_schedule"] = derasterize(skymap_raster)
 
-        if params["galactic_limit"] > 0.0:
+        if params["doAvoidGalacticPlane"] and params["galactic_limit"] > 0.0:
             coords = SkyCoord(ra=ra, dec=dec)
             ipix = np.where(np.abs(coords.galactic.b.deg) <= params["galactic_limit"])[
                 0
