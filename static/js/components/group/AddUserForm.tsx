@@ -26,21 +26,27 @@ const defaultState: FormState = {
   canSharePhotometry: false,
 };
 
-interface AddUserFormProps {
-  group_id: number;
-}
+const CHECKBOXES = [
+  { name: "canSave", label: "Can save to this group?" },
+  {
+    name: "canSharePhotometry",
+    label: "Can share photometry data to other groups?",
+  },
+  { name: "admin", label: "Group Admin?" },
+] as const;
 
-const AddUserForm = ({ group_id }: AddUserFormProps) => {
+const AddUserForm = ({ group_id }: { group_id: number }) => {
   const dispatch = useAppDispatch();
   const [addGroupUser] = useAddGroupUserMutation();
   const { data: usersData } = useGetUsersQuery();
-  const allUsers = usersData?.users ?? [];
   const [formState, setFormState] = useState<FormState>(defaultState);
   const [isError, setIsError] = useState(false);
 
+  const allUsers = usersData?.users ?? [];
+  if (!allUsers.length) return <CircularProgress />;
+
   const nonMemberUsers = allUsers.filter(
-    (user: any) =>
-      !(user.groups ?? []).map((ug: any) => ug.id).includes(group_id),
+    (user: any) => !user.groups?.some((group: any) => group.id === group_id),
   );
 
   const handleClickSubmit = async () => {
@@ -48,29 +54,14 @@ const AddUserForm = ({ group_id }: AddUserFormProps) => {
       setIsError(true);
       return;
     }
-    try {
-      await addGroupUser({
-        group_id,
-        ...formState,
-      } as any).unwrap();
-      setFormState(defaultState);
-      dispatch(showNotification("Successfully added user to group."));
-    } catch {
-      // error notification handled by the API layer
-    }
+    const { error } = await addGroupUser({ group_id, ...formState } as any);
+    if (error) return;
+    setFormState(defaultState);
+    dispatch(showNotification("Successfully added user to group."));
   };
-
-  const toggleCheckbox = (event: any) => {
-    setFormState({
-      ...formState,
-      [event.target.name]: event.target.checked,
-    });
-  };
-
-  if (!allUsers?.length) return <CircularProgress />;
 
   return (
-    <Box sx={{ width: "100%" }}>
+    <Box>
       <Typography variant="body2" color="textSecondary" sx={{ mb: 2 }}>
         Add an existing user to this group.
       </Typography>
@@ -102,39 +93,21 @@ const AddUserForm = ({ group_id }: AddUserFormProps) => {
           helperText={isError ? "Please select a user" : ""}
           textFieldProps={{ "data-testid": "newGroupUserTextInput" }}
         />
-        <FormControlLabel
-          control={
-            <Checkbox
-              checked={formState.canSave}
-              onChange={toggleCheckbox}
-              name="canSave"
-              data-testid="canSaveCheckbox"
-            />
-          }
-          label="Can save to this group?"
-        />
-        <FormControlLabel
-          control={
-            <Checkbox
-              checked={formState.canSharePhotometry}
-              onChange={toggleCheckbox}
-              name="canSharePhotometry"
-              data-testid="canSharePhotometryCheckbox"
-            />
-          }
-          label="Can share photometry data to other groups?"
-        />
-        <FormControlLabel
-          control={
-            <Checkbox
-              checked={formState.admin}
-              onChange={toggleCheckbox}
-              name="admin"
-              data-testid="adminCheckbox"
-            />
-          }
-          label="Group Admin?"
-        />
+        {CHECKBOXES.map(({ name, label }) => (
+          <FormControlLabel
+            key={name}
+            control={
+              <Checkbox
+                checked={formState[name]}
+                onChange={(event) =>
+                  setFormState({ ...formState, [name]: event.target.checked })
+                }
+                data-testid={`${name}Checkbox`}
+              />
+            }
+            label={label}
+          />
+        ))}
       </Box>
       <Button secondary onClick={handleClickSubmit} sx={{ mt: 2 }}>
         Add user

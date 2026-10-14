@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import Box from "@mui/material/Box";
 import Paper from "@mui/material/Paper";
@@ -27,6 +27,10 @@ import {
 import Button from "../Button";
 import StyledDataGrid, { DataGridToolbar } from "../StyledDataGrid";
 import { Group } from "../../types";
+
+const GroupListToolbar = ({ title }: { title: string }) => (
+  <DataGridToolbar title={title} />
+);
 
 interface GroupListProps {
   title?: string;
@@ -59,14 +63,6 @@ const GroupList = ({
     permissions,
     groupAdmissionRequests,
   } = (useGetProfileQuery().data as any) ?? {};
-
-  const CustomToolbar = useMemo(
-    () =>
-      function GroupListToolbar() {
-        return <DataGridToolbar title={title} />;
-      },
-    [title],
-  );
 
   if (!groups?.length) return null;
   const multiUserGroups = groups.filter((group) => !group.single_user_group);
@@ -108,34 +104,30 @@ const GroupList = ({
 
   if (admission && currentUserID == null) return <CircularProgress />;
 
-  const pendingRequestGroupIDs = groupAdmissionRequests
-    ?.filter((request: any) => request.status === "pending")
-    ?.map((request: any) => request.group_id);
-  const declinedRequestGroupIDs = groupAdmissionRequests
-    ?.filter((request: any) => request.status === "declined")
-    ?.map((request: any) => request.group_id);
+  const findRequest = (group: any, status: string) =>
+    groupAdmissionRequests?.find(
+      (request: any) =>
+        request.group_id === group.id && request.status === status,
+    );
   const isSystemAdmin = (permissions ?? []).includes("System admin");
   const userStreamIDs = new Set(
     (userStreams ?? []).map((stream: any) => stream.id),
   );
 
   const handleRequestAdmission = async (group: any, message?: string) => {
-    try {
-      await requestGroupAdmission({
-        userID: currentUserID,
-        groupID: group.id,
-        message,
-      }).unwrap();
-      dispatch(
-        showNotification(
-          group.auto_accept_requests
-            ? "Successfully joined group."
-            : "Successfully requested admission to group.",
-        ),
-      );
-    } catch {
-      // error notification handled by the base query
-    }
+    const { error } = await requestGroupAdmission({
+      userID: currentUserID,
+      groupID: group.id,
+      message,
+    });
+    if (error) return;
+    dispatch(
+      showNotification(
+        group.auto_accept_requests
+          ? "Successfully joined group."
+          : "Successfully requested admission to group.",
+      ),
+    );
   };
 
   const renderAdmissionActions = (params: any) => {
@@ -143,20 +135,18 @@ const GroupList = ({
     let label = group.auto_accept_requests ? "Join group" : "Request admission";
     let tooltip = "";
     let isDisable = false;
-    let requestToDelete = null;
+    const declined = findRequest(group, "declined");
+    const pendingRequest = !declined && findRequest(group, "pending");
 
-    if (declinedRequestGroupIDs.includes(group.id)) {
+    if (declined) {
       tooltip = "This admission request has been declined.";
       label = "Admission request declined";
       isDisable = true;
-    } else if (pendingRequestGroupIDs.includes(group.id)) {
+    } else if (pendingRequest) {
       tooltip =
         "This admission is pending, you can delete this request by clicking on the cross";
       label = "Request pending...";
       isDisable = true;
-      requestToDelete = groupAdmissionRequests?.filter(
-        (request: any) => request.group_id === group.id,
-      )[0]?.id;
     } else {
       const missingStreamNames = isSystemAdmin
         ? ""
@@ -188,11 +178,11 @@ const GroupList = ({
           >
             {label}
           </Button>
-          {requestToDelete != null && (
+          {pendingRequest && (
             <IconButton
               color="error"
               size="small"
-              onClick={() => deleteAdmissionRequest(requestToDelete)}
+              onClick={() => deleteAdmissionRequest(pendingRequest.id)}
               data-testid={`deleteAdmissionRequestButton${group.id}`}
             >
               <CloseIcon />
@@ -233,14 +223,14 @@ const GroupList = ({
         autoHeight
         rows={multiUserGroups}
         columns={columns}
-        getRowId={(row: any) => row.id}
         filterModel={filterModel}
         onFilterModelChange={onFilterModelChange}
         showToolbar
         onRowClick={
           admission ? undefined : (params: any) => navigate(getLink(params.row))
         }
-        slots={{ toolbar: CustomToolbar }}
+        slots={{ toolbar: GroupListToolbar }}
+        slotProps={{ toolbar: { title } }}
         sx={admission ? {} : { "& .MuiDataGrid-row": { cursor: "pointer" } }}
       />
       <Dialog

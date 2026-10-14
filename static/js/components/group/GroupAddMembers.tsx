@@ -15,11 +15,7 @@ import AddGroupOfUsersForm from "./AddGroupOfUsersForm";
 import InviteNewUserForm from "./InviteNewUserForm";
 import { useGetConfigQuery } from "../../ducks/config";
 
-interface GroupAddMembersProps {
-  groupID: number;
-}
-
-const GroupAddMembers = ({ groupID }: GroupAddMembersProps) => {
+const GroupAddMembers = ({ groupID }: { groupID: number }) => {
   const [open, setOpen] = useState(false);
   const [formTab, setFormTab] = useState(0);
   const { invitationsEnabled } = (useGetConfigQuery().data as any) ?? {};
@@ -54,9 +50,7 @@ const GroupAddMembers = ({ groupID }: GroupAddMembersProps) => {
         <DialogContent>
           {formTab === 0 && <AddUserForm group_id={groupID} />}
           {formTab === 1 && <AddGroupOfUsersForm groupID={groupID} />}
-          {invitationsEnabled && formTab === 2 && (
-            <InviteNewUserForm group_id={groupID} />
-          )}
+          {formTab === 2 && <InviteNewUserForm group_id={groupID} />}
         </DialogContent>
         <DialogActions>
           <Button secondary onClick={() => setOpen(false)}>

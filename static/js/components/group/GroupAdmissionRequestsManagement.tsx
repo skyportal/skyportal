@@ -24,10 +24,10 @@ import { groupApi } from "../../ducks/group";
 dayjs.extend(relativeTime);
 dayjs.extend(utc);
 
-const statusColor = (status: string) => {
-  if (status === "accepted") return "success";
-  if (status === "pending") return "warning";
-  return "error";
+const STATUS_COLORS: Record<string, "success" | "warning" | "error"> = {
+  accepted: "success",
+  pending: "warning",
+  declined: "error",
 };
 
 const AdmissionRequestsToolbar = ({
@@ -56,136 +56,77 @@ const AdmissionRequestsToolbar = ({
   </DataGridToolbar>
 );
 
-interface GroupAdmissionRequestsManagementProps {
-  groupID: number;
-}
+const toRow = (request: any) => ({
+  ...request,
+  name: [request.user?.first_name, request.user?.last_name]
+    .filter(Boolean)
+    .join(" "),
+  username: request.user?.username,
+  affiliations: (request.user?.affiliations ?? []).join(", "),
+  contact_email: request.user?.contact_email,
+});
 
-const GroupAdmissionRequestsManagement = ({
-  groupID,
-}: GroupAdmissionRequestsManagementProps) => {
+const GroupAdmissionRequestsManagement = ({ groupID }: { groupID: number }) => {
   const dispatch = useAppDispatch();
   const [showAccepted, setShowAccepted] = useState(false);
-
-  const { data: requests } = useGetGroupAdmissionRequestsQuery(groupID, {
-    skip: !groupID,
-  });
-  const [updateAdmissionRequestStatus] =
-    useUpdateAdmissionRequestStatusMutation();
+  const { data: requests } = useGetGroupAdmissionRequestsQuery(groupID);
+  const [updateStatus] = useUpdateAdmissionRequestStatusMutation();
   const [addGroupUser] = useAddGroupUserMutation();
 
-  if (requests == null) {
-    return <></>;
-  }
+  if (requests == null) return null;
 
-  const handleAcceptRequest = async ({
-    requestID,
-    userID,
-  }: {
-    requestID: number;
-    userID: number;
-  }) => {
-    try {
-      await addGroupUser({
-        userID,
-        admin: false,
-        group_id: groupID,
-      } as any).unwrap();
-    } catch {
-      return;
-    }
-    try {
-      await updateAdmissionRequestStatus({
-        requestID,
-        status: "accepted",
-      }).unwrap();
-      dispatch(showNotification("Successfully admitted user to group."));
-      dispatch(groupApi.util.invalidateTags([{ type: "Group", id: groupID }]));
-    } catch {
-      // error notification handled by the base query
-    }
+  const acceptRequest = async (request: any) => {
+    const added = await addGroupUser({
+      userID: request.user_id,
+      admin: false,
+      group_id: groupID,
+    } as any);
+    if (added.error) return;
+    const { error } = await updateStatus({
+      requestID: request.id,
+      status: "accepted",
+    });
+    if (error) return;
+    dispatch(showNotification("Successfully admitted user to group."));
+    dispatch(groupApi.util.invalidateTags([{ type: "Group", id: groupID }]));
   };
 
-  const handleDeclineRequest = async ({ requestID }: { requestID: number }) => {
-    try {
-      await updateAdmissionRequestStatus({
-        requestID,
-        status: "declined",
-      }).unwrap();
-      dispatch(showNotification("Successfully declined request."));
-    } catch {
-      // error notification handled by the base query
-    }
+  const declineRequest = async (request: any) => {
+    const { error } = await updateStatus({
+      requestID: request.id,
+      status: "declined",
+    });
+    if (!error) dispatch(showNotification("Successfully declined request."));
   };
 
-  const renderActions = (params: any) => {
-    const request = params.row;
-    if (request.status === "pending") {
-      return (
-        <ButtonGroup>
-          <Button
-            primary
-            size="small"
-            onClick={() =>
-              handleAcceptRequest({
-                requestID: request.id,
-                userID: request.user_id,
-              })
-            }
-            data-testid={`acceptRequestButton${request.user_id}`}
-          >
-            Accept
-          </Button>
-          <Button
-            secondary
-            size="small"
-            onClick={() => handleDeclineRequest({ requestID: request.id })}
-            data-testid={`declineRequestButton${request.user_id}`}
-          >
-            Decline
-          </Button>
-        </ButtonGroup>
-      );
-    }
-    if (request.status === "declined") {
-      return (
+  const renderActions = ({ row }: any) =>
+    row.status !== "accepted" && (
+      <ButtonGroup>
         <Button
           primary
           size="small"
-          onClick={() =>
-            handleAcceptRequest({
-              requestID: request.id,
-              userID: request.user_id,
-            })
-          }
-          data-testid={`acceptRequestButton${request.user_id}`}
+          onClick={() => acceptRequest(row)}
+          data-testid={`acceptRequestButton${row.user_id}`}
         >
           Accept
         </Button>
-      );
-    }
-    return <></>;
-  };
+        {row.status === "pending" && (
+          <Button
+            secondary
+            size="small"
+            onClick={() => declineRequest(row)}
+            data-testid={`declineRequestButton${row.user_id}`}
+          >
+            Decline
+          </Button>
+        )}
+      </ButtonGroup>
+    );
 
-  const acceptedCount = requests.filter(
-    (request: any) => request.status === "accepted",
+  const allRows = requests.map(toRow);
+  const acceptedCount = allRows.filter(
+    (row: any) => row.status === "accepted",
   ).length;
-  const rows = requests
-    .filter((request: any) => showAccepted || request.status !== "accepted")
-    .map((request: any) => ({
-      ...request,
-      name: [request.user?.first_name, request.user?.last_name]
-        .filter(Boolean)
-        .join(" "),
-      username: request.user?.username,
-      affiliations: (request.user?.affiliations ?? []).join(", "),
-      contact_email: request.user?.contact_email,
-    }));
-  const hasNames = requests.some(
-    (request: any) => request.user?.first_name || request.user?.last_name,
-  );
-  const hasEmails = requests.some(
-    (request: any) => request.user?.contact_email,
-  );
 
   const columns: any[] = [
     { field: "name", headerName: "Name", flex: 1, minWidth: 140 },
@@ -194,8 +135,8 @@ const GroupAdmissionRequestsManagement = ({
       headerName: "Username",
       flex: 1,
       minWidth: 120,
-      renderCell: (params: any) => (
-        <Link to={`/user/${params.row.user_id}`}>{params.row.username}</Link>
+      renderCell: ({ row }: any) => (
+        <Link to={`/user/${row.user_id}`}>{row.username}</Link>
       ),
     },
     {
@@ -210,9 +151,9 @@ const GroupAdmissionRequestsManagement = ({
       headerName: "Reason",
       flex: 2,
       minWidth: 220,
-      renderCell: (params: any) => (
+      renderCell: ({ value }: any) => (
         <Box sx={{ whiteSpace: "pre-wrap", wordBreak: "break-word" }}>
-          {params.value}
+          {value}
         </Box>
       ),
     },
@@ -221,20 +162,19 @@ const GroupAdmissionRequestsManagement = ({
       headerName: "Requested",
       flex: 1,
       minWidth: 130,
-      renderCell: (params: any) =>
-        params.value ? dayjs().to(dayjs.utc(`${params.value}Z`)) : "",
+      renderCell: ({ value }: any) => dayjs().to(dayjs.utc(`${value}Z`)),
     },
     {
       field: "status",
       headerName: "Status",
       flex: 1,
       minWidth: 100,
-      renderCell: (params: any) => (
+      renderCell: ({ value }: any) => (
         <Chip
           size="small"
           variant="outlined"
-          label={params.value}
-          color={statusColor(params.value)}
+          label={value}
+          color={STATUS_COLORS[value]}
         />
       ),
     },
@@ -252,21 +192,25 @@ const GroupAdmissionRequestsManagement = ({
   return (
     <StyledDataGrid
       autoHeight
-      rows={rows}
+      rows={
+        showAccepted
+          ? allRows
+          : allRows.filter((row: any) => row.status !== "accepted")
+      }
       columns={columns}
-      getRowId={(row: any) => row.id}
       getRowHeight={() => "auto"}
       initialState={{
         columns: {
-          columnVisibilityModel: { name: hasNames, contact_email: hasEmails },
+          columnVisibilityModel: {
+            name: allRows.some((row: any) => row.name),
+            contact_email: allRows.some((row: any) => row.contact_email),
+          },
         },
         sorting: { sortModel: [{ field: "created_at", sort: "desc" }] },
       }}
       showToolbar
       slots={{ toolbar: AdmissionRequestsToolbar }}
-      slotProps={{
-        toolbar: { acceptedCount, showAccepted, setShowAccepted },
-      }}
+      slotProps={{ toolbar: { acceptedCount, showAccepted, setShowAccepted } }}
     />
   );
 };

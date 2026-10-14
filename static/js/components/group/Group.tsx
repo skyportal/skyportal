@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import useTabParam from "../../hooks/useTabParam";
-import { useTheme } from "@mui/material/styles";
 
 import Box from "@mui/material/Box";
 import Typography from "@mui/material/Typography";
@@ -11,13 +10,7 @@ import IconButton from "@mui/material/IconButton";
 import Tooltip from "@mui/material/Tooltip";
 import DeleteIcon from "@mui/icons-material/Delete";
 
-import Dialog from "@mui/material/Dialog";
-import DialogActions from "@mui/material/DialogActions";
-import DialogContent from "@mui/material/DialogContent";
-import DialogContentText from "@mui/material/DialogContentText";
-import DialogTitle from "@mui/material/DialogTitle";
-
-import Button from "../Button";
+import ConfirmDeletionDialog from "../ConfirmDeletionDialog";
 import Spinner from "../Spinner";
 import { FULL_PAGE_HEIGHT } from "../StyledDataGrid";
 
@@ -36,7 +29,6 @@ import { useGetStreamsQuery } from "../../ducks/streams";
 const Group = () => {
   const [deleteGroup, { isLoading: isDeleting, isSuccess: isDeleted }] =
     useDeleteGroupMutation();
-  const theme = useTheme();
   const navigate = useNavigate();
   const { id } = useParams();
   const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
@@ -56,21 +48,24 @@ const Group = () => {
     ? ["members", "admissions", "sources", "filters"]
     : ["members", "sources", "filters"];
   const [tab, setTab] = useTabParam(tabNames);
+  const tabName = tabNames[tab];
 
   if (groupError) return (groupError as any)?.error ?? "Failed to load group";
   if (streamsError)
     return (streamsError as any)?.error ?? "Failed to load streams";
   if (group == null || currentUser == null) return <Spinner />;
 
+  const groupID = group["id"] as number;
+
   const handleDeleteGroup = async () => {
-    const { error } = await deleteGroup(group["id"] as number);
+    const { error } = await deleteGroup(groupID);
     if (!error) navigate("/groups");
   };
 
   return (
     <Box
       sx={
-        tabNames[tab] === "members"
+        tabName === "members"
           ? {
               height: FULL_PAGE_HEIGHT,
               display: "flex",
@@ -101,7 +96,7 @@ const Group = () => {
         </Box>
         {canManage && (
           <Box sx={{ display: "flex", gap: 0.5, mr: 1 }}>
-            <GroupAddMembers groupID={group["id"] as number} />
+            <GroupAddMembers groupID={groupID} />
             <GroupSettingsForm group={group} />
             <Tooltip title="Delete group">
               <IconButton
@@ -125,38 +120,32 @@ const Group = () => {
         <Tab label="Sources" />
         <Tab label="Streams and filters" data-testid="tour-group-filters" />
       </Tabs>
-      {tabNames[tab] === "members" && (
-        <GroupUsers
-          group={group}
-          currentUser={currentUser as any}
-          theme={theme}
-          isAdmin={isAdmin}
-        />
+      {tabName === "members" && (
+        <GroupUsers group={group} currentUser={currentUser} isAdmin={isAdmin} />
       )}
-      {tabNames[tab] === "admissions" && (
+      {tabName === "admissions" && (
         <Box sx={{ p: 1.5 }}>
-          <GroupAdmissionRequestsManagement groupID={group["id"] as number} />
+          <GroupAdmissionRequestsManagement groupID={groupID} />
         </Box>
       )}
       {/* key: remounts on group -> group navigation to reset queries and table state */}
-      {tabNames[tab] === "sources" && (
+      {tabName === "sources" && (
         <GroupSources key={id} route={{ id: id as string }} />
       )}
-      {tabNames[tab] === "filters" && (
+      {tabName === "filters" && (
         <GroupFiltersStreams
           group={group}
           currentUser={currentUser}
           isAdmin={isAdmin}
         />
       )}
-      <Dialog
-        fullWidth
-        open={confirmDeleteOpen}
-        onClose={() => setConfirmDeleteOpen(false)}
-      >
-        <DialogTitle>Delete Group?</DialogTitle>
-        <DialogContent dividers>
-          <DialogContentText>
+      <ConfirmDeletionDialog
+        deleteFunction={handleDeleteGroup}
+        dialogOpen={confirmDeleteOpen}
+        closeDialog={() => setConfirmDeleteOpen(false)}
+        resourceName="Group"
+        message={
+          <>
             Are you sure you want to delete this Group?
             <Typography
               variant="caption"
@@ -166,21 +155,9 @@ const Group = () => {
               (This will delete the group and all of its filters. All source
               data will be transferred to the Sitewide group.)
             </Typography>
-          </DialogContentText>
-        </DialogContent>
-        <DialogActions>
-          <Button
-            secondary
-            autoFocus
-            onClick={() => setConfirmDeleteOpen(false)}
-          >
-            Dismiss
-          </Button>
-          <Button primary onClick={handleDeleteGroup}>
-            Confirm
-          </Button>
-        </DialogActions>
-      </Dialog>
+          </>
+        }
+      />
     </Box>
   );
 };
