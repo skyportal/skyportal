@@ -175,9 +175,14 @@ class CommentMixin:
         """
 
         root_folder = cfg.get("comments_folder", "comments_data")
-        folder = os.path.abspath(os.path.join(root_folder, str(self.id)))
+        folders = {
+            os.path.abspath(
+                os.path.join(root_folder, self.__tablename__, str(self.id))
+            ),
+            os.path.abspath(os.path.join(root_folder, str(self.id))),
+        }
         if self._attachment_path and (
-            os.path.dirname(os.path.abspath(self._attachment_path)) == folder
+            os.path.dirname(os.path.abspath(self._attachment_path)) in folders
         ):
             delete_file_data(self._attachment_path)
 
