@@ -14,6 +14,7 @@ import {
 } from "../../ducks/instrument";
 import { useGetFollowupApisQuery } from "../../ducks/followupApis";
 import { useGetEnumTypesQuery } from "../../ducks/enum_types";
+import ZtfQuadrantsField from "./ZtfQuadrantsField";
 
 interface InstrumentFormProps {
   onClose: () => void;
@@ -58,11 +59,16 @@ const InstrumentForm = ({
     dataToSubmit.field_fov_attributes =
       dataToSubmit.field_fov_attributes?.split(",");
 
-    if (dataToSubmit.specific_configuration) {
+    if (dataToSubmit.specific_configuration || dataToSubmit.missing_quadrants) {
       try {
         dataToSubmit.configuration_data = {
           ...JSON.parse(dataToSubmit.configuration_data || "{}"),
-          specific_configuration: dataToSubmit.specific_configuration,
+          ...(dataToSubmit.specific_configuration && {
+            specific_configuration: dataToSubmit.specific_configuration,
+          }),
+          ...(dataToSubmit.missing_quadrants && {
+            missing_quadrants: dataToSubmit.missing_quadrants,
+          }),
         };
       } catch (e) {
         dispatch(
@@ -74,6 +80,7 @@ const InstrumentForm = ({
         return;
       }
       delete dataToSubmit.specific_configuration;
+      delete dataToSubmit.missing_quadrants;
     }
 
     try {
@@ -161,7 +168,7 @@ const InstrumentForm = ({
   }
 
   const getDefaultConfigurationData = () => {
-    const { specific_configuration, ...configuration } =
+    const { specific_configuration, missing_quadrants, ...configuration } =
       instrumentToEdit?.["configuration_data"] || {};
     if (configuration && Object.keys(configuration).length > 0) {
       return configuration;
@@ -300,6 +307,18 @@ const InstrumentForm = ({
           "Configuration data i.e. {'overhead_per_exposure': 2.0, 'readout': 8.0, 'slew_rate': 2.6, 'filt_change_time': 60.0}",
         default: JSON.stringify(getDefaultConfigurationData()),
       },
+      ...((instrumentToEdit?.name ?? formData.name) === "ZTF"
+        ? {
+            missing_quadrants: {
+              type: "array",
+              items: { type: "integer" },
+              default:
+                instrumentToEdit?.["configuration_data"]?.[
+                  "missing_quadrants"
+                ] || [],
+            },
+          }
+        : {}),
       ...(followupApis?.[formData.api_classname]?.formSchemaConfig?.properties
         ? {
             specific_configuration: {
@@ -332,6 +351,9 @@ const InstrumentForm = ({
     field_fov_type: {
       "ui:placeholder": "Choose an option",
     },
+    missing_quadrants: {
+      "ui:field": "ztfQuadrants",
+    },
   };
 
   return (
@@ -343,6 +365,7 @@ const InstrumentForm = ({
       formData={formData}
       onChange={(e) => setFormData(e.formData)}
       uiSchema={uiSchema}
+      fields={{ ztfQuadrants: ZtfQuadrantsField }}
     />
   );
 };
