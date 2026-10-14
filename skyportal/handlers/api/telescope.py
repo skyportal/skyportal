@@ -166,14 +166,6 @@ class TelescopeHandler(BaseHandler):
                 if telescope is None:
                     continue
                 temp = telescope.to_dict()
-                temp["instruments"] = [
-                    {
-                        k: v
-                        for k, v in instrument.to_dict().items()
-                        if k != "allocations"
-                    }
-                    for instrument in telescope.instruments
-                ]
                 temp = {**temp, **telescope.current_time()}
                 temp["morning"] = (
                     temp["morning"].iso if isinstance(temp["morning"], Time) else False
