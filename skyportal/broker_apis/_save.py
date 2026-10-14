@@ -252,8 +252,9 @@ def build_photometry_groups(object_id, survey, data, instrument_id, programid2st
 
             programid = phot.get("programid", 1) if survey == "ZTF" else 1
             key = (survey, programid)
+            point_origin = phot.get("lane") or origin
 
-            epoch = (key, origin, round(jd - 2400000.5, 8), _normalize_band(band))
+            epoch = (key, point_origin, round(jd - 2400000.5, 8), _normalize_band(band))
             if epoch in seen:
                 continue
             seen.add(epoch)
@@ -284,7 +285,7 @@ def build_photometry_groups(object_id, survey, data, instrument_id, programid2st
             pd = photometry_data[key]
             pd["mjd"].append(jd - 2400000.5)
             pd["filter"].append(_filter_name(survey, band))
-            pd["origin"].append(origin)
+            pd["origin"].append(point_origin)
             pd["magsys"].append("ab")
             pd["ra"].append(phot.get("ra"))
             pd["dec"].append(phot.get("dec"))

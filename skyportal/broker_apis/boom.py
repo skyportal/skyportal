@@ -291,14 +291,24 @@ def _decam_to_standard(record):
 
 _ARGUS_BANDS = {1: "beta", 2: "rho"}
 _AB_NJY_ZEROPOINT = 31.4
+_ARGUS_LANES = ((30, "1s"), (450, "1m"), (1800, "15m"), (43200, "1h"))
+
+
+def _argus_lane(cadence):
+    if cadence is None:
+        return None
+    return next((lane for limit, lane in _ARGUS_LANES if cadence < limit), "1d")
 
 
 def _argus_to_standard(record):
     """Argus mags as ``magpsf`` and nJy ``psfFlux``; ``psfFluxDif`` is not nJy."""
     if not isinstance(record, dict):
         return record
-    for p in [record.get("candidate") or {}, *(record.get("prv_candidates") or [])]:
+    candidate = record.get("candidate") or {}
+    candidate.setdefault("cadence", record.get("alertCadence"))
+    for p in [candidate, *(record.get("prv_candidates") or [])]:
         p.setdefault("band", _ARGUS_BANDS.get(p.get("filter")))
+        p.setdefault("lane", _argus_lane(p.get("cadence")))
         mag, mag_err = p.get("psfMagnitudeDif"), p.get("psfMagnitudeDifErr")
         if mag is None or mag_err is None or not math.isfinite(mag + mag_err):
             continue

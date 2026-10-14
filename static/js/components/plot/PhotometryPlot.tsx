@@ -149,6 +149,25 @@ const FLUX_UNIT_FACTORS: Record<string, number> = {
   Jy: 1e-6,
 };
 
+const CADENCE_SIZE_SCALE: Record<string, number> = {
+  "1s": 0.5,
+  "1m": 1,
+  "15m": 1.5,
+  "1h": 1.9,
+  "1d": 2.3,
+};
+const GREYED_RGB = [170, 170, 170];
+
+const cadenceMarkerSize = (cadence: any, size: number) =>
+  CADENCE_SIZE_SCALE[cadence]
+    ? Math.max(1, size * CADENCE_SIZE_SCALE[cadence])
+    : size;
+
+const greyedFirst = (traces: any[]) =>
+  [...traces].sort(
+    (a, b) => Number(Boolean(b.greyed)) - Number(Boolean(a.greyed)),
+  );
+
 const useStyles = makeStyles()((theme) => ({
   gridContainer: {
     display: "grid",
@@ -669,6 +688,20 @@ const PhotometryPlot = ({
 
   const [tabIndex, setTabIndex] = useState(0);
   const [markerSize, setMarkerSize] = useState<any>(6);
+  const [selectedCadence, setSelectedCadence] = useState("all");
+  const cadences = useMemo(
+    () =>
+      Object.keys(CADENCE_SIZE_SCALE).filter((cadence) =>
+        Object.values(data || {}).some(
+          (points: any) => points[0]?.origin === cadence,
+        ),
+      ),
+    [data],
+  );
+  const isGreyed = (cadence: any) =>
+    selectedCadence !== "all" &&
+    CADENCE_SIZE_SCALE[cadence] !== undefined &&
+    cadence !== selectedCadence;
 
   // Needs per-point geometry (rh/delta/phase in altdata, from BOOM) to fill in.
   const isSolarSystemTab = is_roid && tabIndex === 3;
@@ -1117,10 +1150,12 @@ const PhotometryPlot = ({
             (point: any) => !isMeasurement(point),
           );
 
+          const cadence = groupedPhotometry[key][0].origin;
+          const greyed = isGreyed(cadence);
           // TEMPORARY: until we have a mapper for each sncosmo filter, we force the color to be black
-          const colorRGB = filter2colorMapper[
-            groupedPhotometry[key][0].filter
-          ] || [0, 0, 0];
+          const colorRGB = greyed
+            ? GREYED_RGB
+            : filter2colorMapper[groupedPhotometry[key][0].filter] || [0, 0, 0];
           const colorBorder = rgba(colorRGB, 1);
           const colorInteriorNonDet = rgba(colorRGB, 0.1);
           const colorInteriorDet = rgba(colorRGB, 0.3);
@@ -1143,6 +1178,8 @@ const PhotometryPlot = ({
 
           const upperLimitsTrace: any = {
             dataType: "upperLimits",
+            cadence,
+            greyed,
             filter: groupedPhotometry[key][0].filter,
             isForcedPhotometry: upperLimitisFP,
             x: upperLimits.map((point: any) =>
@@ -1163,7 +1200,7 @@ const PhotometryPlot = ({
               },
               color: colorInteriorNonDet,
               opacity: 1,
-              size: markerSize,
+              size: cadenceMarkerSize(cadence, markerSize),
               symbol: "triangle-down",
             },
             visible:
@@ -1182,6 +1219,8 @@ const PhotometryPlot = ({
 
           const detectionsTrace: any = {
             dataType: "detections",
+            cadence,
+            greyed,
             filter: groupedPhotometry[key][0].filter,
             isForcedPhotometry: detectionisFP,
             // The alert this point came from where it carries one, else the
@@ -1228,7 +1267,7 @@ const PhotometryPlot = ({
                 ),
               },
               color: colorInteriorDet,
-              size: markerSize,
+              size: cadenceMarkerSize(cadence, markerSize),
             },
             visible:
               detectionisFP === true && showForcedPhotometryValue === false
@@ -1307,7 +1346,7 @@ const PhotometryPlot = ({
         })
         .flat();
 
-      return newPlotData;
+      return greyedFirst(newPlotData);
     }
     if (plotType === "period") {
       const newPlotData = Object.keys(groupedPhotometry)
@@ -1315,9 +1354,11 @@ const PhotometryPlot = ({
         .map((key) => {
           // using the period state variable, calculate the phase of each point
           // and then plot the phase vs mag
-          const colorRGB = filter2colorMapper[
-            groupedPhotometry[key][0].filter
-          ] || [0, 0, 0];
+          const cadence = groupedPhotometry[key][0].origin;
+          const greyed = isGreyed(cadence);
+          const colorRGB = greyed
+            ? GREYED_RGB
+            : filter2colorMapper[groupedPhotometry[key][0].filter] || [0, 0, 0];
           const colorBorder = rgba(colorRGB, 1);
           const colorInteriorNonDet = rgba(colorRGB, 0.1);
           const colorInteriorDet = rgba(colorRGB, 0.3);
@@ -1395,6 +1436,8 @@ const PhotometryPlot = ({
 
           const detectionsTrace: any = {
             dataType: "detections",
+            cadence,
+            greyed,
             filter: groupedPhotometry[key][0].filter,
             x: detectionsX,
             y: detectionsY,
@@ -1417,7 +1460,7 @@ const PhotometryPlot = ({
                 color: colorBorder,
               },
               color: colorInteriorDet,
-              size: markerSize,
+              size: cadenceMarkerSize(cadence, markerSize),
             },
             visible: existingDetectionTraceVisibility,
             hoverlabel: {
@@ -1434,6 +1477,8 @@ const PhotometryPlot = ({
 
           const upperLimitsTrace: any = {
             dataType: "upperLimits",
+            cadence,
+            greyed,
             filter: groupedPhotometry[key][0].filter,
             x: upperLimitsX,
             y: upperLimitsY,
@@ -1448,7 +1493,7 @@ const PhotometryPlot = ({
                 color: colorBorder,
               },
               color: colorInteriorNonDet,
-              size: markerSize,
+              size: cadenceMarkerSize(cadence, markerSize),
               symbol: "triangle-down",
             },
             visible:
@@ -1494,7 +1539,7 @@ const PhotometryPlot = ({
         })
         .flat();
 
-      return newPlotData;
+      return greyedFirst(newPlotData);
     }
     // A tab drawing its own plot has no traces, but callers still push onto this.
     return [];
@@ -1876,7 +1921,7 @@ const PhotometryPlot = ({
       );
       setLayouts(newLayouts);
     }
-  }, [tabIndex, phase, shownModelFits]);
+  }, [tabIndex, phase, shownModelFits, selectedCadence]);
 
   useEffect(() => {
     if (initialized && filter2color && layoutReset) {
@@ -1959,7 +2004,7 @@ const PhotometryPlot = ({
       }
       const newPlotData = plotData.map((trace: any) => {
         const newTrace = { ...trace };
-        newTrace.marker.size = parseInt(markerSize, 10);
+        newTrace.marker.size = cadenceMarkerSize(trace.cadence, newMarkerSize);
         return newTrace;
       });
       setPlotData(newPlotData);
@@ -2746,6 +2791,29 @@ const PhotometryPlot = ({
                   {Object.keys(FLUX_UNIT_FACTORS).map((unit) => (
                     <MenuItem key={unit} value={unit}>
                       {unit}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </div>
+            )}
+            {cadences.length > 1 && (
+              <div
+                style={{
+                  display: "flex",
+                  gap: "0.25rem",
+                  alignItems: "center",
+                }}
+              >
+                <Typography noWrap>Cadence</Typography>
+                <Select
+                  value={selectedCadence}
+                  onChange={(e) => setSelectedCadence(e.target.value)}
+                  size="small"
+                >
+                  <MenuItem value="all">All</MenuItem>
+                  {cadences.map((cadence) => (
+                    <MenuItem key={cadence} value={cadence}>
+                      {cadence}
                     </MenuItem>
                   ))}
                 </Select>
