@@ -156,6 +156,7 @@ const CADENCE_SIZE_SCALE: Record<string, number> = {
   "1h": 1.3,
   "1d": 1.6,
 };
+const CADENCE_OPACITY: Record<string, number> = { "1s": 0.35, "1m": 0.6 };
 const GREYED_RGB = [170, 170, 170];
 
 const cadenceMarkerSize = (cadence: any, size: number) =>
@@ -1156,10 +1157,11 @@ const PhotometryPlot = ({
           const colorRGB = greyed
             ? GREYED_RGB
             : filter2colorMapper[groupedPhotometry[key][0].filter] || [0, 0, 0];
-          const colorBorder = rgba(colorRGB, 1);
-          const colorInteriorNonDet = rgba(colorRGB, 0.1);
-          const colorInteriorDet = rgba(colorRGB, 0.3);
-          const colorError = rgba(colorRGB, 0.5);
+          const fade = CADENCE_OPACITY[cadence] ?? 1;
+          const colorBorder = rgba(colorRGB, fade);
+          const colorInteriorNonDet = rgba(colorRGB, 0.1 * fade);
+          const colorInteriorDet = rgba(colorRGB, 0.3 * fade);
+          const colorError = rgba(colorRGB, 0.5 * fade);
 
           const existingDetectionTraceVisibility = existingPlotData
             ? existingTracesVisibilities[`${key}detections`]
@@ -1359,10 +1361,11 @@ const PhotometryPlot = ({
           const colorRGB = greyed
             ? GREYED_RGB
             : filter2colorMapper[groupedPhotometry[key][0].filter] || [0, 0, 0];
-          const colorBorder = rgba(colorRGB, 1);
-          const colorInteriorNonDet = rgba(colorRGB, 0.1);
-          const colorInteriorDet = rgba(colorRGB, 0.3);
-          const colorError = rgba(colorRGB, 0.5);
+          const fade = CADENCE_OPACITY[cadence] ?? 1;
+          const colorBorder = rgba(colorRGB, fade);
+          const colorInteriorNonDet = rgba(colorRGB, 0.1 * fade);
+          const colorInteriorDet = rgba(colorRGB, 0.3 * fade);
+          const colorError = rgba(colorRGB, 0.5 * fade);
 
           const scaledPeriodValue =
             periodValue / (periodUnitDividers[periodUnitValue] ?? 1);
