@@ -11,8 +11,8 @@ const BAND_COLOR_SCALE = {
     "#f3dc11",
     "#ff8c00",
     "#8B4513",
-    "#1f77b4",
-    "#e8590c",
+    "#4B9CD3",
+    "#D71F26",
   ],
 };
 

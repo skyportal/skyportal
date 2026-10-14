@@ -1314,11 +1314,13 @@ additional_bandpasses:
     wavelength: [3600, 3650, 5250, 5300]
     transmission: [0, 1, 1, 0]
     description: "Argus beta tophat, 365-525 nm"
+    color: "#4B9CD3"
   - name: "argusrho"
     filterset: "argus"
     wavelength: [5550, 5600, 7000, 7050]
     transmission: [0, 1, 1, 0]
     description: "Argus rho tophat, 560-700 nm"
+    color: "#D71F26"
 
 user:
   default_role: "Full user"
