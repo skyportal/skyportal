@@ -1309,6 +1309,16 @@ additional_bandpasses:
     wavelength: [7.345e+06, 7.382e+06, 7.607e+06, 7.645e+06]
     transmission: [0, 1, 1, 0]
     description: "SMA 0.75mm tophat centered at 400 GHz"
+  - name: "argusbeta"
+    filterset: "argus"
+    wavelength: [3600, 3650, 5250, 5300]
+    transmission: [0, 1, 1, 0]
+    description: "Argus beta tophat, 365-525 nm"
+  - name: "argusrho"
+    filterset: "argus"
+    wavelength: [5550, 5600, 7000, 7050]
+    transmission: [0, 1, 1, 0]
+    description: "Argus rho tophat, 560-700 nm"
 
 user:
   default_role: "Full user"

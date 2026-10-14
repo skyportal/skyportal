@@ -13,7 +13,7 @@ log = make_log("broker/save")
 
 # AB zeropoint per survey, matching the units points arrive in: flux in nJy is
 # scaled to Jy and takes 8.9, magnitudes are converted to uJy and take 23.9.
-ZP_PER_SURVEY = {"LSST": 8.9, "ZTF": 23.9, "WINTER": 8.9, "DECAM": 8.9}
+ZP_PER_SURVEY = {"LSST": 8.9, "ZTF": 23.9, "WINTER": 8.9, "DECAM": 8.9, "ARGUS": 8.9}
 
 # Surveys whose filters are not named <survey><band>. Keys are normalized bands,
 # so any survey prefix is already stripped. An unmapped band raises rather than
@@ -62,7 +62,7 @@ def _normalize_band(band):
     """Collapse survey-prefixed band names to a bare filter letter so per-band
     criteria are provider-agnostic (``ztfg`` -> ``g``, ``g`` -> ``g``)."""
     b = str(band or "").lower()
-    for prefix in ("ztf", "lsst", "atlas", "winter", "decam"):
+    for prefix in ("ztf", "lsst", "atlas", "winter", "decam", "argus"):
         if b.startswith(prefix) and len(b) > len(prefix):
             return b[len(prefix) :].lstrip("_")
     return b

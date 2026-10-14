@@ -19,7 +19,7 @@ export const collectScores = (alert: any): Score[] => {
   const cls = alert?.classifications ?? {};
   const scores: Score[] = [];
 
-  const realBogus = cand.drb ?? cand.reliability;
+  const realBogus = cand.drb ?? cand.reliability ?? cand.realBogusScore;
   if (typeof realBogus === "number")
     scores.push({ name: REAL_BOGUS, score: realBogus });
   if (typeof cand.sgscore1 === "number")

@@ -184,7 +184,7 @@ def _programids(kwargs, survey):
     return list(permissions.get(survey) or [])
 
 
-NO_PROGRAMID_SURVEYS = {"LSST", "DECAM"}
+NO_PROGRAMID_SURVEYS = {"LSST", "DECAM", "ARGUS"}
 DENY_ALL = {"_id": {"$in": []}}
 
 
@@ -287,6 +287,36 @@ def _decam_to_standard(record):
         p.setdefault("magpsf", p.get("magap"))
         p.setdefault("sigmapsf", p.get("sigmagap"))
     return record
+
+
+_ARGUS_BANDS = {1: "beta", 2: "rho"}
+_AB_NJY_ZEROPOINT = 31.4
+
+
+def _argus_to_standard(record):
+    """Argus mags as ``magpsf`` and nJy ``psfFlux``; ``psfFluxDif`` is not nJy."""
+    if not isinstance(record, dict):
+        return record
+    for p in [record.get("candidate") or {}, *(record.get("prv_candidates") or [])]:
+        p.setdefault("band", _ARGUS_BANDS.get(p.get("filter")))
+        mag, mag_err = p.get("psfMagnitudeDif"), p.get("psfMagnitudeDifErr")
+        if mag is None or mag_err is None or not math.isfinite(mag + mag_err):
+            continue
+        p.setdefault("magpsf", mag)
+        p.setdefault("sigmapsf", mag_err)
+        flux = 10 ** ((_AB_NJY_ZEROPOINT - mag) / 2.5)
+        p["psfFlux"] = flux if p.get("isFluxPositive", True) else -flux
+        p["psfFluxErr"] = flux * mag_err / 1.0857
+    return record
+
+
+_TO_STANDARD = {"DECAM": _decam_to_standard, "ARGUS": _argus_to_standard}
+_MAG_FIELD = {"DECAM": "candidate.magap", "ARGUS": "candidate.psfMagnitudeDif"}
+
+
+def _to_standard(survey, record):
+    convert = _TO_STANDARD.get(survey)
+    return convert(record) if convert else record
 
 
 def _record_survey(record):
@@ -594,7 +624,7 @@ class BOOMBROKER(BrokerAPI):
 
     parallel_ingestion = True  # shared Kafka consumer group
 
-    surveys = ["ZTF", "LSST", "DECAM"]
+    surveys = ["ZTF", "LSST", "DECAM", "ARGUS"]
     filter_kind = "pipeline"
     # cone_search returns BOOM's reference catalogs (Gaia/PS1/AllWISE, ...).
     cross_match_catalogs = True
@@ -605,7 +635,8 @@ class BOOMBROKER(BrokerAPI):
         "description": (
             "BOOM is reached two ways: its REST API serves alert search, "
             "cutouts and filters, and its Kafka stream feeds ingestion. Each "
-            "has its own host and credentials. ZTF, LSST and DECam are served."
+            "has its own host and credentials. ZTF, LSST, DECam and Argus are "
+            "served."
         ),
         "required": ["host"],
         "properties": {
@@ -659,8 +690,8 @@ class BOOMBROKER(BrokerAPI):
                         "title": "Topics",
                         "description": (
                             "BOOM results topics to consume, e.g. "
-                            "ZTF_alerts_results. Empty reads the ZTF, LSST and "
-                            "DECam ones."
+                            "ZTF_alerts_results. Empty reads the ZTF, LSST, "
+                            "DECam and Argus ones."
                         ),
                     },
                     "auto_offset_reset": {
@@ -715,8 +746,8 @@ class BOOMBROKER(BrokerAPI):
                     "max_time_ms": 10000,
                 },
             )
-            if survey == "DECAM" and isinstance(result, list):
-                result = [_decam_to_standard(r) for r in result]
+            if isinstance(result, list):
+                result = [_to_standard(survey, r) for r in result]
             return result
         if ra is not None and dec is not None and radius is not None:
             unit = RADIUS_UNIT_MAP.get(
@@ -736,8 +767,8 @@ class BOOMBROKER(BrokerAPI):
                 },
             )
             result = result.get("query", []) if isinstance(result, dict) else result
-            if survey == "DECAM" and isinstance(result, list):
-                result = [_decam_to_standard(r) for r in result]
+            if isinstance(result, list):
+                result = [_to_standard(survey, r) for r in result]
             return result
         raise ValueError("Provide objectId, candid, or ra+dec+radius.")
 
@@ -754,11 +785,7 @@ class BOOMBROKER(BrokerAPI):
                     **_scope_filter(kwargs, survey),
                 }
             },
-            {
-                "$sort": {
-                    "candidate.magap" if survey == "DECAM" else "candidate.magpsf": 1
-                }
-            },
+            {"$sort": {_MAG_FIELD.get(survey, "candidate.magpsf"): 1}},
             {"$group": {"_id": "$objectId", "data": {"$first": "$$ROOT"}}},
             {"$replaceRoot": {"newRoot": "$data"}},
             {
@@ -789,9 +816,7 @@ class BOOMBROKER(BrokerAPI):
             json={"catalog_name": catalog, "pipeline": pipeline, "max_time_ms": 30000},
         )
         record = data[0] if isinstance(data, list) and data else data
-        if survey == "DECAM":
-            record = _decam_to_standard(record)
-        return _scope_history(record, programids)
+        return _scope_history(_to_standard(survey, record), programids)
 
     @staticmethod
     def get_cutouts(broker, alert_id, session, **kwargs):
@@ -1033,6 +1058,7 @@ class BOOMBROKER(BrokerAPI):
             "ZTF_alerts_results",
             "LSST_alerts_results",
             "DECAM_alerts_results",
+            "ARGUS_alerts_results",
         ]
         # kafka_consumer_config prefers altdata's group_id; match it so the log
         # and the actual Kafka group agree.
