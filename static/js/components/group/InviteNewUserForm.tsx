@@ -62,7 +62,7 @@ const InviteNewUserForm = ({ group_id }: InviteNewUserFormProps) => {
       canSave: [formState.canSave],
       canSharePhotometry: [formState.canSharePhotometry],
     };
-    if (formState.userExpirationDate?.length > 0) {
+    if (formState.userExpirationDate) {
       if (!dayjs.utc(formState.userExpirationDate).isValid()) {
         dispatch(
           showNotification(
