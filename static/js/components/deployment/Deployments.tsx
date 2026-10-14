@@ -883,9 +883,19 @@ const Deployments = () => {
           {tab === "feedback" ? (
             <FeedbackTab title={data.title} isAdmin={isAdmin} />
           ) : tab === "notifications" ? (
-            <NotificationToggle type="deployments" label="Deployments">
-              Get notified each time a new version is deployed.
-            </NotificationToggle>
+            <Stack spacing={1}>
+              <NotificationToggle type="deployments" label="Deployments">
+                Get notified each time a new version is deployed.
+              </NotificationToggle>
+              <NotificationToggle
+                type="feedback"
+                label="Feedback by email or Slack"
+              >
+                {isAdmin
+                  ? "As an admin, you get an in-app notification for every new message."
+                  : "You get an in-app notification when an admin replies to one of your messages."}
+              </NotificationToggle>
+            </Stack>
           ) : tab === "instance" && data.system ? (
             <InstanceDetails system={data.system} />
           ) : deployments.length === 0 ? (

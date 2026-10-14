@@ -91,6 +91,7 @@ from ...models import (
     DefaultObservationPlanRequest,
     EventObservationPlan,
     GcnEvent,
+    GcnNotice,
     GcnTrigger,
     Group,
     Instrument,
@@ -1126,6 +1127,11 @@ class ObservationPlanRequestHandler(BaseHandler):
                         target=get_target(fields),
                         observer=observation_plan.instrument.telescope.observer,
                     )
+                    if rise_times is None or set_times is None:
+                        rise_times = set_times = [None] * len(fields)
+                    else:
+                        rise_times = rise_times.reshape(-1)
+                        set_times = set_times.reshape(-1)
                     for planned_observation, rise_time, set_time in zip(
                         observation_plan.planned_observations, rise_times, set_times
                     ):
@@ -1141,10 +1147,8 @@ class ObservationPlanRequestHandler(BaseHandler):
                             "field"
                         ]["field_id"]
 
-                        rt = rise_time.isot
-                        st = set_time.isot
-
                         try:
+                            rt = rise_time.isot
                             planned_observation_data["rise_time"] = (
                                 rt.item()  # 0-dimensional array (basically a scalar)
                                 if not (
@@ -1159,6 +1163,7 @@ class ObservationPlanRequestHandler(BaseHandler):
                             planned_observation_data["rise_time"] = ""
 
                         try:
+                            st = set_time.isot
                             planned_observation_data["set_time"] = (
                                 st.item()  # 0-dimensional array (basically a scalar)
                                 if not (
@@ -1490,6 +1495,16 @@ class ObservationPlanSubmitHandler(BaseHandler):
             )
 
         async with self.AsyncSession() as session:
+            observation_plan_request = await session.scalar(
+                ObservationPlanRequest.select(
+                    session.user_or_token, mode="update"
+                ).where(ObservationPlanRequest.id == observation_plan_request_id_int)
+            )
+            if observation_plan_request is None:
+                return self.error(
+                    f"Cannot find ObservationPlanRequest with ID: {observation_plan_request_id}"
+                )
+
             try:
                 observation_plan_request = await send_observation_plan(
                     observation_plan_request_id_int, session
@@ -1995,9 +2010,13 @@ class ObservationPlanTreasureMapHandler(BaseHandler):
                     f"Could not find observation_plan_request with ID {observation_plan_request_id}"
                 )
 
+            # graceid parses the deferred notice content
             event = await session.scalar(
                 GcnEvent.select(
-                    session.user_or_token, options=[selectinload(GcnEvent.gcn_notices)]
+                    session.user_or_token,
+                    options=[
+                        selectinload(GcnEvent.gcn_notices).undefer(GcnNotice.content)
+                    ],
                 ).where(GcnEvent.id == observation_plan_request.gcnevent_id)
             )
             if event is None:
@@ -2156,9 +2175,13 @@ class ObservationPlanTreasureMapHandler(BaseHandler):
                     f"Could not find observation_plan_request with ID {observation_plan_request_id}"
                 )
 
+            # graceid parses the deferred notice content
             event = await session.scalar(
                 GcnEvent.select(
-                    session.user_or_token, options=[selectinload(GcnEvent.gcn_notices)]
+                    session.user_or_token,
+                    options=[
+                        selectinload(GcnEvent.gcn_notices).undefer(GcnNotice.content)
+                    ],
                 ).where(GcnEvent.id == observation_plan_request.gcnevent_id)
             )
             if event is None:
@@ -2231,11 +2254,7 @@ class ObservationPlanSurveyEfficiencyHandler(BaseHandler):
             stmt = (
                 ObservationPlanRequest.select(session.user_or_token)
                 .where(ObservationPlanRequest.id == observation_plan_request_id_int)
-                .options(
-                    selectinload(ObservationPlanRequest.observation_plans).selectinload(
-                        EventObservationPlan.survey_efficiency_analyses
-                    )
-                )
+                .options(selectinload(ObservationPlanRequest.observation_plans))
             )
             observation_plan_request = await session.scalar(stmt)
 
@@ -2250,8 +2269,15 @@ class ObservationPlanSurveyEfficiencyHandler(BaseHandler):
                     f"Could not find an observation_plan associated with observation_plan_request ID {observation_plan_request_id}"
                 )
 
+            analyses = await session.scalars(
+                SurveyEfficiencyForObservationPlan.select(session.user_or_token).where(
+                    SurveyEfficiencyForObservationPlan.observation_plan_id
+                    == observation_plans[0].id
+                )
+            )
+
             analysis_data = []
-            for analysis in observation_plans[0].survey_efficiency_analyses:
+            for analysis in analyses:
                 analysis_data.append(
                     {
                         **analysis.to_dict(),

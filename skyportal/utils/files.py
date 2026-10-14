@@ -29,7 +29,7 @@ def save_file_data(root_folder, path_string, filename, file_data):
     if not os.path.exists(path):
         os.makedirs(path)
 
-    full_path = os.path.join(path, filename)
+    full_path = os.path.join(path, os.path.basename(filename))
 
     if len(full_path) > MAX_FILEPATH_LENGTH:
         raise ValueError(

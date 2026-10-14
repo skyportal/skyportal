@@ -692,7 +692,7 @@ const GcnSelectionForm = ({ dateobs }: GcnSelectionFormProps) => {
           sources={gcnEventSources}
           galaxies={gcnEventGalaxies}
           instrument={skymapInstrument}
-          observations={gcnEventObservations}
+          observations={gcnEventObservations?.geojson}
           options={plotLayers}
           selectedFields={selectedFields}
           setSelectedFields={setSelectedFields}

@@ -131,7 +131,11 @@ from .candidate.candidate import (
     update_summary_history_if_relevant,
 )
 from .color_mag import get_color_mag
-from .photometry import add_external_photometry, serialize
+from .photometry import (
+    add_external_photometry,
+    load_readable_annotations,
+    serialize,
+)
 from .sources import _annotation_filter_hint, get_sources
 
 ObjId = Annotated[
@@ -483,9 +487,12 @@ async def get_source(
             set_committed_value(s, "host", host)
             source_info["host"] = host.to_dict()
             source_info["host_offset"] = s.host_offset.deg * 3600.0
+            host_distance = s.host_distance
             # kpc: the separation is computed from Mpc distances, and the
             # frontend labels this field kpc.
-            source_info["host_distance"] = s.host_distance.to(u.kpc).value
+            source_info["host_distance"] = (
+                host_distance.to(u.kpc).value if host_distance is not None else None
+            )
 
     if is_token_request:
         sv = SourceView(
@@ -520,7 +527,12 @@ async def get_source(
             ObjAnalysis.select(user).where(ObjAnalysis.obj_id == obj_id)
         )
         analyses = analyses_result.unique().all()
-        source_info["analyses"] = [analysis.to_dict() for analysis in analyses]
+        source_info["analyses"] = []
+        for analysis in analyses:
+            analysis_dict = recursive_to_dict(analysis)
+            if analysis_dict.get("analysis_parameters"):
+                analysis_dict["analysis_parameters"].pop("openai_api_key", None)
+            source_info["analyses"].append(analysis_dict)
     if include_period_exists:
         annotations_period_result = await session.scalars(
             Annotation.select(user).where(Annotation.obj_id == obj_id)
@@ -594,11 +606,11 @@ async def get_source(
                 options=[
                     selectinload(Photometry.instrument).load_only(Instrument.name),
                     selectinload(Photometry.groups),
-                    selectinload(Photometry.annotations),
                 ],
             ).where(Photometry.obj_id == obj_id)
         )
         photometry = photometry_result.unique().all()
+        await load_readable_annotations(session, photometry)
         source_info["photometry"] = [
             serialize(phot, "ab", "both") for phot in photometry
         ]
@@ -1751,6 +1763,10 @@ class SourceHandler(BaseHandler):
         data["id"] = obj_id
 
         async with self.AsyncSession() as session:
+            source = await session.scalar(sa.select(Obj).where(Obj.id == obj_id))
+            if source is None:
+                return self.error(f"Cannot find the object with name {obj_id}")
+
             updated_coordinates = False
             if data.get("ra", None) is not None or data.get("dec", None) is not None:
                 existing_candidates_result = await session.scalars(
@@ -1761,10 +1777,6 @@ class SourceHandler(BaseHandler):
                     return self.error(
                         "Cannot update the position of an object with candidates/alerts"
                     )
-
-                source = await session.scalar(sa.select(Obj).where(Obj.id == obj_id))
-                if source is None:
-                    return self.error(f"Cannot find the object with name {obj_id}")
 
                 if not (
                     np.isclose(data.get("ra", source.ra), source.ra)

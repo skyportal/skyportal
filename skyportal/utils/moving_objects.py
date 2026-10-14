@@ -542,6 +542,7 @@ def add_instrument_fields(
         )
         keep_idx = np.where(np.array(field_moon_seps) >= moon_distance_limit)[0]
         df_temp = df_temp.iloc[keep_idx]
+        df_temp_times = df_temp_times[keep_idx]
 
         # airmass constraint (we need to compute the airmass for each observation, i.e. at the ra, dec of the field)
         field_airmass = get_airmass(

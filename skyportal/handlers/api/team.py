@@ -55,6 +55,15 @@ def team_to_dict(team, include_users=True):
     return out
 
 
+async def non_admin_group_ids(session, group_ids):
+    admin_ids = await session.scalars(
+        Group.select(session.user_or_token, mode="update", columns=[Group.id]).where(
+            Group.id.in_(group_ids)
+        )
+    )
+    return sorted(set(group_ids) - set(admin_ids.all()))
+
+
 class TeamHandler(BaseHandler):
     @auth_or_token
     async def get(self, team_id: int | None = None):
@@ -159,6 +168,12 @@ class TeamHandler(BaseHandler):
                     return self.error(
                         f"Cannot access group(s): {sorted(missing)}", status=403
                     )
+                not_admin = await non_admin_group_ids(session, group_ids)
+                if not_admin:
+                    return self.error(
+                        f"Only admins of group(s) {not_admin} can add them to a team.",
+                        status=403,
+                    )
 
             team = Team(
                 name=name,
@@ -225,6 +240,13 @@ class TeamHandler(BaseHandler):
                         return self.error(
                             f"Cannot access group(s): {sorted(missing)}", status=403
                         )
+                changed_ids = {g.id for g in groups} ^ {g.id for g in team.groups}
+                not_admin = await non_admin_group_ids(session, changed_ids)
+                if not_admin:
+                    return self.error(
+                        f"Only admins of group(s) {not_admin} can add or remove them from a team.",
+                        status=403,
+                    )
                 team.groups = groups
 
             await session.commit()

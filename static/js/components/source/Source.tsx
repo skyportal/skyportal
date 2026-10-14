@@ -806,9 +806,11 @@ const SourceContent = ({ source }: SourceContentProps) => {
                   <b className={classes.noWrapMargin}>
                     {`Offset: ${source.host_offset.toFixed(3)} [arcsec]`}
                   </b>
-                  <b className={classes.noWrapMargin}>
-                    {`Distance: ${source.host_distance.toFixed(1)} [kpc]`}
-                  </b>
+                  {source.host_distance != null && (
+                    <b className={classes.noWrapMargin}>
+                      {`Distance: ${source.host_distance.toFixed(1)} [kpc]`}
+                    </b>
+                  )}
                   {source.host.redshift != null && (
                     <b className={classes.noWrapMargin}>
                       {`z: ${source.host.redshift.toFixed(

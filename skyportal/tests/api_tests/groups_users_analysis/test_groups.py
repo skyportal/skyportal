@@ -78,9 +78,32 @@ def test_fetch_group_users_omits_contact_details(view_only_token, public_group):
         token=view_only_token,
     )
     assert status == 200
+    assert "group_users" not in data["data"]
     assert len(data["data"]["users"]) > 0
     for user in data["data"]["users"]:
         assert not {"contact_email", "contact_phone", "oauth_uid"} & set(user)
+
+
+def test_fetch_group_hides_filters_from_non_members(
+    view_only_token_no_groups, view_only_token, public_filter
+):
+    status, data = api(
+        "GET", f"groups/{public_filter.group_id}", token=view_only_token_no_groups
+    )
+    assert status == 200
+    assert public_filter.id not in [f["id"] for f in data["data"]["filters"]]
+    assert len(data["data"]["streams"]) > 0
+    for stream in data["data"]["streams"]:
+        assert set(stream) == {"id", "name"}
+
+    status, data = api(
+        "GET", f"filters/{public_filter.id}", token=view_only_token_no_groups
+    )
+    assert status != 200
+
+    status, data = api("GET", f"groups/{public_filter.group_id}", token=view_only_token)
+    assert status == 200
+    assert public_filter.id in [f["id"] for f in data["data"]["filters"]]
 
 
 def test_token_user_request_all_groups(super_admin_token, super_admin_user):

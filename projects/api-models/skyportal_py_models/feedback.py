@@ -22,11 +22,14 @@ class FeedbackPostBody(BaseModel):
 
 
 class FeedbackPatchBody(BaseModel):
-    """Request body for marking a message as handled."""
+    """Request body for marking a message as handled, or assigning it to an admin."""
 
     model_config = ConfigDict(extra="forbid")
 
-    resolved: bool
+    resolved: bool | None = None
+    assignee_id: int | None = Field(
+        default=None, description="ID of the admin working on it; null to unassign"
+    )
 
 
 class FeedbackReplyPostBody(BaseModel):
@@ -71,6 +74,7 @@ class FeedbackResponse(BaseModel):
     resolved: bool
     created_at: datetime
     author: FeedbackAuthorResponse
+    assignee: FeedbackAuthorResponse | None = None
     replies: list[FeedbackReplyResponse] = Field(default_factory=list)
 
 

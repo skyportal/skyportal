@@ -1,7 +1,6 @@
 import { useMemo } from "react";
 import Box from "@mui/material/Box";
 import Checkbox from "@mui/material/Checkbox";
-import Chip from "@mui/material/Chip";
 import FormControl from "@mui/material/FormControl";
 import FormHelperText from "@mui/material/FormHelperText";
 import InputLabel from "@mui/material/InputLabel";
@@ -11,6 +10,7 @@ import OutlinedInput from "@mui/material/OutlinedInput";
 import Select from "@mui/material/Select";
 
 import { useGetStreamsQuery } from "../../../../ducks/streams";
+import RemovableChip from "../../../RemovableChip";
 
 /** The survey token a stream name belongs to ("ZTF Public+Partnership" -> "ZTF"). */
 export const surveyToken = (stream?: string | null) =>
@@ -65,7 +65,12 @@ const ModuleStreams = ({
         renderValue={(selected) => (
           <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.5 }}>
             {(selected as string[]).map((s) => (
-              <Chip key={s} label={s} size="small" />
+              <RemovableChip
+                key={s}
+                label={s}
+                size="small"
+                onDelete={() => onChange(value.filter((v) => v !== s))}
+              />
             ))}
           </Box>
         )}

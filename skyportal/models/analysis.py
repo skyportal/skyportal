@@ -547,6 +547,11 @@ class ObjAnalysis(Base, AnalysisMixin, WebhookMixin):
             doc="The ObjAnalysis's Obj.",
         )
 
+    def to_dict(self):
+        d = super().to_dict()
+        d.pop("token", None)
+        return d
+
 
 class GcnEventAnalysis(Base, AnalysisMixin, WebhookMixin):
     """Analysis on a GcnEvent with a set of results as JSON"""
@@ -575,6 +580,11 @@ class GcnEventAnalysis(Base, AnalysisMixin, WebhookMixin):
             back_populates=cls.backref_name(),
             doc="The GcnEventAnalysis's GcnEvent.",
         )
+
+    def to_dict(self):
+        d = super().to_dict()
+        d.pop("token", None)
+        return d
 
 
 class DefaultAnalysis(Base):

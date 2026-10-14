@@ -11,6 +11,7 @@ import os
 import re
 import tempfile
 import traceback
+from collections import defaultdict
 from datetime import timedelta
 from typing import Annotated
 from urllib.parse import urlparse, urlsplit
@@ -599,13 +600,16 @@ async def _find_event_for_designation(event_id, session, window_hours, text=""):
     attaching it to none. A trigger id shared by the notice and the circular
     (SVOM's "burst-id sb26060404") settles it outright, so it is tried first.
     """
+    # every lookup undefers circulars: post_gcn_circular reads it under async
     needle = event_id.replace(" ", "").lower()
     event = await session.scalar(
-        sa.select(GcnEvent).where(
+        sa.select(GcnEvent)
+        .where(
             sa.func.replace(
                 sa.func.lower(cast(GcnEvent.aliases, sa.String)), " ", ""
             ).like(f"%{needle}%")
         )
+        .options(undefer(GcnEvent.circulars))
     )
     if event is not None:
         return event
@@ -615,7 +619,9 @@ async def _find_event_for_designation(event_id, session, window_hours, text=""):
     candidates = set(re.findall(r"\b[A-Za-z0-9_-]{6,}\b", text))
     if candidates:
         event = await session.scalar(
-            sa.select(GcnEvent).where(GcnEvent.trigger_id.in_(candidates))
+            sa.select(GcnEvent)
+            .where(GcnEvent.trigger_id.in_(candidates))
+            .options(undefer(GcnEvent.circulars))
         )
         if event is not None:
             return event
@@ -627,10 +633,12 @@ async def _find_event_for_designation(event_id, session, window_hours, text=""):
     centre = datetime.datetime(day.year, day.month, day.day, 12)  # noqa: DTZ001
     events = (
         await session.scalars(
-            sa.select(GcnEvent).where(
+            sa.select(GcnEvent)
+            .where(
                 GcnEvent.dateobs >= centre - timedelta(hours=window_hours),
                 GcnEvent.dateobs <= centre + timedelta(hours=window_hours),
             )
+            .options(undefer(GcnEvent.circulars))
         )
     ).all()
     return events[0] if len(events) == 1 else None
@@ -948,12 +956,9 @@ async def post_gcnevent_from_json(
     event = None
     ref_ID = payload.get("ref_ID", None)
     if ref_ID is not None:
+        # exact match: superevent ids are often prefixes of others (S240422e/ed)
         event = await session.scalar(
-            GcnEvent.select(user).where(
-                sa.func.lower(cast(GcnEvent.aliases, sa.String)).like(
-                    f"%{ref_ID.lower()}%"
-                )
-            )
+            GcnEvent.select(user).where(GcnEvent.aliases.any(f"LVC#{ref_ID}"))
         )
 
     if event is None and trigger_id is not None:
@@ -2136,16 +2141,19 @@ class GcnEventSurveyEfficiencyHandler(BaseHandler):
 
         async with self.AsyncSession() as session:
             event = await session.scalar(
-                GcnEvent.select(
-                    session.user_or_token,
-                    options=[selectinload(GcnEvent.survey_efficiency_analyses)],
-                ).where(GcnEvent.id == gcnevent_id)
+                GcnEvent.select(session.user_or_token).where(GcnEvent.id == gcnevent_id)
             )
             if event is None:
                 return self.error("GCN event not found", status=404)
 
+            analyses = await session.scalars(
+                SurveyEfficiencyForObservations.select(session.user_or_token).where(
+                    SurveyEfficiencyForObservations.gcnevent_id == event.id
+                )
+            )
+
             analysis_data = []
-            for analysis in event.survey_efficiency_analyses:
+            for analysis in analyses:
                 analysis_data.append(
                     {
                         **analysis.to_dict(),
@@ -2181,50 +2189,44 @@ class GcnEventObservationPlanRequestsHandler(BaseHandler):
             return self.error("Invalid GCN event ID", status=400)
 
         async with self.AsyncSession() as session:
-            event = await session.scalar(
-                GcnEvent.select(
+            plan_requests = await session.scalars(
+                ObservationPlanRequest.select(
                     session.user_or_token,
                     options=[
-                        selectinload(GcnEvent.observationplan_requests)
-                        .selectinload(ObservationPlanRequest.allocation)
-                        .selectinload(Allocation.instrument),
-                        selectinload(GcnEvent.observationplan_requests)
-                        .selectinload(ObservationPlanRequest.allocation)
-                        .selectinload(Allocation.group),
-                        selectinload(GcnEvent.observationplan_requests).selectinload(
-                            ObservationPlanRequest.requester
+                        selectinload(ObservationPlanRequest.allocation).selectinload(
+                            Allocation.instrument
                         ),
+                        selectinload(ObservationPlanRequest.allocation).selectinload(
+                            Allocation.group
+                        ),
+                        selectinload(ObservationPlanRequest.requester),
                         # to_dict() only serializes loaded attributes, so eager-load
-                        # the localization (dateobs/name) — otherwise it's omitted
+                        # the localization (dateobs/name), otherwise it's omitted
                         # from each request and the frontend skymap can't fetch its
                         # contour (spins).
-                        selectinload(GcnEvent.observationplan_requests).selectinload(
-                            ObservationPlanRequest.localization
-                        ),
-                        selectinload(GcnEvent.observationplan_requests)
-                        .selectinload(ObservationPlanRequest.observation_plans)
-                        .selectinload(EventObservationPlan.statistics),
+                        selectinload(ObservationPlanRequest.localization),
+                        selectinload(
+                            ObservationPlanRequest.observation_plans
+                        ).selectinload(EventObservationPlan.statistics),
                     ],
-                ).where(GcnEvent.id == gcnevent_id)
+                ).where(ObservationPlanRequest.gcnevent_id == gcnevent_id)
             )
 
             # go through some pain to get probability and area included
             # as these are properties
             request_data = []
-            if event is not None:
-                for ii, req in enumerate(event.observationplan_requests):
-                    dat = req.to_dict()
-                    plan_data = []
-                    for plan in dat["observation_plans"]:
-                        plan_dict = plan.to_dict()
-                        plan_dict["statistics"] = [
-                            statistics.to_dict()
-                            for statistics in plan_dict["statistics"]
-                        ]
-                        plan_data.append(plan_dict)
+            for req in plan_requests.all():
+                dat = req.to_dict()
+                plan_data = []
+                for plan in dat["observation_plans"]:
+                    plan_dict = plan.to_dict()
+                    plan_dict["statistics"] = [
+                        statistics.to_dict() for statistics in plan_dict["statistics"]
+                    ]
+                    plan_data.append(plan_dict)
 
-                    dat["observation_plans"] = plan_data
-                    request_data.append(dat)
+                dat["observation_plans"] = plan_data
+                request_data.append(dat)
 
             return self.success(data=request_data)
 
@@ -2649,7 +2651,6 @@ class GcnEventHandler(BaseHandler):
                         Localization.tags
                     ),
                     selectinload(GcnEvent.gcn_notices),
-                    selectinload(GcnEvent.observationplan_requests),
                     selectinload(GcnEvent.gcn_triggers),
                     selectinload(GcnEvent._tags),
                 ],
@@ -2733,8 +2734,17 @@ class GcnEventHandler(BaseHandler):
                 )
 
             events = []
-            events_result = await session.scalars(stmt)
-            for event in events_result.unique().all():
+            events_result = (await session.scalars(stmt)).unique().all()
+            plan_requests_by_event = defaultdict(list)
+            for plan_request in await session.scalars(
+                ObservationPlanRequest.select(session.user_or_token).where(
+                    ObservationPlanRequest.gcnevent_id.in_(
+                        [event.id for event in events_result]
+                    )
+                )
+            ):
+                plan_requests_by_event[plan_request.gcnevent_id].append(plan_request)
+            for event in events_result:
                 event.gcn_notices = sorted(
                     event.gcn_notices, key=lambda notice: notice.date, reverse=True
                 )
@@ -2752,6 +2762,7 @@ class GcnEventHandler(BaseHandler):
                 event_info = {
                     **event.to_dict(),
                     "tags": list(set(event.tags)),
+                    "observationplan_requests": plan_requests_by_event[event.id],
                     "localizations": sorted(
                         (
                             {
@@ -5042,7 +5053,8 @@ def add_gcn_report(
                         photometry = session.scalars(stmt).all()
                         if len(photometry) > 0:
                             source["photometry"] = [
-                                serialize(phot, "ab", "mag") for phot in photometry
+                                serialize(phot, "ab", "mag", annotations=False)
+                                for phot in photometry
                             ]
                         else:
                             source["photometry"] = []
@@ -5125,14 +5137,15 @@ def add_gcn_report(
                 contents["observation_statistics"] = observation_statistics
 
             if show_survey_efficiencies:
+                stmt = SurveyEfficiencyForObservations.select(user).where(
+                    SurveyEfficiencyForObservations.gcnevent_id == event.id
+                )
                 if instrument_ids is not None:
-                    stmt = SurveyEfficiencyForObservations.select(user).where(
+                    stmt = stmt.where(
                         SurveyEfficiencyForObservations.instrument_id.in_(
                             instrument_ids
                         )
                     )
-                else:
-                    stmt = SurveyEfficiencyForObservations.select(user)
                 survey_efficiency_analyses = session.scalars(stmt).all()
 
                 contents["survey_efficiency_analyses"] = [
@@ -5519,14 +5532,18 @@ class GcnReportHandler(BaseHandler):
                                         f"Source {source_id} not found in the database, not updating report"
                                     )
 
-                                stmt = Photometry.select(session.user_or_token).where(
-                                    Photometry.obj_id == source["id"]
-                                )
+                                stmt = Photometry.select(
+                                    session.user_or_token,
+                                    options=[
+                                        joinedload(Photometry.instrument),
+                                        selectinload(Photometry.groups),
+                                    ],
+                                ).where(Photometry.obj_id == source["id"])
                                 phot_result = await session.scalars(stmt)
                                 photometry = phot_result.all()
                                 if len(photometry) > 0:
                                     source["photometry"] = [
-                                        serialize(phot, "ab", "mag")
+                                        serialize(phot, "ab", "mag", annotations=False)
                                         for phot in photometry
                                     ]
                                 else:

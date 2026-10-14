@@ -586,7 +586,10 @@ def post_analysis(
                 stmt = stmt.where(Spectrum.id.in_(spectrum_ids))
             input_data = session.scalars(stmt).all()
             if input_type == "photometry":
-                input_data = [serialize(phot, "ab", "both") for phot in input_data]
+                input_data = [
+                    serialize(phot, "ab", "both", annotations=False)
+                    for phot in input_data
+                ]
                 df = pd.DataFrame(input_data)
                 df = _add_predicted_mag_column(df)
 
@@ -667,6 +670,7 @@ def post_analysis(
             show_corner,
             input_filters,
         )
+        invalid_after = analysis.invalid_after
     else:
         raise ValueError(
             f"analysis_resource_type must be one of {', '.join(['obj', 'gcn_event'])}"

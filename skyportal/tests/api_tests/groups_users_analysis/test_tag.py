@@ -328,3 +328,39 @@ def test_delete_association(super_admin_token, public_source, public_group):
     assert status == 404
     assert data["status"] == "error"
     assert "Association not found" in data["message"]
+
+
+def test_sources_list_hides_tags_from_other_groups(
+    super_admin_token,
+    public_source_two_groups,
+    public_group,
+    view_only_token,
+    view_only_token_group2,
+):
+    tag_data = {"name": f"TagGroupScoped{uuid.uuid4().hex}"}
+    status, tag = api("POST", "objtagoption", data=tag_data, token=super_admin_token)
+    assert status == 200
+    tag_id = tag["data"]["id"]
+
+    assoc_data = {
+        "objtagoption_id": tag_id,
+        "obj_id": public_source_two_groups.id,
+        "group_ids": [public_group.id],
+    }
+    status, data = api("POST", "objtag", data=assoc_data, token=super_admin_token)
+    assert status == 200
+
+    # view_only_token_group2's user sees the source but is not in public_group
+    for token, visible in ((view_only_token, True), (view_only_token_group2, False)):
+        status, data = api(
+            "GET",
+            "sources",
+            params={"sourceID": public_source_two_groups.id},
+            token=token,
+        )
+        assert status == 200, data
+        row = next(
+            s for s in data["data"]["sources"] if s["id"] == public_source_two_groups.id
+        )
+        tag_ids = [t["objtagoption_id"] for t in row["tags"]]
+        assert (tag_id in tag_ids) == visible

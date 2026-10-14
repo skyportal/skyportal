@@ -116,7 +116,7 @@ const ObservationPlanGlobe = ({
       <Suspense fallback={<CircularProgress />}>
         <LocalizationPlot
           localization={localization}
-          observations={obsList}
+          observations={obsList.geojson}
           options={PLOT_LAYERS}
           height={size}
           width={size}

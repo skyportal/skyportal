@@ -78,6 +78,7 @@ import { getValidationStatus } from "../photometry/PhotometryValidation";
 import { SsoPoint } from "./ssoTransforms";
 import ScatterPlotIcon from "@mui/icons-material/ScatterPlot";
 import CornerPlot from "./CornerPlot";
+import RemovableChip from "../RemovableChip";
 
 const BAND_GROUP_ORDER = ["u", "g", "r", "i", "z", "y", "other"];
 
@@ -2863,10 +2864,15 @@ const PhotometryPlot = ({
                     return (
                       <div className={(classes as any).chips}>
                         {duplicatesValue.map((d) => (
-                          <Chip
+                          <RemovableChip
                             key={d.obj_id}
                             label={`${d.obj_id} (${d.separation.toFixed(2)}")`}
                             className={(classes as any).chip}
+                            onDelete={() =>
+                              setSelectedDuplicates(
+                                selected.filter((id: any) => id !== d.obj_id),
+                              )
+                            }
                           />
                         ))}
                       </div>

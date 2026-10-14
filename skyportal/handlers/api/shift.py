@@ -349,6 +349,26 @@ class ShiftHandler(BaseHandler):
 
 
 class ShiftUserHandler(BaseHandler):
+    async def can_manage_shift(self, session, shift_id):
+        if self.current_user.is_system_admin:
+            return True
+        user_id = self.associated_user_object.id
+        shift_admin = sa.select(ShiftUser.shift_id).where(
+            ShiftUser.user_id == user_id, ShiftUser.admin.is_(True)
+        )
+        group_admin = (
+            sa.select(Shift.id)
+            .join(GroupUser, GroupUser.group_id == Shift.group_id)
+            .where(GroupUser.user_id == user_id, GroupUser.admin.is_(True))
+        )
+        managed = await session.scalar(
+            sa.select(Shift.id).where(
+                Shift.id == shift_id,
+                sa.or_(Shift.id.in_(shift_admin), Shift.id.in_(group_admin)),
+            )
+        )
+        return managed is not None
+
     @auth_or_token
     async def post(
         self, shift_id: int, *ignored_args, body: ShiftUserPostBody = None
@@ -372,6 +392,12 @@ class ShiftUserHandler(BaseHandler):
             return self.error("Invalid shift_id parameter: unable to parse to integer")
 
         async with self.AsyncSession() as session:
+            if (
+                user_id != self.associated_user_object.id or admin
+            ) and not await self.can_manage_shift(session, shift_id):
+                return self.error(
+                    "Only shift admins and group admins can add other users or shift admins."
+                )
             shift = await session.scalar(
                 Shift.select(
                     session.user_or_token,
@@ -465,6 +491,12 @@ class ShiftUserHandler(BaseHandler):
                 )
 
             admin = body.admin if body.admin is not None else shiftuser.admin
+            if admin != shiftuser.admin and not await self.can_manage_shift(
+                session, shift_id
+            ):
+                return self.error(
+                    "Only shift admins and group admins can change shift admins."
+                )
             shiftuser.admin = admin
 
             needs_replacement = (

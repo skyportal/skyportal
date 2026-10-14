@@ -34,6 +34,7 @@ import {
   useUpdateTeamMutation,
 } from "../../ducks/teams";
 import type { Team } from "../../ducks/teams";
+import RemovableChip from "../RemovableChip";
 
 const useStyles = makeStyles()((theme) => ({
   container: {
@@ -236,7 +237,18 @@ const TeamForm = ({ team, onDone }: { team?: Team; onDone?: () => void }) => {
             renderValue={(selected: any) => (
               <div className={classes.chips}>
                 {selected.map((value: number) => (
-                  <Chip key={value} label={groupIDToName[value]} />
+                  <RemovableChip
+                    key={value}
+                    label={groupIDToName[value]}
+                    onDelete={() =>
+                      setForm((prev) => ({
+                        ...prev,
+                        group_ids: prev.group_ids.filter(
+                          (id: number) => id !== value,
+                        ),
+                      }))
+                    }
+                  />
                 ))}
               </div>
             )}

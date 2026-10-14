@@ -281,15 +281,21 @@ def poll_events(*args, **kwargs):
                                         GcnEvent.dateobs == retracted_dateobs
                                     )
                                 )
+                            # IGWN retractions carry only the superevent id
+                            ref_id = payload.get("ref_ID")
+                            if existing_event is None and ref_id is not None:
+                                existing_event = await session.scalar(
+                                    sa.select(GcnEvent).where(
+                                        GcnEvent.aliases.any(f"LVC#{ref_id}")
+                                    )
+                                )
                             if existing_event is None:
                                 log(
                                     f"No event found to retract for gcn_event from {message.topic()}, skipping"
                                 )
                                 return
 
-                        # skip ingesting a retraction if the event does not exist
-                        # (VOEvent path; JSON retractions are resolved by alias in
-                        # post_gcnevent_from_json).
+                        # skip a VOEvent retraction if the event does not exist
                         if alert_type == "voevent" and notice_type == "LVC_RETRACTION":
                             dateobs = get_dateobs(root)
                             trigger_id = get_trigger(root)

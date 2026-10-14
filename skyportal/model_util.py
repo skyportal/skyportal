@@ -235,9 +235,9 @@ def provision_anonymous_user():
 def provision_skybot():
     """Create the ``skybot`` bot user when autonomous analysis triage is enabled.
 
-    It authors the triage assistant runs and the loop executes with its
-    permissions, so it is a "Full user" in the public group; add it to the groups
-    a task notifies. No-op when the feature is off."""
+    It authors the triage assistant runs (their tools execute with the query
+    owner's permissions) and is a "Full user" in the public group; add it to the
+    groups a task notifies. No-op when the feature is off."""
     triage = (cfg.get("app.assistant") or {}).get("analysis_triage") or {}
     if not triage.get("enabled"):
         return

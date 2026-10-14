@@ -9,6 +9,7 @@ import { makeStyles } from "tss-react/mui";
 import { useTheme } from "@mui/material/styles";
 
 import { Group } from "../../types";
+import RemovableChip from "../RemovableChip";
 
 const useStyles = makeStyles()(() => ({
   chips: {
@@ -72,7 +73,15 @@ const GroupsSelect = (props: GroupsSelectProps) => {
                 <div className={classes.chips}>
                   {selected?.map((group) =>
                     selected.indexOf(group) === 0 ? (
-                      <Chip key={group.id} label={group.name} />
+                      <RemovableChip
+                        key={group.id}
+                        label={group.name}
+                        onDelete={() =>
+                          setSelectedGroups(
+                            selected.filter((g) => g.id !== group.id),
+                          )
+                        }
+                      />
                     ) : (
                       selected.indexOf(group) === 1 && (
                         <Chip

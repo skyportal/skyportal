@@ -1712,6 +1712,14 @@ async def get_sources(
         # FOLLOWUP REQUESTS
         if has_followup_request:
             # we already grabbed the allocation's ids in advance, so we can use them here
+            if is_admin:
+                allocation_filter = ""
+            elif len(allocation_ids) > 0:
+                allocation_filter = (
+                    "and followuprequests.allocation_id in :allocation_ids"
+                )
+            else:
+                allocation_filter = "and false"
             try:
                 if followup_request_status is not None:
                     query_params.append(
@@ -1724,13 +1732,13 @@ async def get_sources(
                     # if it contains the string, both lowercased, then we have a match
                     statements.append(
                         f"""
-                        EXISTS (SELECT obj_id from followuprequests where followuprequests.obj_id=objs.id and lower(followuprequests.status) LIKE '%' || lower(:has_followup_request_status) || '%' {"and followuprequests.allocation_id in :allocation_ids" if not is_admin else ""})
+                        EXISTS (SELECT obj_id from followuprequests where followuprequests.obj_id=objs.id and lower(followuprequests.status) LIKE '%' || lower(:has_followup_request_status) || '%' {allocation_filter})
                         """
                     )
                 else:
                     statements.append(
                         f"""
-                        EXISTS (SELECT obj_id from followuprequests where followuprequests.obj_id=objs.id {"and followuprequests.allocation_id in :allocation_ids" if len(allocation_ids) > 0 else ""})
+                        EXISTS (SELECT obj_id from followuprequests where followuprequests.obj_id=objs.id {allocation_filter})
                         """
                     )
             except Exception as e:
@@ -3023,11 +3031,20 @@ async def get_sources(
                 query_str, bindparams = array2sql(
                     obj_ids, type=sa.String, prefix="obj_ids"
                 )
+                # ObjTag.read: non-admins only see tags shared with one of their groups
+                groups_filter = ""
+                if not is_admin:
+                    groups_filter = (
+                        "AND obj_tags.id IN (SELECT obj_tag_id FROM group_obj_tags "
+                        f"WHERE group_id IN {accessible_groups_query_str})"
+                    )
+                    bindparams += accessible_groups_bindparams
                 stmt = f"""
                 SELECT obj_tags.obj_id, obj_tags.id, objtagoptions.name, obj_tags.objtagoption_id
                 FROM obj_tags
                 JOIN objtagoptions ON obj_tags.objtagoption_id = objtagoptions.id
                 WHERE obj_tags.obj_id IN {query_str}
+                {groups_filter}
                 """
 
                 tags_result = await session.execute(text(stmt).bindparams(*bindparams))

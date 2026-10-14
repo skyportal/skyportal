@@ -48,6 +48,7 @@ from ...models import (
     Allocation,
     ExecutedObservation,
     GcnEvent,
+    GcnNotice,
     Group,
     Instrument,
     InstrumentField,
@@ -270,7 +271,9 @@ def add_observations(instrument_id, obstable):
                             instrument_field_id=int(id_mapper[row["field_id"]]),
                             obstime=obstime.datetime,
                             seeing=row.get("seeing", None),
-                            limmag=float(row["limmag"]),
+                            limmag=float(row["limmag"])
+                            if pd.notna(row.get("limmag"))
+                            else None,
                             exposure_time=int(row["exposure_time"]),
                             filt=row["filter"],
                             processed_fraction=float(row["processed_fraction"]),
@@ -1573,10 +1576,13 @@ class ObservationTreasureMapHandler(BaseHandler):
                 )
 
             localization_dateobs_parsed = arrow.get(localization_dateobs).naive
+            # graceid parses the deferred notice content
             event = await session.scalar(
                 GcnEvent.select(
                     session.user_or_token,
-                    options=[selectinload(GcnEvent.gcn_notices)],
+                    options=[
+                        selectinload(GcnEvent.gcn_notices).undefer(GcnNotice.content)
+                    ],
                 ).where(GcnEvent.dateobs == localization_dateobs_parsed)
             )
             if event is None:
@@ -1728,10 +1734,13 @@ class ObservationTreasureMapHandler(BaseHandler):
             else:
                 localization_dateobs_parsed = None
 
+            # graceid parses the deferred notice content
             event = await session.scalar(
                 GcnEvent.select(
                     self.current_user,
-                    options=[selectinload(GcnEvent.gcn_notices)],
+                    options=[
+                        selectinload(GcnEvent.gcn_notices).undefer(GcnNotice.content)
+                    ],
                 ).where(GcnEvent.dateobs == localization_dateobs_parsed)
             )
             if event is None:

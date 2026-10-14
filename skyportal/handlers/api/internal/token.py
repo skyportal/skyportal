@@ -10,6 +10,14 @@ from ...base import BaseHandler
 
 
 class TokenHandler(BaseHandler):
+    def can_grant(self, user, acl_ids):
+        caller = self.current_user
+        return all(
+            acl_id in user.permissions
+            and (caller.is_system_admin or acl_id in caller.permissions)
+            for acl_id in acl_ids
+        )
+
     @auth_or_token
     async def post(self, *, body: TokenPostBody = None) -> TokenPostResponse:
         """
@@ -26,6 +34,13 @@ class TokenHandler(BaseHandler):
         async with self.AsyncSession() as session:
             if body.user_id is not None:
                 user_id = body.user_id
+                if (
+                    user_id != self.associated_user_object.id
+                    and not self.current_user.is_system_admin
+                ):
+                    return self.error(
+                        "Only system admins can create tokens for other users."
+                    )
                 user = await session.scalar(
                     User.select(session.user_or_token)
                     .options(
@@ -39,7 +54,7 @@ class TokenHandler(BaseHandler):
                 user_id = user.id
 
             token_acls = set(body.acls)
-            if not all(acl_id in user.permissions for acl_id in token_acls):
+            if not self.can_grant(user, token_acls):
                 return self.error(
                     "User has attempted to grant token ACLs they do not have "
                     "access to. Please try again."
@@ -162,17 +177,14 @@ class TokenHandler(BaseHandler):
                         "permissions to update it."
                     )
 
-                if body.user_id is not None:
-                    user = await session.scalar(
-                        User.select(session.user_or_token)
-                        .options(
-                            selectinload(User.acls),
-                            selectinload(User.roles),
-                        )
-                        .where(User.id == body.user_id)
+                user = await session.scalar(
+                    User.select(session.user_or_token)
+                    .options(
+                        selectinload(User.acls),
+                        selectinload(User.roles),
                     )
-                else:
-                    user = self.associated_user_object
+                    .where(User.id == token.created_by_id)
+                )
 
                 if body.name is not None:
                     if body.name.startswith(SERVICE_TOKEN_PREFIX):
@@ -183,7 +195,7 @@ class TokenHandler(BaseHandler):
 
                 if body.acls is not None:
                     token_acls = set(body.acls)
-                    if not all(acl_id in user.permissions for acl_id in token_acls):
+                    if not self.can_grant(user, token_acls):
                         return self.error(
                             "User has attempted to grant token ACLs they do not have "
                             "access to. Please try again."

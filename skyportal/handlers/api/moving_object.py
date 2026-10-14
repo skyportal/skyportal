@@ -29,7 +29,7 @@ from ...utils.moving_objects import (
     get_ephemeris,
 )
 from ..base import BaseHandler
-from .broker import alert_permissions
+from .broker import alert_permissions_async
 
 _, cfg = load_env()
 
@@ -268,6 +268,7 @@ class MovingObjectTrackHandler(BaseHandler):
         from ...utils.jpl_sbident import check_known_object, obscode_for_survey
 
         obscode = await obscode_for_survey(session, body.survey)
+        permissions = await alert_permissions_async(self.current_user, session)
         control = await IOLoop.current().run_in_executor(
             None,
             lambda: broker.broker_class.find_control_detection(
@@ -275,7 +276,7 @@ class MovingObjectTrackHandler(BaseHandler):
                 measured[0]["jd"],
                 session,
                 survey=body.survey,
-                permissions=alert_permissions(self.current_user, session),
+                permissions=permissions,
             ),
         )
 
@@ -293,6 +294,7 @@ class MovingObjectTrackHandler(BaseHandler):
         """One detection measured in its difference cutout."""
         from ...broker_apis._thumbnails import decode_cutout
 
+        permissions = await alert_permissions_async(self.current_user, session)
         cutouts = await IOLoop.current().run_in_executor(
             None,
             lambda: broker.broker_class.get_cutouts(
@@ -300,7 +302,7 @@ class MovingObjectTrackHandler(BaseHandler):
                 str(detection["candid"]),
                 session,
                 survey=body.survey,
-                permissions=alert_permissions(self.current_user, session),
+                permissions=permissions,
             ),
         )
         payload = (cutouts or {}).get(body.cutout)
@@ -367,6 +369,7 @@ class MovingObjectTrackLookupHandler(BaseHandler):
             if not hasattr(broker.broker_class, "get_track"):
                 return self.error(f"Broker {broker.name} does not serve tracks.")
 
+            permissions = await alert_permissions_async(self.current_user, session)
             try:
                 data = await IOLoop.current().run_in_executor(
                     None,
@@ -375,7 +378,7 @@ class MovingObjectTrackLookupHandler(BaseHandler):
                         track_id,
                         session,
                         survey=survey,
-                        permissions=alert_permissions(self.current_user, session),
+                        permissions=permissions,
                     ),
                 )
             except Exception as e:

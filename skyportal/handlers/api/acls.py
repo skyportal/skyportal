@@ -5,6 +5,7 @@ from baselayer.app.access import auth_or_token, permissions
 
 from ...models import ACL, User, UserACL
 from ..base import BaseHandler
+from .roles import ADMIN_ACL_IDS
 
 
 class ACLHandler(BaseHandler):
@@ -55,6 +56,10 @@ class UserACLHandler(BaseHandler):
         """
         body = self.parse_body(UserACLPostBody)
         new_acl_ids = body.aclIds
+        if not self.current_user.is_system_admin and set(new_acl_ids).intersection(
+            ADMIN_ACL_IDS
+        ):
+            return self.error("Only system admins can grant administrator ACLs.")
         async with self.AsyncSession() as session:
             # Validate every supplied ACL id exists/is accessible in a single
             # round trip rather than one query per id.
@@ -99,6 +104,8 @@ class UserACLHandler(BaseHandler):
               application/json:
                 schema: Success
         """
+        if acl_id in ADMIN_ACL_IDS and not self.current_user.is_system_admin:
+            return self.error("Only system admins can revoke administrator ACLs.")
         async with self.AsyncSession() as session:
             user_result = await session.scalars(
                 User.select(session.user_or_token).where(User.id == user_id)

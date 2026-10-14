@@ -174,7 +174,12 @@ class CommentMixin:
         Delete the attachment's data from disk.
         """
 
-        delete_file_data(self._attachment_path)
+        root_folder = cfg.get("comments_folder", "comments_data")
+        folder = os.path.abspath(os.path.join(root_folder, str(self.id)))
+        if self._attachment_path and (
+            os.path.dirname(os.path.abspath(self._attachment_path)) == folder
+        ):
+            delete_file_data(self._attachment_path)
 
         # reset the filename
         self._attachment_path = None

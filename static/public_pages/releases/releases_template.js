@@ -1,3 +1,21 @@
+function highlightText(element, searchValue) {
+  const text = element.textContent;
+  if (!searchValue) {
+    element.textContent = text;
+    return;
+  }
+  const escaped = searchValue.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const parts = text.split(new RegExp(`(${escaped})`, "gi"));
+  element.replaceChildren(
+    ...parts.map((part, index) => {
+      if (index % 2 === 0) return part;
+      const mark = document.createElement("mark");
+      mark.textContent = part;
+      return mark;
+    }),
+  );
+}
+
 // Filter releases based on the search bar value
 function filterReleases() {
   const searchValue = document
@@ -16,8 +34,8 @@ function filterReleases() {
 
     if (searchValue === "") {
       release.style.display = "";
-      releaseName.innerHTML = releaseName.textContent;
-      releaseDescription.innerHTML = releaseDescription.textContent;
+      highlightText(releaseName, "");
+      highlightText(releaseDescription, "");
       return;
     }
 
@@ -26,16 +44,8 @@ function filterReleases() {
       (includeDescription &&
         releaseDescription.textContent.toLowerCase().includes(searchValue))
     ) {
-      // Mark the search value in the source name
-      const re = new RegExp(searchValue, "gi");
-      releaseName.innerHTML = releaseName.textContent.replace(
-        re,
-        (match) => `<mark>${match}</mark>`,
-      );
-      releaseDescription.innerHTML = releaseDescription.textContent.replace(
-        re,
-        (match) => (includeDescription ? `<mark>${match}</mark>` : match),
-      );
+      highlightText(releaseName, searchValue);
+      highlightText(releaseDescription, includeDescription ? searchValue : "");
       release.style.display = "";
     } else {
       release.style.display = "none";

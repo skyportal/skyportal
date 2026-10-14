@@ -330,7 +330,7 @@ def test_gcn_from_igwn_json(super_admin_token):
         assert tag in data["tags"]
     assert "LVC#MS260605l" in data["aliases"]
 
-    skymap = "MS260605l-PRELIMINARY.multiorder.fits"
+    skymap = "MS260605l-PRELIMINARY-c3986815.multiorder.fits"
     params = {"include2DMap": True}
     n_retries = 0
     while True:
@@ -372,6 +372,35 @@ def test_gcn_from_igwn_json(super_admin_token):
 
     api("DELETE", f"localization/{dateobs}/name/{skymap}", token=super_admin_token)
     api("DELETE", f"gcn_event/{dateobs}", token=super_admin_token)
+
+
+def test_gcn_igwn_json_superevent_id_prefix_of_another(super_admin_token):
+    # e.g. S240422e and S240422ed: the shorter id must not match the longer one
+    superevent_id = f"MS{uuid.uuid4().hex[:8]}"
+    trigger = datetime(2019, 1, 1) + timedelta(seconds=uuid.uuid4().int % 31_536_000)
+    events = {}
+    for offset, sid in enumerate((f"{superevent_id}b", superevent_id)):
+        when = (trigger + timedelta(hours=offset)).strftime("%Y-%m-%dT%H:%M:%S")
+        events[sid] = when
+        alert = {
+            "alert_type": "PRELIMINARY",
+            "time_created": f"{when}Z",
+            "superevent_id": sid,
+            "event": {"time": f"{when}Z", "significant": True},
+        }
+        status, data = api(
+            "POST", "gcn_event", data={"json": alert}, token=super_admin_token
+        )
+        assert status == 200, data
+
+    for sid, when in events.items():
+        status, data = api("GET", f"gcn_event/{when}", token=super_admin_token)
+        assert status == 200, data
+        assert data["data"]["aliases"] == [f"LVC#{sid}"]
+        assert len(data["data"]["gcn_notices"]) == 1
+
+    for when in events.values():
+        api("DELETE", f"gcn_event/{when}", token=super_admin_token)
 
 
 def test_gcn_json_update_with_the_same_trigger_time(super_admin_token):
@@ -962,6 +991,58 @@ def test_gcn_tach(
     assert len(data["aliases"]) == 2
     assert len(data["circulars"]) == 3
     assert data["tach_id"] is not None
+
+
+def test_post_gcn_circular(super_admin_token):
+    """A streamed circular is recorded on the event whose trigger id it cites."""
+    import asyncio
+    import threading
+
+    from baselayer.app import models
+    from skyportal.handlers.api.gcn import post_gcn_circular
+
+    dateobs = (
+        Time.now() - timedelta(seconds=int(np.random.randint(10**4, 10**5)))
+    ).datetime.replace(microsecond=0)
+    trigger_id = str(np.random.randint(10**8, 10**9))
+    status, data = api(
+        "POST",
+        "gcn_event",
+        data={
+            "dateobs": dateobs.isoformat(),
+            "trigger_id": trigger_id,
+            "skymap": {"ra": 10.0, "dec": 20.0, "error": 1.0},
+        },
+        token=super_admin_token,
+    )
+    assert status == 200, data
+
+    designation = f"GRB {uuid.uuid4().hex[:8]}"
+    circular = {
+        "circularId": 99999,
+        "eventId": designation,
+        "subject": "Test circular",
+        "body": f"Trigger {trigger_id}",
+    }
+    result = {}
+
+    async def run():
+        async with models.async_plain_session_factory() as session:
+            user = await session.scalar(sa.select(User).where(User.id == 1))
+            session.user_or_token = user
+            result["dateobs"] = await post_gcn_circular(circular, session)
+
+    thread = threading.Thread(target=lambda: asyncio.run(run()))
+    thread.start()
+    thread.join()
+    assert result.get("dateobs") == dateobs, result
+
+    status, data = api(
+        "GET", f"gcn_event/{dateobs.isoformat()}/tach", token=super_admin_token
+    )
+    assert status == 200, data
+    assert data["data"]["circulars"] == {"99999": "Test circular"}
+    assert designation in data["data"]["aliases"]
 
 
 def test_gcn_allocation_triggers(

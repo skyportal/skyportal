@@ -105,6 +105,8 @@ const AcrossVisibility = ({ objId, telescopes }: AcrossVisibilityProps) => {
   const perTelescopeErrors = (data?.single || []).filter(
     (s: AcrossSingleVisibility) => s.error,
   );
+  const notObservable =
+    !!data && data.single.every((s) => !s.error && s.windows.length === 0);
 
   return (
     <Paper className={classes.container}>
@@ -162,6 +164,12 @@ const AcrossVisibility = ({ objId, telescopes }: AcrossVisibilityProps) => {
             </Typography>
           )}
 
+          {notObservable && !isFetching && (
+            <Typography variant="body2" gutterBottom>
+              Not observable by any selected facility in this time range.
+            </Typography>
+          )}
+
           {data && !isFetching && (
             <Plot
               data={plotData as any}
@@ -169,11 +177,16 @@ const AcrossVisibility = ({ objId, telescopes }: AcrossVisibilityProps) => {
                 {
                   height: 120 + 40 * (yOrder.length || 1),
                   margin: { l: 220, r: 20, t: 10, b: 40 },
-                  xaxis: { title: "UTC time", type: "date" },
+                  xaxis: {
+                    title: "UTC time",
+                    type: "date",
+                    range: [data.begin, data.end],
+                  },
                   yaxis: {
                     type: "category",
                     categoryorder: "array",
                     categoryarray: yOrder,
+                    range: [-0.5, yOrder.length - 0.5],
                     automargin: true,
                   },
                 } as any

@@ -23,7 +23,9 @@ class Feedback(Base):
         index=True,
         doc="ID of the User who wrote the message",
     )
-    author = relationship("User", doc="The User who wrote the message")
+    author = relationship(
+        "User", foreign_keys=[author_id], doc="The User who wrote the message"
+    )
     category = sa.Column(
         sa.String, nullable=False, doc="Kind of message: bug, change or other"
     )
@@ -34,6 +36,15 @@ class Feedback(Base):
         default=False,
         server_default="false",
         doc="Whether an admin has handled the message",
+    )
+    assignee_id = sa.Column(
+        sa.ForeignKey("users.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+        doc="ID of the admin working on the message",
+    )
+    assignee = relationship(
+        "User", foreign_keys=[assignee_id], doc="The admin working on the message"
     )
     replies = relationship(
         "FeedbackReply",
