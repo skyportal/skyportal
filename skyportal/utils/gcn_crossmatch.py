@@ -151,6 +151,9 @@ _rate_limited_until: dict = {}
 # but never reporting it hides a misconfiguration. Log only when it changes.
 _last_filter_report: dict = {}
 
+# When the last association pass started; in memory, so a restart runs a full one.
+_association_pass: dict = {"since": None}
+
 
 def report_once(key, message):
     """Log `message` only when it differs from the last one for `key`."""
@@ -863,7 +866,7 @@ async def process_event_filter(
     return matched
 
 
-async def associate_events(session, user, config=None):
+async def associate_events(session, user, config=None, since=None):
     """Record pairs of GcnEvents whose localizations overlap.
 
     The pair is the unit, not the event, so each is stored once ordered by
@@ -873,6 +876,8 @@ async def associate_events(session, user, config=None):
     rules = (await session.scalars(sa.select(GcnAssociationRule))).all()
     if not rules:
         return 0  # nobody has said what counts as coincident yet
+    if since is not None and any(rule.modified > since for rule in rules):
+        since = None
     # record anything that could matter to someone; each user cuts it to their
     # own rules when they read it
     window = timedelta(days=max(rule.days for rule in rules))
@@ -888,6 +893,20 @@ async def associate_events(session, user, config=None):
         return 0
 
     dateobs_list = sorted(event.dateobs for event in recent)
+    # A pair is only worth recomputing when one of its events has a new skymap.
+    changed = None
+    if since is not None:
+        changed = set(
+            (
+                await session.scalars(
+                    sa.select(Localization.dateobs).where(
+                        Localization.dateobs >= cutoff, Localization.created_at > since
+                    )
+                )
+            ).all()
+        )
+        if not changed:
+            return 0
     skymaps = {}
 
     async def skymap(dateobs):
@@ -900,6 +919,8 @@ async def associate_events(session, user, config=None):
         for other in dateobs_list[index + 1 :]:
             if other - dateobs > window:
                 break  # sorted, so everything later is further away
+            if changed is not None and dateobs not in changed and other not in changed:
+                continue
             localization = await skymap(dateobs)
             if localization is None:
                 break
@@ -1297,7 +1318,12 @@ async def run_cycle(config=None, user_id=1):
                 session.expire(localization, SKYMAP_COLUMNS)
 
         try:
-            await associate_events(session, user, config)
+            started = utcnow_naive()
+            await associate_events(
+                session, user, config, since=_association_pass["since"]
+            )
+            # Overlap, so a skymap committed while this pass ran is not skipped.
+            _association_pass["since"] = started - timedelta(minutes=10)
         except Exception as e:
             await session.rollback()
             log(f"Event association pass failed: {e}")
