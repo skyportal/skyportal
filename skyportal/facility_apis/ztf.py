@@ -1252,6 +1252,29 @@ class ZTFMMAAPI(MMAAPI):
         return form_json_schema
 
 
+MIN_EXPOSURES_FOR_QUADRANTS = 100
+
+
+def update_missing_quadrants(instrument_id, nights):
+    """nights: (number of exposures, set of rcids processed) per night, oldest first."""
+    nights = [n for n in nights if n[0] >= MIN_EXPOSURES_FOR_QUADRANTS]
+    if not nights:
+        return
+    missing = sorted(set(range(64)) - nights[-1][1])
+
+    from ..models import Instrument, new_session
+
+    with new_session() as session:
+        instrument = session.get(Instrument, instrument_id)
+        configuration_data = dict(instrument.configuration_data or {})
+        if configuration_data.get("missing_quadrants") == missing:
+            return
+        configuration_data["missing_quadrants"] = missing
+        instrument.configuration_data = configuration_data
+        session.commit()
+    log(f"Missing quadrants for instrument ID {instrument_id}: {missing}")
+
+
 def fetch_depot_observations(instrument_id, session, depot_url, jd_start, jd_end):
     """Fetch executed observations from a TAP client.
     instrument_id : int
@@ -1266,7 +1289,7 @@ def fetch_depot_observations(instrument_id, session, depot_url, jd_start, jd_end
         JD of the end time of observations
     """
 
-    dfs = []
+    dfs, nights = [], []
 
     jds = np.arange(np.floor(jd_start), np.ceil(jd_end))
     for jd in jds:
@@ -1290,6 +1313,13 @@ def fetch_depot_observations(instrument_id, session, depot_url, jd_start, jd_end
                 continue
             # only want successfully reduced images
             obstable = obstable[obstable["status"] == 0]
+            if "rcid" in obstable:
+                nights.append(
+                    (
+                        obstable["exposure_id"].nunique(),
+                        set(obstable.pop("rcid").astype(int)),
+                    )
+                )
 
             obs_grouped_by_exp = obstable.groupby("exposure_id")
             for expid, df_group in obs_grouped_by_exp:
@@ -1338,6 +1368,7 @@ def fetch_depot_observations(instrument_id, session, depot_url, jd_start, jd_end
                             "exptime",
                             "subtractionstatus",
                         ]
+                        + (["rcid"] if "rcid" in obstable else [])
                     ]
                 except KeyError as e:
                     log(
@@ -1368,6 +1399,13 @@ def fetch_depot_observations(instrument_id, session, depot_url, jd_start, jd_end
 
                 # only want successfully reduced images, the column in that file is called subtractionstatus, and 1 means success
                 obstable = obstable[obstable["subtractionstatus"] == 1]
+                if "rcid" in obstable:
+                    nights.append(
+                        (
+                            obstable["expid"].nunique(),
+                            set(obstable.pop("rcid").astype(int)),
+                        )
+                    )
 
                 # rename the relevant columns to have the same names as the other file
                 # and/or the name expected by the add_observation function
@@ -1411,6 +1449,8 @@ def fetch_depot_observations(instrument_id, session, depot_url, jd_start, jd_end
         from skyportal.handlers.api.observation import add_observations
 
         add_observations(instrument_id, obstable)
+
+    update_missing_quadrants(instrument_id, nights)
 
 
 def fetch_tap_observations(instrument_id, client, request_str):
