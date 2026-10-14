@@ -45,12 +45,12 @@ RESCAN_INTERVAL = 60  # seconds
 MAX_RETRY_INTERVAL = 3600  # seconds, ceiling on the wait between two attempts
 
 
-async def _run_broker(broker):
-    """Run one broker's ingestion loop, logging (not raising) on failure so a
-    single broker crash doesn't take down the service. Returns whether it ended
-    without crashing."""
+async def _run_broker(broker, stop):
+    """Run one broker's ingestion loop until `stop` is set, logging (not raising)
+    on failure so a single broker crash doesn't take down the service. Returns
+    whether it ended without crashing."""
     try:
-        await broker.broker_class.run_ingestion(broker)
+        await broker.broker_class.run_ingestion(broker, stop=stop)
     except Exception as e:
         log(f"broker {broker.id} ({broker.name}) ingestion crashed: {e}")
         return False
@@ -85,7 +85,7 @@ async def _active_ingestion_brokers(session):
 
 
 async def _run_loop():
-    running: dict[int, tuple[asyncio.Task, object]] = {}
+    running: dict[int, tuple[asyncio.Task, object, asyncio.Event]] = {}
     delay: dict[int, float] = {}
     next_try: dict[int, float] = {}
 
@@ -97,14 +97,22 @@ async def _run_loop():
             async with baselayer_models.async_plain_session_factory() as session:
                 wanted = await _active_ingestion_brokers(session)
         except Exception as e:
+            # A failed listing says nothing about which brokers to stop.
             log(f"failed to list brokers: {e}")
-            wanted = {}
+            await asyncio.sleep(RESCAN_INTERVAL)
+            continue
+
+        # Stop brokers switched off, deactivated or deleted. The entry stays until
+        # the task ends, so a re-enabled broker waits for the old one to drain.
+        for bid, (_, _, stop) in running.items():
+            if bid not in wanted:
+                stop.set()
 
         now = time.monotonic()
         for bid, broker in wanted.items():
             entry = running.get(bid)
             if entry is not None:
-                task, started_on = entry
+                task, started_on, _ = entry
                 if not task.done():
                     continue
                 running.pop(bid)
@@ -120,7 +128,9 @@ async def _run_loop():
             if now < next_try.get(bid, 0):
                 continue
             log(f"starting ingestion for broker {bid} ({broker.name})")
-            running[bid] = (asyncio.create_task(_run_broker(broker)), broker.modified)
+            stop = asyncio.Event()
+            task = asyncio.create_task(_run_broker(broker, stop))
+            running[bid] = (task, broker.modified, stop)
 
         await asyncio.sleep(RESCAN_INTERVAL)
 

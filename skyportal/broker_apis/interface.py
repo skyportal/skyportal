@@ -253,7 +253,12 @@ class BrokerAPI(_Base):
 
     @staticmethod
     def run_ingestion(broker, session, **kwargs):
-        """Run the long-lived ingestion loop for this broker (consumer/poller)."""
+        """Run the long-lived ingestion loop for this broker (consumer/poller).
+
+        The broker_ingest service calls it as ``run_ingestion(broker, stop=stop)``
+        and stops a broker by setting ``stop`` (an asyncio.Event), so the loop
+        must return once it is set.
+        """
         raise NotImplementedError
 
     # ------------------------------------------------------------------ #

@@ -71,6 +71,7 @@ def _normalize_fink_object(object_id, rows):
             "jd": r.get("i:jd"),
             "magpsf": r.get("i:magpsf"),
             "sigmapsf": r.get("i:sigmapsf"),
+            "isdiffpos": r.get("i:isdiffpos"),
             "band": _FID_TO_BAND.get(r.get("i:fid")),
             "ra": r.get("i:ra"),
             "dec": r.get("i:dec"),
@@ -323,6 +324,7 @@ class FINKBROKER(BrokerAPI):
                 "band": _FID_TO_BAND.get(cand.get("fid")),
                 "magpsf": cand.get("magpsf"),
                 "sigmapsf": cand.get("sigmapsf"),
+                "isdiffpos": cand.get("isdiffpos"),
                 "ra": cand.get("ra"),
                 "dec": cand.get("dec"),
             }

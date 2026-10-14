@@ -695,12 +695,31 @@ class BrokerSaveHandler(BaseHandler):
                 return self.error(
                     f"Broker {broker.name} does not support save_as_source."
                 )
+            # Same rule as POST /api/sources: membership with can_save, or admin.
+            user = self.associated_user_object
+            if not user.is_admin:
+                savable_group_ids = set(
+                    (
+                        await session.scalars(
+                            sa.select(GroupUser.group_id).where(
+                                GroupUser.user_id == user.id,
+                                GroupUser.group_id.in_(group_ids),
+                                GroupUser.can_save.is_(True),
+                            )
+                        )
+                    ).all()
+                )
+                if set(group_ids) - savable_group_ids:
+                    return self.error(
+                        "You can only save to groups you are a member of with "
+                        "save permission."
+                    )
             try:
                 result = await broker.broker_class.save_as_source(
                     broker,
                     alert_id,
                     session,
-                    self.associated_user_object,
+                    user,
                     group_ids,
                     permissions=await alert_permissions_async(
                         self.current_user, session
