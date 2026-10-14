@@ -4,7 +4,9 @@ const NAXIS1_BYTES = new TextEncoder().encode("NAXIS1  =");
 const NAXIS2_BYTES = new TextEncoder().encode("NAXIS2  =");
 const NAXIS1_BYTES_LEN = NAXIS1_BYTES.length;
 const NAXIS2_BYTES_LEN = NAXIS2_BYTES.length;
-const FITS_HEADER_LEN = 2880;
+const FITS_BLOCK_LEN = 2880;
+const FITS_CARD_LEN = 80;
+const END_CARD_BYTES = new TextEncoder().encode("END     ");
 const SPACE_BYTES = new TextEncoder().encode(" ");
 const SPACE_BYTE = SPACE_BYTES[0];
 
@@ -65,6 +67,17 @@ function bytesToFloats(data) {
   return floats;
 }
 
+function fitsHeaderLength(bytes) {
+  for (let i = 0; i + FITS_CARD_LEN <= bytes.length; i += FITS_CARD_LEN) {
+    if (
+      isEqualArray(bytes.slice(i, i + END_CARD_BYTES.length), END_CARD_BYTES)
+    ) {
+      return Math.ceil((i + FITS_CARD_LEN) / FITS_BLOCK_LEN) * FITS_BLOCK_LEN;
+    }
+  }
+  return FITS_BLOCK_LEN;
+}
+
 function bytes2imgdata(bytes) {
   let decompressedCutout;
   try {
@@ -77,13 +90,14 @@ function bytes2imgdata(bytes) {
       bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes);
   }
 
-  const subset = decompressedCutout.slice(0, FITS_HEADER_LEN);
+  const headerLen = fitsHeaderLength(decompressedCutout);
+  const subset = decompressedCutout.slice(0, headerLen);
 
   let naxis1_key_start = 0;
   let naxis1_val_start = 0;
   let naxis1_val_end = 0;
 
-  for (let i = 0; i < FITS_HEADER_LEN - NAXIS1_BYTES_LEN; i++) {
+  for (let i = 0; i < headerLen - NAXIS1_BYTES_LEN; i++) {
     if (isEqualArray(subset.slice(i, i + NAXIS1_BYTES_LEN), NAXIS1_BYTES)) {
       naxis1_key_start = i;
       break;
@@ -95,7 +109,7 @@ function bytes2imgdata(bytes) {
     return { data: new Float32Array(), naxis1: 0, naxis2: 0, rotpa: null };
   }
 
-  for (let i = naxis1_key_start + NAXIS1_BYTES_LEN; i < FITS_HEADER_LEN; i++) {
+  for (let i = naxis1_key_start + NAXIS1_BYTES_LEN; i < headerLen; i++) {
     if (subset[i] !== SPACE_BYTE) {
       naxis1_val_start = i;
       break;
@@ -107,7 +121,7 @@ function bytes2imgdata(bytes) {
     return { data: new Float32Array(), naxis1: 0, naxis2: 0, rotpa: null };
   }
 
-  for (let i = naxis1_val_start; i < FITS_HEADER_LEN; i++) {
+  for (let i = naxis1_val_start; i < headerLen; i++) {
     if (subset[i] === SPACE_BYTE) {
       naxis1_val_end = i;
       break;
@@ -121,7 +135,7 @@ function bytes2imgdata(bytes) {
   let naxis2_key_start = naxis1_val_end;
   let naxis2_val_start = 0;
   let naxis2_val_end = 0;
-  for (let i = naxis2_key_start; i < FITS_HEADER_LEN - NAXIS2_BYTES_LEN; i++) {
+  for (let i = naxis2_key_start; i < headerLen - NAXIS2_BYTES_LEN; i++) {
     if (isEqualArray(subset.slice(i, i + NAXIS2_BYTES_LEN), NAXIS2_BYTES)) {
       naxis2_key_start = i;
       break;
@@ -131,7 +145,7 @@ function bytes2imgdata(bytes) {
     console.error("NAXIS2 key not found in FITS header");
     return { data: new Float32Array(), naxis1: 0, naxis2: 0, rotpa: null };
   }
-  for (let i = naxis2_key_start + NAXIS2_BYTES_LEN; i < FITS_HEADER_LEN; i++) {
+  for (let i = naxis2_key_start + NAXIS2_BYTES_LEN; i < headerLen; i++) {
     if (subset[i] !== SPACE_BYTE) {
       naxis2_val_start = i;
       break;
@@ -141,7 +155,7 @@ function bytes2imgdata(bytes) {
     console.error("NAXIS2 value start not found in FITS header");
     return { data: new Float32Array(), naxis1: 0, naxis2: 0, rotpa: null };
   }
-  for (let i = naxis2_val_start; i < FITS_HEADER_LEN; i++) {
+  for (let i = naxis2_val_start; i < headerLen; i++) {
     if (subset[i] === SPACE_BYTE) {
       naxis2_val_end = i;
       break;
@@ -158,21 +172,21 @@ function bytes2imgdata(bytes) {
   let rotpa_val_end = 0;
   const ROTPA_BYTES = new TextEncoder().encode("ROTPA   =");
   const ROTPA_BYTES_LEN = ROTPA_BYTES.length;
-  for (let i = rotpa_key_start; i < FITS_HEADER_LEN - ROTPA_BYTES_LEN; i++) {
+  for (let i = rotpa_key_start; i < headerLen - ROTPA_BYTES_LEN; i++) {
     if (isEqualArray(subset.slice(i, i + ROTPA_BYTES_LEN), ROTPA_BYTES)) {
       rotpa_key_start = i;
       break;
     }
   }
   if (rotpa_key_start !== 0) {
-    for (let i = rotpa_key_start + ROTPA_BYTES_LEN; i < FITS_HEADER_LEN; i++) {
+    for (let i = rotpa_key_start + ROTPA_BYTES_LEN; i < headerLen; i++) {
       if (subset[i] !== SPACE_BYTE) {
         rotpa_val_start = i;
         break;
       }
     }
     if (rotpa_val_start !== 0) {
-      for (let i = rotpa_val_start; i < FITS_HEADER_LEN; i++) {
+      for (let i = rotpa_val_start; i < headerLen; i++) {
         if (subset[i] === SPACE_BYTE || subset[i] === 47 /* '/' */) {
           rotpa_val_end = i;
           break;
@@ -189,8 +203,8 @@ function bytes2imgdata(bytes) {
   }
 
   let data = decompressedCutout.slice(
-    FITS_HEADER_LEN,
-    naxis1 * naxis2 * 4 + FITS_HEADER_LEN,
+    headerLen,
+    naxis1 * naxis2 * 4 + headerLen,
   );
   if (data instanceof Uint8Array) {
     data = bytesToFloats(data);
