@@ -24,12 +24,16 @@ export const groupAdmissionRequestsApi = skyportalApi.injectEndpoints({
     }),
     requestGroupAdmission: build.mutation<
       unknown,
-      { userID: number | string; groupID: number | string }
+      {
+        userID: number | string;
+        groupID: number | string;
+        message?: string | undefined;
+      }
     >({
-      query: ({ userID, groupID }) => ({
+      query: ({ userID, groupID, message }) => ({
         url: "api/group_admission_requests",
         method: "POST",
-        body: { userID, groupID },
+        body: { userID, groupID, message },
       }),
       // Also invalidate Group: an auto-accept group grants membership here, so
       // the groups list must refetch to move it into the user's groups.

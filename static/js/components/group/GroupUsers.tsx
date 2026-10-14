@@ -1,122 +1,70 @@
-import React from "react";
+import { useState } from "react";
 import { Link } from "react-router-dom";
 import MoreVertIcon from "@mui/icons-material/MoreVert";
 import Popover from "@mui/material/Popover";
-import Divider from "@mui/material/Divider";
 import Chip from "@mui/material/Chip";
 import Box from "@mui/material/Box";
 import useMediaQuery from "@mui/material/useMediaQuery";
 import IconButton from "@mui/material/IconButton";
-import Tabs from "@mui/material/Tabs";
-import Tab from "@mui/material/Tab";
-import Typography from "@mui/material/Typography";
 
-import StyledDataGrid from "../StyledDataGrid";
+import StyledDataGrid, { DataGridToolbar } from "../StyledDataGrid";
 import ManageUserButtons from "./GroupPageManageUserButtons";
-import AddUserForm from "./AddUserForm";
-import InviteNewUserForm from "./InviteNewUserForm";
-import AddGroupOfUsersForm from "./AddGroupOfUsersForm";
-import GroupAdmissionRequestsManagement from "./GroupAdmissionRequestsManagement";
-import { useGetConfigQuery } from "../../ducks/config";
+
+const MembersToolbar = () => <DataGridToolbar title="Members" />;
+
+const renderUsername = ({ row }: any) => (
+  <Link to={`/user/${row.id}`}>{row.username}</Link>
+);
+
+const renderAdmin = ({ row }: any) =>
+  row.admin && (
+    <Chip
+      id={`${row.id}-admin-chip`}
+      label="Admin"
+      size="small"
+      color="primary"
+    />
+  );
 
 interface GroupUsersProps {
-  group: {
-    id?: number;
-    name?: string;
-    nickname?: string | null;
-    users?: any[];
-  };
-  theme: any;
-  currentUser: {
-    username?: string;
-    id?: number;
-    first_name?: string;
-    last_name?: string;
-    permissions?: string[];
-  };
-  isAdmin: (...a: any[]) => boolean;
+  group: any;
+  currentUser: any;
+  isAdmin: (user: any) => boolean;
 }
 
-const GroupUsers = ({
-  group,
-  currentUser,
-  theme,
-  isAdmin,
-}: GroupUsersProps) => {
-  const [anchorEl, setAnchorEl] = React.useState<any>(null);
-  const [openedPopoverId, setOpenedPopoverId] = React.useState<any>(null);
-  const [userFormTab, setUserFormTab] = React.useState(0);
-  const { invitationsEnabled } = (useGetConfigQuery().data as any) ?? {};
+const GroupUsers = ({ group, currentUser, isAdmin }: GroupUsersProps) => {
+  const [menu, setMenu] = useState<{ anchorEl: Element; userId: number }>();
+  const mobile = useMediaQuery((theme: any) => theme.breakpoints.down("sm"));
 
-  const handlePopoverOpen = (event: any, popoverId: any) => {
-    setOpenedPopoverId(popoverId);
-    setAnchorEl(event.currentTarget);
-  };
-
-  const handlePopoverClose = () => {
-    setOpenedPopoverId(null);
-    setAnchorEl(null);
-  };
-
-  const openManageUserPopover = Boolean(anchorEl);
-  const popoverId = openManageUserPopover ? "manage-user-popover" : undefined;
-  const mobile = !useMediaQuery(theme.breakpoints.up("sm"));
-
-  const renderUsername = (params: any) => {
-    const user = params.row;
-    return <Link to={`/user/${user.id}`}>{user.username}</Link>;
-  };
-
-  const renderAdmin = (params: any) => {
-    const user = params.row;
-    if (!user?.admin) return null;
-    return (
-      <Chip
-        id={`${user.id}-admin-chip`}
-        label="Admin"
-        size="small"
-        color="primary"
-      />
-    );
-  };
-
-  const renderActions = (params: any) => {
-    const user = params.row;
+  const renderActions = ({ row }: any) => {
     const actions = (
       <ManageUserButtons
-        loadedId={group.id!}
-        user={user as any}
+        loadedId={group.id}
+        user={row}
         isAdmin={isAdmin}
-        group={group as any}
-        currentUser={currentUser as any}
+        group={group}
+        currentUser={currentUser}
       />
     );
-
-    if (!group || !mobile) return actions;
-
+    if (!mobile) return actions;
     return (
       <>
         <IconButton
           edge="end"
           aria-label="open-manage-user-popover"
-          onClick={(e) => handlePopoverOpen(e, user.id)}
+          onClick={(e) =>
+            setMenu({ anchorEl: e.currentTarget, userId: row.id })
+          }
           size="large"
         >
           <MoreVertIcon />
         </IconButton>
         <Popover
-          id={popoverId}
-          open={openedPopoverId === user.id}
-          anchorEl={anchorEl}
-          onClose={handlePopoverClose}
-          anchorOrigin={{
-            vertical: "bottom",
-            horizontal: "center",
-          }}
-          transformOrigin={{
-            vertical: "top",
-            horizontal: "center",
-          }}
+          open={menu?.userId === row.id}
+          anchorEl={menu?.anchorEl}
+          onClose={() => setMenu(undefined)}
+          anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
+          transformOrigin={{ vertical: "top", horizontal: "center" }}
         >
           {actions}
         </Popover>
@@ -124,16 +72,10 @@ const GroupUsers = ({
     );
   };
 
-  const groupUsers = group?.users?.map((user: any) => ({
-    name: `${user.first_name ? user.first_name : ""} ${
-      user.last_name ? user.last_name : ""
-    }`,
+  const rows = (group.users ?? []).map((user: any) => ({
     ...user,
+    name: [user.first_name, user.last_name].filter(Boolean).join(" "),
   }));
-
-  const hasNames = !!group?.users?.filter(
-    (user: any) => user.first_name || user.last_name,
-  )?.length;
 
   const columns: any[] = [
     { field: "name", headerName: "Name", flex: 1, minWidth: 120 },
@@ -167,41 +109,31 @@ const GroupUsers = ({
   ];
 
   return (
-    <Box sx={{ p: 1.5 }}>
-      <Typography variant="h6">Members</Typography>
+    <Box
+      sx={{
+        p: 1.5,
+        flex: 1,
+        minHeight: 0,
+        display: "flex",
+        flexDirection: "column",
+      }}
+    >
       <StyledDataGrid
-        autoHeight
         columns={columns}
-        rows={group?.users ? groupUsers : []}
-        getRowId={(row: any) => row.id}
+        rows={rows}
         getRowHeight={() => "auto"}
         initialState={{
-          columns: { columnVisibilityModel: { name: hasNames } },
+          columns: {
+            columnVisibilityModel: {
+              name: rows.some((row: any) => row.name),
+            },
+          },
         }}
         columnBufferPx={3000}
+        disableVirtualization
         showToolbar
+        slots={{ toolbar: MembersToolbar }}
       />
-      {isAdmin(currentUser) && (
-        <Box sx={{ display: "flex", flexDirection: "column", gap: 3, mt: 2 }}>
-          <Box sx={{ borderBottom: 1, borderColor: "divider" }}>
-            <Tabs
-              value={userFormTab}
-              onChange={(_event, value) => setUserFormTab(value)}
-            >
-              <Tab label="Add a user" />
-              <Tab label="Add a group of users" />
-              {invitationsEnabled && <Tab label="Invite a new user" />}
-            </Tabs>
-          </Box>
-          {userFormTab === 0 && <AddUserForm group_id={group.id!} />}
-          {userFormTab === 1 && <AddGroupOfUsersForm groupID={group.id!} />}
-          {invitationsEnabled && userFormTab === 2 && (
-            <InviteNewUserForm group_id={group.id!} />
-          )}
-          <Divider />
-          <GroupAdmissionRequestsManagement groupID={group.id!} />
-        </Box>
-      )}
     </Box>
   );
 };

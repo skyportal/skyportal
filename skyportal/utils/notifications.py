@@ -518,6 +518,19 @@ def feedback_notification_text(content, escape, bold="*"):
     return f"New {content['label']} from {author}: {snippet}"
 
 
+def group_admission_request_notification_text(content, escape, bold="*"):
+    details = [f"@{content['username']}"] if content["name"] else []
+    if content["affiliations"]:
+        details.append(", ".join(content["affiliations"]))
+    requester = f"{bold}{escape(content['name'] or '@' + content['username'])}{bold}"
+    if details:
+        requester += f" ({escape(', '.join(details))})"
+    text = f"New Group Admission Request from {requester} for Group {bold}{escape(content['group'])}{bold}"
+    if content["message"]:
+        text += f": {escape(content['message'])}"
+    return text
+
+
 def discussion_notification_text(content, escape, bold="*"):
     author = f"{bold}@{escape(content['author'])}{bold}"
     snippet = escape(content["snippet"])
