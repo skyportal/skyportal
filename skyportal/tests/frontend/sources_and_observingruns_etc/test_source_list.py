@@ -75,7 +75,7 @@ def test_add_sources_two_groups(
     ).to_be_visible()
 
     saved_at_element = page.locator(
-        f"//*[text()[contains(., '{t1.strftime('%Y-%m-%dT%H:%M')}')]]"
+        f"//*[text()[contains(., '{t1.strftime('%Y-%m-%d %H:%M')}')]]"
     ).first
     expect(saved_at_element).to_be_visible()
     saved_group1 = parser.parse(saved_at_element.inner_text())
@@ -162,7 +162,7 @@ def test_add_sources_two_groups(
     expect(page.locator("//*[text()[contains(., 'RS CVn')]]").first).to_be_visible()
 
     saved_at_element = page.locator(
-        f"//*[text()[contains(., '{t2.strftime('%Y-%m-%dT%H:%M')}')]]"
+        f"//*[text()[contains(., '{t2.strftime('%Y-%m-%d %H:%M')}')]]"
     ).first
     expect(saved_at_element).to_be_visible()
     saved_group2 = parser.parse(saved_at_element.inner_text())
