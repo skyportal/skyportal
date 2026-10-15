@@ -2,8 +2,6 @@ import { useState } from "react";
 import Grid from "@mui/material/Grid";
 import Box from "@mui/material/Box";
 import IconButton from "@mui/material/IconButton";
-import ToggleButton from "@mui/material/ToggleButton";
-import ToggleButtonGroup from "@mui/material/ToggleButtonGroup";
 import Dialog from "@mui/material/Dialog";
 import DialogTitle from "@mui/material/DialogTitle";
 import DialogContent from "@mui/material/DialogContent";
@@ -24,6 +22,7 @@ import { useDeleteObservingRunMutation } from "../../ducks/observingRun";
 import { useGetObservingRunsQuery } from "../../ducks/observingRuns";
 import StyledDataGrid, { DataGridToolbar } from "../StyledDataGrid";
 import ConfirmDeletionDialog from "../ConfirmDeletionDialog";
+import SegmentedControl from "../SegmentedControl";
 import ObservingRunTitle, { observingRunTitle } from "./ObservingRunTitle";
 import NewObservingRun from "./NewObservingRun";
 import ModifyObservingRun from "./ModifyObservingRun";
@@ -39,15 +38,14 @@ interface RunsToolbarProps {
 
 const RunsToolbar = ({ displayAll, setDisplayAll }: RunsToolbarProps) => (
   <DataGridToolbar title="Observing Runs" showExport={false}>
-    <ToggleButtonGroup
-      size="small"
+    <SegmentedControl
       value={displayAll}
-      exclusive
-      onChange={(_e, value) => value !== null && setDisplayAll(value)}
-    >
-      <ToggleButton value={false}>Upcoming runs</ToggleButton>
-      <ToggleButton value={true}>All runs</ToggleButton>
-    </ToggleButtonGroup>
+      onChange={setDisplayAll}
+      options={[
+        { value: false, label: "Upcoming runs" },
+        { value: true, label: "All runs" },
+      ]}
+    />
   </DataGridToolbar>
 );
 
