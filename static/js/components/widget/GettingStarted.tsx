@@ -75,8 +75,6 @@ const GettingStarted = (_props: { classes?: Record<string, string> }) => {
     };
   }, [on, dispatch]);
 
-  const dismissed = profile?.preferences?.["onboardingDismissed"] === true;
-
   const profileDone =
     Boolean(profile?.first_name) && (profile?.affiliations?.length ?? 0) > 0;
   const groupDone = (groups?.user ?? []).some((g: any) => !g.single_user_group);
@@ -210,24 +208,6 @@ const GettingStarted = (_props: { classes?: Record<string, string> }) => {
       help: "Coordinate who's on duty for scanning and follow-up.",
     },
   ];
-
-  if (dismissed) {
-    // Keep a small affordance so the checklist/tour can be reopened anytime.
-    return (
-      <Paper data-testid="tour-getting-started" sx={{ p: 2, height: "100%" }}>
-        <Typography variant="subtitle1" gutterBottom>
-          Getting started
-        </Typography>
-        <Button
-          size="small"
-          data-testid="tour-reopen"
-          onClick={() => updatePreferences({ onboardingDismissed: false })}
-        >
-          Show checklist
-        </Button>
-      </Paper>
-    );
-  }
 
   return (
     <Paper

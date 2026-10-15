@@ -664,8 +664,8 @@ app:
     # section above (as well as other grid characteristics).
     GettingStarted:
       # Onboarding checklist + guided tour. Shown to every user until they
-      # dismiss it (persisted per-user); reopenable any time. Set show: false to
-      # disable it for a deployment.
+      # dismiss it (persisted per-user); resetting the page layout brings it
+      # back. Set show: false to disable it for a deployment.
       resizeable: true
       minW: 2
       layouts:

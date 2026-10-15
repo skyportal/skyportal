@@ -110,6 +110,8 @@ const HomePage = () => {
   );
   const groups = useGetGroupsQuery().data?.user ?? [];
   const { data: profile } = useGetProfileQuery();
+  const onboardingDismissed =
+    profile?.preferences?.["onboardingDismissed"] === true;
   const currentLayouts = withSavedPositions(
     (profile?.preferences as any)?.layouts,
   );
@@ -127,7 +129,11 @@ const HomePage = () => {
   // The container must render unconditionally: the effect gives up if the node is missing.
   const { width, containerRef, mounted } = useContainerWidth();
 
-  const resetLayouts = () => updateUserPreferences({ layouts: defaultLayouts });
+  const resetLayouts = () =>
+    updateUserPreferences({
+      layouts: defaultLayouts,
+      onboardingDismissed: false,
+    });
 
   return (
     <>
@@ -161,6 +167,14 @@ const HomePage = () => {
             {%- endfor %}
           />
         </div>
+            {%- elif widgetName == "GettingStarted" %}
+        {!onboardingDismissed && (
+        <div key="{{ widgetName }}">
+          <{{ widgetName }}
+            classes={classes}
+          />
+        </div>
+        )}
             {%- else %}
         <div key="{{ widgetName }}">
           <{{ widgetName }}
