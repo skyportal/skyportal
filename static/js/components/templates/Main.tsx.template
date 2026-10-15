@@ -85,7 +85,7 @@ const MainContentInternal = ({ root }: MainContentInternalProps) => {
   const termsRequired = terms?.required === true;
   const theme = useTheme();
   const isSmall = useMediaQuery(theme.breakpoints.down("md"));
-  const marginLeft = isSmall ? "0" : open ? "220px" : "65px";
+  const marginLeft = isSmall ? "0" : open ? "220px" : "52px";
 
   useEffect(() => {
     if (termsRequired) return undefined;
