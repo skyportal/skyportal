@@ -21,7 +21,7 @@ import {
   useLazyGetBrokerAlertsQuery,
   useLazyTestBrokerFilterQuery,
 } from "../../ducks/brokers";
-import BrokerAlertCard, { AlertOption } from "./BrokerAlertCard";
+import BrokerAlertCard, { AlertOption, toAlertOption } from "./BrokerAlertCard";
 import BrokerAlertFilters from "./BrokerAlertFilters";
 import BrokerCredentialsForm from "./BrokerCredentialsForm";
 import FilterCatalog from "./FilterCatalog";
@@ -201,25 +201,14 @@ const Broker = () => {
 
   const byObject = new Map<string, AlertOption[]>();
   (kept ?? []).forEach((a: any) => {
-    const cand = a?.candidate ?? a ?? {};
     const oid =
       a?.objectId ??
       a?.diaObjectId ??
       a?.object_id ??
       a?.object ??
-      cand?.objectId;
+      a?.candidate?.objectId;
     if (!oid) return;
-    byObject.set(oid, [
-      ...(byObject.get(oid) ?? []),
-      {
-        candid: cand?.candid ?? a?.candid ?? a?._id ?? cand?.diaSourceId,
-        ra: cand?.ra ?? a?.ra,
-        dec: cand?.dec ?? a?.dec,
-        magpsf: cand?.magpsf ?? a?.magpsf ?? cand?.mag,
-        jd: cand?.jd ?? a?.jd,
-        raw: a,
-      },
-    ]);
+    byObject.set(oid, [...(byObject.get(oid) ?? []), toAlertOption(a)]);
   });
   const pageCount = Math.ceil(byObject.size / PAGE_SIZE);
   const current = Math.min(page, pageCount);

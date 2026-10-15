@@ -49,8 +49,11 @@ import {
 import { useGetProfileQuery } from "../../../../ducks/profile";
 import { useGetGcnEventsQuery } from "../../../../ducks/gcnEvents";
 import { download } from "../../../../utils/download";
+import { brokerFilterTargetId } from "../../../../ducks/brokerFilterTarget";
+import SegmentedControl from "../../../SegmentedControl";
 import PipelineViewer from "./PipelineViewer";
 import FullscreenResultsDialog from "./FullscreenResultsDialog";
+import FilterResultAlerts from "./FilterResultAlerts";
 
 dayjs.extend(utc);
 
@@ -162,6 +165,8 @@ const MongoQueryDialog = () => {
 
   const { data: boomFilterVersion } = useBoomFilterVersion();
   const filter_stream = boomFilterVersion?.stream?.name?.split(" ")[0];
+  const survey = filter_stream?.toUpperCase() ?? "";
+  const brokerId = Number(brokerFilterTargetId());
   const filter_id = boomFilterVersion?.id;
   const dispatch = useAppDispatch();
   const [runBoomFilter, { reset: clearBoomFilter }] =
@@ -185,6 +190,7 @@ const MongoQueryDialog = () => {
   const [expandedCells, setExpandedCells] = useState<Set<any>>(new Set());
   const [expandedStages, setExpandedStages] = useState<Set<any>>(new Set());
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [resultsView, setResultsView] = useState<"alerts" | "table">("alerts");
   const [queryCompleted, setQueryCompleted] = useState(false);
   const [lastQueryString, setLastQueryString] = useState("");
   const [maxResultsInput, setMaxResultsInput] = useState(
@@ -702,6 +708,14 @@ const MongoQueryDialog = () => {
                     <Typography variant="subtitle1" sx={{ fontWeight: "bold" }}>
                       Query Results
                     </Typography>
+                    <SegmentedControl
+                      value={resultsView}
+                      onChange={setResultsView}
+                      options={[
+                        { value: "alerts", label: "Alerts" },
+                        { value: "table", label: "Table" },
+                      ]}
+                    />
                     <Chip
                       label={summary}
                       size="small"
@@ -760,7 +774,14 @@ const MongoQueryDialog = () => {
                       {exactCount.error}
                     </Alert>
                   )}
-                  {(displayResults.data?.length ?? 0) > 0 ? (
+                  {(displayResults.data?.length ?? 0) > 0 &&
+                  resultsView === "alerts" ? (
+                    <FilterResultAlerts
+                      rows={displayResults.data ?? []}
+                      brokerId={brokerId}
+                      survey={survey}
+                    />
+                  ) : (displayResults.data?.length ?? 0) > 0 ? (
                     <>
                       <TableContainer
                         component={Paper}
@@ -916,7 +937,7 @@ const MongoQueryDialog = () => {
                                               </Box>
                                             ) : isObjectId ? (
                                               <Link
-                                                href={`https://babamul.caltech.edu/objects/${filter_stream.toUpperCase()}/${value}`}
+                                                href={`/brokers/${brokerId}?objectId=${value}&survey=${survey}`}
                                                 target="_blank"
                                                 rel="noopener noreferrer"
                                               >
