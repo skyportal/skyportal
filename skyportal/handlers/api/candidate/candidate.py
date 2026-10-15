@@ -15,6 +15,11 @@ import numpy as np
 import sqlalchemy as sa
 from astropy.time import Time
 from marshmallow.exceptions import ValidationError
+from skyportal_py_models.candidates import (
+    BulkDeleteCandidatesPostBody,
+    CandidateGetQuery,
+    CandidatePostBody,
+)
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import aliased, joinedload, selectinload  # noqa: F401
@@ -27,11 +32,6 @@ from baselayer.app.access import auth_or_token, permissions
 from baselayer.app.env import load_env
 from baselayer.app.model_util import recursive_to_dict
 from baselayer.log import make_log
-from skyportal_py_models.candidates import (
-    BulkDeleteCandidatesPostBody,
-    CandidateGetQuery,
-    CandidatePostBody,
-)
 
 from ....models import (
     Allocation,
