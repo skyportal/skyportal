@@ -357,6 +357,33 @@ const RecentSourcesList = ({
                             {`δ: ${dec_to_dms(source.dec)}`}
                           </span>
                         </div>
+                        {source.groups?.length > 0 && (
+                          <Box
+                            sx={{
+                              display: "flex",
+                              flexWrap: "wrap",
+                              gap: 0.5,
+                              mt: 0.5,
+                            }}
+                          >
+                            {source.groups.map((group: any) => (
+                              <Chip
+                                key={group.id}
+                                label={group.name}
+                                size="small"
+                                variant="outlined"
+                                component={Link}
+                                to={`/group/${group.id}`}
+                                clickable
+                                sx={{
+                                  height: 20,
+                                  maxWidth: "10rem",
+                                  fontSize: "0.7rem",
+                                }}
+                              />
+                            ))}
+                          </Box>
+                        )}
                       </div>
                       <div className={styles.sourceSavedSince}>
                         <span
