@@ -1,7 +1,7 @@
 import { ReactNode, useState } from "react";
 import { Link } from "react-router-dom";
+import Box from "@mui/material/Box";
 import Chip from "@mui/material/Chip";
-import Grid from "@mui/material/Grid";
 import MenuItem from "@mui/material/MenuItem";
 import Paper from "@mui/material/Paper";
 import Select from "@mui/material/Select";
@@ -260,35 +260,33 @@ const DataAccessRequestsPage = () => {
   };
 
   return (
-    <Grid container spacing={3}>
-      <Grid size={12}>
-        <Tabs
-          value={tabIndex}
-          onChange={(_event, value) => setTabIndex(value)}
-          centered
-        >
-          <Tab label="Asked of you" />
-          <Tab label="You asked for" />
-        </Tabs>
-        <Paper className={classes.section}>
-          {tabIndex === 0 ? (
-            <RequestGrid
-              direction="incoming"
-              counterparty={{ field: "requester", headerName: "Requested by" }}
-              renderActions={incomingActions}
-              emptyMessage="Nobody has asked you for data."
-            />
-          ) : (
-            <RequestGrid
-              direction="outgoing"
-              counterparty={{ field: "owner", headerName: "Owner" }}
-              renderActions={outgoingActions}
-              emptyMessage="You have not asked anyone for data. Unshared data on a source is listed on its page."
-            />
-          )}
-        </Paper>
-      </Grid>
-    </Grid>
+    <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
+      <Tabs
+        value={tabIndex}
+        onChange={(_event, value) => setTabIndex(value)}
+        sx={{ borderBottom: 1, borderColor: "divider" }}
+      >
+        <Tab label="Asked of you" />
+        <Tab label="You asked for" />
+      </Tabs>
+      <Paper className={classes.section}>
+        {tabIndex === 0 ? (
+          <RequestGrid
+            direction="incoming"
+            counterparty={{ field: "requester", headerName: "Requested by" }}
+            renderActions={incomingActions}
+            emptyMessage="Nobody has asked you for data."
+          />
+        ) : (
+          <RequestGrid
+            direction="outgoing"
+            counterparty={{ field: "owner", headerName: "Owner" }}
+            renderActions={outgoingActions}
+            emptyMessage="You have not asked anyone for data. Unshared data on a source is listed on its page."
+          />
+        )}
+      </Paper>
+    </Box>
   );
 };
 
