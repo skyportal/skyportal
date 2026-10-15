@@ -11,7 +11,8 @@ from skyportal.tests import api
 def test_add_filter(page, super_admin_user, public_group):
     page.goto(f"/become_user/{super_admin_user.id}")
     page.goto("/groups")
-    page.get_by_role("tab", name="All Groups").click()
+    page.locator('[data-testid="groupsViewSelect"] [role="combobox"]').click()
+    page.get_by_role("option", name="All Groups").click()
     page.locator(f'//div[@data-id="{public_group.id}"]').first.click()
     page.get_by_role("tab", name="Streams and filters").click()
 

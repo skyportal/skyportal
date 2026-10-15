@@ -61,7 +61,8 @@ def test_group_admission_auto_accept_join_button(
 
     page.goto(f"/become_user/{user_group2.id}")
     page.goto("/groups")
-    page.get_by_role("tab", name="Non-member groups").click()
+    page.locator('[data-testid="groupsViewSelect"] [role="combobox"]').click()
+    page.get_by_role("option", name="Non-member groups").click()
     filter_for_value(page, public_group.name)
     # For an auto-accept group the action reads "Join group", not "Request admission"
     join_button = page.locator(
@@ -70,7 +71,8 @@ def test_group_admission_auto_accept_join_button(
     expect(join_button).to_have_text("Join group")
     join_button.click()
     # After joining, the group moves into the user's "My Groups" list
-    page.get_by_role("tab", name="My Groups").click()
+    page.locator('[data-testid="groupsViewSelect"] [role="combobox"]').click()
+    page.get_by_role("option", name="My Groups").click()
     expect(page.locator(f'//div[@data-id="{public_group.id}"]').first).to_be_visible()
 
 
@@ -82,7 +84,8 @@ def test_group_admission_request_insufficient_stream_access(
 ):
     page.goto(f"/become_user/{user_no_groups_no_streams.id}")
     page.goto("/groups")
-    page.get_by_role("tab", name="Non-member groups").click()
+    page.locator('[data-testid="groupsViewSelect"] [role="combobox"]').click()
+    page.get_by_role("option", name="Non-member groups").click()
     filter_for_value(page, public_group.name)
     request_button = page.locator(
         f'//*[@data-testid="requestAdmissionButton{public_group.id}"]'
