@@ -192,6 +192,7 @@ const CandidateTabs = ({ candidate, filterGroups }: CandidateTabsProps) => {
                 origin="scanning"
                 isCandidate
                 includeCommentsOnAllResourceTypes={false}
+                compact
               />
             </Suspense>
           </Box>
@@ -246,7 +247,7 @@ const CandidateInfo = ({ candidate, filterGroups }: CandidateInfoProps) => {
   const savedGroupIds = candidate.saved_groups?.map((g: any) => g.id) ?? [];
   const unsaved = (list: Group[]) =>
     list.filter((g) => !savedGroupIds.includes(g.id));
-  const unsavedFilterGroups = unsaved(filterGroups);
+  const unsavedUserGroups = unsaved(groups?.userAccessible ?? []);
   const humanClass = mostRecentClass(
     (candidate.classifications ?? []).filter((c: any) => !c.ml),
   );
@@ -271,8 +272,10 @@ const CandidateInfo = ({ candidate, filterGroups }: CandidateInfoProps) => {
       <Box
         sx={{
           display: "flex",
+          flexWrap: "wrap",
           alignItems: "center",
           justifyContent: "space-between",
+          gap: 0.5,
         }}
       >
         <MuiLink
@@ -280,43 +283,36 @@ const CandidateInfo = ({ candidate, filterGroups }: CandidateInfoProps) => {
           target="_blank"
           rel="noreferrer"
           data-testid={candidate.id}
-          underline="hover"
-          sx={{ fontWeight: "bold", fontSize: "1.05rem" }}
+          sx={{
+            fontWeight: "bold",
+            fontSize: "1.05rem",
+            "&:hover": {
+              color: (theme) =>
+                theme.palette.mode === "dark"
+                  ? theme.palette.primary.main
+                  : theme.palette.primary.dark,
+            },
+          }}
         >
           {candidate.id}
         </MuiLink>
         <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+          {!isReadOnly && unsavedUserGroups.length > 0 && (
+            <Box data-testid="tour-candidate-save">
+              <SaveCandidateButton
+                candidate={candidate}
+                userGroups={unsavedUserGroups}
+                filterGroups={unsaved(filterGroups)}
+              />
+            </Box>
+          )}
+          <RejectButton objID={candidate.id} />
           {candidate.photstats?.[0] && (
             <DisplayPhotStats photstats={candidate.photstats[0]} />
           )}
         </Box>
       </Box>
       <ObjectTags source={{ ...candidate, groups: candidate.saved_groups }} />
-      <Box
-        sx={{
-          display: "flex",
-          flexWrap: "wrap",
-          alignItems: "center",
-          gap: 0.5,
-        }}
-      >
-        <Chip
-          size="small"
-          label={candidate.is_source ? "Previously Saved" : "NOT SAVED"}
-          color={candidate.is_source ? "primary" : "default"}
-        />
-        <RejectButton objID={candidate.id} />
-        {!isReadOnly &&
-          (!candidate.is_source || unsavedFilterGroups.length > 0) && (
-            <Box data-testid="tour-candidate-save">
-              <SaveCandidateButton
-                candidate={candidate}
-                userGroups={unsaved(groups?.userAccessible ?? [])}
-                filterGroups={unsavedFilterGroups}
-              />
-            </Box>
-          )}
-      </Box>
       {candidate.is_source && (
         <InfoRow label="Saved groups:">
           <EditSourceGroups
