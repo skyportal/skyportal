@@ -1,6 +1,8 @@
-import { Suspense, lazy, useEffect, useRef, useState } from "react";
+import { Suspense, lazy, useEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
+import type { Theme } from "@mui/material/styles";
 import Box from "@mui/material/Box";
+import ButtonBase from "@mui/material/ButtonBase";
 import Chip from "@mui/material/Chip";
 import CircularProgress from "@mui/material/CircularProgress";
 import IconButton from "@mui/material/IconButton";
@@ -75,6 +77,28 @@ const trackIdFor = (obj: any): string | null => {
   }
   return null;
 };
+
+const groupStacks = (candidates: any[]) => {
+  const stacks = new Map<string, any[]>();
+  for (const candidate of candidates) {
+    const key = candidate.stack_id ?? candidate.id;
+    stacks.set(key, [...(stacks.get(key) ?? []), candidate]);
+  }
+  return [...stacks.values()];
+};
+
+const surveyOf = (candidate: any): string | undefined =>
+  candidate.thumbnails?.find((t: any) => t.obj_id === candidate.id && t.survey)
+    ?.survey ??
+  candidate.photstats?.[0]?.last_detected_filter
+    ?.match(/^(ztf|lsst|decam)/i)?.[1]
+    .toUpperCase();
+
+const stackShadow = (theme: Theme, size: number) =>
+  Array.from({ length: Math.min(size - 1, 2) }, (_, i) => {
+    const offset = 6 * (i + 1);
+    return `${offset}px ${offset}px 0 -2px ${theme.palette.background.paper}, ${offset}px ${offset}px 0 0 ${theme.palette.divider}`;
+  }).join(", ");
 
 const InfoRow = ({
   label,
@@ -236,12 +260,103 @@ const SavedGroupChips = ({ groups }: { groups: any[] }) => {
   );
 };
 
+const CandidateLink = ({ candidate }: { candidate: any }) => (
+  <MuiLink
+    href={`/source/${candidate.id}`}
+    target="_blank"
+    rel="noreferrer"
+    data-testid={candidate.id}
+    sx={{
+      fontWeight: "bold",
+      fontSize: "1.05rem",
+      "&:hover": {
+        color: (theme) =>
+          theme.palette.mode === "dark"
+            ? theme.palette.primary.main
+            : theme.palette.primary.dark,
+      },
+    }}
+  >
+    {candidate.id}
+  </MuiLink>
+);
+
+interface StackIdsProps {
+  stack: any[];
+  selectedId: string;
+  onSelect: (id: string) => void;
+}
+
+const StackIds = ({ stack, selectedId, onSelect }: StackIdsProps) => (
+  <Box sx={{ display: "flex", flexDirection: "column", gap: 0.25 }}>
+    {stack.map((member) => {
+      const selected = member.id === selectedId;
+      const content = (
+        <>
+          <Box
+            component="span"
+            sx={{
+              minWidth: "2.75rem",
+              fontSize: "0.7rem",
+              fontWeight: "bold",
+              letterSpacing: "0.04em",
+              color: "text.secondary",
+            }}
+          >
+            {surveyOf(member)}
+          </Box>
+          {selected ? (
+            <CandidateLink candidate={member} />
+          ) : (
+            <Box component="span" sx={{ color: "text.secondary" }}>
+              {member.id}
+            </Box>
+          )}
+        </>
+      );
+      const rowSx = {
+        display: "flex",
+        alignItems: "baseline",
+        justifyContent: "flex-start",
+        gap: 1,
+        pl: 1,
+        pr: 1.5,
+        py: 0.25,
+        borderLeft: 3,
+        borderColor: selected ? "primary.main" : "transparent",
+        borderRadius: 0.5,
+        fontSize: "0.95rem",
+      };
+      return selected ? (
+        <Box key={member.id} sx={rowSx}>
+          {content}
+        </Box>
+      ) : (
+        <ButtonBase
+          key={member.id}
+          onClick={() => onSelect(member.id)}
+          sx={{ ...rowSx, "&:hover": { bgcolor: "action.hover" } }}
+        >
+          {content}
+        </ButtonBase>
+      );
+    })}
+  </Box>
+);
+
 interface CandidateInfoProps {
   candidate: any;
+  stack: any[];
+  onSelect: (id: string) => void;
   filterGroups: Group[];
 }
 
-const CandidateInfo = ({ candidate, filterGroups }: CandidateInfoProps) => {
+const CandidateInfo = ({
+  candidate,
+  stack,
+  onSelect,
+  filterGroups,
+}: CandidateInfoProps) => {
   const isReadOnly = useIsReadOnly();
   const { data: groups } = useGetGroupsQuery();
   const savedGroupIds = candidate.saved_groups?.map((g: any) => g.id) ?? [];
@@ -253,6 +368,10 @@ const CandidateInfo = ({ candidate, filterGroups }: CandidateInfoProps) => {
   );
   const mlClass = mostRecentClass(
     (candidate.classifications ?? []).filter((c: any) => c.ml),
+  );
+  const stackIds = stack.map((member) => member.id);
+  const otherMatches = (candidate.associated_objs ?? []).filter(
+    (a: any) => !stackIds.includes(a.obj_id),
   );
   const [lastDetectedDate, lastDetectedTime] = String(
     candidate.last_detected_at,
@@ -273,29 +392,20 @@ const CandidateInfo = ({ candidate, filterGroups }: CandidateInfoProps) => {
         sx={{
           display: "flex",
           flexWrap: "wrap",
-          alignItems: "center",
+          alignItems: stack.length > 1 ? "flex-start" : "center",
           justifyContent: "space-between",
           gap: 0.5,
         }}
       >
-        <MuiLink
-          href={`/source/${candidate.id}`}
-          target="_blank"
-          rel="noreferrer"
-          data-testid={candidate.id}
-          sx={{
-            fontWeight: "bold",
-            fontSize: "1.05rem",
-            "&:hover": {
-              color: (theme) =>
-                theme.palette.mode === "dark"
-                  ? theme.palette.primary.main
-                  : theme.palette.primary.dark,
-            },
-          }}
-        >
-          {candidate.id}
-        </MuiLink>
+        {stack.length > 1 ? (
+          <StackIds
+            stack={stack}
+            selectedId={candidate.id}
+            onSelect={onSelect}
+          />
+        ) : (
+          <CandidateLink candidate={candidate} />
+        )}
         <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
           {!isReadOnly && unsavedUserGroups.length > 0 && (
             <Box data-testid="tour-candidate-save">
@@ -323,9 +433,9 @@ const CandidateInfo = ({ candidate, filterGroups }: CandidateInfoProps) => {
           <SavedGroupChips groups={candidate.saved_groups} />
         </InfoRow>
       )}
-      {candidate.associated_objs?.length > 0 && (
+      {otherMatches.length > 0 && (
         <InfoRow label="Matches with:">
-          {candidate.associated_objs.map((a: any) => (
+          {otherMatches.map((a: any) => (
             <a
               key={a.obj_id}
               href={`/source/${a.obj_id}`}
@@ -401,18 +511,21 @@ const CandidateInfo = ({ candidate, filterGroups }: CandidateInfoProps) => {
 };
 
 interface CandidateProps {
-  candidate: any;
+  stack: any[];
   filterGroups: Group[];
   index: number;
   totalMatches: number;
 }
 
 const Candidate = ({
-  candidate,
+  stack,
   filterGroups,
   index,
   totalMatches,
 }: CandidateProps) => {
+  const lead = stack[0];
+  const [selectedId, setSelectedId] = useState<string>(lead.id);
+  const candidate = stack.find((c) => c.id === selectedId) ?? lead;
   const trackId = trackIdFor(candidate);
 
   return (
@@ -421,7 +534,11 @@ const Candidate = ({
       data-testid={`candidate-${index}`}
       sx={{
         borderWidth: 2,
-        mb: 2,
+        mb: stack.length > 1 ? 3 : 2,
+        boxShadow:
+          stack.length > 1
+            ? (theme: Theme) => stackShadow(theme, stack.length)
+            : undefined,
         p: 1,
         display: "grid",
         rowGap: 1,
@@ -440,10 +557,10 @@ const Candidate = ({
     >
       <Box sx={{ gridArea: "thumbnails" }}>
         <ThumbnailList
-          ra={candidate.ra}
-          dec={candidate.dec}
-          thumbnails={candidate.thumbnails}
-          objID={candidate.id}
+          ra={lead.ra}
+          dec={lead.dec}
+          thumbnails={lead.thumbnails}
+          objID={lead.id}
           size="100%"
           minSize="6rem"
           maxSize="8.8rem"
@@ -454,11 +571,16 @@ const Candidate = ({
         />
       </Box>
       <Box sx={{ gridArea: "info", pl: 2 }}>
-        <CandidateInfo candidate={candidate} filterGroups={filterGroups} />
+        <CandidateInfo
+          candidate={candidate}
+          stack={stack}
+          onSelect={setSelectedId}
+          filterGroups={filterGroups}
+        />
       </Box>
       <Box sx={{ gridArea: "photometry" }}>
         <VegaPhotometry
-          sourceId={candidate.id}
+          sourceId={lead.id}
           style={{
             width: "68%",
             height: "100%",
@@ -527,6 +649,7 @@ const CandidateList = () => {
     queryID = null,
   } = data ?? {};
   const pageCount = Math.max(1, Math.ceil(totalMatches / numPerPage));
+  const stacks = useMemo(() => groupStacks(candidates), [candidates]);
 
   useEffect(() => {
     if (!defaultScanningProfile?.sortingOrder) return;
@@ -737,18 +860,18 @@ const CandidateList = () => {
             {isFetching ? (
               <Spinner />
             ) : (
-              <ViewportList items={candidates}>
-                {(candidate: any, index: number) => (
+              <ViewportList items={stacks}>
+                {(stack: any[], index: number) => (
                   <ErrorBoundary
-                    key={candidate.id}
+                    key={stack[0].id}
                     fallback={
                       <Typography color="error" sx={{ mb: 2 }}>
-                        Could not display {candidate.id}.
+                        Could not display {stack[0].id}.
                       </Typography>
                     }
                   >
                     <Candidate
-                      candidate={candidate}
+                      stack={stack}
                       filterGroups={filterGroups}
                       index={(pageNumber - 1) * numPerPage + index + 1}
                       totalMatches={totalMatches}

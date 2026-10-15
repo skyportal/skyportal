@@ -183,7 +183,10 @@ messageHandler.add((actionType: string, payload: any, dispatch: any) => {
         (draft: any) => {
           const idx = draft.candidates.findIndex((c: any) => c.id === fresh.id);
           if (idx !== -1) {
-            draft.candidates[idx] = fresh;
+            draft.candidates[idx] = {
+              ...fresh,
+              stack_id: draft.candidates[idx].stack_id,
+            };
           }
         },
       ),
