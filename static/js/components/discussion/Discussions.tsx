@@ -6,7 +6,6 @@ import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import GroupAddIcon from "@mui/icons-material/GroupAddOutlined";
 import NotificationsIcon from "@mui/icons-material/NotificationsOutlined";
 import NotificationsOffIcon from "@mui/icons-material/NotificationsOffOutlined";
-import OpenInNewIcon from "@mui/icons-material/OpenInNew";
 import SearchIcon from "@mui/icons-material/Search";
 import Avatar from "@mui/material/Avatar";
 import Box from "@mui/material/Box";
@@ -22,7 +21,6 @@ import Tooltip from "@mui/material/Tooltip";
 import Typography from "@mui/material/Typography";
 import useMediaQuery from "@mui/material/useMediaQuery";
 
-import Button from "../Button";
 import CommentThreadView from "../comment/CommentThread";
 import CommentThreadAvatar, { RESOURCES } from "./CommentThreadAvatar";
 import DiscussionAvatar from "./DiscussionAvatar";
@@ -141,7 +139,21 @@ const CommentThreadPane = ({
         )}
         <CommentThreadAvatar type={thread.resource_type} size={40} />
         <Box sx={{ flexGrow: 1, minWidth: 0 }}>
-          <Typography variant="h6" noWrap sx={{ lineHeight: 1.3 }}>
+          <Typography
+            variant="h6"
+            noWrap
+            component={Link}
+            to={thread.url}
+            sx={{
+              display: "inline-block",
+              maxWidth: "100%",
+              verticalAlign: "top",
+              lineHeight: 1.3,
+              color: "inherit",
+              textDecoration: "none",
+              "&:hover": { textDecoration: "underline" },
+            }}
+          >
             {thread.label}
           </Typography>
           <Typography variant="body2" color="textSecondary" noWrap>
@@ -149,15 +161,6 @@ const CommentThreadPane = ({
             {thread.channel && `, conversation "${thread.channel}"`}
           </Typography>
         </Box>
-        <Button
-          secondary
-          size="small"
-          component={Link}
-          to={thread.url}
-          endIcon={<OpenInNewIcon fontSize="small" />}
-        >
-          Open
-        </Button>
       </Box>
       <Box sx={{ flexGrow: 1, minHeight: 0 }}>
         {thread.resource_type === "sources" && (
