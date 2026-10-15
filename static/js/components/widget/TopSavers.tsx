@@ -9,11 +9,11 @@ import ListItem from "@mui/material/ListItem";
 import Divider from "@mui/material/Divider";
 import TextField from "@mui/material/TextField";
 import SearchIcon from "@mui/icons-material/Search";
-import WorkspacePremiumIcon from "@mui/icons-material/WorkspacePremium";
 import InputAdornment from "@mui/material/InputAdornment";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import ExpandLessIcon from "@mui/icons-material/ExpandLess";
 import Menu from "@mui/material/Menu";
+import Box from "@mui/material/Box";
 import MenuItem from "@mui/material/MenuItem";
 
 import { makeStyles } from "tss-react/mui";
@@ -67,10 +67,11 @@ const useStyles = makeStyles()(() => ({
   },
   saverListItem: {
     display: "grid",
-    gridTemplateColumns: "1fr 6fr 2fr",
-    gap: "0.5rem",
+    gridTemplateColumns: "2rem 1fr auto",
+    alignItems: "center",
+    gap: "0.75rem",
     margin: 0,
-    padding: 0,
+    padding: "0.25rem 0",
   },
   saverInfo: {
     display: "flex",
@@ -94,24 +95,39 @@ const defaultPrefs = {
   candidatesOnly: true,
 };
 
-const starColor = (rank: number) => {
-  let color = "#000000"; // Default color (black) for unknown type
-  // Set star color and icon based on the type prop
-  switch (rank) {
-    case 1:
-      color = "#D1B000"; // Gold color
-      break;
-    case 2:
-      color = "#C0C0C0"; // Silver color
-      break;
-    case 3:
-      color = "#CD7F32"; // Bronze color
-      break;
-    default:
-      break;
-  }
+const medals: Record<number, [string, string, string]> = {
+  1: ["#FFE48A", "#D4A017", "#8A6508"],
+  2: ["#F4F6F8", "#AEB4BA", "#5F666D"],
+  3: ["#F2C49B", "#C07A3E", "#6E3F17"],
+};
 
-  return color;
+const RankBadge = ({ rank }: { rank: number }) => {
+  const medal = medals[rank];
+  return (
+    <Box
+      sx={{
+        width: 28,
+        height: 28,
+        borderRadius: "50%",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        fontSize: "0.8rem",
+        fontWeight: 700,
+        flexShrink: 0,
+        ...(medal
+          ? {
+              color: medal[2],
+              background: `radial-gradient(circle at 30% 30%, ${medal[0]}, ${medal[1]} 70%)`,
+              boxShadow: `0 0 0 2px ${medal[1]}55, 0 2px 4px rgba(0, 0, 0, 0.25)`,
+              textShadow: "0 1px 0 rgba(255, 255, 255, 0.5)",
+            }
+          : { color: "text.secondary" }),
+      }}
+    >
+      {rank}
+    </Box>
+  );
 };
 
 const TopSaversSearch = ({ savers, setOptions }: TopSaversSearchProps) => {
@@ -173,16 +189,9 @@ const TopSaversList = ({ savers, styles }: TopSaversListProps) => {
     return <div>No top savers available.</div>;
   }
 
-  const renderRank = (index: number) => {
-    const { rank } = options[index];
-    return rank < 4 ? (
-      <WorkspacePremiumIcon
-        sx={{ color: starColor(rank), marginTop: "0.3rem" }}
-      />
-    ) : (
-      rank
-    );
-  };
+  const renderRank = (index: number) => (
+    <RankBadge rank={options[index].rank} />
+  );
 
   const renderUser = (index: number) => {
     const { author } = options[index];
