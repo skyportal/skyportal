@@ -14,6 +14,7 @@ import { makeStyles } from "tss-react/mui";
 import DragHandleIcon from "@mui/icons-material/DragHandle";
 import Chip from "@mui/material/Chip";
 import DynamicTagDisplay from "./DynamicTagDisplay";
+import ExpandableCell from "../ExpandableCell";
 
 import { dec_to_dms, ra_to_hours } from "../../units";
 import {
@@ -358,30 +359,26 @@ const RecentSourcesList = ({
                           </span>
                         </div>
                         {source.groups?.length > 0 && (
-                          <Box
-                            sx={{
-                              display: "flex",
-                              flexWrap: "wrap",
-                              gap: 0.5,
-                              mt: 0.5,
-                            }}
-                          >
-                            {source.groups.map((group: any) => (
-                              <Chip
-                                key={group.id}
-                                label={group.name}
-                                size="small"
-                                variant="outlined"
-                                component={Link}
-                                to={`/group/${group.id}`}
-                                clickable
-                                sx={{
-                                  height: 20,
-                                  maxWidth: "10rem",
-                                  fontSize: "0.7rem",
-                                }}
-                              />
-                            ))}
+                          <Box sx={{ mt: 0.5 }}>
+                            <ExpandableCell
+                              maxVisible={2}
+                              items={source.groups.map((group: any) => (
+                                <Chip
+                                  key={group.id}
+                                  label={group.name}
+                                  size="small"
+                                  variant="outlined"
+                                  component={Link}
+                                  to={`/group/${group.id}`}
+                                  clickable
+                                  sx={{
+                                    height: 20,
+                                    maxWidth: "10rem",
+                                    fontSize: "0.7rem",
+                                  }}
+                                />
+                              ))}
+                            />
                           </Box>
                         )}
                       </div>
