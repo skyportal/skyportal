@@ -1,33 +1,11 @@
-"""Re-encrypt the columns keyed on app.secret_key after that key changes.
+"""Re-encrypt the app.secret_key columns from the previous key to the new one.
 
-Several columns hold credentials encrypted with app.secret_key. Change the key
-and the old ciphertext stops decrypting, which surfaces as
-InvalidPaddingError and, for anything that lists brokers or allocations, an
-empty page. This reads each row with the old key and writes it back with the
-one now in the config.
+Put the new key in config.yaml, stop the instance and back the database up, then:
 
-Set app.secret_key to the new key before running this, since that is the key
-the rows are written with; the old one is prompted for, or read from
-OLD_SECRET_KEY, and goes nowhere near the config. In order: put the new key in config.yaml, stop the
-instance, back the database up, run with --commit, start the instance.
-
-A row written here cannot be recovered with the old key afterwards, which is
-what the backup is for.
-
-Anything encrypted under the key shipped in config.yaml.defaults was readable
-by anyone holding the source, so prefer replacing those credentials at their
-origin over carrying them across.
-
-Run it from the repository root, where baselayer and skyportal are importable:
-
-    make reencrypt_secret_key
+    make reencrypt_secret_key                  # report only
     make reencrypt_secret_key FLAGS=--commit
 
-or directly, naming the config the instance runs on, since without --config
-only the .defaults are read and the key compared is the one they ship:
-
-    PYTHONPATH=. python tools/reencrypt_secret_key.py \
-        --config=config.yaml
+Credentials stored under the default key are public: prefer re-entering them.
 """
 
 import getpass
@@ -53,7 +31,6 @@ env, cfg = load_env()
 
 
 def fingerprint(key):
-    """Names a key in the log without disclosing it."""
     if key is None:
         return "absent"
     digest = hashlib.sha256(str(key).encode()).hexdigest()[:8]
@@ -69,8 +46,6 @@ def engine_for(key):
 
 
 def encrypted_columns():
-    """Every encrypted column, found rather than listed, so one added later is
-    covered without editing this."""
     from skyportal.models import Base
 
     return [
@@ -82,12 +57,7 @@ def encrypted_columns():
 
 
 def rekey(connection, table, column, old, new, commit):
-    """Returns (rows seen, to re-encrypt, already on the new key, unreadable).
-
-    The ciphertext is read and written through typeless columns: going through
-    the mapped ones would decrypt on the way out, with the key that cannot read
-    these rows, and encrypt a second time on the way in.
-    """
+    # Typeless columns: the mapped ones would decrypt and re-encrypt with the new key.
     pk_name = list(table.primary_key.columns)[0].name
     raw = sa.table(
         table.name, sa.column(pk_name), sa.column(column.name), schema=table.schema
