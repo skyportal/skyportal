@@ -409,9 +409,8 @@ def test_activity_reports_a_users_contributions(
 
     status, data = api(
         "POST",
-        "comment",
+        f"sources/{public_source.id}/comments",
         data={
-            "obj_id": public_source.id,
             "text": "a comment that should be counted",
             "group_ids": [public_group.id],
         },
@@ -445,12 +444,8 @@ def test_activity_pages_without_repeating_itself(
     for i in range(3):
         status, data = api(
             "POST",
-            "comment",
-            data={
-                "obj_id": public_source.id,
-                "text": f"paging comment {i}",
-                "group_ids": [public_group.id],
-            },
+            f"sources/{public_source.id}/comments",
+            data={"text": f"paging comment {i}", "group_ids": [public_group.id]},
             token=comment_token,
         )
         assert status == 200, data
@@ -487,12 +482,8 @@ def test_activity_is_scoped_to_what_the_viewer_can_see(
     is absent from both the tally and the feed that viewer is shown."""
     status, data = api(
         "POST",
-        "comment",
-        data={
-            "obj_id": public_source.id,
-            "text": "visible to public_group only",
-            "group_ids": [public_group.id],
-        },
+        f"sources/{public_source.id}/comments",
+        data={"text": "visible to public_group only", "group_ids": [public_group.id]},
         token=comment_token,
     )
     assert status == 200, data
