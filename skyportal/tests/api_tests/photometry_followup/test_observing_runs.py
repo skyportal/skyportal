@@ -269,9 +269,7 @@ def test_upcoming_only_keeps_runs_that_just_ended(
 ):
     """Run dates are UT, so last night's run is over by the local afternoon
     when targets are still being assigned to it."""
-    yesterday = datetime.datetime.now(datetime.UTC).date() - datetime.timedelta(
-        days=1
-    )
+    yesterday = datetime.datetime.now(datetime.UTC).date() - datetime.timedelta(days=1)
     status, data = api(
         "POST",
         "observing_run",
