@@ -52,3 +52,43 @@ def test_reprioritize_followup_request(
     assert status == 200
 
     assert data["data"]["payload"]["priority"] == 5
+
+
+def test_reprioritize_single_followup_request_by_magnitude(
+    public_group_generic_allocation, public_source, upload_data_token
+):
+    # A single request has a zero weight range, which must not divide by zero.
+    request_data = {
+        "allocation_id": public_group_generic_allocation.id,
+        "obj_id": public_source.id,
+        "payload": {
+            "priority": 1,
+            "start_date": "3010-09-01",
+            "end_date": "3012-09-01",
+            "observation_choices": public_group_generic_allocation.instrument.to_dict()[
+                "filters"
+            ],
+            "exposure_time": 300,
+            "exposure_counts": 1,
+            "maximum_airmass": 2,
+            "minimum_lunar_distance": 30,
+        },
+    }
+
+    status, data = api(
+        "POST", "followup_request", data=request_data, token=upload_data_token
+    )
+    assert status == 200
+    id = data["data"]["id"]
+
+    status, data = api(
+        "PUT",
+        "followup_request/prioritization",
+        data={"requestIds": [id], "priorityType": "magnitude"},
+        token=upload_data_token,
+    )
+    assert status == 200, data
+
+    status, data = api("GET", f"followup_request/{id}", token=upload_data_token)
+    assert status == 200
+    assert data["data"]["payload"]["priority"] == 5
