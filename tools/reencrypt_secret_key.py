@@ -166,8 +166,6 @@ def main():
 
     log(f"database: {cfg['database.database']}")
     totals = {"rows": 0, "moved": 0, "already": 0, "unreadable": 0}
-    # connect() rather than begin(), so the dry run ends in a rollback the
-    # context manager will not try to commit over.
     with init_db(**cfg["database"]).connect() as connection:
         for table, column in columns:
             total, moved, already, unreadable = rekey(
@@ -186,8 +184,6 @@ def main():
                 log(f"  unreadable rows: {sorted(unreadable)}")
         if env.commit:
             connection.commit()
-        else:
-            connection.rollback()
 
     if totals["rows"] == 0:
         log(
