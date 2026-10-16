@@ -2671,10 +2671,16 @@ class GcnEventHandler(BaseHandler):
                     )
                 )
             if start_date:
-                start_date = arrow.get(start_date.strip()).datetime
+                try:
+                    start_date = arrow.get(start_date.strip()).datetime
+                except Exception as e:
+                    return self.error(f"Invalid startDate: {e}")
                 stmt = stmt.where(GcnEvent.dateobs >= start_date)
             if end_date:
-                end_date = arrow.get(end_date.strip()).datetime
+                try:
+                    end_date = arrow.get(end_date.strip()).datetime
+                except Exception as e:
+                    return self.error(f"Invalid endDate: {e}")
                 stmt = stmt.where(GcnEvent.dateobs <= end_date)
             if group_ids:
                 # Narrow to events shared with particular groups. Access is

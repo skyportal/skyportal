@@ -70,7 +70,10 @@ class NewsFeedHandler(BaseHandler):
         n_items_query = query.numItems
         n_items_feed = preferences.get("newsFeed", {}).get("numItems", None)
         if n_items_feed is not None:
-            n_items_feed = int(n_items_feed)
+            try:
+                n_items_feed = int(n_items_feed)
+            except (TypeError, ValueError) as e:
+                return self.error(f"Invalid newsFeed preference numItems: {e}")
 
         n_items_list = [n_items_query, n_items_feed]
         if all(v is None for v in n_items_list):

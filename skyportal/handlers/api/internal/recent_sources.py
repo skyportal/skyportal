@@ -38,7 +38,12 @@ class RecentSourcesHandler(BaseHandler):
         recent_sources_prefs = user_prefs.get("recentSources", {})
         recent_sources_prefs = {**default_prefs, **recent_sources_prefs}
 
-        max_num_sources = int(recent_sources_prefs["maxNumSources"])
+        try:
+            max_num_sources = int(recent_sources_prefs["maxNumSources"])
+        except (TypeError, ValueError) as e:
+            raise ValueError(
+                f"Invalid recentSources preference maxNumSources: {e}"
+            ) from e
         include_sitewide = recent_sources_prefs.get("includeSitewideSources", False)
         group_ids = get_list_typed(
             recent_sources_prefs.get("groupIds", []),
@@ -82,11 +87,11 @@ class RecentSourcesHandler(BaseHandler):
                     self.get_query_argument("teamID", None),
                     user_group_ids,
                 )
+                query_results = await RecentSourcesHandler.get_recent_source_ids(
+                    self.current_user, session, team_group_ids=team_group_ids
+                )
             except ValueError as e:
                 return self.error(str(e))
-            query_results = await RecentSourcesHandler.get_recent_source_ids(
-                self.current_user, session, team_group_ids=team_group_ids
-            )
             tags_result = await session.scalars(
                 ObjTag.select(session.user_or_token)
                 .options(

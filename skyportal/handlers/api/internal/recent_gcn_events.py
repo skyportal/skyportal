@@ -66,11 +66,14 @@ class RecentGcnEventsHandler(BaseHandler):
         recent_events_prefs = user_prefs.get("recentGcnEvents", {})
         recent_events_prefs = {**default_prefs, **recent_events_prefs}
 
-        max_num_events = (
-            int(recent_events_prefs["maxNumEvents"])
-            if "maxNumEvents" in recent_events_prefs
-            else 5
-        )
+        try:
+            max_num_events = (
+                int(recent_events_prefs["maxNumEvents"])
+                if "maxNumEvents" in recent_events_prefs
+                else 5
+            )
+        except (TypeError, ValueError) as e:
+            return self.error(f"Invalid recentGcnEvents preference maxNumEvents: {e}")
         async with self.AsyncSession() as session:
             # event.localizations.tags is traversed below, so chain
             # selectinload to that depth. joinedload would also work but
