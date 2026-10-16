@@ -50,6 +50,7 @@ PS1_CUTOUT_TIMEOUT = 15  # seconds
 # SkyMapper's SIAP (also used for HST/Chandra/JWST lookups) can be slow; give it
 # more headroom since these are on-demand.
 SKYMAPPER_CUTOUT_TIMEOUT = 30  # seconds
+ON_DEMAND_LOOKUP_TIMEOUT = 45  # seconds
 
 # download dustmap if required; the folder is relative to the repo root, which
 # is not every entry point's cwd (the docs build runs from doc/)
@@ -462,6 +463,16 @@ class Obj(Base, conesearch_alchemy.Point):
         doc="Sharing submissions associated with this obj.",
     )
 
+    async def _look_up(self, attribute):
+        """A URL property that queries an external service, read off the event loop."""
+        try:
+            return await asyncio.wait_for(
+                asyncio.to_thread(getattr, self, attribute), ON_DEMAND_LOOKUP_TIMEOUT
+            )
+        except TimeoutError:
+            log(f"{attribute} lookup for {self.id} timed out")
+            return None
+
     async def add_linked_thumbnails(self, thumbnails, session, ps1_url=None):
         """Determine the URLs of the SDSS, Legacy Survey DR10, and
         thumbnails of the object,
@@ -495,26 +506,27 @@ class Obj(Base, conesearch_alchemy.Point):
             await session.commit()
 
         if "sm" in thumbnails:
-            url = self.skymapper_url
-            session.add(Thumbnail(obj_id=self.id, public_url=url, type="sm"))
-            await session.commit()
+            url = await self._look_up("skymapper_url")
+            if url is not None:
+                session.add(Thumbnail(obj_id=self.id, public_url=url, type="sm"))
+                await session.commit()
 
         # HST and Chandra are pointed (not all-sky); only add a thumbnail when
         # the position actually has coverage (url is not None).
         if "hst" in thumbnails:
-            url = self.hst_url
+            url = await self._look_up("hst_url")
             if url is not None:
                 session.add(Thumbnail(obj_id=self.id, public_url=url, type="hst"))
                 await session.commit()
 
         if "chandra" in thumbnails:
-            url = self.chandra_url
+            url = await self._look_up("chandra_url")
             if url is not None:
                 session.add(Thumbnail(obj_id=self.id, public_url=url, type="chandra"))
                 await session.commit()
 
         if "jwst" in thumbnails:
-            url = self.jwst_url
+            url = await self._look_up("jwst_url")
             if url is not None:
                 session.add(Thumbnail(obj_id=self.id, public_url=url, type="jwst"))
                 await session.commit()
