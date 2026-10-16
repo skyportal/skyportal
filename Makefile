@@ -99,9 +99,9 @@ db_init: | baselayer/Makefile
 	@$(MAKE) --no-print-directory -C . -f baselayer/Makefile db_init
 	@$(PYTHON) tools/enable_pgvector.py $(FLAGS)
 
-reencrypt_secret_key: ## Re-encrypt the app.secret_key columns after that key changes. Needs FLAGS="--old-key <previous key>", and --commit to write.
+reencrypt_secret_key: ## Re-encrypt the app.secret_key columns after that key changes. Prompts for the previous key (or OLD_SECRET_KEY); FLAGS=--commit to write.
 reencrypt_secret_key: | baselayer/Makefile
-	@$(PYTHON) tools/reencrypt_secret_key.py --config=config.yaml $(FLAGS)
+	@$(PYTHON) tools/reencrypt_secret_key.py --config=config.yaml $(filter-out --config=config.yaml,$(FLAGS))
 
 db_clear_test: ## Drop and recreate only the test database.
 db_clear_test: | baselayer/Makefile
