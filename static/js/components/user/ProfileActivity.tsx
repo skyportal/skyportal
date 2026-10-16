@@ -50,6 +50,7 @@ const ACTIVITY_VERBS: Record<ActivityKind, string> = {
 const TILE = {
   flex: "0 1 calc((100% - 12px) / 4)",
   minWidth: 0,
+  maxWidth: 240,
   aspectRatio: "1",
   borderRadius: 1,
   display: "block",

@@ -36,7 +36,7 @@ const PublicProfile = ({ route }: PublicProfileProps) => {
   if (!profile) return <Spinner />;
 
   return (
-    <Box sx={{ maxWidth: 960, mx: "auto" }}>
+    <>
       {currentUserId === profile.id && (
         <Button
           secondary
@@ -118,7 +118,7 @@ const PublicProfile = ({ route }: PublicProfileProps) => {
         </Box>
       </Paper>
       <ProfileActivity key={profile.id} user={profile} />
-    </Box>
+    </>
   );
 };
 
