@@ -21148,6 +21148,8 @@ export interface paths {
                                  *     is enabled in current deployment.
                                  */
                                 invitationsEnabled?: boolean;
+                                /** @description Number of days an invitation link stays valid. */
+                                invitationsDaysUntilExpiry?: number;
                                 /**
                                  * @description Boolean indicating whether account applications are
                                  *     enabled in current deployment.

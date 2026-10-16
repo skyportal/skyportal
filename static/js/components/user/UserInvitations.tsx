@@ -7,6 +7,9 @@ import Typography from "@mui/material/Typography";
 import Box from "@mui/material/Box";
 import Select from "@mui/material/Select";
 import MenuItem from "@mui/material/MenuItem";
+import FormControlLabel from "@mui/material/FormControlLabel";
+import Switch from "@mui/material/Switch";
+import { alpha } from "@mui/material/styles";
 import SearchableSelect from "../SearchableSelect";
 import AddCircleIcon from "@mui/icons-material/AddCircle";
 import EditIcon from "@mui/icons-material/Edit";
@@ -71,7 +74,11 @@ const chipCellSx = {
   ".MuiDataGrid-cell:hover & > .MuiIconButton-root": { display: "inline-flex" },
 } as const;
 
-const expiredSx = { "& .expired-date": { color: "error.main" } };
+const expiredSx = (theme: any) => ({
+  "& .expired": { bgcolor: alpha(theme.palette.error.main, 0.08) },
+  "& .expired:hover": { bgcolor: alpha(theme.palette.error.main, 0.14) },
+  "& .expired-date": { color: "error.main" },
+});
 
 const formatDate = (date?: string) =>
   date ? dayjs.utc(date).format("YYYY/MM/DD") : "";
@@ -104,8 +111,21 @@ const renderExpirationDateHeader = () => (
   </Box>
 );
 
-const InvitationsToolbar = () => (
-  <DataGridToolbar title="Pending Invitations" showFilter showExpandAll />
+const InvitationsToolbar = ({ showExpired, onToggleExpired }: any) => (
+  <DataGridToolbar title="Pending Invitations" showFilter showExpandAll>
+    <FormControlLabel
+      control={
+        <Switch
+          checked={showExpired}
+          onChange={onToggleExpired}
+          color="primary"
+          data-testid="showExpiredInvitationsToggle"
+        />
+      }
+      label="Show Expired Invitations"
+      sx={{ mr: 2 }}
+    />
+  </DataGridToolbar>
 );
 
 const EditableCell = ({ children, onEdit, ...buttonProps }: any) => (
@@ -234,6 +254,7 @@ const UserInvitations = ({
   const [inviteUser] = useInviteUserMutation();
   const [updateInvitation] = useUpdateInvitationMutation();
   const [deleteInvitation] = useDeleteInvitationMutation();
+  const [showExpired, setShowExpired] = useState(false);
   const [openDialog, setOpenDialog] = useState<string | null>(null);
   const [clickedInvitation, setClickedInvitation] = useState<any>(null);
 
@@ -248,6 +269,19 @@ const UserInvitations = ({
 
   const groups = allGroups.filter((group) => !group["single_user_group"]);
   const closeDialog = () => setOpenDialog(null);
+
+  const isLinkExpired = (invitation: any) =>
+    isPast(
+      dayjs
+        .utc(invitation.created_at)
+        .add(config.invitationsDaysUntilExpiry, "day"),
+    );
+  const isAccountExpired = (invitation: any) =>
+    isPast(invitation.user_expiration_date);
+  const isExpired = (invitation: any) =>
+    isLinkExpired(invitation) || isAccountExpired(invitation);
+
+  const invitations = invitationsData?.invitations ?? [];
 
   const runAndNotify = async (
     action: () => Promise<unknown>,
@@ -422,6 +456,8 @@ const UserInvitations = ({
       headerName: "Sent At",
       minWidth: 120,
       valueFormatter: formatDate,
+      cellClassName: ({ row }: any) =>
+        isLinkExpired(row) ? "expired-date" : "",
     },
     {
       field: "user_expiration_date",
@@ -429,7 +465,7 @@ const UserInvitations = ({
       minWidth: 180,
       renderHeader: renderExpirationDateHeader,
       cellClassName: ({ row }: any) =>
-        isPast(row.user_expiration_date) ? "expired-date" : "",
+        isAccountExpired(row) ? "expired-date" : "",
       renderCell: ({ row }: any) => (
         <EditableCell
           aria-label="edit-expiration"
@@ -475,13 +511,22 @@ const UserInvitations = ({
         <StyledDataGrid
           height={FULL_PAGE_HEIGHT_WITH_TABS}
           columns={columns}
-          rows={invitationsData?.invitations ?? []}
+          rows={
+            showExpired ? invitations : invitations.filter((i) => !isExpired(i))
+          }
           getRowHeight={() => "auto"}
+          getRowClassName={({ row }: any) => (isExpired(row) ? "expired" : "")}
           loading={invitationsFetching}
           initialState={{
             sorting: { sortModel: [{ field: "created_at", sort: "desc" }] },
           }}
           slots={{ toolbar: InvitationsToolbar }}
+          slotProps={{
+            toolbar: {
+              showExpired,
+              onToggleExpired: () => setShowExpired(!showExpired),
+            },
+          }}
           showToolbar
           sx={expiredSx}
         />
