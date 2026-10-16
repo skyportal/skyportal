@@ -166,4 +166,14 @@ def test_reminder_on_spectra(super_admin_token, lris):
 
 def test_reminder_on_gcn(super_admin_token, gcn_GW190814):
     endpoint = f"gcn_event/{gcn_GW190814.id}/reminders"
-    post_and_verify_reminder(endpoint, super_admin_token)
+    reminder_text = post_and_verify_reminder(endpoint, super_admin_token)
+
+    status, data = api("GET", "internal/notifications", token=super_admin_token)
+    assert status == 200
+    notification = next(
+        n
+        for n in data["data"]
+        if n["notification_type"] == "reminder_on_gcn" and reminder_text in n["text"]
+    )
+    # the frontend routes GCN events by ISO dateobs, which has no space
+    assert notification["url"] == f"/gcn_events/{gcn_GW190814.dateobs.isoformat()}"

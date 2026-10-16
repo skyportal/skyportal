@@ -1024,13 +1024,11 @@ async def _redden_standardized_photometry(df, unique_oids, session):
             )
         a_lambda[(oid, filt)] = a
 
-    # observed_flux = corrected_flux * 10 ** (-0.4 * A_lambda)
-    factor = np.array(
-        [
-            10 ** (-0.4 * a_lambda[(oid, filt)])
-            for oid, filt in zip(df["obj_id"], df["filter"])
-        ]
+    a_per_row = np.array(
+        [a_lambda[(oid, filt)] for oid, filt in zip(df["obj_id"], df["filter"])]
     )
+    # observed_flux = corrected_flux * 10 ** (-0.4 * A_lambda)
+    factor = 10 ** (-0.4 * a_per_row)
     for col in (
         "standardized_flux",
         "standardized_fluxerr",
@@ -1039,6 +1037,9 @@ async def _redden_standardized_photometry(df, unique_oids, session):
     ):
         if col in df.columns:
             df[col] = df[col].to_numpy() * factor
+    # limiting_mag is stored in original_user_data and served as-is
+    if "limiting_mag" in df.columns:
+        df["limiting_mag"] = df["limiting_mag"].to_numpy() + a_per_row
     return df
 
 

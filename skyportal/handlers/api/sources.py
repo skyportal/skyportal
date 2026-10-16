@@ -2049,7 +2049,7 @@ async def get_sources(
             try:
                 # first try to find the catalog
                 entry_stmt = """
-                SELECT id
+                SELECT entry_name
                 FROM spatial_catalog_entries
                 WHERE lower(entry_name) = :spatial_catalog_entry_name
                 AND catalog_id in (
@@ -2058,7 +2058,7 @@ async def get_sources(
                     WHERE lower(catalog_name) = :spatial_catalog_name
                 )
                 """
-                entry_id = await session.execute(
+                entry_name = await session.scalar(
                     text(entry_stmt).bindparams(
                         bindparam(
                             "spatial_catalog_entry_name",
@@ -2072,13 +2072,14 @@ async def get_sources(
                         ),
                     )
                 )
-                if entry_id is None:
+                if entry_name is None:
                     raise ValueError("spatial catalog entry not found")
 
+                # the tiles store the name with its original case
                 query_params.append(
                     bindparam(
                         "spatial_catalog_entry_name",
-                        value=str(spatial_catalog_entry_name).strip().lower(),
+                        value=entry_name,
                         type_=sa.String,
                     )
                 )
