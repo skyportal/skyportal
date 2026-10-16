@@ -6,8 +6,13 @@ InvalidPaddingError and, for anything that lists brokers or allocations, an
 empty page. This reads each row with the old key and writes it back with the
 one now in the config.
 
-The instance has to be stopped while this runs, and the database backed up
-first: a row written here cannot be recovered with the old key afterwards.
+Set app.secret_key to the new key before running this, since that is the key
+the rows are written with; the old one is passed on the command line and goes
+nowhere near the config. In order: put the new key in config.yaml, stop the
+instance, back the database up, run with --commit, start the instance.
+
+A row written here cannot be recovered with the old key afterwards, which is
+what the backup is for.
 
 Anything encrypted under the key shipped in config.yaml.defaults was readable
 by anyone holding the source, so prefer replacing those credentials at their
@@ -30,7 +35,12 @@ from baselayer.log import make_log
 
 log = make_log("reencrypt_secret_key")
 
-parser.add_argument("--old-key", required=True, help="the previous app.secret_key")
+parser.add_argument(
+    "--old-key",
+    required=True,
+    help="the key the rows were encrypted with; app.secret_key in the config is "
+    "the key they are written with, so it has to be the new one already",
+)
 parser.add_argument(
     "--commit", action="store_true", help="write the rows; otherwise report only"
 )
@@ -100,7 +110,11 @@ def rekey(connection, table, column, old, new, commit):
 def main():
     new_key = cfg["app.secret_key"]
     if env.old_key == new_key:
-        log("--old-key is the key already in the config; nothing to do.")
+        log(
+            "--old-key matches app.secret_key in the config, so there is nothing "
+            "to move. Put the new key in the config first; the old one belongs "
+            "on the command line only."
+        )
         return 0
 
     old, new = engine_for(env.old_key), engine_for(new_key)
