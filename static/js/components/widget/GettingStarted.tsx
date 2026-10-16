@@ -212,7 +212,7 @@ const GettingStarted = (_props: { classes?: Record<string, string> }) => {
   return (
     <Paper
       data-testid="tour-getting-started"
-      sx={{ p: 2, height: "100%", overflow: "auto" }}
+      sx={{ p: 1.5, height: "100%", overflow: "auto" }}
     >
       {Tour}
       <Box
@@ -245,6 +245,8 @@ const GettingStarted = (_props: { classes?: Record<string, string> }) => {
           .map((item) => (
             <ListItemButton
               key={item.label}
+              alignItems="flex-start"
+              sx={{ px: 0.75, borderRadius: 1 }}
               onClick={() =>
                 navigate(
                   item.to,
@@ -252,7 +254,7 @@ const GettingStarted = (_props: { classes?: Record<string, string> }) => {
                 )
               }
             >
-              <ListItemIcon sx={{ minWidth: 36 }}>
+              <ListItemIcon sx={{ minWidth: 28 }}>
                 {(item as any).explore ? (
                   <TourIcon color="action" fontSize="small" />
                 ) : (item as any).done ? (
