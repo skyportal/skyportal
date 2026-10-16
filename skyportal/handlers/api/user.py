@@ -27,16 +27,20 @@ from ...models import (
     FollowupRequest,
     Group,
     GroupUser,
+    Photometry,
     Role,
     Source,
     Spectrum,
     Stream,
     StreamUser,
+    Thumbnail,
     User,
     UserACL,
     UserRole,
 )
 from ..base import BaseHandler
+from .internal.source_views import t_index
+from .photometry import get_bandpasses_to_colors
 from .roles import includes_admin_role
 
 log = make_log("api/user")
@@ -610,6 +614,7 @@ class UserHandler(BaseHandler):
 
 ACTIVITY_PAGE = 25
 ACTIVITY_PAGE_MAX = 100
+ACTIVITY_PHOTOMETRY_POINTS = 200
 
 
 def _comment_detail(row):
@@ -676,7 +681,9 @@ async def activity_counts(session, user_id, viewer):
     return counts
 
 
-async def activity_feed(session, user_id, viewer, offset=0, limit=ACTIVITY_PAGE):
+async def activity_feed(
+    session, user_id, viewer, offset=0, limit=ACTIVITY_PAGE, kind=None
+):
     """`user_id`'s contributions newest first, the page starting at `offset`.
 
     Each kind is read separately and merged here: six small reads on indexed
@@ -688,7 +695,9 @@ async def activity_feed(session, user_id, viewer, offset=0, limit=ACTIVITY_PAGE)
     """
     wanted = offset + limit
     items = []
-    for kind, (model, column, detail) in ACTIVITY.items():
+    for name, (model, column, detail) in ACTIVITY.items():
+        if kind is not None and name != kind:
+            continue
         mine = _mine(model, column, user_id, viewer)
         if model is Source:
             created_at = func.min(Source.created_at).label("created_at")
@@ -713,7 +722,7 @@ async def activity_feed(session, user_id, viewer, offset=0, limit=ACTIVITY_PAGE)
         for row in rows:
             items.append(
                 {
-                    "kind": kind,
+                    "kind": name,
                     "created_at": row.created_at,
                     "obj_id": getattr(row, "obj_id", None),
                     "detail": detail(row),
@@ -721,6 +730,49 @@ async def activity_feed(session, user_id, viewer, offset=0, limit=ACTIVITY_PAGE)
             )
     items.sort(key=lambda item: item["created_at"], reverse=True)
     return items[offset:wanted], len(items) > wanted
+
+
+async def activity_objs(session, viewer, obj_ids):
+    objs = {obj_id: {"thumbnails": [], "photometry": []} for obj_id in obj_ids}
+    if not objs:
+        return objs, {}
+
+    thumbnails = await session.scalars(
+        Thumbnail.select(viewer).where(Thumbnail.obj_id.in_(objs))
+    )
+    for t in sorted(thumbnails.unique().all(), key=lambda t: t_index(t.type)):
+        objs[t.obj_id]["thumbnails"].append(
+            {
+                "type": t.type,
+                "public_url": t.public_url,
+                "is_grayscale": t.is_grayscale,
+            }
+        )
+
+    readable = Photometry.select(viewer, columns=[Photometry.id]).where(
+        Photometry.obj_id.in_(objs)
+    )
+    points = await session.execute(
+        sa.select(Photometry.obj_id, Photometry.mjd, Photometry.mag, Photometry.filter)
+        .where(
+            Photometry.id.in_(readable),
+            Photometry.snr >= cfg["misc.photometry_detection_threshold_nsigma"],
+        )
+        .order_by(Photometry.mjd)
+    )
+    for obj_id, mjd, mag, band in points.all():
+        objs[obj_id]["photometry"].append([mjd, round(mag, 3), band])
+
+    filters = set()
+    for obj in objs.values():
+        photometry = obj["photometry"]
+        if len(photometry) > ACTIVITY_PHOTOMETRY_POINTS:
+            step = len(photometry) / ACTIVITY_PHOTOMETRY_POINTS
+            obj["photometry"] = [
+                photometry[int(i * step)] for i in range(ACTIVITY_PHOTOMETRY_POINTS)
+            ]
+        filters.update(point[2] for point in obj["photometry"])
+    return objs, get_bandpasses_to_colors(filters, "hex")
 
 
 class UserPublicProfileHandler(BaseHandler):
@@ -790,6 +842,11 @@ class UserActivityHandler(BaseHandler):
             schema:
               type: integer
             description: How many items to skip, for paging further back.
+          - in: query
+            name: kind
+            schema:
+              type: string
+            description: Only list this kind of contribution.
         responses:
           200:
             content:
@@ -815,16 +872,25 @@ class UserActivityHandler(BaseHandler):
                 offset = max(int(self.get_query_argument("offset", 0)), 0)
             except ValueError:
                 return self.error("limit and offset must be numbers.")
+            kind = self.get_query_argument("kind", None)
+            if kind is not None and kind not in ACTIVITY:
+                return self.error(f"kind must be one of {', '.join(ACTIVITY)}.")
 
+            viewer = session.user_or_token
             items, has_more = await activity_feed(
-                session, user_id, session.user_or_token, offset=offset, limit=limit
+                session, user_id, viewer, offset=offset, limit=limit, kind=kind
+            )
+            objs, filter_colors = await activity_objs(
+                session, viewer, {item["obj_id"] for item in items if item["obj_id"]}
             )
             return self.success(
                 data={
-                    "counts": await activity_counts(
-                        session, user_id, session.user_or_token
-                    ),
+                    "counts": await activity_counts(session, user_id, viewer)
+                    if offset == 0
+                    else None,
                     "items": items,
                     "has_more": has_more,
+                    "objs": objs,
+                    "filter_colors": filter_colors,
                 }
             )

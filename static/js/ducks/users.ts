@@ -44,6 +44,12 @@ export type ActivityKind =
   | "spectra"
   | "followup_requests";
 
+export interface ActivityThumbnail {
+  type: string;
+  public_url: string;
+  is_grayscale: boolean | null;
+}
+
 export interface ActivityItem {
   kind: ActivityKind;
   created_at: string;
@@ -51,11 +57,18 @@ export interface ActivityItem {
   detail: string | null;
 }
 
+export interface ActivityObj {
+  thumbnails: ActivityThumbnail[];
+  photometry: [number, number, string][];
+}
+
 /** A user's contributions, limited to what the requester may see. */
 export interface UserActivity {
-  counts: Record<ActivityKind, number>;
+  counts: Record<ActivityKind, number> | null;
   items: ActivityItem[];
   has_more: boolean;
+  objs: Record<string, ActivityObj>;
+  filter_colors: Record<string, string>;
 }
 
 export interface UsersResult {
@@ -78,12 +91,18 @@ export const usersApi = skyportalApi.injectEndpoints({
       query: (id) => `api/user/${id}/profile`,
       providesTags: ["User", "PublicProfile"],
     }),
-    getUserActivity: build.query<
+    getUserActivity: build.infiniteQuery<
       UserActivity,
-      { id: number | string; offset?: number; limit?: number }
+      { id: number | string; kind: ActivityKind | null },
+      number
     >({
-      query: ({ id, offset = 0, limit }) =>
-        `api/user/${id}/activity?offset=${offset}${limit ? `&limit=${limit}` : ""}`,
+      infiniteQueryOptions: {
+        initialPageParam: 0,
+        getNextPageParam: (lastPage, _pages, offset) =>
+          lastPage.has_more ? offset + lastPage.items.length : undefined,
+      },
+      query: ({ queryArg: { id, kind }, pageParam }) =>
+        `api/user/${id}/activity?offset=${pageParam}${kind ? `&kind=${kind}` : ""}`,
       providesTags: ["User", "PublicProfile"],
     }),
     patchUser: build.mutation<
@@ -106,6 +125,6 @@ invalidateOnMessage("skyportal/FETCH_USERS", () => ["User"]);
 export const {
   useGetUsersQuery,
   useGetUserPublicProfileQuery,
-  useGetUserActivityQuery,
+  useGetUserActivityInfiniteQuery,
   usePatchUserMutation,
 } = usersApi;

@@ -23391,6 +23391,8 @@ export interface paths {
                     limit?: number;
                     /** @description How many items to skip, for paging further back. */
                     offset?: number;
+                    /** @description Only list this kind of contribution. */
+                    kind?: string;
                 };
                 header?: never;
                 path: {
