@@ -18,8 +18,14 @@ Anything encrypted under the key shipped in config.yaml.defaults was readable
 by anyone holding the source, so prefer replacing those credentials at their
 origin over carrying them across.
 
-    python tools/reencrypt_secret_key.py --old-key abc01234
-    python tools/reencrypt_secret_key.py --old-key abc01234 --commit
+Run it from the repository root, where baselayer and skyportal are importable:
+
+    make reencrypt_secret_key FLAGS="--old-key abc01234"
+    make reencrypt_secret_key FLAGS="--old-key abc01234 --commit"
+
+or, equivalently, the way the Makefile runs every tool here:
+
+    PYTHONPATH=. python tools/reencrypt_secret_key.py --old-key abc01234
 """
 
 import sys
