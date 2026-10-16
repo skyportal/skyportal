@@ -693,7 +693,9 @@ async def activity_feed(session, user_id, viewer, offset=0, limit=ACTIVITY_PAGE)
         stmt = (
             _mine(model, column, user_id, viewer)
             .order_by(model.created_at.desc())
-            .limit(wanted)
+            # One past the page, so a page filled by a single kind can still
+            # tell that the kind has more behind it.
+            .limit(wanted + 1)
         )
         # .unique(): the access-control join over group members returns a row
         # per group, so a contribution would otherwise appear once per group.
