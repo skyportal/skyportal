@@ -149,12 +149,20 @@ const useStyles = makeStyles()((theme) => ({
     borderRadius: "15px",
     width: "100%",
   },
+  commentContentCompact: {
+    padding: "0.25rem 0.5rem",
+  },
   commentHeader: {
     display: "flex",
     alignItems: "center",
   },
   commentHeaderContent: {
     width: "70%",
+  },
+  commentHeaderContentCompact: {
+    width: "auto",
+    flex: 1,
+    minWidth: 0,
   },
   commentTime: {
     color: "gray",
@@ -185,6 +193,11 @@ const useStyles = makeStyles()((theme) => ({
   commentUserAvatar: {
     display: "block",
     margin: "0.5em",
+  },
+  commentUserAvatarInline: {
+    display: "inline-block",
+    verticalAlign: "middle",
+    marginRight: "0.375em",
   },
   commentUserGroup: {
     display: "inline-block",
@@ -218,6 +231,7 @@ interface CommentThreadProps {
   channel?: string | undefined;
   origin?: "scanning" | undefined;
   pinned?: boolean;
+  compact?: boolean;
 }
 
 const CommentThread = ({
@@ -235,6 +249,7 @@ const CommentThread = ({
   channel,
   origin,
   pinned = false,
+  compact = false,
 }: CommentThreadProps) => {
   const { classes: styles, cx } = useStyles();
   const [hoverID, setHoverID] = useState<any>(null);
@@ -401,8 +416,18 @@ const CommentThread = ({
   const commentStyle =
     userColorTheme === "dark" ? styles.commentDark : styles.comment;
 
+  const commentStyles = compact
+    ? {
+        ...styles,
+        commentContent: cx(styles.commentContent, styles.commentContentCompact),
+        commentHeaderContent: cx(
+          styles.commentHeaderContent,
+          styles.commentHeaderContentCompact,
+        ),
+      }
+    : styles;
   const botStyles = {
-    ...styles,
+    ...commentStyles,
     commentUserName: cx(styles.commentUserName, styles.botUserName),
   };
 
@@ -487,7 +512,8 @@ const CommentThread = ({
                     (spectrum_id ? "spectra" : resourceType)
                   }
                   bot={bot}
-                  styles={bot ? botStyles : styles}
+                  compact={compact}
+                  styles={bot ? botStyles : commentStyles}
                   id={id}
                   objID={objID}
                   gcnEventID={gcnEventID}

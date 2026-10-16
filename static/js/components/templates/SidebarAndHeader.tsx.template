@@ -41,7 +41,7 @@ import HeaderContent from "./HeaderContent";
 import hydrate from "../../actions";
 
 const drawerWidth = 220;
-const miniDrawerWidth = 65;
+const miniDrawerWidth = 52;
 
 const useStyles = makeStyles()((theme) => ({
   root: {
@@ -246,13 +246,14 @@ const SidebarAndHeader = () => {
         <ListItemButton
             sx={{"{{
               minHeight: 48,
-              px: 2.5,
+              pl: 1.75,
+              pr: 1.5,
             }}"}}
           >
             <ListItemIcon
               sx={{ "{{
                 minWidth: 0,
-                mr: 2,
+                mr: 1.25,
                 justifyContent: 'center',
               }}" }}
             >
@@ -313,13 +314,14 @@ const SidebarAndHeader = () => {
         <ListItemButton
             sx={{"{{
               minHeight: 48,
-              px: 2.5,
+              pl: 1.75,
+              pr: 1.5,
             }}"}}
           >
             <ListItemIcon
               sx={{ "{{
                 minWidth: 0,
-                mr: 2,
+                mr: 1.25,
                 justifyContent: 'center',
               }}" }}
             >
@@ -370,14 +372,15 @@ const SidebarAndHeader = () => {
         <ListItemButton
             sx={{"{{
               minHeight: 48,
-              px: 2.5,
+              pl: 1.75,
+              pr: 1.5,
             }}"}}
             onClick={() => set{{ group.name }}Open(!{{ group.name }}Open)}
           >
             <ListItemIcon
               sx={{ "{{
                 minWidth: 0,
-                mr: 2,
+                mr: 1.25,
                 justifyContent: 'center',
               }}" }}
             >
@@ -409,7 +412,7 @@ const SidebarAndHeader = () => {
       <AppBar
         className={classes.appBar}
       >
-        <Toolbar className={classes.toolbar}>
+        <Toolbar className={classes.toolbar} sx={{ "{{ pl: { xs: '1.125rem', sm: '1.125rem' } }}" }}>
           <IconButton
             color="inherit"
             aria-label="open drawer"

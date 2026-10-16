@@ -34,7 +34,11 @@ class SourceSaverHandler(BaseHandler):
                 func.count(sa.distinct(Source.obj_id)).label("saves"),
                 Source.saved_by_id,
             ],
-        ).where(Source.saved_at >= cutoff_day)
+        ).where(
+            Source.saved_at >= cutoff_day,
+            # the broker ingestion user, which auto-saves in its own name
+            Source.saved_by_id != 1,
+        )
 
         if top_savers_prefs["candidatesOnly"]:
             stmt = stmt.where(

@@ -320,6 +320,7 @@ const FilterCandidateList = ({
     setSearchParams({
       pageNumber: 1,
       numPerPage,
+      stackLinkedObjs: true,
       savedStatus: formData.savedStatus,
       savedGroupIDs: showSavedGroups ? savedGroupIDs : undefined,
       ...(filterIDs.length > 0

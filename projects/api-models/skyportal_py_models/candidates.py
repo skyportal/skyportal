@@ -103,6 +103,7 @@ class CandidateResponse(BaseModel):
     spectra: list[dict[str, Any]] | None = None
     followup_requests: list[dict[str, Any]] | None = None
     associated_objs: list[CandidateAssociatedObjResponse] | None = None
+    stack_id: str | None = None
     last_detected_at: datetime | None = None
     gal_lon: float | None = None
     gal_lat: float | None = None
@@ -489,6 +490,14 @@ class CandidateGetQuery(BaseModel):
         description=(
             "Boolean indicating whether to include associated objects (objects "
             "grouped under the same super-object). Defaults to true."
+        ),
+    )
+    stackLinkedObjs: bool = Field(
+        default=False,
+        description=(
+            "Stack candidates linked by a super-object (e.g. the same transient "
+            "seen by several surveys) as one match: they share a stack_id, are "
+            "returned together, and count once in totalMatches and pagination."
         ),
     )
     includeAlerts: bool = Field(

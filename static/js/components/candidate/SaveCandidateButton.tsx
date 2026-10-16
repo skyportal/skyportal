@@ -1,4 +1,5 @@
 import { useState } from "react";
+import type { MouseEvent } from "react";
 import Dialog from "@mui/material/Dialog";
 import DialogContent from "@mui/material/DialogContent";
 import DialogTitle from "@mui/material/DialogTitle";
@@ -6,12 +7,9 @@ import Checkbox from "@mui/material/Checkbox";
 import ButtonGroup from "@mui/material/ButtonGroup";
 import FormControlLabel from "@mui/material/FormControlLabel";
 import ArrowDropDownIcon from "@mui/icons-material/ArrowDropDown";
-import ClickAwayListener from "@mui/material/ClickAwayListener";
-import Grow from "@mui/material/Grow";
-import Paper from "@mui/material/Paper";
-import Popper from "@mui/material/Popper";
+import Menu from "@mui/material/Menu";
 import MenuItem from "@mui/material/MenuItem";
-import MenuList from "@mui/material/MenuList";
+import Tooltip from "@mui/material/Tooltip";
 import { Controller, useForm } from "react-hook-form";
 import { showNotification } from "baselayer/components/Notifications";
 import { useAppDispatch } from "../../types/hooks";
@@ -35,6 +33,14 @@ interface SaveCandidateButtonProps {
   filterGroups: GroupOption[];
 }
 
+const compactSx = {
+  minWidth: 0,
+  py: 0,
+  px: 1.25,
+  fontSize: "0.75rem",
+  lineHeight: "1.5rem",
+};
+
 const SaveCandidateButton = ({
   candidate,
   userGroups,
@@ -43,8 +49,7 @@ const SaveCandidateButton = ({
   const dispatch = useAppDispatch();
   const [saveSource, { isLoading }] = useSaveSourceMutation();
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [menuOpen, setMenuOpen] = useState(false);
-  const [anchorEl, setAnchorEl] = useState<HTMLDivElement | null>(null);
+  const [menuAnchor, setMenuAnchor] = useState<HTMLElement | null>(null);
 
   const {
     handleSubmit,
@@ -60,11 +65,8 @@ const SaveCandidateButton = ({
   });
 
   const save = async (group_ids: number[]) => {
-    const { error } = await saveSource({
-      id: candidate.id,
-      group_ids,
-      refresh_source: false,
-    });
+    if (isLoading) return false;
+    const { error } = await saveSource({ id: candidate.id, group_ids });
     if (error) return false;
     const names = group_ids.flatMap(
       (id) => userGroups.find((g) => g.id === id)?.name ?? [],
@@ -87,93 +89,78 @@ const SaveCandidateButton = ({
     }
   });
 
-  const groupNames =
-    filterGroups.length <= 3
-      ? filterGroups.map((g) => (g.nickname || g.name).slice(0, 15)).join(", ")
-      : "selected groups";
-  const saveToFilterGroups = {
-    label: `Save to ${groupNames}`,
-    onClick: () => save(filterGroups.map((g) => g.id)),
-  };
+  const quickSave = filterGroups.length > 0;
+  const groupName = (group: GroupOption) => group.nickname || group.name;
   const options = [
-    saveToFilterGroups,
-    { label: "Select groups & save", onClick: () => setDialogOpen(true) },
     ...(filterGroups.length > 1
       ? filterGroups.map((group) => ({
-          label: `Save to ${group.nickname || group.name} only`,
+          label: `Save to ${groupName(group)} only`,
           onClick: () => save([group.id]),
         }))
       : []),
+    { label: "Choose groups", onClick: () => setDialogOpen(true) },
   ];
 
   return (
     <>
       <ButtonGroup
-        variant="contained"
-        ref={setAnchorEl}
-        aria-label="split button"
+        variant={quickSave ? "contained" : "outlined"}
+        size="small"
+        disableElevation
       >
-        <Button
-          onClick={saveToFilterGroups.onClick}
-          name={`initialSaveCandidateButton${candidate.id}`}
-          data-testid={`saveCandidateButton_${candidate.id}`}
-          disabled={isLoading}
-          size="small"
+        <Tooltip
+          title={
+            quickSave
+              ? `Save to ${filterGroups.map(groupName).join(", ")}`
+              : "Save to other groups"
+          }
         >
-          {saveToFilterGroups.label}
-        </Button>
-        <Button
-          size="small"
-          aria-controls={menuOpen ? "split-button-menu" : undefined}
-          aria-expanded={menuOpen ? "true" : undefined}
-          aria-label="Save as Source"
-          aria-haspopup="menu"
-          name={`saveCandidateButtonDropDownArrow${candidate.id}`}
-          onClick={() => setMenuOpen((open) => !open)}
-        >
-          <ArrowDropDownIcon />
-        </Button>
+          <Button
+            onClick={() =>
+              quickSave
+                ? save(filterGroups.map((g) => g.id))
+                : setDialogOpen(true)
+            }
+            name={`initialSaveCandidateButton${candidate.id}`}
+            data-testid={`saveCandidateButton_${candidate.id}`}
+            sx={compactSx}
+          >
+            Save
+          </Button>
+        </Tooltip>
+        {quickSave && (
+          <Button
+            aria-haspopup="menu"
+            aria-label="More save options"
+            name={`saveCandidateButtonDropDownArrow${candidate.id}`}
+            onClick={(event: MouseEvent<HTMLElement>) =>
+              setMenuAnchor(event.currentTarget)
+            }
+            sx={{ ...compactSx, px: 0 }}
+          >
+            <ArrowDropDownIcon fontSize="small" />
+          </Button>
+        )}
       </ButtonGroup>
-      <Popper
-        open={menuOpen}
-        anchorEl={anchorEl}
-        role={undefined}
-        transition
-        disablePortal
-        sx={{ zIndex: 1 }}
+      <Menu
+        anchorEl={menuAnchor}
+        open={Boolean(menuAnchor)}
+        onClose={() => setMenuAnchor(null)}
       >
-        {({ TransitionProps, placement }) => (
-          <Grow
-            {...TransitionProps}
-            style={{
-              transformOrigin:
-                placement === "bottom" ? "center top" : "center bottom",
+        {options.map(({ label, onClick }) => (
+          <MenuItem
+            key={label}
+            dense
+            {...{ name: `buttonMenuOption${candidate.id}_${label}` }}
+            onClick={() => {
+              setMenuAnchor(null);
+              onClick();
             }}
           >
-            <Paper>
-              <ClickAwayListener
-                onClickAway={(event) => {
-                  if (!anchorEl?.contains(event.target as Node)) {
-                    setMenuOpen(false);
-                  }
-                }}
-              >
-                <MenuList id="split-button-menu">
-                  {options.map(({ label, onClick }) => (
-                    <MenuItem
-                      key={label}
-                      {...{ name: `buttonMenuOption${candidate.id}_${label}` }}
-                      onClick={onClick}
-                    >
-                      {label}
-                    </MenuItem>
-                  ))}
-                </MenuList>
-              </ClickAwayListener>
-            </Paper>
-          </Grow>
-        )}
-      </Popper>
+            {label}
+          </MenuItem>
+        ))}
+      </Menu>
 
       <Dialog open={dialogOpen} onClose={() => setDialogOpen(false)}>
         <DialogTitle>Select one or more groups:</DialogTitle>

@@ -91,12 +91,25 @@ export interface AlertOption {
   raw?: any;
 }
 
+export const toAlertOption = (a: any): AlertOption => {
+  const cand = a?.candidate ?? a ?? {};
+  return {
+    candid: cand?.candid ?? a?.candid ?? a?._id ?? cand?.diaSourceId,
+    ra: cand?.ra ?? a?.ra,
+    dec: cand?.dec ?? a?.dec,
+    magpsf: cand?.magpsf ?? a?.magpsf ?? cand?.mag,
+    jd: cand?.jd ?? a?.jd,
+    raw: a,
+  };
+};
+
 interface BrokerAlertCardProps {
   brokerId: number;
   brokerClassname: string;
   objectId: string;
   survey: string;
   alerts: AlertOption[];
+  initialCandid?: string | number | undefined;
   // Card rendered alone on a full-width row: give the cutouts more room.
   expanded?: boolean;
 }
@@ -110,13 +123,15 @@ const BrokerAlertCard = ({
   objectId,
   survey,
   alerts,
+  initialCandid,
   expanded = false,
 }: BrokerAlertCardProps) => {
   const { classes, cx } = useStyles();
   // Newest alert first (highest jd), so the default selection is the latest.
   const sorted = [...alerts].sort((a, b) => (b.jd ?? 0) - (a.jd ?? 0));
   const [candid, setCandid] = useState<string | number | undefined>(
-    sorted[0]?.candid,
+    sorted.find((a) => String(a.candid) === String(initialCandid))?.candid ??
+      sorted[0]?.candid,
   );
   const [downloadAnchor, setDownloadAnchor] = useState<HTMLElement | null>(
     null,

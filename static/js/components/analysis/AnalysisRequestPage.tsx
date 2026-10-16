@@ -4,7 +4,7 @@ import { makeStyles } from "tss-react/mui";
 import Paper from "@mui/material/Paper";
 import Typography from "@mui/material/Typography";
 import Chip from "@mui/material/Chip";
-import Grid from "@mui/material/Grid";
+import Box from "@mui/material/Box";
 import Tabs from "@mui/material/Tabs";
 import Tab from "@mui/material/Tab";
 import ToggleButton from "@mui/material/ToggleButton";
@@ -317,15 +317,17 @@ const AnalysisRequestPage = () => {
   const [tabIndex, setTabIndex] = useState(0);
 
   return (
-    <Grid container spacing={3}>
-      <Grid size={12}>
-        <Tabs value={tabIndex} onChange={(_e, v) => setTabIndex(v)} centered>
-          <Tab label="Analysis Requests" />
-          <Tab label="Default Analyses" />
-        </Tabs>
-        {tabIndex === 0 ? <AnalysisRequestList /> : <DefaultAnalysesOverview />}
-      </Grid>
-    </Grid>
+    <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
+      <Tabs
+        value={tabIndex}
+        onChange={(_e, v) => setTabIndex(v)}
+        sx={{ borderBottom: 1, borderColor: "divider" }}
+      >
+        <Tab label="Analysis Requests" />
+        <Tab label="Default Analyses" />
+      </Tabs>
+      {tabIndex === 0 ? <AnalysisRequestList /> : <DefaultAnalysesOverview />}
+    </Box>
   );
 };
 

@@ -1,9 +1,13 @@
 import { useState } from "react";
-import { useGetProfileQuery } from "../../ducks/profile";
-import Box from "@mui/material/Box";
-import Tabs from "@mui/material/Tabs";
-import Tab from "@mui/material/Tab";
+import AddIcon from "@mui/icons-material/Add";
+import Dialog from "@mui/material/Dialog";
+import DialogContent from "@mui/material/DialogContent";
+import IconButton from "@mui/material/IconButton";
+import MenuItem from "@mui/material/MenuItem";
+import TextField from "@mui/material/TextField";
+import Tooltip from "@mui/material/Tooltip";
 
+import { useGetProfileQuery } from "../../ducks/profile";
 import { useGetGroupsQuery } from "../../ducks/groups";
 import GroupList from "./GroupList";
 import NewGroupForm from "./NewGroupForm";
@@ -14,77 +18,67 @@ const Groups = () => {
   const { data: groupsData } = useGetGroupsQuery();
   const userGroups = groupsData?.user ?? [];
   const allGroups = groupsData?.all ?? null;
-
-  const [tab, setTab] = useState(0);
-  // Shared across tabs so a search typed in one list survives switching
-  // tabs; it only resets when this component unmounts (i.e. leaving the page).
-  const [filterModel, setFilterModel] = useState({
-    items: [],
-    quickFilterValues: [],
-  });
+  const [view, setView] = useState("my");
+  const [newGroupOpen, setNewGroupOpen] = useState(false);
 
   if (!userGroups.length || allGroups === null) return <Spinner />;
 
-  const canManageGroups = permissions?.includes("System admin");
   const allMultiUserGroups = allGroups.filter((g) => !g["single_user_group"]);
-  const nonMemberGroups = allMultiUserGroups?.filter(
-    (g) => !userGroups.map((ug) => ug.id).includes(g.id),
-  );
-
-  const tabPanels = [
-    <GroupList
-      key="my-groups"
-      title="My groups"
-      groups={userGroups}
-      filterModel={filterModel}
-      onFilterModelChange={setFilterModel}
-    />,
-    ...(nonMemberGroups.length
-      ? [
-          <GroupList
-            key="non-member"
-            title="Non-member groups"
-            groups={nonMemberGroups}
-            admission
-            filterModel={filterModel}
-            onFilterModelChange={setFilterModel}
-          />,
-        ]
+  const userGroupIds = userGroups.map((g) => g.id);
+  const views = [
+    { value: "my", label: "My Groups", groups: userGroups },
+    {
+      value: "non-member",
+      label: "Non-member groups",
+      groups: allMultiUserGroups.filter((g) => !userGroupIds.includes(g.id)),
+    },
+    ...(permissions?.includes("System admin")
+      ? [{ value: "all", label: "All Groups", groups: allMultiUserGroups }]
       : []),
-    ...(canManageGroups
-      ? [
-          <GroupList
-            key="all-groups"
-            title="All Groups"
-            groups={allMultiUserGroups}
-            filterModel={filterModel}
-            onFilterModelChange={setFilterModel}
-          />,
-        ]
-      : []),
-    <Box key="new-group" sx={{ borderTop: 1, borderColor: "divider" }}>
-      <NewGroupForm />
-    </Box>,
-  ];
-
-  const activeTab = Math.min(tab, tabPanels.length - 1);
+  ].filter((v) => v.value === "my" || v.groups.length > 0);
+  const current = views.find((v) => v.value === view) ?? views[0]!;
 
   return (
-    <Box>
-      <Tabs
-        value={activeTab}
-        onChange={(_event, value) => setTab(value)}
-        centered
+    <>
+      <GroupList
+        title="Groups"
+        groups={current.groups}
+        admission={current.value === "non-member"}
       >
-        <Tab label="My Groups" data-testid="tour-groups-list" />
-        {nonMemberGroups.length > 0 && (
-          <Tab label="Non-member groups" data-testid="tour-groups-request" />
-        )}
-        {canManageGroups && <Tab label="All Groups" />}
-        <Tab label="Create New Group" data-testid="tour-groups-new" />
-      </Tabs>
-      {tabPanels[activeTab]}
-    </Box>
+        <TextField
+          select
+          size="small"
+          value={current.value}
+          onChange={(e) => setView(e.target.value)}
+          data-testid="groupsViewSelect"
+          sx={{ minWidth: 190 }}
+        >
+          {views.map((v) => (
+            <MenuItem key={v.value} value={v.value}>
+              {v.label}
+            </MenuItem>
+          ))}
+        </TextField>
+        <Tooltip title="Create new group">
+          <IconButton
+            onClick={() => setNewGroupOpen(true)}
+            data-testid="tour-groups-new"
+          >
+            <AddIcon />
+          </IconButton>
+        </Tooltip>
+      </GroupList>
+      <Dialog
+        open={newGroupOpen}
+        onClose={() => setNewGroupOpen(false)}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogContent>
+          <NewGroupForm onCreated={() => setNewGroupOpen(false)} />
+        </DialogContent>
+      </Dialog>
+    </>
   );
 };
 

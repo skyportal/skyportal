@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { ReactNode, useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import Box from "@mui/material/Box";
 import Paper from "@mui/material/Paper";
@@ -25,11 +25,16 @@ import {
   useDeleteAdmissionRequestMutation,
 } from "../../ducks/groupAdmissionRequests";
 import Button from "../Button";
-import StyledDataGrid, { DataGridToolbar } from "../StyledDataGrid";
+import StyledDataGrid, {
+  DataGridToolbar,
+  FULL_PAGE_HEIGHT,
+} from "../StyledDataGrid";
 import { Group } from "../../types";
 
-const GroupListToolbar = ({ title }: { title: string }) => (
-  <DataGridToolbar title={title} />
+const GroupListToolbar = ({ title, children }: any) => (
+  <DataGridToolbar title={title} showExport={false}>
+    {children}
+  </DataGridToolbar>
 );
 
 interface GroupListProps {
@@ -38,8 +43,7 @@ interface GroupListProps {
   variant?: "normal" | "widget";
   linkToGroupSources?: boolean;
   admission?: boolean;
-  filterModel?: any;
-  onFilterModelChange?: (model: any) => void;
+  children?: ReactNode;
 }
 
 const GroupList = ({
@@ -48,8 +52,7 @@ const GroupList = ({
   variant = "normal",
   linkToGroupSources = false,
   admission = false,
-  filterModel,
-  onFilterModelChange,
+  children,
 }: GroupListProps) => {
   const navigate = useNavigate();
   const dispatch = useAppDispatch();
@@ -220,18 +223,19 @@ const GroupList = ({
   return (
     <>
       <StyledDataGrid
-        autoHeight
+        data-testid="tour-groups-list"
         rows={multiUserGroups}
         columns={columns}
-        filterModel={filterModel}
-        onFilterModelChange={onFilterModelChange}
         showToolbar
         onRowClick={
           admission ? undefined : (params: any) => navigate(getLink(params.row))
         }
         slots={{ toolbar: GroupListToolbar }}
-        slotProps={{ toolbar: { title } }}
-        sx={admission ? {} : { "& .MuiDataGrid-row": { cursor: "pointer" } }}
+        slotProps={{ toolbar: { title, children } as any }}
+        sx={{
+          height: FULL_PAGE_HEIGHT,
+          ...(admission ? {} : { "& .MuiDataGrid-row": { cursor: "pointer" } }),
+        }}
       />
       <Dialog
         fullWidth

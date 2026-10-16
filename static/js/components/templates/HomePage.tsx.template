@@ -97,6 +97,31 @@ const withSavedPositions = (saved: any) =>
     }),
   );
 
+const withoutGettingStarted = (layouts: any) =>
+  Object.fromEntries(
+    Object.entries(layouts).map(([breakpoint, items]: [string, any]) => {
+      const gs = items.find((item: any) => item.i === "GettingStarted");
+      const rest = items.filter((item: any) => item !== gs);
+      if (
+        !gs ||
+        rest.some(
+          (item: any) =>
+            item.x === gs.x && item.w <= gs.w && item.y === gs.y + gs.h,
+        )
+      ) {
+        return [breakpoint, rest];
+      }
+      return [
+        breakpoint,
+        rest.map((item: any) =>
+          item.x === gs.x + gs.w && item.y === gs.y
+            ? { ...item, x: gs.x, w: item.w + gs.w }
+            : item,
+        ),
+      ];
+    }),
+  );
+
 const HomePage = () => {
   const { classes } = useStyles();
   const [updateUserPreferences] = useUpdateUserPreferencesMutation();
@@ -110,9 +135,14 @@ const HomePage = () => {
   );
   const groups = useGetGroupsQuery().data?.user ?? [];
   const { data: profile } = useGetProfileQuery();
-  const currentLayouts = withSavedPositions(
+  const onboardingDismissed =
+    profile?.preferences?.["onboardingDismissed"] === true;
+  const savedLayouts = withSavedPositions(
     (profile?.preferences as any)?.layouts,
   );
+  const currentLayouts = onboardingDismissed
+    ? withoutGettingStarted(savedLayouts)
+    : savedLayouts;
 
   const layoutChangeHandler = (_: any, allLayouts: any) => {
     // The grid also fires this on mount, which would save a layout nobody chose.
@@ -127,13 +157,18 @@ const HomePage = () => {
   // The container must render unconditionally: the effect gives up if the node is missing.
   const { width, containerRef, mounted } = useContainerWidth();
 
-  const resetLayouts = () => updateUserPreferences({ layouts: defaultLayouts });
+  const resetLayouts = () =>
+    updateUserPreferences({
+      layouts: defaultLayouts,
+      onboardingDismissed: false,
+    });
 
   return (
     <>
       <div ref={containerRef}>
       {profile?.username && mounted && (
       <ResponsiveGridLayout
+        key={String(onboardingDismissed)}
         width={width}
         className="layout"
         layouts={currentLayouts}
@@ -161,6 +196,14 @@ const HomePage = () => {
             {%- endfor %}
           />
         </div>
+            {%- elif widgetName == "GettingStarted" %}
+        {!onboardingDismissed && (
+        <div key="{{ widgetName }}">
+          <{{ widgetName }}
+            classes={classes}
+          />
+        </div>
+        )}
             {%- else %}
         <div key="{{ widgetName }}">
           <{{ widgetName }}
