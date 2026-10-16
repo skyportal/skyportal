@@ -1068,7 +1068,6 @@ class BOOMBROKER(BrokerAPI):
             "ZTF_alerts_results",
             "LSST_alerts_results",
             "DECAM_alerts_results",
-            "ARGUS_alerts_results",
         ]
         # kafka_consumer_config prefers altdata's group_id; match it so the log
         # and the actual Kafka group agree.
