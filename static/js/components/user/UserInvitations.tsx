@@ -12,7 +12,6 @@ import AddCircleIcon from "@mui/icons-material/AddCircle";
 import EditIcon from "@mui/icons-material/Edit";
 import ContentCopyIcon from "@mui/icons-material/ContentCopy";
 import DeleteIcon from "@mui/icons-material/Delete";
-import FilterListIcon from "@mui/icons-material/FilterList";
 import IconButton from "@mui/material/IconButton";
 import Dialog from "@mui/material/Dialog";
 import DialogContent from "@mui/material/DialogContent";
@@ -20,8 +19,6 @@ import DialogTitle from "@mui/material/DialogTitle";
 import { DatePicker } from "@mui/x-date-pickers/DatePicker";
 import Tooltip from "@mui/material/Tooltip";
 import HelpIcon from "@mui/icons-material/Help";
-import Form from "@rjsf/mui";
-import validator from "@rjsf/validator-ajv8";
 import PapaParse from "papaparse";
 
 import dayjs from "dayjs";
@@ -49,8 +46,6 @@ import {
 import { useAppDispatch } from "../../types/hooks";
 
 dayjs.extend(utc);
-
-const DEFAULT_NUM_PER_PAGE = 25;
 
 const SAMPLE_CSV_TEXT = `example1@gmail.com,1,3,false
 example2@gmail.com,1 2 3,2 5 9,false false true`;
@@ -113,30 +108,8 @@ const renderExpirationDateHeader = () => (
   </Box>
 );
 
-const InvitationsToolbar = ({
-  filters,
-  onOpenFilters,
-  onDeleteFilter,
-}: any) => (
-  <DataGridToolbar
-    title="Pending Invitations"
-    showQuickFilter={false}
-    showExpandAll
-  >
-    <Tooltip title="Filter Table">
-      <IconButton size="small" onClick={onOpenFilters}>
-        <FilterListIcon />
-      </IconButton>
-    </Tooltip>
-    {Object.entries(filters).map(([key, value]) => (
-      <Chip
-        key={key}
-        label={`${key}: ${value}`}
-        size="small"
-        onDelete={() => onDeleteFilter(key)}
-      />
-    ))}
-  </DataGridToolbar>
+const InvitationsToolbar = () => (
+  <DataGridToolbar title="Pending Invitations" showFilter showExpandAll />
 );
 
 const AddEntitiesDialog = ({
@@ -211,16 +184,11 @@ const UserInvitations = ({
   const { data: streams } = useGetStreamsQuery();
   const allGroups = useGetGroupsQuery().data?.all;
   const authBackends = (useGetConfigQuery().data as any)?.authBackends ?? [];
-  const [fetchParams, setFetchParams] = useState<any>({
-    pageNumber: 1,
-    numPerPage: DEFAULT_NUM_PER_PAGE,
-  });
   const { data: invitationsData, isFetching: invitationsFetching } =
-    useGetInvitationsQuery(fetchParams);
+    useGetInvitationsQuery();
   const [inviteUser] = useInviteUserMutation();
   const [updateInvitation] = useUpdateInvitationMutation();
   const [deleteInvitation] = useDeleteInvitationMutation();
-  const [filterOpen, setFilterOpen] = useState(false);
   const [openDialog, setOpenDialog] = useState<string | null>(null);
   const [clickedInvitation, setClickedInvitation] = useState<any>(null);
 
@@ -240,7 +208,6 @@ const UserInvitations = ({
     return <div>Access denied: Insufficient permissions.</div>;
 
   const groups = allGroups.filter((group) => !group["single_user_group"]);
-  const { pageNumber, numPerPage, ...filters } = fetchParams;
   const closeDialog = () => setOpenDialog(null);
 
   const runAndNotify = async (
@@ -357,17 +324,6 @@ const UserInvitations = ({
     }
   };
 
-  const handleFilterSubmit = (formData: any) => {
-    setFetchParams({
-      pageNumber: 1,
-      numPerPage,
-      ...Object.fromEntries(
-        Object.entries(formData).filter(([, value]) => value),
-      ),
-    });
-    setFilterOpen(false);
-  };
-
   const openInvitationDialog = (invitation: any, dialog: string) => {
     setClickedInvitation(invitation);
     setOpenDialog(dialog);
@@ -471,7 +427,7 @@ const UserInvitations = ({
   const columns: any[] = [
     { field: "user_email", headerName: "Invitee Email", minWidth: 180 },
     {
-      field: "role",
+      field: "role_id",
       headerName: "Role",
       minWidth: 150,
       renderCell: renderRole,
@@ -480,25 +436,29 @@ const UserInvitations = ({
       field: "groups",
       headerName: "Groups",
       minWidth: 220,
+      valueGetter: (value: any[]) =>
+        value?.map((entity) => entity.name).join(", "),
       renderCell: ({ row }: any) => renderEntities("Groups", row),
     },
     {
       field: "streams",
       headerName: "Streams",
       minWidth: 220,
+      valueGetter: (value: any[]) =>
+        value?.map((entity) => entity.name).join(", "),
       renderCell: ({ row }: any) => renderEntities("Streams", row),
     },
     {
       field: "invited_by",
       headerName: "Invited By",
       minWidth: 120,
-      valueGetter: (_value: any, row: any) => row.invited_by?.username,
+      valueGetter: (value: any) => value?.username,
     },
     {
       field: "created_at",
       headerName: "Sent At",
       minWidth: 120,
-      valueGetter: (_value: any, row: any) => formatDate(row.created_at),
+      valueFormatter: formatDate,
     },
     {
       field: "user_expiration_date",
@@ -511,31 +471,11 @@ const UserInvitations = ({
       field: "actions",
       headerName: "Actions",
       minWidth: 120,
+      sortable: false,
+      filterable: false,
       renderCell: renderActions,
     },
-  ].map((column: any) => ({
-    flex: 1,
-    sortable: false,
-    ...column,
-  }));
-
-  const filterFormSchema = {
-    type: "object",
-    properties: {
-      email: { type: "string", title: "Email" },
-      group: {
-        title: "Group",
-        type: "string",
-        enum: groups.map((group) => group.name),
-      },
-      stream: {
-        title: "Stream",
-        type: "string",
-        enum: streams.map((stream: any) => stream.name),
-      },
-      invitedBy: { type: "string", title: "Invited by" },
-    },
-  };
+  ].map((column: any) => ({ flex: 1, ...column }));
 
   return (
     <>
@@ -546,26 +486,10 @@ const UserInvitations = ({
           rows={invitationsData?.invitations || []}
           getRowHeight={() => "auto"}
           loading={invitationsFetching}
-          paginationMode="server"
-          rowCount={invitationsData?.totalMatches ?? 0}
-          paginationModel={{ page: pageNumber - 1, pageSize: numPerPage }}
-          onPaginationModelChange={(model: any) =>
-            setFetchParams({
-              ...fetchParams,
-              numPerPage: model.pageSize,
-              pageNumber: model.page + 1,
-            })
-          }
-          disableColumnFilter
-          slots={{ toolbar: InvitationsToolbar }}
-          slotProps={{
-            toolbar: {
-              filters,
-              onOpenFilters: () => setFilterOpen(true),
-              onDeleteFilter: (key: string) =>
-                handleFilterSubmit({ ...filters, [key]: undefined }),
-            },
+          initialState={{
+            sorting: { sortModel: [{ field: "created_at", sort: "desc" }] },
           }}
+          slots={{ toolbar: InvitationsToolbar }}
           showToolbar
         />
       </Box>
@@ -617,15 +541,6 @@ const UserInvitations = ({
               </Button>
             </Box>
           </Box>
-        </DialogContent>
-      </Dialog>
-      <Dialog open={filterOpen} onClose={() => setFilterOpen(false)} fullWidth>
-        <DialogContent>
-          <Form
-            schema={filterFormSchema as any}
-            validator={validator}
-            onSubmit={({ formData }: any) => handleFilterSubmit(formData)}
-          />
         </DialogContent>
       </Dialog>
       {(["Groups", "Streams"] as const).map((kind) => (
