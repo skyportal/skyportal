@@ -339,6 +339,47 @@ def test_setup_invited_user_permissions_is_idempotent_for_existing_members(
     assert pipeline_invitation.used is True
 
 
+def test_setup_invited_user_permissions_rejects_expired_invitation(
+    invitations_enabled,
+    user,
+    public_group,
+    public_stream,
+    pipeline_invitation,
+    cleanup_users,
+):
+    invitee = User(
+        username=f"invitee{uuid.uuid4().hex[:8]}",
+        oauth_uid=f"uid-{uuid.uuid4().hex[:8]}",
+    )
+    DBSession().add(invitee)
+    DBSession().commit()
+    cleanup_users.append(invitee)
+
+    n_days = int(cfg["invitations.days_until_expiry"])
+    pipeline_invitation.groups = [public_group]
+    pipeline_invitation.streams = [public_stream]
+    pipeline_invitation.admin_for_groups = [True]
+    pipeline_invitation.can_save_to_groups = [True]
+    pipeline_invitation.can_share_photometry_for_groups = [False]
+    pipeline_invitation.created_at = datetime.datetime.now() - datetime.timedelta(
+        days=n_days + 1
+    )
+    DBSession().commit()
+
+    # An existing account skips create_user's checks and lands here directly.
+    strategy = FakeStrategy(session_values={"invite_token": pipeline_invitation.token})
+    with pytest.raises(Exception, match="expired"):
+        setup_invited_user_permissions(strategy, invitee.oauth_uid, {}, invitee)
+
+    group_ids = set(
+        DBSession().scalars(
+            sa.select(GroupUser.group_id).where(GroupUser.user_id == invitee.id)
+        )
+    )
+    assert public_group.id not in group_ids
+    assert pipeline_invitation.used is False
+
+
 def test_user_details_skips_users_that_already_have_details(user):
     strategy = FakeStrategy()
     user.contact_email = "already@example.com"

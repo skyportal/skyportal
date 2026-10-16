@@ -107,6 +107,19 @@ def matched_user(user, social):
     return result
 
 
+def check_invitation_not_expired(invitation):
+    try:
+        n_days = int(cfg["invitations.days_until_expiry"])
+    except TypeError:
+        raise TypeError(
+            "Invalid invitation configuration value: invitations.days_until_expiry cannot be cast to int"
+        )
+
+    cutoff_datetime = datetime.datetime.now() - datetime.timedelta(days=n_days)
+    if invitation.created_at < cutoff_datetime:
+        raise Exception("Authentication Error: Invite token expired.")
+
+
 def create_user(strategy, details, backend, uid, user=None, *args, **kwargs):
     invite_token = strategy.session_get("invite_token")
     session = DBSession()
@@ -124,13 +137,6 @@ def create_user(strategy, details, backend, uid, user=None, *args, **kwargs):
             elif existing_user is not None:
                 return matched_user(existing_user, existing_social)
 
-            try:
-                n_days = int(cfg["invitations.days_until_expiry"])
-            except TypeError:
-                raise TypeError(
-                    "Invalid invitation configuration value: invitations.days_until_expiry cannot be cast to int"
-                )
-
             invitation = session.scalar(
                 sa.select(Invitation).where(Invitation.token == invite_token)
             )
@@ -140,9 +146,7 @@ def create_user(strategy, details, backend, uid, user=None, *args, **kwargs):
                     "Authentication Error: Invalid invite token. A valid invite token is required."
                 )
 
-            cutoff_datetime = datetime.datetime.now() - datetime.timedelta(days=n_days)
-            if invitation.created_at < cutoff_datetime:
-                raise Exception("Authentication Error: Invite token expired.")
+            check_invitation_not_expired(invitation)
             if invitation.used:
                 raise Exception(
                     "Authentication Error: Invite token has already been used."
@@ -262,6 +266,8 @@ def setup_invited_user_permissions(strategy, uid, details, user, *args, **kwargs
             "Authentication Error: Invalid invite token. A valid invite token is required."
         )
 
+    # create_user returns early for existing accounts, so check expiry here too.
+    check_invitation_not_expired(invitation)
     if invitation.used:
         raise Exception("Authentication Error: Invitation has already been used.")
 
