@@ -23,11 +23,11 @@ import {
   useGetUserActivityQuery,
   useGetUserPublicProfileQuery,
 } from "../../ducks/users";
+import type { ActivityItem, ActivityKind } from "../../ducks/users";
 import { useStartDiscussionMutation } from "../../ducks/discussions";
 
 dayjs.extend(relativeTime);
 dayjs.extend(utc);
-import type { ActivityItem, ActivityKind } from "../../ducks/users";
 
 const PAGE = 25;
 
@@ -89,12 +89,42 @@ const ActivityLine = ({ item }: { item: ActivityItem }) => {
   );
 };
 
+interface ActivityPageProps {
+  id: string;
+  offset: number;
+  last: boolean;
+  onMore: () => void;
+}
+
+const ActivityPage = ({ id, offset, last, onMore }: ActivityPageProps) => {
+  const { data } = useGetUserActivityQuery({ id, offset, limit: PAGE });
+  if (!data) {
+    return (
+      <Button secondary size="small" disabled sx={{ mt: 1 }}>
+        Loading...
+      </Button>
+    );
+  }
+  return (
+    <>
+      {data.items.map((item, index) => (
+        <ActivityLine
+          key={`${item.kind}-${item.obj_id}-${item.created_at}-${index}`}
+          item={item}
+        />
+      ))}
+      {last && data.has_more && (
+        <Button secondary size="small" onClick={onMore} sx={{ mt: 1 }}>
+          Show more
+        </Button>
+      )}
+    </>
+  );
+};
+
 const Activity = ({ id }: { id: string }) => {
   const [pages, setPages] = useState(1);
-  const { data, isFetching } = useGetUserActivityQuery({
-    id,
-    limit: PAGE * pages,
-  });
+  const { data } = useGetUserActivityQuery({ id, offset: 0, limit: PAGE });
   if (!data) return null;
 
   const counts = ACTIVITY_LABELS.filter(([key]) => data.counts[key] > 0);
@@ -118,23 +148,15 @@ const Activity = ({ id }: { id: string }) => {
               />
             ))}
           </Box>
-          {data.items.map((item, index) => (
-            <ActivityLine
-              key={`${item.kind}-${item.obj_id}-${item.created_at}-${index}`}
-              item={item}
+          {Array.from({ length: pages }, (_, page) => (
+            <ActivityPage
+              key={page}
+              id={id}
+              offset={page * PAGE}
+              last={page === pages - 1}
+              onMore={() => setPages(pages + 1)}
             />
           ))}
-          {data.has_more && (
-            <Button
-              secondary
-              size="small"
-              disabled={isFetching}
-              onClick={() => setPages((n) => n + 1)}
-              sx={{ mt: 1 }}
-            >
-              {isFetching ? "Loading..." : "Show more"}
-            </Button>
-          )}
         </>
       )}
     </Box>

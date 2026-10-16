@@ -651,12 +651,14 @@ ACTIVITY_LOADERS = {
 
 
 def _mine(model, column, user_id, viewer):
-    stmt = model.select(viewer).options(*ACTIVITY_LOADERS.get(model, []))
+    stmt = model.select(viewer, columns=[model.id]).where(
+        getattr(model, column) == user_id
+    )
     if model is Comment:
         # Channel comments are conversation rather than a record of work, and
         # the news feed leaves them out on the same grounds.
         stmt = stmt.where(Comment.channel.is_(None))
-    return stmt.where(getattr(model, column) == user_id)
+    return model.id.in_(stmt)
 
 
 async def activity_counts(session, user_id, viewer):
@@ -666,13 +668,10 @@ async def activity_counts(session, user_id, viewer):
         # A source saved to several groups is one source, and one row per
         # group; counting the object says what a reader means by "saved".
         identity = Source.obj_id if model is Source else model.id
-        rows = model.select(viewer, columns=[identity.label("identity")]).where(
-            getattr(model, column) == user_id
-        )
-        # The access policies join over group membership too, so a row arrives
-        # once per group the viewer shares with it; count each one once.
         counts[name] = await session.scalar(
-            sa.select(func.count(func.distinct(rows.subquery().c.identity)))
+            sa.select(func.count(func.distinct(identity))).where(
+                _mine(model, column, user_id, viewer)
+            )
         )
     return counts
 
@@ -690,16 +689,28 @@ async def activity_feed(session, user_id, viewer, offset=0, limit=ACTIVITY_PAGE)
     wanted = offset + limit
     items = []
     for kind, (model, column, detail) in ACTIVITY.items():
-        stmt = (
-            _mine(model, column, user_id, viewer)
-            .order_by(model.created_at.desc())
-            # One past the page, so a page filled by a single kind can still
-            # tell that the kind has more behind it.
-            .limit(wanted + 1)
-        )
-        # .unique(): the access-control join over group members returns a row
-        # per group, so a contribution would otherwise appear once per group.
-        for row in (await session.scalars(stmt)).unique().all():
+        mine = _mine(model, column, user_id, viewer)
+        if model is Source:
+            created_at = func.min(Source.created_at).label("created_at")
+            stmt = (
+                sa.select(Source.obj_id, created_at)
+                .where(mine)
+                .group_by(Source.obj_id)
+                .order_by(created_at.desc(), Source.obj_id.desc())
+            )
+        else:
+            stmt = (
+                sa.select(model)
+                .options(*ACTIVITY_LOADERS.get(model, []))
+                .where(mine)
+                .order_by(model.created_at.desc(), model.id.desc())
+            )
+        # One past the page, so a page filled by a single kind can still
+        # tell that the kind has more behind it.
+        stmt = stmt.limit(wanted + 1)
+        result = await session.execute(stmt)
+        rows = result.all() if model is Source else result.scalars().all()
+        for row in rows:
             items.append(
                 {
                     "kind": kind,
@@ -709,15 +720,7 @@ async def activity_feed(session, user_id, viewer, offset=0, limit=ACTIVITY_PAGE)
                 }
             )
     items.sort(key=lambda item: item["created_at"], reverse=True)
-    # One source saved to several groups is one line, not one per group.
-    seen, merged = set(), []
-    for item in items:
-        key = (item["kind"], item["obj_id"], item["created_at"])
-        if key in seen:
-            continue
-        seen.add(key)
-        merged.append(item)
-    return merged[offset:wanted], len(merged) > wanted
+    return items[offset:wanted], len(items) > wanted
 
 
 class UserPublicProfileHandler(BaseHandler):
@@ -806,7 +809,7 @@ class UserActivityHandler(BaseHandler):
 
             try:
                 limit = min(
-                    int(self.get_query_argument("limit", ACTIVITY_PAGE)),
+                    max(int(self.get_query_argument("limit", ACTIVITY_PAGE)), 1),
                     ACTIVITY_PAGE_MAX,
                 )
                 offset = max(int(self.get_query_argument("offset", 0)), 0)
