@@ -67,7 +67,7 @@ const useStyles = makeStyles()(() => ({
   },
   saverListItem: {
     display: "grid",
-    gridTemplateColumns: "2rem 1fr auto",
+    gridTemplateColumns: "2.25rem 1fr auto",
     alignItems: "center",
     gap: "0.75rem",
     margin: 0,
@@ -115,6 +115,7 @@ const RankBadge = ({ rank }: { rank: number }) => {
         fontSize: "0.8rem",
         fontWeight: 700,
         flexShrink: 0,
+        justifySelf: "center",
         ...(medal
           ? {
               color: medal[2],

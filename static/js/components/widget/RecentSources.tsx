@@ -359,7 +359,7 @@ const RecentSourcesList = ({
                           </span>
                         </div>
                         {source.groups?.length > 0 && (
-                          <Box sx={{ mt: 0.5 }}>
+                          <Box sx={{ mt: 0.5, mb: 0.75 }}>
                             <ExpandableCell
                               maxVisible={2}
                               items={source.groups.map((group: any) => (
