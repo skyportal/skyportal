@@ -666,10 +666,20 @@ def _mine(model, column, user_id, viewer):
     return model.id.in_(stmt)
 
 
-async def activity_counts(session, user_id, viewer):
+def shared_activity(user):
+    preferences = (user.preferences or {}).get("publicProfile") or {}
+    if not preferences.get("activity", True):
+        return []
+    return [kind for kind in ACTIVITY if preferences.get(f"activity_{kind}", True)]
+
+
+async def activity_counts(session, user_id, viewer, kinds):
     """How much of `user_id`'s work `viewer` can see, by kind."""
     counts = {}
     for name, (model, column, _detail) in ACTIVITY.items():
+        if name not in kinds:
+            counts[name] = 0
+            continue
         # A source saved to several groups is one source, and one row per
         # group; counting the object says what a reader means by "saved".
         identity = Source.obj_id if model is Source else model.id
@@ -681,9 +691,7 @@ async def activity_counts(session, user_id, viewer):
     return counts
 
 
-async def activity_feed(
-    session, user_id, viewer, offset=0, limit=ACTIVITY_PAGE, kind=None
-):
+async def activity_feed(session, user_id, viewer, kinds, offset=0, limit=ACTIVITY_PAGE):
     """`user_id`'s contributions newest first, the page starting at `offset`.
 
     Each kind is read separately and merged here: six small reads on indexed
@@ -696,7 +704,7 @@ async def activity_feed(
     wanted = offset + limit
     items = []
     for name, (model, column, detail) in ACTIVITY.items():
-        if kind is not None and name != kind:
+        if name not in kinds:
             continue
         mine = _mine(model, column, user_id, viewer)
         if model is Source:
@@ -877,15 +885,21 @@ class UserActivityHandler(BaseHandler):
                 return self.error(f"kind must be one of {', '.join(ACTIVITY)}.")
 
             viewer = session.user_or_token
+            shared = (
+                list(ACTIVITY)
+                if self.associated_user_object.id == user.id
+                else shared_activity(user)
+            )
+            kinds = shared if kind is None else [k for k in shared if k == kind]
             items, has_more = await activity_feed(
-                session, user_id, viewer, offset=offset, limit=limit, kind=kind
+                session, user_id, viewer, kinds, offset=offset, limit=limit
             )
             objs, filter_colors = await activity_objs(
                 session, viewer, {item["obj_id"] for item in items if item["obj_id"]}
             )
             return self.success(
                 data={
-                    "counts": await activity_counts(session, user_id, viewer)
+                    "counts": await activity_counts(session, user_id, viewer, shared)
                     if offset == 0
                     else None,
                     "items": items,

@@ -9,15 +9,21 @@ import Box from "@mui/material/Box";
 import ButtonBase from "@mui/material/ButtonBase";
 import Chip from "@mui/material/Chip";
 import Divider from "@mui/material/Divider";
+import IconButton from "@mui/material/IconButton";
 import Link from "@mui/material/Link";
 import Tooltip from "@mui/material/Tooltip";
 import Typography from "@mui/material/Typography";
+import VisibilityIcon from "@mui/icons-material/Visibility";
+import VisibilityOffIcon from "@mui/icons-material/VisibilityOff";
 
 import Button from "../Button";
 import Paper from "../Paper";
 import UserAvatar, { getUserRealName } from "./UserAvatar";
 import { isPlaceholder } from "../thumbnail/ThumbnailList";
-import { useGetProfileQuery } from "../../ducks/profile";
+import {
+  useGetProfileQuery,
+  useUpdateUserPreferencesMutation,
+} from "../../ducks/profile";
 import { useGetUserActivityInfiniteQuery } from "../../ducks/users";
 import type {
   ActivityItem,
@@ -180,49 +186,48 @@ const Media = ({ objId, obj, colors }: MediaProps) => {
   );
 };
 
-const Details = ({ items }: { items: ActivityItem[] }) => {
-  const comments = items.filter((item) => item.kind === "comments");
-  const tags = items.filter((item) => item.kind !== "comments" && item.detail);
-  if (!comments.length && !tags.length) return null;
+const Comments = ({ items }: { items: ActivityItem[] }) => (
+  <Box
+    sx={{
+      display: "flex",
+      flexDirection: "column",
+      alignItems: "flex-start",
+      gap: 0.75,
+      mt: 1,
+    }}
+  >
+    {items.map((item) => (
+      <Box
+        key={item.created_at}
+        sx={{
+          bgcolor: "action.hover",
+          borderRadius: 3,
+          px: 1.5,
+          py: 0.75,
+          maxWidth: "100%",
+        }}
+      >
+        <Typography variant="body2" sx={{ overflowWrap: "anywhere" }}>
+          {item.detail}
+        </Typography>
+      </Box>
+    ))}
+  </Box>
+);
 
+const Tags = ({ items }: { items: ActivityItem[] }) => {
+  const tags = items.filter((item) => item.detail);
+  if (!tags.length) return null;
   return (
-    <Box
-      sx={{
-        display: "flex",
-        flexDirection: "column",
-        alignItems: "flex-start",
-        gap: 0.75,
-        mt: 1,
-      }}
-    >
-      {comments.map((item) => (
-        <Box
-          key={item.created_at}
-          sx={{
-            bgcolor: "action.hover",
-            borderRadius: 3,
-            px: 1.5,
-            py: 0.75,
-            maxWidth: "100%",
-          }}
-        >
-          <Typography variant="body2" sx={{ overflowWrap: "anywhere" }}>
-            {item.detail}
-          </Typography>
-        </Box>
+    <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.5, mt: 1 }}>
+      {tags.map((item) => (
+        <Chip
+          key={`${item.kind}-${item.created_at}`}
+          size="small"
+          variant="outlined"
+          label={item.detail}
+        />
       ))}
-      {!!tags.length && (
-        <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.5 }}>
-          {tags.map((item) => (
-            <Chip
-              key={`${item.kind}-${item.created_at}`}
-              size="small"
-              variant="outlined"
-              label={item.detail}
-            />
-          ))}
-        </Box>
-      )}
     </Box>
   );
 };
@@ -239,6 +244,7 @@ const Post = ({ user, group, obj, colors, collapsed }: PostProps) => {
   const { newest } = group;
   const objId = newest.obj_id;
   const time = localTime(newest.created_at);
+  const comments = group.items.filter((item) => item.kind === "comments");
 
   return (
     <Box>
@@ -276,12 +282,15 @@ const Post = ({ user, group, obj, colors, collapsed }: PostProps) => {
           </Tooltip>
         </Box>
       </Box>
-      {!collapsed && (
-        <>
-          <Details items={group.items} />
-          {objId && obj && <Media objId={objId} obj={obj} colors={colors} />}
-        </>
-      )}
+      {!collapsed &&
+        (comments.length ? (
+          <Comments items={comments} />
+        ) : (
+          <>
+            <Tags items={group.items} />
+            {objId && obj && <Media objId={objId} obj={obj} colors={colors} />}
+          </>
+        ))}
     </Box>
   );
 };
@@ -370,13 +379,58 @@ const Feed = ({ user, kind, collapsed, onToggle }: FeedProps) => {
   );
 };
 
+interface VisibilityToggleProps {
+  shown: boolean;
+  label: string;
+  onToggle: () => void;
+}
+
+const VisibilityToggle = ({
+  shown,
+  label,
+  onToggle,
+}: VisibilityToggleProps) => (
+  <Tooltip
+    placement="right"
+    title={
+      shown ? "Shown on your public profile" : "Hidden from your public profile"
+    }
+  >
+    <IconButton
+      size="small"
+      aria-label={`Toggle ${label} on public profile`}
+      onClick={onToggle}
+      sx={{ p: 0.25, color: "text.secondary" }}
+    >
+      {shown ? (
+        <VisibilityIcon fontSize="small" />
+      ) : (
+        <VisibilityOffIcon fontSize="small" />
+      )}
+    </IconButton>
+  </Tooltip>
+);
+
 interface ContributionsProps {
   counts: Record<ActivityKind, number>;
+  owner: boolean;
   selected: ActivityKind | null;
   onSelect: (kind: ActivityKind | null) => void;
 }
 
-const Contributions = ({ counts, selected, onSelect }: ContributionsProps) => {
+const Contributions = ({
+  counts,
+  owner,
+  selected,
+  onSelect,
+}: ContributionsProps) => {
+  const publicProfile =
+    useGetProfileQuery().data?.preferences?.["publicProfile"] ?? {};
+  const [updatePreferences] = useUpdateUserPreferencesMutation();
+  const shown = (key: string) => publicProfile[key] ?? true;
+  const toggle = (key: string) =>
+    updatePreferences({ publicProfile: { [key]: !shown(key) } });
+
   const rows = ACTIVITY_LABELS.filter(([key]) => counts[key] > 0).map(
     ([key, label]) => ({ key, label, count: counts[key] }),
   );
@@ -384,9 +438,24 @@ const Contributions = ({ counts, selected, onSelect }: ContributionsProps) => {
 
   return (
     <Paper sx={{ px: 1, position: { md: "sticky" }, top: { md: 80 } }}>
-      <Typography variant="subtitle2" gutterBottom sx={{ px: 1 }}>
-        Contributions
-      </Typography>
+      <Box
+        sx={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          px: 1,
+          mb: 0.5,
+        }}
+      >
+        <Typography variant="subtitle2">Contributions</Typography>
+        {owner && (
+          <VisibilityToggle
+            shown={shown("activity")}
+            label="activity"
+            onToggle={() => toggle("activity")}
+          />
+        )}
+      </Box>
       {rows.length === 0 ? (
         <Typography variant="body2" color="textSecondary" sx={{ px: 1 }}>
           Nothing you have access to see.
@@ -395,34 +464,53 @@ const Contributions = ({ counts, selected, onSelect }: ContributionsProps) => {
         [{ key: null, label: "All", count: total }, ...rows].map(
           ({ key, label, count }) => {
             const active = selected === key;
+            const hidden =
+              owner &&
+              (!shown("activity") ||
+                (key !== null && !shown(`activity_${key}`)));
             return (
-              <ButtonBase
+              <Box
                 key={key ?? "all"}
-                onClick={() => onSelect(key)}
-                sx={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                  width: "100%",
-                  px: 1,
-                  py: 0.5,
-                  borderRadius: 1,
-                  bgcolor: active ? "action.selected" : "transparent",
-                  "&:hover": {
-                    bgcolor: active ? "action.selected" : "action.hover",
-                  },
-                }}
+                sx={{ display: "flex", alignItems: "center", gap: 0.5 }}
               >
-                <Typography
-                  variant="body2"
-                  color={active ? "textPrimary" : "textSecondary"}
-                  sx={{ fontWeight: active ? 600 : 400 }}
+                <ButtonBase
+                  onClick={() => onSelect(key)}
+                  sx={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    flexGrow: 1,
+                    px: 1,
+                    py: 0.5,
+                    borderRadius: 1,
+                    opacity: hidden ? 0.5 : 1,
+                    bgcolor: active ? "action.selected" : "transparent",
+                    "&:hover": {
+                      bgcolor: active ? "action.selected" : "action.hover",
+                    },
+                  }}
                 >
-                  {label}
-                </Typography>
-                <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                  {count.toLocaleString()}
-                </Typography>
-              </ButtonBase>
+                  <Typography
+                    variant="body2"
+                    color={active ? "textPrimary" : "textSecondary"}
+                    sx={{ fontWeight: active ? 600 : 400 }}
+                  >
+                    {label}
+                  </Typography>
+                  <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                    {count.toLocaleString()}
+                  </Typography>
+                </ButtonBase>
+                {owner &&
+                  (key === null ? (
+                    <Box sx={{ width: 24, flexShrink: 0 }} />
+                  ) : (
+                    <VisibilityToggle
+                      shown={shown(`activity_${key}`)}
+                      label={label}
+                      onToggle={() => toggle(`activity_${key}`)}
+                    />
+                  ))}
+              </Box>
             );
           },
         )
@@ -435,6 +523,7 @@ const ProfileActivity = ({ user }: { user: PublicProfile }) => {
   const [kind, setKind] = useState<ActivityKind | null>(null);
   const [collapsed, setCollapsed] = useState(false);
   const { data } = useGetUserActivityInfiniteQuery({ id: user.id, kind: null });
+  const owner = useGetProfileQuery().data?.id === user.id;
   const counts = data?.pages[0]?.counts;
   if (!counts) return null;
 
@@ -451,7 +540,12 @@ const ProfileActivity = ({ user }: { user: PublicProfile }) => {
         mt: 2,
       }}
     >
-      <Contributions counts={counts} selected={kind} onSelect={setKind} />
+      <Contributions
+        counts={counts}
+        owner={owner}
+        selected={kind}
+        onSelect={setKind}
+      />
       {Object.values(counts).some((count) => count > 0) && (
         <Feed
           user={user}
