@@ -212,6 +212,49 @@ def test_shift(
     page.locator(shift_on_calendar).first.click()
 
 
+def test_shift_admin_cannot_replace_member(
+    public_group, super_admin_token, super_admin_user, shift_user, page
+):
+    name = str(uuid.uuid4())
+    start_date = date.today().strftime("%Y-%m-%dT%H:%M:%S")
+    end_date = (date.today() + timedelta(days=1)).strftime("%Y-%m-%dT%H:%M:%S")
+    request_data = {
+        "name": name,
+        "group_id": public_group.id,
+        "start_date": start_date,
+        "end_date": end_date,
+        "shift_admins": [super_admin_user.id],
+    }
+    status, data = api("POST", "shifts", data=request_data, token=super_admin_token)
+    assert status == 200
+    shift_id = data["data"]["id"]
+
+    status, data = api(
+        "POST",
+        f"shifts/{shift_id}/users",
+        data={"userID": shift_user.id},
+        token=super_admin_token,
+    )
+    assert status == 200
+    status, data = api(
+        "PATCH",
+        f"shifts/{shift_id}/users/{shift_user.id}",
+        data={"needs_replacement": True},
+        token=super_admin_token,
+    )
+    assert status == 200
+
+    page.goto(f"/become_user/{super_admin_user.id}")
+    page.goto(f"/shifts/{shift_id}")
+    expect(page.locator(f'//h2[contains(., "{name}")]').first).to_be_visible()
+    expect(
+        page.locator(f'//*[@data-testid="shift-member-chip-{shift_user.id}"]').first
+    ).to_be_visible()
+
+    # the shift admin is already in the shift, so it can't take the member's slot
+    expect(page.locator('//*[@id="select-user-replace-label"]')).to_have_count(0)
+
+
 def test_shift_summary(
     public_group,
     super_admin_token,
