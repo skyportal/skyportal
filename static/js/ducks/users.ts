@@ -36,6 +36,28 @@ export interface PublicProfile {
   groups?: string[];
 }
 
+export type ActivityKind =
+  | "sources_saved"
+  | "comments"
+  | "classifications"
+  | "annotations"
+  | "spectra"
+  | "followup_requests";
+
+export interface ActivityItem {
+  kind: ActivityKind;
+  created_at: string;
+  obj_id: string | null;
+  detail: string | null;
+}
+
+/** A user's contributions, limited to what the requester may see. */
+export interface UserActivity {
+  counts: Record<ActivityKind, number>;
+  items: ActivityItem[];
+  has_more: boolean;
+}
+
 export interface UsersResult {
   users: User[];
   totalMatches: number;
@@ -54,6 +76,14 @@ export const usersApi = skyportalApi.injectEndpoints({
     }),
     getUserPublicProfile: build.query<PublicProfile, number | string>({
       query: (id) => `api/user/${id}/profile`,
+      providesTags: ["User", "PublicProfile"],
+    }),
+    getUserActivity: build.query<
+      UserActivity,
+      { id: number | string; offset?: number; limit?: number }
+    >({
+      query: ({ id, offset = 0, limit }) =>
+        `api/user/${id}/activity?offset=${offset}${limit ? `&limit=${limit}` : ""}`,
       providesTags: ["User", "PublicProfile"],
     }),
     patchUser: build.mutation<
@@ -76,5 +106,6 @@ invalidateOnMessage("skyportal/FETCH_USERS", () => ["User"]);
 export const {
   useGetUsersQuery,
   useGetUserPublicProfileQuery,
+  useGetUserActivityQuery,
   usePatchUserMutation,
 } = usersApi;

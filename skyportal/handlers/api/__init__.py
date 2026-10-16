@@ -275,6 +275,7 @@ from .thumbnail import ThumbnailHandler, ThumbnailPathHandler
 from .tns.obj_tns import ObjTNSHandler
 from .unsourced_finder import UnsourcedFinderHandler
 from .user import (
+    UserActivityHandler,
     UserHandler,
     UserPublicProfileHandler,
     set_default_acls,

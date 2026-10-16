@@ -1,6 +1,12 @@
+import { useState } from "react";
 import { Link as RouterLink, useNavigate } from "react-router-dom";
 
+import dayjs from "dayjs";
+import relativeTime from "dayjs/plugin/relativeTime";
+import utc from "dayjs/plugin/utc";
+
 import Box from "@mui/material/Box";
+import Chip from "@mui/material/Chip";
 import Link from "@mui/material/Link";
 import Typography from "@mui/material/Typography";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
@@ -13,8 +19,127 @@ import UserAvatar, { getUserRealName } from "./UserAvatar";
 import withRouter from "../withRouter";
 import { chips, field, memberSince } from "./ProfileFields";
 import { useGetProfileQuery } from "../../ducks/profile";
-import { useGetUserPublicProfileQuery } from "../../ducks/users";
+import {
+  useGetUserActivityQuery,
+  useGetUserPublicProfileQuery,
+} from "../../ducks/users";
 import { useStartDiscussionMutation } from "../../ducks/discussions";
+
+dayjs.extend(relativeTime);
+dayjs.extend(utc);
+import type { ActivityItem, ActivityKind } from "../../ducks/users";
+
+const PAGE = 25;
+
+// Ordered as a scanner would read them: what was found, then what was said
+// about it, then what was asked for.
+const ACTIVITY_LABELS: [ActivityKind, string][] = [
+  ["sources_saved", "sources saved"],
+  ["classifications", "classifications"],
+  ["comments", "comments"],
+  ["annotations", "annotations"],
+  ["spectra", "spectra"],
+  ["followup_requests", "follow-up requests"],
+];
+
+const ACTIVITY_VERBS: Record<ActivityKind, string> = {
+  sources_saved: "Saved",
+  classifications: "Classified",
+  comments: "Commented on",
+  annotations: "Annotated",
+  spectra: "Uploaded a spectrum of",
+  followup_requests: "Requested follow-up of",
+};
+
+const ActivityLine = ({ item }: { item: ActivityItem }) => {
+  const verb = ACTIVITY_VERBS[item.kind];
+  return (
+    <Box
+      sx={{
+        display: "flex",
+        alignItems: "baseline",
+        gap: 1,
+        py: 0.75,
+        borderBottom: 1,
+        borderColor: "divider",
+      }}
+    >
+      <Typography variant="body2" sx={{ flexGrow: 1, minWidth: 0 }}>
+        {verb}{" "}
+        {item.obj_id && (
+          <Link component={RouterLink} to={`/source/${item.obj_id}`}>
+            {item.obj_id}
+          </Link>
+        )}
+        {item.detail && (
+          <Typography
+            component="span"
+            variant="body2"
+            color="textSecondary"
+            sx={{ ml: 0.5 }}
+          >
+            {item.detail}
+          </Typography>
+        )}
+      </Typography>
+      <Typography variant="caption" color="textSecondary" noWrap>
+        {dayjs.utc(`${item.created_at}Z`).fromNow()}
+      </Typography>
+    </Box>
+  );
+};
+
+const Activity = ({ id }: { id: string }) => {
+  const [pages, setPages] = useState(1);
+  const { data, isFetching } = useGetUserActivityQuery({
+    id,
+    limit: PAGE * pages,
+  });
+  if (!data) return null;
+
+  const counts = ACTIVITY_LABELS.filter(([key]) => data.counts[key] > 0);
+  return (
+    <Box sx={{ mt: 2 }}>
+      <Typography variant="subtitle2" gutterBottom>
+        Contributions
+      </Typography>
+      {counts.length === 0 ? (
+        <Typography variant="body2" color="textSecondary">
+          Nothing you have access to see.
+        </Typography>
+      ) : (
+        <>
+          <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.5, mb: 1.5 }}>
+            {counts.map(([key, label]) => (
+              <Chip
+                key={key}
+                size="small"
+                label={`${data.counts[key].toLocaleString()} ${label}`}
+              />
+            ))}
+          </Box>
+          {data.items.map((item, index) => (
+            <ActivityLine
+              key={`${item.kind}-${item.obj_id}-${item.created_at}-${index}`}
+              item={item}
+            />
+          ))}
+          {data.has_more && (
+            <Button
+              secondary
+              size="small"
+              disabled={isFetching}
+              onClick={() => setPages((n) => n + 1)}
+              sx={{ mt: 1 }}
+            >
+              {isFetching ? "Loading..." : "Show more"}
+            </Button>
+          )}
+        </>
+      )}
+    </Box>
+  );
+};
 
 interface PublicProfileProps {
   route?: { id: string } | undefined;
@@ -115,6 +240,7 @@ const PublicProfile = ({ route }: PublicProfileProps) => {
           {!!profile.groups?.length && field("Groups", chips(profile.groups))}
           {field("Member since", memberSince(profile.created_at))}
         </Box>
+        {id && <Activity id={id} />}
       </Paper>
     </>
   );

@@ -23373,6 +23373,59 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/user/{user_id}/activity": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get a tally of a user's contributions
+         * @description How many sources, comments, classifications, annotations, spectra and follow-up requests this user has to their name, counting only the ones the requester is allowed to see. A viewer sharing no groups with them is told zero rather than refused, since the counts are the answer to what that viewer can see.
+         */
+        get: {
+            parameters: {
+                query?: {
+                    /** @description Items per page, capped at 100. */
+                    limit?: number;
+                    /** @description How many items to skip, for paging further back. */
+                    offset?: number;
+                };
+                header?: never;
+                path: {
+                    user_id: number;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Success"];
+                    };
+                };
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/user/{user_id}/profile": {
         parameters: {
             query?: never;

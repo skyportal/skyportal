@@ -397,3 +397,111 @@ def test_subscribing_to_deployments_turns_in_app_on(view_only_token):
     )
     assert status == 200, data
     assert deployments()["in_app"]["active"] is True
+
+
+def test_activity_reports_a_users_contributions(
+    comment_token, user, public_source, public_group, super_admin_token
+):
+    """The tally counts the work and the feed names it."""
+    status, data = api("GET", f"user/{user.id}/activity", token=super_admin_token)
+    assert status == 200, data
+    before = data["data"]["counts"]["comments"]
+
+    status, data = api(
+        "POST",
+        "comment",
+        data={
+            "obj_id": public_source.id,
+            "text": "a comment that should be counted",
+            "group_ids": [public_group.id],
+        },
+        token=comment_token,
+    )
+    assert status == 200, data
+
+    status, data = api("GET", f"user/{user.id}/activity", token=super_admin_token)
+    assert status == 200, data
+    assert data["data"]["counts"]["comments"] == before + 1
+    # every kind is reported, so the page need not know which exist
+    assert set(data["data"]["counts"]) == {
+        "sources_saved",
+        "comments",
+        "classifications",
+        "annotations",
+        "spectra",
+        "followup_requests",
+    }
+
+    newest = data["data"]["items"][0]
+    assert newest["kind"] == "comments"
+    assert newest["obj_id"] == public_source.id
+    assert newest["detail"] == "a comment that should be counted"
+
+
+def test_activity_pages_without_repeating_itself(
+    comment_token, user, public_source, public_group, super_admin_token
+):
+    """Paging is by offset, so rows sharing a timestamp are not stepped over."""
+    for i in range(3):
+        status, data = api(
+            "POST",
+            "comment",
+            data={
+                "obj_id": public_source.id,
+                "text": f"paging comment {i}",
+                "group_ids": [public_group.id],
+            },
+            token=comment_token,
+        )
+        assert status == 200, data
+
+    status, data = api(
+        "GET", f"user/{user.id}/activity?limit=2", token=super_admin_token
+    )
+    assert status == 200, data
+    first = data["data"]["items"]
+    assert len(first) == 2
+    assert data["data"]["has_more"] is True
+
+    status, data = api(
+        "GET", f"user/{user.id}/activity?limit=2&offset=2", token=super_admin_token
+    )
+    assert status == 200, data
+    second = data["data"]["items"]
+    assert second, data
+    keys = {(i["kind"], i["obj_id"], i["created_at"], i["detail"]) for i in first}
+    assert not any(
+        (i["kind"], i["obj_id"], i["created_at"], i["detail"]) in keys for i in second
+    )
+
+
+def test_activity_is_scoped_to_what_the_viewer_can_see(
+    comment_token,
+    user,
+    public_source,
+    public_group,
+    view_only_token_group2,
+    super_admin_token,
+):
+    """A comment posted to one group is invisible to someone outside it, so it
+    is absent from both the tally and the feed that viewer is shown."""
+    status, data = api(
+        "POST",
+        "comment",
+        data={
+            "obj_id": public_source.id,
+            "text": "visible to public_group only",
+            "group_ids": [public_group.id],
+        },
+        token=comment_token,
+    )
+    assert status == 200, data
+
+    status, data = api("GET", f"user/{user.id}/activity", token=super_admin_token)
+    assert status == 200, data
+    assert data["data"]["counts"]["comments"] > 0
+
+    status, data = api("GET", f"user/{user.id}/activity", token=view_only_token_group2)
+    assert status == 200, data
+    assert data["data"]["counts"]["comments"] == 0
+    assert not [i for i in data["data"]["items"] if i["kind"] == "comments"]
