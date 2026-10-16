@@ -11677,8 +11677,8 @@ export interface paths {
                 query?: {
                     /** @description Bool indicating whether to include used invitations. Defaults to false. */
                     includeUsed?: boolean;
-                    /** @description Number of invitations to return per paginated request. Defaults to 25. */
-                    numPerPage?: number;
+                    /** @description Number of invitations to return per paginated request. Defaults to all. */
+                    numPerPage?: number | null;
                     /** @description Page number for paginated query results. Defaults to 1. */
                     pageNumber?: number;
                     /** @description Get invitations whose email contains this string. */
