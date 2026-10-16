@@ -76,12 +76,18 @@ const BrokerCredentialsForm = ({
 
   const onSave = async () => {
     try {
+      // Rows exist only for listed topics, so the rest would go unseen.
+      const routing = Object.fromEntries(
+        topics
+          .map((topic) => [topic, topicFilterIds[topic] ?? []])
+          .filter(([, ids]) => (ids as number[]).length > 0),
+      );
       await setCredentials({
         brokerId,
         patch: {
           credentials: formData,
           topics,
-          topic_filter_ids: topicFilterIds,
+          topic_filter_ids: routing,
         },
       }).unwrap();
       setFormData(stored?.credentials ?? {});

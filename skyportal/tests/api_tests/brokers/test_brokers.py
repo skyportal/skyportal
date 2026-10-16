@@ -1425,3 +1425,102 @@ def test_broker_credentials_crud(
         assert data["data"] is None
     finally:
         api("DELETE", f"brokers/{broker_id}", token=super_admin_token)
+
+
+def test_routing_is_pruned_to_the_subscribed_topics(
+    super_admin_token, view_only_token, public_filter
+):
+    """Routing for a topic the client no longer lists is dropped, not refused."""
+    payload = _broker_payload()
+    status, data = api("POST", "brokers", data=payload, token=super_admin_token)
+    assert status == 200
+    broker_id = data["data"]["id"]
+    try:
+        status, data = api(
+            "PUT",
+            f"brokers/{broker_id}/credentials",
+            data={
+                "credentials": {"token": "mine"},
+                "topics": ["lasair_1x"],
+                "topic_filter_ids": {"lasair_1x": [public_filter.id]},
+            },
+            token=view_only_token,
+        )
+        assert status == 200, data
+
+        # Drop the topic; the routing for it goes with it.
+        status, data = api(
+            "PUT",
+            f"brokers/{broker_id}/credentials",
+            data={
+                "topics": ["lasair_1y"],
+                "topic_filter_ids": {"lasair_1x": [public_filter.id]},
+            },
+            token=view_only_token,
+        )
+        assert status == 200, data
+
+        status, data = api(
+            "GET", f"brokers/{broker_id}/credentials", token=view_only_token
+        )
+        assert status == 200
+        assert data["data"]["topics"] == ["lasair_1y"]
+        assert data["data"]["topic_filter_ids"] == {}
+    finally:
+        api("DELETE", f"brokers/{broker_id}/credentials", token=view_only_token)
+        api("DELETE", f"brokers/{broker_id}", token=super_admin_token)
+
+
+def test_deleting_a_filter_clears_it_from_topic_routing(
+    super_admin_token, super_admin_user, public_group, public_stream
+):
+    """A deleted filter leaves no id behind to refuse the next credentials save."""
+    payload = _broker_payload()
+    status, data = api("POST", "brokers", data=payload, token=super_admin_token)
+    assert status == 200
+    broker_id = data["data"]["id"]
+    status, data = api(
+        "POST",
+        "filters",
+        data={
+            "name": str(uuid.uuid4()),
+            "group_id": public_group.id,
+            "stream_id": public_stream.id,
+        },
+        token=super_admin_token,
+    )
+    assert status == 200
+    filter_id = data["data"]["id"]
+    try:
+        status, data = api(
+            "PUT",
+            f"brokers/{broker_id}/credentials",
+            data={
+                "credentials": {"token": "mine"},
+                "topics": ["lasair_1x"],
+                "topic_filter_ids": {"lasair_1x": [filter_id]},
+            },
+            token=super_admin_token,
+        )
+        assert status == 200, data
+
+        status, data = api("DELETE", f"filters/{filter_id}", token=super_admin_token)
+        assert status == 200, data
+
+        status, data = api(
+            "GET", f"brokers/{broker_id}/credentials", token=super_admin_token
+        )
+        assert status == 200
+        assert data["data"]["topic_filter_ids"] == {}
+
+        # and the next save is not refused for an id that is no longer offered
+        status, data = api(
+            "PUT",
+            f"brokers/{broker_id}/credentials",
+            data={"topics": ["lasair_1x"]},
+            token=super_admin_token,
+        )
+        assert status == 200, data
+    finally:
+        api("DELETE", f"brokers/{broker_id}/credentials", token=super_admin_token)
+        api("DELETE", f"brokers/{broker_id}", token=super_admin_token)

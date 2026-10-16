@@ -2040,6 +2040,9 @@ class BrokerCredentialHandler(BaseHandler):
                 row.topics = params.topics
             if params.topic_filter_ids is not None:
                 routing = {str(k): v for k, v in params.topic_filter_ids.items()}
+                # Routing for a topic nobody subscribes to does nothing here.
+                subscribed = set(row.topics or ())
+                routing = {k: v for k, v in routing.items() if k in subscribed}
                 wanted = {fid for ids in routing.values() for fid in ids}
                 if wanted:
                     allowed = (
