@@ -65,11 +65,31 @@ class SourceGroupsHandler(BaseHandler):
                 else:
                     active = False
                     requested = True
-                source = await session.scalar(
-                    Source.select(session.user_or_token)
-                    .where(Source.obj_id == obj_id)
-                    .where(Source.group_id == save_or_invite_group_id)
-                )
+                if active:
+                    source = await session.scalar(
+                        Source.select(session.user_or_token)
+                        .where(Source.obj_id == obj_id)
+                        .where(Source.group_id == save_or_invite_group_id)
+                    )
+                else:
+                    # A non-member can't read the group's Source row, so look it
+                    # up without the read policy and re-request an unsaved one
+                    # directly (Source.update is for members only).
+                    source = (
+                        await session.execute(
+                            sa.select(Source.id, Source.active).where(
+                                Source.obj_id == obj_id,
+                                Source.group_id == save_or_invite_group_id,
+                            )
+                        )
+                    ).first()
+                    if source is not None and not source.active:
+                        await session.execute(
+                            sa.update(Source.__table__)
+                            .where(Source.__table__.c.id == source.id)
+                            .values(requested=True)
+                        )
+                        continue
                 if source is None:
                     session.add(
                         Source(

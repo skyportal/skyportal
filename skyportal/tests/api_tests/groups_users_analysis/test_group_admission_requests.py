@@ -274,3 +274,25 @@ def test_group_admission_no_auto_accept_leaves_pending(
     status, data = api("GET", f"groups/{public_group.id}", token=group_admin_token)
     assert_api(status, data)
     assert user_group2.id not in [u["id"] for u in data["data"]["users"]]
+
+
+def test_group_admission_duplicate_pending(
+    public_group, user_group2, upload_data_token_group2
+):
+    request_data = {"groupID": public_group.id, "userID": user_group2.id}
+
+    status, data = api(
+        "POST",
+        "group_admission_requests",
+        data=request_data,
+        token=upload_data_token_group2,
+    )
+    assert_api(status, data)
+
+    status, data = api(
+        "POST",
+        "group_admission_requests",
+        data=request_data,
+        token=upload_data_token_group2,
+    )
+    assert_api_fail(status, data, 400, "already has a pending request")
