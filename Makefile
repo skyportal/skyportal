@@ -101,7 +101,7 @@ db_init: | baselayer/Makefile
 
 reencrypt_secret_key: ## Re-encrypt the app.secret_key columns after that key changes. Needs FLAGS="--old-key <previous key>", and --commit to write.
 reencrypt_secret_key: | baselayer/Makefile
-	@$(PYTHON) tools/reencrypt_secret_key.py $(FLAGS)
+	@$(PYTHON) tools/reencrypt_secret_key.py --config=config.yaml $(FLAGS)
 
 db_clear_test: ## Drop and recreate only the test database.
 db_clear_test: | baselayer/Makefile

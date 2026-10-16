@@ -23,9 +23,11 @@ Run it from the repository root, where baselayer and skyportal are importable:
     make reencrypt_secret_key FLAGS="--old-key abc01234"
     make reencrypt_secret_key FLAGS="--old-key abc01234 --commit"
 
-or, equivalently, the way the Makefile runs every tool here:
+or directly, naming the config the instance runs on, since without --config
+only the .defaults are read and the key compared is the one they ship:
 
-    PYTHONPATH=. python tools/reencrypt_secret_key.py --old-key abc01234
+    PYTHONPATH=. python tools/reencrypt_secret_key.py \
+        --config=config.yaml --old-key abc01234
 """
 
 import hashlib
@@ -125,6 +127,13 @@ def rekey(connection, table, column, old, new, commit):
 
 def main():
     new_key = cfg["app.secret_key"]
+    log(f"config files given with --config: {', '.join(env.config or ()) or 'none'}")
+    if not env.config:
+        log(
+            "Only the .defaults were loaded, so app.secret_key below is the one "
+            "they ship. Pass --config=config.yaml, the same file the instance "
+            "runs on, or the keys compared here are not the keys in use."
+        )
     log(f"app.secret_key in the config: {fingerprint(new_key)}")
     log(f"--old-key given on the command line: {fingerprint(env.old_key)}")
     log(f"mode: {'commit, rows will be written' if env.commit else 'report only'}")
