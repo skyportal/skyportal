@@ -315,9 +315,15 @@ const Feed = ({ user, kind, collapsed, onToggle }: FeedProps) => {
   return (
     <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
       <Box sx={{ display: "flex", justifyContent: "flex-end" }}>
-        <Button secondary size="small" onClick={onToggle}>
+        <Link
+          component="button"
+          variant="caption"
+          color="textSecondary"
+          underline="hover"
+          onClick={onToggle}
+        >
           {collapsed ? "Expand all" : "Collapse all"}
-        </Button>
+        </Link>
       </Box>
       {days.map(({ day, groups }) => (
         <Box key={day}>
@@ -376,7 +382,7 @@ const Contributions = ({ counts, selected, onSelect }: ContributionsProps) => {
   const total = rows.reduce((sum, row) => sum + row.count, 0);
 
   return (
-    <Paper sx={{ px: 1 }}>
+    <Paper sx={{ px: 1, position: { md: "sticky" }, top: { md: 80 } }}>
       <Typography variant="subtitle2" gutterBottom sx={{ px: 1 }}>
         Contributions
       </Typography>
@@ -437,7 +443,7 @@ const ProfileActivity = ({ user }: { user: PublicProfile }) => {
         display: "grid",
         gridTemplateColumns: {
           xs: "minmax(0, 1fr)",
-          md: "260px minmax(0, 680px)",
+          md: "300px minmax(0, 1fr)",
         },
         alignItems: "start",
         gap: 2,
