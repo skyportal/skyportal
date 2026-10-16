@@ -28,6 +28,7 @@ or, equivalently, the way the Makefile runs every tool here:
     PYTHONPATH=. python tools/reencrypt_secret_key.py --old-key abc01234
 """
 
+import hashlib
 import sys
 
 import sqlalchemy as sa
@@ -53,6 +54,14 @@ parser.add_argument(
 env, cfg = load_env()
 
 
+def fingerprint(key):
+    """Names a key in the log without disclosing it."""
+    if key is None:
+        return "absent"
+    digest = hashlib.sha256(str(key).encode()).hexdigest()[:8]
+    return f"{digest} ({len(str(key))} chars)"
+
+
 def engine_for(key):
     """An engine configured as StringEncryptedType configures its own."""
     engine = AesEngine()
@@ -75,7 +84,7 @@ def encrypted_columns():
 
 
 def rekey(connection, table, column, old, new, commit):
-    """Returns (moved, already, unreadable) for one column.
+    """Returns (rows seen, to re-encrypt, already on the new key, unreadable).
 
     The ciphertext is read and written through typeless columns: going through
     the mapped ones would decrypt on the way out, with the key that cannot read
@@ -90,6 +99,7 @@ def rekey(connection, table, column, old, new, commit):
         sa.select(raw_pk, raw_col).where(raw_col.isnot(None))
     ).fetchall()
 
+    total = len(rows)
     moved, already, unreadable = 0, 0, []
     for key_value, ciphertext in rows:
         try:
@@ -110,11 +120,21 @@ def rekey(connection, table, column, old, new, commit):
                 .values({column.name: new.encrypt(plaintext)})
             )
         moved += 1
-    return moved, already, unreadable
+    return total, moved, already, unreadable
 
 
 def main():
     new_key = cfg["app.secret_key"]
+    log(f"app.secret_key in the config: {fingerprint(new_key)}")
+    log(f"--old-key given on the command line: {fingerprint(env.old_key)}")
+    log(f"mode: {'commit, rows will be written' if env.commit else 'report only'}")
+
+    if new_key is None:
+        log(
+            "app.secret_key is absent from the config. It belongs under the app: "
+            "section, so the tool reads it as the path app.secret_key."
+        )
+        return 1
     if env.old_key == new_key:
         log(
             "--old-key matches app.secret_key in the config, so there is nothing "
@@ -128,23 +148,30 @@ def main():
     if not columns:
         log("No encrypted columns found; is this a skyportal database?")
         return 1
+    log(
+        f"{len(columns)} encrypted column(s): "
+        + ", ".join(f"{t.name}.{c.name}" for t, c in columns)
+    )
 
     from skyportal.models import init_db
 
-    totals = {"moved": 0, "already": 0, "unreadable": 0}
+    log(f"database: {cfg['database.database']}")
+    totals = {"rows": 0, "moved": 0, "already": 0, "unreadable": 0}
     # connect() rather than begin(), so the dry run ends in a rollback the
     # context manager will not try to commit over.
     with init_db(**cfg["database"]).connect() as connection:
         for table, column in columns:
-            moved, already, unreadable = rekey(
+            total, moved, already, unreadable = rekey(
                 connection, table, column, old, new, env.commit
             )
+            totals["rows"] += total
             totals["moved"] += moved
             totals["already"] += already
             totals["unreadable"] += len(unreadable)
             log(
-                f"{table.name}.{column.name}: {moved} to re-encrypt, "
-                f"{already} already on the new key, {len(unreadable)} unreadable"
+                f"{table.name}.{column.name}: {total} row(s) with a value, "
+                f"{moved} to re-encrypt, {already} already on the new key, "
+                f"{len(unreadable)} unreadable"
             )
             if unreadable:
                 log(f"  unreadable rows: {sorted(unreadable)}")
@@ -153,6 +180,11 @@ def main():
         else:
             connection.rollback()
 
+    if totals["rows"] == 0:
+        log(
+            "No encrypted values anywhere in this database, so there is nothing "
+            "to move; check this is the database the instance uses."
+        )
     if totals["unreadable"]:
         log(
             f"{totals['unreadable']} row(s) decrypt with neither key; they were "
