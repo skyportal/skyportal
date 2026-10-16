@@ -17,6 +17,11 @@ np.seterr(all="ignore")  # ignore numpy warnings from astropy normalization
 SKYMAP_ORDER = healpy.nside2order(512)
 
 
+def _close_new_figures(figures_before):
+    for number in set(plt.get_fignums()) - figures_before:
+        plt.close(number)
+
+
 def get_fits_preview(
     image_name,
     image_data,
@@ -49,6 +54,7 @@ def get_fits_preview(
         file_type = ".fits"
 
     matplotlib.use("Agg")
+    figures_before = set(plt.get_fignums())
 
     # try reading the data as a sedm cube
     try:
@@ -70,6 +76,8 @@ def get_fits_preview(
             return data
     except Exception:
         pass
+    finally:
+        _close_new_figures(figures_before)
 
     # try reading the data as a fits image
     try:
@@ -102,6 +110,8 @@ def get_fits_preview(
             return buf.read()
     except Exception:
         pass
+    finally:
+        _close_new_figures(figures_before)
 
     # try reading the data as a fits localization skymap
     try:
@@ -142,5 +152,7 @@ def get_fits_preview(
             return buf.read()
     except Exception:
         pass
+    finally:
+        _close_new_figures(figures_before)
 
     raise ValueError("Could not read image data")

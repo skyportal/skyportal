@@ -1855,20 +1855,23 @@ def observation_animations(
             patches.append(mpatches.Patch(color=surveyColors[filt], label=filt))
         plt.legend(handles=patches)
 
-    if output_format == "gif":
-        writer = animation.PillowWriter()
-    elif output_format == "mp4":
-        writer = animation.FFMpegWriter()
-    else:
-        raise ValueError("output_format must be gif or mp4")
+    try:
+        if output_format == "gif":
+            writer = animation.PillowWriter()
+        elif output_format == "mp4":
+            writer = animation.FFMpegWriter()
+        else:
+            raise ValueError("output_format must be gif or mp4")
 
-    with tempfile.NamedTemporaryFile(mode="w", suffix="." + output_format) as f:
-        anim = animation.FuncAnimation(fig, plot_schedule, frames=len(observations))
-        anim.save(f.name, writer=writer)
-        f.flush()
+        with tempfile.NamedTemporaryFile(mode="w", suffix="." + output_format) as f:
+            anim = animation.FuncAnimation(fig, plot_schedule, frames=len(observations))
+            anim.save(f.name, writer=writer)
+            f.flush()
 
-        with open(f.name, mode="rb") as g:
-            anim_content = g.read()
+            with open(f.name, mode="rb") as g:
+                anim_content = g.read()
+    finally:
+        plt.close(fig)
 
     return {
         "success": True,
