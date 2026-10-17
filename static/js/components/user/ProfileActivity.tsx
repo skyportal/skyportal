@@ -121,10 +121,7 @@ const LightCurve = ({ points, colors }: LightCurveProps) => {
     x1 > x0 ? 20 + (74 * (mjd - x0)) / (x1 - x0) : 57;
   const y = (mag: number) => (y1 > y0 ? 8 + (72 * (mag - y0)) / (y1 - y0) : 44);
   const bands = [...new Set(points.map(([, , band]) => band))];
-  const date = (mjd: number) =>
-    dayjs((mjd - 40587) * 86400000).format(
-      x1 - x0 > 365 ? "MMM YYYY" : "MMM D",
-    );
+  const date = (mjd: number) => dayjs((mjd - 40587) * 86400000).fromNow();
 
   return (
     <Box sx={{ ...TILE, color: "text.secondary" }}>
@@ -153,7 +150,7 @@ const LightCurve = ({ points, colors }: LightCurveProps) => {
           strokeOpacity={0.6}
           strokeWidth={0.6}
         />
-        <g fill="currentColor" fontSize={6} textAnchor="end">
+        <g fill="currentColor" fontSize={5.5} textAnchor="end">
           <text x={15} y={y(y0) + 2}>
             {y0.toFixed(1)}
           </text>
