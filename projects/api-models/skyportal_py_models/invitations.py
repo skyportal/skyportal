@@ -73,9 +73,9 @@ class InvitationGetQuery(BaseModel):
         default=False,
         description="Bool indicating whether to include used invitations. Defaults to false.",
     )
-    numPerPage: int = Field(
-        default=25,
-        description="Number of invitations to return per paginated request. Defaults to 25.",
+    numPerPage: int | None = Field(
+        default=None,
+        description="Number of invitations to return per paginated request. Defaults to all.",
     )
     pageNumber: int = Field(
         default=1,

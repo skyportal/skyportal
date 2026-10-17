@@ -1,11 +1,14 @@
 import { useState } from "react";
 import Box from "@mui/material/Box";
+import Collapse from "@mui/material/Collapse";
 import TextField from "@mui/material/TextField";
 import MenuItem from "@mui/material/MenuItem";
 import Dialog from "@mui/material/Dialog";
 import DialogActions from "@mui/material/DialogActions";
 import DialogContent from "@mui/material/DialogContent";
 import DialogTitle from "@mui/material/DialogTitle";
+import ExpandLessIcon from "@mui/icons-material/ExpandLess";
+import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import { AdapterDateFns } from "@mui/x-date-pickers/AdapterDateFns";
 import { LocalizationProvider } from "@mui/x-date-pickers";
 import { DatePicker } from "@mui/x-date-pickers/DatePicker";
@@ -33,6 +36,7 @@ const InviteNewUserForm = ({
   const [expirationDate, setExpirationDate] = useState<Date | null>(null);
   const [permissions, setPermissions] = useState(DEFAULT_PERMISSIONS);
   const [confirmOpen, setConfirmOpen] = useState(false);
+  const [moreOptions, setMoreOptions] = useState(false);
   const fullUser = role === "Full user";
 
   const invite = async () => {
@@ -80,37 +84,50 @@ const InviteNewUserForm = ({
         data-testid="newUserEmail"
         fullWidth
       />
-      <TextField
-        select
-        label="Role"
-        value={role}
-        onChange={(event) => setRole(event.target.value)}
-        fullWidth
+      <Button
+        size="small"
+        onClick={() => setMoreOptions(!moreOptions)}
+        endIcon={moreOptions ? <ExpandLessIcon /> : <ExpandMoreIcon />}
+        aria-expanded={moreOptions}
+        sx={{ alignSelf: "flex-start" }}
       >
-        <MenuItem value="Full user">Full user</MenuItem>
-        <MenuItem value="View only">View only</MenuItem>
-      </TextField>
-      <LocalizationProvider dateAdapter={AdapterDateFns}>
-        <DatePicker
-          label="Account expiration date (UTC)"
-          value={expirationDate}
-          onChange={setExpirationDate}
-          slotProps={{
-            textField: {
-              fullWidth: true,
-              helperText:
-                "Optional. The account is deactivated after this date",
-            },
-          }}
-        />
-      </LocalizationProvider>
-      {fullUser && (
-        <MemberPermissions
-          value={permissions}
-          onChange={setPermissions}
-          hide={permissions.canSave ? [] : ["admin"]}
-        />
-      )}
+        More options
+      </Button>
+      <Collapse in={moreOptions} unmountOnExit>
+        <Box sx={{ display: "flex", flexDirection: "column", gap: 2, pt: 1 }}>
+          <TextField
+            select
+            label="Role"
+            value={role}
+            onChange={(event) => setRole(event.target.value)}
+            fullWidth
+          >
+            <MenuItem value="Full user">Full user</MenuItem>
+            <MenuItem value="View only">View only</MenuItem>
+          </TextField>
+          <LocalizationProvider dateAdapter={AdapterDateFns}>
+            <DatePicker
+              label="Account expiration date (UTC)"
+              value={expirationDate}
+              onChange={setExpirationDate}
+              slotProps={{
+                textField: {
+                  fullWidth: true,
+                  helperText:
+                    "Optional. The account is deactivated after this date",
+                },
+              }}
+            />
+          </LocalizationProvider>
+          {fullUser && (
+            <MemberPermissions
+              value={permissions}
+              onChange={setPermissions}
+              hide={permissions.canSave ? [] : ["admin"]}
+            />
+          )}
+        </Box>
+      </Collapse>
       <Dialog open={confirmOpen} onClose={() => setConfirmOpen(false)}>
         <DialogTitle>Invite new user and add to this group?</DialogTitle>
         <DialogContent>
