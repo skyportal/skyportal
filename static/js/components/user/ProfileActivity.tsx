@@ -117,25 +117,71 @@ const LightCurve = ({ points, colors }: LightCurveProps) => {
   const mags = points.map(([, mag]) => mag);
   const [x0, x1] = [Math.min(...mjds), Math.max(...mjds)];
   const [y0, y1] = [Math.min(...mags), Math.max(...mags)];
-  const x = (mjd: number) => (x1 > x0 ? 8 + (84 * (mjd - x0)) / (x1 - x0) : 50);
-  const y = (mag: number) => (y1 > y0 ? 8 + (84 * (mag - y0)) / (y1 - y0) : 50);
+  const x = (mjd: number) =>
+    x1 > x0 ? 20 + (74 * (mjd - x0)) / (x1 - x0) : 57;
+  const y = (mag: number) => (y1 > y0 ? 8 + (72 * (mag - y0)) / (y1 - y0) : 44);
+  const bands = [...new Set(points.map(([, , band]) => band))];
 
   return (
-    <Box sx={TILE}>
+    <Box sx={{ ...TILE, color: "text.secondary" }}>
       <svg
         viewBox="0 0 100 100"
         width="100%"
         height="100%"
         style={{ display: "block" }}
       >
+        {(y1 > y0 ? [y0, y1] : [y0]).map((mag) => (
+          <line
+            key={mag}
+            x1={17}
+            x2={97}
+            y1={y(mag)}
+            y2={y(mag)}
+            stroke="currentColor"
+            strokeOpacity={0.25}
+            strokeWidth={0.5}
+          />
+        ))}
+        <path
+          d="M17 4 V86 H97"
+          fill="none"
+          stroke="currentColor"
+          strokeOpacity={0.6}
+          strokeWidth={0.6}
+        />
+        <g fill="currentColor" fontSize={6} textAnchor="end">
+          <text x={15} y={y(y0) + 2}>
+            {y0.toFixed(1)}
+          </text>
+          {y1 > y0 && (
+            <text x={15} y={y(y1) + 2}>
+              {y1.toFixed(1)}
+            </text>
+          )}
+          <text x={97} y={95}>
+            {x1 > x0 ? `${Math.round(x1 - x0)} days` : "1 night"}
+          </text>
+        </g>
+        {bands.map((band) => (
+          <polyline
+            key={band}
+            points={points
+              .filter(([, , b]) => b === band)
+              .map(([mjd, mag]) => `${x(mjd)},${y(mag)}`)
+              .join(" ")}
+            fill="none"
+            stroke={colors[band] ?? "#888"}
+            strokeOpacity={0.6}
+            strokeWidth={0.7}
+          />
+        ))}
         {points.map(([mjd, mag, band], index) => (
           <circle
             key={index}
             cx={x(mjd)}
             cy={y(mag)}
-            r={1.8}
+            r={1.6}
             fill={colors[band] ?? "#888"}
-            fillOpacity={0.85}
           />
         ))}
       </svg>
@@ -299,10 +345,9 @@ interface FeedProps {
   user: PublicProfile;
   kind: ActivityKind | null;
   collapsed: boolean;
-  onToggle: () => void;
 }
 
-const Feed = ({ user, kind, collapsed, onToggle }: FeedProps) => {
+const Feed = ({ user, kind, collapsed }: FeedProps) => {
   const { data, hasNextPage, fetchNextPage, isFetchingNextPage } =
     useGetUserActivityInfiniteQuery({ id: user.id, kind });
   const days = useMemo(
@@ -324,17 +369,6 @@ const Feed = ({ user, kind, collapsed, onToggle }: FeedProps) => {
   );
   return (
     <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
-      <Box sx={{ display: "flex", justifyContent: "flex-end" }}>
-        <Link
-          component="button"
-          variant="caption"
-          color="textSecondary"
-          underline="hover"
-          onClick={onToggle}
-        >
-          {collapsed ? "Expand all" : "Collapse all"}
-        </Link>
-      </Box>
       {days.map(({ day, groups }) => (
         <Box key={day}>
           <Divider sx={{ mb: 1 }}>
@@ -416,6 +450,8 @@ interface ContributionsProps {
   owner: boolean;
   selected: ActivityKind | null;
   onSelect: (kind: ActivityKind | null) => void;
+  collapsed: boolean;
+  onCollapse: () => void;
 }
 
 const Contributions = ({
@@ -423,6 +459,8 @@ const Contributions = ({
   owner,
   selected,
   onSelect,
+  collapsed,
+  onCollapse,
 }: ContributionsProps) => {
   const publicProfile =
     useGetProfileQuery().data?.preferences?.["publicProfile"] ?? {};
@@ -448,13 +486,26 @@ const Contributions = ({
         }}
       >
         <Typography variant="subtitle2">Contributions</Typography>
-        {owner && (
-          <VisibilityToggle
-            shown={shown("activity")}
-            label="activity"
-            onToggle={() => toggle("activity")}
-          />
-        )}
+        <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+          {rows.length > 0 && (
+            <Link
+              component="button"
+              variant="caption"
+              color="textSecondary"
+              underline="hover"
+              onClick={onCollapse}
+            >
+              {collapsed ? "Expand all" : "Collapse all"}
+            </Link>
+          )}
+          {owner && (
+            <VisibilityToggle
+              shown={shown("activity")}
+              label="activity"
+              onToggle={() => toggle("activity")}
+            />
+          )}
+        </Box>
       </Box>
       {rows.length === 0 ? (
         <Typography variant="body2" color="textSecondary" sx={{ px: 1 }}>
@@ -545,14 +596,11 @@ const ProfileActivity = ({ user }: { user: PublicProfile }) => {
         owner={owner}
         selected={kind}
         onSelect={setKind}
+        collapsed={collapsed}
+        onCollapse={() => setCollapsed(!collapsed)}
       />
       {Object.values(counts).some((count) => count > 0) && (
-        <Feed
-          user={user}
-          kind={kind}
-          collapsed={collapsed}
-          onToggle={() => setCollapsed(!collapsed)}
-        />
+        <Feed user={user} kind={kind} collapsed={collapsed} />
       )}
     </Box>
   );
