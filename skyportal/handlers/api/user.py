@@ -12,7 +12,7 @@ from skyportal_py_models.users import (
     UserPostResponse,
 )
 from sqlalchemy import func
-from sqlalchemy.orm import selectinload
+from sqlalchemy.orm import load_only, selectinload
 
 from baselayer.app.access import auth_or_token, permissions
 from baselayer.app.env import load_env
@@ -21,16 +21,26 @@ from skyportal.model_util import all_acl_ids, role_acls
 
 from ...models import (
     ACL,
+    Annotation,
+    Classification,
+    Comment,
+    FollowupRequest,
     Group,
     GroupUser,
+    Photometry,
     Role,
+    Source,
+    Spectrum,
     Stream,
     StreamUser,
+    Thumbnail,
     User,
     UserACL,
     UserRole,
 )
 from ..base import BaseHandler
+from .internal.source_views import t_index
+from .photometry import get_bandpasses_to_colors
 from .roles import includes_admin_role
 
 log = make_log("api/user")
@@ -602,6 +612,177 @@ class UserHandler(BaseHandler):
         return self.success()
 
 
+ACTIVITY_PAGE = 25
+ACTIVITY_PAGE_MAX = 100
+ACTIVITY_PHOTOMETRY_POINTS = 200
+
+
+def _comment_detail(row):
+    text = (row.text or "").strip().replace("\n", " ")
+    return text[:140] + ("..." if len(text) > 140 else "")
+
+
+def _classification_detail(row):
+    if row.probability is None:
+        return row.classification
+    return f"{row.classification} (p={row.probability:g})"
+
+
+# What a profile shows, the column each kind of contribution is signed with,
+# and the one line it is worth saying about one. Every read runs through the
+# model's own policy, so a viewer sees the part of someone's work they could
+# have found for themselves.
+ACTIVITY = {
+    "sources_saved": (Source, "saved_by_id", lambda row: None),
+    "comments": (Comment, "author_id", _comment_detail),
+    "classifications": (Classification, "author_id", _classification_detail),
+    "annotations": (Annotation, "author_id", lambda row: row.origin),
+    "spectra": (Spectrum, "owner_id", lambda row: None),
+    "followup_requests": (FollowupRequest, "requester_id", lambda row: row.status),
+}
+
+
+# A spectrum carries its wavelengths, fluxes and errors, which a feed line
+# never reads; the news feed loads its metadata only for the same reason.
+ACTIVITY_LOADERS = {
+    Spectrum: [
+        load_only(
+            Spectrum.obj_id,
+            Spectrum.created_at,
+            Spectrum.owner_id,
+        )
+    ],
+}
+
+
+def _mine(model, column, user_id, viewer):
+    stmt = model.select(viewer, columns=[model.id]).where(
+        getattr(model, column) == user_id
+    )
+    if model is Comment:
+        # Channel comments are conversation rather than a record of work, and
+        # the news feed leaves them out on the same grounds.
+        stmt = stmt.where(Comment.channel.is_(None))
+    return model.id.in_(stmt)
+
+
+def shared_activity(user):
+    preferences = (user.preferences or {}).get("publicProfile") or {}
+    if not preferences.get("activity", True):
+        return []
+    return [kind for kind in ACTIVITY if preferences.get(f"activity_{kind}", True)]
+
+
+async def activity_counts(session, user_id, viewer, kinds):
+    """How much of `user_id`'s work `viewer` can see, by kind."""
+    counts = {}
+    for name, (model, column, _detail) in ACTIVITY.items():
+        if name not in kinds:
+            counts[name] = 0
+            continue
+        # A source saved to several groups is one source, and one row per
+        # group; counting the object says what a reader means by "saved".
+        identity = Source.obj_id if model is Source else model.id
+        counts[name] = await session.scalar(
+            sa.select(func.count(func.distinct(identity))).where(
+                _mine(model, column, user_id, viewer)
+            )
+        )
+    return counts
+
+
+async def activity_feed(session, user_id, viewer, kinds, offset=0, limit=ACTIVITY_PAGE):
+    """`user_id`'s contributions newest first, the page starting at `offset`.
+
+    Each kind is read separately and merged here: six small reads on indexed
+    attribution columns beat a union of six access-controlled queries.
+
+    Paged by offset rather than by a timestamp cursor because a bulk save
+    stamps many rows the same instant, and a cursor of "older than the last
+    one" would step over the rest of them.
+    """
+    wanted = offset + limit
+    items = []
+    for name, (model, column, detail) in ACTIVITY.items():
+        if name not in kinds:
+            continue
+        mine = _mine(model, column, user_id, viewer)
+        if model is Source:
+            created_at = func.min(Source.created_at).label("created_at")
+            stmt = (
+                sa.select(Source.obj_id, created_at)
+                .where(mine)
+                .group_by(Source.obj_id)
+                .order_by(created_at.desc(), Source.obj_id.desc())
+            )
+        else:
+            stmt = (
+                sa.select(model)
+                .options(*ACTIVITY_LOADERS.get(model, []))
+                .where(mine)
+                .order_by(model.created_at.desc(), model.id.desc())
+            )
+        # One past the page, so a page filled by a single kind can still
+        # tell that the kind has more behind it.
+        stmt = stmt.limit(wanted + 1)
+        result = await session.execute(stmt)
+        rows = result.all() if model is Source else result.scalars().all()
+        for row in rows:
+            items.append(
+                {
+                    "kind": name,
+                    "created_at": row.created_at,
+                    "obj_id": getattr(row, "obj_id", None),
+                    "detail": detail(row),
+                }
+            )
+    items.sort(key=lambda item: item["created_at"], reverse=True)
+    return items[offset:wanted], len(items) > wanted
+
+
+async def activity_objs(session, viewer, obj_ids):
+    objs = {obj_id: {"thumbnails": [], "photometry": []} for obj_id in obj_ids}
+    if not objs:
+        return objs, {}
+
+    thumbnails = await session.scalars(
+        Thumbnail.select(viewer).where(Thumbnail.obj_id.in_(objs))
+    )
+    for t in sorted(thumbnails.unique().all(), key=lambda t: t_index(t.type)):
+        objs[t.obj_id]["thumbnails"].append(
+            {
+                "type": t.type,
+                "public_url": t.public_url,
+                "is_grayscale": t.is_grayscale,
+            }
+        )
+
+    readable = Photometry.select(viewer, columns=[Photometry.id]).where(
+        Photometry.obj_id.in_(objs)
+    )
+    points = await session.execute(
+        sa.select(Photometry.obj_id, Photometry.mjd, Photometry.mag, Photometry.filter)
+        .where(
+            Photometry.id.in_(readable),
+            Photometry.snr >= cfg["misc.photometry_detection_threshold_nsigma"],
+        )
+        .order_by(Photometry.mjd)
+    )
+    for obj_id, mjd, mag, band in points.all():
+        objs[obj_id]["photometry"].append([mjd, round(mag, 3), band])
+
+    filters = set()
+    for obj in objs.values():
+        photometry = obj["photometry"]
+        if len(photometry) > ACTIVITY_PHOTOMETRY_POINTS:
+            step = len(photometry) / ACTIVITY_PHOTOMETRY_POINTS
+            obj["photometry"] = [
+                photometry[int(i * step)] for i in range(ACTIVITY_PHOTOMETRY_POINTS)
+            ]
+        filters.update(point[2] for point in obj["photometry"])
+    return objs, get_bandpasses_to_colors(filters, "hex")
+
+
 class UserPublicProfileHandler(BaseHandler):
     @auth_or_token
     async def get(self, user_id: int):
@@ -637,3 +818,93 @@ class UserPublicProfileHandler(BaseHandler):
                 return self.error(f"Cannot find user with ID {user_id}.")
 
             return self.success(data=public_user_info(user))
+
+
+class UserActivityHandler(BaseHandler):
+    @auth_or_token
+    async def get(self, user_id: int):
+        """
+        ---
+        summary: Get a tally of a user's contributions
+        description: >
+            How many sources, comments, classifications, annotations, spectra
+            and follow-up requests this user has to their name, counting only
+            the ones the requester is allowed to see. A viewer sharing no
+            groups with them is told zero rather than refused, since the counts
+            are the answer to what that viewer can see.
+        tags:
+          - users
+        parameters:
+          - in: path
+            name: user_id
+            required: true
+            schema:
+              type: integer
+          - in: query
+            name: limit
+            schema:
+              type: integer
+            description: Items per page, capped at 100.
+          - in: query
+            name: offset
+            schema:
+              type: integer
+            description: How many items to skip, for paging further back.
+          - in: query
+            name: kind
+            schema:
+              type: string
+            description: Only list this kind of contribution.
+        responses:
+          200:
+            content:
+              application/json:
+                schema: Success
+          400:
+            content:
+              application/json:
+                schema: Error
+        """
+        async with self.AsyncSession() as session:
+            user = await session.scalar(
+                User.select(session.user_or_token).where(User.id == user_id)
+            )
+            if user is None:
+                return self.error(f"Cannot find user with ID {user_id}.")
+
+            try:
+                limit = min(
+                    max(int(self.get_query_argument("limit", ACTIVITY_PAGE)), 1),
+                    ACTIVITY_PAGE_MAX,
+                )
+                offset = max(int(self.get_query_argument("offset", 0)), 0)
+            except ValueError:
+                return self.error("limit and offset must be numbers.")
+            kind = self.get_query_argument("kind", None)
+            if kind is not None and kind not in ACTIVITY:
+                return self.error(f"kind must be one of {', '.join(ACTIVITY)}.")
+
+            viewer = session.user_or_token
+            shared = (
+                list(ACTIVITY)
+                if self.associated_user_object.id == user.id
+                else shared_activity(user)
+            )
+            kinds = shared if kind is None else [k for k in shared if k == kind]
+            items, has_more = await activity_feed(
+                session, user_id, viewer, kinds, offset=offset, limit=limit
+            )
+            objs, filter_colors = await activity_objs(
+                session, viewer, {item["obj_id"] for item in items if item["obj_id"]}
+            )
+            return self.success(
+                data={
+                    "counts": await activity_counts(session, user_id, viewer, shared)
+                    if offset == 0
+                    else None,
+                    "items": items,
+                    "has_more": has_more,
+                    "objs": objs,
+                    "filter_colors": filter_colors,
+                }
+            )

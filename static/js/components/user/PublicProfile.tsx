@@ -10,6 +10,7 @@ import Button from "../Button";
 import Paper from "../Paper";
 import Spinner from "../Spinner";
 import UserAvatar, { getUserRealName } from "./UserAvatar";
+import ProfileActivity from "./ProfileActivity";
 import withRouter from "../withRouter";
 import { chips, field, memberSince } from "./ProfileFields";
 import { useGetProfileQuery } from "../../ducks/profile";
@@ -116,6 +117,7 @@ const PublicProfile = ({ route }: PublicProfileProps) => {
           {field("Member since", memberSince(profile.created_at))}
         </Box>
       </Paper>
+      <ProfileActivity key={profile.id} user={profile} />
     </>
   );
 };

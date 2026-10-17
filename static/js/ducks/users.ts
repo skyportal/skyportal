@@ -36,6 +36,41 @@ export interface PublicProfile {
   groups?: string[];
 }
 
+export type ActivityKind =
+  | "sources_saved"
+  | "comments"
+  | "classifications"
+  | "annotations"
+  | "spectra"
+  | "followup_requests";
+
+export interface ActivityThumbnail {
+  type: string;
+  public_url: string;
+  is_grayscale: boolean | null;
+}
+
+export interface ActivityItem {
+  kind: ActivityKind;
+  created_at: string;
+  obj_id: string | null;
+  detail: string | null;
+}
+
+export interface ActivityObj {
+  thumbnails: ActivityThumbnail[];
+  photometry: [number, number, string][];
+}
+
+/** A user's contributions, limited to what the requester may see. */
+export interface UserActivity {
+  counts: Record<ActivityKind, number> | null;
+  items: ActivityItem[];
+  has_more: boolean;
+  objs: Record<string, ActivityObj>;
+  filter_colors: Record<string, string>;
+}
+
 export interface UsersResult {
   users: User[];
   totalMatches: number;
@@ -54,6 +89,20 @@ export const usersApi = skyportalApi.injectEndpoints({
     }),
     getUserPublicProfile: build.query<PublicProfile, number | string>({
       query: (id) => `api/user/${id}/profile`,
+      providesTags: ["User", "PublicProfile"],
+    }),
+    getUserActivity: build.infiniteQuery<
+      UserActivity,
+      { id: number | string; kind: ActivityKind | null },
+      number
+    >({
+      infiniteQueryOptions: {
+        initialPageParam: 0,
+        getNextPageParam: (lastPage, _pages, offset) =>
+          lastPage.has_more ? offset + lastPage.items.length : undefined,
+      },
+      query: ({ queryArg: { id, kind }, pageParam }) =>
+        `api/user/${id}/activity?offset=${pageParam}${kind ? `&kind=${kind}` : ""}`,
       providesTags: ["User", "PublicProfile"],
     }),
     patchUser: build.mutation<
@@ -76,5 +125,6 @@ invalidateOnMessage("skyportal/FETCH_USERS", () => ["User"]);
 export const {
   useGetUsersQuery,
   useGetUserPublicProfileQuery,
+  useGetUserActivityInfiniteQuery,
   usePatchUserMutation,
 } = usersApi;
