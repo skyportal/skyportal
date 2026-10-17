@@ -131,8 +131,8 @@ const InvitationsToolbar = ({ showExpired, onToggleExpired }: any) => (
 const EditableCell = ({ children, onEdit, ...buttonProps }: any) => (
   <Box sx={cellSx}>
     {children}
-    <IconButton size="small" onClick={onEdit} {...buttonProps}>
-      <EditIcon color="disabled" />
+    <IconButton size="small" onClick={onEdit} sx={{ p: 0 }} {...buttonProps}>
+      <EditIcon color="disabled" sx={{ fontSize: "1.125rem" }} />
     </IconButton>
   </Box>
 );
