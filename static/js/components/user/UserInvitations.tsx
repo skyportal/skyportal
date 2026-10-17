@@ -103,8 +103,8 @@ const validateBulkInvite = (csv: string) => {
 };
 
 const renderExpirationDateHeader = () => (
-  <Box sx={{ display: "flex", alignItems: "center" }}>
-    Expiration Date
+  <Box sx={{ display: "flex", alignItems: "center", fontWeight: 600 }}>
+    Account Expiration
     <Tooltip title="This is the expiration date assigned to the new user account. On this date, the user account will be deactivated and will be unable to access the application.">
       <HelpIcon color="disabled" sx={{ height: "1rem" }} />
     </Tooltip>
@@ -257,6 +257,7 @@ const UserInvitations = ({
   const [showExpired, setShowExpired] = useState(false);
   const [openDialog, setOpenDialog] = useState<string | null>(null);
   const [clickedInvitation, setClickedInvitation] = useState<any>(null);
+  const [columnVisibility, setColumnVisibility] = useState<any>(null);
 
   const {
     handleSubmit,
@@ -282,6 +283,9 @@ const UserInvitations = ({
     isLinkExpired(invitation) || isAccountExpired(invitation);
 
   const invitations = invitationsData?.invitations ?? [];
+  const rows = showExpired
+    ? invitations
+    : invitations.filter((invitation) => !isExpired(invitation));
 
   const runAndNotify = async (
     action: () => Promise<unknown>,
@@ -369,11 +373,11 @@ const UserInvitations = ({
   };
 
   const handleBulkInvite = async (formData: any) => {
-    const rows = parseCsv(formData.bulkInviteCSV);
+    const lines = parseCsv(formData.bulkInviteCSV);
     const invited = await runAndNotify(
       () =>
         Promise.all(
-          rows.map((row) =>
+          lines.map((row) =>
             inviteUser({
               userEmail: row[0].trim(),
               streamIDs: parseList(row[1]),
@@ -461,7 +465,7 @@ const UserInvitations = ({
     },
     {
       field: "user_expiration_date",
-      headerName: "User Expiration Date",
+      headerName: "Account Expiration",
       minWidth: 180,
       renderHeader: renderExpirationDateHeader,
       cellClassName: ({ row }: any) =>
@@ -511,10 +515,16 @@ const UserInvitations = ({
         <StyledDataGrid
           height={FULL_PAGE_HEIGHT_WITH_TABS}
           columns={columns}
-          rows={
-            showExpired ? invitations : invitations.filter((i) => !isExpired(i))
-          }
+          rows={rows}
           getRowHeight={() => "auto"}
+          columnVisibilityModel={
+            columnVisibility ?? {
+              user_expiration_date: rows.some(
+                (row) => row.user_expiration_date,
+              ),
+            }
+          }
+          onColumnVisibilityModelChange={setColumnVisibility}
           getRowClassName={({ row }: any) => (isExpired(row) ? "expired" : "")}
           loading={invitationsFetching}
           initialState={{
