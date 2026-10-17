@@ -121,6 +121,10 @@ const LightCurve = ({ points, colors }: LightCurveProps) => {
     x1 > x0 ? 20 + (74 * (mjd - x0)) / (x1 - x0) : 57;
   const y = (mag: number) => (y1 > y0 ? 8 + (72 * (mag - y0)) / (y1 - y0) : 44);
   const bands = [...new Set(points.map(([, , band]) => band))];
+  const date = (mjd: number) =>
+    dayjs((mjd - 40587) * 86400000).format(
+      x1 - x0 > 365 ? "MMM YYYY" : "MMM D",
+    );
 
   return (
     <Box sx={{ ...TILE, color: "text.secondary" }}>
@@ -158,9 +162,20 @@ const LightCurve = ({ points, colors }: LightCurveProps) => {
               {y1.toFixed(1)}
             </text>
           )}
-          <text x={97} y={95}>
-            {x1 > x0 ? `${Math.round(x1 - x0)} days` : "1 night"}
-          </text>
+          {date(x1) === date(x0) ? (
+            <text x={57} y={95} textAnchor="middle">
+              {date(x0)}
+            </text>
+          ) : (
+            <>
+              <text x={17} y={95} textAnchor="start">
+                {date(x0)}
+              </text>
+              <text x={97} y={95}>
+                {date(x1)}
+              </text>
+            </>
+          )}
         </g>
         {bands.map((band) => (
           <polyline
