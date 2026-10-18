@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { Fragment, useMemo, useState } from "react";
 import { Link as RouterLink } from "react-router-dom";
 
 import dayjs from "dayjs";
@@ -29,6 +29,7 @@ import type {
   ActivityItem,
   ActivityKind,
   ActivityObj,
+  ActivitySavedGroup,
   PublicProfile,
 } from "../../ducks/users";
 
@@ -102,9 +103,44 @@ const dayLabel = (day: string) => {
 };
 
 const joinVerbs = (items: ActivityItem[]) => {
-  const verbs = [...new Set(items.map((item) => ACTIVITY_VERBS[item.kind]))];
+  const kinds = [...new Set(items.map((item) => item.kind))].sort(
+    (a, b) => Number(a === "sources_saved") - Number(b === "sources_saved"),
+  );
+  const verbs = kinds.map((kind) => ACTIVITY_VERBS[kind]);
   if (verbs.length === 1) return verbs[0];
   return `${verbs.slice(0, -1).join(", ")} and ${verbs[verbs.length - 1]}`;
+};
+
+const SavedTo = ({ groups }: { groups: ActivitySavedGroup[] }) => {
+  const named = groups.slice(0, 2);
+  const rest = groups.slice(2);
+  return (
+    <>
+      {" to "}
+      {named.map((group, index) => (
+        <Fragment key={group.id}>
+          {index > 0 && (rest.length ? ", " : " and ")}
+          <Link
+            component={RouterLink}
+            to={`/group/${group.id}`}
+            sx={{ fontWeight: 600 }}
+          >
+            {group.name}
+          </Link>
+        </Fragment>
+      ))}
+      {rest.length > 0 && (
+        <>
+          {" and "}
+          <Tooltip title={rest.map((group) => group.name).join(", ")}>
+            <Box component="span" sx={{ fontWeight: 600, cursor: "default" }}>
+              {rest.length} more
+            </Box>
+          </Tooltip>
+        </>
+      )}
+    </>
+  );
 };
 
 interface LightCurveProps {
@@ -298,6 +334,7 @@ const Post = ({ user, group, obj, colors, collapsed }: PostProps) => {
   const objId = newest.obj_id;
   const time = localTime(newest.created_at);
   const comments = group.items.filter((item) => item.kind === "comments");
+  const savedTo = group.items.flatMap((item) => item.groups ?? []);
 
   return (
     <Box>
@@ -327,6 +364,7 @@ const Post = ({ user, group, obj, colors, collapsed }: PostProps) => {
                 {objId}
               </Link>
             )}
+            {savedTo.length > 0 && <SavedTo groups={savedTo} />}
           </Typography>
           <Tooltip title={time.format("YYYY-MM-DD HH:mm")}>
             <Typography variant="caption" color="textSecondary">

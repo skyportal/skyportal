@@ -50,11 +50,17 @@ export interface ActivityThumbnail {
   is_grayscale: boolean | null;
 }
 
+export interface ActivitySavedGroup {
+  id: number;
+  name: string;
+}
+
 export interface ActivityItem {
   kind: ActivityKind;
   created_at: string;
   obj_id: string | null;
   detail: string | null;
+  groups?: ActivitySavedGroup[];
 }
 
 export interface ActivityObj {

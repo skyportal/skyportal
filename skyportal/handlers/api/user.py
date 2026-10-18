@@ -709,8 +709,12 @@ async def activity_feed(session, user_id, viewer, kinds, offset=0, limit=ACTIVIT
         mine = _mine(model, column, user_id, viewer)
         if model is Source:
             created_at = func.min(Source.created_at).label("created_at")
+            groups = func.json_agg(
+                func.json_build_object("id", Group.id, "name", Group.name)
+            ).label("groups")
             stmt = (
-                sa.select(Source.obj_id, created_at)
+                sa.select(Source.obj_id, created_at, groups)
+                .join(Group, Group.id == Source.group_id)
                 .where(mine)
                 .group_by(Source.obj_id)
                 .order_by(created_at.desc(), Source.obj_id.desc())
@@ -728,14 +732,15 @@ async def activity_feed(session, user_id, viewer, kinds, offset=0, limit=ACTIVIT
         result = await session.execute(stmt)
         rows = result.all() if model is Source else result.scalars().all()
         for row in rows:
-            items.append(
-                {
-                    "kind": name,
-                    "created_at": row.created_at,
-                    "obj_id": getattr(row, "obj_id", None),
-                    "detail": detail(row),
-                }
-            )
+            item = {
+                "kind": name,
+                "created_at": row.created_at,
+                "obj_id": getattr(row, "obj_id", None),
+                "detail": detail(row),
+            }
+            if model is Source:
+                item["groups"] = sorted(row.groups, key=lambda group: group["name"])
+            items.append(item)
     items.sort(key=lambda item: item["created_at"], reverse=True)
     return items[offset:wanted], len(items) > wanted
 
