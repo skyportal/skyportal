@@ -113,15 +113,15 @@ interface LightCurveProps {
 }
 
 const LightCurve = ({ points, colors }: LightCurveProps) => {
+  const [today] = useState(() => Date.now() / 86400000 + 40587);
   const mjds = points.map(([mjd]) => mjd);
   const mags = points.map(([, mag]) => mag);
   const [x0, x1] = [Math.min(...mjds), Math.max(...mjds)];
   const [y0, y1] = [Math.min(...mags), Math.max(...mags)];
   const x = (mjd: number) =>
     x1 > x0 ? 20 + (74 * (mjd - x0)) / (x1 - x0) : 57;
-  const y = (mag: number) => (y1 > y0 ? 8 + (72 * (mag - y0)) / (y1 - y0) : 44);
-  const bands = [...new Set(points.map(([, , band]) => band))];
-  const date = (mjd: number) => dayjs((mjd - 40587) * 86400000).fromNow();
+  const y = (mag: number) => (y1 > y0 ? 8 + (70 * (mag - y0)) / (y1 - y0) : 43);
+  const ago = (mjd: number) => Math.round(today - mjd).toLocaleString();
 
   return (
     <Box sx={{ ...TILE, color: "text.secondary" }}>
@@ -134,7 +134,7 @@ const LightCurve = ({ points, colors }: LightCurveProps) => {
         {(y1 > y0 ? [y0, y1] : [y0]).map((mag) => (
           <line
             key={mag}
-            x1={17}
+            x1={18}
             x2={97}
             y1={y(mag)}
             y2={y(mag)}
@@ -144,49 +144,44 @@ const LightCurve = ({ points, colors }: LightCurveProps) => {
           />
         ))}
         <path
-          d="M17 4 V86 H97"
+          d="M18 4 V82 H97"
           fill="none"
           stroke="currentColor"
           strokeOpacity={0.6}
           strokeWidth={0.6}
         />
-        <g fill="currentColor" fontSize={5.5} textAnchor="end">
-          <text x={15} y={y(y0) + 2}>
+        <g fill="currentColor" fontSize={5}>
+          <text x={16} y={y(y0) + 1.8} textAnchor="end">
             {y0.toFixed(1)}
           </text>
           {y1 > y0 && (
-            <text x={15} y={y(y1) + 2}>
+            <text x={16} y={y(y1) + 1.8} textAnchor="end">
               {y1.toFixed(1)}
             </text>
           )}
-          {date(x1) === date(x0) ? (
-            <text x={57} y={95} textAnchor="middle">
-              {date(x0)}
+          {ago(x0) === ago(x1) ? (
+            <text x={57} y={88} textAnchor="middle">
+              {ago(x0)}
             </text>
           ) : (
             <>
-              <text x={17} y={95} textAnchor="start">
-                {date(x0)}
+              <text x={18} y={88}>
+                {ago(x0)}
               </text>
-              <text x={97} y={95}>
-                {date(x1)}
+              <text x={97} y={88} textAnchor="end">
+                {ago(x1)}
               </text>
             </>
           )}
         </g>
-        {bands.map((band) => (
-          <polyline
-            key={band}
-            points={points
-              .filter(([, , b]) => b === band)
-              .map(([mjd, mag]) => `${x(mjd)},${y(mag)}`)
-              .join(" ")}
-            fill="none"
-            stroke={colors[band] ?? "#888"}
-            strokeOpacity={0.6}
-            strokeWidth={0.7}
-          />
-        ))}
+        <g fill="currentColor" fillOpacity={0.7} fontSize={4}>
+          <text x={57} y={96} textAnchor="middle">
+            days ago
+          </text>
+          <text x={4} y={43} textAnchor="middle" transform="rotate(-90 4 43)">
+            mag
+          </text>
+        </g>
         {points.map(([mjd, mag, band], index) => (
           <circle
             key={index}
