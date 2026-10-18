@@ -528,26 +528,17 @@ const Contributions = ({
         }}
       >
         <Typography variant="subtitle2">Contributions</Typography>
-        <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-          {rows.length > 0 && (
-            <Link
-              component="button"
-              variant="caption"
-              color="textSecondary"
-              underline="hover"
-              onClick={onCollapse}
-            >
-              {collapsed ? "Expand all" : "Collapse all"}
-            </Link>
-          )}
-          {owner && (
-            <VisibilityToggle
-              shown={shown("activity")}
-              label="activity"
-              onToggle={() => toggle("activity")}
-            />
-          )}
-        </Box>
+        {rows.length > 0 && (
+          <Link
+            component="button"
+            variant="caption"
+            color="textSecondary"
+            underline="hover"
+            onClick={onCollapse}
+          >
+            {collapsed ? "Expand all" : "Collapse all"}
+          </Link>
+        )}
       </Box>
       {rows.length === 0 ? (
         <Typography variant="body2" color="textSecondary" sx={{ px: 1 }}>
@@ -595,7 +586,11 @@ const Contributions = ({
                 </ButtonBase>
                 {owner &&
                   (key === null ? (
-                    <Box sx={{ width: 24, flexShrink: 0 }} />
+                    <VisibilityToggle
+                      shown={shown("activity")}
+                      label="activity"
+                      onToggle={() => toggle("activity")}
+                    />
                   ) : (
                     <VisibilityToggle
                       shown={shown(`activity_${key}`)}
