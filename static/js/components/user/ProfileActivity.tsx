@@ -383,26 +383,23 @@ const Feed = ({ user, kind, collapsed }: FeedProps) => {
               {dayLabel(day)}
             </Typography>
           </Divider>
-          <Paper
-            sx={{
-              display: "flex",
-              flexDirection: "column",
-              gap: collapsed ? 1.5 : 2.5,
-            }}
-          >
+          <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
             {groups.map((group) => (
-              <Post
+              <Paper
                 key={`${group.newest.kind}-${group.newest.obj_id}-${group.newest.created_at}`}
-                user={user}
-                group={group}
-                obj={
-                  group.newest.obj_id ? objs[group.newest.obj_id] : undefined
-                }
-                colors={colors}
-                collapsed={collapsed}
-              />
+              >
+                <Post
+                  user={user}
+                  group={group}
+                  obj={
+                    group.newest.obj_id ? objs[group.newest.obj_id] : undefined
+                  }
+                  colors={colors}
+                  collapsed={collapsed}
+                />
+              </Paper>
             ))}
-          </Paper>
+          </Box>
         </Box>
       ))}
       {hasNextPage && (
