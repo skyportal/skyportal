@@ -145,6 +145,43 @@ def delete_catalog(catalog_id):
         session.close()
 
 
+# Shared by the JSON and ASCII upload handlers once the data is a dict of columns.
+async def _validate_and_ingest_spatial_catalog(handler, catalog_name, catalog_data):
+    # check for required parameters
+    if not {"name", "ra", "dec"}.issubset(set(catalog_data.keys())):
+        return handler.error("name, ra, and dec required in field_data.")
+
+    # check RA bounds
+    if any((x < 0) or (x >= 360) for x in catalog_data["ra"]):
+        return handler.error("ra should span 0=<ra<360.")
+
+    # check Declination bounds
+    if any((x > 90) or (x < -90) for x in catalog_data["dec"]):
+        return handler.error("declination should span -90<dec<90.")
+
+    # check for cone or ellipse keys
+    if not {"radius"}.issubset(set(catalog_data.keys())) and (
+        not {"amaj", "amin", "phi"}.issubset(set(catalog_data.keys()))
+    ):
+        return handler.error("error or amaj, amin, and phi required in field_data.")
+
+    async with handler.AsyncSession() as session:
+        stmt = SpatialCatalog.select(handler.current_user).where(
+            SpatialCatalog.catalog_name == catalog_name
+        )
+        catalog = await session.scalar(stmt)
+        if catalog is None:
+            catalog = SpatialCatalog(catalog_name=catalog_name)
+            session.add(catalog)
+            await session.commit()
+
+        IOLoop.current().run_in_executor(
+            None, lambda: add_catalog(catalog.id, catalog_data)
+        )
+
+        return handler.success(data={"id": catalog.id})
+
+
 class SpatialCatalogHandler(BaseHandler):
     @permissions(["Upload data"])
     async def post(
@@ -173,39 +210,9 @@ class SpatialCatalogHandler(BaseHandler):
         if type(catalog_data) is not dict:
             return self.error("catalog_data must be a dictionary")
 
-        # check for required parameters
-        if not {"name", "ra", "dec"}.issubset(set(catalog_data.keys())):
-            return self.error("name, ra, and dec required in field_data.")
-
-        # check RA bounds
-        if any((x < 0) or (x >= 360) for x in catalog_data["ra"]):
-            return self.error("ra should span 0=<ra<360.")
-
-        # check Declination bounds
-        if any((x > 90) or (x < -90) for x in catalog_data["dec"]):
-            return self.error("declination should span -90<dec<90.")
-
-        # check for cone or ellipse keys
-        if not {"radius"}.issubset(set(catalog_data.keys())) and (
-            not {"amaj", "amin", "phi"}.issubset(set(catalog_data.keys()))
-        ):
-            return self.error("error or amaj, amin, and phi required in field_data.")
-
-        async with self.AsyncSession() as session:
-            stmt = SpatialCatalog.select(self.current_user).where(
-                SpatialCatalog.catalog_name == catalog_name
-            )
-            catalog = await session.scalar(stmt)
-            if catalog is None:
-                catalog = SpatialCatalog(catalog_name=catalog_name)
-                session.add(catalog)
-                await session.commit()
-
-            IOLoop.current().run_in_executor(
-                None, lambda: add_catalog(catalog.id, catalog_data)
-            )
-
-            return self.success(data={"id": catalog.id})
+        return await _validate_and_ingest_spatial_catalog(
+            self, catalog_name, catalog_data
+        )
 
     @auth_or_token
     async def get(
@@ -357,36 +364,6 @@ class SpatialCatalogASCIIFileHandler(BaseHandler):
         if catalog_data is None:
             return self.error("catalog_data is a required parameter.")
 
-        # check for required parameters
-        if not {"name", "ra", "dec"}.issubset(set(catalog_data.keys())):
-            return self.error("name, ra, and dec required in field_data.")
-
-        # check RA bounds
-        if any((x < 0) or (x >= 360) for x in catalog_data["ra"]):
-            return self.error("ra should span 0=<ra<360.")
-
-        # check Declination bounds
-        if any((x > 90) or (x < -90) for x in catalog_data["dec"]):
-            return self.error("declination should span -90<dec<90.")
-
-        # check for cone or ellipse keys
-        if not {"radius"}.issubset(set(catalog_data.keys())) and (
-            not {"amaj", "amin", "phi"}.issubset(set(catalog_data.keys()))
-        ):
-            return self.error("error or amaj, amin, and phi required in field_data.")
-
-        async with self.AsyncSession() as session:
-            stmt = SpatialCatalog.select(self.current_user).where(
-                SpatialCatalog.catalog_name == catalog_name
-            )
-            catalog = await session.scalar(stmt)
-            if catalog is None:
-                catalog = SpatialCatalog(catalog_name=catalog_name)
-                session.add(catalog)
-                await session.commit()
-
-            IOLoop.current().run_in_executor(
-                None, lambda: add_catalog(catalog.id, catalog_data)
-            )
-
-            return self.success(data={"id": catalog.id})
+        return await _validate_and_ingest_spatial_catalog(
+            self, catalog_name, catalog_data
+        )
