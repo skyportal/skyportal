@@ -1388,6 +1388,19 @@ class ObservationPlanManualRequestHandler(BaseHandler):
                     "Observation plan request must have at least one observation plan"
                 )
 
+            stmt = (
+                Allocation.select(session.user_or_token)
+                .where(Allocation.id == json_data["allocation_id"])
+                .options(joinedload(Allocation.instrument))
+            )
+            allocation = await session.scalar(stmt)
+            if allocation is None:
+                return self.error(
+                    f"Cannot access allocation with ID: {json_data['allocation_id']}",
+                    status=403,
+                )
+            instrument = allocation.instrument
+
             observation_plan_request = ObservationPlanRequest(
                 requester_id=self.associated_user_object.id,
                 gcnevent=event,
@@ -1397,15 +1410,8 @@ class ObservationPlanManualRequestHandler(BaseHandler):
                 allocation_id=json_data["allocation_id"],
             )
             session.add(observation_plan_request)
-            await session.commit()
-
-            stmt = (
-                Allocation.select(session.user_or_token)
-                .where(Allocation.id == observation_plan_request.allocation_id)
-                .options(joinedload(Allocation.instrument))
-            )
-            allocation = await session.scalar(stmt)
-            instrument = allocation.instrument
+            # Flush, not commit: a validation error below must roll back these rows.
+            await session.flush()
 
             observation_plan = json_data["observation_plans"][0]
             event_observation_plan = EventObservationPlan(
@@ -1418,7 +1424,7 @@ class ObservationPlanManualRequestHandler(BaseHandler):
                 status=observation_plan["status"],
             )
             session.add(event_observation_plan)
-            await session.commit()
+            await session.flush()
 
             if not {
                 planned_obs["filt"]
@@ -1430,7 +1436,12 @@ class ObservationPlanManualRequestHandler(BaseHandler):
 
             planned_observations = []
             for planned_obs in observation_plan["planned_observations"]:
-                tt = Time(planned_obs["dateobs"], format="isot")
+                try:
+                    tt = Time(planned_obs["dateobs"], format="isot")
+                except ValueError:
+                    return self.error(
+                        f"Invalid planned observation dateobs: {planned_obs['dateobs']}"
+                    )
 
                 field = await session.scalar(
                     InstrumentField.select(session.user_or_token).where(
