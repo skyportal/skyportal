@@ -174,7 +174,25 @@ const MultipleClassificationsForm = ({
         };
       });
 
-    setFormState(initialFormState);
+    setFormState((prev: any) => {
+      Object.entries(prev).forEach(([taxonomyId, entries]: [string, any]) => {
+        if (!(taxonomyId in initialFormState)) {
+          return;
+        }
+        Object.entries(entries).forEach(
+          ([classification, entry]: [string, any]) => {
+            if (entry.depth > -1) {
+              initialFormState[taxonomyId][classification] = {
+                ...initialFormState[taxonomyId][classification],
+                depth: entry.depth,
+                probability: entry.probability,
+              };
+            }
+          },
+        );
+      });
+      return initialFormState;
+    });
   }, [currentClassifications, taxonomyList]);
 
   // Whether the current user may edit a classification posted by `authorName`;
@@ -440,15 +458,17 @@ const MultipleClassificationsForm = ({
 
     // Reset the depths for the saved classifications so that they are not
     // resubmitted upon further edits; failed ones stay queued for a retry
-    const newFormState = { ...formState };
-    saved.forEach(([classification, entry]) => {
-      newFormState[selectedTaxonomy.id][classification] = {
-        ...entry,
-        depth: -1,
-        savedProbability: entry.probability,
-      };
+    setFormState((prev: any) => {
+      const taxonomyState = { ...prev[selectedTaxonomy.id] };
+      saved.forEach(([classification, entry]) => {
+        taxonomyState[classification] = {
+          ...taxonomyState[classification],
+          depth: -1,
+          savedProbability: entry.probability,
+        };
+      });
+      return { ...prev, [selectedTaxonomy.id]: taxonomyState };
     });
-    setFormState(newFormState);
 
     setSubmissionRequestInProcess(false);
     if (results.every((result) => result)) {

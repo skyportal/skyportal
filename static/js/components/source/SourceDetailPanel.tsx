@@ -195,6 +195,7 @@ const SourceDetailPanel = React.memo(
           </Grid>
           <Grid size={12}>
             <MultipleClassificationsForm
+              key={source.id}
               objId={source.id}
               taxonomyList={taxonomyList}
               groupId={groupID}
