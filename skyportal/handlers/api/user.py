@@ -668,8 +668,6 @@ def _mine(model, column, user_id, viewer):
 
 def shared_activity(user):
     preferences = (user.preferences or {}).get("publicProfile") or {}
-    if not preferences.get("activity", True):
-        return []
     return [kind for kind in ACTIVITY if preferences.get(f"activity_{kind}", True)]
 
 

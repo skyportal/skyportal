@@ -559,8 +559,9 @@ const Contributions = ({
             const active = selected === key;
             const hidden =
               owner &&
-              (!shown("activity") ||
-                (key !== null && !shown(`activity_${key}`)));
+              (key === null
+                ? rows.every((row) => !shown(`activity_${row.key}`))
+                : !shown(`activity_${key}`));
             return (
               <Box
                 key={key ?? "all"}
@@ -595,11 +596,7 @@ const Contributions = ({
                 </ButtonBase>
                 {owner &&
                   (key === null ? (
-                    <VisibilityToggle
-                      shown={shown("activity")}
-                      label="activity"
-                      onToggle={() => toggle("activity")}
-                    />
+                    <Box sx={{ width: 24, flexShrink: 0 }} />
                   ) : (
                     <VisibilityToggle
                       shown={shown(`activity_${key}`)}
