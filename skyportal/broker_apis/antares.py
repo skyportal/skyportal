@@ -215,6 +215,7 @@ def _normalize_locus(locus):
                 "jd": (mjd + 2400000.5) if mjd is not None else None,
                 "magpsf": p.get("ant_mag"),
                 "sigmapsf": p.get("ant_magerr"),
+                "isdiffpos": p.get("ztf_isdiffpos"),
                 "band": _FID_TO_BAND.get(p.get("ztf_fid")),
                 "ra": p.get("ant_ra"),
                 "dec": p.get("ant_dec"),

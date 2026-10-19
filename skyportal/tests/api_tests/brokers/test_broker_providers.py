@@ -117,6 +117,8 @@ def test_fink_get_alert_cassette():
     _assert_standard_shape(data)
     assert data["objectId"] == "ZTF19aaosfcb"
     assert len(data["prv_candidates"]) >= 1
+    # This object's detections are negative subtractions.
+    assert {p["isdiffpos"] for p in data["prv_candidates"]} == {"f"}
 
 
 def test_antares_get_alert_cassette():
@@ -860,6 +862,28 @@ def test_build_photometry_groups_flux_and_mag_space():
     assert g["filter"] == ["ztfg", "ztfr"]
     assert g["flux"][0] == 100.0 * 1e-9
     assert g["flux"][1] == pytest.approx(10.0 ** (-0.4 * (20.0 - 23.9)))
+
+
+def test_build_photometry_groups_negative_subtraction_is_negative_flux():
+    """magpsf is the magnitude of |flux|, so a ZTF negative subtraction
+    (isdiffpos f, or -1 from ALeRCE) is stored as a negative flux."""
+    data = {
+        "prv_candidates": [
+            {
+                "jd": 2459000.5 + i,
+                "band": "g",
+                "magpsf": 20.0,
+                "sigmapsf": 0.1,
+                "isdiffpos": isdiffpos,
+            }
+            for i, isdiffpos in enumerate(["t", "f", -1, None])
+        ],
+    }
+    groups = build_photometry_groups("ZTF1", "ZTF", data, 42, {("ZTF", 1): [10]})
+    g = groups[("ZTF", 1)]
+    flux = 10.0 ** (-0.4 * (20.0 - 23.9))
+    assert g["flux"] == pytest.approx([flux, -flux, -flux, flux])
+    assert all(e > 0 for e in g["fluxerr"])
 
 
 def test_build_photometry_groups_winter_flux_scale_and_zeropoint():
