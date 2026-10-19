@@ -97,7 +97,8 @@ RUN bash -c "\
 # It runs as root after the chown, so what it leaves under /skyportal is root-owned.
 RUN if [ -f /skyportal/docker-extra-setup.sh ]; then bash -euo pipefail /skyportal/docker-extra-setup.sh; fi
 
-RUN .venv/bin/python -m compileall -q -j0 skyportal baselayer services projects
+RUN PYTHONPATH=. .venv/bin/python -m skyportal.utils.bandpass_wavelengths && \
+    .venv/bin/python -m compileall -q -j0 skyportal baselayer services projects
 
 ENV UV_NO_SYNC=1
 

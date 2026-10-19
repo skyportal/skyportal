@@ -64,6 +64,7 @@ from ...models.schema import (
     PhotometryMag,
     PhotometryRangeQuery,
 )
+from ...utils import bandpass_wavelengths
 from ...utils.data_access import default_extra_share_group_ids
 from ...utils.extinction import calculate_extinction, deredden_flux
 from ...utils.naive_datetime import utcnow_naive
@@ -77,6 +78,8 @@ _, cfg = load_env()
 log = make_log("api/photometry")
 
 MAX_NUMBER_ROWS = 10000
+
+CACHED_WAVELENGTHS = bandpass_wavelengths.load()
 
 # Above this many newly-inserted points for one object, recompute its PhotStat
 # from the table (full_update) instead of incrementally adding each point — past
@@ -172,6 +175,9 @@ def get_effective_wavelength(bandpass_name, radius=None):
     float
         Effective wavelength of the bandpass.
     """
+    if radius is None and bandpass_name in CACHED_WAVELENGTHS:
+        return CACHED_WAVELENGTHS[bandpass_name]
+
     try:
         args = {}
         if radius is not None:
@@ -298,6 +304,8 @@ with astropy.utils.data.conf.set_temp("remote_timeout", 2):
 BANDPASSES_WAVELENGTHS = {
     bp: w for bp, w in BANDPASSES_WAVELENGTHS.items() if w is not None
 }
+if not CACHED_WAVELENGTHS:
+    bandpass_wavelengths.save(BANDPASSES_WAVELENGTHS)
 
 
 # this is a drop-in replacement for pandas pd.to_numeric
