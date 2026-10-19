@@ -159,6 +159,40 @@ export const useScanGroups = (selectedIDs: number[]) => {
   );
 };
 
+export const scanFilters = (filters: any[], groupIDs: number[]) => {
+  const available = filters.filter((f) => groupIDs.includes(f.group_id));
+  return available.length > new Set(available.map((f) => f.group_id)).size
+    ? available
+    : [];
+};
+
+type FilterSelectProps = Omit<
+  SearchableSelectProps,
+  "options" | "value" | "onChange"
+> & {
+  filters: any[];
+  value: number[];
+  onChange: (ids: number[]) => void;
+};
+
+export const FilterSelect = ({
+  filters,
+  value,
+  onChange,
+  ...props
+}: FilterSelectProps) => (
+  <SearchableSelect
+    multiple
+    label="Filters"
+    options={filters}
+    isOptionEqualToValue={(o: any, v: any) => o.id === v.id}
+    value={filters.filter((f) => value.includes(f.id))}
+    onChange={(_event, selected: any[]) => onChange(selected.map((f) => f.id))}
+    placeholder={value.length > 0 ? "" : "All"}
+    {...props}
+  />
+);
+
 type GroupSelectProps = Omit<
   SearchableSelectProps,
   "options" | "value" | "onChange"
