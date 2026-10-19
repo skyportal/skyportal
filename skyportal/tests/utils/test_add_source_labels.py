@@ -3,12 +3,15 @@
 import asyncio
 
 from skyportal.handlers.api.source_labels import add_source_labels
-from skyportal.models import User
+from skyportal.models import ACL, GroupUser, User
 
 
 class _Result:
     def __init__(self, rows):
         self._rows = rows
+
+    def __iter__(self):
+        return iter(self._rows)
 
     def unique(self):
         return self
@@ -28,13 +31,16 @@ class _Session:
     # The access-controlled select type-checks this.
     user_or_token = User(id=73)
 
-    def __init__(self, already_labelled=()):
+    def __init__(self, already_labelled=(), member_of=range(12)):
         self.reads = 0
         self.added = []
         self._rows = [_Label(g) for g in already_labelled]
+        self._member_of = list(member_of)
 
     async def scalars(self, stmt):
         self.reads += 1
+        if stmt.column_descriptions[0]["entity"] is GroupUser:
+            return _Result(self._member_of)
         return _Result(self._rows)
 
     def add(self, obj):
@@ -65,3 +71,26 @@ def test_no_groups_reads_nothing():
     session = _Session()
     asyncio.run(add_source_labels(session, "ZTF26abc", [], labeller_id=73))
     assert session.reads == 0 and session.added == []
+
+
+def test_a_group_the_labeller_is_not_in_is_skipped():
+    # A label there fails SourceLabel.create and rolls back the whole request.
+    session = _Session(member_of=(1, 3))
+    asyncio.run(
+        add_source_labels(
+            session, "ZTF26abc", [1, 2, 3], labeller_id=73, labeller_groups_only=True
+        )
+    )
+    assert [label.group_id for label in session.added] == [1, 3]
+
+
+def test_a_system_admin_labels_every_group():
+    session = _Session(member_of=())
+    session.user_or_token = User(id=73, acls=[ACL(id="System admin")])
+    asyncio.run(
+        add_source_labels(
+            session, "ZTF26abc", [1, 2], labeller_id=73, labeller_groups_only=True
+        )
+    )
+    assert session.reads == 1
+    assert [label.group_id for label in session.added] == [1, 2]

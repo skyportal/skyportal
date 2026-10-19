@@ -504,3 +504,66 @@ def test_obj_classifications_vote(
     assert data["data"][0]["id"] == classification_id
     assert len(data["data"]) == 1
     assert len(data["data"][0]["votes"]) == 0
+
+
+def test_vote_on_classification_shared_with_a_group_voter_is_not_in(
+    taxonomy_token,
+    classification_token,
+    classification_token_two_groups,
+    user,
+    public_source,
+    public_group,
+    public_group2,
+):
+    status, data = api(
+        "POST",
+        "taxonomy",
+        data={
+            "name": "test taxonomy" + str(uuid.uuid4()),
+            "hierarchy": taxonomy,
+            "group_ids": [public_group.id],
+            "provenance": f"tdtax_{__version__}",
+            "version": __version__,
+            "isLatest": True,
+        },
+        token=taxonomy_token,
+    )
+    assert status == 200
+    taxonomy_id = data["data"]["taxonomy_id"]
+
+    status, data = api(
+        "POST",
+        "classification",
+        data={
+            "obj_id": public_source.id,
+            "classification": "Algol",
+            "taxonomy_id": taxonomy_id,
+            "group_ids": [public_group.id, public_group2.id],
+        },
+        token=classification_token_two_groups,
+    )
+    assert status == 200
+    classification_id = data["data"]["classification_id"]
+
+    # The voter is a member of public_group only
+    status, data = api(
+        "POST",
+        f"classification/votes/{classification_id}",
+        data={"vote": 1},
+        token=classification_token,
+    )
+    assert status == 200
+
+    status, data = api(
+        "GET", f"sources/{public_source.id}/classifications", token=classification_token
+    )
+    assert status == 200
+    votes = next(c for c in data["data"] if c["id"] == classification_id)["votes"]
+    assert user.id in [v["voter_id"] for v in votes]
+
+    status, data = api(
+        "DELETE",
+        f"classification/votes/{classification_id}",
+        token=classification_token,
+    )
+    assert status == 200
