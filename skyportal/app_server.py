@@ -299,7 +299,7 @@ from skyportal.handlers.public import (
     SourcePageHandler,
 )
 
-from . import model_util, openapi
+from . import model_util
 from .models import DBSession, db_engine, init_db
 from .utils.observability import setup_observability
 
@@ -970,6 +970,5 @@ def make_app(cfg, baselayer_handlers, baselayer_settings, process=None, env=None
         except Exception as e:
             log(f"Could not record the deployment: {e}")
     DBSession.remove()
-    app.openapi_spec = openapi.spec_from_handlers(handlers)
 
     return app
