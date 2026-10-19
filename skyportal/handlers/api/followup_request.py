@@ -2421,6 +2421,10 @@ class FollowupRequestPrioritizationHandler(BaseHandler):
 
             if len(followup_requests) == 0:
                 return self.error("Need at least one observation to modify.")
+            if not all(
+                r.instrument.api_class.implements()["update"] for r in followup_requests
+            ):
+                return self.error("Cannot update requests on this instrument.")
 
             if priority_type == "localization":
                 if localization_id is None:
@@ -2507,9 +2511,6 @@ class FollowupRequestPrioritizationHandler(BaseHandler):
             ]
 
             for followup_request, priority in zip(followup_requests, priorities):
-                api = followup_request.instrument.api_class
-                if not api.implements()["update"]:
-                    return self.error("Cannot update requests on this instrument.")
                 payload = followup_request.payload
                 payload["priority"] = priority
                 await session.execute(
