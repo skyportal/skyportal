@@ -171,6 +171,63 @@ def test_token_user_modify_owned_followup_request(
         assert data["data"][k] == new_request_data[k]
 
 
+def test_modify_generic_followup_request_on_email_allocation(
+    generic_instrument, public_group, public_source, super_admin_token
+):
+    # An email allocation's altdata has no API endpoint, so update() must
+    # notify by email rather than read altdata["endpoint"].
+    allocation_data = {
+        "group_id": public_group.id,
+        "instrument_id": generic_instrument.id,
+        "pi": "Shri Kulkarni",
+        "hours_allocated": 200,
+        "validity_ranges": [
+            {
+                "start_date": "2021-02-27T00:00:00.000Z",
+                "end_date": "3021-07-20T00:00:00.000Z",
+            }
+        ],
+        "proposal_id": str(uuid.uuid4()),
+        "_altdata": {"notification_type": "email", "email": "test@example.com"},
+    }
+    status, data = api(
+        "POST", "allocation", data=allocation_data, token=super_admin_token
+    )
+    assert status == 200, data
+    allocation_id = data["data"]["id"]
+
+    request_data = {
+        "allocation_id": allocation_id,
+        "obj_id": public_source.id,
+        "payload": {
+            "priority": 5,
+            "start_date": "3010-09-01",
+            "end_date": "3012-09-01",
+            "observation_choices": generic_instrument.to_dict()["filters"],
+            "exposure_time": 300,
+            "exposure_counts": 1,
+            "maximum_airmass": 2,
+            "minimum_lunar_distance": 30,
+        },
+    }
+    status, data = api(
+        "POST", "followup_request", data=request_data, token=super_admin_token
+    )
+    assert status == 200, data
+    id = data["data"]["id"]
+
+    request_data["payload"]["priority"] = 4
+    status, data = api(
+        "PUT", f"followup_request/{id}", data=request_data, token=super_admin_token
+    )
+    assert status == 200, data
+
+    status, data = api("GET", f"followup_request/{id}", token=super_admin_token)
+    assert status == 200
+    assert data["data"]["status"] == "submitted"
+    assert data["data"]["payload"]["priority"] == 4
+
+
 def test_regular_user_delete_super_admin_followup_request(
     public_group_generic_allocation,
     public_source,

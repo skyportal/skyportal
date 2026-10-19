@@ -686,7 +686,7 @@ class LCOAPI(FollowUpAPI):
         uid = content["id"]
         request_id = content["requests"][0]["id"]
 
-        url = f"{requestpath}{request_id}/"
+        url = f"{requestpath}{uid}/"
         headers = {"Authorization": f"Token {altdata['API_TOKEN']}"}
         async with aiohttp.ClientSession() as http_session:
             async with http_session.get(url, headers=headers) as r:
@@ -696,15 +696,15 @@ class LCOAPI(FollowUpAPI):
         if status >= 400:
             raise ValueError(f"Error getting request: status {status}: {r_content}")
 
-        content = request.transactions[0].response["content"]
-        content = json.loads(content)
-
-        content["state"] = "COMPLETED"
-        if content["state"] == "COMPLETED":
+        state = json.loads(r_content).get("state")
+        if state == "COMPLETED":
             request.status = "complete"
 
             archive_headers = {"Authorization": f"Token {altdata['API_ARCHIVE_TOKEN']}"}
-            archive_url = f"{archivepath}?REQNUM={uid}&start=2014-01-01&RLEVEL=91"
+            # REQNUM is the inner request id, not the request group id
+            archive_url = (
+                f"{archivepath}?REQNUM={request_id}&start=2014-01-01&RLEVEL=91"
+            )
             async with aiohttp.ClientSession() as http_session:
                 async with http_session.get(archive_url, headers=archive_headers) as ar:
                     ar_content = await ar.text()
@@ -719,9 +719,12 @@ class LCOAPI(FollowUpAPI):
                 )
                 IOLoop.current().run_in_executor(None, download_obs)
             else:
-                request.status = r_content
-        elif content["state"] == "PENDING":
+                request.status = ar_content
+        elif state == "PENDING":
             request.status = "pending"
+        else:
+            # e.g. WINDOW_EXPIRED or CANCELED
+            request.status = str(state).lower()
 
         transaction = FacilityTransaction(
             request=http.serialize_aiohttp_request("GET", url, headers),
