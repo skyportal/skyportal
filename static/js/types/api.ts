@@ -23381,8 +23381,8 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Get a tally of a user's contributions
-         * @description How many sources, comments, classifications, annotations, spectra and follow-up requests this user has to their name, counting only the ones the requester is allowed to see. A viewer sharing no groups with them is told zero rather than refused, since the counts are the answer to what that viewer can see.
+         * Get a user's contributions
+         * @description The sources, comments, classifications, annotations, spectra and follow-up requests this user has to their name that the requester is allowed to see, newest first, with the totals by kind on the first page and the cutouts and detections of the sources on the page. Kinds the user hid from their public profile are left out for everyone else.
          */
         get: {
             parameters: {
