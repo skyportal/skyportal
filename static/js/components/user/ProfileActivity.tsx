@@ -390,9 +390,10 @@ interface FeedProps {
   user: PublicProfile;
   kind: ActivityKind | null;
   collapsed: boolean;
+  owner: boolean;
 }
 
-const Feed = ({ user, kind, collapsed }: FeedProps) => {
+const Feed = ({ user, kind, collapsed, owner }: FeedProps) => {
   const { data, hasNextPage, fetchNextPage, isFetchingNextPage } =
     useGetUserActivityInfiniteQuery({ id: user.id, kind });
   const days = useMemo(
@@ -405,6 +406,14 @@ const Feed = ({ user, kind, collapsed }: FeedProps) => {
         Loading...
       </Button>
     );
+  }
+
+  if (!days.length) {
+    return owner ? (
+      <Typography variant="body2" color="textSecondary" sx={{ px: 1 }}>
+        Hidden from your public profile.
+      </Typography>
+    ) : null;
   }
 
   const objs = Object.assign({}, ...data.pages.map((page) => page.objs));
@@ -637,7 +646,7 @@ const ProfileActivity = ({ user }: { user: PublicProfile }) => {
         onCollapse={() => setCollapsed(!collapsed)}
       />
       {Object.values(counts).some((count) => count > 0) && (
-        <Feed user={user} kind={kind} collapsed={collapsed} />
+        <Feed user={user} kind={kind} collapsed={collapsed} owner={owner} />
       )}
     </Box>
   );

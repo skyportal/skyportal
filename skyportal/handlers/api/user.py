@@ -890,10 +890,9 @@ class UserActivityHandler(BaseHandler):
                 return self.error(f"kind must be one of {', '.join(ACTIVITY)}.")
 
             viewer = session.user_or_token
-            shared = (
-                list(ACTIVITY)
-                if self.associated_user_object.id == user.id
-                else shared_activity(user)
+            shared = shared_activity(user)
+            counted = (
+                list(ACTIVITY) if self.associated_user_object.id == user.id else shared
             )
             kinds = shared if kind is None else [k for k in shared if k == kind]
             items, has_more = await activity_feed(
@@ -904,7 +903,7 @@ class UserActivityHandler(BaseHandler):
             )
             return self.success(
                 data={
-                    "counts": await activity_counts(session, user_id, viewer, shared)
+                    "counts": await activity_counts(session, user_id, viewer, counted)
                     if offset == 0
                     else None,
                     "items": items,
