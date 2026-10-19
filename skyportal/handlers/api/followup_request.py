@@ -2421,6 +2421,10 @@ class FollowupRequestPrioritizationHandler(BaseHandler):
 
             if len(followup_requests) == 0:
                 return self.error("Need at least one observation to modify.")
+            if not all(
+                r.instrument.api_class.implements()["update"] for r in followup_requests
+            ):
+                return self.error("Cannot update requests on this instrument.")
 
             if priority_type == "localization":
                 if localization_id is None:
@@ -2489,12 +2493,12 @@ class FollowupRequestPrioritizationHandler(BaseHandler):
                     weights = mags - np.min(mags)
                 else:
                     weights = -(mags - np.min(mags))
-            if len(weights) > 1:
-                weights = (weights - np.min(weights)) / (
-                    np.max(weights) - np.min(weights)
-                )
+            weight_range = np.max(weights) - np.min(weights)
+            if weight_range > 0:
+                weights = (weights - np.min(weights)) / weight_range
             else:
-                weights = weights / np.max(weights)
+                # a single request or a tie gets the maximum priority, not 0/0
+                weights = np.ones(len(weights))
 
             priorities = [
                 int(
@@ -2507,9 +2511,6 @@ class FollowupRequestPrioritizationHandler(BaseHandler):
             ]
 
             for followup_request, priority in zip(followup_requests, priorities):
-                api = followup_request.instrument.api_class
-                if not api.implements()["update"]:
-                    return self.error("Cannot update requests on this instrument.")
                 payload = followup_request.payload
                 payload["priority"] = priority
                 await session.execute(
@@ -2524,6 +2525,8 @@ class FollowupRequestPrioritizationHandler(BaseHandler):
                 _req = followup_request
 
                 await _req.instrument.api_class.update(_req, session)
+
+            await session.commit()
 
             flow = Flow()
             flow.push(

@@ -112,6 +112,10 @@ class DefaultGcnTag(Base):
     )
 
 
+# Photometry fields with a point's groups and group-restricted annotations
+PRIVATE_PHOTOMETRY_KEYS = ("groups", "annotations")
+
+
 class GcnReport(Base):
     """Store GCN report for events."""
 
@@ -303,6 +307,12 @@ class GcnReport(Base):
                 if source.get("photometry"):
                     from skyportal.handlers.api.photometry import get_filters_mapper
 
+                    # the page is public, so leave those out whatever is stored
+                    source["photometry"] = [
+                        {k: v for k, v in p.items() if k not in PRIVATE_PHOTOMETRY_KEYS}
+                        for p in source["photometry"]
+                    ]
+
                     source["filters_mapper"] = get_filters_mapper(source["photometry"])
 
         env = jinja2.Environment(
@@ -334,7 +344,7 @@ class GcnReport(Base):
             raise ValueError(data.get("message", "Invalid JSON data."))
         elif data.get("status") == "pending":
             raise ValueError("Report is still being generated.")
-        cache_key = f"gcn_{self.id}"
+        cache_key = f"gcn_v2_{self.id}"
         pub_html = self.get_html()
         pub_plot = self.get_plot()
         cache[cache_key] = dict_to_bytes(
@@ -350,7 +360,7 @@ class GcnReport(Base):
         """Unpublish GcnReport."""
         self.published = False
         # TODO: delete the html from cache
-        cache_key = f"gcn_{self.id}"
+        cache_key = f"gcn_v2_{self.id}"
         cached = cache[cache_key]
         if cached is not None:
             data = np.load(cached, allow_pickle=True)
@@ -917,29 +927,6 @@ class GcnEvent(Base):
                 return None
 
     @property
-    def gracesa(self):
-        """Event page URL."""
-        try:
-            notice = self.gcn_notices[0]
-        except IndexError:
-            return None
-        if notice.notice_format == "json":
-            return None
-        try:
-            root = lxml.etree.fromstring(notice.content)
-            elem = root.find(".//Param[@name='EventPage']")
-        except lxml.etree.XMLSyntaxError:
-            return None
-
-        if elem is None:
-            return None
-        else:
-            try:
-                return elem.attrib.get("value", "")
-            except Exception:
-                return None
-
-    @property
     def graceid(self):
         try:
             notice = self.gcn_notices[0]
@@ -964,80 +951,6 @@ class GcnEvent(Base):
             return None
         else:
             return elem.attrib.get("value", "")
-
-    @property
-    def ned_gwf(self):
-        """NED URL."""
-        return "https://ned.ipac.caltech.edu/gwf/events"
-
-    @property
-    def HasNS(self):
-        """Checking if GW event contains NS."""
-        try:
-            notice = self.gcn_notices[0]
-        except IndexError:
-            return None
-        if notice.notice_format == "json":
-            return None
-        try:
-            root = lxml.etree.fromstring(notice.content)
-            elem = root.find(".//Param[@name='HasNS']")
-        except lxml.etree.XMLSyntaxError:
-            return None
-
-        if elem is None:
-            return None
-        else:
-            try:
-                return "HasNS: " + elem.attrib.get("value", "")
-            except Exception:
-                return None
-
-    @property
-    def HasRemnant(self):
-        """Checking if GW event has remnant matter."""
-        try:
-            notice = self.gcn_notices[0]
-        except IndexError:
-            return None
-        if notice.notice_format == "json":
-            return None
-        try:
-            root = lxml.etree.fromstring(notice.content)
-            elem = root.find(".//Param[@name='HasRemnant']")
-        except lxml.etree.XMLSyntaxError:
-            return None
-
-        if elem is None:
-            return None
-        else:
-            try:
-                return "HasRemnant: " + elem.attrib.get("value", "")
-            except Exception:
-                return None
-
-    @property
-    def FAR(self):
-        """Returning event false alarm rate."""
-        try:
-            notice = self.gcn_notices[0]
-        except IndexError:
-            return None
-        if notice.notice_format == "json":
-            return None
-        try:
-            root = lxml.etree.fromstring(notice.content)
-            elem = root.find(".//Param[@name='FAR']")
-        except lxml.etree.XMLSyntaxError:
-            return None
-
-        if elem is None:
-            return None
-        else:
-            try:
-                return "FAR: " + elem.attrib.get("value", "")
-            except Exception:
-                return None
 
 
 def gcntrigger_allocationuser_access_logic(cls, user_or_token):
@@ -1082,15 +995,6 @@ GcnTrigger.triggered = sa.Column(
 GcnTrigger.create = GcnTrigger.update = GcnTrigger.delete = CustomUserAccessControl(
     gcntrigger_allocationuser_access_logic
 )
-
-
-def gcnevent_user_access_logic(cls, user_or_token):
-    aliased = safe_aliased(cls)
-    user_id = UserAccessControl.user_id_from_user_or_token(user_or_token)
-    query = sa.select(cls)
-    if not user_or_token.is_system_admin:
-        query = query.where(aliased.user_id == user_id)
-    return query
 
 
 GcnEventUser = join_model("gcnevent_users", GcnEvent, User)

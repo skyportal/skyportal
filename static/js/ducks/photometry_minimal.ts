@@ -14,7 +14,7 @@
  * this duck.
  */
 import { skyportalApi } from "../api/skyportalApi";
-import { photometryTag } from "./photometryTags";
+import { photometryTag } from "../api/cacheTags";
 
 export interface MinimalPhotometryDatum {
   id: number;

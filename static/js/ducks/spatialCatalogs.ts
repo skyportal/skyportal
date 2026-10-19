@@ -8,9 +8,7 @@
  * refetch.
  *
  * Websocket-driven invalidation bridges `REFRESH_SPATIAL_CATALOGS` (refetch the
- * full list) and `REFRESH_SPATIAL_CATALOG` (refetch a single catalog, but only
- * when the pushed id matches a catalog that is currently cached) to cache
- * invalidation.
+ * full list) to cache invalidation.
  */
 import { buildQueryString } from "../API";
 import { skyportalApi } from "../api/skyportalApi";
@@ -58,21 +56,6 @@ export const spatialCatalogsApi = skyportalApi.injectEndpoints({
 invalidateOnMessage("skyportal/REFRESH_SPATIAL_CATALOGS", () => [
   "SpatialCatalogs",
 ]);
-
-// Websocket: refresh a single catalog on REFRESH_SPATIAL_CATALOG, but only when
-// the pushed id matches a catalog currently held in the cache (preserving the
-// old handler's "only refresh if the loaded catalog matches" gating).
-invalidateOnMessage(
-  "skyportal/REFRESH_SPATIAL_CATALOG",
-  (payload, getState) => {
-    const selectCatalog = spatialCatalogsApi.endpoints.getSpatialCatalog.select(
-      payload?.spatialCatalog_id,
-    );
-    const state = getState() as Parameters<typeof selectCatalog>[0];
-    const cached = selectCatalog(state)?.data;
-    return cached ? ["SpatialCatalog"] : null;
-  },
-);
 
 export const {
   useGetSpatialCatalogsQuery,

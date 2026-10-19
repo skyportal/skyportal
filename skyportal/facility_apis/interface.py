@@ -1,3 +1,5 @@
+from baselayer.app.flow import Flow
+
 from ._base import _Base, _ListenerBase
 
 
@@ -189,3 +191,16 @@ class FollowUpAPI(_Base):
     # - "asc" means that higher priority is more urgent (default if not provided),
     # - "desc" means that lower priority is more urgent
     priorityOrder = "asc"
+
+
+def push_followup_refresh(
+    obj_key, user_id, flow=None, refresh_source=False, refresh_requests=False, **kwargs
+):
+    """Push the refreshes requested through a facility API method's kwargs:
+    the source page to everyone and/or the follow-up requests to the user."""
+    if refresh_source:
+        (flow or Flow()).push(
+            "*", "skyportal/REFRESH_SOURCE", payload={"obj_key": obj_key}
+        )
+    if refresh_requests:
+        (flow or Flow()).push(user_id, "skyportal/REFRESH_FOLLOWUP_REQUESTS")

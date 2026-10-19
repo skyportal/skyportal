@@ -11,7 +11,6 @@ import sqlalchemy as sa
 from astropy.coordinates import SkyCoord
 from astropy.table import Table
 from astropy.time import Time
-from bs4 import BeautifulSoup
 
 from baselayer.app.env import load_env
 from baselayer.log import make_log
@@ -28,7 +27,6 @@ TNS_URL = cfg.get("app.tns.endpoint")
 tns_url_dict = {
     "base": TNS_URL,
     "search": "api/get/search",
-    "search_frontend": "search",
     "object": "api/get/object",
     "report": "api/set/bulk-report",
     "report_reply": "api/get/bulk-report-reply",
@@ -681,98 +679,3 @@ def read_tns_spectrum(spectrum, session):
     data["instrument_id"] = instrument.id
 
     return data
-
-
-def get_objects_from_soup(soup):
-    """Get objects from a TNS search result page
-
-    Parameters
-    ----------
-    soup : BeautifulSoup
-        The soup of a TNS search result page
-
-    Returns
-    -------
-    list
-        A list of dictionaries with the keys 'name', 'ra', and 'dec'
-    """
-    objects = []
-    try:
-        table = soup.find("table", attrs={"class": "results-table"})
-        table_rows = table.find("tbody").find_all("tr")
-    except Exception:
-        return objects  # no objects found in that soup
-    for row in table_rows:
-        try:
-            # if the row doesn't have the class="row-odd public odd" then skip it
-            if not {"public", "odd"}.issubset(set(row.attrs.get("class", []))):
-                continue
-            name = str(
-                row.find("td", attrs={"class": "cell-name"}).find("a").contents[0]
-            )
-            ra = row.find("td", attrs={"class": "cell-ra"}).text
-            dec = row.find("td", attrs={"class": "cell-decl"}).text
-            if name is None or ra is None or dec is None:
-                continue
-            objects.append({"name": name, "ra": ra, "dec": dec})
-        except Exception:
-            continue
-    return objects
-
-
-def get_objects_from_page(
-    headers, page=1, discovered_period_value=5, discovered_period_units="days"
-):
-    """Get objects from a TNS search result page
-
-    Parameters
-    ----------
-    headers : dict
-        Headers to use for the request
-    page : int, optional
-        Page number, by default 1
-    discovered_period_value : int, optional
-        Discovered period value, by default 5
-    discovered_period_units : str, optional
-        Discovered period units, by default 'days'
-
-    Returns
-    -------
-    list
-        A list of dictionaries with the keys 'name', 'ra', and 'dec'
-    """
-    url = (
-        get_tns_url("search_frontend")
-        + f"?discovered_period_value={discovered_period_value}&discovered_period_units={discovered_period_units}&page={page}"
-    )
-    n_retries = 0
-    objects = []
-    total_pages = page
-    while n_retries < 6:
-        try:
-            response = requests.get(
-                url, headers=headers, allow_redirects=True, stream=True, timeout=10
-            )
-            if response.status_code != 200:
-                raise Exception(
-                    f"Request failed with status code {response.status_code}"
-                )
-            text = response.text
-            soup = BeautifulSoup(text, "html.parser")
-            objects = get_objects_from_soup(soup)
-            try:
-                total_pages = len(
-                    soup.find("ul", attrs={"class": "pager"}).find_all(
-                        "li", attrs={"class": "pager-item"}
-                    )
-                )
-            except Exception:
-                pass
-            break
-        except Exception:
-            n_retries += 1
-            time.sleep(15)
-            continue
-
-    next_page = page < int(total_pages)
-    return objects, next_page

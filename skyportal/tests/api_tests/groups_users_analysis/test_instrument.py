@@ -446,6 +446,55 @@ def test_token_user_post_sensitivity_data(super_admin_token):
     )
 
 
+def test_rejected_instrument_post_creates_nothing(super_admin_token):
+    name = str(uuid.uuid4())
+    status, data = api(
+        "POST",
+        "telescope",
+        data={
+            "name": name,
+            "nickname": name,
+            "lat": 0.0,
+            "lon": 0.0,
+            "elevation": 0.0,
+            "diameter": 10.0,
+        },
+        token=super_admin_token,
+    )
+    assert status == 200
+    telescope_id = data["data"]["id"]
+
+    instrument_name = str(uuid.uuid4())
+    instrument_data = {
+        "name": instrument_name,
+        "type": "imager",
+        "band": "Optical",
+        "filters": ["ztfg"],
+        "telescope_id": telescope_id,
+        "field_data": {"ID": [1], "RA": [10.0], "Dec": [10.0]},
+    }
+    status, data = api(
+        "POST", "instrument", data=instrument_data, token=super_admin_token
+    )
+    assert status == 400
+    assert "field_region or field_fov_type is required" in data["message"]
+
+    # same name again: it must not be taken by the rejected instrument
+    del instrument_data["field_data"]
+    instrument_data["references"] = {"field": [1], "filter": ["ztfr"]}
+    status, data = api(
+        "POST", "instrument", data=instrument_data, token=super_admin_token
+    )
+    assert status == 400
+    assert "Filters in references must be a subset" in data["message"]
+
+    status, data = api(
+        "GET", f"instrument?name={instrument_name}", token=super_admin_token
+    )
+    assert status == 200
+    assert data["data"] == []
+
+
 def test_instrument_forms_api_classname_reads_telescope(super_admin_token):
     """Regression: GET /api/internal/instrument_forms?apiType=api_classname must
     not raise MissingGreenlet. ZTFAPI.custom_json_schema reads

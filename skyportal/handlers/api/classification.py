@@ -461,7 +461,11 @@ class ClassificationHandler(BaseHandler):
 
             if body.label:
                 await add_source_labels(
-                    session, obj_id, group_ids, self.associated_user_object.id
+                    session,
+                    obj_id,
+                    group_ids,
+                    self.associated_user_object.id,
+                    labeller_groups_only=True,
                 )
 
             self.push_all(
@@ -579,7 +583,11 @@ class ObjClassificationHandler(BaseHandler):
 
                 if body.label:
                     await add_source_labels(
-                        session, obj_id_local, group_ids, self.associated_user_object.id
+                        session,
+                        obj_id_local,
+                        group_ids,
+                        self.associated_user_object.id,
+                        labeller_groups_only=True,
                     )
 
             await session.commit()
@@ -735,6 +743,7 @@ class ClassificationVotesHandler(BaseHandler):
                 classification.obj.id,
                 [group.id for group in classification.groups],
                 self.associated_user_object.id,
+                labeller_groups_only=True,
             )
 
             await session.commit()
@@ -787,6 +796,7 @@ class ClassificationVotesHandler(BaseHandler):
                 classification.obj.id,
                 [group.id for group in classification.groups],
                 self.associated_user_object.id,
+                labeller_groups_only=True,
             )
 
             await session.commit()

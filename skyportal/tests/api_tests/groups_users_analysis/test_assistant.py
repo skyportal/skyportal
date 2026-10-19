@@ -212,6 +212,27 @@ def test_asking_needs_a_configured_assistant(user):
     assert data["data"] == []
 
 
+def test_notify_accepts_only_user_and_group_ids(user, public_group):
+    token_id = _token(user)
+    question = {"text": "hi", "context_type": "source", "context_id": "x"}
+
+    status, data = api(
+        "POST",
+        "assistant/messages",
+        data={**question, "notify": {"comment_groups": [public_group.id]}},
+        token=token_id,
+    )
+    assert_api_fail(status, data, expected_error_partial="may only name")
+
+    status, data = api(
+        "POST",
+        "assistant/messages",
+        data={**question, "notify": {"users": ["x"]}},
+        token=token_id,
+    )
+    assert_api_fail(status, data, expected_error_partial="Invalid/missing parameters")
+
+
 def test_the_tool_trace_and_proposal_reach_the_reader(user):
     # The page renders both; an answer whose steps and pipeline stop at the
     # database is one nobody can check.

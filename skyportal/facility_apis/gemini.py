@@ -19,6 +19,7 @@ from ..utils.naive_datetime import utcnow_naive
 from ..utils.offset import _calculate_best_position_for_offset_stars, get_finding_chart
 from ..utils.parse import get_list_typed
 from . import FollowUpAPI
+from .interface import push_followup_refresh
 
 env, cfg = load_env()
 log = make_log("facility_apis/gemini")
@@ -422,19 +423,9 @@ class GEMINIAPI(FollowUpAPI):
 
         session.add(transaction)
 
-        if kwargs.get("refresh_source", False):
-            flow = Flow()
-            flow.push(
-                "*",
-                "skyportal/REFRESH_SOURCE",
-                payload={"obj_key": request.obj.internal_key},
-            )
-        if kwargs.get("refresh_requests", False):
-            flow = Flow()
-            flow.push(
-                request.last_modified_by_id,
-                "skyportal/REFRESH_FOLLOWUP_REQUESTS",
-            )
+        push_followup_refresh(
+            request.obj.internal_key, request.last_modified_by_id, **kwargs
+        )
 
     form_json_schema = {
         "type": "object",

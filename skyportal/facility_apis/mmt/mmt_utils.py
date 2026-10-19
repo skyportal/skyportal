@@ -15,6 +15,7 @@ from skyportal.utils.calculations import deg2dms, deg2hms
 from skyportal.utils.parse import bool_to_int
 
 from ...utils.naive_datetime import utcnow_naive
+from ..interface import push_followup_refresh
 
 env, cfg = load_env()
 
@@ -304,16 +305,9 @@ async def submit_mmt_request(
 
     try:
         flow = Flow()
-        if kwargs.get("refresh_source", False):
-            flow.push(
-                "*",
-                "skyportal/REFRESH_SOURCE",
-                payload={"obj_key": request.obj.internal_key},
-            )
-        if kwargs.get("refresh_requests", False):
-            flow.push(
-                request.last_modified_by_id, "skyportal/REFRESH_FOLLOWUP_REQUESTS"
-            )
+        push_followup_refresh(
+            request.obj.internal_key, request.last_modified_by_id, flow=flow, **kwargs
+        )
     except Exception as e:
         log(f"Failed to send notification: {str(e)}")
 
@@ -399,17 +393,9 @@ async def delete_mmt_request(session, request, log, **kwargs):
 
     try:
         flow = Flow()
-        if kwargs.get("refresh_source", False):
-            flow.push(
-                "*",
-                "skyportal/REFRESH_SOURCE",
-                payload={"obj_key": obj_internal_key},
-            )
-        if kwargs.get("refresh_requests", False):
-            flow.push(
-                last_modified_by_id,
-                "skyportal/REFRESH_FOLLOWUP_REQUESTS",
-            )
+        push_followup_refresh(
+            obj_internal_key, last_modified_by_id, flow=flow, **kwargs
+        )
     except Exception as e:
         log(f"Failed to send notification: {str(e)}")
 

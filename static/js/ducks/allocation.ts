@@ -10,8 +10,8 @@
  * `editFollowupRequestComment`) invalidate the `Allocation` tag so any active
  * `getAllocation` query refetches.
  *
- * The websocket `REFRESH_ALLOCATION` / `REFRESH_ALLOCATION_REQUEST_COMMENT`
- * messages are bridged to cache invalidation via `invalidateOnMessage`.
+ * The websocket `REFRESH_ALLOCATION_REQUEST_COMMENT` message is bridged to
+ * cache invalidation via `invalidateOnMessage`.
  */
 import { skyportalApi } from "../api/skyportalApi";
 import { invalidateOnMessage } from "../api/wsInvalidation";
@@ -75,8 +75,7 @@ export const allocationApi = skyportalApi.injectEndpoints({
 });
 
 // Websocket-driven invalidation: refresh the active allocation query on
-// REFRESH_ALLOCATION or REFRESH_ALLOCATION_REQUEST_COMMENT.
-invalidateOnMessage("skyportal/REFRESH_ALLOCATION", () => ["Allocation"]);
+// REFRESH_ALLOCATION_REQUEST_COMMENT.
 invalidateOnMessage(
   "skyportal/REFRESH_ALLOCATION_REQUEST_COMMENT",
   (payload) => (payload?.followup_request_id ? ["Allocation"] : null),

@@ -3,8 +3,12 @@
  * (delete, submit, update) invalidate it so the list refetches.
  */
 import { skyportalApi } from "../api/skyportalApi";
-import { invalidateOnMessage, findCachedQueryArg } from "../api/wsInvalidation";
-import { photometryTag } from "./photometryTags";
+import {
+  invalidateOnMessage,
+  findCachedSourceId,
+  cachedQueries,
+} from "../api/wsInvalidation";
+import { photometryTag } from "../api/cacheTags";
 import type { RouteData } from "../types/routeSchemaMap";
 
 const REFRESH_SOURCE_PHOTOMETRY = "skyportal/REFRESH_SOURCE_PHOTOMETRY";
@@ -76,8 +80,7 @@ const KEYED_LISTS: [string[], string][] = [
 
 // The id of a source in one of those loaded lists, given its key.
 const findListedObjId = (getState: () => unknown, objKey: string) => {
-  const queries = (getState() as any)?.skyportalApi?.queries ?? {};
-  for (const entry of Object.values(queries) as any[]) {
+  for (const entry of cachedQueries(getState)) {
     for (const [path, idField] of KEYED_LISTS) {
       const rows = path.reduce((data: any, key) => data?.[key], entry?.data);
       if (Array.isArray(rows)) {
@@ -99,12 +102,8 @@ invalidateOnMessage(REFRESH_SOURCE_PHOTOMETRY, (payload, getState) => {
   if (!objKey) {
     return null;
   }
-  const sourceId = findCachedQueryArg(
-    getState,
-    "getSource",
-    (data) => data?.internal_key === objKey,
-  ) as string | number | null;
-  const objId = sourceId ?? findListedObjId(getState, objKey);
+  const objId =
+    findCachedSourceId(getState, objKey) ?? findListedObjId(getState, objKey);
   return objId != null ? photometryTag(objId) : null;
 });
 

@@ -453,7 +453,7 @@ export const gcnEventApi = skyportalApi.injectEndpoints({
 // `GcnEvent` tag only refetches the *active* queries — which are, by
 // construction, the ones for the currently-loaded event — so the conditional
 // "only if it matches the loaded event" guard is satisfied automatically.
-invalidateOnMessage("skyportal/FETCH_GCNEVENT", () => ["GcnEvent"]);
+
 // REFRESH_GCN_EVENT is broadcast to every client carrying the changed event's
 // dateobs (which is exactly the getGcnEvent/getGcnTach query arg — no lookup
 // needed). Invalidate only that event's per-id tag so other clients viewing a

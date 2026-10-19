@@ -6,7 +6,12 @@ import numpy as np
 import pytest
 from playwright.sync_api import expect
 
-from skyportal.tests import api, wait_for_gcn_event, wait_for_localization
+from skyportal.tests import (
+    api,
+    post_gcn_event_if_missing,
+    wait_for_gcn_event,
+    wait_for_localization,
+)
 from skyportal.tests.frontend.observations_and_instruments.test_reminders import (
     expect_notification_link,
     post_and_verify_reminder,
@@ -168,18 +173,9 @@ def test_gcnevents_object(
 
 def test_reminder_on_gcn(page, super_admin_user, super_admin_token):
     datafile = f"{os.path.dirname(__file__)}/../../../../data/GW190814.xml"
-    with open(datafile, "rb") as fid:
-        payload = fid.read()
-    event_data = {"xml": payload}
 
     dateobs = "2019-08-14T21:10:39"
-    status, data = api("GET", f"gcn_event/{dateobs}", token=super_admin_token)
-    if status == 404:
-        status, data = api(
-            "POST", "gcn_event", data=event_data, token=super_admin_token
-        )
-        assert status == 200
-        assert data["status"] == "success"
+    post_gcn_event_if_missing(dateobs, super_admin_token, xml_file=datafile)
 
     # wait for event to load
     gcn_event_id = wait_for_gcn_event(dateobs, super_admin_token)["id"]
@@ -205,18 +201,9 @@ def test_confirm_reject_source_in_gcn(
     upload_data_token,
 ):
     datafile = f"{os.path.dirname(__file__)}/../../../../data/GW190814.xml"
-    with open(datafile, "rb") as fid:
-        payload = fid.read()
-    event_data = {"xml": payload}
 
     dateobs = "2019-08-14T21:10:39"
-    status, data = api("GET", f"gcn_event/{dateobs}", token=super_admin_token)
-    if status == 404:
-        status, data = api(
-            "POST", "gcn_event", data=event_data, token=super_admin_token
-        )
-        assert status == 200
-        assert data["status"] == "success"
+    post_gcn_event_if_missing(dateobs, super_admin_token, xml_file=datafile)
 
     # wait for event to load
     wait_for_gcn_event(dateobs, super_admin_token)

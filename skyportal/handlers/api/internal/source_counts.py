@@ -22,12 +22,16 @@ class SourceCountHandler(BaseHandler):
         source_count_prefs = user_prefs.get("sourceCounts", {})
         source_count_prefs = {**default_prefs, **source_count_prefs}
 
-        since_days_ago = int(source_count_prefs["sinceDaysAgo"])
-
         # Pass datetime directly rather than isoformat() — psycopg3 binds
         # Python strings as VARCHAR, which Postgres refuses to compare to
         # the timestamp column.
-        cutoff_day = datetime.datetime.now() - datetime.timedelta(days=since_days_ago)
+        try:
+            since_days_ago = float(source_count_prefs["sinceDaysAgo"])
+            cutoff_day = datetime.datetime.now() - datetime.timedelta(
+                days=since_days_ago
+            )
+        except (TypeError, ValueError, OverflowError) as e:
+            return self.error(f"Invalid sourceCounts preference sinceDaysAgo: {e}")
 
         async with self.AsyncSession() as session:
             accessible = set(

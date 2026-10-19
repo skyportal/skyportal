@@ -6,11 +6,11 @@ import sqlalchemy as sa
 from sqlalchemy.orm import selectinload
 
 from baselayer.app.env import load_env
-from baselayer.app.flow import Flow
 
 from ..utils import http
 from ..utils.naive_datetime import utcnow_naive
 from . import FollowUpAPI
+from .interface import push_followup_refresh
 
 env, cfg = load_env()
 
@@ -65,8 +65,11 @@ def validate_request(request, filters):
 class GENERICAPI(FollowUpAPI):
     """SkyPortal interface for generic imaging follow-up"""
 
-    @staticmethod
-    async def submit(request, session, **kwargs):
+    # subclasses swap in their own payload validator
+    _validate_request = staticmethod(validate_request)
+
+    @classmethod
+    async def submit(cls, request, session, **kwargs):
         """Submit a follow-up request to an instrument.
 
         Parameters
@@ -111,7 +114,9 @@ class GENERICAPI(FollowUpAPI):
             )
         )
 
-        validate_request(request, request.allocation.instrument.to_dict()["filters"])
+        cls._validate_request(
+            request, request.allocation.instrument.to_dict()["filters"]
+        )
 
         altdata = (
             request.allocation.altdata
@@ -198,19 +203,9 @@ class GENERICAPI(FollowUpAPI):
         if transaction is not None:
             session.add(transaction)
 
-        if kwargs.get("refresh_source", False):
-            flow = Flow()
-            flow.push(
-                "*",
-                "skyportal/REFRESH_SOURCE",
-                payload={"obj_key": request.obj.internal_key},
-            )
-        if kwargs.get("refresh_requests", False):
-            flow = Flow()
-            flow.push(
-                request.last_modified_by_id,
-                "skyportal/REFRESH_FOLLOWUP_REQUESTS",
-            )
+        push_followup_refresh(
+            request.obj.internal_key, request.last_modified_by_id, **kwargs
+        )
 
     @staticmethod
     async def delete(request, session, **kwargs):
@@ -289,22 +284,10 @@ class GENERICAPI(FollowUpAPI):
 
         session.add(transaction)
 
-        if kwargs.get("refresh_source", False):
-            flow = Flow()
-            flow.push(
-                "*",
-                "skyportal/REFRESH_SOURCE",
-                payload={"obj_key": obj_internal_key},
-            )
-        if kwargs.get("refresh_requests", False):
-            flow = Flow()
-            flow.push(
-                last_modified_by_id,
-                "skyportal/REFRESH_FOLLOWUP_REQUESTS",
-            )
+        push_followup_refresh(obj_internal_key, last_modified_by_id, **kwargs)
 
-    @staticmethod
-    async def update(request, session, **kwargs):
+    @classmethod
+    async def update(cls, request, session, **kwargs):
         """Update a request in the instrument queue.
 
         Parameters
@@ -331,11 +314,14 @@ class GENERICAPI(FollowUpAPI):
             )
         )
 
-        validate_request(request, request.allocation.instrument.to_dict()["filters"])
+        cls._validate_request(
+            request, request.allocation.instrument.to_dict()["filters"]
+        )
 
         altdata = request.allocation.altdata
+        notification_type = altdata.get("notification_type")
 
-        if altdata:
+        if notification_type == "API":
             payload = {
                 "obj_id": request.obj_id,
                 "allocation_id": request.allocation.id,
@@ -360,7 +346,20 @@ class GENERICAPI(FollowUpAPI):
                 followup_request=request,
                 initiator_id=request.last_modified_by_id,
             )
+        elif altdata and notification_type not in ("slack", "email"):
+            # as in submit(): a config that is neither an API nor a notification
+            request.status = "rejected: no valid altdata configuration found."
+            transaction = None
         else:
+            if notification_type == "slack":
+                from ..utils.notifications import request_notify_by_slack
+
+                await request_notify_by_slack(request, session, is_update=True)
+            elif notification_type == "email":
+                from ..utils.notifications import request_notify_by_email
+
+                await request_notify_by_email(request, session, is_update=True)
+
             request.status = "submitted"
 
             transaction = FacilityTransaction(
@@ -370,21 +369,12 @@ class GENERICAPI(FollowUpAPI):
                 initiator_id=request.last_modified_by_id,
             )
 
-        session.add(transaction)
+        if transaction is not None:
+            session.add(transaction)
 
-        if kwargs.get("refresh_source", False):
-            flow = Flow()
-            flow.push(
-                "*",
-                "skyportal/REFRESH_SOURCE",
-                payload={"obj_key": request.obj.internal_key},
-            )
-        if kwargs.get("refresh_requests", False):
-            flow = Flow()
-            flow.push(
-                request.last_modified_by_id,
-                "skyportal/REFRESH_FOLLOWUP_REQUESTS",
-            )
+        push_followup_refresh(
+            request.obj.internal_key, request.last_modified_by_id, **kwargs
+        )
 
     def custom_json_schema(instrument, user, **kwargs):
         form_json_schema = {

@@ -1,11 +1,9 @@
 import types
 
 import pytest
-from bs4 import BeautifulSoup
 
 from skyportal.utils.tns import (
     SURVEYS,
-    get_objects_from_soup,
     get_tns_headers,
     get_tns_object_id_and_data_source_id,
     get_tns_url,
@@ -83,32 +81,3 @@ def test_get_tns_url(monkeypatch):
     monkeypatch.setattr("skyportal.utils.tns.TNS_URL", None)
     with pytest.raises(ValueError, match="TNS URL is not configured"):
         get_tns_url("search")
-
-
-RESULTS_HTML = """
-<table class="results-table"><tbody>
-  <tr class="row-odd public odd">
-    <td class="cell-name"><a href="/object/2024abc">2024abc</a></td>
-    <td class="cell-ra">12:34:56.78</td>
-    <td class="cell-decl">+12:34:56.7</td>
-  </tr>
-  <tr class="row-even private even">
-    <td class="cell-name"><a href="/object/secret">SECRET</a></td>
-    <td class="cell-ra">00:00:00.0</td>
-    <td class="cell-decl">-00:00:00.0</td>
-  </tr>
-</tbody></table>
-"""
-
-
-def test_get_objects_from_soup_parses_public_rows_only():
-    soup = BeautifulSoup(RESULTS_HTML, "html.parser")
-    objects = get_objects_from_soup(soup)
-    # only the public/odd row is returned; the private row is skipped
-    assert objects == [{"name": "2024abc", "ra": "12:34:56.78", "dec": "+12:34:56.7"}]
-
-
-def test_get_objects_from_soup_no_table():
-    # a page without a results table yields no objects rather than raising
-    soup = BeautifulSoup("<html><body>no results</body></html>", "html.parser")
-    assert get_objects_from_soup(soup) == []
