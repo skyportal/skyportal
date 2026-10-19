@@ -423,7 +423,7 @@ async def get_observations(
             )
         )
         if instrument is None:
-            return ValueError(f"Missing instrument {instrument_name}")
+            raise ValueError(f"Missing instrument {instrument_name}")
 
         obs_query = obs_query.where(Observation.instrument_id == instrument.id)
     elif instrument_name is not None:
@@ -433,7 +433,7 @@ async def get_observations(
             ).where(Instrument.name == instrument_name)
         )
         if instrument is None:
-            return ValueError(f"Missing instrument {instrument_name}")
+            raise ValueError(f"Missing instrument {instrument_name}")
 
         obs_query = obs_query.where(Observation.instrument_id == instrument.id)
 
@@ -1066,26 +1066,29 @@ class ObservationHandler(BaseHandler):
             return self.error(f"Invalid input for parameter end_date : {str(e)}")
 
         async with self.AsyncSession() as session:
-            data = await get_observations(
-                session,
-                start_date,
-                end_date,
-                telescope_name=query.telescopeName,
-                instrument_name=query.instrumentName,
-                localization_dateobs=query.localizationDateobs,
-                localization_name=query.localizationName,
-                localization_cumprob=query.localizationCumprob,
-                min_observations_per_field=query.numberObservations,
-                return_statistics=query.returnStatistics,
-                stats_method=query.statsMethod,
-                stats_logging=query.statsLogging,
-                includeGeoJSON=query.includeGeoJSON,
-                observation_status=query.observationStatus,
-                n_per_page=query.numPerPage,
-                page_number=query.pageNumber,
-                sort_by=query.sortBy,
-                sort_order=query.sortOrder,
-            )
+            try:
+                data = await get_observations(
+                    session,
+                    start_date,
+                    end_date,
+                    telescope_name=query.telescopeName,
+                    instrument_name=query.instrumentName,
+                    localization_dateobs=query.localizationDateobs,
+                    localization_name=query.localizationName,
+                    localization_cumprob=query.localizationCumprob,
+                    min_observations_per_field=query.numberObservations,
+                    return_statistics=query.returnStatistics,
+                    stats_method=query.statsMethod,
+                    stats_logging=query.statsLogging,
+                    includeGeoJSON=query.includeGeoJSON,
+                    observation_status=query.observationStatus,
+                    n_per_page=query.numPerPage,
+                    page_number=query.pageNumber,
+                    sort_by=query.sortBy,
+                    sort_order=query.sortOrder,
+                )
+            except ValueError as e:
+                return self.error(str(e))
 
             return self.success(data=data)
 
