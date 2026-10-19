@@ -312,6 +312,55 @@ def build_photometry_groups(object_id, survey, data, instrument_id, programid2st
     return photometry_data
 
 
+async def _flip_stale_positive_points(session, pd):
+    """Negate stored copies of pd's negative points that were saved with a positive flux."""
+    import sqlalchemy as sa
+
+    from ..handlers.api.photometry import (
+        find_duplicate_photometry,
+        standardize_photometry_data,
+    )
+    from ..models import Photometry, PhotStat
+
+    negative = [i for i, f in enumerate(pd["flux"]) if f is not None and f < 0]
+    if not negative:
+        return
+    columns = ("mjd", "filter", "origin", "magsys", "flux", "fluxerr", "zp")
+    df, _ = await standardize_photometry_data(
+        {
+            "obj_id": pd["obj_id"],
+            "instrument_id": pd["instrument_id"],
+            **{c: [pd[c][i] for i in negative] for c in columns},
+        },
+        session,
+    )
+    stored_negative = {i for i, _ in await find_duplicate_photometry(session, df)}
+    df["standardized_flux"] = -df["standardized_flux"]
+    stale = [
+        p
+        for i, p in await find_duplicate_photometry(session, df)
+        if i not in stored_negative
+    ]
+    if not stale:
+        return
+    for p in stale:
+        p.flux = -p.flux
+    await session.flush()
+
+    phot_stat = await session.scalar(
+        sa.select(PhotStat).where(PhotStat.obj_id == pd["obj_id"]).with_for_update()
+    )
+    if phot_stat is not None:
+        all_phot = (
+            await session.scalars(
+                sa.select(Photometry).where(Photometry.obj_id == pd["obj_id"])
+            )
+        ).all()
+        phot_stat.full_update(all_phot)
+        for phot in all_phot:
+            session.expunge(phot)
+
+
 async def _ingest_object(
     data,
     survey,
@@ -569,6 +618,10 @@ async def _ingest_object(
             ).all()
         )
 
+    mag_space = any(
+        p.get("psfFluxErr") is None and p.get("magpsf") is not None
+        for p in data.get("prv_candidates") or []
+    )
     for pd in photometry_data.values():
         if pd["mjd"]:  # never post empty photometry (breaks JSON coercion)
             # Bulk ingestion must not inherit the sitewide default-share; keep
@@ -576,6 +629,8 @@ async def _ingest_object(
             if photometry_group_ids:
                 pd["group_ids"] = sorted(photometry_group_ids)
             try:
+                if mag_space:
+                    await _flip_stale_positive_points(session, pd)
                 await add_external_photometry(
                     pd, user, session, apply_default_share=False
                 )
