@@ -3,6 +3,7 @@ import { Controller } from "react-hook-form";
 import type { Control, RegisterOptions } from "react-hook-form";
 import Box from "@mui/material/Box";
 import Checkbox from "@mui/material/Checkbox";
+import Chip from "@mui/material/Chip";
 import FormControlLabel from "@mui/material/FormControlLabel";
 import Switch from "@mui/material/Switch";
 import type { SwitchProps } from "@mui/material/Switch";
@@ -179,16 +180,43 @@ export const FilterSelect = ({
   filters,
   value,
   onChange,
+  sx,
   ...props
 }: FilterSelectProps) => (
   <SearchableSelect
     multiple
+    disableCloseOnSelect
     label="Filters"
     options={filters}
     isOptionEqualToValue={(o: any, v: any) => o.id === v.id}
     value={filters.filter((f) => value.includes(f.id))}
     onChange={(_event, selected: any[]) => onChange(selected.map((f) => f.id))}
+    renderOption={({ key, ...optionProps }, filter: any, { selected }) => (
+      <li key={key} {...optionProps}>
+        <Checkbox size="small" checked={selected} sx={{ p: 0, mr: 1 }} />
+        {filter.name}
+      </li>
+    )}
+    renderValue={(selected: any[], getItemProps) => (
+      <>
+        <Chip
+          size="small"
+          label={selected[0].name}
+          {...getItemProps({ index: 0 })}
+          sx={{ minWidth: 0 }}
+        />
+        {selected.length > 1 && (
+          <Box component="span" sx={{ flexShrink: 0, mx: 0.5 }}>
+            +{selected.length - 1}
+          </Box>
+        )}
+      </>
+    )}
     placeholder={value.length > 0 ? "" : "All"}
+    sx={[
+      { "& .MuiAutocomplete-inputRoot": { flexWrap: "nowrap" } },
+      ...(Array.isArray(sx) ? sx : [sx]),
+    ]}
     {...props}
   />
 );
