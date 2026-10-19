@@ -213,18 +213,18 @@ def fetch_broker_alerts(  # noqa: PLR0913 -- mirrors the endpoint's query parame
     return list(unwrap(response))
 
 
-def fetch_broker_alert(
+def fetch_broker_object(
     client: httpx.Client,
     broker_id: int,
-    alert_id: str,
+    object_id: str,
     *,
     extra_params: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
-    """Retrieve a single alert from a broker.
+    """Retrieve one survey object from a broker.
 
-    Dispatched to the broker's provider, which returns the alert with its
-    auxiliary/history data if available. The broker must be active and
-    implement ``get_alert``.
+    Dispatched to the broker's provider, which returns the object with its
+    detection history if available. The broker must be active and implement
+    ``get_alert``.
 
     Parameters
     ----------
@@ -232,13 +232,13 @@ def fetch_broker_alert(
         Client from :func:`skyportal_py.create_client`.
     broker_id : int
         ID of the broker to query.
-    alert_id : str
-        Alert identifier the provider keys alerts on.
+    object_id : str
+        Survey object identifier, e.g. a ZTF objectId.
     extra_params : dict, optional
         Additional provider-specific query parameters.
     """
     response = client.get(
-        f"/api/brokers/{broker_id}/alerts/{alert_id}",
+        f"/api/brokers/{broker_id}/objects/{object_id}",
         params=dict(extra_params or {}),
     )
     return unwrap(response)
@@ -264,7 +264,8 @@ def fetch_broker_cutouts(
     broker_id : int
         ID of the broker to query.
     alert_id : str
-        Alert identifier (e.g. candid) the provider keys cutouts on.
+        Identifier the provider keys cutouts on: the candid for BOOM and
+        Babamul, the objectId for ALeRCE, ANTARES, Fink and Lasair.
     extra_params : dict, optional
         Additional provider-specific query parameters.
     """

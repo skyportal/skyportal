@@ -2111,7 +2111,7 @@ export interface paths {
         };
         trace?: never;
     };
-    "/api/brokers/{broker_id}/alerts/{candid}/cutouts": {
+    "/api/brokers/{broker_id}/alerts/{alert_id}/cutouts": {
         parameters: {
             query?: never;
             header?: never;
@@ -2128,8 +2128,8 @@ export interface paths {
                 header?: never;
                 path: {
                     broker_id: number;
-                    /** @description Alert identifier (candid) of a single alert packet. */
-                    candid: string;
+                    /** @description Identifier the provider keys cutouts on: the candid for BOOM and Babamul, the objectId for ALeRCE, ANTARES, Fink and Lasair. */
+                    alert_id: string;
                 };
                 cookie?: never;
             };
@@ -2674,7 +2674,7 @@ export interface paths {
         };
         /**
          * Get an object from a broker
-         * @description Fetch one survey object, meaning its brightest alert joined to the detection and non-detection history the broker holds for that objectId, scoped to the programs the requester's streams grant.
+         * @description Fetch one survey object as the broker's provider returns it, scoped to the programs the requester's streams grant.
          */
         get: {
             parameters: {
@@ -2723,8 +2723,8 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Query broker alerts
-         * @description Search a broker's alert packets by objectId, or by ra/dec/ radius, bounded by the optional jd_start and jd_end. An objectId in the path returns the object instead of its alerts, which is what /api/brokers/{broker_id}/objects/{object_id} is named for.
+         * Get an object from a broker
+         * @description Fetch one survey object as the broker's provider returns it, scoped to the programs the requester's streams grant.
          */
         get: {
             parameters: {
@@ -2732,6 +2732,7 @@ export interface paths {
                 header?: never;
                 path: {
                     broker_id: number;
+                    /** @description Survey object identifier, e.g. a ZTF objectId. */
                     object_id: string;
                 };
                 cookie?: never;
@@ -2773,11 +2774,30 @@ export interface paths {
         };
         /**
          * Query broker alerts
-         * @description Search a broker's alert packets by objectId, or by ra/dec/ radius, bounded by the optional jd_start and jd_end. An objectId in the path returns the object instead of its alerts, which is what /api/brokers/{broker_id}/objects/{object_id} is named for.
+         * @description Search a broker's alerts by objectId, candid or ra/dec/radius. Records come back as the broker's provider returns them, and jd_start/jd_end apply only where the provider supports them.
          */
         get: {
             parameters: {
-                query?: never;
+                query?: {
+                    /** @description Survey object id. */
+                    objectId?: string | null;
+                    /** @description Id of a single alert. */
+                    candid?: string | null;
+                    /** @description RA in degrees. */
+                    ra?: number | null;
+                    /** @description Declination in degrees. */
+                    dec?: number | null;
+                    /** @description Search radius. */
+                    radius?: number | null;
+                    /** @description Units of `radius`. Defaults to arcsec. */
+                    radius_units?: "deg" | "arcmin" | "arcsec" | null;
+                    /** @description Earliest alert JD. */
+                    jd_start?: number | null;
+                    /** @description Latest alert JD. */
+                    jd_end?: number | null;
+                    /** @description Survey to query. */
+                    survey?: string | null;
+                };
                 header?: never;
                 path: {
                     broker_id: number;

@@ -44,8 +44,7 @@ def test_photometry_and_save_take_an_object_id_under_either_spelling():
         )
 
 
-def test_cutouts_take_a_candid():
-    # Cutouts belong to one exposure, so that segment is an alert, not an object.
+def test_cutouts_route_reaches_the_cutouts_handler():
     assert route_for("/api/brokers/1/alerts/123456789/cutouts") == (
         BrokerCutoutsHandler,
         ("1", "123456789"),
@@ -53,12 +52,11 @@ def test_cutouts_take_a_candid():
 
 
 def test_bare_alerts_route_captures_no_object_id():
-    # The handler default leaves object_id None, which sends it to query_alerts.
     assert route_for("/api/brokers/1/alerts") == (BrokerAlertsHandler, ("1",))
 
 
-def test_alerts_path_form_still_resolves():
+def test_alerts_path_form_reaches_the_object_handler():
     assert route_for("/api/brokers/1/alerts/ZTF1") == (
-        BrokerAlertsHandler,
+        BrokerObjectHandler,
         ("1", "ZTF1"),
     )

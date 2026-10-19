@@ -7,6 +7,7 @@ from pydantic import Field
 from skyportal_py_models.brokers import (
     _FILTER_MODULE_ELEMENTS,
     MAX_FILTERS_PER_PAGE,
+    BrokerAlertsGetQuery,
     BrokerConeSearchGetQuery,
     BrokerCredentialBody,
     BrokerFilterAttachBody,
@@ -51,11 +52,12 @@ log = make_log("api/broker")
 
 MAX_FILTER_ACTIVATIONS = 100
 
-# Cutouts belong to one exposure, so they key on the alert; everything else
-# keys on the object the alerts share.
-CandId = Annotated[
+AlertId = Annotated[
     str,
-    Field(description="Alert identifier (candid) of a single alert packet."),
+    Field(
+        description="Identifier the provider keys cutouts on: the candid for "
+        "BOOM and Babamul, the objectId for ALeRCE, ANTARES, Fink and Lasair."
+    ),
 ]
 ObjectId = Annotated[
     str,
@@ -418,18 +420,31 @@ class BrokerHandler(BaseHandler):
             return self.success()
 
 
-class BrokerObjectMixin:
-    """Dispatch to the provider for one object, shared by the objects route and
-    the alerts path form kept for callers written against it."""
-
-    def _get_object(self, broker_id, object_id):
+class BrokerObjectHandler(BaseHandler):
+    @auth_or_token
+    async def get(self, broker_id: int, object_id: ObjectId):
+        """
+        ---
+        summary: Get an object from a broker
+        description: Fetch one survey object as the broker's provider returns
+          it, scoped to the programs the requester's streams grant.
+        tags:
+          - brokers
+        responses:
+          200:
+            content:
+              application/json:
+                schema: Success
+          400:
+            content:
+              application/json:
+                schema: Error
+        """
         params: dict[str, Any] = {
             k: self.get_argument(k) for k in self.request.arguments
         }
         with self.Session() as session:
-            broker = session.scalars(
-                Broker.select(self.current_user).where(Broker.id == int(broker_id))
-            ).first()
+            broker = _get_broker(self, session, broker_id)
             if broker is None:
                 return self.error(f"No broker with id {broker_id}")
             if not broker.active:
@@ -439,8 +454,11 @@ class BrokerObjectMixin:
 
             params["permissions"] = alert_permissions(self.current_user, session)
             try:
-                data = broker.broker_class.get_alert(
-                    broker, object_id, session, **params
+                data = await IOLoop.current().run_in_executor(
+                    None,
+                    lambda: broker.broker_class.get_alert(
+                        broker, object_id, session, **params
+                    ),
                 )
             except NotImplementedError:
                 return self.error(f"Broker {broker.name} does not support 'get_alert'.")
@@ -449,40 +467,15 @@ class BrokerObjectMixin:
             return self.success(data=data)
 
 
-class BrokerObjectHandler(BrokerObjectMixin, BaseHandler):
+class BrokerAlertsHandler(BaseHandler):
     @auth_or_token
-    def get(self, broker_id: int, object_id: ObjectId):
-        """
-        ---
-        summary: Get an object from a broker
-        description: Fetch one survey object, meaning its brightest alert joined
-          to the detection and non-detection history the broker holds for that
-          objectId, scoped to the programs the requester's streams grant.
-        tags:
-          - brokers
-        responses:
-          200:
-            content:
-              application/json:
-                schema: Success
-          400:
-            content:
-              application/json:
-                schema: Error
-        """
-        return self._get_object(broker_id, object_id)
-
-
-class BrokerAlertsHandler(BrokerObjectMixin, BaseHandler):
-    @auth_or_token
-    def get(self, broker_id: int, object_id=None):
+    def get(self, broker_id: int, *, query: BrokerAlertsGetQuery = None):
         """
         ---
         summary: Query broker alerts
-        description: Search a broker's alert packets by objectId, or by ra/dec/
-          radius, bounded by the optional jd_start and jd_end. An objectId in
-          the path returns the object instead of its alerts, which is what
-          /api/brokers/{broker_id}/objects/{object_id} is named for.
+        description: Search a broker's alerts by objectId, candid or
+          ra/dec/radius. Records come back as the broker's provider returns
+          them, and jd_start/jd_end apply only where the provider supports them.
         tags:
           - brokers
         responses:
@@ -495,17 +488,11 @@ class BrokerAlertsHandler(BrokerObjectMixin, BaseHandler):
               application/json:
                 schema: Error
         """
-        if object_id is not None:
-            return self._get_object(broker_id, object_id)
-
-        params: dict[str, Any] = {
-            k: self.get_argument(k) for k in self.request.arguments
-        }
+        query = self.parse_query(BrokerAlertsGetQuery)
+        params: dict[str, Any] = query.model_dump(exclude_none=True)
 
         with self.Session() as session:
-            broker = session.scalars(
-                Broker.select(self.current_user).where(Broker.id == int(broker_id))
-            ).first()
+            broker = _get_broker(self, session, broker_id)
             if broker is None:
                 return self.error(f"No broker with id {broker_id}")
             if not broker.active:
@@ -532,7 +519,7 @@ class BrokerAlertsHandler(BrokerObjectMixin, BaseHandler):
 
 class BrokerCutoutsHandler(BaseHandler):
     @auth_or_token
-    def get(self, broker_id: int, candid: CandId):
+    def get(self, broker_id: int, alert_id: AlertId):
         """
         ---
         summary: Get an alert's cutouts from a broker
@@ -567,7 +554,7 @@ class BrokerCutoutsHandler(BaseHandler):
             params["permissions"] = alert_permissions(self.current_user, session)
             try:
                 data = broker.broker_class.get_cutouts(
-                    broker, candid, session, **params
+                    broker, alert_id, session, **params
                 )
             except Exception as e:
                 return self.error(f"Error fetching cutouts from {broker.name}: {e}")

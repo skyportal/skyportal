@@ -1200,8 +1200,8 @@ def test_a_time_bounded_positional_search_passes_its_window():
 def test_one_alert_is_fetched_by_candid():
     calls, _ = run_tool("get_broker_alerts", {"broker_id": 2, "candid": "12345"}, ALERT)
     (method, path, query, _) = calls[0]
-    assert (method, path) == ("GET", "/api/brokers/2/alerts/12345")
-    assert not query
+    assert (method, path) == ("GET", "/api/brokers/2/alerts")
+    assert query == {"candid": "12345"}
 
 
 def test_a_search_with_nothing_to_search_on_is_refused():
