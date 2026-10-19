@@ -690,11 +690,12 @@ async def post_gcnevent_from_xml(
 
     aliases = get_notice_aliases(root, notice_type)
 
+    event = None
     if trigger_id is not None:
         event = await session.scalar(
             GcnEvent.select(user).where(GcnEvent.trigger_id == trigger_id)
         )
-    else:
+    if event is None:
         event = await session.scalar(
             GcnEvent.select(user).where(GcnEvent.dateobs == dateobs)
         )
