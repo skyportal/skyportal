@@ -12,6 +12,7 @@ from baselayer.log import make_log
 from ..utils import http
 from ..utils.calculations import great_circle_distance
 from . import FollowUpAPI
+from .interface import push_followup_refresh
 
 env, cfg = load_env()
 
@@ -237,19 +238,9 @@ class PS1API(FollowUpAPI):
         session.add(transaction)
         await session.commit()
 
-        if kwargs.get("refresh_source", False):
-            flow = Flow()
-            flow.push(
-                "*",
-                "skyportal/REFRESH_SOURCE",
-                payload={"obj_key": request.obj.internal_key},
-            )
-        if kwargs.get("refresh_requests", False):
-            flow = Flow()
-            flow.push(
-                request.last_modified_by_id,
-                "skyportal/REFRESH_FOLLOWUP_REQUESTS",
-            )
+        push_followup_refresh(
+            request.obj.internal_key, request.last_modified_by_id, **kwargs
+        )
 
     # subclasses *must* implement the method below
     @staticmethod
@@ -320,19 +311,9 @@ class PS1API(FollowUpAPI):
 
         session.add(transaction)
 
-        if kwargs.get("refresh_source", False):
-            flow = Flow()
-            flow.push(
-                "*",
-                "skyportal/REFRESH_SOURCE",
-                payload={"obj_key": request.obj.internal_key},
-            )
-        if kwargs.get("refresh_requests", False):
-            flow = Flow()
-            flow.push(
-                request.last_modified_by_id,
-                "skyportal/REFRESH_FOLLOWUP_REQUESTS",
-            )
+        push_followup_refresh(
+            request.obj.internal_key, request.last_modified_by_id, **kwargs
+        )
 
     @staticmethod
     async def delete(request, session, **kwargs):
@@ -376,19 +357,7 @@ class PS1API(FollowUpAPI):
                 "Can't delete PS1 requests which photometry has been committed to the database."
             )
 
-        if kwargs.get("refresh_source", False):
-            flow = Flow()
-            flow.push(
-                "*",
-                "skyportal/REFRESH_SOURCE",
-                payload={"obj_key": obj_internal_key},
-            )
-        if kwargs.get("refresh_requests", False):
-            flow = Flow()
-            flow.push(
-                last_modified_by_id,
-                "skyportal/REFRESH_FOLLOWUP_REQUESTS",
-            )
+        push_followup_refresh(obj_internal_key, last_modified_by_id, **kwargs)
 
     form_json_schema_forced_photometry = {
         "type": "object",
