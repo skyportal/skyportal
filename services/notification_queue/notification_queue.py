@@ -1281,7 +1281,7 @@ def api(queue):
                                                 f"{source} reports *{label}* "
                                                 f"for event *{dateobs}*",
                                                 "gcn_extractions",
-                                                f"/gcn_events/{dateobs}",
+                                                f"/gcn_events/{dateobs.isoformat()}",
                                             )
                                         )
                                 elif is_analysis_service:

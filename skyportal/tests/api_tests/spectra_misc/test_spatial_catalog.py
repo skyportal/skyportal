@@ -14,7 +14,8 @@ def test_spatial_catalog(super_admin_token, upload_data_token, view_only_token):
 
     datafile = f"{os.path.dirname(__file__)}/../../data/gll_psc_v27_small.csv"
     data_out = pd.read_csv(datafile)
-    entries = [str(uuid.uuid4()) for _ in range(len(data_out))]
+    # uppercase, like real catalog names (e.g. 4FGL), to exercise case handling
+    entries = [str(uuid.uuid4()).upper() for _ in range(len(data_out))]
     data_out["name"] = entries
 
     data = {
@@ -61,6 +62,11 @@ def test_spatial_catalog(super_admin_token, upload_data_token, view_only_token):
     assert len(data["data"]["sources"]) >= 1
     assert any(source["id"] == obj_id for source in data["data"]["sources"])
 
+    params["spatialCatalogEntryName"] = str(uuid.uuid4())
+    status, data = api("GET", "sources", token=view_only_token, params=params)
+    assert status == 400
+    assert "spatial catalog entry not found" in data["message"]
+
     status, data = api(
         "DELETE", f"spatial_catalog/{catalog_id}", data=data, token=super_admin_token
     )
@@ -68,3 +74,39 @@ def test_spatial_catalog(super_admin_token, upload_data_token, view_only_token):
 
     status, data = api("GET", f"spatial_catalog/{catalog_id}", token=super_admin_token)
     assert status == 400
+
+
+def test_spatial_catalog_circular_ellipse_keeps_name(super_admin_token):
+    catalog_name = str(uuid.uuid4())
+    entry_name = str(uuid.uuid4())
+
+    # amaj == amin is ingested as a cone, which must still keep the given name
+    data = {
+        "catalog_name": catalog_name,
+        "catalog_data": {
+            "name": [entry_name],
+            "ra": [33.04],
+            "dec": [53.36],
+            "amaj": [0.1],
+            "amin": [0.1],
+            "phi": [0.0],
+        },
+    }
+    status, data = api("POST", "spatial_catalog", data=data, token=super_admin_token)
+    assert status == 200
+    catalog_id = data["data"]["id"]
+
+    for n_times in range(26):
+        status, data = api(
+            "GET", f"spatial_catalog/{catalog_id}", token=super_admin_token
+        )
+        if data["status"] == "success" and len(data["data"]["entries"]) == 1:
+            break
+        time.sleep(2)
+    assert n_times < 25
+    assert data["data"]["entries"][0]["entry_name"] == entry_name
+
+    status, data = api(
+        "DELETE", f"spatial_catalog/{catalog_id}", token=super_admin_token
+    )
+    assert status == 200
