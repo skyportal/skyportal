@@ -1,3 +1,4 @@
+import { useLayoutEffect, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import { Controller } from "react-hook-form";
 import type { Control, RegisterOptions } from "react-hook-form";
@@ -167,6 +168,99 @@ export const scanFilters = (filters: any[], groupIDs: number[]) => {
     : [];
 };
 
+const moreTags = (count: number) => (
+  <Box component="span" sx={{ flexShrink: 0, mx: 0.5 }}>
+    +{count}
+  </Box>
+);
+
+const horizontal = (style: CSSStyleDeclaration, box: "margin" | "padding") =>
+  parseFloat(style[`${box}Left`]) + parseFloat(style[`${box}Right`]);
+
+interface CompactTagsProps {
+  labels: string[];
+  getItemProps: (args: {
+    index: number;
+  }) => { key?: number } & Record<string, unknown>;
+}
+
+const CompactTags = ({ labels, getItemProps }: CompactTagsProps) => {
+  const measureRef = useRef<HTMLSpanElement>(null);
+  const [shown, setShown] = useState(1);
+
+  useLayoutEffect(() => {
+    const root = measureRef.current?.parentElement;
+    const chips = measureRef.current?.firstElementChild;
+    if (!root || !chips) return undefined;
+    const fit = () => {
+      const input = root.querySelector("input");
+      const tag = root.querySelector("[data-item-index]");
+      const inputStyle = input && getComputedStyle(input);
+      const free =
+        root.clientWidth -
+        horizontal(getComputedStyle(root), "padding") -
+        (inputStyle
+          ? parseFloat(inputStyle.minWidth) +
+            horizontal(inputStyle, "padding") +
+            horizontal(inputStyle, "margin")
+          : 0);
+      const needed =
+        chips.getBoundingClientRect().width +
+        (tag ? 2 * horizontal(getComputedStyle(tag), "margin") : 0);
+      setShown(needed <= free ? 2 : 1);
+    };
+    fit();
+    const observer = new ResizeObserver(fit);
+    observer.observe(root);
+    return () => observer.disconnect();
+  });
+
+  const visible = Math.min(shown, labels.length);
+  return (
+    <>
+      {labels.slice(0, visible).map((label, index) => {
+        const { key, ...itemProps } = getItemProps({ index });
+        return (
+          <Chip
+            key={key}
+            size="small"
+            label={label}
+            {...itemProps}
+            sx={{ minWidth: 0 }}
+          />
+        );
+      })}
+      {labels.length > visible && moreTags(labels.length - visible)}
+      <Box
+        ref={measureRef}
+        component="span"
+        aria-hidden
+        sx={{
+          position: "absolute",
+          width: 0,
+          overflow: "hidden",
+          visibility: "hidden",
+        }}
+      >
+        <Box component="span" sx={{ display: "flex", width: "max-content" }}>
+          {labels.slice(0, 2).map((label, index) => (
+            <Chip key={index} size="small" label={label} onDelete={() => {}} />
+          ))}
+          {labels.length > 2 && moreTags(labels.length - 2)}
+        </Box>
+      </Box>
+    </>
+  );
+};
+
+const singleLine = {
+  "& .MuiAutocomplete-inputRoot": { flexWrap: "nowrap" },
+  "& .MuiAutocomplete-inputRoot:not(.Mui-focused) .MuiAutocomplete-input": {
+    minWidth: 8,
+    px: 0,
+  },
+};
+
 type FilterSelectProps = Omit<
   SearchableSelectProps,
   "options" | "value" | "onChange"
@@ -198,25 +292,13 @@ export const FilterSelect = ({
       </li>
     )}
     renderValue={(selected: any[], getItemProps) => (
-      <>
-        <Chip
-          size="small"
-          label={selected[0].name}
-          {...getItemProps({ index: 0 })}
-          sx={{ minWidth: 0 }}
-        />
-        {selected.length > 1 && (
-          <Box component="span" sx={{ flexShrink: 0, mx: 0.5 }}>
-            +{selected.length - 1}
-          </Box>
-        )}
-      </>
+      <CompactTags
+        labels={selected.map((f) => f.name)}
+        getItemProps={getItemProps}
+      />
     )}
     placeholder={value.length > 0 ? "" : "All"}
-    sx={[
-      { "& .MuiAutocomplete-inputRoot": { flexWrap: "nowrap" } },
-      ...(Array.isArray(sx) ? sx : [sx]),
-    ]}
+    sx={[singleLine, ...(Array.isArray(sx) ? sx : [sx])]}
     {...props}
   />
 );
@@ -236,12 +318,12 @@ export const GroupSelect = ({
   value,
   onChange,
   checkboxTestId,
+  sx,
   ...props
 }: GroupSelectProps) => (
   <SearchableSelect
     multiple
     disableCloseOnSelect
-    limitTags={2}
     label="Groups"
     options={groups}
     value={groups.filter((g) => value.includes(g.id))}
@@ -260,6 +342,13 @@ export const GroupSelect = ({
         {group.name}
       </li>
     )}
+    renderValue={(selected: Group[], getItemProps) => (
+      <CompactTags
+        labels={selected.map((g) => g.name)}
+        getItemProps={getItemProps}
+      />
+    )}
+    sx={[singleLine, ...(Array.isArray(sx) ? sx : [sx])]}
     {...props}
   />
 );

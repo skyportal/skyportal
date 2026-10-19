@@ -458,9 +458,8 @@ const FilterCandidateList = ({
                   selectGroups(ids);
                 }}
                 checkboxTestId="filteringFormGroupCheckbox"
-                limitTags={selectableFilters.length > 0 ? 1 : 2}
                 textFieldProps={{ "data-testid": "scanGroupSelect" }}
-                sx={{ flex: 2, minWidth: 280 }}
+                sx={{ flex: 1, minWidth: 280 }}
               />
             )}
           />
