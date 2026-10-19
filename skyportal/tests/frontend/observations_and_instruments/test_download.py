@@ -13,6 +13,7 @@ from playwright.sync_api import expect
 from baselayer.app.config import load_config
 from skyportal.tests import (
     api,
+    post_gcn_event_if_missing,
     retry_until,
     wait_for_gcn_event,
     wait_for_localization,
@@ -192,26 +193,12 @@ def test_gcn_summary_observations(
     public_group,
 ):
     datafile = f"{os.path.dirname(__file__)}/../../../../data/GW190814.xml"
-    with open(datafile, "rb") as fid:
-        payload = fid.read()
-    event_data = {"xml": payload}
 
     dateobs = "2019-08-14T21:10:39"
-    status, data = api("GET", f"gcn_event/{dateobs}", token=super_admin_token)
-
-    if status == 404:
-        status, data = api(
-            "POST", "gcn_event", data=event_data, token=super_admin_token
-        )
-        assert status == 200
-        assert data["status"] == "success"
-
-        gcnevent_id = data["data"]["gcnevent_id"]
-    else:
-        gcnevent_id = data["data"]["id"]
+    post_gcn_event_if_missing(dateobs, super_admin_token, xml_file=datafile)
 
     # wait for event to load
-    wait_for_gcn_event(dateobs, super_admin_token)
+    gcnevent_id = wait_for_gcn_event(dateobs, super_admin_token)["id"]
 
     # wait for the localization to load
     localization = wait_for_localization(
@@ -375,19 +362,9 @@ def test_gcn_summary_galaxies(
     )
 
     datafile = f"{os.path.dirname(__file__)}/../../../../data/GW190814.xml"
-    with open(datafile, "rb") as fid:
-        payload = fid.read()
-    event_data = {"xml": payload}
 
     dateobs = "2019-08-14T21:10:39"
-    status, data = api("GET", f"gcn_event/{dateobs}", token=super_admin_token)
-
-    if status == 404:
-        status, data = api(
-            "POST", "gcn_event", data=event_data, token=super_admin_token
-        )
-        assert status == 200
-        assert data["status"] == "success"
+    post_gcn_event_if_missing(dateobs, super_admin_token, xml_file=datafile)
 
     # wait for event to load
     wait_for_gcn_event(dateobs, super_admin_token)
@@ -497,24 +474,9 @@ def test_gcn_summary_sources(
     upload_data_token,
 ):
     datafile = f"{os.path.dirname(__file__)}/../../../../data/GW190814.xml"
-    with open(datafile, "rb") as fid:
-        payload = fid.read()
-    data = {"xml": payload}
-
-    datafile = f"{os.path.dirname(__file__)}/../../../../data/GW190814.xml"
-    with open(datafile, "rb") as fid:
-        payload = fid.read()
-    event_data = {"xml": payload}
 
     dateobs = "2019-08-14T21:10:39"
-    status, data = api("GET", f"gcn_event/{dateobs}", token=super_admin_token)
-
-    if status == 404:
-        status, data = api(
-            "POST", "gcn_event", data=event_data, token=super_admin_token
-        )
-        assert status == 200
-        assert data["status"] == "success"
+    post_gcn_event_if_missing(dateobs, super_admin_token, xml_file=datafile)
 
     wait_for_gcn_event(dateobs, super_admin_token)
 
@@ -702,19 +664,9 @@ def get_summary(
 
 def test_download_localization(super_admin_token):
     datafile = f"{os.path.dirname(__file__)}/../../../../data/GW190814.xml"
-    with open(datafile, "rb") as fid:
-        payload = fid.read()
-    event_data = {"xml": payload}
 
     dateobs = "2019-08-14T21:10:39"
-    status, data = api("GET", f"gcn_event/{dateobs}", token=super_admin_token)
-
-    if status == 404:
-        status, data = api(
-            "POST", "gcn_event", data=event_data, token=super_admin_token
-        )
-        assert status == 200
-        assert data["status"] == "success"
+    post_gcn_event_if_missing(dateobs, super_admin_token, xml_file=datafile)
 
     # wait for event to load
     event = wait_for_gcn_event(dateobs, super_admin_token)
