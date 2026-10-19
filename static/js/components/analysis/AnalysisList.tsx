@@ -299,7 +299,7 @@ const AnalysisList = ({
   const renderPlot = (params: any) => {
     const analysis = params.row;
     if (analysis?.status !== "completed") return <div />;
-    const plotUrl = `/api/obj/analysis/${analysis.id}/plots/0`;
+    const plotUrl = `/api/${analysisResourceType}/analysis/${analysis.id}/plots/0`;
     return (
       <div>
         <a href={plotUrl} data-testid={`analysis_plots_${analysis.id}`}>
@@ -344,7 +344,7 @@ const AnalysisList = ({
             <div>
               <Button
                 primary
-                href={`/api/obj/analysis/${analysis.id}/results?download=True`}
+                href={`/api/${analysisResourceType}/analysis/${analysis.id}/results?download=True`}
                 size="small"
                 type="submit"
                 data-testid={`analysis_results_${analysis.id}`}
@@ -355,7 +355,7 @@ const AnalysisList = ({
             <div>
               <Button
                 primary
-                href={`/api/obj/analysis/${analysis.id}/results`}
+                href={`/api/${analysisResourceType}/analysis/${analysis.id}/results`}
                 size="small"
                 type="submit"
                 data-testid={`analysis_results_display_${analysis.id}`}
@@ -492,7 +492,11 @@ const AnalysisList = ({
         <DialogTitle>Posterior Corner Plot</DialogTitle>
         <DialogContent>
           {cornerAnalysis && (
-            <AnalysisCornerPlot objId={obj_id} analysisId={cornerAnalysis.id} />
+            <AnalysisCornerPlot
+              objId={obj_id}
+              analysisId={cornerAnalysis.id}
+              analysisResourceType={analysisResourceType}
+            />
           )}
         </DialogContent>
       </Dialog>

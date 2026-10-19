@@ -176,30 +176,26 @@ const NotificationGcnEvent = () => {
       },
     };
 
+    // Only clear the form once saved, so a failed save can be retried
     updateUserPreferences(prefs)
       .unwrap()
       .then(() => {
-        dispatch(showNotification("GCN notice preferences migrated"));
+        setSelectedGcnNoticeTypes([]);
+        setSelectedGcnTags([]);
+        setSelectedGcnProperties([]);
+        setSelectedLocalizationTags([]);
+        setSelectedLocalizationProperties([]);
+        reset({ GcnNotificationName: "" });
+
+        closeNewProfile();
+
+        dispatch(showNotification("Gcn notice preferences updated"));
       })
       .catch(() => {
         dispatch(
-          showNotification(
-            "Cannot automatically migrate GCN notice preferences",
-            "error",
-          ),
+          showNotification("Could not update GCN notice preferences", "error"),
         );
       });
-
-    setSelectedGcnNoticeTypes([]);
-    setSelectedGcnTags([]);
-    setSelectedGcnProperties([]);
-    setSelectedLocalizationTags([]);
-    setSelectedLocalizationProperties([]);
-    reset({ GcnNotificationName: "" });
-
-    closeNewProfile();
-
-    dispatch(showNotification("Gcn notice preferences updated"));
   };
 
   const onDelete = (selected: any) => {

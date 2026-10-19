@@ -396,15 +396,19 @@ const MultipleClassificationsForm = ({
   };
 
   const handleSubmit = async () => {
-    setSubmissionRequestInProcess(true);
-    const results: boolean[] = [];
-
     const classifications = formState[selectedTaxonomy?.id];
 
     // Submit the edited classifications for the current taxonomy
     const toSubmit = getClassificationsToSubmit(classifications);
+    if (!toSubmit?.length) {
+      dispatch(showNotification("No classifications to submit", "warning"));
+      return;
+    }
+    setSubmissionRequestInProcess(true);
+    const results: boolean[] = [];
+    const saved: [string, any][] = [];
     await asyncForEach(
-      toSubmit ?? [],
+      toSubmit,
       async ([classification, entry]: [string, any]) => {
         const data: any = {
           taxonomy_id: selectedTaxonomy.id,
@@ -427,16 +431,17 @@ const MultipleClassificationsForm = ({
             await addClassification(data).unwrap();
           }
           results.push(true);
+          saved.push([classification, entry]);
         } catch {
           results.push(false);
         }
       },
     );
 
-    // Reset the depths for the submitted classifications so that they
-    // are not resubmitted upon further edits
+    // Reset the depths for the saved classifications so that they are not
+    // resubmitted upon further edits; failed ones stay queued for a retry
     const newFormState = { ...formState };
-    toSubmit?.forEach(([classification, entry]: [string, any]) => {
+    saved.forEach(([classification, entry]) => {
       newFormState[selectedTaxonomy.id][classification] = {
         ...entry,
         depth: -1,
