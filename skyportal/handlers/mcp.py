@@ -713,9 +713,11 @@ async def get_analysis(handler, args):
     "origin, and whether it came from a machine-learning model (ml) or a human. "
     "ML classifiers (e.g. FLARE, ORACLE) each post under their own origin, so "
     "grouping by origin gives one set per classifier. For a classifier's full "
-    "detail -- FLARE's probability vector, conformal prediction set and anomaly "
-    "score, or a spectral classifier's template matches -- read its analysis with "
-    "get_analysis. Pair with post_comment to record a triage verdict.",
+    "detail -- FLARE's probability vector, conformal prediction set, consensus "
+    "anomaly alarm (flare_anomaly_p p-value and the flare_alarm_far it is flagged "
+    "at), host_mismatch guard and g/r forecast overlay, or a spectral classifier's "
+    "template matches -- read its analysis with get_analysis. Pair with post_comment "
+    "to record a triage verdict.",
     {"obj_id": _prop("string", "Source ID.")},
     required=("obj_id",),
 )
