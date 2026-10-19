@@ -73,7 +73,7 @@ const defaultDates = (timeRange?: string) => {
 const formValues = (profile: any) => ({
   ...defaultDates(profile?.timeRange),
   groupIDs: profile?.groupIDs || [],
-  filterIDs: [],
+  filterIDs: profile?.filterIDs || [],
   savedStatus: profile?.savedStatus || "all",
   savedGroupIDs: profile?.savedGroupIDs || [],
   rejectedStatus: profile?.rejectedStatus || "show",
@@ -161,7 +161,8 @@ const FilterCandidateList = ({
   setSearchParams,
 }: FilterCandidateListProps) => {
   const dispatch = useAppDispatch();
-  const { data: allFilters = [] } = useGetFiltersQuery();
+  const { data: allFilters = [], isLoading: filtersLoading } =
+    useGetFiltersQuery();
   const { data: groups } = useGetGroupsQuery();
   const userAccessibleGroups = groups?.userAccessible ?? [];
   const { data: userProfile } = useGetProfileQuery();
@@ -368,12 +369,13 @@ const FilterCandidateList = ({
 
   const autoSearched = useRef(false);
   useEffect(() => {
-    if (autoSearched.current || !groups || !userProfile) return;
+    if (autoSearched.current || !groups || !userProfile || filtersLoading)
+      return;
     if (selectedScanningProfile !== defaultScanningProfile) return;
     autoSearched.current = true;
     if (defaultScanningProfile?.groupIDs?.length) submit();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [groups, userProfile, selectedScanningProfile]);
+  }, [groups, userProfile, filtersLoading, selectedScanningProfile]);
 
   return (
     <>

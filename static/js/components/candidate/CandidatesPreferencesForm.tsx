@@ -10,6 +10,7 @@ import Button from "../Button";
 import SearchableSelect from "../SearchableSelect";
 import ClassificationSelect from "../classification/ClassificationSelect";
 import { useGetAnnotationsInfoQuery } from "../../ducks/candidate/candidates";
+import { useGetFiltersQuery } from "../../ducks/filter";
 import { useGetGroupsQuery } from "../../ducks/groups";
 import {
   useGetProfileQuery,
@@ -17,6 +18,7 @@ import {
 } from "../../ducks/profile";
 import { filterAnnotationOrigins } from "./annotationSortOptions";
 import {
+  FilterSelect,
   FormTextField,
   GroupSelect,
   Section,
@@ -25,6 +27,7 @@ import {
   column,
   gcnNumberFields,
   savedStatusSelectOptions,
+  scanFilters,
   sortingOrderLabels,
   twoColumns,
   useScanGroups,
@@ -44,6 +47,7 @@ const profileValues = (profile: any) => ({
   name: profile?.name ?? "",
   timeRange: profile?.timeRange ?? "24",
   groupIDs: profile?.groupIDs ?? [],
+  filterIDs: profile?.filterIDs ?? [],
   savedStatus: profile?.savedStatus ?? "all",
   savedGroupIDs: profile?.savedGroupIDs ?? [],
   rejectedStatus: profile?.rejectedStatus ?? "show",
@@ -97,6 +101,8 @@ const CandidatesPreferencesForm = ({
   });
   const scanGroups = useScanGroups(groupIDs);
   const { data: groups } = useGetGroupsQuery();
+  const { data: filters = [] } = useGetFiltersQuery();
+  const selectableFilters = scanFilters(filters, groupIDs);
   const showSavedGroups = savedStatus.endsWith("Selected");
   const { data: availableAnnotationsInfo } = useGetAnnotationsInfoQuery(
     groupIDs.length ? groupIDs : skipToken,
@@ -121,9 +127,13 @@ const CandidatesPreferencesForm = ({
     const savedGroupIDs = formData.savedGroupIDs.filter((id: number) =>
       groups?.userAccessible?.some((group) => group.id === id),
     );
+    const filterIDs = formData.filterIDs.filter((id: number) =>
+      selectableFilters.some((f: any) => f.id === id),
+    );
     const data: any = {
       name: formData.name,
       groupIDs: formData.groupIDs,
+      ...(filterIDs.length > 0 ? { filterIDs } : {}),
       savedStatus: formData.savedStatus,
       ...(showSavedGroups && savedGroupIDs.length > 0 ? { savedGroupIDs } : {}),
       rejectedStatus: formData.rejectedStatus,
@@ -205,6 +215,22 @@ const CandidatesPreferencesForm = ({
             />
           )}
         />
+        {selectableFilters.length > 0 && (
+          <Controller
+            name="filterIDs"
+            control={control}
+            render={({ field }) => (
+              <FilterSelect
+                filters={selectableFilters}
+                value={field.value}
+                onChange={field.onChange}
+                limitTags={1}
+                textFieldProps={{ "data-testid": "profileFilterSelect" }}
+                sx={{ flex: 1, minWidth: 200 }}
+              />
+            )}
+          />
+        )}
       </Box>
       <Box
         sx={{
