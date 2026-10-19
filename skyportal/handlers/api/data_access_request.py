@@ -1,3 +1,5 @@
+from datetime import UTC, datetime, timedelta
+
 import dateutil.parser
 import sqlalchemy as sa
 from astropy.time import Time
@@ -90,8 +92,35 @@ def _request_summary(request, shared_groups=None):
     }
 
 
-# Requests in these states are done with: they cannot collide with tonight.
-_SETTLED_REQUEST_STATES = ("complete", "completed", "deleted", "expired")
+_SETTLED_STATUS_PREFIXES = (
+    "complete",
+    "expired",
+    "deleted",
+    "failed",
+    "rejected",
+    "cancel",
+    "error",
+    "photometry committed",
+    "no photometry",
+)
+_OPEN_REQUEST_MAX_AGE_DAYS = 30
+
+
+def _open_followup_request():
+    since = datetime.now(UTC).replace(tzinfo=None) - timedelta(
+        days=_OPEN_REQUEST_MAX_AGE_DAYS
+    )
+    return sa.and_(
+        FollowupRequest.created_at > since,
+        sa.not_(
+            sa.or_(
+                *(
+                    FollowupRequest.status.ilike(f"{prefix}%")
+                    for prefix in _SETTLED_STATUS_PREFIXES
+                )
+            )
+        ),
+    )
 
 
 def _owners_hiding_data():
@@ -959,7 +988,7 @@ class DuplicateSchedulingHandler(BaseHandler):
             mine_stmt = FollowupRequest.select(
                 session.user_or_token,
                 columns=[FollowupRequest.obj_id, FollowupRequest.id],
-            ).where(FollowupRequest.status.notin_(_SETTLED_REQUEST_STATES))
+            ).where(_open_followup_request())
             mine = (await session.execute(mine_stmt)).all()
             if not mine:
                 return self.success(data=[])
@@ -1000,7 +1029,7 @@ class DuplicateSchedulingHandler(BaseHandler):
                                 type_=sa.ARRAY(sa.Integer),
                             )
                         ),
-                        FollowupRequest.status.notin_(_SETTLED_REQUEST_STATES),
+                        _open_followup_request(),
                         Group.discoverable_data.is_(True),
                         FollowupRequest.requester_id.notin_(_owners_hiding_data()),
                     )
