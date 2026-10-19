@@ -1,0 +1,219 @@
+{
+  "note": "One real ZTF moving-object track linked by BOOM (boom-astro/boom#640), 2026-09-10 to 2026-09-23. expected_snr_mad is peak/sigma in the difference cutout with a MAD-based background sigma over a 12-25 px annulus; np.std instead of MAD will disagree badly on several rows, which is the point. JD is carried at full alert precision: 1e-5 d is 0.86 s, too coarse to reproduce MPC millisecond timestamps.",
+  "survey": "ZTF",
+  "cutout": "cutoutDifference",
+  "arc_days": 12.96,
+  "n_detections": 19,
+  "n_distinct_object_ids": 13,
+  "detections": [
+    {
+      "candid": "3539366644715015004",
+      "jd": 2461293.8666435,
+      "ra": 8.980389,
+      "dec": 48.596773,
+      "mag": 19.71,
+      "band": "r",
+      "expected_snr_mad": 21.8,
+      "centroid_offset_px": 0.0,
+      "ztf_object_id": "ZTF26abtbdrk"
+    },
+    {
+      "candid": "3540322344415015027",
+      "jd": 2461294.8223495,
+      "ra": 8.858301,
+      "dec": 48.705185,
+      "mag": 20.24,
+      "band": "g",
+      "expected_snr_mad": 11.1,
+      "centroid_offset_px": 0.0,
+      "ztf_object_id": "ZTF26abthwcb"
+    },
+    {
+      "candid": "3541387974415015017",
+      "jd": 2461295.8879745,
+      "ra": 8.712771,
+      "dec": 48.817289,
+      "mag": 19.83,
+      "band": "r",
+      "expected_snr_mad": 11.6,
+      "centroid_offset_px": 0.0,
+      "ztf_object_id": "ZTF26abtulzi"
+    },
+    {
+      "candid": "3542361864415015022",
+      "jd": 2461296.8618634,
+      "ra": 8.574343,
+      "dec": 48.911477,
+      "mag": 20.14,
+      "band": "g",
+      "expected_snr_mad": 12.9,
+      "centroid_offset_px": 0.0,
+      "ztf_object_id": "ZTF26abudsyo"
+    },
+    {
+      "candid": "3542429304415015031",
+      "jd": 2461296.9293056,
+      "ra": 8.56351,
+      "dec": 48.917552,
+      "mag": 19.71,
+      "band": "r",
+      "expected_snr_mad": 20.5,
+      "centroid_offset_px": 0.0,
+      "ztf_object_id": "ZTF26abuhdob"
+    },
+    {
+      "candid": "3543304134415015034",
+      "jd": 2461297.8041319,
+      "ra": 8.434954,
+      "dec": 48.994754,
+      "mag": 20.15,
+      "band": "g",
+      "expected_snr_mad": 8.7,
+      "centroid_offset_px": 0.0,
+      "ztf_object_id": "ZTF26abuomqt"
+    },
+    {
+      "candid": "3543368054415015031",
+      "jd": 2461297.8680556,
+      "ra": 8.424287,
+      "dec": 49.000216,
+      "mag": 19.74,
+      "band": "r",
+      "expected_snr_mad": 18.4,
+      "centroid_offset_px": 0.0,
+      "ztf_object_id": "ZTF26abuqfwm"
+    },
+    {
+      "candid": "3544310994415015026",
+      "jd": 2461298.8109954,
+      "ra": 8.278943,
+      "dec": 49.07545,
+      "mag": 19.68,
+      "band": "r",
+      "expected_snr_mad": 16.3,
+      "centroid_offset_px": 0.0,
+      "ztf_object_id": "ZTF26abuzkrg"
+    },
+    {
+      "candid": "3545300874415015016",
+      "jd": 2461299.8008796,
+      "ra": 8.119989,
+      "dec": 49.14617,
+      "mag": 19.6,
+      "band": "r",
+      "expected_snr_mad": 14.7,
+      "centroid_offset_px": 0.0,
+      "ztf_object_id": "ZTF26abvfrgp"
+    },
+    {
+      "candid": "3545365321215015000",
+      "jd": 2461299.8653241,
+      "ra": 8.108341,
+      "dec": 49.150555,
+      "mag": 19.59,
+      "band": "i",
+      "expected_snr_mad": 5.8,
+      "centroid_offset_px": 0.0,
+      "ztf_object_id": "ZTF26abvhpba"
+    },
+    {
+      "candid": "3546312284515015008",
+      "jd": 2461300.8122801,
+      "ra": 7.951686,
+      "dec": 49.20955,
+      "mag": 20.17,
+      "band": "g",
+      "expected_snr_mad": 7.1,
+      "centroid_offset_px": 0.0,
+      "ztf_object_id": "ZTF26abvnnic"
+    },
+    {
+      "candid": "3546345384515015011",
+      "jd": 2461300.8453819,
+      "ra": 7.945608,
+      "dec": 49.211513,
+      "mag": 19.61,
+      "band": "r",
+      "expected_snr_mad": 11.4,
+      "centroid_offset_px": 0.0,
+      "ztf_object_id": "ZTF26abvogyo"
+    },
+    {
+      "candid": "3547322404515015019",
+      "jd": 2461301.8224074,
+      "ra": 7.778248,
+      "dec": 49.263907,
+      "mag": 20.07,
+      "band": "g",
+      "expected_snr_mad": 10.4,
+      "centroid_offset_px": 0.0,
+      "ztf_object_id": null
+    },
+    {
+      "candid": "3547372804515015005",
+      "jd": 2461301.8728009,
+      "ra": 7.768655,
+      "dec": 49.266379,
+      "mag": 19.66,
+      "band": "r",
+      "expected_snr_mad": 15.6,
+      "centroid_offset_px": 0.0,
+      "ztf_object_id": null
+    },
+    {
+      "candid": "3549302924515015007",
+      "jd": 2461303.8029282,
+      "ra": 7.425013,
+      "dec": 49.343768,
+      "mag": 20.09,
+      "band": "g",
+      "expected_snr_mad": 10.8,
+      "centroid_offset_px": 0.0,
+      "ztf_object_id": null
+    },
+    {
+      "candid": "3549342474515015004",
+      "jd": 2461303.8424769,
+      "ra": 7.417115,
+      "dec": 49.345074,
+      "mag": 19.63,
+      "band": "r",
+      "expected_snr_mad": 12.6,
+      "centroid_offset_px": 1.0,
+      "ztf_object_id": null
+    },
+    {
+      "candid": "3551300524515015001",
+      "jd": 2461305.8005208,
+      "ra": 7.05238,
+      "dec": 49.388426,
+      "mag": 19.44,
+      "band": "r",
+      "expected_snr_mad": 12.5,
+      "centroid_offset_px": 1.0,
+      "ztf_object_id": null
+    },
+    {
+      "candid": "3551405674515015002",
+      "jd": 2461305.9056713,
+      "ra": 7.030771,
+      "dec": 49.38972,
+      "mag": 20.11,
+      "band": "g",
+      "expected_snr_mad": 16.7,
+      "centroid_offset_px": 0.0,
+      "ztf_object_id": null
+    },
+    {
+      "candid": "3552327044515015002",
+      "jd": 2461306.8270486,
+      "ra": 6.855218,
+      "dec": 49.397193,
+      "mag": 19.69,
+      "band": "r",
+      "expected_snr_mad": 7.8,
+      "centroid_offset_px": 0.0,
+      "ztf_object_id": "ZTF26abxahrf"
+    }
+  ]
+}

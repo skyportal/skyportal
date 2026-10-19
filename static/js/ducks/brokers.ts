@@ -18,6 +18,7 @@ export interface Broker {
   surveys: string[];
   filter_kind: string;
   altdata?: Record<string, unknown>;
+  secrets_set?: string[];
 }
 
 export interface BrokerAPIInfo {
@@ -30,11 +31,19 @@ export interface BrokerAPIInfo {
   filterKind?: string;
 }
 
+/** What ingestion last saw of a topic; absent until something is consumed. */
+export interface TopicStatus {
+  usable: boolean;
+  detail: string | null;
+  at: string;
+}
+
 export interface BrokerCredential {
   id: number;
   broker_id: number;
   topics: string[];
   topic_filter_ids: Record<string, number[]>;
+  topic_status?: Record<string, TopicStatus>;
   /** Non-secret values only; secrets are reported by name in secrets_set. */
   credentials: Record<string, unknown>;
   secrets_set: string[];
@@ -61,6 +70,7 @@ export interface BrokerFilter {
   broker_id: number | null;
   altdata?: Record<string, unknown>;
   group_admin?: boolean;
+  active?: boolean | null;
 }
 
 export interface FilterCatalogQuery {
@@ -70,6 +80,8 @@ export interface FilterCatalogQuery {
   groupID?: number | "" | undefined;
   streamID?: number | "" | undefined;
   brokerID?: number | "" | "none" | undefined;
+  sortBy?: "name" | "active" | undefined;
+  sortOrder?: "asc" | "desc" | undefined;
 }
 
 const DEFAULT_FIELDS = [

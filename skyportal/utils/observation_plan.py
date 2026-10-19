@@ -9,7 +9,7 @@ import numpy as np
 import pandas as pd
 import sqlalchemy as sa
 from astropy import units as u
-from astropy.coordinates import SkyCoord
+from astropy.coordinates import ICRS, SkyCoord
 from astropy.time import Time
 from ligo.skymap.bayestar import derasterize, rasterize
 from regions import Regions
@@ -69,6 +69,59 @@ def combine_healpix_tuples(input_tiles):
         input_tiles = output_tiles
 
     raise RuntimeError("Too many iterations (1000) to combine_healpix_tuples!")
+
+
+def get_missing_quadrants(instrument):
+    """ZTF readout quadrants (0-63) that no longer return data."""
+    if instrument.name != "ZTF":
+        return []
+    return (instrument.configuration_data or {}).get("missing_quadrants") or []
+
+
+def remove_missing_quadrants(mocs, ras, decs, quadrants):
+    from gwemopt.chipgaps.ztf import get_ztf_quadrants
+    from mocpy import MOC
+
+    corners = get_ztf_quadrants()[:, quadrants, :]
+    frames = SkyCoord(ras, decs, unit=u.deg).skyoffset_frame()
+    fields = SkyCoord(
+        *corners[:, np.newaxis, ...],
+        unit=u.deg,
+        frame=frames[:, np.newaxis, np.newaxis],
+    ).transform_to(ICRS)
+
+    return [
+        moc.difference(
+            sum(
+                MOC.from_polygons(
+                    [v for c in field for v in (c.ra.deg, c.dec.deg)], False, 10
+                )
+            )
+        )
+        for moc, field in zip(mocs, fields)
+    ]
+
+
+def live_field_bounds(field_tiles, quadrants):
+    from mocpy import MOC
+
+    fields, ranges = {}, {}
+    for tile in field_tiles:
+        fields[tile.instrument_field_id] = tile.field
+        ranges.setdefault(tile.instrument_field_id, []).append(
+            (tile.healpix.lower, tile.healpix.upper)
+        )
+    if not ranges:
+        return np.array([]), np.array([])
+
+    mocs = remove_missing_quadrants(
+        [MOC.from_depth29_ranges(10, np.array(r)) for r in ranges.values()],
+        [fields[i].ra for i in ranges],
+        [fields[i].dec for i in ranges],
+        quadrants,
+    )
+    bounds = sum(mocs).to_depth29_ranges
+    return bounds[:, 0], bounds[:, 1]
 
 
 def generate_observation_plan_statistics(
@@ -226,12 +279,18 @@ def generate_observation_plan_statistics(
             t0 = time.time()
             intarea = 0  # total area covered by instrument field tiles
             intprob = 0  # total probability covered by instrument field tiles
-            field_lower_bounds = np.array(
-                [f.healpix.lower for f in instrument_field_tiles]
-            )
-            field_upper_bounds = np.array(
-                [f.healpix.upper for f in instrument_field_tiles]
-            )
+            quadrants = get_missing_quadrants(request.instrument)
+            if quadrants:
+                field_lower_bounds, field_upper_bounds = live_field_bounds(
+                    instrument_field_tiles, quadrants
+                )
+            else:
+                field_lower_bounds = np.array(
+                    [f.healpix.lower for f in instrument_field_tiles]
+                )
+                field_upper_bounds = np.array(
+                    [f.healpix.upper for f in instrument_field_tiles]
+                )
 
             for i, t in enumerate(localization_tiles):
                 # has True values where tile t has any overlap with one of the fields
@@ -637,7 +696,7 @@ def generate_plan(
             skymap_raster["PROB"][ind[ii]] = 0.0
             map_struct["skymap_schedule"] = derasterize(skymap_raster)
 
-        if params["galactic_limit"] > 0.0:
+        if params["doAvoidGalacticPlane"] and params["galactic_limit"] > 0.0:
             coords = SkyCoord(ra=ra, dec=dec)
             ipix = np.where(np.abs(coords.galactic.b.deg) <= params["galactic_limit"])[
                 0
@@ -813,6 +872,19 @@ def generate_plan(
                 field_ids=field_ids if use_skyportal_fields is True else None,
                 from_skyportal=True,
             )
+            for request in requests:
+                quadrants = get_missing_quadrants(request.instrument)
+                moc_struct = moc_structs.get(request.instrument.name)
+                if quadrants and moc_struct:
+                    fields = list(moc_struct.values())
+                    mocs = remove_missing_quadrants(
+                        [f["moc"] for f in fields],
+                        [f["ra"] for f in fields],
+                        [f["dec"] for f in fields],
+                        quadrants,
+                    )
+                    for field, moc in zip(fields, mocs):
+                        field["moc"] = moc
             tile_structs = gwemopt.tiles.moc(params, map_struct, moc_structs)
         elif params["tilesType"] == "galaxy":
             for request in requests:

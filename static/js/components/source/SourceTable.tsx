@@ -12,7 +12,6 @@ import React, {
   useRef,
 } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { Controller, useForm } from "react-hook-form";
 
 import IconButton from "@mui/material/IconButton";
 import FormControlLabel from "@mui/material/FormControlLabel";
@@ -35,7 +34,6 @@ import TextField from "@mui/material/TextField";
 import Box from "@mui/material/Box";
 import InputAdornment from "@mui/material/InputAdornment";
 import Popover from "@mui/material/Popover";
-import { makeStyles } from "tss-react/mui";
 import Checkbox from "@mui/material/Checkbox";
 import CheckIcon from "@mui/icons-material/Check";
 import ClearIcon from "@mui/icons-material/Clear";
@@ -50,7 +48,11 @@ import SearchableSelect from "../SearchableSelect";
 import { showNotification } from "baselayer/components/Notifications";
 import { useAppDispatch } from "../../types/hooks";
 import Button from "../Button";
-import StyledDataGridBase, { DataGridToolbar } from "../StyledDataGrid";
+import StyledDataGrid, {
+  DataGridToolbar,
+  FULL_PAGE_HEIGHT,
+} from "../StyledDataGrid";
+import ExpandableCell from "../ExpandableCell";
 import DisplayPhotStats from "./DisplayPhotStats";
 
 import { dec_to_dms, mjd_to_utc, ra_to_hours } from "../../units";
@@ -64,11 +66,7 @@ import {
   useAcceptSaveRequestMutation,
   useDeclineSaveRequestMutation,
 } from "../../ducks/source";
-import {
-  useLazyFetchPendingGroupSourcesQuery,
-  useLazyFetchSavedGroupSourcesQuery,
-  useGetAltdataInfoQuery,
-} from "../../ducks/sources";
+import { useGetAltdataInfoQuery } from "../../ducks/sources";
 import { useGetSourcesInGcnQuery } from "../../ducks/sourcesingcn";
 import { useGetGcnEventQuery } from "../../ducks/gcnEvent";
 import { useGetTagOptionsQuery } from "../../ducks/objectTags";
@@ -76,6 +74,7 @@ import { useGetTaxonomiesQuery } from "../../ducks/taxonomies";
 import { useGetAnnotationsInfoQuery } from "../../ducks/candidate/candidates";
 import { getContrastColor } from "../ObjectTags";
 import { filterOutEmptyValues } from "../../API";
+import { download } from "../../utils/download";
 import useDebounced from "../../hooks/useDebounced";
 import { getAnnotationValueString } from "../candidate/ScanningPageCandidateAnnotations";
 import {
@@ -89,30 +88,16 @@ import {
 import ConfirmSourceInGCN from "./ConfirmSourceInGCN";
 import ConfirmDeletionDialog from "../ConfirmDeletionDialog";
 
-// Loaded on demand: each pulls in bundles (rjsf, plots) the list never needs
-// until a row is expanded or a dialog is opened.
 const SourceDetailPanel = React.lazy(() => import("./SourceDetailPanel"));
 const SourceTableFilterForm = React.lazy(
   () => import("./SourceTableFilterForm"),
 );
 const NewSource = React.lazy(() => import("./NewSource"));
 
-// StyledDataGrid is a .jsx component whose propTypes make `sx` look required to
-// tsc; cast to any so call sites don't need to pass it.
-const StyledDataGrid: any = StyledDataGridBase;
-
-// Page-size options preserved from the previous mui-datatables config. The
-// community DataGrid throws above MAX_PAGE_SIZE (100), so stop there.
-const PAGE_SIZE_OPTIONS = [1, 5, 10, 25, 50, 75, 100];
-
-// Shared empty defaults. Inline `= []` / `= {}` defaults allocate a new value on
-// every render, which permanently invalidates the `columns` memo below (it
-// depends on them) and forces the grid to rebuild every column each render.
+// Inline `= []` defaults would invalidate the `columns` memo every render.
 const EMPTY_ARRAY: any[] = [];
 const EMPTY_OBJECT: Record<string, any> = {};
 
-// Map each DataGrid column `field` to the field name the server expects for
-// sorting. Columns absent from this map are not server-sortable.
 const SERVER_SORT_FIELD: Record<string, string> = {
   id: "id",
   alias: "alias",
@@ -130,210 +115,92 @@ const SERVER_SORT_FIELD: Record<string, string> = {
   gcn_status: "gcn_status",
 };
 
-const useStyles = makeStyles()((theme) => ({
-  objId: {
-    color:
-      theme.palette.mode === "dark"
-        ? theme.palette.secondary.main
-        : theme.palette.primary.main,
-  },
-  filterAlert: {
-    marginTop: "1rem",
-    display: "flex",
-    alignItems: "center",
-    fontSize: "1rem",
-  },
-  classificationDelete: {
-    cursor: "pointer",
-    fontSize: "2em",
-    position: "absolute",
-    padding: 0,
-    right: 0,
-    top: 0,
-  },
-  classificationDeleteDisabled: {
-    opacity: 0,
-  },
-  groupChips: {
-    display: "flex",
-    flexDirection: "row",
-    flexWrap: "wrap",
-    alignItems: "center",
-    gap: "0.25rem",
-    maxWidth: "120px",
-  },
-  filterChips: {
-    display: "flex",
-    flexWrap: "wrap",
-    gap: "0.25rem",
-    marginBottom: "0.5rem",
-  },
-}));
-
 const RenderShowClassification = React.memo(({ source }: { source: any }) => {
-  const { classes } = useStyles();
   const dispatch = useAppDispatch();
   const [deleteClassificationsMutation] = useDeleteClassificationsMutation();
   const [addClassificationVote] = useAddClassificationVoteMutation();
   const { data: currentUser } = useGetProfileQuery();
-  // The old global `group` slice (a single most-recently-fetched group) no
-  // longer exists: the group duck is now RTK Query keyed by id, and no specific
-  // group id is in scope here. As before, when no group is loaded the
-  // membership lookup resolves to undefined.
-  const groupUsers: any = undefined;
-  const currentGroupUser = groupUsers?.filter(
-    (groupUser: any) => groupUser.user_id === currentUser?.id,
-  )[0];
-
-  useEffect(() => {
-    if (
-      currentGroupUser?.admin !== undefined &&
-      currentGroupUser?.admin !== null
-    ) {
-      window.localStorage.setItem(
-        "CURRENT_GROUP_ADMIN",
-        JSON.stringify(currentGroupUser.admin),
-      );
-    }
-  }, [currentGroupUser]);
-
-  const isGroupAdmin = JSON.parse(
-    window.localStorage.getItem("CURRENT_GROUP_ADMIN") as any,
-  );
-
   const { data: taxonomyList = [] } = useGetTaxonomiesQuery();
-
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [classificationSourceToDelete, setClassificationSourceToDelete] =
-    useState<any>(null);
-  const openDialog = () => {
-    setDialogOpen(true);
-    setClassificationSourceToDelete(source.id);
-  };
-  const closeDialog = () => {
-    setDialogOpen(false);
-    setClassificationSourceToDelete(null);
-  };
 
-  const deleteClassifications = () => {
-    deleteClassificationsMutation(classificationSourceToDelete)
-      .unwrap()
-      .then(() => {
-        dispatch(showNotification("Classification deleted"));
-        closeDialog();
-      })
-      .catch(() => {
-        // error notification handled by the baseQuery
-      });
-  };
-
-  const addVotes = (vote: any) => {
-    let success = true;
-    source.classifications?.forEach((c: any) => {
-      addClassificationVote({ classification_id: c.id, data: { vote } })
-        .unwrap()
-        .catch(() => {
-          success = false;
-        });
-    });
-    if (success) {
-      dispatch(showNotification("Votes registered"));
+  const deleteClassifications = async () => {
+    try {
+      await deleteClassificationsMutation(source.id).unwrap();
+      dispatch(showNotification("Classification deleted"));
+      setDialogOpen(false);
+    } catch {
+      // error notification handled by the baseQuery
     }
   };
 
-  let upvoteColor: any = "disabled";
-  let downvoteColor: any = "disabled";
-  let upvoteValue = 1;
-  let downvoteValue = -1;
-  const upvoterIds: any[] = [];
-  const downvoterIds: any[] = [];
+  const addVotes = (vote: number) => {
+    source.classifications?.forEach((c: any) =>
+      addClassificationVote({ classification_id: c.id, data: { vote } }),
+    );
+    dispatch(showNotification("Votes registered"));
+  };
 
-  source.classifications?.forEach((classification: any) => {
-    classification.votes?.forEach((s: any) => {
-      if (s.voter_id === currentUser?.id) {
-        if (s.vote === 1) {
-          upvoterIds.push(classification.id);
-        } else if (s.vote === -1) {
-          downvoterIds.push(classification.id);
-        }
-      }
-    });
-  });
-
-  if (source.classifications?.length === upvoterIds.length) {
-    upvoteColor = "success";
-    upvoteValue = 0;
-  } else if (source.classifications?.length === downvoterIds.length) {
-    downvoteColor = "error";
-    downvoteValue = 0;
-  }
+  const votedAll = (vote: number) =>
+    source.classifications?.every((c: any) =>
+      c.votes?.some(
+        (v: any) => v.voter_id === currentUser?.id && v.vote === vote,
+      ),
+    );
+  const upvoted = votedAll(1);
+  const downvoted = !upvoted && votedAll(-1);
 
   const permission =
     currentUser?.permissions.includes("System admin") ||
     currentUser?.permissions.includes("Manage groups") ||
-    isGroupAdmin;
+    JSON.parse(window.localStorage.getItem("CURRENT_GROUP_ADMIN") as any);
 
   return (
-    <div>
-      <Tooltip
-        key={`${source.id}`}
-        placement="top-end"
-        disableFocusListener
-        disableTouchListener
-        title={
-          <>
-            <br />
-            <b>All Classifications:</b>
-            <br />
-            <Button
-              key={source.id}
-              id="delete_classifications"
-              classes={{
-                root: classes.classificationDelete,
-                disabled: classes.classificationDeleteDisabled,
-              }}
-              onClick={() => openDialog()}
-              disabled={!permission}
-            >
-              <DeleteIcon />
-            </Button>
-            <ConfirmDeletionDialog
-              deleteFunction={deleteClassifications}
-              dialogOpen={dialogOpen}
-              closeDialog={closeDialog}
-              resourceName="classifications"
-            />
-            <div>
-              <Button
-                key={source.id}
-                id="down_vote"
-                onClick={() => addVotes(downvoteValue)}
-              >
-                <ThumbDown color={downvoteColor} />
-              </Button>
-            </div>
-            <div>
-              <Button
-                key={source.id}
-                id="up_vote"
-                onClick={() => addVotes(upvoteValue)}
-              >
-                <ThumbUp color={upvoteColor} />
-              </Button>
-            </div>
-          </>
-        }
-      >
-        <div>
-          <ShowClassification
-            classifications={source.classifications}
-            taxonomyList={taxonomyList}
-            shortened
-            fontSize="0.95rem"
+    <Tooltip
+      placement="top-end"
+      disableFocusListener
+      disableTouchListener
+      title={
+        <Box sx={{ display: "flex", flexDirection: "column", pt: 2 }}>
+          <b>All Classifications:</b>
+          <Button
+            id="delete_classifications"
+            onClick={() => setDialogOpen(true)}
+            disabled={!permission}
+            sx={{
+              fontSize: "2em",
+              position: "absolute",
+              p: 0,
+              right: 0,
+              top: 0,
+              "&.Mui-disabled": { opacity: 0 },
+            }}
+          >
+            <DeleteIcon />
+          </Button>
+          <ConfirmDeletionDialog
+            deleteFunction={deleteClassifications}
+            dialogOpen={dialogOpen}
+            closeDialog={() => setDialogOpen(false)}
+            resourceName="classifications"
           />
-        </div>
-      </Tooltip>
-    </div>
+          <Button id="down_vote" onClick={() => addVotes(downvoted ? 0 : -1)}>
+            <ThumbDown color={downvoted ? "error" : "disabled"} />
+          </Button>
+          <Button id="up_vote" onClick={() => addVotes(upvoted ? 0 : 1)}>
+            <ThumbUp color={upvoted ? "success" : "disabled"} />
+          </Button>
+        </Box>
+      }
+    >
+      <div>
+        <ShowClassification
+          classifications={source.classifications}
+          taxonomyList={taxonomyList}
+          shortened
+          fontSize="0.95rem"
+        />
+      </div>
+    </Tooltip>
   );
 });
 RenderShowClassification.displayName = "RenderShowClassification";
@@ -341,66 +208,37 @@ RenderShowClassification.displayName = "RenderShowClassification";
 const RenderShowLabelling = React.memo(({ source }: { source: any }) => {
   const [addSourceLabels] = useAddSourceLabelsMutation();
   const [deleteSourceLabels] = useDeleteSourceLabelsMutation();
-  const { control } = useForm();
-  const [checked, setChecked] = useState(false);
-
   const { data: currentUser } = useGetProfileQuery();
-
-  const labellerUsernames = source.labellers
-    ? source.labellers.map((s: any) => s.username)
-    : [];
+  const labellerUsernames = (source.labellers ?? []).map(
+    (s: any) => s.username,
+  );
   const defaultChecked = labellerUsernames.includes(currentUser?.username);
+  const [checked, setChecked] = useState(defaultChecked);
 
-  useEffect(() => {
-    setChecked(defaultChecked);
-  }, [setChecked, defaultChecked]);
+  useEffect(() => setChecked(defaultChecked), [defaultChecked]);
 
-  const labelledSource = (check: any) => {
-    const groupIds: any[] = [];
-    source.groups?.forEach((g: any) => {
-      groupIds.push(g.id);
-    });
-
-    if (check === true) {
-      addSourceLabels({ id: source.id, data: { groupIds } });
-    } else {
-      deleteSourceLabels({ id: source.id, data: { groupIds } });
-    }
-  };
-
-  const checkBox = (event: any) => {
-    setChecked(event.target.checked);
+  const toggleLabelled = (check: boolean) => {
+    setChecked(check);
+    const data = { groupIds: (source.groups ?? []).map((g: any) => g.id) };
+    if (check) addSourceLabels({ id: source.id, data });
+    else deleteSourceLabels({ id: source.id, data });
   };
 
   return (
-    <div>
-      <FormControlLabel
-        key={source.id}
-        control={
-          <Controller
-            render={() => (
-              <Checkbox
-                onChange={(event) => {
-                  checkBox(event);
-                  labelledSource(event.target.checked);
-                }}
-                checked={checked}
-                data-testid={`labellingCheckBox${source.id}`}
-              />
-            )}
-            name={`labellingCheckBox${source.id}`}
-            control={control}
-          />
-        }
-        label={`Labelled By:  ${labellerUsernames.join(",")}`}
-      />
-    </div>
+    <FormControlLabel
+      control={
+        <Checkbox
+          checked={checked}
+          onChange={(event) => toggleLabelled(event.target.checked)}
+        />
+      }
+      label={`Labelled By:  ${labellerUsernames.join(",")}`}
+    />
   );
 });
 RenderShowLabelling.displayName = "RenderShowLabelling";
 
-// Module scope on purpose: a toolbar built inside the table is a new component
-// type on every keystroke, which remounts the search input and drops focus.
+// Module scope: defined inside the table it remounts the search input and drops focus.
 const SourceTableToolbar = ({
   title,
   searchBy,
@@ -416,7 +254,12 @@ const SourceTableToolbar = ({
   const [columnAnchor, setColumnAnchor] = useState<HTMLElement | null>(null);
 
   return (
-    <DataGridToolbar title={title} showExport={false} showQuickFilter={false}>
+    <DataGridToolbar
+      title={title}
+      showExport={false}
+      showQuickFilter={false}
+      showExpandAll
+    >
       {columnPickerOptions.length > 0 && (
         <>
           <Tooltip title="Add an annotation or altdata column">
@@ -439,8 +282,6 @@ const SourceTableToolbar = ({
               <SearchableSelect
                 options={columnPickerOptions}
                 getOptionLabel={(o: any) => o.label}
-                // Nothing until the user types, then capped matches, so a large
-                // registry never floods the dropdown.
                 filterOptions={(opts: any, state: any) =>
                   filterColumnPickerOptions(opts, state.inputValue)
                 }
@@ -484,7 +325,6 @@ const SourceTableToolbar = ({
           <IconButton
             size="small"
             aria-label="Download CSV"
-            data-testid="download-sources-button"
             onClick={onDownload}
           >
             <DownloadIcon />
@@ -494,7 +334,6 @@ const SourceTableToolbar = ({
       <TextField
         size="small"
         placeholder="Search"
-        data-testid="tour-source-search"
         value={searchText}
         onChange={(event) => onSearchTextChange(event.target.value)}
         sx={{ width: "20rem" }}
@@ -561,8 +400,6 @@ interface SourceTableProps {
   isLoading?: boolean;
 }
 
-// Data grid with pull-out rows containing a summary of each source.
-// This component is used in GroupSources, SourceList and Favorites page.
 const SourceTable = ({
   sources,
   title = "Sources",
@@ -571,7 +408,7 @@ const SourceTable = ({
   paginateCallback,
   pageNumber = 1,
   totalMatches = 0,
-  numPerPage = 30,
+  numPerPage = 25,
   sortingCallback = null,
   downloadCallback = null,
   includeGcnStatus = false,
@@ -580,17 +417,9 @@ const SourceTable = ({
   fixedHeader = false,
   isLoading = false,
 }: SourceTableProps) => {
-  // sourceStatus should be one of either "saved" (default) or "requested" to add a button to agree to save the source.
-  // If groupID is not given, show all data available to user's accessible groups
-
   const [acceptSaveRequest] = useAcceptSaveRequestMutation();
   const [declineSaveRequest] = useDeclineSaveRequestMutation();
-  const [fetchPendingGroupSourcesTrigger] =
-    useLazyFetchPendingGroupSourcesQuery();
-  const [fetchSavedGroupSourcesTrigger] = useLazyFetchSavedGroupSourcesQuery();
   const { data: taxonomyList = EMPTY_ARRAY } = useGetTaxonomiesQuery();
-
-  const { classes } = useStyles() as { classes: any };
 
   const isReadOnly = useIsReadOnly();
   const [searchBy, setSearchBy] = useState("name");
@@ -619,9 +448,7 @@ const SourceTable = ({
     { skip: !includeGcnStatus || !gcnEvent?.dateobs || !sources },
   );
   const { data: tagOptions = EMPTY_ARRAY } = useGetTagOptionsQuery();
-  // Available annotation origin/key pairs, keyed by origin: { origin: [{ key: type }] }
   const { data: annotationsInfo } = useGetAnnotationsInfoQuery(undefined);
-  // Distinct top-level altdata keys: { keys: [{ key: type }] }
   const { data: altdataInfo } = useGetAltdataInfoQuery();
   const { data: currentUser } = useGetProfileQuery();
   const [updateUserPreferences] = useUpdateUserPreferencesMutation();
@@ -634,8 +461,6 @@ const SourceTable = ({
     [currentUser],
   );
 
-  // Columns hidden by default, keyed by DataGrid field. Mirrors the previous
-  // defaultDisplayedColumns list (which only enumerated visible labels).
   const [columnVisibilityModel, setColumnVisibilityModel] = useState<
     Record<string, boolean>
   >(() => {
@@ -667,9 +492,6 @@ const SourceTable = ({
     }
   }, [sources]);
 
-  // field -> origin/key for every discoverable annotation. A cheap map, NOT a
-  // column each: the registry is unbounded (per-object `ls_dr9-<objid>` origins),
-  // so only saved fields become columns (below). Powers the picker + round-trip.
   const annotationColumnMeta = useMemo(
     () => buildAnnotationColumnMeta(annotationsInfo),
     [annotationsInfo],
@@ -679,13 +501,11 @@ const SourceTable = ({
     [altdataInfo],
   );
 
-  // Picker options: every discoverable field (Autocomplete caps what renders).
   const columnPickerOptions = useMemo(
     () => buildColumnPickerOptions(annotationColumnMeta, altdataColumnMeta),
     [annotationColumnMeta, altdataColumnMeta],
   );
 
-  // Add a discoverable field to the saved selection (= what's materialized).
   const handleAddColumn = useCallback(
     (field: string) => {
       if (!field) return;
@@ -704,8 +524,6 @@ const SourceTable = ({
     [savedAnnotationColumns, savedAltdataColumns, updateUserPreferences],
   );
 
-  // Unchecking a saved annotation/altdata column in the panel drops it from the
-  // saved selection (and so unmaterializes it); re-add via the toolbar picker.
   const handleColumnVisibilityModelChange = useCallback(
     (model: Record<string, boolean>) => {
       setColumnVisibilityModel(model);
@@ -747,7 +565,6 @@ const SourceTable = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchBy]);
 
-  // Query on the settled text, so a name costs one request, not one per letter.
   const debouncedSearchText = useDebounced(searchText, 400);
   const appliedSearchText = useRef("");
   useEffect(() => {
@@ -767,20 +584,16 @@ const SourceTable = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [debouncedSearchText]);
 
-  const currentSortOrder = useCallback(
-    () =>
-      sortModel.length
-        ? {
-            name: SERVER_SORT_FIELD[sortModel[0].field] || sortModel[0].field,
-            direction: sortModel[0].sort,
-          }
-        : {},
-    [sortModel],
-  );
+  const currentSortOrder = () =>
+    sortModel.length
+      ? {
+          name: SERVER_SORT_FIELD[sortModel[0].field] || sortModel[0].field,
+          direction: sortModel[0].sort,
+        }
+      : {};
 
   const handlePaginationModelChange = (model: any) => {
-    // The grid also emits this when it merely clamps an out-of-range page, so
-    // ignore no-op changes: refetching on those loops back into the grid.
+    // The grid also emits this when clamping the page; refetching on no-ops loops.
     if (model.page === pageNumber - 1 && model.pageSize === rowsPerPage) {
       return;
     }
@@ -808,441 +621,73 @@ const SourceTable = ({
     );
   };
 
-  const handleSaveSource = async (sourceID: any) => {
-    try {
-      await acceptSaveRequest({ sourceID, groupID: groupID! }).unwrap();
-      fetchPendingGroupSourcesTrigger({
-        group_ids: [groupID],
-        pageNumber: 1,
-        numPerPage: 10,
-      });
-      fetchSavedGroupSourcesTrigger({
-        group_ids: [groupID],
-        pageNumber: 1,
-        numPerPage: 10,
-      });
-    } catch {
-      // error notification handled by the baseQuery
-    }
-  };
-
-  const handleIgnoreSource = async (sourceID: any) => {
-    try {
-      await declineSaveRequest({ sourceID, groupID: groupID! }).unwrap();
-      fetchPendingGroupSourcesTrigger({
-        group_ids: [groupID],
-        pageNumber: 1,
-        numPerPage: 10,
-      });
-    } catch {
-      // error notification handled by the baseQuery
-    }
-  };
-
   const toggleExpand = (id: any) => {
     setOpenedRows((prev) =>
       prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id],
     );
   };
 
-  // helper functions shared by renderers and CSV download
-  const getGroups = (source: any) =>
-    source.groups?.filter((group: any) => group.active);
   const navigate = useNavigate();
 
-  const getDate = (source: any) => {
-    if (!source.groups) {
-      return undefined;
-    }
-    if (groupID !== undefined) {
-      const group = source.groups.find((g: any) => g.id === groupID);
-      return group?.saved_at;
-    }
-    const dates = source.groups.map((g: any) => g.saved_at).sort();
-    return dates[dates.length - 1];
-  };
+  const savedGroup = (source: any) =>
+    groupID !== undefined
+      ? source.groups?.find((g: any) => g.id === groupID)
+      : // `source.groups` is frozen RTK Query data, so copy before sorting in place.
+        [...(source.groups ?? [])]
+          .sort((g1: any, g2: any) => (g1.saved_at < g2.saved_at ? -1 : 1))
+          .pop();
+  const getDate = (source: any) =>
+    savedGroup(source)?.saved_at?.substring(0, 19);
 
-  const getSavedBy = (source: any) => {
-    if (!source.groups) {
-      return undefined;
-    }
-    if (groupID !== undefined) {
-      const group = source.groups.find((g: any) => g.id === groupID);
-      return group?.saved_by?.username;
-    }
-    // `source.groups` is frozen RTK Query data, so copy before sorting in place.
-    const usernames = [...source.groups]
-      .sort((g1: any, g2: any) => (g1.saved_at < g2.saved_at ? -1 : 1))
-      .map((g: any) => g.saved_by?.username);
-    return usernames[usernames.length - 1];
-  };
-
-  // Build the DataGrid column definitions. Each renderCell receives the row
-  // (the source object) directly, replacing mui-datatables' dataIndex lookups.
   const columns = useMemo(() => {
-    const renderObjId = (params: any) => {
-      const objid = params.row.id;
+    const sourceInGcn = (source: any) =>
+      sourcesingcn.find((s: any) => s.obj_id === source.id);
+
+    const renderMagnitude = (row: any, magKey: string, mjdKey: string) => {
+      const photstats = row.photstats?.[0];
+      if (!photstats?.[magKey]) return "No photometry";
       return (
-        <Link
-          to={`/source/${objid}`}
-          key={`${objid}_objid`}
-          data-testid={`${objid}`}
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <span className={classes.objId}>{objid}</span>
-        </Link>
-      );
-    };
-
-    const renderTNSName = (params: any) => {
-      const source = params.row;
-      if (source.tns_name) {
-        return (
-          <a
-            key={source.tns_name}
-            href={`https://www.wis-tns.org/object/${
-              source.tns_name.trim().includes(" ")
-                ? source.tns_name.split(" ")[1]
-                : source.tns_name
-            }`}
-            target="_blank"
-            rel="noopener noreferrer"
-            style={{ whiteSpace: "nowrap" }}
-          >
-            {`${source.tns_name} `}
-          </a>
-        );
-      }
-      return null;
-    };
-
-    const renderAlias = (params: any) => {
-      const { id: objid, alias } = params.row;
-      if (alias) {
-        const alias_str = Array.isArray(alias)
-          ? alias.map((name: any) => <div key={name}> {name} </div>)
-          : alias;
-        return (
-          <Link to={`/source/${objid}`} key={`${objid}_alias`}>
-            {alias_str}
-          </Link>
-        );
-      }
-      return null;
-    };
-
-    const renderOrigin = (params: any) => {
-      const { id: objid, origin } = params.row;
-      return (
-        <Link to={`/source/${objid}`} key={`${objid}_origin`}>
-          {origin}
-        </Link>
-      );
-    };
-
-    const renderRA = (params: any) => (
-      <div key={`${params.row.id}_ra`}>{params.row.ra?.toFixed(6)}</div>
-    );
-    const renderRASex = (params: any) => (
-      <div key={`${params.row.id}_ra_sex`}>{ra_to_hours(params.row.ra)}</div>
-    );
-    const renderDec = (params: any) => (
-      <div key={`${params.row.id}_dec`}>{params.row.dec?.toFixed(6)}</div>
-    );
-    const renderDecSex = (params: any) => (
-      <div key={`${params.row.id}_dec_sex`}>{dec_to_dms(params.row.dec)}</div>
-    );
-    const renderGalLon = (params: any) => (
-      <div key={`${params.row.id}_gal_lon`}>
-        {params.row.gal_lon?.toFixed(6)}
-      </div>
-    );
-    const renderGalLat = (params: any) => (
-      <div key={`${params.row.id}_gal_lat`}>
-        {params.row.gal_lat?.toFixed(6)}
-      </div>
-    );
-    const renderHost = (params: any) => (
-      <div key={`${params.row.id}_host`}>{params.row.host?.name}</div>
-    );
-    const renderHostOffset = (params: any) => (
-      <div key={`${params.row.id}_host_offset`}>
-        {params.row.host_offset?.toFixed(3)}
-      </div>
-    );
-
-    const renderClassification = (params: any) => (
-      <Suspense
-        fallback={
-          <div>
-            <CircularProgress color="secondary" />
-          </div>
-        }
-      >
-        <div>
-          <RenderShowClassification source={params.row} />
-        </div>
-      </Suspense>
-    );
-
-    const renderPhotStats = (params: any) => (
-      <Suspense
-        fallback={
-          <div>
-            <CircularProgress color="secondary" />
-          </div>
-        }
-      >
-        <div>
-          <DisplayPhotStats
-            photstats={params.row.photstats?.[0]}
-            display_header={false}
-          />
-        </div>
-      </Suspense>
-    );
-
-    const renderLabelling = (params: any) => (
-      <Suspense
-        fallback={
-          <div>
-            <CircularProgress color="secondary" />
-          </div>
-        }
-      >
-        <div>
-          <RenderShowLabelling source={params.row} />
-        </div>
-      </Suspense>
-    );
-
-    const renderGroups = (params: any) => {
-      const source = params.row;
-      return (
-        <div key={`${source.id}_groups`} className={classes.groupChips}>
-          {(getGroups(source) || []).map((group: any) => (
-            <div key={group.name}>
-              <Chip
-                label={group.name.substring(0, 15)}
-                key={group.id}
-                size="small"
-                onClick={() => navigate(`/group/${group.id}`)}
-              />
-              <br />
-            </div>
-          ))}
-        </div>
-      );
-    };
-
-    const renderDateSaved = (params: any) => (
-      <div key={`${params.row.id}_date_saved`}>
-        {getDate(params.row)?.substring(0, 19)}
-      </div>
-    );
-
-    const renderFinderButton = (params: any) => (
-      <IconButton size="small" key={`${params.row.id}_actions`}>
-        <a href={`/api/sources/${params.row.id}/finder`}>
-          <PictureAsPdfIcon />
-        </a>
-      </IconButton>
-    );
-
-    const renderSaveIgnore = (params: any) => {
-      const source = params.row;
-      return (
-        <>
-          <Button
-            secondary
-            size="small"
-            onClick={() => {
-              handleSaveSource(source.id);
-            }}
-            data-testid={`saveSourceButton_${source.id}`}
-          >
-            Save
-          </Button>
-          &nbsp;
-          <Button
-            secondary
-            size="small"
-            onClick={() => {
-              handleIgnoreSource(source.id);
-            }}
-            data-testid={`declineRequestButton_${source.id}`}
-          >
-            Ignore
-          </Button>
-        </>
-      );
-    };
-
-    const renderPeakMagnitude = (params: any) => {
-      const photstats = params.row.photstats?.[0];
-      if (!photstats) {
-        return <div>No photometry</div>;
-      }
-      return photstats.peak_mag_global ? (
-        <Tooltip title={mjd_to_utc(photstats.peak_mjd_global)}>
-          <div>{`${photstats.peak_mag_global.toFixed(4)}`}</div>
+        <Tooltip title={mjd_to_utc(photstats[mjdKey])}>
+          <div>{photstats[magKey].toFixed(4)}</div>
         </Tooltip>
-      ) : (
-        <div>No photometry</div>
       );
     };
 
-    const renderLatestMagnitude = (params: any) => {
-      const photstats = params.row.photstats?.[0];
-      if (!photstats) {
-        return <div>No photometry</div>;
-      }
-      return photstats.last_detected_mag ? (
-        <Tooltip title={mjd_to_utc(photstats.last_detected_mjd)}>
-          <div>{`${photstats.last_detected_mag.toFixed(4)}`}</div>
-        </Tooltip>
-      ) : (
-        <div>No photometry</div>
-      );
-    };
-
-    const renderMPCName = (params: any) => (
-      <div>{params.row.mpc_name ? params.row.mpc_name : ""}</div>
-    );
-
-    const renderTags = (params: any) => {
-      const source = params.row;
-      const tags = source.tags || [];
-      if (tags.length === 0) {
-        return null;
-      }
-      const tagsWithColors = tags.map((tag: any) => {
-        const tagOption = tagOptions.find(
-          (option: any) => option.id === tag.objtagoption_id,
-        );
-        return {
-          ...tag,
-          color: tagOption?.color || "#dddfe2",
-        };
-      });
-      return (
-        <div key={`${source.id}_tags`} className={classes.groupChips}>
-          {tagsWithColors.map((tag: any) => (
-            <Chip
-              key={tag.id}
-              label={tag.name}
-              size="small"
-              style={{
-                backgroundColor: tag.color,
-                color: getContrastColor(tag.color),
-              }}
-            />
-          ))}
-        </div>
-      );
-    };
-
-    const renderSavedBy = (params: any) => getSavedBy(params.row);
-
-    const renderGcnStatus = (params: any) => {
-      const source = params.row;
-      let statusIcon = null;
-      const gcnStatus = sourcesingcn.filter(
-        (s: any) => s.obj_id === source.id,
-      )[0]?.status;
-      if (
-        sourcesingcn.filter((s: any) => s.obj_id === source.id).length === 0
-      ) {
-        statusIcon = <PriorityHigh color="primary" />;
-      } else if (gcnStatus === "confirmed") {
+    const renderGcnStatus = ({ row }: any) => {
+      const inGcn = sourceInGcn(row);
+      let statusIcon = <QuestionMarkIcon color="primary" />;
+      if (!inGcn) statusIcon = <PriorityHigh color="primary" />;
+      else if (inGcn.status === "confirmed")
         statusIcon = <CheckIcon color={"green" as any} />;
-      } else if (gcnStatus === "rejected") {
+      else if (inGcn.status === "rejected")
         statusIcon = <ClearIcon color="secondary" />;
-      } else {
-        statusIcon = <QuestionMarkIcon color="primary" />;
-      }
       return (
-        <div
-          style={{
+        <Box
+          sx={{
             display: "flex",
-            flexDirection: "row",
             alignItems: "center",
             justifyContent: "center",
           }}
-          {...({ name: `${source.id}_gcn_status` } as any)}
         >
           {statusIcon}
           <ConfirmSourceInGCN
             dateobs={gcnEvent?.dateobs as string}
             localization_name={sourceInGcnFilter.localizationName}
             localization_cumprob={sourceInGcnFilter.localizationCumprob}
-            source_id={source.id}
+            source_id={row.id}
             start_date={sourceInGcnFilter.startDate}
             end_date={sourceInGcnFilter.endDate}
             sources_id_list={sources.map((s: any) => s.id)}
           />
-        </div>
+        </Box>
       );
     };
 
-    const renderGcnStatusExplanation = (params: any) => {
-      const source = params.row;
-      let statusExplanation = null;
-      if (
-        sourcesingcn.filter((s: any) => s.obj_id === source.id).length === 0
-      ) {
-        statusExplanation = "";
-      } else {
-        statusExplanation =
-          sourcesingcn.filter((s: any) => s.obj_id === source.id)[0]
-            ?.explanation ?? "";
-      }
-      return (
-        <div
-          style={{
-            display: "flex",
-            flexDirection: "row",
-            alignItems: "center",
-            justifyContent: "center",
-          }}
-          {...({ name: `${source.id}_gcn_status_explanation` } as any)}
-        >
-          {statusExplanation}
-        </div>
-      );
-    };
-
-    const renderGcnNotes = (params: any) => {
-      const source = params.row;
-      let notes = "";
-      if (sourcesingcn.filter((s: any) => s.obj_id === source.id).length) {
-        notes =
-          sourcesingcn.filter((s: any) => s.obj_id === source.id)[0]?.notes ??
-          "";
-      }
-      return (
-        <div
-          style={{
-            display: "flex",
-            flexDirection: "row",
-            alignItems: "center",
-            justifyContent: "center",
-          }}
-        >
-          {notes}
-        </div>
-      );
-    };
-
-    // Leading expand/detail column. For normal rows it renders the expand
-    // toggle; for the synthetic detail rows it renders the pull-out panel,
-    // spanning the full width of the grid via colSpan.
     const cols: any[] = [
       {
         field: "__expand",
         headerName: "",
-        width: 56,
+        width: 64,
         sortable: false,
         filterable: false,
         hideable: false,
@@ -1280,195 +725,244 @@ const SourceTable = ({
       {
         field: "id",
         headerName: "Source ID",
-        flex: 1,
         minWidth: 120,
-        renderCell: renderObjId,
+        renderCell: ({ value }: any) => (
+          <Link
+            to={`/source/${value}`}
+            data-testid={value}
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            <Box
+              component="span"
+              sx={(theme) => ({
+                color:
+                  theme.palette.mode === "dark"
+                    ? theme.palette.secondary.main
+                    : theme.palette.primary.main,
+              })}
+            >
+              {value}
+            </Box>
+          </Link>
+        ),
       },
       {
         field: "tns",
         headerName: "TNS",
-        flex: 1,
         minWidth: 90,
         sortable: false,
-        renderCell: renderTNSName,
+        renderCell: ({ row }: any) =>
+          row.tns_name && (
+            <Box
+              component="a"
+              href={`https://www.wis-tns.org/object/${
+                row.tns_name.trim().includes(" ")
+                  ? row.tns_name.split(" ")[1]
+                  : row.tns_name
+              }`}
+              target="_blank"
+              rel="noopener noreferrer"
+              sx={{ whiteSpace: "nowrap" }}
+            >
+              {row.tns_name}
+            </Box>
+          ),
       },
       {
         field: "alias",
         headerName: "Alias",
-        flex: 1,
         minWidth: 90,
-        renderCell: renderAlias,
+        renderCell: ({ row }: any) =>
+          row.alias && (
+            <Link to={`/source/${row.id}`}>
+              {Array.isArray(row.alias)
+                ? row.alias.map((name: any) => <div key={name}>{name}</div>)
+                : row.alias}
+            </Link>
+          ),
       },
       {
         field: "origin",
         headerName: "Origin",
-        flex: 1,
         minWidth: 90,
-        renderCell: renderOrigin,
+        renderCell: ({ row }: any) => (
+          <Link to={`/source/${row.id}`}>{row.origin}</Link>
+        ),
       },
       {
         field: "ra",
         headerName: "RA (deg)",
-        flex: 1,
         minWidth: 100,
-        renderCell: renderRA,
+        valueFormatter: (value: number) => value?.toFixed(6),
       },
       {
         field: "dec",
         headerName: "Dec (deg)",
-        flex: 1,
         minWidth: 100,
-        renderCell: renderDec,
+        valueFormatter: (value: number) => value?.toFixed(6),
       },
       {
         field: "ra_sex",
         headerName: "RA (hh:mm:ss)",
-        flex: 1,
         minWidth: 120,
-        renderCell: renderRASex,
+        valueGetter: (_value: any, row: any) => ra_to_hours(row.ra),
       },
       {
         field: "dec_sex",
         headerName: "Dec (dd:mm:ss)",
-        flex: 1,
         minWidth: 120,
-        renderCell: renderDecSex,
+        valueGetter: (_value: any, row: any) => dec_to_dms(row.dec),
       },
       {
         field: "l",
         headerName: "l (deg)",
-        flex: 1,
         minWidth: 90,
-        renderCell: renderGalLon,
+        valueGetter: (_value: any, row: any) => row.gal_lon?.toFixed(6),
       },
       {
         field: "b",
         headerName: "b (deg)",
-        flex: 1,
         minWidth: 90,
-        renderCell: renderGalLat,
+        valueGetter: (_value: any, row: any) => row.gal_lat?.toFixed(6),
       },
-      {
-        field: "redshift",
-        headerName: "Redshift",
-        flex: 1,
-        minWidth: 90,
-        valueGetter: (_value: any, row: any) => row.redshift,
-      },
+      { field: "redshift", headerName: "Redshift", minWidth: 90 },
       {
         field: "tags",
         headerName: "Tags",
-        flex: 1,
         minWidth: 120,
         maxWidth: 200,
         sortable: false,
-        renderCell: renderTags,
+        renderCell: ({ row }: any) => (
+          <ExpandableCell
+            items={(row.tags ?? []).map((tag: any) => {
+              const color =
+                tagOptions.find((o: any) => o.id === tag.objtagoption_id)
+                  ?.color || "#dddfe2";
+              return (
+                <Chip
+                  key={tag.id}
+                  label={tag.name}
+                  size="small"
+                  sx={{ bgcolor: color, color: getContrastColor(color) }}
+                />
+              );
+            })}
+          />
+        ),
       },
       {
         field: "classification",
         headerName: "Classification",
-        flex: 1,
         minWidth: 120,
         maxWidth: 200,
         sortable: false,
-        renderCell: renderClassification,
+        renderCell: ({ row }: any) => <RenderShowClassification source={row} />,
       },
       {
         field: "host",
         headerName: "Host",
-        flex: 1,
         minWidth: 90,
-        renderCell: renderHost,
+        valueGetter: (_value: any, row: any) => row.host?.name,
       },
       {
         field: "host_offset",
         headerName: "Host Offset (arcsec)",
-        flex: 1,
         minWidth: 120,
-        renderCell: renderHostOffset,
+        valueFormatter: (value: number) => value?.toFixed(3),
       },
       {
         field: "photstats",
         headerName: " ",
         width: 80,
         sortable: false,
-        renderCell: renderPhotStats,
+        renderCell: ({ row }: any) => (
+          <DisplayPhotStats photstats={row.photstats?.[0]} />
+        ),
       },
       {
         field: "labelling",
         headerName: "Labelling",
-        flex: 1,
         minWidth: 120,
-        renderCell: renderLabelling,
+        renderCell: ({ row }: any) => <RenderShowLabelling source={row} />,
       },
       {
         field: "groups",
         headerName: "Groups",
-        flex: 1,
         minWidth: 120,
         sortable: false,
-        renderCell: renderGroups,
+        renderCell: ({ row }: any) => (
+          <ExpandableCell
+            items={(row.groups ?? [])
+              .filter((group: any) => group.active)
+              .map((group: any) => (
+                <Chip
+                  label={group.name.substring(0, 15)}
+                  key={group.id}
+                  size="small"
+                  onClick={() => navigate(`/group/${group.id}`)}
+                />
+              ))}
+          />
+        ),
       },
       {
         field: "saved_at",
         headerName: "Saved at",
-        flex: 1,
         minWidth: 150,
-        renderCell: renderDateSaved,
+        valueGetter: (_value: any, row: any) => getDate(row),
       },
       {
         field: "saved_by",
         headerName: groupID ? "Saved To Group By" : "Last Saved By",
-        flex: 1,
         minWidth: 120,
         sortable: false,
-        renderCell: renderSavedBy,
+        valueGetter: (_value: any, row: any) =>
+          savedGroup(row)?.saved_by?.username,
       },
       {
         field: "peak_mag",
         headerName: "Peak Magnitude",
-        flex: 1,
         minWidth: 120,
         sortable: false,
-        renderCell: renderPeakMagnitude,
+        renderCell: ({ row }: any) =>
+          renderMagnitude(row, "peak_mag_global", "peak_mjd_global"),
       },
       {
         field: "latest_mag",
         headerName: "Latest Magnitude",
-        flex: 1,
         minWidth: 120,
         sortable: false,
-        renderCell: renderLatestMagnitude,
+        renderCell: ({ row }: any) =>
+          renderMagnitude(row, "last_detected_mag", "last_detected_mjd"),
       },
       {
         field: "mpc_name",
         headerName: "MPC Name",
-        flex: 1,
         minWidth: 100,
         sortable: false,
-        renderCell: renderMPCName,
       },
       {
         field: "favorites",
         headerName: " ",
         width: 80,
         sortable: false,
-        renderCell: (params: any) => (
-          <FavoritesButton sourceID={params.row.id} />
-        ),
+        renderCell: ({ row }: any) => <FavoritesButton sourceID={row.id} />,
       },
       {
         field: "finder",
         headerName: "Finder",
         width: 80,
         sortable: false,
-        renderCell: renderFinderButton,
+        renderCell: ({ row }: any) => (
+          <IconButton size="small" href={`/api/sources/${row.id}/finder`}>
+            <PictureAsPdfIcon />
+          </IconButton>
+        ),
       },
     ];
 
     if (includeGcnStatus) {
-      // Insert GCN columns right after the classification column, matching the
-      // previous splice positions.
       const insertAt = cols.findIndex((c) => c.field === "classification") + 1;
       cols.splice(
         insertAt,
@@ -1476,25 +970,24 @@ const SourceTable = ({
         {
           field: "gcn_status",
           headerName: "GCN Status",
-          flex: 1,
           minWidth: 110,
           renderCell: renderGcnStatus,
         },
         {
           field: "gcn_explanation",
           headerName: "Explanation",
-          flex: 1,
           minWidth: 120,
           sortable: false,
-          renderCell: renderGcnStatusExplanation,
+          align: "center",
+          valueGetter: (_value: any, row: any) => sourceInGcn(row)?.explanation,
         },
         {
           field: "gcn_notes",
           headerName: "Notes",
-          flex: 1,
           minWidth: 120,
           sortable: false,
-          renderCell: renderGcnNotes,
+          align: "center",
+          valueGetter: (_value: any, row: any) => sourceInGcn(row)?.notes,
         },
       );
     }
@@ -1503,16 +996,34 @@ const SourceTable = ({
       cols.push({
         field: "save_decline",
         headerName: "Save/Decline",
-        flex: 1,
         minWidth: 140,
         sortable: false,
-        renderCell: renderSaveIgnore,
+        renderCell: ({ row }: any) => (
+          <Box sx={{ display: "flex", gap: 0.5 }}>
+            <Button
+              secondary
+              size="small"
+              onClick={() =>
+                acceptSaveRequest({ sourceID: row.id, groupID: groupID! })
+              }
+              data-testid={`saveSourceButton_${row.id}`}
+            >
+              Save
+            </Button>
+            <Button
+              secondary
+              size="small"
+              onClick={() =>
+                declineSaveRequest({ sourceID: row.id, groupID: groupID! })
+              }
+            >
+              Ignore
+            </Button>
+          </Box>
+        ),
       });
     }
 
-    // Materialize a column only for each annotation the user has saved (the
-    // global registry is unbounded — see annotationColumnMeta). Field encodes
-    // the server sort string, so server-side sort works via SERVER_SORT_FIELD.
     savedAnnotationColumns.forEach((field) => {
       const { origin, key } = originKeyForAnnotationField(
         field,
@@ -1521,7 +1032,6 @@ const SourceTable = ({
       cols.push({
         field,
         headerName: `${key} (${origin})`,
-        flex: 1,
         minWidth: 120,
         valueGetter: (_value: any, row: any) => {
           const ann = (row.annotations || []).find(
@@ -1533,13 +1043,11 @@ const SourceTable = ({
       });
     });
 
-    // Likewise, only saved altdata keys become columns.
     savedAltdataColumns.forEach((field) => {
       const key = altdataKeyForField(field, altdataColumnMeta);
       cols.push({
         field,
         headerName: `${key} (altdata)`,
-        flex: 1,
         minWidth: 120,
         valueGetter: (_value: any, row: any) => {
           const value = row.altdata?.[key];
@@ -1550,13 +1058,12 @@ const SourceTable = ({
       });
     });
 
-    return cols;
+    return cols.map((col) => (col.width ? col : { flex: 1, ...col }));
   }, [
     annotationColumnMeta,
     altdataColumnMeta,
     savedAnnotationColumns,
     savedAltdataColumns,
-    classes,
     navigate,
     taxonomyList,
     tagOptions,
@@ -1570,8 +1077,6 @@ const SourceTable = ({
     openedRows,
   ]);
 
-  // Interleave a synthetic detail row after each expanded source. getRowHeight
-  // returns "auto" for those rows so the pull-out content sizes itself.
   const displayRows = useMemo(() => {
     const out: any[] = [];
     (sources || []).forEach((source: any) => {
@@ -1587,23 +1092,14 @@ const SourceTable = ({
     return out;
   }, [sources, openedRows]);
 
-  const getRowHeight = useCallback(
-    (params: any) => (params.model.__detail ? "auto" : null),
-    [],
-  );
-
-  // Must be a stable object. An inline literal re-runs the grid's pagination
-  // sync effect every render, and while the model is out of range (e.g. a page
-  // size change lands before the new page of results does) the grid re-emits
-  // onPaginationModelChange each time, looping back through paginateCallback.
+  // Must be stable: an inline literal makes the grid re-emit page changes in a loop.
   const paginationModel = useMemo(
     () => ({ page: pageNumber - 1, pageSize: rowsPerPage }),
     [pageNumber, rowsPerPage],
   );
 
-  const handleFilterSubmit = async (formData: any) => {
+  const handleFilterSubmit = (formData: any) => {
     setLoading(true);
-    // Remove empty position
     if (
       !formData.position.ra &&
       !formData.position.dec &&
@@ -1614,8 +1110,6 @@ const SourceTable = ({
 
     const data: any = filterOutEmptyValues(formData);
 
-    // the method above drops any empty or false params, but we make sure to keep requireDetections
-    // if it is False, as it's default is to be True
     if (formData.requireDetections === false) {
       data.requireDetections = false;
     }
@@ -1629,7 +1123,6 @@ const SourceTable = ({
       }),
     );
 
-    // Expand cone search params
     if ("position" in data) {
       data.ra = data.position.ra;
       data.dec = data.position.dec;
@@ -1660,54 +1153,8 @@ const SourceTable = ({
     paginateCallback(1, rowsPerPage, {}, data);
   };
 
-  const handleClose = () => {
-    setOpenNew(false);
-  };
-
   const handleDownload = () => {
-    const renderDownloadClassification = (source: any) =>
-      (source?.classifications || [])
-        .map((x: any) => x.classification)
-        .join(";");
-    const renderDownloadProbability = (source: any) =>
-      (source?.classifications || []).map((x: any) => x.probability).join(";");
-    const renderDownloadAnnotationKey = (source: any) => {
-      const annotationKeys: any[] = [];
-      source?.annotations.forEach((x: any) => {
-        Object.entries(x.data).forEach((keyValuePair) => {
-          annotationKeys.push(keyValuePair[0]);
-        });
-      });
-      return annotationKeys.join(";");
-    };
-    const renderDownloadAnnotationOrigin = (source: any) =>
-      (source?.annotations || []).map((x: any) => x.origin).join(";");
-    const renderDownloadAnnotationOriginKeyValuePairCount = (source: any) =>
-      (source?.annotations || [])
-        .map((x: any) => Object.entries(x.data).length)
-        .join(";");
-    const renderDownloadAnnotationValue = (source: any) => {
-      const annotationValues: any[] = [];
-      source?.annotations.forEach((x: any) => {
-        Object.entries(x.data).forEach((keyValuePair) => {
-          annotationValues.push(keyValuePair[1]);
-        });
-      });
-      return annotationValues.join(";");
-    };
-    const renderDownloadGroups = (source: any) =>
-      (source?.groups || []).map((x: any) => x.name).join(";");
-    const renderDownloadDateSaved = (source: any) =>
-      getDate(source)?.substring(0, 19);
-    const renderDownloadAlias = (source: any) => {
-      const { alias } = source || {};
-      if (alias) {
-        return Array.isArray(alias) ? alias.join(";") : alias;
-      }
-      return "";
-    };
-    const renderDownloadTNSName = (source: any) => source?.tns_name || "";
-
+    const joined = (values: any[] | undefined) => (values ?? []).join(";");
     downloadCallback?.().then((data: any) => {
       if (!data?.length) {
         return;
@@ -1737,48 +1184,34 @@ const SourceTable = ({
         `"${String(value ?? "").replace(/"/g, '""')}"`;
 
       const rows = data.map((x: any) => {
+        const annotations = x.annotations ?? [];
         const cells = [
           x.id,
           x.ra,
           x.dec,
           x.redshift,
-          renderDownloadClassification(x),
-          renderDownloadProbability(x),
-          renderDownloadAnnotationOrigin(x),
-          renderDownloadAnnotationOriginKeyValuePairCount(x),
-          renderDownloadAnnotationKey(x),
-          renderDownloadAnnotationValue(x),
-          renderDownloadGroups(x),
-          renderDownloadDateSaved(x),
-          renderDownloadAlias(x),
+          joined(x.classifications?.map((c: any) => c.classification)),
+          joined(x.classifications?.map((c: any) => c.probability)),
+          joined(annotations.map((a: any) => a.origin)),
+          joined(annotations.map((a: any) => Object.keys(a.data).length)),
+          joined(annotations.flatMap((a: any) => Object.keys(a.data))),
+          joined(annotations.flatMap((a: any) => Object.values(a.data))),
+          joined(x.groups?.map((g: any) => g.name)),
+          getDate(x),
+          Array.isArray(x.alias) ? joined(x.alias) : x.alias,
           x.origin,
-          renderDownloadTNSName(x),
+          x.tns_name,
         ];
         if (includeGcnStatus) {
-          cells.push(
-            x.gcn ? x.gcn.status : "",
-            x.gcn ? x.gcn.explanation : "",
-            x.gcn ? x.gcn.notes : "",
-          );
+          cells.push(x.gcn?.status, x.gcn?.explanation, x.gcn?.notes);
         }
         return cells.map(csvCell).join(",");
       });
 
       const result = `${head.map(csvCell).join(",")}\n${rows.join("\n")}`;
-      const blob = new Blob([result], { type: "text/csv;charset=utf-8;" });
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      link.href = url;
-      link.setAttribute("download", "sources.csv");
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(url);
+      download(result, "text/csv;charset=utf-8;", "sources.csv");
     });
   };
-
-  const showDownload =
-    downloadCallback !== null && downloadCallback !== undefined;
 
   const toolbarSlotProps = {
     toolbar: {
@@ -1792,7 +1225,7 @@ const SourceTable = ({
         setFilterOpen(true);
       },
       onNewSource: isReadOnly ? null : () => setOpenNew(true),
-      onDownload: showDownload ? handleDownload : null,
+      onDownload: downloadCallback ? handleDownload : null,
       columnPickerOptions,
       onAddColumn: handleAddColumn,
     },
@@ -1806,13 +1239,11 @@ const SourceTable = ({
           display: "flex",
           flexDirection: "column",
           width: "100%",
-          // Fill what the app layout leaves below the top bar and its page
-          // padding, so the grid ends at the bottom of the viewport.
-          height: fixedHeader ? "calc(100vh - 5.25rem)" : "65vh",
+          height: fixedHeader ? FULL_PAGE_HEIGHT : "65vh",
         }}
       >
         {tableFilterList.length > 0 && (
-          <div className={classes.filterChips}>
+          <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.5, mb: 1 }}>
             {tableFilterList.map((chip) => (
               <Chip
                 key={chip}
@@ -1821,13 +1252,13 @@ const SourceTable = ({
                 onDelete={() => handleFilterChipDelete(chip)}
               />
             ))}
-          </div>
+          </Box>
         )}
         <StyledDataGrid
           rows={displayRows}
           columns={columns}
           loading={loading || isLoading}
-          getRowHeight={getRowHeight}
+          getRowHeight={() => "auto"}
           columnVisibilityModel={columnVisibilityModel}
           onColumnVisibilityModelChange={handleColumnVisibilityModelChange}
           paginationMode="server"
@@ -1837,10 +1268,8 @@ const SourceTable = ({
           onPaginationModelChange={handlePaginationModelChange}
           sortModel={sortModel}
           onSortModelChange={handleSortModelChange}
-          pageSizeOptions={PAGE_SIZE_OPTIONS}
           disableColumnFilter
-          // Keep all columns mounted so colSpan on the detail row works;
-          // row virtualization stays on, which is the performance win.
+          // Keeps all columns mounted so colSpan on the detail row works.
           columnBufferPx={3000}
           slots={TOOLBAR_SLOT}
           slotProps={toolbarSlotProps}
@@ -1851,9 +1280,9 @@ const SourceTable = ({
       <Dialog open={filterOpen} onClose={() => setFilterOpen(false)} fullWidth>
         <DialogContent>
           {filterFormSubmitted ? (
-            <div className={classes.filterAlert}>
-              <InfoIcon /> &nbsp; Filters submitted to server!
-            </div>
+            <Box sx={{ mt: 2, display: "flex", alignItems: "center", gap: 1 }}>
+              <InfoIcon /> Filters submitted to server!
+            </Box>
           ) : (
             <Suspense fallback={<CircularProgress color="secondary" />}>
               <SourceTableFilterForm handleFilterSubmit={handleFilterSubmit} />
@@ -1861,15 +1290,13 @@ const SourceTable = ({
           )}
         </DialogContent>
       </Dialog>
-      {openNew && (
-        <Dialog open={openNew} onClose={handleClose} maxWidth="md">
-          <DialogContent dividers>
-            <Suspense fallback={<CircularProgress color="secondary" />}>
-              <NewSource onClose={handleClose} />
-            </Suspense>
-          </DialogContent>
-        </Dialog>
-      )}
+      <Dialog open={openNew} onClose={() => setOpenNew(false)} maxWidth="md">
+        <DialogContent dividers>
+          <Suspense fallback={<CircularProgress color="secondary" />}>
+            <NewSource onClose={() => setOpenNew(false)} />
+          </Suspense>
+        </DialogContent>
+      </Dialog>
     </>
   );
 };

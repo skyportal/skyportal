@@ -74,7 +74,7 @@ const SaveBlockDialogMenu = () => {
       data: { block: saveDialog.block, streams: moduleStreams },
       elements: "blocks",
     });
-    if (saved) {
+    if (!("error" in saved)) {
       const blockId = saveDialog.block.id;
 
       const updateFilters = localFiltersUpdater || setFilters;
@@ -94,7 +94,7 @@ const SaveBlockDialogMenu = () => {
           const updatedBlock = {
             ...block,
             customBlockName: nameValue,
-            isTrue: true,
+            isTrue: block.isTrue !== false,
           };
           return updatedBlock;
         };

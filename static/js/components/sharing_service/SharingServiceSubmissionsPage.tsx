@@ -246,6 +246,13 @@ const SharingServiceSubmissionsPage = () => {
       renderCell: (params: any) => renderStatus(params.row.hermes_status),
     },
     {
+      field: "trove_status",
+      headerName: "TROVE status",
+      flex: 1.6,
+      minWidth: 200,
+      renderCell: (params: any) => renderStatus(params.row.trove_status),
+    },
+    {
       field: "tns_status",
       headerName: "TNS status",
       flex: 1.6,
@@ -308,7 +315,6 @@ const SharingServiceSubmissionsPage = () => {
           setPage(model.page + 1);
           setRowsPerPage(model.pageSize);
         }}
-        pageSizeOptions={[25, 50, 100, 200]}
         initialState={{
           columns: {
             columnVisibilityModel: {

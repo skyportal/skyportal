@@ -54,6 +54,7 @@ from ....models import (
     Source,
     Spectrum,
     SuperObj,
+    Thumbnail,
 )
 from ....utils.cache import Cache, array_to_bytes, cache_folder
 from ....utils.calculations import great_circle_distance
@@ -61,9 +62,15 @@ from ....utils.data_access import (
     accessible_group_and_filter_ids,
     accessible_group_ids_async,
 )
-from ....utils.parse import get_page_and_n_per_page, parse_optional_date
+from ....utils.parse import (
+    get_list_typed,
+    get_page_and_n_per_page,
+    parse_optional_date,
+)
 from ....utils.sizeof import SIZE_WARNING_THRESHOLD, sizeof
+from ....utils.thumbnail import latest_thumbnails
 from ...base import BaseHandler
+from ..photometry import load_readable_annotations
 from .candidate_filter import get_subquery_for_saved_status
 
 MAX_NUM_DAYS_USING_LOCALIZATION = 31 * 12 * 10  # 10 years
@@ -170,6 +177,17 @@ async def fetch_obj_data(model, options, obj_id, session):
     return result.unique().all()
 
 
+def serialize_comment(comment):
+    return {
+        **{k: v for k, v in comment.to_dict().items() if k != "attachment_bytes"},
+        "groups": [g.to_dict() for g in comment.groups],
+        "author": {
+            **comment.author.to_dict(),
+            "gravatar_url": comment.author.gravatar_url,
+        },
+    }
+
+
 async def include_requested_obj_data(
     obj_id, candidate, query, session, include_phot_annotations
 ):
@@ -198,10 +216,10 @@ async def include_requested_obj_data(
         phot_options = [selectinload(Photometry.instrument)]
 
         if include_phot_annotations:
-            phot_options.append(selectinload(Photometry.annotations))
             candidate["photometry"] = await fetch_obj_data(
                 Photometry, phot_options, obj_id, session
             )
+            await load_readable_annotations(session, candidate["photometry"])
             candidate["photometry"] = [
                 {
                     **phot.to_dict(),
@@ -222,11 +240,17 @@ async def include_requested_obj_data(
         )
 
     if query.includeComments:
+        comments_result = await session.scalars(
+            Comment.select(
+                session.user_or_token,
+                options=[selectinload(Comment.author), selectinload(Comment.groups)],
+            )
+            .where(Comment.obj_id == obj_id)
+            .where(Comment.channel.is_(None))
+        )
         candidate["comments"] = sorted(
-            await fetch_obj_data(
-                Comment, [selectinload(Comment.author)], obj_id, session
-            ),
-            key=lambda x: x.created_at,
+            map(serialize_comment, comments_result.unique().all()),
+            key=lambda x: x["created_at"],
             reverse=True,
         )
     if query.includeFollowupRequests:
@@ -287,6 +311,47 @@ async def include_requested_obj_data(
     return candidate
 
 
+async def attach_tags(candidates, session):
+    if not candidates:
+        return
+    tags_result = await session.scalars(
+        ObjTag.select(session.user_or_token)
+        .options(selectinload(ObjTag.objtagoption))
+        .where(ObjTag.obj_id.in_([c["id"] for c in candidates]))
+    )
+    tags_by_obj = {}
+    for tag in tags_result.all():
+        tags_by_obj.setdefault(tag.obj_id, []).append(
+            {**tag.to_dict(), "name": tag.objtagoption.name}
+        )
+    for candidate in candidates:
+        candidate["tags"] = tags_by_obj.get(candidate["id"], [])
+
+
+async def attach_comment_counts(candidates, session):
+    if not candidates:
+        return
+    comment_id = sa.distinct(Comment.id)
+    result = await session.execute(
+        Comment.select(
+            session.user_or_token,
+            columns=[
+                Comment.obj_id,
+                func.count(comment_id),
+                func.count(comment_id).filter(Comment.bot.is_(True)),
+            ],
+        )
+        .where(Comment.obj_id.in_([c["id"] for c in candidates]))
+        .where(Comment.channel.is_(None))
+        .group_by(Comment.obj_id)
+    )
+    counts = {obj_id: (total, bots) for obj_id, total, bots in result.all()}
+    for candidate in candidates:
+        total, bots = counts.get(candidate["id"], (0, 0))
+        candidate["comment_count"] = total
+        candidate["bot_comment_count"] = bots
+
+
 def add_computed_fields(candidate_info, obj):
     if obj.photstats and obj.photstats[-1].last_detected_mjd is not None:
         candidate_info["last_detected_at"] = Time(
@@ -299,6 +364,33 @@ def add_computed_fields(candidate_info, obj):
     candidate_info["luminosity_distance"] = obj.luminosity_distance
     candidate_info["dm"] = obj.dm
     candidate_info["angular_diameter_distance"] = obj.angular_diameter_distance
+
+
+async def linked_thumbnails(obj_ids, session):
+    own, linked = aliased(ObjToSuperObj), aliased(ObjToSuperObj)
+    pairs = set(
+        (
+            await session.execute(
+                sa.select(own.obj_id, linked.obj_id)
+                .join(linked, linked.super_obj_id == own.super_obj_id)
+                .where(own.obj_id.in_(obj_ids), linked.obj_id != own.obj_id)
+            )
+        ).all()
+    )
+    by_obj = defaultdict(list)
+    if not pairs:
+        return by_obj
+    thumbnails = await session.scalars(
+        Thumbnail.select(session.user_or_token).where(
+            Thumbnail.obj_id.in_({linked_id for _, linked_id in pairs})
+        )
+    )
+    by_linked = defaultdict(list)
+    for t in thumbnails.all():
+        by_linked[t.obj_id].append(t)
+    for obj_id, linked_id in pairs:
+        by_obj[obj_id].extend(by_linked[linked_id])
+    return by_obj
 
 
 # The galactic pole, J2000. Latitude is derived from ra/dec rather than stored,
@@ -469,6 +561,10 @@ class CandidateHandler(BaseHandler):
                 candidate_info = recursive_to_dict(c)
                 # frontend ws-refresh keys on internal_key (dropped by Obj.to_dict)
                 candidate_info["internal_key"] = c.internal_key
+                linked = await linked_thumbnails([obj_id], session)
+                candidate_info["thumbnails"] = latest_thumbnails(
+                    [*c.thumbnails, *linked[obj_id]]
+                )
 
                 if include_alerts:
                     accessible_candidates_result = await session.scalars(
@@ -527,6 +623,8 @@ class CandidateHandler(BaseHandler):
                         classifications_result.unique().all()
                     )
                 add_computed_fields(candidate_info, c)
+                await attach_tags([candidate_info], session)
+                await attach_comment_counts([candidate_info], session)
                 candidate_info = recursive_to_dict(candidate_info)
 
                 query_size = sizeof(candidate_info)
@@ -569,6 +667,7 @@ class CandidateHandler(BaseHandler):
         # users looking through the API docs
         query_id = query.queryID
         saved_status = query.savedStatus
+        saved_group_ids = query.savedGroupIDs
         start_date = query.startDate
         end_date = query.endDate
         group_ids = query.groupIDs
@@ -591,6 +690,12 @@ class CandidateHandler(BaseHandler):
         list_name_reject = query.listNameReject
         autosave = query.autosave
         autosave_group_ids = query.autosaveGroupIds
+        if autosave and not {"Upload data", "System admin"} & set(
+            self.current_user.permissions
+        ):
+            return self.error(
+                "autosave requires the Upload data permission.", status=403
+            )
         photometry_annotations_filter = query.photometryAnnotationsFilter
         photometry_annotations_filter_origin = query.photometryAnnotationsFilterOrigin
         photometry_annotations_filter_after = query.photometryAnnotationsFilterAfter
@@ -670,6 +775,13 @@ class CandidateHandler(BaseHandler):
             page_number, n_per_page = get_page_and_n_per_page(page_number, n_per_page)
         except ValueError as e:
             return self.error(str(e))
+        if saved_group_ids is not None:
+            try:
+                saved_group_ids = get_list_typed(
+                    saved_group_ids, int, error_msg="Invalid savedGroupIDs value"
+                )
+            except ValueError as e:
+                return self.error(str(e))
 
         async with self.AsyncSession() as session:
             # first, we get the list of group IDs and filter IDs
@@ -738,8 +850,18 @@ class CandidateHandler(BaseHandler):
                 # params are set.
                 order_by = [candidate_subquery.c.passed_at.desc().nullslast(), Obj.id]
 
+            # drop inaccessible groups first, so a stale list falls back too
+            if saved_group_ids:
+                accessible_ids = await accessible_group_ids_async(
+                    session.user_or_token, session
+                )
+                saved_group_ids = [g for g in saved_group_ids if g in accessible_ids]
             q = await get_subquery_for_saved_status(
-                q, saved_status, group_ids, session.user_or_token, session
+                q,
+                saved_status,
+                saved_group_ids or group_ids,
+                session.user_or_token,
+                session,
             )
 
             if min_redshift is not None:
@@ -1250,6 +1372,8 @@ class CandidateHandler(BaseHandler):
                     f.id: f.group_id for f in page_filters_result.all()
                 }
 
+            linked_by_obj = await linked_thumbnails(page_obj_ids, session)
+
             candidate_list = []
             if autosave:
                 from ..source import post_source_async
@@ -1301,7 +1425,19 @@ class CandidateHandler(BaseHandler):
                             session,
                         )
 
-                    candidate_list.append(recursive_to_dict(obj))
+                    candidate_info = obj.to_dict()
+                    candidate_info["thumbnails"] = latest_thumbnails(
+                        [*obj.thumbnails, *linked_by_obj[obj.id]]
+                    )
+                    candidate_info["super_objs"] = [
+                        {
+                            "id": super_obj.id,
+                            "name": super_obj.name,
+                            "is_roid": super_obj.is_roid,
+                        }
+                        for super_obj in obj.super_objs
+                    ]
+                    candidate_list.append(recursive_to_dict(candidate_info))
                     # frontend ws-refresh keys on internal_key (dropped by Obj.to_dict)
                     candidate_list[-1]["internal_key"] = obj.internal_key
                     candidate_list[-1] = await include_requested_obj_data(
@@ -1326,22 +1462,8 @@ class CandidateHandler(BaseHandler):
                     )
                     add_computed_fields(candidate_list[-1], obj)
 
-            # Attach each candidate's object tags (shown as chips on the scanning
-            # card), in one query keyed by obj_id to avoid an N+1.
-            candidate_obj_ids = [c["id"] for c in candidate_list]
-            if candidate_obj_ids:
-                tags_result = await session.scalars(
-                    ObjTag.select(session.user_or_token)
-                    .options(selectinload(ObjTag.objtagoption))
-                    .where(ObjTag.obj_id.in_(candidate_obj_ids))
-                )
-                tags_by_obj = {}
-                for tag in tags_result.all():
-                    tags_by_obj.setdefault(tag.obj_id, []).append(
-                        {**tag.to_dict(), "name": tag.objtagoption.name}
-                    )
-                for candidate in candidate_list:
-                    candidate["tags"] = tags_by_obj.get(candidate["id"], [])
+            await attach_tags(candidate_list, session)
+            await attach_comment_counts(candidate_list, session)
 
             query_results["candidates"] = candidate_list
             query_results = recursive_to_dict(query_results)

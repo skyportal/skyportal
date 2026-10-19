@@ -183,11 +183,62 @@ def extract_designation(data=None, annotations_by_filter_id=None):
     return None
 
 
+# A linked track that is not yet a known object. Its id comes from the linker,
+# not the MPC, so it is prefixed apart from sso_ designations.
+TRACK_OBJ_ID_PREFIX = "trk_"
+
+
+def extract_track_id(data=None, annotations_by_filter_id=None):
+    """The linked-track id on an alert, if the linker put one there.
+
+    An undiscovered mover has no designation to key on, so the track id is the
+    only thing binding its detections together. Read from the alert's own block
+    or from a filter's annotations, the same two places a designation arrives.
+    """
+    block = ((data or {}).get("properties") or {}).get("track") or (data or {}).get(
+        "track"
+    )
+    if isinstance(block, dict) and block.get("id"):
+        return str(block["id"])
+
+    for annotations in (annotations_by_filter_id or {}).values():
+        if not isinstance(annotations, dict):
+            continue
+        found = annotations.get("track_id") or annotations.get("track")
+        if isinstance(found, dict):
+            found = found.get("id")
+        if found:
+            return str(found)
+    return None
+
+
+def track_to_obj_id(track_id):
+    """A track id as a collision-safe Obj ID, distinct from a designation's."""
+    return designation_to_obj_id(track_id, prefix=TRACK_OBJ_ID_PREFIX)
+
+
+def sso_key_for(data=None, annotations_by_filter_id=None):
+    """What to key a moving object's Obj on, and which kind of key it is.
+
+    A designation wins over a track id: once the MPC has named the object, that
+    is the identity to keep, and a track later matched to one folds into the
+    sso_ object rather than leaving a duplicate behind.
+    """
+    designation = extract_designation(data, annotations_by_filter_id)
+    if designation:
+        return designation_to_obj_id(designation), "designation", designation
+
+    track_id = extract_track_id(data, annotations_by_filter_id)
+    if track_id:
+        return track_to_obj_id(track_id), "track", track_id
+    return None, None, None
+
+
 def sso_filter_targets(filters):
     """Map Filter id -> group id to auto-save to, or None to only scan.
 
-    Built once when a broker's ingestion loop starts, so the per-alert check is
-    a lookup rather than a query. `autosave` keeps its usual meaning: without it
+    Cached by a broker's ingestion loop, so the per-alert check is a lookup
+    rather than a query. `autosave` keeps its usual meaning: without it
     the object is a candidate to scan rather than a saved source, which is what
     someone filtering for, say, active asteroids wants instead of every
     designation the survey sees.
@@ -232,14 +283,14 @@ def triggering_detection(data):
     """The alert's own detection, picked out of the position-keyed history.
 
     Providers differ: some put the detection in ``candidate``, while BOOM's
-    normalized alert leaves only ``ra``/``dec``/``drb`` there and carries the
-    real photometry in ``prv_candidates``, identified by the alert's own JD.
+    normalized alert has no band there and carries the real photometry in
+    ``prv_candidates``, identified by the alert's own JD.
     """
     cand = data.get("candidate") or {}
     if cand.get("jd") is not None and cand.get("band") is not None:
         return cand
 
-    jd = data.get("jd", cand.get("jd"))
+    jd = cand.get("jd")
     if jd is None:
         return None
     for point in data.get("prv_candidates") or []:
@@ -250,6 +301,9 @@ def triggering_detection(data):
 
 async def _link_designation(session, obj_id, designation):
     """Link this detection stream to any other Obj for the same body."""
+    from ..broker_apis._save import SUPER_OBJ_LOCK, xact_lock
+
+    await xact_lock(session, SUPER_OBJ_LOCK)
     # Eager-load: touching a lazy collection under an async session raises.
     super_obj = await session.scalar(
         sa.select(SuperObj)
@@ -321,11 +375,15 @@ async def ingest_sso_alert(
     """
     from ..broker_apis._save import (
         _normalize_band,
+        add_source,
         build_photometry_groups,
+        get_or_create_obj,
         programid_to_stream_ids,
+        xact_lock,
     )
     from ..handlers.api.photometry import add_external_photometry
-    from ..models import Instrument
+    from ..models import Filter, Instrument
+    from .survey import instrument_name
 
     cand = data.get("candidate") or {}
     detection = triggering_detection(data) or {}
@@ -335,16 +393,15 @@ async def ingest_sso_alert(
     obj_id = designation_to_obj_id(designation)
 
     instrument_id = await session.scalar(
-        sa.select(Instrument.id).where(Instrument.name == survey)
+        sa.select(Instrument.id).where(Instrument.name == instrument_name(survey))
     )
     if instrument_id is None:
-        raise ValueError(f"Instrument '{survey}' not found in the database.")
+        raise ValueError(
+            f"Instrument '{instrument_name(survey)}' not found in the database."
+        )
 
-    obj = await session.scalar(sa.select(Obj).where(Obj.id == obj_id))
-    is_new = obj is None
-    if is_new:
-        obj = Obj(id=obj_id, origin=survey)
-        session.add(obj)
+    await xact_lock(session, obj_id)
+    obj, is_new = await get_or_create_obj(session, obj_id, origin=survey)
 
     obj.is_roid = True
     obj.mpc_name = designation
@@ -357,7 +414,7 @@ async def ingest_sso_alert(
         obj.ra, obj.dec = ra, dec
         obj.healpix = ha.constants.HPX.lonlat_to_healpix(ra * u.deg, dec * u.deg)
         altdata = dict(obj.altdata or {})
-        altdata["last_detection_jd"] = detection.get("jd", data.get("jd"))
+        altdata["last_detection_jd"] = detection.get("jd", cand.get("jd"))
         separation = _first_value(data, SEPARATION_KEYS, annotations_by_filter_id)
         if separation is not None:
             altdata["last_separation_arcsec"] = separation
@@ -398,7 +455,7 @@ async def ingest_sso_alert(
 
         from baselayer.app.models import utcnow
 
-        from ..models import Annotation, Filter, GroupAnnotation
+        from ..models import Annotation, GroupAnnotation
 
         filters = (
             await session.scalars(
@@ -443,13 +500,12 @@ async def ingest_sso_alert(
             )
         )
         if source is None:
-            session.add(
-                Source(
-                    obj_id=obj_id,
-                    group_id=group_id,
-                    saved_by_id=user.id,
-                    active=True,
-                )
+            await add_source(
+                session,
+                obj_id=obj_id,
+                group_id=group_id,
+                saved_by_id=user.id,
+                active=True,
             )
         else:
             source.active = True
@@ -509,6 +565,15 @@ async def ingest_sso_alert(
             instrument_id,
             programid2streamid,
         )
+        photometry_group_ids = set(group_ids or [])
+        if filter_ids:
+            photometry_group_ids.update(
+                (
+                    await session.scalars(
+                        sa.select(Filter.group_id).where(Filter.id.in_(filter_ids))
+                    )
+                ).all()
+            )
         for pd in photometry_data.values():
             if not pd["mjd"]:
                 continue
@@ -524,6 +589,8 @@ async def ingest_sso_alert(
                 altdata["separation_arcsec"] = seps
             if altdata:
                 pd["altdata"] = altdata
+            if photometry_group_ids:
+                pd["group_ids"] = sorted(photometry_group_ids)
             await add_external_photometry(pd, user, session, apply_default_share=False)
 
     await _link_designation(session, obj_id, designation)

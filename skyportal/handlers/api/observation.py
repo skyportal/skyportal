@@ -48,6 +48,7 @@ from ...models import (
     Allocation,
     ExecutedObservation,
     GcnEvent,
+    GcnNotice,
     Group,
     Instrument,
     InstrumentField,
@@ -270,7 +271,9 @@ def add_observations(instrument_id, obstable):
                             instrument_field_id=int(id_mapper[row["field_id"]]),
                             obstime=obstime.datetime,
                             seeing=row.get("seeing", None),
-                            limmag=float(row["limmag"]),
+                            limmag=float(row["limmag"])
+                            if pd.notna(row.get("limmag"))
+                            else None,
                             exposure_time=int(row["exposure_time"]),
                             filt=row["filter"],
                             processed_fraction=float(row["processed_fraction"]),
@@ -293,6 +296,200 @@ def add_observations(instrument_id, obstable):
         return log(f"Unable to add observations for instrument {instrument_id}: {e}")
     finally:
         session.close()
+
+
+async def _coverage_stats_python(
+    session,
+    localizationtilescls,
+    localization,
+    min_probdensity,
+    obs_query,
+    stats_logging,
+):
+    """Return (area, prob) covered by the observed fields, via numpy tile overlaps."""
+    obs_subquery = obs_query.subquery()
+    t0 = time.time()
+    localization_tiles_result = await session.scalars(
+        sa.select(localizationtilescls)
+        .where(
+            localizationtilescls.localization_id == localization.id,
+            localizationtilescls.probdensity >= min_probdensity,
+        )
+        .order_by(localizationtilescls.probdensity.desc())
+        .distinct()
+    )
+    localization_tiles = localization_tiles_result.all()
+    if stats_logging:
+        log(
+            "STATS: ",
+            f"Number of localization tiles= {len(localization_tiles)}. "
+            f"Runtime= {time.time() - t0:.2f}s. ",
+        )
+
+    t0 = time.time()
+    instrument_field_tuples_result = await session.execute(
+        sa.select(
+            InstrumentFieldTile.healpix.lower,
+            InstrumentFieldTile.healpix.upper,
+        )
+        .join(
+            obs_subquery,
+            InstrumentFieldTile.instrument_field_id
+            == obs_subquery.c.instrument_field_id,
+        )
+        .order_by(InstrumentFieldTile.healpix.lower)
+        .distinct()
+    )
+    instrument_field_tuples = instrument_field_tuples_result.all()
+
+    field_lower_bounds = np.array([f[0] for f in instrument_field_tuples])
+    field_upper_bounds = np.array([f[1] for f in instrument_field_tuples])
+
+    if stats_logging:
+        log(
+            "STATS: ",
+            f"Number of field tiles= {len(instrument_field_tuples)}. "
+            f"Runtime= {time.time() - t0:.2f}s. ",
+        )
+
+    t0 = time.time()
+    merged_tuples = combine_healpix_tuples(instrument_field_tuples)
+    total_area = sum(t[1] - t[0] for t in merged_tuples)
+    total_area *= ha.constants.PIXEL_AREA
+    if stats_logging:
+        log(
+            "STATS: ",
+            f"len(merged_tuples)= {len(merged_tuples)}, "
+            f"total_area= {total_area:.2f}. "
+            f"Runtime= {time.time() - t0:.2f}s. ",
+        )
+
+    t0 = time.time()
+    intarea = 0  # total area covered by instrument field tiles
+    intprob = 0  # total probability covered by instrument field tiles
+
+    for i, t in enumerate(localization_tiles):
+        # has True values where tile t has any overlap with one of the fields
+        overlap_array = np.logical_and(
+            t.healpix.lower <= field_upper_bounds,
+            t.healpix.upper >= field_lower_bounds,
+        )
+        overlap_indices = np.where(overlap_array)[0]
+
+        # only add area/prob if there's any overlap
+        overlap = 0
+        if len(overlap_indices) > 0:
+            # print(f'sum(overlap_array): {np.sum(overlap_array)}')
+            lower_upper = zip(
+                field_lower_bounds[overlap_indices],
+                field_upper_bounds[overlap_indices],
+            )
+            # tuples of (lower, upper) for all fields that overlap with tile t
+            new_fields = [(tup[0], tup[1]) for tup in lower_upper]
+
+            # combine any overlapping fields
+            output_fields = combine_healpix_tuples(new_fields)
+
+            # get the area of the combined fields that overlaps with tile t
+            for lower, upper in output_fields:
+                mx = np.minimum(t.healpix.upper, upper)
+                mn = np.maximum(t.healpix.lower, lower)
+                overlap += mx - mn
+
+        intarea += overlap
+        intprob += t.probdensity * overlap
+
+    # sum_probability *= ha.constants.PIXEL_AREA
+    intarea *= ha.constants.PIXEL_AREA
+    intprob *= ha.constants.PIXEL_AREA
+
+    if stats_logging:
+        log(
+            "STATS: ",
+            f"area= {intarea}, prob= {intprob}. Runtime= {time.time() - t0:.2f}s. ",
+        )
+
+    return intarea, intprob
+
+
+async def _coverage_stats_db(
+    session,
+    localizationtilescls,
+    localization,
+    min_probdensity,
+    obs_query,
+    stats_logging,
+):
+    """Same as _coverage_stats_python, via a healpix union in the database."""
+    # below is old code that is too slow to use at scale
+    # we may be able to speed it up at some point, then
+    # it may be good to have this as reference for what
+    # the queries should look like
+
+    t0 = time.time()
+    obs_subquery = obs_query.subquery()
+    fields_query = sa.select(InstrumentField.id).join(
+        obs_subquery,
+        InstrumentField.id == obs_subquery.c.instrument_field_id,
+    )
+    fields_result = await session.scalars(fields_query)
+    field_ids = fields_result.unique().all()
+
+    union = (
+        sa.select(ha.func.union(InstrumentFieldTile.healpix).label("healpix"))
+        .where(InstrumentFieldTile.instrument_field_id.in_(field_ids))
+        .distinct()
+        .subquery()
+    )
+
+    area = sa.func.sum(union.columns.healpix.area)
+    prob = sa.func.sum(
+        localizationtilescls.probdensity
+        * (union.columns.healpix * localizationtilescls.healpix).area
+    )
+    query_area = sa.select(area).filter(
+        localizationtilescls.localization_id == localization.id,
+        localizationtilescls.probdensity >= min_probdensity,
+        union.columns.healpix.overlaps(localizationtilescls.healpix),
+    )
+    query_prob = sa.select(prob).filter(
+        localizationtilescls.localization_id == localization.id,
+        localizationtilescls.probdensity >= min_probdensity,
+        union.columns.healpix.overlaps(localizationtilescls.healpix),
+    )
+    intprob_result = await session.execute(query_prob)
+    intprob = intprob_result.scalar_one()
+    intarea_result = await session.execute(query_area)
+    intarea = intarea_result.scalar_one()
+
+    if intprob is None:
+        intprob = 0.0
+    if intarea is None:
+        intarea = 0.0
+
+    if stats_logging:
+        log(
+            f"STATS: area= {intarea}, prob= {intprob}. Runtime= {time.time() - t0:.2f}s. "
+        )
+
+    return intarea, intprob
+
+
+# sortBy values to attribute names, looked up on the executed or queued model.
+OBSERVATION_SORT_COLUMNS = {
+    "obstime": "obstime",
+    "observation_id": "observation_id",
+    "exposure_time": "exposure_time",
+    "seeing": "seeing",
+    "airmass": "airmass",
+    "limmag": "limmag",
+    "filt": "filt",
+    "instrument_name": "instrument_id",
+    "target_name": "target_name",
+    "queue_name": "queue_name",
+    "validity_window_start": "validity_window_start",
+    "validity_window_end": "validity_window_end",
+}
 
 
 @format_doc(MAX_OBSERVATIONS=MAX_OBSERVATIONS)
@@ -420,7 +617,7 @@ async def get_observations(
             )
         )
         if instrument is None:
-            return ValueError(f"Missing instrument {instrument_name}")
+            raise ValueError(f"Missing instrument {instrument_name}")
 
         obs_query = obs_query.where(Observation.instrument_id == instrument.id)
     elif instrument_name is not None:
@@ -430,7 +627,7 @@ async def get_observations(
             ).where(Instrument.name == instrument_name)
         )
         if instrument is None:
-            return ValueError(f"Missing instrument {instrument_name}")
+            raise ValueError(f"Missing instrument {instrument_name}")
 
         obs_query = obs_query.where(Observation.instrument_id == instrument.id)
 
@@ -553,6 +750,10 @@ async def get_observations(
                     Observation.instrument_field_id,
                     sa.func.count(Observation.id).label("nobs"),
                 )
+                .where(
+                    Observation.obstime >= start_date,
+                    Observation.obstime <= end_date,
+                )
                 .group_by(Observation.instrument_field_id)
                 .having(sa.func.count(Observation.id) >= min_observations_per_field)
                 .subquery()
@@ -563,164 +764,25 @@ async def get_observations(
                 == min_obs_subquery.c.instrument_field_id,
             )
 
-        obs_subquery = obs_query.subquery()
-
         if return_statistics:
             if stats_method == "python":
-                t0 = time.time()
-                localization_tiles_result = await session.scalars(
-                    sa.select(localizationtilescls)
-                    .where(
-                        localizationtilescls.localization_id == localization.id,
-                        localizationtilescls.probdensity >= min_probdensity,
-                    )
-                    .order_by(localizationtilescls.probdensity.desc())
-                    .distinct()
+                intarea, intprob = await _coverage_stats_python(
+                    session,
+                    localizationtilescls,
+                    localization,
+                    min_probdensity,
+                    obs_query,
+                    stats_logging,
                 )
-                localization_tiles = localization_tiles_result.all()
-                if stats_logging:
-                    log(
-                        "STATS: ",
-                        f"Number of localization tiles= {len(localization_tiles)}. "
-                        f"Runtime= {time.time() - t0:.2f}s. ",
-                    )
-
-                t0 = time.time()
-                instrument_field_tuples_result = await session.execute(
-                    sa.select(
-                        InstrumentFieldTile.healpix.lower,
-                        InstrumentFieldTile.healpix.upper,
-                    )
-                    .join(
-                        obs_subquery,
-                        InstrumentFieldTile.instrument_field_id
-                        == obs_subquery.c.instrument_field_id,
-                    )
-                    .order_by(InstrumentFieldTile.healpix.lower)
-                    .distinct()
-                )
-                instrument_field_tuples = instrument_field_tuples_result.all()
-
-                field_lower_bounds = np.array([f[0] for f in instrument_field_tuples])
-                field_upper_bounds = np.array([f[1] for f in instrument_field_tuples])
-
-                if stats_logging:
-                    log(
-                        "STATS: ",
-                        f"Number of field tiles= {len(instrument_field_tuples)}. "
-                        f"Runtime= {time.time() - t0:.2f}s. ",
-                    )
-
-                t0 = time.time()
-                merged_tuples = combine_healpix_tuples(instrument_field_tuples)
-                total_area = sum(t[1] - t[0] for t in merged_tuples)
-                total_area *= ha.constants.PIXEL_AREA
-                if stats_logging:
-                    log(
-                        "STATS: ",
-                        f"len(merged_tuples)= {len(merged_tuples)}, "
-                        f"total_area= {total_area:.2f}. "
-                        f"Runtime= {time.time() - t0:.2f}s. ",
-                    )
-
-                t0 = time.time()
-                intarea = 0  # total area covered by instrument field tiles
-                intprob = 0  # total probability covered by instrument field tiles
-
-                for i, t in enumerate(localization_tiles):
-                    # has True values where tile t has any overlap with one of the fields
-                    overlap_array = np.logical_and(
-                        t.healpix.lower <= field_upper_bounds,
-                        t.healpix.upper >= field_lower_bounds,
-                    )
-                    overlap_indices = np.where(overlap_array)[0]
-
-                    # only add area/prob if there's any overlap
-                    overlap = 0
-                    if len(overlap_indices) > 0:
-                        # print(f'sum(overlap_array): {np.sum(overlap_array)}')
-                        lower_upper = zip(
-                            field_lower_bounds[overlap_indices],
-                            field_upper_bounds[overlap_indices],
-                        )
-                        # tuples of (lower, upper) for all fields that overlap with tile t
-                        new_fields = [(tup[0], tup[1]) for tup in lower_upper]
-
-                        # combine any overlapping fields
-                        output_fields = combine_healpix_tuples(new_fields)
-
-                        # get the area of the combined fields that overlaps with tile t
-                        for lower, upper in output_fields:
-                            mx = np.minimum(t.healpix.upper, upper)
-                            mn = np.maximum(t.healpix.lower, lower)
-                            overlap += mx - mn
-
-                    intarea += overlap
-                    intprob += t.probdensity * overlap
-
-                # sum_probability *= ha.constants.PIXEL_AREA
-                intarea *= ha.constants.PIXEL_AREA
-                intprob *= ha.constants.PIXEL_AREA
-
-                if stats_logging:
-                    log(
-                        "STATS: ",
-                        f"area= {intarea}, prob= {intprob}. Runtime= {time.time() - t0:.2f}s. ",
-                    )
-
             elif stats_method == "db":
-                # below is old code that is too slow to use at scale
-                # we may be able to speed it up at some point, then
-                # it may be good to have this as reference for what
-                # the queries should look like
-
-                t0 = time.time()
-                obs_subquery = obs_query.subquery()
-                fields_query = sa.select(InstrumentField.id).join(
-                    obs_subquery,
-                    InstrumentField.id == obs_subquery.c.instrument_field_id,
+                intarea, intprob = await _coverage_stats_db(
+                    session,
+                    localizationtilescls,
+                    localization,
+                    min_probdensity,
+                    obs_query,
+                    stats_logging,
                 )
-                fields_result = await session.scalars(fields_query)
-                field_ids = fields_result.unique().all()
-
-                union = (
-                    sa.select(
-                        ha.func.union(InstrumentFieldTile.healpix).label("healpix")
-                    )
-                    .where(InstrumentFieldTile.instrument_field_id.in_(field_ids))
-                    .distinct()
-                    .subquery()
-                )
-
-                area = sa.func.sum(union.columns.healpix.area)
-                prob = sa.func.sum(
-                    localizationtilescls.probdensity
-                    * (union.columns.healpix * localizationtilescls.healpix).area
-                )
-                query_area = sa.select(area).filter(
-                    localizationtilescls.localization_id == localization.id,
-                    localizationtilescls.probdensity >= min_probdensity,
-                    union.columns.healpix.overlaps(localizationtilescls.healpix),
-                )
-                query_prob = sa.select(prob).filter(
-                    localizationtilescls.localization_id == localization.id,
-                    localizationtilescls.probdensity >= min_probdensity,
-                    union.columns.healpix.overlaps(localizationtilescls.healpix),
-                )
-                intprob_result = await session.execute(query_prob)
-                intprob = intprob_result.scalar_one()
-                intarea_result = await session.execute(query_area)
-                intarea = intarea_result.scalar_one()
-
-                if intprob is None:
-                    intprob = 0.0
-                if intarea is None:
-                    intarea = 0.0
-
-                if stats_logging:
-                    log(
-                        f"STATS: area= {intarea}, prob= {intprob}. Runtime= {time.time() - t0:.2f}s. "
-                    )
             else:
                 raise ValueError(
                     f'Invalid stats_method: {stats_method}. Use "db" or "python"'
@@ -731,79 +793,13 @@ async def get_observations(
         sa.select(sa.func.count()).select_from(obs_query)
     )
 
-    order_by = None
-    if sort_by is not None:
-        if sort_by == "obstime":
-            order_by = (
-                Observation.obstime
-                if sort_order == "asc"
-                else Observation.obstime.desc()
-            )
-        elif sort_by == "observation_id":
-            order_by = (
-                Observation.observation_id
-                if sort_order == "asc"
-                else Observation.observation_id.desc()
-            )
-        elif sort_by == "exposure_time":
-            order_by = (
-                Observation.exposure_time
-                if sort_order == "asc"
-                else Observation.exposure_time.desc()
-            )
-        elif sort_by == "seeing":
-            order_by = (
-                Observation.seeing if sort_order == "asc" else Observation.seeing.desc()
-            )
-        elif sort_by == "airmass":
-            order_by = (
-                Observation.airmass
-                if sort_order == "asc"
-                else Observation.airmass.desc()
-            )
-        elif sort_by == "limmag":
-            order_by = (
-                Observation.limmag if sort_order == "asc" else Observation.limmag.desc()
-            )
-        elif sort_by == "filt":
-            order_by = (
-                Observation.filt if sort_order == "asc" else Observation.filt.desc()
-            )
-        elif sort_by == "instrument_name":
-            order_by = (
-                Observation.instrument_id
-                if sort_order == "asc"
-                else Observation.instrument_id.desc()
-            )
-        elif sort_by == "target_name":
-            order_by = (
-                Observation.target_name
-                if sort_order == "asc"
-                else Observation.target_name.desc()
-            )
-        elif sort_by == "queue_name":
-            order_by = (
-                Observation.queue_name
-                if sort_order == "asc"
-                else Observation.queue_name.desc()
-            )
-        elif sort_by == "validity_window_start":
-            order_by = (
-                Observation.validity_window_start
-                if sort_order == "asc"
-                else Observation.validity_window_start.desc()
-            )
-        elif sort_by == "validity_window_end":
-            order_by = (
-                Observation.validity_window_end
-                if sort_order == "asc"
-                else Observation.validity_window_end.desc()
-            )
-        else:
-            raise ValueError(f"Sort column {sort_by} not known.")
-
-    if order_by is None:
+    if sort_by is None:
         order_by = Observation.instrument_id.desc()
+    elif sort_by in OBSERVATION_SORT_COLUMNS:
+        column = getattr(Observation, OBSERVATION_SORT_COLUMNS[sort_by])
+        order_by = column if sort_order == "asc" else column.desc()
+    else:
+        raise ValueError(f"Sort column {sort_by} not known.")
     obs_query = obs_query.order_by(order_by)
 
     if n_per_page is not None:
@@ -877,6 +873,70 @@ async def get_observations(
     return data
 
 
+# Shared by the JSON and ASCII upload handlers once the data is a dict of columns.
+def _validate_and_ingest_observations(handler, instrument, observation_data):
+    unique_keys = set(observation_data.keys())
+    field_id_keys = {
+        "observation_id",
+        "field_id",
+        "obstime",
+        "filter",
+        "exposure_time",
+    }
+    radec_keys = {
+        "observation_id",
+        "RA",
+        "Dec",
+        "obstime",
+        "filter",
+        "exposure_time",
+    }
+    if not field_id_keys.issubset(unique_keys) and not radec_keys.issubset(unique_keys):
+        return handler.error(
+            "observation_id, field_id (or RA and Dec), obstime, filter, and exposure_time required in observation_data."
+        )
+
+    if (
+        ("RA" in observation_data)
+        and ("Dec" in observation_data)
+        and not ("field_id" in observation_data)
+    ):
+        if instrument.region is None:
+            return handler.error(
+                "instrument.region must not be None if providing only RA and Dec."
+            )
+
+    for filt in observation_data["filter"]:
+        if filt not in instrument.filters:
+            return handler.error(f"Filter {filt} not present in {instrument.filters}")
+
+    # fill in any missing optional parameters
+    optional_parameters = [
+        "airmass",
+        "seeing",
+        "limmag",
+        "target_name",
+    ]
+    for key in optional_parameters:
+        if key not in observation_data:
+            observation_data[key] = [None] * len(observation_data["observation_id"])
+
+    if "processed_fraction" not in observation_data:
+        observation_data["processed_fraction"] = [1] * len(
+            observation_data["observation_id"]
+        )
+
+    obstable = pd.DataFrame.from_dict(observation_data)
+    instrument_id = instrument.id
+    # run async
+    IOLoop.current().run_in_executor(
+        None,
+        lambda: add_observations(instrument_id, obstable),
+    )
+
+    return handler.success()
+
+
 class ObservationHandler(BaseHandler):
     @permissions(["Upload data"])
     async def post(self, *, body: ObservationPostBody = None):
@@ -931,72 +991,7 @@ class ObservationHandler(BaseHandler):
             if instrument is None:
                 return self.error(message=f"Missing instrument {instrument_name}")
 
-            unique_keys = set(observation_data.keys())
-            field_id_keys = {
-                "observation_id",
-                "field_id",
-                "obstime",
-                "filter",
-                "exposure_time",
-            }
-            radec_keys = {
-                "observation_id",
-                "RA",
-                "Dec",
-                "obstime",
-                "filter",
-                "exposure_time",
-            }
-            if not field_id_keys.issubset(unique_keys) and not radec_keys.issubset(
-                unique_keys
-            ):
-                return self.error(
-                    "observation_id, field_id (or RA and Dec), obstime, filter, and exposure_time required in observation_data."
-                )
-
-            if (
-                ("RA" in observation_data)
-                and ("Dec" in observation_data)
-                and not ("field_id" in observation_data)
-            ):
-                if instrument.region is None:
-                    return self.error(
-                        "instrument.region must not be None if providing only RA and Dec."
-                    )
-
-            for filt in observation_data["filter"]:
-                if filt not in instrument.filters:
-                    return self.error(
-                        f"Filter {filt} not present in {instrument.filters}"
-                    )
-
-            # fill in any missing optional parameters
-            optional_parameters = [
-                "airmass",
-                "seeing",
-                "limmag",
-                "target_name",
-            ]
-            for key in optional_parameters:
-                if key not in observation_data:
-                    observation_data[key] = [None] * len(
-                        observation_data["observation_id"]
-                    )
-
-            if "processed_fraction" not in observation_data:
-                observation_data["processed_fraction"] = [1] * len(
-                    observation_data["observation_id"]
-                )
-
-            obstable = pd.DataFrame.from_dict(observation_data)
-            instrument_id = instrument.id
-            # run async
-            IOLoop.current().run_in_executor(
-                None,
-                lambda: add_observations(instrument_id, obstable),
-            )
-
-            return self.success()
+            return _validate_and_ingest_observations(self, instrument, observation_data)
 
     @auth_or_token
     async def get(self, *, query: ObservationGetQuery = None):
@@ -1059,26 +1054,29 @@ class ObservationHandler(BaseHandler):
             return self.error(f"Invalid input for parameter end_date : {str(e)}")
 
         async with self.AsyncSession() as session:
-            data = await get_observations(
-                session,
-                start_date,
-                end_date,
-                telescope_name=query.telescopeName,
-                instrument_name=query.instrumentName,
-                localization_dateobs=query.localizationDateobs,
-                localization_name=query.localizationName,
-                localization_cumprob=query.localizationCumprob,
-                min_observations_per_field=query.numberObservations,
-                return_statistics=query.returnStatistics,
-                stats_method=query.statsMethod,
-                stats_logging=query.statsLogging,
-                includeGeoJSON=query.includeGeoJSON,
-                observation_status=query.observationStatus,
-                n_per_page=query.numPerPage,
-                page_number=query.pageNumber,
-                sort_by=query.sortBy,
-                sort_order=query.sortOrder,
-            )
+            try:
+                data = await get_observations(
+                    session,
+                    start_date,
+                    end_date,
+                    telescope_name=query.telescopeName,
+                    instrument_name=query.instrumentName,
+                    localization_dateobs=query.localizationDateobs,
+                    localization_name=query.localizationName,
+                    localization_cumprob=query.localizationCumprob,
+                    min_observations_per_field=query.numberObservations,
+                    return_statistics=query.returnStatistics,
+                    stats_method=query.statsMethod,
+                    stats_logging=query.statsLogging,
+                    includeGeoJSON=query.includeGeoJSON,
+                    observation_status=query.observationStatus,
+                    n_per_page=query.numPerPage,
+                    page_number=query.pageNumber,
+                    sort_by=query.sortBy,
+                    sort_order=query.sortOrder,
+                )
+            except ValueError as e:
+                return self.error(str(e))
 
             return self.success(data=data)
 
@@ -1179,72 +1177,7 @@ class ObservationASCIIFileHandler(BaseHandler):
             except Exception as e:
                 return self.error(f"Unable to read in observation file: {e}")
 
-            unique_keys = set(observation_data.keys())
-            field_id_keys = {
-                "observation_id",
-                "field_id",
-                "obstime",
-                "filter",
-                "exposure_time",
-            }
-            radec_keys = {
-                "observation_id",
-                "RA",
-                "Dec",
-                "obstime",
-                "filter",
-                "exposure_time",
-            }
-            if not field_id_keys.issubset(unique_keys) and not radec_keys.issubset(
-                unique_keys
-            ):
-                return self.error(
-                    "observation_id, field_id (or RA and Dec), obstime, filter, and exposure_time required in observation_data."
-                )
-
-            if (
-                ("RA" in observation_data)
-                and ("Dec" in observation_data)
-                and not ("field_id" in observation_data)
-            ):
-                if instrument.region is None:
-                    return self.error(
-                        "instrument.region must not be None if providing only RA and Dec."
-                    )
-
-            for filt in observation_data["filter"]:
-                if filt not in instrument.filters:
-                    return self.error(
-                        f"Filter {filt} not present in {instrument.filters}"
-                    )
-
-            # fill in any missing optional parameters
-            optional_parameters = [
-                "airmass",
-                "seeing",
-                "limmag",
-                "target_name",
-            ]
-            for key in optional_parameters:
-                if key not in observation_data:
-                    observation_data[key] = [None] * len(
-                        observation_data["observation_id"]
-                    )
-
-            if "processed_fraction" not in observation_data:
-                observation_data["processed_fraction"] = [1] * len(
-                    observation_data["observation_id"]
-                )
-
-            obstable = pd.DataFrame.from_dict(observation_data)
-            instrument_id_final = instrument.id
-            # run async
-            IOLoop.current().run_in_executor(
-                None,
-                lambda: add_observations(instrument_id_final, obstable),
-            )
-
-            return self.success()
+            return _validate_and_ingest_observations(self, instrument, observation_data)
 
 
 class ObservationExternalAPIHandler(BaseHandler):
@@ -1569,10 +1502,13 @@ class ObservationTreasureMapHandler(BaseHandler):
                 )
 
             localization_dateobs_parsed = arrow.get(localization_dateobs).naive
+            # graceid parses the deferred notice content
             event = await session.scalar(
                 GcnEvent.select(
                     session.user_or_token,
-                    options=[selectinload(GcnEvent.gcn_notices)],
+                    options=[
+                        selectinload(GcnEvent.gcn_notices).undefer(GcnNotice.content)
+                    ],
                 ).where(GcnEvent.dateobs == localization_dateobs_parsed)
             )
             if event is None:
@@ -1724,10 +1660,13 @@ class ObservationTreasureMapHandler(BaseHandler):
             else:
                 localization_dateobs_parsed = None
 
+            # graceid parses the deferred notice content
             event = await session.scalar(
                 GcnEvent.select(
                     self.current_user,
-                    options=[selectinload(GcnEvent.gcn_notices)],
+                    options=[
+                        selectinload(GcnEvent.gcn_notices).undefer(GcnNotice.content)
+                    ],
                 ).where(GcnEvent.dateobs == localization_dateobs_parsed)
             )
             if event is None:
@@ -2111,6 +2050,7 @@ class ObservationSimSurveyHandler(BaseHandler):
 
             return self.success(data={"id": sea_id})
 
+    @auth_or_token
     async def delete(self, survey_efficiency_analysis_id: int):
         """
         ---

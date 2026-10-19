@@ -1,28 +1,60 @@
 import asyncio
 import base64
 import json
+import math
 import time
+from datetime import UTC, datetime
 
+import numpy as np
 import requests
 import sqlalchemy as sa
 
+from baselayer.app.env import load_env
 from baselayer.log import make_log
 
+from ..utils.cache import Cache, cache_folder, dict_to_bytes
 from .interface import BrokerAPI, altdata_filter_modules
 
 log = make_log("broker/lasair")
+
+env, cfg = load_env()
+
+# The cutouts of an object do not change, so a fetched set is kept and reused
+# rather than spending a call asking again for an object we already have.
+cutouts_cache = Cache(
+    cache_dir=f"{cache_folder}/broker_cutouts",
+    max_age=cfg.get("misc.minutes_to_keep_broker_cutouts_cache", 1440) * 60,
+)
 
 DEFAULT_ENDPOINT = "https://api.lasair.lsst.ac.uk/api"
 DEFAULT_TIMEOUT = 30
 CREDENTIAL_RESCAN_INTERVAL = 60
 CONSUMER_RETRY_PAUSE = 5
 CONSUMER_MAX_RETRY_PAUSE = 300
+PROGRESS_INTERVAL = 300
+# Messages polled at once, and how many are ingested in parallel. Each ingest is
+# a database round trip, so one at a time leaves the consumer waiting on the DB.
+INGEST_BATCH = 50
+INGEST_CONCURRENCY = 8
+# Which stream a Lasair filter sends is the user's choice on the filter's own
+# page, and only one of the three choices carries the photometry we need.
+PLAIN_STREAM_DETAIL = (
+    "This topic streams its Lasair filter's selected columns only, so its "
+    "alerts arrive without photometry and cannot be ingested. Set the filter's "
+    "streaming choice to 'lite lightcurve' or 'full alert' on its page in "
+    "Lasair: https://lasair-lsst.readthedocs.io/en/main/ (ZTF: "
+    "https://lasair.readthedocs.io/en/main/)"
+)
 _CUTOUT_KINDS = {
     "Science": "cutoutScience",
     "Template": "cutoutTemplate",
     "Difference": "cutoutDifference",
 }
 _FID_TO_BAND = {1: "g", 2: "r", 3: "i"}
+MJD_TO_JD = 2400000.5
+# LSST reports difference-image fluxes in nJy; AB mag = -2.5 log10(f/3631 Jy),
+# which for nJy is this zeropoint.
+LSST_FLUX_ZEROPOINT = 31.4
 
 
 def _band(cand):
@@ -44,9 +76,119 @@ def _survey(broker, kwargs=None):
     return _survey_from_altdata(broker.altdata or {}, kwargs)
 
 
+def _lsst_magnitude(flux, flux_err):
+    """AB magnitude and error from an LSST psfFlux in nJy.
+
+    A difference-image flux at or below zero is a non-detection, which carries
+    no magnitude: returning one would turn a non-detection into a measurement.
+    """
+    try:
+        flux = float(flux)
+    except (TypeError, ValueError):
+        return None, None
+    if flux <= 0:
+        return None, None
+    mag = LSST_FLUX_ZEROPOINT - 2.5 * math.log10(flux)
+    try:
+        err = abs(2.5 / math.log(10) * float(flux_err) / flux)
+    except (TypeError, ValueError, ZeroDivisionError):
+        err = None
+    return mag, err
+
+
+def _lsst_sources(payload):
+    """The diaSources a Lasair LSST record carries, if any.
+
+    The REST object holds them at the top level; a Kafka topic on
+    lite_lightcurve or full nests them under ``alert``. A topic streaming object
+    ids alone carries neither.
+    """
+    if not isinstance(payload, dict):
+        return []
+    for container in (payload, payload.get("alert")):
+        if isinstance(container, dict):
+            sources = container.get("diaSourcesList")
+            if isinstance(sources, list) and sources:
+                return sources
+    return []
+
+
+def _normalize_lsst_alert(payload, object_id):
+    """Standard alert shape from a Lasair LSST stream message.
+
+    LSST names and units differ throughout: fluxes in nJy rather than
+    magnitudes, MJD(TAI) rather than JD, ``decl`` rather than ``dec``.
+    Forced photometry travels beside the detections under
+    ``diaForcedSourcesList`` and is left for the caller that wants limits.
+    """
+    alert = payload.get("alert") if isinstance(payload.get("alert"), dict) else {}
+    dia_object = payload.get("diaObject") or alert.get("diaObject") or {}
+    rows = []
+    for source in _lsst_sources(payload):
+        if not isinstance(source, dict):
+            continue
+        mjd = source.get("midpointMjdTai")
+        if mjd is None:
+            continue
+        mag, magerr = _lsst_magnitude(source.get("psfFlux"), source.get("psfFluxErr"))
+        rows.append(
+            {
+                "jd": float(mjd) + MJD_TO_JD,
+                "magpsf": mag,
+                "sigmapsf": magerr,
+                "band": source.get("band"),
+                "ra": source.get("ra"),
+                "dec": source.get("dec", source.get("decl")),
+                # A live diaSource carries no id, and a null passing_alert_id
+                # defeats the candidate de-duplication (SQL "= NULL" matches
+                # nothing), so the epoch stands in: it is stable per object and
+                # alert, which is what the de-duplication keys on.
+                "candid": source.get("diaSourceId")
+                if source.get("diaSourceId") is not None
+                else int(round(float(mjd) * 1e6)),
+            }
+        )
+    rows.sort(key=lambda r: r["jd"], reverse=True)
+    detections = [r for r in rows if r["magpsf"] is not None]
+    latest = detections[0] if detections else (rows[0] if rows else {})
+
+    def position(key, *fallbacks):
+        for source in (latest, payload, dia_object):
+            for name in (key, *fallbacks):
+                value = (source or {}).get(name)
+                if value is not None:
+                    return value
+        return None
+
+    return {
+        "objectId": str(
+            payload.get("diaObjectId") or dia_object.get("diaObjectId") or object_id
+        ),
+        "candidate": {
+            "candid": latest.get("candid"),
+            "ra": position("ra"),
+            "dec": position("dec", "decl"),
+            "magpsf": latest.get("magpsf"),
+            "jd": latest.get("jd"),
+            "band": latest.get("band"),
+        },
+        "prv_candidates": [
+            {k: r[k] for k in ("jd", "magpsf", "sigmapsf", "band", "ra", "dec")}
+            for r in detections
+        ],
+        "annotations": [],
+    }
+
+
 def _normalize_object(obj, object_id):
     """Reshape a Lasair object into the standard alert shape the rest of the
-    stack consumes: ``{objectId, candidate, prv_candidates, annotations}``."""
+    stack consumes: ``{objectId, candidate, prv_candidates, annotations}``.
+
+    The two instances return different records, so the LSST one is recognised by
+    its diaSources and reshaped separately.
+    """
+    if _lsst_sources(obj):
+        return _normalize_lsst_alert(obj, object_id)
     object_data = obj.get("objectData") or {}
     candidates = obj.get("candidates") or []
     detections = [c for c in candidates if c.get("magpsf") is not None]
@@ -56,6 +198,7 @@ def _normalize_object(obj, object_id):
             "jd": c.get("jd"),
             "magpsf": c.get("magpsf"),
             "sigmapsf": c.get("sigmapsf"),
+            "isdiffpos": c.get("isdiffpos"),
             "band": _band(c),
             "ra": c.get("ra"),
             "dec": c.get("dec"),
@@ -236,6 +379,18 @@ RATE_LIMIT_RETRIES = 3
 RATE_LIMIT_PAUSE = 10.0
 
 
+def _parse_json(response):
+    """Parse a Lasair response, tolerating the bare ``NaN`` it emits.
+
+    LSST records carry ``NaN`` for unmeasured values (``dipoleAngle``, and
+    others), which is not a JSON value. The standard library accepts it as an
+    extension, but ``response.json()`` defers to simplejson when that is
+    installed and rejects it, so every LSST object fetch raises. NaN becomes
+    None here rather than a float, since it travels on into JSON columns.
+    """
+    return json.loads(response.text, parse_constant=lambda _: None)
+
+
 def _request(broker, method, data, token=None):
     """Call a Lasair REST method: ``POST {endpoint}/{method}/`` with form data and
     a ``Authorization: Token`` header (what the ``lasair`` client does, so no
@@ -251,7 +406,7 @@ def _request(broker, method, data, token=None):
         )
         if response.status_code != 429 or attempt == RATE_LIMIT_RETRIES:
             response.raise_for_status()
-            return response.json()
+            return _parse_json(response)
         try:
             pause = float(response.headers.get("Retry-After", RATE_LIMIT_PAUSE))
         except (TypeError, ValueError):
@@ -291,6 +446,26 @@ def _query(broker, selected, tables, conditions, limit=1000):
     )
 
 
+def _cached_cutouts(broker, obj, alert_id):
+    """Cutouts for an object, fetched once and reused.
+
+    The images are keyed by object because Lasair keys them that way, so every
+    later alert on the same object is served from the cache rather than costing
+    a call.
+    """
+    key = f"{broker.id}_{alert_id}"
+    cached = cutouts_cache[key]
+    if cached is not None:
+        try:
+            return np.load(cached, allow_pickle=True).item()["cutouts"]
+        except Exception:
+            log(f"unreadable cutout cache entry for {key}, refetching")
+    cutouts = _cutouts_from_object(obj, alert_id)
+    if cutouts:
+        cutouts_cache[key] = dict_to_bytes({"cutouts": cutouts})
+    return cutouts
+
+
 def _cutouts_from_object(obj, alert_id):
     """Base64 cutouts from an already-fetched Lasair object, so an ingest that
     holds one does not spend a second call: a Lasair account gets 100 an hour."""
@@ -325,23 +500,65 @@ def _cutouts_from_object(obj, alert_id):
     return cutouts
 
 
-async def _ingest_object(broker, oid, survey, filter_ids, token=None):
+def is_plain_stream_message(payload):
+    """Whether a stream message came from the wrong one of Lasair's three streams.
+
+    Lasair's own advice is to key on the alert being absent rather than empty:
+    the selected-columns stream carries no alert at all, so its absence is
+    certain, where an empty lightcurve inside one is only a quiet object. LSST
+    nests it under ``alert``, ZTF under ``candidates``.
+    """
+    if not isinstance(payload, dict):
+        return False
+    return not isinstance(payload.get("alert"), dict) and not isinstance(
+        payload.get("candidates"), list
+    )
+
+
+def normalize_stream_message(payload, object_id):
+    """Standard alert shape from a stream message, whichever instance sent it."""
+    return _normalize_object(payload, object_id)
+
+
+async def _ingest_object(broker, oid, survey, filter_ids, token=None, payload=None):
     """Build the standard alert for one Lasair object, register it as a Candidate
     and save any annotator annotations it carried. Shared by both ingestion modes,
-    which differ only in how they learn an objectId."""
+    which differ only in how they learn an objectId.
+
+    The REST call is made only when polling, where there is no object in hand.
+    A stream message is used exactly as it arrived, never topped up by that
+    call: an active filter delivers at the rate alerts arrive, which no hourly
+    call allowance bounds, so one call per alert exhausts it. A message off the
+    wrong stream is refused instead, and the consumer screens those out a batch
+    at a time, so reaching here means some other caller passed one.
+    """
     from baselayer.app.models import async_plain_session_factory
 
-    from ..models import User
+    from ..models import Thumbnail, User
     from ._save import save_object_as_candidate
 
-    obj = await asyncio.to_thread(_object, broker, oid, token)
+    if payload is not None:
+        if is_plain_stream_message(payload):
+            raise ValueError(
+                f"Lasair message for {oid} carries no alert. {PLAIN_STREAM_DETAIL}"
+            )
+        obj = payload
+    else:
+        obj = await asyncio.to_thread(_object, broker, oid, token)
     data = _normalize_object(obj, oid)
-    try:
-        cutouts = await asyncio.to_thread(_cutouts_from_object, obj, oid)
-    except Exception:
-        cutouts = None
     async with async_plain_session_factory() as session:
         user = await session.scalar(sa.select(User).where(User.id == 1))
+        # Cutouts are stored once per object, so an object already carrying
+        # thumbnails does not re-download them on every alert.
+        cutouts = None
+        has_thumbnails = await session.scalar(
+            sa.select(sa.exists().where(Thumbnail.obj_id == oid))
+        )
+        if not has_thumbnails:
+            try:
+                cutouts = await asyncio.to_thread(_cached_cutouts, broker, obj, oid)
+            except Exception:
+                cutouts = None
         await save_object_as_candidate(
             data,
             survey,
@@ -465,6 +682,7 @@ def _credential_sets(broker, extra=None):
         sets.append(
             {
                 "label": entry.get("label") or merged.get("username") or "account",
+                "credential_id": entry.get("credential_id"),
                 "kafka": merged,
                 "token": entry.get("token"),
                 "topics": entry.get("topics") or [],
@@ -474,6 +692,168 @@ def _credential_sets(broker, extra=None):
             }
         )
     return sets
+
+
+def _prepare_batch(msgs, topic_filter_ids, default_filter_ids):
+    """Split a polled batch into work to do and messages that need none.
+
+    Returns the finished messages, the work, and any topic found to be
+    streaming something we cannot ingest.
+
+    A message that cannot be decoded, that carries no objectId, or that is the
+    wrong stream for us is finished rather than failed: leaving it outstanding
+    would stall its partition for good, and none of the three gets better by
+    being tried again. Where one object appears more than once, only its newest
+    alert is ingested and the earlier ones are finished, which also keeps two
+    writes for the same object out of the same batch.
+    """
+    finished = set()
+    unusable = {}
+    work = {}
+    for msg in msgs:
+        key = (msg.topic(), msg.partition(), msg.offset())
+        if msg.error():
+            finished.add(key)
+            continue
+        try:
+            payload = _decode_stream_message(msg.value())
+        except Exception as e:
+            log(f"Error decoding Lasair message on {msg.topic()}: {e}")
+            finished.add(key)
+            continue
+        oid = _object_id_from_message(payload)
+        if oid is None:
+            log(f"Lasair message on {msg.topic()} carried no objectId; skipping")
+            finished.add(key)
+            continue
+        if is_plain_stream_message(payload):
+            unusable[msg.topic()] = PLAIN_STREAM_DETAIL
+            finished.add(key)
+            continue
+        superseded = work.get(oid)
+        if superseded is not None:
+            older = superseded[0]
+            finished.add((older.topic(), older.partition(), older.offset()))
+        work[oid] = (
+            msg,
+            payload,
+            topic_filter_ids.get(msg.topic(), default_filter_ids),
+        )
+    return finished, work, unusable
+
+
+def _update_topic_status(status, work, unusable):
+    """Fold a batch's outcome into the per-topic status. Returns whether it moved.
+
+    A topic absent from the status has had nothing consumed from it yet, which
+    the filter page shows differently from one known to be delivering. A topic
+    is only faulted when the whole batch was unusable: one alert arriving
+    without its payload is not evidence against a topic that is otherwise
+    delivering.
+    """
+    delivering = {msg.topic() for msg, _payload, _filter_ids in work.values()}
+    changed = False
+    for topic in delivering | set(unusable):
+        detail = None if topic in delivering else unusable[topic]
+        was = status.get(topic) or {}
+        if was.get("usable") == (detail is None) and was.get("detail") == detail:
+            continue
+        status[topic] = {
+            "usable": detail is None,
+            "detail": detail,
+            "at": datetime.now(UTC).isoformat(),
+        }
+        changed = True
+        log(
+            f"Lasair topic {topic} cannot be ingested: {detail}"
+            if detail
+            else f"Lasair topic {topic} is delivering ingestable alerts"
+        )
+    return changed
+
+
+async def _store_topic_status(credential_id, status):
+    """Mirror the status onto the credential row, which is what the filter page
+    reads. The broker's own shared account has no such row, so there it is
+    logged and nothing more."""
+    from baselayer.app.models import async_plain_session_factory
+
+    from ..models import BrokerCredential
+
+    try:
+        async with async_plain_session_factory() as session:
+            row = await session.get(BrokerCredential, credential_id)
+            if row is None:
+                return
+            row.topic_status = dict(status)
+            await session.commit()
+    except Exception as e:
+        log(f"Could not record Lasair topic status on credential {credential_id}: {e}")
+
+
+async def _ingest_batch(broker, survey, token, work, concurrency):
+    """Ingest a batch, at most `concurrency` at a time. Returns {key: succeeded}."""
+    semaphore = asyncio.Semaphore(concurrency)
+
+    async def run(oid, msg, payload, filter_ids):
+        async with semaphore:
+            try:
+                await _ingest_object(
+                    broker, oid, survey, filter_ids, token=token, payload=payload
+                )
+                return True
+            except Exception as e:
+                log(f"Error ingesting Lasair object {oid}: {e}")
+                return False
+
+    items = list(work.items())
+    outcomes = await asyncio.gather(
+        *(run(oid, msg, payload, fids) for oid, (msg, payload, fids) in items)
+    )
+    return {
+        (msg.topic(), msg.partition(), msg.offset()): ok
+        for (_oid, (msg, _p, _f)), ok in zip(items, outcomes, strict=True)
+    }
+
+
+def _store_batch_offsets(consumer, msgs, finished, results):
+    """Store each partition's offsets up to its first failure.
+
+    Storing past one would acknowledge an alert that was never ingested, which
+    is the loss that committing on a timer used to cause.
+    """
+    by_partition = {}
+    for msg in msgs:
+        by_partition.setdefault((msg.topic(), msg.partition()), []).append(msg)
+    for partition_msgs in by_partition.values():
+        storable = None
+        for msg in sorted(partition_msgs, key=lambda m: m.offset()):
+            key = (msg.topic(), msg.partition(), msg.offset())
+            if key in finished or results.get(key):
+                storable = msg
+                continue
+            break
+        if storable is not None:
+            consumer.store_offsets(message=storable)
+
+
+def _consumer_lag(consumer):
+    """Messages behind the head of the stream, summed over assigned partitions.
+
+    Falling behind otherwise looks exactly like a quiet stream: both deliver
+    nothing. Returns ``"unknown"`` when the broker will not answer, since the
+    figure is for a log line and must never stop ingestion.
+    """
+    try:
+        total = 0
+        for partition in consumer.assignment():
+            position = consumer.position([partition])[0].offset
+            _, high = consumer.get_watermark_offsets(partition, timeout=2.0)
+            if position is not None and position >= 0 and high is not None:
+                total += max(0, high - position)
+        return total
+    except Exception:
+        return "unknown"
 
 
 async def _consume_set(broker, survey, credentials, budget, stop):
@@ -492,39 +872,59 @@ async def _consume_set(broker, survey, credentials, budget, stop):
     # Suffixed per account: a shared group drives another account's offsets.
     base = kafka.get("group_id") or f"skyportal-broker-{broker.id}"
     group = f"{base}-{credentials['label']}"
-    consumer = Consumer(kafka_consumer_config({**kafka, "group_id": group}, group))
+    config = kafka_consumer_config({**kafka, "group_id": group}, group)
+    # Auto-commit still runs, but only over offsets we store, and we store one
+    # after it has been ingested: on the default a crash acknowledges whatever
+    # the five-second timer had reached and those alerts are never seen again.
+    config["enable.auto.offset.store"] = False
+    consumer = Consumer(config)
     consumer.subscribe(topics)
     log(
         f"Lasair Kafka ingestion (broker {broker.id}, account "
         f"{credentials['label']}): subscribed to {topics}"
     )
+    ingested = 0
+    last_report = time.monotonic()
+    # What the batches so far have shown about each topic, written through to
+    # the credential row whenever it changes rather than on every batch.
+    topic_status = {}
+    batch_size = max(1, int(kafka.get("batch_size", INGEST_BATCH)))
+    concurrency = max(1, int(kafka.get("concurrency", INGEST_CONCURRENCY)))
 
     try:
         while not stop.is_set():
             if budget["remaining"] is not None and budget["remaining"] <= 0:
                 stop.set()
                 break
-            msg = await asyncio.to_thread(consumer.poll, maxtimeout)
-            if msg is None or msg.error():
-                continue
-            filter_ids = topic_filter_ids.get(msg.topic(), credentials["filter_ids"])
-            try:
-                payload = _decode_stream_message(msg.value())
-            except Exception as e:
-                log(f"Error decoding Lasair message on {msg.topic()}: {e}")
-                continue
-            oid = _object_id_from_message(payload)
-            if oid is None:
-                log(f"Lasair message on {msg.topic()} carried no objectId; skipping")
-                continue
-            try:
-                await _ingest_object(
-                    broker, oid, survey, filter_ids, token=credentials["token"]
-                )
-            except Exception as e:
-                log(f"Error ingesting Lasair object {oid}: {e}")
+            wanted = batch_size
             if budget["remaining"] is not None:
-                budget["remaining"] -= 1
+                wanted = max(1, min(wanted, budget["remaining"]))
+            msgs = await asyncio.to_thread(consumer.consume, wanted, maxtimeout)
+            if not msgs:
+                continue
+            finished, work, unusable = _prepare_batch(
+                msgs, topic_filter_ids, credentials["filter_ids"]
+            )
+            if _update_topic_status(topic_status, work, unusable) and credentials.get(
+                "credential_id"
+            ):
+                await _store_topic_status(credentials["credential_id"], topic_status)
+            results = await _ingest_batch(
+                broker, survey, credentials["token"], work, concurrency
+            )
+            _store_batch_offsets(consumer, msgs, finished, results)
+            ingested += sum(1 for ok in results.values() if ok)
+
+            now = time.monotonic()
+            if now - last_report >= PROGRESS_INTERVAL:
+                log(
+                    f"Lasair Kafka ingestion (broker {broker.id}, account "
+                    f"{credentials['label']}): {ingested} ingested in the last "
+                    f"{now - last_report:.0f}s, lag {_consumer_lag(consumer)}"
+                )
+                ingested, last_report = 0, now
+            if budget["remaining"] is not None:
+                budget["remaining"] -= len(msgs)
     finally:
         consumer.close()
 
@@ -566,10 +966,12 @@ async def _run_kafka_ingestion(
     """Consume Lasair's per-filter Kafka streams and register each object as a
     Candidate, one consumer per account.
 
-    A message only has to carry an objectId: the object, photometry, cutouts and
-    annotator data are fetched through the REST API with that account's token,
-    the same path the SQL poller uses. ``credentials`` pins the accounts to
-    consume; by default the stored ones, re-read every
+    A topic carrying the lightcurve (``lite_lightcurve`` or ``full``) is ingested
+    from the message itself. A message holding only an objectId is completed
+    through the REST API with that account's token, the same path the SQL poller
+    uses; that call is rate-limited by Lasair well below stream rate, so it runs
+    only when the message is not enough on its own. ``credentials`` pins the
+    accounts to consume; by default the stored ones, re-read every
     ``CREDENTIAL_RESCAN_INTERVAL`` so a user registering an account is picked up
     without restarting the service.
     """
@@ -658,8 +1060,22 @@ class LASAIRBROKER(BrokerAPI):
     filter_kind = "query"
 
     @classmethod
+    def parallel_ingestion(cls, altdata):
+        """Whether extra broker_ingest processes may run this broker.
+
+        A Kafka stream may: the consumer group rebalances its partitions across
+        them. The REST poller may not, since each process would spend the same
+        account's quota again, so this is false until a stream is configured.
+        """
+        return bool(_stream_configured(altdata))
+
+    @classmethod
     def configured_surveys(cls, altdata):
         return [_survey_from_altdata(altdata)]
+
+    @staticmethod
+    def available_topics(broker, credentials=None):
+        return available_topics(broker, credentials)
 
     form_json_schema_config = {
         "type": "object",
@@ -901,7 +1317,16 @@ class LASAIRBROKER(BrokerAPI):
     @staticmethod
     def get_cutouts(broker, alert_id, session, **kwargs):
         # Lasair keys cutouts by object, not candid, so alert_id is an objectId.
-        return _cutouts_from_object(_object(broker, alert_id), alert_id)
+        # A cached set answers without fetching the object, which is what makes
+        # this cheap: the object call and the three image fetches both go away.
+        key = f"{broker.id}_{alert_id}"
+        cached = cutouts_cache[key]
+        if cached is not None:
+            try:
+                return np.load(cached, allow_pickle=True).item()["cutouts"]
+            except Exception:
+                log(f"unreadable cutout cache entry for {key}, refetching")
+        return _cached_cutouts(broker, _object(broker, alert_id), alert_id)
 
     @staticmethod
     async def run_ingestion(broker, stop=None, max_messages=None, **kwargs):

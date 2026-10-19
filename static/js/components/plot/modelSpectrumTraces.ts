@@ -94,6 +94,9 @@ export function buildModelSpectrumTraces(
       y: ys,
       name: title,
       legendgroup: `modelspectrum-${fit.id ?? fi}`,
+      // The fit picker below the plot is the legend; a long fit name here
+      // would widen the legend and squeeze the plot.
+      showlegend: false,
       line: { width: 1.5, color: colorOf(fi), dash: fit.dash || "solid" },
       hoverlabel: { align: "left" },
       hovertemplate: `<b>${title}</b><br>${summaryLine}%{x:.1f} &#8491;<br>model flux %{y:.3f}<extra></extra>`,

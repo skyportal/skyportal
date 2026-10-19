@@ -4,58 +4,25 @@ from playwright.sync_api import expect
 from skyportal.tests import open_preferences_panel
 
 
-def _set_url(url_input, value):
-    # The URL field is an uncontrolled rjsf/MUI TextField whose onChange drives
-    # the validation state; a plain fill() doesn't fire React's onChange, so the
-    # state never updates. Type it so each keystroke dispatches an input event.
-    url_input.click()
-    url_input.press("ControlOrMeta+a")
-    url_input.press("Delete")
-    url_input.press_sequentially(value)
-
-
 @pytest.mark.flaky(reruns=2)
-def test_slack_integration(page, user):
-    page.goto(f"/become_user/{user.id}")
-    page.goto("/profile")
-    open_preferences_panel(page, "integrations")
-    slack_toggle = page.locator('[data-testid="slack_toggle"]').first
-    expect(slack_toggle).to_be_visible()
-
-    if not slack_toggle.is_checked():
-        slack_toggle.click()
-
-    # uncheck the integration toggle
-    slack_toggle.click()
-
-
-@pytest.mark.flaky(reruns=2)
-def test_slack_url(page, user):
-    good_path = "https://hooks.slack.com/"
-    bad_path = "http://garbage.url"
+def test_slack_connection(page, user):
+    good_url = "https://hooks.slack.com/services/T000/B000/test"
 
     page.goto(f"/become_user/{user.id}")
     page.goto("/profile")
-    open_preferences_panel(page, "integrations")
-    # SlackPreferences reads the slack preamble from /api/config as it mounts,
-    # and the URL validation needs it. Wait on the panel's own controls rather
-    # than on that response: the config is often already cached, in which case
-    # no request is made and there is no response to wait for.
-    slack_toggle = page.locator('//*[@data-testid="slack_toggle"]').first
-    expect(slack_toggle).to_be_visible()
+    open_preferences_panel(page, "notifications")
 
-    if not slack_toggle.is_checked():
-        slack_toggle.click()
+    page.locator('[data-testid="slack_connect_button"]').first.click()
+    url_input = page.locator('[data-testid="slack_input"]').first
+    save = page.locator('[data-testid="slack_save_button"]').first
 
-    url_input = page.locator('//input[@name="url"]').first
-    expect(page.locator('//*[@data-testid="slack_url"]').first).to_be_visible()
-
-    # bad URL -> validation error appears
-    _set_url(url_input, bad_path)
-    page.locator("//header").first.click()  # blur the field
+    url_input.fill("http://garbage.url")
+    save.click()
     expect(page.locator('//*[text()="Must be a Slack URL"]').first).to_be_visible()
 
-    # good URL -> error goes away
-    _set_url(url_input, good_path)
-    page.locator("//header").first.click()
-    expect(page.locator('//*[text()="Must be a Slack URL"]').first).to_be_hidden()
+    url_input.fill(good_url)
+    save.click()
+    expect(page.locator(f'//*[text()="{good_url}"]').first).to_be_visible()
+
+    page.locator('[data-testid="slack_disconnect_button"]').first.click()
+    expect(page.locator('//*[text()="Not connected"]').first).to_be_visible()

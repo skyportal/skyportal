@@ -13,7 +13,7 @@ def test_upload_galaxies(page, super_admin_user, super_admin_token):
     filename = "CLU_mini.csv"
     catalog_name = str(uuid.uuid4())
 
-    page.locator('//button[@name="new_gcnevent"]').first.click()
+    page.get_by_label("Add a New Galaxy Catalog").click()
 
     page.locator('//*[@id="root_catalogName"]').first.fill(catalog_name)
     page.locator('//input[@type="file"]').first.set_input_files(
@@ -27,10 +27,8 @@ def test_upload_galaxies(page, super_admin_user, super_admin_token):
     expect(page.locator(f'//*[contains(., "{filename}")]').first).to_be_visible()
     page.locator('//button[contains(.,"Submit")]').first.click()
 
-    # The galaxy name search is a server-side search box in the data grid
-    # toolbar; type into it and press Enter to trigger the query.
+    # The data grid quick filter searches galaxy names server-side.
     search_bar = page.locator('//*[@data-testid="galaxy-search-input"]//input').first
     search_bar.fill("6dFgs gJ0001313-055904")
-    search_bar.press("Enter")
     expect(page.locator('//*[text()="6dFgs gJ0001313-055904"]').first).to_be_visible()
     search_bar.fill("")

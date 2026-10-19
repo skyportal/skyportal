@@ -56,7 +56,7 @@ def test_news_feed_refresh_button(
         api, public_group, upload_data_token, comment_token
     )
     new_source_xpath = (
-        '//div[contains(@class, "entryContent")]'
+        '//div[@data-testid="newsFeedItem"]'
         '[.//p[text()="New source saved"]]'
         f'[.//a[@href="/source/{obj_id_base}_0"]]'
     )
@@ -92,14 +92,14 @@ def test_news_feed_prefs_widget(
     for i in range(2):
         expect(
             page.locator(
-                f'//div[contains(@class, "entryContent")][.//p[text()="New source saved"]][.//a[@href="/source/{obj_id_base}_{i}"]]'
+                f'//div[@data-testid="newsFeedItem"][.//p[text()="New source saved"]][.//a[@href="/source/{obj_id_base}_{i}"]]'
             ).first
         ).to_be_visible()
         expect(
             page.locator(f'//p[contains(text(),"comment_text_{i}")]').first
         ).to_be_visible()
 
-    source_added_item_xpath = f'//div[contains(@class, "entryContent")][.//p[text()="New source saved"]][.//a[@href="/source/{obj_id_base}_0"]]'
+    source_added_item_xpath = f'//div[@data-testid="newsFeedItem"][.//p[text()="New source saved"]][.//a[@href="/source/{obj_id_base}_0"]]'
 
     page.locator('//*[@id="newsFeedSettingsIcon"]').first.click()
     _set_num_items(page, "2")
@@ -117,7 +117,7 @@ def test_news_feed_prefs_widget(
     for i in range(2):
         expect(
             page.locator(
-                f'//div[contains(@class, "entryContent")][.//p[text()="New source saved"]][.//a[@href="/source/{obj_id_base}_{i}"]]'
+                f'//div[@data-testid="newsFeedItem"][.//p[text()="New source saved"]][.//a[@href="/source/{obj_id_base}_{i}"]]'
             ).first
         ).to_be_hidden()
 

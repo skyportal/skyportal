@@ -8,6 +8,7 @@ import Typography from "@mui/material/Typography";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import Tooltip from "@mui/material/Tooltip";
 import Chip from "@mui/material/Chip";
+import CircularProgress from "@mui/material/CircularProgress";
 import DeleteIcon from "@mui/icons-material/Delete";
 import { showNotification } from "baselayer/components/Notifications";
 import dayjs from "dayjs";
@@ -82,8 +83,7 @@ const useStyles = makeStyles()(() => ({
 
 interface AnalysisListProps {
   obj_id: string;
-  // "obj" (a source) by default; pass "gcn_event" with a dateobs as obj_id to
-  // list analyses run on a GCN event.
+  // "gcn_event" expects the event dateobs as obj_id.
   analysisResourceType?: string;
 }
 
@@ -95,7 +95,7 @@ const AnalysisList = ({
   const dispatch = useAppDispatch();
   const [cornerAnalysis, setCornerAnalysis] = useState<any>(null);
 
-  const { data: analyses } = useGetAnalysesQuery({
+  const { data: analyses, isLoading } = useGetAnalysesQuery({
     analysis_resource_type: analysisResourceType,
     params: { objID: obj_id },
   });
@@ -108,14 +108,17 @@ const AnalysisList = ({
   const [shareTarget, setShareTarget] = useState<any>(null);
   const [shareGroupIds, setShareGroupIds] = useState<number[]>([]);
 
-  // For a source, keep only this object's analyses; gcn_event analyses are
-  // already scoped to the event server-side and carry no obj_id.
+  // gcn_event analyses are scoped server-side and carry no obj_id.
   let analysesList: any[] = [];
   if (analyses !== undefined && analyses !== null) {
     analysesList =
       analysisResourceType === "obj"
         ? analyses.filter((analysis: any) => analysis.obj_id === obj_id)
         : analyses;
+  }
+
+  if (isLoading) {
+    return <CircularProgress size={24} />;
   }
 
   if (!analysesList || analysesList.length === 0) {
@@ -137,7 +140,6 @@ const AnalysisList = ({
 
   const openShare = (row: any) => {
     setShareTarget(row);
-    // Prefill with the row's multi-user groups; a private run starts empty.
     setShareGroupIds(
       (row.groups ?? [])
         .filter((g: any) => g.id !== singleUserGroup?.id)
@@ -147,7 +149,6 @@ const AnalysisList = ({
 
   const submitShare = () => {
     if (!shareTarget) return;
-    // No groups picked means "make private": scope to the single-user group.
     const group_ids = shareGroupIds.length
       ? shareGroupIds
       : singleUserGroup
@@ -159,7 +160,6 @@ const AnalysisList = ({
   };
 
   const renderShare = (params: any) => {
-    // Re-sharing is only wired up for obj analyses.
     if (analysisResourceType !== "obj") return null;
     if (!profile || params.row.author_id !== profile.id) return null;
     return (
@@ -299,11 +299,9 @@ const AnalysisList = ({
   const renderPlot = (params: any) => {
     const analysis = params.row;
     if (analysis?.status !== "completed") return <div />;
-    const plotUrl = `/api/obj/analysis/${analysis.id}/plots/0`;
+    const plotUrl = `/api/${analysisResourceType}/analysis/${analysis.id}/plots/0`;
     return (
       <div>
-        {/* Inline thumbnail (click for full size); hides itself if there's no
-            plot to render. */}
         <a href={plotUrl} data-testid={`analysis_plots_${analysis.id}`}>
           <img
             src={plotUrl}
@@ -346,7 +344,7 @@ const AnalysisList = ({
             <div>
               <Button
                 primary
-                href={`/api/obj/analysis/${analysis.id}/results?download=True`}
+                href={`/api/${analysisResourceType}/analysis/${analysis.id}/results?download=True`}
                 size="small"
                 type="submit"
                 data-testid={`analysis_results_${analysis.id}`}
@@ -357,7 +355,7 @@ const AnalysisList = ({
             <div>
               <Button
                 primary
-                href={`/api/obj/analysis/${analysis.id}/results`}
+                href={`/api/${analysisResourceType}/analysis/${analysis.id}/results`}
                 size="small"
                 type="submit"
                 data-testid={`analysis_results_display_${analysis.id}`}
@@ -476,16 +474,10 @@ const AnalysisList = ({
             </Typography>
             <StyledDataGrid
               autoHeight
-              // Grow each row to its content; the default fixed height clipped
-              // the stacked action buttons (e.g. Display Results under Download).
               getRowHeight={() => "auto"}
               rows={analysesList || []}
               columns={columns}
               getRowId={(row: any) => row.id}
-              initialState={{
-                pagination: { paginationModel: { pageSize: 10 } },
-              }}
-              pageSizeOptions={[1, 10, 15]}
               showToolbar
             />
           </AccordionDetails>
@@ -500,7 +492,11 @@ const AnalysisList = ({
         <DialogTitle>Posterior Corner Plot</DialogTitle>
         <DialogContent>
           {cornerAnalysis && (
-            <AnalysisCornerPlot objId={obj_id} analysisId={cornerAnalysis.id} />
+            <AnalysisCornerPlot
+              objId={obj_id}
+              analysisId={cornerAnalysis.id}
+              analysisResourceType={analysisResourceType}
+            />
           )}
         </DialogContent>
       </Dialog>

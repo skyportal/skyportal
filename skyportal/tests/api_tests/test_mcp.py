@@ -3,11 +3,16 @@ import base64
 import json
 import uuid
 
+import pytest
+
 from skyportal.handlers.mcp import (
     TOOLS,
     ToolError,
     _analyze_band,
+    _expr_comparisons,
     _flatten_avro,
+    _note_owner,
+    _reject_expr_comparisons,
     _versions,
 )
 from skyportal.tests import cfg, session
@@ -140,16 +145,23 @@ def test_mcp_tools_list(view_only_token):
         "post_observation_plan",
         "get_observation_plans",
         "get_filter_targets",
+        "get_counterpart_search_defaults",
         "get_alert_schema",
         "search_filters",
         "attach_filter_to_broker",
         "get_broker_filter",
         "diff_broker_filter_versions",
+        "convert_time",
         "run_broker_filter",
         "post_broker_filter_version",
         "validate_broker_filter_version",
         "activate_broker_filter_version",
+        "post_group",
         "post_filter",
+        "list_brokers",
+        "get_broker_alerts",
+        "get_broker_alert_photometry",
+        "crossmatch_broker_catalogs",
     }
     tools = {t["name"]: t for t in result["tools"]}
     for t in tools.values():
@@ -819,6 +831,23 @@ def test_observation_plan_tool_schemas():
         assert TOOLS[name]["inputSchema"]["required"] == []
 
 
+def test_the_plan_tools_point_at_the_cheap_way_to_judge_a_schedule():
+    """Statistics come back by default; the pointings are a large response, so a
+    caller told only about the latter pulls far more than it needs."""
+    description = TOOLS["get_observation_plans"]["description"]
+    assert "statistics" in description
+    assert "num_observations" in description
+    assert "includePlannedObservations" in description
+
+
+def test_posting_a_plan_says_it_returns_only_a_request_id():
+    """Planning is asynchronous, so a caller that reads the response as the
+    schedule itself waits for observations that were never in it."""
+    description = TOOLS["post_observation_plan"]["description"]
+    assert "asynchronously" in description
+    assert "get_observation_plans" in description
+
+
 def test_every_state_changing_tool_is_marked_as_writing():
     """The assistant offers only readOnlyHint tools, so a write mis-marked as
     read-only is one it may call unprompted."""
@@ -932,6 +961,34 @@ def test_get_alert_schema_requires_a_survey():
     assert "survey" in TOOLS["get_alert_schema"]["inputSchema"]["required"]
 
 
+def test_the_schema_carries_what_the_schema_says_about_a_field():
+    # Units, the sign of a rate and the meaning of a score are the parts a
+    # path cannot convey, and the flattener used to drop them one step before
+    # the only reader who needed them.
+    notes = {}
+    documented = {
+        "type": "record",
+        "name": "alert",
+        "fields": [
+            {"name": "rate", "type": "double", "doc": "Magnitudes per day."},
+            {"name": "chi2", "type": "double", "nan_possible": True},
+            {"name": "plain", "type": "int"},
+        ],
+    }
+    fields = dict(_flatten_avro(documented, notes=notes))
+    assert fields["plain"] == "int"
+    assert notes["rate"] == "Magnitudes per day."
+    assert "NaN" in notes["chi2"]
+    # A field with nothing to say does not get an entry, so notes stays short
+    # enough to read beside 200 paths.
+    assert "plain" not in notes
+
+
+def test_making_a_group_is_a_write():
+    assert TOOLS["post_group"]["annotations"]["readOnlyHint"] is False
+    assert TOOLS["post_group"]["inputSchema"]["required"] == ["name"]
+
+
 def test_get_filter_targets_needs_no_arguments():
     # It is the entry point: the caller has no ids yet.
     assert TOOLS["get_filter_targets"]["inputSchema"]["required"] == []
@@ -1001,3 +1058,289 @@ def test_search_filters_leaves_the_pipeline_out(view_only_token, public_filter):
 def test_copying_a_filter_needs_no_broker(view_only_token):
     # Searching is how an unattached filter is found, so brokerID is optional.
     assert TOOLS["search_filters"]["inputSchema"]["required"] == []
+
+
+def test_a_note_is_reported_once_rather_than_on_every_field_under_it():
+    # A record's note applies to everything beneath it, and copying it onto
+    # each leaf is what made the schema tool large enough to cost the model its
+    # context: `properties` alone covers 58 paths of a ZTF schema.
+    notes = {}
+    schema = {
+        "type": "record",
+        "name": "alert",
+        "fields": [
+            {
+                "name": "properties",
+                "doc": "Everything enrichment computed.",
+                "type": {
+                    "type": "record",
+                    "name": "Properties",
+                    "fields": [
+                        {"name": "a", "type": "double"},
+                        {"name": "b", "type": "double"},
+                        {"name": "c", "type": "double"},
+                    ],
+                },
+            }
+        ],
+    }
+    paths = _flatten_avro(schema, notes=notes)
+    owners = {_note_owner(p, notes) for p, _ in paths}
+    assert owners == {"properties"}
+    # ... and each leaf still finds it, so nothing stops being documented.
+    assert _note_owner("properties.a", notes) == "properties"
+
+
+def test_a_field_compared_inside_expr_is_refused():
+    # `{"x": {"$lt": 5}}` compares within a type and passes over an alert whose
+    # x is absent; the same cut inside $expr treats absent as lower than every
+    # number and keeps all of them. On a night of ZTF a rise-rate cut written
+    # the second way selected 23 alerts, every one of them lacking a measured
+    # rise, where the first selected none.
+    bad = [
+        {
+            "$match": {
+                "$or": [
+                    {"$expr": {"$lt": ["$properties.photstats.g.rising.rate", -0.3]}}
+                ]
+            }
+        }
+    ]
+    with pytest.raises(ToolError) as caught:
+        _reject_expr_comparisons(bad)
+    # The message has to carry the rewrite, or the caller retries the same cut.
+    assert '"properties.photstats.g.rising.rate": {"$lt": -0.3}' in str(caught.value)
+
+
+def test_the_query_operator_form_is_allowed():
+    _reject_expr_comparisons(
+        [{"$match": {"properties.photstats.g.rising.rate": {"$lt": -0.3}}}]
+    )
+
+
+def test_expr_comparing_two_fields_is_allowed():
+    # Comparing two fields of one alert is what $expr is for, and a query
+    # operator cannot express it.
+    _reject_expr_comparisons([{"$match": {"$expr": {"$lt": ["$a", "$b"]}}}])
+
+
+def test_an_expr_nested_deep_in_a_pipeline_is_still_found():
+    buried = [
+        {"$match": {"x": 1}},
+        {"$match": {"$and": [{"$or": [{"$expr": {"$gte": ["$y", 3]}}]}]}},
+    ]
+    assert _expr_comparisons(buried) == [("y", "$gte", ["$y", 3])]
+
+
+ALERT = {
+    "objectId": "ZTF21aagwbjr",
+    "candid": 1526224545015015016,
+    "candidate": {
+        "jd": 2459249.7,
+        "fid": 1,
+        "magpsf": 18.2,
+        "sigmapsf": 0.05,
+        "drb": 0.99,
+        "programid": 1,
+        "nonsense": "unused",
+    },
+    "prv_candidates": [{"jd": 2459248.7}, {"jd": 2459247.7}],
+    "cutoutScience": {"stampData": "...."},
+}
+
+
+def test_an_alert_is_trimmed_to_its_photometry_and_vetting_fields():
+    _, content = run_tool(
+        "get_broker_alerts", {"broker_id": 2, "object_id": "ZTF21aagwbjr"}, [ALERT]
+    )
+    (row,) = content
+    assert row["objectId"] == "ZTF21aagwbjr"
+    assert row["magpsf"] == 18.2 and row["drb"] == 0.99
+    # the heavy parts do not travel, and the history is reported as a count
+    assert "cutoutScience" not in row and "prv_candidates" not in row
+    assert row["n_prv_candidates"] == 2
+    assert "nonsense" not in row
+
+
+def test_full_returns_the_whole_packet():
+    _, content = run_tool(
+        "get_broker_alerts",
+        {"broker_id": 2, "object_id": "ZTF21aagwbjr", "full": True},
+        [ALERT],
+    )
+    assert content == [ALERT]
+
+
+def test_object_id_reaches_the_broker_as_objectId():
+    calls, _ = run_tool(
+        "get_broker_alerts", {"broker_id": 2, "object_id": "ZTF21aagwbjr"}, []
+    )
+    (method, path, query, _body) = calls[0]
+    assert (method, path) == ("GET", "/api/brokers/2/alerts")
+    assert query["objectId"] == "ZTF21aagwbjr"
+
+
+def test_a_time_bounded_positional_search_passes_its_window():
+    calls, _ = run_tool(
+        "get_broker_alerts",
+        {
+            "broker_id": 2,
+            "ra": 250.3,
+            "dec": 57.1,
+            "radius": 5,
+            "jd_start": 2459080.0,
+            "jd_end": 2459090.0,
+        },
+        [],
+    )
+    _, _, query, _ = calls[0]
+    assert query["jd_start"] == 2459080.0 and query["jd_end"] == 2459090.0
+
+
+def test_one_alert_is_fetched_by_candid():
+    calls, _ = run_tool("get_broker_alerts", {"broker_id": 2, "candid": "12345"}, ALERT)
+    (method, path, query, _) = calls[0]
+    assert (method, path) == ("GET", "/api/brokers/2/alerts/12345")
+    assert not query
+
+
+def test_a_search_with_nothing_to_search_on_is_refused():
+    with pytest.raises(ToolError):
+        run_tool("get_broker_alerts", {"broker_id": 2})
+
+
+def test_alert_photometry_falls_back_to_the_default_broker():
+    calls, _ = run_tool("get_broker_alert_photometry", {"object_id": "ZTF20abwysqy"})
+    assert calls[0][1] == "/api/brokers/photometry/ZTF20abwysqy"
+    calls, _ = run_tool(
+        "get_broker_alert_photometry", {"object_id": "ZTF20abwysqy", "broker_id": 2}
+    )
+    assert calls[0][1] == "/api/brokers/2/alerts/ZTF20abwysqy/photometry"
+
+
+def test_the_starting_pipeline_is_accepted_by_the_filter_preview():
+    _, content = run_tool("get_counterpart_search_defaults", {})
+    pipeline = content["pipeline"]
+    assert isinstance(pipeline, list) and pipeline
+    assert all(isinstance(stage, dict) for stage in pipeline)
+    # run_broker_filter's own schema has to accept it unchanged
+    TOOLS["run_broker_filter"]["validator"].validate(
+        {"broker_id": 2, "pipeline": pipeline}
+    )
+
+
+def test_editing_the_starting_pipeline_leaves_the_service_cuts_alone():
+    from skyportal.utils.gcn_crossmatch import ZTF_QUALITY_CUTS
+
+    _, content = run_tool("get_counterpart_search_defaults", {})
+    content["pipeline"][0]["$match"]["candidate.drb"] = {"$gt": 0.999}
+    assert ZTF_QUALITY_CUTS[0]["$match"]["candidate.drb"] == {"$gt": 0.5}
+
+
+def test_the_suggested_window_matches_the_crossmatch_service():
+    from skyportal.utils.gcn_crossmatch import DEFAULTS
+
+    _, content = run_tool("get_counterpart_search_defaults", {})
+    suggested = content["suggested"]
+    assert suggested["credible_level"] == DEFAULTS["credible_level"]
+    assert suggested["days_before_trigger"] == DEFAULTS["delta_t_before"]
+    assert suggested["days_after_trigger"] == DEFAULTS["delta_t_after"]
+    # a search of the past keeps the alerts nearest the trigger
+    assert suggested["sort_order"] == "Ascending"
+
+
+def test_listing_brokers_never_returns_their_credentials():
+    brokers = [
+        {
+            "id": 2,
+            "name": "BOOM",
+            "active": True,
+            "surveys": ["ZTF"],
+            "altdata": {"kafka": {"password": "hunter2"}},
+            "capabilities": {"query_alerts": True, "create_filter": False},
+        }
+    ]
+    _, content = run_tool("list_brokers", {}, brokers)
+    assert content == [
+        {
+            "id": 2,
+            "name": "BOOM",
+            "active": True,
+            "surveys": ["ZTF"],
+            "supports": ["query_alerts"],
+        }
+    ]
+    assert "hunter2" not in json.dumps(content)
+
+
+def test_a_julian_date_is_converted_rather_than_reasoned_about():
+    # A JD day begins at noon UTC, so the integer part is not the calendar
+    # date. Asked what JD 2461310.0261 was, the assistant answered the 25th;
+    # it is the 26th, at 12:37 UTC.
+    result = asyncio.run(TOOLS["convert_time"]["fn"](None, {"jd": 2461310.0261}))
+    assert result["iso"] == "2026-09-26T12:37:35Z"
+    assert result["mjd"] == 61309.5261
+    assert result["day_of_week"] == "Saturday"
+
+
+def test_the_calendar_date_turns_over_at_half_a_julian_day():
+    # The .5 boundary: same integer part, next calendar day, midnight not noon.
+    fn = TOOLS["convert_time"]["fn"]
+    before = asyncio.run(fn(None, {"jd": 2461310.25}))
+    after = asyncio.run(fn(None, {"jd": 2461310.5}))
+    assert before["iso"] == "2026-09-26T18:00:00Z"
+    assert after["iso"] == "2026-09-27T00:00:00Z"
+    assert after["day_of_week"] == "Sunday"
+
+
+def test_the_utc_field_spells_out_the_moment_to_quote():
+    fn = TOOLS["convert_time"]["fn"]
+    assert asyncio.run(fn(None, {"jd": 2461310.5}))["utc"] == (
+        "2026-09-27 00:00:00 UTC (Sunday)"
+    )
+    assert asyncio.run(fn(None, {"jd": 2461310.0261}))["utc"] == (
+        "2026-09-26 12:37:35 UTC (Saturday)"
+    )
+
+
+def test_every_time_format_reaches_the_same_moment():
+    fn = TOOLS["convert_time"]["fn"]
+    by_jd = asyncio.run(fn(None, {"jd": 2461310.0261}))
+    by_mjd = asyncio.run(fn(None, {"mjd": 61309.5261}))
+    by_iso = asyncio.run(fn(None, {"iso": "2026-09-26T12:37:35"}))
+    assert by_jd == by_mjd == by_iso
+
+
+def test_converting_needs_exactly_one_time():
+    fn = TOOLS["convert_time"]["fn"]
+    with pytest.raises(ToolError):
+        asyncio.run(fn(None, {}))
+    with pytest.raises(ToolError):
+        asyncio.run(fn(None, {"jd": 2461310.0, "mjd": 61309.5}))
+    with pytest.raises(ToolError):
+        asyncio.run(fn(None, {"iso": "not a time"}))
+
+
+def test_a_count_carries_the_window_it_was_taken_over():
+    # The span is the one thing the count does not show. The same filter read
+    # 80 over thirty days and 1 over two; the difference was attributed to a
+    # threshold that changed in between, and the rate was 81/2 nights rather
+    # than 81/30.
+    from skyportal.handlers.mcp import _with_window
+
+    wide = _with_window({"count": 80}, 2461281.2, 2461311.2)
+    assert wide["window"]["nights"] == 30.0
+    assert wide["window"]["count_per_night"] == 2.67
+    assert wide["window"]["start"] == "2026-08-28T16:48:00Z"
+
+    narrow = _with_window({"count": 1}, 2461309.0, 2461311.0143)
+    assert narrow["window"]["nights"] == 2.014
+    assert narrow["window"]["count_per_night"] == 0.5
+
+
+def test_a_result_without_a_window_is_left_alone():
+    from skyportal.handlers.mcp import _with_window
+
+    assert _with_window({"count": 3}, None, None) == {"count": 3}
+    # Sorted previews return rows rather than a count; nothing to divide.
+    assert "count_per_night" not in _with_window({"results": []}, 1.0, 2.0)["window"]

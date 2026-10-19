@@ -233,7 +233,6 @@ const AllocationObservationPlansTable = ({
       numPerPage,
       pageNumber: page + 1,
     };
-    // Save state for future; the parent's query refetches when params change.
     setFetchParams(params);
   };
 
@@ -311,7 +310,6 @@ const AllocationObservationPlansTable = ({
           pageSize: fetchParams.numPerPage,
         }}
         onPaginationModelChange={handlePaginationModelChange}
-        pageSizeOptions={[25, 50, 100]}
       />
     </div>
   );
@@ -343,7 +341,6 @@ const AllocationSummaryTable = ({
       numPerPage,
       pageNumber: page + 1,
     };
-    // Save state for future; the query refetches when params change.
     setFetchParams(params);
   };
 
@@ -651,7 +648,6 @@ const AllocationSummaryTable = ({
           pageSize: fetchParams.numPerPage,
         }}
         onPaginationModelChange={handlePaginationModelChange}
-        pageSizeOptions={[25, 50, 100]}
       />
       <Dialog
         open={editCommentRequestId !== null}

@@ -8,7 +8,6 @@ import { useTheme } from "@mui/material/styles";
 import { makeStyles } from "tss-react/mui";
 import Typography from "@mui/material/Typography";
 import Input from "@mui/material/Input";
-import Chip from "@mui/material/Chip";
 import Select from "@mui/material/Select";
 import MenuItem from "@mui/material/MenuItem";
 import { Controller, useForm } from "react-hook-form";
@@ -26,6 +25,7 @@ import {
   useGetSpatialCatalogsQuery,
   useGetSpatialCatalogQuery,
 } from "../../ducks/spatialCatalogs";
+import RemovableChip from "../RemovableChip";
 
 const useStyles = makeStyles()((theme) => ({
   paperDiv: {
@@ -181,7 +181,7 @@ const SourceTableFilterForm = ({
     { skip: !selectedSpatialCatalogId },
   );
 
-  const { handleSubmit, register, control, reset, getValues } = useForm();
+  const { handleSubmit, control, reset, getValues } = useForm();
 
   const handleClickReset = () => {
     reset();
@@ -320,7 +320,6 @@ const SourceTableFilterForm = ({
               <TextField
                 label="Source ID/Name"
                 name="sourceID"
-                inputRef={register("sourceID") as any}
                 onChange={onChange}
                 value={value}
               />
@@ -345,7 +344,6 @@ const SourceTableFilterForm = ({
                     step: 0.001,
                   },
                 }}
-                inputRef={register("position.ra") as any}
                 className={classes.positionField}
                 onChange={onChange}
                 value={value}
@@ -366,7 +364,6 @@ const SourceTableFilterForm = ({
                     step: 0.001,
                   },
                 }}
-                inputRef={register("position.dec") as any}
                 className={classes.positionField}
                 onChange={onChange}
                 value={value}
@@ -387,7 +384,6 @@ const SourceTableFilterForm = ({
                     step: 0.001,
                   },
                 }}
-                inputRef={register("position.radius") as any}
                 className={classes.positionField}
                 onChange={onChange}
                 value={value}
@@ -407,7 +403,6 @@ const SourceTableFilterForm = ({
                 size="small"
                 label="Saved After"
                 name="savedAfter"
-                inputRef={register("savedAfter") as any}
                 placeholder="2021-01-01T00:00:00"
                 onChange={onChange}
                 value={value}
@@ -422,7 +417,6 @@ const SourceTableFilterForm = ({
                 size="small"
                 label="Saved Before"
                 name="savedBefore"
-                inputRef={register("savedBefore") as any}
                 placeholder="2021-01-01T00:00:00"
                 onChange={onChange}
                 value={value}
@@ -442,7 +436,6 @@ const SourceTableFilterForm = ({
                 size="small"
                 label="First Detected After"
                 name="startDate"
-                inputRef={register("startDate") as any}
                 placeholder="2012-08-30T00:00:00"
                 onChange={onChange}
                 value={value}
@@ -457,7 +450,6 @@ const SourceTableFilterForm = ({
                 size="small"
                 label="Last Detected Before"
                 name="endDate"
-                inputRef={register("endDate") as any}
                 placeholder="2012-08-30T00:00:00"
                 onChange={onChange}
                 value={value}
@@ -478,7 +470,6 @@ const SourceTableFilterForm = ({
                 label="Class Name"
                 type="text"
                 name="simbadClass"
-                inputRef={register("simbadClass") as any}
                 onChange={onChange}
                 value={value}
               />
@@ -511,10 +502,17 @@ const SourceTableFilterForm = ({
                 renderValue={(selected: any) => (
                   <div className={classes.chips}>
                     {selected.map((classification: any) => (
-                      <Chip
+                      <RemovableChip
                         key={classification}
                         label={classification}
                         className={classes.chip}
+                        onDelete={() => {
+                          const newValue = selected.filter(
+                            (c: any) => c !== classification,
+                          );
+                          setSelectedClassifications(newValue);
+                          onChange(newValue);
+                        }}
                       />
                     ))}
                   </div>
@@ -586,10 +584,17 @@ const SourceTableFilterForm = ({
                 renderValue={(selected: any) => (
                   <div className={classes.chips}>
                     {selected.map((classification: any) => (
-                      <Chip
+                      <RemovableChip
                         key={classification}
                         label={classification}
                         className={classes.chip}
+                        onDelete={() => {
+                          const newValue = selected.filter(
+                            (c: any) => c !== classification,
+                          );
+                          setSelectedNonClassifications(newValue);
+                          onChange(newValue);
+                        }}
                       />
                     ))}
                   </div>
@@ -655,7 +660,6 @@ const SourceTableFilterForm = ({
                     step: 0.001,
                   },
                 }}
-                inputRef={register("minRedshift") as any}
                 onChange={onChange}
                 value={value}
               />
@@ -675,7 +679,6 @@ const SourceTableFilterForm = ({
                     step: 0.001,
                   },
                 }}
-                inputRef={register("maxRedshift") as any}
                 onChange={onChange}
                 value={value}
               />
@@ -700,7 +703,6 @@ const SourceTableFilterForm = ({
                     step: 0.001,
                   },
                 }}
-                inputRef={register("minPeakMagnitude") as any}
                 onChange={onChange}
                 value={value}
               />
@@ -720,7 +722,6 @@ const SourceTableFilterForm = ({
                     step: 0.001,
                   },
                 }}
-                inputRef={register("maxPeakMagnitude") as any}
                 onChange={onChange}
                 value={value}
               />
@@ -740,7 +741,6 @@ const SourceTableFilterForm = ({
                 label="Alias"
                 type="text"
                 name="alias"
-                inputRef={register("alias") as any}
                 data-testid="alias-text"
                 onChange={onChange}
                 value={value}
@@ -761,7 +761,6 @@ const SourceTableFilterForm = ({
                 label="Origin"
                 type="text"
                 name="origin"
-                inputRef={register("origin") as any}
                 data-testid="origin-text"
                 onChange={onChange}
                 value={value}
@@ -782,7 +781,6 @@ const SourceTableFilterForm = ({
                 label="Comment"
                 type="text"
                 name="commentsFilter"
-                inputRef={register("commentsFilter") as any}
                 data-testid="comment-text"
                 onChange={onChange}
                 value={value}
@@ -803,7 +801,6 @@ const SourceTableFilterForm = ({
                 label="Annotation"
                 type="text"
                 name="annotationsFilter"
-                inputRef={register("annotationsFilter") as any}
                 data-testid="annotation-text"
                 onChange={onChange}
                 value={value}
@@ -824,7 +821,6 @@ const SourceTableFilterForm = ({
                 label="Comment Author"
                 type="text"
                 name="commentsFilterAuthor"
-                inputRef={register("commentsFilterAuthor") as any}
                 data-testid="comment-author-text"
                 onChange={onChange}
                 value={value}
@@ -845,7 +841,6 @@ const SourceTableFilterForm = ({
                 label="Annotation Origin"
                 type="text"
                 name="annotationsFilterOrigin"
-                inputRef={register("annotationsFilterOrigin") as any}
                 data-testid="annotation-origin-text"
                 onChange={onChange}
                 value={value}
@@ -865,7 +860,6 @@ const SourceTableFilterForm = ({
                 size="small"
                 label="Comment After"
                 name="commentsFilterAfter"
-                inputRef={register("commentsFilterAfter") as any}
                 placeholder="2021-01-01T00:00:00"
                 onChange={onChange}
                 value={value}
@@ -880,7 +874,6 @@ const SourceTableFilterForm = ({
                 size="small"
                 label="Comment Before"
                 name="commentsFilterBefore"
-                inputRef={register("commentsFilterBefore") as any}
                 placeholder="2021-01-01T00:00:00"
                 onChange={onChange}
                 value={value}
@@ -900,7 +893,6 @@ const SourceTableFilterForm = ({
                 size="small"
                 label="Annotation After"
                 name="annotationsFilterAfter"
-                inputRef={register("annotationsFilterAfter") as any}
                 placeholder="2021-01-01T00:00:00"
                 onChange={onChange}
                 value={value}
@@ -915,7 +907,6 @@ const SourceTableFilterForm = ({
                 size="small"
                 label="Annotation Before"
                 name="annotationsFilterBefore"
-                inputRef={register("annotationsFilterBefore") as any}
                 placeholder="2021-01-01T00:00:00"
                 onChange={onChange}
                 value={value}
@@ -941,7 +932,6 @@ const SourceTableFilterForm = ({
                     step: 0.001,
                   },
                 }}
-                inputRef={register("minLatestMagnitude") as any}
                 onChange={onChange}
                 value={value}
               />
@@ -961,7 +951,6 @@ const SourceTableFilterForm = ({
                     step: 0.001,
                   },
                 }}
-                inputRef={register("maxLatestMagnitude") as any}
                 onChange={onChange}
                 value={value}
               />
@@ -1117,7 +1106,6 @@ const SourceTableFilterForm = ({
                 label="Spectrum After"
                 name="hasSpectrumAfter"
                 data-testid="hasSpectrumAfterTest"
-                inputRef={register("hasSpectrumAfter") as any}
                 placeholder="2021-01-01T00:00:00"
                 onChange={onChange}
                 value={value}
@@ -1133,7 +1121,6 @@ const SourceTableFilterForm = ({
                 label="Spectrum Before"
                 name="hasSpectrumBefore"
                 data-testid="hasSpectrumBeforeTest"
-                inputRef={register("hasSpectrumBefore") as any}
                 placeholder="2021-01-01T00:00:00"
                 onChange={onChange}
                 value={value}
@@ -1154,7 +1141,6 @@ const SourceTableFilterForm = ({
                 label="Followup Request Status"
                 name="followupRequestStatus"
                 data-testid="hasFollowupRequestStatusTest"
-                inputRef={register("followupRequestStatus") as any}
                 onChange={onChange}
                 value={value}
               />

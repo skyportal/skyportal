@@ -6,6 +6,8 @@ __all__ = [
     "CommentOnShift",
 ]
 
+import os
+
 import sqlalchemy as sa
 from sqlalchemy import event
 from sqlalchemy.ext.declarative import declared_attr
@@ -157,7 +159,12 @@ class CommentMixin:
         # there's a default value but it is best to provide a full path in the config
         root_folder = cfg.get("comments_folder", "comments_data")
 
-        full_path = save_file_data(root_folder, str(self.id), filename, file_data)
+        full_path = save_file_data(
+            os.path.join(root_folder, self.__tablename__),
+            str(self.id),
+            filename,
+            file_data,
+        )
 
         # persist the filename
         self._attachment_path = full_path
@@ -167,7 +174,17 @@ class CommentMixin:
         Delete the attachment's data from disk.
         """
 
-        delete_file_data(self._attachment_path)
+        root_folder = cfg.get("comments_folder", "comments_data")
+        folders = {
+            os.path.abspath(
+                os.path.join(root_folder, self.__tablename__, str(self.id))
+            ),
+            os.path.abspath(os.path.join(root_folder, str(self.id))),
+        }
+        if self._attachment_path and (
+            os.path.dirname(os.path.abspath(self._attachment_path)) in folders
+        ):
+            delete_file_data(self._attachment_path)
 
         # reset the filename
         self._attachment_path = None
@@ -311,6 +328,7 @@ class CommentOnShift(Base, CommentMixin):
 @event.listens_for(Comment, "after_delete")
 @event.listens_for(CommentOnSpectrum, "after_delete")
 @event.listens_for(CommentOnGCN, "after_delete")
+@event.listens_for(CommentOnEarthquake, "after_delete")
 @event.listens_for(CommentOnShift, "after_delete")
 def delete_comment_data_from_disk(mapper, connection, target):
     log(f"Deleting comment data for comment id={target.id}")

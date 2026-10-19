@@ -255,10 +255,6 @@ class AnalysisMixin:
         self.hash = joblib.hash(self.filename)
 
     @property
-    def has_inference_data(self):
-        return self.data.get("inference_data", None) is not None
-
-    @property
     def has_plot_data(self):
         return self.data.get("plots", None) is not None
 
@@ -547,6 +543,11 @@ class ObjAnalysis(Base, AnalysisMixin, WebhookMixin):
             doc="The ObjAnalysis's Obj.",
         )
 
+    def to_dict(self):
+        d = super().to_dict()
+        d.pop("token", None)
+        return d
+
 
 class GcnEventAnalysis(Base, AnalysisMixin, WebhookMixin):
     """Analysis on a GcnEvent with a set of results as JSON"""
@@ -575,6 +576,11 @@ class GcnEventAnalysis(Base, AnalysisMixin, WebhookMixin):
             back_populates=cls.backref_name(),
             doc="The GcnEventAnalysis's GcnEvent.",
         )
+
+    def to_dict(self):
+        d = super().to_dict()
+        d.pop("token", None)
+        return d
 
 
 class DefaultAnalysis(Base):
@@ -691,6 +697,17 @@ def delete_assoc_analysis_data_from_disk(mapper, connection, target):
         analysis.delete_data()
 
 
+def _default_analysis_gated():
+    """SQL clause: DefaultAnalysis opts into the detection gate.
+
+    default_analysis_parameters is json in the database, but JSONType does not
+    carry the comparator that indexes one, so the type is named here.
+    """
+    return sa.type_coerce(DefaultAnalysis.default_analysis_parameters, psql.JSON)[
+        "min_detections"
+    ].astext.isnot(None)
+
+
 def _default_analysis_under_limit():
     """SQL clause: DefaultAnalysis still under its per-day cap (or window rolled over)."""
     return or_(
@@ -703,12 +720,77 @@ def _default_analysis_under_limit():
     )
 
 
-def _run_default_analysis(default_analysis_id, author_id, obj_id, notification):
+def _default_analysis_rerun_blocked(analysis_service_id, obj_id):
+    from .photometry import Photometry
+
+    insufficient = func.coalesce(ObjAnalysis.status_message, "").ilike(
+        "%insufficient_data%"
+    )
+    detection_since = sa.exists().where(
+        Photometry.obj_id == ObjAnalysis.obj_id,
+        Photometry.created_at > ObjAnalysis.created_at,
+        Photometry.snr > cfg["misc.photometry_detection_threshold_nsigma"],
+    )
+    return sa.exists().where(
+        ObjAnalysis.obj_id == obj_id,
+        ObjAnalysis.analysis_service_id == analysis_service_id,
+        or_(
+            ObjAnalysis.status.in_(["queued", "pending"]),
+            sa.and_(
+                ObjAnalysis.status == "completed",
+                or_(~insufficient, ~detection_since),
+            ),
+            sa.and_(ObjAnalysis.status == "failure", ~detection_since),
+        ),
+    )
+
+
+def _insufficient_photometry(session, default_analysis, obj_id):
+    """True if this default analysis declares a detection threshold the object's
+    light curve does not yet meet -- so we defer rather than submit a job we'd only
+    withhold. Reads the precomputed PhotStat (SkyPortal's own detection threshold,
+    forced photometry excluded); ``min_detections`` is the total (any filter) and
+    the optional ``min_detections_per_filter`` dict adds per-band minima. A default
+    analysis without ``min_detections`` is never gated."""
+    from .phot_stat import PhotStat
+
+    params = default_analysis.default_analysis_parameters or {}
+    if params.get("min_detections") is None:
+        return False
+    min_det = int(params["min_detections"])
+    per_filter_min = params.get("min_detections_per_filter") or {}
+
+    stat = session.scalar(sa.select(PhotStat).where(PhotStat.obj_id == obj_id))
+    total = int((stat.num_det_no_forced_phot_global if stat else 0) or 0)
+    per_filter = (stat.num_det_per_filter if stat else {}) or {}
+
+    short = []
+    if total < min_det:
+        short.append(f"{total} det < {min_det}")
+    for filt, need in per_filter_min.items():
+        if int(per_filter.get(filt, 0)) < int(need):
+            short.append(f"{filt}={int(per_filter.get(filt, 0))} < {need}")
+    if short:
+        log(
+            f"Default analysis {default_analysis.analysis_service.name}: deferring "
+            f"{obj_id} ({'; '.join(short)}); awaiting more photometry"
+        )
+        return True
+    return False
+
+
+def _run_default_analysis(
+    default_analysis_id, author_id, obj_id, trigger, spectrum_id=None
+):
     """Bump the per-day counter and post one default analysis for ``obj_id``.
 
     ID-based and dispatched via ``run_async`` so it executes after the triggering
     transaction commits — otherwise a brand-new obj (save-to-group trigger) is not
     yet visible to this fresh session and post_analysis fails with "Obj not found".
+
+    Skips submission when the default analysis declares a detection threshold the
+    light curve does not yet meet (see _insufficient_photometry): the analysis_rerun
+    service fires it once enough photometry lands, so no doomed job is submitted.
     """
     import time
 
@@ -741,6 +823,10 @@ def _run_default_analysis(default_analysis_id, author_id, obj_id, notification):
             if default_analysis is None:
                 return
 
+            # Don't submit a job we'd only gate on too-sparse a light curve.
+            if _insufficient_photometry(db_session, default_analysis, obj_id):
+                return
+
             now = utcnow_naive().strftime("%Y-%m-%dT%H:%M:%S.%f")
             stats = default_analysis.stats or {}
             if not {"daily_limit", "daily_count", "last_run"}.issubset(stats.keys()):
@@ -771,8 +857,11 @@ def _run_default_analysis(default_analysis_id, author_id, obj_id, notification):
                 show_parameters=default_analysis.show_parameters,
                 show_plots=default_analysis.show_plots,
                 show_corner=default_analysis.show_corner,
-                notification=notification,
+                trigger=trigger,
                 session=db_session,
+                input_filters=None
+                if spectrum_id is None
+                else {"spectra": {"ids": [spectrum_id]}},
             )
         except Exception as e:
             log(f"Error creating default analysis with id {default_analysis_id}: {e}")
@@ -831,9 +920,7 @@ def create_default_analysis(mapper, connection, target):
             log(f"Error creating default analyses on classification {target.id}: {e}")
 
 
-def _run_default_gcnevent_analysis(
-    default_analysis_id, author_id, dateobs, notification
-):
+def _run_default_gcnevent_analysis(default_analysis_id, author_id, dateobs, trigger):
     """Bump the per-day counter and post one default analysis for a GCN event.
 
     The gcn_event analog of _run_default_analysis, keyed by dateobs and dispatched
@@ -904,7 +991,7 @@ def _run_default_gcnevent_analysis(
                 show_parameters=default_analysis.show_parameters,
                 show_plots=default_analysis.show_plots,
                 show_corner=default_analysis.show_corner,
-                notification=notification,
+                trigger=trigger,
                 session=db_session,
             )
         except Exception as e:
@@ -1072,6 +1159,7 @@ def create_default_analysis_on_spectrum(mapper, connection, target):
                     obj_id,
                     f"Default analysis {default_analysis.analysis_service.name} "
                     f"triggered by spectrum upload on {obj_id}",
+                    spectrum_id=target.id,
                 )
         except Exception as e:
             log(f"Error creating default analyses on spectrum upload: {e}")

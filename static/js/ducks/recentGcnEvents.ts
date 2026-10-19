@@ -23,5 +23,10 @@ export const recentGcnEventsApi = skyportalApi.injectEndpoints({
 invalidateOnMessage("skyportal/REFRESH_RECENT_GCNEVENTS", () => [
   "RecentGcnEvent",
 ]);
+// Sent after a widget preference change; maxNumEvents limits both lists.
+invalidateOnMessage("skyportal/FETCH_RECENT_GCNEVENTS", () => [
+  "RecentGcnEvent",
+  "RecentGcnExtraction",
+]);
 
 export const { useGetRecentGcnEventsQuery } = recentGcnEventsApi;

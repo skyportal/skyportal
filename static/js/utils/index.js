@@ -24,21 +24,9 @@ export {
 } from "./calculations";
 
 export {
-  toJulian,
-  fromJulian,
-  toDays,
-  rightAscension,
-  declination,
-  azimuth,
-  altitude,
-  siderealTime,
-  astroRefraction,
-  solarMeanAnomaly,
-  eclipticLongitude,
-  sunCoords,
-  moonCoords,
-  sunGeoJSON,
-  moonGeoJSON,
+  sunPosition,
+  moonPosition,
+  galacticToEquatorial,
   greatCircleDistance,
 } from "./positions";
 

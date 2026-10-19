@@ -235,9 +235,10 @@ class InvitationHandler(BaseHandler):
 
             count_stmt = sa.select(func.count()).select_from(stmt)
             total_matches = await session.scalar(count_stmt)
-            stmt = stmt.limit(query.numPerPage).offset(
-                (query.pageNumber - 1) * query.numPerPage
-            )
+            if query.numPerPage is not None:
+                stmt = stmt.limit(query.numPerPage).offset(
+                    (query.pageNumber - 1) * query.numPerPage
+                )
             inv_result = await session.scalars(stmt)
             invitations = inv_result.unique().all()
             info = {}
@@ -283,6 +284,11 @@ class InvitationHandler(BaseHandler):
             group_ids = body.groupIDs
             stream_ids = body.streamIDs
             role_id = body.role
+            if role_id is not None and role_id not in ["Full user", "View only"]:
+                return self.error(
+                    f"Unsupported value provided for parameter `role`: {role_id}. "
+                    "Must be one of either 'Full user' or 'View only'."
+                )
             user_expiration_date = body.userExpirationDate
             if (
                 group_ids is None

@@ -147,7 +147,7 @@ const ConfirmSourceInGCN = ({
   const { classes } = useStyles() as any;
   const [open, setOpen] = useState(false);
 
-  const { control, getValues, register, reset } = useForm();
+  const { control, getValues, reset } = useForm();
 
   const { data: sourcesingcn = [] } = useGetSourcesInGcnQuery({
     dateobs,
@@ -231,7 +231,16 @@ const ConfirmSourceInGCN = ({
     // "Not vetted" is the absence of a verdict, so committing it removes the
     // row rather than storing a status.
     if (selected === "not_vetted") {
-      handleNotVetted();
+      const canRecreate =
+        localization_name &&
+        localization_cumprob != null &&
+        start_date &&
+        end_date;
+      if (canRecreate) {
+        handleNotVetted();
+      } else {
+        handleVet("pending");
+      }
     } else {
       handleVet(selected);
     }
@@ -316,7 +325,6 @@ const ConfirmSourceInGCN = ({
                           <TextField
                             label="Notes"
                             name="notes"
-                            inputRef={register("notes") as any}
                             onChange={onChange}
                             value={value}
                             defaultValue={currentNotes}

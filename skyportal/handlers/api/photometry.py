@@ -3,7 +3,6 @@ import json
 import traceback
 import uuid
 from collections import defaultdict
-from io import StringIO
 from typing import Annotated
 
 import arrow
@@ -34,6 +33,7 @@ from skyportal_py_models.photometry import (
 from sncosmo.photdata import PhotometricData
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.orm import joinedload, load_only, selectinload
+from sqlalchemy.orm.attributes import set_committed_value
 
 from baselayer.app.access import auth_or_token, permissions
 from baselayer.app.env import load_env
@@ -44,6 +44,7 @@ from ...enum_types import ALLOWED_BANDPASSES
 from ...models import (
     PHOT_ZP,
     Annotation,
+    AnnotationOnPhotometry,
     Group,
     GroupPhotometry,
     Instrument,
@@ -309,42 +310,6 @@ def to_numeric(col):
         return col
 
 
-def save_data_using_copy(rows, table, columns, session):
-    # Prepare data
-    output = StringIO()
-    df = pd.DataFrame.from_records(rows)
-    # Coerce missing non-numbers and numbers, respectively, for SQLAlchemy
-    df.replace("NaN", "null", inplace=True)
-    df.replace(np.nan, "NaN", inplace=True)
-
-    df.to_csv(
-        output,
-        index=False,
-        sep="\t",
-        header=False,
-        encoding="utf8",
-        quotechar="'",
-    )
-    output.seek(0)
-
-    # Insert data via psycopg v3's COPY API. psycopg2 had
-    # `cursor.copy_from(file, table, sep, null, columns)`; psycopg3 expects a
-    # full `COPY ... FROM STDIN` statement and a context-managed copy object
-    # that you write rows (or raw bytes) into.
-    # Use the provided session's connection so that the COPY runs within the
-    # same database connection/transaction that holds any table-level locks.
-    connection = session.connection().connection
-    quoted_columns = ", ".join(f'"{c}"' for c in columns)
-    copy_sql = (
-        f"COPY {table} ({quoted_columns}) FROM STDIN "
-        "WITH (FORMAT text, DELIMITER E'\\t', NULL '')"
-    )
-    with connection.cursor() as cursor:
-        with cursor.copy(copy_sql) as copy:
-            copy.write(output.getvalue())
-    output.close()
-
-
 def nan_to_none(value):
     """Coerce a value to None if it is nan, else return value."""
     try:
@@ -427,6 +392,28 @@ def _serialize_plot(phot, outsys):
             f"on obj {phot.obj_id} with filter: {filter},  "
             f"due to error: {e}"
         )
+
+
+async def load_readable_annotations(session, photometry):
+    result = await session.scalars(
+        AnnotationOnPhotometry.select(session.user_or_token)
+        .where(
+            AnnotationOnPhotometry.photometry_id
+            == sa.any_(
+                sa.bindparam(
+                    "photometry_ids",
+                    [phot.id for phot in photometry],
+                    type_=sa.ARRAY(sa.Integer),
+                )
+            )
+        )
+        .order_by(AnnotationOnPhotometry.created_at)
+    )
+    annotations = defaultdict(list)
+    for annotation in result.all():
+        annotations[annotation.photometry_id].append(annotation)
+    for phot in photometry:
+        set_committed_value(phot, "annotations", annotations[phot.id])
 
 
 def serialize(
@@ -1037,13 +1024,11 @@ async def _redden_standardized_photometry(df, unique_oids, session):
             )
         a_lambda[(oid, filt)] = a
 
-    # observed_flux = corrected_flux * 10 ** (-0.4 * A_lambda)
-    factor = np.array(
-        [
-            10 ** (-0.4 * a_lambda[(oid, filt)])
-            for oid, filt in zip(df["obj_id"], df["filter"])
-        ]
+    a_per_row = np.array(
+        [a_lambda[(oid, filt)] for oid, filt in zip(df["obj_id"], df["filter"])]
     )
+    # observed_flux = corrected_flux * 10 ** (-0.4 * A_lambda)
+    factor = 10 ** (-0.4 * a_per_row)
     for col in (
         "standardized_flux",
         "standardized_fluxerr",
@@ -1052,6 +1037,9 @@ async def _redden_standardized_photometry(df, unique_oids, session):
     ):
         if col in df.columns:
             df[col] = df[col].to_numpy() * factor
+    # limiting_mag is stored in original_user_data and served as-is
+    if "limiting_mag" in df.columns:
+        df["limiting_mag"] = df["limiting_mag"].to_numpy() + a_per_row
     return df
 
 
@@ -1320,10 +1308,8 @@ async def insert_new_photometry_data(
         utcnow = utcnow_naive()
         # original_user_data and altdata are JSONB columns; with pg_insert.values()
         # SQLAlchemy serializes Python dicts via the column type, so we pass
-        # the raw structures (None or dict). The old COPY path needed
-        # json.dumps() strings because COPY's text protocol interprets them
-        # as JSON literals on the wire. Also normalize NaN→None (pandas leaks
-        # NaN for missing cells in object columns, and JSONB rejects NaN).
+        # the raw structures (None or dict). Also normalize NaN→None (pandas
+        # leaks NaN for missing cells in object columns, and JSONB rejects NaN).
         altdata_val = packet.get("altdata")
         if isinstance(altdata_val, float) and np.isnan(altdata_val):
             altdata_val = None
@@ -1523,7 +1509,7 @@ async def insert_new_photometry_data(
             flow.push(
                 "*",
                 "skyportal/REFRESH_SOURCE_PHOTOMETRY",
-                payload={"obj_id": obj_id},
+                payload={"obj_key": internal_key},
             )
 
     return ids, upload_id
@@ -1660,6 +1646,7 @@ async def add_external_photometry(
     username = user.username
     log(f"Pending request from {username} with {len(df.index)} rows")
 
+    savepoint = await session.begin_nested()
     try:
         if duplicates in ["ignore", "update"]:
             duplicated_photometry = await find_duplicate_photometry(session, df)
@@ -1783,7 +1770,11 @@ async def add_external_photometry(
             )
         return ids, upload_id
     except Exception as e:
-        await session.rollback()
+        # Any commit closes the savepoint, including insert_new_photometry_data's.
+        if session.in_nested_transaction():
+            await savepoint.rollback()
+        else:
+            await session.rollback()
         log(f"Unable to post photometry: {e}")
         return None, None
 
@@ -1980,6 +1971,21 @@ class PhotometryHandler(BaseHandler):
 
                 id_map = {}
 
+                altdata_updatable_ids = set()
+                if overwrite_altdata and not ignore_flux and duplicated_photometry:
+                    altdata_updatable_ids = {
+                        p.id
+                        for p in await session.scalars(
+                            Photometry.select(
+                                session.user_or_token, mode="update"
+                            ).where(
+                                Photometry.id.in_(
+                                    [d.id for _, d in duplicated_photometry]
+                                )
+                            )
+                        )
+                    }
+
                 updated_ids = []
                 updated_duplicate_values = []
                 # Accumulate new group/stream associations across all duplicates
@@ -2021,7 +2027,7 @@ class PhotometryHandler(BaseHandler):
                     # Matched on the full dedup index, so this is one identified
                     # row and refreshing its altdata cannot land on a different
                     # measurement -- no origin needed, unlike the flux overwrite.
-                    if overwrite_altdata and not ignore_flux:
+                    if duplicate.id in altdata_updatable_ids:
                         posted = df.loc[df_index].get("altdata")
                         if isinstance(posted, dict) and posted:
                             # Rows written by the flux overwrite below hold a JSON
@@ -2191,7 +2197,6 @@ class PhotometryHandler(BaseHandler):
                     .options(
                         joinedload(Photometry.instrument),
                         selectinload(Photometry.groups),
-                        selectinload(Photometry.annotations),
                     )
                     .where(Photometry.id == photometry_id)
                 )
@@ -2201,6 +2206,7 @@ class PhotometryHandler(BaseHandler):
                 return self.error(
                     f"Cannot find photometry point with ID: {photometry_id}."
                 )
+            await load_readable_annotations(session, [phot])
 
             output = serialize(phot, query.magsys, query.format)
             return self.success(data=output)
@@ -2402,7 +2408,7 @@ class PhotometryHandler(BaseHandler):
                 flow.push(
                     "*",
                     "skyportal/REFRESH_SOURCE_PHOTOMETRY",
-                    payload={"obj_id": photometry.obj_id, "magsys": magsys},
+                    payload={"obj_key": internal_key, "magsys": magsys},
                 )
 
             return self.success()
@@ -2483,9 +2489,12 @@ class PhotometryHandler(BaseHandler):
 
             await session.commit()
 
+            internal_key = await session.scalar(
+                sa.select(Obj.internal_key).where(Obj.id == obj_id)
+            )
             self.push_all(
                 action="skyportal/REFRESH_SOURCE_PHOTOMETRY",
-                payload={"obj_id": obj_id},
+                payload={"obj_key": internal_key},
             )
 
             return self.success()
@@ -2544,8 +2553,6 @@ class ObjPhotometryHandler(BaseHandler):
                             Group.single_user_group,
                         ),
                     ]
-                    if include_annotation_info:
-                        options.append(joinedload(Photometry.annotations))
                     if include_owner_info:
                         options.append(
                             joinedload(Photometry.owner).load_only(
@@ -2599,6 +2606,8 @@ class ObjPhotometryHandler(BaseHandler):
                     .distinct()
                 )
                 photometry = (await session.scalars(stmt)).unique().all()
+                if include_annotation_info and format != "plot":
+                    await load_readable_annotations(session, photometry)
 
                 # Compute extinction for all filters
                 extinction_dict = None
@@ -2685,7 +2694,7 @@ class ObjPhotometryHandler(BaseHandler):
                             period = an.data[period_str]
                             modified = arrow.get(an.modified)
                 if period is None:
-                    self.error(f"No period for object {obj_id}")
+                    return self.error(f"No period for object {obj_id}")
                 for ii in range(len(data)):
                     data[ii]["phase"] = np.mod(data[ii]["mjd"], period) / period
 
@@ -2850,7 +2859,6 @@ class PhotometryRangeHandler(BaseHandler):
             stmt = Photometry.select(session.user_or_token).options(
                 joinedload(Photometry.instrument),
                 selectinload(Photometry.groups),
-                selectinload(Photometry.annotations),
             )
 
             if instrument_ids is not None:
@@ -2867,6 +2875,7 @@ class PhotometryRangeHandler(BaseHandler):
             )
 
             rows = (await session.scalars(stmt.distinct())).unique().all()
+            await load_readable_annotations(session, rows)
             output = [serialize(p, query.magsys, query.format) for p in rows]
             return self.success(data=output)
 

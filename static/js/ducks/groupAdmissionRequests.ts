@@ -5,12 +5,8 @@
  * endpoints are injected into the central `skyportalApi`. The query is keyed by
  * `groupID`; mutations (request / delete / update status) invalidate the
  * `GroupAdmissionRequest` tag so the list refetches.
- *
- * The websocket `FETCH_GROUP_ADMISSION_REQUESTS` message is bridged to cache
- * invalidation via `invalidateOnMessage`.
  */
 import { skyportalApi } from "../api/skyportalApi";
-import { invalidateOnMessage } from "../api/wsInvalidation";
 import type { RouteData } from "../types/routeSchemaMap";
 
 export const groupAdmissionRequestsApi = skyportalApi.injectEndpoints({
@@ -24,12 +20,16 @@ export const groupAdmissionRequestsApi = skyportalApi.injectEndpoints({
     }),
     requestGroupAdmission: build.mutation<
       unknown,
-      { userID: number | string; groupID: number | string }
+      {
+        userID: number | string;
+        groupID: number | string;
+        message?: string | undefined;
+      }
     >({
-      query: ({ userID, groupID }) => ({
+      query: ({ userID, groupID, message }) => ({
         url: "api/group_admission_requests",
         method: "POST",
-        body: { userID, groupID },
+        body: { userID, groupID, message },
       }),
       // Also invalidate Group: an auto-accept group grants membership here, so
       // the groups list must refetch to move it into the user's groups.
@@ -55,11 +55,6 @@ export const groupAdmissionRequestsApi = skyportalApi.injectEndpoints({
     }),
   }),
 });
-
-// Websocket-driven invalidation: refresh admission requests on push.
-invalidateOnMessage("skyportal/FETCH_GROUP_ADMISSION_REQUESTS", () => [
-  "GroupAdmissionRequest",
-]);
 
 export const {
   useGetGroupAdmissionRequestsQuery,

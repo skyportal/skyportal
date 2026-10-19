@@ -41,6 +41,10 @@ from skyportal.models import (
     DefaultGcnTag,
     DefaultObservationPlanRequest,
     DefaultSurveyEfficiencyRequest,
+    Deployment,
+    Discussion,
+    DiscussionMember,
+    DiscussionMessage,
     EarthquakeEvent,
     EarthquakeMeasured,
     EarthquakeNotice,
@@ -49,6 +53,8 @@ from skyportal.models import (
     EventObservationPlanStatistics,
     FacilityTransaction,
     FacilityTransactionRequest,
+    Feedback,
+    FeedbackReply,
     FollowupRequest,
     FollowupRequestTargetGroup,
     FollowupRequestUser,
@@ -555,6 +561,115 @@ def broker():
     obj = (
         DBSession()
         .execute(sa.select(Broker).filter(Broker.id == broker_id))
+        .scalars()
+        .first()
+    )
+    if obj is not None:
+        DBSession().delete(obj)
+        DBSession().commit()
+
+
+@pytest.fixture()
+def deployment():
+    d = Deployment(version=f"test-{uuid.uuid4()}")
+    DBSession.add(d)
+    DBSession.commit()
+    deployment_id = d.id
+    yield d
+    obj = (
+        DBSession()
+        .execute(sa.select(Deployment).filter(Deployment.id == deployment_id))
+        .scalars()
+        .first()
+    )
+    if obj is not None:
+        DBSession().delete(obj)
+        DBSession().commit()
+
+
+@pytest.fixture()
+def feedback(user):
+    f = Feedback(author_id=user.id, category="bug", text="The button is broken")
+    DBSession.add(f)
+    DBSession.commit()
+    feedback_id = f.id
+    yield f
+    obj = (
+        DBSession()
+        .execute(sa.select(Feedback).filter(Feedback.id == feedback_id))
+        .scalars()
+        .first()
+    )
+    if obj is not None:
+        DBSession().delete(obj)
+        DBSession().commit()
+
+
+@pytest.fixture()
+def feedback_reply(feedback, super_admin_user):
+    r = FeedbackReply(
+        feedback_id=feedback.id, author_id=super_admin_user.id, text="Fixed, thanks"
+    )
+    DBSession.add(r)
+    DBSession.commit()
+    reply_id = r.id
+    yield r
+    obj = (
+        DBSession()
+        .execute(sa.select(FeedbackReply).filter(FeedbackReply.id == reply_id))
+        .scalars()
+        .first()
+    )
+    if obj is not None:
+        DBSession().delete(obj)
+        DBSession().commit()
+
+
+@pytest.fixture()
+def discussion(user):
+    d = Discussion(
+        name="Plans",
+        creator_id=user.id,
+        members=[DiscussionMember(user_id=user.id)],
+    )
+    DBSession.add(d)
+    DBSession.commit()
+    discussion_id = d.id
+    yield d
+    obj = (
+        DBSession()
+        .execute(sa.select(Discussion).filter(Discussion.id == discussion_id))
+        .scalars()
+        .first()
+    )
+    if obj is not None:
+        DBSession().delete(obj)
+        DBSession().commit()
+
+
+@pytest.fixture()
+def discussion_member(discussion):
+    return discussion.members[0]
+
+
+@pytest.fixture()
+def discussion_message(discussion, user):
+    m = DiscussionMessage(discussion_id=discussion.id, author_id=user.id, text="Hi")
+    DBSession.add(m)
+    DBSession.commit()
+    yield m
+
+
+@pytest.fixture()
+def group_discussion(public_group, user):
+    d = Discussion(name="Group chat", creator_id=user.id, group_id=public_group.id)
+    DBSession.add(d)
+    DBSession.commit()
+    discussion_id = d.id
+    yield d
+    obj = (
+        DBSession()
+        .execute(sa.select(Discussion).filter(Discussion.id == discussion_id))
         .scalars()
         .first()
     )

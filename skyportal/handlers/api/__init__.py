@@ -67,6 +67,14 @@ from .data_access_request import (
 )
 from .data_sharing import BulkDataShareHandler, SpectrumGroupsHandler
 from .db_stats import StatsHandler, StatsHistoryHandler
+from .deployment import DeploymentHandler
+from .discussion import (
+    CommentThreadHandler,
+    DiscussionHandler,
+    DiscussionMemberHandler,
+    DiscussionMembershipHandler,
+    DiscussionMessageHandler,
+)
 from .earthquake import (
     EarthquakeHandler,
     EarthquakeMeasurementHandler,
@@ -75,6 +83,7 @@ from .earthquake import (
 )
 from .enum_types import EnumTypesHandler
 from .facility_listener import FacilityMessageHandler
+from .feedback import FeedbackHandler, FeedbackReplyHandler
 from .filter import FilterHandler
 from .followup_apis import FollowupAPIsHandler
 from .followup_request import (
@@ -150,7 +159,11 @@ from .mmadetector import (
     MMADetectorSpectrumHandler,
     MMADetectorTimeIntervalHandler,
 )
-from .moving_object import MovingObjectFollowupHandler
+from .moving_object import (
+    MovingObjectFollowupHandler,
+    MovingObjectTrackHandler,
+    MovingObjectTrackLookupHandler,
+)
 from .mpc import ObjMPCHandler
 from .news_feed import NewsFeedHandler
 from .obj import ObjAcknowledgmentHandler, ObjHandler, ObjPositionHandler
@@ -232,7 +245,7 @@ from .source import (
 )
 from .source_exists import SourceExistsHandler
 from .source_groups import SourceGroupsHandler
-from .source_interest import SourceInterestHandler
+from .source_interest import SourceInterestHandler, SourceInterestListHandler
 from .source_labels import SourceLabelsHandler
 from .spatial_catalog import SpatialCatalogASCIIFileHandler, SpatialCatalogHandler
 from .spectrum import (
@@ -262,6 +275,7 @@ from .thumbnail import ThumbnailHandler, ThumbnailPathHandler
 from .tns.obj_tns import ObjTNSHandler
 from .unsourced_finder import UnsourcedFinderHandler
 from .user import (
+    UserActivityHandler,
     UserHandler,
     UserPublicProfileHandler,
     set_default_acls,

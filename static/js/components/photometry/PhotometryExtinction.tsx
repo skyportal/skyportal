@@ -15,6 +15,7 @@ const PhotometryExtinction = ({
   return (
     <div>
       <FormControlLabel
+        sx={{ m: 0 }}
         control={
           <Switch
             checked={showExtinction}

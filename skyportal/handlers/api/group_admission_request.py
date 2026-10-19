@@ -12,6 +12,7 @@ from baselayer.app.custom_exceptions import AccessError
 
 from ...models import Group, GroupAdmissionRequest, GroupUser, User, UserNotification
 from ..base import BaseHandler
+from .user import public_user_info
 
 
 class GroupAdmissionRequestHandler(BaseHandler):
@@ -93,9 +94,8 @@ class GroupAdmissionRequestHandler(BaseHandler):
 
                 response_data = {
                     **admission_request.to_dict(),
-                    "user": admission_request.user,
+                    "user": public_user_info(admission_request.user),
                 }
-                response_data["user"] = admission_request.user
                 return self.success(data=response_data)
 
             q = GroupAdmissionRequest.select(session.user_or_token).options(
@@ -106,7 +106,10 @@ class GroupAdmissionRequestHandler(BaseHandler):
             req_result = await session.scalars(q)
             admission_requests = req_result.unique().all()
             response_data = [
-                {**admission_request.to_dict(), "user": admission_request.user}
+                {
+                    **admission_request.to_dict(),
+                    "user": public_user_info(admission_request.user),
+                }
                 for admission_request in admission_requests
             ]
             return self.success(data=response_data)
@@ -126,6 +129,7 @@ class GroupAdmissionRequestHandler(BaseHandler):
         body = self.parse_body(GroupAdmissionRequestPostBody)
         user_id = body.userID
         group_id = body.groupID
+        message = (body.message or "").strip() or None
 
         async with self.AsyncSession() as session:
             group = await session.scalar(
@@ -164,6 +168,16 @@ class GroupAdmissionRequestHandler(BaseHandler):
                 return self.error(
                     f"User {user_id} is already a member of group {group_id}"
                 )
+            pending = await session.scalar(
+                GroupAdmissionRequest.select(session.user_or_token)
+                .where(GroupAdmissionRequest.group_id == group_id)
+                .where(GroupAdmissionRequest.user_id == user_id)
+                .where(GroupAdmissionRequest.status == "pending")
+            )
+            if pending is not None:
+                return self.error(
+                    f"User {user_id} already has a pending request for group {group_id}"
+                )
             # Ensure user has sufficient stream access for target group
             if group.streams and "System admin" not in requesting_user.permissions:
                 accessible_stream_ids = {
@@ -187,6 +201,7 @@ class GroupAdmissionRequestHandler(BaseHandler):
                 user_id=user_id,
                 group_id=group_id,
                 status="accepted" if auto_accept else "pending",
+                message=message,
             )
             session.add(admission_request)
 
@@ -278,7 +293,7 @@ class GroupAdmissionRequestHandler(BaseHandler):
             )
             return self.success()
 
-    @permissions(["Upload data"])
+    @auth_or_token
     async def delete(self, admission_request_id: int):
         """
         ---

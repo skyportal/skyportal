@@ -153,6 +153,59 @@ def test_add_modify_user_adds_modifies_single_user_group(
     )
 
 
+def test_admin_rename_user_renames_single_user_group(
+    manage_groups_token, super_admin_token
+):
+    old_username = str(uuid.uuid4())
+    status, data = api(
+        "POST", "user", data={"username": old_username}, token=super_admin_token
+    )
+    assert status == 200
+    user_id = data["data"]["id"]
+
+    new_username = str(uuid.uuid4())
+    status, data = api(
+        "PATCH",
+        f"user/{user_id}",
+        data={"username": new_username},
+        token=super_admin_token,
+    )
+    assert status == 200
+
+    status, data = api(
+        "GET", "groups?includeSingleUserGroups=true", token=manage_groups_token
+    )
+    assert data["status"] == "success"
+    names = {
+        group["name"]
+        for group in data["data"]["all_groups"]
+        if group["single_user_group"]
+    }
+    assert new_username in names
+    assert old_username not in names
+
+    # The old username is free again for a new account.
+    status, data = api(
+        "POST", "user", data={"username": old_username}, token=super_admin_token
+    )
+    assert status == 200
+
+    # A username that already names another group is refused.
+    group_name = str(uuid.uuid4())
+    status, data = api(
+        "POST", "groups", data={"name": group_name}, token=super_admin_token
+    )
+    assert status == 200
+    status, data = api(
+        "PATCH",
+        f"user/{user_id}",
+        data={"username": group_name},
+        token=super_admin_token,
+    )
+    assert status == 400
+    assert "already exists" in data["message"]
+
+
 def test_user_list(view_only_token):
     status, data = api("GET", "user", token=view_only_token)
     assert status == 200
@@ -329,3 +382,170 @@ def test_user_info_hides_unshared_fields(view_only_token, user, view_only_token2
 
     status, data = api("GET", "user", params={"email": "@"}, token=view_only_token)
     assert status == 400, data
+
+
+def test_a_system_admin_can_read_back_what_it_just_wrote(super_admin_token, user):
+    # A stricter read rule made a successful PATCH look like it did nothing.
+    email = "readback_test@skyportal.com"
+    status, data = api(
+        "PATCH",
+        f"user/{user.id}",
+        data={"contact_email": email},
+        token=super_admin_token,
+    )
+    assert status == 200, data
+
+    status, data = api(
+        "GET", "user", params={"lastName": user.last_name}, token=super_admin_token
+    )
+    assert status == 200, data
+    rows = [u for u in data["data"]["users"] if u["id"] == user.id]
+    assert rows, "the user is missing from the listing"
+    assert rows[0]["contact_email"] == email
+
+
+def test_a_system_admin_sees_the_full_record(super_admin_token, user):
+    # Redacted from anyone who cannot manage the user, which an admin can.
+    status, data = api(
+        "GET", "user", params={"lastName": user.last_name}, token=super_admin_token
+    )
+    assert status == 200, data
+    rows = [u for u in data["data"]["users"] if u["id"] == user.id]
+    assert rows and "contact_email" in rows[0]
+
+
+def test_an_ordinary_user_still_cannot_read_it(
+    super_admin_token, view_only_token2, user
+):
+    # The point is to match the write rule, not to widen who can read.
+    status, data = api(
+        "PATCH",
+        f"user/{user.id}",
+        data={"contact_email": "still_private@skyportal.com"},
+        token=super_admin_token,
+    )
+    assert status == 200, data
+
+    status, data = api("GET", f"user/{user.id}", token=view_only_token2)
+    assert status == 200, data
+    assert "contact_email" not in data["data"]
+
+
+def test_subscribing_to_deployments_turns_in_app_on(view_only_token):
+    def deployments():
+        status, data = api("GET", "internal/profile", token=view_only_token)
+        assert status == 200, data
+        return data["data"]["preferences"]["notifications"]["deployments"]
+
+    prefs = {"notifications": {"deployments": {"in_app": {"active": False}}}}
+    status, data = api(
+        "PATCH", "internal/profile", data={"preferences": prefs}, token=view_only_token
+    )
+    assert status == 200, data
+    assert deployments()["in_app"]["active"] is False
+
+    prefs = {"notifications": {"deployments": {"active": True}}}
+    status, data = api(
+        "PATCH", "internal/profile", data={"preferences": prefs}, token=view_only_token
+    )
+    assert status == 200, data
+    assert deployments()["in_app"]["active"] is True
+
+
+def test_activity_reports_a_users_contributions(
+    comment_token, user, public_source, public_group, super_admin_token
+):
+    """The tally counts the work and the feed names it."""
+    status, data = api("GET", f"user/{user.id}/activity", token=super_admin_token)
+    assert status == 200, data
+    before = data["data"]["counts"]["comments"]
+
+    status, data = api(
+        "POST",
+        f"sources/{public_source.id}/comments",
+        data={
+            "text": "a comment that should be counted",
+            "group_ids": [public_group.id],
+        },
+        token=comment_token,
+    )
+    assert status == 200, data
+
+    status, data = api("GET", f"user/{user.id}/activity", token=super_admin_token)
+    assert status == 200, data
+    assert data["data"]["counts"]["comments"] == before + 1
+    # every kind is reported, so the page need not know which exist
+    assert set(data["data"]["counts"]) == {
+        "sources_saved",
+        "comments",
+        "classifications",
+        "annotations",
+        "spectra",
+        "followup_requests",
+    }
+
+    newest = data["data"]["items"][0]
+    assert newest["kind"] == "comments"
+    assert newest["obj_id"] == public_source.id
+    assert newest["detail"] == "a comment that should be counted"
+
+
+def test_activity_pages_without_repeating_itself(
+    comment_token, user, public_source, public_group, super_admin_token
+):
+    """Paging is by offset, so rows sharing a timestamp are not stepped over."""
+    for i in range(3):
+        status, data = api(
+            "POST",
+            f"sources/{public_source.id}/comments",
+            data={"text": f"paging comment {i}", "group_ids": [public_group.id]},
+            token=comment_token,
+        )
+        assert status == 200, data
+
+    status, data = api(
+        "GET", f"user/{user.id}/activity?limit=2", token=super_admin_token
+    )
+    assert status == 200, data
+    first = data["data"]["items"]
+    assert len(first) == 2
+    assert data["data"]["has_more"] is True
+
+    status, data = api(
+        "GET", f"user/{user.id}/activity?limit=2&offset=2", token=super_admin_token
+    )
+    assert status == 200, data
+    second = data["data"]["items"]
+    assert second, data
+    keys = {(i["kind"], i["obj_id"], i["created_at"], i["detail"]) for i in first}
+    assert not any(
+        (i["kind"], i["obj_id"], i["created_at"], i["detail"]) in keys for i in second
+    )
+
+
+def test_activity_is_scoped_to_what_the_viewer_can_see(
+    comment_token,
+    user,
+    public_source,
+    public_group,
+    view_only_token_group2,
+    super_admin_token,
+):
+    """A comment posted to one group is invisible to someone outside it, so it
+    is absent from both the tally and the feed that viewer is shown."""
+    status, data = api(
+        "POST",
+        f"sources/{public_source.id}/comments",
+        data={"text": "visible to public_group only", "group_ids": [public_group.id]},
+        token=comment_token,
+    )
+    assert status == 200, data
+
+    status, data = api("GET", f"user/{user.id}/activity", token=super_admin_token)
+    assert status == 200, data
+    assert data["data"]["counts"]["comments"] > 0
+
+    status, data = api("GET", f"user/{user.id}/activity", token=view_only_token_group2)
+    assert status == 200, data
+    assert data["data"]["counts"]["comments"] == 0
+    assert not [i for i in data["data"]["items"] if i["kind"] == "comments"]

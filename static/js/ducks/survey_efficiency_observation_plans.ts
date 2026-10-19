@@ -8,12 +8,9 @@
  *
  * Submit issues a `simsurvey` run (the backend kicks off the analysis); the old
  * duck used `API.GET` for it, so the mutation keeps the `GET` method with the
- * form data as query params. The websocket
- * `REFRESH_SURVEY_EFFICIENCY_OBSERVATION_PLANS` message is bridged to cache
- * invalidation via `invalidateOnMessage`.
+ * form data as query params.
  */
 import { skyportalApi } from "../api/skyportalApi";
-import { invalidateOnMessage } from "../api/wsInvalidation";
 import type { RouteData } from "../types/routeSchemaMap";
 
 export const surveyEfficiencyObservationPlansApi = skyportalApi.injectEndpoints(
@@ -49,13 +46,6 @@ export const surveyEfficiencyObservationPlansApi = skyportalApi.injectEndpoints(
       }),
     }),
   },
-);
-
-// Websocket: old handler refetched on
-// REFRESH_SURVEY_EFFICIENCY_OBSERVATION_PLANS.
-invalidateOnMessage(
-  "skyportal/REFRESH_SURVEY_EFFICIENCY_OBSERVATION_PLANS",
-  () => ["SurveyEfficiencyObservationPlan"],
 );
 
 export const {

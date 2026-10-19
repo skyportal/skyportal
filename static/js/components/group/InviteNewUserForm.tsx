@@ -1,20 +1,14 @@
-import React, { useState } from "react";
+import { useState } from "react";
+import Box from "@mui/material/Box";
+import Collapse from "@mui/material/Collapse";
 import TextField from "@mui/material/TextField";
+import MenuItem from "@mui/material/MenuItem";
 import Dialog from "@mui/material/Dialog";
 import DialogActions from "@mui/material/DialogActions";
 import DialogContent from "@mui/material/DialogContent";
-import DialogContentText from "@mui/material/DialogContentText";
 import DialogTitle from "@mui/material/DialogTitle";
-import Select from "@mui/material/Select";
-import MenuItem from "@mui/material/MenuItem";
-import Typography from "@mui/material/Typography";
-import InputLabel from "@mui/material/InputLabel";
-import FormControl from "@mui/material/FormControl";
-import HelpOutlineIcon from "@mui/icons-material/HelpOutlineOutlined";
-import Box from "@mui/material/Box";
-import Tooltip from "@mui/material/Tooltip";
-import FormControlLabel from "@mui/material/FormControlLabel";
-import Checkbox from "@mui/material/Checkbox";
+import ExpandLessIcon from "@mui/icons-material/ExpandLess";
+import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import { AdapterDateFns } from "@mui/x-date-pickers/AdapterDateFns";
 import { LocalizationProvider } from "@mui/x-date-pickers";
 import { DatePicker } from "@mui/x-date-pickers/DatePicker";
@@ -25,217 +19,129 @@ import { showNotification } from "baselayer/components/Notifications";
 import { useAppDispatch } from "../../types/hooks";
 import Button from "../Button";
 import { useInviteUserMutation } from "../../ducks/invitations";
+import MemberPermissions, { DEFAULT_PERMISSIONS } from "./MemberPermissions";
+import type { AddMembersFormProps } from "./GroupAddMembers";
 
 dayjs.extend(utc);
 
-const defaultState: any = {
-  newUserEmail: "",
-  role: "Full user",
-  admin: false,
-  canSave: true,
-  canSharePhotometry: false,
-  userExpirationDate: null,
-};
-
-interface InviteNewUserFormProps {
-  group_id: number;
-}
-
-const InviteNewUserForm = ({ group_id }: InviteNewUserFormProps) => {
+const InviteNewUserForm = ({
+  groupID,
+  formId,
+  onSuccess,
+}: AddMembersFormProps) => {
   const dispatch = useAppDispatch();
   const [inviteUser] = useInviteUserMutation();
-  const [formState, setFormState] = useState<any>(defaultState);
-  const [confirmDialogOpen, setConfirmDialogOpen] = React.useState(false);
+  const [email, setEmail] = useState("");
+  const [role, setRole] = useState("Full user");
+  const [expirationDate, setExpirationDate] = useState<Date | null>(null);
+  const [permissions, setPermissions] = useState(DEFAULT_PERMISSIONS);
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [moreOptions, setMoreOptions] = useState(false);
+  const fullUser = role === "Full user";
 
-  const handleClickSubmit = async () => {
-    // Admin should always be false for view-only users
-    let admin = false;
-    if (formState.role === "Full user") {
-      admin = formState.admin;
-    }
-    const data: any = {
-      userEmail: formState.newUserEmail,
-      groupIDs: [group_id],
-      groupAdmin: [admin],
-      role: formState.role,
-      streamIDs: null,
-      canSave: [formState.canSave],
-      canSharePhotometry: [formState.canSharePhotometry],
-    };
-    if (formState.userExpirationDate?.length > 0) {
-      if (!dayjs.utc(formState.userExpirationDate).isValid()) {
-        dispatch(
-          showNotification(
-            "Invalid date. Please use MM/DD/YYYY format.",
-            "error",
-          ),
-        );
-        return;
-      }
-      data.userExpirationDate = dayjs
-        .utc(formState.userExpirationDate)
-        .toISOString();
-    }
-    try {
-      await inviteUser(data).unwrap();
+  const invite = async () => {
+    setConfirmOpen(false);
+    if (expirationDate && !dayjs.utc(expirationDate).isValid()) {
       dispatch(
         showNotification(
-          `Invitation successfully sent to ${formState.newUserEmail}`,
+          "Invalid date. Please use MM/DD/YYYY format.",
+          "error",
         ),
       );
-      setFormState({
-        ...defaultState,
-        role: formState.role,
-      });
-    } catch {
-      // error notification handled by the base query
+      return;
     }
-  };
-
-  const handleRoleChange = (event: any) => {
-    setFormState({
-      ...formState,
-      role: event.target.value,
-    });
-  };
-
-  const handleExpirationDateChange = (date: any) => {
-    setFormState({
-      ...formState,
-      userExpirationDate: date,
-    });
-  };
-
-  const toggleCheckbox = (event: any) => {
-    setFormState({
-      ...formState,
-      [event.target.name]: event.target.checked,
-    });
+    const { error } = await inviteUser({
+      userEmail: email,
+      groupIDs: [groupID],
+      groupAdmin: [fullUser && permissions.admin],
+      role,
+      streamIDs: null,
+      canSave: [permissions.canSave],
+      canSharePhotometry: [permissions.canSharePhotometry],
+      ...(expirationDate && {
+        userExpirationDate: dayjs.utc(expirationDate).toISOString(),
+      }),
+    } as any);
+    if (error) return;
+    dispatch(showNotification(`Invitation successfully sent to ${email}`));
+    onSuccess();
   };
 
   return (
-    <Box sx={{ width: "100%" }}>
-      <Typography variant="body2" color="textSecondary" sx={{ mb: 2 }}>
-        Invite a new user to this website and add them to this group
-      </Typography>
-      <Box
-        sx={{
-          display: "flex",
-          alignItems: "center",
-          flexWrap: "wrap",
-          gap: 2,
-        }}
-      >
-        <TextField
-          id="newUserEmail"
-          data-testid="newUserEmail"
-          value={formState?.newUserEmail || ""}
-          onChange={(event) =>
-            setFormState({ ...formState, newUserEmail: event.target.value })
-          }
-          label="Enter user email"
-        />
-        <FormControl>
-          <InputLabel id="roleSelectLabel">User role</InputLabel>
-          <Select
-            defaultValue="Full user"
-            onChange={handleRoleChange}
-            labelId="roleSelectLabel"
-            label="User role"
-          >
-            {["Full user", "View only"].map((role) => (
-              <MenuItem key={role} value={role}>
-                {role}
-              </MenuItem>
-            ))}
-          </Select>
-        </FormControl>
-        <LocalizationProvider dateAdapter={AdapterDateFns}>
-          <DatePicker
-            value={formState.userExpirationDate}
-            onChange={handleExpirationDateChange}
-            slotProps={{ textField: { variant: "outlined" } }}
-            label="Expiration date (UTC)"
-            {...({ showTodayButton: false } as any)}
-          />
-        </LocalizationProvider>
-        <Tooltip
-          title="This is the expiration date assigned to the new user account. After
-          this date, the user account will be deactivated and will be unable
-          to access the application."
-        >
-          <HelpOutlineIcon />
-        </Tooltip>
-        {formState.role === "Full user" && (
-          <FormControlLabel
-            control={
-              <Checkbox
-                checked={formState.canSave}
-                onChange={toggleCheckbox}
-                name="canSave"
-              />
-            }
-            label="Can save to this group?"
-          />
-        )}
-        {formState.role === "Full user" && (
-          <FormControlLabel
-            control={
-              <Checkbox
-                checked={formState.canSharePhotometry}
-                onChange={toggleCheckbox}
-                name="canSharePhotometry"
-              />
-            }
-            label="Can share photometry data to other groups?"
-          />
-        )}
-        {formState.role === "Full user" && formState.canSave && (
-          <FormControlLabel
-            control={
-              <Checkbox
-                checked={formState.admin}
-                onChange={toggleCheckbox}
-                name="admin"
-              />
-            }
-            label="Group Admin?"
-          />
-        )}
-      </Box>
+    <Box
+      component="form"
+      id={formId}
+      onSubmit={(event) => {
+        event.preventDefault();
+        setConfirmOpen(true);
+      }}
+      sx={{ display: "flex", flexDirection: "column", gap: 2, mt: 1 }}
+    >
+      <TextField
+        label="Email"
+        value={email}
+        onChange={(event) => setEmail(event.target.value)}
+        data-testid="newUserEmail"
+        fullWidth
+      />
       <Button
-        secondary
-        data-testid="inviteNewUserButton"
-        onClick={() => setConfirmDialogOpen(true)}
-        sx={{ mt: 2 }}
+        size="small"
+        onClick={() => setMoreOptions(!moreOptions)}
+        endIcon={moreOptions ? <ExpandLessIcon /> : <ExpandMoreIcon />}
+        aria-expanded={moreOptions}
+        sx={{ alignSelf: "flex-start" }}
       >
-        Invite new user
+        More options
       </Button>
-      <Dialog
-        open={confirmDialogOpen}
-        onClose={() => setConfirmDialogOpen(false)}
-        aria-labelledby="alert-dialog-title"
-        aria-describedby="alert-dialog-description"
-      >
-        <DialogTitle id="alert-dialog-title">
-          Invite new user and add to this group?
-        </DialogTitle>
+      <Collapse in={moreOptions} unmountOnExit>
+        <Box sx={{ display: "flex", flexDirection: "column", gap: 2, pt: 1 }}>
+          <TextField
+            select
+            label="Role"
+            value={role}
+            onChange={(event) => setRole(event.target.value)}
+            fullWidth
+          >
+            <MenuItem value="Full user">Full user</MenuItem>
+            <MenuItem value="View only">View only</MenuItem>
+          </TextField>
+          <LocalizationProvider dateAdapter={AdapterDateFns}>
+            <DatePicker
+              label="Account expiration date (UTC)"
+              value={expirationDate}
+              onChange={setExpirationDate}
+              slotProps={{
+                textField: {
+                  fullWidth: true,
+                  helperText:
+                    "Optional. The account is deactivated after this date",
+                },
+              }}
+            />
+          </LocalizationProvider>
+          {fullUser && (
+            <MemberPermissions
+              value={permissions}
+              onChange={setPermissions}
+              hide={permissions.canSave ? [] : ["admin"]}
+            />
+          )}
+        </Box>
+      </Collapse>
+      <Dialog open={confirmOpen} onClose={() => setConfirmOpen(false)}>
+        <DialogTitle>Invite new user and add to this group?</DialogTitle>
         <DialogContent>
-          <DialogContentText id="alert-dialog-description">
-            Click Confirm to invite specified user and grant them access to this
-            group.
-          </DialogContentText>
+          An invitation will be sent to {email} with access to this group.
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setConfirmDialogOpen(false)}>Cancel</Button>
+          <Button secondary onClick={() => setConfirmOpen(false)}>
+            Cancel
+          </Button>
           <Button
             primary
-            data-testid="confirmNewUserButton"
-            onClick={() => {
-              setConfirmDialogOpen(false);
-              handleClickSubmit();
-            }}
             autoFocus
+            onClick={invite}
+            data-testid="confirmNewUserButton"
           >
             Confirm
           </Button>

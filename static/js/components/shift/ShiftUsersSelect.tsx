@@ -11,16 +11,16 @@ import FormControl from "@mui/material/FormControl";
 import InputLabel from "@mui/material/InputLabel";
 import Select from "@mui/material/Select";
 import Box from "@mui/material/Box";
-import Chip from "@mui/material/Chip";
 import MenuItem from "@mui/material/MenuItem";
 import Checkbox from "@mui/material/Checkbox";
 import ListItemIcon from "@mui/material/ListItemIcon";
 import Remove from "@mui/icons-material/Remove";
 import Add from "@mui/icons-material/Add";
 import ListItemText from "@mui/material/ListItemText";
-import { showNotification } from "../../../../baselayer/static/js/components/Notifications";
+import { showNotification } from "baselayer/components/Notifications";
 import { userLabel } from "../../utils/format";
 import Button from "../Button";
+import RemovableChip from "../RemovableChip";
 
 // Returns users in the shift group and that are either in the shift or have not expired
 const getShiftGroupUsersFiltered = (shift: any) => {
@@ -218,9 +218,14 @@ function ShiftUsersSelect({
           renderValue={(userIdsToManage: any) => (
             <Box>
               {userIdsToManage.map((userId: any) => (
-                <Chip
+                <RemovableChip
                   key={userId}
                   id={userId}
+                  onDelete={() =>
+                    setSelectedIds(
+                      userIdsToManage.filter((id: any) => id !== userId),
+                    )
+                  }
                   label={userLabel(
                     users.find((u: any) => u.id === userId),
                     true,

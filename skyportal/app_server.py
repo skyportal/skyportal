@@ -57,6 +57,7 @@ from skyportal.handlers.api import (
     CommentAttachmentUpdateHandler,
     CommentChannelHandler,
     CommentHandler,
+    CommentThreadHandler,
     ConfigHandler,
     DataAccessRequestHandler,
     DataAvailabilityHandler,
@@ -66,6 +67,11 @@ from skyportal.handlers.api import (
     DefaultGcnTagHandler,
     DefaultObservationPlanRequestHandler,
     DefaultSurveyEfficiencyRequestHandler,
+    DeploymentHandler,
+    DiscussionHandler,
+    DiscussionMemberHandler,
+    DiscussionMembershipHandler,
+    DiscussionMessageHandler,
     DuplicateSchedulingHandler,
     EarthquakeHandler,
     EarthquakeMeasurementHandler,
@@ -73,6 +79,8 @@ from skyportal.handlers.api import (
     EarthquakeStatusHandler,
     EnumTypesHandler,
     FacilityMessageHandler,
+    FeedbackHandler,
+    FeedbackReplyHandler,
     FilterHandler,
     FinderChartFacilitiesHandler,
     FollowupAPIsHandler,
@@ -134,6 +142,8 @@ from skyportal.handlers.api import (
     MMADetectorSpectrumHandler,
     MMADetectorTimeIntervalHandler,
     MovingObjectFollowupHandler,
+    MovingObjectTrackHandler,
+    MovingObjectTrackLookupHandler,
     NewsFeedHandler,
     ObjAcknowledgmentHandler,
     ObjClassificationHandler,
@@ -211,6 +221,7 @@ from skyportal.handlers.api import (
     SourceGroupsHandler,
     SourceHandler,
     SourceInterestHandler,
+    SourceInterestListHandler,
     SourceLabelsHandler,
     SourceNotificationHandler,
     SourceObservabilityPlotHandler,
@@ -242,6 +253,7 @@ from skyportal.handlers.api import (
     ThumbnailPathHandler,
     UnsourcedFinderHandler,
     UserACLHandler,
+    UserActivityHandler,
     UserApplicationHandler,
     UserHandler,
     UserObjListHandler,
@@ -260,6 +272,7 @@ from skyportal.handlers.api.internal import (
     EphemerisHandler,
     FilterWavelengthHandler,
     LogHandler,
+    MemoryHandler,
     NotificationHandler,
     NotificationTestHandler,
     PlotAssignmentAirmassHandler,
@@ -287,7 +300,7 @@ from skyportal.handlers.public import (
 )
 
 from . import model_util, openapi
-from .models import db_engine, init_db
+from .models import DBSession, db_engine, init_db
 from .utils.observability import setup_observability
 
 log = make_log("app_server")
@@ -446,6 +459,8 @@ skyportal_handlers = [
         ReminderHandler,
     ),
     (r"/api/moving_object/([0-9A-Za-z-_\.\+]+)/followup", MovingObjectFollowupHandler),
+    (r"/api/moving_object/track", MovingObjectTrackHandler),
+    (r"/api/moving_object/track/([0-9A-Za-z-_.+]+)", MovingObjectTrackLookupHandler),
     (r"/api/earthquake/status", EarthquakeStatusHandler),
     (r"/api/earthquake(/.*)?", EarthquakeHandler),
     (r"/api/gcn_event(/.*)/alias", GcnEventAliasesHandler),
@@ -602,6 +617,7 @@ skyportal_handlers = [
         ScheduledObservationsHandler,
     ),
     (r"/api/duplicate_scheduling", DuplicateSchedulingHandler),
+    (r"/api/source_interests", SourceInterestListHandler),
     (r"/api/sources(/[0-9A-Za-z-_\.\+]+)/interests", SourceInterestHandler),
     (r"/api/sources(/[0-9A-Za-z-_\.\+]+)/interests(/[0-9]+)", SourceInterestHandler),
     (r"/api/sources(/[0-9A-Za-z-_\.\+]+)/color_mag", ObjColorMagHandler),
@@ -682,6 +698,14 @@ skyportal_handlers = [
     (r"/api/db_stats", StatsHandler),
     (r"/api/db_stats/history", StatsHistoryHandler),
     (r"/api/sysinfo", SysInfoHandler),
+    (r"/api/deployments", DeploymentHandler),
+    (r"/api/feedback(/[0-9]+)?", FeedbackHandler),
+    (r"/api/feedback/([0-9]+)/replies", FeedbackReplyHandler),
+    (r"/api/discussions(/[0-9]+)?", DiscussionHandler),
+    (r"/api/discussions/([0-9]+)/messages(/[0-9]+)?", DiscussionMessageHandler),
+    (r"/api/discussions/([0-9]+)/members(/[0-9]+)?", DiscussionMemberHandler),
+    (r"/api/discussions/([0-9]+)/membership", DiscussionMembershipHandler),
+    (r"/api/comment_threads", CommentThreadHandler),
     (r"/api/config", ConfigHandler),
     (r"/api/assistant/conversations", AssistantConversationHandler),
     (r"/api/assistant/messages", AssistantMessageHandler),
@@ -716,6 +740,7 @@ skyportal_handlers = [
     (r"/api/sharing_service(/[0-9]+)?", SharingServiceHandler),
     (r"/api/unsourced_finder", UnsourcedFinderHandler),
     (r"/api/user_applications(/[0-9]+)?", UserApplicationHandler),
+    (r"/api/user/([0-9]+)/activity", UserActivityHandler),
     (r"/api/user/([0-9]+)/profile", UserPublicProfileHandler),
     (r"/api/user(/[0-9]+)/acls(/.*)?", UserACLHandler),
     (r"/api/user(/[0-9]+)/roles(/.*)?", UserRoleHandler),
@@ -733,6 +758,7 @@ skyportal_handlers = [
     (r"/api/internal/tokens(/[0-9A-Za-z-]+)?", TokenHandler),
     (r"/api/internal/profile(/[0-9]+)?", ProfileHandler),
     (r"/api/internal/dbinfo", DBInfoHandler),
+    (r"/api/internal/memory", MemoryHandler),
     (r"/api/internal/source_views(/.*)?", SourceViewsHandler),
     (r"/api/internal/source_counts(/.*)?", SourceCountHandler),
     (r"/api/internal/source_savers(/.*)?", SourceSaverHandler),
@@ -938,6 +964,12 @@ def make_app(cfg, baselayer_handlers, baselayer_settings, process=None, env=None
         print("-" * 78)
 
     model_util.provision_public_group()
+    if not process:
+        try:
+            model_util.record_deployment()
+        except Exception as e:
+            log(f"Could not record the deployment: {e}")
+    DBSession.remove()
     app.openapi_spec = openapi.spec_from_handlers(handlers)
 
     return app

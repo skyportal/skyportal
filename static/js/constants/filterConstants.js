@@ -25,6 +25,17 @@ export const getSimpleType = (avroType) => {
   return "string";
 };
 
+const AVRO_PRIMITIVE_TYPES = new Set([
+  "null",
+  "boolean",
+  "int",
+  "long",
+  "float",
+  "double",
+  "bytes",
+  "string",
+]);
+
 export const flattenFieldOptions = (avroSchema) => {
   const flattenedOptions = [];
   const defaultGroupName = "Other Fields";
@@ -36,7 +47,9 @@ export const flattenFieldOptions = (avroSchema) => {
 
   // Resolves a named Avro type reference to its full schema object by searching recursively through the schema's fields
   const resolveNamedType = (typeName, schema) => {
-    if (typeof typeName !== "string") return null;
+    if (typeof typeName !== "string" || AVRO_PRIMITIVE_TYPES.has(typeName)) {
+      return null;
+    }
 
     const find = (fields) => {
       for (const field of fields) {

@@ -141,7 +141,7 @@ const ListConditionPopover = ({
 
       try {
         // Update in the database using Redux action
-        await putElement({
+        const result = await putElement({
           name: listVar.name,
           data: {
             listCondition: updatedListCondition,
@@ -149,6 +149,8 @@ const ListConditionPopover = ({
           },
           elements: "listVariables",
         });
+        // The base query already shows the error; stay in edit mode
+        if ("error" in result) return;
 
         // Update in the context (local state) - this will trigger a re-render
         setCustomListVariables((prev: any) => {

@@ -71,6 +71,41 @@ def test_fetch_group_exclude_users(super_admin_token, public_group):
     assert "users" not in data["data"]
 
 
+def test_fetch_group_users_omits_contact_details(view_only_token, public_group):
+    status, data = api(
+        "GET",
+        f"groups/{public_group.id}?includeGroupUsers=true",
+        token=view_only_token,
+    )
+    assert status == 200
+    assert "group_users" not in data["data"]
+    assert len(data["data"]["users"]) > 0
+    for user in data["data"]["users"]:
+        assert not {"contact_email", "contact_phone", "oauth_uid"} & set(user)
+
+
+def test_fetch_group_hides_filters_from_non_members(
+    view_only_token_no_groups, view_only_token, public_filter
+):
+    status, data = api(
+        "GET", f"groups/{public_filter.group_id}", token=view_only_token_no_groups
+    )
+    assert status == 200
+    assert public_filter.id not in [f["id"] for f in data["data"]["filters"]]
+    assert len(data["data"]["streams"]) > 0
+    for stream in data["data"]["streams"]:
+        assert set(stream) == {"id", "name"}
+
+    status, data = api(
+        "GET", f"filters/{public_filter.id}", token=view_only_token_no_groups
+    )
+    assert status != 200
+
+    status, data = api("GET", f"groups/{public_filter.group_id}", token=view_only_token)
+    assert status == 200
+    assert public_filter.id in [f["id"] for f in data["data"]["filters"]]
+
+
 def test_token_user_request_all_groups(super_admin_token, super_admin_user):
     group_name = str(uuid.uuid4())
     status, data = api(
@@ -177,6 +212,51 @@ def test_add_delete_stream_group(
         token=super_admin_token,
     )
     assert status == 200
+
+
+def test_add_stream_to_group_ignores_system_admins_without_stream_access(
+    super_admin_token, public_group_no_streams, public_stream
+):
+    import sqlalchemy as sa
+
+    from skyportal.models import DBSession, Role
+    from skyportal.tests.fixtures import UserFactory
+
+    super_admin_role = (
+        DBSession().scalars(sa.select(Role).where(Role.id == "Super admin")).first()
+    )
+    admin = UserFactory(groups=[public_group_no_streams], roles=[super_admin_role])
+    admin_id = admin.id
+    member = None
+    try:
+        status, data = api(
+            "POST",
+            f"groups/{public_group_no_streams.id}/streams",
+            data={"stream_id": public_stream.id},
+            token=super_admin_token,
+        )
+        assert status == 200
+        status, data = api(
+            "DELETE",
+            f"groups/{public_group_no_streams.id}/streams/{public_stream.id}",
+            token=super_admin_token,
+        )
+        assert status == 200
+
+        member = UserFactory(groups=[public_group_no_streams])
+        status, data = api(
+            "POST",
+            f"groups/{public_group_no_streams.id}/streams",
+            data={"stream_id": public_stream.id},
+            token=super_admin_token,
+        )
+        assert status == 403
+        assert member.username in data["message"]
+        assert admin.username not in data["message"]
+    finally:
+        if member is not None:
+            UserFactory.teardown(member.id)
+        UserFactory.teardown(admin_id)
 
 
 def test_non_su_add_stream_to_group(

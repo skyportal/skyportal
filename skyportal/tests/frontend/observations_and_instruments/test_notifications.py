@@ -150,13 +150,15 @@ def test_group_admission_requests_notifications(
     page.locator(
         f'//*[@data-testid="requestAdmissionButton{public_group2.id}"]'
     ).first.click()
+    page.get_by_label("Why do you want to join?").fill("Testing notifications")
+    page.locator('//*[@data-testid="submitAdmissionRequestButton"]').first.click()
     expect(
         page.locator(
             f'//*[@data-testid="deleteAdmissionRequestButton{public_group2.id}"]'
         ).first
     ).to_be_visible()
     page.goto(f"/become_user/{super_admin_user.id}")
-    page.goto(f"/group/{public_group2.id}")
+    page.goto(f"/group/{public_group2.id}?tab=admissions")
     page.locator('//*[@data-testid="notificationsButton"]').first.click()
     expect(
         page.locator('//*[text()="New Group Admission Request from "]').first
@@ -167,9 +169,11 @@ def test_group_admission_requests_notifications(
     ).to_be_hidden()
 
     filter_for_value(page, user.username, last=True)
-    expect(page.locator('//div[text()="pending"]').first).to_be_visible()
+    expect(page.locator('//span[text()="pending"]').first).to_be_visible()
     page.locator(f'//*[@data-testid="acceptRequestButton{user.id}"]').first.click()
-    expect(page.locator('//div[text()="accepted"]').first).to_be_visible()
+    page.get_by_label("Show accepted").check()
+    expect(page.locator('//span[text()="accepted"]').first).to_be_visible()
+    page.get_by_role("tab", name="Members", exact=True).click()
     expect(page.locator(f'//a[text()="{user.username}"]').first).to_be_visible()
 
     page.goto(f"/become_user/{user.id}")
@@ -461,7 +465,17 @@ def test_notification_setting_select(page, user):
 
     _enable_switch(page, "mention")
 
-    page.locator('//*[@name="notification_settings_button_mention"]').first.click()
+    def _pill(channel):
+        return page.locator(f'//*[@data-testid="channel-mention-{channel}"]').first
+
+    def _pressed(channel):
+        return page.locator(
+            f'//*[@data-testid="channel-mention-{channel}" and @aria-pressed="true"]'
+        ).first
+
+    def _set_up(kind, value):
+        page.locator(f'//*[@data-testid="{kind}_input"]').first.fill(value)
+        page.locator(f'//*[@data-testid="{kind}_save_button"]').first.click()
 
     def _enable_setting(name):
         # wait for each save: the switch flips optimistically, before the PATCH lands
@@ -475,16 +489,20 @@ def test_notification_setting_select(page, user):
             ).first
         ).to_be_visible()
 
-    _enable_setting("email")
-    _enable_setting("slack")
-    # sms toggle reveals further sms options
+    # the user has a contact email, so email turns on right away
     with _profile_patch(page):
-        page.locator('//*[@name="sms"]').first.click()
-    expect(
-        page.locator(
-            '//*[@name="sms" and contains(@class, "MuiSwitch-input")]/../../span[contains(@class,"Mui-checked")]'
-        ).first
-    ).to_be_visible()
+        _pill("email").click()
+    expect(_pressed("email")).to_be_visible()
+
+    # slack and sms are not set up yet: their pill asks for the setup first
+    _pill("slack").click()
+    _set_up("slack", "https://hooks.slack.com/services/T000/B000/test")
+    expect(_pressed("slack")).to_be_visible()
+
+    _pill("sms").click()
+    _set_up("phone", "+16125550142")
+    expect(_pressed("sms")).to_be_visible()
+
     _enable_setting("on_shift_sms")
     _enable_setting("time_slot_sms")
 
@@ -532,10 +550,9 @@ def test_notification_setting_select(page, user):
             '//*[@name="mention"]/../../span[contains(@class,"Mui-checked")]'
         ).first
     ).to_be_visible()
-
-    page.locator('//*[@name="notification_settings_button_mention"]').first.click()
-
-    for name in ("email", "slack", "sms", "on_shift_sms", "time_slot_sms"):
+    for channel in ("email", "slack", "sms"):
+        expect(_pressed(channel)).to_be_visible()
+    for name in ("on_shift_sms", "time_slot_sms"):
         expect(
             page.locator(
                 f'//*[@name="{name}" and contains(@class, "MuiSwitch-input")]/../../span[contains(@class,"Mui-checked")]'

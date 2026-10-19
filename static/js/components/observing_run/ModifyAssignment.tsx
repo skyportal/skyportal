@@ -12,6 +12,7 @@ import utc from "dayjs/plugin/utc";
 import { showNotification } from "baselayer/components/Notifications";
 import Button from "../Button";
 import { useEditAssignmentMutation } from "../../ducks/source";
+import { useAppDispatch } from "../../types/hooks";
 
 dayjs.extend(utc);
 
@@ -46,6 +47,7 @@ const ModifyAssignment = ({
   onClose = null,
 }: ModifyAssignmentProps) => {
   const [editAssignment] = useEditAssignmentMutation();
+  const dispatch = useAppDispatch();
   const { classes } = useStyles();
 
   const { handleSubmit, getValues, reset, register, control } = useForm();
@@ -77,7 +79,7 @@ const ModifyAssignment = ({
     editAssignment({ params: formData, assignmentID: assignment.id })
       .unwrap()
       .then(() => {
-        showNotification("Assignment updated successfully", "success");
+        dispatch(showNotification("Assignment updated successfully"));
         if (typeof onClose === "function") {
           onClose();
         }

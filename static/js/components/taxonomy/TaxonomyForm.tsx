@@ -106,16 +106,16 @@ const TaxonomyForm = ({ onClose, taxonomyId = null }: TaxonomyFormProps) => {
 
   return (
     <>
+      <GroupShareSelect
+        groupList={groups}
+        setGroupIDs={setSelectedGroupIds}
+        groupIDs={selectedGroupIds}
+      />
       <Form
         schema={taxonomyFormSchema as any}
         validator={validator}
         onSubmit={handleSubmit as any}
         customValidate={validate}
-      />
-      <GroupShareSelect
-        groupList={groups}
-        setGroupIDs={setSelectedGroupIds}
-        groupIDs={selectedGroupIds}
       />
     </>
   );

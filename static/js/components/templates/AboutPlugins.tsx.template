@@ -100,6 +100,10 @@ const AboutPlugins = () => {
         <code>v{version}</code>.
       </Typography>
       <Typography variant="body1">
+        See the <Link to="/deployments">deployment history</Link> for what
+        changed and when.
+      </Typography>
+      <Typography variant="body1">
         {{ jsx(app.about.description) }}
       </Typography>
 {%- for paragraph in app.about.extra_paragraphs %}

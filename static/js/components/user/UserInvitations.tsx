@@ -1,19 +1,20 @@
 import { useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 
-import Paper from "@mui/material/Paper";
 import Chip from "@mui/material/Chip";
+import TextField from "@mui/material/TextField";
 import Typography from "@mui/material/Typography";
-import TextareaAutosize from "@mui/material/TextareaAutosize";
 import Box from "@mui/material/Box";
 import Select from "@mui/material/Select";
 import MenuItem from "@mui/material/MenuItem";
+import FormControlLabel from "@mui/material/FormControlLabel";
+import Switch from "@mui/material/Switch";
+import { alpha } from "@mui/material/styles";
 import SearchableSelect from "../SearchableSelect";
 import AddCircleIcon from "@mui/icons-material/AddCircle";
 import EditIcon from "@mui/icons-material/Edit";
 import ContentCopyIcon from "@mui/icons-material/ContentCopy";
 import DeleteIcon from "@mui/icons-material/Delete";
-import FilterListIcon from "@mui/icons-material/FilterList";
 import IconButton from "@mui/material/IconButton";
 import Dialog from "@mui/material/Dialog";
 import DialogContent from "@mui/material/DialogContent";
@@ -21,8 +22,6 @@ import DialogTitle from "@mui/material/DialogTitle";
 import { DatePicker } from "@mui/x-date-pickers/DatePicker";
 import Tooltip from "@mui/material/Tooltip";
 import HelpIcon from "@mui/icons-material/Help";
-import Form from "@rjsf/mui";
-import validator from "@rjsf/validator-ajv8";
 import PapaParse from "papaparse";
 
 import dayjs from "dayjs";
@@ -30,10 +29,13 @@ import utc from "dayjs/plugin/utc";
 
 import { showNotification } from "baselayer/components/Notifications";
 import Button from "../Button";
-import StyledDataGrid, { DataGridToolbar } from "../StyledDataGrid";
+import ExpandableCell from "../ExpandableCell";
+import StyledDataGrid, {
+  DataGridToolbar,
+  FULL_PAGE_HEIGHT_WITH_TABS,
+} from "../StyledDataGrid";
 import FormValidationError from "../FormValidationError";
 import ConfirmDeletionDialog from "../ConfirmDeletionDialog";
-import { useGetProfileQuery } from "../../ducks/profile";
 import { useGetConfigQuery } from "../../ducks/config";
 import { useGetGroupsQuery } from "../../ducks/groups";
 import { useGetStreamsQuery } from "../../ducks/streams";
@@ -46,9 +48,6 @@ import {
 import { useAppDispatch } from "../../types/hooks";
 
 dayjs.extend(utc);
-
-const PAGE_SIZE_OPTIONS = [10, 25, 50, 100, 200];
-const DEFAULT_NUM_PER_PAGE = 25;
 
 const SAMPLE_CSV_TEXT = `example1@gmail.com,1,3,false
 example2@gmail.com,1 2 3,2 5 9,false false true`;
@@ -75,119 +74,190 @@ const chipCellSx = {
   ".MuiDataGrid-cell:hover & > .MuiIconButton-root": { display: "inline-flex" },
 } as const;
 
+const expiredSx = (theme: any) => ({
+  "& .expired": { bgcolor: alpha(theme.palette.error.main, 0.08) },
+  "& .expired:hover": { bgcolor: alpha(theme.palette.error.main, 0.14) },
+  "& .expired-date": { color: "error.main" },
+});
+
+const formatDate = (date?: string) =>
+  date ? dayjs.utc(date).format("YYYY/MM/DD") : "";
+
+const isPast = (date: any) => !!date && dayjs.utc(date).isBefore(dayjs.utc());
+
+const parseList = (value: string, options?: any) =>
+  PapaParse.parse(value.trim(), { delimiter: " ", ...options }).data[0];
+
+const parseCsv = (csv: string) =>
+  PapaParse.parse(csv.trim(), { delimiter: ",", skipEmptyLines: "greedy" })
+    .data as any[];
+
+const validateBulkInvite = (csv: string) => {
+  const rows = parseCsv(csv);
+  if (!rows.length) return "Please enter at least one invitation";
+  const invalid = rows.find(
+    (row) =>
+      row.length < 4 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(row[0].trim()),
+  );
+  return invalid ? `Invalid line: ${invalid.join(",")}` : true;
+};
+
 const renderExpirationDateHeader = () => (
-  <Box sx={{ display: "flex", alignItems: "center" }}>
-    Expiration Date
+  <Box sx={{ display: "flex", alignItems: "center", fontWeight: 600 }}>
+    Account Expiration
     <Tooltip title="This is the expiration date assigned to the new user account. On this date, the user account will be deactivated and will be unable to access the application.">
       <HelpIcon color="disabled" sx={{ height: "1rem" }} />
     </Tooltip>
   </Box>
 );
 
-const InvitationsToolbar = ({
-  filters,
-  onOpenFilters,
-  onDeleteFilter,
-}: any) => (
-  <DataGridToolbar title="Pending Invitations" showQuickFilter={false}>
-    <Tooltip title="Filter Table">
-      <IconButton size="small" onClick={onOpenFilters}>
-        <FilterListIcon />
-      </IconButton>
-    </Tooltip>
-    {filters.map((chip: string) => (
-      <Chip
-        key={chip}
-        label={chip}
-        size="small"
-        onDelete={() => onDeleteFilter(chip)}
-      />
-    ))}
+const InvitationsToolbar = ({ showExpired, onToggleExpired }: any) => (
+  <DataGridToolbar title="Pending Invitations" showFilter showExpandAll>
+    <FormControlLabel
+      control={
+        <Switch
+          checked={showExpired}
+          onChange={onToggleExpired}
+          color="primary"
+          data-testid="showExpiredInvitationsToggle"
+        />
+      }
+      label="Show Expired Invitations"
+      sx={{ mr: 2 }}
+    />
   </DataGridToolbar>
+);
+
+const EditableCell = ({ children, onEdit, ...buttonProps }: any) => (
+  <Box sx={cellSx}>
+    {children}
+    <IconButton size="small" onClick={onEdit} sx={{ p: 0 }} {...buttonProps}>
+      <EditIcon color="disabled" sx={{ fontSize: "1.125rem" }} />
+    </IconButton>
+  </Box>
+);
+
+const EntitiesCell = ({ kind, invitation, onAdd, onDelete }: any) => {
+  const { field, singular } = ENTITIES[kind as EntityKind];
+  return (
+    <Box sx={chipCellSx}>
+      <IconButton
+        aria-label={`add-invitation-${field}`}
+        data-testid={`addInvitation${kind}Button${invitation.user_email}`}
+        onClick={onAdd}
+        size="small"
+        sx={{ p: 0.375 }}
+      >
+        <AddCircleIcon color="disabled" sx={{ fontSize: "1.125rem" }} />
+      </IconButton>
+      <ExpandableCell
+        items={(invitation[field] ?? []).map((entity: any) => (
+          <Chip
+            label={entity.name}
+            onDelete={() => onDelete(entity.id)}
+            key={entity.id}
+            id={`invitation${singular}Chip_${invitation.id}_${entity.id}`}
+          />
+        ))}
+      />
+    </Box>
+  );
+};
+
+const FormDialog = ({
+  title,
+  onSubmit,
+  submitProps,
+  children,
+  ...dialogProps
+}: any) => (
+  <Dialog {...dialogProps}>
+    <DialogTitle>{title}</DialogTitle>
+    <DialogContent>
+      <Box
+        component="form"
+        onSubmit={onSubmit}
+        sx={{ display: "flex", flexDirection: "column", gap: 2, mt: 1 }}
+      >
+        {children}
+        <Button
+          primary
+          type="submit"
+          sx={{ alignSelf: "flex-start" }}
+          {...submitProps}
+        >
+          Submit
+        </Button>
+      </Box>
+    </DialogContent>
+  </Dialog>
 );
 
 const AddEntitiesDialog = ({
   kind,
-  open,
-  onClose,
-  email,
-  options,
+  invitation,
+  entities,
   control,
   error,
-  onSubmit,
+  ...dialogProps
 }: any) => {
-  const singular = ENTITIES[kind as EntityKind].singular.toLowerCase();
+  const { field, singular } = ENTITIES[kind as EntityKind];
+  const noun = singular.toLowerCase();
   return (
-    <Dialog open={open} onClose={onClose}>
-      <DialogTitle>
-        {`Add selected ${singular}s to invitation for ${email}:`}
-      </DialogTitle>
-      <DialogContent>
-        <Box
-          component="form"
-          onSubmit={onSubmit}
-          sx={{ display: "flex", flexDirection: "column", gap: 2, mt: 1 }}
-        >
-          {error && (
-            <FormValidationError
-              message={`Please select at least one ${singular}`}
-            />
-          )}
-          <Controller
-            name={`invitation${kind}`}
-            control={control}
-            rules={{ validate: (value: any) => value.length >= 1 }}
-            defaultValue={[]}
-            render={({ field: { onChange, value } }) => (
-              <SearchableSelect
-                multiple
-                label={`Select ${kind}`}
-                value={value}
-                onChange={(_e, data) => onChange(data)}
-                options={options}
-                getOptionLabel={(entity: any) => entity.name}
-                filterSelectedOptions
-                error={error}
-                data-testid={`addInvitation${kind}Select`}
-              />
+    <FormDialog
+      title={`Add selected ${noun}s to invitation for ${invitation?.user_email}:`}
+      submitProps={{ "data-testid": `submitAddInvitation${kind}Button` }}
+      {...dialogProps}
+    >
+      {error && (
+        <FormValidationError message={`Please select at least one ${noun}`} />
+      )}
+      <Controller
+        name={`invitation${kind}`}
+        control={control}
+        rules={{ validate: (value: any) => value.length >= 1 }}
+        defaultValue={[]}
+        render={({ field: { onChange, value } }) => (
+          <SearchableSelect
+            multiple
+            label={`Select ${kind}`}
+            value={value}
+            onChange={(_e, data) => onChange(data)}
+            options={entities.filter(
+              (entity: any) =>
+                !invitation?.[field]?.some((e: any) => e.id === entity.id),
             )}
+            getOptionLabel={(entity: any) => entity.name}
+            filterSelectedOptions
+            error={error}
+            data-testid={`addInvitation${kind}Select`}
           />
-          <Box>
-            <Button
-              primary
-              type="submit"
-              data-testid={`submitAddInvitation${kind}Button`}
-            >
-              Submit
-            </Button>
-          </Box>
-        </Box>
-      </DialogContent>
-    </Dialog>
+        )}
+      />
+    </FormDialog>
   );
 };
 
-const UserInvitations = () => {
+const UserInvitations = ({
+  bulkInviteOpen,
+  onCloseBulkInvite,
+}: {
+  bulkInviteOpen: boolean;
+  onCloseBulkInvite: () => void;
+}) => {
   const dispatch = useAppDispatch();
-  const { data: currentUser } = useGetProfileQuery();
   const { data: streams } = useGetStreamsQuery();
   const allGroups = useGetGroupsQuery().data?.all;
-  // Invite links must name a backend; offer the first configured one.
-  const authBackends = (useGetConfigQuery().data as any)?.authBackends ?? [];
-  const [rowsPerPage, setRowsPerPage] = useState(DEFAULT_NUM_PER_PAGE);
-  const [fetchParams, setFetchParams] = useState<any>({
-    pageNumber: 1,
-    numPerPage: DEFAULT_NUM_PER_PAGE,
-  });
-  const { data: invitationsData } = useGetInvitationsQuery(fetchParams);
+  const config = useGetConfigQuery().data as any;
+  const { data: invitationsData, isFetching: invitationsFetching } =
+    useGetInvitationsQuery();
   const [inviteUser] = useInviteUserMutation();
   const [updateInvitation] = useUpdateInvitationMutation();
   const [deleteInvitation] = useDeleteInvitationMutation();
-  const [csvData, setCsvData] = useState("");
-  const [tableFilterList, setTableFilterList] = useState<string[]>([]);
-  const [filterOpen, setFilterOpen] = useState(false);
+  const [showExpired, setShowExpired] = useState(false);
   const [openDialog, setOpenDialog] = useState<string | null>(null);
   const [clickedInvitation, setClickedInvitation] = useState<any>(null);
+  const [columnVisibility, setColumnVisibility] = useState<any>(null);
 
   const {
     handleSubmit,
@@ -196,32 +266,54 @@ const UserInvitations = () => {
     formState: { errors },
   } = useForm();
 
-  if (!allGroups?.length || !streams) return null;
-
-  if (
-    !currentUser?.permissions?.includes("System admin") &&
-    !currentUser?.permissions?.includes("Manage users")
-  )
-    return <div>Access denied: Insufficient permissions.</div>;
+  if (!allGroups || !streams || !config) return null;
 
   const groups = allGroups.filter((group) => !group["single_user_group"]);
+  const closeDialog = () => setOpenDialog(null);
+
+  const isLinkExpired = (invitation: any) =>
+    isPast(
+      dayjs
+        .utc(invitation.created_at)
+        .add(config.invitationsDaysUntilExpiry, "day"),
+    );
+  const isAccountExpired = (invitation: any) =>
+    isPast(invitation.user_expiration_date);
+  const isExpired = (invitation: any) =>
+    isLinkExpired(invitation) || isAccountExpired(invitation);
+
+  const invitations = invitationsData?.invitations ?? [];
+  const rows = showExpired
+    ? invitations
+    : invitations.filter((invitation) => !isExpired(invitation));
+
+  const runAndNotify = async (
+    action: () => Promise<unknown>,
+    message: string,
+  ) => {
+    try {
+      await action();
+      dispatch(showNotification(message));
+      return true;
+    } catch {
+      // error notification handled by the base query
+      return false;
+    }
+  };
 
   const updateAndNotify = async (
     invitationID: any,
     payload: any,
-    message = "Invitation successfully updated.",
     resetValues?: any,
+    message = "Invitation successfully updated.",
   ) => {
-    try {
-      await updateInvitation({ invitationID, payload }).unwrap();
-      dispatch(showNotification(message));
-      if (resetValues) {
-        reset(resetValues);
-        setOpenDialog(null);
-        setClickedInvitation(null);
-      }
-    } catch {
-      // error notification handled by the base query
+    const updated = await runAndNotify(
+      () => updateInvitation({ invitationID, payload }).unwrap(),
+      message,
+    );
+    if (updated && resetValues) {
+      reset(resetValues);
+      closeDialog();
     }
   };
 
@@ -243,7 +335,6 @@ const UserInvitations = () => {
     return updateAndNotify(
       clickedInvitation.id,
       { [payloadKey]: [...ids] },
-      undefined,
       { [`invitation${kind}`]: [] },
     );
   };
@@ -252,7 +343,6 @@ const UserInvitations = () => {
     updateAndNotify(
       clickedInvitation.id,
       { role: formData.invitationRole },
-      undefined,
       { invitationRole: "" },
     );
 
@@ -269,85 +359,43 @@ const UserInvitations = () => {
     return updateAndNotify(
       clickedInvitation.id,
       { userExpirationDate: dayjs.utc(formData.date).toISOString() },
-      "User expiration date successfully updated.",
       { date: null },
+      "User expiration date successfully updated.",
     );
   };
 
-  const handleDeleteInvitation = async () => {
-    setOpenDialog(null);
-    try {
-      await deleteInvitation(clickedInvitation.id).unwrap();
-      dispatch(showNotification("Invitation successfully deleted."));
-    } catch {
-      // error notification handled by the base query
-    }
+  const handleDeleteInvitation = () => {
+    closeDialog();
+    return runAndNotify(
+      () => deleteInvitation(clickedInvitation.id).unwrap(),
+      "Invitation successfully deleted.",
+    );
   };
 
-  const handleClickAddUsers = async () => {
-    const parseList = (value: string, options?: any) =>
-      PapaParse.parse(value.trim(), { delimiter: " ", ...options }).data[0];
-    const rows = PapaParse.parse(csvData.trim(), {
-      delimiter: ",",
-      skipEmptyLines: "greedy",
-    }).data as any[];
-    try {
-      await Promise.all(
-        rows.map((row: any) =>
-          inviteUser({
-            userEmail: row[0].trim(),
-            streamIDs: parseList(row[1]),
-            groupIDs: parseList(row[2]),
-            groupAdmin: parseList(row[3], {
-              dynamicTyping: true,
-              quotes: false,
-            }),
-            userExpirationDate: row[4]?.trim(),
-          }).unwrap(),
+  const handleBulkInvite = async (formData: any) => {
+    const lines = parseCsv(formData.bulkInviteCSV);
+    const invited = await runAndNotify(
+      () =>
+        Promise.all(
+          lines.map((row) =>
+            inviteUser({
+              userEmail: row[0].trim(),
+              streamIDs: parseList(row[1]),
+              groupIDs: parseList(row[2]),
+              groupAdmin: parseList(row[3], {
+                dynamicTyping: true,
+                quotes: false,
+              }),
+              userExpirationDate: row[4]?.trim(),
+            }).unwrap(),
+          ),
         ),
-      );
-      dispatch(showNotification("User(s) invitation(s) successfully created."));
-      setCsvData("");
-    } catch {
-      // error notification handled by the base query
+      "User(s) invitation(s) successfully created.",
+    );
+    if (invited) {
+      reset({ bulkInviteCSV: "" });
+      onCloseBulkInvite();
     }
-  };
-
-  const handleFilterSubmit = (formData: any) => {
-    Object.keys(formData).forEach(
-      (key) => !formData[key] && delete formData[key],
-    );
-    setTableFilterList(
-      Object.entries(formData).map(([key, value]) => `${key}: ${value}`),
-    );
-    setFetchParams({
-      pageNumber: 1,
-      numPerPage: fetchParams.numPerPage,
-      ...formData,
-    });
-    setFilterOpen(false);
-  };
-
-  const handleFilterChipDelete = (chip: string) => {
-    const data: any = {};
-    tableFilterList
-      .filter((c) => c !== chip)
-      .forEach((filterChip) => {
-        const [key, value] = filterChip.split(": ");
-        if (key) {
-          data[key] = value;
-        }
-      });
-    handleFilterSubmit(data);
-  };
-
-  const handlePaginationModelChange = (model: any) => {
-    setRowsPerPage(model.pageSize);
-    setFetchParams({
-      ...fetchParams,
-      numPerPage: model.pageSize,
-      pageNumber: model.page + 1,
-    });
   };
 
   const openInvitationDialog = (invitation: any, dialog: string) => {
@@ -356,9 +404,8 @@ const UserInvitations = () => {
   };
 
   const handleCopyInvitationLink = (invitation: any) => {
-    const appBaseUrl = `${window.location.protocol}//${window.location.host}`;
     navigator.clipboard.writeText(
-      `${appBaseUrl}/login/${authBackends[0]?.name}/?invite_token=${invitation.token}`,
+      `${window.location.origin}/login/${config.authBackends?.[0]?.name}/?invite_token=${invitation.token}`,
     );
     dispatch(
       showNotification(
@@ -368,340 +415,241 @@ const UserInvitations = () => {
     );
   };
 
-  const renderActions = ({ row: invitation }: any) => (
-    <Box sx={cellSx}>
-      <Tooltip title="Copy invitation link to clipboard">
-        <IconButton
-          aria-label="copy-invitation-link"
-          onClick={() => handleCopyInvitationLink(invitation)}
-          size="small"
-        >
-          <ContentCopyIcon />
-        </IconButton>
-      </Tooltip>
-      <IconButton
-        aria-label="delete-invitation"
-        data-testid={`deleteInvitation_${invitation.user_email}`}
-        onClick={() => openInvitationDialog(invitation, "delete")}
-        size="small"
-      >
-        <DeleteIcon />
-      </IconButton>
-    </Box>
-  );
-
-  const renderRole = ({ row: invitation }: any) => (
-    <Box sx={cellSx}>
-      {invitation.role_id}
-      <IconButton
-        aria-label="edit-invitation-role"
-        data-testid={`editInvitationRoleButton${invitation.user_email}`}
-        onClick={() => openInvitationDialog(invitation, "role")}
-        size="small"
-      >
-        <EditIcon color="disabled" />
-      </IconButton>
-    </Box>
-  );
-
-  const renderEntities = (kind: EntityKind, invitation: any) => {
-    const { field, singular } = ENTITIES[kind];
-    return (
-      <Box sx={chipCellSx}>
-        <IconButton
-          aria-label={`add-invitation-${field}`}
-          data-testid={`addInvitation${kind}Button${invitation.user_email}`}
-          onClick={() => openInvitationDialog(invitation, field)}
-          size="small"
-          sx={{ p: 0.375 }}
-        >
-          <AddCircleIcon color="disabled" sx={{ fontSize: "1.125rem" }} />
-        </IconButton>
-        {invitation[field]?.map((entity: any) => (
-          <Chip
-            label={entity.name}
-            onDelete={() => handleDeleteEntity(invitation, kind, entity.id)}
-            key={entity.id}
-            id={`invitation${singular}Chip_${invitation.id}_${entity.id}`}
-          />
-        ))}
-      </Box>
-    );
-  };
-
-  const renderExpirationDate = ({ row: invitation }: any) => (
-    <Box
-      sx={{
-        ...cellSx,
-        color: dayjs.utc().isAfter(invitation.user_expiration_date)
-          ? "red"
-          : undefined,
-      }}
-    >
-      {invitation.user_expiration_date
-        ? dayjs.utc(invitation.user_expiration_date).format("YYYY/MM/DD")
-        : ""}
-      <IconButton
-        aria-label="edit-expiration"
-        onClick={() => openInvitationDialog(invitation, "date")}
-        size="small"
-      >
-        <EditIcon color="disabled" />
-      </IconButton>
-    </Box>
-  );
+  const entitiesColumn = (kind: EntityKind) => ({
+    field: ENTITIES[kind].field,
+    headerName: kind,
+    minWidth: 220,
+    valueGetter: (value: any[]) =>
+      value?.map((entity) => entity.name).join(", "),
+    renderCell: ({ row }: any) => (
+      <EntitiesCell
+        kind={kind}
+        invitation={row}
+        onAdd={() => openInvitationDialog(row, ENTITIES[kind].field)}
+        onDelete={(id: any) => handleDeleteEntity(row, kind, id)}
+      />
+    ),
+  });
 
   const columns: any[] = [
     { field: "user_email", headerName: "Invitee Email", minWidth: 180 },
     {
-      field: "role",
+      field: "role_id",
       headerName: "Role",
-      minWidth: 120,
-      renderCell: renderRole,
+      minWidth: 150,
+      renderCell: ({ row }: any) => (
+        <EditableCell
+          aria-label="edit-invitation-role"
+          data-testid={`editInvitationRoleButton${row.user_email}`}
+          onEdit={() => openInvitationDialog(row, "role")}
+        >
+          <Chip label={row.role_id} />
+        </EditableCell>
+      ),
     },
-    {
-      field: "groups",
-      headerName: "Groups",
-      minWidth: 220,
-      renderCell: ({ row }: any) => renderEntities("Groups", row),
-    },
-    {
-      field: "streams",
-      headerName: "Streams",
-      minWidth: 220,
-      renderCell: ({ row }: any) => renderEntities("Streams", row),
-    },
+    entitiesColumn("Groups"),
+    entitiesColumn("Streams"),
     {
       field: "invited_by",
       headerName: "Invited By",
       minWidth: 120,
-      valueGetter: (_value: any, row: any) => row.invited_by?.username,
+      valueGetter: (value: any) => value?.username,
+    },
+    {
+      field: "created_at",
+      headerName: "Sent At",
+      minWidth: 120,
+      valueFormatter: formatDate,
+      cellClassName: ({ row }: any) =>
+        isLinkExpired(row) ? "expired-date" : "",
     },
     {
       field: "user_expiration_date",
-      headerName: "User Expiration Date",
+      headerName: "Account Expiration",
       minWidth: 180,
       renderHeader: renderExpirationDateHeader,
-      renderCell: renderExpirationDate,
+      cellClassName: ({ row }: any) =>
+        isAccountExpired(row) ? "expired-date" : "",
+      renderCell: ({ row }: any) => (
+        <EditableCell
+          aria-label="edit-expiration"
+          onEdit={() => openInvitationDialog(row, "date")}
+        >
+          {formatDate(row.user_expiration_date)}
+        </EditableCell>
+      ),
     },
     {
       field: "actions",
       headerName: "Actions",
       minWidth: 120,
-      renderCell: renderActions,
+      sortable: false,
+      filterable: false,
+      renderCell: ({ row }: any) => (
+        <Box sx={cellSx}>
+          <Tooltip title="Copy invitation link to clipboard">
+            <IconButton
+              aria-label="copy-invitation-link"
+              onClick={() => handleCopyInvitationLink(row)}
+              size="small"
+            >
+              <ContentCopyIcon />
+            </IconButton>
+          </Tooltip>
+          <IconButton
+            aria-label="delete-invitation"
+            data-testid={`deleteInvitation_${row.user_email}`}
+            onClick={() => openInvitationDialog(row, "delete")}
+            size="small"
+          >
+            <DeleteIcon />
+          </IconButton>
+        </Box>
+      ),
     },
-  ].map((column: any) => ({
-    flex: 1,
-    sortable: false,
-    filterable: false,
-    ...column,
-  }));
-
-  const filterFormSchema = {
-    type: "object",
-    properties: {
-      email: { type: "string", title: "Email" },
-      group: {
-        title: "Group",
-        type: "string",
-        enum: groups.map((group) => group.name),
-      },
-      stream: {
-        title: "Stream",
-        type: "string",
-        enum: streams.map((stream: any) => stream.name),
-      },
-      invitedBy: { type: "string", title: "Invited by" },
-    },
-  };
+  ].map((column) => ({ flex: 1, ...column }));
 
   return (
-    <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
+    <>
       <Box data-testid="pendingInvitations">
         <StyledDataGrid
-          autoHeight
+          height={FULL_PAGE_HEIGHT_WITH_TABS}
           columns={columns}
-          rows={invitationsData?.invitations || []}
-          getRowId={(row: any) => row.id}
+          rows={rows}
           getRowHeight={() => "auto"}
-          paginationMode="server"
-          sortingMode="server"
-          rowCount={invitationsData?.totalMatches ?? 0}
-          paginationModel={{
-            page: fetchParams.pageNumber - 1,
-            pageSize: rowsPerPage,
+          columnVisibilityModel={
+            columnVisibility ?? {
+              user_expiration_date: rows.some(
+                (row) => row.user_expiration_date,
+              ),
+            }
+          }
+          onColumnVisibilityModelChange={setColumnVisibility}
+          getRowClassName={({ row }: any) => (isExpired(row) ? "expired" : "")}
+          loading={invitationsFetching}
+          initialState={{
+            sorting: { sortModel: [{ field: "created_at", sort: "desc" }] },
           }}
-          onPaginationModelChange={handlePaginationModelChange}
-          pageSizeOptions={PAGE_SIZE_OPTIONS}
-          disableColumnFilter
           slots={{ toolbar: InvitationsToolbar }}
           slotProps={{
             toolbar: {
-              filters: tableFilterList,
-              onOpenFilters: () => setFilterOpen(true),
-              onDeleteFilter: handleFilterChipDelete,
+              showExpired,
+              onToggleExpired: () => setShowExpired(!showExpired),
             },
           }}
           showToolbar
+          sx={expiredSx}
         />
       </Box>
-      <Paper
-        variant="outlined"
-        sx={{
-          p: 2,
-          display: "flex",
-          flexDirection: "column",
-          alignItems: "flex-start",
-          gap: 2,
-        }}
+      <FormDialog
+        open={bulkInviteOpen}
+        onClose={onCloseBulkInvite}
+        fullWidth
+        title="Bulk invite new users"
+        onSubmit={handleSubmit(handleBulkInvite)}
+        submitProps={{ "data-testid": "bulkAddUsersButton" }}
       >
-        <Typography variant="h6">Bulk Invite New Users</Typography>
-        <Box>
-          <Typography variant="body2" sx={{ fontFamily: "monospace" }}>
-            email,streamIDs,groupIDs,groupAdmin,expirationDate
-          </Typography>
-          <Typography variant="caption" color="text.secondary">
-            One invitation per line, no space after the commas. Stream IDs,
-            group IDs and the true/false admin flags are space-separated lists;
-            the expiration date is optional.
-          </Typography>
-        </Box>
-        <TextareaAutosize
-          placeholder={SAMPLE_CSV_TEXT}
-          name="bulkInviteCSVInput"
-          style={{ height: "15rem", width: "50rem" }}
-          onChange={(e) => setCsvData(e.target.value)}
-          value={csvData}
-        />
-        <Button
-          secondary
-          data-testid="bulkAddUsersButton"
-          onClick={handleClickAddUsers}
-        >
-          Add Users
-        </Button>
-      </Paper>
-      <Dialog open={filterOpen} onClose={() => setFilterOpen(false)} fullWidth>
-        <DialogContent>
-          <Form
-            schema={filterFormSchema as any}
-            validator={validator}
-            onSubmit={
-              (({ formData }: { formData: any }) => {
-                handleFilterSubmit(formData);
-              }) as any
-            }
+        <Typography variant="caption" sx={{ color: "text.secondary" }}>
+          One invitation per line, no space after the commas. Stream IDs, group
+          IDs and the true/false admin flags are space-separated lists; the
+          expiration date is optional.
+        </Typography>
+        {!!errors["bulkInviteCSV"] && (
+          <FormValidationError
+            message={String(errors["bulkInviteCSV"].message)}
           />
-        </DialogContent>
-      </Dialog>
-      <AddEntitiesDialog
-        kind="Groups"
-        open={openDialog === "groups"}
-        onClose={() => setOpenDialog(null)}
-        email={clickedInvitation?.user_email}
-        options={groups.filter(
-          (group) =>
-            !clickedInvitation?.groups?.some((g: any) => g.id === group.id),
         )}
-        control={control}
-        error={!!errors["invitationGroups"]}
-        onSubmit={handleSubmit(handleAddEntities("Groups"))}
-      />
-      <AddEntitiesDialog
-        kind="Streams"
-        open={openDialog === "streams"}
-        onClose={() => setOpenDialog(null)}
-        email={clickedInvitation?.user_email}
-        options={streams.filter(
-          (stream: any) =>
-            !clickedInvitation?.streams?.some((s: any) => s.id === stream.id),
+        <Controller
+          name="bulkInviteCSV"
+          control={control}
+          rules={{ validate: validateBulkInvite }}
+          defaultValue=""
+          render={({ field: { onChange, value } }) => (
+            <TextField
+              multiline
+              minRows={8}
+              name="bulkInviteCSVInput"
+              label="email,streamIDs,groupIDs,groupAdmin,expirationDate"
+              placeholder={SAMPLE_CSV_TEXT}
+              value={value}
+              onChange={onChange}
+              error={!!errors["bulkInviteCSV"]}
+              slotProps={{
+                htmlInput: { sx: { fontFamily: "monospace" } },
+              }}
+            />
+          )}
+        />
+      </FormDialog>
+      {(["Groups", "Streams"] as const).map((kind) => (
+        <AddEntitiesDialog
+          key={kind}
+          kind={kind}
+          open={openDialog === ENTITIES[kind].field}
+          onClose={closeDialog}
+          invitation={clickedInvitation}
+          entities={kind === "Groups" ? groups : streams}
+          control={control}
+          error={!!errors[`invitation${kind}`]}
+          onSubmit={handleSubmit(handleAddEntities(kind))}
+        />
+      ))}
+      <FormDialog
+        open={openDialog === "role"}
+        onClose={closeDialog}
+        title={`Edit user role for ${clickedInvitation?.user_email}:`}
+        onSubmit={handleSubmit(handleUpdateInvitationRole)}
+        submitProps={{ "data-testid": "submitEditRoleButton" }}
+      >
+        {!!errors["invitationRole"] && (
+          <FormValidationError message="Please select one role" />
         )}
-        control={control}
-        error={!!errors["invitationStreams"]}
-        onSubmit={handleSubmit(handleAddEntities("Streams"))}
-      />
-      <Dialog open={openDialog === "role"} onClose={() => setOpenDialog(null)}>
-        <DialogTitle>
-          {`Edit user role for ${clickedInvitation?.user_email}:`}
-        </DialogTitle>
-        <DialogContent>
-          <Box
-            component="form"
-            onSubmit={handleSubmit(handleUpdateInvitationRole)}
-            sx={{ display: "flex", flexDirection: "column", gap: 2, mt: 1 }}
-          >
-            {!!errors["invitationRole"] && (
-              <FormValidationError message="Please select one role" />
-            )}
-            <Controller
-              name="invitationRole"
-              control={control}
-              rules={{ required: true }}
-              defaultValue={clickedInvitation?.role_id}
-              render={({ field: { onChange, value } }) => (
-                <Select
-                  data-testid="invitationRoleSelect"
-                  value={value}
-                  onChange={onChange}
-                >
-                  {["Full user", "View only"].map((role) => (
-                    <MenuItem key={role} value={role}>
-                      {role}
-                    </MenuItem>
-                  ))}
-                </Select>
-              )}
+        <Controller
+          name="invitationRole"
+          control={control}
+          rules={{ required: true }}
+          defaultValue={clickedInvitation?.role_id}
+          render={({ field: { onChange, value } }) => (
+            <Select
+              data-testid="invitationRoleSelect"
+              value={value}
+              onChange={onChange}
+            >
+              {["Full user", "View only"].map((role) => (
+                <MenuItem key={role} value={role}>
+                  {role}
+                </MenuItem>
+              ))}
+            </Select>
+          )}
+        />
+      </FormDialog>
+      <FormDialog
+        open={openDialog === "date"}
+        onClose={closeDialog}
+        title="Edit user expiration date:"
+        onSubmit={handleSubmit(handleEditUserExpirationDate)}
+      >
+        <Controller
+          name="date"
+          control={control}
+          defaultValue={null}
+          render={({ field: { onChange, value } }) => (
+            <DatePicker
+              value={value}
+              onChange={onChange}
+              label="Expiration date (UTC)"
             />
-            <Box>
-              <Button
-                primary
-                type="submit"
-                name="submitEditRoleButton"
-                data-testid="submitEditRoleButton"
-              >
-                Submit
-              </Button>
-            </Box>
-          </Box>
-        </DialogContent>
-      </Dialog>
-      <Dialog open={openDialog === "date"} onClose={() => setOpenDialog(null)}>
-        <DialogTitle>Edit user expiration date:</DialogTitle>
-        <DialogContent>
-          <Box
-            component="form"
-            onSubmit={handleSubmit(handleEditUserExpirationDate)}
-            sx={{ display: "flex", flexDirection: "column", gap: 2, mt: 1 }}
-          >
-            <Controller
-              render={({ field: { onChange, value } }) => (
-                <DatePicker
-                  value={value}
-                  onChange={(newValue) => onChange(newValue)}
-                  slotProps={{ textField: { variant: "outlined" } }}
-                  label="Expiration date (UTC)"
-                  {...({ showTodayButton: false } as any)}
-                />
-              )}
-              name="date"
-              control={control}
-              defaultValue={null}
-            />
-            <Box>
-              <Button primary type="submit" name="submitExpirationDateButton">
-                Submit
-              </Button>
-            </Box>
-          </Box>
-        </DialogContent>
-      </Dialog>
+          )}
+        />
+      </FormDialog>
       <ConfirmDeletionDialog
         dialogOpen={openDialog === "delete"}
-        closeDialog={() => setOpenDialog(null)}
+        closeDialog={closeDialog}
         deleteFunction={handleDeleteInvitation}
         resourceName={`invitation for ${clickedInvitation?.user_email}`}
       />
-    </Box>
+    </>
   );
 };
 

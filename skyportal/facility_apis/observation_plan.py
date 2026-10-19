@@ -152,7 +152,6 @@ class MMAAPI(FollowUpAPI):
                     "filters",
                     "maximum_airmass",
                     "integrated_probability",
-                    "galactic_latitude",
                 }
 
                 if not required_parameters.issubset(set(request.payload.keys())):
@@ -810,8 +809,9 @@ class MMAAPI(FollowUpAPI):
                                 "default": 50,
                                 "minimum": 1,
                                 "description": (
-                                    "Raising this grows the problem roughly "
-                                    "quadratically; raise the time limit with it."
+                                    "An upper bound: fewer fields are scheduled "
+                                    "when the window cannot hold this many at "
+                                    "the exposure time and visits above."
                                 ),
                             },
                         },

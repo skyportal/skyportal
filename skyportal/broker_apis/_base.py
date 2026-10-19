@@ -21,6 +21,7 @@ class _Base:
         "get_alert",
         "get_cutouts",
         "cone_search",
+        "gaia_cone_search",
         "get_filters",
         "create_filter",
         "update_filter",

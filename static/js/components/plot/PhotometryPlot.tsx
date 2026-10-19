@@ -44,7 +44,6 @@ import { useAddAnnotationMutation } from "../../ducks/source";
 import {
   photometryApi,
   useFetchSourcePhotometryQuery,
-  useLazyFetchSourcePhotometryQuery,
 } from "../../ducks/photometry";
 
 import {
@@ -79,6 +78,18 @@ import { getValidationStatus } from "../photometry/PhotometryValidation";
 import { SsoPoint } from "./ssoTransforms";
 import ScatterPlotIcon from "@mui/icons-material/ScatterPlot";
 import CornerPlot from "./CornerPlot";
+import RemovableChip from "../RemovableChip";
+
+const BAND_GROUP_ORDER = ["u", "g", "r", "i", "z", "y", "other"];
+
+// Survey-specific Sloan-like bandpasses (e.g. ztfg, sdssg, lsstg, ps1::g,
+// hsc::r2) folded onto the band they sample. Johnson-Cousins, UV and NIR
+// filters, ATLAS c/o, Gaia, clear, etc. go under "other".
+const SLOAN_LIKE =
+  /^(?:sdss|ztf|ztf::|lsst|des|skymapper|goto|csp|ps1::|hsc::|megacam6::|keplercam::)([ugrizy])\d?$/;
+
+const bandGroup = (filter: string): string =>
+  (filter || "").toLowerCase().match(SLOAN_LIKE)?.[1] ?? "other";
 
 // Dash styles cycled across overlaid model fits, with a glyph hint for the
 // toggle buttons so the button matches its line on the plot.
@@ -375,7 +386,7 @@ const PhotometryPlot = ({
 
   const { data: profile } = useGetProfileQuery();
   const { data: config } = useGetConfigQuery() as { data: any };
-  const [fetchPhotometryTrigger] = useLazyFetchSourcePhotometryQuery();
+  const dispatch = useAppDispatch();
 
   // Analysis-service model fits to overlay (self-fetched unless passed in).
   const { data: objAnalyses } = useGetAnalysesQuery({
@@ -581,9 +592,7 @@ const PhotometryPlot = ({
     }
   };
 
-  // Params for the main object's photometry query. Duplicate sources are fetched
-  // lazily with the same magsys and format.
-  const mainPhotParams = useMemo<any>(() => {
+  const photometryParams = useMemo<any>(() => {
     // "both" so the flux view can plot the measured flux. A magnitude cannot
     // express a non-detection, whose flux is at or below zero.
     const params: any = { magsys, format: "both" };
@@ -599,7 +608,7 @@ const PhotometryPlot = ({
   }, [magsys, showExtinctionCorrection, effectiveModelFits]);
 
   const { data: mainPhotometry } = useFetchSourcePhotometryQuery(
-    { id: obj_id, params: mainPhotParams },
+    { id: obj_id, params: photometryParams },
     { skip: !obj_id },
   );
 
@@ -619,14 +628,12 @@ const PhotometryPlot = ({
     associated_objs?.map((a) => a.obj_id) || [],
   );
 
-  // Read any cached photometry for the selected duplicate sources (fetched
-  // lazily below) without re-subscribing per id.
   const duplicatesPhotometryById = useAppSelector((state) => {
     const result: Record<string, any> = {};
     selectedDuplicates.forEach((dup) => {
       result[dup] = photometryApi.endpoints.fetchSourcePhotometry.select({
         id: dup,
-        params: { magsys },
+        params: photometryParams,
       })(state as any).data;
     });
     return result;
@@ -656,6 +663,9 @@ const PhotometryPlot = ({
 
   const [data, setData] = useState<any>(null);
   const [plotData, setPlotData] = useState<any>(null);
+  // Plotly toggles trace.visible in place on a legend click; bumped so the
+  // band-group chips re-read it.
+  const [, setLegendRevision] = useState(0);
 
   const [tabIndex, setTabIndex] = useState(0);
   const [markerSize, setMarkerSize] = useState<any>(6);
@@ -1133,6 +1143,7 @@ const PhotometryPlot = ({
 
           const upperLimitsTrace: any = {
             dataType: "upperLimits",
+            filter: groupedPhotometry[key][0].filter,
             isForcedPhotometry: upperLimitisFP,
             x: upperLimits.map((point: any) =>
               t0 && displayXAxisInlog ? point.sec_since_t0 : point.mjd,
@@ -1171,6 +1182,7 @@ const PhotometryPlot = ({
 
           const detectionsTrace: any = {
             dataType: "detections",
+            filter: groupedPhotometry[key][0].filter,
             isForcedPhotometry: detectionisFP,
             // The alert this point came from where it carries one, else the
             // point's own id to look it up by. A point the broker served but
@@ -1383,6 +1395,7 @@ const PhotometryPlot = ({
 
           const detectionsTrace: any = {
             dataType: "detections",
+            filter: groupedPhotometry[key][0].filter,
             x: detectionsX,
             y: detectionsY,
             error_y: {
@@ -1421,6 +1434,7 @@ const PhotometryPlot = ({
 
           const upperLimitsTrace: any = {
             dataType: "upperLimits",
+            filter: groupedPhotometry[key][0].filter,
             x: upperLimitsX,
             y: upperLimitsY,
             text: upperLimitsText,
@@ -1650,18 +1664,17 @@ const PhotometryPlot = ({
   }, [config]);
 
   useEffect(() => {
-    // grab the photometry for the selected duplicates from the cache
-    if (selectedDuplicates.length > 0) {
-      selectedDuplicates.forEach((dup) => {
-        if (!photometry[dup]) {
-          fetchPhotometryTrigger({
-            id: dup,
-            params: { magsys, format: "both" },
-          });
-        }
-      });
-    }
-  }, [fetchPhotometryTrigger, selectedDuplicates, magsys, photometry]);
+    // Not a lazy query: it keeps only its last subscription.
+    const subscriptions = selectedDuplicates.map((dup) =>
+      dispatch(
+        photometryApi.endpoints.fetchSourcePhotometry.initiate({
+          id: dup,
+          params: photometryParams,
+        }),
+      ),
+    );
+    return () => subscriptions.forEach((s) => s.unsubscribe());
+  }, [dispatch, selectedDuplicates, photometryParams]);
 
   useEffect(() => {
     if (profile?.id && defaultVisibleFilters === null) {
@@ -1875,6 +1888,16 @@ const PhotometryPlot = ({
       );
       setLayouts(newLayouts);
       setLayoutRevision((revision) => revision + 1);
+      // Bring back the entries hidden from the legend or the band chips;
+      // those hidden by a display setting (visible: false) stay hidden.
+      setPlotData((traces: any) =>
+        (traces || []).map((trace: any) =>
+          ["detections", "upperLimits"].includes(trace.dataType) &&
+          trace.visible === "legendonly"
+            ? { ...trace, visible: true }
+            : trace,
+        ),
+      );
       setLayoutReset(false);
     }
   }, [layoutReset]);
@@ -2103,6 +2126,45 @@ const PhotometryPlot = ({
     return <PhotometryPlotSkeleton height={plotStyle?.height || "70vh"} />;
   }
 
+  // Traces hidden outright (visible: false) are off by a display setting
+  // (non-detections, forced photometry), not by the user's legend choice.
+  const bandGroups: Record<string, any[]> = {};
+  (plotData || []).forEach((trace: any) => {
+    if (
+      ["detections", "upperLimits"].includes(trace.dataType) &&
+      trace.visible !== false
+    ) {
+      (bandGroups[bandGroup(trace.filter)] ??= []).push(trace);
+    }
+  });
+  const isTraceShown = (trace: any) =>
+    trace.visible === true || trace.visible === undefined;
+  const toggleBandGroup = (traces: any[]) => {
+    const visible = traces.some(isTraceShown) ? "legendonly" : true;
+    setPlotData(
+      plotData.map((trace: any) =>
+        traces.includes(trace) ? { ...trace, visible } : trace,
+      ),
+    );
+  };
+  // Like a legend double click: show only this group, or show all groups if
+  // it is already the only one shown. Ignores the group's own state, which
+  // the first click of the double click has just toggled.
+  const isolateBandGroup = (traces: any[]) => {
+    const others = Object.values(bandGroups)
+      .flat()
+      .filter((trace: any) => !traces.includes(trace));
+    const showAll = !others.some(isTraceShown);
+    setPlotData(
+      plotData.map((trace: any) => {
+        if (traces.includes(trace)) return { ...trace, visible: true };
+        if (others.includes(trace))
+          return { ...trace, visible: showAll ? true : "legendonly" };
+        return trace;
+      }),
+    );
+  };
+
   return (
     <div style={{ width: "100%", height: "100%" }} id="photometry-plot">
       <Tabs
@@ -2126,6 +2188,72 @@ const PhotometryPlot = ({
       </Tabs>
 
       {isSolarSystemTab && <SolarSystemPlot ctrl={solarSystemCtrl} />}
+      {!isSolarSystemTab && Object.keys(bandGroups).length > 1 && (
+        <div
+          style={{
+            display: "flex",
+            flexWrap: "wrap",
+            gap: "0.4rem",
+            alignItems: "center",
+            padding: "0.3rem 0.5rem",
+          }}
+        >
+          <Typography variant="caption" style={{ marginRight: 4 }}>
+            Bands:
+          </Typography>
+          {Object.entries(bandGroups)
+            .sort(
+              ([a], [b]) =>
+                BAND_GROUP_ORDER.indexOf(a) - BAND_GROUP_ORDER.indexOf(b),
+            )
+            .map(([group, traces]) => {
+              const shown = traces.some(isTraceShown);
+              const colors = [
+                ...new Set(
+                  traces.map((trace: any) =>
+                    rgba(filter2color?.[trace.filter] || [0, 0, 0], 1),
+                  ),
+                ),
+              ];
+              return (
+                <Chip
+                  key={group}
+                  size="small"
+                  clickable
+                  variant={shown ? "filled" : "outlined"}
+                  color={shown ? "primary" : "default"}
+                  data-testid={`band-group-${group}`}
+                  label={
+                    <span
+                      style={{
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: 3,
+                      }}
+                    >
+                      {group}
+                      {colors.map((color) => (
+                        <span
+                          key={color}
+                          style={{
+                            width: 8,
+                            height: 8,
+                            borderRadius: "50%",
+                            backgroundColor: color,
+                          }}
+                        />
+                      ))}
+                    </span>
+                  }
+                  onClick={(e) => {
+                    if (e.detail === 2) isolateBandGroup(traces);
+                    else if (e.detail < 2) toggleBandGroup(traces);
+                  }}
+                />
+              );
+            })}
+        </div>
+      )}
 
       <div
         style={{
@@ -2247,6 +2375,7 @@ const PhotometryPlot = ({
             }
           }}
           onDoubleClick={() => setLayoutReset(true)}
+          onRestyle={() => setLegendRevision((n) => n + 1)}
           onLegendDoubleClick={(e: any) => {
             // e contains a curveNumber (index of the trace clicked in the legend)
             /// and a data object (plotting data)
@@ -2735,10 +2864,15 @@ const PhotometryPlot = ({
                     return (
                       <div className={(classes as any).chips}>
                         {duplicatesValue.map((d) => (
-                          <Chip
+                          <RemovableChip
                             key={d.obj_id}
                             label={`${d.obj_id} (${d.separation.toFixed(2)}")`}
                             className={(classes as any).chip}
+                            onDelete={() =>
+                              setSelectedDuplicates(
+                                selected.filter((id: any) => id !== d.obj_id),
+                              )
+                            }
                           />
                         ))}
                       </div>

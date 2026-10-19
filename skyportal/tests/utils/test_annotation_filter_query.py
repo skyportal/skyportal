@@ -163,3 +163,40 @@ def test_no_hint_without_an_annotation_filter():
         asyncio.run(_annotation_filter_hint(_FakeSession([EP_ANNOTATION]), None, None))
         is None
     )
+
+
+def _jsonpath_params(params):
+    return [p.value for p in params if "jsonpath" in p.key]
+
+
+def test_the_nested_search_is_gated_on_a_jsonpath():
+    # Expanding every annotation's data to reach the nested fields is what made
+    # this unusable over the whole table, so the sub-objects are only expanded
+    # for rows a jsonpath says could carry the field.
+    sql, params = create_annotation_query(
+        ["delta_t", "-10", "ge"], ORIGIN, None, None, 0, is_admin=True
+    )
+    assert "@? CAST(:annotations_filter_jsonpath_0 AS jsonpath)" in sql
+    assert _jsonpath_params(params) == ['$.*."delta_t"']
+    # The gate is a precondition on the original test, never a replacement.
+    assert "jsonb_each" in sql
+
+
+def test_the_existence_check_is_gated_too():
+    sql, params = create_annotation_query(
+        ["alma-archive"], None, None, None, 0, is_admin=True
+    )
+    assert "@? CAST(:annotations_filter_jsonpath_0 AS jsonpath)" in sql
+    assert _jsonpath_params(params) == ['$.*."alma-archive"']
+
+
+def test_a_field_name_cannot_reshape_the_jsonpath():
+    # The name reaches the path as a quoted literal, so quotes in it are escaped
+    # rather than closing the string and appending a predicate of their own.
+    sql, params = create_annotation_query(
+        ['a"] ? (1==1) ; $."b'], None, None, None, 0, is_admin=True
+    )
+    (path,) = _jsonpath_params(params)
+    assert path == '$.*."a\\"] ? (1==1) ; $.\\"b"'
+    # and the name itself is still bound, never interpolated into the SQL
+    assert 'a"]' not in sql

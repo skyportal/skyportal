@@ -4,12 +4,8 @@
  * RTK Query conversion of the old `FETCH_STREAMS` duck. The list query provides
  * the "Streams" tag; all mutations (add/delete stream, add/remove a stream from
  * a group, add/remove a user on a stream) invalidate it so the list refetches.
- *
- * The old websocket handler refetched streams on a FETCH_STREAMS message; here
- * we invalidate the "Streams" tag so the active query refetches.
  */
 import { skyportalApi } from "../api/skyportalApi";
-import { invalidateOnMessage } from "../api/wsInvalidation";
 import type { RouteData } from "../types/routeSchemaMap";
 
 export const streamsApi = skyportalApi.injectEndpoints({
@@ -82,9 +78,6 @@ export const streamsApi = skyportalApi.injectEndpoints({
     }),
   }),
 });
-
-// Websocket: old handler refetched streams on FETCH_STREAMS.
-invalidateOnMessage("skyportal/FETCH_STREAMS", () => ["Streams"]);
 
 export const {
   useGetStreamsQuery,

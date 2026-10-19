@@ -1,3 +1,6 @@
+from collections import defaultdict
+from datetime import UTC, datetime, timedelta
+
 import sqlalchemy as sa
 from skyportal_py_models.news_feed import (
     DEFAULT_NEWSFEED_ITEMS,
@@ -12,7 +15,6 @@ from baselayer.app.access import auth_or_token
 from ...models import (
     Classification,
     Comment,
-    Obj,
     Photometry,
     Source,
     Spectrum,
@@ -20,6 +22,12 @@ from ...models import (
 )
 from ...utils.data_access import team_scoped_group_ids
 from ..base import BaseHandler
+
+# The feed is recent activity, so it is read newest-first within a window the
+# created_at index can answer directly; ordering everything a user can see
+# costs about a second on a large instance. Widened only when a window comes
+# up short, so a quiet group still fills its feed.
+FEED_WINDOWS_DAYS = (30, 365, None)
 
 
 class NewsFeedHandler(BaseHandler):
@@ -62,33 +70,26 @@ class NewsFeedHandler(BaseHandler):
         n_items_query = query.numItems
         n_items_feed = preferences.get("newsFeed", {}).get("numItems", None)
         if n_items_feed is not None:
-            n_items_feed = int(n_items_feed)
+            try:
+                n_items_feed = int(n_items_feed)
+            except (TypeError, ValueError) as e:
+                return self.error(f"Invalid newsFeed preference numItems: {e}")
 
         n_items_list = [n_items_query, n_items_feed]
         if all(v is None for v in n_items_list):
             n_items = DEFAULT_NEWSFEED_ITEMS
         else:
             n_items = max(x for x in n_items_list if x is not None)
-        if n_items > MAX_NEWSFEED_ITEMS:
-            return self.error(
-                f"numItems should be no larger than {MAX_NEWSFEED_ITEMS}."
-            )
+        if not 0 <= n_items <= MAX_NEWSFEED_ITEMS:
+            return self.error(f"numItems should be between 0 and {MAX_NEWSFEED_ITEMS}.")
 
         # Eager-load options per model. Every relationship traversed
-        # after the query (e.g. `s.obj`, `c.author`, `s.instrument`) needs
+        # after the query (e.g. `c.author`, `s.instrument`) needs
         # to be loaded explicitly under async; otherwise SQLAlchemy raises
         # MissingGreenlet when the iteration touches the attribute.
-        obj_with_classifications = selectinload(Obj.classifications)
         loader_options = {
-            Source: [selectinload(Source.obj).options(obj_with_classifications)],
-            Comment: [
-                selectinload(Comment.author),
-                selectinload(Comment.obj).options(obj_with_classifications),
-            ],
-            Classification: [
-                selectinload(Classification.author),
-                selectinload(Classification.obj).options(obj_with_classifications),
-            ],
+            Comment: [selectinload(Comment.author)],
+            Classification: [selectinload(Classification.author)],
             Spectrum: [
                 # Only the metadata is needed for the feed; skip the heavy
                 # wavelengths/fluxes/errors arrays and original_file_string.
@@ -100,12 +101,10 @@ class NewsFeedHandler(BaseHandler):
                 ),
                 selectinload(Spectrum.owner),
                 selectinload(Spectrum.instrument),
-                selectinload(Spectrum.obj).options(obj_with_classifications),
             ],
             Photometry: [
                 selectinload(Photometry.owner),
                 selectinload(Photometry.instrument),
-                selectinload(Photometry.obj).options(obj_with_classifications),
             ],
         }
 
@@ -126,8 +125,11 @@ class NewsFeedHandler(BaseHandler):
             except ValueError as e:
                 return self.error(str(e))
 
-            async def fetch_newest(
-                model, include_bot_comments=False, include_ml_classifications=False
+            def build_newest_stmt(
+                model,
+                window_days,
+                include_bot_comments,
+                include_ml_classifications,
             ):
                 stmt = model.select(self.associated_user_object).options(
                     *loader_options.get(model, [])
@@ -173,33 +175,76 @@ class NewsFeedHandler(BaseHandler):
                             )
                         )
                     )
-                stmt = (
-                    stmt.order_by(desc(model.created_at or model.saved_at))
+                if window_days is not None:
+                    since = datetime.now(UTC).replace(tzinfo=None) - timedelta(
+                        days=window_days
+                    )
+                    stmt = stmt.where(model.created_at > since)
+                return (
+                    stmt.order_by(desc(model.created_at))
                     .distinct(model.obj_id, model.created_at)
                     .limit(n_items)
                 )
-                fetch_result = await session.scalars(stmt)
-                newest = fetch_result.unique().all()
+
+            classifications_by_obj = defaultdict(list)
+            classified_obj_ids = set()
+
+            async def load_classifications(items):
+                obj_ids = {item.obj_id for item in items} - classified_obj_ids
+                if not obj_ids:
+                    return
+                classified_obj_ids.update(obj_ids)
+                result = await session.scalars(
+                    Classification.select(self.associated_user_object).where(
+                        Classification.obj_id.in_(obj_ids)
+                    )
+                )
+                for c in result.unique().all():
+                    classifications_by_obj[c.obj_id].append(c)
+
+            async def fetch_newest(
+                model, include_bot_comments=False, include_ml_classifications=False
+            ):
+                newest = []
+                windows = list(FEED_WINDOWS_DAYS)
+                while windows:
+                    window_days = windows.pop(0)
+                    stmt = build_newest_stmt(
+                        model,
+                        window_days,
+                        include_bot_comments,
+                        include_ml_classifications,
+                    )
+                    fetch_result = await session.scalars(stmt)
+                    newest = fetch_result.unique().all()
+                    if len(newest) >= n_items:
+                        break
+                    if not newest:
+                        # Nothing at all in this window, so widening by one
+                        # step will not fill it either; only no bound can.
+                        windows = windows[-1:]
 
                 if model == Comment:
                     for comment in newest:
                         comment.author_info = comment.construct_author_info_dict()
 
+                await load_classifications(newest)
                 return newest
 
-            def latest_classification(obj):
+            def latest_classification(obj_id):
                 classification = None
                 try:
-                    if len(obj.classifications) > 0:
+                    if len(classifications_by_obj[obj_id]) > 0:
                         # Display the most recent non-zero probability class,
                         # and that isn't a ml classifier
                         sortedClasses = sorted(
                             (
                                 c
-                                for c in obj.classifications
+                                for c in classifications_by_obj[obj_id]
                                 if c.probability > 0 and c.ml is False
                             ),
                             key=lambda x: x.modified,
+                            reverse=True,
                         )
                         if len(sortedClasses) > 0:
                             classification = sortedClasses[0].classification
@@ -231,7 +276,7 @@ class NewsFeedHandler(BaseHandler):
                             "time": s.created_at,
                             "message": message,
                             "source_id": s.obj_id,
-                            "classification": latest_classification(s.obj),
+                            "classification": latest_classification(s.obj_id),
                         },
                     )
             if (
@@ -255,7 +300,7 @@ class NewsFeedHandler(BaseHandler):
                             "source_id": c.obj_id,
                             "author": c.author.username,
                             "author_info": c.author_info,
-                            "classification": latest_classification(c.obj),
+                            "classification": latest_classification(c.obj_id),
                         }
                         for c in comments
                     ]
@@ -275,7 +320,7 @@ class NewsFeedHandler(BaseHandler):
                             "message": f"New classification for {c.obj_id} added by {c.author.username}: {c.classification}",
                             "source_id": c.obj_id,
                             "author_info": basic_user_display_info(c.author),
-                            "classification": latest_classification(c.obj),
+                            "classification": latest_classification(c.obj_id),
                         }
                         for c in classifications
                     ]
@@ -295,7 +340,7 @@ class NewsFeedHandler(BaseHandler):
                             "message": f"{s.owner.first_name} {s.owner.last_name} uploaded a new spectrum taken with {s.instrument.name} for {s.obj_id}",
                             "source_id": s.obj_id,
                             "author_info": basic_user_display_info(s.owner),
-                            "classification": latest_classification(s.obj),
+                            "classification": latest_classification(s.obj_id),
                         }
                         for s in spectra
                     ]
@@ -315,7 +360,7 @@ class NewsFeedHandler(BaseHandler):
                             "message": f"{p.owner.first_name} {p.owner.last_name} uploaded new follow-up photometry taken with {p.instrument.name} for {p.obj_id}",
                             "source_id": p.obj_id,
                             "author_info": basic_user_display_info(p.owner),
-                            "classification": latest_classification(p.obj),
+                            "classification": latest_classification(p.obj_id),
                         }
                         for p in photometry
                     ]

@@ -56,7 +56,7 @@ class TokenPutBody(BaseModel):
     )
     user_id: int | None = Field(
         default=None,
-        description="ID of the user whose permissions the new ACLs are checked against; defaults to the requesting user",
+        description="Ignored; the new ACLs are checked against the token owner",
     )
 
 

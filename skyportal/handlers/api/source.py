@@ -44,7 +44,7 @@ from skyportal_py_models.sources import (
     SourcePostBody,
     SurveyThumbnailPostBody,
 )
-from sqlalchemy import func, or_
+from sqlalchemy import or_
 from sqlalchemy.orm import (
     selectinload,
 )
@@ -93,6 +93,7 @@ from ...models import (
     User,
 )
 from ...utils.asynchronous import run_async
+from ...utils.cache import Cache, cache_folder, dict_to_bytes
 from ...utils.calculations import great_circle_distance
 from ...utils.data_access import (
     accessible_group_ids_async,
@@ -120,14 +121,21 @@ from ...utils.scout_ephemeris import (
 )
 from ...utils.scout_ingest import ANNOTATION_ORIGIN as SCOUT_ANNOTATION_ORIGIN
 from ...utils.sizeof import SIZE_WARNING_THRESHOLD, sizeof
+from ...utils.thumbnail import latest_thumbnails
 from ..base import BaseHandler
+from .broker import get_gaia_broker
 from .candidate.candidate import (
+    serialize_comment,
     update_healpix_if_relevant,
     update_redshift_history_if_relevant,
     update_summary_history_if_relevant,
 )
 from .color_mag import get_color_mag
-from .photometry import add_external_photometry, serialize
+from .photometry import (
+    add_external_photometry,
+    load_readable_annotations,
+    serialize,
+)
 from .sources import _annotation_filter_hint, get_sources
 
 ObjId = Annotated[
@@ -139,8 +147,10 @@ MAX_NUM_DAYS_USING_LOCALIZATION = 31 * 12 * 10  # 10 years
 _, cfg = load_env()
 PHOT_DETECTION_THRESHOLD = cfg["misc.photometry_detection_threshold_nsigma"]
 log = make_log("api/source")
-
-MAX_LOCALIZATION_SOURCES = 50000
+offset_stars_cache = Cache(
+    cache_dir=f"{cache_folder}/offset_stars",
+    max_age=cfg.get("misc.minutes_to_keep_offset_stars_cache", 60) * 60,
+)
 
 
 def confirmed_in_gcn_status_to_str(status):
@@ -314,18 +324,10 @@ async def get_source(
     # survey for per-survey labeling. All-sky archival cutouts (sdss/ps1/...) are
     # survey-independent, so dedupe those on type alone.
     if include_thumbnails:
-        alert_types = {"new", "ref", "sub"}
-        thumbnails = (
-            await session.scalars(
-                Thumbnail.select(user).where(Thumbnail.obj_id.in_(aggregated_obj_ids))
-            )
-        ).all()
-        latest = {}
-        for t in thumbnails:
-            key = (t.survey, t.type) if t.type in alert_types else (None, t.type)
-            if key not in latest or t.created_at > latest[key].created_at:
-                latest[key] = t
-        source_info["thumbnails"] = list(latest.values())
+        thumbnails = await session.scalars(
+            Thumbnail.select(user).where(Thumbnail.obj_id.in_(aggregated_obj_ids))
+        )
+        source_info["thumbnails"] = latest_thumbnails(thumbnails.all())
 
     point = ca.Point(ra=s.ra, dec=s.dec)
 
@@ -485,9 +487,12 @@ async def get_source(
             set_committed_value(s, "host", host)
             source_info["host"] = host.to_dict()
             source_info["host_offset"] = s.host_offset.deg * 3600.0
+            host_distance = s.host_distance
             # kpc: the separation is computed from Mpc distances, and the
             # frontend labels this field kpc.
-            source_info["host_distance"] = s.host_distance.to(u.kpc).value
+            source_info["host_distance"] = (
+                host_distance.to(u.kpc).value if host_distance is not None else None
+            )
 
     if is_token_request:
         sv = SourceView(
@@ -513,17 +518,7 @@ async def get_source(
         )
         comments = comments_result.unique().all()
         source_info["comments"] = sorted(
-            (
-                {
-                    **{k: v for k, v in c.to_dict().items() if k != "attachment_bytes"},
-                    "groups": [g.to_dict() for g in c.groups],
-                    "author": {
-                        **c.author.to_dict(),
-                        "gravatar_url": c.author.gravatar_url,
-                    },
-                }
-                for c in comments
-            ),
+            map(serialize_comment, comments),
             key=lambda x: x["created_at"],
             reverse=True,
         )
@@ -532,7 +527,12 @@ async def get_source(
             ObjAnalysis.select(user).where(ObjAnalysis.obj_id == obj_id)
         )
         analyses = analyses_result.unique().all()
-        source_info["analyses"] = [analysis.to_dict() for analysis in analyses]
+        source_info["analyses"] = []
+        for analysis in analyses:
+            analysis_dict = recursive_to_dict(analysis)
+            if analysis_dict.get("analysis_parameters"):
+                analysis_dict["analysis_parameters"].pop("openai_api_key", None)
+            source_info["analyses"].append(analysis_dict)
     if include_period_exists:
         annotations_period_result = await session.scalars(
             Annotation.select(user).where(Annotation.obj_id == obj_id)
@@ -606,11 +606,11 @@ async def get_source(
                 options=[
                     selectinload(Photometry.instrument).load_only(Instrument.name),
                     selectinload(Photometry.groups),
-                    selectinload(Photometry.annotations),
                 ],
             ).where(Photometry.obj_id == obj_id)
         )
         photometry = photometry_result.unique().all()
+        await load_readable_annotations(session, photometry)
         source_info["photometry"] = [
             serialize(phot, "ab", "both") for phot in photometry
         ]
@@ -788,29 +788,6 @@ async def get_source(
     return source_info
 
 
-def create_annotations_query(
-    session,
-    annotations_filter_origin=None,
-    annotations_filter_before=None,
-    annotations_filter_after=None,
-):
-    annotations_query = Annotation.select(session.user_or_token)
-    if annotations_filter_origin is not None:
-        annotations_query = annotations_query.where(
-            Annotation.origin.in_(annotations_filter_origin)
-        )
-    if annotations_filter_before:
-        annotations_query = annotations_query.where(
-            Annotation.created_at <= annotations_filter_before
-        )
-    if annotations_filter_after:
-        annotations_query = annotations_query.where(
-            Annotation.created_at >= annotations_filter_after
-        )
-
-    return annotations_query
-
-
 async def post_source_async(data, user_id, session, refresh_source=True):
     """Async equivalent of ``post_source``. Same behaviour, awaits all DB I/O."""
     warnings = []
@@ -952,7 +929,7 @@ async def post_source_async(data, user_id, session, refresh_source=True):
 
     if not existing_obj:
         try:
-            obj = schema.load(data)
+            obj = schema.load(data, transient=True)
         except ValidationError as e:
             raise ValidationError(
                 f"Invalid/missing parameters: {e.normalized_messages()}"
@@ -1054,7 +1031,7 @@ async def post_source_async(data, user_id, session, refresh_source=True):
     # Skip the per-group publishing checks (two queries each) unless some
     # auto-publishing is actually configured for these groups.
     if await any_group_auto_publishes(session, [group.id for group in groups]):
-        publish_to = ["TNS", "Hermes", "Public page"]
+        publish_to = ["TNS", "Hermes", "TROVE", "Public page"]
         for group in groups:
             await auto_source_publishing_async(
                 session=session,
@@ -1314,7 +1291,7 @@ def post_source(data, user_id, session, refresh_source=True):
     # remove from groups that we didn't save to
     groups = [group for group in groups if group.id not in not_saved_to_group_ids]
     # Shared mutable list to ensure publish_to target is triggered only once across all groups if needed
-    publish_to = ["TNS", "Hermes", "Public page"]
+    publish_to = ["TNS", "Hermes", "TROVE", "Public page"]
     for group in groups:
         auto_source_publishing(
             session=session,
@@ -1342,15 +1319,6 @@ def apply_active_or_requested_filtering(query, include_requested, requested_only
     if requested_only:
         query = query.where(Source.active.is_(False)).where(Source.requested.is_(True))
     return query
-
-
-def paginate_summary_query(session, query, page, num_per_page, total_matches):
-    if total_matches is None:
-        count_stmt = sa.select(func.count()).select_from(query.distinct())
-        total_matches = session.execute(count_stmt).scalar()
-    query = query.offset((page - 1) * num_per_page)
-    query = query.limit(num_per_page)
-    return {"sources": session.scalars(query).all(), "total_matches": total_matches}
 
 
 class SourceHandler(BaseHandler):
@@ -1795,6 +1763,10 @@ class SourceHandler(BaseHandler):
         data["id"] = obj_id
 
         async with self.AsyncSession() as session:
+            source = await session.scalar(sa.select(Obj).where(Obj.id == obj_id))
+            if source is None:
+                return self.error(f"Cannot find the object with name {obj_id}")
+
             updated_coordinates = False
             if data.get("ra", None) is not None or data.get("dec", None) is not None:
                 existing_candidates_result = await session.scalars(
@@ -1805,10 +1777,6 @@ class SourceHandler(BaseHandler):
                     return self.error(
                         "Cannot update the position of an object with candidates/alerts"
                     )
-
-                source = await session.scalar(sa.select(Obj).where(Obj.id == obj_id))
-                if source is None:
-                    return self.error(f"Cannot find the object with name {obj_id}")
 
                 if not (
                     np.isclose(data.get("ra", source.ra), source.ra)
@@ -2132,6 +2100,7 @@ class SourceOffsetsHandler(BaseHandler):
             # it trips pgbouncer's idle_transaction_timeout. Capture first, since
             # commit expires the ORM objects.
             source_ra, source_dec = source.ra, source.dec
+            gaia_broker = await get_gaia_broker(session)
             await session.commit()
 
             offset_func = functools.partial(
@@ -2152,21 +2121,49 @@ class SourceOffsetsHandler(BaseHandler):
                 assignment_comment=comment,
                 source_mag=source_mag,
                 source_magfilter=source_magfilter,
+                gaia_broker=gaia_broker,
             )
 
-            try:
-                (
-                    starlist_info,
-                    query_string,
-                    queries_issued,
-                    noffsets,
-                    used_ztfref,
-                    gaia_available,
-                ) = await IOLoop.current().run_in_executor(None, offset_func)
-            except ValueError as e:
-                log(f"Error querying for nearby offset stars: {e}")
-                traceback.print_exc()
-                return self.error(f"Error querying for nearby offset stars: {e}")
+            cache_key = json.dumps(
+                [
+                    obj_id,
+                    facility,
+                    num_offset_stars,
+                    use_ztfref,
+                    round(ra, 6),
+                    round(dec, 6),
+                    query.obstime,
+                    priority,
+                    comment,
+                    source_mag,
+                    source_magfilter,
+                ],
+                default=str,
+            )
+            result = None
+            cached = offset_stars_cache[cache_key]
+            if cached is not None:
+                try:
+                    result = np.load(cached, allow_pickle=True).item()["result"]
+                except Exception:
+                    result = None
+            if result is None:
+                try:
+                    result = await IOLoop.current().run_in_executor(None, offset_func)
+                except ValueError as e:
+                    log(f"Error querying for nearby offset stars: {e}")
+                    traceback.print_exc()
+                    return self.error(f"Error querying for nearby offset stars: {e}")
+                if result[-1]:
+                    offset_stars_cache[cache_key] = dict_to_bytes({"result": result})
+            (
+                starlist_info,
+                query_string,
+                queries_issued,
+                noffsets,
+                used_ztfref,
+                gaia_available,
+            ) = result
 
             starlist_str = "\n".join(
                 [x["str"].replace(" ", "&nbsp;") for x in starlist_info]
@@ -2354,6 +2351,7 @@ async def get_finding_chart_callable(
         allowed_queries=2,
         queries_issued=0,
         use_ztfref=use_ztfref,
+        gaia_broker=await get_gaia_broker(session),
     )
 
 
@@ -2909,7 +2907,6 @@ class SourceCopyPhotometryHandler(BaseHandler):
 
             query_result = []
             for p in data:
-                instrument = p.instrument
                 result = serialize(p, "ab", "both", groups=False, annotations=False)
                 query_result.append(result)
 
@@ -2919,7 +2916,16 @@ class SourceCopyPhotometryHandler(BaseHandler):
 
             drop_columns = list(
                 set(df.columns.values)
-                - {"mjd", "ra", "dec", "mag", "magerr", "limiting_mag", "filter"}
+                - {
+                    "mjd",
+                    "ra",
+                    "dec",
+                    "mag",
+                    "magerr",
+                    "limiting_mag",
+                    "filter",
+                    "instrument_id",
+                }
             )
 
             df.drop(
@@ -2930,16 +2936,17 @@ class SourceCopyPhotometryHandler(BaseHandler):
 
             data_out = {
                 "obj_id": target_id,
-                "instrument_id": instrument.id,
                 "group_ids": [g.id for g in groups],
                 **df.to_dict(orient="list"),
             }
 
-            await add_external_photometry(
+            ids, _ = await add_external_photometry(
                 data_out,
                 self.associated_user_object,
                 session,
                 refresh=True,
             )
+            if ids is None:
+                return self.error(f"Failed to copy photometry from {origin_id}")
 
             return self.success()

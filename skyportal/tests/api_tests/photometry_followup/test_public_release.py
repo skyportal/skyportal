@@ -496,3 +496,44 @@ def test_delete_release(
         "DELETE", f"public_pages/release/{release_id}", token=manage_sources_token
     )
     assert_api_fail(status, data, 404, "Release not found")
+
+
+def test_delete_release_with_page(manage_sources_token, public_source, public_group):
+    status, data = api(
+        "POST",
+        "public_pages/release",
+        data={
+            "name": "Name",
+            "link_name": str(uuid.uuid4()),
+            "group_ids": [public_group.id],
+        },
+        token=manage_sources_token,
+    )
+    assert_api(status, data)
+    release_id = data["data"]["id"]
+
+    status, data = api(
+        "POST",
+        f"public_pages/source/{public_source.id}",
+        data={"options": {}, "release_id": release_id},
+        token=manage_sources_token,
+    )
+    assert_api(status, data)
+    page_id = data["data"]["id"]
+
+    status, data = api(
+        "DELETE", f"public_pages/release/{release_id}", token=manage_sources_token
+    )
+    assert_api_fail(
+        status, data, 400, "Delete all sources associated before deleting this release"
+    )
+
+    status, data = api(
+        "DELETE", f"public_pages/source/{page_id}", token=manage_sources_token
+    )
+    assert_api(status, data)
+
+    status, data = api(
+        "DELETE", f"public_pages/release/{release_id}", token=manage_sources_token
+    )
+    assert_api(status, data)

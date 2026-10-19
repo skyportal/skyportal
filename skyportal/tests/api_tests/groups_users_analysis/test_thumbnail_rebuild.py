@@ -43,7 +43,7 @@ def stub_provider(monkeypatch, cutouts, capabilities=None, seen=None):
     def get_alert(broker, alert_id, session, **kw):
         if seen is not None:
             seen["get_alert"] = kw
-        return {"candid": 1234567890, "survey": "ZTF"}
+        return {"candid": 1234567890, "survey": "ZTF", "candidate": {"jd": 2461232.5}}
 
     def get_cutouts(broker, alert_id, session, **kw):
         if seen is not None:
@@ -77,8 +77,8 @@ def rebuild(obj_id, user_id):
 def test_rebuild_posts_thumbnails_from_broker_cutouts(monkeypatch, cutout_broker):
     posted = []
 
-    async def fake_add_thumbnails(obj_id, cutouts, survey, session, user_id=1):
-        posted.append((obj_id, sorted(cutouts), survey, user_id))
+    async def fake_add_thumbnails(obj_id, cutouts, survey, session, user_id=1, jd=None):
+        posted.append((obj_id, sorted(cutouts), survey, user_id, jd))
 
     stub_provider(monkeypatch, {"cutoutScience": b"fits", "cutoutTemplate": b"fits"})
     monkeypatch.setattr(_thumbnails, "add_thumbnails", fake_add_thumbnails)
@@ -90,6 +90,7 @@ def test_rebuild_posts_thumbnails_from_broker_cutouts(monkeypatch, cutout_broker
             ["cutoutScience", "cutoutTemplate"],
             "ZTF",
             USER_ID,
+            2461232.5,
         )
     ]
 

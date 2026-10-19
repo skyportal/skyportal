@@ -22,16 +22,17 @@ MAX_SLEEP = cfg.get("misc", {}).get("max_seconds_to_sleep_recurring_apis_service
 MAX_RETRIES = 10
 
 
-def record_outcome(session, recurring_api, text):
+def record_outcome(session, recurring_api, text, notify=True):
     log(text)
     session.add(recurring_api)
-    session.add(
-        UserNotification(
-            user=recurring_api.owner,
-            text=text,
-            notification_type="Recurring API",
+    if notify:
+        session.add(
+            UserNotification(
+                user=recurring_api.owner,
+                text=text,
+                notification_type="Recurring API",
+            )
         )
-    )
     session.commit()
 
 
@@ -60,6 +61,16 @@ def perform_api_calls():
                     f"Recurring API {recurring_api.id} has a call_delay of "
                     f"{recurring_api.call_delay} days and cannot schedule a next "
                     "call, deactivating it.",
+                )
+                continue
+
+            if not recurring_api.owner.tokens:
+                recurring_api.active = False
+                record_outcome(
+                    session,
+                    recurring_api,
+                    f"Recurring API {recurring_api.id} cannot run because its owner "
+                    "has no API token, deactivating it.",
                 )
                 continue
 
@@ -107,7 +118,9 @@ def perform_api_calls():
                 else:
                     text_to_send = f"Failed call to recurring API {recurring_api.id}: {str(data)}; will try again {recurring_api.next_call}, remaining calls before deactivation: {recurring_api.number_of_retries}."
 
-            record_outcome(session, recurring_api, text_to_send)
+            record_outcome(
+                session, recurring_api, text_to_send, notify=response_status != 200
+            )
 
         next_recurring_api = session.scalars(
             RecurringAPI.select(user)

@@ -163,3 +163,65 @@ def test_an_answered_exchange_still_ends_on_the_new_question():
     ]
     messages = build_messages(conversation, 40)
     assert [m["role"] for m in messages] == ["system", "user", "assistant", "user"]
+
+
+def test_the_prompt_says_what_time_it_is():
+    # The prompt tells the model it has no clock, which is right about
+    # ephemerides and wrong about Julian Dates: a broker preview is bounded by
+    # one, and a model reaching into its training data for a JD sent a window
+    # in October 2024 and spent its whole tool budget on windows the broker
+    # rejected.
+    from astropy.time import Time
+
+    from skyportal.utils.assistant import now_line, system_prompt
+
+    line = now_line()
+    jd = float(
+        line.split("JD")[1].split(".")[0] + "." + line.split("JD")[1].split(".")[1][:4]
+    )
+    assert abs(jd - Time.now().jd) < 1.0
+    assert "UTC" in line
+    assert now_line() in system_prompt()
+
+
+def test_an_empty_tool_list_is_left_out_of_the_request():
+    # The last round asks for an answer with no tools left to call. Sent as
+    # `"tools": []` the server refuses the whole request, and the user reads
+    # the refusal as "something went wrong while looking that up".
+    from skyportal.utils.assistant import chat_payload
+
+    assert "tools" not in chat_payload("m", [{"role": "user", "content": "hi"}], [])
+    assert "tools" not in chat_payload("m", [], None)
+    with_tools = chat_payload("m", [], [{"type": "function"}])
+    assert with_tools["tools"] == [{"type": "function"}]
+
+
+def test_thinking_is_disabled_unless_asked_for():
+    from skyportal.utils.assistant import chat_payload
+
+    assert chat_payload("m", [], [], thinking=False)["chat_template_kwargs"] == {
+        "enable_thinking": False
+    }
+    assert "chat_template_kwargs" not in chat_payload("m", [], [], thinking=True)
+
+
+def test_an_attempt_is_bounded_so_a_second_one_fits():
+    # A stalled request holds whatever it is given. The failures seen had the
+    # whole budget left when they hung -- 299.99997 of 300 seconds -- so one
+    # unbounded attempt is the difference between a retry and a lost turn.
+    from skyportal.utils.assistant import attempt_timeouts
+
+    assert attempt_timeouts(300, 150) == [150, 150]
+    assert attempt_timeouts(200, 150) == [150, 50]
+    # Too little left to be worth a round trip: one attempt, as before, and
+    # the sliver goes unused rather than buying a doomed request.
+    assert attempt_timeouts(150.5, 150) == [150]
+    assert attempt_timeouts(60, 150) == [60]
+    assert attempt_timeouts(0, 150) == []
+
+
+def test_the_attempts_never_exceed_the_budget():
+    from skyportal.utils.assistant import attempt_timeouts
+
+    for budget in (1, 30, 149, 150, 151, 299, 300, 600):
+        assert sum(attempt_timeouts(budget, 150)) <= budget

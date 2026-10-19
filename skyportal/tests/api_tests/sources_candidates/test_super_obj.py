@@ -417,6 +417,41 @@ def test_super_obj_all_aggregations_and_rls(
         teardown()
 
 
+def test_super_obj_epochs_only_include_readable_annotations(
+    super_admin_token, view_only_token, public_source, public_group, public_group2
+):
+    """With includeEpochs, each Obj's annotations go through Annotation.read."""
+    obj_id = public_source.id
+    for label, group_id in (("shared", public_group.id), ("hidden", public_group2.id)):
+        status, data = api(
+            "POST",
+            f"sources/{obj_id}/annotations",
+            data={
+                "origin": f"epochs_{label}_{uuid.uuid4().hex[:8]}",
+                "data": {"epoch_label": label},
+                "group_ids": [group_id],
+            },
+            token=super_admin_token,
+        )
+        assert status == 200, data
+
+    super_obj_id, teardown = _link_super_obj([obj_id])
+    try:
+        status, data = api(
+            "GET",
+            f"super_objs/{super_obj_id}?includeEpochs=true",
+            token=view_only_token,
+        )
+        assert status == 200, data
+        labels = {
+            a["data"].get("epoch_label") for a in data["data"]["objs"][0]["annotations"]
+        }
+        assert "shared" in labels
+        assert "hidden" not in labels
+    finally:
+        teardown()
+
+
 def test_super_obj_thumbnail_aggregation(
     super_admin_token,
     public_source,
@@ -458,5 +493,65 @@ def test_super_obj_thumbnail_aggregation(
         )
         assert status == 200, data
         assert {("ZTF", obj1), ("LSST", obj2)} <= new_pairs(data)
+    finally:
+        teardown()
+
+
+def test_candidates_page_with_linked_objs(
+    view_only_token, public_candidate, public_candidate2, public_group
+):
+    obj1 = public_candidate.id
+    obj2 = public_candidate2.id
+    super_obj_id, teardown = _link_super_obj([obj1, obj2])
+    try:
+        status, data = api(
+            "GET",
+            "candidates",
+            params={"groupIDs": public_group.id, "includeAssociatedObjs": True},
+            token=view_only_token,
+        )
+        assert status == 200, data
+        candidates = {c["id"]: c for c in data["data"]["candidates"]}
+        assert set(candidates) == {obj1, obj2}
+        for obj_id, other_id in [(obj1, obj2), (obj2, obj1)]:
+            assert [s["id"] for s in candidates[obj_id]["super_objs"]] == [super_obj_id]
+            assert [a["obj_id"] for a in candidates[obj_id]["associated_objs"]] == [
+                other_id
+            ]
+    finally:
+        teardown()
+
+
+def test_candidate_linked_thumbnails(
+    super_admin_token,
+    view_only_token,
+    public_candidate,
+    public_candidate2,
+    public_group,
+):
+    obj1 = public_candidate.id
+    obj2 = public_candidate2.id
+    _post_thumbnail(super_admin_token, obj1, "new", "ZTF")
+    _post_thumbnail(super_admin_token, obj2, "new", "LSST")
+    _, teardown = _link_super_obj([obj1, obj2])
+    try:
+        status, data = api(
+            "GET",
+            "candidates",
+            params={"groupIDs": public_group.id},
+            token=view_only_token,
+        )
+        assert status == 200, data
+        listed = {c["id"]: c for c in data["data"]["candidates"]}[obj1]
+
+        status, data = api("GET", f"candidates/{obj1}", token=view_only_token)
+        assert status == 200, data
+
+        for candidate in [listed, data["data"]]:
+            assert {("ZTF", obj1), ("LSST", obj2)} <= {
+                (t["survey"], t["obj_id"])
+                for t in candidate["thumbnails"]
+                if t["type"] == "new"
+            }
     finally:
         teardown()

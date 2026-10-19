@@ -13,13 +13,21 @@ log = make_log("broker/save")
 
 # AB zeropoint per survey, matching the units points arrive in: flux in nJy is
 # scaled to Jy and takes 8.9, magnitudes are converted to uJy and take 23.9.
-ZP_PER_SURVEY = {"LSST": 8.9, "ZTF": 23.9, "WINTER": 8.9}
+ZP_PER_SURVEY = {"LSST": 8.9, "ZTF": 23.9, "WINTER": 8.9, "DECAM": 8.9}
 
 # Surveys whose filters are not named <survey><band>. Keys are normalized bands,
 # so any survey prefix is already stripped. An unmapped band raises rather than
 # storing a point under a filter that would misreport it. WINTER has no k filter.
 BAND_TO_FILTER_PER_SURVEY = {
     "WINTER": {"y": "desy", "j": "2massj", "h": "2massh"},
+    "DECAM": {
+        "u": "sdssu",
+        "g": "desg",
+        "r": "desr",
+        "i": "desi",
+        "z": "desz",
+        "y": "desy",
+    },
 }
 
 # A "detection" must clear this S/N unless a Filter's criteria override it. Broker
@@ -28,6 +36,8 @@ BAND_TO_FILTER_PER_SURVEY = {
 _DEFAULT_MIN_SNR = 5.0
 # sigma_mag = 2.5/ln(10) / SNR, so SNR = (2.5/ln(10)) / sigma_mag in mag space.
 _MAG_SNR_CONST = 1.0857362
+# ZTF isdiffpos values marking a negative subtraction (ALeRCE sends -1).
+_NEGATIVE_DIFFPOS = {"f", "0", "-1", "false"}
 
 # Default cone radius (arcsec) for the positional junk-group auto-save skip when a
 # filter sets ignore-groups but no explicit `autoSaveIgnoreRadius`. Set 0 to skip
@@ -52,7 +62,7 @@ def _normalize_band(band):
     """Collapse survey-prefixed band names to a bare filter letter so per-band
     criteria are provider-agnostic (``ztfg`` -> ``g``, ``g`` -> ``g``)."""
     b = str(band or "").lower()
-    for prefix in ("ztf", "lsst", "atlas", "winter"):
+    for prefix in ("ztf", "lsst", "atlas", "winter", "decam"):
         if b.startswith(prefix) and len(b) > len(prefix):
             return b[len(prefix) :].lstrip("_")
     return b
@@ -139,6 +149,52 @@ async def programid_to_stream_ids(session):
     return mapper
 
 
+async def get_or_create_obj(session, obj_id, **columns):
+    import sqlalchemy as sa
+    from sqlalchemy.dialects.postgresql import insert as pg_insert
+
+    from ..models import Obj
+
+    inserted = await session.scalar(
+        pg_insert(Obj)
+        .values(id=obj_id, **columns)
+        .on_conflict_do_nothing(index_elements=["id"])
+        .returning(Obj.id)
+    )
+    obj = await session.scalar(sa.select(Obj).where(Obj.id == obj_id))
+    return obj, inserted is not None
+
+
+# Transaction-scoped only: pgbouncer pools connections per transaction.
+async def xact_lock(session, key):
+    import sqlalchemy as sa
+
+    await session.execute(
+        sa.select(sa.func.pg_advisory_xact_lock(sa.func.hashtextextended(key, 0)))
+    )
+
+
+# Always the last lock of its transaction, after any object lock, so none can deadlock.
+SUPER_OBJ_LOCK = "super_objs"
+
+
+async def add_source(session, **columns):
+    import sqlalchemy as sa
+
+    from ..models import Source
+
+    try:
+        async with session.begin_nested():
+            # obj_id, not obj=: rolling back would expire the Obj (MissingGreenlet).
+            session.add(Source(**columns))
+            await session.flush()
+    except sa.exc.IntegrityError as e:
+        if "sources_forward_ind" not in str(e.orig):
+            raise
+        return False
+    return True
+
+
 def build_photometry_groups(object_id, survey, data, instrument_id, programid2streamid):
     """Transform a standard alert object's photometry arrays into per-(survey,
     programid) groups in skyportal units, keyed by the stream that gates them.
@@ -186,6 +242,10 @@ def build_photometry_groups(object_id, survey, data, instrument_id, programid2st
                 mag, magerr = phot["magpsf"], phot["sigmapsf"]
                 flux = 10.0 ** (-0.4 * (mag - zp))
                 flux_err = flux * magerr * 0.9210340371976184  # ln(10)/2.5
+                # magpsf is the magnitude of |flux|; a negative subtraction
+                # (science fainter than reference) is a negative flux.
+                if str(phot.get("isdiffpos")).strip().lower() in _NEGATIVE_DIFFPOS:
+                    flux = -flux
                 columns = {"flux": flux, "fluxerr": flux_err, "zp": zp}
             else:
                 continue
@@ -252,6 +312,55 @@ def build_photometry_groups(object_id, survey, data, instrument_id, programid2st
     return photometry_data
 
 
+async def _flip_stale_positive_points(session, pd):
+    """Negate stored copies of pd's negative points that were saved with a positive flux."""
+    import sqlalchemy as sa
+
+    from ..handlers.api.photometry import (
+        find_duplicate_photometry,
+        standardize_photometry_data,
+    )
+    from ..models import Photometry, PhotStat
+
+    negative = [i for i, f in enumerate(pd["flux"]) if f is not None and f < 0]
+    if not negative:
+        return
+    columns = ("mjd", "filter", "origin", "magsys", "flux", "fluxerr", "zp")
+    df, _ = await standardize_photometry_data(
+        {
+            "obj_id": pd["obj_id"],
+            "instrument_id": pd["instrument_id"],
+            **{c: [pd[c][i] for i in negative] for c in columns},
+        },
+        session,
+    )
+    stored_negative = {i for i, _ in await find_duplicate_photometry(session, df)}
+    df["standardized_flux"] = -df["standardized_flux"]
+    stale = [
+        p
+        for i, p in await find_duplicate_photometry(session, df)
+        if i not in stored_negative
+    ]
+    if not stale:
+        return
+    for p in stale:
+        p.flux = -p.flux
+    await session.flush()
+
+    phot_stat = await session.scalar(
+        sa.select(PhotStat).where(PhotStat.obj_id == pd["obj_id"]).with_for_update()
+    )
+    if phot_stat is not None:
+        all_phot = (
+            await session.scalars(
+                sa.select(Photometry).where(Photometry.obj_id == pd["obj_id"])
+            )
+        ).all()
+        phot_stat.full_update(all_phot)
+        for phot in all_phot:
+            session.expunge(phot)
+
+
 async def _ingest_object(
     data,
     survey,
@@ -310,6 +419,7 @@ async def _ingest_object(
         auto_source_publishing_async,
     )
     from ..utils.naive_datetime import utcnow_naive
+    from ..utils.survey import instrument_name
 
     object_id = data["objectId"]
     cand = data.get("candidate") or {}
@@ -326,26 +436,25 @@ async def _ingest_object(
             return {"id": object_id}
 
     instrument_id = await session.scalar(
-        sa.select(Instrument.id).where(Instrument.name == survey)
+        sa.select(Instrument.id).where(Instrument.name == instrument_name(survey))
     )
     if instrument_id is None:
-        raise ValueError(f"Instrument '{survey}' not found in the database.")
+        raise ValueError(
+            f"Instrument '{instrument_name(survey)}' not found in the database."
+        )
 
     programid2streamid = await programid_to_stream_ids(session)
 
-    obj = await session.scalar(sa.select(Obj).where(Obj.id == object_id))
-    created = obj is None
-    if created:
-        obj = Obj(
-            id=object_id,
-            ra=cand.get("ra"),
-            dec=cand.get("dec"),
-            ra_dis=cand.get("ra"),
-            dec_dis=cand.get("dec"),
-            score=cand.get("drb"),
-            origin=survey,
-        )
-        session.add(obj)
+    obj, created = await get_or_create_obj(
+        session,
+        object_id,
+        ra=cand.get("ra"),
+        dec=cand.get("dec"),
+        ra_dis=cand.get("ra"),
+        dec_dis=cand.get("dec"),
+        score=cand.get("drb"),
+        origin=survey,
+    )
 
     # Save-as-source: attach to groups (only meaningful on first save).
     if group_ids:
@@ -362,6 +471,7 @@ async def _ingest_object(
     # Ingestion: register as a Candidate under each filter, deduped on the passing
     # alert (the same alert may be re-consumed).
     if filter_ids:
+        await xact_lock(session, object_id)
         for fid in filter_ids:
             exists = await session.scalar(
                 sa.select(Candidate).where(
@@ -426,15 +536,18 @@ async def _ingest_object(
                 # Attribute the save (and the comment/TNS actions below) to a
                 # configured user if set, else the bot.
                 saver_id = altdata.get("autoSaveSaverId") or user.id
-                session.add(Source(obj=obj, group_id=f.group_id, saved_by_id=saver_id))
+                if not await add_source(
+                    session, obj_id=object_id, group_id=f.group_id, saved_by_id=saver_id
+                ):
+                    continue
                 saved_group_ids.append(f.group_id)
                 group_saver_id[f.group_id] = saver_id
                 comment_text = (altdata.get("autoSaveComment") or "").strip()
                 if comment_text:
                     autosave_comments.append((f.group_id, comment_text, saver_id))
 
-    # autoflush is off on skyportal's async session; flush so the new Obj (and any
-    # Candidate rows) are visible to add_external_photometry's existence check.
+    # autoflush is off on skyportal's async session; flush so new Candidate rows
+    # are visible to add_external_photometry's existence check.
     if created or filter_ids:
         await session.flush()
 
@@ -505,6 +618,10 @@ async def _ingest_object(
             ).all()
         )
 
+    mag_space = any(
+        p.get("psfFluxErr") is None and p.get("magpsf") is not None
+        for p in data.get("prv_candidates") or []
+    )
     for pd in photometry_data.values():
         if pd["mjd"]:  # never post empty photometry (breaks JSON coercion)
             # Bulk ingestion must not inherit the sitewide default-share; keep
@@ -512,14 +629,12 @@ async def _ingest_object(
             if photometry_group_ids:
                 pd["group_ids"] = sorted(photometry_group_ids)
             try:
+                if mag_space:
+                    await _flip_stale_positive_points(session, pd)
                 await add_external_photometry(
                     pd, user, session, apply_default_share=False
                 )
             except Exception as e:
-                # Leaving a failed statement uncommitted poisons the session:
-                # everything after it raises MissingGreenlet instead of its own
-                # error, so the thumbnails and the candidate go too.
-                await session.rollback()
                 log(f"Failed to add photometry for {object_id}: {e}")
 
     # Best-effort science/template/difference thumbnails if the provider gave us
@@ -528,7 +643,9 @@ async def _ingest_object(
         try:
             from ._thumbnails import add_thumbnails
 
-            await add_thumbnails(object_id, cutouts, survey, session, user_id=user.id)
+            await add_thumbnails(
+                object_id, cutouts, survey, session, user_id=user.id, jd=cand.get("jd")
+            )
         except Exception as e:
             log(f"Failed to add thumbnails for {object_id}: {e}")
 
@@ -569,9 +686,9 @@ async def _ingest_object(
             )
 
     # BOOM saves Sources via the ORM, bypassing post_source's auto-publish hook;
-    # fire it here so TNS/Hermes/Public-page auto-publishers react to new saves.
+    # fire it here so TNS/Hermes/TROVE/Public-page auto-publishers react to new saves.
     if saved_group_ids and await any_group_auto_publishes(session, saved_group_ids):
-        publish_to = ["TNS", "Hermes", "Public page"]
+        publish_to = ["TNS", "Hermes", "TROVE", "Public page"]
         for gid in saved_group_ids:
             saver = user_by_id.get(group_saver_id.get(gid), user)
             # The submission lookup underneath reads the session's actor instead
@@ -635,7 +752,7 @@ async def save_object_photometry(data, survey, session, user, cutouts=None):
 async def associate_super_obj(session, obj_id, associated_obj_ids):
     """Group ``obj_id`` and ``associated_obj_ids`` under one SuperObj (the
     cross-survey "same physical object" link), creating it on first association
-    and adding any not-yet-linked matches otherwise."""
+    and otherwise merging the ones they already belong to into the oldest."""
     import sqlalchemy as sa
 
     from ..models import ObjToSuperObj, SuperObj
@@ -643,24 +760,37 @@ async def associate_super_obj(session, obj_id, associated_obj_ids):
     associated_obj_ids = {m for m in associated_obj_ids if m and m != obj_id}
     if not associated_obj_ids:
         return
-    super_obj = await session.scalar(
-        sa.select(SuperObj).join(ObjToSuperObj).where(ObjToSuperObj.obj_id == obj_id)
-    )
-    if super_obj is None:
+    obj_ids = {obj_id, *associated_obj_ids}
+    await xact_lock(session, SUPER_OBJ_LOCK)
+    super_obj_ids = (
+        await session.scalars(
+            sa.select(ObjToSuperObj.super_obj_id)
+            .join(SuperObj)
+            .where(
+                ObjToSuperObj.obj_id.in_(obj_ids),
+                # Never a named or moving-object SuperObj: those are curated elsewhere.
+                SuperObj.name.is_(None),
+                SuperObj.is_roid.is_not(True),
+            )
+            .distinct()
+            .order_by(ObjToSuperObj.super_obj_id)
+        )
+    ).all()
+    if not super_obj_ids:
         super_obj = SuperObj()
         session.add(super_obj)
         await session.flush()  # assign super_obj.id before linking
-        session.add(ObjToSuperObj(obj_id=obj_id, super_obj_id=super_obj.id))
-        linked = set()
-    else:
-        linked = set(
-            (
-                await session.scalars(
-                    sa.select(ObjToSuperObj.obj_id).where(
-                        ObjToSuperObj.super_obj_id == super_obj.id
-                    )
-                )
-            ).all()
+        super_obj_ids = [super_obj.id]
+    super_obj_id, *merged_ids = super_obj_ids
+    members = (
+        await session.execute(
+            sa.select(ObjToSuperObj.obj_id, ObjToSuperObj.super_obj_id).where(
+                ObjToSuperObj.super_obj_id.in_(super_obj_ids)
+            )
         )
-    for match_id in associated_obj_ids - linked:
-        session.add(ObjToSuperObj(obj_id=match_id, super_obj_id=super_obj.id))
+    ).all()
+    linked = {m for m, s in members if s == super_obj_id}
+    if merged_ids:
+        await session.execute(sa.delete(SuperObj).where(SuperObj.id.in_(merged_ids)))
+    for member_id in (obj_ids | {m for m, _ in members}) - linked:
+        session.add(ObjToSuperObj(obj_id=member_id, super_obj_id=super_obj_id))

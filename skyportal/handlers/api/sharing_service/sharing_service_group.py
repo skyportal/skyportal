@@ -56,6 +56,11 @@ class SharingServiceGroupHandler(BaseHandler):
             if "auto_share_to_hermes" in body.model_fields_set
             else None
         )
+        auto_share_to_trove = (
+            str_to_bool(body.auto_share_to_trove)
+            if "auto_share_to_trove" in body.model_fields_set
+            else None
+        )
         auto_sharing_allow_bots = (
             str_to_bool(body.auto_sharing_allow_bots)
             if "auto_sharing_allow_bots" in body.model_fields_set
@@ -103,11 +108,12 @@ class SharingServiceGroupHandler(BaseHandler):
                 if (
                     auto_share_to_tns is None
                     and auto_share_to_hermes is None
+                    and auto_share_to_trove is None
                     and auto_sharing_allow_bots is None
                     and owner is None
                 ):
                     return self.error(
-                        "You must update at least one of: auto_share_to_tns, auto_share_to_hermes, owner, or auto_sharing_allow_bots when editing a sharing service group."
+                        "You must update at least one of: auto_share_to_tns, auto_share_to_hermes, auto_share_to_trove, owner, or auto_sharing_allow_bots when editing a sharing service group."
                     )
                 if (
                     auto_share_to_tns is not None
@@ -119,6 +125,11 @@ class SharingServiceGroupHandler(BaseHandler):
                     and auto_share_to_hermes != group.auto_share_to_hermes
                 ):
                     group.auto_share_to_hermes = auto_share_to_hermes
+                if (
+                    auto_share_to_trove is not None
+                    and auto_share_to_trove != group.auto_share_to_trove
+                ):
+                    group.auto_share_to_trove = auto_share_to_trove
                 if (
                     auto_sharing_allow_bots is not None
                     and auto_sharing_allow_bots != group.auto_sharing_allow_bots
@@ -181,6 +192,7 @@ class SharingServiceGroupHandler(BaseHandler):
                     group_id=group_id,
                     auto_share_to_tns=auto_share_to_tns,
                     auto_share_to_hermes=auto_share_to_hermes,
+                    auto_share_to_trove=auto_share_to_trove,
                     auto_sharing_allow_bots=auto_sharing_allow_bots,
                     owner=owner,
                 )

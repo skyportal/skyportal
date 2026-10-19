@@ -1,8 +1,10 @@
 import asyncio
+import html
 import json
 import operator
-import string
+import textwrap
 import time
+from concurrent.futures import ThreadPoolExecutor
 from threading import Thread
 
 import arrow
@@ -24,9 +26,14 @@ from skyportal.models import (
     Classification,
     Comment,
     DBSession,
+    Deployment,
+    DiscussionMember,
+    DiscussionMessage,
     EventObservationPlan,
-    FacilityTransaction,
+    Feedback,
+    FeedbackReply,
     FollowupRequest,
+    FollowupRequestUser,
     GcnEvent,
     GcnEventExtraction,
     GcnNotice,
@@ -38,12 +45,15 @@ from skyportal.models import (
     Localization,
     ObjAnalysis,
     ObservationPlanRequest,
+    RoleACL,
     Shift,
     ShiftUser,
     Source,
     Spectrum,
     User,
+    UserACL,
     UserNotification,
+    UserRole,
 )
 from skyportal.utils.app import get_app_base_url
 from skyportal.utils.email import send_email
@@ -55,17 +65,28 @@ from skyportal.utils.gcn_extraction_tags import (
     wants_classification,
 )
 from skyportal.utils.notifications import (
+    discussion_notification_text,
+    escape_markdown,
+    escape_slack,
+    feedback_notification_text,
     gcn_email_notification,
     gcn_notification_content,
     gcn_slack_notification,
+    group_admission_request_notification_text,
     mention_email_notification,
     source_email_notification,
     source_notification_content,
     source_slack_notification,
+    wants_in_app,
 )
+from skyportal.utils.parse import mentioned_usernames
 
 env, cfg = load_env()
 log = make_log("notification_queue")
+
+FEEDBACK_CATEGORIES = {"bug": "bug report", "change": "change request"}
+
+DISCUSSION_TYPES = ("direct_messages", "group_discussions")
 
 init_db(**cfg["database"])
 
@@ -99,6 +120,8 @@ op_options = [
 def notification_resource_type(target):
     if not target["notification_type"]:
         return None
+    if target["notification_type"].startswith("feedback"):
+        return "feedback"
     if (
         "favorite_sources" not in target["notification_type"]
         and "gcn_events" not in target["notification_type"]
@@ -134,7 +157,7 @@ def user_preferences(target, notification_setting, resource_type):
     if "preferences" not in target["user"]:
         return
 
-    if notification_setting in ["sms", "phone"]:
+    if notification_setting in ["sms", "phone", "whatsapp"]:
         if client is None:
             return
         if not target["user"]["contact_phone"]:
@@ -165,12 +188,19 @@ def user_preferences(target, notification_setting, resource_type):
             "mention",
             "analysis_services",
             "observation_plans",
+            "deployments",
+            "feedback",
+            "direct_messages",
+            "group_discussions",
         ]:
             if not prefs.get(resource_type, False):
                 return
             if not prefs[resource_type].get(notification_setting, False):
                 return
             if not prefs[resource_type][notification_setting].get("active", False):
+                return
+        elif notification_setting in ["sms", "phone", "whatsapp"]:
+            if not prefs.get(resource_type, {}).get(notification_setting):
                 return
 
         return prefs
@@ -209,6 +239,23 @@ def send_slack_notification(target):
                         target=target, data=target["content"]
                     ),
                 }
+            )
+        elif resource_type == "feedback" and target.get("content"):
+            text = feedback_notification_text(target["content"], escape_slack)
+            data = json.dumps(
+                {"url": integration_url, "text": f"{text} ({app_url}{target['url']})"}
+            )
+        elif resource_type in DISCUSSION_TYPES and target.get("content"):
+            text = discussion_notification_text(target["content"], escape_slack)
+            data = json.dumps(
+                {"url": integration_url, "text": f"{text} ({app_url}{target['url']})"}
+            )
+        elif resource_type == "group_admission_request" and target.get("content"):
+            text = group_admission_request_notification_text(
+                target["content"], escape_slack
+            )
+            data = json.dumps(
+                {"url": integration_url, "text": f"{text} ({app_url}{target['url']})"}
             )
         else:
             data = json.dumps(
@@ -283,6 +330,38 @@ def send_email_notification(target):
 
         elif resource_type == "group_admission_request":
             subject = f"{cfg['app.title']} - New group admission request"
+            if target.get("content"):
+                text = group_admission_request_notification_text(
+                    target["content"], html.escape, bold=""
+                )
+                body = f"<p>{text}</p><p><a href='{app_url}{target['url']}'>View in {cfg['app.title']}</a></p>"
+
+        elif resource_type == "deployments":
+            subject = f"{cfg['app.title']} - New deployment"
+
+        elif resource_type == "feedback":
+            subject = (
+                f"{cfg['app.title']} - Reply to your feedback"
+                if target["notification_type"] == "feedback_reply"
+                else f"{cfg['app.title']} - New feedback"
+            )
+            if target.get("content"):
+                text = feedback_notification_text(
+                    target["content"], html.escape, bold=""
+                )
+                body = f"<p>{text}</p><p><a href='{app_url}{target['url']}'>View in {cfg['app.title']}</a></p>"
+
+        elif resource_type in DISCUSSION_TYPES:
+            subject = (
+                f"{cfg['app.title']} - New direct message"
+                if resource_type == "direct_messages"
+                else f"{cfg['app.title']} - New message in a group discussion"
+            )
+            if target.get("content"):
+                text = discussion_notification_text(
+                    target["content"], html.escape, bold=""
+                )
+                body = f"<p>{text}</p><p><a href='{app_url}{target['url']}'>View in {cfg['app.title']}</a></p>"
 
         if subject and target["user"]["contact_email"]:
             try:
@@ -422,7 +501,7 @@ def send_whatsapp_notification(target):
             client.messages.create(
                 body=f"{cfg['app.title']} - {target['text']}",
                 from_="whatsapp:" + str(from_number),
-                to="whatsapp" + str(target["user"]["contact_phone"].e164),
+                to="whatsapp:" + str(target["user"]["contact_phone"].e164),
             )
             log(
                 f"Sent WhatsApp notification to user {target['user']['id']} at phone number: {target['user']['contact_phone'].e164}, body: {target['text']}, resource_type: {resource_type}"
@@ -447,6 +526,8 @@ def push_frontend_notification(target):
             "Error sending frontend notification: user_id or user.id not found in notification's target"
         )
         return
+    if target.get("id") is None:
+        return
     resource_type = notification_resource_type(target)
     log(
         f"Sent frontend notification to user {user_id}, body: {target['text']}, resource_type: {resource_type}"
@@ -455,13 +536,47 @@ def push_frontend_notification(target):
     ws_flow.push(user_id, "skyportal/FETCH_NOTIFICATIONS")
 
 
+def user_notification_target(session, user, text, notification_type, url, content=None):
+    target = {
+        "text": text,
+        "notification_type": notification_type,
+        "url": url,
+        "user_id": user.id,
+        "user": {**user.to_dict(), "preferences": user.preferences},
+        "content": content,
+    }
+    if not wants_in_app(user.preferences, notification_resource_type(target)):
+        return target
+    notification = UserNotification(
+        user=user, text=text, notification_type=notification_type, url=url
+    )
+    session.add(notification)
+    session.commit()
+    return {**notification.to_dict(), **target}
+
+
 def users_on_shift(session):
-    users = session.scalars(
-        sa.select(ShiftUser).where(
-            ShiftUser.shift_id == Shift.id,
-        )
+    now = arrow.utcnow().datetime
+    return session.scalars(
+        sa.select(ShiftUser.user_id)
+        .join(Shift, Shift.id == ShiftUser.shift_id)
+        .where(Shift.start_date <= now, Shift.end_date >= now)
+        .distinct()
     ).all()
-    return [user.user_id for user in users]
+
+
+def shift_users_with_access(session, allocation_id):
+    shift_users = session.scalars(
+        sa.select(User).where(User.id.in_(users_on_shift(session)))
+    ).all()
+    return [
+        shift_user.id
+        for shift_user in shift_users
+        if session.scalar(
+            Allocation.select(shift_user).where(Allocation.id == allocation_id)
+        )
+        is not None
+    ]
 
 
 queue = []
@@ -476,35 +591,61 @@ def service(queue):
         if notification is None:
             continue
 
-        try:
-            push_frontend_notification(notification)
-            send_phone_notification(notification)
-            send_sms_notification(notification)
-            send_whatsapp_notification(notification)
-            send_email_notification(notification)
-            send_slack_notification(notification)
-        except Exception as e:
-            log(f"Error processing notification ID {notification['id']}: {str(e)}")
+        for send in (
+            push_frontend_notification,
+            send_phone_notification,
+            send_sms_notification,
+            send_whatsapp_notification,
+            send_email_notification,
+            send_slack_notification,
+        ):
+            try:
+                send(notification)
+            except Exception as e:
+                log(
+                    f"Error processing notification ID {notification.get('id')} "
+                    f"in {send.__name__}: {str(e)}"
+                )
 
 
 def api(queue):
+    processor = ThreadPoolExecutor(max_workers=1)
+
     class QueueHandler(tornado.web.RequestHandler):
         def get(self):
             self.set_header("Content-Type", "application/json")
             self.write({"status": "success", "data": {"queue_length": len(queue)}})
 
-        async def post(self):
+        def post(self):
             try:
                 data = tornado.escape.json_decode(self.request.body)
             except json.JSONDecodeError:
                 self.set_status(400)
                 return self.write({"status": "error", "message": "Malformed JSON data"})
+            if "target_class_name" not in data or "target_id" not in data:
+                self.set_status(400)
+                return self.write(
+                    {
+                        "status": "error",
+                        "message": "Missing target_class_name or target_id",
+                    }
+                )
 
+            processor.submit(self.process, data)
+            self.write(
+                {
+                    "status": "success",
+                    "message": "Notification request accepted into queue",
+                    "data": {"queue_length": len(queue)},
+                }
+            )
+
+        @staticmethod
+        def process(data):
             target_class_name = data["target_class_name"]
             target_id = data["target_id"]
             target_content = None
 
-            is_facility_transaction = target_class_name == "FacilityTransaction"
             is_gcn_notice = target_class_name == "GcnNotice"
             is_gcn_localization = target_class_name == "Localization"
             is_gcn_tag = target_class_name == "GcnTag"
@@ -516,6 +657,10 @@ def api(queue):
             is_analysis_service = target_class_name == "ObjAnalysis"
             is_observation_plan = target_class_name == "EventObservationPlan"
             is_followup_request = target_class_name == "FollowupRequest"
+            is_deployment = target_class_name == "Deployment"
+            is_feedback = target_class_name == "Feedback"
+            is_feedback_reply = target_class_name == "FeedbackReply"
+            is_discussion_message = target_class_name == "DiscussionMessage"
 
             with DBSession() as session:
                 try:
@@ -556,7 +701,7 @@ def api(queue):
                         target_data = target.to_dict()
                         target_content = gcn_notification_content(target, session)
 
-                    elif is_facility_transaction or is_followup_request:
+                    elif is_followup_request:
                         users = session.scalars(
                             sa.select(User).where(
                                 User.preferences["notifications"][
@@ -566,40 +711,43 @@ def api(queue):
                                 .is_(True)
                             )
                         ).all()
-                        if is_facility_transaction:
-                            target_class = FacilityTransaction
-                            target_data = (
-                                session.scalars(
-                                    sa.select(FacilityTransaction).where(
-                                        FacilityTransaction.id == target_id
-                                    )
-                                )
-                                .first()
-                                .to_dict()
+                        target_class = FollowupRequest
+                        target_data = session.scalars(
+                            sa.select(FollowupRequest).where(
+                                FollowupRequest.id == target_id
                             )
-                        elif is_followup_request:
-                            target_class = FollowupRequest
-                            target_data = session.scalars(
-                                sa.select(FollowupRequest).where(
-                                    FollowupRequest.id == target_id
+                        ).first()
+                        try:
+                            target_data = target_data.to_dict()
+                        except Exception:
+                            # this happens if the followup request is deleted
+                            # in the future, maybe we'll want to notify on deletion?
+                            return
+                        if target_data["status"].startswith(
+                            ("submitted", "In progress")
+                        ):
+                            return
+                        allocation = session.scalars(
+                            sa.select(Allocation).where(
+                                Allocation.id == target_data["allocation_id"]
+                            )
+                        ).first()
+                        instrument = allocation.instrument
+                        notification_user_ids = {
+                            allocation_user.user_id
+                            for allocation_user in allocation.allocation_users
+                        } | set(
+                            session.scalars(
+                                sa.select(FollowupRequestUser.user_id).where(
+                                    FollowupRequestUser.followuprequest_id == target_id
                                 )
-                            ).first()
-                            try:
-                                target_data = target_data.to_dict()
-                            except Exception:
-                                # this happens if the followup request is deleted
-                                # in the future, maybe we'll want to notify on deletion?
-                                return
+                            )
+                        )
+                        notification_user_ids.add(target_data["requester_id"])
+                        notification_user_ids.update(
+                            shift_users_with_access(session, allocation.id)
+                        )
                     elif is_analysis_service:
-                        users = session.scalars(
-                            sa.select(User).where(
-                                User.preferences["notifications"]["analysis_services"][
-                                    "active"
-                                ]
-                                .astext.cast(sa.Boolean)
-                                .is_(True)
-                            )
-                        ).all()
                         target_class = ObjAnalysis
                         target_data = (
                             session.scalars(
@@ -610,6 +758,16 @@ def api(queue):
                             .first()
                             .to_dict()
                         )
+                        users = session.scalars(
+                            sa.select(User).where(
+                                User.id == target_data["author_id"],
+                                User.preferences["notifications"]["analysis_services"][
+                                    "active"
+                                ]
+                                .astext.cast(sa.Boolean)
+                                .is_(True),
+                            )
+                        ).all()
                     elif is_observation_plan:
                         users = session.scalars(
                             sa.select(User).where(
@@ -630,6 +788,103 @@ def api(queue):
                             .first()
                             .to_dict()
                         )
+                    elif is_deployment:
+                        users = session.scalars(
+                            sa.select(User).where(
+                                User.preferences["notifications"]["deployments"][
+                                    "active"
+                                ]
+                                .astext.cast(sa.Boolean)
+                                .is_(True)
+                            )
+                        ).all()
+                        target_class = Deployment
+                        target_data = (
+                            session.scalars(
+                                sa.select(Deployment).where(Deployment.id == target_id)
+                            )
+                            .first()
+                            .to_dict()
+                        )
+                    elif is_feedback:
+                        admin_ids = sa.union(
+                            sa.select(UserACL.user_id).where(
+                                UserACL.acl_id == "System admin"
+                            ),
+                            sa.select(UserRole.user_id)
+                            .join(RoleACL, RoleACL.role_id == UserRole.role_id)
+                            .where(RoleACL.acl_id == "System admin"),
+                        )
+                        users = session.scalars(
+                            sa.select(User).where(User.id.in_(admin_ids))
+                        ).all()
+                        target_class = Feedback
+                        feedback = session.scalar(
+                            sa.select(Feedback).where(Feedback.id == target_id)
+                        )
+                        target_data = {
+                            **feedback.to_dict(),
+                            "author": feedback.author.username,
+                        }
+                    elif is_feedback_reply:
+                        target_class = FeedbackReply
+                        reply = session.scalar(
+                            sa.select(FeedbackReply).where(
+                                FeedbackReply.id == target_id
+                            )
+                        )
+                        users = [reply.feedback.author]
+                        target_data = {
+                            **reply.to_dict(),
+                            "author": reply.author.username,
+                            "category": reply.feedback.category,
+                        }
+                    elif is_discussion_message:
+                        target_class = DiscussionMessage
+                        message = session.scalar(
+                            sa.select(DiscussionMessage).where(
+                                DiscussionMessage.id == target_id
+                            )
+                        )
+                        discussion = message.discussion
+                        resource_type = (
+                            "direct_messages"
+                            if discussion.is_direct
+                            else "group_discussions"
+                        )
+                        if discussion.group_id is None:
+                            participants = sa.select(DiscussionMember.user_id).where(
+                                DiscussionMember.discussion_id == discussion.id
+                            )
+                        else:
+                            participants = sa.select(GroupUser.user_id).where(
+                                GroupUser.group_id == discussion.group_id
+                            )
+                        muted = sa.select(DiscussionMember.user_id).where(
+                            DiscussionMember.discussion_id == discussion.id,
+                            DiscussionMember.muted.is_(True),
+                        )
+                        users = session.scalars(
+                            sa.select(User).where(
+                                User.id.in_(participants),
+                                User.id.not_in(muted),
+                                User.id != message.author_id,
+                                User.preferences["notifications"][resource_type][
+                                    "active"
+                                ]
+                                .astext.cast(sa.Boolean)
+                                .is_(True),
+                            )
+                        ).all()
+                        target_data = {
+                            "resource_type": resource_type,
+                            "author": message.author.username,
+                            "label": discussion.name
+                            or (discussion.group.name if discussion.group else None),
+                            "text": message.text,
+                            "mentions": mentioned_usernames(message.text),
+                            "url": f"/discussions?id={discussion.id}",
+                        }
                     elif is_group_admission_request:
                         target_class = GroupAdmissionRequest
                         target_data = (
@@ -775,8 +1030,8 @@ def api(queue):
                             event_tag = tag_event(
                                 session, extraction, extraction.sent_by_id
                             )
-                            if tagged or event_tag:
-                                session.commit()
+                            # also saves groups given to existing group-less tags
+                            session.commit()
                             if tagged:
                                 log(
                                     f"tagged {', '.join(tagged)} from extraction {target_id}"
@@ -787,6 +1042,7 @@ def api(queue):
                                     f"{event_tag} from extraction {target_id}"
                                 )
 
+                    users = [user for user in users if user.is_active()]
                     failure_count = 0
                     nb_users = len(users)
                     for user in users:
@@ -931,6 +1187,7 @@ def api(queue):
                                                 if len(intersection) == 0:
                                                     continue
 
+                                            localization_pass = True
                                             for prop_filt in gcn_pref.get(
                                                 "localization_properties", []
                                             ):
@@ -962,7 +1219,10 @@ def api(queue):
                                                         ],
                                                         value,
                                                     ):
-                                                        continue
+                                                        localization_pass = False
+                                                        break
+                                            if not localization_pass:
+                                                continue
 
                                         if is_gcn_tag:
                                             text = (
@@ -980,187 +1240,30 @@ def api(queue):
                                                 f"with Notice Type *{notice_type}*"
                                             )
 
-                                        notification = UserNotification(
-                                            user=user,
-                                            text=text,
-                                            notification_type="gcn_events_new_tag"
-                                            if is_gcn_tag
-                                            else "gcn_events",
-                                            url=f"/gcn_events/{str(target_data['dateobs']).replace(' ', 'T')}",
-                                        )
-                                        session.add(notification)
-                                        session.commit()
-                                        target = {
-                                            **notification.to_dict(),
-                                            "user": {
-                                                **notification.user.to_dict(),
-                                                "preferences": notification.user.preferences,
-                                            },
-                                            "content": target_content,
-                                        }
-                                        queue.append(target)
-
-                                elif is_facility_transaction:
-                                    if "observation_plan_request" in target_data:
-                                        allocation_id = target_data[
-                                            "observation_plan_request"
-                                        ]["allocation_id"]
-                                        allocation = session.scalars(
-                                            sa.select(Allocation).where(
-                                                Allocation.id == allocation_id
+                                        queue.append(
+                                            user_notification_target(
+                                                session,
+                                                user,
+                                                text,
+                                                "gcn_events_new_tag"
+                                                if is_gcn_tag
+                                                else "gcn_events",
+                                                f"/gcn_events/{str(target_data['dateobs']).replace(' ', 'T')}",
+                                                target_content,
                                             )
-                                        ).first()
-                                        notification_user_ids = [
-                                            allocation_user.user.id
-                                            for allocation_user in allocation.allocation_users
-                                        ]
-                                        notification_user_ids.append(
-                                            target_data["observation_plan_request"][
-                                                "requester_id"
-                                            ]
-                                        )
-                                        instrument = allocation.instrument
-                                        localization_id = target_data[
-                                            "observation_plan_request"
-                                        ]["localization_id"]
-                                        localization = session.scalars(
-                                            sa.select(Localization).where(
-                                                Localization.id == localization_id
-                                            )
-                                        ).first()
-                                        if user.id in notification_user_ids:
-                                            notification = UserNotification(
-                                                user=user,
-                                                text=f"New Observation Plan submission for GcnEvent *{localization.dateobs}* for *{instrument.name}* by user *{target_data['observation_plan_request']['requester']['username']}*",
-                                                notification_type="facility_transactions",
-                                                url=f"/gcn_events/{str(localization.dateobs).replace(' ', 'T')}",
-                                            )
-                                            session.add(notification)
-                                            session.commit()
-                                            target = {
-                                                **notification.to_dict(),
-                                                "user": {
-                                                    **notification.user.to_dict(),
-                                                    "preferences": notification.user.preferences,
-                                                },
-                                            }
-                                            queue.append(target)
-                                    elif "followup_request" in target_data:
-                                        allocation_id = target_data["followup_request"][
-                                            "allocation_id"
-                                        ]
-                                        allocation = session.scalars(
-                                            sa.select(Allocation).where(
-                                                Allocation.id == allocation_id
-                                            )
-                                        ).first()
-                                        notification_user_ids = [
-                                            allocation_user.user.id
-                                            for allocation_user in allocation.allocation_users
-                                        ]
-                                        notification_user_ids.append(
-                                            target_data["followup_request"][
-                                                "requester_id"
-                                            ]
-                                        )
-                                        shift_user_ids = users_on_shift(session)
-                                        for shift_user_id in shift_user_ids:
-                                            user = session.scalar(
-                                                sa.select(User).where(
-                                                    User.id == shift_user_id
-                                                )
-                                            )
-                                            check_access = session.scalar(
-                                                Allocation.select(user).where(
-                                                    Allocation.id == allocation_id
-                                                )
-                                            )
-                                            if check_access is not None:
-                                                notification_user_ids.append(
-                                                    shift_user_id
-                                                )
-                                        notification_user_ids = list(
-                                            set(notification_user_ids)
                                         )
 
-                                        instrument = allocation.instrument
-                                        if user.id in notification_user_ids:
-                                            notification = UserNotification(
-                                                user=user,
-                                                text=f"New Follow-up submission for object *{target_data['followup_request']['obj_id']}* by *{instrument.name}* by user *{target_data['followup_request']['requester']['username']}*",
-                                                notification_type="facility_transactions",
-                                                url=f"/source/{target_data['followup_request']['obj_id']}",
-                                            )
-                                            session.add(notification)
-                                            session.commit()
-                                            queue.append(notification.id)
                                 elif is_followup_request:
-                                    if target_data["status"].startswith("submitted"):
-                                        continue
-                                    allocation_id = target_data["allocation_id"]
-                                    allocation = session.scalars(
-                                        sa.select(Allocation).where(
-                                            Allocation.id == allocation_id
-                                        )
-                                    ).first()
-                                    notification_user_ids = [
-                                        allocation_user.user.id
-                                        for allocation_user in allocation.allocation_users
-                                    ] + [
-                                        watcher["user_id"]
-                                        for watcher in target_data.get("watchers", [])
-                                    ]
-                                    notification_user_ids.append(
-                                        target_data["requester_id"]
-                                    )
-                                    notification_user_ids.append(
-                                        target_data["last_modified_by_id"]
-                                    )
-
-                                    last_modified_by = session.scalars(
-                                        sa.select(User).where(
-                                            User.id
-                                            == target_data["last_modified_by_id"]
-                                        )
-                                    ).first()
-
-                                    shift_user_ids = users_on_shift(session)
-                                    for shift_user_id in shift_user_ids:
-                                        user = session.scalar(
-                                            sa.select(User).where(
-                                                User.id == shift_user_id
-                                            )
-                                        )
-                                        check_access = session.scalar(
-                                            Allocation.select(user).where(
-                                                Allocation.id == allocation_id
-                                            )
-                                        )
-                                        if check_access is not None:
-                                            notification_user_ids.append(shift_user_id)
-                                    notification_user_ids = list(
-                                        set(notification_user_ids)
-                                    )
-
-                                    instrument = allocation.instrument
                                     if user.id in notification_user_ids:
-                                        notification = UserNotification(
-                                            user=user,
-                                            text=f"Follow-up submission for object *{target_data['obj_id']}* by *{instrument.name}* updated by user *{last_modified_by.username}*",
-                                            notification_type="facility_transactions",
-                                            url=f"/source/{target_data['obj_id']}",
+                                        queue.append(
+                                            user_notification_target(
+                                                session,
+                                                user,
+                                                f"Follow-up request for object *{target_data['obj_id']}* by *{instrument.name}*: {textwrap.shorten(target_data['status'], 120, placeholder='...')}",
+                                                "facility_transactions",
+                                                f"/source/{target_data['obj_id']}",
+                                            )
                                         )
-                                        session.add(notification)
-                                        session.commit()
-                                        target = notification.to_dict()
-                                        target = {
-                                            **notification.to_dict(),
-                                            "user": {
-                                                **notification.user.to_dict(),
-                                                "preferences": notification.user.preferences,
-                                            },
-                                        }
-                                        queue.append(target)
                                 elif is_gcn_extraction:
                                     label = classification_of(target_data.get("data"))
                                     if wants_classification(pref, label):
@@ -1171,25 +1274,16 @@ def api(queue):
                                             if circular_id
                                             else "A circular"
                                         )
-                                        notification = UserNotification(
-                                            user=user,
-                                            text=(
+                                        queue.append(
+                                            user_notification_target(
+                                                session,
+                                                user,
                                                 f"{source} reports *{label}* "
-                                                f"for event *{dateobs}*"
-                                            ),
-                                            notification_type="gcn_extractions",
-                                            url=f"/gcn_events/{dateobs}",
+                                                f"for event *{dateobs}*",
+                                                "gcn_extractions",
+                                                f"/gcn_events/{dateobs.isoformat()}",
+                                            )
                                         )
-                                        session.add(notification)
-                                        session.commit()
-                                        target = {
-                                            **notification.to_dict(),
-                                            "user": {
-                                                **notification.user.to_dict(),
-                                                "preferences": notification.user.preferences,
-                                            },
-                                        }
-                                        queue.append(target)
                                 elif is_analysis_service:
                                     if target_data["status"] == "completed":
                                         analysis_service_id = target_data[
@@ -1201,22 +1295,15 @@ def api(queue):
                                                 == analysis_service_id
                                             )
                                         ).first()
-                                        notification = UserNotification(
-                                            user=user,
-                                            text=f"New completed analysis service for object *{target_data['obj_id']}* with name *{analysis_service.name}*",
-                                            notification_type="analysis_services",
-                                            url=f"/source/{target_data['obj_id']}",
+                                        queue.append(
+                                            user_notification_target(
+                                                session,
+                                                user,
+                                                f"New completed analysis service for object *{target_data['obj_id']}* with name *{analysis_service.name}*",
+                                                "analysis_services",
+                                                f"/source/{target_data['obj_id']}",
+                                            )
                                         )
-                                        session.add(notification)
-                                        session.commit()
-                                        target = {
-                                            **notification.to_dict(),
-                                            "user": {
-                                                **notification.user.to_dict(),
-                                                "preferences": notification.user.preferences,
-                                            },
-                                        }
-                                        queue.append(target)
                                 elif is_observation_plan:
                                     observation_plan_request_id = target_data[
                                         "observation_plan_request_id"
@@ -1250,22 +1337,89 @@ def api(queue):
                                         )
                                     ).first()
                                     if user.id in notification_user_ids:
-                                        notification = UserNotification(
-                                            user=user,
-                                            text=f"New Observation Plan submission for GcnEvent *{localization.dateobs}* for *{instrument.name}* by user *{observation_plan_request.requester.username}*",
-                                            notification_type="observation_plans",
-                                            url=f"/gcn_events/{str(localization.dateobs).replace(' ', 'T')}",
+                                        queue.append(
+                                            user_notification_target(
+                                                session,
+                                                user,
+                                                f"New Observation Plan submission for GcnEvent *{localization.dateobs}* for *{instrument.name}* by user *{observation_plan_request.requester.username}*",
+                                                "observation_plans",
+                                                f"/gcn_events/{str(localization.dateobs).replace(' ', 'T')}",
+                                            )
                                         )
-                                        session.add(notification)
-                                        session.commit()
-                                        target = {
-                                            **notification.to_dict(),
-                                            "user": {
-                                                **notification.user.to_dict(),
-                                                "preferences": notification.user.preferences,
-                                            },
-                                        }
-                                        queue.append(target)
+                                elif is_deployment:
+                                    commit = target_data["commit"] or {}
+                                    text = (
+                                        f"New deployment of *{cfg['app.title']}*: "
+                                        f"SkyPortal *{target_data['version']}*"
+                                    )
+                                    if commit.get("sha"):
+                                        text += f" ({commit['sha']}: {commit.get('description', '')})"
+                                    queue.append(
+                                        user_notification_target(
+                                            session,
+                                            user,
+                                            text,
+                                            "deployments",
+                                            "/deployments",
+                                        )
+                                    )
+                                elif is_feedback or is_feedback_reply:
+                                    if user.id == target_data["author_id"]:
+                                        continue
+                                    label = FEEDBACK_CATEGORIES.get(
+                                        target_data["category"], "message"
+                                    )
+                                    content = {
+                                        "author": target_data["author"],
+                                        "label": label,
+                                        "snippet": textwrap.shorten(
+                                            target_data["text"], 120, placeholder="..."
+                                        ),
+                                        "reply": is_feedback_reply,
+                                    }
+                                    queue.append(
+                                        user_notification_target(
+                                            session,
+                                            user,
+                                            feedback_notification_text(
+                                                content, escape_markdown
+                                            ),
+                                            "feedback_reply"
+                                            if is_feedback_reply
+                                            else "feedback",
+                                            "/deployments?tab=feedback",
+                                            content,
+                                        )
+                                    )
+                                elif is_discussion_message:
+                                    resource_type = target_data["resource_type"]
+                                    mentioned = user.username in target_data["mentions"]
+                                    if (
+                                        pref[resource_type].get("mentions_only")
+                                        and not mentioned
+                                    ):
+                                        continue
+                                    content = {
+                                        "author": target_data["author"],
+                                        "label": target_data["label"],
+                                        "snippet": textwrap.shorten(
+                                            target_data["text"], 120, placeholder="..."
+                                        ),
+                                        "direct": resource_type == "direct_messages",
+                                        "mentioned": mentioned,
+                                    }
+                                    queue.append(
+                                        user_notification_target(
+                                            session,
+                                            user,
+                                            discussion_notification_text(
+                                                content, escape_markdown
+                                            ),
+                                            resource_type,
+                                            target_data["url"],
+                                            content,
+                                        )
+                                    )
                                 elif is_group_admission_request:
                                     user_from_request = session.scalars(
                                         sa.select(User).where(
@@ -1277,11 +1431,42 @@ def api(queue):
                                             Group.id == target_data["group_id"]
                                         )
                                     ).first()
+                                    shares_affiliations = (
+                                        (user_from_request.preferences or {}).get(
+                                            "publicProfile"
+                                        )
+                                        or {}
+                                    ).get("affiliations", True)
+                                    content = {
+                                        "name": " ".join(
+                                            filter(
+                                                None,
+                                                [
+                                                    user_from_request.first_name,
+                                                    user_from_request.last_name,
+                                                ],
+                                            )
+                                        ),
+                                        "username": user_from_request.username,
+                                        "affiliations": (
+                                            user_from_request.affiliations or []
+                                        )
+                                        if shares_affiliations
+                                        else [],
+                                        "group": group_from_request.name,
+                                        "message": textwrap.shorten(
+                                            target_data["message"] or "",
+                                            200,
+                                            placeholder="...",
+                                        ),
+                                    }
                                     notification = UserNotification(
                                         user=user,
-                                        text=f"New Group Admission Request from *@{user_from_request.username}* for Group *{group_from_request.name}*",
+                                        text=group_admission_request_notification_text(
+                                            content, escape_markdown
+                                        ),
                                         notification_type="group_admission_request",
-                                        url=f"/group/{group_from_request.id}",
+                                        url=f"/group/{group_from_request.id}?tab=admissions",
                                     )
                                     session.add(notification)
                                     session.commit()
@@ -1291,6 +1476,7 @@ def api(queue):
                                             **notification.user.to_dict(),
                                             "preferences": notification.user.preferences,
                                         },
+                                        "content": content,
                                     }
                                     queue.append(target)
                                 else:
@@ -1322,22 +1508,15 @@ def api(queue):
                                                 ).get("new_ml_classifications", False)
                                             )
                                         ):
-                                            notification = UserNotification(
-                                                user=user,
-                                                text=f"New classification on favorite source *{target_data['obj_id']}*",
-                                                notification_type="favorite_sources_new_classification",
-                                                url=f"/source/{target_data['obj_id']}",
+                                            queue.append(
+                                                user_notification_target(
+                                                    session,
+                                                    user,
+                                                    f"New classification on favorite source *{target_data['obj_id']}*",
+                                                    "favorite_sources_new_classification",
+                                                    f"/source/{target_data['obj_id']}",
+                                                )
                                             )
-                                            session.add(notification)
-                                            session.commit()
-                                            target = {
-                                                **notification.to_dict(),
-                                                "user": {
-                                                    **notification.user.to_dict(),
-                                                    "preferences": notification.user.preferences,
-                                                },
-                                            }
-                                            queue.append(target)
                                             continue
                                         if (pref is not None) and "sources" in pref:
                                             if "classifications" in pref["sources"]:
@@ -1392,23 +1571,16 @@ def api(queue):
                                                         ).all()
                                                         if len(sources) == 0:
                                                             continue
-                                                    notification = UserNotification(
-                                                        user=user,
-                                                        text=f"New classification *{target_data['classification']}* for source *{target_data['obj_id']}*",
-                                                        notification_type="sources_new_classification",
-                                                        url=f"/source/{target_data['obj_id']}",
+                                                    queue.append(
+                                                        user_notification_target(
+                                                            session,
+                                                            user,
+                                                            f"New classification *{target_data['classification']}* for source *{target_data['obj_id']}*",
+                                                            "sources_new_classification",
+                                                            f"/source/{target_data['obj_id']}",
+                                                            target_content,
+                                                        )
                                                     )
-                                                    session.add(notification)
-                                                    session.commit()
-                                                    target = {
-                                                        **notification.to_dict(),
-                                                        "user": {
-                                                            **notification.user.to_dict(),
-                                                            "preferences": notification.user.preferences,
-                                                        },
-                                                        "content": target_content,
-                                                    }
-                                                    queue.append(target)
                                     elif is_spectra:
                                         if (
                                             len(favorite_sources) > 0
@@ -1418,22 +1590,15 @@ def api(queue):
                                                 for source in favorite_sources
                                             )
                                         ):
-                                            notification = UserNotification(
-                                                user=user,
-                                                text=f"New spectrum on favorite source *{target_data['obj_id']}*",
-                                                notification_type="favorite_sources_new_spectrum",
-                                                url=f"/source/{target_data['obj_id']}",
+                                            queue.append(
+                                                user_notification_target(
+                                                    session,
+                                                    user,
+                                                    f"New spectrum on favorite source *{target_data['obj_id']}*",
+                                                    "favorite_sources_new_spectrum",
+                                                    f"/source/{target_data['obj_id']}",
+                                                )
                                             )
-                                            session.add(notification)
-                                            session.commit()
-                                            target = {
-                                                **notification.to_dict(),
-                                                "user": {
-                                                    **notification.user.to_dict(),
-                                                    "preferences": notification.user.preferences,
-                                                },
-                                            }
-                                            queue.append(target)
                                             continue
                                         if (
                                             (pref is not None)
@@ -1500,23 +1665,16 @@ def api(queue):
                                             ):
                                                 continue
 
-                                            notification = UserNotification(
-                                                user=user,
-                                                text=f"New spectrum for source *{target_data['obj_id']}*",
-                                                notification_type="sources_new_spectrum",
-                                                url=f"/source/{target_data['obj_id']}",
+                                            queue.append(
+                                                user_notification_target(
+                                                    session,
+                                                    user,
+                                                    f"New spectrum for source *{target_data['obj_id']}*",
+                                                    "sources_new_spectrum",
+                                                    f"/source/{target_data['obj_id']}",
+                                                    target_content,
+                                                )
                                             )
-                                            session.add(notification)
-                                            session.commit()
-                                            target = {
-                                                **notification.to_dict(),
-                                                "user": {
-                                                    **notification.user.to_dict(),
-                                                    "preferences": notification.user.preferences,
-                                                },
-                                                "content": target_content,
-                                            }
-                                            queue.append(target)
 
                                     elif is_comment:
                                         if (
@@ -1533,22 +1691,15 @@ def api(queue):
                                                 target_data["obj_id"] == source.obj_id
                                                 for source in favorite_sources
                                             ):
-                                                notification = UserNotification(
-                                                    user=user,
-                                                    text=f"New comment on favorite source *{target_data['obj_id']}*",
-                                                    notification_type="favorite_sources_new_comment",
-                                                    url=f"/source/{target_data['obj_id']}",
+                                                queue.append(
+                                                    user_notification_target(
+                                                        session,
+                                                        user,
+                                                        f"New comment on favorite source *{target_data['obj_id']}*",
+                                                        "favorite_sources_new_comment",
+                                                        f"/source/{target_data['obj_id']}",
+                                                    )
                                                 )
-                                                session.add(notification)
-                                                session.commit()
-                                                target = {
-                                                    **notification.to_dict(),
-                                                    "user": {
-                                                        **notification.user.to_dict(),
-                                                        "preferences": notification.user.preferences,
-                                                    },
-                                                }
-                                                queue.append(target)
                         except Exception as e:
                             failure_count += 1
                             log(
@@ -1558,16 +1709,7 @@ def api(queue):
                             continue
 
                     if is_comment:
-                        _punctuation = string.punctuation.replace("-", "").replace(
-                            "@", ""
-                        )
-                        _usernames = [
-                            word.strip(_punctuation).replace("@", "")
-                            for word in target_data.get("text", "")
-                            .replace(",", " ")
-                            .split()
-                            if word.strip(_punctuation).startswith("@")
-                        ]
+                        _usernames = mentioned_usernames(target_data.get("text", ""))
                         if _usernames:
                             _author = session.scalars(
                                 sa.select(User).where(
@@ -1606,6 +1748,8 @@ def api(queue):
                                 )
                             ).all()
                             for _mentioned_user in _mentioned_users:
+                                if not _mentioned_user.is_active():
+                                    continue
                                 queue.append(
                                     {
                                         "text": _mention_text,
@@ -1621,22 +1765,9 @@ def api(queue):
 
                     if failure_count == nb_users and nb_users > 0:
                         log("Failed to notify all users")
-                        raise Exception("Failed to notify all users")
-                    self.set_status(200)
-                    return self.write(
-                        {
-                            "status": "success",
-                            "message": f"Notification accepted into queue for {nb_users - failure_count} out of {nb_users} users",
-                            "data": {"queue_length": len(queue)},
-                        }
-                    )
                 except Exception as e:
                     log(f"Error processing notification: {str(e)}")
                     DBSession().rollback()
-                    self.set_status(400)
-                    return self.write(
-                        {"status": "error", "message": "Error processing notification"}
-                    )
 
     app = tornado.web.Application([(r"/", QueueHandler)])
     try:

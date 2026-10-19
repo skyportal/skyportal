@@ -42,7 +42,10 @@ async def _filters_used(session, user, obj_id):
             sa.select(Filter.id, Filter.name, Broker.name)
             .join(Candidate, Candidate.filter_id == Filter.id)
             .outerjoin(Broker, Filter.broker_id == Broker.id)
-            .where(Candidate.obj_id == obj_id)
+            .where(
+                Candidate.obj_id == obj_id,
+                Filter.id.in_(Filter.select(user, columns=[Filter.id])),
+            )
             .distinct()
             .order_by(Filter.name)
         )
@@ -58,13 +61,17 @@ async def _facilities_used(session, user, obj_id):
     instrument_ids = set(
         (
             await session.scalars(
-                sa.select(Photometry.instrument_id).where(Photometry.obj_id == obj_id)
+                Photometry.select(user, columns=[Photometry.instrument_id]).where(
+                    Photometry.obj_id == obj_id
+                )
             )
         ).all()
     ) | set(
         (
             await session.scalars(
-                sa.select(Spectrum.instrument_id).where(Spectrum.obj_id == obj_id)
+                Spectrum.select(user, columns=[Spectrum.instrument_id]).where(
+                    Spectrum.obj_id == obj_id
+                )
             )
         ).all()
     )
@@ -111,6 +118,7 @@ async def _programs_used(session, user, obj_id):
             .where(
                 FollowupRequest.obj_id == obj_id,
                 FollowupRequest.status.notilike("deleted%"),
+                Allocation.id.in_(Allocation.select(user, columns=[Allocation.id])),
             )
             .distinct()
         )

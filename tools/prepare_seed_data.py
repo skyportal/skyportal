@@ -5,7 +5,7 @@ if __name__ == "__main__":
     with open("data/taxonomy_sitewide.yaml", "w") as f:
         tax_obj = [
             {
-                "name": "Sitewide taxonomy",
+                "name": "Sitewide Taxonomy",
                 "provenance": "https://github.com/profjsb/timedomain-taxonomy",
                 "group_ids": ["=public_group_id"],
                 "hierarchy": tdtax.taxonomy,

@@ -1,6 +1,5 @@
 import { useState } from "react";
 import Box from "@mui/material/Box";
-import Chip from "@mui/material/Chip";
 import Dialog from "@mui/material/Dialog";
 import DialogActions from "@mui/material/DialogActions";
 import DialogContent from "@mui/material/DialogContent";
@@ -34,6 +33,7 @@ import {
   useDeleteUserApplicationMutation,
   useGetUserApplicationsQuery,
 } from "../../ducks/userApplications";
+import RemovableChip from "../RemovableChip";
 
 type Decision = "endorsed" | "declined";
 const TABS: UserApplication["status"][] = ["pending", "endorsed", "declined"];
@@ -164,15 +164,12 @@ const DecisionDialog = ({
   const endorsing = decision === "endorsed";
   const action = endorsing ? "Endorse" : "Decline";
 
-  // A group is only usable with the streams that feed its filters, so it can
-  // be offered once the applicant is being given all of them.
   const availableGroups = myGroups.filter((group: any) =>
     groupStreams(group).every((stream: any) => streamIDs.includes(stream.id)),
   );
 
   const chooseStreams = (selected: number[]) => {
     setStreamIDs(selected);
-    // Narrowing the streams can strand a group that was already picked.
     setGroupIDs((picked) =>
       picked.filter((id) =>
         groupStreams(myGroups.find((group: any) => group.id === id)).every(
@@ -263,10 +260,15 @@ const DecisionDialog = ({
                       {myStreams
                         .filter((stream: any) => selected.includes(stream.id))
                         .map((stream: any) => (
-                          <Chip
+                          <RemovableChip
                             key={stream.id}
                             size="small"
                             label={stream.name}
+                            onDelete={() =>
+                              chooseStreams(
+                                selected.filter((id) => id !== stream.id),
+                              )
+                            }
                           />
                         ))}
                     </Box>
@@ -294,10 +296,15 @@ const DecisionDialog = ({
                       {myGroups
                         .filter((group: any) => selected.includes(group.id))
                         .map((group: any) => (
-                          <Chip
+                          <RemovableChip
                             key={group.id}
                             size="small"
                             label={group.name}
+                            onDelete={() =>
+                              setGroupIDs(
+                                selected.filter((id) => id !== group.id),
+                              )
+                            }
                           />
                         ))}
                     </Box>
@@ -470,7 +477,6 @@ const UserApplications = () => {
               numPerPage: model.pageSize,
             })
           }
-          pageSizeOptions={[25, 50, 100]}
           showToolbar
           slots={{ toolbar: DataGridToolbar }}
         />

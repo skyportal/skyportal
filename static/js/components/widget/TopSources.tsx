@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import { Link } from "react-router-dom";
 
 import Paper from "@mui/material/Paper";
@@ -20,12 +20,16 @@ import {
   useUpdateUserPreferencesMutation,
 } from "../../ducks/profile";
 import WidgetPrefsDialog from "./WidgetPrefsDialog";
-import { useSourceListStyles } from "./RecentSources";
+import {
+  SourceListSkeleton,
+  SourceStamp,
+  useSourceListStyles,
+} from "./RecentSources";
 import { useGetTopSourcesQuery } from "../../ducks/topSources";
 import { useActiveTeam } from "../../ducks/teams";
 
 interface TopSourcesListProps {
-  sources?: any[];
+  sources: any[];
   styles: Record<string, any>;
   displayTNS?: boolean;
 }
@@ -124,24 +128,7 @@ const TopSourcesList = ({
   styles,
   displayTNS = true,
 }: TopSourcesListProps) => {
-  const [thumbnailIdxs, setThumbnailIdxs] = useState<Record<string, number>>(
-    {},
-  );
-
-  useEffect(() => {
-    sources?.forEach((source) => {
-      setThumbnailIdxs((prevState) => ({
-        ...prevState,
-        [source.obj_id]: 0,
-      }));
-    });
-  }, [sources]);
-
   const { classes: topSourceSpecificStyles } = useStyles();
-  if (sources === undefined) {
-    return <div>Loading top sources...</div>;
-  }
-
   if (sources.length === 0) {
     return <div>No top sources available.</div>;
   }
@@ -149,7 +136,7 @@ const TopSourcesList = ({
   return (
     <div className={topSourceSpecificStyles.sourceListContainer}>
       <ul className={styles["sourceList"]}>
-        {sources?.map((source) => {
+        {sources.map((source) => {
           const topsourceName = `${source.obj_id}`;
           let classification = null;
           if (source.classifications.length > 0) {
@@ -172,11 +159,6 @@ const TopSourcesList = ({
             }
           }
 
-          const thumbIdx = thumbnailIdxs[source.obj_id] ?? 0;
-          const imgClasses = source.thumbnails[thumbIdx]?.is_grayscale
-            ? `${styles["stamp"]} ${styles["inverted"]}`
-            : `${styles["stamp"]}`;
-
           return (
             <li key={`topSources_${source.obj_id}`}>
               <Paper
@@ -186,29 +168,7 @@ const TopSourcesList = ({
                 className={styles["sourceItemWithButton"]}
               >
                 <div className={styles["sourceItem"]}>
-                  <Link
-                    to={`/source/${source.obj_id}`}
-                    className={styles["stampContainer"]}
-                  >
-                    <img
-                      className={imgClasses}
-                      src={
-                        source.thumbnails[thumbIdx]?.public_url ||
-                        "/static/images/currently_unavailable.png"
-                      }
-                      alt={source.obj_id}
-                      onError={(e: any) => {
-                        // avoid infinite loop
-                        if (thumbIdx === source.thumbnails.length - 1) {
-                          e.target.onerror = null;
-                        }
-                        setThumbnailIdxs((prevState) => ({
-                          ...prevState,
-                          [source.obj_id]: (prevState[source.obj_id] ?? 0) + 1,
-                        }));
-                      }}
-                    />
-                  </Link>
+                  <SourceStamp source={source} styles={styles} />
                   <div className={styles["sourceContainer"]}>
                     <div className={styles["sourceHeaderContainer"]}>
                       <div className={styles["sourceInfoContainer"]}>
@@ -307,7 +267,7 @@ const TopSources = ({ classes }: TopSourcesProps) => {
   });
 
   const { activeTeam } = useActiveTeam();
-  const { data: sourceViews } = useGetTopSourcesQuery(
+  const { data: sourceViews, isLoading } = useGetTopSourcesQuery(
     activeTeam ? { teamID: activeTeam.id } : undefined,
   );
   const prefs = (profile?.preferences as any)?.topSources || defaultPrefs;
@@ -405,11 +365,15 @@ const TopSources = ({ classes }: TopSourcesProps) => {
             />
           </div>
         </div>
-        <TopSourcesList
-          sources={sourceViews || []}
-          styles={sourceListStyles}
-          displayTNS={topSourcesPrefs?.displayTNS !== false}
-        />
+        {isLoading ? (
+          <SourceListSkeleton />
+        ) : (
+          <TopSourcesList
+            sources={sourceViews || []}
+            styles={sourceListStyles}
+            displayTNS={topSourcesPrefs?.displayTNS !== false}
+          />
+        )}
       </div>
     </Paper>
   );

@@ -1,5 +1,4 @@
 import { skyportalApi } from "../api/skyportalApi";
-import { invalidateOnMessage } from "../api/wsInvalidation";
 import type { RouteData } from "../types/routeSchemaMap";
 
 export type LocalizationPropertiesArgs =
@@ -21,8 +20,3 @@ export const localizationPropertiesApi = skyportalApi.injectEndpoints({
 });
 
 export const { useGetLocalizationPropertiesQuery } = localizationPropertiesApi;
-
-// Websocket message handler: refresh localization properties on push.
-invalidateOnMessage("skyportal/FETCH_LOCALIZATION_PROPERTIES", () => [
-  "LocalizationProperties",
-]);

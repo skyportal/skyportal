@@ -27,6 +27,7 @@ import { useBoomFilterVersion } from "../../../../ducks/boom_filter";
 import ModuleStreams, { surveyToken } from "./ModuleStreams";
 import EquationEditor from "equation-editor-react";
 import { parseVariableExpression } from "./variableExpression";
+import { replaceOrAppend } from "../block/blockTree";
 
 // Numeric types
 const numericTypes = ["double", "float", "int", "long"];
@@ -952,23 +953,22 @@ const AddVariableDialog = () => {
     });
 
     // Add a new special condition to the block
+    const newCondition = {
+      id: uuidv4(),
+      category: "condition",
+      type: "number",
+      field: variableName,
+      operator: "$eq",
+      value: "",
+      createdAt: Date.now(),
+    };
+    const replaceId = (specialConditionDialog as any).replaceConditionId;
     setFilters((prevFilters: any[]) => {
       const addConditionToBlock = (block: any): any => {
         if (block.id === specialConditionDialog.blockId) {
           return {
             ...block,
-            children: [
-              ...block.children,
-              {
-                id: uuidv4(),
-                category: "condition",
-                type: "number",
-                field: variableName,
-                operator: "$eq",
-                value: "",
-                createdAt: Date.now(),
-              },
-            ],
+            children: replaceOrAppend(block.children, newCondition, replaceId),
           };
         }
         if (block.children) {

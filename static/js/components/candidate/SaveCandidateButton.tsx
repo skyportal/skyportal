@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import Dialog from "@mui/material/Dialog";
 import DialogContent from "@mui/material/DialogContent";
 import DialogTitle from "@mui/material/DialogTitle";
@@ -40,197 +40,107 @@ const SaveCandidateButton = ({
   userGroups,
   filterGroups,
 }: SaveCandidateButtonProps) => {
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  // Dialog logic:
-
   const dispatch = useAppDispatch();
-  const [saveSource] = useSaveSourceMutation();
+  const [saveSource, { isLoading }] = useSaveSourceMutation();
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [anchorEl, setAnchorEl] = useState<HTMLDivElement | null>(null);
 
   const {
     handleSubmit,
     reset,
     control,
-    getValues,
-
     formState: { errors },
-  } = useForm();
-
-  useEffect(() => {
-    reset({
-      group_ids: userGroups.map((userGroup) =>
-        filterGroups.map((g) => g.id).includes(userGroup.id),
+  } = useForm({
+    values: {
+      group_ids: userGroups.map((group) =>
+        filterGroups.some((g) => g.id === group.id),
       ),
-    });
-  }, [reset, userGroups, filterGroups, candidate]);
-
-  const [filteredGroupNames, setFilteredGroupNames] = useState("");
-
-  useEffect(() => {
-    if (filterGroups.length <= 3) {
-      setFilteredGroupNames(
-        filterGroups
-          .map((g) => {
-            let name = g.nickname
-              ? g.nickname.substring(0, 15)
-              : g.name.substring(0, 15);
-            if (name.length > 15) {
-              name += "...";
-            }
-            return name;
-          })
-          .join(", "),
-      );
-    } else {
-      setFilteredGroupNames("selected groups");
-    }
-  }, [filterGroups]);
-
-  const groupLookUp: Record<number, GroupOption> = {};
-
-  userGroups?.forEach((group) => {
-    groupLookUp[group.id] = group;
+    },
   });
 
-  const handleClickOpenDialog = () => {
-    setDialogOpen(true);
-  };
-
-  const handleCloseDialog = () => {
-    setDialogOpen(false);
-  };
-
-  const validateGroups = () => {
-    const formState = getValues();
-    return (
-      formState["group_ids"]?.filter((value: any) => Boolean(value)).length >= 1
-    );
-  };
-
-  const onSubmitGroupSelectSave = async (data: any) => {
-    setIsSubmitting(true);
-    data.id = candidate.id;
-    const groupIDs = userGroups.map((g) => g.id);
-    const selectedGroupIDs = groupIDs?.filter(
-      (_ID, idx) => data.group_ids[idx],
-    );
-    data.group_ids = selectedGroupIDs;
-    const selectedGroupNames: string[] = [];
-    data.group_ids?.forEach((id: number) => {
-      const groupName = groupLookUp[id]?.name;
-      if (groupName) selectedGroupNames.push(groupName);
+  const save = async (group_ids: number[]) => {
+    const { error } = await saveSource({
+      id: candidate.id,
+      group_ids,
+      refresh_source: false,
     });
-    data.refresh_source = false;
-    try {
-      await saveSource(data).unwrap();
-      dispatch(
-        showNotification(
-          `Candidate successfully saved to groups: ${selectedGroupNames.join()}.`,
-        ),
-      );
+    if (error) return false;
+    const names = group_ids.flatMap(
+      (id) => userGroups.find((g) => g.id === id)?.name ?? [],
+    );
+    dispatch(
+      showNotification(
+        `Candidate successfully saved to group${
+          names.length > 1 ? "s" : ""
+        }: ${names.join()}.`,
+      ),
+    );
+    return true;
+  };
+
+  const onSubmit = handleSubmit(async ({ group_ids }) => {
+    const selected = userGroups.filter((_, i) => group_ids[i]);
+    if (await save(selected.map((g) => g.id))) {
       reset();
       setDialogOpen(false);
-    } catch {
-      // error notification handled by the baseQuery
     }
-    setIsSubmitting(false);
+  });
+
+  const groupNames =
+    filterGroups.length <= 3
+      ? filterGroups.map((g) => (g.nickname || g.name).slice(0, 15)).join(", ")
+      : "selected groups";
+  const saveToFilterGroups = {
+    label: `Save to ${groupNames}`,
+    onClick: () => save(filterGroups.map((g) => g.id)),
   };
-
-  // Split button logic (largely copied from
-  // https://material-ui.com/components/button-group/#split-button):
-
-  const options = [`Save to ${filteredGroupNames}`, "Select groups & save"];
-  // also add options to save to each selected group individually
-  if (filterGroups.length > 1) {
-    filterGroups.forEach((group) => {
-      options.push(`Save to ${group.nickname || group.name} only`);
-    });
-  }
-
-  const [splitButtonMenuOpen, setSplitButtonMenuOpen] = useState(false);
-  const anchorRef = useRef<any>(null);
-
-  const handleClickMainButton = async (index: number) => {
-    if (index === 0 || index > 1) {
-      setIsSubmitting(true);
-      const data: any = {
-        id: candidate.id,
-        group_ids:
-          index === 0
-            ? filterGroups.map((g) => g.id)
-            : [filterGroups[index - 2]!.id],
-        refresh_source: false,
-      };
-      const selectedGroupNames: string[] = [];
-      data.group_ids?.forEach((id: number) => {
-        const groupName = groupLookUp[id]?.name;
-        if (groupName) selectedGroupNames.push(groupName);
-      });
-      try {
-        await saveSource(data).unwrap();
-        dispatch(
-          showNotification(
-            `Candidate successfully saved to group${
-              selectedGroupNames?.length > 1 ? "s" : ""
-            }: ${selectedGroupNames.join()}.`,
-          ),
-        );
-      } catch {
-        // error notification handled by the baseQuery
-      }
-      setIsSubmitting(false);
-    } else if (index === 1) {
-      handleClickOpenDialog();
-    }
-  };
-
-  const handleToggleSplitButtonMenu = () => {
-    setSplitButtonMenuOpen((prevOpen) => !prevOpen);
-  };
-
-  const handleCloseSplitButtonMenu = (event: any) => {
-    if (anchorRef.current && anchorRef.current.contains(event.target)) {
-      return;
-    }
-    setSplitButtonMenuOpen(false);
-  };
+  const options = [
+    saveToFilterGroups,
+    { label: "Select groups & save", onClick: () => setDialogOpen(true) },
+    ...(filterGroups.length > 1
+      ? filterGroups.map((group) => ({
+          label: `Save to ${group.nickname || group.name} only`,
+          onClick: () => save([group.id]),
+        }))
+      : []),
+  ];
 
   return (
-    <div>
+    <>
       <ButtonGroup
         variant="contained"
-        ref={anchorRef}
+        ref={setAnchorEl}
         aria-label="split button"
       >
         <Button
-          onClick={() => handleClickMainButton(0)}
+          onClick={saveToFilterGroups.onClick}
           name={`initialSaveCandidateButton${candidate.id}`}
           data-testid={`saveCandidateButton_${candidate.id}`}
-          disabled={isSubmitting}
+          disabled={isLoading}
           size="small"
         >
-          {options[0]}
+          {saveToFilterGroups.label}
         </Button>
         <Button
           size="small"
-          aria-controls={splitButtonMenuOpen ? "split-button-menu" : undefined}
-          aria-expanded={splitButtonMenuOpen ? "true" : undefined}
+          aria-controls={menuOpen ? "split-button-menu" : undefined}
+          aria-expanded={menuOpen ? "true" : undefined}
           aria-label="Save as Source"
           aria-haspopup="menu"
           name={`saveCandidateButtonDropDownArrow${candidate.id}`}
-          onClick={handleToggleSplitButtonMenu}
+          onClick={() => setMenuOpen((open) => !open)}
         >
           <ArrowDropDownIcon />
         </Button>
       </ButtonGroup>
       <Popper
-        open={splitButtonMenuOpen}
-        // eslint-disable-next-line react-hooks/refs
-        anchorEl={anchorRef.current}
+        open={menuOpen}
+        anchorEl={anchorEl}
         role={undefined}
         transition
         disablePortal
-        style={{ zIndex: 1 }}
+        sx={{ zIndex: 1 }}
       >
         {({ TransitionProps, placement }) => (
           <Grow
@@ -241,17 +151,21 @@ const SaveCandidateButton = ({
             }}
           >
             <Paper>
-              <ClickAwayListener onClickAway={handleCloseSplitButtonMenu}>
+              <ClickAwayListener
+                onClickAway={(event) => {
+                  if (!anchorEl?.contains(event.target as Node)) {
+                    setMenuOpen(false);
+                  }
+                }}
+              >
                 <MenuList id="split-button-menu">
-                  {options.map((option, index) => (
+                  {options.map(({ label, onClick }) => (
                     <MenuItem
-                      key={option}
-                      {...({
-                        name: `buttonMenuOption${candidate.id}_${option}`,
-                      } as any)}
-                      onClick={() => handleClickMainButton(index)}
+                      key={label}
+                      {...{ name: `buttonMenuOption${candidate.id}_${label}` }}
+                      onClick={onClick}
                     >
-                      {option}
+                      {label}
                     </MenuItem>
                   ))}
                 </MenuList>
@@ -261,50 +175,47 @@ const SaveCandidateButton = ({
         )}
       </Popper>
 
-      <Dialog open={dialogOpen} onClose={handleCloseDialog}>
+      <Dialog open={dialogOpen} onClose={() => setDialogOpen(false)}>
         <DialogTitle>Select one or more groups:</DialogTitle>
         <DialogContent>
-          <form onSubmit={handleSubmit(onSubmitGroupSelectSave)}>
-            {errors["group_ids"] && (
+          <form onSubmit={onSubmit}>
+            {errors.group_ids && (
               <FormValidationError message="Select at least one group." />
             )}
             {userGroups.map((userGroup, idx) => (
               <FormControlLabel
                 key={userGroup.id}
+                label={userGroup.name}
                 control={
                   <Controller
-                    render={({ field: { onChange, value } }: any) => (
+                    name={`group_ids.${idx}`}
+                    control={control}
+                    rules={{
+                      validate: (_, { group_ids }) => group_ids.some(Boolean),
+                    }}
+                    render={({ field: { onChange, value } }) => (
                       <Checkbox
-                        onChange={(event) => onChange(event.target.checked)}
                         checked={value}
+                        onChange={(_, checked) => onChange(checked)}
                         data-testid={`saveCandGroupCheckbox-${userGroup.id}`}
                       />
                     )}
-                    name={`group_ids[${idx}]`}
-                    control={control}
-                    rules={{ validate: validateGroups }}
-                    defaultValue={filterGroups
-                      .map((g) => g.id)
-                      .includes(userGroup.id)}
                   />
                 }
-                label={userGroup.name}
               />
             ))}
-            <br />
-            <div style={{ textAlign: "center" }}>
-              <Button
-                secondary
-                type="submit"
-                name={`finalSaveCandidateButton${candidate.id}`}
-              >
-                Save
-              </Button>
-            </div>
+            <Button
+              secondary
+              type="submit"
+              name={`finalSaveCandidateButton${candidate.id}`}
+              sx={{ display: "flex", mx: "auto" }}
+            >
+              Save
+            </Button>
           </form>
         </DialogContent>
       </Dialog>
-    </div>
+    </>
   );
 };
 

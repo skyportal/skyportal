@@ -136,6 +136,36 @@ def test_thumbnail_queue_fetch_obj_finds_unprocessed_source(
     asyncio.run(_fetch_backfill_fetch())
 
 
+def test_thumbnail_queue_fetch_obj_skips_moving_objects(
+    upload_data_token, public_group
+):
+    fetch_obj = import_thumbnail_queue().fetch_obj
+
+    obj_id = str(uuid.uuid4())
+    status, _ = api(
+        "POST",
+        "sources",
+        data={
+            "id": obj_id,
+            "ra": 234.22,
+            "dec": -22.33,
+            "group_ids": [public_group.id],
+        },
+        token=upload_data_token,
+    )
+    assert status == 200
+    DBSession().execute(sa.update(Obj).where(Obj.id == obj_id).values(is_roid=True))
+    DBSession().commit()
+
+    async def _fetch():
+        async with async_plain_session_factory() as session:
+            obj, err = await fetch_obj(session)
+            assert err is None
+            assert obj is None or obj.id != obj_id
+
+    asyncio.run(_fetch())
+
+
 def test_thumbnail_queue_classifies_remote_grayscale(
     upload_data_token, public_group, monkeypatch
 ):

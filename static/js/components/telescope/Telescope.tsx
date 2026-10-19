@@ -2,7 +2,7 @@ import { useEffect } from "react";
 import Grid from "@mui/material/Grid";
 import Typography from "@mui/material/Typography";
 
-import { showNotification } from "../../../../baselayer/static/js/components/Notifications";
+import { showNotification } from "baselayer/components/Notifications";
 import { useAppDispatch } from "../../types/hooks";
 import { Telescope as TelescopeType } from "../../types/domain";
 import { useGetTelescopeQuery } from "../../ducks/telescopes";

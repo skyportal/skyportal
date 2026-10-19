@@ -23,6 +23,7 @@ import { useAppDispatch } from "../types/hooks";
 import Button from "./Button";
 
 import { useFetchSourcePhotometryQuery } from "../ducks/photometry";
+import { useGetSourceQuery } from "../ducks/source";
 
 const useStyles = makeStyles()((theme) => ({
   copyb: {
@@ -223,13 +224,16 @@ function GLS(t_data_uf: any, y_data_uf: any, kwa: any): any {
 
 const Periodogram = () => {
   const { classes } = useStyles();
-  const { handleSubmit, control, register } = useForm();
+  const { handleSubmit, control } = useForm();
   const { id } = useParams();
   const dispatch = useAppDispatch();
   const { data: photometry } = useFetchSourcePhotometryQuery(
     { id: id as string },
     { skip: !id },
   );
+  // Photometry refresh broadcasts identify the source by its internal_key,
+  // which is matched against the cached source, so keep it cached here too.
+  useGetSourceQuery(id as string, { skip: !id });
   const [bestp, setBestp] = useState<any>(null);
   const [run, setRun] = useState(false);
   const [plotted, setPlotted] = useState(false);
@@ -591,15 +595,16 @@ const Periodogram = () => {
                             </InputLabel>
                             <p />
                             <Controller
-                              {...({
-                                labelId: "InstrumentSourceSelectLabel",
-                              } as any)}
                               name="instrument"
                               control={control}
                               defaultValue={params.instrument}
-                              {...({ className: classes.items } as any)}
-                              render={() => (
-                                <Select>
+                              render={({ field: { onChange, value } }) => (
+                                <Select
+                                  labelId="InstrumentSourceSelectLabel"
+                                  className={classes.items}
+                                  value={value}
+                                  onChange={onChange}
+                                >
                                   {instruments.map((instrument) => (
                                     <MenuItem
                                       key={instrument}
@@ -626,15 +631,16 @@ const Periodogram = () => {
                               </InputLabel>
                               <p />
                               <Controller
-                                {...({
-                                  labelId: "FilterSourceSelectLabel",
-                                } as any)}
                                 name="filter"
                                 control={control}
                                 defaultValue={params.filter}
-                                {...({ className: classes.items } as any)}
-                                render={() => (
-                                  <Select>
+                                render={({ field: { onChange, value } }) => (
+                                  <Select
+                                    labelId="FilterSourceSelectLabel"
+                                    className={classes.items}
+                                    value={value}
+                                    onChange={onChange}
+                                  >
                                     {filters.map((filt) => (
                                       <MenuItem key={filt} value={filt}>
                                         {filt}
@@ -654,7 +660,6 @@ const Periodogram = () => {
                                     label="Oversampling Factor"
                                     name="ofac"
                                     type="number"
-                                    inputRef={register("ofac") as any}
                                     className={classes.items}
                                     onChange={onChange}
                                     value={value}
@@ -674,7 +679,6 @@ const Periodogram = () => {
                                     label="Maximum number of frequencies"
                                     name="nmax"
                                     type="number"
-                                    inputRef={register("nmax") as any}
                                     className={classes.items}
                                     onChange={onChange}
                                     value={value}
@@ -694,7 +698,6 @@ const Periodogram = () => {
                                     label="Minimum Frequency [1/day]"
                                     name="fmin"
                                     type="number"
-                                    inputRef={register("fmin") as any}
                                     className={classes.items}
                                     onChange={onChange}
                                     value={value}
@@ -714,7 +717,6 @@ const Periodogram = () => {
                                     label="Maximum Frequency [1/day]"
                                     name="fmax"
                                     type="number"
-                                    inputRef={register("fmax") as any}
                                     className={classes.items}
                                     onChange={onChange}
                                     value={value}

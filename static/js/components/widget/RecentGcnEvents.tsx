@@ -23,6 +23,7 @@ import {
 import WidgetPrefsDialog from "./WidgetPrefsDialog";
 import GcnTags from "../gcn/GcnTags";
 import GcnEventAllocationTriggers from "../gcn/GcnEventAllocationTriggers";
+import WidgetLoading from "./WidgetLoading";
 
 dayjs.extend(relativeTime);
 dayjs.extend(utc);
@@ -167,7 +168,7 @@ interface RecentGcnEventsProps {
 const RecentGcnEvents = ({ classes }: RecentGcnEventsProps) => {
   const { classes: styles } = useStyles();
 
-  const { data: gcnEvents } = useGetRecentGcnEventsQuery();
+  const { data: gcnEvents, isLoading } = useGetRecentGcnEventsQuery();
   const { data: extractions } = useGetRecentGcnExtractionsQuery();
 
   // Extractions describe an event, so they are shown under the event they
@@ -210,6 +211,7 @@ const RecentGcnEvents = ({ classes }: RecentGcnEventsProps) => {
             />
           </div>
         </div>
+        {isLoading && <WidgetLoading />}
         <div className={styles.eventListContainer}>
           <ul className={styles.eventList}>
             {gcnEvents?.map((gcnEvent: any) => (

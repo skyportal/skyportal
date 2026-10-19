@@ -88,6 +88,13 @@ class SharingService(Base):
         doc="Whether to enable publishing to TNS or not.",
     )
 
+    enable_sharing_with_trove = sa.Column(
+        sa.Boolean,
+        nullable=False,
+        server_default="false",
+        doc="Whether to enable publishing to TROVE or not.",
+    )
+
     # Fields specific to TNS
     tns_bot_name = sa.Column(sa.String, doc="Name of the TNS bot.", nullable=True)
     tns_bot_id = sa.Column(sa.Integer, doc="ID of the TNS bot.", nullable=True)
@@ -130,6 +137,20 @@ class SharingService(Base):
     @mpc_altdata.setter
     def mpc_altdata(self, value):
         self._mpc_altdata = value
+
+    _trove_altdata = sa.Column(
+        StringEncryptedType(JSONType, cfg["app.secret_key"], AesEngine, "pkcs5")
+    )
+
+    @property
+    def trove_altdata(self):
+        if self._trove_altdata is None:
+            return {}
+        return json.loads(self._trove_altdata)
+
+    @trove_altdata.setter
+    def trove_altdata(self, value):
+        self._trove_altdata = value
 
     groups = relationship(
         "SharingServiceGroup",
@@ -196,6 +217,7 @@ class SharingServiceGroup(Base):
     auto_share_to_tns = sa.Column(sa.Boolean, nullable=False, server_default="false")
     auto_share_to_hermes = sa.Column(sa.Boolean, nullable=False, server_default="false")
     auto_share_to_mpc = sa.Column(sa.Boolean, nullable=False, server_default="false")
+    auto_share_to_trove = sa.Column(sa.Boolean, nullable=False, server_default="false")
     auto_sharing_allow_bots = sa.Column(
         sa.Boolean, nullable=False, server_default="false"
     )
@@ -347,6 +369,23 @@ class SharingServiceSubmission(Base):
     hermes_response = deferred(
         sa.Column(psql.JSONB, doc="Serialized HTTP response from Hermes.")
     )
+
+    publish_to_trove = sa.Column(
+        sa.Boolean,
+        nullable=False,
+        server_default="false",
+        doc="Whether to publish to TROVE or not.",
+    )
+
+    trove_status = sa.Column(
+        sa.String, nullable=True, doc="Status of the TROVE submission."
+    )
+
+    trove_response = deferred(
+        sa.Column(psql.JSONB, doc="Serialized HTTP response from TROVE.")
+    )
+
+    trove_payload = deferred(sa.Column(psql.JSONB, doc="Payload published to TROVE."))
 
     archival = sa.Column(
         sa.Boolean,

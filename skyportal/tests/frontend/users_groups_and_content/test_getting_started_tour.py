@@ -16,7 +16,7 @@ TOUR_FILES = [
 ]
 
 _TARGET_RE = re.compile(r'\[data-testid="([^"]+)"\]')
-_ATTR_RE = re.compile(r'data-testid="([^"]+)"')
+_ATTR_RE = re.compile(r'data-testid"?(?:=|:\s*)"([^"]+)"')
 # Conditional form data-testid={cond ? "a" : "b"}: only value-position strings are ids.
 _EXPR_RE = re.compile(r"data-testid=\{[^}]*\}")
 _EXPR_VALUE_RE = re.compile(r'[?:]\s*"([^"]+)"')

@@ -125,7 +125,17 @@ const ChipArrayInput = ({
         badgeContent={chips.length}
         color="primary"
         max={1000}
-        sx={{ flexGrow: 1, width: 0 }}
+        sx={{
+          flexGrow: 1,
+          width: 0,
+          "& .MuiBadge-badge": {
+            top: 6,
+            right: 6,
+            height: 16,
+            minWidth: 16,
+            fontSize: "0.65rem",
+          },
+        }}
       >
         <Box
           sx={{
@@ -133,10 +143,11 @@ const ChipArrayInput = ({
             flexWrap: "wrap",
             gap: 0.5,
             alignContent: "flex-start",
+            alignItems: "center",
             border: "1px solid rgba(0, 0, 0, 0.23)",
             borderRadius: 1,
             padding: 0.5,
-            minHeight: 40,
+            minHeight: 36,
             maxHeight: 120, // Cap the height at ~3 rows of chips
             overflowY: "auto", // Scroll vertically inside the box
             overflowX: "hidden", // Never overflow horizontally

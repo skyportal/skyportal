@@ -16,7 +16,6 @@ import SmartToyIcon from "@mui/icons-material/SmartToy";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 import relativeTime from "dayjs/plugin/relativeTime";
-import emoji from "emoji-dictionary";
 
 import { useFetchSourceSpectraQuery } from "../../ducks/spectra";
 import {
@@ -40,6 +39,7 @@ import UserAvatar from "../user/UserAvatar";
 
 import CommentAttachmentPreview from "./CommentAttachmentPreview";
 import CommentForm from "./CommentForm";
+import { rehypeEmoji } from "./rehypeEmoji";
 
 dayjs.extend(relativeTime);
 dayjs.extend(utc);
@@ -52,7 +52,7 @@ const actionButtonStyle = {
 const LINK_REGEX = /(\[[^\]]*\]\([^)]*\)|<[^\s>]+>|(?:https?:\/\/|www\.)\S+)/g;
 const MENTION_REGEX = /(?<!\w)([@#])([\w-@]+)/g;
 
-const highlightMentions = (text: string) =>
+export const highlightMentions = (text: string) =>
   text
     .split(LINK_REGEX)
     .map((chunk, index) =>
@@ -60,7 +60,7 @@ const highlightMentions = (text: string) =>
     )
     .join("");
 
-const markdownLink = ({ node, children, ...props }: any) => (
+export const markdownLink = ({ node, children, ...props }: any) => (
   <Link
     {...props}
     target="_blank"
@@ -110,7 +110,7 @@ const Comment = ({
   const [editing, setEditing] = useState(false);
   const { data: spectra } = useFetchSourceSpectraQuery(
     { id: objID as string },
-    { skip: !objID },
+    { skip: !objID || !spectrum_id },
   );
   const [editCommentMutation] = useEditCommentMutation();
   const [editCommentOnGcnEvent] = useEditCommentOnGcnEventMutation();
@@ -206,11 +206,6 @@ const Comment = ({
 
     return formattedText;
   };
-
-  const emojiSupport = (textComment: any) =>
-    textComment.value.replace(/:\w+:/gi, (name: string) =>
-      emoji.getUnicode(name) ? emoji.getUnicode(name) : name,
-    );
 
   const commentMessageStyle =
     resourceType === "shift"
@@ -319,7 +314,8 @@ const Comment = ({
             <ReactMarkdown
               className={commentMessageStyle}
               remarkPlugins={[[remarkGfm, { singleTilde: false }]]}
-              components={{ text: emojiSupport, a: markdownLink }}
+              rehypePlugins={[rehypeEmoji]}
+              components={{ a: markdownLink }}
             >
               {renderCommentText()}
             </ReactMarkdown>

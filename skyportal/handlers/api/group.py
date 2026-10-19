@@ -18,7 +18,6 @@ from sqlalchemy.orm import selectinload
 from baselayer.app.access import AccessError, auth_or_token, permissions
 from baselayer.app.env import load_env
 from baselayer.app.models import RoleACL, UserACL, UserRole
-from baselayer.log import make_log
 
 from ...models import (
     Filter,
@@ -27,10 +26,12 @@ from ...models import (
     GroupUser,
     Obj,
     Source,
+    Stream,
     StreamUser,
     Token,
     User,
     UserNotification,
+    system_admin_user_ids,
 )
 from ..base import BaseHandler
 
@@ -59,7 +60,7 @@ async def has_admin_access_for_group(user, group_id, session):
     sysadmin_like = await session.scalar(
         sa.select(sa.func.count())
         .select_from(combined)
-        .where(combined.c.acl_id.in_({"System admin", "Manage groups", "Manage_users"}))
+        .where(combined.c.acl_id.in_({"System admin", "Manage groups", "Manage users"}))
     )
     return bool(sysadmin_like)
 
@@ -78,9 +79,6 @@ async def _user_is_system_admin(user_id, session):
         .where(combined.c.acl_id == "System admin")
     )
     return bool(count)
-
-
-log = make_log("api/group")
 
 
 class GroupHandler(BaseHandler):
@@ -172,7 +170,6 @@ class GroupHandler(BaseHandler):
                     .options(
                         selectinload(Group.group_users).selectinload(GroupUser.user),
                         selectinload(Group.streams),
-                        selectinload(Group.filters),
                     )
                     .where(Group.id == group_id)
                 )
@@ -187,9 +184,6 @@ class GroupHandler(BaseHandler):
                             "username": gu.user.username,
                             "first_name": gu.user.first_name,
                             "last_name": gu.user.last_name,
-                            "contact_email": gu.user.contact_email,
-                            "contact_phone": gu.user.contact_phone,
-                            "oauth_uid": gu.user.oauth_uid,
                             "admin": gu.admin,
                             "can_save": gu.can_save,
                             "can_share_photometry": gu.can_share_photometry,
@@ -200,22 +194,30 @@ class GroupHandler(BaseHandler):
                     else None
                 )
 
-                streams = list(group.streams)
-                filters = list(group.filters)
+                # Any user can read a group, and relationship loads skip the
+                # Stream and Filter read policies, so expose only stream names
+                # and the filters the requester can read.
+                streams = [{"id": s.id, "name": s.name} for s in group.streams]
+                filters = (
+                    (
+                        await session.scalars(
+                            Filter.select(session.user_or_token).where(
+                                Filter.group_id == group_id
+                            )
+                        )
+                    )
+                    .unique()
+                    .all()
+                )
 
                 group = group.to_dict()
+                group.pop("group_users", None)
 
                 if users is not None:
                     group["users"] = users
 
                 group["streams"] = streams
                 group["filters"] = filters
-                try:
-                    # commit to surface any access-control errors picked up on flush
-                    await session.commit()
-                    group["filters"] = filters
-                except AccessError as e:
-                    log(f"Insufficient filter permissions: {e}.")
 
                 return self.success(data=group)
 
@@ -769,22 +771,30 @@ class GroupStreamHandler(BaseHandler):
 
             # Validate every group member has access to the stream via SQL
             # (avoid lazy `group.users`/`user.streams`).
-            missing_count = await session.scalar(
-                sa.select(sa.func.count())
-                .select_from(GroupUser)
-                .where(
-                    GroupUser.group_id == group_id,
-                    ~sa.exists().where(
-                        sa.and_(
-                            StreamUser.user_id == GroupUser.user_id,
-                            StreamUser.stream_id == stream_id,
-                        )
-                    ),
+            missing_usernames = (
+                await session.scalars(
+                    sa.select(User.username)
+                    .join(GroupUser, GroupUser.user_id == User.id)
+                    .where(
+                        GroupUser.group_id == group_id,
+                        GroupUser.user_id.not_in(system_admin_user_ids()),
+                        ~sa.exists().where(
+                            sa.and_(
+                                StreamUser.user_id == GroupUser.user_id,
+                                StreamUser.stream_id == stream_id,
+                            )
+                        ),
+                    )
+                    .order_by(User.username)
                 )
-            )
-            if missing_count and missing_count > 0:
+            ).all()
+            if missing_usernames:
+                stream_name = await session.scalar(
+                    sa.select(Stream.name).where(Stream.id == stream_id)
+                )
                 return self.error(
-                    f"Not all users have stream access with ID {stream_id}",
+                    f"Not all users have access to stream {stream_name or stream_id}: "
+                    f"{', '.join(missing_usernames)}",
                     status=403,
                 )
 

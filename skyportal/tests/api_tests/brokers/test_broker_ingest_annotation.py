@@ -1,5 +1,7 @@
 import asyncio
+import time
 import uuid
+from concurrent.futures import ThreadPoolExecutor
 
 import pytest
 import sqlalchemy as sa
@@ -41,7 +43,7 @@ def obj_id():
     DBSession().commit()
 
 
-def ingest(obj_id, user_id, filter_id, annotations, alert_id=12345):
+def ingest(obj_id, user_id, filter_id, annotations, alert_id=12345, **data):
     async def _run():
         async with baselayer_models.async_plain_session_factory() as session:
             user = await session.get(User, user_id)
@@ -49,6 +51,7 @@ def ingest(obj_id, user_id, filter_id, annotations, alert_id=12345):
                 {
                     "objectId": obj_id,
                     "candidate": {"ra": 10.0, "dec": 20.0, "drb": 0.99},
+                    **data,
                 },
                 "ZTF",
                 session,
@@ -208,3 +211,191 @@ def test_broker_ingest_autosave_ignore_is_group_specific(
     assert fetch_source(obj_id, public_filter) is not None, (
         "object should be auto-saved when not in an ignored group"
     )
+
+
+def test_broker_ingest_dates_thumbnails_with_boom_alert_epoch(
+    super_admin_user, public_filter, ztf_instrument, obj_id, monkeypatch
+):
+    """The cutouts of a BOOM alert are dated with the alert's own epoch."""
+    from skyportal.broker_apis import _thumbnails
+    from skyportal.broker_apis.boom import _normalize_boom_alert
+
+    dates = []
+
+    async def fake_add_thumbnails(obj_id, cutouts, survey, session, user_id=1, jd=None):
+        dates.append(jd)
+
+    monkeypatch.setattr(_thumbnails, "add_thumbnails", fake_add_thumbnails)
+    data = _normalize_boom_alert(
+        {
+            "objectId": obj_id,
+            "candid": 12345,
+            "jd": 2461317.5,
+            "ra": 10.0,
+            "dec": 20.0,
+            "drb": 0.99,
+            "photometry": [],
+        }
+    )
+
+    async def _run():
+        async with baselayer_models.async_plain_session_factory() as session:
+            user = await session.get(User, super_admin_user.id)
+            await save_object_as_candidate(
+                data,
+                "ZTF",
+                session,
+                user,
+                [public_filter.id],
+                passing_alert_id=12345,
+                cutouts={"cutoutScience": b"fits"},
+            )
+
+    asyncio.run(_run())
+
+    assert dates == [2461317.5]
+
+
+def test_broker_ingest_survives_a_concurrent_obj_insert(
+    super_admin_user, public_filter, ztf_instrument, obj_id
+):
+    with baselayer_models.new_session() as other, ThreadPoolExecutor(1) as pool:
+        other.add(Obj(id=obj_id, ra=10.0, dec=20.0))
+        other.flush()
+        ingesting = pool.submit(
+            ingest, obj_id, super_admin_user.id, public_filter.id, {}
+        )
+        time.sleep(1)
+        other.commit()
+        ingesting.result()
+
+    candidate = DBSession().scalar(
+        sa.select(Candidate).where(
+            Candidate.obj_id == obj_id, Candidate.filter_id == public_filter.id
+        )
+    )
+    assert candidate is not None
+
+
+def test_broker_ingest_autosave_survives_a_concurrent_save(
+    super_admin_user, public_filter, ztf_instrument, obj_id
+):
+    public_filter.autosave = True
+    DBSession().add(public_filter)
+    DBSession().add(Obj(id=obj_id, ra=10.0, dec=20.0))
+    DBSession().commit()
+
+    with baselayer_models.new_session() as other, ThreadPoolExecutor(1) as pool:
+        other.add(
+            Source(
+                obj_id=obj_id,
+                group_id=public_filter.group_id,
+                saved_by_id=super_admin_user.id,
+            )
+        )
+        other.flush()
+        ingesting = pool.submit(
+            ingest, obj_id, super_admin_user.id, public_filter.id, {}
+        )
+        time.sleep(1)
+        other.commit()
+        ingesting.result()
+
+    candidate = DBSession().scalar(
+        sa.select(Candidate).where(
+            Candidate.obj_id == obj_id, Candidate.filter_id == public_filter.id
+        )
+    )
+    assert candidate is not None
+
+
+def test_broker_ingest_keeps_the_candidate_when_photometry_fails(
+    super_admin_user, public_filter, ztf_instrument, obj_id
+):
+    public_filter.stream.altdata = {"collection": "ZTF_alerts", "selector": [1]}
+    DBSession().add(public_filter.stream)
+    DBSession().commit()
+
+    ingest(
+        obj_id,
+        super_admin_user.id,
+        public_filter.id,
+        {},
+        prv_candidates=[
+            {"jd": 2461317.5, "band": "r", "psfFlux": None, "psfFluxErr": float("inf")}
+        ],
+    )
+
+    candidate = DBSession().scalar(
+        sa.select(Candidate).where(
+            Candidate.obj_id == obj_id, Candidate.filter_id == public_filter.id
+        )
+    )
+    assert candidate is not None
+
+
+def test_broker_ingest_keeps_the_candidate_when_the_photometry_insert_fails(
+    super_admin_user, public_filter, ztf_instrument, obj_id, monkeypatch
+):
+    from skyportal.handlers.api import photometry
+
+    async def failing_insert(
+        df, instrument_cache, group_ids, stream_ids, user, session, **kwargs
+    ):
+        await session.execute(
+            sa.update(Obj).where(Obj.id == obj_id).values(score=0.0),
+            execution_options={"synchronize_session": False},
+        )
+        raise ValueError("photometry insert failed")
+
+    monkeypatch.setattr(photometry, "insert_new_photometry_data", failing_insert)
+    public_filter.stream.altdata = {"collection": "ZTF_alerts", "selector": [1]}
+    DBSession().add(public_filter.stream)
+    DBSession().commit()
+
+    ingest(
+        obj_id,
+        super_admin_user.id,
+        public_filter.id,
+        {},
+        prv_candidates=[
+            {"jd": 2461317.5, "band": "r", "psfFlux": 1000.0, "psfFluxErr": 10.0}
+        ],
+    )
+
+    candidate = DBSession().scalar(
+        sa.select(Candidate).where(
+            Candidate.obj_id == obj_id, Candidate.filter_id == public_filter.id
+        )
+    )
+    assert candidate is not None
+    score = DBSession().scalar(sa.select(Obj.score).where(Obj.id == obj_id))
+    assert score == pytest.approx(0.99)
+
+
+def test_broker_ingest_registers_a_concurrently_reconsumed_alert_once(
+    super_admin_user, public_filter, ztf_instrument, obj_id, monkeypatch
+):
+    from skyportal.broker_apis import _save
+
+    def slow_photometry_groups(*args):
+        time.sleep(2)
+        return {}
+
+    monkeypatch.setattr(_save, "build_photometry_groups", slow_photometry_groups)
+    DBSession().add(Obj(id=obj_id, ra=10.0, dec=20.0))
+    DBSession().commit()
+
+    with ThreadPoolExecutor(2) as pool:
+        first = pool.submit(ingest, obj_id, super_admin_user.id, public_filter.id, {})
+        time.sleep(1)
+        second = pool.submit(ingest, obj_id, super_admin_user.id, public_filter.id, {})
+        first.result()
+        second.result()
+
+    candidates = DBSession().scalars(
+        sa.select(Candidate).where(
+            Candidate.obj_id == obj_id, Candidate.filter_id == public_filter.id
+        )
+    )
+    assert len(candidates.all()) == 1

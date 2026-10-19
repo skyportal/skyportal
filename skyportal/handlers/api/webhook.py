@@ -91,7 +91,9 @@ class AnalysisWebhookHandler(BaseHandler):
 
                 # lock the analysis associated with this token and commit immediately
                 # to avoid race conditions, so results are not written more than once
-                analysis.status = "completed"
+                analysis.status = (
+                    "completed" if (body.status or "error") == "success" else "failure"
+                )
                 analysis.last_activity = utcnow_naive()
                 analysis.duration = (
                     analysis.last_activity - last_active
@@ -101,8 +103,6 @@ class AnalysisWebhookHandler(BaseHandler):
                 log(f"Trouble accessing Analysis with token {token} {e}.")
                 return self.error("Invalid token", status=403)
 
-            if (body.status or "error") != "success":
-                analysis.status = "failure"
             analysis.status_message = body.message or ""
 
             results = body.analysis or {}

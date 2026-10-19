@@ -206,6 +206,24 @@ def test_super_admin_can_rename_filter(super_admin_token, public_filter):
     assert data["data"]["name"] == new_name
 
 
+def test_delete_requires_group_admin(upload_data_token, public_filter):
+    """Deleting a filter drops its candidates too, so it is an admin action."""
+    status, data = api("DELETE", f"filters/{public_filter.id}", token=upload_data_token)
+    assert status == 403, data
+    assert "group admin" in data["message"]
+
+    status, data = api("GET", f"filters/{public_filter.id}", token=upload_data_token)
+    assert status == 200
+
+
+def test_group_admin_can_delete_filter(group_admin_token, public_filter):
+    status, data = api("DELETE", f"filters/{public_filter.id}", token=group_admin_token)
+    assert status == 200, data
+
+    status, data = api("GET", f"filters/{public_filter.id}", token=group_admin_token)
+    assert status == 400
+
+
 def test_update_filter_autosave(manage_groups_token, public_filter):
     """Ingestion honours the autosave column, so the API must be able to set it."""
     status, data = api("GET", f"filters/{public_filter.id}", token=manage_groups_token)

@@ -1,7 +1,7 @@
 import os
 import time
 import uuid
-from datetime import timedelta
+from datetime import datetime, timedelta
 
 import numpy as np
 import pytest
@@ -12,7 +12,7 @@ from astropy.time import Time
 
 from skyportal.handlers.api.gcn import _summary_context, add_default_gcn_tags
 from skyportal.models import DBSession, DefaultGcnTag, User
-from skyportal.tests import api, retry_until
+from skyportal.tests import api, post_gcn_event_if_missing, retry_until
 from skyportal.tests.external.test_moving_objects import (
     add_telescope_and_instrument,
     remove_telescope_and_instrument,
@@ -35,18 +35,9 @@ else:
 @pytest.mark.flaky(reruns=2)
 def test_gcn_GW(super_admin_token, view_only_token):
     datafile = f"{os.path.dirname(__file__)}/../../data/GW190425_initial.xml"
-    with open(datafile, "rb") as fid:
-        payload = fid.read()
-    event_data = {"xml": payload}
 
     dateobs = "2019-04-25 08:18:05"
-    status, data = api("GET", f"gcn_event/{dateobs}", token=super_admin_token)
-    if status == 404:
-        status, data = api(
-            "POST", "gcn_event", data=event_data, token=super_admin_token
-        )
-        assert status == 200
-        assert data["status"] == "success"
+    post_gcn_event_if_missing(dateobs, super_admin_token, xml_file=datafile)
 
     dateobs = "2019-04-25 08:18:05"
     status, data = api("GET", f"gcn_event/{dateobs}", token=super_admin_token)
@@ -124,25 +115,16 @@ def test_gcn_GW(super_admin_token, view_only_token):
     status, data = api(
         "DELETE", "gcn_event/2019-04-25T08:18:05", token=super_admin_token
     )
+    assert status == 200
 
 
 def test_gcn_Fermi(super_admin_token, view_only_token):
     datafile = (
         f"{os.path.dirname(__file__)}/../../data/GRB180116A_Fermi_GBM_Gnd_Pos.xml"
     )
-    with open(datafile, "rb") as fid:
-        payload = fid.read()
-    event_data = {"xml": payload}
 
     dateobs = "2018-01-16 00:36:53"
-    status, data = api("GET", f"gcn_event/{dateobs}", token=super_admin_token)
-
-    if status == 404:
-        status, data = api(
-            "POST", "gcn_event", data=event_data, token=super_admin_token
-        )
-        assert status == 200
-        assert data["status"] == "success"
+    post_gcn_event_if_missing(dateobs, super_admin_token, xml_file=datafile)
 
     params = {"include2DMap": True}
     status, data = api("GET", f"gcn_event/{dateobs}", token=super_admin_token)
@@ -211,13 +193,7 @@ def test_gcn_from_moc(super_admin_token):
     }
 
     dateobs = "2022-06-18 18:31:12"
-    status, data = api("GET", f"gcn_event/{dateobs}", token=super_admin_token)
-    if status == 404:
-        status, data = api(
-            "POST", "gcn_event", data=event_data, token=super_admin_token
-        )
-        assert status == 200
-        assert data["status"] == "success"
+    post_gcn_event_if_missing(dateobs, super_admin_token, event_data=event_data)
 
     status, data = api("GET", f"gcn_event/{dateobs}", token=super_admin_token)
     assert status == 200
@@ -254,13 +230,7 @@ def test_gcn_from_json(super_admin_token):
     event_data = {"json": payload}
 
     dateobs = "2024-05-08T07:38:01"
-    status, data = api("GET", f"gcn_event/{dateobs}", token=super_admin_token)
-    if status == 404:
-        status, data = api(
-            "POST", "gcn_event", data=event_data, token=super_admin_token
-        )
-        assert status == 200
-        assert data["status"] == "success"
+    post_gcn_event_if_missing(dateobs, super_admin_token, event_data=event_data)
 
     dateobs = "2024-05-08T07:38:01"
     status, data = api("GET", f"gcn_event/{dateobs}", token=super_admin_token)
@@ -313,13 +283,7 @@ def test_gcn_from_igwn_json(super_admin_token):
         payload = fid.read()
 
     dateobs = "2026-06-05T11:57:26"
-    status, data = api("GET", f"gcn_event/{dateobs}", token=super_admin_token)
-    if status == 404:
-        status, data = api(
-            "POST", "gcn_event", data={"json": payload}, token=super_admin_token
-        )
-        assert status == 200, data
-        assert data["status"] == "success"
+    post_gcn_event_if_missing(dateobs, super_admin_token, event_data={"json": payload})
 
     status, data = api("GET", f"gcn_event/{dateobs}", token=super_admin_token)
     assert status == 200
@@ -329,7 +293,7 @@ def test_gcn_from_igwn_json(super_admin_token):
         assert tag in data["tags"]
     assert "LVC#MS260605l" in data["aliases"]
 
-    skymap = "MS260605l-PRELIMINARY.multiorder.fits"
+    skymap = "MS260605l-PRELIMINARY-c3986815.multiorder.fits"
     params = {"include2DMap": True}
     n_retries = 0
     while True:
@@ -370,6 +334,70 @@ def test_gcn_from_igwn_json(super_admin_token):
     assert "retracted" in data["data"]["tags"]
 
     api("DELETE", f"localization/{dateobs}/name/{skymap}", token=super_admin_token)
+    api("DELETE", f"gcn_event/{dateobs}", token=super_admin_token)
+
+
+def test_gcn_igwn_json_superevent_id_prefix_of_another(super_admin_token):
+    # e.g. S240422e and S240422ed: the shorter id must not match the longer one
+    superevent_id = f"MS{uuid.uuid4().hex[:8]}"
+    trigger = datetime(2019, 1, 1) + timedelta(seconds=uuid.uuid4().int % 31_536_000)
+    events = {}
+    for offset, sid in enumerate((f"{superevent_id}b", superevent_id)):
+        when = (trigger + timedelta(hours=offset)).strftime("%Y-%m-%dT%H:%M:%S")
+        events[sid] = when
+        alert = {
+            "alert_type": "PRELIMINARY",
+            "time_created": f"{when}Z",
+            "superevent_id": sid,
+            "event": {"time": f"{when}Z", "significant": True},
+        }
+        status, data = api(
+            "POST", "gcn_event", data={"json": alert}, token=super_admin_token
+        )
+        assert status == 200, data
+
+    for sid, when in events.items():
+        status, data = api("GET", f"gcn_event/{when}", token=super_admin_token)
+        assert status == 200, data
+        assert data["data"]["aliases"] == [f"LVC#{sid}"]
+        assert len(data["data"]["gcn_notices"]) == 1
+
+    for when in events.values():
+        api("DELETE", f"gcn_event/{when}", token=super_admin_token)
+
+
+def test_gcn_json_update_with_the_same_trigger_time(super_admin_token):
+    trigger = datetime(2019, 1, 1) + timedelta(seconds=uuid.uuid4().int % 31_536_000)
+    dateobs = trigger.strftime("%Y-%m-%dT%H:%M:%S")
+    initial = {
+        "notice_type": "chime.frb",
+        "alert_type": "initial",
+        "trigger_time": f"{dateobs}.000000",
+        "id": str(uuid.uuid4().int)[:10],
+        "ra": 120.0,
+        "dec": 30.0,
+        "ra_dec_error": [0.5, 0.5, 0],
+        "dm": 300.0,
+        "snr": 15.0,
+    }
+    update = {**initial, "alert_type": "update", "ra_dec_error": [0.1, 0.1, 0]}
+
+    for notice in (initial, update):
+        status, data = api(
+            "POST", "gcn_event", data={"json": notice}, token=super_admin_token
+        )
+        assert status == 200, data
+
+    status, data = api(
+        "POST", "gcn_event", data={"json": update}, token=super_admin_token
+    )
+    assert status == 400
+    assert "already ingested" in data["message"]
+
+    status, data = api("GET", f"gcn_event/{dateobs}", token=super_admin_token)
+    assert status == 200, data
+    assert len(data["data"]["gcn_notices"]) == 2
+
     api("DELETE", f"gcn_event/{dateobs}", token=super_admin_token)
 
 
@@ -425,6 +453,7 @@ def test_gcn_Swift(super_admin_token):
     assert status == 200
     data = data["data"]
     assert data["dateobs"] == "2022-09-30T11:11:52"
+    assert "SWIFT#1125809" in data["aliases"]
     assert any(
         loc["localization_name"] == "64.71490_13.35000_0.00130"
         for loc in data["localizations"]
@@ -927,6 +956,58 @@ def test_gcn_tach(
     assert data["tach_id"] is not None
 
 
+def test_post_gcn_circular(super_admin_token):
+    """A streamed circular is recorded on the event whose trigger id it cites."""
+    import asyncio
+    import threading
+
+    from baselayer.app import models
+    from skyportal.handlers.api.gcn import post_gcn_circular
+
+    dateobs = (
+        Time.now() - timedelta(seconds=int(np.random.randint(10**4, 10**5)))
+    ).datetime.replace(microsecond=0)
+    trigger_id = str(np.random.randint(10**8, 10**9))
+    status, data = api(
+        "POST",
+        "gcn_event",
+        data={
+            "dateobs": dateobs.isoformat(),
+            "trigger_id": trigger_id,
+            "skymap": {"ra": 10.0, "dec": 20.0, "error": 1.0},
+        },
+        token=super_admin_token,
+    )
+    assert status == 200, data
+
+    designation = f"GRB {uuid.uuid4().hex[:8]}"
+    circular = {
+        "circularId": 99999,
+        "eventId": designation,
+        "subject": "Test circular",
+        "body": f"Trigger {trigger_id}",
+    }
+    result = {}
+
+    async def run():
+        async with models.async_plain_session_factory() as session:
+            user = await session.scalar(sa.select(User).where(User.id == 1))
+            session.user_or_token = user
+            result["dateobs"] = await post_gcn_circular(circular, session)
+
+    thread = threading.Thread(target=lambda: asyncio.run(run()))
+    thread.start()
+    thread.join()
+    assert result.get("dateobs") == dateobs, result
+
+    status, data = api(
+        "GET", f"gcn_event/{dateobs.isoformat()}/tach", token=super_admin_token
+    )
+    assert status == 200, data
+    assert data["data"]["circulars"] == {"99999": "Test circular"}
+    assert designation in data["data"]["aliases"]
+
+
 def test_gcn_allocation_triggers(
     public_group,
     super_admin_token,
@@ -1140,6 +1221,15 @@ def test_default_gcn_tag_matches_on_notice_type(super_admin_token, user):
                 if row is not None:
                     session.delete(row)
             session.commit()
+
+
+def test_gcn_events_reject_unparseable_date_range(super_admin_token):
+    for param in ["startDate", "endDate"]:
+        status, data = api(
+            "GET", "gcn_event", token=super_admin_token, params={param: "yesterday"}
+        )
+        assert status == 400, data
+        assert f"Invalid {param}" in data["message"]
 
 
 def test_gcn_events_filtered_by_mmadetector(super_admin_token):
@@ -1865,16 +1955,9 @@ def test_gcn_tags_can_be_filtered_by_messenger(super_admin_token):
 def test_gcn_event_summary(super_admin_token, view_only_token):
     """The summary round-trips, keeps a history, and clears."""
     datafile = f"{os.path.dirname(__file__)}/../../data/GW190425_initial.xml"
-    with open(datafile, "rb") as fid:
-        payload = fid.read()
 
     dateobs = "2019-04-25 08:18:05"
-    status, data = api("GET", f"gcn_event/{dateobs}", token=super_admin_token)
-    if status == 404:
-        status, data = api(
-            "POST", "gcn_event", data={"xml": payload}, token=super_admin_token
-        )
-        assert status == 200
+    post_gcn_event_if_missing(dateobs, super_admin_token, xml_file=datafile)
 
     status, data = api(
         "PATCH",

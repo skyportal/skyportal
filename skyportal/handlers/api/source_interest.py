@@ -1,5 +1,6 @@
 import sqlalchemy as sa
 from skyportal_py_models.sources import SourceInterestPostBody
+from sqlalchemy.orm import selectinload
 
 from baselayer.app.access import auth_or_token
 from baselayer.app.env import load_env
@@ -10,6 +11,30 @@ from ..base import BaseHandler
 env, cfg = load_env()
 
 INTERESTED_CHANNEL = "Interested"
+
+
+class SourceInterestListHandler(BaseHandler):
+    @auth_or_token
+    async def get(self):
+        """
+        ---
+        summary: Retrieve all source interests
+        description: Retrieve every interest registered on the sources the user can access.
+        tags:
+          - sources
+        responses:
+          200:
+            content:
+              application/json:
+                schema: Success
+        """
+        async with self.AsyncSession() as session:
+            interests = await session.scalars(
+                SourceInterest.select(
+                    session.user_or_token, options=[selectinload(SourceInterest.user)]
+                ).order_by(SourceInterest.created_at.desc())
+            )
+            return self.success(data=[interest.to_dict() for interest in interests])
 
 
 class SourceInterestHandler(BaseHandler):
@@ -96,7 +121,8 @@ class SourceInterestHandler(BaseHandler):
             await session.commit()
 
             self.push_all(
-                action="skyportal/REFRESH_SOURCE_INTERESTS", payload={"obj_id": obj_id}
+                action="skyportal/REFRESH_SOURCE_INTERESTS",
+                payload={"obj_key": obj.internal_key},
             )
             return self.success(data={"id": interest.id})
 
@@ -155,7 +181,11 @@ class SourceInterestHandler(BaseHandler):
             )
             await session.commit()
 
+            internal_key = await session.scalar(
+                sa.select(Obj.internal_key).where(Obj.id == obj_id)
+            )
             self.push_all(
-                action="skyportal/REFRESH_SOURCE_INTERESTS", payload={"obj_id": obj_id}
+                action="skyportal/REFRESH_SOURCE_INTERESTS",
+                payload={"obj_key": internal_key},
             )
             return self.success()

@@ -1,46 +1,27 @@
 import { useState } from "react";
-import Paper from "@mui/material/Paper";
-import { makeStyles } from "tss-react/mui";
 import Dialog from "@mui/material/Dialog";
 import DialogTitle from "@mui/material/DialogTitle";
 import DialogContent from "@mui/material/DialogContent";
 import IconButton from "@mui/material/IconButton";
 import Tooltip from "@mui/material/Tooltip";
-import Typography from "@mui/material/Typography";
-import Box from "@mui/material/Box";
 import AddIcon from "@mui/icons-material/Add";
 import DownloadIcon from "@mui/icons-material/Download";
 import FilterListIcon from "@mui/icons-material/FilterList";
 
-import StyledDataGrid, { DataGridToolbar } from "../StyledDataGrid";
+import StyledDataGrid, {
+  DataGridToolbar,
+  FULL_PAGE_HEIGHT_WITH_TABS,
+} from "../StyledDataGrid";
 import ObservationFilterForm from "./ObservationFilterForm";
 import NewAPIQueuedObservation from "./NewAPIQueuedObservation";
 import { useGetInstrumentsQuery } from "../../ducks/instruments";
 import { useHasPermission } from "../../ducks/profile";
+import { download } from "../../utils/download";
 
-const PAGE_SIZE_OPTIONS = [10, 25, 50, 100];
-
-// Map each DataGrid column `field` to the field name the server expects for
-// sorting. Columns absent from this map are not server-sortable.
 const SERVER_SORT_FIELD: Record<string, string> = {
   instrument_name: "instrument_name",
   field_id: "field_id",
 };
-
-const useStyles = makeStyles()((theme: any) => ({
-  container: {
-    width: "100%",
-    overflow: "scroll",
-  },
-  eventTags: {
-    marginLeft: "0.5rem",
-    "& > div": {
-      margin: "0.25rem",
-      color: "white",
-      background: theme.palette.primary.main,
-    },
-  },
-}));
 
 interface QueuedObservationsTableProps {
   observations: any[];
@@ -51,6 +32,7 @@ interface QueuedObservationsTableProps {
   pageNumber?: number;
   numPerPage?: number;
   serverSide?: boolean;
+  fixedHeader?: boolean;
   filterModel?: any;
   onFilterModelChange?: ((model: any) => void) | undefined;
 }
@@ -62,12 +44,12 @@ const QueuedObservationsTable = ({
   handleTableChange = false,
   handleFilterSubmit = false,
   pageNumber = 1,
-  numPerPage = 10,
+  numPerPage = 25,
   serverSide = true,
+  fixedHeader = false,
   filterModel,
   onFilterModelChange,
 }: QueuedObservationsTableProps) => {
-  const { classes } = useStyles();
   const canUploadData = useHasPermission("Upload data");
 
   const { data: instrumentList = [] } = useGetInstrumentsQuery();
@@ -91,8 +73,6 @@ const QueuedObservationsTable = ({
     setNewDialogOpen(false);
   };
 
-  // Synthesize the mui-datatables onTableChange(action, tableState) contract
-  // from the DataGrid handlers so callers (ObservationPage) stay unchanged.
   const emitTableChange = (action: any, model: any, currentSort: any) => {
     if (typeof handleTableChange !== "function") {
       return;
@@ -139,13 +119,8 @@ const QueuedObservationsTable = ({
       filterable: false,
       valueGetter: (_value: any, row: any) =>
         instrumentsLookup[row.instrument_id]?.telescope?.name || "",
-      renderCell: (params: any) => {
-        const instrument = instrumentsLookup[params.row.instrument_id] || null;
-        if (!instrument) {
-          return <div>Loading...</div>;
-        }
-        return <div>{instrument?.telescope?.name || ""}</div>;
-      },
+      renderCell: ({ row, value }: any) =>
+        instrumentsLookup[row.instrument_id] ? value : "Loading...",
     },
     {
       field: "instrument_name",
@@ -155,13 +130,8 @@ const QueuedObservationsTable = ({
       filterable: false,
       valueGetter: (_value: any, row: any) =>
         instrumentsLookup[row.instrument_id]?.name || "",
-      renderCell: (params: any) => {
-        const instrument = instrumentsLookup[params.row.instrument_id] || null;
-        if (!instrument) {
-          return <div>Loading...</div>;
-        }
-        return <div>{instrument?.name || ""}</div>;
-      },
+      renderCell: ({ row, value }: any) =>
+        instrumentsLookup[row.instrument_id] ? value : "Loading...",
     },
     {
       field: "queue_name",
@@ -255,7 +225,6 @@ const QueuedObservationsTable = ({
       observation.field ? observation.field?.dec : "";
 
     downloadCallback().then((data: any) => {
-      // if there is no data, cancel download
       if (!data?.length) {
         return;
       }
@@ -288,22 +257,12 @@ const QueuedObservationsTable = ({
         ].join(","),
       );
       const result = `${head.join(",")}\n${rows.join("\n")}`;
-      const blob = new Blob([result], {
-        type: "text/csv;charset=utf-8;",
-      });
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      link.href = url;
-      link.setAttribute("download", "observations.csv");
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(url);
+      download(result, "text/csv;charset=utf-8;", "observations.csv");
     });
   };
 
   const CustomToolbar = () => (
-    <DataGridToolbar showExport={false}>
+    <DataGridToolbar title="Queued Observations" showExport={false}>
       <Tooltip title="Filter Table">
         <IconButton
           size="small"
@@ -338,52 +297,41 @@ const QueuedObservationsTable = ({
   );
 
   return (
-    <div>
-      <Paper className={classes.container}>
-        <Typography variant="h6" style={{ padding: "0.5rem" }}>
-          Queued Observations
-        </Typography>
-        <Box sx={{ height: "60vh", width: "100%" }}>
-          <StyledDataGrid
-            rows={observations}
-            columns={columns}
-            getRowId={(row: any) =>
-              row.id ?? `${row.instrument_id}_${row.queue_name}_${row.obstime}`
-            }
-            paginationMode={serverSide ? "server" : "client"}
-            sortingMode={serverSide ? "server" : "client"}
-            rowCount={totalMatches}
-            paginationModel={{
-              page: pageNumber - 1,
-              pageSize: rowsPerPage,
-            }}
-            onPaginationModelChange={handlePaginationModelChange}
-            sortModel={sortModel}
-            onSortModelChange={handleSortModelChange}
-            pageSizeOptions={PAGE_SIZE_OPTIONS}
-            filterModel={filterModel}
-            onFilterModelChange={onFilterModelChange}
-            slots={{ toolbar: CustomToolbar }}
-            showToolbar
-          />
-        </Box>
-        <Dialog open={newDialogOpen} onClose={closeNewDialog} maxWidth="md">
-          <DialogTitle>Add Queued Observations (from API)</DialogTitle>
-          <DialogContent dividers>
-            <NewAPIQueuedObservation onClose={closeNewDialog} />
-          </DialogContent>
-        </Dialog>
-        <Dialog
-          open={filterOpen}
-          onClose={() => setFilterOpen(false)}
-          fullWidth
-        >
-          <DialogContent>
-            <ObservationFilterForm handleFilterSubmit={handleFilterSubmit} />
-          </DialogContent>
-        </Dialog>
-      </Paper>
-    </div>
+    <>
+      <StyledDataGrid
+        height={fixedHeader ? FULL_PAGE_HEIGHT_WITH_TABS : "60vh"}
+        rows={observations}
+        columns={columns}
+        getRowId={(row: any) =>
+          row.id ?? `${row.instrument_id}_${row.queue_name}_${row.obstime}`
+        }
+        paginationMode={serverSide ? "server" : "client"}
+        sortingMode={serverSide ? "server" : "client"}
+        rowCount={totalMatches}
+        paginationModel={{
+          page: pageNumber - 1,
+          pageSize: rowsPerPage,
+        }}
+        onPaginationModelChange={handlePaginationModelChange}
+        sortModel={sortModel}
+        onSortModelChange={handleSortModelChange}
+        filterModel={filterModel}
+        onFilterModelChange={onFilterModelChange}
+        slots={{ toolbar: CustomToolbar }}
+        showToolbar
+      />
+      <Dialog open={newDialogOpen} onClose={closeNewDialog} maxWidth="md">
+        <DialogTitle>Add Queued Observations (from API)</DialogTitle>
+        <DialogContent dividers>
+          <NewAPIQueuedObservation onClose={closeNewDialog} />
+        </DialogContent>
+      </Dialog>
+      <Dialog open={filterOpen} onClose={() => setFilterOpen(false)} fullWidth>
+        <DialogContent>
+          <ObservationFilterForm handleFilterSubmit={handleFilterSubmit} />
+        </DialogContent>
+      </Dialog>
+    </>
   );
 };
 

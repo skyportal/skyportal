@@ -18,6 +18,7 @@ import StyledDataGrid, { DataGridToolbar } from "../StyledDataGrid";
 import { TableProgressText } from "../ProgressIndicators";
 import { useDeleteSurveyEfficiencyObservationsMutation } from "../../ducks/survey_efficiency_observations";
 import { useGetInstrumentsQuery } from "../../ducks/instruments";
+import { download } from "../../utils/download";
 
 const useStyles = makeStyles()(() => ({
   observationplanRequestTable: {
@@ -80,7 +81,6 @@ const SurveyEfficiencyObservationsLists = ({
     value.sort();
   });
 
-  // for each analysisGroupedByInstId, we sort the analyses by their created_at date, most recent first
   Object.keys(analysesGroupedByInstId).forEach((key) => {
     analysesGroupedByInstId[key].sort(
       (a: any, b: any) =>
@@ -229,9 +229,6 @@ const SurveyEfficiencyObservationsLists = ({
     },
   ];
 
-  // Build and download a CSV of all analyses. Previously this used
-  // mui-datatables' onDownload(buildHead); we now build the header line
-  // ourselves so there is no dependency on the table library.
   const handleDownload = () => {
     const allKeys = survey_efficiency_analyses.reduce((r: any, a: any) => {
       Object.keys(a.payload).forEach((key) => {
@@ -270,15 +267,7 @@ const SurveyEfficiencyObservationsLists = ({
     const head = `${columnsDownload.join(",")}\n`;
     const body = data.map((row: any) => row.join(","));
     const result = head + body.join("\n");
-    const blob = new Blob([result], { type: "text/csv;charset=utf-8;" });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.setAttribute("download", "observations.csv");
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
+    download(result, "text/csv;charset=utf-8;", "observations.csv");
   };
 
   const runningCount = (survey_efficiency_analyses || []).filter(
@@ -331,10 +320,6 @@ const SurveyEfficiencyObservationsLists = ({
               rows={analysesGroupedByInstId[instrument_id]}
               columns={columns}
               getRowId={(row: any) => row.id}
-              initialState={{
-                pagination: { paginationModel: { pageSize: 10 } },
-              }}
-              pageSizeOptions={[1, 10, 15]}
               slots={{ toolbar: CustomToolbar }}
               showToolbar
             />

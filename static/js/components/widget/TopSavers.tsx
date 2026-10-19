@@ -27,14 +27,15 @@ import {
 import WidgetPrefsDialog from "./WidgetPrefsDialog";
 import { useGetTopSaversQuery } from "../../ducks/topSavers";
 import { useActiveTeam } from "../../ducks/teams";
+import WidgetLoading from "./WidgetLoading";
 
 interface TopSaversSearchProps {
-  savers?: any[];
+  savers: any[];
   setOptions: (options: any[]) => void;
 }
 
 interface TopSaversListProps {
-  savers?: any[];
+  savers: any[];
   styles: Record<string, any>;
 }
 
@@ -114,8 +115,6 @@ const starColor = (rank: number) => {
 };
 
 const TopSaversSearch = ({ savers, setOptions }: TopSaversSearchProps) => {
-  if (!savers) return null;
-
   const handleChange = (event: any) => {
     let newValue = event.target.value;
     if (newValue === "" || newValue === null || newValue === undefined) {
@@ -162,17 +161,13 @@ const TopSaversSearch = ({ savers, setOptions }: TopSaversSearchProps) => {
 };
 
 const TopSaversList = ({ savers, styles }: TopSaversListProps) => {
-  const [options, setOptions] = useState<any[]>(savers || []);
+  const [options, setOptions] = useState<any[]>(savers);
 
   useEffect(() => {
-    if (savers?.length) {
+    if (savers.length) {
       setOptions(savers);
     }
   }, [savers]);
-
-  if (savers === undefined) {
-    return <div>Loading top savers...</div>;
-  }
 
   if (savers.length === 0) {
     return <div>No top savers available.</div>;
@@ -235,7 +230,7 @@ const TopSaversList = ({ savers, styles }: TopSaversListProps) => {
 const TopSavers = ({ classes }: TopSaversProps) => {
   const { classes: styles } = useStyles();
   const { activeTeam } = useActiveTeam();
-  const { data: savers } = useGetTopSaversQuery(
+  const { data: savers, isLoading } = useGetTopSaversQuery(
     activeTeam ? { teamID: activeTeam.id } : undefined,
   );
   const { data: profile } = useGetProfileQuery();
@@ -334,7 +329,11 @@ const TopSavers = ({ classes }: TopSaversProps) => {
             />
           </div>
         </div>
-        <TopSaversList savers={savers || []} styles={styles} />
+        {isLoading ? (
+          <WidgetLoading />
+        ) : (
+          <TopSaversList savers={savers || []} styles={styles} />
+        )}
       </div>
     </Paper>
   );

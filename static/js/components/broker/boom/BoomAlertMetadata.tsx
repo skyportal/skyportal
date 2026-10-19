@@ -35,47 +35,60 @@ interface Column {
   color?: (v: unknown) => string | undefined;
 }
 
-const COLUMNS = (isLSST: boolean): Column[] => [
-  {
-    label: isLSST ? "diaSourceId" : "candid",
-    value: ({ alert, raw }) =>
-      raw?.diaSourceId ?? alert.candid ?? raw?.candid ?? raw?._id,
-    format: str,
-  },
-  { label: "JD", value: ({ alert }) => alert.jd, format: num(5) },
-  { label: "band", value: ({ raw }) => raw?.candidate?.band, format: str },
-  { label: "magpsf", value: ({ alert }) => alert.magpsf, format: num(3) },
-  {
-    label: "sigmapsf",
-    value: ({ raw }) => raw?.candidate?.sigmapsf,
-    format: num(3),
-  },
-  {
-    label: "isdiffpos",
-    value: ({ raw }) => raw?.candidate?.isdiffpos,
-    format: str,
-  },
-  {
-    label: isLSST ? "reliability" : "drb",
-    value: ({ raw }) =>
-      isLSST ? raw?.candidate?.reliability : raw?.candidate?.drb,
-    format: num(5),
-  },
-  {
-    label: "snr",
-    value: ({ raw }) => raw?.candidate?.snr_psf ?? raw?.candidate?.snr,
-    format: num(2),
-  },
-  ...(isLSST
-    ? []
-    : [
-        {
-          label: "programid",
-          value: ({ raw }: Row) => raw?.candidate?.programid,
-          format: str,
-        },
-      ]),
-];
+const COLUMNS = (survey: string): Column[] => {
+  const isLSST = survey === "LSST";
+  const isDECAM = survey === "DECAM";
+  const hasProgramid = !isLSST && !isDECAM;
+  return [
+    {
+      label: isLSST ? "diaSourceId" : "candid",
+      value: ({ alert, raw }) =>
+        raw?.diaSourceId ?? alert.candid ?? raw?.candid ?? raw?._id,
+      format: str,
+    },
+    { label: "JD", value: ({ alert }) => alert.jd, format: num(5) },
+    { label: "band", value: ({ raw }) => raw?.candidate?.band, format: str },
+    {
+      label: isDECAM ? "magap" : "magpsf",
+      value: ({ alert }) => alert.magpsf,
+      format: num(3),
+    },
+    {
+      label: isDECAM ? "sigmagap" : "sigmapsf",
+      value: ({ raw }) => raw?.candidate?.sigmapsf,
+      format: num(3),
+    },
+    ...(isDECAM
+      ? []
+      : [
+          {
+            label: "isdiffpos",
+            value: ({ raw }: Row) => raw?.candidate?.isdiffpos,
+            format: str,
+          },
+        ]),
+    {
+      label: hasProgramid ? "drb" : "reliability",
+      value: ({ raw }) =>
+        hasProgramid ? raw?.candidate?.drb : raw?.candidate?.reliability,
+      format: num(5),
+    },
+    {
+      label: "snr",
+      value: ({ raw }) => raw?.candidate?.snr_psf ?? raw?.candidate?.snr,
+      format: num(2),
+    },
+    ...(hasProgramid
+      ? [
+          {
+            label: "programid",
+            value: ({ raw }: Row) => raw?.candidate?.programid,
+            format: str,
+          },
+        ]
+      : []),
+  ];
+};
 
 // The ML scores shown as bubbles, repeated as columns so many alerts can be
 // compared at once.
@@ -126,7 +139,7 @@ const BoomAlertMetadata = ({
   );
 
   const columns = useMemo(
-    () => [...COLUMNS(survey === "LSST"), ...scoreColumns(rows, theme)],
+    () => [...COLUMNS(survey), ...scoreColumns(rows, theme)],
     [rows, survey, theme],
   );
 

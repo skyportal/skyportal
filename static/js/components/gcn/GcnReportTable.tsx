@@ -26,13 +26,16 @@ const GcnReportTable = ({
 }: GcnReportTableProps) => {
   const { classes } = useStyles();
 
-  if (!reports || reports?.length === 0) {
+  if (!reports) {
+    return <CircularProgress size={24} />;
+  }
+
+  if (reports.length === 0) {
     return <p>No entries available...</p>;
   }
 
   const renderName = (params: any) => {
     const report = params.row;
-    // return a link to the report that opens in a new tab
     return (
       <a
         href={`/public/reports/gcn/${report?.id}`}
@@ -132,10 +135,6 @@ const GcnReportTable = ({
             rows={reports}
             columns={columns}
             getRowId={(row: any) => row.id}
-            initialState={{
-              pagination: { paginationModel: { pageSize: 10 } },
-            }}
-            pageSizeOptions={[2, 10, 25, 50, 100]}
             showToolbar
           />
         </Paper>

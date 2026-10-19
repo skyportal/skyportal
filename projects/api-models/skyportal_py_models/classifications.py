@@ -188,6 +188,14 @@ class ClassificationGetQuery(BaseModel):
             "filter by created_at <= endDate"
         ),
     )
+    origin: str | None = Field(
+        default=None,
+        description=(
+            "Comma separated string of origins. If provided, only classifications "
+            "from these origins are returned, matched without regard to case. A "
+            "classification with no origin is never returned when this is given."
+        ),
+    )
     includeTaxonomy: bool = Field(
         default=False,
         description="Return associated taxonomy.",
@@ -234,6 +242,14 @@ class ObjClassificationQueryGetQuery(BaseModel):
         description=(
             "Arrow-parseable date string (e.g. 2020-01-01) for when the "
             "classification was made. If provided, filter by created_at <= endDate"
+        ),
+    )
+    origin: str | None = Field(
+        default=None,
+        description=(
+            "Comma separated string of origins. If provided, only classifications "
+            "from these origins are returned, matched without regard to case. A "
+            "classification with no origin is never returned when this is given."
         ),
     )
 

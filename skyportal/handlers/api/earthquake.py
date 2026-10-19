@@ -23,6 +23,7 @@ from baselayer.app.custom_exceptions import AccessError
 from baselayer.log import make_log
 
 from ...models import (
+    CommentOnEarthquake,
     EarthquakeEvent,
     EarthquakeMeasured,
     EarthquakeNotice,
@@ -285,7 +286,6 @@ class EarthquakeHandler(BaseHandler):
                             selectinload(EarthquakeEvent.notices).undefer(
                                 EarthquakeNotice.content
                             ),
-                            selectinload(EarthquakeEvent.comments),
                             selectinload(EarthquakeEvent.predictions),
                             selectinload(EarthquakeEvent.measurements),
                         ],
@@ -294,9 +294,23 @@ class EarthquakeHandler(BaseHandler):
                 if event is None:
                     return self.error("Earthquake event not found", status=404)
 
+                # Queried rather than loaded through event.comments, which would
+                # skip each comment's own group restriction.
+                comments = (
+                    (
+                        await session.scalars(
+                            CommentOnEarthquake.select(session.user_or_token).where(
+                                CommentOnEarthquake.earthquake_id == event.id
+                            )
+                        )
+                    )
+                    .unique()
+                    .all()
+                )
+
                 # eager-load comment authors
                 authors = {}
-                for c in event.comments:
+                for c in comments:
                     author = await session.scalar(
                         sa.select(User).where(User.id == c.author_id)
                     )
@@ -333,7 +347,7 @@ class EarthquakeHandler(BaseHandler):
                                 ),
                                 "resourceType": "earthquake",
                             }
-                            for c in event.comments
+                            for c in comments
                         ),
                         key=lambda x: x["created_at"],
                         reverse=True,

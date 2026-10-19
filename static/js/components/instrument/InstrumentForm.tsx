@@ -14,6 +14,7 @@ import {
 } from "../../ducks/instrument";
 import { useGetFollowupApisQuery } from "../../ducks/followupApis";
 import { useGetEnumTypesQuery } from "../../ducks/enum_types";
+import ZtfQuadrantsField from "./ZtfQuadrantsField";
 
 interface InstrumentFormProps {
   onClose: () => void;
@@ -25,7 +26,8 @@ const InstrumentForm = ({
   instrumentId = null,
 }: InstrumentFormProps) => {
   const { data: instrumentList = [] } = useGetInstrumentsQuery();
-  const { data: telescopeList = [] } = useGetTelescopesQuery();
+  const { data: telescopeList = [], isLoading: telescopesLoading } =
+    useGetTelescopesQuery();
   const { data: followupApis } = useGetFollowupApisQuery();
   const { data: enum_types } = useGetEnumTypesQuery();
   const [formData, setFormData] = useState<any>({});
@@ -57,11 +59,16 @@ const InstrumentForm = ({
     dataToSubmit.field_fov_attributes =
       dataToSubmit.field_fov_attributes?.split(",");
 
-    if (dataToSubmit.specific_configuration) {
+    if (dataToSubmit.specific_configuration || dataToSubmit.missing_quadrants) {
       try {
         dataToSubmit.configuration_data = {
           ...JSON.parse(dataToSubmit.configuration_data || "{}"),
-          specific_configuration: dataToSubmit.specific_configuration,
+          ...(dataToSubmit.specific_configuration && {
+            specific_configuration: dataToSubmit.specific_configuration,
+          }),
+          ...(dataToSubmit.missing_quadrants && {
+            missing_quadrants: dataToSubmit.missing_quadrants,
+          }),
         };
       } catch (e) {
         dispatch(
@@ -73,6 +80,7 @@ const InstrumentForm = ({
         return;
       }
       delete dataToSubmit.specific_configuration;
+      delete dataToSubmit.missing_quadrants;
     }
 
     try {
@@ -91,14 +99,16 @@ const InstrumentForm = ({
     }
   };
 
+  if (telescopesLoading || enum_types == null) {
+    return <CircularProgress />;
+  }
+
   if (!telescopeList.length) {
     return (
       <h3>
         No telescopes available. Add a telescope before creating an instrument.
       </h3>
     );
-  } else if (enum_types == null) {
-    return <CircularProgress />;
   }
 
   const api_classnames = [...enum_types["ALLOWED_API_CLASSNAMES"]].sort();
@@ -110,6 +120,11 @@ const InstrumentForm = ({
   if (instrumentId && !instrumentToEdit) {
     return <h3>Instrument not found !</h3>;
   }
+
+  const [, fovType, fovAttributes] =
+    instrumentToEdit?.["region_summary"]?.match(
+      /^(Rectangle|Circle) \[.*\]: \(?([^)]*)\)?$/,
+    ) || [];
 
   function validate(dataToCheck: any, errors: any) {
     if (dataToCheck.configuration_data) {
@@ -136,12 +151,12 @@ const InstrumentForm = ({
     }
     if (dataToCheck.field_fov_type && dataToCheck.field_fov_attributes) {
       const attributes = dataToCheck.field_fov_attributes.split(",");
-      if (dataToCheck.field_fov_type === "circle" && attributes.length !== 1) {
+      if (dataToCheck.field_fov_type === "Circle" && attributes.length !== 1) {
         errors.field_fov_attributes.addError(
           "For the circle option, field_fov_attributes should be a single number (radius in degrees).",
         );
       } else if (
-        dataToCheck.field_fov_type === "rectangle" &&
+        dataToCheck.field_fov_type === "Rectangle" &&
         attributes.length !== 2
       ) {
         errors.field_fov_attributes.addError(
@@ -153,7 +168,7 @@ const InstrumentForm = ({
   }
 
   const getDefaultConfigurationData = () => {
-    const { specific_configuration, ...configuration } =
+    const { specific_configuration, missing_quadrants, ...configuration } =
       instrumentToEdit?.["configuration_data"] || {};
     if (configuration && Object.keys(configuration).length > 0) {
       return configuration;
@@ -270,19 +285,13 @@ const InstrumentForm = ({
         uniqueItems: true,
         title: "FOV Type",
         description: "Rectangle or Circle",
-        default: instrumentToEdit?.["region_summary"]
-          ? instrumentToEdit?.["region_summary"].includes("Rectangle")
-            ? "Rectangle"
-            : "Circle"
-          : undefined,
+        default: fovType,
       },
       field_fov_attributes: {
         type: "string",
         title: "FOV Attributes",
         description: "Rectangle: width,height; Circle: radius",
-        default: instrumentToEdit?.["region_summary"]?.includes("(")
-          ? instrumentToEdit?.["region_summary"].split("(")[1].split(")")[0]
-          : undefined,
+        default: fovAttributes,
       },
       sensitivity_data: {
         type: "string",
@@ -298,6 +307,18 @@ const InstrumentForm = ({
           "Configuration data i.e. {'overhead_per_exposure': 2.0, 'readout': 8.0, 'slew_rate': 2.6, 'filt_change_time': 60.0}",
         default: JSON.stringify(getDefaultConfigurationData()),
       },
+      ...((instrumentToEdit?.name ?? formData.name) === "ZTF"
+        ? {
+            missing_quadrants: {
+              type: "array",
+              items: { type: "integer" },
+              default:
+                instrumentToEdit?.["configuration_data"]?.[
+                  "missing_quadrants"
+                ] || [],
+            },
+          }
+        : {}),
       ...(followupApis?.[formData.api_classname]?.formSchemaConfig?.properties
         ? {
             specific_configuration: {
@@ -330,6 +351,9 @@ const InstrumentForm = ({
     field_fov_type: {
       "ui:placeholder": "Choose an option",
     },
+    missing_quadrants: {
+      "ui:field": "ztfQuadrants",
+    },
   };
 
   return (
@@ -341,6 +365,7 @@ const InstrumentForm = ({
       formData={formData}
       onChange={(e) => setFormData(e.formData)}
       uiSchema={uiSchema}
+      fields={{ ztfQuadrants: ZtfQuadrantsField }}
     />
   );
 };

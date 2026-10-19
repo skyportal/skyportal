@@ -305,6 +305,75 @@ def test_scan_report_item_includes_spectra(
     SpectrumFactory.teardown(spectrum)
 
 
+def test_scan_report_item_omits_unreadable_classifications(
+    public_filter,
+    public_group,
+    public_group2,
+    public_taxonomy,
+    user,
+    upload_data_token,
+    super_admin_token,
+    cleanup_reports,
+):
+    """A classification shared only with a group the author is not in stays out."""
+    now = utcnow_naive()
+    obj = ObjFactory(groups=[public_group])
+    DBSession.add(
+        Candidate(obj=obj, filter=public_filter, passed_at=now, uploader_id=user.id)
+    )
+    DBSession.add(Source(obj_id=obj.id, group_id=public_group.id, saved_by_id=user.id))
+    DBSession.commit()
+
+    # user is in public_group but not public_group2
+    for classification, group in (("AGN", public_group), ("Algol", public_group2)):
+        status, data = api(
+            "POST",
+            "classification",
+            data={
+                "obj_id": obj.id,
+                "classification": classification,
+                "taxonomy_id": public_taxonomy.id,
+                "probability": 0.9,
+                "group_ids": [group.id],
+            },
+            token=super_admin_token,
+        )
+        assert status == 200, data
+
+    window = {
+        "start_date": (now - timedelta(days=1)).isoformat(),
+        "end_date": (now + timedelta(days=1)).isoformat(),
+    }
+    status, data = api(
+        "POST",
+        "candidates/scan_reports",
+        data={
+            "group_ids": [public_group.id],
+            "passed_filters_range": window,
+            "saved_candidates_range": {
+                "start_saved_date": (now - timedelta(days=1)).isoformat(),
+                "end_saved_date": (now + timedelta(days=1)).isoformat(),
+            },
+        },
+        token=upload_data_token,
+    )
+    assert status == 200, data
+
+    status, data = api("GET", "candidates/scan_reports", token=upload_data_token)
+    assert status == 200, data
+    report_id = data["data"]["reports"][0]["id"]
+    cleanup_reports.append(report_id)
+
+    status, data = api(
+        "GET", f"candidates/scan_reports/{report_id}/items", token=upload_data_token
+    )
+    assert status == 200, data
+    item = next(item for item in data["data"] if item["obj_id"] == obj.id)
+
+    classifications = item["data"]["classifications"]
+    assert [c["classification"] for c in classifications] == ["AGN"]
+
+
 def test_scan_report_item_includes_associated_objs(
     public_filter,
     public_group,

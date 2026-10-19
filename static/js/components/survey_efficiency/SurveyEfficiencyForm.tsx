@@ -202,6 +202,7 @@ const SurveyEfficiencyForm = ({
     formData.optionalInjectionParameters = JSON.stringify(
       optionalInjectionParameters,
     );
+    formData.group_ids = selectedGroupIds;
 
     if (!observationplanRequest) {
       try {

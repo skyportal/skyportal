@@ -68,6 +68,9 @@ digits adds a second point at the same epoch rather than replacing it.
 - A broker filter version is identified by a uuid, not a number, and posting \
 one does not activate it. Preview with run_broker_filter before activating: a \
 pipeline that returns nothing there will pass nothing in production.
+- get_broker_alerts trims each alert to its photometry and vetting fields. A \
+field you do not see there may still be in the packet, so pass full=true \
+before concluding the survey did not record it.
 - An empty result is usually a wrong field name rather than an empty sky. \
 Check the shape of one record before concluding that nothing matched.
 
@@ -81,7 +84,12 @@ returns; a path it does not list matches nothing, silently.
 3. post_filter to create the filter.
 4. run_broker_filter to preview. Without sort_by it returns a count, which is \
 what to tune a threshold against; a pipeline broker needs start_jd and end_jd. \
-Write only the cuts: the terminal $project is appended for you.
+Write only the cuts: the terminal $project is appended for you. Never tell \
+anyone how many alerts a filter will return unless run_broker_filter returned \
+that number for the pipeline as it now stands: the rate is the one thing they \
+cannot check by reading it, and a plausible guess is indistinguishable from a \
+measurement. Add the cuts a few at a time and preview as you go, so you know \
+which one changed the count.
 5. post_broker_filter_version, then activate_broker_filter_version with the \
 fid it returns. Posting validates the version and returns the verdict; \
 activation is refused without a passing one, and \
@@ -93,9 +101,15 @@ Writing the pipeline itself:
 anything about an object's history has to come from a precomputed field \
 (properties.detection_history, properties.episode_history, photstats) rather \
 than from aggregating prv_candidates.
-- A comparison against a missing field is true in Mongo, so a cut written to \
-exclude something keeps every alert that lacks the field. Pair it with an \
-existence or null test when that matters.
+- Write a cut as a query operator, `{"x": {"$lt": 5}}`, not as `$expr`. \
+A query operator compares only within a type, so it passes over an alert whose \
+field is missing or null; the same cut inside `$expr` treats missing as lower \
+than every number and keeps all of them. On one night of ZTF that is 1,992 \
+alerts against 165,333. Reach for `$expr` only to compare two fields of the \
+same alert, and pair it with an existence test when you do.
+- A field that is NaN when unset is the other half of this: the sentinel is \
+present, so it fails every comparison rather than passing them. get_alert_schema \
+says which fields those are.
 - prv_candidates and fp_hists describe the sky position, not the object. For a \
 mover, whose objectId changes almost every detection, they are somebody else's \
 history."""
@@ -895,9 +909,10 @@ async def get_observation_plan_form(handler, args):
     "post_observation_plan",
     "Request an observation plan for a GCN event localization. The payload must "
     "validate against that instrument's schema from get_observation_plan_form "
-    "and must carry a queue_name unique across all plans. Planning runs "
-    "asynchronously: poll get_observation_plans for the status and the "
-    "scheduled observations.",
+    "and must carry a queue_name unique across all plans. start_date and end_date "
+    "bound the observing window and are usually taken from the event's dateobs "
+    "onwards. Planning runs asynchronously and returns only the request id: poll "
+    "get_observation_plans for the status and the resulting statistics.",
     {
         "allocation_id": _prop(
             "integer",
@@ -931,8 +946,13 @@ async def post_observation_plan(handler, args):
 @tool(
     "get_observation_plans",
     "Observation plan requests and their status. Give observation_plan_request_id "
-    "for one, or dateobs to list an event's plans. The planned observations are "
-    "included only with includePlannedObservations, which is a large response.",
+    "for one, or dateobs to list an event's plans. Planning is asynchronous, so a "
+    "plan just posted reads as pending or running for a minute or two and a "
+    "failure explains itself in `status`. A complete plan carries a statistics "
+    "block summarising what was scheduled, including num_observations, "
+    "probability, area and unique_filters, which is usually all that is needed to "
+    "judge a schedule. The pointings themselves come back only with "
+    "includePlannedObservations, which is a large response.",
     {
         "observation_plan_request_id": _prop("integer", "One plan request."),
         "dateobs": _prop("string", "Only plans for this event's dateobs."),
@@ -957,8 +977,35 @@ async def get_observation_plans(handler, args):
 _PRIMITIVES = {"null", "boolean", "int", "long", "float", "double", "bytes", "string"}
 
 
-def _flatten_avro(schema, prefix="", registry=None, stack=(), depth=0):
-    """An Avro schema as (dotted path, type) pairs, arrays marked with `[]`."""
+NAN_NOTE = (
+    "NaN when unset, so it is present and fails every comparison: pair a "
+    "< cut with a > bound, or it also keeps the unset ones."
+)
+
+
+def _field_note(field):
+    """What is worth telling a pipeline author about one Avro field.
+
+    Avro puts `doc` on the field or on the record it names, and BOOM flags a
+    field whose sentinel is NaN rather than absence."""
+    docs = [field.get("doc")]
+    kind = field.get("type")
+    if isinstance(kind, dict):
+        docs.append(kind.get("doc"))
+    if field.get("nan_possible") or (
+        isinstance(kind, dict) and kind.get("nan_possible")
+    ):
+        docs.append(NAN_NOTE)
+    text = " ".join(d.strip() for d in docs if isinstance(d, str) and d.strip())
+    return " ".join(text.split()) or None
+
+
+def _flatten_avro(schema, prefix="", registry=None, stack=(), depth=0, notes=None):
+    """An Avro schema as (dotted path, type) pairs, arrays marked with `[]`.
+
+    `notes`, when given, is filled with the per-path documentation the schema
+    carries: a field's `doc`, and a warning for one flagged `nan_possible`,
+    whose sentinel fails every comparison rather than being absent."""
     registry = {} if registry is None else registry
     if depth > 12:
         return []
@@ -970,14 +1017,14 @@ def _flatten_avro(schema, prefix="", registry=None, stack=(), depth=0):
             return [(prefix, schema)] if prefix else []
         if schema in stack or schema not in registry:
             return [(prefix, schema)] if prefix else []
-        return _flatten_avro(registry[schema], prefix, registry, stack, depth)
+        return _flatten_avro(registry[schema], prefix, registry, stack, depth, notes)
 
     if isinstance(schema, list):
         branches = [b for b in schema if b != "null"]
         nullable = len(branches) < len(schema)
         if not branches:
             return [(prefix, "null")] if prefix else []
-        flat = _flatten_avro(branches[0], prefix, registry, stack, depth)
+        flat = _flatten_avro(branches[0], prefix, registry, stack, depth, notes)
         return [(p, t + "?" if nullable and p == prefix else t) for p, t in flat]
 
     if not isinstance(schema, dict):
@@ -995,21 +1042,27 @@ def _flatten_avro(schema, prefix="", registry=None, stack=(), depth=0):
             if not name:
                 continue
             path = f"{prefix}.{name}" if prefix else name
+            if notes is not None:
+                note = _field_note(field)
+                if note:
+                    notes[path] = note
             out.extend(
-                _flatten_avro(field.get("type"), path, registry, stack, depth + 1)
+                _flatten_avro(
+                    field.get("type"), path, registry, stack, depth + 1, notes
+                )
             )
         return out
     if kind == "array":
         return _flatten_avro(
-            schema.get("items"), f"{prefix}[]", registry, stack, depth + 1
+            schema.get("items"), f"{prefix}[]", registry, stack, depth + 1, notes
         )
     if kind == "enum":
         return [(prefix, "enum(" + "|".join(schema.get("symbols") or []) + ")")]
     if kind == "map":
         return _flatten_avro(
-            schema.get("values"), f"{prefix}{{}}", registry, stack, depth + 1
+            schema.get("values"), f"{prefix}{{}}", registry, stack, depth + 1, notes
         )
-    return _flatten_avro(kind, prefix, registry, stack, depth)
+    return _flatten_avro(kind, prefix, registry, stack, depth, notes)
 
 
 def _versions(filter_record):
@@ -1057,6 +1110,26 @@ async def get_filter_targets(handler, args):
     }
 
 
+def _note_owner(path, notes):
+    """The path that documents `path`: itself, or the nearest one above it.
+
+    Two fields sharing an Avro record share its leaves, so what separates a
+    rise from a decline is documented on the block rather than on the `rate`
+    they have in common. The note is reported against the block, once, rather
+    than copied onto every leaf under it: `properties` alone covers 58 of the
+    paths in a ZTF schema, and repeating its sentence on each of them was
+    enough to push the whole conversation past the model's context.
+    """
+    # Notes are keyed by the field's own path; the flattener marks an array or
+    # a map on the path it builds from it, so the markers come back off here.
+    parts = [part.rstrip("[]{}") for part in path.split(".")]
+    for stop in range(len(parts), 0, -1):
+        owner = ".".join(parts[:stop])
+        if notes.get(owner):
+            return owner
+    return None
+
+
 @tool(
     "get_alert_schema",
     "The fields a filter pipeline may reference, as dotted paths with their "
@@ -1064,7 +1137,14 @@ async def get_filter_targets(handler, args):
     "matches nothing, and an empty preview looks the same as an empty sky. "
     "`?` marks a nullable field and `[]` an array. Paths are already the "
     "names a pipeline uses: the broker flattens what it joins, so write "
-    "`cross_matches.x`, never `aux.cross_matches.x`, which is rejected.",
+    "`cross_matches.x`, never `aux.cross_matches.x`, which is rejected. "
+    "`notes` carries what the schema says about a field: its units, the sign "
+    "of a rate, the meaning of a classifier score, and whether it is NaN when "
+    "unset. A note is keyed by the path it is written on, which may be a "
+    "prefix of the field you are reading: the note on "
+    "`properties.photstats.r.rising` governs `...rising.rate` under it. Before "
+    "cutting on a field, read its note and the notes on its prefixes; the cut "
+    "that looks obvious is the one a note usually contradicts.",
     {
         "broker_id": _prop("integer", "Broker ID."),
         "survey": _prop("string", "Survey whose alerts the filter runs on, e.g. ZTF."),
@@ -1089,7 +1169,8 @@ async def get_alert_schema(handler, args):
             f"Broker {broker_id} reports no alert schema for survey {args['survey']!r}."
         )
 
-    paths = _flatten_avro(schema)
+    notes = {}
+    paths = _flatten_avro(schema, notes=notes)
     search = (args.get("search") or "").lower()
     prefix = args.get("prefix") or ""
     if search:
@@ -1098,11 +1179,241 @@ async def get_alert_schema(handler, args):
         paths = [(p, t) for p, t in paths if p == prefix or p.startswith(prefix)]
 
     limit = args.get("limit") or 200
+    shown = paths[:limit]
     return {
         "survey": args["survey"],
         "matched": len(paths),
         "truncated": len(paths) > limit,
-        "fields": dict(paths[:limit]),
+        "fields": dict(shown),
+        # Keyed by the path each note is written on, which for a record is the
+        # prefix of the fields it describes: one entry per note rather than one
+        # per field that inherits it.
+        "notes": {
+            owner: notes[owner]
+            for owner in dict.fromkeys(
+                filter(None, (_note_owner(p, notes) for p, _ in shown))
+            )
+        },
+    }
+
+
+# The fields a light curve or an alert cut is judged on. A ZTF alert carries
+# its whole previous-detection history and three cutouts, which is far more
+# than a caller reading alerts needs and more than a model can hold.
+_ALERT_SUMMARY_FIELDS = (
+    "jd",
+    "fid",
+    "magpsf",
+    "sigmapsf",
+    "diffmaglim",
+    "ra",
+    "dec",
+    "rb",
+    "drb",
+    "isdiffpos",
+    "ndethist",
+    "jdstarthist",
+    "sgscore1",
+    "distpsnr1",
+    "ssdistnr",
+    "ssmagnr",
+    "programid",
+)
+
+
+def _summarize_alert(record):
+    """One alert trimmed to its identifiers and the candidate fields above."""
+    if not isinstance(record, dict):
+        return record
+    candidate = record.get("candidate") or {}
+    summary = {
+        "objectId": record.get("objectId"),
+        "candid": record.get("candid"),
+    }
+    summary.update({k: candidate[k] for k in _ALERT_SUMMARY_FIELDS if k in candidate})
+    history = record.get("prv_candidates")
+    if isinstance(history, list):
+        summary["n_prv_candidates"] = len(history)
+    return summary
+
+
+def _summarize_alerts(data, full):
+    if full:
+        return data
+    if isinstance(data, list):
+        return [_summarize_alert(record) for record in data]
+    return _summarize_alert(data)
+
+
+@tool(
+    "list_brokers",
+    "The brokers this token can query, with the ids the other broker tools "
+    "need and the operations each one supports. Start here: broker_id is not "
+    "guessable, and a broker only answers the operations it lists.",
+    {},
+)
+async def list_brokers(handler, args):
+    brokers = await handler.api("GET", "/api/brokers")
+    # altdata carries the broker's credentials, so it is never returned.
+    return [
+        {
+            "id": b.get("id"),
+            "name": b.get("name"),
+            "active": b.get("active"),
+            "surveys": b.get("surveys"),
+            "supports": sorted(
+                name for name, ok in (b.get("capabilities") or {}).items() if ok is True
+            ),
+        }
+        for b in (brokers or [])
+    ]
+
+
+@tool(
+    "get_broker_alerts",
+    "Alerts from a broker, by object, by position, or one by candid. Returns "
+    "each alert trimmed to its photometry and vetting fields; pass full=true "
+    "for whole packets, which are large. Bound a positional search in time "
+    "with jd_start and jd_end, otherwise it returns every alert ever recorded "
+    "at that position. Use convert_time to turn a date into a JD.",
+    {
+        "broker_id": _prop("integer", "Broker ID, from list_brokers."),
+        "object_id": _prop(
+            "string",
+            "Survey object id to fetch the alert history of, e.g. ZTF21aagwbjr.",
+        ),
+        "candid": _prop("string", "Candid of a single alert to fetch."),
+        "ra": _prop("number", "RA of a positional search, in degrees."),
+        "dec": _prop("number", "Declination of a positional search, in degrees."),
+        "radius": _prop("number", "Radius of a positional search."),
+        "radius_units": _prop(
+            "string", "Units of radius: deg, arcmin or arcsec (default arcsec)."
+        ),
+        "jd_start": _prop("number", "Earliest alert JD."),
+        "jd_end": _prop("number", "Latest alert JD."),
+        "survey": _prop("string", "Survey to query, e.g. ZTF."),
+        "full": _prop(
+            "boolean",
+            "Return whole alert packets instead of the trimmed fields.",
+        ),
+    },
+    required=("broker_id",),
+    passthrough="GET /api/brokers/{broker_id}/alerts",
+)
+async def get_broker_alerts(handler, args):
+    args = dict(args)
+    broker_id = args.pop("broker_id")
+    full = bool(args.pop("full", False))
+    candid = args.pop("candid", None)
+    # The provider names it objectId; accept the snake_case form as well.
+    object_id = args.pop("object_id", None)
+    if object_id is not None:
+        args.setdefault("objectId", object_id)
+    if candid is None and not args:
+        raise ToolError(
+            "Give object_id, candid, or ra/dec/radius to search for alerts."
+        )
+
+    path = f"/api/brokers/{int(broker_id)}/alerts"
+    if candid is not None:
+        path += f"/{candid}"
+        args = {}
+    data = await handler.api("GET", path, query=args or None)
+    return _summarize_alerts(data, full)
+
+
+@tool(
+    "get_broker_alert_photometry",
+    "An object's alert photometry from a broker, as a light curve rather than "
+    "as alert packets. This is the cheap way to ask how an object behaved; "
+    "get_broker_alerts is for the per-alert vetting fields. Omit broker_id to "
+    "use the instance's default broker for the survey.",
+    {
+        "object_id": _prop("string", "Survey object id, e.g. ZTF20abwysqy."),
+        "broker_id": _prop("integer", "Broker ID. Defaults to the configured one."),
+        "survey": _prop("string", "Survey the photometry is fetched for."),
+        "format": _prop("string", "mag, flux or both (default mag)."),
+        "magsys": _prop("string", "Magnitude system (default ab)."),
+    },
+    required=("object_id",),
+    passthrough="GET /api/brokers/{broker_id}/alerts/{object_id}/photometry",
+)
+async def get_broker_alert_photometry(handler, args):
+    args = dict(args)
+    object_id = args.pop("object_id")
+    broker_id = args.pop("broker_id", None)
+    path = (
+        f"/api/brokers/{int(broker_id)}/alerts/{object_id}/photometry"
+        if broker_id is not None
+        else f"/api/brokers/photometry/{object_id}"
+    )
+    return await handler.api("GET", path, query=args or None)
+
+
+@tool(
+    "crossmatch_broker_catalogs",
+    "Cross-match a position against the broker's reference catalogs (Gaia, "
+    "PS1, AllWISE and the like), returning the matches keyed by catalog. What "
+    "to call to decide whether a candidate sits on a star or a known galaxy; "
+    "it searches catalogs rather than alerts.",
+    {
+        "broker_id": _prop("integer", "Broker ID, from list_brokers."),
+        "ra": _prop("number", "RA in degrees."),
+        "dec": _prop("number", "Declination in degrees."),
+        "radius": _prop("number", "Search radius, in radius_units."),
+        "radius_units": _prop(
+            "string", "Units of radius: deg, arcmin or arcsec (default arcsec)."
+        ),
+    },
+    required=("broker_id", "ra", "dec", "radius"),
+)
+async def crossmatch_broker_catalogs(handler, args):
+    args = dict(args)
+    broker_id = args.pop("broker_id")
+    return await handler.api(
+        "GET", f"/api/brokers/{int(broker_id)}/cone_search", query=args
+    )
+
+
+@tool(
+    "get_counterpart_search_defaults",
+    "The ZTF quality cuts and window the GCN crossmatch service runs with, as "
+    "a starting point to edit rather than a filter to adopt. The pipeline is "
+    "accepted by run_broker_filter unchanged, so an exploratory search over a "
+    "GRB or gravitational-wave region starts here and tightens from the counts "
+    "it returns. The cuts reference ZTF candidate fields; check get_alert_schema "
+    "before reusing them for another survey.",
+    {},
+)
+async def get_counterpart_search_defaults(handler, args):
+    from copy import deepcopy
+
+    from skyportal.utils.gcn_crossmatch import DEFAULTS, ZTF_QUALITY_CUTS
+
+    # Deep-copied: the caller is meant to edit this, and the constant is the
+    # one the crossmatch service runs with.
+    return {
+        "pipeline": deepcopy(ZTF_QUALITY_CUTS),
+        "suggested": {
+            "credible_level": DEFAULTS["credible_level"],
+            "days_before_trigger": DEFAULTS["delta_t_before"],
+            "days_after_trigger": DEFAULTS["delta_t_after"],
+            "sort_order": "Ascending",
+        },
+        "notes": [
+            "Pass the pipeline to run_broker_filter with dateobs set to the "
+            "event, so the cuts run inside its credible region; without "
+            "dateobs they run against the whole stream.",
+            "start_jd is the trigger JD less days_before_trigger and end_jd is "
+            "the trigger JD plus days_after_trigger; convert_time turns the "
+            "event time into a JD.",
+            "A counterpart search sorts Ascending to keep the alerts nearest "
+            "the trigger; the service's own default is Descending, which suits "
+            "a live feed rather than a search of the past.",
+            "The cuts remove bogus subtractions, known solar-system objects "
+            "and point sources; loosening them raises recovery and the "
+            "candidate count together, which is the trade worth measuring.",
+        ],
     }
 
 
@@ -1238,13 +1549,119 @@ async def diff_broker_filter_versions(handler, args):
     }
 
 
+_COMPARISONS = ("$lt", "$lte", "$gt", "$gte")
+
+
+def _expr_comparisons(node, found=None):
+    """Field comparisons written as `$expr`, which match a missing field.
+
+    `{"x": {"$lt": 5}}` compares within a type and passes over an alert whose
+    `x` is absent; `{"$expr": {"$lt": ["$x", 5]}}` treats absent as lower than
+    every number and keeps all of them. The two read alike and differ by the
+    whole stream: a rise-rate cut written the second way selected 23 alerts, all
+    of them ones with no rise measured, where the first selected none.
+    """
+    found = [] if found is None else found
+    if isinstance(node, dict):
+        for key, value in node.items():
+            if key == "$expr" and isinstance(value, dict):
+                for op, operands in value.items():
+                    if op in _COMPARISONS and isinstance(operands, list):
+                        fields = [
+                            o[1:]
+                            for o in operands
+                            if isinstance(o, str) and o.startswith("$")
+                        ]
+                        # Two fields of the same alert is what $expr is for.
+                        if len(fields) == 1:
+                            found.append((fields[0], op, operands))
+            _expr_comparisons(value, found)
+    elif isinstance(node, list):
+        for item in node:
+            _expr_comparisons(item, found)
+    return found
+
+
+def _as_query_operator(field, op, operands):
+    """The cut the caller meant, in the form that skips a missing field."""
+    literals = [o for o in operands if not (isinstance(o, str) and o.startswith("$"))]
+    value = literals[0] if literals else "..."
+    return json.dumps({field: {op: value}})
+
+
+def _reject_expr_comparisons(pipeline):
+    offenders = _expr_comparisons(pipeline)
+    if not offenders:
+        return
+    rewrites = ", ".join(_as_query_operator(*o) for o in offenders[:3])
+    raise ToolError(
+        "This pipeline compares a field inside $expr, which matches every alert "
+        "where the field is missing rather than skipping it, so the cut keeps "
+        "what it was written to exclude. Write it as a query operator instead: "
+        f"{rewrites}. Reserve $expr for comparing two fields of the same alert."
+    )
+
+
+def _iso_for_jd(jd):
+    """A Julian Date as an ISO UTC string, or None if it is not one."""
+    try:
+        from astropy.time import Time
+
+        return Time(float(jd), format="jd").isot[:19] + "Z"
+    except Exception:
+        return None
+
+
+@tool(
+    "convert_time",
+    "Convert between the time formats the alert stream uses: Julian Date, "
+    "Modified Julian Date and ISO UTC. Use it rather than converting by hand. "
+    "A JD day begins at noon UTC, so the calendar date turns over at fraction "
+    ".5 rather than at the integer: JD 2461310.0261 is 2026-09-26 12:37 UTC, "
+    "and JD 2461310.5 is 2026-09-27 00:00 UTC, not noon on the 26th. Report "
+    "the answer by quoting the returned utc field rather than putting the "
+    "date into your own words. Give exactly "
+    "one of jd, mjd or iso and the other two come back with it.",
+    {
+        "jd": _prop("number", "Julian Date to convert."),
+        "mjd": _prop("number", "Modified Julian Date to convert."),
+        "iso": _prop("string", "ISO UTC timestamp, e.g. 2026-09-26T12:37:35."),
+    },
+)
+async def convert_time(handler, args):
+    from astropy.time import Time
+
+    given = {
+        k: v for k, v in args.items() if k in ("jd", "mjd", "iso") and v is not None
+    }
+    if len(given) != 1:
+        raise ToolError("Give exactly one of jd, mjd or iso.")
+    kind, value = next(iter(given.items()))
+    try:
+        moment = Time(float(value), format=kind) if kind != "iso" else Time(str(value))
+    except Exception as exc:
+        raise ToolError(f"Not a time I can read: {value!r} ({exc}).") from exc
+    # A spelled-out UTC the answer can quote: the numbers alone leave the
+    # calendar date to be restated, which is where the .5 boundary gets lost.
+    return {
+        "jd": round(float(moment.jd), 6),
+        "mjd": round(float(moment.mjd), 6),
+        "iso": moment.isot[:19] + "Z",
+        "day_of_week": moment.datetime.strftime("%A"),
+        "utc": moment.datetime.strftime("%Y-%m-%d %H:%M:%S UTC (%A)"),
+    }
+
+
 @tool(
     "run_broker_filter",
     "Preview which alerts a pipeline passes, without saving anything. The way "
     "to check a filter before activating it: a pipeline that returns nothing "
     "here will pass nothing in production. Returns a count on its own, which "
     "is what to tune a threshold against; pass sort_by to get the alerts "
-    "themselves. A pipeline broker needs both start_jd and end_jd.",
+    "themselves. A pipeline broker needs both start_jd and end_jd. Pass dateobs "
+    "to bound the search by a GCN event's credible region, as the crossmatch "
+    "service does; a counterpart filter previewed without it runs against the "
+    "whole sky and passes far more than it would in production.",
     {
         "broker_id": _prop("integer", "Broker ID."),
         "pipeline": _prop(
@@ -1264,16 +1681,67 @@ async def diff_broker_filter_versions(handler, args):
             "integer",
             "Filter whose stream bounds which alerts are searched.",
         ),
-        "start_jd": _prop("number", "Earliest alert JD to consider."),
-        "end_jd": _prop("number", "Latest alert JD to consider."),
+        "start_jd": _prop(
+            "number",
+            "Earliest alert JD. Omit both this and end_jd to preview the most "
+            "recent day, which is usually what you want.",
+        ),
+        "end_jd": _prop("number", "Latest alert JD. Defaults to now."),
         "limit": _prop("integer", "Maximum alerts to return."),
+        "dateobs": _prop(
+            "string",
+            "GCN event whose credible region bounds the search, e.g. "
+            "2026-09-25T04:20:00. A counterpart filter is a set of cuts and a "
+            "patch of sky; without this the cuts run against the whole stream "
+            "and the preview does not match what the filter does.",
+        ),
+        "credible_level": _prop(
+            "integer", "Percentage of the event's credible region (default 90)."
+        ),
     },
     required=("broker_id", "pipeline"),
     passthrough="POST /api/brokers/{broker_id}/filter/test",
 )
 async def run_broker_filter(handler, args):
     broker_id = args.pop("broker_id")
-    return await handler.api("POST", f"/api/brokers/{broker_id}/filter/test", body=args)
+    _reject_expr_comparisons(args.get("pipeline"))
+    # A window nobody chose is the last day, rather than one guessed from
+    # memory: a stale JD is rejected by the broker as an opaque 400, and the
+    # caller cannot tell that from a pipeline that matches nothing.
+    if args.get("end_jd") is None and args.get("start_jd") is None:
+        from astropy.time import Time
+
+        now = Time.now().jd
+        args["start_jd"] = round(now - 1, 4)
+        args["end_jd"] = round(now, 4)
+    result = await handler.api(
+        "POST", f"/api/brokers/{broker_id}/filter/test", body=args
+    )
+    return _with_window(result, args.get("start_jd"), args.get("end_jd"))
+
+
+def _with_window(result, start_jd, end_jd):
+    """State the window the count covers, in days and in dates.
+
+    A count means nothing without the span it was taken over, and the span is
+    the one thing the caller cannot see in the number. Two previews of one
+    filter, over two days and over thirty, read as 1 and 80: attributed to the
+    threshold that changed in between rather than to the window, and divided by
+    the wrong number of nights on the way to a rate.
+    """
+    if not isinstance(result, dict) or start_jd is None or end_jd is None:
+        return result
+    nights = round(float(end_jd) - float(start_jd), 3)
+    window = {
+        "start_jd": start_jd,
+        "end_jd": end_jd,
+        "nights": nights,
+        "start": _iso_for_jd(start_jd),
+        "end": _iso_for_jd(end_jd),
+    }
+    if nights > 0 and isinstance(result.get("count"), int):
+        window["count_per_night"] = round(result["count"] / nights, 2)
+    return {**result, "window": window}
 
 
 @tool(
@@ -1291,11 +1759,15 @@ async def run_broker_filter(handler, args):
         ),
         "filters": _prop("object", "Editable version tree kept alongside it."),
         "name": _prop("string", "Informational name for the version."),
+        "comment": _prop(
+            "string", "Why this version was made, shown in the version history."
+        ),
     },
     required=("broker_id", "filter_id", "altdata"),
     writes=True,
 )
 async def post_broker_filter_version(handler, args):
+    _reject_expr_comparisons(args.get("altdata"))
     broker_id = args.pop("broker_id")
     filter_id = args.pop("filter_id")
     result = await handler.api(
@@ -1306,8 +1778,6 @@ async def post_broker_filter_version(handler, args):
     record = await handler.api("GET", f"/api/brokers/{broker_id}/filters/{filter_id}")
     versions = _versions(record)
     fid = versions[-1][0] if versions else None
-    # The POST validates the new version; surface that verdict, since
-    # activation is refused without a passing one.
     boom = ((record or {}).get("altdata") or {}).get("boom") or {}
     return {
         "id": (result or {}).get("id", filter_id),
@@ -1319,10 +1789,11 @@ async def post_broker_filter_version(handler, args):
 
 @tool(
     "validate_broker_filter_version",
-    "Ask the broker whether a filter version is fit to run, and record the "
-    "verdict. Activation is gated on this: posting a version validates it "
-    "automatically, so call this only when that verdict is missing or when a "
-    "failure has since been fixed.",
+    "Ask the broker whether a filter version is fit to run. The check runs in "
+    "the background and takes minutes: the version is marked pending, then "
+    "get_broker_filter shows the verdict. Activation is gated on it; posting a "
+    "version starts this automatically, so call it only when that verdict is "
+    "missing or a failure has since been fixed.",
     {
         "broker_id": _prop("integer", "Broker ID."),
         "filter_id": _prop("integer", "Filter ID."),
@@ -1359,6 +1830,25 @@ async def activate_broker_filter_version(handler, args):
     return await handler.api(
         "PATCH", f"/api/brokers/{broker_id}/filters/{filter_id}", body=args
     )
+
+
+@tool(
+    "post_group",
+    "Create a group. A filter needs one to post its candidates to, and asking "
+    "for a filter of one's own usually means asking for the group as well. "
+    "The creator is its only member, so this shares nothing that was not "
+    "already shared; adding anyone else is a separate, deliberate act.",
+    {
+        "name": _prop("string", "Group name, which has to be unique."),
+        "nickname": _prop("string", "Short name, shown where space is tight."),
+        "description": _prop("string", "What the group is for."),
+    },
+    required=("name",),
+    passthrough="POST /api/groups",
+    writes=True,
+)
+async def post_group(handler, args):
+    return await handler.api("POST", "/api/groups", body=args)
 
 
 @tool(

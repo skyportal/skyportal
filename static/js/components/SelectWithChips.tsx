@@ -7,6 +7,7 @@ import ListSubheader from "@mui/material/ListSubheader";
 import MenuItem from "@mui/material/MenuItem";
 import Select from "@mui/material/Select";
 import TextField from "@mui/material/TextField";
+import RemovableChip from "./RemovableChip";
 import { useTheme } from "@mui/material/styles";
 
 const useStyles = makeStyles()(() => ({
@@ -69,6 +70,13 @@ const SelectWithChips = (props: SelectWithChipsProps) => {
       ? cumSum.filter((sum) => sum <= MAX_CHAR).length
       : -1;
 
+  const handleChange = (event: any) => {
+    onChange(event);
+    setOpts(
+      event.target.value.includes("Clear selections") ? [] : event.target.value,
+    );
+  };
+
   return (
     <FormControl className={classes.formControl}>
       <InputLabel>{label}</InputLabel>
@@ -77,19 +85,22 @@ const SelectWithChips = (props: SelectWithChipsProps) => {
         label={label}
         multiple
         value={initValue || []}
-        onChange={(event: any) => {
-          onChange(event);
-          setOpts(
-            event.target.value.includes("Clear selections")
-              ? []
-              : event.target.value,
-          );
-        }}
+        onChange={handleChange}
         onClose={() => setSearch("")}
         renderValue={(selected: any) => (
           <div className={classes.chips}>
             {selected.slice(0, max_chips_nb).map((value: any) => (
-              <Chip key={value} label={value} />
+              <RemovableChip
+                key={value}
+                label={value}
+                onDelete={() =>
+                  handleChange({
+                    target: {
+                      value: selected.filter((v: any) => v !== value),
+                    },
+                  })
+                }
+              />
             ))}
             {selected.length > max_chips_nb && (
               <Chip label={`+${selected.length - max_chips_nb}`} />
@@ -164,6 +175,13 @@ const SelectLabelWithChips = (props: SelectLabelWithChipsProps) => {
       ? cumSum.filter((sum) => sum <= MAX_CHAR).length
       : -1;
 
+  const handleChange = (event: any) => {
+    onChange(event);
+    setOpts(
+      event.target.value.includes("Clear selections") ? [] : event.target.value,
+    );
+  };
+
   return (
     <FormControl className={classes.formControl}>
       <InputLabel>{label}</InputLabel>
@@ -172,18 +190,21 @@ const SelectLabelWithChips = (props: SelectLabelWithChipsProps) => {
         multiple
         label={label}
         value={(initValue || []) as any}
-        onChange={(event: any) => {
-          onChange(event);
-          setOpts(
-            event.target.value.includes("Clear selections")
-              ? []
-              : event.target.value,
-          );
-        }}
+        onChange={handleChange}
         renderValue={(selected: any) => (
           <div className={classes.chips}>
             {selected.slice(0, max_chips_nb).map((value: any) => (
-              <Chip key={value.id} label={value.label} />
+              <RemovableChip
+                key={value.id}
+                label={value.label}
+                onDelete={() =>
+                  handleChange({
+                    target: {
+                      value: selected.filter((v: any) => v.id !== value.id),
+                    },
+                  })
+                }
+              />
             ))}
             {selected.length > max_chips_nb && (
               <Chip label={`+${selected.length - max_chips_nb}`} />

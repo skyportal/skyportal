@@ -20,6 +20,7 @@ import {
 } from "../../ducks/profile";
 import { useGetWeatherQuery } from "../../ducks/weather";
 import { useGetTelescopesQuery } from "../../ducks/telescopes";
+import WidgetLoading from "./WidgetLoading";
 
 dayjs.extend(relativeTime);
 dayjs.extend(utc);
@@ -146,7 +147,8 @@ const WeatherWidget = ({ classes }: WeatherWidgetProps) => {
   const { data: profile } = useGetProfileQuery();
   const [updateUserPreferences] = useUpdateUserPreferencesMutation();
   const userPrefs = (profile?.preferences as any)?.weather;
-  const { data: telescopeListData = [] } = useGetTelescopesQuery();
+  const { data: telescopeListData = [], isLoading: telescopesLoading } =
+    useGetTelescopesQuery();
   const telescopeList = [...telescopeListData].sort((a: any, b: any) => {
     const nameA = a.name.toUpperCase();
     const nameB = b.name.toUpperCase();
@@ -165,6 +167,7 @@ const WeatherWidget = ({ classes }: WeatherWidgetProps) => {
 
   const {
     data: weather,
+    isLoading: weatherLoading,
     error: weatherError,
     refetch: refetchWeather,
   } = useGetWeatherQuery(weatherPrefs?.telescopeID ?? null, {
@@ -254,7 +257,9 @@ const WeatherWidget = ({ classes }: WeatherWidgetProps) => {
             </div>
           )}
         </div>
-        {!telescopeList?.length ? (
+        {telescopesLoading || weatherLoading ? (
+          <WidgetLoading />
+        ) : !telescopeList?.length ? (
           <Typography variant="body2" color="textSecondary">
             No telescopes available to retrieve weather data.
           </Typography>

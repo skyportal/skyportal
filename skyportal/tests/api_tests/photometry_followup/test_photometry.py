@@ -1192,6 +1192,7 @@ def test_token_user_post_extinction_corrected_photometry(
     )
     assert status == 200
     np.testing.assert_allclose(data["data"]["mag"], mag_in + a_lambda, rtol=1e-4)
+    np.testing.assert_allclose(data["data"]["limiting_mag"], 22.5 + a_lambda, rtol=1e-4)
 
     # Displaying with extinction correction dereddens back to the uploaded value.
     status, data = api(

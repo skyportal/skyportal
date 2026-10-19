@@ -3,13 +3,13 @@ import math
 import os
 import re
 import string
+import time
 import traceback
 import urllib
 import warnings
-from functools import wraps
+from functools import partial, wraps
 
 import matplotlib
-import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import requests
@@ -17,7 +17,7 @@ import seaborn as sns
 from astropy import units as u
 from astropy.coordinates import SkyCoord
 from astropy.io import fits
-from astropy.table import Table
+from astropy.table import MaskedColumn, Table
 from astropy.time import Time
 from astropy.utils.exceptions import AstropyWarning
 from astropy.visualization import ImageNormalize, ZScaleInterval
@@ -25,6 +25,7 @@ from astropy.wcs import WCS
 from astropy.wcs.utils import pixel_to_skycoord
 from astropy.wcs.wcs import FITSFixedWarning
 from joblib import Memory, hash
+from matplotlib.figure import Figure
 from reproject import reproject_adaptive
 from scipy.ndimage import gaussian_filter
 
@@ -134,8 +135,10 @@ irsa = {
     "url_search": "https://irsa.ipac.caltech.edu/ibe/search/ztf/products/",
 }
 
-# Blocks one of the app's few worker threads, so fail fast when IRSA hangs.
-IRSA_SEARCH_TIMEOUT = (6.05, 5.0)
+# IRSA often takes over 10 s to answer.
+IRSA_SEARCH_TIMEOUT = (6.05, 20.0)
+IRSA_RETRY_DELAY = 900
+_irsa_unanswered = {}
 
 
 class ZTFRefUnavailable(Exception):
@@ -186,10 +189,12 @@ JOBLIB_CACHE_SIZE = 100e6  # 100 MB
 offsets_memory = Memory(f"{cache_folder}/offsets", verbose=0)
 
 
-def memcache(f):
+def memcache(f=None, *, ignore=None):
     """Ensure that joblib memory cache stays within bytes limit."""
+    if f is None:
+        return partial(memcache, ignore=ignore)
     offsets_memory.reduce_size(JOBLIB_CACHE_SIZE)
-    return offsets_memory.cache(f)
+    return offsets_memory.cache(f, ignore=ignore)
 
 
 def get_url(*args, **kwargs):
@@ -307,8 +312,12 @@ def _ztfref_url_and_epoch(ra, dec, imsize):
     url_ref_meta = os.path.join(
         irsa["url_search"], f"ref?POS={ra:f},{dec:f}&SIZE={imsize_deg:f}&ct=csv"
     )
+    key = (ra, dec, imsize)
+    if time.time() - _irsa_unanswered.get(key, -math.inf) < IRSA_RETRY_DELAY:
+        raise ZTFRefUnavailable(f"IRSA recently left {ra} {dec} unanswered")
     r = get_url(url_ref_meta, timeout=IRSA_SEARCH_TIMEOUT)
     if r is None:
+        _irsa_unanswered[key] = time.time()
         raise ZTFRefUnavailable(f"no response from IRSA for {ra} {dec}")
     if r.status_code != 200:
         raise ZTFRefUnavailable(f"IRSA returned {r.status_code} for {ra} {dec}")
@@ -476,7 +485,6 @@ def get_astrometry_backup_from_ztf(
     return ztf_astrometry
 
 
-@memcache
 def get_ztfcatalog(
     ra,
     dec,
@@ -796,9 +804,90 @@ def get_formatted_standards_list(
     return {"starlist_info": starlist, "success": True}
 
 
+class GaiaUnavailable(Exception):
+    pass
+
+
+GAIA_DR3_EPOCH = 2016.0
+GAIA_UNITS = {
+    "ra": u.deg,
+    "dec": u.deg,
+    "phot_g_mean_mag": u.mag,
+    "phot_bp_mean_mag": u.mag,
+    "phot_rp_mean_mag": u.mag,
+    "pm": u.mas / u.yr,
+    "pmra": u.mas / u.yr,
+    "pmra_error": u.mas / u.yr,
+    "pmdec": u.mas / u.yr,
+    "pmdec_error": u.mas / u.yr,
+    "parallax": u.mas,
+    "parallax_error": u.mas,
+    "ruwe": None,
+}
+OFFSET_STAR_COLUMNS = ("ra", "dec", "phot_rp_mean_mag", "pmra", "pmdec", "parallax")
+
+
+def _gaia_table_from_broker(stars, source_ra, source_dec, columns):
+    gaia_columns = {
+        name: MaskedColumn(
+            np.ma.masked_invalid(
+                np.array(
+                    [np.nan if s.get(name) is None else s[name] for s in stars],
+                    dtype=float,
+                )
+            ),
+            unit=GAIA_UNITS[name],
+        )
+        for name in columns
+    }
+    coords = SkyCoord(gaia_columns["ra"].data, gaia_columns["dec"].data, unit=u.deg)
+    distance = coords.separation(SkyCoord(source_ra, source_dec, unit=u.deg))
+    return Table(
+        {
+            "dist": MaskedColumn(distance.deg, unit=u.deg),
+            "source_id": np.array([int(s["_id"]) for s in stars], dtype=np.int64),
+            "ref_epoch": MaskedColumn(np.full(len(stars), GAIA_DR3_EPOCH), unit=u.yr),
+            **gaia_columns,
+        }
+    )
+
+
+def query_gaia(
+    source_ra, source_dec, radius_degrees, query_string, columns, broker=None
+):
+    if broker is not None:
+        try:
+            stars = broker.broker_class.gaia_cone_search(
+                broker, source_ra, source_dec, radius_degrees, columns
+            )
+            return _gaia_table_from_broker(stars, source_ra, source_dec, columns)
+        except Exception as e:
+            log(
+                f"Gaia query through {broker.name} failed, falling back to the TAP: {e}"
+            )
+    with gaia as g:
+        r = g.query(query_string)
+    if r is None:
+        raise GaiaUnavailable("no Gaia TAP server answered")
+    return r
+
+
+# Raises instead of returning None so joblib never caches a Gaia outage.
+@memcache(ignore=["broker"])
+def _gaia_stars(source_ra, source_dec, radius_degrees, query_string, broker=None):
+    return query_gaia(
+        source_ra,
+        source_dec,
+        radius_degrees,
+        query_string,
+        OFFSET_STAR_COLUMNS,
+        broker=broker,
+    )
+
+
 @warningfilter(action="ignore", category=DeprecationWarning)
 @warningfilter(action="ignore", category=AstropyWarning)
-@memcache
+@memcache(ignore=["gaia_broker"])
 def get_nearby_offset_stars(
     source_ra,
     source_dec,
@@ -820,6 +909,7 @@ def get_nearby_offset_stars(
     assignment_comment="science",
     source_mag=None,
     source_magfilter=None,
+    gaia_broker=None,
 ):
     """Finds good list of nearby offset stars for spectroscopy
        and returns info about those stars, including their
@@ -873,6 +963,8 @@ def get_nearby_offset_stars(
         Magnitude of the source
     source_magfilter : str, optional
         Filter of the source magnitude
+    gaia_broker : Broker, optional
+        Cross-match broker whose Gaia catalog is queried instead of the Gaia TAP service
 
     Returns
     -------
@@ -926,13 +1018,14 @@ def get_nearby_offset_stars(
         False,
     )
 
-    with gaia as g:
-        try:
-            r = g.query(query_string)
-        except Exception as e:
-            log(f"Error querying Gaia: {e}. Falling back to ZTFref or empty result.")
-            r = None
-            gaia_available = False
+    try:
+        r = _gaia_stars(
+            source_ra, source_dec, radius_degrees, query_string, broker=gaia_broker
+        )
+    except Exception as e:
+        log(f"Error querying Gaia: {e}. Falling back to ZTFref or empty result.")
+        r = None
+        gaia_available = False
 
     if r is None:
         if use_ztfref_as_gaia_backup:
@@ -979,6 +1072,8 @@ def get_nearby_offset_stars(
                 "Warning: Could not find the ZTF reference catalog"
                 f" at position {source_ra} {source_dec}"
             )
+            ztfcatalog = None
+            use_ztfref = False
         else:
             if (
                 sum(
@@ -1106,6 +1201,7 @@ def get_nearby_offset_stars(
             assignment_comment=assignment_comment,
             source_mag=source_mag,
             source_magfilter=source_magfilter,
+            gaia_broker=gaia_broker,
         )
 
     starlist_format = starlist_formats.get(starlist_type)
@@ -1322,7 +1418,7 @@ def get_finding_chart_cache_key(*args, **kwargs):
             [
                 f"{key}={value}"
                 for key, value in kwargs.items()
-                if key not in ["obstime"]
+                if key not in ["obstime", "gaia_broker"]
             ]
         )
         + "_"
@@ -1454,7 +1550,7 @@ def get_finding_chart(
         return _chart_failure(f"image source {image_source} not in list")
 
     matplotlib.use("Agg")
-    fig = plt.figure(figsize=(11, 8.5), constrained_layout=False)
+    fig = Figure(figsize=(11, 8.5), constrained_layout=False)
     spec = fig.add_gridspec(
         ncols=2,
         nrows=2,
@@ -1753,7 +1849,6 @@ def get_finding_chart(
 
     buf = io.BytesIO()
     fig.savefig(buf, format=output_format)
-    plt.close(fig)
     buf.seek(0)
 
     data = {

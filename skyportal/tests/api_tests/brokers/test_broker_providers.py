@@ -32,6 +32,7 @@ from skyportal.broker_apis.antares import ANTARESBROKER, _normalize_locus
 from skyportal.broker_apis.boom import (
     _BOOM_SENTINEL,
     BOOMBROKER,
+    _boom_photometry_to_prv,
     _normalize_boom_alert,
 )
 from skyportal.broker_apis.fink import (
@@ -116,6 +117,8 @@ def test_fink_get_alert_cassette():
     _assert_standard_shape(data)
     assert data["objectId"] == "ZTF19aaosfcb"
     assert len(data["prv_candidates"]) >= 1
+    # This object's detections are negative subtractions.
+    assert {p["isdiffpos"] for p in data["prv_candidates"]} == {"f"}
 
 
 def test_antares_get_alert_cassette():
@@ -331,6 +334,65 @@ def test_boom_query_alerts_lsst_scoped_by_stream(monkeypatch, permissions, expec
     filter_ = dict(calls[0]["json"]["filter"])
     filter_.pop("objectId")
     assert filter_ == expected
+
+
+@pytest.mark.parametrize(
+    ("permissions", "expected"),
+    [
+        ({"DECAM": [1]}, {}),
+        ({"ZTF": [1, 2, 3]}, {"_id": {"$in": []}}),
+    ],
+)
+def test_boom_query_alerts_decam_scoped_by_stream(monkeypatch, permissions, expected):
+    """A DECam object id routes to DECAM_alerts, which has no programid: access
+    is the DECam stream, not a programid clause."""
+    calls = _capture_boom_request(monkeypatch)
+    broker = _MockBroker({"survey": "ZTF"})
+    BOOMBROKER.query_alerts(
+        broker, None, objectId="A202609132028318m134013", permissions=permissions
+    )
+    assert calls[0]["json"]["catalog_name"] == "DECAM_alerts"
+    filter_ = dict(calls[0]["json"]["filter"])
+    assert filter_.pop("objectId") == "A202609132028318m134013"
+    assert filter_ == expected
+
+
+def test_boom_get_alert_decam_exposes_aperture_photometry(monkeypatch):
+    """DECam history carries magap and a uJy difference flux; get_alert serves
+    it as nJy psfFlux and magpsf, on the same scale as the Kafka photometry."""
+    record = {
+        "objectId": "A202609132028318m134013",
+        "candidate": {
+            "magap": 18.162868,
+            "sigmagap": 0.0045,
+            "forcediffimflux": 197.17543,
+            "forcediffimfluxunc": 0.82192,
+        },
+        "prv_candidates": [
+            {
+                "jd": 2461284.59611032,
+                "band": "i",
+                "magap": 18.162868,
+                "sigmagap": 0.0045,
+                "forcediffimflux": 197.17543,
+                "forcediffimfluxunc": 0.82192,
+            }
+        ],
+    }
+    calls = _capture_boom_request(monkeypatch, result=[record])
+    data = BOOMBROKER.get_alert(
+        _MockBroker({"survey": "ZTF"}),
+        "A202609132028318m134013",
+        None,
+        permissions={"DECAM": [1]},
+    )
+    assert calls[0]["json"]["catalog_name"] == "DECAM_alerts"
+    assert {"$sort": {"candidate.magap": 1}} in calls[0]["json"]["pipeline"]
+    point = data["prv_candidates"][0]
+    assert point["psfFlux"] == pytest.approx(197175.43)
+    assert point["psfFluxErr"] == pytest.approx(821.92)
+    assert point["magpsf"] == 18.162868
+    assert data["candidate"]["sigmapsf"] == 0.0045
 
 
 def test_boom_get_alert_drops_out_of_scope_history(monkeypatch):
@@ -584,6 +646,7 @@ def _boom_record(photometry):
         "objectId": "BOOM_norm",
         "candid": 42,
         "survey": "ZTF",
+        "jd": 2459000.5,
         "ra": 234.22,
         "dec": -22.33,
         "drb": 0.99,
@@ -593,7 +656,7 @@ def _boom_record(photometry):
 
 def test_boom_normalize_maps_detection_and_candidate():
     """A detection maps flux -> psfFlux (nJy) with band/jd/programid preserved,
-    and candidate ra/dec/drb come off the record."""
+    and candidate jd/ra/dec/drb come off the record."""
     d = _normalize_boom_alert(
         _boom_record(
             [
@@ -609,7 +672,12 @@ def test_boom_normalize_maps_detection_and_candidate():
     )
     _assert_standard_shape(d)
     assert d["candid"] == 42
-    assert d["candidate"] == {"ra": 234.22, "dec": -22.33, "drb": 0.99}
+    assert d["candidate"] == {
+        "jd": 2459000.5,
+        "ra": 234.22,
+        "dec": -22.33,
+        "drb": 0.99,
+    }
     p = d["prv_candidates"][0]
     assert (p["psfFlux"], p["psfFluxErr"], p["band"], p["jd"], p["programid"]) == (
         1.0e4,
@@ -631,6 +699,16 @@ def test_boom_normalize_sentinel_flux_is_nondetection():
     assert len(d["prv_candidates"]) == 1
     assert d["prv_candidates"][0]["psfFlux"] is None
     assert d["prv_candidates"][0]["psfFluxErr"] == 1.0e2
+
+
+def test_boom_photometry_drops_infinite_flux_err():
+    prv = _boom_photometry_to_prv(
+        [
+            {"flux": 500.0, "flux_err": 50.0, "jd": 2459000.5, "band": "g"},
+            {"flux": None, "flux_err": float("inf"), "jd": 2459001.5, "band": "r"},
+        ]
+    )
+    assert [p["jd"] for p in prv] == [2459000.5]
 
 
 def test_boom_normalize_empty_photometry():
@@ -786,6 +864,28 @@ def test_build_photometry_groups_flux_and_mag_space():
     assert g["flux"][1] == pytest.approx(10.0 ** (-0.4 * (20.0 - 23.9)))
 
 
+def test_build_photometry_groups_negative_subtraction_is_negative_flux():
+    """magpsf is the magnitude of |flux|, so a ZTF negative subtraction
+    (isdiffpos f, or -1 from ALeRCE) is stored as a negative flux."""
+    data = {
+        "prv_candidates": [
+            {
+                "jd": 2459000.5 + i,
+                "band": "g",
+                "magpsf": 20.0,
+                "sigmapsf": 0.1,
+                "isdiffpos": isdiffpos,
+            }
+            for i, isdiffpos in enumerate(["t", "f", -1, None])
+        ],
+    }
+    groups = build_photometry_groups("ZTF1", "ZTF", data, 42, {("ZTF", 1): [10]})
+    g = groups[("ZTF", 1)]
+    flux = 10.0 ** (-0.4 * (20.0 - 23.9))
+    assert g["flux"] == pytest.approx([flux, -flux, -flux, flux])
+    assert all(e > 0 for e in g["fluxerr"])
+
+
 def test_build_photometry_groups_winter_flux_scale_and_zeropoint():
     """WINTER flux (nJy) is scaled to Jy and takes the Jy zeropoint, 8.9.
 
@@ -863,6 +963,41 @@ def test_build_photometry_groups_winter_refuses_unresolved_bands():
             build_photometry_groups(
                 "WNTR25abcde", "WINTER", data, 1087, {("WINTER", 1): [1005]}
             )
+
+
+def test_build_photometry_groups_decam_on_the_instrument_filters():
+    """A DECam point from BOOM's Kafka photometry (nJy, band "decami") lands on
+    the DECam instrument's des* filters with the Jy zeropoint, at its magap."""
+    import math
+
+    data = {
+        "prv_candidates": [
+            {
+                "jd": 2461284.59611032,
+                "band": "decami",
+                "psfFlux": 197175.43,
+                "psfFluxErr": 821.92,
+                "programid": 1,
+            },
+        ],
+    }
+    g = build_photometry_groups(
+        "A202609132028318m134013", "DECAM", data, 54, {("DECAM", 1): [1006]}
+    )[("DECAM", 1)]
+    assert g["filter"] == ["desi"]
+    assert g["zp"][0] == 8.9
+    assert -2.5 * math.log10(g["flux"][0]) + g["zp"][0] == pytest.approx(
+        18.163, abs=1e-3
+    )
+
+
+def test_decam_survey_maps_to_the_decam_instrument():
+    from skyportal.utils.survey import instrument_name, survey_from_instrument
+
+    assert instrument_name("DECAM") == "DECam"
+    assert survey_from_instrument("DECam") == "DECAM"
+    assert instrument_name("ZTF") == "ZTF"
+    assert survey_from_instrument("ZTF") == "ZTF"
 
 
 def test_build_photometry_groups_survey_prefixed_band_not_doubled():
@@ -1333,6 +1468,399 @@ def test_build_photometry_groups_keeps_same_epoch_in_other_bands():
     assert groups[("ZTF", 1)]["filter"] == ["ztfg", "ztfr"]
 
 
+LASAIR_STREAM_MESSAGE = {
+    "objectId": "ZTF21abcdlas",
+    "objectData": {"ramean": 10.5, "decmean": -20.25},
+    "candidates": [
+        {
+            "candid": 111,
+            "jd": 2459300.5,
+            "magpsf": 18.4,
+            "sigmapsf": 0.07,
+            "fid": 1,
+            "ra": 10.5,
+            "dec": -20.25,
+        },
+        {
+            "candid": 110,
+            "jd": 2459299.5,
+            "magpsf": 18.9,
+            "sigmapsf": 0.09,
+            "fid": 2,
+            "ra": 10.5,
+            "dec": -20.25,
+        },
+    ],
+}
+
+
+def test_a_stream_message_with_a_lightcurve_needs_no_rest_call():
+    """A topic carrying candidates is ingested from the message, since the REST
+    quota sits far below stream rate."""
+    from skyportal.broker_apis import lasair
+
+    assert lasair.is_plain_stream_message(LASAIR_STREAM_MESSAGE) is False
+    data = lasair._normalize_object(LASAIR_STREAM_MESSAGE, "ZTF21abcdlas")
+    assert data["objectId"] == "ZTF21abcdlas"
+    assert data["candidate"]["magpsf"] == 18.4
+    assert len(data["prv_candidates"]) == 2
+
+
+def test_an_object_id_only_message_is_the_wrong_stream():
+    """A message with nothing but an id came off the selected-columns stream,
+    which no REST call should be spent completing."""
+    from skyportal.broker_apis import lasair
+
+    assert lasair.is_plain_stream_message({"objectId": "ZTF21abcdlas"}) is True
+    # Polling passes no message at all, and is the one path that does fetch.
+    assert lasair.is_plain_stream_message(None) is False
+
+
+# Shapes taken from live Lasair records. A diaSource carries no position, so
+# the position comes from the diaObject; the REST object holds the lists at the
+# top level and a Kafka lite_lightcurve message nests them under "alert".
+LSST_SOURCES = [
+    {
+        "diaSourceId": 1,
+        "midpointMjdTai": 60000.25,
+        "band": "r",
+        "psfFlux": 36307.8,
+        "psfFluxErr": 3630.8,
+        "reliability": 0.9,
+    },
+    {
+        "diaSourceId": 2,
+        "midpointMjdTai": 60004.25,
+        "band": "g",
+        "psfFlux": 229086.8,
+        "psfFluxErr": 2290.9,
+        "reliability": 0.9,
+    },
+    # difference-image flux below zero: a non-detection, not a measurement
+    {
+        "diaSourceId": 3,
+        "midpointMjdTai": 59998.25,
+        "band": "r",
+        "psfFlux": -140.0,
+        "psfFluxErr": 90.0,
+        "reliability": 0.4,
+    },
+]
+LSST_DIA_OBJECT = {
+    "diaObjectId": 169760235333878021,
+    "ra": 221.87087177320953,
+    "decl": -38.16173726666955,
+}
+LASAIR_LSST_REST = {
+    "diaObjectId": 169760235333878021,
+    "diaObject": LSST_DIA_OBJECT,
+    "diaSourcesList": LSST_SOURCES,
+    "diaForcedSourcesList": [],
+    "lasairData": {},
+}
+LASAIR_LSST_MESSAGE = {
+    "diaObjectId": 169760235333878021,
+    "ra": 221.87087177320953,
+    "decl": -38.16173726666955,
+    "UTC": "2026-01-29 11:40:14",
+    "alert": {
+        "diaObject": LSST_DIA_OBJECT,
+        "diaSourcesList": LSST_SOURCES,
+        "diaForcedSourcesList": [],
+    },
+}
+
+
+def test_an_lsst_record_is_recognised_whether_rest_or_stream():
+    from skyportal.broker_apis import lasair
+
+    assert lasair.is_plain_stream_message(LASAIR_LSST_MESSAGE) is False
+    assert lasair._lsst_sources(LASAIR_LSST_REST) == LSST_SOURCES
+    # the plain stream option carries a position and no photometry
+    plain = {k: v for k, v in LASAIR_LSST_MESSAGE.items() if k != "alert"}
+    assert lasair.is_plain_stream_message(plain) is True
+
+
+@pytest.mark.parametrize("record", [LASAIR_LSST_REST, LASAIR_LSST_MESSAGE])
+def test_lsst_fluxes_become_ab_magnitudes_and_mjd_becomes_jd(record):
+    from skyportal.broker_apis import lasair
+
+    data = lasair._normalize_object(record, "169760235333878021")
+    _assert_standard_shape(data)
+    # newest detection wins: MJD 60004.25 in g at ~18.0
+    assert data["candidate"]["jd"] == pytest.approx(60004.25 + 2400000.5)
+    assert data["candidate"]["magpsf"] == pytest.approx(18.0, abs=1e-3)
+    assert data["candidate"]["band"] == "g"
+    # a diaSource has no position, so it comes from the diaObject
+    assert data["candidate"]["ra"] == pytest.approx(221.87087177320953)
+    assert data["candidate"]["dec"] == pytest.approx(-38.16173726666955)
+    # the negative-flux source is not a detection
+    assert len(data["prv_candidates"]) == 2
+    assert all(p["magpsf"] is not None for p in data["prv_candidates"])
+
+
+def test_an_lsst_non_detection_never_becomes_a_measurement():
+    from skyportal.broker_apis import lasair
+
+    assert lasair._lsst_magnitude(-140.0, 90.0) == (None, None)
+    assert lasair._lsst_magnitude(0.0, 1.0) == (None, None)
+    # 3631 Jy is AB mag 0 by definition
+    assert lasair._lsst_magnitude(3.631e12, None)[0] == pytest.approx(0.0, abs=1e-3)
+    # error of a 5-sigma measurement
+    assert lasair._lsst_magnitude(1000.0, 200.0)[1] == pytest.approx(0.2171, abs=1e-3)
+
+
+def test_a_bare_nan_in_a_lasair_response_is_parsed_as_none():
+    """LSST records carry bare NaN, which is not JSON; response.json() defers to
+    simplejson when installed and rejects it, so every LSST fetch raised."""
+    import types
+
+    from skyportal.broker_apis import lasair
+
+    body = '{"diaObjectId": 1, "dipoleAngle": NaN, "psfFlux": 12.5}'
+    response = types.SimpleNamespace(text=body)
+    parsed = lasair._parse_json(response)
+    assert parsed["dipoleAngle"] is None
+    assert parsed["psfFlux"] == 12.5
+
+
+def test_a_ztf_record_still_normalizes_the_old_way():
+    from skyportal.broker_apis import lasair
+
+    data = lasair._normalize_object(LASAIR_STREAM_MESSAGE, "ZTF21abcdlas")
+    assert data["candidate"]["magpsf"] == 18.4
+    assert len(data["prv_candidates"]) == 2
+
+
+def test_lasair_replicates_only_when_a_stream_is_configured():
+    """Extra ingest processes may share a Kafka group, but must not each run the
+    REST poller: that spends the same account's quota again."""
+    from skyportal.broker_apis.lasair import LASAIRBROKER
+
+    assert LASAIRBROKER.parallel_ingestion({"token": "x"}) is False
+    assert LASAIRBROKER.parallel_ingestion({}) is False
+    assert (
+        LASAIRBROKER.parallel_ingestion({"kafka": {"topics": ["lasair_2mine"]}}) is True
+    )
+    assert (
+        LASAIRBROKER.parallel_ingestion({"kafka": {"topic_filter_ids": {"t": [1]}}})
+        is True
+    )
+
+
+def test_offsets_are_stored_by_us_not_by_the_clock():
+    """Auto-commit acknowledges on a timer, so a crash drops every message it
+    had reached; storing after a successful ingest replays them instead."""
+    from skyportal.broker_apis._kafka import kafka_consumer_config
+
+    config = kafka_consumer_config({"host": "h", "port": 9092}, "g")
+    # the provider sets this on the config it builds
+    config["enable.auto.offset.store"] = False
+    assert config["enable.auto.offset.store"] is False
+
+
+class FakeKafkaMessage:
+    """Enough of a confluent_kafka Message for the batch helpers."""
+
+    def __init__(self, offset, payload, topic="lasair_2mine", partition=0, err=None):
+        self._offset, self._payload = offset, payload
+        self._topic, self._partition, self._err = topic, partition, err
+
+    def topic(self):
+        return self._topic
+
+    def partition(self):
+        return self._partition
+
+    def offset(self):
+        return self._offset
+
+    def error(self):
+        return self._err
+
+    def value(self):
+        return json.dumps(self._payload).encode() if self._payload is not None else b"{"
+
+
+class FakeConsumer:
+    def __init__(self):
+        self.stored = []
+
+    def store_offsets(self, message=None):
+        self.stored.append((message.topic(), message.partition(), message.offset()))
+
+
+def _msg(offset, oid, **kw):
+    return FakeKafkaMessage(
+        offset, {"objectId": oid, "candidates": [{"jd": 1.0}]}, **kw
+    )
+
+
+def test_a_batch_keeps_only_the_newest_alert_per_object():
+    from skyportal.broker_apis import lasair
+
+    msgs = [_msg(1, "A"), _msg(2, "B"), _msg(3, "A")]
+    finished, work, _unusable = lasair._prepare_batch(msgs, {}, [7])
+    assert sorted(work) == ["A", "B"]
+    # the superseded A at offset 1 needs no work, so it cannot stall the partition
+    assert ("lasair_2mine", 0, 1) in finished
+    assert work["A"][0].offset() == 3
+
+
+def test_an_undecodable_message_does_not_stall_its_partition():
+    from skyportal.broker_apis import lasair
+
+    bad = FakeKafkaMessage(1, None)  # not valid JSON
+    no_id = FakeKafkaMessage(2, {"foo": 1})  # no objectId
+    finished, work, _unusable = lasair._prepare_batch(
+        [bad, no_id, _msg(3, "A")], {}, [7]
+    )
+    assert list(work) == ["A"]
+    assert ("lasair_2mine", 0, 1) in finished
+    assert ("lasair_2mine", 0, 2) in finished
+
+
+def test_a_plain_message_is_finished_so_its_partition_can_advance():
+    """Nothing about it improves on a retry, so holding its offset back would
+    pin the partition and nothing behind it would ever be acknowledged."""
+    from skyportal.broker_apis import lasair
+
+    plain = FakeKafkaMessage(1, {"diaObjectId": 1, "ra": 1.0, "decl": 2.0})
+    finished, work, unusable = lasair._prepare_batch([plain], {}, [7])
+
+    assert work == {}
+    assert ("lasair_2mine", 0, 1) in finished
+    assert "lasair_2mine" in unusable
+
+
+def test_a_topic_is_faulted_only_when_the_whole_batch_was_unusable():
+    from skyportal.broker_apis import lasair
+
+    status = {}
+    delivered = {"A": (_msg(1, "A"), {}, [7])}
+
+    # One alert arriving without its payload says nothing about a topic that is
+    # otherwise delivering.
+    assert lasair._update_topic_status(status, delivered, {"lasair_2mine": "detail"})
+    assert status["lasair_2mine"]["usable"] is True
+
+    # A batch with nothing ingestable in it does.
+    assert lasair._update_topic_status(status, {}, {"lasair_2mine": "detail"})
+    assert status["lasair_2mine"]["usable"] is False
+    assert status["lasair_2mine"]["detail"] == "detail"
+
+    # An unchanged verdict is not written through to the database again.
+    assert not lasair._update_topic_status(status, {}, {"lasair_2mine": "detail"})
+
+
+def test_offsets_are_stored_only_up_to_the_first_failure():
+    """Storing past a failure acknowledges an alert that was never ingested."""
+    from skyportal.broker_apis import lasair
+
+    msgs = [_msg(o, f"O{o}") for o in (1, 2, 3, 4)]
+    key = lambda m: (m.topic(), m.partition(), m.offset())  # noqa: E731
+    results = {
+        key(msgs[0]): True,
+        key(msgs[1]): True,
+        key(msgs[2]): False,
+        key(msgs[3]): True,
+    }
+    consumer = FakeConsumer()
+    lasair._store_batch_offsets(consumer, msgs, set(), results)
+    # offset 4 succeeded but sits behind the failure at 3, so it is replayed
+    assert consumer.stored == [("lasair_2mine", 0, 2)]
+
+
+def test_nothing_is_stored_when_the_first_message_fails():
+    from skyportal.broker_apis import lasair
+
+    msgs = [_msg(1, "A"), _msg(2, "B")]
+    key = lambda m: (m.topic(), m.partition(), m.offset())  # noqa: E731
+    consumer = FakeConsumer()
+    lasair._store_batch_offsets(
+        consumer, msgs, set(), {key(msgs[0]): False, key(msgs[1]): True}
+    )
+    assert consumer.stored == []
+
+
+def test_a_failure_on_one_partition_does_not_hold_up_another():
+    from skyportal.broker_apis import lasair
+
+    a = [_msg(1, "A", partition=0), _msg(2, "B", partition=0)]
+    b = [_msg(1, "C", partition=1), _msg(2, "D", partition=1)]
+    key = lambda m: (m.topic(), m.partition(), m.offset())  # noqa: E731
+    results = {key(a[0]): False, key(a[1]): True, key(b[0]): True, key(b[1]): True}
+    consumer = FakeConsumer()
+    lasair._store_batch_offsets(consumer, a + b, set(), results)
+    assert consumer.stored == [("lasair_2mine", 1, 2)]
+
+
+def test_a_whole_clean_batch_stores_its_last_offset():
+    from skyportal.broker_apis import lasair
+
+    msgs = [_msg(o, f"O{o}") for o in (5, 6, 7)]
+    key = lambda m: (m.topic(), m.partition(), m.offset())  # noqa: E731
+    consumer = FakeConsumer()
+    lasair._store_batch_offsets(consumer, msgs, set(), {key(m): True for m in msgs})
+    assert consumer.stored == [("lasair_2mine", 0, 7)]
+
+
+def test_a_batch_is_ingested_with_bounded_concurrency(monkeypatch):
+    import asyncio
+
+    from skyportal.broker_apis import lasair
+
+    live, peak = {"n": 0}, {"n": 0}
+
+    async def fake_ingest(broker, oid, survey, filter_ids, token=None, payload=None):
+        live["n"] += 1
+        peak["n"] = max(peak["n"], live["n"])
+        await asyncio.sleep(0.01)
+        live["n"] -= 1
+        if oid == "BAD":
+            raise RuntimeError("boom")
+
+    monkeypatch.setattr(lasair, "_ingest_object", fake_ingest)
+    msgs = [_msg(i, f"O{i}") for i in range(10)] + [_msg(99, "BAD")]
+    _finished, work, _unusable = lasair._prepare_batch(msgs, {}, [1])
+    results = asyncio.run(lasair._ingest_batch(None, "LSST", "t", work, 3))
+    assert peak["n"] <= 3
+    assert sum(1 for ok in results.values() if ok) == 10
+    assert results[("lasair_2mine", 0, 99)] is False
+
+
+def test_a_live_lasair_lite_lightcurve_message_normalizes():
+    """Replayed from a real message on Lasair's lite_lightcurve tutorial topic.
+
+    A live diaSource carries band/midpointMjdTai/psfFlux/psfFluxErr/reliability
+    and no id, so the alert id falls back to the epoch.
+    """
+    from skyportal.broker_apis import lasair
+
+    with open(os.path.join(CASSETTE_DIR, "lasair_lsst_lite_lightcurve.json")) as f:
+        message = json.load(f)
+
+    assert lasair.is_plain_stream_message(message) is False
+    sources = lasair._lsst_sources(message)
+    assert sources and "diaSourceId" not in sources[0]
+
+    oid = lasair._object_id_from_message(message)
+    data = lasair._normalize_object(message, oid)
+    _assert_standard_shape(data)
+    candidate = data["candidate"]
+    # the position the message itself reports
+    assert candidate["ra"] == pytest.approx(message["ra"])
+    assert candidate["dec"] == pytest.approx(message["decl"])
+    # every source is a detection here, and each became a magnitude
+    assert len(data["prv_candidates"]) == len(sources)
+    assert all(20 < p["magpsf"] < 27 for p in data["prv_candidates"])
+    # a null alert id would defeat candidate de-duplication
+    assert isinstance(candidate["candid"], int)
+    assert candidate["jd"] == pytest.approx(
+        max(s["midpointMjdTai"] for s in sources) + 2400000.5
+    )
+
+
 def test_lasair_request_retries_on_rate_limit(monkeypatch):
     """Lasair rate-limits per account; a 429 must be waited out, not dropped."""
     import types
@@ -1349,6 +1877,10 @@ def test_lasair_request_retries_on_rate_limit(monkeypatch):
         def raise_for_status(self):
             if self.status_code >= 400:
                 raise RuntimeError(f"HTTP {self.status_code}")
+
+        @property
+        def text(self):
+            return '[{"objectId": "ZTF1"}]'
 
         def json(self):
             return [{"objectId": "ZTF1"}]
@@ -1436,6 +1968,23 @@ def test_decode_cutout_accepts_gzipped_and_plain_fits():
     for label, payload in (("gzipped", gzipped), ("plain", plain)):
         data, _ = decode_cutout(base64.b64encode(payload).decode(), "LSST")
         assert data[0][0] == 7.0, f"base64 {label}"
+
+
+def test_orient_cutout_mirrors_decam_across_the_anti_diagonal():
+    """DECam stamps are stored mirrored relative to the sky (checked against
+    Legacy Survey images), so opposite corners off the anti-diagonal swap."""
+    import numpy as np
+
+    from skyportal.broker_apis._thumbnails import orient_cutout
+
+    stamp = np.zeros((63, 63))
+    stamp[0, 0] = 1
+    stamp[-1, -1] = 2
+    stamp[0, -1] = 3
+    oriented = orient_cutout(stamp, "DECAM", {})
+    assert oriented[-1, -1] == 1
+    assert oriented[0, 0] == 2
+    assert oriented[0, -1] == 3
 
 
 def test_decode_cutout_rejects_a_url_placeholder():

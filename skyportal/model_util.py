@@ -1,13 +1,22 @@
+import threading
+import time
+
 import sqlalchemy as sa
 
 from baselayer.app.auth_backends import default_auth_backend
 from baselayer.app.env import load_env
 from baselayer.app.psa import TornadoStorage
 from baselayer.log import make_log
-from skyportal.enum_types import LISTENER_CLASSES, sqla_enum_types
-from skyportal.models import ACL, DBSession, Group, Role, Token, User
+from skyportal import __version__
+from skyportal.enum_types import sqla_enum_types
+from skyportal.facility_apis import LISTENERS
+from skyportal.models import ACL, DBSession, Deployment, Group, Role, Token, User
+from skyportal.utils.gitlog import load_gitlog
+from skyportal.utils.notifications import post_notification
 
 log = make_log("model_util")
+
+DEPLOYMENT_LOCK_ID = 5_318_127
 
 all_acl_ids = [
     "Become user",
@@ -36,7 +45,7 @@ all_acl_ids = [
     "Delete taxonomy",
     "Delete bulk photometry",
     "Classify",
-] + [c.get_acl_id() for c in LISTENER_CLASSES]
+] + [c.get_acl_id() for c in LISTENERS]
 
 
 role_acls = {
@@ -226,9 +235,9 @@ def provision_anonymous_user():
 def provision_skybot():
     """Create the ``skybot`` bot user when autonomous analysis triage is enabled.
 
-    It authors the triage assistant runs and the loop executes with its
-    permissions, so it is a "Full user" in the public group; add it to the groups
-    a task notifies. No-op when the feature is off."""
+    It authors the triage assistant runs (their tools execute with the query
+    owner's permissions) and is a "Full user" in the public group; add it to the
+    groups a task notifies. No-op when the feature is off."""
     triage = (cfg.get("app.assistant") or {}).get("analysis_triage") or {}
     if not triage.get("enabled"):
         return
@@ -237,6 +246,45 @@ def provision_skybot():
         user.is_bot = True
         DBSession().add(user)
         DBSession().commit()
+
+
+def record_deployment():
+    """Record the running version if new, and notify users subscribed to deployments."""
+    gitlog = load_gitlog()
+    commit = gitlog[0] if gitlog else None
+    with DBSession() as session:
+        # instances sharing a database can start at the same time
+        session.execute(sa.select(sa.func.pg_advisory_xact_lock(DEPLOYMENT_LOCK_ID)))
+        latest = session.scalar(
+            sa.select(Deployment).order_by(Deployment.created_at.desc()).limit(1)
+        )
+        if (
+            latest is not None
+            and latest.version == __version__
+            and (latest.commit or {}).get("sha", "")[:7]
+            == (commit or {}).get("sha", "")[:7]
+        ):
+            session.rollback()
+            return
+        deployment = Deployment(version=__version__, commit=commit)
+        session.add(deployment)
+        session.commit()
+        deployment_id = deployment.id
+
+    log(f"Recorded deployment of SkyPortal {__version__}")
+    threading.Thread(
+        target=notify_deployment, args=(deployment_id,), daemon=True
+    ).start()
+
+
+def notify_deployment(deployment_id, attempts=10, delay=30):
+    for _ in range(attempts):
+        if post_notification(
+            {"target_class_name": "Deployment", "target_id": deployment_id},
+            timeout=30,
+        ):
+            return
+        time.sleep(delay)
 
 
 def create_token(ACLs, user_id, name):

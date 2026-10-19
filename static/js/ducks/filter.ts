@@ -1,33 +1,7 @@
-/**
- * Single alert-stream filter (the `/filter/:id` page) plus group filter
- * add/delete.
- *
- * RTK Query conversion of the old `FETCH_FILTER` / `ADD_GROUP_FILTER` /
- * `DELETE_GROUP_FILTER` duck. The endpoints are injected into the central
- * `skyportalApi`. The queries provide the `Filters` tag; the add/delete
- * mutations invalidate it (to refresh the filter list/single) and consumers
- * still invalidate the owning *group* via `groupApi.util.invalidateTags`.
- */
 import { skyportalApi } from "../api/skyportalApi";
 import type { RouteData } from "../types/routeSchemaMap";
 
-export interface AddGroupFilterArg {
-  name: string;
-  group_id: number | string;
-  stream_id: number | string;
-  broker_id?: number | string | null;
-}
-
-export interface DeleteGroupFilterArg {
-  filter_id: number | string;
-}
-
-export interface UpdateFilterNameArg {
-  filter_id: number | string;
-  name: string;
-}
-
-export const filterApi = skyportalApi.injectEndpoints({
+const filterApi = skyportalApi.injectEndpoints({
   endpoints: (build) => ({
     getFilters: build.query<RouteData<"GET /api/filters">, void>({
       query: () => "api/filters",
@@ -40,39 +14,41 @@ export const filterApi = skyportalApi.injectEndpoints({
       query: (id) => `api/filters/${id}`,
       providesTags: ["Filters"],
     }),
-    addGroupFilter: build.mutation<unknown, AddGroupFilterArg>({
-      query: ({ name, group_id, stream_id, broker_id }) => ({
-        url: "api/filters",
-        method: "POST",
-        body: { name, group_id, stream_id, broker_id },
-      }),
-      // Also refresh any filter query (list/single); consumers still invalidate
-      // the owning group separately.
-      invalidatesTags: ["Filters", "Broker"],
+    addGroupFilter: build.mutation<
+      { id: number },
+      {
+        name: string;
+        group_id: number | string;
+        stream_id: number | string;
+        broker_id?: number | string | null;
+      }
+    >({
+      query: (body) => ({ url: "api/filters", method: "POST", body }),
+      invalidatesTags: (_result, _error, { group_id }) => [
+        "Filters",
+        "Broker",
+        { type: "Group", id: Number(group_id) },
+      ],
     }),
-    deleteGroupFilter: build.mutation<unknown, DeleteGroupFilterArg>({
+    deleteGroupFilter: build.mutation<unknown, { filter_id: number | string }>({
       query: ({ filter_id }) => ({
         url: `api/filters/${filter_id}`,
         method: "DELETE",
       }),
       invalidatesTags: ["Filters", "Broker"],
     }),
-    updateFilterAltdata: build.mutation<
+    updateFilter: build.mutation<
       unknown,
-      { filter_id: number | string; altdata: Record<string, any> }
+      {
+        filter_id: number | string;
+        name?: string;
+        altdata?: Record<string, any>;
+      }
     >({
-      query: ({ filter_id, altdata }) => ({
+      query: ({ filter_id, ...body }) => ({
         url: `api/filters/${filter_id}`,
         method: "PATCH",
-        body: { altdata },
-      }),
-      invalidatesTags: ["Filters"],
-    }),
-    updateFilterName: build.mutation<unknown, UpdateFilterNameArg>({
-      query: ({ filter_id, name }) => ({
-        url: `api/filters/${filter_id}`,
-        method: "PATCH",
-        body: { name },
+        body,
       }),
       invalidatesTags: ["Filters"],
     }),
@@ -84,6 +60,5 @@ export const {
   useGetFilterQuery,
   useAddGroupFilterMutation,
   useDeleteGroupFilterMutation,
-  useUpdateFilterNameMutation,
-  useUpdateFilterAltdataMutation,
+  useUpdateFilterMutation,
 } = filterApi;

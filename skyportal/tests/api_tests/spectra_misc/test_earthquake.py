@@ -180,3 +180,41 @@ def test_earthquake_dictionary(super_admin_token, view_only_token):
     assert data["status"] == "success"
 
     status, data = api("GET", f"earthquake/{event_id}", token=super_admin_token)
+
+
+def test_earthquake_comments_respect_comment_groups(
+    super_admin_token, public_group2, comment_token_two_groups, view_only_token
+):
+    event_id = str(uuid.uuid4())
+    data = {
+        "event_id": event_id,
+        "latitude": 39.3648333,
+        "longitude": -123.2506667,
+        "depth": 7380.0,
+        "magnitude": 2.93,
+        "date": "2020-08-19 02:00:39",
+    }
+    status, data = api("POST", "earthquake", data=data, token=super_admin_token)
+    assert status == 200, data
+
+    status, data = api("GET", f"earthquake/{event_id}", token=super_admin_token)
+    assert status == 200, data
+    earthquake_id = data["data"]["id"]
+
+    text = str(uuid.uuid4())
+    status, data = api(
+        "POST",
+        f"earthquake/{earthquake_id}/comments",
+        data={"text": text, "group_ids": [public_group2.id]},
+        token=comment_token_two_groups,
+    )
+    assert status == 200, data
+
+    status, data = api("GET", f"earthquake/{event_id}", token=comment_token_two_groups)
+    assert status == 200, data
+    assert text in [c["text"] for c in data["data"]["comments"]]
+
+    # view_only_token's user is not in public_group2
+    status, data = api("GET", f"earthquake/{event_id}", token=view_only_token)
+    assert status == 200, data
+    assert text not in [c["text"] for c in data["data"]["comments"]]

@@ -698,14 +698,16 @@ class PhotometricSeriesHandler(BaseHandler):
                     f"Cannot find photometry point with ID: {photometric_series_id}."
                 )
 
-            obj_id = ps.obj_id
+            internal_key = await session.scalar(
+                sa.select(Obj.internal_key).where(Obj.id == ps.obj_id)
+            )
 
             await session.delete(ps)
             await session.commit()
 
             self.push_all(
                 action="skyportal/REFRESH_SOURCE_PHOTOMETRY",
-                payload={"obj_id": obj_id},
+                payload={"obj_key": internal_key},
             )
 
             return self.success()

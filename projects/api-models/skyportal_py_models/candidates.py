@@ -325,6 +325,14 @@ class CandidateGetQuery(BaseModel):
             "Must be one of the enumerated values."
         ),
     )
+    savedGroupIDs: str | None = Field(
+        default=None,
+        description=(
+            'Comma-separated string of group IDs (e.g. "1,2") that the "Selected" '
+            "saved statuses check against. Defaults to the groups of the "
+            "candidates' filters."
+        ),
+    )
     startDate: str | None = Field(
         default=None,
         description=(

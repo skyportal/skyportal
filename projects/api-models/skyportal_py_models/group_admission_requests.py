@@ -22,6 +22,7 @@ class GroupAdmissionRequestResponse(BaseModel):
     user_id: int | None = None
     group_id: int | None = None
     status: Literal["pending", "accepted", "declined"] | None = None
+    message: str | None = None
     user: UserResponse | None = None
     group: GroupResponse | None = None
 
@@ -46,6 +47,11 @@ class GroupAdmissionRequestPostBody(BaseModel):
 
     groupID: int = Field(description="ID of the group to request admission to")
     userID: int = Field(description="ID of the user requesting admission")
+    message: str | None = Field(
+        default=None,
+        max_length=2000,
+        description="Why the user wants to join the group",
+    )
 
 
 class GroupAdmissionRequestPostResponse(BaseModel):

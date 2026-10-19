@@ -11,7 +11,10 @@ import Chip from "@mui/material/Chip";
 import { showNotification } from "baselayer/components/Notifications";
 import Form from "@rjsf/mui";
 import validator from "@rjsf/validator-ajv8";
-import StyledDataGrid, { DataGridToolbar } from "../StyledDataGrid";
+import StyledDataGrid, {
+  DataGridToolbar,
+  FULL_PAGE_HEIGHT,
+} from "../StyledDataGrid";
 import ConfirmDeletionDialog from "../ConfirmDeletionDialog";
 import {
   useDeleteTelescopeMutation,
@@ -276,8 +279,7 @@ const TelescopeTable = ({
     },
   ].filter(Boolean);
 
-  // Memoized (like SourceTable/GalaxyTable) so the toolbar slot keeps a stable
-  // identity; an inline slot remounts each render and loops the grid.
+  // Memoized: an inline toolbar slot remounts each render and loops the grid.
   const CustomToolbar = useMemo(
     () =>
       function TelescopeTableToolbar() {
@@ -298,16 +300,17 @@ const TelescopeTable = ({
   );
 
   return (
-    <Box sx={{ width: "100%", height: "calc(100vh - 5rem)" }}>
+    <>
       <StyledDataGrid
+        height={FULL_PAGE_HEIGHT}
         rows={telescopes || []}
         columns={columns}
         getRowId={(row: any) => row.id}
         onRowClick={(params: any) => navigate(`/telescope/${params.row.id}`)}
         sx={{ "& .MuiDataGrid-row": { cursor: "pointer" } }}
-        hideFooter
+        pageSizeOptions={[25, 50, 100, { value: -1, label: "All" }]}
         initialState={{
-          pagination: { paginationModel: { pageSize: 100 } },
+          pagination: { paginationModel: { pageSize: -1 } },
         }}
         slots={{ toolbar: CustomToolbar }}
         showToolbar
@@ -340,7 +343,7 @@ const TelescopeTable = ({
         closeDialog={() => setTelescopeToDelete(null)}
         resourceName="telescope"
       />
-    </Box>
+    </>
   );
 };
 

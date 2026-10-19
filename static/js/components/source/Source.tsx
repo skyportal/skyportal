@@ -281,9 +281,6 @@ const SourceContent = ({ source }: SourceContentProps) => {
 
   const [showStarList, setShowStarList] = useState(false);
   const [showPhotometry, setShowPhotometry] = useState(false);
-  // Stable identity so PhotometryTable's memoized toolbar (keyed on onClose)
-  // is not rebuilt — and its close button not remounted — when Source
-  // re-renders as photometry loads (which caused a StaleElementReference).
   const closePhotometryTable = useCallback(() => setShowPhotometry(false), []);
   const [rightPanelVisible, setRightPanelVisible] = useState(true);
   const commentPanel = useCommentPanel();
@@ -400,39 +397,18 @@ const SourceContent = ({ source }: SourceContentProps) => {
           order: { xs: 6, md: 4, lg: 3 },
         }}
       >
-        <Accordion
-          defaultExpanded
-          disableGutters
-          className={classes.flexColumn}
-        >
-          <AccordionSummary
-            expandIcon={<ExpandMoreIcon />}
-            aria-controls="annotations-content"
-            id="annotations-header"
-          >
-            <Typography className={classes.accordionHeading}>
-              Auto-annotations
-            </Typography>
-          </AccordionSummary>
-          <AccordionDetails
-            style={{
-              padding: 0,
-              display: "flex",
-              flexDirection: "column",
-              minHeight: downLarge || isRightPanelVisible ? "52vh" : "60vh",
-            }}
-          >
-            <AnnotationsTable
-              annotations={source.annotations}
-              spectrumAnnotations={spectrumAnnotations}
-            />
-          </AccordionDetails>
+        <Paper id="annotations-content" className={classes.flexColumn}>
+          <AnnotationsTable
+            title="Auto-annotations"
+            annotations={source.annotations}
+            spectrumAnnotations={spectrumAnnotations}
+          />
           {!isReadOnly && (
-            <AccordionDetails style={{ padding: "0.5rem" }}>
+            <div style={{ padding: "0.5rem" }}>
               <SourceAnnotationButtons source={source} />
-            </AccordionDetails>
+            </div>
           )}
-        </Accordion>
+        </Paper>
       </Grid>
       {source?.gcn_notes?.length > 0 && (
         <Grid
@@ -830,9 +806,11 @@ const SourceContent = ({ source }: SourceContentProps) => {
                   <b className={classes.noWrapMargin}>
                     {`Offset: ${source.host_offset.toFixed(3)} [arcsec]`}
                   </b>
-                  <b className={classes.noWrapMargin}>
-                    {`Distance: ${source.host_distance.toFixed(1)} [kpc]`}
-                  </b>
+                  {source.host_distance != null && (
+                    <b className={classes.noWrapMargin}>
+                      {`Distance: ${source.host_distance.toFixed(1)} [kpc]`}
+                    </b>
+                  )}
                   {source.host.redshift != null && (
                     <b className={classes.noWrapMargin}>
                       {`z: ${source.host.redshift.toFixed(
@@ -1292,22 +1270,18 @@ const SourceContent = ({ source }: SourceContentProps) => {
                 )}
               </div>
             </div>
-            <div style={{ maxWidth: "fit-content" }}>
-              {/* 3 columns over 2 rows (6 at a time); cycle through the rest. */}
-              <ThumbnailList
-                ra={source.ra}
-                dec={source.dec}
-                thumbnails={source.thumbnails}
-                objID={source.id}
-                size="100%"
-                minSize={rightPanelVisible || downLg ? "6rem" : "10rem"}
-                maxSize={rightPanelVisible || downLg ? "13rem" : "20rem"}
-                titleSize={downSm ? "0.55rem" : undefined}
-                useGrid={false}
-                columns={3}
-                noMargin
-              />
-            </div>
+            <ThumbnailList
+              ra={source.ra}
+              dec={source.dec}
+              thumbnails={source.thumbnails}
+              objID={source.id}
+              size="100%"
+              minSize={rightPanelVisible || downLg ? "6rem" : "10rem"}
+              titleSize={downSm ? "0.55rem" : undefined}
+              useGrid={false}
+              columns={rightPanelVisible || downLg ? 3 : 6}
+              noMargin
+            />
           </Paper>
         </Grid>
         <Grid
@@ -1371,10 +1345,7 @@ const SourceContent = ({ source }: SourceContentProps) => {
                     gap: "0.5rem",
                   }}
                 >
-                  <DisplayPhotStats
-                    photstats={source.photstats[0]}
-                    display_header={false}
-                  />
+                  <DisplayPhotStats photstats={source.photstats[0]} />
                   <PhotometryMagsys magsys={magsys} setMagsys={setMagsys} />
                   <div
                     style={{
@@ -1587,7 +1558,6 @@ const SourceContent = ({ source }: SourceContentProps) => {
                   followupRequests={source.followup_requests}
                   instrumentList={instrumentList}
                   instrumentFormParams={instrumentFormParams}
-                  totalMatches={source.followup_requests.length}
                 />
               </div>
             </AccordionDetails>
@@ -1627,7 +1597,6 @@ const SourceContent = ({ source }: SourceContentProps) => {
                   followupRequests={source.followup_requests}
                   instrumentList={instrumentList}
                   instrumentFormParams={instrumentFormParams}
-                  totalMatches={source.followup_requests.length}
                   requestType="forced_photometry"
                 />
               </div>

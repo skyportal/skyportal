@@ -1,6 +1,4 @@
-import List from "@mui/material/List";
-import ListItem from "@mui/material/ListItem";
-import ListItemText from "@mui/material/ListItemText";
+import Box from "@mui/material/Box";
 import Typography from "@mui/material/Typography";
 
 import { useGetProfileQuery } from "../../ducks/profile";
@@ -9,24 +7,29 @@ import {
   useAddStreamUserMutation,
 } from "../../ducks/streams";
 import Button from "../Button";
-import Paper from "../Paper";
 
-// Lists public (auto-join) streams the current user is not yet a member of, with
-// a button to add themselves.
 const JoinableStreamsList = () => {
   const { data: profile } = useGetProfileQuery();
   const { data: streams } = useGetStreamsQuery();
   const [addStreamUser] = useAddStreamUserMutation();
 
+  if (!profile || !streams) {
+    return null;
+  }
+
   const memberStreamIDs = new Set(
-    (profile?.streams ?? []).map((s: any) => s.id),
+    (profile.streams ?? []).map((s: any) => s.id),
   );
-  const joinable = (streams ?? []).filter(
+  const joinable = streams.filter(
     (s: any) => s.auto_join && !memberStreamIDs.has(s.id),
   );
 
-  if (!profile || joinable.length === 0) {
-    return null;
+  if (joinable.length === 0) {
+    return (
+      <Typography variant="body2" color="textSecondary">
+        You are in every public stream.
+      </Typography>
+    );
   }
 
   const handleJoin = async (streamID: number) => {
@@ -41,30 +44,39 @@ const JoinableStreamsList = () => {
   };
 
   return (
-    <Paper>
-      <Typography variant="h6" sx={{ mb: 1 }}>
-        Public streams you can join
-      </Typography>
-      <List disablePadding>
-        {joinable.map((stream: any, index: number) => (
-          <ListItem
-            key={stream.id}
-            divider={index < joinable.length - 1}
-            sx={{ gap: 1 }}
+    <Box
+      sx={{
+        border: 1,
+        borderColor: "divider",
+        borderRadius: 2,
+        "& > :not(:last-child)": { borderBottom: 1, borderColor: "divider" },
+      }}
+    >
+      {joinable.map((stream: any) => (
+        <Box
+          key={stream.id}
+          sx={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: 1,
+            padding: "0.5rem 0.75rem",
+          }}
+        >
+          <Typography variant="body2" sx={{ fontWeight: 500 }}>
+            {stream.name}
+          </Typography>
+          <Button
+            secondary
+            size="small"
+            onClick={() => handleJoin(stream.id)}
+            data-testid={`joinStreamButton${stream.id}`}
           >
-            <ListItemText primary={stream.name} sx={{ flexGrow: 0 }} />
-            <Button
-              secondary
-              size="small"
-              onClick={() => handleJoin(stream.id)}
-              data-testid={`joinStreamButton${stream.id}`}
-            >
-              Join
-            </Button>
-          </ListItem>
-        ))}
-      </List>
-    </Paper>
+            Join
+          </Button>
+        </Box>
+      ))}
+    </Box>
   );
 };
 

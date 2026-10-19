@@ -122,6 +122,12 @@ class BrokerAPI(_Base):
         """Cross-match a position against the broker's archival catalogs."""
         raise NotImplementedError
 
+    @staticmethod
+    def gaia_cone_search(broker, ra, dec, radius_degrees, columns):
+        """Gaia DR3 sources within ``radius_degrees`` of a position, as dicts with
+        the Gaia ``source_id`` as ``_id`` and the requested ``columns``."""
+        raise NotImplementedError
+
     @classmethod
     async def save_as_source(cls, broker, alert_id, session, user, group_ids, **kwargs):
         """Ingest an object (``alert_id`` = objectId) as an Obj/Source + photometry.
@@ -246,8 +252,13 @@ class BrokerAPI(_Base):
     # ------------------------------------------------------------------ #
 
     @staticmethod
-    def run_ingestion(broker, session, **kwargs):
-        """Run the long-lived ingestion loop for this broker (consumer/poller)."""
+    def run_ingestion(broker, stop=None, **kwargs):
+        """Run the long-lived ingestion loop for this broker (consumer/poller).
+
+        The broker_ingest service calls it as ``run_ingestion(broker, stop=stop)``
+        and stops a broker by setting ``stop`` (an asyncio.Event), so the loop
+        must return once it is set.
+        """
         raise NotImplementedError
 
     # ------------------------------------------------------------------ #

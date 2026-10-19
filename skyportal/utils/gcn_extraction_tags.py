@@ -9,7 +9,7 @@ import sqlalchemy as sa
 from baselayer.app.env import load_env
 from baselayer.log import make_log
 
-from ..models import GcnEventObj, GcnTag, ObjTag, ObjTagOption
+from ..models import GcnEvent, GcnEventObj, GcnTag, ObjTag, ObjTagOption
 
 env, cfg = load_env()
 log = make_log("gcn_extraction_tags")
@@ -93,6 +93,11 @@ def apply_tags(session, extraction, author_id):
     obj_ids = session.scalars(
         sa.select(GcnEventObj.obj_id).where(GcnEventObj.dateobs == extraction.dateobs)
     ).all()
+    # ObjTags are read through their groups; the circular's readers are the event's
+    event = session.scalar(
+        sa.select(GcnEvent).where(GcnEvent.dateobs == extraction.dateobs)
+    )
+    groups = list(event.groups) if event is not None else []
 
     tagged = []
     for obj_id in obj_ids:
@@ -102,9 +107,16 @@ def apply_tags(session, extraction, author_id):
             )
         )
         if exists is not None:
+            if not exists.groups:
+                exists.groups = groups
             continue
         session.add(
-            ObjTag(obj_id=obj_id, objtagoption_id=option.id, author_id=author_id)
+            ObjTag(
+                obj_id=obj_id,
+                objtagoption_id=option.id,
+                author_id=author_id,
+                groups=groups,
+            )
         )
         tagged.append(obj_id)
     return tagged

@@ -351,14 +351,29 @@ function ShowClassification({
   shortened = false,
   fontSize = "1rem",
 }: ShowClassificationProps) {
+  const { data: config } = useGetConfigQuery() as { data: any };
+  const mlMinProbability =
+    typeof config?.["mlClassificationMinProbability"] === "number"
+      ? (config["mlClassificationMinProbability"] as number)
+      : 0;
+
   // A probability of exactly 0 is an explicit "not this class" label, so don't
   // advertise the object as being of that class (#3483). A null probability
   // means unspecified and is still shown.
+  // An ML classifier scores every source it sees, so a low probability is a
+  // guess rather than a finding; below the configured threshold it stays on the
+  // source and out of this summary, which reads as the object's identity.
   // `classifications` is frozen RTK Query data, so copy before sorting in place.
   // A human classification always takes precedence over an ML one; each row shows
   // its first entry, so put human labels first, then most recent.
   const sorted_classifications = [...(classifications || [])]
     .filter((c) => c["probability"] !== 0)
+    .filter(
+      (c) =>
+        !c["ml"] ||
+        typeof c["probability"] !== "number" ||
+        c["probability"] >= mlMinProbability,
+    )
     .sort((a, b) => {
       const mlA = a["ml"] ? 1 : 0;
       const mlB = b["ml"] ? 1 : 0;

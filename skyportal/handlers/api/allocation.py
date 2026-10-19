@@ -36,6 +36,7 @@ from ...models import (
 )
 from ...utils.parse import get_page_and_n_per_page
 from ..base import BaseHandler
+from .user import public_user_info
 
 
 class AllocationObservationPlanHandler(BaseHandler):
@@ -260,8 +261,10 @@ class AllocationHandler(BaseHandler):
                 for request in followup_requests:
                     request_data = request.to_dict()
                     if request.requester is not None:
-                        request_data["requester"] = request.requester.to_dict()
+                        request_data["requester"] = public_user_info(request.requester)
                     request_data["obj"] = request.obj.to_dict()
+                    # Photometry refresh broadcasts name the source by this key.
+                    request_data["internal_key"] = request.obj.internal_key
                     request_data["obj"]["thumbnails"] = [
                         thumbnail.to_dict() for thumbnail in request.obj.thumbnails
                     ]
@@ -374,7 +377,8 @@ class AllocationHandler(BaseHandler):
                 {
                     **allocation.to_dict(),
                     "allocation_users": [
-                        user.user.to_dict() for user in allocation.allocation_users
+                        public_user_info(user.user)
+                        for user in allocation.allocation_users
                     ],
                 }
                 for allocation in allocations
@@ -526,10 +530,11 @@ class AllocationHandler(BaseHandler):
                     )
                 else:
                     data["_altdata"] = json.dumps(data["_altdata"])
-            allocation_admin_ids = data.pop("allocation_admin_ids", [])
+            allocation_admin_ids = data.pop("allocation_admin_ids", None)
 
-            if not isinstance(allocation_admin_ids, list) or not all(
-                isinstance(x, int) for x in allocation_admin_ids
+            if allocation_admin_ids is not None and (
+                not isinstance(allocation_admin_ids, list)
+                or not all(isinstance(x, int) for x in allocation_admin_ids)
             ):
                 return self.error("allocation_admin_ids must be a list of user IDs")
 
@@ -544,22 +549,25 @@ class AllocationHandler(BaseHandler):
             for k in data:
                 setattr(allocation, k, data[k])
 
-            users_result = await session.scalars(
-                User.select(self.current_user).where(User.id.in_(allocation_admin_ids))
-            )
-            users = list(users_result.unique().all())
-            users_ids = [user.id for user in users]
-
-            for au in allocation.allocation_users:
-                if au.user_id not in users_ids:
-                    await session.delete(au)
-
-            current_au_user_ids = [au.user_id for au in allocation.allocation_users]
-            for user in users:
-                if user.id not in current_au_user_ids:
-                    session.add(
-                        AllocationUser(allocation_id=allocation.id, user_id=user.id)
+            if allocation_admin_ids is not None:
+                users_result = await session.scalars(
+                    User.select(self.current_user).where(
+                        User.id.in_(allocation_admin_ids)
                     )
+                )
+                users = list(users_result.unique().all())
+                users_ids = [user.id for user in users]
+
+                for au in allocation.allocation_users:
+                    if au.user_id not in users_ids:
+                        await session.delete(au)
+
+                current_au_user_ids = [au.user_id for au in allocation.allocation_users]
+                for user in users:
+                    if user.id not in current_au_user_ids:
+                        session.add(
+                            AllocationUser(allocation_id=allocation.id, user_id=user.id)
+                        )
 
             await session.commit()
             self.push_all(action="skyportal/REFRESH_ALLOCATIONS")

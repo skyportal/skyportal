@@ -1,27 +1,14 @@
 import { useState } from "react";
+import { Link } from "react-router-dom";
+import Chip from "@mui/material/Chip";
 import HistoryIcon from "@mui/icons-material/History";
 import Dialog from "@mui/material/Dialog";
 import DialogContent from "@mui/material/DialogContent";
 import DialogTitle from "@mui/material/DialogTitle";
-import { makeStyles } from "tss-react/mui";
-import Table from "@mui/material/Table";
-import TableBody from "@mui/material/TableBody";
-import TableCell from "@mui/material/TableCell";
-import TableHead from "@mui/material/TableHead";
-import TableRow from "@mui/material/TableRow";
+import dayjs from "dayjs";
 
 import { useGetUsersQuery } from "../../ducks/users";
-
-const useStyles = makeStyles()(() => ({
-  saveButton: {
-    textAlign: "center",
-    margin: "1rem",
-  },
-  historyIcon: {
-    height: "0.75rem",
-    cursor: "pointer",
-  },
-}));
+import StyledDataGrid from "../StyledDataGrid";
 
 interface RedshiftHistoryItem {
   set_at_utc: string;
@@ -36,68 +23,64 @@ interface SourceRedshiftHistoryProps {
 }
 
 const SourceRedshiftHistory = ({
-  redshiftHistory = null,
+  redshiftHistory,
 }: SourceRedshiftHistoryProps) => {
-  const { classes } = useStyles();
-  // Only names, to label who set each redshift.
   const allUsers = useGetUsersQuery({ slim: true }).data?.users ?? [];
-  const userIdToUsername: Record<number, string> = {};
-
   const [dialogOpen, setDialogOpen] = useState(false);
-
-  // Sort history from newest to oldest.
-  // `redshiftHistory` is frozen RTK Query data, so copy before sorting in place.
-  const sortedHistory = [...(redshiftHistory ?? [])].sort((a, b) => {
-    const dateA = new Date(a.set_at_utc);
-    const dateB = new Date(b.set_at_utc);
-    return dateB.getTime() - dateA.getTime();
-  });
-
-  if (allUsers.length) {
-    allUsers?.forEach((user: any) => {
-      userIdToUsername[user.id] = user.username;
-    });
-  }
 
   return (
     <>
       <HistoryIcon
         data-testid="redshiftHistoryIconButton"
         fontSize="small"
-        className={classes.historyIcon}
-        onClick={() => {
-          setDialogOpen(true);
-        }}
+        sx={{ height: "0.75rem", cursor: "pointer" }}
+        onClick={() => setDialogOpen(true)}
       />
-      <Dialog open={dialogOpen} onClose={() => setDialogOpen(false)}>
+      <Dialog
+        open={dialogOpen}
+        onClose={() => setDialogOpen(false)}
+        fullWidth
+        maxWidth="md"
+      >
         <DialogTitle>Redshift History</DialogTitle>
         <DialogContent>
-          <Table>
-            <TableHead>
-              <TableRow>
-                <TableCell>Set By</TableCell>
-                <TableCell>Time (UTC)</TableCell>
-                <TableCell>Value</TableCell>
-                <TableCell>Uncertainty</TableCell>
-                <TableCell>Origin</TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {sortedHistory &&
-                allUsers.length &&
-                redshiftHistory?.map((historyItem) => (
-                  <TableRow key={historyItem.set_at_utc}>
-                    <TableCell>
-                      {userIdToUsername[historyItem.set_by_user_id]}
-                    </TableCell>
-                    <TableCell>{historyItem.set_at_utc}</TableCell>
-                    <TableCell>{historyItem.value}</TableCell>
-                    <TableCell>{historyItem.uncertainty}</TableCell>
-                    <TableCell>{historyItem?.origin || ""}</TableCell>
-                  </TableRow>
-                ))}
-            </TableBody>
-          </Table>
+          <StyledDataGrid
+            autoHeight
+            rows={(redshiftHistory ?? []).map((row, id) => ({ ...row, id }))}
+            columns={[
+              {
+                field: "set_by_user_id",
+                headerName: "Set By",
+                flex: 1,
+                valueGetter: (value: number) =>
+                  allUsers.find((user: any) => user.id === value)?.username,
+                renderCell: ({ value, row }: any) =>
+                  value && (
+                    <Chip
+                      size="small"
+                      label={value}
+                      component={Link}
+                      to={`/user/${row.set_by_user_id}`}
+                      clickable
+                    />
+                  ),
+              },
+              {
+                field: "set_at_utc",
+                headerName: "Time (UTC)",
+                width: 180,
+                valueFormatter: (value: string) =>
+                  dayjs(value).format("YYYY-MM-DD HH:mm:ss"),
+              },
+              { field: "value", headerName: "Value", flex: 1 },
+              { field: "uncertainty", headerName: "Uncertainty", flex: 1 },
+              { field: "origin", headerName: "Origin", flex: 1 },
+            ]}
+            initialState={{
+              sorting: { sortModel: [{ field: "set_at_utc", sort: "desc" }] },
+              pagination: { paginationModel: { pageSize: 100 } },
+            }}
+          />
         </DialogContent>
       </Dialog>
     </>

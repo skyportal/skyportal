@@ -9,7 +9,7 @@ from baselayer.app.env import load_env
 from baselayer.log import make_log
 from skyportal.models.group import Group
 
-from ....models import Obj, ObjTag, Source, serialize_obj_tag
+from ....models import Classification, Obj, ObjTag, Source, serialize_obj_tag
 from ....utils.data_access import (
     accessible_group_ids_async,
     team_scoped_group_ids,
@@ -38,7 +38,14 @@ class RecentSourcesHandler(BaseHandler):
         recent_sources_prefs = user_prefs.get("recentSources", {})
         recent_sources_prefs = {**default_prefs, **recent_sources_prefs}
 
-        max_num_sources = int(recent_sources_prefs["maxNumSources"])
+        try:
+            max_num_sources = int(recent_sources_prefs["maxNumSources"])
+            if max_num_sources < 0:
+                raise ValueError("must not be negative")
+        except (TypeError, ValueError) as e:
+            raise ValueError(
+                f"Invalid recentSources preference maxNumSources: {e}"
+            ) from e
         include_sitewide = recent_sources_prefs.get("includeSitewideSources", False)
         group_ids = get_list_typed(
             recent_sources_prefs.get("groupIds", []),
@@ -82,11 +89,11 @@ class RecentSourcesHandler(BaseHandler):
                     self.get_query_argument("teamID", None),
                     user_group_ids,
                 )
+                query_results = await RecentSourcesHandler.get_recent_source_ids(
+                    self.current_user, session, team_group_ids=team_group_ids
+                )
             except ValueError as e:
                 return self.error(str(e))
-            query_results = await RecentSourcesHandler.get_recent_source_ids(
-                self.current_user, session, team_group_ids=team_group_ids
-            )
             tags_result = await session.scalars(
                 ObjTag.select(session.user_or_token)
                 .options(
@@ -107,13 +114,18 @@ class RecentSourcesHandler(BaseHandler):
             objs_result = await session.scalars(
                 Obj.select(
                     session.user_or_token,
-                    options=[
-                        selectinload(Obj.thumbnails),
-                        selectinload(Obj.classifications),
-                    ],
+                    options=[selectinload(Obj.thumbnails)],
                 ).where(Obj.id.in_(list(set(query_results))))
             )
             objs_by_id = {obj.id: obj for obj in objs_result.all()}
+            classifications_result = await session.scalars(
+                Classification.select(session.user_or_token).where(
+                    Classification.obj_id.in_(list(set(query_results)))
+                )
+            )
+            classifications_dict = defaultdict(list)
+            for classification in classifications_result.unique().all():
+                classifications_dict[classification.obj_id].append(classification)
 
             source_rows_result = await session.scalars(
                 Source.select(session.user_or_token)
@@ -162,7 +174,7 @@ class RecentSourcesHandler(BaseHandler):
                             }
                             for t in sorted(s.thumbnails, key=lambda t: t_index(t.type))
                         ],
-                        "classifications": s.classifications,
+                        "classifications": classifications_dict.get(s.id, []),
                         "recency_index": recency_index,
                         "tns_name": s.tns_name,
                         "tags": tags_dict.get(s.id, []),

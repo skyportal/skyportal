@@ -1,8 +1,8 @@
 import { useState } from "react";
 
-import { makeStyles } from "tss-react/mui";
 import List from "@mui/material/List";
 import ListItem from "@mui/material/ListItem";
+import ListItemButton from "@mui/material/ListItemButton";
 import ListItemText from "@mui/material/ListItemText";
 import Collapse from "@mui/material/Collapse";
 import ExpandLess from "@mui/icons-material/ExpandLess";
@@ -17,161 +17,85 @@ import * as candidatesActions from "../../ducks/candidate/candidates";
 import type { Annotation, Group } from "../../types";
 import { getAnnotationValueString } from "./annotationValue";
 
-const useStyles = makeStyles()((theme) => ({
-  root: {
-    width: "100%",
-    background: theme.palette.background.paper,
-    padding: 0,
-    margin: 0,
-    maxHeight: "24rem",
-    overflowY: "scroll",
-    // Prevent disabled annotations from being selected, but display normally for readability
-    "& .Mui-disabled": {
-      opacity: 1,
-    },
-  },
-  nested: {
-    paddingLeft: theme.spacing(4),
-    paddingTop: 0,
-    paddingBottom: 0,
-  },
-  // Keep the origin header visible while scrolling through its annotations.
-  stickyOrigin: {
-    position: "sticky",
-    top: 0,
-    zIndex: 1,
-    background: theme.palette.background.paper,
-  },
-  search: {
-    padding: theme.spacing(0.5),
-  },
-}));
-
-// Re-exported for the many consumers that import it from this module.
 export { getAnnotationValueString };
 
 const GCN_CROSSMATCH_ORIGIN = "GCN-crossmatch";
 
-// Each key of a GCN-crossmatch annotation is a trigger id whose payload carries
-// the event's dateobs. The crossmatch service writes a pending association
-// alongside the annotation, so vetting here patches that row -- which is why no
-// localization/date arguments are needed.
-const crossmatchedEvents = (annotation: Annotation): [string, string][] =>
-  Object.entries(annotation.data || {})
-    .map(([triggerId, payload]): [string, string] => [
-      triggerId,
-      (payload as { dateobs?: string })?.dateobs ?? "",
-    ])
-    .filter(([, dateobs]) => Boolean(dateobs));
+const nestedSx = { pl: 4, py: 0 };
+const rowTextSlotProps = { secondary: { sx: { maxWidth: 200 } } };
+
+const isFilterGroupOrigin = (origin: string, groups: Group[]) =>
+  groups.some(({ name, nickname }) =>
+    [name, nickname || name].some((label) =>
+      origin.toLowerCase().includes(label.toLowerCase()),
+    ),
+  );
+
+const crossmatchedEvents = (data: Annotation["data"]) =>
+  Object.entries(data).flatMap(([triggerId, payload]) => {
+    const dateobs = (payload as { dateobs?: string } | null)?.dateobs;
+    return dateobs ? [{ triggerId, dateobs }] : [];
+  });
 
 interface ScanningPageCandidateAnnotationsProps {
   annotations: Annotation[];
   filterGroups?: Group[];
-  listWidth?: number;
-  listItemWidth?: number;
 }
 
 const ScanningPageCandidateAnnotations = ({
   annotations,
   filterGroups = [],
-  listWidth = 250,
-  listItemWidth = 200,
 }: ScanningPageCandidateAnnotationsProps) => {
-  const { classes } = useStyles();
-
   const dispatch = useAppDispatch();
-
-  // `annotations` is frozen RTK Query data, so copy before sorting in place.
-  annotations = [...(annotations ?? [])].sort((a, b) =>
-    a.origin.localeCompare(b.origin),
+  const selectedSort = useAppSelector(
+    (state) => state.candidates.selectedAnnotationSortOptions,
   );
-  if (filterGroups?.length > 0) {
-    // put the filter groups at the top
-    annotations.sort((a, b) => {
-      const aIsFilterGroup = filterGroups.some((group) => {
-        const name = group.name ? group.name.toLowerCase() : "";
-        const nickname = group.nickname ? group.nickname.toLowerCase() : name;
-        const origin = a.origin.toLowerCase();
-        return origin.includes(nickname) || origin.includes(name);
-      });
-      const bIsFilterGroup = filterGroups.some((group) => {
-        const name = group.name ? group.name.toLowerCase() : "";
-        const nickname = group.nickname ? group.nickname.toLowerCase() : name;
-        const origin = b.origin.toLowerCase();
-        return origin.includes(nickname) || origin.includes(name);
-      });
-      if (aIsFilterGroup && !bIsFilterGroup) {
-        return -1;
-      }
-      if (!aIsFilterGroup && bIsFilterGroup) {
-        return 1;
-      }
-      return 0;
-    });
-  }
-  // The annotation objects are frozen RTK Query data, so build new objects
-  // with sorted `data` rather than mutating them in place.
-  annotations = annotations?.map((annotation) => ({
-    ...annotation,
-    data: Object.fromEntries(
-      Object.entries(annotation.data).sort((a, b) => a[0].localeCompare(b[0])),
-    ),
-  }));
-
-  const initState: Record<string, boolean> = {};
-  annotations?.forEach((annotation) => {
-    initState[annotation.origin] = true;
-  });
-  const [openedOrigins, setOpenedOrigins] = useState(initState);
+  const [openedOrigins, setOpenedOrigins] = useState<Record<string, boolean>>(
+    () => Object.fromEntries(annotations.map(({ origin }) => [origin, true])),
+  );
   const [search, setSearch] = useState("");
 
-  // Filter by origin name or any key/value text. An origin whose name matches
-  // keeps all its entries; otherwise only its matching entries are kept.
+  const rank = ({ origin }: Annotation) =>
+    isFilterGroupOrigin(origin, filterGroups) ? 0 : 1;
+  // RTK Query data is frozen: copy before sorting.
+  const sortedAnnotations = [...annotations]
+    .sort((a, b) => rank(a) - rank(b) || a.origin.localeCompare(b.origin))
+    .map((annotation) => ({
+      ...annotation,
+      data: Object.fromEntries(
+        Object.entries(annotation.data).sort(([a], [b]) => a.localeCompare(b)),
+      ),
+    }));
+
   const query = search.trim().toLowerCase();
-  const filteredAnnotations: Annotation[] = query
-    ? annotations.reduce<Annotation[]>((acc, annotation) => {
-        if (annotation.origin.toLowerCase().includes(query)) {
-          acc.push(annotation);
-          return acc;
-        }
+  const matches = (text: string) => text.toLowerCase().includes(query);
+  const filteredAnnotations = query
+    ? sortedAnnotations.flatMap((annotation) => {
+        if (matches(annotation.origin)) return [annotation];
         const entries = Object.entries(annotation.data).filter(
           ([key, value]) =>
-            key.toLowerCase().includes(query) ||
-            getAnnotationValueString(value).toLowerCase().includes(query),
+            matches(key) || matches(getAnnotationValueString(value)),
         );
-        if (entries.length > 0) {
-          acc.push({ ...annotation, data: Object.fromEntries(entries) });
-        }
-        return acc;
-      }, [])
-    : annotations;
+        return entries.length
+          ? [{ ...annotation, data: Object.fromEntries(entries) }]
+          : [];
+      })
+    : sortedAnnotations;
 
-  const selectedAnnotationSortOptions = useAppSelector(
-    (state) => (state as any).candidates.selectedAnnotationSortOptions,
-  );
+  const isSelected = (origin: string, key: string) =>
+    selectedSort?.origin === origin && selectedSort?.key === key;
 
-  const handleClick = (origin: string) => {
-    setOpenedOrigins({ ...openedOrigins, [origin]: !openedOrigins[origin] });
-  };
-
-  const handleItemSelect = (origin: string, key: string) => {
-    const currentlySelected =
-      selectedAnnotationSortOptions &&
-      selectedAnnotationSortOptions.origin === origin &&
-      selectedAnnotationSortOptions.key === key;
-
-    const annotationItem: any = currentlySelected
-      ? null
-      : { origin, key, order: null };
+  const toggleSort = (origin: string, key: string) =>
     dispatch(
-      candidatesActions.setCandidatesAnnotationSortOptions(annotationItem),
+      candidatesActions.setCandidatesAnnotationSortOptions(
+        isSelected(origin, key) ? null : { origin, key, order: null },
+      ),
     );
-  };
 
   return (
     <Paper variant="outlined">
       <TextField
-        className={classes.search}
+        sx={{ p: 0.5 }}
         size="small"
         fullWidth
         variant="standard"
@@ -187,77 +111,70 @@ const ScanningPageCandidateAnnotations = ({
       />
       <List
         component="nav"
-        aria-labelledby="nested-list-subheader"
-        className={classes.root}
         dense
+        disablePadding
+        sx={{ maxHeight: "24rem", overflowY: "auto" }}
       >
-        {filteredAnnotations.map((annotation) => {
-          // While searching, force matching origins open so results show.
-          const isOpen = query ? true : openedOrigins[annotation.origin];
+        {filteredAnnotations.map(({ origin, obj_id, data }) => {
+          const isOpen = Boolean(query) || openedOrigins[origin];
           return (
-            <div key={`annotation_${annotation.origin}`}>
+            <div key={origin}>
               <Divider />
-              <ListItem
-                {...({ button: true } as any)}
-                className={classes.stickyOrigin}
-                onClick={() => handleClick(annotation.origin)}
+              <ListItemButton
+                sx={{
+                  position: "sticky",
+                  top: 0,
+                  zIndex: 1,
+                  bgcolor: "background.paper",
+                }}
+                onClick={() =>
+                  setOpenedOrigins((opened) => ({
+                    ...opened,
+                    [origin]: !opened[origin],
+                  }))
+                }
               >
                 <ListItemText
-                  primary={`${annotation.origin}`}
+                  primary={origin}
                   slotProps={{ primary: { variant: "button" } }}
                 />
                 {isOpen ? <ExpandLess /> : <ExpandMore />}
-              </ListItem>
+              </ListItemButton>
               <Collapse in={isOpen} timeout="auto" unmountOnExit>
                 <List
                   component="div"
-                  sx={{ maxWidth: listWidth }}
                   dense
                   disablePadding
+                  sx={{ maxWidth: 250 }}
                 >
-                  {annotation.origin === GCN_CROSSMATCH_ORIGIN &&
-                    annotation.obj_id &&
-                    crossmatchedEvents(annotation).map(
-                      ([triggerId, dateobs]) => (
-                        <ListItem
-                          key={`vet_${triggerId}`}
-                          className={classes.nested}
-                        >
-                          <ListItemText
-                            slotProps={{
-                              secondary: { sx: { maxWidth: listItemWidth } },
-                            }}
-                            secondary={`vet ${triggerId}`}
-                          />
-                          <ConfirmSourceInGCN
-                            compact
-                            dateobs={dateobs}
-                            source_id={annotation.obj_id as string}
-                            sources_id_list={[annotation.obj_id as string]}
-                          />
-                        </ListItem>
-                      ),
-                    )}
-                  {Object.entries(annotation.data).map(([key, value]) => (
-                    <ListItem
-                      key={`key_${annotation.origin}_${key}`}
-                      {...({ button: true } as any)}
-                      className={classes.nested}
-                      selected={
-                        selectedAnnotationSortOptions &&
-                        selectedAnnotationSortOptions.origin ===
-                          annotation.origin &&
-                        selectedAnnotationSortOptions.key === key
-                      }
-                      onClick={() => handleItemSelect(annotation.origin, key)}
+                  {origin === GCN_CROSSMATCH_ORIGIN &&
+                    obj_id &&
+                    crossmatchedEvents(data).map(({ triggerId, dateobs }) => (
+                      <ListItem key={`vet_${triggerId}`} sx={nestedSx}>
+                        <ListItemText
+                          slotProps={rowTextSlotProps}
+                          secondary={`vet ${triggerId}`}
+                        />
+                        <ConfirmSourceInGCN
+                          compact
+                          dateobs={dateobs}
+                          source_id={obj_id}
+                          sources_id_list={[obj_id]}
+                        />
+                      </ListItem>
+                    ))}
+                  {Object.entries(data).map(([key, value]) => (
+                    <ListItemButton
+                      key={key}
+                      sx={nestedSx}
+                      selected={isSelected(origin, key)}
+                      onClick={() => toggleSort(origin, key)}
                     >
                       <ListItemText
-                        slotProps={{
-                          secondary: { sx: { maxWidth: listItemWidth } },
-                        }}
+                        slotProps={rowTextSlotProps}
                         secondary={`${key}: ${getAnnotationValueString(value)}`}
                       />
-                    </ListItem>
+                    </ListItemButton>
                   ))}
                 </List>
               </Collapse>

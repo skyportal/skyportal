@@ -1,3 +1,4 @@
+import asyncio
 import json
 import uuid
 from types import SimpleNamespace
@@ -7,7 +8,8 @@ import pytest
 import responses
 
 from skyportal.broker_apis import GENERICBROKER, BrokerAPI
-from skyportal.tests import api
+from skyportal.models import init_db
+from skyportal.tests import api, cfg
 
 
 def _force_active(broker_id):
@@ -482,6 +484,7 @@ def test_broker_requires_admin_and_redacts_altdata(super_admin_token, view_only_
     assert status == 200
     assert data["data"]["altdata"]["base_url"] == "https://broker.test"
     assert "token" not in data["data"]["altdata"]
+    assert data["data"]["secrets_set"] == ["token"]
 
     # so editing another field must not wipe the stored credential
     status, _ = api(
@@ -493,10 +496,11 @@ def test_broker_requires_admin_and_redacts_altdata(super_admin_token, view_only_
     assert status == 200
     status, data = api("GET", f"brokers/{broker_id}", token=super_admin_token)
     assert data["data"]["altdata"]["base_url"] == "https://broker2.test"
+    assert data["data"]["secrets_set"] == ["token"]
 
 
 def test_altdata_merge_and_redaction():
-    from skyportal.handlers.api.broker import merge_altdata, strip_secrets
+    from skyportal.handlers.api.broker import merge_altdata, secrets_set, strip_secrets
 
     stored = {
         "base_url": "https://a",
@@ -509,6 +513,10 @@ def test_altdata_merge_and_redaction():
         "scimma": {"user": "u"},
     }
     assert stored["token"] == "secret"
+    assert secrets_set(stored, ["token", "scimma.password", "kafka.password"]) == [
+        "token",
+        "scimma.password",
+    ]
 
     # blank means "keep what is stored", at any depth
     merged = merge_altdata(
@@ -529,7 +537,7 @@ def test_secret_config_fields_cover_every_provider():
         "AMPELBROKER": ["scimma.password"],
         "ANTARESBROKER": [],
         "BABAMULBROKER": ["token"],
-        "BOOMBROKER": ["password"],
+        "BOOMBROKER": ["password", "kafka.password"],
         "FINKBROKER": ["fink.password"],
         "GENERICBROKER": ["token"],
         "LASAIRBROKER": ["token", "kafka.password"],
@@ -676,6 +684,26 @@ def test_broker_alerts_inactive(super_admin_token):
     assert status == 400
 
 
+def test_broker_save_requires_group_membership(
+    super_admin_token, upload_data_token, public_group2
+):
+    status, data = api(
+        "POST", "brokers", data=_broker_payload(), token=super_admin_token
+    )
+    assert status == 200
+    broker_id = data["data"]["id"]
+
+    # Rejected before any broker fetch, so no network mocking is needed.
+    status, data = api(
+        "POST",
+        f"brokers/{broker_id}/alerts/ZTF26aaaaaaa/save",
+        data={"group_ids": [public_group2.id]},
+        token=upload_data_token,
+    )
+    assert status == 400
+    assert "groups you are a member of" in data["message"]
+
+
 # --- provider-level unit tests (no running server needed) ---
 
 
@@ -779,8 +807,12 @@ def test_configured_surveys_per_record():
     providers (Lasair), but stay the full list for multi-survey ones (BOOM)."""
     from skyportal.broker_apis import BOOMBROKER, LASAIRBROKER
 
-    # BOOM serves both surveys from one connection (survey is a per-query kwarg)
-    assert set(BOOMBROKER.configured_surveys({"survey": "ZTF"})) == {"ZTF", "LSST"}
+    # BOOM serves every survey from one connection (survey is a per-query kwarg)
+    assert set(BOOMBROKER.configured_surveys({"survey": "ZTF"})) == {
+        "ZTF",
+        "LSST",
+        "DECAM",
+    }
 
     # Lasair's ZTF/LSST are separate deployments (distinct endpoint + token)
     assert LASAIRBROKER.configured_surveys(
@@ -866,11 +898,17 @@ def test_boombroker_cone_search():
         json={"access_token": "tok", "expires_in": 3600},
         status=200,
     )
-    # a reference catalog plus a survey/alert catalog that must be filtered out
     responses.add(
         responses.GET,
         "https://boom.test/catalogs",
-        json={"data": [{"name": "Gaia_DR3"}, {"name": "ZTF_alerts"}]},
+        json={
+            "data": [
+                {"name": "Gaia_DR3", "crossmatch": True},
+                {"name": "ZTF_alerts", "crossmatch": False},
+                {"name": "watchlist_private", "crossmatch": False},
+                {"name": "css_dets"},
+            ]
+        },
         status=200,
     )
     responses.add(
@@ -895,8 +933,11 @@ def test_boombroker_cone_search():
         _boom_broker(), 80.0, 20.0, 5.0, None, radius_units="arcsec"
     )
 
-    # ZTF_alerts (survey) is excluded; only the reference catalog is searched
     assert set(result.keys()) == {"Gaia_DR3"}
+    cone_calls = [c for c in responses.calls if c.request.url.endswith("cone_search")]
+    assert [json.loads(c.request.body)["catalog_name"] for c in cone_calls] == [
+        "Gaia_DR3"
+    ]
     source = result["Gaia_DR3"][0]
     assert source["_id"] == "42"  # coerced to str
     assert source["ra"] == 80.0  # GeoJSON longitude (-100) shifted +180
@@ -1252,6 +1293,95 @@ def test_boom_filter_activation_requires_validation(
         api("DELETE", f"brokers/{broker_id}", token=super_admin_token)
 
 
+def test_filter_catalog_sorts_by_active(super_admin_token, public_filter):
+    params = {
+        "name": public_filter.name,
+        "groupID": public_filter.group_id,
+        "numPerPage": 100,
+    }
+    status, by_name = api(
+        "GET", "brokers/filters", params=params, token=super_admin_token
+    )
+    assert status == 200
+    status, by_active = api(
+        "GET",
+        "brokers/filters",
+        params={**params, "sortBy": "active", "sortOrder": "desc"},
+        token=super_admin_token,
+    )
+    assert status == 200
+    assert by_active["data"]["totalMatches"] == by_name["data"]["totalMatches"]
+    rows = {f["id"]: f for f in by_active["data"]["filters"]}
+    assert rows.keys() == {f["id"] for f in by_name["data"]["filters"]}
+    assert rows[public_filter.id]["active"] is None
+
+    status, _ = api(
+        "GET", "brokers/filters", params={"sortBy": "group"}, token=super_admin_token
+    )
+    assert status == 400
+
+
+def test_boom_filter_version_comment(
+    super_admin_token, upload_data_token, public_filter
+):
+    import sqlalchemy as sa
+    from sqlalchemy.orm.attributes import flag_modified
+
+    from skyportal.models import DBSession, Filter
+
+    status, data = api(
+        "POST",
+        "brokers",
+        data=_broker_payload(
+            broker_classname="BOOMBROKER",
+            altdata={"host": "boom.test", "username": "x", "password": "y"},
+        ),
+        token=super_admin_token,
+    )
+    assert status == 200
+    broker_id = data["data"]["id"]
+    _force_active(broker_id)
+    try:
+        f = (
+            DBSession()
+            .scalars(sa.select(Filter).where(Filter.id == public_filter.id))
+            .first()
+        )
+        f.altdata = {"boom": {"filter_id": "boom-test-id"}}
+        flag_modified(f, "altdata")
+        DBSession().commit()
+        url = f"brokers/{broker_id}/filters/{public_filter.id}"
+
+        status, data = api(
+            "PATCH",
+            url,
+            data={"comment": "Raised the drb cut"},
+            token=upload_data_token,
+        )
+        assert status == 400
+        assert "fid is required" in data["message"]
+
+        status, data = api(
+            "PATCH",
+            url,
+            data={"fid": "v1", "comment": "Raised the drb cut"},
+            token=upload_data_token,
+        )
+        assert status == 200
+        status, data = api("GET", url, token=upload_data_token)
+        versions = data["data"]["altdata"]["boom"]["versions"]
+        assert versions["v1"]["comment"] == "Raised the drb cut"
+
+        status, data = api(
+            "PATCH", url, data={"fid": "v1", "comment": ""}, token=upload_data_token
+        )
+        assert status == 200
+        status, data = api("GET", url, token=upload_data_token)
+        assert "comment" not in data["data"]["altdata"]["boom"]["versions"]["v1"]
+    finally:
+        api("DELETE", f"brokers/{broker_id}", token=super_admin_token)
+
+
 def test_broker_credentials_crud(
     super_admin_token,
     view_only_token,
@@ -1317,3 +1447,138 @@ def test_broker_credentials_crud(
         assert data["data"] is None
     finally:
         api("DELETE", f"brokers/{broker_id}", token=super_admin_token)
+
+
+def test_routing_is_pruned_to_the_subscribed_topics(
+    super_admin_token, view_only_token, public_filter
+):
+    """Routing for a topic the client no longer lists is dropped, not refused."""
+    payload = _broker_payload()
+    status, data = api("POST", "brokers", data=payload, token=super_admin_token)
+    assert status == 200
+    broker_id = data["data"]["id"]
+    try:
+        status, data = api(
+            "PUT",
+            f"brokers/{broker_id}/credentials",
+            data={
+                "credentials": {"token": "mine"},
+                "topics": ["lasair_1x"],
+                "topic_filter_ids": {"lasair_1x": [public_filter.id]},
+            },
+            token=view_only_token,
+        )
+        assert status == 200, data
+
+        # Drop the topic; the routing for it goes with it.
+        status, data = api(
+            "PUT",
+            f"brokers/{broker_id}/credentials",
+            data={
+                "topics": ["lasair_1y"],
+                "topic_filter_ids": {"lasair_1x": [public_filter.id]},
+            },
+            token=view_only_token,
+        )
+        assert status == 200, data
+
+        status, data = api(
+            "GET", f"brokers/{broker_id}/credentials", token=view_only_token
+        )
+        assert status == 200
+        assert data["data"]["topics"] == ["lasair_1y"]
+        assert data["data"]["topic_filter_ids"] == {}
+    finally:
+        api("DELETE", f"brokers/{broker_id}/credentials", token=view_only_token)
+        api("DELETE", f"brokers/{broker_id}", token=super_admin_token)
+
+
+def test_deleting_a_filter_clears_it_from_topic_routing(
+    super_admin_token, super_admin_user, public_group, public_stream
+):
+    """A deleted filter leaves no id behind to refuse the next credentials save."""
+    payload = _broker_payload()
+    status, data = api("POST", "brokers", data=payload, token=super_admin_token)
+    assert status == 200
+    broker_id = data["data"]["id"]
+    status, data = api(
+        "POST",
+        "filters",
+        data={
+            "name": str(uuid.uuid4()),
+            "group_id": public_group.id,
+            "stream_id": public_stream.id,
+        },
+        token=super_admin_token,
+    )
+    assert status == 200
+    filter_id = data["data"]["id"]
+    try:
+        status, data = api(
+            "PUT",
+            f"brokers/{broker_id}/credentials",
+            data={
+                "credentials": {"token": "mine"},
+                "topics": ["lasair_1x"],
+                "topic_filter_ids": {"lasair_1x": [filter_id]},
+            },
+            token=super_admin_token,
+        )
+        assert status == 200, data
+
+        status, data = api("DELETE", f"filters/{filter_id}", token=super_admin_token)
+        assert status == 200, data
+
+        status, data = api(
+            "GET", f"brokers/{broker_id}/credentials", token=super_admin_token
+        )
+        assert status == 200
+        assert data["data"]["topic_filter_ids"] == {}
+
+        # and the next save is not refused for an id that is no longer offered
+        status, data = api(
+            "PUT",
+            f"brokers/{broker_id}/credentials",
+            data={"topics": ["lasair_1x"]},
+            token=super_admin_token,
+        )
+        assert status == 200, data
+    finally:
+        api("DELETE", f"brokers/{broker_id}/credentials", token=super_admin_token)
+        api("DELETE", f"brokers/{broker_id}", token=super_admin_token)
+
+
+def test_broker_ingest_stops_brokers_no_longer_wanted(monkeypatch):
+    """A broker switched off, deactivated or deleted drops out of the listing,
+    and the service tells its running consumer to stop."""
+    from services.broker_ingest import broker_ingest
+
+    init_db(**cfg["database"])  # undo the service's import-time init_db()
+
+    stopped = []
+
+    async def run_ingestion(broker, stop=None):
+        await stop.wait()
+        stopped.append(broker.id)
+
+    broker = SimpleNamespace(
+        id=1,
+        name="fake",
+        modified=0,
+        broker_class=SimpleNamespace(run_ingestion=run_ingestion),
+    )
+    listings = [{1: broker}, {}, {}]
+
+    class _Done(BaseException):
+        pass
+
+    async def list_brokers(session):
+        if not listings:
+            raise _Done
+        return listings.pop(0)
+
+    monkeypatch.setattr(broker_ingest, "RESCAN_INTERVAL", 0.01)
+    monkeypatch.setattr(broker_ingest, "_active_ingestion_brokers", list_brokers)
+    with pytest.raises(_Done):
+        asyncio.run(broker_ingest._run_loop())
+    assert stopped == [1]

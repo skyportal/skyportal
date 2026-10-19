@@ -1,126 +1,61 @@
-import { useGetGroupsQuery } from "../../ducks/groups";
-import { useGetTaxonomiesQuery } from "../../ducks/taxonomies";
-import React, { useState } from "react";
+import { forwardRef, useState } from "react";
 
-import IconButton from "@mui/material/IconButton";
-import CloseIcon from "@mui/icons-material/Close";
 import Dialog from "@mui/material/Dialog";
 import DialogContent from "@mui/material/DialogContent";
-import Toolbar from "@mui/material/Toolbar";
 import Tooltip from "@mui/material/Tooltip";
 import Slide from "@mui/material/Slide";
-import { makeStyles } from "tss-react/mui";
-import dayjs from "dayjs";
-import utc from "dayjs/plugin/utc";
-import { useGetAnnotationsInfoQuery } from "../../ducks/candidate/candidates";
-import Button from "../Button";
+import SettingsIcon from "@mui/icons-material/Settings";
 
-import { allowedClasses } from "../classification/ClassificationForm";
+import Button from "../Button";
 import ScanningProfilesList from "./ScanningProfilesList";
 
-dayjs.extend(utc);
-
-const useStyles = makeStyles()((theme) => ({
-  dialogContent: {
-    backgroundColor: theme.palette.background.default,
-  },
-  header: {
-    width: "100%",
-    justifyContent: "flex-end",
-  },
-}));
-
-const Transition = React.forwardRef((props: any, ref: any) => {
-  const { children, ...rest } = props;
-  return (
-    <Slide direction="up" ref={ref} {...rest}>
-      {children}
-    </Slide>
-  );
+const Transition = forwardRef(function Transition(props: any, ref) {
+  return <Slide direction="up" ref={ref} {...props} />;
 });
-Transition.displayName = "Transition";
 
 interface CandidatesPreferencesProps {
+  hasProfiles: boolean;
   selectedScanningProfile?: Record<string, any> | null;
   setSelectedScanningProfile: (...args: any[]) => void;
 }
 
 const CandidatesPreferences = ({
-  selectedScanningProfile = null,
+  hasProfiles,
+  selectedScanningProfile,
   setSelectedScanningProfile,
 }: CandidatesPreferencesProps) => {
-  const { data: availableAnnotationsInfo } =
-    useGetAnnotationsInfoQuery(undefined);
-  const { classes } = useStyles();
-
-  const userAccessibleGroups = useGetGroupsQuery().data?.userAccessible ?? [];
-
-  // Get unique classification names, in alphabetical order
-  const { data: taxonomyList } = useGetTaxonomiesQuery();
-  const latestTaxonomyList = taxonomyList?.filter((t: any) => t.isLatest) ?? [];
-  let classifications: any[] = [];
-  latestTaxonomyList.forEach((taxonomy: any) => {
-    const currentClasses = allowedClasses(taxonomy.hierarchy)?.map(
-      (option: any) => option.class,
-    );
-    classifications = classifications.concat(currentClasses);
-  });
-  classifications = Array.from(new Set(classifications)).sort();
-
-  const [addDialogOpen, setAddDialogOpen] = useState(false);
+  const [open, setOpen] = useState(false);
+  const close = () => setOpen(false);
 
   return (
-    <div>
-      <div>
-        <Tooltip title="Save and load pre-set search options">
-          <div>
-            <Button
-              secondary
-              data-testid="manageScanningProfilesButton"
-              onClick={() => {
-                setAddDialogOpen(true);
-              }}
-            >
-              Manage scanning profiles
-            </Button>
-          </div>
-        </Tooltip>
-      </div>
+    <>
+      <Tooltip title="Save the current search options as a profile, or load one">
+        <Button
+          size="small"
+          endIcon={<SettingsIcon />}
+          data-testid="manageScanningProfilesButton"
+          onClick={() => setOpen(true)}
+        >
+          {hasProfiles
+            ? "Manage scanning profiles"
+            : "Create a scanning profile"}
+        </Button>
+      </Tooltip>
       <Dialog
-        open={addDialogOpen}
+        open={open}
         fullScreen
-        onClose={() => setAddDialogOpen(false)}
-        aria-labelledby="alert-dialog-title"
-        aria-describedby="alert-dialog-description"
-        slots={{
-          transition: Transition,
-        }}
+        onClose={close}
+        slots={{ transition: Transition }}
       >
-        <Toolbar className={classes.header}>
-          <IconButton
-            edge="start"
-            color="inherit"
-            data-testid="closeScanningProfilesButton"
-            onClick={() => {
-              setAddDialogOpen(false);
-            }}
-            aria-label="close"
-            size="large"
-          >
-            <CloseIcon />
-          </IconButton>
-        </Toolbar>
-        <DialogContent className={classes.dialogContent}>
+        <DialogContent sx={{ bgcolor: "background.default" }}>
           <ScanningProfilesList
             selectedScanningProfile={selectedScanningProfile}
             setSelectedScanningProfile={setSelectedScanningProfile}
-            userAccessibleGroups={userAccessibleGroups}
-            availableAnnotationsInfo={availableAnnotationsInfo}
-            classifications={classifications}
+            onClose={close}
           />
         </DialogContent>
       </Dialog>
-    </div>
+    </>
   );
 };
 

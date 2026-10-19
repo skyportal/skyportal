@@ -4,6 +4,7 @@ import dayjs from "dayjs";
 import Form from "@rjsf/mui";
 import validator from "@rjsf/validator-ajv8";
 import { makeStyles } from "tss-react/mui";
+import CircularProgress from "@mui/material/CircularProgress";
 import Collapse from "@mui/material/Collapse";
 import Divider from "@mui/material/Divider";
 import List from "@mui/material/List";
@@ -76,9 +77,10 @@ const ShiftSummary = ({
     dateobs: any;
     filterParams?: any;
   } | null>(null);
-  const { data: sources } = useFetchGcnEventSourcesQuery(gcnSourcesArgs!, {
-    skip: gcnSourcesArgs == null,
-  });
+  const { data: sources, isFetching: sourcesFetching } =
+    useFetchGcnEventSourcesQuery(gcnSourcesArgs!, {
+      skip: gcnSourcesArgs == null,
+    });
 
   const [sourcesRowsPerPage, setSourcesRowsPerPage] = useState(100);
   // return a React json schema form where the user can select a start date and end date, and then click submit to get
@@ -249,6 +251,8 @@ const ShiftSummary = ({
         numPerPage={gcnSources.numPerPage}
         sortingCallback={handleSourcesTableSorting}
       />
+    ) : sourcesFetching ? (
+      <CircularProgress size={24} />
     ) : (
       <div>No sources found</div>
     );

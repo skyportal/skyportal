@@ -17,9 +17,10 @@ from baselayer.app.models import ACL, init_db, session_context_id
 from baselayer.log import make_log
 from skyportal.models import (
     AssistantMessage,
+    AssistantQuery,
     Comment,
     DBSession,
-    Group,
+    Filter,
     GroupUser,
     Token,
     User,
@@ -28,12 +29,15 @@ from skyportal.models import (
 from skyportal.utils.app import get_app_base_url
 from skyportal.utils.assistant import (
     SERVICE_TOKEN_PREFIX,
+    attempt_timeouts,
     build_messages,
+    chat_payload,
     condense,
     offered_tools,
     proposal,
     record_call,
 )
+from skyportal.utils.assistant_triage import SKYBOT_USERNAME
 
 _, cfg = load_env()
 log = make_log("assistant")
@@ -57,6 +61,11 @@ MAX_CONTEXT = int(CONFIG.get("max_context_messages", 40))
 # next to generation, so this buys breadth for very little time.
 RESULT_BUDGET = int(CONFIG.get("result_budget", 20000))
 TIMEOUT = float(CONFIG.get("request_timeout", 300))
+# A stalled request holds the whole answer budget and the turn ends with
+# nothing. Bounding one attempt leaves room to try again inside the same
+# deadline, which is worth doing: the failures seen so far hang from the
+# first call while neighbouring turns answer in seconds.
+ATTEMPT_TIMEOUT = float(CONFIG.get("attempt_timeout", 150))
 
 
 def _rpc(token, method, params, timeout, tool_name=None):
@@ -133,25 +142,45 @@ def call_tool(token, name, arguments, offered):
 
 
 def chat(messages, tools, timeout=None):
+    """One chat-completions round, retried once if the first attempt stalls."""
     headers = {"Content-Type": "application/json"}
     if API_KEY:
         headers["Authorization"] = f"Bearer {API_KEY}"
-    response = requests.post(
-        f"{BASE_URL.rstrip('/')}/chat/completions",
-        headers=headers,
-        json={
-            "model": MODEL,
-            "messages": messages,
-            "tools": tools,
-            "temperature": 0,
-            **(
-                {} if THINKING else {"chat_template_kwargs": {"enable_thinking": False}}
-            ),
-        },
-        timeout=timeout or TIMEOUT,
-    )
-    response.raise_for_status()
-    return response.json()["choices"][0]["message"]
+    payload = chat_payload(MODEL, messages, tools, THINKING)
+
+    attempts = attempt_timeouts(timeout or TIMEOUT, ATTEMPT_TIMEOUT)
+
+    last: Exception | None = None
+    for number, attempt in enumerate(attempts, start=1):
+        try:
+            response = requests.post(
+                f"{BASE_URL.rstrip('/')}/chat/completions",
+                headers=headers,
+                json=payload,
+                timeout=attempt,
+            )
+        except requests.exceptions.Timeout as exc:
+            last = exc
+            log(
+                f"model did not answer within {attempt:.0f}s "
+                f"(attempt {number} of {len(attempts)})"
+            )
+            continue
+        if response.status_code >= 400:
+            # The status alone says nothing: a refused request looks identical
+            # whether the context was too long, a tool schema was rejected or
+            # the model was unavailable, and the answer the user sees is the
+            # same sentence either way. The server's own words tell them apart.
+            log(
+                f"model refused the request: {response.status_code} "
+                f"{response.text[:600]} "
+                f"(messages={len(messages)}, tools={len(tools)}, "
+                f"payload={len(json.dumps(messages)) + len(json.dumps(tools))} chars)"
+            )
+        response.raise_for_status()
+        return response.json()["choices"][0]["message"]
+
+    raise last if last is not None else RuntimeError("no attempt was made")
 
 
 def remaining(deadline, floor=5.0):
@@ -236,6 +265,30 @@ def service_token(session, user_id):
     session.add(token)
     session.commit()
     return token
+
+
+def requester_of(session, message, user):
+    match = re.fullmatch(r"query:(\d+):.+", message.channel or "")
+    if match is None or not (user.is_bot and user.username == SKYBOT_USERNAME):
+        return message.user_id
+    return session.scalar(
+        sa.select(AssistantQuery.owner_id).where(AssistantQuery.id == int(match[1]))
+    )
+
+
+def may_edit_filter(session, user_id, context_id):
+    broker_id, _, filter_id = (context_id or "").partition("/")
+    if not (broker_id.isdigit() and filter_id.isdigit()):
+        return False
+    user = session.scalar(sa.select(User).where(User.id == user_id))
+    return (
+        session.scalars(
+            Filter.select(user, mode="update").where(
+                Filter.id == int(filter_id), Filter.broker_id == int(broker_id)
+            )
+        ).first()
+        is not None
+    )
 
 
 def clear_service_tokens():
@@ -331,7 +384,8 @@ def post_triage_comment(session, author_id, notify, context_type, context_id, an
     text = (answer or "").strip()
     if not (group_ids and context_type == "source" and context_id and text):
         return
-    groups = session.scalars(sa.select(Group).where(Group.id.in_(group_ids))).all()
+    author = session.scalar(sa.select(User).where(User.id == author_id))
+    groups = [group for group in author.accessible_groups if group.id in group_ids]
     if not groups:
         return
     session.add(
@@ -430,7 +484,15 @@ def respond(message_id):
                 "first_name": user.first_name,
                 "last_name": user.last_name,
             }
-            token_id = service_token(session, user_id).id
+            requester_id = requester_of(session, message, user)
+            if requester_id is None:
+                log(f"message {message_id} is for a query that is gone; not answering")
+                return
+            if context_type == "filter" and not may_edit_filter(
+                session, requester_id, context_id
+            ):
+                context_type = context_id = None
+            token_id = service_token(session, requester_id).id
 
         # Answering takes minutes, so no connection is held while it runs.
         trace, built = [], None
@@ -440,11 +502,17 @@ def respond(message_id):
             )
         except Exception as exc:
             log(f"assistant failed on message {message_id}: {exc}")
-            text = (
-                "The assistant is not set up correctly; tell an administrator."
-                if misconfigured(exc)
-                else "Something went wrong while looking that up."
-            )
+            if misconfigured(exc):
+                text = "The assistant is not set up correctly; tell an administrator."
+            elif isinstance(exc, requests.exceptions.Timeout):
+                # Distinguishable from a fault in what was asked: a reader who
+                # cannot tell them apart reports the wrong one.
+                text = (
+                    "The model did not answer in time. Nothing is wrong with "
+                    "what you asked; try again."
+                )
+            else:
+                text = "Something went wrong while looking that up."
 
         # A query run ends with a NOTIFY: yes/no marker deciding whether it is
         # worth a notification; the comment is posted either way.

@@ -5,7 +5,7 @@ from sqlalchemy.orm import selectinload
 
 from baselayer.app.access import permissions
 
-from ...models import Group, GroupPhotometry, GroupUser, Photometry, Spectrum
+from ...models import Group, GroupPhotometry, GroupUser, Obj, Photometry, Spectrum
 from ..base import BaseHandler
 
 
@@ -162,13 +162,17 @@ class SharingHandler(BaseHandler):
 
             await session.commit()
 
-            phot_obj_ids = set(phot_obj_ids)
+            phot_obj_internal_keys = (
+                await session.scalars(
+                    sa.select(Obj.internal_key).where(Obj.id.in_(set(phot_obj_ids)))
+                )
+            ).all()
             spec_obj_internal_keys = set(spec_obj_internal_keys)
 
-            for obj_id in phot_obj_ids:
+            for obj_internal_key in phot_obj_internal_keys:
                 self.push(
                     action="skyportal/REFRESH_SOURCE_PHOTOMETRY",
-                    payload={"obj_id": obj_id},
+                    payload={"obj_key": obj_internal_key},
                 )
 
             for obj_internal_key in spec_obj_internal_keys:

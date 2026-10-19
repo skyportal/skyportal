@@ -1,11 +1,8 @@
 import { useGetProfileQuery } from "../../ducks/profile";
-import React, { useState } from "react";
+import { useState } from "react";
 import Typography from "@mui/material/Typography";
-import Paper from "@mui/material/Paper";
+import Box from "@mui/material/Box";
 import Grid from "@mui/material/Grid";
-import { makeStyles } from "tss-react/mui";
-import Dialog from "@mui/material/Dialog";
-import DialogContent from "@mui/material/DialogContent";
 import Tab from "@mui/material/Tab";
 import Tabs from "@mui/material/Tabs";
 
@@ -14,7 +11,9 @@ import { filterOutEmptyValues } from "../../API";
 import ExecutedObservationsTable from "./ExecutedObservationsTable";
 import QueuedObservationsTable from "./QueuedObservationsTable";
 import QueueAPIDisplay from "./QueueAPIDisplay";
-import ProgressIndicator from "../ProgressIndicators";
+import { DownloadProgressDialog } from "../ProgressIndicators";
+import Paper from "../Paper";
+import Spinner from "../Spinner";
 import SkymapTriggerAPIDisplay from "./SkymapTriggerAPIDisplay";
 
 import {
@@ -27,107 +26,11 @@ import {
 } from "../../ducks/queued_observations";
 import { useAppDispatch } from "../../types/hooks";
 
-interface ObservationListProps {
-  observations?: any;
-  fetchParams: { pageNumber: number; numPerPage: number };
-  handleTableChange: (...a: any[]) => void;
-  handleFilterSubmit: (...a: any[]) => void;
-  downloadCallback: (...a: any[]) => void;
-  filterModel?: any;
-  onFilterModelChange?: ((model: any) => void) | undefined;
-}
-
-const useStyles = makeStyles()((theme) => ({
-  root: {
-    width: "100%",
-    maxWidth: "22.5rem",
-    backgroundColor: theme.palette.background.paper,
-    whiteSpace: "pre-line",
-  },
-  header: {
-    display: "flex",
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-  },
-  content: {
-    margin: "1rem",
-  },
-  paperContent: {
-    marginBottom: "1rem",
-  },
-  dividerHeader: {
-    background: theme.palette.primary.main,
-    height: "2px",
-  },
-  divider: {
-    background: theme.palette.secondary.main,
-  },
-  accordionHeading: {
-    fontSize: "1.25rem",
-    fontWeight: theme.typography.fontWeightRegular,
-  },
-  Container: {
-    display: "flex",
-    overflow: "hidden",
-    flexDirection: "column",
-  },
-}));
-
-const defaultNumPerPage = 30;
-
-const ExecutedObservationList = ({
-  observations,
-  fetchParams,
-  handleTableChange,
-  handleFilterSubmit,
-  downloadCallback,
-  filterModel,
-  onFilterModelChange,
-}: ObservationListProps) => {
-  return (
-    <ExecutedObservationsTable
-      observations={observations?.observations ?? []}
-      pageNumber={fetchParams.pageNumber}
-      numPerPage={fetchParams.numPerPage}
-      handleTableChange={handleTableChange}
-      handleFilterSubmit={handleFilterSubmit}
-      totalMatches={observations?.totalMatches ?? 0}
-      downloadCallback={downloadCallback}
-      filterModel={filterModel}
-      onFilterModelChange={onFilterModelChange}
-    />
-  );
-};
-
-const QueuedObservationList = ({
-  observations,
-  fetchParams,
-  handleTableChange,
-  handleFilterSubmit,
-  downloadCallback,
-  filterModel,
-  onFilterModelChange,
-}: ObservationListProps) => {
-  return (
-    <QueuedObservationsTable
-      observations={observations?.observations ?? []}
-      pageNumber={fetchParams.pageNumber}
-      numPerPage={fetchParams.numPerPage}
-      handleTableChange={handleTableChange}
-      handleFilterSubmit={handleFilterSubmit}
-      totalMatches={observations?.totalMatches ?? 0}
-      downloadCallback={downloadCallback}
-      filterModel={filterModel}
-      onFilterModelChange={onFilterModelChange}
-    />
-  );
-};
+const defaultNumPerPage = 25;
 
 const ObservationPage = () => {
   const { data: currentUser } = useGetProfileQuery();
   const dispatch = useAppDispatch();
-  const { classes } = useStyles();
 
   const [fetchExecutedParams, setFetchExecutedParams] = useState<any>({
     pageNumber: 1,
@@ -149,25 +52,15 @@ const ObservationPage = () => {
   const [downloadProgressCurrent, setDownloadProgressCurrent] = useState(0);
   const [downloadProgressTotal, setDownloadProgressTotal] = useState(0);
 
-  const [tabIndex, setTabIndex] = React.useState(0);
-  // Shared across tabs so a search typed in one table survives switching
-  // tabs; it only resets when this component unmounts (i.e. leaving the page).
+  const [tabIndex, setTabIndex] = useState(0);
   const [filterModel, setFilterModel] = useState({
     items: [],
     quickFilterValues: [],
   });
 
-  if (observations == null) {
-    return <p>No observations available...</p>;
+  if (observations == null || queuedObservations == null) {
+    return <Spinner context="observations" />;
   }
-
-  if (queuedObservations == null) {
-    return <p>No queued observations available...</p>;
-  }
-
-  const handleChangeTab = (_event: any, newValue: number) => {
-    setTabIndex(newValue);
-  };
 
   const handleExecutedPageChange = async (
     page: number,
@@ -183,7 +76,6 @@ const ObservationPage = () => {
       params.sortBy = sortData.name;
       params.sortOrder = sortData.direction;
     }
-    // Save state for future (triggers the observations query refetch)
     setFetchExecutedParams(params);
   };
 
@@ -197,7 +89,6 @@ const ObservationPage = () => {
       numPerPage,
       pageNumber: page + 1,
     };
-    // Save state for future (triggers the queued observations query refetch)
     setFetchQueuedParams(params);
   };
 
@@ -224,14 +115,14 @@ const ObservationPage = () => {
   const handleExecutedTableChange = (action: string, tableState: any) => {
     if (action === "changePage" || action === "changeRowsPerPage") {
       handleExecutedPageChange(
-        tableState.page + 1,
+        tableState.page,
         tableState.rowsPerPage,
         tableState.sortOrder,
       );
     }
     if (action === "sort") {
       if (tableState.sortOrder.direction === "none") {
-        handleExecutedPageChange(1, tableState.rowsPerPage, {});
+        handleExecutedPageChange(0, tableState.rowsPerPage, {});
       } else {
         handleExecutedTableSorting(tableState.sortOrder);
       }
@@ -244,7 +135,7 @@ const ObservationPage = () => {
     }
     if (action === "sort") {
       if (tableState.sortOrder.direction === "none") {
-        handleQueuedPageChange(1, tableState.rowsPerPage, {});
+        handleQueuedPageChange(0, tableState.rowsPerPage, {});
       } else {
         handleQueuedTableSorting(tableState.sortOrder);
       }
@@ -266,7 +157,6 @@ const ObservationPage = () => {
       params.endDate = filterData.endDate;
       params.instrumentName = filterData.instrumentName;
     }
-    // Save state for future (triggers the observations query refetch)
     setFetchExecutedParams(params);
   };
 
@@ -285,7 +175,6 @@ const ObservationPage = () => {
       params.endDate = filterData.endDate;
       params.instrumentName = filterData.instrumentName;
     }
-    // Save state for future (triggers the queued observations query refetch)
     setFetchQueuedParams(params);
   };
 
@@ -322,7 +211,6 @@ const ObservationPage = () => {
           setDownloadProgressCurrent(observationsAll.length);
           setDownloadProgressTotal(totalMatches);
         } catch {
-          // break the loop and set progress to 0 and show error message
           setDownloadProgressCurrent(0);
           setDownloadProgressTotal(0);
           if (observations.observations?.length === 0) {
@@ -378,7 +266,6 @@ const ObservationPage = () => {
           setDownloadProgressCurrent(observationsAll.length);
           setDownloadProgressTotal(queuedObservations.totalMatches);
         } catch {
-          // break the loop and set progress to 0 and show error message
           setDownloadProgressCurrent(0);
           setDownloadProgressTotal(0);
           if (queuedObservations.observations?.length === 0) {
@@ -409,106 +296,70 @@ const ObservationPage = () => {
   };
 
   return (
-    <Grid container spacing={3}>
-      <Grid size={12}>
-        <Tabs value={tabIndex} onChange={handleChangeTab} centered>
-          <Tab label="Executed Observations" />
-          <Tab label="Queued Observations" />
-          {currentUser?.permissions?.includes("System admin") && (
-            <Tab label="Queue Interactions" />
-          )}
-        </Tabs>
-      </Grid>
+    <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
+      <Tabs
+        value={tabIndex}
+        onChange={(_event, value) => setTabIndex(value)}
+        sx={{ borderBottom: 1, borderColor: "divider" }}
+      >
+        <Tab label="Executed Observations" />
+        <Tab label="Queued Observations" />
+        {currentUser?.permissions?.includes("System admin") && (
+          <Tab label="Queue Interactions" />
+        )}
+      </Tabs>
       {tabIndex === 0 && (
-        <Grid size={12} style={{ paddingTop: 0 }}>
-          <div className={classes.Container}>
-            <ExecutedObservationList
-              observations={observations}
-              fetchParams={fetchExecutedParams}
-              handleTableChange={handleExecutedTableChange}
-              handleFilterSubmit={handleExecutedFilterSubmit}
-              downloadCallback={handleExecutedDownload}
-              filterModel={filterModel}
-              onFilterModelChange={setFilterModel}
-            />
-            <Dialog open={downloadProgressTotal > 0} maxWidth="md">
-              <DialogContent
-                style={{
-                  display: "flex",
-                  flexDirection: "column",
-                  justifyContent: "center",
-                  alignItems: "center",
-                }}
-              >
-                <Typography
-                  variant="h6"
-                  sx={{
-                    display: "inline",
-                  }}
-                >
-                  Downloading {downloadProgressTotal} observations
-                </Typography>
-                <div
-                  style={{
-                    height: "5rem",
-                    width: "5rem",
-                    display: "flex",
-                    flexDirection: "column",
-                    justifyContent: "center",
-                    alignItems: "center",
-                  }}
-                >
-                  <ProgressIndicator
-                    current={downloadProgressCurrent}
-                    total={downloadProgressTotal}
-                    percentage={false}
-                  />
-                </div>
-              </DialogContent>
-            </Dialog>
-          </div>
-        </Grid>
+        <>
+          <ExecutedObservationsTable
+            observations={observations.observations ?? []}
+            pageNumber={fetchExecutedParams.pageNumber}
+            numPerPage={fetchExecutedParams.numPerPage}
+            handleTableChange={handleExecutedTableChange}
+            handleFilterSubmit={handleExecutedFilterSubmit}
+            totalMatches={observations.totalMatches ?? 0}
+            downloadCallback={handleExecutedDownload}
+            filterModel={filterModel}
+            onFilterModelChange={setFilterModel}
+            fixedHeader
+          />
+          <DownloadProgressDialog
+            current={downloadProgressCurrent}
+            total={downloadProgressTotal}
+            label="observations"
+          />
+        </>
       )}
       {tabIndex === 1 && (
-        <Grid size={12} style={{ paddingTop: 0 }}>
-          <div className={classes.Container}>
-            <QueuedObservationList
-              observations={queuedObservations}
-              fetchParams={fetchQueuedParams}
-              handleTableChange={handleQueuedTableChange}
-              handleFilterSubmit={handleQueuedFilterSubmit}
-              downloadCallback={handleQueuedDownload}
-              filterModel={filterModel}
-              onFilterModelChange={setFilterModel}
-            />
-          </div>
-        </Grid>
+        <QueuedObservationsTable
+          observations={queuedObservations.observations ?? []}
+          pageNumber={fetchQueuedParams.pageNumber}
+          numPerPage={fetchQueuedParams.numPerPage}
+          handleTableChange={handleQueuedTableChange}
+          handleFilterSubmit={handleQueuedFilterSubmit}
+          totalMatches={queuedObservations.totalMatches ?? 0}
+          downloadCallback={handleQueuedDownload}
+          filterModel={filterModel}
+          onFilterModelChange={setFilterModel}
+          fixedHeader
+        />
       )}
       {tabIndex === 2 && currentUser?.permissions?.includes("System admin") && (
-        <Grid container size={12} spacing={1} style={{ paddingTop: 0 }}>
+        <Grid container spacing={2}>
           <Grid size={{ xs: 12, lg: 6 }}>
-            <Paper style={{ padding: "1rem" }}>
-              <Typography className={classes.accordionHeading}>
-                Queue Interaction
-              </Typography>
-              <div className={classes.Container}>
-                <QueueAPIDisplay />
-              </div>
+            <Paper>
+              <Typography variant="h6">Queue Interaction</Typography>
+              <QueueAPIDisplay />
             </Paper>
           </Grid>
           <Grid size={{ xs: 12, lg: 6 }}>
-            <Paper style={{ padding: "1rem" }}>
-              <Typography className={classes.accordionHeading}>
-                Skymap Queue Interaction
-              </Typography>
-              <div className={classes.Container}>
-                <SkymapTriggerAPIDisplay />
-              </div>
+            <Paper>
+              <Typography variant="h6">Skymap Queue Interaction</Typography>
+              <SkymapTriggerAPIDisplay />
             </Paper>
           </Grid>
         </Grid>
       )}
-    </Grid>
+    </Box>
   );
 };
 

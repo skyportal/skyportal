@@ -3,6 +3,7 @@ import Tooltip from "@mui/material/Tooltip";
 import CloudDownloadIcon from "@mui/icons-material/CloudDownload";
 import { scanReportItemApi } from "../../../ducks/candidate/scan_report";
 import { useAppDispatch } from "../../../types/hooks";
+import { download } from "../../../utils/download";
 
 interface DownloadReportProps {
   report: {
@@ -27,17 +28,7 @@ const DownloadReport = ({ report }: DownloadReportProps) => {
       ),
     };
 
-    const blob = new Blob([JSON.stringify(reportData)], {
-      type: "application/json",
-    });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = "Report.json";
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
+    download(JSON.stringify(reportData), "application/json", "Report.json");
   };
 
   const handleDownload = async () => {

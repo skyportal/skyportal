@@ -1,5 +1,7 @@
 import asyncio
+import time
 import uuid
+from concurrent.futures import ThreadPoolExecutor
 
 import pytest
 import sqlalchemy as sa
@@ -210,6 +212,43 @@ def test_detections_link_under_a_designation_super_obj(
     assert obj_id in {obj.id for obj in super_obj.objs}
 
 
+def test_concurrent_detections_share_one_designation_super_obj(
+    monkeypatch, ztf_instrument, ztf_stream, designation, public_group, super_admin_user
+):
+    from skyportal.utils import sso_ingest
+
+    link = sso_ingest._link_designation
+
+    async def slow_link(*args):
+        await link(*args)
+        await asyncio.sleep(2)
+
+    monkeypatch.setattr(sso_ingest, "_link_designation", slow_link)
+    with ThreadPoolExecutor(2) as pool:
+        first = pool.submit(
+            run_ingest,
+            alert(designation, 2460000.5, 10.0, 20.0),
+            designation,
+            super_admin_user.id,
+            [public_group.id],
+        )
+        time.sleep(1)
+        second = pool.submit(
+            run_ingest,
+            alert(designation, 2460001.5, 10.5, 20.4),
+            designation,
+            super_admin_user.id,
+            [public_group.id],
+        )
+        first.result()
+        second.result()
+
+    super_objs = DBSession().scalars(
+        sa.select(SuperObj).where(SuperObj.name == f"SSO {designation}")
+    )
+    assert len(super_objs.all()) == 1
+
+
 def test_sso_filter_targets_reads_altdata_and_autosave(
     public_group, public_stream, public_filter
 ):
@@ -355,7 +394,7 @@ def test_triggering_detection_picked_from_boom_history():
     data = _normalize_boom_alert(boom_record("9816", 2460000.5, 10.0, 20.0))
 
     # The shape that previously fooled the ingest into finding nothing.
-    assert data["candidate"].get("jd") is None
+    assert data["candidate"].get("band") is None
     assert len(data["prv_candidates"]) == 3
 
     detection = triggering_detection(data)

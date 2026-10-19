@@ -16,7 +16,6 @@ from skyportal_py_models.catalog_queries import (
     CatalogQueryPostBody,
     GaiaPhotometricAlertsQueryPostBody,
     SwiftLSXPSQueryPostBody,
-    TessTransientsQueryPostBody,
 )
 from sqlalchemy.orm import scoped_session, selectinload, sessionmaker
 from tornado.ioloop import IOLoop
@@ -208,7 +207,7 @@ def fetch_transients(allocation_id, user_id, group_ids, payload):
                 ).first()
                 if s is None:
                     source["group_ids"] = group_ids
-                    (obj_id,) = post_source(source, user_id, session)
+                    obj_id, _, _ = post_source(source, user_id, session)
                     obj_ids.append(obj_id)
 
                 if len(df.index) > 0:
@@ -404,7 +403,7 @@ def fetch_swift_transients(instrument_id, user_id, group_ids):
                 s = session.scalars(Obj.select(user).where(Obj.id == obj_name)).first()
                 if s is None:
                     data["group_ids"] = group_ids
-                    (obj_id,) = post_source(data, user_id, session)
+                    obj_id, _, _ = post_source(data, user_id, session)
                     obj_ids.append(obj_id)
                 else:
                     obj_id = s.id
@@ -567,6 +566,7 @@ class GaiaPhotometricAlertsQueryHandler(BaseHandler):
                 fetch_gaia_transients,
                 instrument.id,
                 self.associated_user_object.id,
+                group_ids,
                 payload,
             )
 
@@ -630,7 +630,7 @@ def fetch_gaia_transients(instrument_id, user_id, group_ids, payload):
             s = session.scalars(Obj.select(user).where(Obj.id == name)).first()
             if s is None:
                 data["group_ids"] = group_ids
-                (obj_id,) = post_source(data, user_id, session)
+                obj_id, _, _ = post_source(data, user_id, session)
                 obj_ids.append(obj_id)
             else:
                 obj_id = s.id
@@ -709,70 +709,6 @@ def fetch_gaia_transients(instrument_id, user_id, group_ids, payload):
         session.close()
 
 
-class TessTransientsQueryHandler(BaseHandler):
-    @auth_or_token
-    async def post(self, *, body: TessTransientsQueryPostBody = None):
-        """
-        ---
-        summary: Post TESS transients as sources
-        description: |
-            Get TESS transient objects and post them as sources.
-            Repeated posting will skip the existing source.
-        tags:
-            - catalogs
-            - tess
-        responses:
-          200:
-            content:
-              application/json:
-                schema: Success
-          400:
-            content:
-              application/json:
-                schema: Error
-        """
-        body = self.parse_body(TessTransientsQueryPostBody)
-
-        telescope_name = (
-            body.telescope_name if body.telescope_name is not None else "TESS"
-        )
-        start_date = body.startDate
-        end_date = body.endDate
-        group_ids = body.groupIDs
-
-        if start_date is not None:
-            start_date = Time(arrow.get(start_date.strip()).datetime)
-        if end_date is not None:
-            end_date = Time(arrow.get(end_date.strip()).datetime)
-
-        payload = {"start_date": start_date, "end_date": end_date}
-
-        async with self.AsyncSession() as session:
-            if group_ids is None:
-                group_ids = await accessible_group_ids_async(self.current_user, session)
-
-            telescope = await session.scalar(
-                Telescope.select(session.user_or_token)
-                .options(selectinload(Telescope.instruments))
-                .where(Telescope.nickname == telescope_name)
-            )
-            if telescope is None:
-                return self.error(f"Expected a Telescope named {telescope_name}")
-            instrument = telescope.instruments[0]
-
-            fetch_tr = functools.partial(
-                fetch_tess_transients,
-                instrument.id,
-                self.associated_user_object.id,
-                group_ids,
-                payload,
-            )
-
-            IOLoop.current().run_in_executor(None, fetch_tr)
-
-            return self.success()
-
-
 def fetch_tess_transients(instrument_id, user_id, group_ids, payload):
     """Fetch TESS transients.
     instrument_id : int
@@ -828,7 +764,7 @@ def fetch_tess_transients(instrument_id, user_id, group_ids, payload):
             s = session.scalars(Obj.select(user).where(Obj.id == name)).first()
             if s is None:
                 data["group_ids"] = group_ids
-                (obj_id,) = post_source(data, user_id, session)
+                obj_id, _, _ = post_source(data, user_id, session)
                 obj_ids.append(obj_id)
             else:
                 obj_id = s.id

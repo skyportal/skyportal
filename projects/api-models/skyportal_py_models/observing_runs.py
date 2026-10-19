@@ -152,9 +152,9 @@ class ObservingRunGetQuery(BaseModel):
     upcomingOnly: bool = Field(
         default=False,
         description=(
-            "Only return runs that have not finished yet. Callers offering a "
-            "run to assign a target to want these, rather than every run ever "
-            "scheduled."
+            "Only return runs that have not finished yet or finished within "
+            "the last two days. Callers offering a run to assign a target to "
+            "want these, rather than every run ever scheduled."
         ),
     )
     numPerPage: int | None = Field(

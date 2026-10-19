@@ -10,9 +10,26 @@ Use the tools to look things up rather than guessing; if the tools do not answer
 the question, say so plainly. Do not work out for yourself where a target sits \
 in the sky at a given hour, when it rises or sets, or whether it is observable \
 from a telescope tonight: you have no clock and no ephemeris, and the figures \
-you produce will be wrong. When a value came from a circular or another \
+you produce will be wrong. Convert times with convert_time and report the UTC \
+it returns; a Julian Date restated from memory lands on the wrong calendar day, \
+because the JD day turns over at noon UTC. When a value came from a circular or another \
 record, quote the text it came from so a reader can check it. Be brief: this is a \
-chat message, not a report."""
+chat message, not a report.
+
+You can write a broker filter only from that filter's own page, where the tools \
+for it are in front of you. Asked to build one anywhere else, say that a filter \
+is built from the filter page and offer to work out the cuts meanwhile; do not \
+ask for an endpoint or a payload to call on your own, and do not present a \
+pipeline you had no way to preview as though it were ready to save.
+
+When someone asks for high-impact, Nature- or Science-worthy, or otherwise \
+"special" or "interesting" objects, they mean scientifically unusual ones, not \
+objects that someone else has already labelled that way; do not just search the \
+comments for words like "Nature" or "Science". Judge it from the data: rare or \
+extreme classes (broad-lined Ic, superluminous supernovae, tidal disruption \
+events, kilonovae, fast or very luminous transients), unusual proximity or \
+luminosity, peculiar or fast-evolving light curves and spectra, high anomaly \
+scores from the ML classifiers, or a multi-messenger or cross-survey association."""
 
 # Reserved, so sweeping the service's own tokens cannot hit a user's.
 SERVICE_TOKEN_PREFIX = "assistant-service-"
@@ -46,8 +63,25 @@ def describe_user(user):
     return name or username or None
 
 
+def now_line():
+    """The current time, in the two forms the tools ask for.
+
+    The prompt tells the model it has no clock, which is right about ephemerides
+    and wrong about this: a broker preview is bounded by Julian Date, and a
+    model guessing one from memory reaches for a date in its training data. It
+    then spends its whole tool budget on a window the broker rejects.
+    """
+    from astropy.time import Time
+
+    now = Time.now()
+    return (
+        f"The time is {now.iso[:16]} UTC, which is JD {now.jd:.4f}. "
+        "Any window you pass to a tool should be near it."
+    )
+
+
 def system_prompt(context_type=None, context_id=None, user=None):
-    lines = [SYSTEM_PROMPT]
+    lines = [SYSTEM_PROMPT, now_line()]
     person = describe_user(user)
     if person:
         lines.append(f"The person asking is {person}, from their SkyPortal profile.")
@@ -248,10 +282,13 @@ def proposal(trace):
 # Writing tools the assistant may use while the user is on that filter's page,
 # where building a filter is the whole point of asking. Each touches only that
 # filter, runs under the user's own token, and activation is still gated on a
-# passing validation.
+# passing validation. post_group is here because a filter needs somewhere to
+# post its candidates, and a new filter often wants a new group; the group it
+# creates has one member, so it discloses nothing.
 FILTER_WRITE_TOOLS = frozenset(
     {
         "post_filter",
+        "post_group",
         "post_broker_filter_version",
         "validate_broker_filter_version",
         "activate_broker_filter_version",
@@ -274,3 +311,37 @@ def offered_tools(tools, context_type=None):
         if (tool.get("annotations") or {}).get("readOnlyHint")
         or tool.get("name") in writable
     ]
+
+
+def chat_payload(model, messages, tools, thinking=False):
+    """The body of a chat-completions request.
+
+    Here rather than in the service because the service calls init_db at
+    import, so a test that reaches into it rebinds the session for everything
+    else in the run.
+
+    `tools` is omitted when empty rather than sent as []: the last round asks
+    for an answer with no tools left to call, and a server that rejects an
+    empty array turns that into a 400 the user reads as "something went wrong".
+    """
+    payload = {"model": model, "messages": messages, "temperature": 0}
+    if tools:
+        payload["tools"] = tools
+    if not thinking:
+        payload["chat_template_kwargs"] = {"enable_thinking": False}
+    return payload
+
+
+def attempt_timeouts(budget, cap):
+    """How long to allow each try of one model round, longest first.
+
+    A stalled request holds whatever it is given, so an attempt bounded below
+    the deadline is what leaves room for a second one. Where the budget is too
+    small to divide there is a single attempt, which is the old behaviour.
+    """
+    if budget <= 0:
+        return []
+    first = min(cap, budget)
+    rest = budget - first
+    # A sliver of budget is not worth a round trip.
+    return [first, min(cap, rest)] if rest > 1.0 else [first]

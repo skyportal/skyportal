@@ -7,7 +7,7 @@ from skyportal_py_models.source_groups import (
 from baselayer.app.access import permissions
 from baselayer.log import make_log
 
-from ...models import Obj, Source
+from ...models import GroupUser, Obj, Source
 from ...utils.asynchronous import run_async
 from ...utils.data_access import auto_source_publishing_async
 from ...utils.naive_datetime import utcnow_naive
@@ -55,17 +55,45 @@ class SourceGroupsHandler(BaseHandler):
                 if int(save_or_invite_group_id) in [
                     g.id for g in self.current_user.accessible_groups
                 ]:
+                    if not await self.can_save(session, save_or_invite_group_id):
+                        return self.error(
+                            f"Insufficient permissions to save to group w/ ID {save_or_invite_group_id}"
+                        )
                     active = True
                     requested = False
                     saved_to_group_ids.append(save_or_invite_group_id)
                 else:
                     active = False
                     requested = True
-                source = await session.scalar(
-                    Source.select(session.user_or_token)
-                    .where(Source.obj_id == obj_id)
-                    .where(Source.group_id == save_or_invite_group_id)
-                )
+                if active:
+                    source = await session.scalar(
+                        Source.select(session.user_or_token)
+                        .where(Source.obj_id == obj_id)
+                        .where(Source.group_id == save_or_invite_group_id)
+                    )
+                else:
+                    # A non-member can't read the group's Source row, so look it
+                    # up without the read policy and re-request an inactive one
+                    # directly (Source.update is for members only).
+                    source = (
+                        await session.execute(
+                            sa.select(Source.id, Source.active).where(
+                                Source.obj_id == obj_id,
+                                Source.group_id == save_or_invite_group_id,
+                            )
+                        )
+                    ).first()
+                    if source is not None and not source.active:
+                        await session.execute(
+                            sa.update(Source.__table__)
+                            .where(Source.__table__.c.id == source.id)
+                            .values(
+                                requested=True,
+                                saved_by_id=self.associated_user_object.id,
+                                saved_at=utcnow_naive(),
+                            )
+                        )
+                        continue
                 if source is None:
                     session.add(
                         Source(
@@ -116,7 +144,7 @@ class SourceGroupsHandler(BaseHandler):
             await session.commit()
 
             # Shared mutable list to ensure publish_to target is triggered only once across all groups if needed
-            publish_to = ["TNS", "Hermes", "Public page"]
+            publish_to = ["TNS", "Hermes", "TROVE", "Public page"]
             for group_id in saved_to_group_ids:
                 await auto_source_publishing_async(
                     session=session,
@@ -162,6 +190,14 @@ class SourceGroupsHandler(BaseHandler):
                 )
             )
             previously_active = bool(source.active)
+            if (
+                active
+                and not previously_active
+                and not await self.can_save(session, group_id)
+            ):
+                return self.error(
+                    f"Insufficient permissions to save to group w/ ID {group_id}"
+                )
             source.active = active
             source.requested = requested
             if active and not previously_active:
@@ -175,3 +211,15 @@ class SourceGroupsHandler(BaseHandler):
                 action="skyportal/REFRESH_CANDIDATE", payload={"id": obj.internal_key}
             )
             return self.success()
+
+    async def can_save(self, session, group_id):
+        if self.current_user.is_system_admin:
+            return True
+        return bool(
+            await session.scalar(
+                sa.select(GroupUser.can_save).where(
+                    GroupUser.group_id == group_id,
+                    GroupUser.user_id == self.associated_user_object.id,
+                )
+            )
+        )

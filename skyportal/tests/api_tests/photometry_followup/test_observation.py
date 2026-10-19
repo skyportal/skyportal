@@ -209,3 +209,14 @@ def test_observation_isot(super_admin_token):
     )
 
     remove_telescope_and_instrument(telescope_id, instrument_id, super_admin_token)
+
+
+def test_observation_unknown_instrument(super_admin_token):
+    params = {
+        "instrumentName": "NoSuchInstrument",
+        "startDate": "2019-04-25 08:18:05",
+        "endDate": "2019-04-28 08:18:05",
+    }
+    status, data = api("GET", "observation", params=params, token=super_admin_token)
+    assert status == 400
+    assert "Missing instrument NoSuchInstrument" in data["message"]

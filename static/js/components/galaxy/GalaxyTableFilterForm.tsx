@@ -105,7 +105,7 @@ const GalaxyTableFilterForm = ({
   const { data: gcnEvents } = useGetGcnEventsQuery() as { data: any };
   const [selectedGcnEventId, setSelectedGcnEventId] = useState<any>(null);
 
-  const { handleSubmit, register, control, reset, getValues } = useForm();
+  const { handleSubmit, control, reset, getValues } = useForm();
 
   const handleClickReset = () => {
     reset({
@@ -177,7 +177,6 @@ const GalaxyTableFilterForm = ({
               <TextField
                 label="Galaxy Name"
                 name="galaxyName"
-                inputRef={register("galaxyName") as any}
                 onChange={onChange}
                 value={value}
               />
@@ -202,7 +201,6 @@ const GalaxyTableFilterForm = ({
                     step: 0.001,
                   },
                 }}
-                inputRef={register("position.ra") as any}
                 className={classes.positionField}
                 onChange={onChange}
                 value={value}
@@ -223,7 +221,6 @@ const GalaxyTableFilterForm = ({
                     step: 0.001,
                   },
                 }}
-                inputRef={register("position.dec") as any}
                 className={classes.positionField}
                 onChange={onChange}
                 value={value}
@@ -244,7 +241,6 @@ const GalaxyTableFilterForm = ({
                     step: 0.001,
                   },
                 }}
-                inputRef={register("position.radius") as any}
                 className={classes.positionField}
                 onChange={onChange}
                 value={value}
@@ -270,7 +266,6 @@ const GalaxyTableFilterForm = ({
                     step: 0.001,
                   },
                 }}
-                inputRef={register("minRedshift") as any}
                 onChange={onChange}
                 value={value}
               />
@@ -290,7 +285,6 @@ const GalaxyTableFilterForm = ({
                     step: 0.001,
                   },
                 }}
-                inputRef={register("maxRedshift") as any}
                 onChange={onChange}
                 value={value}
               />
@@ -315,7 +309,6 @@ const GalaxyTableFilterForm = ({
                     step: 0.1,
                   },
                 }}
-                inputRef={register("minDistance") as any}
                 onChange={onChange}
                 value={value}
               />
@@ -335,7 +328,6 @@ const GalaxyTableFilterForm = ({
                     step: 0.1,
                   },
                 }}
-                inputRef={register("maxDistance") as any}
                 onChange={onChange}
                 value={value}
               />

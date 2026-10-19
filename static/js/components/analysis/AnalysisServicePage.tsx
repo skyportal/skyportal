@@ -135,7 +135,6 @@ const AnalysisServiceList = ({
     setAnalysisServiceToViewDelete(null);
   };
 
-  // Default-analysis (auto-trigger) config, per service.
   const [defaultsServiceId, setDefaultsServiceId] = useState<any>(null);
 
   const deleteAnalysisService = () => {
@@ -298,10 +297,7 @@ const AnalysisServiceList = ({
     });
   }
 
-  // Memoized so the toolbar (and its "new analysis service" button) keeps a
-  // stable identity across the re-render that happens when the analysis
-  // services list finishes loading; otherwise MUI remounts it and any element
-  // reference a test is interacting with goes stale.
+  // Memoized: a toolbar remount on list load leaves test element references stale.
   const CustomToolbar = useMemo(
     () =>
       function AnalysisServiceToolbar() {
@@ -331,10 +327,6 @@ const AnalysisServiceList = ({
           rows={analysisServices || []}
           columns={columns}
           getRowId={(row: any) => row.id}
-          initialState={{
-            pagination: { paginationModel: { pageSize: 10 } },
-          }}
-          pageSizeOptions={[10, 25, 50, 100]}
           slots={{ toolbar: CustomToolbar }}
           showToolbar
         />

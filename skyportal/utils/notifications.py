@@ -1,5 +1,7 @@
 import datetime
 import json
+import re
+from concurrent.futures import ThreadPoolExecutor
 
 import aiohttp
 import lxml
@@ -44,6 +46,13 @@ if cfg.get("email_service") == "sendgrid" or cfg.get("email_service") == "smtp":
     email_enabled = True
 
 log = make_log("notifications")
+
+
+def wants_in_app(preferences, notification_type):
+    prefs = ((preferences or {}).get("notifications") or {}).get(
+        notification_type
+    ) or {}
+    return (prefs.get("in_app") or {}).get("active") is not False
 
 
 def gcn_notification_content(target, session):
@@ -489,6 +498,61 @@ def source_email_notification(target, data=None):
         )
 
 
+MARKDOWN_SPECIAL = re.compile(r"([\\`*_{}\[\]()#+\-.!|<>~])")
+
+
+def escape_markdown(text):
+    return MARKDOWN_SPECIAL.sub(r"\\\1", text)
+
+
+def escape_slack(text):
+    return text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+
+
+def feedback_notification_text(content, escape, bold="*"):
+    """Announce a feedback message or reply, escaping the user text for its channel."""
+    author = f"{bold}{escape(content['author'])}{bold}"
+    snippet = escape(content["snippet"])
+    if content["reply"]:
+        return f"{author} replied to your {content['label']}: {snippet}"
+    return f"New {content['label']} from {author}: {snippet}"
+
+
+def group_admission_request_notification_text(content, escape, bold="*"):
+    details = [f"@{content['username']}"] if content["name"] else []
+    if content["affiliations"]:
+        details.append(", ".join(content["affiliations"]))
+    requester = f"{bold}{escape(content['name'] or '@' + content['username'])}{bold}"
+    if details:
+        requester += f" ({escape(', '.join(details))})"
+    text = f"New Group Admission Request from {requester} for Group {bold}{escape(content['group'])}{bold}"
+    if content["message"]:
+        text += f": {escape(content['message'])}"
+    return text
+
+
+def discussion_notification_text(content, escape, bold="*"):
+    author = f"{bold}@{escape(content['author'])}{bold}"
+    snippet = escape(content["snippet"])
+    if content["direct"]:
+        return f"{author} sent you a message: {snippet}"
+    where = (
+        f"{bold}{escape(content['label'])}{bold}"
+        if content["label"]
+        else "a group discussion"
+    )
+    verb = "mentioned you in" if content["mentioned"] else "wrote in"
+    return f"{author} {verb} {where}: {snippet}"
+
+
+_notification_executor = ThreadPoolExecutor(max_workers=4)
+
+
+def post_notification_in_background(request_body, timeout=30):
+    """Post a notification without waiting for it, from the event loop or any thread."""
+    _notification_executor.submit(post_notification, request_body, timeout=timeout)
+
+
 def post_notification(request_body, timeout=2):
     notifications_microservice_url = (
         f"http://{cfg['hosts.notification_queue']}:{cfg['ports.notification_queue']}"
@@ -499,9 +563,9 @@ def post_notification(request_body, timeout=2):
         )
     except requests.exceptions.ReadTimeout:
         log(
-            f"Notification request timed out for {request_body['target_class_name']} with ID {request_body['target_id']}"
+            f"Notification request timed out for {request_body['target_class_name']} with ID {request_body['target_id']}, the queue will still process it"
         )
-        return False
+        return True
     except Exception as e:
         log(
             f"Notification request failed for {request_body['target_class_name']} with ID {request_body['target_id']}: {e}"
@@ -532,9 +596,6 @@ async def followup_request_notification_content(target, session):
             selectinload(FollowupRequest.allocation).selectinload(Allocation.group),
             selectinload(FollowupRequest.requester),
             selectinload(FollowupRequest.obj).selectinload(Obj.thumbnails),
-            selectinload(FollowupRequest.obj)
-            .selectinload(Obj.comments)
-            .selectinload(Comment.author),
         )
     )
 
@@ -655,8 +716,13 @@ async def followup_request_notification_content(target, session):
     }
 
     if include_comments:
+        readable_comments = await session.scalars(
+            Comment.select(
+                target.requester, options=[selectinload(Comment.author)]
+            ).where(Comment.obj_id == target.obj_id)
+        )
         comments = []
-        for comment in target.obj.comments:
+        for comment in readable_comments.unique():
             comments.append(
                 (
                     f"{comment.author.username} ({str(comment.created_at).split('.')[0]}): {comment.text}",

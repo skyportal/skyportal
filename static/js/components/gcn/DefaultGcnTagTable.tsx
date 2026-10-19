@@ -87,8 +87,8 @@ const DefaultGcnTagTable = ({ default_gcn_tags }: DefaultGcnTagTableProps) => {
         rows={default_gcn_tags}
         columns={columns}
         getRowId={(row: any) => row.id}
-        hideFooter
-        initialState={{ pagination: { paginationModel: { pageSize: 100 } } }}
+        pageSizeOptions={[25, 50, 100, { value: -1, label: "All" }]}
+        initialState={{ pagination: { paginationModel: { pageSize: -1 } } }}
         showToolbar
       />
     </div>

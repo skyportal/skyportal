@@ -31,6 +31,7 @@ import SyntheticPhotometryForm from "../photometry/SyntheticPhotometryForm";
 import SpectraPlot from "../plot/SpectraPlot";
 import withRouter from "../withRouter";
 import { getSpectrumFilename } from "./spectrumFilename";
+import { download } from "../../utils/download";
 
 import { useFetchSourcePhotometryQuery } from "../../ducks/photometry";
 import {
@@ -132,14 +133,7 @@ const DownloadSpectrumButton = ({ spectrum }: { spectrum: any }) => {
         uploaded.includes(".") ? uploaded.split(".").pop() : "ascii",
       );
     }
-    const url = URL.createObjectURL(new Blob([data], { type: "text/plain" }));
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = filename;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
+    download(data, "text/plain", filename);
   };
 
   return (
@@ -445,7 +439,6 @@ const ShareDataForm = ({ route }: ShareDataFormProps) => {
     autoHeight: true,
     checkboxSelection: true,
     disableRowSelectionOnClick: false,
-    pageSizeOptions: [10, 25, 50, 100],
     showToolbar: true,
   };
 
@@ -488,9 +481,6 @@ const ShareDataForm = ({ route }: ShareDataFormProps) => {
             photRows.map((row: any) => row.id),
             setSelectedPhotRows,
           )}
-          initialState={{
-            pagination: { paginationModel: { pageSize: 10 } },
-          }}
           slots={{ toolbar: PhotometryGridToolbar }}
         />
       )}
@@ -512,7 +502,6 @@ const ShareDataForm = ({ route }: ShareDataFormProps) => {
               setSelectedSpecRows,
             )}
             initialState={{
-              pagination: { paginationModel: { pageSize: 10 } },
               columns: {
                 columnVisibilityModel: {
                   reducer_contact: false,

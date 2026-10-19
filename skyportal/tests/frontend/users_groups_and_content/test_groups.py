@@ -80,11 +80,16 @@ def test_add_new_group_user(
     page.goto("/groups")
     page.get_by_role("tab", name="All Groups").click()
     page.locator(f'//div[@data-id="{public_group.id}"]').first.click()
+    page.locator('//*[@data-testid="addMembersButton"]').first.click()
     page.locator('//div[@data-testid="newGroupUserTextInput"]').first.click()
     page.locator(f'//li[text()="{user_no_groups.username}"]').first.click()
     if checkbox is not None:
         page.locator(f'//*[@data-testid="{checkbox}"]').first.click()
     page.locator('//button[contains(.,"Add user")]').first.click()
+    expect(
+        page.locator('//*[text()="Successfully added user to group."]').first
+    ).to_be_visible()
+    page.keyboard.press("Escape")
     expect(
         page.locator(f'//a[contains(.,"{user_no_groups.username}")]').first
     ).to_be_visible()
@@ -117,6 +122,7 @@ def test_invite_all_users_from_other_group(
         page.locator(f'//a[contains(.,"{user_group2.username}")]').first
     ).to_be_hidden()
     page.locator(f'//div[@data-id="{public_group.id}"]').first.click()
+    page.locator('//*[@data-testid="addMembersButton"]').first.click()
     page.get_by_role("tab", name="Add a group of users").click()
     page.locator('//*[@data-testid="addUsersFromGroupsTextField"]').first.click()
     page.locator(f'//li[text()="{public_group2.name}"]').first.click()
@@ -126,6 +132,7 @@ def test_invite_all_users_from_other_group(
             "//*[text()='Successfully added users from specified group(s)']"
         ).first
     ).to_be_visible()
+    page.keyboard.press("Escape")
     expect(page.locator(f'//*[text()="{user_group2.username}"]').first).to_be_visible()
 
 
@@ -149,7 +156,7 @@ def test_delete_group(page, super_admin_user, user, public_group):
     page.goto("/groups")
     page.get_by_role("tab", name="All Groups").click()
     page.locator(f'//div[@data-id="{public_group.id}"]').first.click()
-    page.locator('//button[contains(.,"Delete Group")]').first.click()
+    page.locator('//*[@data-testid="deleteGroupButton"]').first.click()
     page.locator('//button[contains(.,"Confirm")]').first.click()
     page.get_by_role("tab", name="All Groups").click()
     expect(page.locator(f'//div[@data-id="{public_group.id}"]').first).to_be_hidden()
@@ -186,10 +193,15 @@ def test_add_stream_add_delete_filter_group(
     page.locator('//button[@aria-label="add filter"]').first.click()
     page.locator('//input[@name="filter_name"]').first.fill(filter_name)
     page.locator('//button[@data-testid="add-filter-dialog-submit"]').first.click()
+    expect(page.locator(f'//h6[contains(.,"{filter_name}")]').first).to_be_visible()
+
+    page.go_back()
+    page.get_by_role("tab", name="Streams and filters").click()
     expect(page.locator(f'//span[contains(.,"{filter_name}")]')).to_have_count(1)
 
     # delete filter
-    page.locator(f'//a[contains(.,"{filter_name}")]').first.click()
+    page.locator('//button[@aria-label="delete filter"]').first.click()
+    page.locator('//button[@data-testid="confirmDeletetionButton"]').first.click()
     expect(page.locator(f'//a[contains(.,"{filter_name}")]').first).to_be_hidden()
 
 
@@ -210,7 +222,9 @@ def test_cannot_add_stream_group_users_cant_access(
     page.locator(f'//li[contains(.,"{public_stream2.name}")]').first.click()
     page.locator('//button[@data-testid="add-stream-dialog-submit"]').first.click()
     expect(
-        page.locator('//*[contains(.,"Not all users have stream access with")]').first
+        page.locator(
+            f'//*[contains(.,"Not all users have access to stream {public_stream2.name}")]'
+        ).first
     ).to_be_visible()
 
 

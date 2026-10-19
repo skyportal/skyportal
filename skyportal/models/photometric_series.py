@@ -12,7 +12,6 @@ import hashlib
 import os
 import re
 
-import arrow
 import conesearch_alchemy
 import numpy as np
 import pandas as pd
@@ -893,6 +892,12 @@ class PhotometricSeries(conesearch_alchemy.Point, Base):
 
         full_name = os.path.join(path, filename)
 
+        root_folder = os.path.abspath(root_folder)
+        if os.path.commonpath([root_folder, os.path.abspath(full_name)]) != root_folder:
+            raise ValueError(
+                f"Full path to file {full_name} is outside of the photometric series folder."
+            )
+
         if len(full_name) > MAX_FILEPATH_LENGTH:
             raise ValueError(
                 f"Full path to file {full_name} is longer than {MAX_FILEPATH_LENGTH} characters."
@@ -1461,65 +1466,6 @@ class PhotometricSeries(conesearch_alchemy.Point, Base):
             return tot_err
         else:
             return None
-
-    @property
-    def jd_first(self):
-        """Julian Date of the first exposure of the series."""
-        return self.mjd_first + 2_400_000.5
-
-    @property
-    def jd_mid(self):
-        """Julian Date of the middle of the series."""
-        return self.mjd_mid + 2_400_000.5
-
-    @property
-    def jd_last(self):
-        """Julian Date of the last exposure of the series."""
-        return self.mjd_last + 2_400_000.5
-
-    @hybrid_property
-    def iso_first(self):
-        """UTC ISO timestamp (ArrowType) of the start of the series."""
-        return arrow.get((self.mjd_first - 40_587) * 86400.0)
-
-    @iso_first.expression
-    def iso_first(cls):
-        """UTC ISO timestamp (ArrowType) of the first exposure of the series."""
-        # converts MJD to unix timestamp
-        return sa.func.to_timestamp((cls.mjd_first - 40_587) * 86400.0)
-
-    @hybrid_property
-    def iso_mid(self):
-        """UTC ISO timestamp (ArrowType) of the middle of the series."""
-        return arrow.get((self.mjd_mid - 40_587) * 86400.0)
-
-    @iso_mid.expression
-    def iso_mid(cls):
-        """UTC ISO timestamp (ArrowType) of the middle of the series."""
-        # converts MJD to unix timestamp
-        return sa.func.to_timestamp((cls.mjd_mid - 40_587) * 86400.0)
-
-    @hybrid_property
-    def iso_last(self):
-        """UTC ISO timestamp (ArrowType) of the last exposure of the series."""
-        return arrow.get((self.mjd_last - 40_587) * 86400.0)
-
-    @iso_last.expression
-    def iso_last(cls):
-        """UTC ISO timestamp (ArrowType) of the last exposure of the series."""
-        # converts MJD to unix timestamp
-        return sa.func.to_timestamp((cls.mjd_last - 40_587) * 86400.0)
-
-    @hybrid_property
-    def iso_last_detected(self):
-        """UTC ISO timestamp (ArrowType) of the last exposure of the series."""
-        return arrow.get((self.mjd_last_detected - 40_587) * 86400.0)
-
-    @iso_last_detected.expression
-    def iso_last_detected(cls):
-        """UTC ISO timestamp (ArrowType) of the last exposure of the series."""
-        # converts MJD to unix timestamp
-        return sa.func.to_timestamp((cls.mjd_last_detected - 40_587) * 86400.0)
 
     @property
     def snr(self):

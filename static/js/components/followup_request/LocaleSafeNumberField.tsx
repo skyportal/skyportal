@@ -1,12 +1,7 @@
 import { useState } from "react";
 import { asNumber } from "@rjsf/utils";
 
-// rjsf-core's stock NumberField re-formats numeric values using the OS/browser
-// locale's decimal separator (e.g. "." -> ",") before writing them back into
-// the input. Native <input type="number"> elements always require "."
-// regardless of locale, so on comma-locale systems the browser rejects the
-// reformatted value ("The specified value "2,8" cannot be parsed") and the
-// field renders blank. This is the same field, minus that reformatting step.
+// rjsf's NumberField minus its locale reformatting ("2,8"), rejected by type=number inputs.
 const numberTrailingCharMatcherWithPrefix = /\.([0-9]*0)*$/;
 const numberTrailingCharMatcher = /[0.]0*$/;
 
@@ -46,11 +41,5 @@ const LocaleSafeNumberField = (props: any) => {
   return <StringField {...props} formData={value} onChange={handleChange} />;
 };
 
-export default LocaleSafeNumberField;
-
-// Stable reference: a new object literal on every render would make rjsf
-// rebuild its registry on every keystroke, resetting fields' local state
-// (e.g. this field's in-progress-decimal cache), which erases values like
-// "2.5" while typing. Import this directly rather than constructing
-// `{ NumberField: LocaleSafeNumberField }` inline in a component body.
+// Keep stable: an inline object rebuilds rjsf's registry and erases "2.5" mid-typing.
 export const localeSafeFields = { NumberField: LocaleSafeNumberField };

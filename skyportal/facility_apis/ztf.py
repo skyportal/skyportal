@@ -26,6 +26,7 @@ from baselayer.log import make_log
 from ..utils import http
 from ..utils.naive_datetime import utcnow_naive
 from . import MMAAPI, FollowUpAPI
+from .interface import push_followup_refresh
 
 env, cfg = load_env()
 
@@ -569,19 +570,7 @@ class ZTFAPI(FollowUpAPI):
         else:
             raise ValueError("Unknown request type.")
 
-        if kwargs.get("refresh_source", False):
-            flow = Flow()
-            flow.push(
-                "*",
-                "skyportal/REFRESH_SOURCE",
-                payload={"obj_key": obj_internal_key},
-            )
-        if kwargs.get("refresh_requests", False):
-            flow = Flow()
-            flow.push(
-                last_modified_by_id,
-                "skyportal/REFRESH_FOLLOWUP_REQUESTS",
-            )
+        push_followup_refresh(obj_internal_key, last_modified_by_id, **kwargs)
 
     # subclasses *must* implement the method below
     @staticmethod
@@ -710,19 +699,9 @@ class ZTFAPI(FollowUpAPI):
 
         session.add(transaction)
 
-        if kwargs.get("refresh_source", False):
-            flow = Flow()
-            flow.push(
-                "*",
-                "skyportal/REFRESH_SOURCE",
-                payload={"obj_key": request.obj.internal_key},
-            )
-        if kwargs.get("refresh_requests", False):
-            flow = Flow()
-            flow.push(
-                request.last_modified_by_id,
-                "skyportal/REFRESH_FOLLOWUP_REQUESTS",
-            )
+        push_followup_refresh(
+            request.obj.internal_key, request.last_modified_by_id, **kwargs
+        )
 
     # split the form above (that has triggered, and forced_photometry) into two forms
     form_json_schema = {
@@ -1023,7 +1002,7 @@ class ZTFMMAAPI(MMAAPI):
                 IOLoop.current().run_in_executor(None, fetch_obs)
             return queue_names
         else:
-            return ValueError(f"Error querying for queued observations: {content}")
+            raise ValueError(f"Error querying for queued observations: {content}")
 
     @staticmethod
     async def remove_queue(allocation, queue_name, username):
@@ -1053,7 +1032,7 @@ class ZTFMMAAPI(MMAAPI):
                 content = await r.text()
                 status = r.status
         if status != 200:
-            return ValueError(f"Error deleting queue: {content}")
+            raise ValueError(f"Error deleting queue: {content}")
 
         # check if there is an observation plan request associated with this queue (same queue name)
         # if so, mark it as removed from queue
@@ -1252,6 +1231,29 @@ class ZTFMMAAPI(MMAAPI):
         return form_json_schema
 
 
+MIN_EXPOSURES_FOR_QUADRANTS = 100
+
+
+def update_missing_quadrants(instrument_id, nights):
+    """nights: (number of exposures, set of rcids processed) per night, oldest first."""
+    nights = [n for n in nights if n[0] >= MIN_EXPOSURES_FOR_QUADRANTS]
+    if not nights:
+        return
+    missing = sorted(set(range(64)) - nights[-1][1])
+
+    from ..models import Instrument, new_session
+
+    with new_session() as session:
+        instrument = session.get(Instrument, instrument_id)
+        configuration_data = dict(instrument.configuration_data or {})
+        if configuration_data.get("missing_quadrants") == missing:
+            return
+        configuration_data["missing_quadrants"] = missing
+        instrument.configuration_data = configuration_data
+        session.commit()
+    log(f"Missing quadrants for instrument ID {instrument_id}: {missing}")
+
+
 def fetch_depot_observations(instrument_id, session, depot_url, jd_start, jd_end):
     """Fetch executed observations from a TAP client.
     instrument_id : int
@@ -1266,7 +1268,7 @@ def fetch_depot_observations(instrument_id, session, depot_url, jd_start, jd_end
         JD of the end time of observations
     """
 
-    dfs = []
+    dfs, nights = [], []
 
     jds = np.arange(np.floor(jd_start), np.ceil(jd_end))
     for jd in jds:
@@ -1290,6 +1292,13 @@ def fetch_depot_observations(instrument_id, session, depot_url, jd_start, jd_end
                 continue
             # only want successfully reduced images
             obstable = obstable[obstable["status"] == 0]
+            if "rcid" in obstable:
+                nights.append(
+                    (
+                        obstable["exposure_id"].nunique(),
+                        set(obstable.pop("rcid").astype(int)),
+                    )
+                )
 
             obs_grouped_by_exp = obstable.groupby("exposure_id")
             for expid, df_group in obs_grouped_by_exp:
@@ -1338,6 +1347,7 @@ def fetch_depot_observations(instrument_id, session, depot_url, jd_start, jd_end
                             "exptime",
                             "subtractionstatus",
                         ]
+                        + (["rcid"] if "rcid" in obstable else [])
                     ]
                 except KeyError as e:
                     log(
@@ -1368,6 +1378,13 @@ def fetch_depot_observations(instrument_id, session, depot_url, jd_start, jd_end
 
                 # only want successfully reduced images, the column in that file is called subtractionstatus, and 1 means success
                 obstable = obstable[obstable["subtractionstatus"] == 1]
+                if "rcid" in obstable:
+                    nights.append(
+                        (
+                            obstable["expid"].nunique(),
+                            set(obstable.pop("rcid").astype(int)),
+                        )
+                    )
 
                 # rename the relevant columns to have the same names as the other file
                 # and/or the name expected by the add_observation function
@@ -1412,56 +1429,7 @@ def fetch_depot_observations(instrument_id, session, depot_url, jd_start, jd_end
 
         add_observations(instrument_id, obstable)
 
-
-def fetch_tap_observations(instrument_id, client, request_str):
-    """Fetch executed observations from a TAP client.
-    instrument_id : int
-        ID of the instrument
-    client : pyvo.dal.TAPService
-        An authenticated pyvo.dal.TAPService instance.
-    request_str : str
-        TAP request of the form:
-        SELECT field,rcid,fid,expid,obsjd,exptime,maglimit,ipac_gid,seeing
-        FROM ztf.ztf_current_meta_sci WHERE (obsjd BETWEEN 2459637.2474652776 AND 2459640.2474652776)
-    """
-
-    job = client.submit_job(request_str)
-    job = job.run().wait()
-    job.raise_if_error()
-    obstable = job.fetch_result().to_table()
-    obstable = obstable.filled().to_pandas()
-    if obstable.empty:
-        log(
-            f"No observations for instrument ID {instrument_id} for request: {request_str}"
-        )
-        return
-
-    obs_grouped_by_exp = obstable.groupby("expid")
-    dfs = []
-    for expid, df_group in obs_grouped_by_exp:
-        df_group_median = df_group.median()
-        df_group_median["observation_id"] = int(expid)
-        df_group_median["processed_fraction"] = len(df_group["field"]) / 64.0
-        df_group_median["filter"] = inv_bands[int(df_group_median["fid"])]
-        dfs.append(df_group_median)
-    obstable = pd.concat(dfs, axis=1).T
-    obstable.rename(
-        columns={
-            "obsjd": "obstime",
-            "field": "field_id",
-            "maglimit": "limmag",
-            "exptime": "exposure_time",
-        },
-        inplace=True,
-    )
-    obstable["target_name"] = None
-
-    # engineering data is ipac_gid = -1 and we do not want to save that
-    obstable = obstable[obstable["ipac_gid"] >= 1.0]
-
-    from skyportal.handlers.api.observation import add_observations
-
-    add_observations(instrument_id, obstable)
+    update_missing_quadrants(instrument_id, nights)
 
 
 def fetch_queued_observations(instrument_id, obstable, start_date, end_date):

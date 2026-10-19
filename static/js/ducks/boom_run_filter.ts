@@ -17,11 +17,15 @@ export interface RunBoomFilterArg {
   start_jd: any;
   end_jd: any;
   filter_id: any;
-  // present only for the paginated "test" variant
-  sort_by?: any;
-  sort_order?: any;
-  limit?: any;
-  cursor?: any;
+  // with `unsorted`, the first `limit` matches in no order; else a count
+  unsorted?: boolean;
+  limit?: number;
+  // A GCN event's dateobs confines the preview to that event's credible
+  // region, the same region the crossmatch service searches. Without it the
+  // filter's cuts run against the whole stream, which is not what the filter
+  // does when it runs for real.
+  dateobs?: string;
+  credible_level?: number;
 }
 
 export const boomRunFilterApi = skyportalApi.injectEndpoints({
@@ -32,6 +36,8 @@ export const boomRunFilterApi = skyportalApi.injectEndpoints({
         method: "POST",
         body,
       }),
+      // the preview dialog explains failures itself (timeouts in particular)
+      extraOptions: { suppressErrorNotification: true },
     }),
   }),
 });

@@ -39,6 +39,18 @@ const GroupItems = styled("ul")({
   padding: 0,
 });
 
+const INPUT_COMMIT_DELAY_MS = 300;
+
+const getOptionLabel = (option: any) => {
+  if (typeof option === "string") return option;
+  if (option && option.label) {
+    return typeof option.label === "string"
+      ? option.label
+      : String(option.label);
+  }
+  return "";
+};
+
 const ChipSpan = styled("span")({
   // Hide scrollbars across all browsers
   scrollbarWidth: "none", // Firefox
@@ -246,6 +258,9 @@ const AutocompleteFields = ({
       // Expand groups that have matching options
       if (groupsWithMatches.size > 0) {
         setCollapsedGroups((prev: any) => {
+          if (![...groupsWithMatches].some((group: any) => prev.has(group))) {
+            return prev;
+          }
           const newCollapsed = new Set(prev);
           groupsWithMatches.forEach((groupName: any) => {
             newCollapsed.delete(groupName);
@@ -255,6 +270,43 @@ const AutocompleteFields = ({
       }
     }
   }, [searchInput, options]);
+
+  const normalizedValue = normalizeValue(value);
+  const isListConditionValue =
+    !!value && typeof value === "object" && value.type === "array";
+  const exactValueOption = findExactOption(options, normalizedValue);
+  const valueOption = useMemo(() => {
+    if (isListConditionValue) return null;
+    return (
+      exactValueOption ||
+      (normalizedValue.name ? { label: normalizedValue.name } : null)
+    );
+  }, [isListConditionValue, exactValueOption, normalizedValue.name]);
+
+  const [inputValue, setInputValue] = useState(() =>
+    valueOption ? getOptionLabel(valueOption) : "",
+  );
+  const [hasPendingInput, setHasPendingInput] = useState(false);
+  const commitTimer = useRef<ReturnType<typeof setTimeout> | undefined>(
+    undefined,
+  );
+  const onChangeRef = useRef(onChange);
+  useEffect(() => {
+    onChangeRef.current = onChange;
+  });
+  useEffect(() => () => clearTimeout(commitTimer.current), []);
+
+  const cancelPendingInput = () => {
+    clearTimeout(commitTimer.current);
+    setHasPendingInput(false);
+  };
+
+  const commitInput = (text: string) => {
+    cancelPendingInput();
+    onChangeRef.current?.(text);
+  };
+
+  const displayedValue = hasPendingInput ? inputValue : value;
 
   // Toggle group collapse state
   const toggleGroupCollapse = (groupName: any) => {
@@ -280,8 +332,9 @@ const AutocompleteFields = ({
     return {
       ...baseStyles,
       maxWidth: "calc(100% - 16px)",
-      fontSize: 15,
-      padding: "2px 12px",
+      fontSize: 13,
+      lineHeight: "16px",
+      padding: "0 10px",
       transition: "all 0.2s ease",
       overflowX: "auto",
       overflowY: "hidden",
@@ -349,20 +402,7 @@ const AutocompleteFields = ({
           size="small"
           options={options}
           groupBy={(option: any) => option.group}
-          getOptionLabel={(option: any) => {
-            // Handle string labels
-            if (typeof option === "string") return option;
-            // Handle option objects
-            if (option && option.label) {
-              const result =
-                typeof option.label === "string"
-                  ? option.label
-                  : String(option.label);
-              return result;
-            }
-            // Handle unexpected objects
-            return "";
-          }}
+          getOptionLabel={getOptionLabel}
           sx={{
             width: "100%",
             minWidth: 200,
@@ -403,20 +443,10 @@ const AutocompleteFields = ({
             },
           }}
           disablePortal={false} // Ensure dropdown is rendered in a portal to escape clipping
-          value={(() => {
-            // Handle list condition objects
-            if (value && typeof value === "object" && value.type === "array") {
-              return null; // Don't show in autocomplete dropdown, let chip handle display
-            }
-            // Handle regular options using exact matching
-            const normalized = normalizeValue(value);
-            const exactOption = findExactOption(options, normalized);
-            return (
-              exactOption ||
-              (normalized.name ? { label: normalized.name } : null)
-            );
-          })()}
+          value={valueOption}
+          inputValue={inputValue}
           onChange={(_: any, newValue: any) => {
+            cancelPendingInput();
             if (!onChange) return;
 
             if (!newValue) {
@@ -439,13 +469,30 @@ const AutocompleteFields = ({
             onChange(resultObject);
           }}
           onInputChange={(_: any, newInputValue: any, reason: any) => {
-            if (reason === "input" || reason === "clear") {
-              setSearchInput(newInputValue || "");
-              onChange && onChange(newInputValue);
+            const text = newInputValue || "";
+            if (reason === "input") {
+              setInputValue(text);
+              setSearchInput(text);
+              setHasPendingInput(true);
+              clearTimeout(commitTimer.current);
+              commitTimer.current = setTimeout(
+                () => commitInput(text),
+                INPUT_COMMIT_DELAY_MS,
+              );
+              return;
             }
+            if (reason === "clear") {
+              cancelPendingInput();
+              setInputValue("");
+              setSearchInput("");
+              onChange && onChange("");
+              return;
+            }
+            if (reason === "reset" && hasPendingInput) return;
+            setInputValue(text);
           }}
           renderInput={(params: any) => {
-            const normalized = normalizeValue(value);
+            const normalized = normalizeValue(displayedValue);
             const exactOption = findExactOption(options, normalized);
 
             const variableOption = exactOption?.isVariable ? exactOption : null;
@@ -478,6 +525,9 @@ const AutocompleteFields = ({
             return (
               <TextField
                 {...params}
+                onBlur={() => {
+                  if (hasPendingInput) commitInput(inputValue);
+                }}
                 label="Fields"
                 sx={{
                   "& .MuiInputBase-input": {
@@ -536,7 +586,7 @@ const AutocompleteFields = ({
         {/* Chip for variable field, clickable to show equation */}
         {(() => {
           // Don't render chips for empty values
-          const normalized = normalizeValue(value);
+          const normalized = normalizeValue(displayedValue);
           if (!normalized.name) {
             return null;
           }
@@ -572,9 +622,10 @@ const AutocompleteFields = ({
                     "linear-gradient(90deg, #e5e7eb 60%, #d1d5db 100%)",
                   color: "#374151",
                   borderRadius: 16,
-                  padding: "2px 12px",
+                  padding: "0 10px",
                   fontWeight: 700,
-                  fontSize: 15,
+                  fontSize: 13,
+                  lineHeight: "16px",
                   border: "1.5px solid #6b7280",
                   cursor: "pointer",
                   minWidth: 0,
@@ -627,9 +678,10 @@ const AutocompleteFields = ({
                     "linear-gradient(90deg, #bbf7d0 60%, #a7f3d0 100%)",
                   color: "#166534",
                   borderRadius: 16,
-                  padding: "2px 12px",
+                  padding: "0 10px",
                   fontWeight: 700,
-                  fontSize: 15,
+                  fontSize: 13,
+                  lineHeight: "16px",
                   border: "1.5px solid #4ade80",
                   cursor: "pointer",
                   minWidth: 0,
@@ -691,9 +743,10 @@ const AutocompleteFields = ({
                     ? "#5b21b6"
                     : "#166534",
                   borderRadius: 16,
-                  padding: "2px 12px",
+                  padding: "0 10px",
                   fontWeight: 700,
-                  fontSize: 15,
+                  fontSize: 13,
+                  lineHeight: "16px",
                   border: listVariableOption.isDbVariable
                     ? "1.5px solid #8b5cf6"
                     : "1.5px solid #4ade80",
@@ -781,10 +834,10 @@ const AutocompleteFields = ({
 
           // Check for configured list condition
           if (
-            value &&
-            typeof value === "object" &&
-            value.type === "array" &&
-            value.field
+            displayedValue &&
+            typeof displayedValue === "object" &&
+            displayedValue.type === "array" &&
+            displayedValue.field
           ) {
             return (
               <span
@@ -799,9 +852,10 @@ const AutocompleteFields = ({
                     "linear-gradient(90deg, #bbf7d0 60%, #a7f3d0 100%)",
                   color: "#166534",
                   borderRadius: 16,
-                  padding: "2px 12px",
+                  padding: "0 10px",
                   fontWeight: 700,
-                  fontSize: 15,
+                  fontSize: 13,
+                  lineHeight: "16px",
                   border: "1.5px solid #4ade80",
                   cursor: "pointer",
                   minWidth: 0,
@@ -828,10 +882,10 @@ const AutocompleteFields = ({
                   }
                 }}
                 title={`Click to view list condition: ${
-                  value.name || value.field
+                  displayedValue.name || displayedValue.field
                 }`}
               >
-                {value.name}
+                {displayedValue.name}
               </span>
             );
           }

@@ -8,6 +8,7 @@ from .annotations_info import AnnotationsInfoHandler
 from .dbinfo import DBInfoHandler
 from .ephemeris import EphemerisHandler
 from .log import LogHandler
+from .memory import MemoryHandler
 from .notifications import BulkNotificationHandler, NotificationHandler
 from .notifications_test import NotificationTestHandler
 from .plot import (

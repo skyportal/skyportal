@@ -277,7 +277,15 @@ async def credible_levels_in_localization(
             SELECT p.idx, MIN(tiles.cum_prob)
             FROM unnest(CAST(:idxs AS bigint[]), CAST(:hpxs AS bigint[]))
                  AS p(idx, hpx)
-            JOIN tiles ON tiles.healpix @> p.hpx
+            CROSS JOIN LATERAL (
+                -- OFFSET 0, and no localization_id filter, keep this on the healpix index.
+                SELECT healpix
+                FROM localizationtiles
+                WHERE dateobs = :dateobs
+                  AND healpix @> p.hpx
+                OFFSET 0
+            ) AS hit
+            JOIN tiles ON tiles.healpix = hit.healpix
             WHERE tiles.cum_prob <= :cumprob
             GROUP BY p.idx
             """

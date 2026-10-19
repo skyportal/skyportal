@@ -97,8 +97,7 @@ def update_token(
     acls : list of str, optional
         New list of ACL IDs for the token.
     user_id : int, optional
-        UserResponse whose permissions the new ACLs are checked against; defaults
-        to the requesting user.
+        Ignored; the new ACLs are checked against the token owner.
     """
     fields = {"name": name, "acls": acls, "user_id": user_id}
     payload = {key: value for key, value in fields.items() if value is not None}

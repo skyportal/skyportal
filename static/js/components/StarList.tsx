@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import Box from "@mui/material/Box";
 import Select from "@mui/material/Select";
@@ -11,6 +11,7 @@ import Tooltip from "@mui/material/Tooltip";
 import FormControl from "@mui/material/FormControl";
 import CircularProgress from "@mui/material/CircularProgress";
 import Chip from "@mui/material/Chip";
+import Typography from "@mui/material/Typography";
 import WarningAmberOutlined from "@mui/icons-material/WarningAmberOutlined";
 
 import { useAppDispatch } from "../types/hooks";
@@ -119,6 +120,10 @@ const StarListBody = ({
       </div>
       {starList === null ? (
         <CircularProgress sx={{ mt: 1 }} size={32} />
+      ) : starList.length === 0 ? (
+        <Typography sx={{ mt: 1, color: "text.secondary" }}>
+          No targets to list.
+        </Typography>
       ) : (
         <Box
           component="pre"
@@ -129,7 +134,8 @@ const StarListBody = ({
             bgcolor: "background.default",
             padding: "1em",
             borderRadius: "0.5em",
-            overflowX: "auto",
+            maxHeight: "30rem",
+            overflow: "auto",
           }}
         >
           {starList.map((item) => item.str).join("\n")}
@@ -200,28 +206,43 @@ export const ObservingRunStarList = ({
   ) as { data: any };
   const assignments = observingRun?.assignments ?? [];
   const [facility, setFacility] = useState("Keck");
+  const responses = useRef(new Map<string, Promise<any>>());
+  const latestFetch = useRef(0);
+  const assignmentKey = assignments
+    .map((assignment: any) => `${assignment.run_id}/${assignment.obj_id}`)
+    .join(",");
 
   useEffect(() => {
+    const fetchOnce = (url: string, actionType: string) => {
+      let response = responses.current.get(url);
+      if (!response) {
+        response = dispatch(GET(url, actionType)).then((result: any) => {
+          if (result?.status !== "success") responses.current.delete(url);
+          return result;
+        });
+        responses.current.set(url, response);
+      }
+      return response;
+    };
+
     const fetchStarList = async () => {
+      const fetchId = ++latestFetch.current;
       const promises = assignments.map((assignment: any) =>
-        dispatch(
-          GET(
-            `/api/sources/${assignment.obj_id}/offsets?facility=${facility}&observing_run_id=${assignment.run_id}`,
-            "skyportal/FETCH_STARLIST",
-          ),
+        fetchOnce(
+          `/api/sources/${assignment.obj_id}/offsets?facility=${facility}&observing_run_id=${assignment.run_id}`,
+          "skyportal/FETCH_STARLIST",
         ),
       );
       const standard_promise = [
-        dispatch(
-          GET(
-            `/api/internal/standards?facility=${facility}`,
-            "skyportal/FETCH_STANDARDS",
-          ),
+        fetchOnce(
+          `/api/internal/standards?facility=${facility}`,
+          "skyportal/FETCH_STANDARDS",
         ),
       ];
       const starlistInfo: StarListItem[] = [];
       const values: any[] = await Promise.allSettled(promises);
       const standard_value: any[] = await Promise.allSettled(standard_promise);
+      if (fetchId !== latestFetch.current) return;
       values.push(standard_value[0]);
 
       // Gaia down for any assignment means no proper motion was applied.
@@ -232,7 +253,7 @@ export const ObservingRunStarList = ({
       );
 
       values.forEach((response) =>
-        starlistInfo.push(...response.value.data.starlist_info),
+        starlistInfo.push(...(response.value?.data?.starlist_info ?? [])),
       );
 
       // if the facility is P200-NGPS, we add the header to the starlist
@@ -246,9 +267,11 @@ export const ObservingRunStarList = ({
     };
     if (assignments.length > 0) {
       fetchStarList();
+    } else if (observingRun) {
+      setStarList([]);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [dispatch, facility, observingRun?.id, assignments.length]);
+  }, [dispatch, facility, observingRun?.id, assignmentKey]);
   return (
     <StarListBody
       starList={starList}

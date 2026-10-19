@@ -33,10 +33,12 @@ import math
 import traceback
 from datetime import datetime, timedelta
 
+import arrow
 import healpy
 import numpy as np
 import sqlalchemy as sa
 from astropy.time import Time
+from sqlalchemy.dialects.postgresql import JSONB, JSONPATH
 from sqlalchemy.orm import selectinload, undefer
 from sqlalchemy.orm.attributes import flag_modified
 
@@ -62,6 +64,7 @@ from skyportal.models import (
 )
 from skyportal.utils.crossmatch import (
     DEFAULT_CUMPROB,
+    cone_from_localization_name,
     credible_levels_in_localization,
     equatorial_to_galactic,
     great_circle_distance,
@@ -121,9 +124,20 @@ DEFAULTS = {
     # How long to leave a broker alone after it answers 429. Lasair's quota is
     # hourly, so anything shorter just spends the next window's allowance.
     "rate_limit_backoff_minutes": 60.0,
+    # Overlap with the previous search, for alerts the broker made queryable late.
+    "requery_overlap_days": 1.0,
 }
 
 ANNOTATION_ORIGIN = "GCN-crossmatch"
+
+SKYMAP_COLUMNS = ["uniq", "probdensity", "distmu", "distsigma", "distnorm", "contour"]
+
+# A superset of same_event: a dateobs not in isoformat()'s shape is left to it.
+EVENT_ENTRY_PATH = (
+    '$.* ? (@.dateobs == $iso || @.dateobs == $iso_us || @.dateobs.type() == "number"'
+    ' || (@.dateobs.type() == "string" && !(@.dateobs like_regex'
+    ' "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}([.][0-9]{6})?$")))'
+)
 
 # Brokers rate-limit per account, not per query, so a 429 means every later call
 # this window fails too -- and the quota is shared with the rest of the app, so
@@ -136,6 +150,9 @@ _rate_limited_until: dict = {}
 # Filter configuration changes rarely, so reporting it every cycle is noise --
 # but never reporting it hides a misconfiguration. Log only when it changes.
 _last_filter_report: dict = {}
+
+# When the last association pass started; in memory, so a restart runs a full one.
+_association_pass: dict = {"since": None}
 
 
 def report_once(key, message):
@@ -358,6 +375,29 @@ def build_annotation_data(
     return data
 
 
+def describes_later_alert(payload, existing):
+    """Whether `payload` is from a later alert than the entry already stored.
+
+    An object can match one event on many alerts, and the broker returns them
+    newest first, so writing each in turn left the oldest as the last word: a
+    source whose latest alert was 1.8 days before an EP trigger was annotated
+    at -30.7, from an archival match a month earlier. Scanners read delta_t as
+    the latest alert's offset from the trigger, and were reading the earliest.
+
+    delta_t is alert_jd - event_jd and the event is fixed within a key, so
+    comparing it compares the alerts. An entry that carries no delta_t says
+    nothing about when it was, and loses to one that does.
+    """
+    if not existing:
+        return True
+    later, earlier = payload.get("delta_t"), existing.get("delta_t")
+    if later is None:
+        return False
+    if earlier is None:
+        return True
+    return later > earlier
+
+
 async def annotate_match(
     session, user, obj_id, event_key, event_dateobs, group_ids, data
 ):
@@ -391,9 +431,18 @@ async def annotate_match(
         session.add(annotation)
     else:
         merged = dict(annotation.data or {})
-        if (merged.get(event_key) or {}).get("prior_activity"):
+        existing = merged.get(event_key) or {}
+        # Sticky: an archival match showing the object was active before the
+        # trigger stays true however many alerts follow it.
+        if existing.get("prior_activity") or payload.get("prior_activity"):
             payload["prior_activity"] = True
-        merged[event_key] = payload
+        if describes_later_alert(payload, existing):
+            merged[event_key] = payload
+        elif payload.get("prior_activity") and not existing.get("prior_activity"):
+            # The older alert owns nothing here but what it proves.
+            merged[event_key] = {**existing, "prior_activity": True}
+        else:
+            return
         annotation.data = merged
         flag_modified(annotation, "data")
 
@@ -518,6 +567,12 @@ async def ingest_match_photometry(session, user, broker, obj_id, survey, permiss
         return False
 
 
+async def load_skymap(session, localization):
+    """Fetch a localization's deferred skymap columns, unless already loaded."""
+    if sa.inspect(localization).unloaded.intersection(SKYMAP_COLUMNS):
+        await session.refresh(localization, SKYMAP_COLUMNS)
+
+
 async def process_event_filter(
     session, user, event, localization, filter_, state, config=None, archival=False
 ):
@@ -529,6 +584,8 @@ async def process_event_filter(
     counterpart.
     """
     cumprob = float(conf(config, "cumprob"))
+    if cone_from_localization_name(localization.localization_name) is None:
+        await load_skymap(session, localization)
     cone = search_cone(
         localization,
         max_radius_deg=float(conf(config, "max_radius_deg")),
@@ -545,6 +602,7 @@ async def process_event_filter(
         filter_.broker.broker_class.implements().get("filter_pipeline") == "mongo"
     )
     if cone is None and supports_moc:
+        await load_skymap(session, localization)
         moc = localization_moc(
             localization,
             credible_level=max(
@@ -565,13 +623,18 @@ async def process_event_filter(
         jd_end = event_jd - float(conf(config, "delta_t_before"))
         jd_start = jd_end - float(conf(config, "archival_days"))
     else:
-        # Lower bound: resume from the newest alert already seen rather than from
-        # wall-clock, because brokers make alerts queryable some time after the
-        # alert's own JD. Anchoring on wall-clock would step over that lag and
-        # silently lose late-arriving alerts.
+        # Lower bound: resume from the newest alert already seen, or from the
+        # previous successful search less an overlap, because brokers make alerts
+        # queryable some time after the alert's own JD.
         jd_start = event_jd - float(conf(config, "delta_t_before"))
         if state.last_alert_jd is not None:
             jd_start = max(jd_start, state.last_alert_jd)
+        if state.status == "done" and state.last_queried is not None:
+            jd_start = max(
+                jd_start,
+                float(Time(state.last_queried).jd)
+                - float(conf(config, "requery_overlap_days")),
+            )
         jd_end = event_jd + float(conf(config, "delta_t_after"))
         # The history cuts cap the epoch of anything that can match: a first
         # detection no later than the trigger plus one window, and an alert no
@@ -728,7 +791,7 @@ async def process_event_filter(
     event_dateobs = event.dateobs
     state_id = state.id
     user_id = user.id
-    distance_at = distance_lookup(localization)
+    distance_at = distance_lookup(localization) if levels else None
 
     for index in sorted(levels):
         alert = keep[index]
@@ -796,14 +859,14 @@ async def process_event_filter(
             state.archival_done = True
         else:
             state.last_alert_jd = newest_jd
-        state.last_queried = utcnow_naive()
+            state.last_queried = utcnow_naive()
         state.status = "done"
         state.error = None
         state.n_matches = (state.n_matches or 0) + matched
     return matched
 
 
-async def associate_events(session, user, config=None):
+async def associate_events(session, user, config=None, since=None):
     """Record pairs of GcnEvents whose localizations overlap.
 
     The pair is the unit, not the event, so each is stored once ordered by
@@ -813,6 +876,8 @@ async def associate_events(session, user, config=None):
     rules = (await session.scalars(sa.select(GcnAssociationRule))).all()
     if not rules:
         return 0  # nobody has said what counts as coincident yet
+    if since is not None and any(rule.modified > since for rule in rules):
+        since = None
     # record anything that could matter to someone; each user cuts it to their
     # own rules when they read it
     window = timedelta(days=max(rule.days for rule in rules))
@@ -828,15 +893,38 @@ async def associate_events(session, user, config=None):
         return 0
 
     dateobs_list = sorted(event.dateobs for event in recent)
+    # A pair is only worth recomputing when one of its events has a new skymap.
+    changed = None
+    if since is not None:
+        changed = set(
+            (
+                await session.scalars(
+                    sa.select(Localization.dateobs).where(
+                        Localization.dateobs >= cutoff, Localization.created_at > since
+                    )
+                )
+            ).all()
+        )
+        if not changed:
+            return 0
+    skymaps = {}
+
+    async def skymap(dateobs):
+        if dateobs not in skymaps:
+            skymaps[dateobs] = await newest_localization(session, user, dateobs)
+        return skymaps[dateobs]
+
     found = 0
     for index, dateobs in enumerate(dateobs_list):
-        localization = await newest_localization(session, user, dateobs)
-        if localization is None:
-            continue
         for other in dateobs_list[index + 1 :]:
             if other - dateobs > window:
                 break  # sorted, so everything later is further away
-            other_localization = await newest_localization(session, user, other)
+            if changed is not None and dateobs not in changed and other not in changed:
+                continue
+            localization = await skymap(dateobs)
+            if localization is None:
+                break
+            other_localization = await skymap(other)
             if other_localization is None:
                 continue
             try:
@@ -872,6 +960,7 @@ async def associate_events(session, user, config=None):
                 )
             )
             found += 1
+        skymaps.pop(dateobs, None)
     await session.commit()
     if found:
         log(f"Recorded {found} new event association(s)")
@@ -903,6 +992,10 @@ async def retract_superseded_matches(
         except (TypeError, ValueError):
             return False
 
+    stamps = {
+        "iso": event.dateobs.isoformat(),
+        "iso_us": event.dateobs.isoformat(timespec="microseconds"),
+    }
     rows = (
         await session.execute(
             sa.select(Annotation, Obj.ra, Obj.dec)
@@ -913,6 +1006,11 @@ async def retract_superseded_matches(
                 Candidate.filter_id == filter_.id,
                 Obj.ra.isnot(None),
                 Obj.dec.isnot(None),
+                sa.func.jsonb_path_exists(
+                    Annotation.data,
+                    sa.cast(EVENT_ENTRY_PATH, JSONPATH),
+                    sa.cast(stamps, JSONB),
+                ),
             )
             .distinct()
         )
@@ -971,21 +1069,17 @@ async def retract_superseded_matches(
 
 
 async def newest_localization(session, user, dateobs):
-    """The most recent localization for an event, with its skymap loaded."""
-    return await session.scalar(
-        Localization.select(
-            user,
-            options=[
-                undefer(Localization.uniq),
-                undefer(Localization.probdensity),
-                # a skymap-named localization bounds its cone from the contour,
-                # which is deferred and cannot lazy-load in an async session
-                undefer(Localization.contour),
-            ],
+    """The most recent localization's skymap for an event, as a plain row."""
+    return (
+        await session.execute(
+            Localization.select(
+                user, columns=[Localization.uniq, Localization.probdensity]
+            )
+            .where(Localization.dateobs == dateobs)
+            .order_by(Localization.created_at.desc())
+            .limit(1)
         )
-        .where(Localization.dateobs == dateobs)
-        .order_by(Localization.created_at.desc())
-    )
+    ).first()
 
 
 async def run_cycle(config=None, user_id=1):
@@ -1074,16 +1168,8 @@ async def run_cycle(config=None, user_id=1):
                         selectinload(GcnEvent._tags),
                         # tags eagerly: event_matches reads them, and a lazy
                         # load in an async session raises MissingGreenlet.
-                        selectinload(GcnEvent.localizations).options(
-                            selectinload(Localization.tags),
-                            # deferred arrays: distance_lookup reads them, and a
-                            # lazy load in an async session raises MissingGreenlet
-                            undefer(Localization.uniq),
-                            undefer(Localization.probdensity),
-                            undefer(Localization.contour),
-                            undefer(Localization.distmu),
-                            undefer(Localization.distsigma),
-                            undefer(Localization.distnorm),
+                        selectinload(GcnEvent.localizations).selectinload(
+                            Localization.tags
                         ),
                     )
                 )
@@ -1229,9 +1315,15 @@ async def run_cycle(config=None, user_id=1):
                                 f"{filter_.name} ({broker.name}): {message}"
                             )
                     await session.commit()
+                session.expire(localization, SKYMAP_COLUMNS)
 
         try:
-            await associate_events(session, user, config)
+            started = utcnow_naive()
+            await associate_events(
+                session, user, config, since=_association_pass["since"]
+            )
+            # Overlap, so a skymap committed while this pass ran is not skipped.
+            _association_pass["since"] = started - timedelta(minutes=10)
         except Exception as e:
             await session.rollback()
             log(f"Event association pass failed: {e}")
@@ -1333,7 +1425,11 @@ def distance_lookup(localization):
     expensive, so it happens once per localization and is then indexed per
     candidate.
     """
-    if not localization.is_3d:
+    # is_3d would lazy-load a cone's unloaded arrays; from_cone has no distance
+    if (
+        cone_from_localization_name(localization.localization_name) is not None
+        or not localization.is_3d
+    ):
         return lambda ra, dec: None
 
     try:
@@ -1590,3 +1686,49 @@ def _pipeline_from_broker_filter(remote, boom_filter_id):
         return ZTF_QUALITY_CUTS, "built-in ZTF cuts (pipeline is not a list)"
 
     return pipeline, f"broker filter {boom_filter_id} version {version.get('fid')}"
+
+
+def with_event_region(session, user, params):
+    """Add a GCN event's credible region to preview parameters, from `dateobs`.
+
+    A filter written for a counterpart search is a set of cuts *and* a patch of
+    sky, and only the crossmatch service was passing the second half: previewing
+    the same filter ran its cuts against the whole stream, so what a scanner saw
+    in the preview was not what the filter would do. Naming the event here sends
+    the same region the crossmatch sends.
+
+    `credible_level` is a percentage and defaults to the crossmatch's own.
+    """
+    from skyportal.utils.crossmatch import localization_moc, moc_ascii
+
+    dateobs = params.pop("dateobs", None)
+    credible_level = params.pop("credible_level", None)
+    if not dateobs or params.get("moc_ascii"):
+        return params
+    dateobs = arrow.get(dateobs).naive
+
+    localization = session.scalar(
+        Localization.select(
+            user,
+            options=[
+                undefer(Localization.uniq),
+                undefer(Localization.probdensity),
+                undefer(Localization.contour),
+            ],
+        )
+        .where(Localization.dateobs == dateobs)
+        .order_by(Localization.created_at.desc())
+    )
+    if localization is None:
+        raise ValueError(f"No localization for event {dateobs}.")
+
+    level = (
+        int(credible_level)
+        if credible_level is not None
+        else int(DEFAULTS["credible_level"])
+    )
+    moc = localization_moc(localization, credible_level=level)
+    if moc is None:
+        raise ValueError(f"Event {dateobs} has a localization with no skymap.")
+    params["moc_ascii"] = moc_ascii(moc)
+    return params

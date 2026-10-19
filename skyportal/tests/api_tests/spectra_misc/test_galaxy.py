@@ -5,7 +5,7 @@ import uuid
 import numpy as np
 from astropy.table import Table
 
-from skyportal.tests import api
+from skyportal.tests import api, retry_until
 
 
 def test_galaxy(super_admin_token, view_only_token, gcn_GW190814):
@@ -96,9 +96,14 @@ def test_galaxy(super_admin_token, view_only_token, gcn_GW190814):
 
     params = {"catalog_name": catalog_name}
 
-    status, data = api("GET", "galaxy_catalog", token=view_only_token, params=params)
-    assert status == 400
-    assert f"Catalog with name {catalog_name} not found" in data["message"]
+    def catalog_deleted():
+        status, data = api(
+            "GET", "galaxy_catalog", token=view_only_token, params=params
+        )
+        assert status == 400
+        assert f"Catalog with name {catalog_name} not found" in data["message"]
+
+    retry_until(catalog_deleted, timeout=30)
 
 
 def test_source_host(

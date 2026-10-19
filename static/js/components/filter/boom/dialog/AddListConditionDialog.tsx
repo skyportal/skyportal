@@ -883,7 +883,7 @@ const AddListConditionDialog = () => {
     });
 
     // Only close if both the API call and the filter update succeeded
-    if (success && apiResult?.status === "success") {
+    if (success && !apiResult?.error) {
       // Add a small delay to ensure state updates have processed
       setTimeout(() => {
         handleClose();

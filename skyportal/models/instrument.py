@@ -63,7 +63,7 @@ class ArrayOfEnum(ARRAY):
 def manage_instrument_access_logic(cls, user_or_token):
     if user_or_token.is_system_admin:
         return sa.select(cls)
-    elif "Manage allocations" in [acl.id for acl in user_or_token.acls]:
+    elif "Manage instruments" in user_or_token.permissions:
         return sa.select(cls)
     else:
         # return an empty query
@@ -265,8 +265,8 @@ class InstrumentFieldTile(Base):
 class Instrument(Base):
     """An instrument attached to a telescope."""
 
-    read = public
-    create = update = delete = CustomUserAccessControl(manage_instrument_access_logic)
+    read = create = public
+    update = delete = CustomUserAccessControl(manage_instrument_access_logic)
 
     name = sa.Column(sa.String, unique=True, nullable=False, doc="Instrument name.")
     type = sa.Column(
@@ -418,18 +418,6 @@ class Instrument(Base):
             sa.String, nullable=True, doc="Instrument astropy.regions representation."
         )
     )
-
-    @property
-    def does_spectroscopy(self):
-        """Return a boolean indicating whether the instrument is capable of
-        performing spectroscopy."""
-        return "spec" in self.type
-
-    @property
-    def does_imaging(self):
-        """Return a boolean indicating whether the instrument is capable of
-        performing imaging."""
-        return "imag" in self.type
 
     @property
     def api_class(self):

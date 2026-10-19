@@ -4,15 +4,15 @@ __all__ = ["UserNotification"]
 import sqlalchemy as sa
 from sqlalchemy import event, inspect
 from sqlalchemy.orm import relationship
-from tornado.ioloop import IOLoop
 
 from baselayer.app.models import AccessibleIfUserMatches, Base
 
-from ..utils.notifications import post_notification
+from ..utils.notifications import post_notification_in_background
 from .analysis import ObjAnalysis
 from .classification import Classification
 from .comment import Comment
-from .facility_transaction import FacilityTransaction
+from .discussion import DiscussionMessage
+from .feedback import Feedback, FeedbackReply
 from .followup_request import FollowupRequest
 from .gcn import GcnEventExtraction
 from .group import GroupAdmissionRequest
@@ -63,12 +63,21 @@ class UserNotification(Base):
 @event.listens_for(Classification, "after_insert")
 @event.listens_for(Spectrum, "after_insert")
 @event.listens_for(Comment, "after_insert")
-@event.listens_for(FacilityTransaction, "after_insert")
+@event.listens_for(DiscussionMessage, "after_insert")
+@event.listens_for(Feedback, "after_insert")
+@event.listens_for(FeedbackReply, "after_insert")
 @event.listens_for(GroupAdmissionRequest, "after_insert")
 @event.listens_for(ObjAnalysis, "after_update")
 @event.listens_for(EventObservationPlan, "after_insert")
 @event.listens_for(FollowupRequest, "after_update")
 def add_user_notifications(mapper, connection, target):
+    # later updates of a completed analysis would notify its completion again
+    if (
+        isinstance(target, ObjAnalysis)
+        and not inspect(target).attrs.status.history.has_changes()
+    ):
+        return
+
     # Add front-end user notifications
     @event.listens_for(inspect(target).session, "after_commit", once=True)
     def receive_after_commit(session):
@@ -81,12 +90,6 @@ def add_user_notifications(mapper, connection, target):
         except Exception:
             return
 
-        request_body = {
-            "target_class_name": target_class_name,
-            "target_id": target_id,
-        }
-
-        IOLoop.current().run_in_executor(
-            None,
-            lambda: post_notification(request_body, timeout=30),
+        post_notification_in_background(
+            {"target_class_name": target_class_name, "target_id": target_id}
         )

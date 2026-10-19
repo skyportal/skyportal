@@ -5,8 +5,10 @@ import InputLabel from "@mui/material/InputLabel";
 import FormControl from "@mui/material/FormControl";
 import Chip from "@mui/material/Chip";
 import Input from "@mui/material/Input";
+import Box from "@mui/material/Box";
 
 import { Group } from "../../types";
+import RemovableChip from "../RemovableChip";
 
 const getStyles = (groupID: number, groupIDs: number[] = [], theme: any) => ({
   fontWeight:
@@ -47,9 +49,19 @@ const GroupShareSelect = ({
         input={<Input id="selectGroupsChip" />}
         renderValue={(selected: number[]) => {
           if (selected.length <= maxGroups) {
-            return selected?.map((value) => (
-              <Chip key={value} label={groupIDToName[value]} />
-            ));
+            return (
+              <Box sx={{ display: "flex", gap: 0.5 }}>
+                {selected.map((value) => (
+                  <RemovableChip
+                    key={value}
+                    label={groupIDToName[value]}
+                    onDelete={() =>
+                      setGroupIDs(selected.filter((id) => id !== value))
+                    }
+                  />
+                ))}
+              </Box>
+            );
           }
           return <Chip label={`${selected.length} groups`} />;
         }}
@@ -58,7 +70,7 @@ const GroupShareSelect = ({
           <MenuItem
             key={group.id}
             value={group.id}
-            style={getStyles(group.name as any, groupIDs, theme)}
+            style={getStyles(group.id, groupIDs, theme)}
           >
             <div data-testid={`group_${group.id}`}>{group.name}</div>
           </MenuItem>

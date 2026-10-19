@@ -88,6 +88,26 @@ def test_from_igwn_gwalert_normalization():
     assert "trigger_time" not in retr and "healpix_file" not in retr
 
 
+def test_from_igwn_gwalert_skymap_name_per_alert():
+    def update(skymap):
+        return {
+            "superevent_id": "S260101a",
+            "alert_type": "UPDATE",
+            "event": {"time": "2026-01-01T00:00:00Z", "skymap": skymap},
+        }
+
+    def name(alert):
+        return alert["healpix_file"].split(";base64,")[0]
+
+    first = from_igwn_gwalert(update("ZmFrZQ=="))
+    # a later alert with a new map gets its own localization name...
+    assert name(from_igwn_gwalert(update("b3RoZXI="))) != name(first)
+    # ...while the same map again keeps the same one, so it is skipped
+    assert name(from_igwn_gwalert(update("ZmFrZQ=="))) == name(first)
+    # the service and post_gcnevent_from_json both normalize the same alert
+    assert from_igwn_gwalert(first)["healpix_file"] == first["healpix_file"]
+
+
 def test_properties_tags_from_meta_near_distance():
     props, tags = properties_tags_from_meta(
         {"log_bci": 1.0, "distmean": 100, "diststd": 20, "ignored": 5}

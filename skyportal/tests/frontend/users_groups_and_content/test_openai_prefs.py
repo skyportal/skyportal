@@ -11,7 +11,7 @@ from skyportal.tests import api, open_preferences_panel
 def test_openai_prefs(page, user, upload_data_token):
     page.goto(f"/become_user/{user.id}")
     page.goto("/profile")
-    open_preferences_panel(page, "integrations")
+    open_preferences_panel(page, "sources")
     openai_toggle = page.locator('[data-testid="OpenAI_toggle"]').first
     expect(openai_toggle).to_be_visible()
 

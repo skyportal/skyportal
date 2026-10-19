@@ -1,3 +1,5 @@
+from datetime import UTC, datetime, timedelta
+
 import dateutil.parser
 import sqlalchemy as sa
 from astropy.time import Time
@@ -90,8 +92,35 @@ def _request_summary(request, shared_groups=None):
     }
 
 
-# Requests in these states are done with: they cannot collide with tonight.
-_SETTLED_REQUEST_STATES = ("complete", "completed", "deleted", "expired")
+_SETTLED_STATUS_PREFIXES = (
+    "complete",
+    "expired",
+    "deleted",
+    "failed",
+    "rejected",
+    "cancel",
+    "error",
+    "photometry committed",
+    "no photometry",
+)
+_OPEN_REQUEST_MAX_AGE_DAYS = 30
+
+
+def _open_followup_request():
+    since = datetime.now(UTC).replace(tzinfo=None) - timedelta(
+        days=_OPEN_REQUEST_MAX_AGE_DAYS
+    )
+    return sa.and_(
+        FollowupRequest.created_at > since,
+        sa.not_(
+            sa.or_(
+                *(
+                    FollowupRequest.status.ilike(f"{prefix}%")
+                    for prefix in _SETTLED_STATUS_PREFIXES
+                )
+            )
+        ),
+    )
 
 
 def _owners_hiding_data():
@@ -698,10 +727,13 @@ class DataAccessRequestHandler(BaseHandler):
                     user_id_to_refresh, "skyportal/REFRESH_DATA_ACCESS_REQUESTS", {}
                 )
             if body.status == "accepted":
+                internal_key = await session.scalar(
+                    sa.select(Obj.internal_key).where(Obj.id == request.obj_id)
+                )
                 self.flow.push(
                     request.requester_id,
                     "skyportal/REFRESH_SOURCE",
-                    {"obj_key": request.obj_id},
+                    {"obj_key": internal_key},
                 )
             return self.success()
 
@@ -732,20 +764,28 @@ class DataAccessRequestHandler(BaseHandler):
         """Add the requested dataset to a group. Returns an error message if
         there is nothing left to share."""
         if request.data_type == "photometry":
-            photometry_ids = (
-                await session.scalars(
-                    sa.select(Photometry.id)
-                    .where(
-                        Photometry.obj_id == request.obj_id,
-                        Photometry.owner_id == request.owner_id,
-                        Photometry.instrument_id == request.instrument_id,
-                        Photometry.filter == request.filter,
+            statement = sa.select(Photometry.id).where(
+                Photometry.obj_id == request.obj_id,
+                Photometry.owner_id == request.owner_id,
+                Photometry.instrument_id == request.instrument_id,
+                Photometry.filter == request.filter,
+                Photometry.id.in_(_discoverable_photometry(request.obj_id)),
+            )
+            user_id = self.associated_user_object.id
+            if not session.user_or_token.is_admin and request.owner_id != user_id:
+                statement = statement.where(
+                    Photometry.id.in_(
+                        sa.select(GroupPhotometry.photometr_id)
+                        .join(
+                            GroupUser,
+                            GroupUser.group_id == GroupPhotometry.group_id,
+                        )
+                        .where(GroupUser.user_id == user_id, GroupUser.admin.is_(True))
                     )
-                    .distinct()
                 )
-            ).all()
+            photometry_ids = (await session.scalars(statement.distinct())).all()
             if not photometry_ids:
-                return "The requested photometry no longer exists."
+                return "There is no requested photometry left for you to share."
             await session.execute(
                 pg_insert(GroupPhotometry.__table__)
                 .values(
@@ -948,7 +988,7 @@ class DuplicateSchedulingHandler(BaseHandler):
             mine_stmt = FollowupRequest.select(
                 session.user_or_token,
                 columns=[FollowupRequest.obj_id, FollowupRequest.id],
-            ).where(FollowupRequest.status.notin_(_SETTLED_REQUEST_STATES))
+            ).where(_open_followup_request())
             mine = (await session.execute(mine_stmt)).all()
             if not mine:
                 return self.success(data=[])
@@ -989,11 +1029,14 @@ class DuplicateSchedulingHandler(BaseHandler):
                                 type_=sa.ARRAY(sa.Integer),
                             )
                         ),
-                        FollowupRequest.status.notin_(_SETTLED_REQUEST_STATES),
+                        _open_followup_request(),
                         Group.discoverable_data.is_(True),
                         FollowupRequest.requester_id.notin_(_owners_hiding_data()),
                     )
-                    .distinct()
+                    # No DISTINCT: the joins are 1:1 so it only collapses rare
+                    # identical rows, but DISTINCT over the selected JSONB payload
+                    # makes Postgres sort/hash every payload (~1.7s in production).
+                    # The reported rows are deduplicated in Python below instead.
                 )
             ).all()
 
@@ -1027,18 +1070,24 @@ class DuplicateSchedulingHandler(BaseHandler):
             # Only report requests whose window overlaps one of ours; a request
             # with no readable window could be for any night, so it is reported
             # rather than assumed harmless.
-            return self.success(
-                data=[
+            data = []
+            seen = set()
+            for row in rows:
+                if not any(
+                    _windows_overlap(mine_window, _request_window(row[4]))
+                    for mine_window in my_windows.get(row[0], [(None, None)])
+                ):
+                    continue
+                key = (row[0], row[1], row[2], row[3])
+                if key in seen:
+                    continue
+                seen.add(key)
+                data.append(
                     {
                         "obj_id": row[0],
                         "instrument_name": row[1],
                         "group_name": row[2],
                         "status": row[3],
                     }
-                    for row in rows
-                    if any(
-                        _windows_overlap(mine_window, _request_window(row[4]))
-                        for mine_window in my_windows.get(row[0], [(None, None)])
-                    )
-                ]
-            )
+                )
+            return self.success(data=data)

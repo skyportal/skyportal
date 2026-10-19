@@ -14,7 +14,10 @@ import EditIcon from "@mui/icons-material/Edit";
 
 import { showNotification } from "baselayer/components/Notifications";
 import { useDeleteInstrumentMutation } from "../../ducks/instrument";
-import StyledDataGrid, { DataGridToolbar } from "../StyledDataGrid";
+import StyledDataGrid, {
+  DataGridToolbar,
+  FULL_PAGE_HEIGHT,
+} from "../StyledDataGrid";
 import { useAppDispatch } from "../../types";
 import ConfirmDeletionDialog from "../ConfirmDeletionDialog";
 import InstrumentForm from "./InstrumentForm";
@@ -67,8 +70,6 @@ const InstrumentTable = ({
     }
   };
 
-  // Enrich instruments with telescope info and combined API classnames so the
-  // table can search/sort/filter on those fields client-side.
   const enrichedInstruments = useMemo(() => {
     const telescopeById = new Map(telescopes?.map((t) => [t.id, t]) || []);
     return (instruments || []).map((instrument) => {
@@ -244,20 +245,16 @@ const InstrumentTable = ({
   };
 
   return (
-    <Box
-      sx={
-        fixedHeader
-          ? { height: "calc(100vh - 6rem)", width: "100%" }
-          : { width: "100%" }
-      }
-    >
+    <>
       <StyledDataGrid
-        autoHeight={!fixedHeader}
+        height={fixedHeader ? FULL_PAGE_HEIGHT : "auto"}
         rows={enrichedInstruments}
         columns={columns}
         getRowId={(row: any) => row.id}
+        pageSizeOptions={[25, 50, 100, { value: -1, label: "All" }]}
         initialState={{
           columns: { columnVisibilityModel: { id: false } },
+          pagination: { paginationModel: { pageSize: -1 } },
         }}
         slots={{ toolbar: CustomToolbar }}
         showToolbar
@@ -295,7 +292,7 @@ const InstrumentTable = ({
         closeDialog={closeDeleteDialog}
         resourceName="instrument"
       />
-    </Box>
+    </>
   );
 };
 

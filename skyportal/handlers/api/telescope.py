@@ -1,3 +1,5 @@
+from collections import defaultdict
+
 from astropy.time import Time
 from skyportal_py_models.telescopes import (
     TelescopeGetQuery,
@@ -9,8 +11,9 @@ from sqlalchemy.orm import selectinload
 
 from baselayer.app.access import auth_or_token, permissions
 
-from ...models import Allocation, AllocationUser, Instrument, Telescope
+from ...models import Allocation, AllocationUser, Telescope
 from ..base import BaseHandler
+from .user import public_user_info
 
 
 class TelescopeHandler(BaseHandler):
@@ -101,11 +104,7 @@ class TelescopeHandler(BaseHandler):
             if telescope_id is not None:
                 single_result = await session.scalars(
                     Telescope.select(session.user_or_token)
-                    .options(
-                        selectinload(Telescope.instruments).selectinload(
-                            Instrument.allocations
-                        )
-                    )
+                    .options(selectinload(Telescope.instruments))
                     .where(Telescope.id == int(telescope_id))
                 )
                 t = single_result.first()
@@ -113,25 +112,22 @@ class TelescopeHandler(BaseHandler):
                     return self.error(
                         f"Could not load telescope with ID {telescope_id}"
                     )
-                instruments = []
-                allocations = []
-                for instrument in t.instruments:
-                    instruments.append(instrument.to_dict())
-                    allocations.extend(
-                        [allocation.to_dict() for allocation in instrument.allocations]
+                allocations = await session.scalars(
+                    Allocation.select(session.user_or_token).where(
+                        Allocation.instrument_id.in_([i.id for i in t.instruments])
                     )
+                )
                 data = {
                     **t.to_dict(),
-                    "instruments": instruments,
-                    "allocations": allocations,
+                    "instruments": [
+                        instrument.to_dict() for instrument in t.instruments
+                    ],
+                    "allocations": allocations.unique().all(),
                 }
                 return self.success(data=data)
 
             stmt = Telescope.select(session.user_or_token).options(
                 selectinload(Telescope.instruments)
-                .selectinload(Instrument.allocations)
-                .selectinload(Allocation.allocation_users)
-                .selectinload(AllocationUser.user)
             )
             if query.name is not None:
                 stmt = stmt.where(Telescope.name == query.name)
@@ -146,6 +142,25 @@ class TelescopeHandler(BaseHandler):
 
             list_result = await session.scalars(stmt)
             data = list_result.all()
+
+            allocations_result = await session.scalars(
+                Allocation.select(
+                    session.user_or_token,
+                    options=[
+                        selectinload(Allocation.allocation_users).selectinload(
+                            AllocationUser.user
+                        )
+                    ],
+                ).where(
+                    Allocation.instrument_id.in_(
+                        [i.id for telescope in data for i in telescope.instruments]
+                    )
+                )
+            )
+            allocations_by_instrument = defaultdict(list)
+            for allocation in allocations_result.unique().all():
+                allocations_by_instrument[allocation.instrument_id].append(allocation)
+
             telescopes = []
             for telescope in data:
                 if telescope is None:
@@ -161,10 +176,11 @@ class TelescopeHandler(BaseHandler):
 
                 allocations = []
                 for instrument in telescope.instruments:
-                    for allocation in instrument.allocations:
+                    for allocation in allocations_by_instrument[instrument.id]:
                         allocation_data = allocation.to_dict()
                         allocation_data["allocation_users"] = [
-                            user.user.to_dict() for user in allocation.allocation_users
+                            public_user_info(user.user)
+                            for user in allocation.allocation_users
                         ]
                         allocations.append(allocation_data)
                 temp["allocations"] = allocations

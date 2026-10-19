@@ -138,6 +138,17 @@ export const buildQueryString = (params: Record<string, unknown>): string => {
   return search.toString();
 };
 
+export function fileReaderPromise(
+  file: File,
+): Promise<{ body: string | ArrayBuffer | null; name: string }> {
+  return new Promise((resolve) => {
+    const filereader = new FileReader();
+    filereader.readAsDataURL(file);
+    filereader.onloadend = () =>
+      resolve({ body: filereader.result, name: file.name });
+  });
+}
+
 function GET<T = unknown>(
   endpoint: string,
   actionType?: string,

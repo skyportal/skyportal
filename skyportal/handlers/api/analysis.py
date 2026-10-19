@@ -4,6 +4,7 @@ import functools
 import io
 import json
 import os
+from concurrent.futures import ThreadPoolExecutor
 from typing import Annotated
 from urllib.parse import urljoin, urlparse
 
@@ -36,6 +37,7 @@ from baselayer.app.access import auth_or_token, permissions
 from baselayer.app.env import load_env
 from baselayer.app.flow import Flow
 from baselayer.app.model_util import recursive_to_dict
+from baselayer.app.models import new_session
 from baselayer.log import make_log
 
 from ...enum_types import (
@@ -58,7 +60,6 @@ from ...models import (
     Photometry,
     Spectrum,
     User,
-    UserNotification,
 )
 from ...utils.app import get_app_base_url
 from ...utils.extinction import calculate_extinction
@@ -84,16 +85,19 @@ ResourceId = Annotated[
 ]
 
 log = make_log("app/analysis")
+_analysis_executor = ThreadPoolExecutor(max_workers=8)
 
 _, cfg = load_env()
 
 DEFAULT_ANALYSES_DAILY_LIMIT = 1000
 
 # Core analysis parameters that SkyPortal consumes itself (e.g. to preprocess
-# the photometry) rather than passing through to a service's own schema. They
-# are allowed for any service, so they're excluded from the
-# optional_analysis_parameters subset check.
-RESERVED_ANALYSIS_PARAMETERS = frozenset({"correct_extinction"})
+# the photometry, or to decide whether to submit at all) rather than passing
+# through to a service's own schema. They are allowed for any service, so
+# they're excluded from the optional_analysis_parameters subset check.
+RESERVED_ANALYSIS_PARAMETERS = frozenset(
+    {"correct_extinction", "min_detections", "min_detections_per_filter"}
+)
 
 
 def unknown_analysis_parameters(params, optional_analysis_parameters):
@@ -343,6 +347,141 @@ def analysis_model_for(analysis_resource_type):
     return None
 
 
+def _analysis_inputs(analysis_parameters):
+    """Return the service inputs and whether to deredden photometry.
+
+    Strips data-URL parameters from ``analysis_parameters`` in place, after
+    copying them into the inputs, so the stored analysis keeps only file names.
+    """
+    inputs = {"analysis_parameters": analysis_parameters.copy()}
+
+    # Opt-in Galactic-extinction correction of the photometry sent to the service.
+    correct_extinction = str_to_bool(
+        analysis_parameters.get("correct_extinction"), default=False
+    )
+
+    # if any analysis_parameters is a file, we discard it and just keep its name (if possible)
+    keys_to_delete = []
+    for k, v in analysis_parameters.items():
+        if isinstance(v, str):
+            if "data:" in v and ";name=" in v:
+                keys_to_delete.append(k)
+    for k in keys_to_delete:
+        try:
+            analysis_parameters[k] = (
+                analysis_parameters[k].split(";name=")[1].split(";")[0]
+            )
+        except Exception:
+            del analysis_parameters[k]
+
+    return inputs, correct_extinction
+
+
+def _input_csv(
+    input_type, input_data, associated_resource, input_filters, correct_extinction, obj
+):
+    """Serialize one input type's rows to the CSV sent to the analysis service."""
+    if input_type == "photometry":
+        input_data = [
+            serialize(
+                phot,
+                "ab",
+                "both",
+                groups=False,
+                annotations=False,
+            )
+            for phot in input_data
+        ]
+        df = pd.DataFrame(input_data)
+        df = _add_predicted_mag_column(df)
+
+        if input_filters is not None and input_filters.get("photometry") is not None:
+            if len(input_filters.get("photometry").get("filters", [])) > 0:
+                df = df[df["filter"].isin(input_filters.get("photometry")["filters"])]
+            if len(input_filters.get("photometry").get("instruments", [])) > 0:
+                df = df[
+                    df["instrument_id"].isin(
+                        input_filters.get("photometry")["instruments"]
+                    )
+                ]
+                # record names too, as the instruments may later be edited or deleted
+                instruments = df["instrument_name"].unique().tolist()
+                input_filters["photometry"]["instruments_by_name"] = instruments
+
+        df = df[associated_resource["allowed_export_columns"]]
+        # collapse duplicate mjd/filter points, keeping the lowest-error
+        # (best) one rather than an arbitrary first
+        df = (
+            df.sort_values("magerr")
+            .drop_duplicates(["mjd", "filter"])
+            .reset_index(drop=True)
+        )
+        if correct_extinction and not df.empty:
+            df = deredden_photometry_df(df, obj.ra, obj.dec)
+    else:
+        input_data = [
+            generic_serialize(row, associated_resource["allowed_export_columns"])
+            for row in input_data
+        ]
+        df = pd.DataFrame(input_data)
+    return df.to_csv(index=False)
+
+
+def _record_service_response(
+    open_session,
+    future,
+    analysis_id,
+    analysis_service_id,
+    analysis_resource_type,
+    logger=log,
+):
+    """Store the analysis service's reply to the start request on the analysis."""
+    with open_session() as session:
+        analysis_cls = analysis_model_for(analysis_resource_type)
+        if analysis_cls is None:
+            log(f"Invalid analysis_resource_type: {analysis_resource_type}")
+            return
+        try:
+            analysis = session.get(analysis_cls, analysis_id)
+            if analysis is None:
+                logger(f"Analysis {analysis_id} not found")
+                return
+        except Exception as e:
+            log(f"Could not access Analysis {analysis_id} {e}.")
+            return
+
+        analysis.last_activity = utcnow_naive()
+        try:
+            result = future.result()
+            analysis.status = "pending" if result.status_code == 200 else "failure"
+            # truncate the return just so we dont have a huge string in the database
+            analysis.status_message = result.text[:1024]
+        except Exception:
+            analysis.status = "failure"
+            analysis.status_message = str(future.exception())[:1024]
+        finally:
+            logger(
+                f"[id={analysis_id} service={analysis_service_id}] status='{analysis.status}' message='{analysis.status_message}'"
+            )
+            session.commit()
+            try:
+                flow = Flow()
+                if analysis_resource_type.lower() == "obj":
+                    flow.push(
+                        "*",
+                        "skyportal/REFRESH_OBJ_ANALYSES",
+                        payload={"obj_key": analysis.obj.internal_key},
+                    )
+                elif analysis_resource_type.lower() == "gcn_event":
+                    flow.push(
+                        "*",
+                        "skyportal/REFRESH_GCNEVENT",
+                        payload={"gcnEvent_dateobs": analysis.dateobs.isoformat()},
+                    )
+            except Exception as e:
+                logger(f"Could not refresh analyses: {e}")
+
+
 def _localization_payload(localization):
     """Sky position (max-probability point) and a skymap reference for a GCN
     localization, best-effort. Targeted searches (e.g. PyGRB) point at ra/dec; the
@@ -455,7 +594,7 @@ def post_analysis(
     groups,
     analysis_service,
     session,
-    notification=None,
+    trigger=None,
     analysis_parameters=None,
     show_parameters=False,
     show_plots=False,
@@ -500,26 +639,7 @@ def post_analysis(
 
     input_data_types = analysis_service.input_data_types.copy()
 
-    inputs = {"analysis_parameters": analysis_parameters.copy()}
-
-    # Opt-in Galactic-extinction correction of the photometry sent to the service.
-    correct_extinction = str_to_bool(
-        analysis_parameters.get("correct_extinction"), default=False
-    )
-
-    # if any analysis_parameters is a file, we discard it and just keep its name (if possible)
-    keys_to_delete = []
-    for k, v in analysis_parameters.items():
-        if isinstance(v, str):
-            if "data:" in v and ";name=" in v:
-                keys_to_delete.append(k)
-    for k in keys_to_delete:
-        try:
-            analysis_parameters[k] = (
-                analysis_parameters[k].split(";name=")[1].split(";")[0]
-            )
-        except Exception:
-            del analysis_parameters[k]
+    inputs, correct_extinction = _analysis_inputs(analysis_parameters)
 
     if analysis_resource_type.lower() == "obj":
         obj_id = resource_id
@@ -577,54 +697,18 @@ def post_analysis(
                 .select(current_user)
                 .where(id_col.in_(obj_ids))
             )
+            spectrum_ids = ((input_filters or {}).get("spectra") or {}).get("ids")
+            if input_type == "spectra" and spectrum_ids:
+                stmt = stmt.where(Spectrum.id.in_(spectrum_ids))
             input_data = session.scalars(stmt).all()
-            if input_type == "photometry":
-                input_data = [serialize(phot, "ab", "both") for phot in input_data]
-                df = pd.DataFrame(input_data)
-                df = _add_predicted_mag_column(df)
-
-                if (
-                    input_filters is not None
-                    and input_filters.get("photometry") is not None
-                ):
-                    if len(input_filters.get("photometry").get("filters", [])) > 0:
-                        df = df[
-                            df["filter"].isin(
-                                input_filters.get("photometry")["filters"]
-                            )
-                        ]
-                    if len(input_filters.get("photometry").get("instruments", [])) > 0:
-                        # we want to make sure that after this runs, the user can still figure out
-                        # what instrument he filtered on, non trivial when only reporting the id used
-                        # the instrument could be edited, deleted, ...
-                        # so, we grab the name and inject that in the input_filters
-                        df = df[
-                            df["instrument_id"].isin(
-                                input_filters.get("photometry")["instruments"]
-                            )
-                        ]
-                        instruments = df["instrument_name"].unique().tolist()
-                        input_filters["photometry"]["instruments_by_name"] = instruments
-
-                df = df[associated_resource["allowed_export_columns"]]
-                # collapse duplicate mjd/filter points, keeping the lowest-error
-                # (best) one rather than an arbitrary first
-                df = (
-                    df.sort_values("magerr")
-                    .drop_duplicates(["mjd", "filter"])
-                    .reset_index(drop=True)
-                )
-                if correct_extinction and not df.empty:
-                    df = deredden_photometry_df(df, obj.ra, obj.dec)
-            else:
-                input_data = [
-                    generic_serialize(
-                        row, associated_resource["allowed_export_columns"]
-                    )
-                    for row in input_data
-                ]
-                df = pd.DataFrame(input_data)
-            inputs[input_type] = df.to_csv(index=False)
+            inputs[input_type] = _input_csv(
+                input_type,
+                input_data,
+                associated_resource,
+                input_filters,
+                correct_extinction,
+                obj,
+            )
 
         invalid_after = utcnow_naive() + datetime.timedelta(
             seconds=analysis_service.timeout
@@ -660,6 +744,7 @@ def post_analysis(
             show_corner,
             input_filters,
         )
+        invalid_after = analysis.invalid_after
     else:
         raise ValueError(
             f"analysis_resource_type must be one of {', '.join(['obj', 'gcn_event'])}"
@@ -691,89 +776,31 @@ def post_analysis(
         resource_id=resource_id,
     )
 
-    flow = Flow()
-    flow.push(
-        current_user.id,
-        action_type="baselayer/SHOW_NOTIFICATION",
-        payload={
-            "note": f"Sending data to analysis service {analysis_service.name} to start the analysis."
-            if notification is None
-            else notification,
-            "type": "info",
-        },
-    )
+    if trigger is None:
+        flow = Flow()
+        flow.push(
+            current_user.id,
+            action_type="baselayer/SHOW_NOTIFICATION",
+            payload={
+                "note": f"Sending data to analysis service {analysis_service.name} to start the analysis.",
+                "type": "info",
+            },
+        )
+    else:
+        log(trigger)
 
-    if notification is not None and notification != "":
-        try:
-            user_notification = UserNotification(
-                user=current_user,
-                text=notification,
-                notification_type="default_analysis",
-                url=f"{resource_path}/analysis/{analysis.id}",
-            )
-            session.add(user_notification)
-            session.commit()
-        except Exception as e:
-            log(f"Could not add notification: {e}")
-
-    def analysis_done_callback(
-        future,
-        logger=log,
+    analysis_done_callback = functools.partial(
+        _record_service_response,
+        new_session,
         analysis_id=analysis.id,
         analysis_service_id=analysis_service.id,
         analysis_resource_type=analysis_resource_type,
-    ):
-        """
-        Callback function for when the analysis service is done.
-        Updates the Analysis object with the results/errors.
-        """
-        analysis_cls = analysis_model_for(analysis_resource_type)
-        if analysis_cls is None:
-            log(f"Invalid analysis_resource_type: {analysis_resource_type}")
-            return
-        try:
-            analysis = session.get(analysis_cls, analysis_id)
-            if analysis is None:
-                logger.error(f"Analysis {analysis_id} not found")
-                return
-        except Exception as e:
-            log(f"Could not access Analysis {analysis_id} {e}.")
-            return
-
-        analysis.last_activity = utcnow_naive()
-        try:
-            result = future.result()
-            analysis.status = "pending" if result.status_code == 200 else "failure"
-            # truncate the return just so we dont have a huge string in the database
-            analysis.status_message = result.text[:1024]
-        except Exception:
-            analysis.status = "failure"
-            analysis.status_message = str(future.exception())[:1024]
-        finally:
-            logger(
-                f"[id={analysis_id} service={analysis_service_id}] status='{analysis.status}' message='{analysis.status_message}'"
-            )
-            session.commit()
-            try:
-                flow = Flow()
-                if analysis_resource_type.lower() == "obj":
-                    flow.push(
-                        "*",
-                        "skyportal/REFRESH_OBJ_ANALYSES",
-                        payload={"obj_key": analysis.obj.internal_key},
-                    )
-                elif analysis_resource_type.lower() == "gcn_event":
-                    flow.push(
-                        "*",
-                        "skyportal/REFRESH_GCNEVENT",
-                        payload={"gcnEvent_dateobs": analysis.dateobs.isoformat()},
-                    )
-            except Exception as e:
-                logger(f"Could not refresh analyses: {e}")
+    )
 
     # Start the analysis service in a separate thread and log any exceptions
-    x = IOLoop.current().run_in_executor(None, external_analysis_service)
-    x.add_done_callback(analysis_done_callback)
+    _analysis_executor.submit(external_analysis_service).add_done_callback(
+        analysis_done_callback
+    )
 
     return analysis.id
 
@@ -786,7 +813,6 @@ async def post_analysis_async(
     groups,
     analysis_service,
     session,
-    notification=None,
     analysis_parameters=None,
     show_parameters=False,
     show_plots=False,
@@ -797,8 +823,8 @@ async def post_analysis_async(
 
     Does the same work as the sync ``post_analysis`` but uses an
     ``AsyncSession``. The background HTTP call (via ``IOLoop.run_in_executor``)
-    is still dispatched here; its done-callback uses a sync ``DBSession`` for
-    its own writes since it runs in a thread executor.
+    is still dispatched here; its done-callback is a plain sync function, so it
+    uses the sync ``DBSession`` for its own writes.
     """
 
     # `author` and `current_user` are passed in but may originate from a
@@ -811,26 +837,7 @@ async def post_analysis_async(
 
     input_data_types = analysis_service.input_data_types.copy()
 
-    inputs = {"analysis_parameters": analysis_parameters.copy()}
-
-    # Opt-in Galactic-extinction correction of the photometry sent to the service.
-    correct_extinction = str_to_bool(
-        analysis_parameters.get("correct_extinction"), default=False
-    )
-
-    # if any analysis_parameters is a file, we discard it and just keep its name (if possible)
-    keys_to_delete = []
-    for k, v in analysis_parameters.items():
-        if isinstance(v, str):
-            if "data:" in v and ";name=" in v:
-                keys_to_delete.append(k)
-    for k in keys_to_delete:
-        try:
-            analysis_parameters[k] = (
-                analysis_parameters[k].split(";name=")[1].split(";")[0]
-            )
-        except Exception:
-            del analysis_parameters[k]
+    inputs, correct_extinction = _analysis_inputs(analysis_parameters)
 
     if analysis_resource_type.lower() == "obj":
         obj_id = resource_id
@@ -896,58 +903,14 @@ async def post_analysis_async(
             input_data = (
                 result.unique().all() if input_type == "photometry" else result.all()
             )
-            if input_type == "photometry":
-                input_data = [
-                    serialize(
-                        phot,
-                        "ab",
-                        "both",
-                        groups=False,
-                        annotations=False,
-                    )
-                    for phot in input_data
-                ]
-                df = pd.DataFrame(input_data)
-                df = _add_predicted_mag_column(df)
-
-                if (
-                    input_filters is not None
-                    and input_filters.get("photometry") is not None
-                ):
-                    if len(input_filters.get("photometry").get("filters", [])) > 0:
-                        df = df[
-                            df["filter"].isin(
-                                input_filters.get("photometry")["filters"]
-                            )
-                        ]
-                    if len(input_filters.get("photometry").get("instruments", [])) > 0:
-                        df = df[
-                            df["instrument_id"].isin(
-                                input_filters.get("photometry")["instruments"]
-                            )
-                        ]
-                        instruments = df["instrument_name"].unique().tolist()
-                        input_filters["photometry"]["instruments_by_name"] = instruments
-
-                df = df[associated_resource["allowed_export_columns"]]
-                # collapse duplicate mjd/filter points, keeping the lowest-error
-                # (best) one rather than an arbitrary first
-                df = (
-                    df.sort_values("magerr")
-                    .drop_duplicates(["mjd", "filter"])
-                    .reset_index(drop=True)
-                )
-                if correct_extinction and not df.empty:
-                    df = deredden_photometry_df(df, obj.ra, obj.dec)
-            else:
-                input_data = [
-                    generic_serialize(
-                        row, associated_resource["allowed_export_columns"]
-                    )
-                    for row in input_data
-                ]
-                df = pd.DataFrame(input_data)
-            inputs[input_type] = df.to_csv(index=False)
+            inputs[input_type] = _input_csv(
+                input_type,
+                input_data,
+                associated_resource,
+                input_filters,
+                correct_extinction,
+                obj,
+            )
 
         invalid_after = utcnow_naive() + datetime.timedelta(
             seconds=analysis_service.timeout
@@ -1080,84 +1043,20 @@ async def post_analysis_async(
         current_user_id_val,
         action_type="baselayer/SHOW_NOTIFICATION",
         payload={
-            "note": f"Sending data to analysis service {analysis_service_name} to start the analysis."
-            if notification is None
-            else notification,
+            "note": f"Sending data to analysis service {analysis_service_name} to start the analysis.",
             "type": "info",
         },
     )
 
-    if notification is not None and notification != "":
-        try:
-            user_notification = UserNotification(
-                user_id=current_user_id_val,
-                text=notification,
-                notification_type="default_analysis",
-                url=f"{resource_path}/analysis/{analysis_id}",
-            )
-            session.add(user_notification)
-            await session.commit()
-        except Exception as e:
-            log(f"Could not add notification: {e}")
+    from ...models import DBSession
 
-    def analysis_done_callback(
-        future,
-        logger=log,
+    analysis_done_callback = functools.partial(
+        _record_service_response,
+        DBSession,
         analysis_id=analysis_id,
         analysis_service_id=analysis_service_id,
         analysis_resource_type=analysis_resource_type,
-    ):
-        """
-        Callback function for when the analysis service is done.
-        Updates the Analysis object with the results/errors.
-        Runs in a thread executor; uses a sync DBSession.
-        """
-        from ...models import DBSession
-
-        with DBSession() as db_session:
-            analysis_cls = analysis_model_for(analysis_resource_type)
-            if analysis_cls is None:
-                log(f"Invalid analysis_resource_type: {analysis_resource_type}")
-                return
-            try:
-                analysis = db_session.get(analysis_cls, analysis_id)
-                if analysis is None:
-                    logger.error(f"Analysis {analysis_id} not found")
-                    return
-            except Exception as e:
-                log(f"Could not access Analysis {analysis_id} {e}.")
-                return
-
-            analysis.last_activity = utcnow_naive()
-            try:
-                result = future.result()
-                analysis.status = "pending" if result.status_code == 200 else "failure"
-                # truncate the return just so we dont have a huge string in the database
-                analysis.status_message = result.text[:1024]
-            except Exception:
-                analysis.status = "failure"
-                analysis.status_message = str(future.exception())[:1024]
-            finally:
-                logger(
-                    f"[id={analysis_id} service={analysis_service_id}] status='{analysis.status}' message='{analysis.status_message}'"
-                )
-                db_session.commit()
-                try:
-                    flow = Flow()
-                    if analysis_resource_type.lower() == "obj":
-                        flow.push(
-                            "*",
-                            "skyportal/REFRESH_OBJ_ANALYSES",
-                            payload={"obj_key": analysis.obj.internal_key},
-                        )
-                    elif analysis_resource_type.lower() == "gcn_event":
-                        flow.push(
-                            "*",
-                            "skyportal/REFRESH_GCNEVENT",
-                            payload={"gcnEvent_dateobs": analysis.dateobs.isoformat()},
-                        )
-                except Exception as e:
-                    logger(f"Could not refresh analyses: {e}")
+    )
 
     # Start the analysis service in a separate thread and log any exceptions
     x = IOLoop.current().run_in_executor(None, external_analysis_service)
@@ -1748,12 +1647,13 @@ class AnalysisHandler(BaseHandler):
                         AnalysisService.id == analysis.analysis_service_id
                     )
                     analysis_service = await session.scalar(stmt)
-                    analysis_dict["analysis_service_name"] = (
-                        analysis_service.display_name
-                    )
-                    analysis_dict["analysis_service_description"] = (
-                        analysis_service.description
-                    )
+                    if analysis_service is not None:
+                        analysis_dict["analysis_service_name"] = (
+                            analysis_service.display_name
+                        )
+                        analysis_dict["analysis_service_description"] = (
+                            analysis_service.description
+                        )
                     analysis_dict["num_plots"] = analysis.number_of_analysis_plots
 
                     if query.includeFilename:
@@ -1779,7 +1679,23 @@ class AnalysisHandler(BaseHandler):
                 analyses = result.unique().all()
 
                 ret_array = []
+                # Load every accessible AnalysisService for these analyses in ONE
+                # access-controlled query keyed by id, rather than one query per
+                # distinct service inside the loop (the N+1 seen in production).
+                service_ids = {a.analysis_service_id for a in analyses}
                 analysis_services_dict = {}
+                if service_ids:
+                    services = await session.scalars(
+                        AnalysisService.select(self.current_user).where(
+                            AnalysisService.id.in_(service_ids)
+                        )
+                    )
+                    for s in services.unique().all():
+                        analysis_services_dict[s.id] = {
+                            "analysis_service_name": s.display_name,
+                            "analysis_service_description": s.description,
+                            "analysis_serivce_display_as_summary": s.is_summary,
+                        }
                 for a in analyses:
                     # Per-source queries (objID) feed the photometry overlay and
                     # need the full record + model light curve (loaded from disk).
@@ -1841,24 +1757,8 @@ class AnalysisHandler(BaseHandler):
                             "analysis_service_id": a.analysis_service_id,
                         }
 
-                    if a.analysis_service_id not in analysis_services_dict:
-                        stmt = AnalysisService.select(self.current_user).where(
-                            AnalysisService.id == a.analysis_service_id
-                        )
-                        analysis_service = await session.scalar(stmt)
-                        if analysis_service is not None:
-                            analysis_services_dict.update(
-                                {
-                                    a.analysis_service_id: {
-                                        "analysis_service_name": analysis_service.display_name,
-                                        "analysis_service_description": analysis_service.description,
-                                        "analysis_serivce_display_as_summary": analysis_service.is_summary,
-                                    }
-                                }
-                            )
-
-                    if a.analysis_service_id in analysis_services_dict:
-                        service_info = analysis_services_dict[a.analysis_service_id]
+                    service_info = analysis_services_dict.get(a.analysis_service_id)
+                    if service_info is not None:
                         analysis_dict["analysis_service_name"] = service_info[
                             "analysis_service_name"
                         ]
@@ -1866,11 +1766,11 @@ class AnalysisHandler(BaseHandler):
                             "analysis_service_description"
                         ]
 
-                    if (
-                        query.summaryOnly
-                        and not service_info["analysis_serivce_display_as_summary"]
+                    if query.summaryOnly and (
+                        service_info is None
+                        or not service_info["analysis_serivce_display_as_summary"]
                     ):
-                        # the analysis service is not a summary service, so skip returning this analysis
+                        # not a summary service (or not accessible); skip returning it
                         continue
                     ret_array.append(analysis_dict)
             elif analysis_resource_type.lower() == "gcn_event":

@@ -242,6 +242,31 @@ def test_comments(page, user, public_source):
     add_comment_and_wait_for_display(page, comment_text)
 
 
+def test_comment_emoji_shortcodes(page, user, public_source, comment_token):
+    marker = str(uuid.uuid4())
+    text = f"{marker} :smile: at 12:30:45 :notanemoji: :constructor: `:smile:`"
+    status, _ = api(
+        "POST",
+        f"sources/{public_source.id}/comments",
+        data={"text": text},
+        token=comment_token,
+    )
+    assert status == 200
+
+    page.goto(f"/become_user/{user.id}")
+    page.goto(f"/source/{public_source.id}")
+    open_source_chat(page)
+    # a comment posted with a token is a bot comment, hidden by default
+    page.locator(
+        '//div[@data-testid="source-chat"]//span[text()="Include bots"]'
+    ).first.click()
+    comment = page.locator('//*[@id="comment"]//p', has_text=marker).first
+    # Unknown names and shortcodes inside code are left as written
+    expect(comment).to_have_text(
+        f"{marker} \U0001f604 at 12:30:45 :notanemoji: :constructor: :smile:"
+    )
+
+
 def test_comment_groups_validation(page, user, public_source, public_group):
     page.goto(f"/become_user/{user.id}")
     page.goto(f"/source/{public_source.id}")
@@ -502,10 +527,18 @@ def test_update_redshift_and_history(page, user, public_source):
     expect(page.locator("//*[contains(., '0.0001')]").first).to_be_visible()
 
     page.locator("//*[@data-testid='redshiftHistoryIconButton']").first.click()
-    expect(page.locator("//th[text()='Set By']").first).to_be_visible()
-    expect(page.locator("//td[text()='0.9999']").first).to_be_visible()
-    expect(page.locator("//td[text()='0.0001']").first).to_be_visible()
-    expect(page.locator(f"//td[text()='{user.username}']").first).to_be_visible()
+    expect(
+        page.locator("//*[@role='columnheader' and @data-field='set_by_user_id']").first
+    ).to_be_visible()
+    expect(
+        page.locator("//div[@role='gridcell' and text()='0.9999']").first
+    ).to_be_visible()
+    expect(
+        page.locator("//div[@role='gridcell' and text()='0.0001']").first
+    ).to_be_visible()
+    expect(
+        page.locator(f"//div[@role='gridcell']//*[text()='{user.username}']").first
+    ).to_be_visible()
 
 
 @pytest.mark.flaky(reruns=2)
@@ -525,9 +558,15 @@ def test_update_redshift_and_history_without_error(page, user, public_source):
     expect(page.locator("//*[contains(., '0.9998')]").first).to_be_visible()
 
     page.locator("//*[@data-testid='redshiftHistoryIconButton']").first.click()
-    expect(page.locator("//th[text()='Set By']").first).to_be_visible()
-    expect(page.locator("//td[text()='0.9998']").first).to_be_visible()
-    expect(page.locator(f"//td[text()='{user.username}']").first).to_be_visible()
+    expect(
+        page.locator("//*[@role='columnheader' and @data-field='set_by_user_id']").first
+    ).to_be_visible()
+    expect(
+        page.locator("//div[@role='gridcell' and text()='0.9998']").first
+    ).to_be_visible()
+    expect(
+        page.locator(f"//div[@role='gridcell']//*[text()='{user.username}']").first
+    ).to_be_visible()
 
 
 @pytest.mark.flaky(reruns=2)

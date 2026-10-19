@@ -12,6 +12,7 @@ import Tabs from "@mui/material/Tabs";
 import Tab from "@mui/material/Tab";
 import { makeStyles } from "tss-react/mui";
 import Button from "../Button";
+import ModelFitPicker from "./ModelFitPicker";
 
 import { useGetAnalysesQuery } from "../../ducks/source";
 import {
@@ -158,10 +159,26 @@ const SpectraPlot = ({
         .sort((a, b) => (a.sortKey || "").localeCompare(b.sortKey || "")),
     [objAnalyses, objId],
   );
-  // Which fits are overlaid; default none (opt-in, like the photometry overlay).
-  const [shownModelIds, setShownModelIds] = useState<Set<string | number>>(
-    new Set(),
-  );
+  // Overlaid fits and their colors; default none (opt-in, like the photometry
+  // overlay). A fit keeps its color while shown so the picker matches the plot.
+  const [shownModelIds, setShownModelIds] = useState<
+    Map<string | number, string>
+  >(new Map());
+  const toggleModelFit = (key: string | number) =>
+    setShownModelIds((prev) => {
+      const next = new Map(prev);
+      if (next.has(key)) {
+        next.delete(key);
+      } else {
+        const used = new Set(next.values());
+        next.set(
+          key,
+          MODEL_OVERLAY_COLORS.find((c) => !used.has(c)) ??
+            MODEL_OVERLAY_COLORS[next.size % MODEL_OVERLAY_COLORS.length]!,
+        );
+      }
+      return next;
+    });
 
   // Memoize user custom lines to avoid recreating on every render
   const userCustomLines = useMemo(() => {
@@ -532,10 +549,8 @@ const SpectraPlot = ({
       const shownFits = modelSpectrumFits.filter((f) =>
         shownModelIds.has(f.id as string | number),
       );
-      const modelTraces = buildModelSpectrumTraces(
-        shownFits,
-        (i) =>
-          MODEL_OVERLAY_COLORS[i % MODEL_OVERLAY_COLORS.length] ?? "#888888",
+      const modelTraces = buildModelSpectrumTraces(shownFits, (i) =>
+        shownModelIds.get(shownFits[i]!.id as string | number)!,
       );
       setPlotData([...traces, ...lineTraces, ...modelTraces]);
     }
@@ -1060,38 +1075,11 @@ const SpectraPlot = ({
         />
       </div>
       {modelSpectrumFits.length > 0 && (
-        <div className={classes.gridContainerLines}>
-          <span style={{ alignSelf: "center", marginRight: "0.5rem" }}>
-            Overlay fit:
-          </span>
-          {modelSpectrumFits.map((fit, i) => {
-            const key = fit.id as string | number;
-            const shown = shownModelIds.has(key);
-            const color = MODEL_OVERLAY_COLORS[i % MODEL_OVERLAY_COLORS.length];
-            return (
-              <Button
-                key={key}
-                size="small"
-                variant={shown ? "contained" : "outlined"}
-                style={
-                  shown
-                    ? { backgroundColor: color, color: "#fff" }
-                    : { borderColor: color, color }
-                }
-                onClick={() =>
-                  setShownModelIds((prev) => {
-                    const next = new Set(prev);
-                    if (next.has(key)) next.delete(key);
-                    else next.add(key);
-                    return next;
-                  })
-                }
-              >
-                {fit.label}
-              </Button>
-            );
-          })}
-        </div>
+        <ModelFitPicker
+          fits={modelSpectrumFits}
+          shown={shownModelIds}
+          onToggle={toggleModelFit}
+        />
       )}
       <div className={classes.gridContainerLines}>
         {/* we want to display a grid with buttons to toggle each of the lines */}

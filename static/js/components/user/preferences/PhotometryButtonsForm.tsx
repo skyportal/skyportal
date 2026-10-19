@@ -1,6 +1,7 @@
 import { useState } from "react";
-import { makeStyles } from "tss-react/mui";
+import AddIcon from "@mui/icons-material/Add";
 import { useForm } from "react-hook-form";
+import Box from "@mui/material/Box";
 import TextField from "@mui/material/TextField";
 import Button from "../../Button";
 import FilterSelect from "./FilterSelect";
@@ -11,20 +12,7 @@ import {
 } from "../../../ducks/profile";
 import DeletableChips from "../../DeletableChips";
 
-const useStyles = makeStyles()(() => ({
-  submitButton: {
-    margin: "1.5rem 0 0 0",
-  },
-  form: {
-    display: "flex",
-    gap: "1rem",
-    flexWrap: "wrap",
-    paddingBottom: "1.5rem",
-  },
-}));
-
 const PhotometryButtonsForm = () => {
-  const { classes } = useStyles();
   const [updateUserPreferences] = useUpdateUserPreferencesMutation();
   const { data: profile } = useGetProfileQuery();
   const { photometryButtons } = (profile?.preferences ?? {}) as any;
@@ -81,61 +69,71 @@ const PhotometryButtonsForm = () => {
   const parent = "PhotometryButtonsForm";
 
   return (
-    <div>
-      <div className={classes.form}>
-        <form onSubmit={handleSubmit(onSubmit)}>
-          <div>
-            <FilterSelect
-              initValue={selectedFilters}
-              onFilterSelectChange={onFilterSelectChange}
-              parent={parent}
-              {...({ control } as any)}
-            />
-            <OriginSelect
-              initValue={selectedOrigins}
-              onOriginSelectChange={onOriginSelectChange}
-              parent={parent}
-              {...({ control } as any)}
-            />
-            <TextField
-              label="Name"
-              {...register("photometryButtonName", {
-                required: true,
-                validate: (value) => {
-                  if (photometryButtons) {
-                    return !(value in photometryButtons);
-                  }
-                  return true;
-                },
-              })}
-              name="photometryButtonName"
-              id="photometryButtonNameInput"
-              error={!!errors["photometryButtonName"]}
-              helperText={
-                errors["photometryButtonName"]
-                  ? "Required/Button with that name already exists"
-                  : ""
+    <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
+      {photometryButtons && Object.keys(photometryButtons).length > 0 && (
+        <DeletableChips
+          items={Object.keys(photometryButtons)}
+          onDelete={onDelete}
+        />
+      )}
+      <Box
+        component="form"
+        onSubmit={handleSubmit(onSubmit)}
+        sx={{
+          display: "flex",
+          flexWrap: "wrap",
+          alignItems: "flex-start",
+          gap: 1.5,
+          "& > .MuiFormControl-root": {
+            flex: "1 1 9rem",
+            minWidth: 0,
+            width: "auto",
+          },
+        }}
+      >
+        <FilterSelect
+          initValue={selectedFilters}
+          onFilterSelectChange={onFilterSelectChange}
+          parent={parent}
+          {...({ control } as any)}
+        />
+        <OriginSelect
+          initValue={selectedOrigins}
+          onOriginSelectChange={onOriginSelectChange}
+          parent={parent}
+          {...({ control } as any)}
+        />
+        <TextField
+          label="Name"
+          {...register("photometryButtonName", {
+            required: true,
+            validate: (value) => {
+              if (photometryButtons) {
+                return !(value in photometryButtons);
               }
-            />
-          </div>
-          <Button
-            primary
-            type="submit"
-            className={classes.submitButton}
-            id="addPhotometryButtonButton"
-          >
-            Add Photometry Button
-          </Button>
-        </form>
-        {photometryButtons && (
-          <DeletableChips
-            items={Object.keys(photometryButtons)}
-            onDelete={onDelete}
-            title="Photometry Buttons"
-          />
-        )}
-      </div>
-    </div>
+              return true;
+            },
+          })}
+          name="photometryButtonName"
+          id="photometryButtonNameInput"
+          error={!!errors["photometryButtonName"]}
+          helperText={
+            errors["photometryButtonName"]
+              ? "Required, and not used by another button"
+              : ""
+          }
+        />
+        <Button
+          primary
+          type="submit"
+          id="addPhotometryButtonButton"
+          aria-label="Add photometry button"
+          sx={{ minWidth: 56, width: 56, height: 56, padding: 0 }}
+        >
+          <AddIcon />
+        </Button>
+      </Box>
+    </Box>
   );
 };
 

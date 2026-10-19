@@ -26,7 +26,7 @@ from baselayer.log import make_log
 from skyportal.handlers.api.gcn import post_gcnevent_from_dictionary
 from skyportal.models import GcnProperty, Group, User
 from skyportal.utils.naive_datetime import utcnow_naive
-from skyportal.utils.services import check_loaded
+from skyportal.utils.services import check_loaded, close_db_session
 
 env, cfg = load_env()
 
@@ -263,6 +263,8 @@ def service(*args, **kwargs):
         except Exception as e:
             traceback.print_exc()
             log(f"Failed to poll EP data center: {e}")
+        finally:
+            close_db_session()
 
         time.sleep(poll_interval)
 

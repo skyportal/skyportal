@@ -104,6 +104,69 @@ def test_empty_schedule_yields_nothing():
     assert list(m4opt_plan.schedule_rows(schedule([]), [field(1, 10.0, 0.0)])) == []
 
 
+def _remote_worker(monkeypatch, status, body):
+    """A remote M4OPT deployment whose worker answers with `status`."""
+    import requests
+
+    class Response:
+        status_code = status
+        text = body
+
+        def raise_for_status(self):
+            error = requests.HTTPError(f"HTTP {status}")
+            error.response = self
+            raise error
+
+    monkeypatch.setattr(
+        m4opt_plan,
+        "_config",
+        lambda: {"deployment": "remote", "endpoint": "http://worker:8080"},
+    )
+    monkeypatch.setattr(
+        m4opt_plan, "write_skymap", lambda loc, path, when: _write(path)
+    )
+    monkeypatch.setattr(requests, "post", lambda *a, **k: Response())
+
+
+def _write(path):
+    path.write_bytes(b"not really a skymap")
+    return path
+
+
+def _run(**kw):
+    event = Time("2026-01-01T00:00:00")
+    return m4opt_plan.run_m4opt(
+        object(),
+        "ztf",
+        start_time=event,
+        end_time=event + 1 * u.hour,
+        event_time=event,
+        **kw,
+    )
+
+
+def test_a_worker_without_the_schedule_route_says_so(monkeypatch):
+    """A 404 means the image predates /schedule and serves /solve alone; the
+    bare "Not Found" that used to surface named neither."""
+    _remote_worker(monkeypatch, 404, '{"detail":"Not Found"}')
+
+    with pytest.raises(m4opt_plan.M4OPTError) as caught:
+        _run()
+    message = str(caught.value)
+    assert "/schedule" in message
+    assert "http://worker:8080" in message
+    assert "healthz" in message
+
+
+def test_another_worker_error_is_reported_as_it_comes(monkeypatch):
+    _remote_worker(monkeypatch, 502, "M4OPT exited 1: solver missing")
+
+    with pytest.raises(m4opt_plan.M4OPTError) as caught:
+        _run()
+    assert "solver missing" in str(caught.value)
+    assert "/schedule" not in str(caught.value)
+
+
 def test_mission_lookup_is_configured_per_instrument(monkeypatch):
     monkeypatch.setattr(m4opt_plan, "_config", lambda: {"missions": {"ZTF": "ztf"}})
     assert m4opt_plan.mission_for("ZTF") == "ztf"
@@ -302,3 +365,94 @@ def test_a_schedule_with_no_observations_fails_the_request(planning, monkeypatch
 
     assert planning.plan.status == "failed"
     assert "no observations" in planning.request.status
+
+
+def sized_schedule(observations, slews=0):
+    """A schedule holding a given number of exposures, plus optional slews."""
+    return QTable({"action": ["observe"] * observations + ["slew"] * slews})
+
+
+def scheduler_fitting(limit, calls):
+    """An M4OPT run that only schedules when asked for `limit` fields or fewer."""
+
+    def attempt(n_fields):
+        calls.append(n_fields)
+        return sized_schedule(n_fields if n_fields <= limit else 0)
+
+    return attempt
+
+
+def test_slews_do_not_count_as_observations():
+    assert m4opt_plan.observation_count(sized_schedule(0, slews=3)) == 0
+    assert m4opt_plan.observation_count(sized_schedule(2, slews=3)) == 2
+
+
+def test_a_schedule_without_actions_counts_every_row():
+    assert m4opt_plan.observation_count(QTable({"field_id": [1, 2]})) == 2
+
+
+def test_a_feasible_request_is_scheduled_without_searching():
+    calls = []
+    table = m4opt_plan.largest_feasible_schedule(scheduler_fitting(50, calls), 20)
+    assert m4opt_plan.observation_count(table) == 20
+    assert calls == [20]
+
+
+def test_an_over_subscribed_window_falls_back_to_the_most_fields_that_fit():
+    calls = []
+    table = m4opt_plan.largest_feasible_schedule(scheduler_fitting(12, calls), 20)
+    assert m4opt_plan.observation_count(table) == 12
+    assert calls[0] == 20
+    assert max(calls) == 20
+
+
+def test_the_search_never_asks_for_more_than_was_requested():
+    calls = []
+    m4opt_plan.largest_feasible_schedule(scheduler_fitting(3, calls), 50)
+    assert max(calls) == 50
+
+
+def test_a_window_holding_nothing_gives_up():
+    calls = []
+    assert m4opt_plan.largest_feasible_schedule(scheduler_fitting(0, calls), 20) is None
+
+
+def test_the_search_is_bounded(monkeypatch):
+    """Each step costs a worker round trip, so the search cannot run away."""
+    monkeypatch.setattr(m4opt_plan, "MAX_FIELD_SEARCH_STEPS", 3)
+    calls = []
+    m4opt_plan.largest_feasible_schedule(scheduler_fitting(1, calls), 1000)
+    assert len(calls) == 4  # the request itself, then three search steps
+
+
+def _empty_worker(monkeypatch):
+    """A remote worker that answers with a schedule holding no observations."""
+    import requests
+
+    class Response:
+        status_code = 200
+        text = ""
+
+        def raise_for_status(self):
+            pass
+
+        def json(self):
+            return {"schedule": ""}
+
+    monkeypatch.setattr(
+        m4opt_plan,
+        "_config",
+        lambda: {"deployment": "remote", "endpoint": "http://worker:8080"},
+    )
+    monkeypatch.setattr(
+        m4opt_plan, "write_skymap", lambda loc, path, when: _write(path)
+    )
+    monkeypatch.setattr(m4opt_plan, "read_schedule", lambda path: sized_schedule(0))
+    monkeypatch.setattr(requests, "post", lambda *a, **k: Response())
+
+
+def test_a_window_that_schedules_nothing_blames_the_field_of_regard(monkeypatch):
+    """Distinct from an over-subscribed window, which the search recovers from."""
+    _empty_worker(monkeypatch)
+    with pytest.raises(m4opt_plan.M4OPTError, match="field of regard"):
+        _run(max_fields=4)

@@ -1,6 +1,6 @@
 import { skyportalApi } from "../api/skyportalApi";
-import { invalidateOnMessage } from "../api/wsInvalidation";
-import { sourceTag } from "./sourceTags";
+import { invalidateOnMessage, findCachedSourceId } from "../api/wsInvalidation";
+import { sourceTag } from "../api/cacheTags";
 
 export interface CollaborationUser {
   id?: number;
@@ -13,6 +13,7 @@ export interface CollaborationUser {
 
 export interface SourceInterest {
   id: number;
+  obj_id: string;
   created_at: string;
   title: string;
   description: string | null;
@@ -22,6 +23,10 @@ export interface SourceInterest {
 
 export const sourceInterestsApi = skyportalApi.injectEndpoints({
   endpoints: (build) => ({
+    getAllSourceInterests: build.query<SourceInterest[], void>({
+      query: () => "api/source_interests",
+      providesTags: ["SourceInterest"],
+    }),
     getSourceInterests: build.query<SourceInterest[], string>({
       query: (obj_id) => `api/sources/${obj_id}/interests`,
       providesTags: ["SourceInterest"],
@@ -56,12 +61,17 @@ export const sourceInterestsApi = skyportalApi.injectEndpoints({
   }),
 });
 
-invalidateOnMessage("skyportal/REFRESH_SOURCE_INTERESTS", (payload) => [
-  "SourceInterest",
-  ...sourceTag(payload?.obj_id),
-]);
+// Broadcast to every client: also refresh this one's cached source, if any.
+invalidateOnMessage(
+  "skyportal/REFRESH_SOURCE_INTERESTS",
+  (payload, getState) => {
+    const objId = findCachedSourceId(getState, payload?.obj_key);
+    return ["SourceInterest", ...(objId != null ? sourceTag(objId) : [])];
+  },
+);
 
 export const {
+  useGetAllSourceInterestsQuery,
   useGetSourceInterestsQuery,
   useSetSourceInterestMutation,
   useDeleteSourceInterestMutation,

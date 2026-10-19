@@ -248,6 +248,8 @@ class ClassificationHandler(BaseHandler):
                     Classification.created_at <= end_date
                 )
 
+            classifications = filter_by_origin(classifications, query.origin)
+
             count_stmt = sa.select(func.count()).select_from(classifications.subquery())
             total_matches = await session.scalar(count_stmt)
             classifications = classifications.limit(n_per_page).offset(
@@ -357,16 +359,17 @@ class ClassificationHandler(BaseHandler):
             group_ids = data.pop("group_ids", None)
             data["id"] = classification_id
 
-            ml = data.get("ml", False)
-            if ml in [True, "True", "t", "true"]:
-                ml = True
-            elif ml in [False, "False", "f", "false"]:
-                ml = False
-            else:
-                return self.error(
-                    f"If provided, ml must be one of True, False, 'True', 'False', 't', 'f', 'true', 'false' (got {ml})"
-                )
-            data["ml"] = ml
+            if "ml" in data:
+                ml = data["ml"]
+                if ml in [True, "True", "t", "true"]:
+                    ml = True
+                elif ml in [False, "False", "f", "false"]:
+                    ml = False
+                else:
+                    return self.error(
+                        f"If provided, ml must be one of True, False, 'True', 'False', 't', 'f', 'true', 'false' (got {ml})"
+                    )
+                data["ml"] = ml
 
             schema = Classification.__schema__()
             try:
@@ -458,7 +461,11 @@ class ClassificationHandler(BaseHandler):
 
             if body.label:
                 await add_source_labels(
-                    session, obj_id, group_ids, self.associated_user_object.id
+                    session,
+                    obj_id,
+                    group_ids,
+                    self.associated_user_object.id,
+                    labeller_groups_only=True,
                 )
 
             self.push_all(
@@ -576,7 +583,11 @@ class ObjClassificationHandler(BaseHandler):
 
                 if body.label:
                     await add_source_labels(
-                        session, obj_id_local, group_ids, self.associated_user_object.id
+                        session,
+                        obj_id_local,
+                        group_ids,
+                        self.associated_user_object.id,
+                        labeller_groups_only=True,
                     )
 
             await session.commit()
@@ -592,6 +603,21 @@ class ObjClassificationHandler(BaseHandler):
                 )
 
             return self.success()
+
+
+def filter_by_origin(stmt, origin):
+    """Restrict a Classification select to a comma separated list of origins.
+
+    Matched on lowercase, as the annotation origin filter is, so an origin given
+    in any case finds its classifications. A classification whose origin is null
+    matches nothing, so asking for an origin never returns the ones without one.
+    """
+    if not origin:
+        return stmt
+    origins = [o.strip().lower() for o in str(origin).split(",") if o.strip()]
+    if not origins:
+        return stmt
+    return stmt.where(func.lower(Classification.origin).in_(origins))
 
 
 class ObjClassificationQueryHandler(BaseHandler):
@@ -641,6 +667,8 @@ class ObjClassificationQueryHandler(BaseHandler):
                 classifications = classifications.where(
                     Classification.created_at <= end_date
                 )
+
+            classifications = filter_by_origin(classifications, query.origin)
 
             classifications_subquery = classifications.subquery()
 
@@ -715,6 +743,7 @@ class ClassificationVotesHandler(BaseHandler):
                 classification.obj.id,
                 [group.id for group in classification.groups],
                 self.associated_user_object.id,
+                labeller_groups_only=True,
             )
 
             await session.commit()
@@ -767,6 +796,7 @@ class ClassificationVotesHandler(BaseHandler):
                 classification.obj.id,
                 [group.id for group in classification.groups],
                 self.associated_user_object.id,
+                labeller_groups_only=True,
             )
 
             await session.commit()

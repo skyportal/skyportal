@@ -13,7 +13,9 @@ from ....utils.parse import get_page_and_n_per_page, parse_optional_date
 from ...base import BaseHandler
 
 
-async def get_subquery_for_saved_status(stmt, saved_status, group_ids, user, session):
+async def get_subquery_for_saved_status(
+    stmt, saved_status, group_ids, user, session, obj_id_column=Obj.id
+):
     """Restrict ``stmt`` by whether the obj is already saved, per ``saved_status``.
 
     Async because ``User.accessible_groups`` is a lazy relationship: reading it
@@ -43,7 +45,9 @@ async def get_subquery_for_saved_status(stmt, saved_status, group_ids, user, ses
         )
 
     return stmt.where(
-        Obj.id.notin_(subquery) if polarity == "notSaved" else Obj.id.in_(subquery)
+        obj_id_column.notin_(subquery)
+        if polarity == "notSaved"
+        else obj_id_column.in_(subquery)
     )
 
 
@@ -92,7 +96,12 @@ class CandidateFilterHandler(BaseHandler):
             if end_date:
                 stmt = stmt.where(Candidate.passed_at <= end_date)
             stmt = await get_subquery_for_saved_status(
-                stmt, query.savedStatus, group_ids, session.user_or_token, session
+                stmt,
+                query.savedStatus,
+                group_ids,
+                session.user_or_token,
+                session,
+                obj_id_column=Candidate.obj_id,
             )
 
             # ascending so candidates added mid-pagination land at the end:

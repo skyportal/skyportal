@@ -1,15 +1,11 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import Paper from "@mui/material/Paper";
-import { makeStyles } from "tss-react/mui";
 import CircularProgress from "@mui/material/CircularProgress";
 import Dialog from "@mui/material/Dialog";
 import DialogTitle from "@mui/material/DialogTitle";
 import DialogContent from "@mui/material/DialogContent";
 import IconButton from "@mui/material/IconButton";
 import Tooltip from "@mui/material/Tooltip";
-import Typography from "@mui/material/Typography";
-import Box from "@mui/material/Box";
 import AddIcon from "@mui/icons-material/Add";
 import DownloadIcon from "@mui/icons-material/Download";
 import FilterListIcon from "@mui/icons-material/FilterList";
@@ -19,7 +15,10 @@ import MenuItem from "@mui/material/MenuItem";
 import { showNotification } from "baselayer/components/Notifications";
 import { useAppDispatch } from "../../types/hooks";
 import Button from "../Button";
-import StyledDataGrid, { DataGridToolbar } from "../StyledDataGrid";
+import StyledDataGrid, {
+  DataGridToolbar,
+  FULL_PAGE_HEIGHT_WITH_TABS,
+} from "../StyledDataGrid";
 import ObservationFilterForm from "./ObservationFilterForm";
 import NewObservation from "./NewObservation";
 import NewAPIObservation from "./NewAPIObservation";
@@ -30,36 +29,13 @@ import {
 } from "../../ducks/source";
 import { useGetInstrumentsQuery } from "../../ducks/instruments";
 import { useHasPermission } from "../../ducks/profile";
+import { download } from "../../utils/download";
 
-const PAGE_SIZE_OPTIONS = [10, 25, 50, 100];
-
-// Map each DataGrid column `field` to the field name the server expects for
-// sorting. Columns absent from this map are not server-sortable.
 const SERVER_SORT_FIELD: Record<string, string> = {
   instrument_name: "instrument_name",
   seeing: "seeing",
   limmag: "limmag",
 };
-
-const useStyles = makeStyles()((theme: any) => ({
-  container: {
-    width: "100%",
-    overflow: "scroll",
-  },
-  actionButtons: {
-    display: "flex",
-    flexFlow: "row wrap",
-    gap: "0.2rem",
-  },
-  eventTags: {
-    marginLeft: "0.5rem",
-    "& > div": {
-      margin: "0.25rem",
-      color: "white",
-      background: theme.palette.primary.main,
-    },
-  },
-}));
 
 interface ExecutedObservationsTableProps {
   observations: any[];
@@ -70,6 +46,7 @@ interface ExecutedObservationsTableProps {
   pageNumber?: number;
   numPerPage?: number;
   serverSide?: boolean;
+  fixedHeader?: boolean;
   filterModel?: any;
   onFilterModelChange?: ((model: any) => void) | undefined;
 }
@@ -81,12 +58,12 @@ const ExecutedObservationsTable = ({
   handleTableChange = false,
   handleFilterSubmit = false,
   pageNumber = 1,
-  numPerPage = 10,
+  numPerPage = 25,
   serverSide = true,
+  fixedHeader = false,
   filterModel,
   onFilterModelChange,
 }: ExecutedObservationsTableProps) => {
-  const { classes } = useStyles();
   const navigate = useNavigate();
   const dispatch = useAppDispatch();
   const canUploadData = useHasPermission("Upload data");
@@ -95,9 +72,7 @@ const ExecutedObservationsTable = ({
 
   const { data: instrumentList = [] } = useGetInstrumentsQuery();
 
-  // Anchor the "Add" menu by position rather than element: the DataGrid
-  // toolbar (an inline `slots` component) remounts on every render, which
-  // would detach an element anchor and send the menu to the top-left corner.
+  // Anchor by position: the inline toolbar slot remounts each render, detaching an el anchor.
   const [addMenuPos, setAddMenuPos] = useState<{
     top: number;
     left: number;
@@ -106,6 +81,8 @@ const ExecutedObservationsTable = ({
   const [newDialogFromAPIOpen, setNewDialogFromAPIOpen] = useState(false);
   const [filterOpen, setFilterOpen] = useState(false);
   const [rowsPerPage, setRowsPerPage] = useState(numPerPage);
+  // client-side mode has no parent tracking the page
+  const [clientPage, setClientPage] = useState(0);
   const [sortModel, setSortModel] = useState<any[]>([]);
   const [isSaving, setIsSaving] = useState<any>(null);
 
@@ -155,8 +132,6 @@ const ExecutedObservationsTable = ({
     setIsSaving(null);
   };
 
-  // Synthesize the mui-datatables onTableChange(action, tableState) contract
-  // from the DataGrid handlers so callers (ObservationPage) stay unchanged.
   const emitTableChange = (action: any, model: any, currentSort: any) => {
     if (typeof handleTableChange !== "function") {
       return;
@@ -170,6 +145,7 @@ const ExecutedObservationsTable = ({
 
   const handlePaginationModelChange = (model: any) => {
     setRowsPerPage(model.pageSize);
+    setClientPage(model.page);
     const currentSort = sortModel.length
       ? {
           name: SERVER_SORT_FIELD[sortModel[0].field] || sortModel[0].field,
@@ -193,41 +169,6 @@ const ExecutedObservationsTable = ({
     });
   };
 
-  const renderSaveSource = (params: any) => {
-    const observation = params.row;
-    const formData = {
-      id: observation.target_name?.replace(/ /g, "_"),
-      ra: observation.field.ra,
-      dec: observation.field.dec,
-    };
-    if (!observation.target_name || !canUploadData) {
-      return <div />;
-    }
-    return (
-      <div className={classes.actionButtons}>
-        {isSaving === formData.id ? (
-          <div>
-            <CircularProgress />
-          </div>
-        ) : (
-          <div>
-            <Button
-              primary
-              onClick={() => {
-                handleSave(formData);
-              }}
-              size="small"
-              type="submit"
-              data-testid={`saveObservation_${formData.id}`}
-            >
-              Save Source
-            </Button>
-          </div>
-        )}
-      </div>
-    );
-  };
-
   const columns: any[] = [
     {
       field: "telescope_name",
@@ -238,13 +179,8 @@ const ExecutedObservationsTable = ({
       filterable: false,
       valueGetter: (_value: any, row: any) =>
         instrumentsLookup[row.instrument_id]?.telescope?.name || "",
-      renderCell: (params: any) => {
-        const instrument = instrumentsLookup[params.row.instrument_id] || null;
-        if (!instrument) {
-          return <div>Loading...</div>;
-        }
-        return <div>{instrument?.telescope?.name || ""}</div>;
-      },
+      renderCell: ({ row, value }: any) =>
+        instrumentsLookup[row.instrument_id] ? value : "Loading...",
     },
     {
       field: "instrument_name",
@@ -254,13 +190,8 @@ const ExecutedObservationsTable = ({
       filterable: false,
       valueGetter: (_value: any, row: any) =>
         instrumentsLookup[row.instrument_id]?.name || "",
-      renderCell: (params: any) => {
-        const instrument = instrumentsLookup[params.row.instrument_id] || null;
-        if (!instrument) {
-          return <div>Loading...</div>;
-        }
-        return <div>{instrument?.name || ""}</div>;
-      },
+      renderCell: ({ row, value }: any) =>
+        instrumentsLookup[row.instrument_id] ? value : "Loading...",
     },
     {
       field: "observation_id",
@@ -355,7 +286,20 @@ const ExecutedObservationsTable = ({
       minWidth: 130,
       sortable: false,
       filterable: false,
-      renderCell: renderSaveSource,
+      renderCell: ({ row }: any) => {
+        if (!row.target_name || !canUploadData) return null;
+        const formData = {
+          id: row.target_name.replace(/ /g, "_"),
+          ra: row.field.ra,
+          dec: row.field.dec,
+        };
+        if (isSaving === formData.id) return <CircularProgress />;
+        return (
+          <Button primary onClick={() => handleSave(formData)} size="small">
+            Save Source
+          </Button>
+        );
+      },
     },
   ];
 
@@ -382,7 +326,6 @@ const ExecutedObservationsTable = ({
       observation.field ? observation.field?.dec : "";
 
     downloadCallback().then((data: any) => {
-      // if there is no data, cancel download
       if (!data?.length) {
         return;
       }
@@ -419,22 +362,12 @@ const ExecutedObservationsTable = ({
         ].join(","),
       );
       const result = `${head.join(",")}\n${rows.join("\n")}`;
-      const blob = new Blob([result], {
-        type: "text/csv;charset=utf-8;",
-      });
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      link.href = url;
-      link.setAttribute("download", "observations.csv");
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(url);
+      download(result, "text/csv;charset=utf-8;", "observations.csv");
     });
   };
 
   const CustomToolbar = () => (
-    <DataGridToolbar showExport={false}>
+    <DataGridToolbar title="Executed Observations" showExport={false}>
       <Tooltip title="Filter Table">
         <IconButton
           size="small"
@@ -470,75 +403,64 @@ const ExecutedObservationsTable = ({
   );
 
   return (
-    <div>
-      <Paper className={classes.container}>
-        <Typography variant="h6" style={{ padding: "0.5rem" }}>
-          Executed Observations
-        </Typography>
-        <Box sx={{ height: "60vh", width: "100%" }}>
-          <StyledDataGrid
-            rows={observations}
-            columns={columns}
-            getRowId={(row: any) =>
-              row.id ?? `${row.instrument_id}_${row.observation_id}`
-            }
-            paginationMode={serverSide ? "server" : "client"}
-            sortingMode={serverSide ? "server" : "client"}
-            rowCount={totalMatches}
-            paginationModel={{
-              page: pageNumber - 1,
-              pageSize: rowsPerPage,
-            }}
-            onPaginationModelChange={handlePaginationModelChange}
-            sortModel={sortModel}
-            onSortModelChange={handleSortModelChange}
-            pageSizeOptions={PAGE_SIZE_OPTIONS}
-            filterModel={filterModel}
-            onFilterModelChange={onFilterModelChange}
-            slots={{ toolbar: CustomToolbar }}
-            showToolbar
-          />
-        </Box>
-        <Menu
-          open={Boolean(addMenuPos)}
-          onClose={handleClose}
-          anchorReference="anchorPosition"
-          anchorPosition={addMenuPos ?? undefined}
-        >
-          <MenuItem onClick={openNewFromFileDialog}>Add from File</MenuItem>
-          <MenuItem onClick={openNewFromAPIDialog}>Add from API</MenuItem>
-        </Menu>
-        <Dialog
-          open={newDialogFromFileOpen}
-          onClose={closeNewFromFileDialog}
-          maxWidth="md"
-        >
-          <DialogTitle>Add Executed Observations (from file)</DialogTitle>
-          <DialogContent dividers>
-            <NewObservation onClose={closeNewFromFileDialog} />
-          </DialogContent>
-        </Dialog>
-        <Dialog
-          open={newDialogFromAPIOpen}
-          onClose={closeNewFromAPIDialog}
-          maxWidth="md"
-        >
-          <DialogTitle>Add Executed Observations (from API)</DialogTitle>
-          <DialogContent dividers>
-            <NewAPIObservation onClose={closeNewFromAPIDialog} />
-          </DialogContent>
-        </Dialog>
-        <Dialog
-          open={filterOpen}
-          onClose={() => setFilterOpen(false)}
-          fullWidth
-        >
-          <DialogContent>
-            <ObservationFilterForm handleFilterSubmit={handleFilterSubmit} />
-          </DialogContent>
-        </Dialog>
-      </Paper>
-    </div>
+    <>
+      <StyledDataGrid
+        height={fixedHeader ? FULL_PAGE_HEIGHT_WITH_TABS : "60vh"}
+        rows={observations}
+        columns={columns}
+        getRowId={(row: any) =>
+          row.id ?? `${row.instrument_id}_${row.observation_id}`
+        }
+        paginationMode={serverSide ? "server" : "client"}
+        sortingMode={serverSide ? "server" : "client"}
+        rowCount={totalMatches}
+        paginationModel={{
+          page: serverSide ? pageNumber - 1 : clientPage,
+          pageSize: rowsPerPage,
+        }}
+        onPaginationModelChange={handlePaginationModelChange}
+        sortModel={sortModel}
+        onSortModelChange={handleSortModelChange}
+        filterModel={filterModel}
+        onFilterModelChange={onFilterModelChange}
+        slots={{ toolbar: CustomToolbar }}
+        showToolbar
+      />
+      <Menu
+        open={Boolean(addMenuPos)}
+        onClose={handleClose}
+        anchorReference="anchorPosition"
+        anchorPosition={addMenuPos ?? undefined}
+      >
+        <MenuItem onClick={openNewFromFileDialog}>Add from File</MenuItem>
+        <MenuItem onClick={openNewFromAPIDialog}>Add from API</MenuItem>
+      </Menu>
+      <Dialog
+        open={newDialogFromFileOpen}
+        onClose={closeNewFromFileDialog}
+        maxWidth="md"
+      >
+        <DialogTitle>Add Executed Observations (from file)</DialogTitle>
+        <DialogContent dividers>
+          <NewObservation onClose={closeNewFromFileDialog} />
+        </DialogContent>
+      </Dialog>
+      <Dialog
+        open={newDialogFromAPIOpen}
+        onClose={closeNewFromAPIDialog}
+        maxWidth="md"
+      >
+        <DialogTitle>Add Executed Observations (from API)</DialogTitle>
+        <DialogContent dividers>
+          <NewAPIObservation onClose={closeNewFromAPIDialog} />
+        </DialogContent>
+      </Dialog>
+      <Dialog open={filterOpen} onClose={() => setFilterOpen(false)} fullWidth>
+        <DialogContent>
+          <ObservationFilterForm handleFilterSubmit={handleFilterSubmit} />
+        </DialogContent>
+      </Dialog>
+    </>
   );
 };
 

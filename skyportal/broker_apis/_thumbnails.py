@@ -16,6 +16,7 @@ matplotlib.use("Agg")  # headless, thread-safe rendering
 import matplotlib.pyplot as plt  # noqa: E402
 import numpy as np  # noqa: E402
 from astropy.io import fits  # noqa: E402
+from astropy.time import Time  # noqa: E402
 from astropy.visualization import (  # noqa: E402
     AsymmetricPercentileInterval,
     ImageNormalize,
@@ -69,6 +70,8 @@ def orient_cutout(data_array, survey, header):
     """Rotate/flip a cutout so North is up and West is right."""
     if survey.upper() == "ZTF":
         return np.flipud(data_array)
+    if survey.upper() == "DECAM":
+        return np.rot90(np.flipud(data_array))
     if survey.upper() == "LSST":
         rotpa = header.get("ROTPA")
         if rotpa is not None:
@@ -91,12 +94,16 @@ def clean_image_array(img):
     return img
 
 
-def render_cutout_png(data_array, stretch, normalizer, cmap="bone"):
-    """Normalize and render a 2D array to PNG bytes (BytesIO, seeked to 0)."""
+def render_cutout_png(data_array, stretch, normalizer, cmap="bone", limits=None):
+    """Normalize and render a 2D array to PNG bytes (BytesIO, seeked to 0).
+
+    ``limits`` overrides the normalizer with explicit (vmin, vmax) in the
+    normalized scale, for a caller that knows where the interesting range is.
+    """
     img = clean_image_array(data_array)
     norm = ImageNormalize(img, stretch=stretch)
     img_norm = norm(img)
-    vmin, vmax = normalizer.get_limits(img_norm)
+    vmin, vmax = limits if limits is not None else normalizer.get_limits(img_norm)
 
     buff = io.BytesIO()
     fig, ax = plt.subplots(figsize=(4, 4))
@@ -109,7 +116,7 @@ def render_cutout_png(data_array, stretch, normalizer, cmap="bone"):
     return buff
 
 
-def make_thumbnail(obj_id, cutout_data, cutout_type, thumbnail_type, survey):
+def make_thumbnail(obj_id, cutout_data, cutout_type, thumbnail_type, survey, jd=None):
     data_array, header = decode_cutout(cutout_data, survey)
     data_array = orient_cutout(data_array, survey, header)
     stretch = LinearStretch() if cutout_type == "cutoutDifference" else LogStretch()
@@ -120,12 +127,14 @@ def make_thumbnail(obj_id, cutout_data, cutout_type, thumbnail_type, survey):
         "data": base64.b64encode(buff.read()).decode("utf-8"),
         "ttype": thumbnail_type,
         "survey": survey,
+        "observed_at": Time(jd, format="jd").datetime if jd else None,
     }
 
 
-async def add_thumbnails(obj_id, cutouts, survey, session, user_id=1):
+async def add_thumbnails(obj_id, cutouts, survey, session, user_id=1, jd=None):
     """Render science/template/difference cutouts from ``cutouts`` (a dict with
-    cutoutScience/Template/Difference FITS payloads) and post them as thumbnails.
+    cutoutScience/Template/Difference FITS payloads) and post them as thumbnails,
+    dated with ``jd``, the Julian date of the alert they come from.
     Best-effort: a failed cutout is logged and skipped, not fatal."""
     from ..handlers.api.thumbnail import post_thumbnail
 
@@ -135,7 +144,7 @@ async def add_thumbnails(obj_id, cutouts, survey, session, user_id=1):
             continue
         try:
             thumbnail = make_thumbnail(
-                obj_id, cutout_data, cutout_type, thumbnail_type, survey
+                obj_id, cutout_data, cutout_type, thumbnail_type, survey, jd=jd
             )
             await post_thumbnail(thumbnail, user_id=user_id, session=session)
         except Exception as e:

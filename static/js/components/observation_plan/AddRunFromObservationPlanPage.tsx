@@ -23,7 +23,7 @@ const AddRunFromObservationPlanPage = ({
   const [createObservationPlanRequestObservingRun] =
     useCreateObservationPlanRequestObservingRunMutation();
 
-  const allGroups = useGetGroupsQuery().data?.all ?? [];
+  const groups = useGetGroupsQuery().data?.userAccessible ?? [];
   const [selectedGroupIds, setSelectedGroupIds] = useState<number[]>([]);
 
   const openDialog = () => {
@@ -73,7 +73,7 @@ const AddRunFromObservationPlanPage = ({
               }}
             >
               <GroupShareSelect
-                groupList={allGroups}
+                groupList={groups}
                 setGroupIDs={setSelectedGroupIds}
                 groupIDs={selectedGroupIds}
               />

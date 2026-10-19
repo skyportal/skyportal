@@ -9,10 +9,10 @@
  * relevant tag so active queries refetch. Comment-attachment fetches are lazy
  * queries (consumers read the result via the hook rather than the store).
  *
- * The websocket `REFRESH_EARTHQUAKE` / `REFRESH_EARTHQUAKES` messages are
- * bridged to cache invalidation via `invalidateOnMessage`.
+ * The websocket `REFRESH_EARTHQUAKE` message is bridged to cache invalidation
+ * via `invalidateOnMessage`.
  */
-import { buildQueryString } from "../API";
+import { buildQueryString, fileReaderPromise } from "../API";
 import { skyportalApi } from "../api/skyportalApi";
 import { invalidateOnMessage } from "../api/wsInvalidation";
 import type { RouteData } from "../types/routeSchemaMap";
@@ -27,17 +27,6 @@ interface CommentAttachment {
 interface CommentAttachmentArg {
   earthquakeID: number | string;
   commentID: number | string;
-}
-
-function fileReaderPromise(
-  file: File,
-): Promise<{ body: string | ArrayBuffer | null; name: string }> {
-  return new Promise((resolve) => {
-    const filereader = new FileReader();
-    filereader.readAsDataURL(file);
-    filereader.onloadend = () =>
-      resolve({ body: filereader.result, name: file.name });
-  });
 }
 
 export const earthquakeApi = skyportalApi.injectEndpoints({
@@ -161,13 +150,9 @@ export const earthquakeApi = skyportalApi.injectEndpoints({
   }),
 });
 
-// Websocket-driven invalidation: the old handler refetched the loaded
-// earthquake (REFRESH_EARTHQUAKE, gated on the loaded event_id matching the
-// pushed one) or the whole list (REFRESH_EARTHQUAKES). With RTK Query, only
-// active queries for the invalidated tag refetch, so invalidating `Earthquake`
-// refreshes whichever earthquake detail query is currently mounted.
+// Websocket: only active queries refetch, so invalidating `Earthquake` on
+// REFRESH_EARTHQUAKE refreshes whichever earthquake detail query is mounted.
 invalidateOnMessage("skyportal/REFRESH_EARTHQUAKE", () => ["Earthquake"]);
-invalidateOnMessage("skyportal/REFRESH_EARTHQUAKES", () => ["Earthquakes"]);
 
 export const {
   useGetEarthquakeQuery,

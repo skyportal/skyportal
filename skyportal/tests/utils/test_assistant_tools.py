@@ -47,3 +47,21 @@ def test_every_allowed_tool_exists_and_writes():
     for name in FILTER_WRITE_TOOLS:
         assert name in TOOLS, name
         assert TOOLS[name]["annotations"]["readOnlyHint"] is False, name
+
+
+def test_a_group_can_be_made_where_a_filter_is_built():
+    # Asking for a filter "in a group of its own" is one request, and it fails
+    # at the group if the tool for it is not there.
+    group = {"name": "post_group", "annotations": {"readOnlyHint": False}}
+    assert names([group], "filter") == {"post_group"}
+    assert names([group]) == set()
+    assert names([group], "source") == set()
+
+
+def test_every_gated_tool_is_a_tool_that_exists():
+    # A name that drifts is a tool silently never offered, which reads from the
+    # chat panel as the assistant refusing to do something it can do.
+    assert FILTER_WRITE_TOOLS <= set(TOOLS)
+    assert all(
+        not TOOLS[name]["annotations"]["readOnlyHint"] for name in FILTER_WRITE_TOOLS
+    )

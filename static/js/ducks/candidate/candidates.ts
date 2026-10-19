@@ -13,15 +13,15 @@
  *  2. Server cache (simple): `getAnnotationsInfo` (query) and
  *     `generateSurveyThumbnail` (mutation).
  *
- *  3. Client UI state: `selectedAnnotationSortOptions` and `filterFormData` are
- *     NOT server data. They are kept in a small retained reducer (still the
- *     `candidates` slice) with two plain action creators. Consumers keep reading
- *     them from `state.candidates.*`.
+ *  3. Client UI state: `selectedAnnotationSortOptions` is NOT server data. It is
+ *     kept in a small retained reducer (still the `candidates` slice) with a plain
+ *     action creator. Consumers keep reading it from `state.candidates.*`.
  *
- * WebSocket (`REFRESH_CANDIDATE`): on a push for a candidate currently in the
- * active `getCandidates` cache entry, the single candidate is refetched via the
- * already-migrated `candidateApi.getCandidate` query and merged into the list
- * with `updateQueryData`, preserving the old "only if loaded" guard.
+ * WebSocket (`REFRESH_CANDIDATE`, `REFRESH_SOURCE`): on a push for a candidate
+ * currently in the active `getCandidates` cache entry, the single candidate is
+ * refetched via the already-migrated `candidateApi.getCandidate` query and
+ * merged into the list with `updateQueryData`, preserving the old "only if
+ * loaded" guard.
  */
 import messageHandler from "baselayer/MessageHandler";
 
@@ -33,10 +33,8 @@ import store from "../../store";
 const SET_CANDIDATES_ANNOTATION_SORT_OPTIONS =
   "skyportal/SET_CANDIDATES_ANNOTATION_SORT_OPTIONS";
 
-const SET_CANDIDATES_FILTER_FORM_DATA =
-  "skyportal/SET_CANDIDATES_FILTER_FORM_DATA";
-
 const REFRESH_CANDIDATE = "skyportal/REFRESH_CANDIDATE";
+const REFRESH_SOURCE = "skyportal/REFRESH_SOURCE";
 
 /**
  * Build the cache key for a `getCandidates` arg by dropping `pageNumber` (and
@@ -101,21 +99,18 @@ export const candidatesApi = skyportalApi.injectEndpoints({
       providesTags: ["Candidate"],
     }),
     getAnnotationsInfo: build.query({
-      query: () => "api/internal/annotations_info",
+      query: (groupIDs?: number[]) =>
+        groupIDs?.length
+          ? `api/internal/annotations_info?groupIDs=${groupIDs.join()}`
+          : "api/internal/annotations_info",
       providesTags: ["AnnotationsInfo"],
     }),
     generateSurveyThumbnail: build.mutation({
-      // Accepts either an objID string (all-sky cutouts) or
-      // { objID, types } for on-demand pointed instruments (HST/Chandra).
-      query: (arg: string | { objID: string; types?: string[] }) => {
-        const { objID, types } =
-          typeof arg === "string" ? { objID: arg, types: undefined } : arg;
-        return {
-          url: "api/internal/survey_thumbnail",
-          method: "POST",
-          body: { objID, ...(types ? { types } : {}) },
-        };
-      },
+      query: (body: { objID: string; types: string[] }) => ({
+        url: "api/internal/survey_thumbnail",
+        method: "POST",
+        body,
+      }),
     }),
   }),
 });
@@ -135,22 +130,14 @@ export const setCandidatesAnnotationSortOptions = (item: any) => ({
   item,
 });
 
-export const setFilterFormData = (formData: any) => ({
-  type: SET_CANDIDATES_FILTER_FORM_DATA,
-  formData,
-});
-
 const initialState = {
   selectedAnnotationSortOptions: null,
-  filterFormData: null,
 };
 
 const reducer = (state = initialState, action: any) => {
   switch (action.type) {
     case SET_CANDIDATES_ANNOTATION_SORT_OPTIONS:
       return { ...state, selectedAnnotationSortOptions: action.item };
-    case SET_CANDIDATES_FILTER_FORM_DATA:
-      return { ...state, filterFormData: action.formData };
     default:
       return state;
   }
@@ -163,7 +150,8 @@ store.injectReducer("candidates", reducer);
 // ---------------------------------------------------------------------------
 
 messageHandler.add((actionType: string, payload: any, dispatch: any) => {
-  if (actionType !== REFRESH_CANDIDATE || activeCandidatesArg === null) {
+  const refreshes = [REFRESH_CANDIDATE, REFRESH_SOURCE];
+  if (!refreshes.includes(actionType) || activeCandidatesArg === null) {
     return;
   }
   const cacheEntry = candidatesApi.endpoints.getCandidates.select(
@@ -174,7 +162,8 @@ messageHandler.add((actionType: string, payload: any, dispatch: any) => {
     return;
   }
   // Preserve the old guard: only refresh if the candidate is in the loaded list.
-  const match = loaded.find((c: any) => c.internal_key === payload.id);
+  const objKey = payload.id ?? payload.obj_key;
+  const match = loaded.find((c: any) => c.internal_key === objKey);
   if (!match) {
     return;
   }
@@ -185,27 +174,19 @@ messageHandler.add((actionType: string, payload: any, dispatch: any) => {
       subscribe: false,
       forceRefetch: true,
     }),
-  )
-    .unwrap()
-    .then((fresh: any) => {
-      dispatch(
-        candidatesApi.util.updateQueryData(
-          "getCandidates",
-          activeCandidatesArg,
-          (draft: any) => {
-            const idx = draft.candidates.findIndex(
-              (c: any) => c.id === fresh.id,
-            );
-            if (idx !== -1) {
-              draft.candidates[idx] = fresh;
-            }
-          },
-        ),
-      );
-    })
-    .catch(() => {
-      // Best-effort: if the refetch fails, fall back to invalidating the tag so
-      // the active list query refetches.
-      dispatch(skyportalApi.util.invalidateTags(["Candidate"]));
-    });
+  ).then(({ data: fresh }: any) => {
+    if (!fresh) return;
+    dispatch(
+      candidatesApi.util.updateQueryData(
+        "getCandidates",
+        activeCandidatesArg,
+        (draft: any) => {
+          const idx = draft.candidates.findIndex((c: any) => c.id === fresh.id);
+          if (idx !== -1) {
+            draft.candidates[idx] = fresh;
+          }
+        },
+      ),
+    );
+  });
 });

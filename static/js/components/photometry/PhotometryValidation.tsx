@@ -124,7 +124,7 @@ const PhotometryValidation = ({
   const [patchPhotometryValidation] = usePatchPhotometryValidationMutation();
   const [deletePhotometryValidation] = useDeletePhotometryValidationMutation();
 
-  const { control, getValues, register } = useForm();
+  const { control, getValues } = useForm();
 
   const handleClose = () => {
     setOpen(false);
@@ -270,7 +270,6 @@ const PhotometryValidation = ({
                           <TextField
                             label="Notes"
                             name="notes"
-                            inputRef={register("notes") as any}
                             onChange={onChange}
                             value={value}
                             defaultValue={currentNotes}

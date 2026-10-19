@@ -42,6 +42,8 @@ ANNOTATION_ORIGIN = "JPL-sbident"
 
 # JPL is a shared, free service; one query at a time with a gap between them.
 REQUEST_SPACING_SECONDS = 5
+MAX_RETRIES = 3
+RETRY_DELAY_SECONDS = 600
 
 
 def _annotation_data(matches):
@@ -80,14 +82,23 @@ def write_annotation(session, obj_id, user, group_ids, matches):
     return data
 
 
+def next_task(queue):
+    """The oldest check that is not waiting for a retry."""
+    now = time.time()
+    for index, task in enumerate(queue):
+        if task.get("retry_at", 0) <= now:
+            return queue.pop(index)
+    return None
+
+
 def process_queue(queue):
     """Answer queued checks, spacing the calls out."""
     while True:
-        if not queue:
+        task = next_task(queue)
+        if task is None:
             time.sleep(1)
             continue
 
-        task = queue.pop(0)
         obj_id = task.get("obj_id")
         try:
             obs_time = task.get("obs_time")
@@ -132,7 +143,14 @@ def process_queue(queue):
         except JPLSBIdentError as e:
             # A refusal or a timeout is about this call, not the queue: the next
             # task is unaffected, and the object can be asked about again.
-            log(f"{obj_id}: identification failed ({e})")
+            retries = task.get("retries", 0)
+            if e.transient and retries < MAX_RETRIES:
+                task["retries"] = retries + 1
+                task["retry_at"] = time.time() + RETRY_DELAY_SECONDS * 2**retries
+                queue.append(task)
+                log(f"{obj_id}: identification failed ({e}), retry {retries + 1}")
+            else:
+                log(f"{obj_id}: identification failed ({e})")
         except Exception as e:
             # One task must never take the worker down: the queue outlives any
             # single check.

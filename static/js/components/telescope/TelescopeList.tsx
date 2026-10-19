@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useState } from "react";
+import { lazy, Suspense, useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { makeStyles } from "tss-react/mui";
 import Grid from "@mui/material/Grid";
@@ -19,7 +19,7 @@ import useMediaQuery from "@mui/material/useMediaQuery";
 import { useTheme } from "@mui/material/styles";
 import { ToggleButton, ToggleButtonGroup } from "@mui/material";
 
-import { showNotification } from "../../../../baselayer/static/js/components/Notifications";
+import { showNotification } from "baselayer/components/Notifications";
 import { useAppDispatch } from "../../types/hooks";
 import { useGetProfileQuery } from "../../ducks/profile";
 import {
@@ -112,8 +112,8 @@ const TelescopeList = () => {
   const { classes } = useStyles();
   const dispatch = useAppDispatch();
   const { data: currentUser } = useGetProfileQuery();
-  const { data: telescopeList = [], isFetching: loading } =
-    useGetTelescopesQuery();
+  const { data: telescopes, isFetching: loading } = useGetTelescopesQuery();
+  const telescopeList = useMemo(() => telescopes ?? [], [telescopes]);
   const [deleteTelescopeMutation] = useDeleteTelescopeMutation();
   const [currentTelescopes, setCurrentTelescopes] = useState<any[]>([]);
   const [displayedTelescopes, setDisplayedTelescopes] = useState(telescopeList);

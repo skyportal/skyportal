@@ -2,7 +2,7 @@ import os
 
 from playwright.sync_api import expect
 
-from skyportal.tests import api, wait_for_gcn_event
+from skyportal.tests import post_gcn_event_if_missing, wait_for_gcn_event
 
 
 def test_sources_tab_owns_its_query(page, super_admin_user, super_admin_token):
@@ -17,16 +17,9 @@ def test_sources_tab_owns_its_query(page, super_admin_user, super_admin_token):
     datafile = (
         f"{os.path.dirname(__file__)}/../../data/GRB180116A_Fermi_GBM_Gnd_Pos.xml"
     )
-    with open(datafile, "rb") as fid:
-        payload = fid.read()
 
     dateobs = "2018-01-16T00:36:53"
-    status, _ = api("GET", f"gcn_event/{dateobs}", token=super_admin_token)
-    if status == 404:
-        status, _ = api(
-            "POST", "gcn_event", data={"xml": payload}, token=super_admin_token
-        )
-        assert status == 200
+    post_gcn_event_if_missing(dateobs, super_admin_token, xml_file=datafile)
 
     wait_for_gcn_event(dateobs, super_admin_token)
 
@@ -54,18 +47,11 @@ def test_every_tab_carries_its_own_query(page, super_admin_user, super_admin_tok
     Each of Sources, Galaxies and Observations now carries the form for its own
     query, so nothing has to be configured on one tab and read on another.
     """
+    datafile = (
+        f"{os.path.dirname(__file__)}/../../data/GRB180116A_Fermi_GBM_Gnd_Pos.xml"
+    )
     dateobs = "2018-01-16T00:36:53"
-    status, _ = api("GET", f"gcn_event/{dateobs}", token=super_admin_token)
-    if status == 404:
-        datafile = (
-            f"{os.path.dirname(__file__)}/../../data/GRB180116A_Fermi_GBM_Gnd_Pos.xml"
-        )
-        with open(datafile, "rb") as fid:
-            payload = fid.read()
-        status, _ = api(
-            "POST", "gcn_event", data={"xml": payload}, token=super_admin_token
-        )
-        assert status == 200
+    post_gcn_event_if_missing(dateobs, super_admin_token, xml_file=datafile)
     wait_for_gcn_event(dateobs, super_admin_token)
 
     page.goto(f"/become_user/{super_admin_user.id}")

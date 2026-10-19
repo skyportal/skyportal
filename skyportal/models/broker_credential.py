@@ -54,6 +54,16 @@ class BrokerCredential(Base):
         "candidates for, mirroring the broker-level routing.",
     )
 
+    topic_status = sa.Column(
+        JSONB,
+        nullable=False,
+        server_default="{}",
+        doc="Per topic, what the ingestion loop last saw of it: whether its "
+        "alerts can be ingested and, when they cannot, why. A topic absent "
+        "from here has had nothing consumed from it yet. Shown on the pages of "
+        "the filters the topic feeds.",
+    )
+
     _altdata = sa.Column(
         StringEncryptedType(JSONType, cfg["app.secret_key"], AesEngine, "pkcs5"),
         doc="The credentials themselves: the upstream API token and any stream "
@@ -85,6 +95,7 @@ class BrokerCredential(Base):
         }
         return {
             "label": f"user{self.user_id}",
+            "credential_id": self.id,
             "token": altdata.get("token"),
             "kafka": kafka,
             "topics": self.topics or [],

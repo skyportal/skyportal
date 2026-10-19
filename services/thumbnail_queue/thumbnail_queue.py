@@ -1,5 +1,6 @@
 import asyncio
 import time
+from datetime import timedelta
 
 import requests
 import sqlalchemy as sa
@@ -14,6 +15,7 @@ from skyportal.models import (
     Obj,
     Thumbnail,
 )
+from skyportal.utils.naive_datetime import utcnow_naive
 from skyportal.utils.services import check_loaded
 from skyportal.utils.thumbnail import image_is_grayscale
 
@@ -35,6 +37,11 @@ STATEMENT_TIMEOUT = "120s"
 # batch per loop here, off the event loop.
 GRAYSCALE_BATCH_SIZE = 10
 REMOTE_FETCH_TIMEOUT = 10
+GRAYSCALE_IDLE_INTERVAL = 60
+
+SWEEP_INTERVAL = 600
+# created_at is when the creating transaction began, so it can commit late.
+RECENT_OVERLAP = timedelta(minutes=10)
 
 
 async def set_statement_timeout(session):
@@ -43,18 +50,22 @@ async def set_statement_timeout(session):
     await session.execute(sa.text(f"SET statement_timeout = '{STATEMENT_TIMEOUT}'"))
 
 
-async def fetch_obj(session):
-    """Fetch the object with the most recent created_at timestamp that is missing at least one thumbnail.
+async def fetch_obj(session, created_after=None, before=None):
+    """Fetch the most recently created object, other than a moving object, that is missing at least one thumbnail.
 
     Parameters
     ----------
     session : `sqlalchemy.ext.asyncio.AsyncSession`
         The async database session to use for the query.
+    created_after : `datetime.datetime`, optional
+        Only consider objects created at or after this time.
+    before : tuple of (`datetime.datetime`, str), optional
+        Only consider objects older than this (created_at, id) pair.
 
     Returns
     -------
     obj : `skyportal.models.Obj` or None
-        The object with the most recent created_at timestamp that is missing at least one thumbnail.
+        The most recently created object, other than a moving object, that is missing at least one thumbnail.
     err : `Exception` or None
         The exception that occurred, if any.
     """
@@ -64,6 +75,8 @@ async def fetch_obj(session):
         stmt = (
             sa.select(Obj.id)
             .where(
+                # add_linked_thumbnails skips moving objects, so they stay missing.
+                Obj.is_roid.isnot(True),
                 ~sa.exists(
                     sa.select(Thumbnail.obj_id)
                     .where(
@@ -77,11 +90,19 @@ async def fetch_obj(session):
                         sa.func.count(sa.distinct(Thumbnail.type))
                         == len(THUMBNAIL_TYPES)
                     )
-                )
+                ),
             )
-            .order_by(Obj.created_at.desc())
+            .order_by(Obj.created_at.desc(), Obj.id.desc())
             .limit(1)
         )
+        if created_after is not None:
+            stmt = stmt.where(Obj.created_at >= created_after)
+        if before is not None:
+            created_at, obj_id = before
+            stmt = stmt.where(
+                Obj.created_at <= created_at,
+                sa.tuple_(Obj.created_at, Obj.id) < sa.tuple_(created_at, obj_id),
+            )
         result = await session.execute(stmt)
         objs = result.scalars().all()
         if len(objs) == 0:
@@ -115,7 +136,8 @@ async def classify_pending_grayscale(session_factory=None):
     """Classify remote thumbnails the before_insert hook left as NULL.
 
     Reads a batch and releases the connection before the (slow) image fetches so
-    no transaction is held across them, then writes the results back.
+    no transaction is held across them, then writes the results back, and
+    returns whether there was anything to classify.
     `session_factory` is injectable so tests can bind it to the test database.
     """
     session_factory = session_factory or models.async_plain_session_factory
@@ -131,7 +153,7 @@ async def classify_pending_grayscale(session_factory=None):
         ).all()
 
     if not pending:
-        return
+        return False
 
     results = [
         (thumbnail_id, await asyncio.to_thread(_classify_remote_thumbnail, public_url))
@@ -147,11 +169,17 @@ async def classify_pending_grayscale(session_factory=None):
                 .values(is_grayscale=is_grayscale)
             )
         await session.commit()
+    return True
 
 
 async def _run_loop():
     # start a timer we'll use to have a heartbeat every 60 seconds
     heartbeat = time.time()
+    next_grayscale_scan = 0
+    recent_since = None
+    sweeping = False
+    sweep_cursor = None
+    next_sweep = 0
     while True:
         if time.time() - heartbeat > 60:
             heartbeat = time.time()
@@ -160,10 +188,13 @@ async def _run_loop():
             # Classify remote thumbnails left NULL by before_insert (fetch runs
             # off the event loop with no txn held). Isolated so a failure here
             # doesn't stall thumbnail generation below.
-            try:
-                await classify_pending_grayscale()
-            except Exception as e:
-                log(f"Error classifying pending thumbnails: {str(e)}")
+            if time.time() >= next_grayscale_scan:
+                next_grayscale_scan = time.time() + GRAYSCALE_IDLE_INTERVAL
+                try:
+                    if await classify_pending_grayscale():
+                        next_grayscale_scan = 0
+                except Exception as e:
+                    log(f"Error classifying pending thumbnails: {str(e)}")
 
             internal_key = None
             # 1. Read/claim: find one obj missing thumbnails and snapshot what we
@@ -174,7 +205,23 @@ async def _run_loop():
             # the pre-init None and call None() ('NoneType' object is not callable).
             async with models.async_plain_session_factory() as session:
                 await set_statement_timeout(session)
-                obj, err = await fetch_obj(session)
+                obj, err = None, None
+                if recent_since is not None:
+                    obj, err = await fetch_obj(session, created_after=recent_since)
+                if (
+                    obj is None
+                    and err is None
+                    and (sweeping or time.time() >= next_sweep)
+                ):
+                    if not sweeping:
+                        sweeping, sweep_cursor = True, None
+                        recent_since = utcnow_naive() - RECENT_OVERLAP
+                    obj, err = await fetch_obj(session, before=sweep_cursor)
+                    if obj is not None:
+                        sweep_cursor = (obj.created_at, obj.id)
+                    elif err is None:
+                        sweeping = False
+                        next_sweep = time.time() + SWEEP_INTERVAL
                 if err is not None:
                     log(f"Error fetching object with missing thumbnails: {str(err)}")
                     await asyncio.sleep(1)

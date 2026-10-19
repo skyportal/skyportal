@@ -77,7 +77,7 @@ const ShiftPage = ({ route = null }: ShiftPageProps) => {
   const isRecurring = show === "manage recurring shifts";
   const isManageShift = show === "manage shift";
   return (
-    <Grid container spacing={3}>
+    <Grid container spacing={2}>
       <Grid size={{ md: 8, sm: 12 }}>
         <Paper elevation={1}>
           {shiftList ? (

@@ -32,7 +32,8 @@ def fetch_observing_runs(
     client : httpx.Client
         Client from :func:`skyportal_py.create_client`.
     upcoming_only : bool, optional
-        Return only runs that have not finished yet.
+        Return only runs that have not finished yet or finished within the
+        last two days.
     """
     params = {"upcomingOnly": True} if upcoming_only else {}
     response = client.get("/api/observing_run", params=params)

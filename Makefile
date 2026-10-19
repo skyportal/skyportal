@@ -48,9 +48,12 @@ docker-images: docker-local
 
 docker-local: ## Build docker images locally
 	cd baselayer && git submodule update --init --remote
+	@# the image has no .git, so sysinfo and deployments read the log from data/
+	PYTHONPATH=. python3 -c "import json; from skyportal.utils.gitlog import get_gitlog; json.dump(get_gitlog(), open('data/gitlog-skyportal.json', 'w'))"
 	docker build -t $(DOCKER_IMAGENAME) \
 		--build-arg SKYPORTAL_UID=$(SKYPORTAL_UID) \
-		--build-arg SKYPORTAL_GID=$(SKYPORTAL_GID) .
+		--build-arg SKYPORTAL_GID=$(SKYPORTAL_GID) . ; \
+		status=$$?; rm -f data/gitlog-skyportal.json; exit $$status
 
 doc_reqs: | baselayer/Makefile
 	uv sync --group docs --inexact
@@ -95,6 +98,10 @@ db_init: ## Create the databases, and the extensions the schema needs in them.
 db_init: | baselayer/Makefile
 	@$(MAKE) --no-print-directory -C . -f baselayer/Makefile db_init
 	@$(PYTHON) tools/enable_pgvector.py $(FLAGS)
+
+reencrypt_secret_key: ## Re-encrypt the app.secret_key columns after that key changes. Prompts for the previous key (or OLD_SECRET_KEY); FLAGS=--commit to write.
+reencrypt_secret_key: | baselayer/Makefile
+	@$(PYTHON) tools/reencrypt_secret_key.py --config=config.yaml $(filter-out --config=config.yaml,$(FLAGS))
 
 db_clear_test: ## Drop and recreate only the test database.
 db_clear_test: | baselayer/Makefile

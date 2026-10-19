@@ -1,6 +1,7 @@
 import { useState } from "react";
+import AddIcon from "@mui/icons-material/Add";
 import { useForm } from "react-hook-form";
-import { makeStyles } from "tss-react/mui";
+import Box from "@mui/material/Box";
 import TextField from "@mui/material/TextField";
 import Button from "../../Button";
 import {
@@ -10,17 +11,7 @@ import {
 import ClassificationSelect from "../../classification/ClassificationSelect";
 import DeletableChips from "../../DeletableChips";
 
-const useStyles = makeStyles()(() => ({
-  form: {
-    display: "flex",
-    gap: "1rem",
-    flexWrap: "wrap",
-    paddingBottom: "1.5rem",
-  },
-}));
-
 const ClassificationsShortcutForm = () => {
-  const { classes } = useStyles();
   const { data: profileData } = useGetProfileQuery();
   const profile = (profileData?.preferences ?? {}) as any;
   const {
@@ -58,44 +49,58 @@ const ClassificationsShortcutForm = () => {
     updateUserPreferences(prefs);
   };
 
+  const shortcuts = Object.keys(profile?.classificationShortcuts ?? {});
+
   return (
-    <div className={classes.form}>
-      <form onSubmit={handleSubmit(onSubmit)}>
-        <div className={classes.form}>
+    <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
+      {shortcuts.length > 0 && (
+        <DeletableChips items={shortcuts} onDelete={onDelete} />
+      )}
+      <Box
+        component="form"
+        onSubmit={handleSubmit(onSubmit)}
+        sx={{
+          display: "flex",
+          flexWrap: "wrap",
+          alignItems: "flex-start",
+          gap: 1.5,
+        }}
+      >
+        <Box sx={{ flex: "2 1 16rem" }}>
           <ClassificationSelect
             selectedClassifications={selectedClassifications}
             setSelectedClassifications={setSelectedClassifications}
           />
-          <TextField
-            {...register("shortcutName", {
-              required: true,
-              validate: (value: string) =>
-                !profile?.classificationShortcuts ||
-                !(value in profile.classificationShortcuts) ||
-                "Shortcut with that name already exists",
-            })}
-            label="Shortcut Name"
-            id="shortcutNameInput"
-            error={!!errors["shortcutName"]}
-            helperText={
-              errors["shortcutName"]
-                ? (errors["shortcutName"].message as string) || "Required"
-                : ""
-            }
-          />
-        </div>
-        <Button primary type="submit" data-testid="addShortcutButton">
-          Add Shortcut
-        </Button>
-      </form>
-      {profile?.classificationShortcuts && (
-        <DeletableChips
-          items={Object.keys(profile?.classificationShortcuts)}
-          onDelete={onDelete}
-          title="Shortcuts"
+        </Box>
+        <TextField
+          {...register("shortcutName", {
+            required: true,
+            validate: (value: string) =>
+              !profile?.classificationShortcuts ||
+              !(value in profile.classificationShortcuts) ||
+              "Shortcut with that name already exists",
+          })}
+          label="Shortcut name"
+          id="shortcutNameInput"
+          error={!!errors["shortcutName"]}
+          helperText={
+            errors["shortcutName"]
+              ? (errors["shortcutName"].message as string) || "Required"
+              : ""
+          }
+          sx={{ flex: "1 1 12rem" }}
         />
-      )}
-    </div>
+        <Button
+          primary
+          type="submit"
+          data-testid="addShortcutButton"
+          aria-label="Add shortcut"
+          sx={{ minWidth: 56, width: 56, height: 56, padding: 0 }}
+        >
+          <AddIcon />
+        </Button>
+      </Box>
+    </Box>
   );
 };
 

@@ -11,6 +11,15 @@ def test_obj_photometry(upload_data_token, public_source):
     )
     assert status == 200
 
+    # phase folding needs a period annotation, which this source doesn't have
+    status, data = api(
+        "GET",
+        f"sources/{public_source.id}/photometry?phaseFoldData=true",
+        token=upload_data_token,
+    )
+    assert status == 400
+    assert f"No period for object {public_source.id}" in data["message"]
+
     obj_id = str(uuid.uuid4())
 
     # try a non-existent source

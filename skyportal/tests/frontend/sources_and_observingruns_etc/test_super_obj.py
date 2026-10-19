@@ -110,3 +110,45 @@ def test_super_obj_classification_provenance_on_source_page(
         ).to_be_visible()
     finally:
         teardown()
+
+
+def test_super_obj_photometry_on_source_page(
+    page, user, upload_data_token, public_group, public_source, ztf_camera
+):
+    obj2 = f"{uuid.uuid4().hex[:10]}_meta2"
+
+    status, _ = api(
+        "POST",
+        "sources",
+        data={"id": obj2, "ra": 234.22, "dec": -22.33, "group_ids": [public_group.id]},
+        token=upload_data_token,
+    )
+    assert status == 200
+
+    status, data = api(
+        "POST",
+        "photometry",
+        data={
+            "obj_id": obj2,
+            "mjd": 58000.0,
+            "instrument_id": ztf_camera.id,
+            "flux": 12.24,
+            "fluxerr": 0.031,
+            "zp": 25.0,
+            "magsys": "ab",
+            "filter": "ztfr",
+            "group_ids": [public_group.id],
+        },
+        token=upload_data_token,
+    )
+    assert status == 200, data
+
+    _, teardown = _link_super_obj([public_source.id, obj2])
+    try:
+        page.goto(f"/become_user/{user.id}")
+        page.goto(f"/source/{public_source.id}")
+        expect(
+            page.locator("#photometry-plot .legendtext", has_text=f"{obj2}/").first
+        ).to_be_visible()
+    finally:
+        teardown()

@@ -1,3 +1,5 @@
+import uuid
+
 from skyportal.tests import api, assert_api, assert_api_fail
 
 
@@ -218,6 +220,50 @@ def test_create_page_groups_and_streams(
     assert public_source_page["options"]["classifications"] == "no data"
     # Summary is still public because it is not link to group or stream
     assert public_source_page["options"]["summary"] == "public"
+
+
+def test_create_page_without_photometry(
+    upload_data_token, manage_sources_token, public_group
+):
+    # a source with no photometry has no PhotStat row
+    obj_id = str(uuid.uuid4())
+    status, data = api(
+        "POST",
+        "sources",
+        data={
+            "id": obj_id,
+            "ra": 234.22,
+            "dec": -22.33,
+            "group_ids": [public_group.id],
+        },
+        token=upload_data_token,
+    )
+    assert_api(status, data)
+
+    status, data = api(
+        "POST",
+        f"public_pages/source/{obj_id}",
+        data={
+            "options": {
+                "include_summary": False,
+                "include_photometry": True,
+                "include_spectroscopy": False,
+                "include_classifications": False,
+            },
+        },
+        token=manage_sources_token,
+    )
+    assert_api(status, data)
+    public_source_page_id = data["data"]["id"]
+
+    status, data = api(
+        "GET", f"public_pages/source/{obj_id}", token=manage_sources_token
+    )
+    assert_api(status, data)
+    public_source_page = next(
+        item for item in data["data"] if item["id"] == public_source_page_id
+    )
+    assert public_source_page["options"]["photometry"] == "no data"
 
 
 def test_delete_page(view_only_token, manage_sources_token, public_source):

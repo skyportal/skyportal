@@ -6,7 +6,7 @@ import pandas as pd
 import pytest
 from playwright.sync_api import expect
 
-from skyportal.tests import api
+from skyportal.tests import api, post_gcn_event_if_missing
 from skyportal.tests.external.test_moving_objects import (
     add_telescope_and_instrument,
     remove_telescope_and_instrument,
@@ -18,18 +18,9 @@ def test_gcnevents_observations(
     page, user, super_admin_token, upload_data_token, view_only_token, ztf_camera
 ):
     datafile = f"{os.path.dirname(__file__)}/../../data/GW190425_initial.xml"
-    with open(datafile, "rb") as fid:
-        payload = fid.read()
-    event_data = {"xml": payload}
 
     dateobs = "2019-04-25T08:18:05"
-    status, data = api("GET", f"gcn_event/{dateobs}", token=super_admin_token)
-    if status == 404:
-        status, data = api(
-            "POST", "gcn_event", data=event_data, token=super_admin_token
-        )
-        assert status == 200
-        assert data["status"] == "success"
+    post_gcn_event_if_missing(dateobs, super_admin_token, xml_file=datafile)
 
     telescope_id, instrument_id, telescope_name, instrument_name = (
         add_telescope_and_instrument("ZTF", super_admin_token, list(range(5)))
@@ -92,18 +83,9 @@ def test_observationplan_request(
     page, super_admin_user, super_admin_token, public_group
 ):
     datafile = f"{os.path.dirname(__file__)}/../../data/GW190425_initial.xml"
-    with open(datafile, "rb") as fid:
-        payload = fid.read()
-    event_data = {"xml": payload}
 
     dateobs = "2019-04-25T08:18:05"
-    status, data = api("GET", f"gcn_event/{dateobs}", token=super_admin_token)
-    if status == 404:
-        status, data = api(
-            "POST", "gcn_event", data=event_data, token=super_admin_token
-        )
-        assert status == 200
-        assert data["status"] == "success"
+    post_gcn_event_if_missing(dateobs, super_admin_token, xml_file=datafile)
 
     telescope_id, instrument_id, _, instrument_name = add_telescope_and_instrument(
         "ZTF", super_admin_token, list(range(5))
@@ -225,18 +207,9 @@ def test_observationplan_request(
 @pytest.mark.flaky(reruns=2)
 def test_gcn_request(page, user, super_admin_token, public_group):
     datafile = f"{os.path.dirname(__file__)}/../../data/GW190425_initial.xml"
-    with open(datafile, "rb") as fid:
-        payload = fid.read()
-    event_data = {"xml": payload}
 
     dateobs = "2019-04-25T08:18:05"
-    status, data = api("GET", f"gcn_event/{dateobs}", token=super_admin_token)
-    if status == 404:
-        status, data = api(
-            "POST", "gcn_event", data=event_data, token=super_admin_token
-        )
-        assert status == 200
-        assert data["status"] == "success"
+    post_gcn_event_if_missing(dateobs, super_admin_token, xml_file=datafile)
 
     telescope_id, instrument_id, telescope_name, instrument_name = (
         add_telescope_and_instrument("ZTF", super_admin_token, list(range(5)))

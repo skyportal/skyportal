@@ -1,5 +1,10 @@
 app:
   title: SkyPortal
+  # An ML classifier posts every source it scores, including the ones it is
+  # unsure of. Below this probability the label is kept on the source but no
+  # longer summarised at the top of the page, where a tentative guess reads as
+  # the object's identity. Null probabilities (most human labels) are unaffected.
+  ml_classification_min_probability: 0.9
   # Opening sentences of a source's acknowledgment block, before the facilities
   # and programs that source actually used are appended. Deployment-specific:
   # name the instance and the infrastructure behind it.
@@ -202,6 +207,10 @@ app:
     api_key:
     look_back_days: 1
 
+  trove:
+    endpoint: https://datatrove.as.arizona.edu # Base URL of the TROVE API
+    test_endpoint: https://datatrove-test.as.arizona.edu # Used when a sharing service is in testing mode
+
   hermes:
     endpoint: https://hermes.lco.global/api/v0 # Base URL of the Hermes API
     token: # Hermes API token for authentication (required to publish messages)
@@ -252,8 +261,12 @@ app:
       anonymous_ok: true
     - path: "/favorites"
       component: listing/FavoritesPage
+    - path: "/discussions"
+      component: discussion/Discussions
     - path: "/data_access_requests"
       component: DataAccessRequestsPage
+    - path: "/source_interests"
+      component: source/SourceInterestsPage
     - path: "/groups"
       component: group/Groups
     - path: "/group/:id"
@@ -272,8 +285,6 @@ app:
       component: broker/BrokerList
     - path: "/brokers/:brokerId"
       component: broker/Broker
-    - path: "/brokers/:brokerId/filter/:fid"
-      component: broker/BrokerFilterPage
     - path: "/user/:id"
       component: user/PublicProfile
     - path: "/upload_photometry/:id"
@@ -285,6 +296,8 @@ app:
     - path: "/about"
       component: About
       anonymous_ok: true
+    - path: "/deployments"
+      component: deployment/Deployments
     - path: "/runs"
       component: observing_run/ObservingRunPage
     - path: "/run/:id"
@@ -398,6 +411,10 @@ app:
           icon: Star
           url: /favorites
 
+        - name: Discussions
+          icon: Forum
+          url: /discussions
+
         - name: Groups
           icon: GroupWork
           url: /groups
@@ -407,7 +424,7 @@ app:
           url: /teams
 
         - name: Observing Runs
-          icon: LocalCafe
+          icon: NightsStay
           url: /runs
 
         - name: GCN Events
@@ -431,8 +448,12 @@ app:
           icon: LockOpen
           url: /data_access_requests
 
+        - name: Interests
+          icon: Handshake
+          url: /source_interests
+
         - name: Shifts
-          icon: SubwayRounded
+          icon: CalendarMonth
           url: /shifts
 
         - name: Source Statistics
@@ -453,12 +474,12 @@ app:
           anonymous_ok: true
 
         - name: Instruments
-          icon: Wifi
+          icon: CameraAlt
           url: /instruments
           anonymous_ok: true
 
         - name: MMADetectors
-          icon: Abc
+          icon: Sensors
           url: /mmadetectors
 
         - name: Allocations
@@ -478,26 +499,26 @@ app:
           url: /moving_objects/obsplan
 
         - name: Earthquakes
-          icon: PieChart
+          icon: Landslide
           url: /earthquakes
           anonymous_ok: true
 
         - name: Galaxies
-          icon: TornadoOutlined
+          icon: Cyclone
           url: /galaxies
           anonymous_ok: true
 
         - name: Spatial Catalogs
-          icon: PhotoSizeSelectLargeOutlined
+          icon: Map
           url: /spatial_catalogs
           anonymous_ok: true
 
         - name: Analysis Services
-          icon: SentimentSatisfied
+          icon: Science
           url: /services
 
         - name: Recurring API
-          icon: Restore
+          icon: EventRepeat
           url: /recurring_apis
 
         - name: Assistant Queries
@@ -509,7 +530,7 @@ app:
           url: /summary_search
 
         - name: Taxonomies
-          icon: WallpaperOutlined
+          icon: AccountTree
           url: /taxonomies
 
         - name: Tag Management
@@ -525,6 +546,10 @@ app:
           icon: HowToReg
           enabled_if: canDecideUserApplications # a /api/config flag
           url: /user_applications
+
+        - name: Deployments
+          icon: RocketLaunch
+          url: /deployments
 
     - name: Admin
       icon: AdminPanelSettings
@@ -776,6 +801,15 @@ database:
     # Seconds before the pooler force-closes a connection left idle in a
     # transaction; guards the pool against leaked transactions (0 = disabled).
     idle_transaction_timeout: 0
+    # Hand back a clean backend after every transaction, not only after a
+    # session. In transaction pooling pgbouncer runs its reset query only when
+    # this is on, so anything a client SETs -- a read-only default, a
+    # search_path, a temp table -- stays on that backend and is inherited by
+    # whoever it is handed to next. One backend left read-only this way failed
+    # writes for unrelated users while every other connection was fine. The
+    # reset costs a round trip per transaction, which is the price of a
+    # connection meaning the same thing to everyone who gets it.
+    server_reset_query_always: true
     # How the pooler connects to Postgres, in pgbouncer's own terms (disable,
     # allow, prefer, require, verify-ca, verify-full). pgbouncer defaults to
     # disable before 1.24, and a managed Postgres often refuses an unencrypted
@@ -840,7 +874,6 @@ server:
 
 services:
   disabled: # UNCOMMENT to disable a service
-    - dask
     # - facility_queue
     # - gcn_service
     # - hermes_skyportal_sync
@@ -857,6 +890,14 @@ services:
     # - spectral_cube_analysis_service
     # - thumbnail_queue
     # - tns_retrieval_queue
+
+zygote:
+  services: "*"
+  exclude:
+    - sn_analysis_service
+    - ngsf_analysis_service
+    - spectral_cube_analysis_service
+    - health_monitor
 
 # Alert brokers (BOOM, Fink, Lasair, ...) are configured at runtime as
 # `Broker` database records (name + provider class + encrypted credentials), not
@@ -892,6 +933,7 @@ misc:
   minutes_to_keep_candidate_query_cache: 60
   minutes_to_keep_source_query_cache: 360 # 6 hours
   minutes_to_keep_annotations_info_query_cache: 360 # 6 hours
+  minutes_to_keep_offset_stars_cache: 60
   minutes_to_keep_localization_instrument_query_cache: 1440 # 1 day
   max_items_in_localization_instrument_query_cache: 100
   minutes_to_keep_public_source_pages_cache: 1440 # 1 day
@@ -1373,6 +1415,11 @@ gcn:
       - igwn.gwalert
       - gcn.notices.einstein_probe.wxt.alert
       - gcn.notices.swift.bat.guano
+      # FRB notices. Both facilities publish the same core schema, so they
+      # share an ingestion path. CHIME runs at a few notices a day, of which
+      # roughly a quarter are retractions of an earlier detection.
+      - gcn.notices.dsa110.frb
+      - gcn.notices.chime.frb
       # - gcn.notices.icecube.lvk_nu_track_search
   # Circulars are prose follow-up reports. Ingesting them keeps each event's
   # circular list and aliases current in real time, where the TACH backfill
@@ -1490,6 +1537,18 @@ health_monitor:
   request_timeout_seconds: 30
   # How long do we give apps after restart to become healthy
   startup_grace_seconds: 30
+
+# analysis_rerun service: fires default analyses that were deferred because the
+# light curve was too sparse (a default analysis whose default_analysis_parameters
+# declare min_detections is deferred rather than submitted; see _run_default_analysis)
+# once the object crosses the threshold. The threshold lives on each DefaultAnalysis:
+# min_detections (total, any filter) and an optional min_detections_per_filter dict
+# (e.g. {"ztfg": 2, "ztfr": 2}), read from the precomputed PhotStat (SkyPortal's own
+# detection threshold, forced photometry excluded). Not configured here; these are
+# only the sweep cadence and how far back to look for newly-active sources.
+analysis_rerun:
+  interval_seconds: 3600
+  lookback_days: 14
 
 analysis_services:
   analysis_folder: persistentdata/analysis

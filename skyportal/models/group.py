@@ -511,3 +511,8 @@ class GroupAdmissionRequest(Base):
             "'accepted', or 'declined'."
         ),
     )
+    message = sa.Column(
+        sa.String,
+        nullable=True,
+        doc="Why the User wants to join the group",
+    )

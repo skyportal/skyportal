@@ -1,8 +1,7 @@
-import React, { useState, useMemo } from "react";
+import React, { ReactNode, useState, useMemo } from "react";
 import Dialog from "@mui/material/Dialog";
 import DialogContent from "@mui/material/DialogContent";
 import Slide from "@mui/material/Slide";
-import CloseIcon from "@mui/icons-material/Close";
 import DownloadIcon from "@mui/icons-material/Download";
 import IconButton from "@mui/material/IconButton";
 import CheckIcon from "@mui/icons-material/Check";
@@ -12,10 +11,7 @@ import QuestionMarkIcon from "@mui/icons-material/QuestionMark";
 import PriorityHigh from "@mui/icons-material/PriorityHigh";
 import Tooltip from "@mui/material/Tooltip";
 import Box from "@mui/material/Box";
-import Button from "@mui/material/Button";
-import { makeStyles } from "tss-react/mui";
 import CircularProgress from "@mui/material/CircularProgress";
-import Typography from "@mui/material/Typography";
 
 import StyledDataGrid, { DataGridToolbar } from "../StyledDataGrid";
 import UpdatePhotometry from "./UpdatePhotometry";
@@ -33,6 +29,7 @@ import { useGetConfigQuery } from "../../ducks/config";
 import { useGetProfileQuery } from "../../ducks/profile";
 
 const DEFAULT_HIDDEN_COLUMNS = [
+  "id",
   "instrument_id",
   "ra",
   "dec",
@@ -42,19 +39,36 @@ const DEFAULT_HIDDEN_COLUMNS = [
   "flux_corr",
 ];
 
-const useStyles = makeStyles()(() => ({
-  actionButtons: {
-    display: "flex",
-    flexFlow: "row wrap",
-    gap: "0.2rem",
-  },
-  manage: {
-    display: "flex",
-    flexDirection: "row",
-    gap: "0.2rem",
-    marginRight: "0.4rem",
-  },
-}));
+const EXTINCTION_COLUMNS = ["extinction", "mag_corr", "flux_corr"];
+
+const COLUMN_ORDER = [
+  "id",
+  "mjd",
+  "mag",
+  "magerr",
+  "limiting_mag",
+  "filter",
+  "instrument_name",
+  "instrument_id",
+  "snr",
+  "magsys",
+  "origin",
+  "altdata",
+  "ra",
+  "dec",
+  "ra_unc",
+  "dec_unc",
+  "created_at",
+];
+
+const EXCLUDED_KEYS = [
+  "groups",
+  "owner",
+  "obj_id",
+  "streams",
+  "validations",
+  ...EXTINCTION_COLUMNS,
+];
 
 const Transition = React.forwardRef(function Transition(props: any, ref: any) {
   return <Slide direction="up" ref={ref} {...props} />;
@@ -63,26 +77,31 @@ const Transition = React.forwardRef(function Transition(props: any, ref: any) {
 const isFloat = (x: any) =>
   typeof x === "number" && Number.isFinite(x) && Math.floor(x) !== x;
 
-// Format a raw cell value for display, preserving the old table's behavior:
-// floats are fixed to 6 (or 8 for *jd* columns) decimals, and altdata objects
-// are stringified. Used as a DataGrid valueFormatter so sorting still operates
-// on the underlying numeric/object value.
 const COLUMN_PRECISION: Record<string, number> = {
   mjd: 3,
   mag: 4,
   magerr: 4,
   limiting_mag: 2,
+  snr: 2,
 };
 
 const formatCell = (key: string) => (value: any) => {
-  if (isFloat(value)) {
-    const precision = COLUMN_PRECISION[key] ?? 6;
-    return value.toFixed(precision);
-  }
+  if (isFloat(value)) return value.toFixed(COLUMN_PRECISION[key] ?? 6);
   if (key === "altdata" && typeof value === "object" && value !== null) {
     return JSON.stringify(value);
   }
   return value;
+};
+
+const VALIDATION_STATUS: Record<string, { icon: ReactNode; label: string }> = {
+  true: { icon: <CheckIcon sx={{ color: "green" }} />, label: "Validated" },
+  false: { icon: <ClearIcon color="secondary" />, label: "Rejected" },
+  null: { icon: <QuestionMarkIcon color="primary" />, label: "Ambiguous" },
+};
+
+const NOT_VETTED = {
+  icon: <PriorityHigh color="primary" />,
+  label: "Not vetted",
 };
 
 interface PhotometryTableProps {
@@ -93,6 +112,36 @@ interface PhotometryTableProps {
   setMagsys?: ((...a: any[]) => void) | null;
   t0?: number | null;
 }
+
+const PhotometryTableToolbar = ({
+  title,
+  controls,
+  onDownload,
+  onClose,
+}: {
+  title: string;
+  controls: ReactNode;
+  onDownload: () => void;
+  onClose: () => void;
+}) => (
+  <DataGridToolbar
+    title={title}
+    showExport={false}
+    onClose={onClose}
+    closeTestId="close-photometry-table-button"
+  >
+    {controls}
+    <Tooltip title="Download">
+      <IconButton
+        size="small"
+        onClick={onDownload}
+        data-testid="open-photometry-download-button"
+      >
+        <DownloadIcon />
+      </IconButton>
+    </Tooltip>
+  </DataGridToolbar>
+);
 
 const PhotometryTable = ({
   obj_id,
@@ -106,11 +155,6 @@ const PhotometryTable = ({
 
   const { id: currentUserId, permissions = [] } =
     (useGetProfileQuery().data as any) ?? {};
-  // Update/delete of a photometry point requires being its owner, holding the
-  // "Manage photometry" ACL, or being a System admin (see
-  // manage_photometry_access_logic in skyportal/models/photometry.py). Read
-  // access is broader, so only show the edit/delete controls when the user can
-  // actually modify the point.
   const isSaved = (phot: any) => phot?.id != null;
   const canManagePhotometry = (phot: any) =>
     isSaved(phot) &&
@@ -118,44 +162,31 @@ const PhotometryTable = ({
       permissions.includes("Manage photometry") ||
       (phot?.owner?.id != null && phot.owner.id === currentUserId));
 
-  const { classes } = useStyles();
   const [deletePhotometry] = useDeletePhotometryMutation();
 
   const [deleteDialogOpen, setDeleteDialogOpen] = useState<any>(false);
   const [downloadOptionsOpen, setDownloadOptionsOpen] = useState(false);
   const [showExtinction, setShowExtinction] = useState(false);
 
-  const queryParams = useMemo<any>(() => {
-    // Include linked SuperObj photometry (e.g. LSST) in the table + download.
-    const params: any = { includeSuperObjsPhotometry: true };
-    if (showExtinction) {
-      params.includeExtinction = true;
-    }
-    if (magsys) {
-      params.magsys = magsys;
-    }
-    return params;
-  }, [showExtinction, magsys]);
-
-  const { data: photometryData } = useFetchSourcePhotometryQuery(
-    { id: obj_id, params: queryParams },
+  const { data: photometryData, isFetching } = useFetchSourcePhotometryQuery(
+    {
+      id: obj_id,
+      params: {
+        includeSuperObjsPhotometry: true,
+        ...(showExtinction && { includeExtinction: true }),
+        ...(magsys && { magsys }),
+      },
+    },
     { skip: !obj_id || !open },
   );
   const data = useMemo(() => photometryData ?? [], [photometryData]);
 
-  // DataGrid persists column visibility itself; seed it with the columns that
-  // were hidden by default in the old table.
   const [columnVisibilityModel, setColumnVisibilityModel] = useState<any>(() =>
-    DEFAULT_HIDDEN_COLUMNS.reduce((acc: any, curr) => {
-      acc[curr] = false;
-      return acc;
-    }, {}),
+    Object.fromEntries(DEFAULT_HIDDEN_COLUMNS.map((key) => [key, false])),
   );
 
   const handleDelete = async () => {
-    if (!deleteDialogOpen) {
-      return;
-    }
+    if (!deleteDialogOpen) return;
     try {
       await deletePhotometry(deleteDialogOpen).unwrap();
     } catch {
@@ -163,180 +194,123 @@ const PhotometryTable = ({
     }
     setDeleteDialogOpen(false);
   };
-  const closeDeleteDialog = () => {
-    setDeleteDialogOpen(false);
-  };
-
-  const handleDownloadClose = () => {
-    setDownloadOptionsOpen(false);
-  };
 
   const columns = useMemo<any[]>(() => {
-    if (data.length === 0) {
-      return [];
-    }
+    if (data.length === 0) return [];
 
-    // Column order, mirroring the previous table.
-    const keys = [
-      "id",
-      "mjd",
-      "mag",
-      "magerr",
-      "limiting_mag",
-      "filter",
-      "instrument_name",
-      "instrument_id",
-      "snr",
-      "magsys",
-      "origin",
-      "altdata",
-      "ra",
-      "dec",
-      "ra_unc",
-      "dec_unc",
-      "created_at",
-    ];
-
+    const keys = [...COLUMN_ORDER];
     if (showExtinction) {
-      keys.splice(
-        keys.indexOf("magerr") + 1,
-        0,
-        "extinction",
-        "mag_corr",
-        "flux_corr",
-      );
+      keys.splice(keys.indexOf("magerr") + 1, 0, ...EXTINCTION_COLUMNS);
     }
+    keys.push(
+      ...Object.keys(data[0] ?? {}).filter(
+        (key) => !keys.includes(key) && !EXCLUDED_KEYS.includes(key),
+      ),
+    );
 
-    // Pick up any extra keys present in the data that we did not enumerate.
-    Object.keys(data[0] ?? {}).forEach((key) => {
-      const extinctionColumns = ["extinction", "mag_corr", "flux_corr"];
-      const excludedKeys = [
-        "groups",
-        "owner",
-        "obj_id",
-        "id",
-        "streams",
-        "validations",
-      ];
-
-      if (extinctionColumns.includes(key) && !showExtinction) {
-        return;
-      }
-
-      if (!keys.includes(key) && !excludedKeys.includes(key)) {
-        keys.push(key);
-      }
-    });
-
-    const cols: any[] = keys.map((key) => ({
-      field: key,
-      headerName: key,
-      flex: 1,
-      minWidth: 90,
-      valueFormatter: formatCell(key),
-    }));
-
-    // Computed UTC column, inserted right after mjd.
-    const utcColumn = {
-      field: "UTC",
-      headerName: "UTC",
-      flex: 1,
-      minWidth: 160,
-      valueGetter: (_value: any, row: any) =>
-        mjd_to_utc(row.mjd).replace("T", " "),
-    };
-    const mjdIndex = cols.findIndex((col) => col.field === "mjd");
-    cols.splice(mjdIndex + 1, 0, utcColumn);
-
-    // Computed t-t0 column, inserted right after UTC, only when t0 is known.
-    if (t0 != null) {
-      const tMinusT0Column = {
-        field: "t-t0",
-        headerName: "t-t0",
+    const cols: any[] = keys.flatMap((key) => {
+      const column = {
+        field: key,
+        headerName: key,
         flex: 1,
-        minWidth: 90,
-        valueGetter: (_value: any, row: any) => row.mjd - t0,
-        valueFormatter: (value: any) =>
-          isFloat(value) ? value.toFixed(6) : value,
+        minWidth: key === "mjd" ? 110 : Math.max(90, key.length * 9 + 40),
+        valueFormatter: formatCell(key),
       };
-      const utcIndex = cols.findIndex((col) => col.field === "UTC");
-      cols.splice(utcIndex + 1, 0, tMinusT0Column);
-    }
-
-    cols.push({
-      field: "owner",
-      headerName: "owner",
-      flex: 1,
-      minWidth: 100,
-      valueGetter: (_value: any, row: any) => row.owner?.username || "",
+      if (key !== "mjd") return [column];
+      return [
+        column,
+        {
+          field: "UTC",
+          headerName: "UTC",
+          flex: 1,
+          minWidth: 180,
+          valueGetter: (_value: any, row: any) =>
+            mjd_to_utc(row.mjd).replace("T", " "),
+        },
+        ...(t0 != null
+          ? [
+              {
+                field: "t-t0",
+                headerName: "t-t0",
+                flex: 1,
+                minWidth: 90,
+                valueGetter: (_value: any, row: any) => row.mjd - t0,
+                valueFormatter: (value: any) =>
+                  isFloat(value) ? value.toFixed(6) : value,
+              },
+            ]
+          : []),
+      ];
     });
 
-    cols.push({
-      field: "streams",
-      headerName: "streams",
-      flex: 1,
-      minWidth: 120,
-      valueGetter: (_value: any, row: any) =>
-        (row.streams || []).map((stream: any) => stream.name).join(", "),
-    });
+    cols.push(
+      {
+        field: "owner",
+        headerName: "owner",
+        flex: 1,
+        minWidth: 150,
+        valueGetter: (_value: any, row: any) => row.owner?.username || "",
+      },
+      {
+        field: "streams",
+        headerName: "streams",
+        flex: 1,
+        minWidth: 180,
+        valueGetter: (_value: any, row: any) =>
+          (row.streams || []).map((stream: any) => stream.name).join(", "),
+      },
+    );
 
     if (usePhotometryValidation) {
-      cols.push({
-        field: "validation_status",
-        headerName: "Validation",
-        flex: 1,
-        minWidth: 110,
-        sortable: false,
-        renderCell: (params: any) => {
-          const phot = params.row;
-          const validation = phot?.validations?.[0];
-          let statusIcon = <QuestionMarkIcon color="primary" />;
-          if (!validation) {
-            statusIcon = <PriorityHigh color="primary" />;
-          } else if (validation.validated === true) {
-            statusIcon = <CheckIcon {...({ color: "green" } as any)} />;
-          } else if (validation.validated === false) {
-            statusIcon = <ClearIcon color="secondary" />;
-          }
-          return (
-            <div
-              style={{
-                display: "flex",
-                flexDirection: "row",
-                alignItems: "center",
-                justifyContent: "center",
-              }}
-              {...({ name: `${phot.id}_validation_status` } as any)}
-            >
-              {statusIcon}
-              {isSaved(phot) && (
-                <PhotometryValidation
-                  phot={phot}
-                  magsys={magsys ?? undefined}
-                />
-              )}
-            </div>
-          );
+      cols.push(
+        {
+          field: "validation_status",
+          headerName: "Validation",
+          flex: 1,
+          minWidth: 110,
+          sortable: false,
+          renderCell: ({ row }: any) => {
+            const validation = row.validations?.[0];
+            const { icon, label } =
+              (validation &&
+                VALIDATION_STATUS[`${validation.validated ?? null}`]) ||
+              NOT_VETTED;
+            return (
+              <Box
+                sx={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+              >
+                <Tooltip title={label}>{icon}</Tooltip>
+                {isSaved(row) && (
+                  <PhotometryValidation
+                    phot={row}
+                    magsys={magsys ?? undefined}
+                  />
+                )}
+              </Box>
+            );
+          },
         },
-      });
-
-      cols.push({
-        field: "validation_explanation",
-        headerName: "Explanation",
-        flex: 1,
-        minWidth: 120,
-        valueGetter: (_value: any, row: any) =>
-          row?.validations?.[0]?.explanation || "",
-      });
-
-      cols.push({
-        field: "validation_notes",
-        headerName: "Notes",
-        flex: 1,
-        minWidth: 120,
-        valueGetter: (_value: any, row: any) =>
-          row?.validations?.[0]?.notes || "",
-      });
+        {
+          field: "validation_explanation",
+          headerName: "Explanation",
+          flex: 1,
+          minWidth: 120,
+          valueGetter: (_value: any, row: any) =>
+            row.validations?.[0]?.explanation || "",
+        },
+        {
+          field: "validation_notes",
+          headerName: "Notes",
+          flex: 1,
+          minWidth: 120,
+          valueGetter: (_value: any, row: any) =>
+            row.validations?.[0]?.notes || "",
+        },
+      );
     }
 
     cols.push({
@@ -346,36 +320,22 @@ const PhotometryTable = ({
       minWidth: 110,
       sortable: false,
       filterable: false,
-      renderCell: (params: any) => {
-        const phot = params.row;
-        if (!canManagePhotometry(phot)) {
-          return null;
-        }
-        return (
-          <div className={classes.manage}>
-            <div>
-              <UpdatePhotometry phot={phot} magsys={magsys!} />
-            </div>
-            {deleteDialogOpen === phot.id ? (
-              <div>
-                <CircularProgress />
-              </div>
+      renderCell: ({ row }: any) =>
+        canManagePhotometry(row) && (
+          <Box sx={{ display: "flex", gap: "0.2rem", mr: "0.4rem" }}>
+            <UpdatePhotometry phot={row} magsys={magsys!} />
+            {deleteDialogOpen === row.id ? (
+              <CircularProgress />
             ) : (
-              <div>
-                <IconButton
-                  onClick={() => setDeleteDialogOpen(phot.id)}
-                  size="small"
-                  type="submit"
-                  data-testid={`deleteRequest_${phot.id}`}
-                  {...({ primary: true } as any)}
-                >
-                  <DeleteIcon />
-                </IconButton>
-              </div>
+              <IconButton
+                onClick={() => setDeleteDialogOpen(row.id)}
+                size="small"
+              >
+                <DeleteIcon />
+              </IconButton>
             )}
-          </div>
-        );
-      },
+          </Box>
+        ),
     });
 
     return cols;
@@ -386,108 +346,9 @@ const PhotometryTable = ({
     usePhotometryValidation,
     magsys,
     deleteDialogOpen,
-    classes.manage,
     currentUserId,
     permissions,
   ]);
-
-  const CustomToolbar = useMemo(
-    () =>
-      function PhotometryTableToolbar() {
-        return (
-          <DataGridToolbar showQuickFilter showExport={false}>
-            <Button
-              size="small"
-              startIcon={<DownloadIcon />}
-              onClick={() => setDownloadOptionsOpen(true)}
-              data-testid="open-photometry-download-button"
-            >
-              Download
-            </Button>
-            <Box sx={{ flexGrow: 1 }} />
-            <Tooltip title="Close Table">
-              <IconButton
-                onClick={onClose}
-                data-testid="close-photometry-table-button"
-                size="small"
-              >
-                <CloseIcon />
-              </IconButton>
-            </Tooltip>
-          </DataGridToolbar>
-        );
-      },
-    [onClose],
-  );
-
-  let bodyContent = null;
-  if (photometryData == null) {
-    bodyContent = (
-      <div>
-        <CircularProgress color="secondary" />
-      </div>
-    );
-  } else if (data.length === 0) {
-    bodyContent = <p>Source has no photometry.</p>;
-  } else {
-    bodyContent = (
-      <div>
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            flexDirection: "row",
-            gap: "1rem",
-            marginBottom: "0.5rem",
-          }}
-        >
-          <Typography variant="h6" noWrap>
-            {`Photometry of ${obj_id}`}
-          </Typography>
-          {magsys && typeof setMagsys === "function" && (
-            <PhotometryMagsys magsys={magsys} setMagsys={setMagsys} />
-          )}
-          <PhotometryExtinction
-            showExtinction={showExtinction}
-            setShowExtinction={setShowExtinction}
-          />
-        </div>
-        <Box sx={{ height: "calc(100vh - 8rem)", width: "100%" }}>
-          <StyledDataGrid
-            rows={data}
-            getRowId={(row: any) =>
-              row.id ??
-              `${row.obj_id}-${row.instrument_id}-${row.filter}-${row.mjd}`
-            }
-            columns={columns}
-            columnVisibilityModel={columnVisibilityModel}
-            onColumnVisibilityModelChange={setColumnVisibilityModel}
-            initialState={{
-              pagination: { paginationModel: { pageSize: 100 } },
-            }}
-            pageSizeOptions={[50, 100, { value: -1, label: "All" }]}
-            slots={{ toolbar: CustomToolbar }}
-            showToolbar
-          />
-        </Box>
-        <ConfirmDeletionDialog
-          deleteFunction={handleDelete}
-          dialogOpen={deleteDialogOpen}
-          closeDialog={closeDeleteDialog}
-          resourceName="Photometry Point"
-        />
-        <PhotometryDownload
-          open={downloadOptionsOpen}
-          onClose={handleDownloadClose}
-          data={data}
-          objId={obj_id}
-          usePhotometryValidation={usePhotometryValidation}
-          onDownload={handleDownloadClose}
-          t0={t0}
-        />
-      </div>
-    );
-  }
 
   return (
     <Dialog
@@ -498,7 +359,61 @@ const PhotometryTable = ({
         transition: Transition,
       }}
     >
-      <DialogContent>{bodyContent}</DialogContent>
+      <DialogContent sx={{ display: "flex", flexDirection: "column" }}>
+        <Box sx={{ flex: 1, minHeight: 0, width: "100%" }}>
+          <StyledDataGrid
+            rows={data}
+            getRowId={(row: any) =>
+              row.id ??
+              `${row.obj_id}-${row.instrument_id}-${row.filter}-${row.mjd}`
+            }
+            columns={columns}
+            loading={isFetching}
+            localeText={{ noRowsLabel: "Source has no photometry." }}
+            columnVisibilityModel={columnVisibilityModel}
+            onColumnVisibilityModelChange={setColumnVisibilityModel}
+            initialState={{
+              pagination: { paginationModel: { pageSize: 100 } },
+            }}
+            pageSizeOptions={[50, 100, { value: -1, label: "All" }]}
+            slots={{ toolbar: PhotometryTableToolbar }}
+            slotProps={{
+              toolbar: {
+                title: `Photometry of ${obj_id}`,
+                controls: (
+                  <>
+                    {magsys && typeof setMagsys === "function" && (
+                      <PhotometryMagsys magsys={magsys} setMagsys={setMagsys} />
+                    )}
+                    <PhotometryExtinction
+                      showExtinction={showExtinction}
+                      setShowExtinction={setShowExtinction}
+                    />
+                  </>
+                ),
+                onDownload: () => setDownloadOptionsOpen(true),
+                onClose,
+              },
+            }}
+            showToolbar
+          />
+        </Box>
+        <ConfirmDeletionDialog
+          deleteFunction={handleDelete}
+          dialogOpen={deleteDialogOpen}
+          closeDialog={() => setDeleteDialogOpen(false)}
+          resourceName="Photometry Point"
+        />
+        <PhotometryDownload
+          open={downloadOptionsOpen}
+          onClose={() => setDownloadOptionsOpen(false)}
+          data={data}
+          objId={obj_id}
+          usePhotometryValidation={usePhotometryValidation}
+          onDownload={() => setDownloadOptionsOpen(false)}
+          t0={t0}
+        />
+      </DialogContent>
     </Dialog>
   );
 };

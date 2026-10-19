@@ -16,6 +16,7 @@
  * messages are bridged to cache invalidation via `invalidateOnMessage`, so only
  * the active (currently-loaded) event's queries refetch.
  */
+import { fileReaderPromise } from "../API";
 import { skyportalApi } from "../api/skyportalApi";
 import { invalidateOnMessage } from "../api/wsInvalidation";
 import type { RouteData } from "../types/routeSchemaMap";
@@ -25,17 +26,6 @@ export interface CommentAttachment {
   text: string;
   attachment: string;
   attachment_name: string;
-}
-
-function fileReaderPromise(
-  file: File,
-): Promise<{ body: string | ArrayBuffer | null; name: string }> {
-  return new Promise((resolve) => {
-    const filereader = new FileReader();
-    filereader.readAsDataURL(file);
-    filereader.onloadend = () =>
-      resolve({ body: filereader.result, name: file.name });
-  });
 }
 
 export const gcnEventApi = skyportalApi.injectEndpoints({
@@ -463,7 +453,7 @@ export const gcnEventApi = skyportalApi.injectEndpoints({
 // `GcnEvent` tag only refetches the *active* queries — which are, by
 // construction, the ones for the currently-loaded event — so the conditional
 // "only if it matches the loaded event" guard is satisfied automatically.
-invalidateOnMessage("skyportal/FETCH_GCNEVENT", () => ["GcnEvent"]);
+
 // REFRESH_GCN_EVENT is broadcast to every client carrying the changed event's
 // dateobs (which is exactly the getGcnEvent/getGcnTach query arg — no lookup
 // needed). Invalidate only that event's per-id tag so other clients viewing a

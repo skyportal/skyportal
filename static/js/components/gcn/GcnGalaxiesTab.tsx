@@ -116,7 +116,6 @@ const GcnGalaxiesTab = ({
           galaxies={data.galaxies}
           totalMatches={data.totalMatches}
           serverSide={false}
-          {...({ showTitle: true } as any)}
         />
       )}
     </div>

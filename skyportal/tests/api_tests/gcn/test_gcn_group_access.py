@@ -124,6 +124,21 @@ def test_localization_tags_listing_is_access_scoped(gcn_GW190425, view_only_toke
     assert "Test" in data["data"], data["data"]
 
 
+def test_gcn_tags_listing_is_access_scoped(
+    super_admin_token, public_group2, view_only_token, view_only_token_group2
+):
+    """/api/gcn_event/tags only lists tags of events the user can read."""
+    _, _, tag = _post_cone_event(super_admin_token, group_ids=[public_group2.id])
+
+    status, data = api("GET", "gcn_event/tags", token=view_only_token_group2)
+    assert status == 200, data
+    assert tag in data["data"]
+
+    status, data = api("GET", "gcn_event/tags", token=view_only_token)
+    assert status == 200, data
+    assert tag not in data["data"]
+
+
 def test_restricted_localization_hidden_from_non_members(
     super_admin_token, public_group2, view_only_token, view_only_token_group2
 ):
@@ -232,3 +247,31 @@ def test_events_list_rejects_bad_group_ids(super_admin_token):
         "GET", "gcn_event", params={"groupIds": "not-an-int"}, token=super_admin_token
     )
     assert status == 400, data
+
+
+def test_gcn_event_comments_respect_comment_groups(
+    super_admin_token, public_group2, comment_token_two_groups, view_only_token
+):
+    """A comment restricted to group2 is only returned to group2 members."""
+    dateobs, _, _ = _post_cone_event(super_admin_token)  # readable by everyone
+
+    status, data = api("GET", f"gcn_event/{dateobs}", token=view_only_token)
+    assert status == 200, data
+    gcnevent_id = data["data"]["id"]
+
+    text = str(uuid.uuid4())
+    status, data = api(
+        "POST",
+        f"gcn_event/{gcnevent_id}/comments",
+        data={"text": text, "group_ids": [public_group2.id]},
+        token=comment_token_two_groups,
+    )
+    assert status == 200, data
+
+    status, data = api("GET", f"gcn_event/{dateobs}", token=comment_token_two_groups)
+    assert status == 200, data
+    assert text in [c["text"] for c in data["data"]["comments"]]
+
+    status, data = api("GET", f"gcn_event/{dateobs}", token=view_only_token)
+    assert status == 200, data
+    assert text not in [c["text"] for c in data["data"]["comments"]]

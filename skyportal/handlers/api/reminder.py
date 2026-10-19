@@ -1,6 +1,7 @@
 from typing import Annotated
 
 import arrow
+import sqlalchemy as sa
 from pydantic import Field
 from skyportal_py_models.reminders import (
     ReminderPatchBody,
@@ -17,6 +18,7 @@ from ...models import (
     EarthquakeEvent,
     GcnEvent,
     Group,
+    Obj,
     Reminder,
     ReminderOnEarthquake,
     ReminderOnGCN,
@@ -441,7 +443,10 @@ class ReminderHandler(BaseHandler):
                     text_to_send = f"*@{self.associated_user_object.username}* created a reminder on source *{resource_name}*"
                     url_endpoint = f"/source/{resource_name}"
                     action = "skyportal/REFRESH_REMINDER_SOURCE"
-                    payload = {"id": resource_id}
+                    internal_key = await session.scalar(
+                        sa.select(Obj.internal_key).where(Obj.id == resource_id)
+                    )
+                    payload = {"obj_key": internal_key}
                     notification_type = "reminder_source"
                 elif associated_resource_type.lower() == "spectra":
                     text_to_send = f"*@{self.associated_user_object.username}* created a reminder on spectrum *{resource_name}*"
@@ -654,14 +659,17 @@ class ReminderHandler(BaseHandler):
                 await session.commit()
 
                 if isinstance(reminder, Reminder):
+                    internal_key = await session.scalar(
+                        sa.select(Obj.internal_key).where(Obj.id == reminder.obj_id)
+                    )
                     self.push_all(
                         action="skyportal/REFRESH_REMINDER_SOURCE",
-                        payload={"id": reminder.obj_id},
+                        payload={"obj_key": internal_key},
                     )
                 elif isinstance(reminder, ReminderOnSpectrum):
                     self.push_all(
                         action="skyportal/REFRESH_REMINDER_SOURCE_SPECTRA",
-                        payload={"id": reminder.obj_id},
+                        payload={"id": reminder.spectrum_id},
                     )
                 elif isinstance(reminder, ReminderOnGCN):
                     self.push_all(
@@ -810,14 +818,17 @@ class ReminderHandler(BaseHandler):
                 await session.commit()
 
                 if isinstance(reminder, Reminder):
+                    internal_key = await session.scalar(
+                        sa.select(Obj.internal_key).where(Obj.id == reminder.obj_id)
+                    )
                     self.push_all(
                         action="skyportal/REFRESH_REMINDER_SOURCE",
-                        payload={"id": reminder.obj_id},
+                        payload={"obj_key": internal_key},
                     )
                 elif isinstance(reminder, ReminderOnSpectrum):
                     self.push_all(
                         action="skyportal/REFRESH_REMINDER_SOURCE_SPECTRA",
-                        payload={"id": reminder.obj_id},
+                        payload={"id": reminder.spectrum_id},
                     )
                 elif isinstance(reminder, ReminderOnGCN):
                     self.push_all(

@@ -1,4 +1,5 @@
 import { useState } from "react";
+import type { MouseEvent } from "react";
 import { JSONTree } from "react-json-tree";
 import Dialog from "@mui/material/Dialog";
 import DialogContent from "@mui/material/DialogContent";
@@ -9,52 +10,40 @@ import Tooltip from "@mui/material/Tooltip";
 
 interface DisplayPhotStatsProps {
   photstats?: Record<string, any>;
-  display_header?: boolean;
 }
 
-const DisplayPhotStats = ({
-  photstats = {},
-  display_header = true,
-}: DisplayPhotStatsProps) => {
+const DisplayPhotStats = ({ photstats = {} }: DisplayPhotStatsProps) => {
   const [dialogOpen, setDialogOpen] = useState(false);
+  const open = (event: MouseEvent) => {
+    event.stopPropagation();
+    setDialogOpen(true);
+  };
 
   return (
-    <div
-      style={{ display: "flex", flexDirection: "row", alignItems: "center" }}
-    >
-      {display_header ? <b>Photometry Statistics:</b> : ""}
-      <Tooltip title="Photometry Statistics">
+    <>
+      <Tooltip title="Photometry statistics">
         <IconButton
-          data-testid="showPhotStatsIcon"
           size="small"
-          onClick={(e) => {
-            e.stopPropagation();
-            setDialogOpen(true);
-          }}
-          style={{
-            margin: 0,
-            padding: 0,
-            marginLeft: display_header ? "0.25rem" : 0,
-          }}
+          onClick={open}
+          data-testid="showPhotStatsIcon"
+          sx={{ p: 0 }}
         >
           <AnalyticsIcon />
         </IconButton>
       </Tooltip>
       <Dialog
         open={dialogOpen}
-        onClose={(e: any) => {
-          e.stopPropagation();
+        onClose={(event: any) => {
+          event.stopPropagation();
           setDialogOpen(false);
         }}
       >
         <DialogTitle>Photometry Statistics</DialogTitle>
         <DialogContent>
-          <div>
-            <JSONTree data={photstats} hideRoot />
-          </div>
+          <JSONTree data={photstats} hideRoot />
         </DialogContent>
       </Dialog>
-    </div>
+    </>
   );
 };
 
