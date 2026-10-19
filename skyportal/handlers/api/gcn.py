@@ -690,11 +690,12 @@ async def post_gcnevent_from_xml(
 
     aliases = get_notice_aliases(root, notice_type)
 
+    event = None
     if trigger_id is not None:
         event = await session.scalar(
             GcnEvent.select(user).where(GcnEvent.trigger_id == trigger_id)
         )
-    else:
+    if event is None:
         event = await session.scalar(
             GcnEvent.select(user).where(GcnEvent.dateobs == dateobs)
         )
@@ -721,6 +722,11 @@ async def post_gcnevent_from_xml(
             raise ValueError(
                 "Insufficient permissions: GCN event can only be updated by original poster"
             )
+        new_aliases = [a for a in aliases if a not in (event.aliases or [])]
+        if new_aliases:
+            event.aliases = (event.aliases or []) + new_aliases
+            session.add(event)
+            await session.commit()
 
     event_id = event.id
 
