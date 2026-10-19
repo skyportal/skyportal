@@ -114,12 +114,11 @@ export const brokersApi = skyportalApi.injectEndpoints({
         responseHandler: parseKeepingIds,
       }),
     }),
-    getBrokerAlert: build.query<
-      any,
-      { brokerId: number; alertId: string | number }
-    >({
-      query: ({ brokerId, alertId }) => ({
-        url: `api/brokers/${brokerId}/alerts/${alertId}`,
+    // The object, not one alert: its brightest alert joined to the detection
+    // and non-detection history the broker holds.
+    getBrokerObject: build.query<any, { brokerId: number; objectId: string }>({
+      query: ({ brokerId, objectId }) => ({
+        url: `api/brokers/${brokerId}/objects/${objectId}`,
         responseHandler: parseKeepingIds,
       }),
     }),
@@ -156,12 +155,12 @@ export const brokersApi = skyportalApi.injectEndpoints({
       query: (objectId) => `api/sources/${objectId}`,
       extraOptions: { suppressErrorNotification: true },
     }),
-    saveBrokerAlertAsSource: build.mutation<
+    saveBrokerObjectAsSource: build.mutation<
       { id: string },
-      { brokerId: number; alertId: string; groupIds: number[] }
+      { brokerId: number; objectId: string; groupIds: number[] }
     >({
-      query: ({ brokerId, alertId, groupIds }) => ({
-        url: `api/brokers/${brokerId}/alerts/${alertId}/save`,
+      query: ({ brokerId, objectId, groupIds }) => ({
+        url: `api/brokers/${brokerId}/objects/${objectId}/save`,
         method: "POST",
         body: { group_ids: groupIds },
       }),
@@ -292,10 +291,10 @@ export const {
   useGetBrokersQuery,
   useGetBrokerAlertsQuery,
   useLazyGetBrokerAlertsQuery,
-  useGetBrokerAlertQuery,
+  useGetBrokerObjectQuery,
   useLazyGetBrokerConeSearchQuery,
   useGetSourceIfSavedQuery,
-  useSaveBrokerAlertAsSourceMutation,
+  useSaveBrokerObjectAsSourceMutation,
   useLazyTestBrokerFilterQuery,
   useGetBrokerFiltersQuery,
   useGetFilterCatalogQuery,

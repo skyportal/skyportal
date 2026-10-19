@@ -2111,7 +2111,7 @@ export interface paths {
         };
         trace?: never;
     };
-    "/api/brokers/{broker_id}/alerts/{alert_id}/cutouts": {
+    "/api/brokers/{broker_id}/alerts/{candid}/cutouts": {
         parameters: {
             query?: never;
             header?: never;
@@ -2128,8 +2128,8 @@ export interface paths {
                 header?: never;
                 path: {
                     broker_id: number;
-                    /** @description Alert identifier (e.g. candid) the provider keys cutouts on. */
-                    alert_id: string;
+                    /** @description Alert identifier (candid) of a single alert packet. */
+                    candid: string;
                 };
                 cookie?: never;
             };
@@ -2218,7 +2218,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/brokers/{broker_id}/alerts/{alert_id}/photometry": {
+    "/api/brokers/{broker_id}/objects/{object_id}/photometry": {
         parameters: {
             query?: never;
             header?: never;
@@ -2259,8 +2259,90 @@ export interface paths {
                 header?: never;
                 path: {
                     broker_id: number;
-                    /** @description Alert identifier (e.g. candid) the provider keys cutouts on. */
-                    alert_id: string;
+                    /** @description Survey object identifier, e.g. a ZTF objectId. */
+                    object_id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Success"];
+                    };
+                };
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/brokers/{broker_id}/alerts/{object_id}/photometry": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Display photometry for an object (DB + on-demand broker)
+         * @description Return an object's photometry for display: the persisted,
+         *     access-controlled photometry from the database merged with photometry
+         *     fetched on demand from the broker (deduped by instrument/filter/mjd,
+         *     so the broker only augments saved points). The broker half is cached
+         *     per object and never written to the database. Returns a bare list of
+         *     points, matching GET /sources/{id}/photometry.
+         */
+        get: {
+            parameters: {
+                query?: {
+                    /** @description Survey the photometry is fetched for. */
+                    survey?: string | null;
+                    /** @description Photometry format. */
+                    format?: "mag" | "flux" | "both";
+                    /** @description Magnitude system. */
+                    magsys?: "jla1" | "ab" | "vega" | "bd17" | "csp" | "ab-b12";
+                    /** @description Also serve the objs sharing a SuperObj with this one. */
+                    includeSuperObjsPhotometry?: boolean;
+                    /** @description Include each saved point's owner. */
+                    includeOwnerInfo?: boolean;
+                    /** @description Include each saved point's streams. */
+                    includeStreamInfo?: boolean;
+                    /** @description Include each saved point's validations. */
+                    includeValidationInfo?: boolean;
+                    /** @description Include each saved point's annotations. */
+                    includeAnnotationInfo?: boolean;
+                    /** @description Include Galactic extinction and extinction-corrected values. */
+                    includeExtinction?: boolean;
+                };
+                header?: never;
+                path: {
+                    broker_id: number;
+                    /** @description Survey object identifier, e.g. a ZTF objectId. */
+                    object_id: string;
                 };
                 cookie?: never;
             };
@@ -2475,7 +2557,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/brokers/{broker_id}/alerts/{alert_id}/save": {
+    "/api/brokers/{broker_id}/objects/{object_id}/save": {
         parameters: {
             query?: never;
             header?: never;
@@ -2485,8 +2567,8 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * Save a broker alert as a source
-         * @description <b>Permission(s) required:</b> <em>Upload data (or System admin)</em><br><br>Ingest an alert/object from a broker into skyportal as an Obj/Source with photometry, dispatched to the broker's provider.
+         * Save a broker object as a source
+         * @description <b>Permission(s) required:</b> <em>Upload data (or System admin)</em><br><br>Ingest an object from a broker into skyportal as an Obj/Source with photometry, dispatched to the broker's provider.
          */
         post: {
             parameters: {
@@ -2494,8 +2576,8 @@ export interface paths {
                 header?: never;
                 path: {
                     broker_id: number;
-                    /** @description Alert identifier (e.g. candid) the provider keys cutouts on. */
-                    alert_id: string;
+                    /** @description Survey object identifier, e.g. a ZTF objectId. */
+                    object_id: string;
                 };
                 cookie?: never;
             };
@@ -2529,7 +2611,111 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/brokers/{broker_id}/alerts/{alert_id})?": {
+    "/api/brokers/{broker_id}/alerts/{object_id}/save": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Save a broker object as a source
+         * @description <b>Permission(s) required:</b> <em>Upload data (or System admin)</em><br><br>Ingest an object from a broker into skyportal as an Obj/Source with photometry, dispatched to the broker's provider.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    broker_id: number;
+                    /** @description Survey object identifier, e.g. a ZTF objectId. */
+                    object_id: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["BrokerSaveBody"];
+                };
+            };
+            responses: {
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Success"];
+                    };
+                };
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/brokers/{broker_id}/objects/{object_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get an object from a broker
+         * @description Fetch one survey object, meaning its brightest alert joined to the detection and non-detection history the broker holds for that objectId, scoped to the programs the requester's streams grant.
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    broker_id: number;
+                    /** @description Survey object identifier, e.g. a ZTF objectId. */
+                    object_id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Success"];
+                    };
+                };
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/brokers/{broker_id}/alerts/{object_id}": {
         parameters: {
             query?: never;
             header?: never;
@@ -2538,7 +2724,7 @@ export interface paths {
         };
         /**
          * Query broker alerts
-         * @description Search alerts (or fetch one by id) from a broker, dispatched to the broker's registered provider.
+         * @description Search a broker's alert packets by objectId, or by ra/dec/ radius, bounded by the optional jd_start and jd_end. An objectId in the path returns the object instead of its alerts, which is what /api/brokers/{broker_id}/objects/{object_id} is named for.
          */
         get: {
             parameters: {
@@ -2546,7 +2732,55 @@ export interface paths {
                 header?: never;
                 path: {
                     broker_id: number;
-                    alert_id: string;
+                    object_id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Success"];
+                    };
+                };
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/brokers/{broker_id}/alerts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Query broker alerts
+         * @description Search a broker's alert packets by objectId, or by ra/dec/ radius, bounded by the optional jd_start and jd_end. An objectId in the path returns the object instead of its alerts, which is what /api/brokers/{broker_id}/objects/{object_id} is named for.
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    broker_id: number;
                 };
                 cookie?: never;
             };
@@ -11677,8 +11911,8 @@ export interface paths {
                 query?: {
                     /** @description Bool indicating whether to include used invitations. Defaults to false. */
                     includeUsed?: boolean;
-                    /** @description Number of invitations to return per paginated request. Defaults to all. */
-                    numPerPage?: number | null;
+                    /** @description Number of invitations to return per paginated request. Defaults to 25. */
+                    numPerPage?: number;
                     /** @description Page number for paginated query results. Defaults to 1. */
                     pageNumber?: number;
                     /** @description Get invitations whose email contains this string. */

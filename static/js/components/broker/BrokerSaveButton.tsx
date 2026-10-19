@@ -13,7 +13,7 @@ import { showNotification } from "baselayer/components/Notifications";
 
 import { useAppDispatch } from "../../types/hooks";
 import { useGetGroupsQuery } from "../../ducks/groups";
-import { useSaveBrokerAlertAsSourceMutation } from "../../ducks/brokers";
+import { useSaveBrokerObjectAsSourceMutation } from "../../ducks/brokers";
 
 interface BrokerSaveButtonProps {
   brokerId: number;
@@ -23,7 +23,7 @@ interface BrokerSaveButtonProps {
 const BrokerSaveButton = ({ brokerId, objectId }: BrokerSaveButtonProps) => {
   const dispatch = useAppDispatch();
   const { data: groups } = useGetGroupsQuery();
-  const [saveAlert, { isLoading }] = useSaveBrokerAlertAsSourceMutation();
+  const [saveObject, { isLoading }] = useSaveBrokerObjectAsSourceMutation();
 
   const [open, setOpen] = useState(false);
   const [selected, setSelected] = useState<number[]>([]);
@@ -36,9 +36,9 @@ const BrokerSaveButton = ({ brokerId, objectId }: BrokerSaveButtonProps) => {
     );
 
   const onSave = async () => {
-    const res: any = await saveAlert({
+    const res: any = await saveObject({
       brokerId,
-      alertId: objectId,
+      objectId,
       groupIds: selected,
     });
     if (res?.data) {

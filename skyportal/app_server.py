@@ -42,6 +42,7 @@ from skyportal.handlers.api import (
     BrokerFilterTestHandler,
     BrokerFilterValidateHandler,
     BrokerHandler,
+    BrokerObjectHandler,
     BrokerPhotometryHandler,
     BrokerSaveHandler,
     BulkDataShareHandler,
@@ -357,8 +358,11 @@ skyportal_handlers = [
     (r"/api/brokers/filters/([0-9]+)/attach", BrokerFilterAttachHandler),
     (r"/api/brokers/([0-9]+)/credentials(?:/(topics))?", BrokerCredentialHandler),
     (r"/api/brokers/([0-9]+)/filters(?:/([0-9]+))?", BrokerFiltersHandler),
+    # Cutouts belong to one exposure, so this segment really is a candid; the
+    # objects routes below take an objectId, as does the alerts path form.
     (r"/api/brokers/([0-9]+)/alerts/([^/]+)/cutouts", BrokerCutoutsHandler),
     (r"/api/brokers/([0-9]+)/cone_search", BrokerConeSearchHandler),
+    (r"/api/brokers/([0-9]+)/objects/([^/]+)/photometry", BrokerPhotometryHandler),
     (r"/api/brokers/([0-9]+)/alerts/([^/]+)/photometry", BrokerPhotometryHandler),
     # Before the bare photometry route below, whose [^/]+ would otherwise
     # swallow the id and never reach this one.
@@ -368,8 +372,15 @@ skyportal_handlers = [
     (r"/api/brokers/photometry/alert", PhotometryAlertHandler),
     # non-numeric, so this never shadows the numeric /api/brokers/{id} routes
     (r"/api/brokers/photometry/([^/]+)", BrokerDefaultPhotometryHandler),
+    (r"/api/brokers/([0-9]+)/objects/([^/]+)/save", BrokerSaveHandler),
     (r"/api/brokers/([0-9]+)/alerts/([^/]+)/save", BrokerSaveHandler),
-    (r"/api/brokers/([0-9]+)/alerts(?:/(.+))?", BrokerAlertsHandler),
+    (r"/api/brokers/([0-9]+)/objects/([^/]+)", BrokerObjectHandler),
+    # The path form returns the object, not an alert; the objects routes above
+    # are the spelling for that, and this one stays for callers already on it.
+    # Registered separately from the bare route so each publishes its own path
+    # in the API spec.
+    (r"/api/brokers/([0-9]+)/alerts/(.+)", BrokerAlertsHandler),
+    (r"/api/brokers/([0-9]+)/alerts", BrokerAlertsHandler),
     (r"/api/brokers(?:/([0-9]+))?", BrokerHandler),
     (r"/api/candidates_filter", CandidateFilterHandler),
     (r"/api/candidates/scan_reports/([0-9]+)/items(/[0-9]+)?", ScanReportItemHandler),

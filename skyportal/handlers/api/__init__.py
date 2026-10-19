@@ -35,6 +35,7 @@ from .broker import (
     BrokerFilterTestHandler,
     BrokerFilterValidateHandler,
     BrokerHandler,
+    BrokerObjectHandler,
     BrokerPhotometryHandler,
     BrokerSaveHandler,
     PhotometryAlertHandler,

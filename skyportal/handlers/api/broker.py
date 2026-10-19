@@ -51,9 +51,15 @@ log = make_log("api/broker")
 
 MAX_FILTER_ACTIVATIONS = 100
 
-AlertId = Annotated[
+# Cutouts belong to one exposure, so they key on the alert; everything else
+# keys on the object the alerts share.
+CandId = Annotated[
     str,
-    Field(description="Alert identifier (e.g. candid) the provider keys cutouts on."),
+    Field(description="Alert identifier (candid) of a single alert packet."),
+]
+ObjectId = Annotated[
+    str,
+    Field(description="Survey object identifier, e.g. a ZTF objectId."),
 ]
 
 
@@ -412,14 +418,46 @@ class BrokerHandler(BaseHandler):
             return self.success()
 
 
-class BrokerAlertsHandler(BaseHandler):
+class BrokerObjectMixin:
+    """Dispatch to the provider for one object, shared by the objects route and
+    the alerts path form kept for callers written against it."""
+
+    def _get_object(self, broker_id, object_id):
+        params: dict[str, Any] = {
+            k: self.get_argument(k) for k in self.request.arguments
+        }
+        with self.Session() as session:
+            broker = session.scalars(
+                Broker.select(self.current_user).where(Broker.id == int(broker_id))
+            ).first()
+            if broker is None:
+                return self.error(f"No broker with id {broker_id}")
+            if not broker.active:
+                return self.error(f"Broker {broker.name} is not active")
+            if not broker.broker_class.implements()["get_alert"]:
+                return self.error(f"Broker {broker.name} does not support 'get_alert'.")
+
+            params["permissions"] = alert_permissions(self.current_user, session)
+            try:
+                data = broker.broker_class.get_alert(
+                    broker, object_id, session, **params
+                )
+            except NotImplementedError:
+                return self.error(f"Broker {broker.name} does not support 'get_alert'.")
+            except Exception as e:
+                return self.error(f"Error querying broker {broker.name}: {e}")
+            return self.success(data=data)
+
+
+class BrokerObjectHandler(BrokerObjectMixin, BaseHandler):
     @auth_or_token
-    def get(self, broker_id: int, alert_id=None):
+    def get(self, broker_id: int, object_id: ObjectId):
         """
         ---
-        summary: Query broker alerts
-        description: Search alerts (or fetch one by id) from a broker, dispatched
-          to the broker's registered provider.
+        summary: Get an object from a broker
+        description: Fetch one survey object, meaning its brightest alert joined
+          to the detection and non-detection history the broker holds for that
+          objectId, scoped to the programs the requester's streams grant.
         tags:
           - brokers
         responses:
@@ -432,6 +470,34 @@ class BrokerAlertsHandler(BaseHandler):
               application/json:
                 schema: Error
         """
+        return self._get_object(broker_id, object_id)
+
+
+class BrokerAlertsHandler(BrokerObjectMixin, BaseHandler):
+    @auth_or_token
+    def get(self, broker_id: int, object_id=None):
+        """
+        ---
+        summary: Query broker alerts
+        description: Search a broker's alert packets by objectId, or by ra/dec/
+          radius, bounded by the optional jd_start and jd_end. An objectId in
+          the path returns the object instead of its alerts, which is what
+          /api/brokers/{broker_id}/objects/{object_id} is named for.
+        tags:
+          - brokers
+        responses:
+          200:
+            content:
+              application/json:
+                schema: Success
+          400:
+            content:
+              application/json:
+                schema: Error
+        """
+        if object_id is not None:
+            return self._get_object(broker_id, object_id)
+
         params: dict[str, Any] = {
             k: self.get_argument(k) for k in self.request.arguments
         }
@@ -445,24 +511,18 @@ class BrokerAlertsHandler(BaseHandler):
             if not broker.active:
                 return self.error(f"Broker {broker.name} is not active")
 
-            operation = "get_alert" if alert_id is not None else "query_alerts"
-            if not broker.broker_class.implements()[operation]:
+            if not broker.broker_class.implements()["query_alerts"]:
                 return self.error(
-                    f"Broker {broker.name} does not support '{operation}'."
+                    f"Broker {broker.name} does not support 'query_alerts'."
                 )
 
             params["permissions"] = alert_permissions(self.current_user, session)
 
             try:
-                if alert_id is not None:
-                    data = broker.broker_class.get_alert(
-                        broker, alert_id, session, **params
-                    )
-                else:
-                    data = broker.broker_class.query_alerts(broker, session, **params)
+                data = broker.broker_class.query_alerts(broker, session, **params)
             except NotImplementedError:
                 return self.error(
-                    f"Broker {broker.name} does not support '{operation}'."
+                    f"Broker {broker.name} does not support 'query_alerts'."
                 )
             except Exception as e:
                 return self.error(f"Error querying broker {broker.name}: {e}")
@@ -472,7 +532,7 @@ class BrokerAlertsHandler(BaseHandler):
 
 class BrokerCutoutsHandler(BaseHandler):
     @auth_or_token
-    def get(self, broker_id: int, alert_id: AlertId):
+    def get(self, broker_id: int, candid: CandId):
         """
         ---
         summary: Get an alert's cutouts from a broker
@@ -507,7 +567,7 @@ class BrokerCutoutsHandler(BaseHandler):
             params["permissions"] = alert_permissions(self.current_user, session)
             try:
                 data = broker.broker_class.get_cutouts(
-                    broker, alert_id, session, **params
+                    broker, candid, session, **params
                 )
             except Exception as e:
                 return self.error(f"Error fetching cutouts from {broker.name}: {e}")
@@ -656,12 +716,12 @@ class BrokerConeSearchHandler(BaseHandler):
 class BrokerSaveHandler(BaseHandler):
     @permissions(["Upload data"])
     async def post(
-        self, broker_id: int, alert_id: AlertId, *, body: BrokerSaveBody = None
+        self, broker_id: int, object_id: ObjectId, *, body: BrokerSaveBody = None
     ):
         """
         ---
-        summary: Save a broker alert as a source
-        description: Ingest an alert/object from a broker into skyportal as an
+        summary: Save a broker object as a source
+        description: Ingest an object from a broker into skyportal as an
           Obj/Source with photometry, dispatched to the broker's provider.
         tags:
           - brokers
@@ -698,7 +758,7 @@ class BrokerSaveHandler(BaseHandler):
             try:
                 result = await broker.broker_class.save_as_source(
                     broker,
-                    alert_id,
+                    object_id,
                     session,
                     self.associated_user_object,
                     group_ids,
@@ -716,7 +776,7 @@ class BrokerPhotometryHandler(BaseHandler):
     async def get(
         self,
         broker_id: int,
-        alert_id: AlertId,
+        object_id: ObjectId,
         *,
         query: BrokerPhotometryGetQuery = None,
     ):
@@ -759,7 +819,7 @@ class BrokerPhotometryHandler(BaseHandler):
                 return self.error(f"Broker {broker.name} is not active")
             if not broker.broker_class.implements()["get_photometry"]:
                 return self.error(f"Broker {broker.name} does not support photometry.")
-            return await self._respond_photometry(session, broker, alert_id, query)
+            return await self._respond_photometry(session, broker, object_id, query)
 
     async def _respond_photometry(
         self, session, broker, object_id, query, *, degrade=False

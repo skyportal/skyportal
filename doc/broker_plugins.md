@@ -130,8 +130,16 @@ filter's conditions so scanning stays manageable.
 ## Endpoints
 
 - `GET/POST/PATCH/DELETE /api/brokers[/{id}]`, manage `Broker` records.
-- `GET /api/brokers/{id}/alerts[/{alert_id}]`, query alerts (dispatched to the
-  broker's provider).
+- `GET /api/brokers/{id}/alerts`, query alert packets by `objectId`, or by
+  `ra`/`dec`/`radius`, bounded by the optional `jd_start` and `jd_end`.
+- `GET /api/brokers/{id}/objects/{object_id}`, one object: its brightest alert
+  joined to the detection and non-detection history the broker holds.
+- `GET /api/brokers/{id}/objects/{object_id}/photometry` and
+  `POST /api/brokers/{id}/objects/{object_id}/save`.
+- `GET /api/brokers/{id}/alerts/{candid}/cutouts`, the science, template and
+  difference cutouts of one alert packet.
+- The `/api/brokers/{id}/alerts/{object_id}` forms of the three object routes
+  still work, for callers written against them.
 - `GET /api/internal/broker_apis`, capabilities + config schema of every
   registered provider (for the frontend).
 
