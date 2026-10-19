@@ -48,7 +48,7 @@ class ReportHandler(BaseHandler):
 
         if report_id is not None:
             report_id = int(report_id)
-            cache_key = f"{report_type}_{report_id}"
+            cache_key = f"{report_type}_v2_{report_id}"
             # checked on every request, so a stale cache entry can't outlive
             # unpublishing
             with DBSession() as session:

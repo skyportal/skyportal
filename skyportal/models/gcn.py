@@ -344,7 +344,7 @@ class GcnReport(Base):
             raise ValueError(data.get("message", "Invalid JSON data."))
         elif data.get("status") == "pending":
             raise ValueError("Report is still being generated.")
-        cache_key = f"gcn_{self.id}"
+        cache_key = f"gcn_v2_{self.id}"
         pub_html = self.get_html()
         pub_plot = self.get_plot()
         cache[cache_key] = dict_to_bytes(
@@ -360,7 +360,7 @@ class GcnReport(Base):
         """Unpublish GcnReport."""
         self.published = False
         # TODO: delete the html from cache
-        cache_key = f"gcn_{self.id}"
+        cache_key = f"gcn_v2_{self.id}"
         cached = cache[cache_key]
         if cached is not None:
             data = np.load(cached, allow_pickle=True)

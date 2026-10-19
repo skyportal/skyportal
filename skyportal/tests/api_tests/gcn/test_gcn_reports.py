@@ -68,7 +68,7 @@ def test_unpublished_report_data_edit_stays_private(
     assert "not yet published" in response.json()["message"]
 
     # a stale entry marked published must not be served for an unpublished report
-    cache_key = f"gcn_{report['id']}"
+    cache_key = f"gcn_v2_{report['id']}"
     report_cache[cache_key] = dict_to_bytes(
         {"published": True, "html": "<html></html>", "plot": None}
     )
@@ -163,4 +163,4 @@ def test_report_photometry_omits_groups_and_annotations(
         assert obj_id in response.text
         assert sentinel not in response.text
     finally:
-        del report_cache[f"gcn_{report['id']}"]
+        del report_cache[f"gcn_v2_{report['id']}"]
