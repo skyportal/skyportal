@@ -12,7 +12,7 @@
  * cache invalidation via `invalidateOnMessage`.
  */
 import { skyportalApi } from "../api/skyportalApi";
-import { invalidateOnMessage, findCachedQueryArg } from "../api/wsInvalidation";
+import { invalidateOnMessage, findCachedSourceId } from "../api/wsInvalidation";
 
 interface Reminder {
   id: number;
@@ -104,20 +104,12 @@ registerReminderRefresh("skyportal/REFRESH_REMINDER_SOURCE_SPECTRA", "spectra");
 registerReminderRefresh("skyportal/REFRESH_REMINDER_EARTHQUAKE", "earthquake");
 registerReminderRefresh("skyportal/REFRESH_REMINDER_SHIFT", "shift");
 
-// Source reminders are broadcast to every client, so they carry the source's
-// internal_key rather than its id: translate it to the id of a cached source.
+// Source reminders are broadcast to every client: refresh only those of the
+// source this one has cached, if any.
 invalidateOnMessage(
   "skyportal/REFRESH_REMINDER_SOURCE",
   (payload, getState) => {
-    const objKey = payload?.obj_key as string | undefined;
-    if (!objKey) {
-      return null;
-    }
-    const objId = findCachedQueryArg(
-      getState,
-      "getSource",
-      (data) => data?.internal_key === objKey,
-    ) as string | number | null;
+    const objId = findCachedSourceId(getState, payload?.obj_key);
     return objId != null ? [reminderTag("source", objId)] : null;
   },
 );

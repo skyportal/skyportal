@@ -2,7 +2,7 @@ import dayjs from "dayjs";
 
 import { buildQueryString, filterOutEmptyValues, pickParams } from "../API";
 import { skyportalApi } from "../api/skyportalApi";
-import { findCachedQueryArg, invalidateOnMessage } from "../api/wsInvalidation";
+import { cachedQueries, invalidateOnMessage } from "../api/wsInvalidation";
 
 export type FilterParams = Record<string, any>;
 
@@ -212,8 +212,7 @@ invalidateOnMessage("skyportal/REFRESH_FAVORITE_SOURCES", () =>
 );
 
 invalidateOnMessage("skyportal/REFRESH_SOURCE", (payload, getState) => {
-  const queries = (getState() as any)?.skyportalApi?.queries ?? {};
-  const onLoadedList = Object.values(queries).some(
+  const onLoadedList = cachedQueries(getState).some(
     (entry: any) =>
       entry?.endpointName !== "fetchSources" &&
       (entry?.data?.sources as any[] | undefined)?.some(
@@ -221,26 +220,6 @@ invalidateOnMessage("skyportal/REFRESH_SOURCE", (payload, getState) => {
       ),
   );
   return onLoadedList ? ["Sources"] : null;
-});
-
-invalidateOnMessage("skyportal/FETCH_GCNEVENT_SOURCES", (payload, getState) => {
-  const dateobs =
-    payload?.gcnEvent?.dateobs ??
-    (payload?.gcnEvent?.id != null
-      ? findCachedQueryArg(
-          getState,
-          "getGcnEvent",
-          (data) => data?.id === payload.gcnEvent.id,
-        )
-      : null);
-  if (dateobs == null) return null;
-  const queries = (getState() as any)?.skyportalApi?.queries ?? {};
-  const onLoadedEvent = Object.values(queries).some(
-    (entry: any) =>
-      entry?.endpointName === "fetchGcnEventSources" &&
-      entry?.originalArgs?.dateobs === dateobs,
-  );
-  return onLoadedEvent ? ["Sources"] : null;
 });
 
 export const {

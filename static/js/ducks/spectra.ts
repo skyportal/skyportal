@@ -11,8 +11,8 @@
  * invalidation via `invalidateOnMessage`.
  */
 import { skyportalApi } from "../api/skyportalApi";
-import { invalidateOnMessage, findCachedQueryArg } from "../api/wsInvalidation";
-import { spectraTag } from "./spectraTags";
+import { invalidateOnMessage, findCachedSourceId } from "../api/wsInvalidation";
+import { spectraTag } from "../api/cacheTags";
 import type { RouteData } from "../types/routeSchemaMap";
 
 const REFRESH_SOURCE_SPECTRA = "skyportal/REFRESH_SOURCE_SPECTRA";
@@ -139,20 +139,11 @@ export const spectraApi = skyportalApi.injectEndpoints({
 });
 
 // Websocket-driven invalidation: refresh spectra on REFRESH_SOURCE_SPECTRA.
-// Broadcast to every client for every source, carrying the source's
-// internal_key: translate it to the obj id so only that source's spectra
-// refetch. Without an obj id there is nothing to refresh, since an unscoped tag
-// here matches every open source page.
+// Broadcast to every client for every source, so only the cached source's
+// spectra refetch. Without an obj id there is nothing to refresh, since an
+// unscoped tag here matches every open source page.
 invalidateOnMessage(REFRESH_SOURCE_SPECTRA, (payload, getState) => {
-  const objKey = payload?.obj_internal_key as string | undefined;
-  if (!objKey) {
-    return null;
-  }
-  const objId = findCachedQueryArg(
-    getState,
-    "getSource",
-    (data) => data?.internal_key === objKey,
-  ) as string | number | null;
+  const objId = findCachedSourceId(getState, payload?.obj_internal_key);
   return objId != null ? spectraTag(objId) : null;
 });
 
