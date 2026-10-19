@@ -99,6 +99,8 @@ RUN if [ -f /skyportal/docker-extra-setup.sh ]; then bash -euo pipefail /skyport
 
 RUN .venv/bin/python -m compileall -q -j0 skyportal baselayer services projects
 
+ENV UV_NO_SYNC=1
+
 USER skyportal
 
 # edit the exposed port to match the one in the
