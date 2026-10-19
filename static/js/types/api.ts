@@ -23375,6 +23375,61 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/user/{user_id}/activity": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get a user's contributions
+         * @description The sources, comments, classifications, annotations, spectra and follow-up requests this user has to their name that the requester is allowed to see, newest first, with the totals by kind on the first page and the cutouts and detections of the sources on the page. Kinds the user hid from their public profile are left out for everyone else.
+         */
+        get: {
+            parameters: {
+                query?: {
+                    /** @description Items per page, capped at 100. */
+                    limit?: number;
+                    /** @description How many items to skip, for paging further back. */
+                    offset?: number;
+                    /** @description Only list this kind of contribution. */
+                    kind?: string;
+                };
+                header?: never;
+                path: {
+                    user_id: number;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Success"];
+                    };
+                };
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/user/{user_id}/profile": {
         parameters: {
             query?: never;
