@@ -56,7 +56,7 @@ from skyportal.models import (
     UserRole,
 )
 from skyportal.utils.app import get_app_base_url
-from skyportal.utils.email import send_email
+from skyportal.utils.email import button, preferences_footer, send_email
 from skyportal.utils.gcn import get_skymap_properties
 from skyportal.utils.gcn_extraction_tags import (
     apply_tags,
@@ -334,7 +334,7 @@ def send_email_notification(target):
                 text = group_admission_request_notification_text(
                     target["content"], html.escape, bold=""
                 )
-                body = f"<p>{text}</p><p><a href='{app_url}{target['url']}'>View in {cfg['app.title']}</a></p>"
+                body = f"<p>{text}</p>"
 
         elif resource_type == "deployments":
             subject = f"{cfg['app.title']} - New deployment"
@@ -349,7 +349,7 @@ def send_email_notification(target):
                 text = feedback_notification_text(
                     target["content"], html.escape, bold=""
                 )
-                body = f"<p>{text}</p><p><a href='{app_url}{target['url']}'>View in {cfg['app.title']}</a></p>"
+                body = f"<p>{text}</p>"
 
         elif resource_type in DISCUSSION_TYPES:
             subject = (
@@ -361,16 +361,20 @@ def send_email_notification(target):
                 text = discussion_notification_text(
                     target["content"], html.escape, bold=""
                 )
-                body = f"<p>{text}</p><p><a href='{app_url}{target['url']}'>View in {cfg['app.title']}</a></p>"
+                body = f"<p>{text}</p>"
 
         if subject and target["user"]["contact_email"]:
             try:
                 if body is None:
-                    body = f"{target['text']} ({app_url}{target['url']})"
+                    body = f"<p>{html.escape(target['text'].replace('*', ''))}</p>"
+                body += button(
+                    f"{app_url}{target['url']}", f"View in {cfg['app.title']}"
+                )
                 send_email(
                     recipients=[target["user"]["contact_email"]],
                     subject=subject,
                     body=body,
+                    footer=preferences_footer(),
                 )
                 log(
                     f"Sent email notification to user {target['user']['id']} at email: {target['user']['contact_email']}, subject: {subject}, body: {body}, resource_type: {resource_type}"

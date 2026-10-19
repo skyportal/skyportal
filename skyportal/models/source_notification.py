@@ -1,5 +1,7 @@
 __all__ = ["SourceNotification"]
 
+import html
+
 import sqlalchemy as sa
 from sqlalchemy import event
 from sqlalchemy.orm import relationship
@@ -15,7 +17,7 @@ from baselayer.app.models import (
 )
 
 from ..utils.app import get_app_base_url
-from ..utils.email import send_email
+from ..utils.email import button, preferences_footer, send_email
 from .group import Group
 from .obj import Obj
 
@@ -127,15 +129,19 @@ def send_source_notification(mapper, connection, target):
 
     descriptor = "immediate" if target.level == "hard" else ""
     html_content = (
-        f"{sent_by_name} would like to call your {descriptor} attention to"
-        f' <a href="{link_location}">{target.source_id}</a> ({source_info})'
+        f"<p>{sent_by_name} would like to call your {descriptor} attention to"
+        f' <a href="{link_location}">{target.source_id}</a> ({source_info})</p>'
     )
-    if target.additional_notes != "" and target.additional_notes is not None:
-        html_content += f"<br /><br />Additional notes: {target.additional_notes}"
+    if target.additional_notes:
+        html_content += (
+            f"<blockquote>{html.escape(target.additional_notes)}</blockquote>"
+        )
+    html_content += button(link_location, f"View {target.source_id}")
 
     if len(recipients) > 0:
         send_email(
             recipients=recipients,
             subject=f"{cfg['app.title']}: Source Alert",
             body=html_content,
+            footer=preferences_footer(),
         )

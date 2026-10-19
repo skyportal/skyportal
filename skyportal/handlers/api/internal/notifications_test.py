@@ -6,7 +6,7 @@ from baselayer.app.access import auth_or_token
 from baselayer.app.env import load_env
 
 from ....models import User
-from ....utils.email import send_email
+from ....utils.email import preferences_footer, send_email
 from ...base import BaseHandler
 
 env, cfg = load_env()
@@ -76,7 +76,8 @@ class NotificationTestHandler(BaseHandler):
                     send_email(
                         recipients=[user.contact_email],
                         subject=f"{cfg['app.title']} - Test Email",
-                        body="This is just a test.",
+                        body=f"<p>Test email from {cfg['app.title']}: email notifications work.</p>",
+                        footer=preferences_footer(),
                     )
                 elif notification_type == "SMS":
                     client.messages.create(
