@@ -420,18 +420,6 @@ class Instrument(Base):
     )
 
     @property
-    def does_spectroscopy(self):
-        """Return a boolean indicating whether the instrument is capable of
-        performing spectroscopy."""
-        return "spec" in self.type
-
-    @property
-    def does_imaging(self):
-        """Return a boolean indicating whether the instrument is capable of
-        performing imaging."""
-        return "imag" in self.type
-
-    @property
     def api_class(self):
         return getattr(facility_apis, self.api_classname)
 
