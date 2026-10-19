@@ -347,6 +347,141 @@ def analysis_model_for(analysis_resource_type):
     return None
 
 
+def _analysis_inputs(analysis_parameters):
+    """Return the service inputs and whether to deredden photometry.
+
+    Strips data-URL parameters from ``analysis_parameters`` in place, after
+    copying them into the inputs, so the stored analysis keeps only file names.
+    """
+    inputs = {"analysis_parameters": analysis_parameters.copy()}
+
+    # Opt-in Galactic-extinction correction of the photometry sent to the service.
+    correct_extinction = str_to_bool(
+        analysis_parameters.get("correct_extinction"), default=False
+    )
+
+    # if any analysis_parameters is a file, we discard it and just keep its name (if possible)
+    keys_to_delete = []
+    for k, v in analysis_parameters.items():
+        if isinstance(v, str):
+            if "data:" in v and ";name=" in v:
+                keys_to_delete.append(k)
+    for k in keys_to_delete:
+        try:
+            analysis_parameters[k] = (
+                analysis_parameters[k].split(";name=")[1].split(";")[0]
+            )
+        except Exception:
+            del analysis_parameters[k]
+
+    return inputs, correct_extinction
+
+
+def _input_csv(
+    input_type, input_data, associated_resource, input_filters, correct_extinction, obj
+):
+    """Serialize one input type's rows to the CSV sent to the analysis service."""
+    if input_type == "photometry":
+        input_data = [
+            serialize(
+                phot,
+                "ab",
+                "both",
+                groups=False,
+                annotations=False,
+            )
+            for phot in input_data
+        ]
+        df = pd.DataFrame(input_data)
+        df = _add_predicted_mag_column(df)
+
+        if input_filters is not None and input_filters.get("photometry") is not None:
+            if len(input_filters.get("photometry").get("filters", [])) > 0:
+                df = df[df["filter"].isin(input_filters.get("photometry")["filters"])]
+            if len(input_filters.get("photometry").get("instruments", [])) > 0:
+                df = df[
+                    df["instrument_id"].isin(
+                        input_filters.get("photometry")["instruments"]
+                    )
+                ]
+                # record names too, as the instruments may later be edited or deleted
+                instruments = df["instrument_name"].unique().tolist()
+                input_filters["photometry"]["instruments_by_name"] = instruments
+
+        df = df[associated_resource["allowed_export_columns"]]
+        # collapse duplicate mjd/filter points, keeping the lowest-error
+        # (best) one rather than an arbitrary first
+        df = (
+            df.sort_values("magerr")
+            .drop_duplicates(["mjd", "filter"])
+            .reset_index(drop=True)
+        )
+        if correct_extinction and not df.empty:
+            df = deredden_photometry_df(df, obj.ra, obj.dec)
+    else:
+        input_data = [
+            generic_serialize(row, associated_resource["allowed_export_columns"])
+            for row in input_data
+        ]
+        df = pd.DataFrame(input_data)
+    return df.to_csv(index=False)
+
+
+def _record_service_response(
+    open_session,
+    future,
+    analysis_id,
+    analysis_service_id,
+    analysis_resource_type,
+    logger=log,
+):
+    """Store the analysis service's reply to the start request on the analysis."""
+    with open_session() as session:
+        analysis_cls = analysis_model_for(analysis_resource_type)
+        if analysis_cls is None:
+            log(f"Invalid analysis_resource_type: {analysis_resource_type}")
+            return
+        try:
+            analysis = session.get(analysis_cls, analysis_id)
+            if analysis is None:
+                logger(f"Analysis {analysis_id} not found")
+                return
+        except Exception as e:
+            log(f"Could not access Analysis {analysis_id} {e}.")
+            return
+
+        analysis.last_activity = utcnow_naive()
+        try:
+            result = future.result()
+            analysis.status = "pending" if result.status_code == 200 else "failure"
+            # truncate the return just so we dont have a huge string in the database
+            analysis.status_message = result.text[:1024]
+        except Exception:
+            analysis.status = "failure"
+            analysis.status_message = str(future.exception())[:1024]
+        finally:
+            logger(
+                f"[id={analysis_id} service={analysis_service_id}] status='{analysis.status}' message='{analysis.status_message}'"
+            )
+            session.commit()
+            try:
+                flow = Flow()
+                if analysis_resource_type.lower() == "obj":
+                    flow.push(
+                        "*",
+                        "skyportal/REFRESH_OBJ_ANALYSES",
+                        payload={"obj_key": analysis.obj.internal_key},
+                    )
+                elif analysis_resource_type.lower() == "gcn_event":
+                    flow.push(
+                        "*",
+                        "skyportal/REFRESH_GCNEVENT",
+                        payload={"gcnEvent_dateobs": analysis.dateobs.isoformat()},
+                    )
+            except Exception as e:
+                logger(f"Could not refresh analyses: {e}")
+
+
 def _localization_payload(localization):
     """Sky position (max-probability point) and a skymap reference for a GCN
     localization, best-effort. Targeted searches (e.g. PyGRB) point at ra/dec; the
@@ -504,26 +639,7 @@ def post_analysis(
 
     input_data_types = analysis_service.input_data_types.copy()
 
-    inputs = {"analysis_parameters": analysis_parameters.copy()}
-
-    # Opt-in Galactic-extinction correction of the photometry sent to the service.
-    correct_extinction = str_to_bool(
-        analysis_parameters.get("correct_extinction"), default=False
-    )
-
-    # if any analysis_parameters is a file, we discard it and just keep its name (if possible)
-    keys_to_delete = []
-    for k, v in analysis_parameters.items():
-        if isinstance(v, str):
-            if "data:" in v and ";name=" in v:
-                keys_to_delete.append(k)
-    for k in keys_to_delete:
-        try:
-            analysis_parameters[k] = (
-                analysis_parameters[k].split(";name=")[1].split(";")[0]
-            )
-        except Exception:
-            del analysis_parameters[k]
+    inputs, correct_extinction = _analysis_inputs(analysis_parameters)
 
     if analysis_resource_type.lower() == "obj":
         obj_id = resource_id
@@ -585,56 +701,14 @@ def post_analysis(
             if input_type == "spectra" and spectrum_ids:
                 stmt = stmt.where(Spectrum.id.in_(spectrum_ids))
             input_data = session.scalars(stmt).all()
-            if input_type == "photometry":
-                input_data = [
-                    serialize(phot, "ab", "both", annotations=False)
-                    for phot in input_data
-                ]
-                df = pd.DataFrame(input_data)
-                df = _add_predicted_mag_column(df)
-
-                if (
-                    input_filters is not None
-                    and input_filters.get("photometry") is not None
-                ):
-                    if len(input_filters.get("photometry").get("filters", [])) > 0:
-                        df = df[
-                            df["filter"].isin(
-                                input_filters.get("photometry")["filters"]
-                            )
-                        ]
-                    if len(input_filters.get("photometry").get("instruments", [])) > 0:
-                        # we want to make sure that after this runs, the user can still figure out
-                        # what instrument he filtered on, non trivial when only reporting the id used
-                        # the instrument could be edited, deleted, ...
-                        # so, we grab the name and inject that in the input_filters
-                        df = df[
-                            df["instrument_id"].isin(
-                                input_filters.get("photometry")["instruments"]
-                            )
-                        ]
-                        instruments = df["instrument_name"].unique().tolist()
-                        input_filters["photometry"]["instruments_by_name"] = instruments
-
-                df = df[associated_resource["allowed_export_columns"]]
-                # collapse duplicate mjd/filter points, keeping the lowest-error
-                # (best) one rather than an arbitrary first
-                df = (
-                    df.sort_values("magerr")
-                    .drop_duplicates(["mjd", "filter"])
-                    .reset_index(drop=True)
-                )
-                if correct_extinction and not df.empty:
-                    df = deredden_photometry_df(df, obj.ra, obj.dec)
-            else:
-                input_data = [
-                    generic_serialize(
-                        row, associated_resource["allowed_export_columns"]
-                    )
-                    for row in input_data
-                ]
-                df = pd.DataFrame(input_data)
-            inputs[input_type] = df.to_csv(index=False)
+            inputs[input_type] = _input_csv(
+                input_type,
+                input_data,
+                associated_resource,
+                input_filters,
+                correct_extinction,
+                obj,
+            )
 
         invalid_after = utcnow_naive() + datetime.timedelta(
             seconds=analysis_service.timeout
@@ -715,61 +789,13 @@ def post_analysis(
     else:
         log(trigger)
 
-    def analysis_done_callback(
-        future,
-        logger=log,
+    analysis_done_callback = functools.partial(
+        _record_service_response,
+        new_session,
         analysis_id=analysis.id,
         analysis_service_id=analysis_service.id,
         analysis_resource_type=analysis_resource_type,
-    ):
-        """
-        Callback function for when the analysis service is done.
-        Updates the Analysis object with the results/errors.
-        """
-        with new_session() as session:
-            analysis_cls = analysis_model_for(analysis_resource_type)
-            if analysis_cls is None:
-                log(f"Invalid analysis_resource_type: {analysis_resource_type}")
-                return
-            try:
-                analysis = session.get(analysis_cls, analysis_id)
-                if analysis is None:
-                    logger(f"Analysis {analysis_id} not found")
-                    return
-            except Exception as e:
-                log(f"Could not access Analysis {analysis_id} {e}.")
-                return
-
-            analysis.last_activity = utcnow_naive()
-            try:
-                result = future.result()
-                analysis.status = "pending" if result.status_code == 200 else "failure"
-                # truncate the return just so we dont have a huge string in the database
-                analysis.status_message = result.text[:1024]
-            except Exception:
-                analysis.status = "failure"
-                analysis.status_message = str(future.exception())[:1024]
-            finally:
-                logger(
-                    f"[id={analysis_id} service={analysis_service_id}] status='{analysis.status}' message='{analysis.status_message}'"
-                )
-                session.commit()
-                try:
-                    flow = Flow()
-                    if analysis_resource_type.lower() == "obj":
-                        flow.push(
-                            "*",
-                            "skyportal/REFRESH_OBJ_ANALYSES",
-                            payload={"obj_key": analysis.obj.internal_key},
-                        )
-                    elif analysis_resource_type.lower() == "gcn_event":
-                        flow.push(
-                            "*",
-                            "skyportal/REFRESH_GCNEVENT",
-                            payload={"gcnEvent_dateobs": analysis.dateobs.isoformat()},
-                        )
-                except Exception as e:
-                    logger(f"Could not refresh analyses: {e}")
+    )
 
     # Start the analysis service in a separate thread and log any exceptions
     _analysis_executor.submit(external_analysis_service).add_done_callback(
@@ -797,8 +823,8 @@ async def post_analysis_async(
 
     Does the same work as the sync ``post_analysis`` but uses an
     ``AsyncSession``. The background HTTP call (via ``IOLoop.run_in_executor``)
-    is still dispatched here; its done-callback uses a sync ``DBSession`` for
-    its own writes since it runs in a thread executor.
+    is still dispatched here; its done-callback is a plain sync function, so it
+    uses the sync ``DBSession`` for its own writes.
     """
 
     # `author` and `current_user` are passed in but may originate from a
@@ -811,26 +837,7 @@ async def post_analysis_async(
 
     input_data_types = analysis_service.input_data_types.copy()
 
-    inputs = {"analysis_parameters": analysis_parameters.copy()}
-
-    # Opt-in Galactic-extinction correction of the photometry sent to the service.
-    correct_extinction = str_to_bool(
-        analysis_parameters.get("correct_extinction"), default=False
-    )
-
-    # if any analysis_parameters is a file, we discard it and just keep its name (if possible)
-    keys_to_delete = []
-    for k, v in analysis_parameters.items():
-        if isinstance(v, str):
-            if "data:" in v and ";name=" in v:
-                keys_to_delete.append(k)
-    for k in keys_to_delete:
-        try:
-            analysis_parameters[k] = (
-                analysis_parameters[k].split(";name=")[1].split(";")[0]
-            )
-        except Exception:
-            del analysis_parameters[k]
+    inputs, correct_extinction = _analysis_inputs(analysis_parameters)
 
     if analysis_resource_type.lower() == "obj":
         obj_id = resource_id
@@ -896,58 +903,14 @@ async def post_analysis_async(
             input_data = (
                 result.unique().all() if input_type == "photometry" else result.all()
             )
-            if input_type == "photometry":
-                input_data = [
-                    serialize(
-                        phot,
-                        "ab",
-                        "both",
-                        groups=False,
-                        annotations=False,
-                    )
-                    for phot in input_data
-                ]
-                df = pd.DataFrame(input_data)
-                df = _add_predicted_mag_column(df)
-
-                if (
-                    input_filters is not None
-                    and input_filters.get("photometry") is not None
-                ):
-                    if len(input_filters.get("photometry").get("filters", [])) > 0:
-                        df = df[
-                            df["filter"].isin(
-                                input_filters.get("photometry")["filters"]
-                            )
-                        ]
-                    if len(input_filters.get("photometry").get("instruments", [])) > 0:
-                        df = df[
-                            df["instrument_id"].isin(
-                                input_filters.get("photometry")["instruments"]
-                            )
-                        ]
-                        instruments = df["instrument_name"].unique().tolist()
-                        input_filters["photometry"]["instruments_by_name"] = instruments
-
-                df = df[associated_resource["allowed_export_columns"]]
-                # collapse duplicate mjd/filter points, keeping the lowest-error
-                # (best) one rather than an arbitrary first
-                df = (
-                    df.sort_values("magerr")
-                    .drop_duplicates(["mjd", "filter"])
-                    .reset_index(drop=True)
-                )
-                if correct_extinction and not df.empty:
-                    df = deredden_photometry_df(df, obj.ra, obj.dec)
-            else:
-                input_data = [
-                    generic_serialize(
-                        row, associated_resource["allowed_export_columns"]
-                    )
-                    for row in input_data
-                ]
-                df = pd.DataFrame(input_data)
-            inputs[input_type] = df.to_csv(index=False)
+            inputs[input_type] = _input_csv(
+                input_type,
+                input_data,
+                associated_resource,
+                input_filters,
+                correct_extinction,
+                obj,
+            )
 
         invalid_after = utcnow_naive() + datetime.timedelta(
             seconds=analysis_service.timeout
@@ -1085,64 +1048,15 @@ async def post_analysis_async(
         },
     )
 
-    def analysis_done_callback(
-        future,
-        logger=log,
+    from ...models import DBSession
+
+    analysis_done_callback = functools.partial(
+        _record_service_response,
+        DBSession,
         analysis_id=analysis_id,
         analysis_service_id=analysis_service_id,
         analysis_resource_type=analysis_resource_type,
-    ):
-        """
-        Callback function for when the analysis service is done.
-        Updates the Analysis object with the results/errors.
-        Runs in a thread executor; uses a sync DBSession.
-        """
-        from ...models import DBSession
-
-        with DBSession() as db_session:
-            analysis_cls = analysis_model_for(analysis_resource_type)
-            if analysis_cls is None:
-                log(f"Invalid analysis_resource_type: {analysis_resource_type}")
-                return
-            try:
-                analysis = db_session.get(analysis_cls, analysis_id)
-                if analysis is None:
-                    logger.error(f"Analysis {analysis_id} not found")
-                    return
-            except Exception as e:
-                log(f"Could not access Analysis {analysis_id} {e}.")
-                return
-
-            analysis.last_activity = utcnow_naive()
-            try:
-                result = future.result()
-                analysis.status = "pending" if result.status_code == 200 else "failure"
-                # truncate the return just so we dont have a huge string in the database
-                analysis.status_message = result.text[:1024]
-            except Exception:
-                analysis.status = "failure"
-                analysis.status_message = str(future.exception())[:1024]
-            finally:
-                logger(
-                    f"[id={analysis_id} service={analysis_service_id}] status='{analysis.status}' message='{analysis.status_message}'"
-                )
-                db_session.commit()
-                try:
-                    flow = Flow()
-                    if analysis_resource_type.lower() == "obj":
-                        flow.push(
-                            "*",
-                            "skyportal/REFRESH_OBJ_ANALYSES",
-                            payload={"obj_key": analysis.obj.internal_key},
-                        )
-                    elif analysis_resource_type.lower() == "gcn_event":
-                        flow.push(
-                            "*",
-                            "skyportal/REFRESH_GCNEVENT",
-                            payload={"gcnEvent_dateobs": analysis.dateobs.isoformat()},
-                        )
-                except Exception as e:
-                    logger(f"Could not refresh analyses: {e}")
+    )
 
     # Start the analysis service in a separate thread and log any exceptions
     x = IOLoop.current().run_in_executor(None, external_analysis_service)
