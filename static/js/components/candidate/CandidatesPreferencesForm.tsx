@@ -174,63 +174,68 @@ const CandidatesPreferencesForm = ({
       onSubmit={handleSubmit(onSubmit)}
       sx={{ display: "flex", flexDirection: "column", gap: 3, pt: 1 }}
     >
-      <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1.5 }}>
-        <FormTextField
-          name="name"
-          control={control}
-          rules={{ validate: validateName }}
-          label="Name"
-          data-testid="profile-name"
-          error={Boolean(errors["name"])}
-          helperText={
-            errors["name"] ? "Must be unique and at least 1 character" : ""
-          }
-          sx={{ flex: 1, minWidth: 200 }}
-        />
-        <FormTextField
-          name="timeRange"
-          control={control}
-          label="Hours before now"
-          type="number"
-          data-testid="timeRange"
-          slotProps={{ htmlInput: { step: 1, min: 1 } }}
-          sx={{ width: 150 }}
-        />
-        <Controller
-          name="groupIDs"
-          control={control}
-          rules={{ validate: (ids: number[]) => ids.length > 0 }}
-          render={({ field }) => (
-            <GroupSelect
-              groups={scanGroups}
-              value={field.value}
-              onChange={field.onChange}
-              checkboxTestId="profileFilteringFormGroupCheckbox"
-              error={Boolean(errors["groupIDs"])}
-              helperText={
-                errors["groupIDs"] ? "Select at least one group." : ""
-              }
-              textFieldProps={{ "data-testid": "profileGroupSelect" }}
-              sx={{ flex: 2, minWidth: 260 }}
-            />
-          )}
-        />
-        {selectableFilters.length > 0 && (
-          <Controller
-            name="filterIDs"
+      <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5 }}>
+        <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1.5 }}>
+          <FormTextField
+            name="name"
             control={control}
+            rules={{ validate: validateName }}
+            label="Name"
+            data-testid="profile-name"
+            error={Boolean(errors["name"])}
+            helperText={
+              errors["name"] ? "Must be unique and at least 1 character" : ""
+            }
+            sx={{ flex: 1, minWidth: 200 }}
+          />
+          <FormTextField
+            name="timeRange"
+            control={control}
+            label="Hours before now"
+            type="number"
+            data-testid="timeRange"
+            slotProps={{ htmlInput: { step: 1, min: 1 } }}
+            sx={{ width: 150 }}
+          />
+        </Box>
+        <Box
+          sx={{ display: "flex", flexWrap: "wrap", columnGap: 3, rowGap: 1.5 }}
+        >
+          <Controller
+            name="groupIDs"
+            control={control}
+            rules={{ validate: (ids: number[]) => ids.length > 0 }}
             render={({ field }) => (
-              <FilterSelect
-                filters={selectableFilters}
+              <GroupSelect
+                groups={scanGroups}
                 value={field.value}
                 onChange={field.onChange}
-                limitTags={1}
-                textFieldProps={{ "data-testid": "profileFilterSelect" }}
-                sx={{ flex: 1, minWidth: 200 }}
+                checkboxTestId="profileFilteringFormGroupCheckbox"
+                error={Boolean(errors["groupIDs"])}
+                helperText={
+                  errors["groupIDs"] ? "Select at least one group." : ""
+                }
+                textFieldProps={{ "data-testid": "profileGroupSelect" }}
+                sx={{ flex: 1, minWidth: 260 }}
               />
             )}
           />
-        )}
+          {selectableFilters.length > 0 && (
+            <Controller
+              name="filterIDs"
+              control={control}
+              render={({ field }) => (
+                <FilterSelect
+                  filters={selectableFilters}
+                  value={field.value}
+                  onChange={field.onChange}
+                  textFieldProps={{ "data-testid": "profileFilterSelect" }}
+                  sx={{ flex: 1, minWidth: 260 }}
+                />
+              )}
+            />
+          )}
+        </Box>
       </Box>
       <Box
         sx={{
