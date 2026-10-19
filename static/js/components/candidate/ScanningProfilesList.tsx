@@ -15,6 +15,7 @@ import { GridColDef } from "@mui/x-data-grid";
 
 import ExpandableCell from "../ExpandableCell";
 import StyledDataGrid, { DataGridToolbar } from "../StyledDataGrid";
+import { useGetFiltersQuery } from "../../ducks/filter";
 import { useGetGroupsQuery } from "../../ducks/groups";
 import {
   useGetProfileQuery,
@@ -75,6 +76,7 @@ const ScanningProfilesList = ({
   const profiles: any[] =
     (useGetProfileQuery().data?.preferences as any)?.scanningProfiles ?? [];
   const groups = useGetGroupsQuery().data?.userAccessible ?? [];
+  const { data: filters = [] } = useGetFiltersQuery();
   const [updateUserPreferences] = useUpdateUserPreferencesMutation();
 
   const [formOpen, setFormOpen] = useState(false);
@@ -140,6 +142,19 @@ const ScanningProfilesList = ({
       minWidth: 150,
       renderCell: ({ value }) =>
         chips(value.map((id: number) => groups.find((g) => g.id === id)?.name)),
+    },
+    {
+      field: "filterIDs",
+      headerName: "Filters",
+      flex: 1,
+      minWidth: 120,
+      renderCell: ({ value }) =>
+        value &&
+        chips(
+          value.map(
+            (id: number) => filters.find((f: any) => f.id === id)?.name,
+          ),
+        ),
     },
     {
       field: "savedStatus",

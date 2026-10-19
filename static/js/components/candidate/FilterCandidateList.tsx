@@ -37,6 +37,7 @@ import ClassificationSelect from "../classification/ClassificationSelect";
 import CandidatesPreferences from "./CandidatesPreferences";
 import { filterAnnotationOrigins } from "./annotationSortOptions";
 import {
+  FilterSelect,
   FormTextField,
   GroupSelect,
   Section,
@@ -45,6 +46,7 @@ import {
   column,
   gcnNumberFields,
   savedStatusSelectOptions,
+  scanFilters,
   sortingOrderLabels,
   twoColumns,
   useScanGroups,
@@ -71,7 +73,7 @@ const defaultDates = (timeRange?: string) => {
 const formValues = (profile: any) => ({
   ...defaultDates(profile?.timeRange),
   groupIDs: profile?.groupIDs || [],
-  filterIDs: [],
+  filterIDs: profile?.filterIDs || [],
   savedStatus: profile?.savedStatus || "all",
   savedGroupIDs: profile?.savedGroupIDs || [],
   rejectedStatus: profile?.rejectedStatus || "show",
@@ -159,7 +161,8 @@ const FilterCandidateList = ({
   setSearchParams,
 }: FilterCandidateListProps) => {
   const dispatch = useAppDispatch();
-  const { data: allFilters = [] } = useGetFiltersQuery();
+  const { data: allFilters = [], isLoading: filtersLoading } =
+    useGetFiltersQuery();
   const { data: groups } = useGetGroupsQuery();
   const userAccessibleGroups = groups?.userAccessible ?? [];
   const { data: userProfile } = useGetProfileQuery();
@@ -196,12 +199,7 @@ const FilterCandidateList = ({
   const values = useWatch({ control });
   const groupIDs: number[] = values.groupIDs ?? [];
   const scanGroups = useScanGroups(groupIDs);
-  const availableFilters = allFilters.filter((f: any) =>
-    groupIDs.includes(f.group_id),
-  );
-  const showFilterSelect =
-    availableFilters.length >
-    new Set(availableFilters.map((f: any) => f.group_id)).size;
+  const selectableFilters = scanFilters(allFilters, groupIDs);
   const { data: availableAnnotationsInfo } = useGetAnnotationsInfoQuery(
     groupIDs.length ? groupIDs : skipToken,
   );
@@ -295,11 +293,9 @@ const FilterCandidateList = ({
   };
 
   const onSubmit = (formData: any) => {
-    const filterIDs = showFilterSelect
-      ? formData.filterIDs.filter((id: number) =>
-          availableFilters.some((f: any) => f.id === id),
-        )
-      : [];
+    const filterIDs = formData.filterIDs.filter((id: number) =>
+      selectableFilters.some((f: any) => f.id === id),
+    );
     const sorting = formData.sortingOrigin
       ? {
           origin: formData.sortingOrigin,
@@ -312,7 +308,7 @@ const FilterCandidateList = ({
     setMoreFiltersOpen(false);
     selectGroups(
       filterIDs.length > 0
-        ? availableFilters
+        ? selectableFilters
             .filter((f: any) => filterIDs.includes(f.id))
             .map((f: any) => f.group_id)
         : formData.groupIDs,
@@ -373,12 +369,13 @@ const FilterCandidateList = ({
 
   const autoSearched = useRef(false);
   useEffect(() => {
-    if (autoSearched.current || !groups || !userProfile) return;
+    if (autoSearched.current || !groups || !userProfile || filtersLoading)
+      return;
     if (selectedScanningProfile !== defaultScanningProfile) return;
     autoSearched.current = true;
     if (defaultScanningProfile?.groupIDs?.length) submit();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [groups, userProfile, selectedScanningProfile]);
+  }, [groups, userProfile, filtersLoading, selectedScanningProfile]);
 
   return (
     <>
@@ -462,30 +459,21 @@ const FilterCandidateList = ({
                 }}
                 checkboxTestId="filteringFormGroupCheckbox"
                 textFieldProps={{ "data-testid": "scanGroupSelect" }}
-                sx={{ flex: 2, minWidth: 280 }}
+                sx={{ flex: 1, minWidth: 280 }}
               />
             )}
           />
-          {showFilterSelect && (
+          {selectableFilters.length > 0 && (
             <Controller
               name="filterIDs"
               control={control}
-              render={({ field: { onChange, value } }) => (
-                <SearchableSelect
-                  multiple
-                  options={availableFilters}
-                  getOptionLabel={(option: any) => option?.name ?? ""}
-                  isOptionEqualToValue={(o: any, v: any) => o.id === v.id}
-                  value={availableFilters.filter((f: any) =>
-                    value.includes(f.id),
-                  )}
-                  onChange={(_event, newValue: any) =>
-                    onChange(newValue.map((f: any) => f.id))
-                  }
-                  label="Filters"
-                  placeholder={value.length > 0 ? "" : "All"}
+              render={({ field }) => (
+                <FilterSelect
+                  filters={selectableFilters}
+                  value={field.value}
+                  onChange={field.onChange}
                   textFieldProps={{ "data-testid": "scanFilterSelect" }}
-                  sx={{ flex: 1, minWidth: 160 }}
+                  sx={{ flex: 1, minWidth: 250 }}
                 />
               )}
             />
