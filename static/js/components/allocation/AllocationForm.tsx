@@ -1,5 +1,5 @@
 import { useGetGroupsQuery } from "../../ducks/groups";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import CircularProgress from "@mui/material/CircularProgress";
 
 import Form from "@rjsf/mui";
@@ -42,6 +42,9 @@ import { useGetUsersQuery } from "../../ducks/users";
 
 dayjs.extend(utc);
 
+// A stable empty list: ValidityRangeSelect validates whenever `ranges` changes.
+const NO_RANGES: any[] = [];
+
 interface ValidityRangeSelectProps {
   ranges?: any[];
   onChange: (...args: any[]) => void;
@@ -50,7 +53,7 @@ interface ValidityRangeSelectProps {
 }
 
 const ValidityRangeSelect = ({
-  ranges = [],
+  ranges = NO_RANGES,
   onChange,
   errors,
   setErrors,
@@ -251,7 +254,8 @@ const AllocationForm = ({
   const allowedAllocationTypes = (useGetConfigQuery().data as any)
     ?.allowedAllocationTypes;
   const groups = useGetGroupsQuery().data?.userAccessible ?? [];
-  const users = useGetUsersQuery().data?.users ?? [];
+  const { data: usersData } = useGetUsersQuery();
+  const users = useMemo(() => usersData?.users ?? [], [usersData]);
   const [availableUsers, setAvailableUsers] = useState<any[]>([]);
   const [instrumentOptions, setInstrumentOptions] = useState<any[]>([]);
   const [selectedGroupIds, setSelectedGroupIds] = useState<any[]>([]);
@@ -445,7 +449,9 @@ const AllocationForm = ({
     <div style={{ position: "relative" }}>
       <ValidityRangeSelect
         ranges={
-          formData.validity_ranges || allocationToEdit?.validity_ranges || []
+          formData.validity_ranges ||
+          allocationToEdit?.validity_ranges ||
+          NO_RANGES
         }
         onChange={(ranges: any) =>
           setFormData({ ...formData, validity_ranges: ranges })

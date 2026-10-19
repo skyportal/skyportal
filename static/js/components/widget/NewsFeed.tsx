@@ -11,10 +11,10 @@ import DragHandleIcon from "@mui/icons-material/DragHandle";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 import relativeTime from "dayjs/plugin/relativeTime";
-import emoji from "emoji-dictionary";
 
 import WidgetPrefsDialog from "./WidgetPrefsDialog";
 import UserAvatar from "../user/UserAvatar";
+import { rehypeEmoji } from "../comment/rehypeEmoji";
 import {
   useGetProfileQuery,
   useUpdateUserPreferencesMutation,
@@ -37,9 +37,6 @@ const defaultPrefs = {
     includeCommentsFromBots: false,
   },
 };
-
-const emojiSupport = (text: any) =>
-  text.value.replace(/:\w+:/gi, (name: string) => emoji.getUnicode(name));
 
 const NewsFeedItem = ({ item }: { item: any }) => {
   const avatar =
@@ -86,7 +83,7 @@ const NewsFeedItem = ({ item }: { item: any }) => {
       <Box sx={{ flexShrink: 0 }}>{avatar}</Box>
       <Box sx={{ minWidth: 0 }}>
         <Box sx={{ "& p": { m: 0 }, overflowWrap: "anywhere" }}>
-          <ReactMarkdown components={{ text: emojiSupport } as any}>
+          <ReactMarkdown rehypePlugins={[rehypeEmoji]}>
             {item.message.replace(
               /(?<!\w)([@#])([\w-@]+)/g,
               (_match: string, symbol: string, username: string) =>
