@@ -11,6 +11,7 @@ from skyportal_py_models.users import (
     UserPostBody,
     UserPostResponse,
 )
+from slugify import slugify
 from sqlalchemy import func
 from sqlalchemy.orm import load_only, selectinload
 
@@ -566,8 +567,36 @@ class UserHandler(BaseHandler):
                 else:
                     user.expiration_date = None
 
-            if body.username is not None:
+            if body.username is not None and body.username != user.username:
                 user.username = body.username
+                # Group names are unique, so a stale single-user group name
+                # would block creating a new account with the old username.
+                single_user_group_id = await session.scalar(
+                    sa.select(Group.id)
+                    .join(GroupUser, GroupUser.group_id == Group.id)
+                    .where(
+                        Group.single_user_group.is_(True),
+                        GroupUser.user_id == user.id,
+                    )
+                )
+                if single_user_group_id is not None:
+                    group_name = slugify(body.username)
+                    clashing_group_id = await session.scalar(
+                        sa.select(Group.id).where(
+                            Group.name == group_name,
+                            Group.id != single_user_group_id,
+                        )
+                    )
+                    if clashing_group_id is not None:
+                        return self.error(
+                            f"A group named {group_name} already exists. "
+                            "Please choose another username."
+                        )
+                    await session.execute(
+                        sa.update(Group)
+                        .where(Group.id == single_user_group_id)
+                        .values(name=group_name)
+                    )
             if body.first_name is not None:
                 user.first_name = body.first_name
             if body.last_name is not None:
