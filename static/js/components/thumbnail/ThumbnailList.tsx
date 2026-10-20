@@ -508,24 +508,20 @@ const ThumbnailList = ({
         >
           <Box>{footer}</Box>
           {fieldsOfView.length > 1 && (
-            <Tooltip
-              title={`Same: every alert cutout at the ${formatFieldOfView(widestFieldOfView)} field of view`}
-            >
-              <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                <Typography variant="caption" color="text.secondary">
-                  Field of view
-                </Typography>
-                <SegmentedControl
-                  size="small"
-                  value={sameScale}
-                  onChange={setSameScale}
-                  options={[
-                    { value: false, label: "Native" },
-                    { value: true, label: "Same" },
-                  ]}
-                />
-              </Box>
-            </Tooltip>
+            <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+              <Typography variant="caption" color="text.secondary">
+                Field of view
+              </Typography>
+              <SegmentedControl
+                size="small"
+                value={sameScale}
+                onChange={setSameScale}
+                options={[
+                  { value: false, label: "Native" },
+                  { value: true, label: "Same" },
+                ]}
+              />
+            </Box>
           )}
         </Box>
       )}
