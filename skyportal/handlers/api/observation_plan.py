@@ -2355,6 +2355,8 @@ class ObservationPlanGeoJSONHandler(BaseHandler):
             # We use these to render the contours of the sky localization and
             # locations of the transients.
             geojson = []
+            # database IDs aligned with geojson, as accepted by the fields DELETE
+            field_ids = []
             fields_in = []
             for observation in observation_plans[0].planned_observations:
                 if observation.field_id not in fields_in:
@@ -2366,10 +2368,11 @@ class ObservationPlanGeoJSONHandler(BaseHandler):
                     field = observation.field
                     if field is not None and field.contour_summary is not None:
                         geojson.append(field.contour_summary)
+                        field_ids.append(field.id)
                 else:
                     continue
 
-            return self.success(data={"geojson": geojson})
+            return self.success(data={"geojson": geojson, "field_ids": field_ids})
 
 
 class ObservationPlanFieldsHandler(BaseHandler):
