@@ -145,7 +145,14 @@ const InstrumentTable = ({
       renderCell: renderAPIClassnames,
     },
     { field: "band", headerName: "Band", flex: 0.6, minWidth: 80 },
-    { field: "type", headerName: "Type", flex: 0.8, minWidth: 110 },
+    {
+      field: "type",
+      headerName: "Type",
+      flex: 0.8,
+      minWidth: 150,
+      renderCell: ({ value }: any) =>
+        value && <Chip label={value} size="small" variant="outlined" />,
+    },
     {
       field: "region_summary",
       headerName: "FOV Region?",
