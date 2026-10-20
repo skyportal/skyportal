@@ -32,7 +32,7 @@ import StyledDataGrid, {
 import { Group } from "../../types";
 
 const GroupListToolbar = ({ title, children }: any) => (
-  <DataGridToolbar title={title} showExport={false}>
+  <DataGridToolbar title={title} showExport={false} showColumns={false}>
     {children}
   </DataGridToolbar>
 );
@@ -42,7 +42,7 @@ interface GroupListProps {
   groups?: Group[];
   variant?: "normal" | "widget";
   linkToGroupSources?: boolean;
-  admission?: boolean;
+  memberGroupIds?: number[];
   children?: ReactNode;
 }
 
@@ -51,7 +51,7 @@ const GroupList = ({
   groups = [],
   variant = "normal",
   linkToGroupSources = false,
-  admission = false,
+  memberGroupIds,
   children,
 }: GroupListProps) => {
   const navigate = useNavigate();
@@ -105,7 +105,10 @@ const GroupList = ({
     );
   }
 
-  if (admission && currentUserID == null) return <CircularProgress />;
+  const isMember = (group: Group) =>
+    !memberGroupIds || memberGroupIds.includes(group.id);
+  const showAdmission = multiUserGroups.some((group) => !isMember(group));
+  if (showAdmission && currentUserID == null) return <CircularProgress />;
 
   const findRequest = (group: any, status: string) =>
     groupAdmissionRequests?.find(
@@ -135,6 +138,7 @@ const GroupList = ({
 
   const renderAdmissionActions = (params: any) => {
     const group = params.row;
+    if (isMember(group)) return null;
     let label = group.auto_accept_requests ? "Join group" : "Request admission";
     let tooltip = "";
     let isDisable = false;
@@ -199,7 +203,7 @@ const GroupList = ({
   const columns = [
     { field: "name", headerName: "Name", flex: 1, minWidth: 120 },
     { field: "nickname", headerName: "Nickname", flex: 1, minWidth: 120 },
-    ...(admission
+    ...(showAdmission
       ? [
           {
             field: "actions",
@@ -213,6 +217,7 @@ const GroupList = ({
       : []),
   ];
 
+  const canOpen = (group: Group) => isMember(group) || isSystemAdmin;
   const closeRequestDialog = () => setRequestingGroup(null);
 
   const submitRequest = async () => {
@@ -227,15 +232,13 @@ const GroupList = ({
         rows={multiUserGroups}
         columns={columns}
         showToolbar
-        onRowClick={
-          admission ? undefined : (params: any) => navigate(getLink(params.row))
+        onRowClick={(params: any) =>
+          canOpen(params.row) && navigate(getLink(params.row))
         }
+        getRowClassName={(params: any) => (canOpen(params.row) ? "open" : "")}
         slots={{ toolbar: GroupListToolbar }}
         slotProps={{ toolbar: { title, children } as any }}
-        sx={{
-          height: FULL_PAGE_HEIGHT,
-          ...(admission ? {} : { "& .MuiDataGrid-row": { cursor: "pointer" } }),
-        }}
+        sx={{ height: FULL_PAGE_HEIGHT, "& .open": { cursor: "pointer" } }}
       />
       <Dialog
         fullWidth

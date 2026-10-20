@@ -65,10 +65,10 @@ export const PAGE_TOURS: Record<string, TourStep[]> = {
         "filter and start collecting candidates.",
     },
     {
-      target: '[data-testid="groupsViewSelect"]',
+      target: '[data-testid="showAllGroupsSwitch"]',
       title: "Join existing groups",
       content:
-        "Switch to the groups you're not in to request admission, and the " +
+        "Show all groups to request admission to the ones you're not in, and the " +
         "group's admin can approve you. As an admin, you approve requests and " +
         "add members from a group's own page.",
     },

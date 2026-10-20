@@ -2,63 +2,43 @@ import { useState } from "react";
 import AddIcon from "@mui/icons-material/Add";
 import Dialog from "@mui/material/Dialog";
 import DialogContent from "@mui/material/DialogContent";
+import FormControlLabel from "@mui/material/FormControlLabel";
 import IconButton from "@mui/material/IconButton";
-import MenuItem from "@mui/material/MenuItem";
-import TextField from "@mui/material/TextField";
+import Switch from "@mui/material/Switch";
 import Tooltip from "@mui/material/Tooltip";
 
-import { useGetProfileQuery } from "../../ducks/profile";
 import { useGetGroupsQuery } from "../../ducks/groups";
 import GroupList from "./GroupList";
 import NewGroupForm from "./NewGroupForm";
 import Spinner from "../Spinner";
 
 const Groups = () => {
-  const { permissions } = useGetProfileQuery().data ?? {};
   const { data: groupsData } = useGetGroupsQuery();
   const userGroups = groupsData?.user ?? [];
   const allGroups = groupsData?.all ?? null;
-  const [view, setView] = useState("my");
+  const [showAll, setShowAll] = useState(false);
   const [newGroupOpen, setNewGroupOpen] = useState(false);
 
   if (!userGroups.length || allGroups === null) return <Spinner />;
-
-  const allMultiUserGroups = allGroups.filter((g) => !g["single_user_group"]);
-  const userGroupIds = userGroups.map((g) => g.id);
-  const views = [
-    { value: "my", label: "My Groups", groups: userGroups },
-    {
-      value: "non-member",
-      label: "Non-member groups",
-      groups: allMultiUserGroups.filter((g) => !userGroupIds.includes(g.id)),
-    },
-    ...(permissions?.includes("System admin")
-      ? [{ value: "all", label: "All Groups", groups: allMultiUserGroups }]
-      : []),
-  ].filter((v) => v.value === "my" || v.groups.length > 0);
-  const current = views.find((v) => v.value === view) ?? views[0]!;
 
   return (
     <>
       <GroupList
         title="Groups"
-        groups={current.groups}
-        admission={current.value === "non-member"}
+        groups={showAll ? allGroups : userGroups}
+        memberGroupIds={userGroups.map((g) => g.id)}
       >
-        <TextField
-          select
-          size="small"
-          value={current.value}
-          onChange={(e) => setView(e.target.value)}
-          data-testid="groupsViewSelect"
-          sx={{ minWidth: 190 }}
-        >
-          {views.map((v) => (
-            <MenuItem key={v.value} value={v.value}>
-              {v.label}
-            </MenuItem>
-          ))}
-        </TextField>
+        <FormControlLabel
+          label="Show all groups"
+          data-testid="showAllGroupsSwitch"
+          control={
+            <Switch
+              size="small"
+              checked={showAll}
+              onChange={(e) => setShowAll(e.target.checked)}
+            />
+          }
+        />
         <Tooltip title="Create new group">
           <IconButton
             onClick={() => setNewGroupOpen(true)}

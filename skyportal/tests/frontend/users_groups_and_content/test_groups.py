@@ -12,15 +12,14 @@ _, cfg = load_env()
 def test_public_groups_list(page, user, public_group):
     page.goto(f"/become_user/{user.id}")
     page.goto("/groups")
-    expect(page.get_by_test_id("groupsViewSelect")).to_be_visible()
+    expect(page.get_by_test_id("showAllGroupsSwitch")).to_be_visible()
     expect(page.locator(f'//div[@data-id="{public_group.id}"]').first).to_be_visible()
 
 
 def test_super_admin_groups_list(page, super_admin_user, public_group):
     page.goto(f"/become_user/{super_admin_user.id}")
     page.goto("/groups")
-    page.locator('[data-testid="groupsViewSelect"] [role="combobox"]').click()
-    page.get_by_role("option", name="All Groups").click()
+    page.get_by_test_id("showAllGroupsSwitch").locator("input").check()
     expect(page.locator(f'//div[@data-id="{public_group.id}"]').first).to_be_visible()
 
 
@@ -40,8 +39,7 @@ def test_add_new_group(page, super_admin_user, user, super_admin_token):
     # Create Group button
     page.keyboard.press("Escape")
     page.locator('//button[contains(.,"Create Group")]').first.click()
-    page.locator('[data-testid="groupsViewSelect"] [role="combobox"]').click()
-    page.get_by_role("option", name="All Groups").click()
+    page.get_by_test_id("showAllGroupsSwitch").locator("input").check()
     expect(page.get_by_role("gridcell", name=test_proj_name).first).to_be_visible()
     # check for group description
     status, data = api("GET", "groups", token=super_admin_token)
@@ -80,8 +78,7 @@ def test_add_new_group_user(
 ):
     page.goto(f"/become_user/{super_admin_user.id}")
     page.goto("/groups")
-    page.locator('[data-testid="groupsViewSelect"] [role="combobox"]').click()
-    page.get_by_role("option", name="All Groups").click()
+    page.get_by_test_id("showAllGroupsSwitch").locator("input").check()
     page.locator(f'//div[@data-id="{public_group.id}"]').first.click()
     page.locator('//*[@data-testid="addMembersButton"]').first.click()
     page.locator('//div[@data-testid="newGroupUserTextInput"]').first.click()
@@ -120,8 +117,7 @@ def test_invite_all_users_from_other_group(
 ):
     page.goto(f"/become_user/{super_admin_user.id}")
     page.goto("/groups")
-    page.locator('[data-testid="groupsViewSelect"] [role="combobox"]').click()
-    page.get_by_role("option", name="All Groups").click()
+    page.get_by_test_id("showAllGroupsSwitch").locator("input").check()
     expect(
         page.locator(f'//a[contains(.,"{user_group2.username}")]').first
     ).to_be_hidden()
@@ -143,8 +139,7 @@ def test_invite_all_users_from_other_group(
 def test_delete_group_user(page, super_admin_user, user, public_group):
     page.goto(f"/become_user/{super_admin_user.id}")
     page.goto("/groups")
-    page.locator('[data-testid="groupsViewSelect"] [role="combobox"]').click()
-    page.get_by_role("option", name="All Groups").click()
+    page.get_by_test_id("showAllGroupsSwitch").locator("input").check()
     page.locator(f'//div[@data-id="{public_group.id}"]').first.click()
 
     expect(page.locator(f'//a[contains(.,"{user.username}")]').first).to_be_visible()
@@ -159,13 +154,11 @@ def test_delete_group_user(page, super_admin_user, user, public_group):
 def test_delete_group(page, super_admin_user, user, public_group):
     page.goto(f"/become_user/{super_admin_user.id}")
     page.goto("/groups")
-    page.locator('[data-testid="groupsViewSelect"] [role="combobox"]').click()
-    page.get_by_role("option", name="All Groups").click()
+    page.get_by_test_id("showAllGroupsSwitch").locator("input").check()
     page.locator(f'//div[@data-id="{public_group.id}"]').first.click()
     page.locator('//*[@data-testid="deleteGroupButton"]').first.click()
     page.locator('//button[contains(.,"Confirm")]').first.click()
-    page.locator('[data-testid="groupsViewSelect"] [role="combobox"]').click()
-    page.get_by_role("option", name="All Groups").click()
+    page.get_by_test_id("showAllGroupsSwitch").locator("input").check()
     expect(page.locator(f'//div[@data-id="{public_group.id}"]').first).to_be_hidden()
 
 
@@ -183,8 +176,7 @@ def test_add_stream_add_delete_filter_group(
 
     page.goto(f"/become_user/{super_admin_user.id}")
     page.goto("/groups")
-    page.locator('[data-testid="groupsViewSelect"] [role="combobox"]').click()
-    page.get_by_role("option", name="All Groups").click()
+    page.get_by_test_id("showAllGroupsSwitch").locator("input").check()
     page.locator(f'//div[@data-id="{public_group.id}"]').first.click()
     page.get_by_role("tab", name="Streams and filters").click()
 
@@ -218,8 +210,7 @@ def test_cannot_add_stream_group_users_cant_access(
 ):
     page.goto(f"/become_user/{super_admin_user.id}")
     page.goto("/groups")
-    page.locator('[data-testid="groupsViewSelect"] [role="combobox"]').click()
-    page.get_by_role("option", name="All Groups").click()
+    page.get_by_test_id("showAllGroupsSwitch").locator("input").check()
     page.locator(f'//div[@data-id="{public_group.id}"]').first.click()
     page.get_by_role("tab", name="Streams and filters").click()
 
@@ -250,8 +241,7 @@ def test_add_new_group_with_auto_accept(
     page.locator(f'//li[contains(text(),"{user.username}")]').first.click()
     page.keyboard.press("Escape")
     page.locator('//button[contains(.,"Create Group")]').first.click()
-    page.locator('[data-testid="groupsViewSelect"] [role="combobox"]').click()
-    page.get_by_role("option", name="All Groups").click()
+    page.get_by_test_id("showAllGroupsSwitch").locator("input").check()
     expect(page.get_by_role("gridcell", name=test_proj_name).first).to_be_visible()
 
     status, data = api("GET", "groups", token=super_admin_token)
