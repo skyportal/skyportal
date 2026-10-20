@@ -5,18 +5,20 @@ interface SegmentedControlProps<T> {
   value: T;
   options: readonly { value: T; label: string }[];
   onChange: (value: T) => void;
+  size?: "small" | "medium";
 }
 
 const SegmentedControl = <T,>({
   value,
   options,
   onChange,
+  size = "medium",
 }: SegmentedControlProps<T>) => (
   <Box
     sx={{
       display: "inline-flex",
       gap: 0.5,
-      p: 0.5,
+      p: size === "small" ? 0.25 : 0.5,
       borderRadius: 999,
       border: 1,
       borderColor: "divider",
@@ -27,14 +29,14 @@ const SegmentedControl = <T,>({
       const selected = option.value === value;
       return (
         <ButtonBase
-          key={option.label}
+          key={String(option.value)}
           aria-pressed={selected}
           onClick={() => onChange(option.value)}
           sx={{
-            height: "1.75rem",
-            px: 1.5,
+            height: size === "small" ? "1.375rem" : "1.75rem",
+            px: size === "small" ? 1 : 1.5,
             borderRadius: 999,
-            fontSize: "0.8125rem",
+            fontSize: size === "small" ? "0.7rem" : "0.8125rem",
             fontWeight: 600,
             whiteSpace: "nowrap",
             color: selected ? "primary.contrastText" : "text.secondary",

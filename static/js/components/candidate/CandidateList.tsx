@@ -2,7 +2,6 @@ import { Suspense, lazy, useEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import type { Theme } from "@mui/material/styles";
 import Box from "@mui/material/Box";
-import ButtonBase from "@mui/material/ButtonBase";
 import Chip from "@mui/material/Chip";
 import CircularProgress from "@mui/material/CircularProgress";
 import IconButton from "@mui/material/IconButton";
@@ -51,6 +50,7 @@ import TrackCandidateSummary from "../moving_object/TrackCandidateSummary";
 import Spinner from "../Spinner";
 import ErrorBoundary from "../ErrorBoundary";
 import Button from "../Button";
+import SegmentedControl from "../SegmentedControl";
 import SaveCandidateButton from "./SaveCandidateButton";
 import FilterCandidateList from "./FilterCandidateList";
 import ScanningPageCandidateAnnotations from "./ScanningPageCandidateAnnotations";
@@ -281,69 +281,6 @@ const CandidateLink = ({ candidate }: { candidate: any }) => (
   </MuiLink>
 );
 
-interface StackIdsProps {
-  stack: any[];
-  selectedId: string;
-  onSelect: (id: string) => void;
-}
-
-const StackIds = ({ stack, selectedId, onSelect }: StackIdsProps) => (
-  <Box sx={{ display: "flex", flexDirection: "column", gap: 0.25 }}>
-    {stack.map((member) => {
-      const selected = member.id === selectedId;
-      const content = (
-        <>
-          <Box
-            component="span"
-            sx={{
-              minWidth: "2.75rem",
-              fontSize: "0.7rem",
-              fontWeight: "bold",
-              letterSpacing: "0.04em",
-              color: "text.secondary",
-            }}
-          >
-            {surveyOf(member)}
-          </Box>
-          {selected ? (
-            <CandidateLink candidate={member} />
-          ) : (
-            <Box component="span" sx={{ color: "text.secondary" }}>
-              {member.id}
-            </Box>
-          )}
-        </>
-      );
-      const rowSx = {
-        display: "flex",
-        alignItems: "baseline",
-        justifyContent: "flex-start",
-        gap: 1,
-        pl: 1,
-        pr: 1.5,
-        py: 0.25,
-        borderLeft: 3,
-        borderColor: selected ? "primary.main" : "transparent",
-        borderRadius: 0.5,
-        fontSize: "0.95rem",
-      };
-      return selected ? (
-        <Box key={member.id} sx={rowSx}>
-          {content}
-        </Box>
-      ) : (
-        <ButtonBase
-          key={member.id}
-          onClick={() => onSelect(member.id)}
-          sx={{ ...rowSx, "&:hover": { bgcolor: "action.hover" } }}
-        >
-          {content}
-        </ButtonBase>
-      );
-    })}
-  </Box>
-);
-
 interface CandidateInfoProps {
   candidate: any;
   stack: any[];
@@ -392,20 +329,25 @@ const CandidateInfo = ({
         sx={{
           display: "flex",
           flexWrap: "wrap",
-          alignItems: stack.length > 1 ? "flex-start" : "center",
+          alignItems: "center",
           justifyContent: "space-between",
           gap: 0.5,
         }}
       >
-        {stack.length > 1 ? (
-          <StackIds
-            stack={stack}
-            selectedId={candidate.id}
-            onSelect={onSelect}
-          />
-        ) : (
+        <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
           <CandidateLink candidate={candidate} />
-        )}
+          {stack.length > 1 && (
+            <SegmentedControl
+              size="small"
+              value={candidate.id}
+              onChange={onSelect}
+              options={stack.map((member) => ({
+                value: member.id,
+                label: surveyOf(member) ?? member.id,
+              }))}
+            />
+          )}
+        </Box>
         <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
           {!isReadOnly && unsavedUserGroups.length > 0 && (
             <Box data-testid="tour-candidate-save">
