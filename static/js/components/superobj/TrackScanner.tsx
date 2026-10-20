@@ -61,24 +61,42 @@ const distinctEpochs = (track: SuperObj): SuperObjEpoch[] => {
   });
 };
 
-const cutout = (epoch: SuperObjEpoch, type: string) =>
-  (epoch.thumbnails || []).find((t) => t.type === type && t.public_url);
+const epochSurveys = (epoch: SuperObjEpoch) => [
+  ...new Set(
+    (epoch.thumbnails || [])
+      .filter(
+        (t) =>
+          t.survey &&
+          t.public_url &&
+          (CUTOUT_TYPES as readonly string[]).includes(t.type),
+      )
+      .map((t) => t.survey as string),
+  ),
+];
 
-const epochSurvey = (epoch: SuperObjEpoch) =>
-  (epoch.thumbnails || []).find(
-    (t) => t.survey && (CUTOUT_TYPES as readonly string[]).includes(t.type),
-  )?.survey ?? null;
+const cutoutUrl = (
+  epoch: SuperObjEpoch,
+  type: string,
+  survey: string | null,
+) => {
+  const ofType = (epoch.thumbnails || []).filter(
+    (t) => t.type === type && t.public_url,
+  );
+  return (ofType.find((t) => t.survey === survey) ?? ofType[0])?.public_url;
+};
 
 const Cutout = ({
   epoch,
   type,
+  survey,
   zoom,
 }: {
   epoch: SuperObjEpoch;
   type: string;
+  survey: string | null;
   zoom: number;
 }) => {
-  const url = cutout(epoch, type)?.public_url;
+  const url = cutoutUrl(epoch, type, survey);
   return (
     <Box
       sx={{
@@ -120,6 +138,27 @@ const TrackRow = ({
   const epochs = distinctEpochs(track);
   const repeats = track.objs.length - epochs.length;
 
+  const epochCountBySurvey = new Map<string, number>();
+  epochs.forEach((epoch) =>
+    epochSurveys(epoch).forEach((survey) =>
+      epochCountBySurvey.set(survey, (epochCountBySurvey.get(survey) ?? 0) + 1),
+    ),
+  );
+  const surveys = [...epochCountBySurvey.keys()].sort(
+    (a, b) => epochCountBySurvey.get(b)! - epochCountBySurvey.get(a)!,
+  );
+  const [preferredSurvey, setPreferredSurvey] = useState<string | null>(null);
+  const shownSurvey = preferredSurvey ?? surveys[0] ?? null;
+  const epochSurvey = (epoch: SuperObjEpoch) => {
+    const available = epochSurveys(epoch);
+    return shownSurvey && available.includes(shownSurvey)
+      ? shownSurvey
+      : (available[0] ?? null);
+  };
+  const surveySwitchable = epochs.some(
+    (epoch) => epochSurveys(epoch).length > 1,
+  );
+
   const [sameScale, setSameScale] = useState(false);
   const fieldOfView = (epoch: SuperObjEpoch) =>
     SURVEY_FIELD_OF_VIEW_ARCSEC[epochSurvey(epoch) ?? ""];
@@ -154,23 +193,7 @@ const TrackRow = ({
           {name}
         </Typography>
         {isNeo && <Chip size="small" color="warning" label="NEO candidate" />}
-        <Box sx={{ ml: "auto", display: "flex", alignItems: "center", gap: 2 }}>
-          {fieldsOfView.length > 1 && (
-            <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-              <Typography variant="caption" color="text.secondary">
-                Field of view
-              </Typography>
-              <SegmentedControl
-                size="small"
-                value={sameScale}
-                onChange={setSameScale}
-                options={[
-                  { value: false, label: "Native" },
-                  { value: true, label: "Same" },
-                ]}
-              />
-            </Box>
-          )}
+        <Box sx={{ ml: "auto" }}>
           <SaveTrackButton
             trackName={name}
             epochs={epochs}
@@ -232,6 +255,7 @@ const TrackRow = ({
                   key={epoch.id}
                   epoch={epoch}
                   type={type}
+                  survey={epochSurvey(epoch)}
                   zoom={zoomOf(epoch)}
                 />
               ))}
@@ -245,6 +269,42 @@ const TrackRow = ({
           ))}
         </Box>
       </Box>
+      {(surveySwitchable || fieldsOfView.length > 1) && (
+        <Box sx={{ display: "flex", flexWrap: "wrap", gap: 2, mt: 1 }}>
+          {surveySwitchable && (
+            <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+              <Typography variant="caption" color="text.secondary">
+                Survey
+              </Typography>
+              <SegmentedControl
+                size="small"
+                value={shownSurvey}
+                onChange={setPreferredSurvey}
+                options={surveys.map((survey) => ({
+                  value: survey,
+                  label: survey,
+                }))}
+              />
+            </Box>
+          )}
+          {fieldsOfView.length > 1 && (
+            <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+              <Typography variant="caption" color="text.secondary">
+                Field of view
+              </Typography>
+              <SegmentedControl
+                size="small"
+                value={sameScale}
+                onChange={setSameScale}
+                options={[
+                  { value: false, label: "Native" },
+                  { value: true, label: "Same" },
+                ]}
+              />
+            </Box>
+          )}
+        </Box>
+      )}
     </Paper>
   );
 };
