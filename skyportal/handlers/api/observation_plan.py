@@ -2291,7 +2291,7 @@ class ObservationPlanSurveyEfficiencyHandler(BaseHandler):
             )
 
             analysis_data = []
-            for analysis in analyses:
+            for analysis in analyses.unique():
                 analysis_data.append(
                     {
                         **analysis.to_dict(),
