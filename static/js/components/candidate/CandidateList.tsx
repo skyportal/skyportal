@@ -491,9 +491,9 @@ const Candidate = ({
           lg: "26% 22% 32% 20%",
         },
         gridTemplateAreas: {
-          xs: `"info" "thumbnails" "photometry" "annotations" "counter"`,
-          sm: `"thumbnails info" "photometry annotations" "counter annotations"`,
-          lg: `"thumbnails info photometry annotations" "counter info photometry annotations"`,
+          xs: `"info" "thumbnails" "photometry" "annotations"`,
+          sm: `"thumbnails info" "photometry annotations"`,
+          lg: `"thumbnails info photometry annotations"`,
         },
       }}
     >
@@ -510,6 +510,11 @@ const Candidate = ({
           useGrid={false}
           columns={3}
           noMargin
+          footer={
+            <Typography sx={{ fontWeight: "bold" }}>
+              {`${index}/${totalMatches}`}
+            </Typography>
+          }
         />
       </Box>
       <Box sx={{ gridArea: "info", pl: 2 }}>
@@ -551,11 +556,6 @@ const Candidate = ({
       >
         <CandidateTabs candidate={candidate} filterGroups={filterGroups} />
       </Box>
-      <Typography
-        sx={{ gridArea: "counter", alignSelf: "end", fontWeight: "bold" }}
-      >
-        {`${index}/${totalMatches}`}
-      </Typography>
     </Paper>
   );
 };
