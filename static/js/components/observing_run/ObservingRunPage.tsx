@@ -1,6 +1,8 @@
 import { useState } from "react";
 import Grid from "@mui/material/Grid";
 import Box from "@mui/material/Box";
+import FormControlLabel from "@mui/material/FormControlLabel";
+import Switch from "@mui/material/Switch";
 import IconButton from "@mui/material/IconButton";
 import Dialog from "@mui/material/Dialog";
 import DialogTitle from "@mui/material/DialogTitle";
@@ -22,7 +24,6 @@ import { useDeleteObservingRunMutation } from "../../ducks/observingRun";
 import { useGetObservingRunsQuery } from "../../ducks/observingRuns";
 import StyledDataGrid, { DataGridToolbar } from "../StyledDataGrid";
 import ConfirmDeletionDialog from "../ConfirmDeletionDialog";
-import SegmentedControl from "../SegmentedControl";
 import ObservingRunTitle, { observingRunTitle } from "./ObservingRunTitle";
 import NewObservingRun from "./NewObservingRun";
 import ModifyObservingRun from "./ModifyObservingRun";
@@ -38,13 +39,16 @@ interface RunsToolbarProps {
 
 const RunsToolbar = ({ displayAll, setDisplayAll }: RunsToolbarProps) => (
   <DataGridToolbar title="Observing Runs" showExport={false}>
-    <SegmentedControl
-      value={displayAll}
-      onChange={setDisplayAll}
-      options={[
-        { value: false, label: "Upcoming runs" },
-        { value: true, label: "All runs" },
-      ]}
+    <FormControlLabel
+      label="Upcoming runs only"
+      data-testid="upcomingRunsOnlySwitch"
+      control={
+        <Switch
+          size="small"
+          checked={!displayAll}
+          onChange={(e) => setDisplayAll(!e.target.checked)}
+        />
+      }
     />
   </DataGridToolbar>
 );

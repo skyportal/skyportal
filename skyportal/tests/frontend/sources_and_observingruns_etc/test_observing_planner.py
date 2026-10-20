@@ -220,7 +220,7 @@ def test_observing_run_page(page, view_only_user, red_transients_run):
     page.goto("/runs")
     runs = ObservingRun.query.all()
 
-    page.locator('//button[contains(., "All runs")]').first.click()
+    page.get_by_test_id("upcomingRunsOnlySwitch").locator("input").uncheck()
 
     for run in runs:
         observingrun_title = (
@@ -243,7 +243,7 @@ def test_add_run_to_observing_run_page(
     page.goto("/runs")
 
     expect(page.locator("//form").first).to_be_visible()
-    page.locator('//button[contains(., "All runs")]').first.click()
+    page.get_by_test_id("upcomingRunsOnlySwitch").locator("input").uncheck()
 
     observingrun_title = (
         f"{red_transients_run.calendar_date} "
