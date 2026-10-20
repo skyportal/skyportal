@@ -281,7 +281,7 @@ const CommentPanel = ({ inline = false }: CommentPanelProps) => {
   };
 
   const inlineToggle =
-    isComments && target?.type === "source" ? (
+    isComments && target?.type === "source" && target.origin !== "scanning" ? (
       <Tooltip title={inline ? "Detach the panel" : "Display in the page"}>
         <IconButton size="small" onClick={toggleInline}>
           {inline ? (
@@ -304,6 +304,7 @@ const CommentPanel = ({ inline = false }: CommentPanelProps) => {
   if (!showComments && !showAssistant) return null;
 
   const bothSpaces = showComments && showAssistant;
+  const headerRow = !inline && (bothSpaces || !isComments);
 
   const startDrag = (event: PointerEvent<HTMLElement>) => {
     if (event.button !== 0) return;
@@ -366,7 +367,7 @@ const CommentPanel = ({ inline = false }: CommentPanelProps) => {
             }),
       })}
     >
-      {!inline && (
+      {headerRow && (
         <Box
           sx={{
             display: "flex",
@@ -403,15 +404,13 @@ const CommentPanel = ({ inline = false }: CommentPanelProps) => {
               />
             </Tabs>
           ) : (
-            !isComments && (
-              <Typography
-                variant="h6"
-                noWrap
-                sx={{ lineHeight: "1em", fontWeight: 900 }}
-              >
-                Assistant
-              </Typography>
-            )
+            <Typography
+              variant="h6"
+              noWrap
+              sx={{ lineHeight: "1em", fontWeight: 900 }}
+            >
+              Assistant
+            </Typography>
           )}
           <Box sx={{ marginLeft: "auto", flexShrink: 0 }}>
             {inlineToggle}
@@ -529,9 +528,16 @@ const CommentPanel = ({ inline = false }: CommentPanelProps) => {
               onBlur={createChannel}
             />
           ))}
-        {inline && (
-          <Box sx={{ marginLeft: "auto", paddingRight: "0.25rem" }}>
+        {!headerRow && (
+          <Box
+            sx={{ marginLeft: "auto", paddingRight: "0.25rem", flexShrink: 0 }}
+          >
             {inlineToggle}
+            {!inline && (
+              <IconButton size="small" onClick={() => setOpen(false)}>
+                <CloseIcon fontSize="small" />
+              </IconButton>
+            )}
           </Box>
         )}
       </Box>
