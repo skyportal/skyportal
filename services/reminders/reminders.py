@@ -17,7 +17,7 @@ from skyportal.models import (
 from skyportal.models.gcn import GcnEvent
 from skyportal.models.shift import Shift
 from skyportal.utils.app import get_app_base_url
-from skyportal.utils.email import send_email
+from skyportal.utils.email import button, preferences_footer, send_email
 from skyportal.utils.naive_datetime import utcnow_naive
 from skyportal.utils.notifications import wants_in_app
 from skyportal.utils.services import check_loaded
@@ -120,14 +120,14 @@ def send_reminders():
                         recipients=[reminder.user.contact_email],
                         subject=f"{cfg['app.title']} - {plain_text}",
                         body=(
-                            "<!DOCTYPE html><html><head>"
-                            "<style>body {font-family: Arial, Helvetica, sans-serif;}</style>"
-                            "</head><body>"
                             f"<p>{plain_text}</p>"
                             f"{extra_email_html}"
-                            f"<p><a href='{app_url}{url_endpoint}'>View in {cfg['app.title']}</a></p>"
-                            "</body></html>"
+                            + button(
+                                f"{app_url}{url_endpoint}",
+                                f"View in {cfg['app.title']}",
+                            )
                         ),
+                        footer=preferences_footer(),
                     )
                 except Exception as e:
                     log(

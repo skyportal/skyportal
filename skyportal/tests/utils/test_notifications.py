@@ -99,7 +99,6 @@ def test_gcn_email_subject_and_body():
     subject, html = gcn_email_notification(target, _gcn_data())
 
     assert "New GCN Event: 2024-01-01T00:00:00 (TEST_NOTICE)" in subject
-    assert html.startswith("<!DOCTYPE html>")
     assert "<h3>New GCN Event:" in html
     assert "Localization Type: Skymap" in html
     assert "bayestar.fits.gz" in html
@@ -178,7 +177,6 @@ def test_source_email_classification():
     target = {"url": "/source/ZTF24abcdefg"}
     subject, html = source_email_notification(target, _classification_data())
     assert "New SN Ia: ZTF24abcdefg" in subject
-    assert html.startswith("<!DOCTYPE html>")
     assert "<h3>New SN Ia:" in html
     assert "Score/Probability: 0.95" in html
     assert "Number of Detections: 3" in html
@@ -261,7 +259,6 @@ def test_followup_request_email():
     subject, html = followup_request_email_notification(data)
 
     assert "New Follow-up Request: ZTF24abcdefg" in subject
-    assert html.startswith("<!DOCTYPE html>")
     assert "<h3>New Follow-up Request:" in html
     assert "α, δ = 20.940000, -12.582000" in html  # formatted to 6 d.p.
     assert "Allocation: ZTF Partnership" in html

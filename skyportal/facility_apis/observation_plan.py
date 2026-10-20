@@ -1,4 +1,5 @@
 import asyncio
+import html
 import json
 import os
 import tempfile
@@ -944,7 +945,7 @@ class MMAAPI(FollowUpAPI):
             send_email(
                 recipients=[altdata["email"]],
                 subject=subject,
-                body=str(payload),
+                body=f"<pre>{html.escape(json.dumps(payload, indent=2, default=str))}</pre>",
             )
 
             request.status = "submitted"

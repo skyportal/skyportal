@@ -1,5 +1,7 @@
 __all__ = ["Invitation"]
 
+import html
+
 import sqlalchemy as sa
 from sqlalchemy import event
 from sqlalchemy.dialects import postgresql as psql
@@ -13,7 +15,7 @@ from baselayer.app.models import AccessibleIfUserMatches, Base
 from baselayer.log import make_log
 
 from ..utils.app import get_app_base_url
-from ..utils.email import send_email
+from ..utils.email import button, send_email
 
 _, cfg = load_env()
 
@@ -69,7 +71,6 @@ def send_user_invite_email(mapper, connection, target):
         f"{app_base_url}/login/{default_auth_backend()}/?invite_token={target.token}"
     )
     if cfg.get("invitations.disable_emailing", False) is True:
-        # If email sending is disabled, log the invite link for testing purposes
         log(
             f"Invitation created with token {target.token}; invite link: {link_location}"
         )
@@ -89,9 +90,38 @@ def send_user_invite_email(mapper, connection, target):
     else:
         send_email(
             recipients=[target.user_email],
-            subject=cfg["invitations.email_subject"],
-            body=(
-                f"{cfg['invitations.email_body_preamble']}<br /><br />"
-                f'Please click <a href="{link_location}">here</a> to join.'
+            subject=cfg["invitations.email_subject"]
+            or f"You've been invited to collaborate on {cfg['app.title']}",
+            body=invite_body(target, link_location),
+            footer=(
+                "If you were not expecting this invitation, you can ignore this "
+                "email: nothing happens until the link is opened."
             ),
         )
+
+
+def invite_body(target, link):
+    site = html.escape(cfg["app.title"])
+    inviter = target.invited_by
+    if inviter:
+        name = (
+            " ".join(p for p in (inviter.first_name, inviter.last_name) if p)
+            or inviter.username
+        )
+        intro = f"<b>{html.escape(name)}</b> invited you to join {site}."
+    else:
+        intro = f"You have been invited to join {site}."
+    preamble = (cfg["invitations.email_body_preamble"] or "").strip()
+
+    return (
+        f"<h3>Welcome to {site}!</h3>"
+        f"<p>{intro}</p>"
+        + (f"<div>{preamble}</div>" if preamble else "")
+        + button(link, "Accept invitation")
+        + f"<p>Create your account from this button: signing in to {site} "
+        f"without it will not work. The link expires in "
+        f"{cfg['invitations.days_until_expiry']} days.</p>"
+        f"<p>Thank you!<br>The {site} Team</p>"
+        f'<p style="font-size:13px;color:#6b7280">If the button does not work, '
+        f'open this address: <a href="{link}">{link}</a></p>'
+    )

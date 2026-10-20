@@ -235,7 +235,7 @@ def gcn_email_notification(target, data=None, new_tag=False):
         subject = f"{cfg['app.title']} - New notice for Event: {data['dateobs']} ({data['notice_type']})"
 
     time_text = f"<div><h4>Time:</h4><ul><li>Trigger Time (T0): {data['dateobs']}</li><li>Time since T0: {data['time_since_dateobs']}</li></ul></div>"
-    notice_type_text = f"<div><h4>Notice Type:</h4> {data['notice_type']}</div>"
+    notice_type_text = f"<div><h4>Notice Type:</h4><p>{data['notice_type']}</p></div>"
 
     if data["ra"] is not None and data["dec"] is not None and data["error"] is not None:
         localization_text = f"<h4>Localization:</h4><ul><li>Localization Type: Point</li><li>Coordinates: ra={data['ra']}, dec={data['dec']}, error radius={data['error']} deg</li>"
@@ -258,17 +258,14 @@ def gcn_email_notification(target, data=None, new_tag=False):
 
     tags_text = None
     if len(data["tags"]) > 0:
-        tags_text = f"<h4>Event tags: {','.join(data['tags'])}</h4><ul>"
+        tags_text = f"<h4>Event tags:</h4><p>{', '.join(data['tags'])}</p>"
 
     return subject, "".join(
         [
-            "<!DOCTYPE html><html><head><style>body {font-family: Arial, Helvetica, sans-serif;}</style></head>",
-            "<body>",
             header_text,
             time_text,
             notice_type_text,
             localization_text,
-            "</body></html>",
             external_links_text if external_links_text is not None else "",
             tags_text if tags_text is not None else "",
         ]
@@ -288,14 +285,9 @@ def mention_email_notification(target, data=None):
         f" in a comment on this source {source_name}"
     )
     body = (
-        "<!DOCTYPE html><html><head>"
-        "<style>body {font-family: Arial, Helvetica, sans-serif;}</style>"
-        "</head><body>"
-        f"<p>{author_username} mentioned you in this comment: "
-        f"<blockquote style='border-left:4px solid #ccc;margin:0;padding:0 1em;color:#666'>"
-        f"{comment_text}</blockquote></p>"
-        f"<p>Link to the source: <a href='{app_url}{target['url']}'>{source_name}</a></p>"
-        "</body></html>"
+        f"<p>{author_username} mentioned you in a comment on "
+        f"<a href='{app_url}{target['url']}'>{source_name}</a>:</p>"
+        f"<blockquote>{comment_text}</blockquote>"
     )
     return subject, body
 
@@ -468,13 +460,10 @@ def source_email_notification(target, data=None):
             source_detection_stats = f"<div><h4>Source Detection Stats:</h4><ul><li>Source created at: {data['created_at']}</li><li>Not yet detected (no photometry)</li></ul></div>"
 
         return subject, (
-            "<!DOCTYPE html><html><head><style>body {font-family: Arial, Helvetica, sans-serif;}</style></head>"
-            + "<body>"
-            + header_text
+            header_text
             + classification_stats
             + source_coordinates
             + source_detection_stats
-            + "</body></html>"
         )
     elif "spectrum_instrument" in data:
         header_text = f"<h3>New Spectrum: <a href='{app_url}{target['url']}'>{data['source_name']}</a></h3>"
@@ -488,14 +477,7 @@ def source_email_notification(target, data=None):
             source_coordinates += f"<li>Redshift: {data['redshift']}</li>"
         source_coordinates += "</ul></div>"
 
-        return subject, (
-            "<!DOCTYPE html><html><head><style>body {font-family: Arial, Helvetica, sans-serif;}</style></head>"
-            + "<body>"
-            + header_text
-            + spectrum_info
-            + source_coordinates
-            + "</body></html>"
-        )
+        return subject, (header_text + spectrum_info + source_coordinates)
 
 
 MARKDOWN_SPECIAL = re.compile(r"([\\`*_{}\[\]()#+\-.!|<>~])")
@@ -865,10 +847,10 @@ def followup_request_email_notification(data):
 
     if len(data["obj"]["thumbnails"]) > 0:
         # make one row with all the thumbnails
-        thumbnails_section = "<div style='display: flex; flex-wrap: wrap;'>"
+        thumbnails_section = "<p>"
         for thumbnail in data["obj"]["thumbnails"]:
-            thumbnails_section += f"<img src='{thumbnail['url']}' style='max-width: 100%; max-height: 100%; margin: 5px;' title='{thumbnail['type']}' />"
-        thumbnails_section += "</div>"
+            thumbnails_section += f"<img src='{thumbnail['url']}' width='160' alt='{thumbnail['type']}' style='margin:0 6px 6px 0' />"
+        thumbnails_section += "</p>"
     else:
         thumbnails_section = ""
 
@@ -900,26 +882,23 @@ def followup_request_email_notification(data):
             )
 
     buttons = (
-        "<div style='display: flex; gap: 8px;'>"
-        f"<a href='{app_url}/observability/{data['obj']['id']}'><button>Observability</button></a>"
-        f"<a href='{app_url}/source/{data['obj']['id']}/finder'><button>Finding Chart</button></a>"
-        f"<a href='https://skyserver.sdss.org/dr18/VisualTools/navi?opt=G&ra={data['obj']['ra']}&dec={data['obj']['dec']}&scale=0.1'><button>SDSS</button></a>"
-        f"<a href='https://www.legacysurvey.org/viewer?ra={data['obj']['ra']}&dec={data['obj']['dec']}&layer=ls-dr10&photoz-dr9&zoom=16&mark={data['obj']['ra']},{data['obj']['dec']}'><button>LS DR10</button></a>"
-        f"<a href='https://www.wis-tns.org/search?&ra={data['obj']['ra']}&decl={data['obj']['dec']}&radius=5&coords_unit=arcsec'><button>TNS</button></a>"
-        "</div>"
+        "<p>"
+        f"<a href='{app_url}/observability/{data['obj']['id']}'>Observability</a> · "
+        f"<a href='{app_url}/source/{data['obj']['id']}/finder'>Finding Chart</a> · "
+        f"<a href='https://skyserver.sdss.org/dr18/VisualTools/navi?opt=G&ra={data['obj']['ra']}&dec={data['obj']['dec']}&scale=0.1'>SDSS</a> · "
+        f"<a href='https://www.legacysurvey.org/viewer?ra={data['obj']['ra']}&dec={data['obj']['dec']}&layer=ls-dr10&photoz-dr9&zoom=16&mark={data['obj']['ra']},{data['obj']['dec']}'>LS DR10</a> · "
+        f"<a href='https://www.wis-tns.org/search?&ra={data['obj']['ra']}&decl={data['obj']['dec']}&radius=5&coords_unit=arcsec'>TNS</a>"
+        "</p>"
     )
 
     return subject, (
-        "<!DOCTYPE html><html><head><style>body {font-family: Arial, Helvetica, sans-serif;}</style></head>"
-        + "<body>"
-        + header_text
+        header_text
         + obj_section
         + thumbnails_section
         + request_section
         + payload_section
         + comments_section
         + buttons
-        + "</body></html>"
     )
 
 
