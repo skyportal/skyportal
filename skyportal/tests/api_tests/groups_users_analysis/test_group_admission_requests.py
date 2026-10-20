@@ -48,10 +48,9 @@ def test_group_admission_read_access(
     assert_api(status, data)
 
     # Regular user (view_only_token) should not be able to see the request
-    # as they are neither a group admin nor the requesting user. RLS now
+    # as they are neither a group admin nor the requesting user. RLS
     # filters them out at the .select() layer, so the handler reports the
-    # request as not found rather than running its explicit visibility
-    # check.
+    # request as not found.
     status, data = api(
         "GET",
         f"group_admission_requests/{request_id}",
@@ -60,6 +59,30 @@ def test_group_admission_read_access(
     assert_api_fail(
         status, data, 400, "Could not find an admission request with the ID"
     )
+
+
+def test_group_admission_read_super_admin(
+    public_group2, user, upload_data_token, super_admin_token
+):
+    status, data = api(
+        "POST",
+        "group_admission_requests",
+        data={"groupID": public_group2.id, "userID": user.id},
+        token=upload_data_token,
+    )
+    assert_api(status, data)
+    request_id = data["data"]["id"]
+
+    # The super admin is not an admin of public_group2 but can read every
+    # request, as the list endpoint already allows
+    status, data = api(
+        "GET",
+        f"group_admission_requests/{request_id}",
+        token=super_admin_token,
+    )
+    assert_api(status, data)
+    assert data["data"]["id"] == request_id
+    assert data["data"]["user"]["id"] == user.id
 
 
 # test get doesn't exist
