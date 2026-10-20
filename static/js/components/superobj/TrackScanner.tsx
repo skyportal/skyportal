@@ -6,10 +6,8 @@ import Box from "@mui/material/Box";
 import Button from "@mui/material/Button";
 import Chip from "@mui/material/Chip";
 import CircularProgress from "@mui/material/CircularProgress";
-import FormControlLabel from "@mui/material/FormControlLabel";
 import Paper from "@mui/material/Paper";
 import Stack from "@mui/material/Stack";
-import Switch from "@mui/material/Switch";
 import TablePagination from "@mui/material/TablePagination";
 import Typography from "@mui/material/Typography";
 
@@ -249,10 +247,15 @@ const TrackRow = ({
   );
 };
 
-const TrackScanner = () => {
+const TrackScanner = ({
+  onlyMultiEpoch,
+  setOnlyMultiEpoch,
+}: {
+  onlyMultiEpoch: boolean;
+  setOnlyMultiEpoch: (value: boolean) => void;
+}) => {
   const [page, setPage] = useState(0);
   const [perPage, setPerPage] = useState(25);
-  const [onlyMultiEpoch, setOnlyMultiEpoch] = useState(true);
   const userGroups = useGetGroupsQuery().data?.userAccessible ?? [];
 
   const { data, isFetching, error } = useGetSuperObjsQuery({
@@ -269,19 +272,11 @@ const TrackScanner = () => {
 
   return (
     <Box>
-      <Box sx={{ display: "flex", alignItems: "center", gap: 2, mb: 1.5 }}>
-        <FormControlLabel
-          control={
-            <Switch
-              size="small"
-              checked={onlyMultiEpoch}
-              onChange={(e) => setOnlyMultiEpoch(e.target.checked)}
-            />
-          }
-          label="Multi-epoch only"
-        />
-        {isFetching && <CircularProgress size={18} />}
-      </Box>
+      {isFetching && !data && (
+        <Box sx={{ display: "flex", justifyContent: "center", py: 4 }}>
+          <CircularProgress size={24} />
+        </Box>
+      )}
 
       {error && (
         <Alert severity="error" sx={{ mb: 2 }}>

@@ -4,9 +4,11 @@ import type { Theme } from "@mui/material/styles";
 import Box from "@mui/material/Box";
 import Chip from "@mui/material/Chip";
 import CircularProgress from "@mui/material/CircularProgress";
+import FormControlLabel from "@mui/material/FormControlLabel";
 import IconButton from "@mui/material/IconButton";
 import MuiLink from "@mui/material/Link";
 import Paper from "@mui/material/Paper";
+import Switch from "@mui/material/Switch";
 import Tab from "@mui/material/Tab";
 import Tabs from "@mui/material/Tabs";
 import Tooltip from "@mui/material/Tooltip";
@@ -563,6 +565,7 @@ type ScanMode = "objects" | "tracks";
 const CandidateList = () => {
   const dispatch = useAppDispatch();
   const [scanMode, setScanMode] = useState<ScanMode>("objects");
+  const [onlyMultiEpoch, setOnlyMultiEpoch] = useState(true);
   const [filterGroups, setFilterGroups] = useState<Group[]>([]);
   const [reportDialogOpen, setReportDialogOpen] = useState(false);
   const [searchParams, setSearchParams] = useState<Record<string, any> | null>(
@@ -653,6 +656,21 @@ const CandidateList = () => {
             { value: "tracks", label: "Moving object tracks" },
           ]}
         />
+        {scanMode === "tracks" && (
+          <FormControlLabel
+            label="Multi-epoch only"
+            control={
+              <Switch
+                size="small"
+                checked={onlyMultiEpoch}
+                onChange={(e) => setOnlyMultiEpoch(e.target.checked)}
+              />
+            }
+            slotProps={{
+              typography: { variant: "body2", color: "text.secondary" },
+            }}
+          />
+        )}
         <Box sx={{ ml: "auto", display: "flex", gap: 1 }}>
           <Tooltip title="Generate a report of saved candidates">
             <Button
@@ -681,7 +699,10 @@ const CandidateList = () => {
       </Box>
       {scanMode === "tracks" && (
         <Suspense fallback={<Spinner />}>
-          <TrackScanner />
+          <TrackScanner
+            onlyMultiEpoch={onlyMultiEpoch}
+            setOnlyMultiEpoch={setOnlyMultiEpoch}
+          />
         </Suspense>
       )}
       <Box
