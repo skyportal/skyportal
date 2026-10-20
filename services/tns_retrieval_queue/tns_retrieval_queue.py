@@ -251,7 +251,12 @@ def add_tns_spectra(tns_name, tns_source, tns_source_data, public_group_id, sess
             async with models.async_plain_session_factory() as s:
                 await post_spectrum(d, USER_ID, s)
 
-        asyncio.run(_post_spectrum())
+        try:
+            asyncio.run(_post_spectrum())
+        except Exception as e:
+            failed_spectra.append(spectrum)
+            failed_spectra_errors.append(str(e))
+            log(f"Cannot post TNS spectrum {str(spectrum)}: {str(e)}")
 
     if len(failed_spectra) > 0:
         log(
