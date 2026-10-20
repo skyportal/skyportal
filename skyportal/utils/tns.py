@@ -62,6 +62,8 @@ TNS_RETRIEVAL_INSTRUMENT_IDS = {
     "wfst": 282,
 }
 
+TNS_OTHER_INSTRUMENT_ID = 0
+
 SNCOSMO_TO_TNSFILTER = {
     "atlasc": 71,
     "atlaso": 72,

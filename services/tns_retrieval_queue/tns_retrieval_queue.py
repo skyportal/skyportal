@@ -27,6 +27,7 @@ from skyportal.utils.calculations import great_circle_distance
 from skyportal.utils.parse import is_null
 from skyportal.utils.services import check_loaded
 from skyportal.utils.tns import (
+    TNS_OTHER_INSTRUMENT_ID,
     TNS_URL,
     get_IAUname,
     get_recent_TNS,
@@ -160,7 +161,11 @@ def add_tns_photometry(tns_name, tns_source, tns_source_data, public_group_id, s
         )
         return
 
-    photometry = tns_source_data.get("photometry", [])
+    photometry = [
+        phot
+        for phot in tns_source_data.get("photometry", [])
+        if (phot.get("instrument") or {}).get("id") != TNS_OTHER_INSTRUMENT_ID
+    ]
     if len(photometry) == 0:
         log(f"No photometry found on TNS for source {tns_source}")
         return
