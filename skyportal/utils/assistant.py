@@ -279,22 +279,19 @@ def proposal(trace):
     return {"pipeline": pipeline, "preview": preview, "target": target}
 
 
-# Writing tools the assistant may use while the user is on that filter's page,
-# where building a filter is the whole point of asking. Each touches only that
-# filter, runs under the user's own token, and activation is still gated on a
-# passing validation. post_group is here because a filter needs somewhere to
-# post its candidates, and a new filter often wants a new group; the group it
-# creates has one member, so it discloses nothing.
 FILTER_WRITE_TOOLS = frozenset(
     {
-        "post_filter",
-        "post_group",
         "post_broker_filter_version",
         "validate_broker_filter_version",
         "activate_broker_filter_version",
         "attach_filter_to_broker",
     }
 )
+
+
+def targets_page_filter(arguments, context_id):
+    """Whether a filter write names the filter whose page it was asked from."""
+    return f"{arguments.get('broker_id')}/{arguments.get('filter_id')}" == context_id
 
 
 def offered_tools(tools, context_type=None):

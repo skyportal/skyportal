@@ -28,6 +28,7 @@ from skyportal.models import (
 )
 from skyportal.utils.app import get_app_base_url
 from skyportal.utils.assistant import (
+    FILTER_WRITE_TOOLS,
     SERVICE_TOKEN_PREFIX,
     attempt_timeouts,
     build_messages,
@@ -36,6 +37,7 @@ from skyportal.utils.assistant import (
     offered_tools,
     proposal,
     record_call,
+    targets_page_filter,
 )
 from skyportal.utils.assistant_triage import SKYBOT_USERNAME
 
@@ -119,7 +121,7 @@ def list_tools(token, context_type=None):
     ]
 
 
-def call_tool(token, name, arguments, offered):
+def call_tool(token, name, arguments, offered, context_id=None):
     """Run one tool, refusing any that was not offered.
 
     The token carries the user's own permissions, so this is what stops a model
@@ -127,6 +129,8 @@ def call_tool(token, name, arguments, offered):
     """
     if name not in offered:
         raise PermissionError(f"{name} was not offered for this question")
+    if name in FILTER_WRITE_TOOLS and not targets_page_filter(arguments, context_id):
+        raise PermissionError(f"{name} may only change the filter on this page")
     result = _rpc(
         token,
         "tools/call",
@@ -215,7 +219,7 @@ def answer(conversation, context_type, context_id, user, token):
             arguments, ok = {}, True
             try:
                 arguments = json.loads(call["function"]["arguments"] or "{}")
-                result = call_tool(token, name, arguments, offered)
+                result = call_tool(token, name, arguments, offered, context_id)
             except Exception as exc:
                 ok = False
                 result = f"tool {name} failed: {exc}"
