@@ -253,8 +253,15 @@ const Comment = ({
                   <Link
                     component={RouterLink}
                     to={`/user/${author["id"]}`}
-                    underline="hover"
-                    sx={{ color: "inherit" }}
+                    sx={{
+                      color: "inherit",
+                      "&:hover": {
+                        color: (theme) =>
+                          theme.palette.mode === "dark"
+                            ? theme.palette.primary.main
+                            : theme.palette.primary.dark,
+                      },
+                    }}
                   >
                     {author["username"]}
                   </Link>

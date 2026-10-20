@@ -12,6 +12,7 @@ import Box from "@mui/material/Box";
 import Chip from "@mui/material/Chip";
 import IconButton from "@mui/material/IconButton";
 import InputAdornment from "@mui/material/InputAdornment";
+import MuiLink from "@mui/material/Link";
 import List from "@mui/material/List";
 import ListItemButton from "@mui/material/ListItemButton";
 import Tab from "@mui/material/Tab";
@@ -139,23 +140,27 @@ const CommentThreadPane = ({
         )}
         <CommentThreadAvatar type={thread.resource_type} size={40} />
         <Box sx={{ flexGrow: 1, minWidth: 0 }}>
-          <Typography
-            variant="h6"
-            noWrap
+          <MuiLink
             component={Link}
             to={thread.url}
+            variant="h6"
+            noWrap
             sx={{
               display: "inline-block",
               maxWidth: "100%",
               verticalAlign: "top",
               lineHeight: 1.3,
-              color: "inherit",
-              textDecoration: "none",
-              "&:hover": { textDecoration: "underline" },
+              fontWeight: 500,
+              "&:hover": {
+                color: (theme) =>
+                  theme.palette.mode === "dark"
+                    ? theme.palette.primary.main
+                    : theme.palette.primary.dark,
+              },
             }}
           >
             {thread.label}
-          </Typography>
+          </MuiLink>
           <Typography variant="body2" color="textSecondary" noWrap>
             {RESOURCES[thread.resource_type].name} comments
             {thread.channel && `, conversation "${thread.channel}"`}
