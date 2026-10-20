@@ -127,7 +127,7 @@ def prioritize_requests(requests):
                 start_date = allocationAndStartDate["start_date"]
                 if start_date is None:
                     continue
-                start_date = arrow.get(start_date).datetime
+                start_date = arrow.get(start_date).naive
                 if (
                     start_date
                     > telescopeAllocationLookup[
@@ -149,12 +149,15 @@ def prioritize_requests(requests):
                         "morning"
                     ].datetime
                 ):
-                    earliest = plan.allocation
+                    earliest = allocationAndStartDate
                     continue
             allocationByPlanLookup[plan_id] = [earliest]
 
             # check if that plan is more urgent than the current plan_with_priority
-            if telescopeAllocationLookup[earliest["allocation_id"]]["morning"] is None:
+            earliest_morning = telescopeAllocationLookup[earliest["allocation_id"]][
+                "morning"
+            ]
+            if earliest_morning is None or earliest_morning is False:
                 continue
             if plan_with_priority["morning"] is None:
                 plan_with_priority = {
