@@ -91,6 +91,7 @@ const SourceIdAutocomplete = ({
     <Autocomplete
       multiple
       freeSolo
+      size="small"
       sx={sx}
       options={options}
       loading={loading}
@@ -377,8 +378,7 @@ const ALIGN_MODES = [
 
 const useStyles = makeStyles()((theme) => ({
   control: {
-    flex: "1 1 12rem",
-    maxWidth: "18rem",
+    minWidth: "12rem",
   },
   headerRow: {
     display: "flex",
@@ -602,7 +602,7 @@ const SourceStatistics = () => {
     onChange: (v: string) => void,
     includeNone = false,
   ) => (
-    <FormControl className={classes.control}>
+    <FormControl className={classes.control} size="small">
       <InputLabel>{label}</InputLabel>
       <Select
         label={label}
@@ -678,7 +678,7 @@ const SourceStatistics = () => {
             options={SOURCE_MODES}
           />
           {sourceMode === "classification" && (
-            <Box sx={{ flex: "1 1 18rem", maxWidth: "32rem" }}>
+            <Box className={classes.control}>
               <ClassificationSelect
                 selectedClassifications={selectedClassifications}
                 setSelectedClassifications={setSelectedClassifications}
@@ -686,7 +686,7 @@ const SourceStatistics = () => {
             </Box>
           )}
           {sourceMode === "group" && (
-            <FormControl sx={{ flex: "1 1 18rem", maxWidth: "32rem" }}>
+            <FormControl size="small" className={classes.control}>
               <InputLabel>Group</InputLabel>
               <Select
                 label="Group"
@@ -705,7 +705,7 @@ const SourceStatistics = () => {
             <SourceIdAutocomplete
               value={objIds}
               onChange={setObjIds}
-              sx={{ flex: "1 1 22rem", maxWidth: "40rem" }}
+              sx={{ minWidth: "22rem" }}
             />
           )}
           {sourceMode === "classification" && (
