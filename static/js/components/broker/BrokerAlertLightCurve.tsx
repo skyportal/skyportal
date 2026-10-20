@@ -2,7 +2,7 @@ import { useMemo } from "react";
 
 import CircularProgress from "@mui/material/CircularProgress";
 
-import { useGetBrokerAlertQuery } from "../../ducks/brokers";
+import { useGetBrokerObjectQuery } from "../../ducks/brokers";
 import VegaPlotAlert from "./VegaPlotAlert";
 
 interface BrokerAlertLightCurveProps {
@@ -21,9 +21,9 @@ const BrokerAlertLightCurve = ({
   objectId,
   jd,
 }: BrokerAlertLightCurveProps) => {
-  const { data, isFetching } = useGetBrokerAlertQuery({
+  const { data, isFetching } = useGetBrokerObjectQuery({
     brokerId,
-    alertId: objectId,
+    objectId,
   });
 
   const { values, jd: latestJd } = useMemo(() => {

@@ -7,6 +7,7 @@ from pydantic import Field
 from skyportal_py_models.brokers import (
     _FILTER_MODULE_ELEMENTS,
     MAX_FILTERS_PER_PAGE,
+    BrokerAlertsGetQuery,
     BrokerConeSearchGetQuery,
     BrokerCredentialBody,
     BrokerFilterAttachBody,
@@ -53,7 +54,14 @@ MAX_FILTER_ACTIVATIONS = 100
 
 AlertId = Annotated[
     str,
-    Field(description="Alert identifier (e.g. candid) the provider keys cutouts on."),
+    Field(
+        description="Identifier the provider keys cutouts on: the candid for "
+        "BOOM and Babamul, the objectId for ALeRCE, ANTARES, Fink and Lasair."
+    ),
+]
+ObjectId = Annotated[
+    str,
+    Field(description="Survey object identifier, e.g. a ZTF objectId."),
 ]
 
 
@@ -412,14 +420,14 @@ class BrokerHandler(BaseHandler):
             return self.success()
 
 
-class BrokerAlertsHandler(BaseHandler):
+class BrokerObjectHandler(BaseHandler):
     @auth_or_token
-    def get(self, broker_id: int, alert_id=None):
+    async def get(self, broker_id: int, object_id: ObjectId):
         """
         ---
-        summary: Query broker alerts
-        description: Search alerts (or fetch one by id) from a broker, dispatched
-          to the broker's registered provider.
+        summary: Get an object from a broker
+        description: Fetch one survey object as the broker's provider returns
+          it, scoped to the programs the requester's streams grant.
         tags:
           - brokers
         responses:
@@ -435,34 +443,73 @@ class BrokerAlertsHandler(BaseHandler):
         params: dict[str, Any] = {
             k: self.get_argument(k) for k in self.request.arguments
         }
+        with self.Session() as session:
+            broker = _get_broker(self, session, broker_id)
+            if broker is None:
+                return self.error(f"No broker with id {broker_id}")
+            if not broker.active:
+                return self.error(f"Broker {broker.name} is not active")
+            if not broker.broker_class.implements()["get_alert"]:
+                return self.error(f"Broker {broker.name} does not support 'get_alert'.")
+
+            params["permissions"] = alert_permissions(self.current_user, session)
+            try:
+                data = await IOLoop.current().run_in_executor(
+                    None,
+                    lambda: broker.broker_class.get_alert(
+                        broker, object_id, session, **params
+                    ),
+                )
+            except NotImplementedError:
+                return self.error(f"Broker {broker.name} does not support 'get_alert'.")
+            except Exception as e:
+                return self.error(f"Error querying broker {broker.name}: {e}")
+            return self.success(data=data)
+
+
+class BrokerAlertsHandler(BaseHandler):
+    @auth_or_token
+    def get(self, broker_id: int, *, query: BrokerAlertsGetQuery = None):
+        """
+        ---
+        summary: Query broker alerts
+        description: Search a broker's alerts by objectId, candid or
+          ra/dec/radius. Records come back as the broker's provider returns
+          them, and jd_start/jd_end apply only where the provider supports them.
+        tags:
+          - brokers
+        responses:
+          200:
+            content:
+              application/json:
+                schema: Success
+          400:
+            content:
+              application/json:
+                schema: Error
+        """
+        query = self.parse_query(BrokerAlertsGetQuery)
+        params: dict[str, Any] = query.model_dump(exclude_none=True)
 
         with self.Session() as session:
-            broker = session.scalars(
-                Broker.select(self.current_user).where(Broker.id == int(broker_id))
-            ).first()
+            broker = _get_broker(self, session, broker_id)
             if broker is None:
                 return self.error(f"No broker with id {broker_id}")
             if not broker.active:
                 return self.error(f"Broker {broker.name} is not active")
 
-            operation = "get_alert" if alert_id is not None else "query_alerts"
-            if not broker.broker_class.implements()[operation]:
+            if not broker.broker_class.implements()["query_alerts"]:
                 return self.error(
-                    f"Broker {broker.name} does not support '{operation}'."
+                    f"Broker {broker.name} does not support 'query_alerts'."
                 )
 
             params["permissions"] = alert_permissions(self.current_user, session)
 
             try:
-                if alert_id is not None:
-                    data = broker.broker_class.get_alert(
-                        broker, alert_id, session, **params
-                    )
-                else:
-                    data = broker.broker_class.query_alerts(broker, session, **params)
+                data = broker.broker_class.query_alerts(broker, session, **params)
             except NotImplementedError:
                 return self.error(
-                    f"Broker {broker.name} does not support '{operation}'."
+                    f"Broker {broker.name} does not support 'query_alerts'."
                 )
             except Exception as e:
                 return self.error(f"Error querying broker {broker.name}: {e}")
@@ -656,12 +703,12 @@ class BrokerConeSearchHandler(BaseHandler):
 class BrokerSaveHandler(BaseHandler):
     @permissions(["Upload data"])
     async def post(
-        self, broker_id: int, alert_id: AlertId, *, body: BrokerSaveBody = None
+        self, broker_id: int, object_id: ObjectId, *, body: BrokerSaveBody = None
     ):
         """
         ---
-        summary: Save a broker alert as a source
-        description: Ingest an alert/object from a broker into skyportal as an
+        summary: Save a broker object as a source
+        description: Ingest an object from a broker into skyportal as an
           Obj/Source with photometry, dispatched to the broker's provider.
         tags:
           - brokers
@@ -717,7 +764,7 @@ class BrokerSaveHandler(BaseHandler):
             try:
                 result = await broker.broker_class.save_as_source(
                     broker,
-                    alert_id,
+                    object_id,
                     session,
                     user,
                     group_ids,
@@ -735,7 +782,7 @@ class BrokerPhotometryHandler(BaseHandler):
     async def get(
         self,
         broker_id: int,
-        alert_id: AlertId,
+        object_id: ObjectId,
         *,
         query: BrokerPhotometryGetQuery = None,
     ):
@@ -778,7 +825,7 @@ class BrokerPhotometryHandler(BaseHandler):
                 return self.error(f"Broker {broker.name} is not active")
             if not broker.broker_class.implements()["get_photometry"]:
                 return self.error(f"Broker {broker.name} does not support photometry.")
-            return await self._respond_photometry(session, broker, alert_id, query)
+            return await self._respond_photometry(session, broker, object_id, query)
 
     async def _respond_photometry(
         self, session, broker, object_id, query, *, degrade=False

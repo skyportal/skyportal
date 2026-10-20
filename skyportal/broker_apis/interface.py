@@ -109,12 +109,14 @@ class BrokerAPI(_Base):
 
     @staticmethod
     def get_alert(broker, alert_id, session, **kwargs):
-        """Return a single alert (with auxiliary/history data if available)."""
+        """Return one object (``alert_id`` = objectId), with its detection
+        history if available."""
         raise NotImplementedError
 
     @staticmethod
     def get_cutouts(broker, alert_id, session, **kwargs):
-        """Return the science/template/difference cutouts for an alert."""
+        """Return the science/template/difference cutouts for an alert, keyed by
+        the candid or the objectId depending on the provider."""
         raise NotImplementedError
 
     @staticmethod

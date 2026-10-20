@@ -42,6 +42,7 @@ from skyportal.handlers.api import (
     BrokerFilterTestHandler,
     BrokerFilterValidateHandler,
     BrokerHandler,
+    BrokerObjectHandler,
     BrokerPhotometryHandler,
     BrokerSaveHandler,
     BulkDataShareHandler,
@@ -360,6 +361,7 @@ skyportal_handlers = [
     (r"/api/brokers/([0-9]+)/filters(?:/([0-9]+))?", BrokerFiltersHandler),
     (r"/api/brokers/([0-9]+)/alerts/([^/]+)/cutouts", BrokerCutoutsHandler),
     (r"/api/brokers/([0-9]+)/cone_search", BrokerConeSearchHandler),
+    (r"/api/brokers/([0-9]+)/objects/([^/]+)/photometry", BrokerPhotometryHandler),
     (r"/api/brokers/([0-9]+)/alerts/([^/]+)/photometry", BrokerPhotometryHandler),
     # Before the bare photometry route below, whose [^/]+ would otherwise
     # swallow the id and never reach this one.
@@ -369,8 +371,11 @@ skyportal_handlers = [
     (r"/api/brokers/photometry/alert", PhotometryAlertHandler),
     # non-numeric, so this never shadows the numeric /api/brokers/{id} routes
     (r"/api/brokers/photometry/([^/]+)", BrokerDefaultPhotometryHandler),
+    (r"/api/brokers/([0-9]+)/objects/([^/]+)/save", BrokerSaveHandler),
     (r"/api/brokers/([0-9]+)/alerts/([^/]+)/save", BrokerSaveHandler),
-    (r"/api/brokers/([0-9]+)/alerts(?:/(.+))?", BrokerAlertsHandler),
+    (r"/api/brokers/([0-9]+)/objects/([^/]+)", BrokerObjectHandler),
+    (r"/api/brokers/([0-9]+)/alerts/(.+)", BrokerObjectHandler),
+    (r"/api/brokers/([0-9]+)/alerts", BrokerAlertsHandler),
     (r"/api/brokers(?:/([0-9]+))?", BrokerHandler),
     (r"/api/candidates_filter", CandidateFilterHandler),
     (r"/api/candidates/scan_reports/([0-9]+)/items(/[0-9]+)?", ScanReportItemHandler),

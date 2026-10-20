@@ -1306,21 +1306,17 @@ async def get_broker_alerts(handler, args):
     args = dict(args)
     broker_id = args.pop("broker_id")
     full = bool(args.pop("full", False))
-    candid = args.pop("candid", None)
     # The provider names it objectId; accept the snake_case form as well.
     object_id = args.pop("object_id", None)
     if object_id is not None:
         args.setdefault("objectId", object_id)
-    if candid is None and not args:
+    if not args:
         raise ToolError(
             "Give object_id, candid, or ra/dec/radius to search for alerts."
         )
 
     path = f"/api/brokers/{int(broker_id)}/alerts"
-    if candid is not None:
-        path += f"/{candid}"
-        args = {}
-    data = await handler.api("GET", path, query=args or None)
+    data = await handler.api("GET", path, query=args)
     return _summarize_alerts(data, full)
 
 

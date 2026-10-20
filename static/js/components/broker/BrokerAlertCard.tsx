@@ -16,7 +16,7 @@ import { Link } from "react-router-dom";
 import { makeStyles } from "tss-react/mui";
 
 import {
-  useGetBrokerAlertQuery,
+  useGetBrokerObjectQuery,
   useGetSourceIfSavedQuery,
 } from "../../ducks/brokers";
 import CutoutTriplet from "./CutoutTriplet";
@@ -126,8 +126,8 @@ const BrokerAlertCard = ({
   // Full object (also used by the light curve; RTK dedupes the request). For
   // brokers whose alert rows omit ra/dec/candid (e.g. Lasair cone results), we
   // fall back to the fetched object's candidate.
-  const { data: alertData } = useGetBrokerAlertQuery(
-    { brokerId, alertId: objectId },
+  const { data: alertData } = useGetBrokerObjectQuery(
+    { brokerId, objectId },
     { skip: !objectId },
   );
   const cand = alertData?.candidate ?? {};

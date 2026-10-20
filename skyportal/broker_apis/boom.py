@@ -657,15 +657,20 @@ class BOOMBROKER(BrokerAPI):
         catalog = f"{survey}_alerts"
         ra, dec, radius = kwargs.get("ra"), kwargs.get("dec"), kwargs.get("radius")
         scope = {**_scope_filter(kwargs, survey), **_epoch_filter(kwargs)}
+        candid = kwargs.get("candid")
 
-        if object_id:
+        if object_id or candid:
+            if object_id:
+                match = {"objectId": _object_id_clause(object_id)}
+            else:
+                match = {"_id": int(candid) if str(candid).isdigit() else candid}
             result = _request(
                 broker,
                 "POST",
                 "queries/find",
                 json={
                     "catalog_name": catalog,
-                    "filter": {"objectId": _object_id_clause(object_id), **scope},
+                    "filter": {**match, **scope},
                     "projection": NO_CUTOUT_PROJECTION,
                     "max_time_ms": 10000,
                 },
@@ -694,7 +699,7 @@ class BOOMBROKER(BrokerAPI):
             if survey == "DECAM" and isinstance(result, list):
                 result = [_decam_to_standard(r) for r in result]
             return result
-        raise ValueError("Provide objectId, or ra+dec+radius.")
+        raise ValueError("Provide objectId, candid, or ra+dec+radius.")
 
     @staticmethod
     def get_alert(broker, alert_id, session, **kwargs):
