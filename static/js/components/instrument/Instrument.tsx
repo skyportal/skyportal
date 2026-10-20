@@ -229,10 +229,9 @@ const Instrument = ({ route }: InstrumentProps) => {
       {tab === 0 && (
         <Box
           sx={{
-            display: "grid",
-            gridTemplateColumns: { xs: "1fr", lg: "1fr 1fr" },
-            gap: 2,
-            alignItems: "start",
+            columnCount: { xs: 1, lg: 2 },
+            columnGap: 2,
+            "& > *": { breakInside: "avoid", mb: 2 },
           }}
         >
           <Section title="Details">
