@@ -13,6 +13,8 @@ import Slider from "@mui/material/Slider";
 import Button from "./Button";
 import Tab from "@mui/material/Tab";
 import Tabs from "@mui/material/Tabs";
+import ToggleButton from "@mui/material/ToggleButton";
+import ToggleButtonGroup from "@mui/material/ToggleButtonGroup";
 import CircularProgress from "@mui/material/CircularProgress";
 import Box from "@mui/material/Box";
 import Autocomplete from "@mui/material/Autocomplete";
@@ -23,7 +25,6 @@ import Plotly from "./plot/plotlyScatter3d";
 import ClassificationSelect from "./classification/ClassificationSelect";
 import VegaPhotometry from "./plot/VegaPhotometry";
 import SpectraAggregation from "./SpectraAggregation";
-import SegmentedControl from "./SegmentedControl";
 import { useGetGroupsQuery } from "../ducks/groups";
 import { useGetSourcePhotometryOverlayQuery } from "../ducks/photometry_minimal";
 import { smoothing_func } from "../utils";
@@ -91,7 +92,6 @@ const SourceIdAutocomplete = ({
     <Autocomplete
       multiple
       freeSolo
-      size="small"
       sx={sx}
       options={options}
       loading={loading}
@@ -364,21 +364,10 @@ const MAGNITUDE_FIELDS = new Set([
   "deepest_limit_global",
 ]);
 
-const SOURCE_MODES = [
-  { value: "classification", label: "Classification" },
-  { value: "group", label: "Group" },
-  { value: "objects", label: "Object list" },
-] as const;
-
-const ALIGN_MODES = [
-  { value: "none", label: "MJD" },
-  { value: "peak", label: "Peak" },
-  { value: "first", label: "First" },
-] as const;
-
 const useStyles = makeStyles()((theme) => ({
   control: {
-    minWidth: "12rem",
+    flex: "1 1 12rem",
+    maxWidth: "18rem",
   },
   headerRow: {
     display: "flex",
@@ -602,7 +591,7 @@ const SourceStatistics = () => {
     onChange: (v: string) => void,
     includeNone = false,
   ) => (
-    <FormControl className={classes.control} size="small">
+    <FormControl className={classes.control}>
       <InputLabel>{label}</InputLabel>
       <Select
         label={label}
@@ -635,11 +624,16 @@ const SourceStatistics = () => {
         }
         label="Extinction"
       />
-      <SegmentedControl
+      <ToggleButtonGroup
+        size="small"
+        exclusive
         value={alignMode}
-        onChange={setAlignMode}
-        options={ALIGN_MODES}
-      />
+        onChange={(_e, v) => v && setAlignMode(v)}
+      >
+        <ToggleButton value="none">MJD</ToggleButton>
+        <ToggleButton value="peak">Peak</ToggleButton>
+        <ToggleButton value="first">First</ToggleButton>
+      </ToggleButtonGroup>
       <Box sx={{ width: "9rem", display: "flex", flexDirection: "column" }}>
         <Typography variant="caption">Smoothing: {smoothWindow}</Typography>
         <Slider
@@ -672,13 +666,18 @@ const SourceStatistics = () => {
 
       <Paper sx={{ p: 2, display: "flex", flexDirection: "column", gap: 2 }}>
         <Box className={classes.controlRow}>
-          <SegmentedControl
+          <ToggleButtonGroup
+            size="small"
+            exclusive
             value={sourceMode}
-            onChange={setSourceMode}
-            options={SOURCE_MODES}
-          />
+            onChange={(_e, v) => v && setSourceMode(v)}
+          >
+            <ToggleButton value="classification">Classification</ToggleButton>
+            <ToggleButton value="group">Group</ToggleButton>
+            <ToggleButton value="objects">Object list</ToggleButton>
+          </ToggleButtonGroup>
           {sourceMode === "classification" && (
-            <Box className={classes.control}>
+            <Box sx={{ flex: "1 1 18rem", maxWidth: "32rem" }}>
               <ClassificationSelect
                 selectedClassifications={selectedClassifications}
                 setSelectedClassifications={setSelectedClassifications}
@@ -686,7 +685,7 @@ const SourceStatistics = () => {
             </Box>
           )}
           {sourceMode === "group" && (
-            <FormControl size="small" className={classes.control}>
+            <FormControl sx={{ flex: "1 1 18rem", maxWidth: "32rem" }}>
               <InputLabel>Group</InputLabel>
               <Select
                 label="Group"
@@ -705,7 +704,7 @@ const SourceStatistics = () => {
             <SourceIdAutocomplete
               value={objIds}
               onChange={setObjIds}
-              sx={{ minWidth: "22rem" }}
+              sx={{ flex: "1 1 22rem", maxWidth: "40rem" }}
             />
           )}
           {sourceMode === "classification" && (

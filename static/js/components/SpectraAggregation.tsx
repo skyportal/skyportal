@@ -10,11 +10,12 @@ import Select from "@mui/material/Select";
 import Slider from "@mui/material/Slider";
 import Switch from "@mui/material/Switch";
 import TextField from "@mui/material/TextField";
+import ToggleButton from "@mui/material/ToggleButton";
+import ToggleButtonGroup from "@mui/material/ToggleButtonGroup";
 import Typography from "@mui/material/Typography";
 
 import createPlotlyComponent from "react-plotly.js/factory";
 import Plotly from "./plot/plotlyScatter3d";
-import SegmentedControl from "./SegmentedControl";
 import {
   useGetBulkSpectraQuery,
   type BulkSpectraArgs,
@@ -33,11 +34,6 @@ const MAX_SOURCES = 300;
 
 type T0Mode = "first" | "peak" | "tns";
 type Display = "waterfall" | "color";
-
-const DISPLAYS = [
-  { value: "waterfall", label: "Waterfall" },
-  { value: "color", label: "Color by phase" },
-] as const;
 
 const median = (arr: number[]): number | null => {
   const v = arr.filter((x) => Number.isFinite(x)).sort((a, b) => a - b);
@@ -306,11 +302,15 @@ const SpectraAggregation = ({ points }: { points: PhotStatPoint[] }) => {
             <MenuItem value="tns">TNS discovery</MenuItem>
           </Select>
         </FormControl>
-        <SegmentedControl
+        <ToggleButtonGroup
+          size="small"
+          exclusive
           value={display}
-          onChange={setDisplay}
-          options={DISPLAYS}
-        />
+          onChange={(_e, v) => v && setDisplay(v)}
+        >
+          <ToggleButton value="waterfall">Waterfall</ToggleButton>
+          <ToggleButton value="color">Color by phase</ToggleButton>
+        </ToggleButtonGroup>
         <FormControlLabel
           control={
             <Switch
