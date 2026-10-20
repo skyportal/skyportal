@@ -137,6 +137,16 @@ class InvitationHandler(BaseHandler):
                 if len(values) != len(groups):
                     return self.error(f"{name} and groupIDs must be the same length")
 
+            # Stored in group id order, the order `Invitation.groups` loads in.
+            rows = sorted(
+                zip(groups, admin_for_groups, can_save, can_share_photometry),
+                key=lambda row: row[0].id,
+            )
+            groups = [row[0] for row in rows]
+            admin_for_groups = [row[1] for row in rows]
+            can_save = [row[2] for row in rows]
+            can_share_photometry = [row[3] for row in rows]
+
             invite_token = str(uuid.uuid4())
             # Re-fetch the inviting user via the current async session so
             # invited_by points at a session-attached User (the request's
@@ -235,6 +245,7 @@ class InvitationHandler(BaseHandler):
 
             count_stmt = sa.select(func.count()).select_from(stmt)
             total_matches = await session.scalar(count_stmt)
+            stmt = stmt.order_by(Invitation.created_at.desc(), Invitation.id.desc())
             if query.numPerPage is not None:
                 stmt = stmt.limit(query.numPerPage).offset(
                     (query.pageNumber - 1) * query.numPerPage
@@ -354,8 +365,10 @@ class InvitationHandler(BaseHandler):
                     "stream IDs list. Please try again."
                 )
             if group_ids is not None:
-                # The flag arrays are positional against `groups`, so they have
-                # to be rebuilt with it; a group that stays keeps its flags.
+                # The flag arrays are positional against `groups` in id order,
+                # so they have to be rebuilt with it; a group that stays keeps
+                # its flags.
+                groups = sorted(groups, key=lambda group: group.id)
                 previous = {
                     group.id: flags
                     for group, *flags in zip(
