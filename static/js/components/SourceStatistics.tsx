@@ -11,8 +11,8 @@ import FormControlLabel from "@mui/material/FormControlLabel";
 import Switch from "@mui/material/Switch";
 import Slider from "@mui/material/Slider";
 import Button from "./Button";
-import ToggleButton from "@mui/material/ToggleButton";
-import ToggleButtonGroup from "@mui/material/ToggleButtonGroup";
+import Tab from "@mui/material/Tab";
+import Tabs from "@mui/material/Tabs";
 import CircularProgress from "@mui/material/CircularProgress";
 import Box from "@mui/material/Box";
 import Autocomplete from "@mui/material/Autocomplete";
@@ -23,6 +23,7 @@ import Plotly from "./plot/plotlyScatter3d";
 import ClassificationSelect from "./classification/ClassificationSelect";
 import VegaPhotometry from "./plot/VegaPhotometry";
 import SpectraAggregation from "./SpectraAggregation";
+import SegmentedControl from "./SegmentedControl";
 import { useGetGroupsQuery } from "../ducks/groups";
 import { useGetSourcePhotometryOverlayQuery } from "../ducks/photometry_minimal";
 import { smoothing_func } from "../utils";
@@ -90,7 +91,6 @@ const SourceIdAutocomplete = ({
     <Autocomplete
       multiple
       freeSolo
-      size="small"
       sx={sx}
       options={options}
       loading={loading}
@@ -363,9 +363,22 @@ const MAGNITUDE_FIELDS = new Set([
   "deepest_limit_global",
 ]);
 
+const SOURCE_MODES = [
+  { value: "classification", label: "Classification" },
+  { value: "group", label: "Group" },
+  { value: "objects", label: "Object list" },
+] as const;
+
+const ALIGN_MODES = [
+  { value: "none", label: "MJD" },
+  { value: "peak", label: "Peak" },
+  { value: "first", label: "First" },
+] as const;
+
 const useStyles = makeStyles()((theme) => ({
   control: {
-    minWidth: "12rem",
+    flex: "1 1 12rem",
+    maxWidth: "18rem",
   },
   headerRow: {
     display: "flex",
@@ -373,6 +386,12 @@ const useStyles = makeStyles()((theme) => ({
     justifyContent: "space-between",
     flexWrap: "wrap",
     gap: "0.5rem",
+  },
+  controlRow: {
+    display: "flex",
+    flexWrap: "wrap",
+    alignItems: "center",
+    gap: "1rem",
   },
   selected: {
     padding: "1rem",
@@ -583,7 +602,7 @@ const SourceStatistics = () => {
     onChange: (v: string) => void,
     includeNone = false,
   ) => (
-    <FormControl className={classes.control} size="small">
+    <FormControl className={classes.control}>
       <InputLabel>{label}</InputLabel>
       <Select
         label={label}
@@ -616,16 +635,11 @@ const SourceStatistics = () => {
         }
         label="Extinction"
       />
-      <ToggleButtonGroup
-        size="small"
-        exclusive
+      <SegmentedControl
         value={alignMode}
-        onChange={(_e, v) => v && setAlignMode(v)}
-      >
-        <ToggleButton value="none">MJD</ToggleButton>
-        <ToggleButton value="peak">Peak</ToggleButton>
-        <ToggleButton value="first">First</ToggleButton>
-      </ToggleButtonGroup>
+        onChange={setAlignMode}
+        options={ALIGN_MODES}
+      />
       <Box sx={{ width: "9rem", display: "flex", flexDirection: "column" }}>
         <Typography variant="caption">Smoothing: {smoothWindow}</Typography>
         <Slider
@@ -656,142 +670,140 @@ const SourceStatistics = () => {
         only.
       </Typography>
 
-      <Paper
-        sx={{
-          display: "flex",
-          flexWrap: "wrap",
-          alignItems: "flex-end",
-          gap: "1rem",
-          p: "1rem",
-        }}
-      >
-        <ToggleButtonGroup
-          size="small"
-          exclusive
-          value={sourceMode}
-          onChange={(_e, v) => v && setSourceMode(v)}
-        >
-          <ToggleButton value="classification">Classification</ToggleButton>
-          <ToggleButton value="group">Group</ToggleButton>
-          <ToggleButton value="objects">Object list</ToggleButton>
-        </ToggleButtonGroup>
-        {sourceMode === "classification" && (
-          <Box className={classes.control}>
-            <ClassificationSelect
-              selectedClassifications={selectedClassifications}
-              setSelectedClassifications={setSelectedClassifications}
-            />
-          </Box>
-        )}
-        {sourceMode === "group" && (
-          <FormControl size="small" className={classes.control}>
-            <InputLabel>Group</InputLabel>
-            <Select
-              label="Group"
-              value={selectGroupId}
-              onChange={(e) => setSelectGroupId(e.target.value as number)}
-            >
-              {(groupsData?.userAccessible || []).map((g) => (
-                <MenuItem key={g.id} value={g.id}>
-                  {g.name}
-                </MenuItem>
-              ))}
-            </Select>
-          </FormControl>
-        )}
-        {sourceMode === "objects" && (
-          <SourceIdAutocomplete
-            value={objIds}
-            onChange={setObjIds}
-            sx={{ minWidth: "22rem" }}
+      <Paper sx={{ p: 2, display: "flex", flexDirection: "column", gap: 2 }}>
+        <Box className={classes.controlRow}>
+          <SegmentedControl
+            value={sourceMode}
+            onChange={setSourceMode}
+            options={SOURCE_MODES}
           />
-        )}
-        {axisSelect("X axis", xField, setXField)}
-        {axisSelect("Y axis", yField, setYField)}
-        {axisSelect("Z axis", zField, setZField, true)}
-        {sourceMode === "classification" && (
-          <Box
-            sx={{ minWidth: "12rem", display: "flex", flexDirection: "column" }}
+          {sourceMode === "classification" && (
+            <Box sx={{ flex: "1 1 18rem", maxWidth: "32rem" }}>
+              <ClassificationSelect
+                selectedClassifications={selectedClassifications}
+                setSelectedClassifications={setSelectedClassifications}
+              />
+            </Box>
+          )}
+          {sourceMode === "group" && (
+            <FormControl sx={{ flex: "1 1 18rem", maxWidth: "32rem" }}>
+              <InputLabel>Group</InputLabel>
+              <Select
+                label="Group"
+                value={selectGroupId}
+                onChange={(e) => setSelectGroupId(e.target.value as number)}
+              >
+                {(groupsData?.userAccessible || []).map((g) => (
+                  <MenuItem key={g.id} value={g.id}>
+                    {g.name}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+          )}
+          {sourceMode === "objects" && (
+            <SourceIdAutocomplete
+              value={objIds}
+              onChange={setObjIds}
+              sx={{ flex: "1 1 22rem", maxWidth: "40rem" }}
+            />
+          )}
+          {sourceMode === "classification" && (
+            <Box sx={{ width: "14rem" }}>
+              <Typography variant="caption" color="text.secondary">
+                Min. probability: {probThreshold.toFixed(2)}
+              </Typography>
+              <Slider
+                size="small"
+                value={probThreshold}
+                onChange={(_e, v) => setProbThreshold(v as number)}
+                min={0}
+                max={1}
+                step={0.05}
+                valueLabelDisplay="auto"
+              />
+            </Box>
+          )}
+        </Box>
+        <Box className={classes.controlRow}>
+          {axisSelect("X axis", xField, setXField)}
+          {axisSelect("Y axis", yField, setYField)}
+          {axisSelect("Z axis", zField, setZField, true)}
+          {!is3d && (
+            <Box>
+              <FormControlLabel
+                control={
+                  <Switch
+                    checked={xLog}
+                    onChange={(e) => setXLog(e.target.checked)}
+                    size="small"
+                  />
+                }
+                label="log X"
+              />
+              <FormControlLabel
+                control={
+                  <Switch
+                    checked={yLog}
+                    onChange={(e) => setYLog(e.target.checked)}
+                    size="small"
+                  />
+                }
+                label="log Y"
+              />
+            </Box>
+          )}
+          <Button
+            primary
+            onClick={handlePlot}
+            disabled={!xField || !yField}
+            sx={{ ml: "auto" }}
           >
-            <Typography variant="caption">
-              Min. classification probability: {probThreshold.toFixed(2)}
-            </Typography>
-            <Slider
-              value={probThreshold}
-              onChange={(_e, v) => setProbThreshold(v as number)}
-              min={0}
-              max={1}
-              step={0.05}
-              valueLabelDisplay="auto"
-            />
-          </Box>
-        )}
-        {!is3d && (
-          <Box>
-            <FormControlLabel
-              control={
-                <Switch
-                  checked={xLog}
-                  onChange={(e) => setXLog(e.target.checked)}
-                  size="small"
-                />
-              }
-              label="log X"
-            />
-            <FormControlLabel
-              control={
-                <Switch
-                  checked={yLog}
-                  onChange={(e) => setYLog(e.target.checked)}
-                  size="small"
-                />
-              }
-              label="log Y"
-            />
-          </Box>
-        )}
-        <Button primary onClick={handlePlot} disabled={!xField || !yField}>
-          Plot
-        </Button>
+            Plot
+          </Button>
+        </Box>
       </Paper>
 
       {isFetching && <CircularProgress />}
 
       {data && queryArgs && !isFetching && (
-        <>
-          <Box className={classes.headerRow}>
-            <Typography variant="body2">
-              Showing {data.count.toLocaleString()} source
-              {data.count === 1 ? "" : "s"}.
+        <Paper>
+          <Box
+            sx={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              flexWrap: "wrap",
+              columnGap: 2,
+              px: 2,
+              minHeight: 48,
+              borderBottom: data.count > 0 ? 1 : 0,
+              borderColor: "divider",
+            }}
+          >
+            {data.count > 0 ? (
+              <Tabs value={viewMode} onChange={(_e, v) => setViewMode(v)}>
+                <Tab value="stats" label="Statistics" />
+                <Tab value="lightcurves" label="Light curves" />
+                <Tab value="overlay" label="Overlay" />
+                <Tab value="color" label="Color" />
+                <Tab value="spectra" label="Spectra" />
+              </Tabs>
+            ) : (
+              <Typography>No sources match the current selection.</Typography>
+            )}
+            <Typography variant="body2" color="text.secondary">
+              {data.count.toLocaleString()} source{data.count === 1 ? "" : "s"}
               {data.truncated && (
                 <span className={classes.warning}>
-                  {" "}
-                  Result truncated — narrow the selection to see all matches.
+                  , truncated: narrow the selection to see all
                 </span>
               )}
             </Typography>
-            {data.count > 0 && (
-              <ToggleButtonGroup
-                size="small"
-                exclusive
-                value={viewMode}
-                onChange={(_e, v) => v && setViewMode(v)}
-              >
-                <ToggleButton value="stats">Statistics</ToggleButton>
-                <ToggleButton value="lightcurves">Light curves</ToggleButton>
-                <ToggleButton value="overlay">Overlay</ToggleButton>
-                <ToggleButton value="color">Color</ToggleButton>
-                <ToggleButton value="spectra">Spectra</ToggleButton>
-              </ToggleButtonGroup>
-            )}
           </Box>
 
-          {data.count === 0 && (
-            <Typography>No sources match the current selection.</Typography>
-          )}
-
           {data.count > 0 && viewMode === "stats" && (
-            <Paper sx={{ p: "0.5rem" }}>
+            <Box sx={{ p: 1 }}>
               <Plot
                 data={traces as any}
                 layout={layout as any}
@@ -801,11 +813,11 @@ const SourceStatistics = () => {
                 onSelected={handleSelected}
                 config={{ displaylogo: false, responsive: true } as any}
               />
-            </Paper>
+            </Box>
           )}
 
           {data.count > 0 && viewMode === "lightcurves" && (
-            <Paper className={classes.selected}>
+            <Box className={classes.selected}>
               <Box className={classes.headerRow}>
                 <Typography variant="body2" color="textSecondary">
                   {selectedIds.length > 0
@@ -861,7 +873,7 @@ const SourceStatistics = () => {
                   </Paper>
                 ))}
               </Box>
-            </Paper>
+            </Box>
           )}
 
           {data.count > 0 && viewMode === "spectra" && (
@@ -870,7 +882,7 @@ const SourceStatistics = () => {
 
           {data.count > 0 &&
             (viewMode === "overlay" || viewMode === "color") && (
-              <Paper className={classes.selected}>
+              <Box className={classes.selected}>
                 <Box className={classes.headerRow}>
                   <Typography variant="body2" color="textSecondary">
                     {isColorView
@@ -950,9 +962,9 @@ const SourceStatistics = () => {
                   dmMap={dmMap}
                   onAvailableBands={handleAvailableBands}
                 />
-              </Paper>
+              </Box>
             )}
-        </>
+        </Paper>
       )}
 
       {selectedIds.length > 0 && (

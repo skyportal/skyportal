@@ -9,8 +9,6 @@ import MuiLink from "@mui/material/Link";
 import Paper from "@mui/material/Paper";
 import Tab from "@mui/material/Tab";
 import Tabs from "@mui/material/Tabs";
-import ToggleButton from "@mui/material/ToggleButton";
-import ToggleButtonGroup from "@mui/material/ToggleButtonGroup";
 import Tooltip from "@mui/material/Tooltip";
 import Typography from "@mui/material/Typography";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
@@ -647,16 +645,14 @@ const CandidateList = () => {
         <Typography variant="h5" sx={{ fontWeight: "bold" }}>
           Scan candidates
         </Typography>
-        <ToggleButtonGroup
-          size="small"
-          exclusive
+        <SegmentedControl
           value={scanMode}
-          onChange={(_event, value) => value && setScanMode(value)}
-          data-testid="candidate-scan-mode"
-        >
-          <ToggleButton value="objects">Sources</ToggleButton>
-          <ToggleButton value="tracks">Moving object tracks</ToggleButton>
-        </ToggleButtonGroup>
+          onChange={setScanMode}
+          options={[
+            { value: "objects", label: "Sources" },
+            { value: "tracks", label: "Moving object tracks" },
+          ]}
+        />
         <Box sx={{ ml: "auto", display: "flex", gap: 1 }}>
           <Tooltip title="Generate a report of saved candidates">
             <Button
@@ -732,27 +728,20 @@ const CandidateList = () => {
                   <Typography variant="body2" color="text.secondary">
                     Cards open on
                   </Typography>
-                  <Tooltip title="Tab each card opens on. Comments only when the candidate has some.">
-                    <ToggleButtonGroup
-                      size="small"
-                      exclusive
-                      value={preferences?.scanningFirstTab ?? "comments"}
-                      sx={{
-                        "& .MuiToggleButton-root": {
-                          textTransform: "none",
-                          py: 0.25,
-                        },
-                      }}
-                      onChange={(_event, value) =>
-                        value &&
-                        updateUserPreferences({ scanningFirstTab: value })
-                      }
-                    >
-                      <ToggleButton value="annotations">
-                        Annotations
-                      </ToggleButton>
-                      <ToggleButton value="comments">Comments</ToggleButton>
-                    </ToggleButtonGroup>
+                  <Tooltip title="Comments only when the candidate has some">
+                    <Box sx={{ display: "flex" }}>
+                      <SegmentedControl
+                        size="small"
+                        value={preferences?.scanningFirstTab ?? "comments"}
+                        onChange={(value) =>
+                          updateUserPreferences({ scanningFirstTab: value })
+                        }
+                        options={[
+                          { value: "annotations", label: "Annotations" },
+                          { value: "comments", label: "Comments" },
+                        ]}
+                      />
+                    </Box>
                   </Tooltip>
                 </Box>
                 <Tooltip title="Sort on Selected Annotation">

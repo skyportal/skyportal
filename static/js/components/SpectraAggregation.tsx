@@ -6,17 +6,15 @@ import FormControl from "@mui/material/FormControl";
 import FormControlLabel from "@mui/material/FormControlLabel";
 import InputLabel from "@mui/material/InputLabel";
 import MenuItem from "@mui/material/MenuItem";
-import Paper from "@mui/material/Paper";
 import Select from "@mui/material/Select";
 import Slider from "@mui/material/Slider";
 import Switch from "@mui/material/Switch";
 import TextField from "@mui/material/TextField";
-import ToggleButton from "@mui/material/ToggleButton";
-import ToggleButtonGroup from "@mui/material/ToggleButtonGroup";
 import Typography from "@mui/material/Typography";
 
 import createPlotlyComponent from "react-plotly.js/factory";
 import Plotly from "./plot/plotlyScatter3d";
+import SegmentedControl from "./SegmentedControl";
 import {
   useGetBulkSpectraQuery,
   type BulkSpectraArgs,
@@ -35,6 +33,11 @@ const MAX_SOURCES = 300;
 
 type T0Mode = "first" | "peak" | "tns";
 type Display = "waterfall" | "color";
+
+const DISPLAYS = [
+  { value: "waterfall", label: "Waterfall" },
+  { value: "color", label: "Color by phase" },
+] as const;
 
 const median = (arr: number[]): number | null => {
   const v = arr.filter((x) => Number.isFinite(x)).sort((a, b) => a - b);
@@ -281,11 +284,11 @@ const SpectraAggregation = ({ points }: { points: PhotStatPoint[] }) => {
   );
 
   return (
-    <Paper sx={{ p: 1 }}>
+    <Box sx={{ p: 2 }}>
       <Box
         sx={{
           display: "flex",
-          gap: 2,
+          gap: 1.5,
           alignItems: "center",
           flexWrap: "wrap",
           mb: 1,
@@ -303,15 +306,11 @@ const SpectraAggregation = ({ points }: { points: PhotStatPoint[] }) => {
             <MenuItem value="tns">TNS discovery</MenuItem>
           </Select>
         </FormControl>
-        <ToggleButtonGroup
-          size="small"
-          exclusive
+        <SegmentedControl
           value={display}
-          onChange={(_e, v) => v && setDisplay(v)}
-        >
-          <ToggleButton value="waterfall">Waterfall</ToggleButton>
-          <ToggleButton value="color">Color by phase</ToggleButton>
-        </ToggleButtonGroup>
+          onChange={setDisplay}
+          options={DISPLAYS}
+        />
         <FormControlLabel
           control={
             <Switch
@@ -332,7 +331,7 @@ const SpectraAggregation = ({ points }: { points: PhotStatPoint[] }) => {
           }
           label="Normalize"
         />
-        <Box sx={{ width: "9rem", display: "flex", flexDirection: "column" }}>
+        <Box sx={{ width: "7rem", display: "flex", flexDirection: "column" }}>
           <Typography variant="caption">
             Clip spikes: {clipPct === 0 ? "off" : `${clipPct}%`}
           </Typography>
@@ -346,7 +345,7 @@ const SpectraAggregation = ({ points }: { points: PhotStatPoint[] }) => {
             valueLabelDisplay="auto"
           />
         </Box>
-        <Box sx={{ width: "9rem", display: "flex", flexDirection: "column" }}>
+        <Box sx={{ width: "7rem", display: "flex", flexDirection: "column" }}>
           <Typography variant="caption">Smoothing: {smoothWindow}</Typography>
           <Slider
             size="small"
@@ -359,7 +358,7 @@ const SpectraAggregation = ({ points }: { points: PhotStatPoint[] }) => {
           />
         </Box>
         {display === "waterfall" && (
-          <Box sx={{ width: "9rem", display: "flex", flexDirection: "column" }}>
+          <Box sx={{ width: "7rem", display: "flex", flexDirection: "column" }}>
             <Typography variant="caption">
               Offset: {offsetMult.toFixed(1)}×
             </Typography>
@@ -397,7 +396,7 @@ const SpectraAggregation = ({ points }: { points: PhotStatPoint[] }) => {
         spectra from {nSources} source{nSources === 1 ? "" : "s"}. Sources
         without a {t0Label[t0Mode]} are omitted.
         {data?.truncated
-          ? " Result truncated — narrow the selection to see everything."
+          ? " Result truncated, narrow the selection to see everything."
           : ""}
       </Typography>
 
@@ -416,7 +415,7 @@ const SpectraAggregation = ({ points }: { points: PhotStatPoint[] }) => {
           config={{ displaylogo: false, responsive: true } as any}
         />
       )}
-    </Paper>
+    </Box>
   );
 };
 

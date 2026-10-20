@@ -1,27 +1,26 @@
 import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { makeStyles } from "tss-react/mui";
+import Box from "@mui/material/Box";
 import Paper from "@mui/material/Paper";
 import Typography from "@mui/material/Typography";
 import Chip from "@mui/material/Chip";
-import Grid from "@mui/material/Grid";
 import Tooltip from "@mui/material/Tooltip";
-import ToggleButton from "@mui/material/ToggleButton";
-import ToggleButtonGroup from "@mui/material/ToggleButtonGroup";
 import Plotly from "plotly.js-basic-dist";
 import createPlotlyComponent from "react-plotly.js/factory";
 
-import StyledDataGrid from "../StyledDataGrid";
+import StyledDataGrid, { DataGridToolbar } from "../StyledDataGrid";
+import SegmentedControl from "../SegmentedControl";
 import { useGetAllObservationPlanRequestsQuery } from "../../ducks/observationPlans";
-
-const useStyles = makeStyles()(() => ({
-  root: { width: "100%" },
-}));
 
 const Plot: any = createPlotlyComponent(Plotly);
 
 const HOUR_MS = 3600 * 1000;
 const DAY_MS = 24 * HOUR_MS;
+const HEALTH_WINDOWS = [
+  { value: DAY_MS, label: "24 hours" },
+  { value: 7 * DAY_MS, label: "7 days" },
+  { value: 30 * DAY_MS, label: "30 days" },
+];
 const COMPLETED_COLOR = "#2e7d32";
 const ACTIVE_COLOR = "#ed6c02";
 const FAILED_COLOR = "#d32f2f";
@@ -61,9 +60,9 @@ const HealthTile = ({
 }) => (
   <Paper
     variant="outlined"
-    style={{ padding: "0.5rem 1rem", textAlign: "center", minWidth: "6.5rem" }}
+    sx={{ py: 1, px: 2, textAlign: "center", minWidth: "6.5rem" }}
   >
-    <Typography variant="h6" style={color ? { color } : undefined}>
+    <Typography variant="h5" sx={{ color }}>
       {value}
     </Typography>
     <Typography variant="caption">{label}</Typography>
@@ -98,37 +97,33 @@ const ObservationPlanHealth = ({ requests }: { requests: any[] }) => {
   const nonZero = tiles.filter((t) => t.value > 0);
 
   return (
-    <Paper style={{ padding: "1rem", marginBottom: "1rem" }}>
-      <div
-        style={{
+    <Paper sx={{ p: 2 }}>
+      <Box
+        sx={{
           display: "flex",
+          justifyContent: "space-between",
           alignItems: "center",
           flexWrap: "wrap",
-          gap: "1rem",
+          gap: 1,
         }}
       >
         <Typography variant="h6">Queue health</Typography>
-        <ToggleButtonGroup
-          size="small"
-          exclusive
+        <SegmentedControl
           value={windowMs}
-          onChange={(_e, v) => v && setWindowMs(v)}
-        >
-          <ToggleButton value={DAY_MS}>24h</ToggleButton>
-          <ToggleButton value={7 * DAY_MS}>7d</ToggleButton>
-          <ToggleButton value={30 * DAY_MS}>30d</ToggleButton>
-        </ToggleButtonGroup>
-      </div>
-      <div
-        style={{
+          onChange={setWindowMs}
+          options={HEALTH_WINDOWS}
+        />
+      </Box>
+      <Box
+        sx={{
           display: "flex",
           flexWrap: "wrap",
-          gap: "1rem",
+          gap: 2,
           alignItems: "center",
-          marginTop: "0.5rem",
+          mt: 1,
         }}
       >
-        <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap" }}>
+        <Box sx={{ display: "flex", gap: 1.5, flexWrap: "wrap" }}>
           <HealthTile label="Total" value={total} />
           {nonZero.map((s) => (
             <HealthTile
@@ -139,11 +134,11 @@ const ObservationPlanHealth = ({ requests }: { requests: any[] }) => {
             />
           ))}
           <HealthTile label="Slowest (min)" value={Math.round(slowest / 60)} />
-        </div>
-        <div style={{ flex: "1 1 260px", minWidth: 240 }}>
+        </Box>
+        <Box sx={{ flex: "1 1 260px", minWidth: 240 }}>
           {total === 0 ? (
-            <Typography variant="body2" style={{ fontStyle: "italic" }}>
-              No observation plan requests in this window.
+            <Typography variant="body2" color="text.secondary">
+              No observation plan requests in this window
             </Typography>
           ) : (
             <Plot
@@ -167,14 +162,17 @@ const ObservationPlanHealth = ({ requests }: { requests: any[] }) => {
               style={{ width: "100%" }}
             />
           )}
-        </div>
-      </div>
+        </Box>
+      </Box>
     </Paper>
   );
 };
 
+const ObservationPlanRequestsToolbar = () => (
+  <DataGridToolbar title="Observation Plan Requests" />
+);
+
 const ObservationPlanRequestPage = () => {
-  const { classes } = useStyles();
   const { data } = useGetAllObservationPlanRequestsQuery({ numPerPage: 500 });
   const requests = useMemo(() => (data?.requests as any[]) || [], [data]);
 
@@ -241,25 +239,20 @@ const ObservationPlanRequestPage = () => {
   ];
 
   return (
-    <Grid container spacing={3}>
-      <Grid size={12}>
-        <div className={classes.root}>
-          <ObservationPlanHealth requests={requests} />
-          <Paper>
-            <Typography variant="h6">Observation Plan Requests</Typography>
-            <StyledDataGrid
-              autoHeight
-              rows={rows}
-              columns={columns}
-              getRowId={(row: any) => row.id}
-              initialState={{
-                sorting: { sortModel: [{ field: "created_at", sort: "desc" }] },
-              }}
-            />
-          </Paper>
-        </div>
-      </Grid>
-    </Grid>
+    <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
+      <ObservationPlanHealth requests={requests} />
+      <StyledDataGrid
+        autoHeight
+        rows={rows}
+        columns={columns}
+        getRowId={(row: any) => row.id}
+        showToolbar
+        slots={{ toolbar: ObservationPlanRequestsToolbar }}
+        initialState={{
+          sorting: { sortModel: [{ field: "created_at", sort: "desc" }] },
+        }}
+      />
+    </Box>
   );
 };
 
