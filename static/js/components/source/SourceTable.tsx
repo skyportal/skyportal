@@ -52,7 +52,7 @@ import StyledDataGrid, {
   DataGridToolbar,
   FULL_PAGE_HEIGHT,
 } from "../StyledDataGrid";
-import ExpandableCell from "../ExpandableCell";
+import ExpandableCell, { ExpandableColumnHeader } from "../ExpandableCell";
 import DisplayPhotStats from "./DisplayPhotStats";
 
 import { dec_to_dms, mjd_to_utc, ra_to_hours } from "../../units";
@@ -254,12 +254,7 @@ const SourceTableToolbar = ({
   const [columnAnchor, setColumnAnchor] = useState<HTMLElement | null>(null);
 
   return (
-    <DataGridToolbar
-      title={title}
-      showExport={false}
-      showQuickFilter={false}
-      showExpandAll
-    >
+    <DataGridToolbar title={title} showExport={false} showQuickFilter={false}>
       {columnPickerOptions.length > 0 && (
         <>
           <Tooltip title="Add an annotation or altdata column">
@@ -834,8 +829,12 @@ const SourceTable = ({
         headerName: "Tags",
         minWidth: 150,
         sortable: false,
+        renderHeader: () => (
+          <ExpandableColumnHeader column="tags" label="Tags" />
+        ),
         renderCell: ({ row }: any) => (
           <ExpandableCell
+            column="tags"
             items={(row.tags ?? []).map((tag: any) => {
               const color =
                 tagOptions.find((o: any) => o.id === tag.objtagoption_id)
@@ -882,8 +881,12 @@ const SourceTable = ({
         headerName: "Groups",
         minWidth: 150,
         sortable: false,
+        renderHeader: () => (
+          <ExpandableColumnHeader column="groups" label="Groups" />
+        ),
         renderCell: ({ row }: any) => (
           <ExpandableCell
+            column="groups"
             items={(row.groups ?? [])
               .filter((group: any) => group.active)
               .map((group: any) => (
