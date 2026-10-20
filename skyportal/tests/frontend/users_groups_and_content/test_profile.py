@@ -320,16 +320,19 @@ def test_photometry_buttons_form_keeps_input_when_save_fails(page, user):
         return route.continue_()
 
     page.route("**/api/internal/profile", fail_save)
+    # The page is shared by the whole session, so later tests must save normally
+    try:
+        page.locator('//div[@id="filterSelectPhotometryButtonsForm"]').first.click()
+        page.locator('//li[@data-value="2massh"]').first.click()
+        page.keyboard.press("Escape")
 
-    page.locator('//div[@id="filterSelectPhotometryButtonsForm"]').first.click()
-    page.locator('//li[@data-value="2massh"]').first.click()
-    page.keyboard.press("Escape")
-
-    photometry_button_name = str(uuid.uuid4())
-    name_input = page.locator('//input[@name="photometryButtonName"]').first
-    name_input.fill(photometry_button_name)
-    page.locator('//button[@id="addPhotometryButtonButton"]').first.click()
-    expect(
-        page.locator('//*[contains(text(), "Simulated failure")]').first
-    ).to_be_visible()
-    expect(name_input).to_have_value(photometry_button_name)
+        photometry_button_name = str(uuid.uuid4())
+        name_input = page.locator('//input[@name="photometryButtonName"]').first
+        name_input.fill(photometry_button_name)
+        page.locator('//button[@id="addPhotometryButtonButton"]').first.click()
+        expect(
+            page.locator('//*[contains(text(), "Simulated failure")]').first
+        ).to_be_visible()
+        expect(name_input).to_have_value(photometry_button_name)
+    finally:
+        page.unroute("**/api/internal/profile", fail_save)
