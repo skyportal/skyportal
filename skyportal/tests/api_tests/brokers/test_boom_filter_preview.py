@@ -80,11 +80,18 @@ def test_the_slices_leave_no_gap(monkeypatch):
         assert start == end
 
 
-def _capture_results(monkeypatch, per_request):
+def _capture_results(monkeypatch, per_request, finds=None):
     """Record each filters/test body, and answer it with ``per_request`` docs."""
     seen = []
 
     def fake_request(broker, method, path, json=None, timeout=None):
+        if path == "queries/find":
+            if finds is not None:
+                finds.append(json)
+            return [
+                {"_id": candid, "objectId": f"ZTF{candid}", "candidate": {}}
+                for candid in json["filter"]["_id"]["$in"]
+            ]
         seen.append((path, json))
         n = min(per_request, json.get("limit") or per_request)
         return {
@@ -99,7 +106,8 @@ def _capture_results(monkeypatch, per_request):
 def test_an_unsorted_preview_sends_a_limit_and_no_sort(monkeypatch):
     # A $sort makes BOOM order the whole window before the pipeline runs,
     # which is what pushes a capped preview past the API timeout.
-    seen = _capture_results(monkeypatch, per_request=500)
+    finds = []
+    seen = _capture_results(monkeypatch, per_request=500, finds=finds)
     result = boom.BOOMBROKER.test_filter(
         _Broker(),
         None,
@@ -118,6 +126,8 @@ def test_an_unsorted_preview_sends_a_limit_and_no_sort(monkeypatch):
     assert "sort_by" not in body and "sort_order" not in body
     assert len(result["results"]) == 201
     assert all(isinstance(doc["_id"], str) for doc in result["results"])
+    assert len(finds) == 1
+    assert set(result["alerts"]) == {doc["_id"] for doc in result["results"]}
 
 
 def test_an_unsorted_preview_stops_once_the_limit_is_reached(monkeypatch):
