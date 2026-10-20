@@ -1923,6 +1923,63 @@ def test_candidate_savers(
     assert data["data"][1]["saves"] == 1
 
 
+def test_candidate_savers_skip_share_requests(
+    user,
+    upload_data_token,
+    upload_data_token_two_groups,
+    public_filter,
+    public_group,
+    public_group2,
+):
+    obj_id1 = str(uuid.uuid4())
+    obj_id2 = str(uuid.uuid4())
+    for obj_id in [obj_id1, obj_id2]:
+        status, data = api(
+            "POST",
+            "candidates",
+            data={
+                "id": obj_id,
+                "ra": 234.22,
+                "dec": -22.33,
+                "redshift": 3,
+                "transient": False,
+                "ra_dis": 2.3,
+                "filter_ids": [public_filter.id],
+                "passed_at": str(utcnow_naive()),
+            },
+            token=upload_data_token,
+        )
+        assert status == 200
+
+    # The user saves obj_id1 and only asks public_group2, which they are not
+    # in, to save obj_id2
+    status, data = api(
+        "POST",
+        "sources",
+        data={"id": obj_id1, "group_ids": [public_group.id]},
+        token=upload_data_token,
+    )
+    assert status == 200
+    status, data = api(
+        "POST",
+        "source_groups",
+        data={"objId": obj_id2, "inviteGroupIds": [public_group2.id]},
+        token=upload_data_token,
+    )
+    assert status == 200
+
+    # A member of public_group2 can read both rows, but only one is a save
+    status, data = api(
+        "GET",
+        "internal/source_savers",
+        token=upload_data_token_two_groups,
+    )
+    assert status == 200
+    assert len(data["data"]) == 1
+    assert data["data"][0]["author"]["id"] == user.id
+    assert data["data"][0]["saves"] == 1
+
+
 def test_candidate_filter_list(view_only_token, public_candidate):
     status, data = api("GET", "candidates_filter", token=view_only_token)
     assert status == 200
