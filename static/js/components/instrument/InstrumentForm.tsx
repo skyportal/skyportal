@@ -194,29 +194,31 @@ const InstrumentForm = ({
               })),
               title: "Telescope",
             },
-            treasuremap_id: {
-              type: "integer",
-              title: "Treasuremap ID",
-              description:
-                "ID of the instrument to submit to Treasuremap (optional)",
-            },
-            type: {
-              type: "string",
-              oneOf: [
-                { enum: ["imager"], title: "Imager" },
-                {
-                  enum: ["imaging spectrograph"],
-                  title: "Imaging Spectrograph",
-                },
-                { enum: ["spectrograph"], title: "Spectrograph" },
-              ],
-              title: "Type",
-            },
-            band: {
-              type: "string",
-              title: "Band (e.g., Optical, IR)",
-            },
           }),
+      treasuremap_id: {
+        type: "integer",
+        title: "Treasuremap ID",
+        description: "ID of the instrument to submit to Treasuremap (optional)",
+        default: instrumentToEdit?.["treasuremap_id"] ?? undefined,
+      },
+      type: {
+        type: "string",
+        oneOf: [
+          { enum: ["imager"], title: "Imager" },
+          {
+            enum: ["imaging spectrograph"],
+            title: "Imaging Spectrograph",
+          },
+          { enum: ["spectrograph"], title: "Spectrograph" },
+        ],
+        title: "Type",
+        default: instrumentToEdit?.["type"] ?? undefined,
+      },
+      band: {
+        type: "string",
+        title: "Band (e.g., Optical, IR)",
+        default: instrumentToEdit?.["band"] ?? undefined,
+      },
       filters: {
         type: "array",
         items: {
