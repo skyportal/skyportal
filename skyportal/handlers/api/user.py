@@ -624,6 +624,8 @@ class UserHandler(BaseHandler):
 
 ACTIVITY_PAGE = 25
 ACTIVITY_PAGE_MAX = 100
+# The feed merges offset + limit rows of every kind in Python, so depth is capped.
+ACTIVITY_OFFSET_MAX = 5000
 ACTIVITY_PHOTOMETRY_POINTS = 200
 
 
@@ -673,6 +675,12 @@ def _mine(model, column, user_id, viewer):
         # Channel comments are conversation rather than a record of work, and
         # the news feed leaves them out on the same grounds.
         stmt = stmt.where(Comment.channel.is_(None))
+    if model is Source:
+        # Sharing with a group one is not in signs a row that the group may
+        # never save; only rows that are active or were unsaved were saves.
+        stmt = stmt.where(
+            sa.or_(Source.active.is_(True), Source.unsaved_by_id.isnot(None))
+        )
     return model.id.in_(stmt)
 
 
@@ -863,7 +871,7 @@ class UserActivityHandler(BaseHandler):
             name: offset
             schema:
               type: integer
-            description: How many items to skip, for paging further back.
+            description: How many items to skip, for paging further back, at most 5000.
           - in: query
             name: kind
             schema:
@@ -894,6 +902,8 @@ class UserActivityHandler(BaseHandler):
                 offset = max(int(self.get_query_argument("offset", 0)), 0)
             except ValueError:
                 return self.error("limit and offset must be numbers.")
+            if offset > ACTIVITY_OFFSET_MAX:
+                return self.error(f"offset must be at most {ACTIVITY_OFFSET_MAX}.")
             kind = self.get_query_argument("kind", None)
             if kind is not None and kind not in ACTIVITY:
                 return self.error(f"kind must be one of {', '.join(ACTIVITY)}.")
@@ -916,7 +926,8 @@ class UserActivityHandler(BaseHandler):
                     if offset == 0
                     else None,
                     "items": items,
-                    "has_more": has_more,
+                    # A next page past the offset cap would be refused
+                    "has_more": has_more and offset + limit <= ACTIVITY_OFFSET_MAX,
                     "objs": objs,
                     "filter_colors": filter_colors,
                 }
