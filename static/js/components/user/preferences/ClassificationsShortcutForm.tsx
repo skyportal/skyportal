@@ -33,9 +33,14 @@ const ClassificationsShortcutForm = () => {
         [formValues.shortcutName]: selectedClassifications,
       },
     };
-    updateUserPreferences(prefs);
-    setSelectedClassifications([]);
-    reset({ shortcutName: "" });
+    // Only clear the form once saved, so a failed save can be retried
+    updateUserPreferences(prefs)
+      .unwrap()
+      .then(() => {
+        setSelectedClassifications([]);
+        reset({ shortcutName: "" });
+      })
+      .catch(() => {});
   };
 
   const onDelete = (shortcutName: string) => {
