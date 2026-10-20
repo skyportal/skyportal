@@ -38,6 +38,10 @@ class RecentGcnExtractionsHandler(BaseHandler):
             max_num_events = int(prefs["maxNumEvents"])
         except (KeyError, TypeError, ValueError):
             max_num_events = default_prefs["maxNumEvents"]
+        if max_num_events < 0:
+            return self.error(
+                "Invalid recentGcnEvents preference maxNumEvents: must not be negative"
+            )
 
         async with self.AsyncSession() as session:
             # Scope to the events the widget shows. Taking the most recent
