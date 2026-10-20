@@ -149,7 +149,7 @@ def prioritize_requests(requests):
                         "morning"
                     ].datetime
                 ):
-                    earliest = plan.allocation
+                    earliest = allocationAndStartDate
                     continue
             allocationByPlanLookup[plan_id] = [earliest]
 
