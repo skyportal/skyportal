@@ -121,7 +121,6 @@ const FilterBuilderContent = ({
   const schemaUnavailable =
     !!resolvedSurvey && !schemaFetching && (schemaError || !store_schema);
 
-  const [, setSchema] = useState<any>(null);
   const [fieldOptions, setFieldOptions] = useState<any[]>([]);
 
   // Read-only viewer state for raw Mongo pipelines that can't be rendered as blocks.
@@ -309,7 +308,6 @@ const FilterBuilderContent = ({
 
   useEffect(() => {
     if (store_schema) {
-      setSchema(store_schema);
       setFieldOptions(flattenFieldOptions(store_schema));
     }
   }, [store_schema]);
