@@ -90,7 +90,8 @@ def send_user_invite_email(mapper, connection, target):
     else:
         send_email(
             recipients=[target.user_email],
-            subject=cfg["invitations.email_subject"],
+            subject=cfg["invitations.email_subject"]
+            or f"You've been invited to collaborate on {cfg['app.title']}",
             body=invite_body(target, link_location),
             footer=(
                 "If you were not expecting this invitation, you can ignore this "
@@ -113,13 +114,14 @@ def invite_body(target, link):
     preamble = (cfg["invitations.email_body_preamble"] or "").strip()
 
     return (
-        f"<h3>Join {site}</h3>"
+        f"<h3>Welcome to {site}!</h3>"
         f"<p>{intro}</p>"
         + (f"<div>{preamble}</div>" if preamble else "")
         + button(link, "Accept invitation")
         + f"<p>Create your account from this button: signing in to {site} "
         f"without it will not work. The link expires in "
         f"{cfg['invitations.days_until_expiry']} days.</p>"
+        f"<p>Thank you!<br>The {site} Team</p>"
         f'<p style="font-size:13px;color:#6b7280">If the button does not work, '
         f'open this address: <a href="{link}">{link}</a></p>'
     )
