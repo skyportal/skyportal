@@ -91,6 +91,9 @@ class SourceGroupsHandler(BaseHandler):
                                 requested=True,
                                 saved_by_id=self.associated_user_object.id,
                                 saved_at=utcnow_naive(),
+                                # Now this request, not an earlier unsave
+                                unsaved_by_id=None,
+                                unsaved_at=None,
                             )
                         )
                         continue

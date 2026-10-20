@@ -566,3 +566,81 @@ def test_activity_is_scoped_to_what_the_viewer_can_see(
     assert status == 200, data
     assert data["data"]["counts"]["comments"] == 0
     assert not [i for i in data["data"]["items"] if i["kind"] == "comments"]
+
+
+def test_activity_does_not_count_a_share_request_as_a_save(
+    upload_data_token,
+    upload_data_token_group2,
+    user,
+    public_group,
+    public_group2,
+    super_admin_token,
+):
+    """Sharing a source with a group the user is not in asks that group to save
+    it, so neither the pending nor the declined request is the user's save."""
+    obj_id = str(uuid.uuid4())
+    status, data = api(
+        "POST",
+        "sources",
+        data={
+            "id": obj_id,
+            "ra": 234.22,
+            "dec": -22.33,
+            "group_ids": [public_group.id],
+        },
+        token=upload_data_token,
+    )
+    assert status == 200, data
+    status, data = api(
+        "POST",
+        "source_groups",
+        data={"objId": obj_id, "inviteGroupIds": [public_group2.id]},
+        token=upload_data_token,
+    )
+    assert status == 200, data
+
+    def saved_to():
+        status, data = api("GET", f"user/{user.id}/activity", token=super_admin_token)
+        assert status == 200, data
+        items = [
+            i
+            for i in data["data"]["items"]
+            if i["kind"] == "sources_saved" and i["obj_id"] == obj_id
+        ]
+        assert len(items) == 1, data
+        return [group["id"] for group in items[0]["groups"]]
+
+    assert saved_to() == [public_group.id]
+
+    status, data = api(
+        "PATCH",
+        f"source_groups/{obj_id}",
+        data={"groupID": public_group2.id, "active": False, "requested": False},
+        token=upload_data_token_group2,
+    )
+    assert status == 200, data
+    assert saved_to() == [public_group.id]
+
+    # Nor is a request that reuses a row the group saved and later unsaved
+    status, data = api(
+        "PATCH",
+        f"source_groups/{obj_id}",
+        data={"groupID": public_group2.id, "active": True, "requested": False},
+        token=upload_data_token_group2,
+    )
+    assert status == 200, data
+    status, data = api(
+        "POST",
+        "source_groups",
+        data={"objId": obj_id, "unsaveGroupIds": [public_group2.id]},
+        token=upload_data_token_group2,
+    )
+    assert status == 200, data
+    status, data = api(
+        "POST",
+        "source_groups",
+        data={"objId": obj_id, "inviteGroupIds": [public_group2.id]},
+        token=upload_data_token,
+    )
+    assert status == 200, data
+    assert saved_to() == [public_group.id]

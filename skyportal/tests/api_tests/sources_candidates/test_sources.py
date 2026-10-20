@@ -7,12 +7,11 @@ import healpix_alchemy as ha
 import numpy as np
 import numpy.testing as npt
 import pytest
-import sqlalchemy as sa
 from astropy.time import Time
 from dateutil import parser
 from tdtax import __version__, taxonomy
 
-from skyportal.models import DBSession, Obj, cosmo
+from skyportal.models import cosmo
 from skyportal.tests import api
 
 from ....utils.naive_datetime import utcnow_naive
@@ -2777,11 +2776,6 @@ def test_request_save_to_group_requester_is_not_in(
     group = next(g for g in data["data"]["groups"] if g["id"] == public_group2.id)
     assert group["requested"] and not group["active"]
     assert group["saved_by"]["id"] == user.id
-
-    # The row still names the user who unsaved it, which would stop the fixture
-    # teardown from deleting them; deleting the source's object removes the row.
-    DBSession().execute(sa.delete(Obj).where(Obj.id == obj_id))
-    DBSession().commit()
 
 
 def test_copy_photometry_sources(

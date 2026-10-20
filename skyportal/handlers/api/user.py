@@ -694,6 +694,12 @@ def _mine(model, column, user_id, viewer):
         # Channel comments are conversation rather than a record of work, and
         # the news feed leaves them out on the same grounds.
         stmt = stmt.where(Comment.channel.is_(None))
+    if model is Source:
+        # Sharing with a group one is not in signs a row that the group may
+        # never save; only rows that are active or were unsaved were saves.
+        stmt = stmt.where(
+            sa.or_(Source.active.is_(True), Source.unsaved_by_id.isnot(None))
+        )
     return model.id.in_(stmt)
 
 
