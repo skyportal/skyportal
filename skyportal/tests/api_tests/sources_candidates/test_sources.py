@@ -497,6 +497,49 @@ def test_admin_save_source_as_other_user(
     assert data["data"]["groups"][0]["saved_by"]["id"] == view_only_user.id
 
 
+def test_saved_by_omits_unshared_contact_details(
+    upload_data_token, view_only_token, view_only_token2, user, public_group
+):
+    obj_id = str(uuid.uuid4())
+    status, data = api(
+        "POST",
+        "sources",
+        data={
+            "id": obj_id,
+            "ra": 234.22,
+            "dec": -22.33,
+            "group_ids": [public_group.id],
+        },
+        token=upload_data_token,
+    )
+    assert status == 200, data
+
+    def saved_by():
+        status, data = api("GET", f"sources/{obj_id}", token=view_only_token2)
+        assert status == 200, data
+        group = next(g for g in data["data"]["groups"] if g["id"] == public_group.id)
+        assert group["saved_by"]["id"] == user.id
+        return group["saved_by"]
+
+    assert not {"contact_email", "contact_phone", "oauth_uid"} & set(saved_by())
+
+    # The saver still sees their own details
+    status, data = api("GET", "internal/profile", token=view_only_token)
+    assert status == 200, data
+    assert data["data"]["contact_email"] == user.contact_email
+    assert "oauth_uid" in data["data"]
+
+    status, data = api(
+        "PATCH",
+        "internal/profile",
+        data={"preferences": {"publicProfile": {"contact_email": True, "bio": False}}},
+        token=view_only_token,
+    )
+    assert status == 200, data
+    assert saved_by()["contact_email"] == user.contact_email
+    assert "bio" not in saved_by()
+
+
 def test_source_notifications_unauthorized(
     source_notification_user_token, public_group, public_source
 ):
