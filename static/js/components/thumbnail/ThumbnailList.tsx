@@ -326,6 +326,8 @@ const ThumbnailList = ({
   ].filter(Boolean);
   const widestFieldOfView = Math.max(...fieldsOfView);
   const scaleMatched = sameScale && fieldsOfView.length > 1;
+  const mixedScalesShown =
+    new Set([...shown].map((t) => t.fieldOfView).filter(Boolean)).size > 1;
 
   const hasArchival = (types: string[]) =>
     latestArchival.some(
@@ -495,7 +497,7 @@ const ThumbnailList = ({
         )}
       </Box>
       {showOnDemandButton && !freeSlot && <div>{onDemandButton}</div>}
-      {(footer || fieldsOfView.length > 1) && (
+      {(footer || mixedScalesShown) && (
         <Box
           sx={{
             mt: "auto",
@@ -507,7 +509,7 @@ const ThumbnailList = ({
           }}
         >
           <Box>{footer}</Box>
-          {fieldsOfView.length > 1 && (
+          {mixedScalesShown && (
             <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
               <Typography variant="caption" color="text.secondary">
                 Field of view
