@@ -54,6 +54,10 @@ class ObservationPlanGeoJSONResponse(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     geojson: list[dict[str, Any]] = Field(default_factory=list)
+    field_ids: list[int] = Field(
+        default_factory=list,
+        description="Database IDs of the fields, in the same order as geojson",
+    )
 
 
 class ObservationPlanSimSurveyResponse(BaseModel):
