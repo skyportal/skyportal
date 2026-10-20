@@ -115,8 +115,7 @@
     "uuid": "^14",
     "vega": "6.4.0",
     "vega-embed": "7.2.0",
-    "vega-lite": "6.4.3",
-    "versor": "0.2.0"
+    "vega-lite": "6.4.3"
   },
   "devDependencies": {
     "@eslint/js": "9.39.5",
