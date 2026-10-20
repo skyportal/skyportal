@@ -421,7 +421,7 @@ async def load_readable_annotations(session, photometry):
         .order_by(AnnotationOnPhotometry.created_at)
     )
     annotations = defaultdict(list)
-    for annotation in result.all():
+    for annotation in result.unique().all():
         annotations[annotation.photometry_id].append(annotation)
     for phot in photometry:
         set_committed_value(phot, "annotations", annotations[phot.id])

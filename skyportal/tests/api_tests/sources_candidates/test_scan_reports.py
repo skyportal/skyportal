@@ -811,6 +811,85 @@ def test_scan_report_rejects_inaccessible_gcn_event(
     assert "not found or not accessible" in data["message"]
 
 
+def test_scan_report_shared_with_two_groups_listed_once(
+    public_filter,
+    public_group,
+    public_group2,
+    user_two_groups,
+    upload_data_token_two_groups,
+    cleanup_reports,
+):
+    """A report shared with two of the reader's groups is counted, paged and
+    itemized once."""
+    token = upload_data_token_two_groups
+    now = utcnow_naive()
+    obj = ObjFactory(groups=[public_group])
+    DBSession.add(
+        Candidate(
+            obj=obj,
+            filter=public_filter,
+            passed_at=now,
+            uploader_id=user_two_groups.id,
+        )
+    )
+    DBSession.add(
+        Source(obj_id=obj.id, group_id=public_group.id, saved_by_id=user_two_groups.id)
+    )
+    DBSession.commit()
+
+    window = {
+        "start_date": (now - timedelta(days=1)).isoformat(),
+        "end_date": (now + timedelta(days=1)).isoformat(),
+    }
+    status, data = api(
+        "POST",
+        "candidates/scan_reports",
+        data={
+            "group_ids": [public_group.id, public_group2.id],
+            "passed_filters_range": window,
+            "saved_candidates_range": {
+                "start_saved_date": (now - timedelta(days=1)).isoformat(),
+                "end_saved_date": (now + timedelta(days=1)).isoformat(),
+            },
+        },
+        token=token,
+    )
+    assert status == 200, data
+
+    status, data = api(
+        "GET", "candidates/scan_reports", params={"numPerPage": 1}, token=token
+    )
+    assert status == 200, data
+    report_id = data["data"]["reports"][0]["id"]
+    cleanup_reports.append(report_id)
+    total_matches = data["data"]["totalMatches"]
+
+    status, data = api(
+        "GET",
+        "candidates/scan_reports",
+        params={"numPerPage": 1, "page": 2},
+        token=token,
+    )
+    assert status == 200, data
+    assert report_id not in [r["id"] for r in data["data"]["reports"]]
+
+    status, data = api(
+        "GET",
+        "candidates/scan_reports",
+        params={"numPerPage": total_matches},
+        token=token,
+    )
+    assert status == 200, data
+    report_ids = [r["id"] for r in data["data"]["reports"]]
+    assert len(report_ids) == len(set(report_ids)) == total_matches
+
+    status, data = api("GET", f"candidates/scan_reports/{report_id}/items", token=token)
+    assert status == 200, data
+    obj_ids = [item["obj_id"] for item in data["data"]]
+    assert obj_ids.count(obj.id) == 1
+    assert len(obj_ids) == len(set(obj_ids))
+
+
 def _followup_request_case(
     api_classname, instrument_type="imager", instrument_name="Test", payload=None
 ):
