@@ -5,7 +5,9 @@ import { makeStyles } from "tss-react/mui";
 import { alpha } from "@mui/material/styles";
 import FormControlLabel from "@mui/material/FormControlLabel";
 import Checkbox from "@mui/material/Checkbox";
+import Box from "@mui/material/Box";
 import Chip from "@mui/material/Chip";
+import Skeleton from "@mui/material/Skeleton";
 import Tooltip from "@mui/material/Tooltip";
 
 import ReactMarkdown from "react-markdown";
@@ -360,7 +362,7 @@ const CommentThread = ({
   let specComments: any = null;
 
   if (resourceType === "sources") {
-    comments = channel ? (conversation ?? []) : obj?.comments;
+    comments = channel ? conversation : obj?.comments;
     if (
       !channel &&
       includeCommentsOnAllResourceTypes &&
@@ -403,6 +405,7 @@ const CommentThread = ({
     throw new Error(`Illegal input ${resourceType} to CommentThread. `);
   }
 
+  const loading = comments == null;
   comments = (comments || []).filter(Boolean);
 
   if (!includeBots && !channel) {
@@ -446,7 +449,17 @@ const CommentThread = ({
         className={styles.panelList}
         style={{ maxHeight: maxHeightList }}
       >
-        {comments.length === 0 && (
+        {loading &&
+          [0, 1, 2].map((i) => (
+            <Box key={i} sx={{ display: "flex", gap: 1, p: 1 }}>
+              <Skeleton variant="circular" width={24} height={24} />
+              <Box sx={{ flex: 1 }}>
+                <Skeleton width="30%" />
+                <Skeleton width="80%" />
+              </Box>
+            </Box>
+          ))}
+        {!loading && comments.length === 0 && (
           <div className={styles.panelEmpty}>
             {channel && !pinned
               ? "This conversation is only kept once a message is sent."
