@@ -411,6 +411,7 @@ async def db_photometry_points(
     async session)."""
     from sqlalchemy.orm import joinedload, selectinload
 
+    from ..handlers.api.photometry import load_readable_annotations
     from ..handlers.api.photometry_validation import USE_PHOTOMETRY_VALIDATION
     from ..models import Group, Instrument, PhotometricSeries, Photometry, Stream, User
 
@@ -420,8 +421,6 @@ async def db_photometry_points(
             Group.id, Group.name, Group.nickname, Group.single_user_group
         ),
     ]
-    if annotations:
-        options.append(joinedload(Photometry.annotations))
     if owner:
         options.append(
             joinedload(Photometry.owner).load_only(
@@ -437,6 +436,8 @@ async def db_photometry_points(
         Photometry.obj_id.in_(obj_ids)
     )
     phots = (await session.scalars(stmt)).unique().all()
+    if annotations and fmt != "plot":
+        await load_readable_annotations(session, phots)
     points = _serialize_points(
         phots,
         outsys,

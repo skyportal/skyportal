@@ -879,6 +879,10 @@ class BrokerPhotometryHandler(BaseHandler):
                     f"photometry only: {e}"
                 )
                 await session.rollback()
+                # Rollback expired the accessor that load_readable_annotations reads
+                session.user_or_token = await session.merge(
+                    self.current_user, load=False
+                )
         obj_ids = (
             await super_obj_obj_ids(object_id, user, session)
             if query.includeSuperObjsPhotometry
