@@ -7,6 +7,7 @@ import MenuItem from "@mui/material/MenuItem";
 import SearchableSelect from "./SearchableSelect";
 
 import { useAppDispatch } from "../types/hooks";
+import useDebounced from "../hooks/useDebounced";
 import { GET } from "../API";
 import SaveCandidateGroupsDialog from "./SaveCandidateGroupsDialog";
 
@@ -59,19 +60,6 @@ const useStyles = makeStyles()((theme) => ({
   },
 }));
 
-function useDebouncer(value: any, delay: number) {
-  const [debouncedValue, setDebouncedValue] = useState(value);
-  useEffect(() => {
-    const handler = setTimeout(() => {
-      setDebouncedValue(value);
-    }, delay);
-    return () => {
-      clearTimeout(handler);
-    };
-  }, [value, delay]);
-  return debouncedValue;
-}
-
 // create a filterOptions for the MUI Autocomplete component
 // that ignores cases and spaces when matching
 const filterOptions = createFilterOptions<any>({
@@ -95,7 +83,7 @@ const QuickSearchBar = () => {
   const [type, setType] = useState<AllowedType>(ALLOWED_TYPES[0]);
   const [saveDialogObjId, setSaveDialogObjId] = useState<string | null>(null);
 
-  const debouncedInputValue = useDebouncer(inputValue, 500);
+  const debouncedInputValue = useDebounced(inputValue, 500);
   const cache = useRef<Record<string, any>>({});
 
   useEffect(() => {
