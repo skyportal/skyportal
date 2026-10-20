@@ -174,7 +174,25 @@ const MultipleClassificationsForm = ({
         };
       });
 
-    setFormState(initialFormState);
+    setFormState((prev: any) => {
+      Object.entries(prev).forEach(([taxonomyId, entries]: [string, any]) => {
+        if (!(taxonomyId in initialFormState)) {
+          return;
+        }
+        Object.entries(entries).forEach(
+          ([classification, entry]: [string, any]) => {
+            if (entry.depth > -1) {
+              initialFormState[taxonomyId][classification] = {
+                ...initialFormState[taxonomyId][classification],
+                depth: entry.depth,
+                probability: entry.probability,
+              };
+            }
+          },
+        );
+      });
+      return initialFormState;
+    });
   }, [currentClassifications, taxonomyList]);
 
   // Whether the current user may edit a classification posted by `authorName`;
@@ -396,15 +414,19 @@ const MultipleClassificationsForm = ({
   };
 
   const handleSubmit = async () => {
-    setSubmissionRequestInProcess(true);
-    const results: boolean[] = [];
-
     const classifications = formState[selectedTaxonomy?.id];
 
     // Submit the edited classifications for the current taxonomy
     const toSubmit = getClassificationsToSubmit(classifications);
+    if (!toSubmit?.length) {
+      dispatch(showNotification("No classifications to submit", "warning"));
+      return;
+    }
+    setSubmissionRequestInProcess(true);
+    const results: boolean[] = [];
+    const saved: [string, any][] = [];
     await asyncForEach(
-      toSubmit ?? [],
+      toSubmit,
       async ([classification, entry]: [string, any]) => {
         const data: any = {
           taxonomy_id: selectedTaxonomy.id,
@@ -427,23 +449,26 @@ const MultipleClassificationsForm = ({
             await addClassification(data).unwrap();
           }
           results.push(true);
+          saved.push([classification, entry]);
         } catch {
           results.push(false);
         }
       },
     );
 
-    // Reset the depths for the submitted classifications so that they
-    // are not resubmitted upon further edits
-    const newFormState = { ...formState };
-    toSubmit?.forEach(([classification, entry]: [string, any]) => {
-      newFormState[selectedTaxonomy.id][classification] = {
-        ...entry,
-        depth: -1,
-        savedProbability: entry.probability,
-      };
+    // Reset the depths for the saved classifications so that they are not
+    // resubmitted upon further edits; failed ones stay queued for a retry
+    setFormState((prev: any) => {
+      const taxonomyState = { ...prev[selectedTaxonomy.id] };
+      saved.forEach(([classification, entry]) => {
+        taxonomyState[classification] = {
+          ...taxonomyState[classification],
+          depth: -1,
+          savedProbability: entry.probability,
+        };
+      });
+      return { ...prev, [selectedTaxonomy.id]: taxonomyState };
     });
-    setFormState(newFormState);
 
     setSubmissionRequestInProcess(false);
     if (results.every((result) => result)) {

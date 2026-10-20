@@ -122,7 +122,7 @@ class SkyPortal(httpx.Client):
     update_broker = brokers.update_broker
     delete_broker = brokers.delete_broker
     fetch_broker_alerts = brokers.fetch_broker_alerts
-    fetch_broker_alert = brokers.fetch_broker_alert
+    fetch_broker_object = brokers.fetch_broker_object
     fetch_broker_cutouts = brokers.fetch_broker_cutouts
     fetch_broker_photometry = brokers.fetch_broker_photometry
     fetch_broker_survey_photometry = brokers.fetch_broker_survey_photometry

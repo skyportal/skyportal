@@ -1,6 +1,6 @@
 import { useGetProfileQuery } from "../../ducks/profile";
 import { useGetGroupsQuery } from "../../ducks/groups";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Form from "@rjsf/mui";
 import validator from "@rjsf/validator-ajv8";
 import CircularProgress from "@mui/material/CircularProgress";
@@ -34,7 +34,8 @@ const NewShift = ({ preSelectedRange, setPreSelectedRange }: NewShiftProps) => {
   const { data: currentUser } = useGetProfileQuery();
   const groups = useGetGroupsQuery().data?.userAccessible ?? [];
   const now = dayjs();
-  const users = useGetUsersQuery().data?.users ?? [];
+  const { data: usersData } = useGetUsersQuery();
+  const users = useMemo(() => usersData?.users ?? [], [usersData]);
   const [availableUsers, setAvailableUsers] = useState<any[]>([]);
   const [formData, setFormData] = useState<Record<string, any>>({
     shift_admins: [currentUser?.id],

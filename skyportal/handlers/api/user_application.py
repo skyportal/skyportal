@@ -27,7 +27,7 @@ from ...models import (
     UserRole,
 )
 from ...utils.app import get_app_base_url
-from ...utils.email import send_email
+from ...utils.email import button, send_email
 from ...utils.naive_datetime import utcnow_naive
 from ...utils.user_applications import (
     ADMIN_ACL,
@@ -105,8 +105,8 @@ def notify_deciders(session, application, endorser):
                 recipients=addresses,
                 subject=cfg["user_applications.email_subject"],
                 body=(
-                    f"{applicant} {email}<br /><br />"
-                    f'Review the application <a href="{get_app_base_url()}{url}">here</a>.'
+                    f"<p>{applicant} {email}</p>"
+                    + button(f"{get_app_base_url()}{url}", "Review the application")
                 ),
             )
         except Exception as e:

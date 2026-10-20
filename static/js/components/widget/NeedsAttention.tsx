@@ -105,7 +105,7 @@ const NeedsAttention = ({ classes }: NeedsAttentionProps) => {
         </div>
 
         <div className={styles.listContainer}>
-          {isLoading || collisionsLoading ? (
+          {isLoading || (collisionsLoading && requests.length === 0) ? (
             <WidgetLoading />
           ) : nothingToDo ? (
             <div className={styles.quiet}>Nothing waiting on you.</div>

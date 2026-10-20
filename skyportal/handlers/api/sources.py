@@ -795,6 +795,73 @@ def resolve_obj_join(statement):
     )
 
 
+def _order_by_clause(
+    sort_by,
+    sort_order,
+    annotation_sort,
+    sort_ann_origin,
+    sort_ann_key,
+    is_admin,
+    user_accessible_group_ids,
+    query_params,
+):
+    """ORDER BY clause for the obj id query; its bindparams go to query_params."""
+    if annotation_sort:
+        # Correlated subquery on the grouped obj id; -> keeps the
+        # JSONB type so numeric values sort numerically. Restrict
+        # to annotations the user can access so sorting can't leak
+        # values from groups they don't belong to.
+        ann_access_clause = ""
+        if not is_admin:
+            ann_groups_str, ann_groups_bindparams = array2sql(
+                user_accessible_group_ids,
+                type=sa.Integer,
+                prefix="sort_ann_group",
+            )
+            query_params.extend(ann_groups_bindparams)
+            ann_access_clause = (
+                "AND annotations_sort.id in (select annotation_id "
+                "from group_annotations where group_id in "
+                f"{ann_groups_str}) "
+            )
+        query_params.append(sa.bindparam("sort_ann_key", sort_ann_key))
+        query_params.append(sa.bindparam("sort_ann_origin", sort_ann_origin))
+        return (
+            "ORDER BY (SELECT annotations_sort.data -> :sort_ann_key "
+            "FROM annotations AS annotations_sort "
+            "WHERE annotations_sort.obj_id = objs.id "
+            "AND annotations_sort.origin = :sort_ann_origin "
+            f"{ann_access_clause}LIMIT 1) "
+            f"{sort_order.upper()} NULLS LAST"
+        )
+    if sort_by == "gcn_status":
+        return f"""ORDER BY
+            CASE
+                WHEN bool_and(gcneventobjs.obj_id IS NULL) = true THEN 4
+                WHEN bool_or(gcneventobjs.status = 'confirmed') = true THEN 3
+                WHEN bool_and(gcneventobjs.status IN ('pending', 'ambiguous')) = true THEN 2
+                WHEN bool_or(gcneventobjs.status = 'rejected') = true THEN 1
+                ELSE 0
+            END {sort_order.upper()}"""
+    if sort_by == "favorites":
+        return f"""ORDER BY bool_and(listings.obj_id IS NULL) {sort_order.upper()}"""
+    if sort_by in NULL_FIELDS:
+        return f"""ORDER BY {SORT_BY[sort_by]} {sort_order.upper()} NULLS LAST"""
+    if sort_by.startswith("altdata."):
+        fields = sort_by.split(".")[1:]
+        # qualified so resolve_obj_join keeps the objs join
+        altdata_substatement = "objs.altdata->>:altdata_field_0"
+        query_params.append(sa.bindparam("altdata_field_0", fields[0]))
+        for i, field in enumerate(fields[1:]):
+            # For nested json data, we cast the values we access to JSONB so we can access their keys
+            altdata_substatement = (
+                f"({altdata_substatement})::jsonb->>:altdata_field_{i + 1}"
+            )
+            query_params.append(sa.bindparam(f"altdata_field_{i + 1}", field))
+        return f"""ORDER BY {altdata_substatement} {sort_order.upper()} NULLS LAST"""
+    return f"""ORDER BY {SORT_BY[sort_by]} {sort_order.upper()}"""
+
+
 async def get_sources(
     user_id,
     session,
@@ -986,6 +1053,18 @@ async def get_sources(
         allocation_query_str, allocation_bindparams = array2sql(
             allocation_ids, type=sa.Integer, prefix="allocation"
         )
+
+        def fill_group_placeholders(statement, query_params):
+            """Expand the :accessible_group_ids and :allocation_ids placeholders."""
+            if ":accessible_group_ids" in statement:
+                statement = statement.replace(
+                    ":accessible_group_ids", accessible_groups_query_str
+                )
+                query_params.extend(accessible_groups_bindparams)
+            if ":allocation_ids" in statement:
+                statement = statement.replace(":allocation_ids", allocation_query_str)
+                query_params.extend(allocation_bindparams)
+            return statement
 
         statements = []
         # Cuts that a prompt candidate is spared; combined with the prompt
@@ -2049,7 +2128,7 @@ async def get_sources(
             try:
                 # first try to find the catalog
                 entry_stmt = """
-                SELECT id
+                SELECT entry_name
                 FROM spatial_catalog_entries
                 WHERE lower(entry_name) = :spatial_catalog_entry_name
                 AND catalog_id in (
@@ -2058,7 +2137,7 @@ async def get_sources(
                     WHERE lower(catalog_name) = :spatial_catalog_name
                 )
                 """
-                entry_id = await session.execute(
+                entry_name = await session.scalar(
                     text(entry_stmt).bindparams(
                         bindparam(
                             "spatial_catalog_entry_name",
@@ -2072,13 +2151,14 @@ async def get_sources(
                         ),
                     )
                 )
-                if entry_id is None:
+                if entry_name is None:
                     raise ValueError("spatial catalog entry not found")
 
+                # the tiles store the name with its original case
                 query_params.append(
                     bindparam(
                         "spatial_catalog_entry_name",
-                        value=str(spatial_catalog_entry_name).strip().lower(),
+                        value=entry_name,
                         type_=sa.String,
                     )
                 )
@@ -2135,16 +2215,7 @@ async def get_sources(
                             GROUP BY sources.id
                         """
 
-                        if ":accessible_group_ids" in statement:
-                            statement = statement.replace(
-                                ":accessible_group_ids", accessible_groups_query_str
-                            )
-                            query_params.extend(accessible_groups_bindparams)
-                        if ":allocation_ids" in statement:
-                            statement = statement.replace(
-                                ":allocation_ids", allocation_query_str
-                            )
-                            query_params.extend(allocation_bindparams)
+                        statement = fill_group_placeholders(statement, query_params)
 
                         statement = (
                             text(statement)
@@ -2179,16 +2250,7 @@ async def get_sources(
                         WHERE {" AND ".join(statements)}
                         GROUP BY sources.id
                     """
-                    if ":accessible_group_ids" in statement:
-                        statement = statement.replace(
-                            ":accessible_group_ids", accessible_groups_query_str
-                        )
-                        query_params.extend(accessible_groups_bindparams)
-                    if ":allocation_ids" in statement:
-                        statement = statement.replace(
-                            ":allocation_ids", allocation_query_str
-                        )
-                        query_params.extend(allocation_bindparams)
+                    statement = fill_group_placeholders(statement, query_params)
 
                     statement = (
                         text(statement).bindparams(*query_params).columns(id=sa.String)
@@ -2278,16 +2340,7 @@ async def get_sources(
                             GROUP BY {OBJ_ID_TOKEN}
                         """
 
-                        if ":accessible_group_ids" in statement:
-                            statement = statement.replace(
-                                ":accessible_group_ids", accessible_groups_query_str
-                            )
-                            query_params.extend(accessible_groups_bindparams)
-                        if ":allocation_ids" in statement:
-                            statement = statement.replace(
-                                ":allocation_ids", allocation_query_str
-                            )
-                            query_params.extend(allocation_bindparams)
+                        statement = fill_group_placeholders(statement, query_params)
 
                         statement = (
                             text(resolve_obj_join(statement))
@@ -2343,76 +2396,18 @@ async def get_sources(
                         GROUP BY {OBJ_ID_TOKEN}
                     """
 
-                    if ":accessible_group_ids" in statement:
-                        statement = statement.replace(
-                            ":accessible_group_ids", accessible_groups_query_str
-                        )
-                        query_params.extend(accessible_groups_bindparams)
-                    if ":allocation_ids" in statement:
-                        statement = statement.replace(
-                            ":allocation_ids", allocation_query_str
-                        )
-                        query_params.extend(allocation_bindparams)
+                    statement = fill_group_placeholders(statement, query_params)
 
-                    if annotation_sort:
-                        # Correlated subquery on the grouped obj id; -> keeps the
-                        # JSONB type so numeric values sort numerically. Restrict
-                        # to annotations the user can access so sorting can't leak
-                        # values from groups they don't belong to.
-                        ann_access_clause = ""
-                        if not is_admin:
-                            ann_groups_str, ann_groups_bindparams = array2sql(
-                                user_accessible_group_ids,
-                                type=sa.Integer,
-                                prefix="sort_ann_group",
-                            )
-                            query_params.extend(ann_groups_bindparams)
-                            ann_access_clause = (
-                                "AND annotations_sort.id in (select annotation_id "
-                                "from group_annotations where group_id in "
-                                f"{ann_groups_str}) "
-                            )
-                        statement += (
-                            "ORDER BY (SELECT annotations_sort.data -> :sort_ann_key "
-                            "FROM annotations AS annotations_sort "
-                            "WHERE annotations_sort.obj_id = objs.id "
-                            "AND annotations_sort.origin = :sort_ann_origin "
-                            f"{ann_access_clause}LIMIT 1) "
-                            f"{sort_order.upper()} NULLS LAST"
-                        )
-                        query_params.append(sa.bindparam("sort_ann_key", sort_ann_key))
-                        query_params.append(
-                            sa.bindparam("sort_ann_origin", sort_ann_origin)
-                        )
-                    elif sort_by == "gcn_status":
-                        statement += f"""ORDER BY
-                            CASE
-                                WHEN bool_and(gcneventobjs.obj_id IS NULL) = true THEN 4
-                                WHEN bool_or(gcneventobjs.status = 'confirmed') = true THEN 3
-                                WHEN bool_and(gcneventobjs.status IN ('pending', 'ambiguous')) = true THEN 2
-                                WHEN bool_or(gcneventobjs.status = 'rejected') = true THEN 1
-                                ELSE 0
-                            END {sort_order.upper()}"""
-                    elif sort_by == "favorites":
-                        statement += f"""ORDER BY bool_and(listings.obj_id IS NULL) {sort_order.upper()}"""
-                    elif sort_by in NULL_FIELDS:
-                        statement += f"""ORDER BY {SORT_BY[sort_by]} {sort_order.upper()} NULLS LAST"""
-                    elif sort_by.startswith("altdata."):
-                        fields = sort_by.split(".")[1:]
-                        # qualified so resolve_obj_join keeps the objs join
-                        altdata_substatement = "objs.altdata->>:altdata_field_0"
-                        query_params.append(sa.bindparam("altdata_field_0", fields[0]))
-                        for i, field in enumerate(fields[1:]):
-                            # For nested json data, we cast the values we access to JSONB so we can access their keys
-                            altdata_substatement = f"({altdata_substatement})::jsonb->>:altdata_field_{i + 1}"
-                            query_params.append(
-                                sa.bindparam(f"altdata_field_{i + 1}", field)
-                            )
-                        statement += f"""ORDER BY {altdata_substatement} {sort_order.upper()} NULLS LAST"""
-                    else:
-                        statement += (
-                            f"""ORDER BY {SORT_BY[sort_by]} {sort_order.upper()}"""
-                        )
+                    statement += _order_by_clause(
+                        sort_by,
+                        sort_order,
+                        annotation_sort,
+                        sort_ann_origin,
+                        sort_ann_key,
+                        is_admin,
+                        user_accessible_group_ids,
+                        query_params,
+                    )
 
                     statement = (
                         text(resolve_obj_join(statement))
@@ -2447,67 +2442,18 @@ async def get_sources(
                         GROUP BY {OBJ_ID_TOKEN}
                     """
 
-                    if ":accessible_group_ids" in statement:
-                        statement = statement.replace(
-                            ":accessible_group_ids", accessible_groups_query_str
-                        )
-                        query_params.extend(accessible_groups_bindparams)
-                    if ":allocation_ids" in statement:
-                        statement = statement.replace(
-                            ":allocation_ids", allocation_query_str
-                        )
-                        query_params.extend(allocation_bindparams)
+                    statement = fill_group_placeholders(statement, query_params)
 
-                    if annotation_sort:
-                        # Correlated subquery on the grouped obj id; -> keeps the
-                        # JSONB type so numeric values sort numerically. Restrict
-                        # to annotations the user can access so sorting can't leak
-                        # values from groups they don't belong to.
-                        ann_access_clause = ""
-                        if not is_admin:
-                            ann_groups_str, ann_groups_bindparams = array2sql(
-                                user_accessible_group_ids,
-                                type=sa.Integer,
-                                prefix="sort_ann_group",
-                            )
-                            query_params.extend(ann_groups_bindparams)
-                            ann_access_clause = (
-                                "AND annotations_sort.id in (select annotation_id "
-                                "from group_annotations where group_id in "
-                                f"{ann_groups_str}) "
-                            )
-                        statement += (
-                            "ORDER BY (SELECT annotations_sort.data -> :sort_ann_key "
-                            "FROM annotations AS annotations_sort "
-                            "WHERE annotations_sort.obj_id = objs.id "
-                            "AND annotations_sort.origin = :sort_ann_origin "
-                            f"{ann_access_clause}LIMIT 1) "
-                            f"{sort_order.upper()} NULLS LAST"
-                        )
-                        query_params.append(sa.bindparam("sort_ann_key", sort_ann_key))
-                        query_params.append(
-                            sa.bindparam("sort_ann_origin", sort_ann_origin)
-                        )
-                    elif sort_by == "favorites":
-                        statement += f"""ORDER BY bool_and(listings.obj_id IS NULL) {sort_order.upper()}"""
-                    elif sort_by in NULL_FIELDS:
-                        statement += f"""ORDER BY {SORT_BY[sort_by]} {sort_order.upper()} NULLS LAST"""
-                    elif sort_by.startswith("altdata."):
-                        fields = sort_by.split(".")[1:]
-                        # qualified so resolve_obj_join keeps the objs join
-                        altdata_substatement = "objs.altdata->>:altdata_field_0"
-                        query_params.append(sa.bindparam("altdata_field_0", fields[0]))
-                        # For nested json data, we cast the values we access to JSONB so we can access their keys
-                        for i, field in enumerate(fields[1:]):
-                            altdata_substatement = f"({altdata_substatement})::jsonb->>:altdata_field_{i + 1}"
-                            query_params.append(
-                                sa.bindparam(f"altdata_field_{i + 1}", field)
-                            )
-                        statement += f"""ORDER BY {altdata_substatement} {sort_order.upper()} NULLS LAST"""
-                    else:
-                        statement += (
-                            f"""ORDER BY {SORT_BY[sort_by]} {sort_order.upper()}"""
-                        )
+                    statement += _order_by_clause(
+                        sort_by,
+                        sort_order,
+                        annotation_sort,
+                        sort_ann_origin,
+                        sort_ann_key,
+                        is_admin,
+                        user_accessible_group_ids,
+                        query_params,
+                    )
 
                     if not use_cache:
                         statement += (

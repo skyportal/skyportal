@@ -4,8 +4,9 @@ import { makeStyles } from "tss-react/mui";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 import relativeTime from "dayjs/plugin/relativeTime";
-import emoji from "emoji-dictionary";
 import Tooltip from "@mui/material/Tooltip";
+
+import { rehypeEmoji } from "../comment/rehypeEmoji";
 
 dayjs.extend(relativeTime);
 dayjs.extend(utc);
@@ -67,17 +68,12 @@ const ShowSummaries = ({
     return null;
   };
 
-  const emojiSupport = (textComment: any) =>
-    textComment.value.replace(/:\w+:/gi, (name: string) =>
-      emoji.getUnicode(name) ? emoji.getUnicode(name) : name,
-    );
-
   return (
     <div className={(styles as any).compactContainer}>
       <Tooltip title="Latest Summary" placement="right-start">
         <div className={styles.compactWrap}>
           <ReactMarkdown
-            components={{ text: emojiSupport } as any}
+            rehypePlugins={[rehypeEmoji]}
             className={styles.compactText}
           >
             {renderCommentText()}

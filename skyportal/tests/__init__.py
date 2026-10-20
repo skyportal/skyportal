@@ -150,6 +150,19 @@ def wait_for_gcn_event(dateobs, token, timeout=120):
     raise AssertionError(f"GCN event {dateobs} did not process within {timeout}s")
 
 
+def post_gcn_event_if_missing(dateobs, token, xml_file=None, event_data=None):
+    """POST the GCN event from `xml_file` or `event_data` unless `dateobs` exists."""
+    status, _ = api("GET", f"gcn_event/{dateobs}", token=token)
+    if status != 404:
+        return
+    if xml_file is not None:
+        with open(xml_file, "rb") as fid:
+            event_data = {"xml": fid.read()}
+    status, data = api("POST", "gcn_event", data=event_data, token=token)
+    assert status == 200, data
+    assert data["status"] == "success"
+
+
 def wait_for_localization(dateobs, localization_name, token, timeout=240):
     """Poll until the localization `dateobs`/`localization_name` has processed.
 

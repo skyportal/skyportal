@@ -235,9 +235,10 @@ class InvitationHandler(BaseHandler):
 
             count_stmt = sa.select(func.count()).select_from(stmt)
             total_matches = await session.scalar(count_stmt)
-            stmt = stmt.limit(query.numPerPage).offset(
-                (query.pageNumber - 1) * query.numPerPage
-            )
+            if query.numPerPage is not None:
+                stmt = stmt.limit(query.numPerPage).offset(
+                    (query.pageNumber - 1) * query.numPerPage
+                )
             inv_result = await session.scalars(stmt)
             invitations = inv_result.unique().all()
             info = {}

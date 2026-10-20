@@ -595,15 +595,16 @@ const Periodogram = () => {
                             </InputLabel>
                             <p />
                             <Controller
-                              {...({
-                                labelId: "InstrumentSourceSelectLabel",
-                              } as any)}
                               name="instrument"
                               control={control}
                               defaultValue={params.instrument}
-                              {...({ className: classes.items } as any)}
-                              render={() => (
-                                <Select>
+                              render={({ field: { onChange, value } }) => (
+                                <Select
+                                  labelId="InstrumentSourceSelectLabel"
+                                  className={classes.items}
+                                  value={value}
+                                  onChange={onChange}
+                                >
                                   {instruments.map((instrument) => (
                                     <MenuItem
                                       key={instrument}
@@ -630,15 +631,16 @@ const Periodogram = () => {
                               </InputLabel>
                               <p />
                               <Controller
-                                {...({
-                                  labelId: "FilterSourceSelectLabel",
-                                } as any)}
                                 name="filter"
                                 control={control}
                                 defaultValue={params.filter}
-                                {...({ className: classes.items } as any)}
-                                render={() => (
-                                  <Select>
+                                render={({ field: { onChange, value } }) => (
+                                  <Select
+                                    labelId="FilterSourceSelectLabel"
+                                    className={classes.items}
+                                    value={value}
+                                    onChange={onChange}
+                                  >
                                     {filters.map((filt) => (
                                       <MenuItem key={filt} value={filt}>
                                         {filt}

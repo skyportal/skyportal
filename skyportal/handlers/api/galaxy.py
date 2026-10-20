@@ -525,63 +525,9 @@ class GalaxyCatalogHandler(BaseHandler):
         if "z_unc" in catalog_data and "redshift_error" not in catalog_data:
             catalog_data["redshift_error"] = catalog_data.pop("z_unc")
 
-        # fill in any missing optional parameters
-        optional_parameters = [
-            "alt_name",
-            "distmpc",
-            "distmpc_unc",
-            "redshift",
-            "redshift_error",
-            "sfr_fuv",
-            "sfr_w4",
-            "mstar",
-            "magk",
-            "magb",
-            "mag_fuv",
-            "mag_nuv",
-            "mag_w1",
-            "mag_w2",
-            "mag_w3",
-            "mag_w4",
-            "a",
-            "b2a",
-            "pa",
-            "btc",
-        ]
-        for key in optional_parameters:
-            if key not in catalog_data:
-                catalog_data[key] = [None] * len(catalog_data["ra"])
-
-        # check for positive definite parameters
-        positive_definite_parameters = [
-            "distmpc",
-            "distmpc_unc",
-            "redshift",
-            "redshift_error",
-        ]
-        for key in positive_definite_parameters:
-            if any((x is not None) and (x < 0) for x in catalog_data[key]):
-                return self.error(f"{key} should be positive definite.")
-
-        # check RA bounds
-        if any((x < 0) or (x >= 360) for x in catalog_data["ra"]):
-            return self.error("ra should span 0=<ra<360.")
-
-        # check Declination bounds
-        if any((x > 90) or (x < -90) for x in catalog_data["dec"]):
-            return self.error("declination should span -90<dec<90.")
-
-        catalog_metadata = {
-            "name": catalog_name,
-            "description": catalog_description,
-            "url": catalog_url,
-        }
-
-        IOLoop.current().run_in_executor(
-            None, lambda: add_galaxies(catalog_metadata, catalog_data)
+        return _validate_and_ingest_galaxies(
+            self, catalog_name, catalog_description, catalog_url, catalog_data
         )
-
-        return self.success()
 
     @auth_or_token
     @format_doc(MAX_GALAXIES=MAX_GALAXIES)
@@ -821,6 +767,69 @@ def add_galaxies(catalog_metadata, catalog_data):
         session.close()
 
 
+# Shared by the JSON and ASCII upload handlers once the data is a dict of columns.
+def _validate_and_ingest_galaxies(
+    handler, catalog_name, catalog_description, catalog_url, catalog_data
+):
+    # fill in any missing optional parameters
+    optional_parameters = [
+        "alt_name",
+        "distmpc",
+        "distmpc_unc",
+        "redshift",
+        "redshift_error",
+        "sfr_fuv",
+        "sfr_w4",
+        "mstar",
+        "magk",
+        "magb",
+        "mag_fuv",
+        "mag_nuv",
+        "mag_w1",
+        "mag_w2",
+        "mag_w3",
+        "mag_w4",
+        "a",
+        "b2a",
+        "pa",
+        "btc",
+    ]
+    for key in optional_parameters:
+        if key not in catalog_data:
+            catalog_data[key] = [None] * len(catalog_data["ra"])
+
+    # check for positive definite parameters
+    positive_definite_parameters = [
+        "distmpc",
+        "distmpc_unc",
+        "redshift",
+        "redshift_error",
+    ]
+    for key in positive_definite_parameters:
+        if any((x is not None) and (x < 0) for x in catalog_data[key]):
+            return handler.error(f"{key} should be positive definite.")
+
+    # check RA bounds
+    if any((x < 0) or (x >= 360) for x in catalog_data["ra"]):
+        return handler.error("ra should span 0=<ra<360.")
+
+    # check Declination bounds
+    if any((x > 90) or (x < -90) for x in catalog_data["dec"]):
+        return handler.error("declination should span -90<dec<90.")
+
+    catalog_metadata = {
+        "name": catalog_name,
+        "description": catalog_description,
+        "url": catalog_url,
+    }
+
+    IOLoop.current().run_in_executor(
+        None, lambda: add_galaxies(catalog_metadata, catalog_data)
+    )
+
+    return handler.success()
+
+
 class GalaxyASCIIFileHandler(BaseHandler):
     @permissions(["Upload data"])
     async def post(self, *, body: GalaxyASCIIFilePostBody = None):
@@ -864,63 +873,9 @@ class GalaxyASCIIFileHandler(BaseHandler):
         if not all(k in catalog_data for k in ["ra", "dec", "name"]):
             return self.error("ra, dec, and name required in catalog_data.")
 
-        # fill in any missing optional parameters
-        optional_parameters = [
-            "alt_name",
-            "distmpc",
-            "distmpc_unc",
-            "redshift",
-            "redshift_error",
-            "sfr_fuv",
-            "sfr_w4",
-            "mstar",
-            "magk",
-            "magb",
-            "mag_fuv",
-            "mag_nuv",
-            "mag_w1",
-            "mag_w2",
-            "mag_w3",
-            "mag_w4",
-            "a",
-            "b2a",
-            "pa",
-            "btc",
-        ]
-        for key in optional_parameters:
-            if key not in catalog_data:
-                catalog_data[key] = [None] * len(catalog_data["ra"])
-
-        # check for positive definite parameters
-        positive_definite_parameters = [
-            "distmpc",
-            "distmpc_unc",
-            "redshift",
-            "redshift_error",
-        ]
-        for key in positive_definite_parameters:
-            if any((x is not None) and (x < 0) for x in catalog_data[key]):
-                return self.error(f"{key} should be positive definite.")
-
-        # check RA bounds
-        if any((x < 0) or (x >= 360) for x in catalog_data["ra"]):
-            return self.error("ra should span 0=<ra<360.")
-
-        # check Declination bounds
-        if any((x > 90) or (x < -90) for x in catalog_data["dec"]):
-            return self.error("declination should span -90<dec<90.")
-
-        catalog_metadata = {
-            "name": catalog_name,
-            "description": catalog_description,
-            "url": catalog_url,
-        }
-
-        IOLoop.current().run_in_executor(
-            None, lambda: add_galaxies(catalog_metadata, catalog_data)
+        return _validate_and_ingest_galaxies(
+            self, catalog_name, catalog_description, catalog_url, catalog_data
         )
-
-        return self.success()
 
 
 # Target Galaxy columns written by the bulk-COPY catalog ingesters below. Any

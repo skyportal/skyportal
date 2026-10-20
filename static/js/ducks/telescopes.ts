@@ -6,9 +6,8 @@
  * invalidate the `Telescope` tag so the list refetches. The single-telescope
  * fetch is kept as a query keyed on id.
  *
- * The old websocket handlers refreshed the currently-loaded telescope on
- * `REFRESH_TELESCOPE` and the whole list on `REFRESH_TELESCOPES`; both are
- * bridged to invalidation of the `Telescope` tag.
+ * The websocket `REFRESH_TELESCOPES` message is bridged to invalidation of the
+ * `Telescope` tag.
  */
 import { skyportalApi } from "../api/skyportalApi";
 import { invalidateOnMessage } from "../api/wsInvalidation";
@@ -73,8 +72,7 @@ export const telescopesApi = skyportalApi.injectEndpoints({
   }),
 });
 
-// Websocket: old handlers refetched on REFRESH_TELESCOPE / REFRESH_TELESCOPES.
-invalidateOnMessage("skyportal/REFRESH_TELESCOPE", () => ["Telescope"]);
+// Websocket: refetch on REFRESH_TELESCOPES.
 invalidateOnMessage("skyportal/REFRESH_TELESCOPES", () => ["Telescope"]);
 
 export const {

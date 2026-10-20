@@ -255,10 +255,6 @@ class AnalysisMixin:
         self.hash = joblib.hash(self.filename)
 
     @property
-    def has_inference_data(self):
-        return self.data.get("inference_data", None) is not None
-
-    @property
     def has_plot_data(self):
         return self.data.get("plots", None) is not None
 

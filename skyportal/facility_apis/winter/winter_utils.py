@@ -13,6 +13,7 @@ from baselayer.app.flow import Flow
 
 from ...utils import http
 from ...utils.naive_datetime import utcnow_naive
+from ..interface import push_followup_refresh
 
 env, cfg = load_env()
 
@@ -208,19 +209,7 @@ async def delete_request(request, session, **kwargs):
         )
         session.add(transaction)
 
-    if kwargs.get("refresh_source", False):
-        flow = Flow()
-        flow.push(
-            "*",
-            "skyportal/REFRESH_SOURCE",
-            payload={"obj_key": obj_internal_key},
-        )
-    if kwargs.get("refresh_requests", False):
-        flow = Flow()
-        flow.push(
-            last_modified_by_id,
-            "skyportal/REFRESH_FOLLOWUP_REQUESTS",
-        )
+    push_followup_refresh(obj_internal_key, last_modified_by_id, **kwargs)
 
 
 async def submit_request(request, session, camera, log, **kwargs):
@@ -312,19 +301,9 @@ async def submit_request(request, session, camera, log, **kwargs):
 
     session.add(transaction)
 
-    if kwargs.get("refresh_source", False):
-        flow = Flow()
-        flow.push(
-            "*",
-            "skyportal/REFRESH_SOURCE",
-            payload={"obj_key": request.obj.internal_key},
-        )
-    if kwargs.get("refresh_requests", False):
-        flow = Flow()
-        flow.push(
-            request.last_modified_by_id,
-            "skyportal/REFRESH_FOLLOWUP_REQUESTS",
-        )
+    push_followup_refresh(
+        request.obj.internal_key, request.last_modified_by_id, **kwargs
+    )
 
     try:
         notification_type = request.allocation.altdata.get("notification_type", "none")

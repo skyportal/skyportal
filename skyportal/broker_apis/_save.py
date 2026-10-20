@@ -36,6 +36,8 @@ BAND_TO_FILTER_PER_SURVEY = {
 _DEFAULT_MIN_SNR = 5.0
 # sigma_mag = 2.5/ln(10) / SNR, so SNR = (2.5/ln(10)) / sigma_mag in mag space.
 _MAG_SNR_CONST = 1.0857362
+# ZTF isdiffpos values marking a negative subtraction (ALeRCE sends -1).
+_NEGATIVE_DIFFPOS = {"f", "0", "-1", "false"}
 
 # Default cone radius (arcsec) for the positional junk-group auto-save skip when a
 # filter sets ignore-groups but no explicit `autoSaveIgnoreRadius`. Set 0 to skip
@@ -240,6 +242,10 @@ def build_photometry_groups(object_id, survey, data, instrument_id, programid2st
                 mag, magerr = phot["magpsf"], phot["sigmapsf"]
                 flux = 10.0 ** (-0.4 * (mag - zp))
                 flux_err = flux * magerr * 0.9210340371976184  # ln(10)/2.5
+                # magpsf is the magnitude of |flux|; a negative subtraction
+                # (science fainter than reference) is a negative flux.
+                if str(phot.get("isdiffpos")).strip().lower() in _NEGATIVE_DIFFPOS:
+                    flux = -flux
                 columns = {"flux": flux, "fluxerr": flux_err, "zp": zp}
             else:
                 continue
@@ -304,6 +310,55 @@ def build_photometry_groups(object_id, survey, data, instrument_id, programid2st
             del pd["altdata"]
 
     return photometry_data
+
+
+async def _flip_stale_positive_points(session, pd):
+    """Negate stored copies of pd's negative points that were saved with a positive flux."""
+    import sqlalchemy as sa
+
+    from ..handlers.api.photometry import (
+        find_duplicate_photometry,
+        standardize_photometry_data,
+    )
+    from ..models import Photometry, PhotStat
+
+    negative = [i for i, f in enumerate(pd["flux"]) if f is not None and f < 0]
+    if not negative:
+        return
+    columns = ("mjd", "filter", "origin", "magsys", "flux", "fluxerr", "zp")
+    df, _ = await standardize_photometry_data(
+        {
+            "obj_id": pd["obj_id"],
+            "instrument_id": pd["instrument_id"],
+            **{c: [pd[c][i] for i in negative] for c in columns},
+        },
+        session,
+    )
+    stored_negative = {i for i, _ in await find_duplicate_photometry(session, df)}
+    df["standardized_flux"] = -df["standardized_flux"]
+    stale = [
+        p
+        for i, p in await find_duplicate_photometry(session, df)
+        if i not in stored_negative
+    ]
+    if not stale:
+        return
+    for p in stale:
+        p.flux = -p.flux
+    await session.flush()
+
+    phot_stat = await session.scalar(
+        sa.select(PhotStat).where(PhotStat.obj_id == pd["obj_id"]).with_for_update()
+    )
+    if phot_stat is not None:
+        all_phot = (
+            await session.scalars(
+                sa.select(Photometry).where(Photometry.obj_id == pd["obj_id"])
+            )
+        ).all()
+        phot_stat.full_update(all_phot)
+        for phot in all_phot:
+            session.expunge(phot)
 
 
 async def _ingest_object(
@@ -563,6 +618,10 @@ async def _ingest_object(
             ).all()
         )
 
+    mag_space = any(
+        p.get("psfFluxErr") is None and p.get("magpsf") is not None
+        for p in data.get("prv_candidates") or []
+    )
     for pd in photometry_data.values():
         if pd["mjd"]:  # never post empty photometry (breaks JSON coercion)
             # Bulk ingestion must not inherit the sitewide default-share; keep
@@ -570,6 +629,8 @@ async def _ingest_object(
             if photometry_group_ids:
                 pd["group_ids"] = sorted(photometry_group_ids)
             try:
+                if mag_space:
+                    await _flip_stale_positive_points(session, pd)
                 await add_external_photometry(
                     pd, user, session, apply_default_share=False
                 )

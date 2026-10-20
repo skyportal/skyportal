@@ -517,6 +517,25 @@ class BrokerFilterAttachBody(BaseModel):
     broker_id: int = Field(description="ID of the broker to attach the filter to.")
 
 
+class BrokerAlertsGetQuery(BaseModel):
+    """Query parameters for searching a broker's alerts. Provider-specific ones
+    (e.g. Lasair's requestType) pass through to the provider."""
+
+    model_config = ConfigDict(extra="allow")
+
+    objectId: str | None = Field(default=None, description="Survey object id.")
+    candid: str | None = Field(default=None, description="Id of a single alert.")
+    ra: float | None = Field(default=None, description="RA in degrees.")
+    dec: float | None = Field(default=None, description="Declination in degrees.")
+    radius: float | None = Field(default=None, description="Search radius.")
+    radius_units: Literal["deg", "arcmin", "arcsec"] | None = Field(
+        default=None, description="Units of `radius`. Defaults to arcsec."
+    )
+    jd_start: float | None = Field(default=None, description="Earliest alert JD.")
+    jd_end: float | None = Field(default=None, description="Latest alert JD.")
+    survey: str | None = Field(default=None, description="Survey to query.")
+
+
 class BrokerConeSearchGetQuery(BaseModel):
     """Query parameters for a broker cone search."""
 
@@ -625,6 +644,7 @@ class BrokerFilterCatalogGetQuery(BaseModel):
 
 __all__ = [
     "BrokerAlertSaveResponse",
+    "BrokerAlertsGetQuery",
     "BrokerCapabilitiesResponse",
     "BrokerClassname",
     "BrokerConeSearchGetQuery",

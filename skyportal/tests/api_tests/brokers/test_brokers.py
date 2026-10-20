@@ -1,3 +1,4 @@
+import asyncio
 import json
 import uuid
 from types import SimpleNamespace
@@ -7,7 +8,8 @@ import pytest
 import responses
 
 from skyportal.broker_apis import GENERICBROKER, BrokerAPI
-from skyportal.tests import api
+from skyportal.models import init_db
+from skyportal.tests import api, cfg
 
 
 def _force_active(broker_id):
@@ -680,6 +682,26 @@ def test_broker_alerts_inactive(super_admin_token):
     broker_id = data["data"]["id"]
     status, data = api("GET", f"brokers/{broker_id}/alerts", token=super_admin_token)
     assert status == 400
+
+
+def test_broker_save_requires_group_membership(
+    super_admin_token, upload_data_token, public_group2
+):
+    status, data = api(
+        "POST", "brokers", data=_broker_payload(), token=super_admin_token
+    )
+    assert status == 200
+    broker_id = data["data"]["id"]
+
+    # Rejected before any broker fetch, so no network mocking is needed.
+    status, data = api(
+        "POST",
+        f"brokers/{broker_id}/alerts/ZTF26aaaaaaa/save",
+        data={"group_ids": [public_group2.id]},
+        token=upload_data_token,
+    )
+    assert status == 400
+    assert "groups you are a member of" in data["message"]
 
 
 # --- provider-level unit tests (no running server needed) ---
@@ -1425,3 +1447,138 @@ def test_broker_credentials_crud(
         assert data["data"] is None
     finally:
         api("DELETE", f"brokers/{broker_id}", token=super_admin_token)
+
+
+def test_routing_is_pruned_to_the_subscribed_topics(
+    super_admin_token, view_only_token, public_filter
+):
+    """Routing for a topic the client no longer lists is dropped, not refused."""
+    payload = _broker_payload()
+    status, data = api("POST", "brokers", data=payload, token=super_admin_token)
+    assert status == 200
+    broker_id = data["data"]["id"]
+    try:
+        status, data = api(
+            "PUT",
+            f"brokers/{broker_id}/credentials",
+            data={
+                "credentials": {"token": "mine"},
+                "topics": ["lasair_1x"],
+                "topic_filter_ids": {"lasair_1x": [public_filter.id]},
+            },
+            token=view_only_token,
+        )
+        assert status == 200, data
+
+        # Drop the topic; the routing for it goes with it.
+        status, data = api(
+            "PUT",
+            f"brokers/{broker_id}/credentials",
+            data={
+                "topics": ["lasair_1y"],
+                "topic_filter_ids": {"lasair_1x": [public_filter.id]},
+            },
+            token=view_only_token,
+        )
+        assert status == 200, data
+
+        status, data = api(
+            "GET", f"brokers/{broker_id}/credentials", token=view_only_token
+        )
+        assert status == 200
+        assert data["data"]["topics"] == ["lasair_1y"]
+        assert data["data"]["topic_filter_ids"] == {}
+    finally:
+        api("DELETE", f"brokers/{broker_id}/credentials", token=view_only_token)
+        api("DELETE", f"brokers/{broker_id}", token=super_admin_token)
+
+
+def test_deleting_a_filter_clears_it_from_topic_routing(
+    super_admin_token, super_admin_user, public_group, public_stream
+):
+    """A deleted filter leaves no id behind to refuse the next credentials save."""
+    payload = _broker_payload()
+    status, data = api("POST", "brokers", data=payload, token=super_admin_token)
+    assert status == 200
+    broker_id = data["data"]["id"]
+    status, data = api(
+        "POST",
+        "filters",
+        data={
+            "name": str(uuid.uuid4()),
+            "group_id": public_group.id,
+            "stream_id": public_stream.id,
+        },
+        token=super_admin_token,
+    )
+    assert status == 200
+    filter_id = data["data"]["id"]
+    try:
+        status, data = api(
+            "PUT",
+            f"brokers/{broker_id}/credentials",
+            data={
+                "credentials": {"token": "mine"},
+                "topics": ["lasair_1x"],
+                "topic_filter_ids": {"lasair_1x": [filter_id]},
+            },
+            token=super_admin_token,
+        )
+        assert status == 200, data
+
+        status, data = api("DELETE", f"filters/{filter_id}", token=super_admin_token)
+        assert status == 200, data
+
+        status, data = api(
+            "GET", f"brokers/{broker_id}/credentials", token=super_admin_token
+        )
+        assert status == 200
+        assert data["data"]["topic_filter_ids"] == {}
+
+        # and the next save is not refused for an id that is no longer offered
+        status, data = api(
+            "PUT",
+            f"brokers/{broker_id}/credentials",
+            data={"topics": ["lasair_1x"]},
+            token=super_admin_token,
+        )
+        assert status == 200, data
+    finally:
+        api("DELETE", f"brokers/{broker_id}/credentials", token=super_admin_token)
+        api("DELETE", f"brokers/{broker_id}", token=super_admin_token)
+
+
+def test_broker_ingest_stops_brokers_no_longer_wanted(monkeypatch):
+    """A broker switched off, deactivated or deleted drops out of the listing,
+    and the service tells its running consumer to stop."""
+    from services.broker_ingest import broker_ingest
+
+    init_db(**cfg["database"])  # undo the service's import-time init_db()
+
+    stopped = []
+
+    async def run_ingestion(broker, stop=None):
+        await stop.wait()
+        stopped.append(broker.id)
+
+    broker = SimpleNamespace(
+        id=1,
+        name="fake",
+        modified=0,
+        broker_class=SimpleNamespace(run_ingestion=run_ingestion),
+    )
+    listings = [{1: broker}, {}, {}]
+
+    class _Done(BaseException):
+        pass
+
+    async def list_brokers(session):
+        if not listings:
+            raise _Done
+        return listings.pop(0)
+
+    monkeypatch.setattr(broker_ingest, "RESCAN_INTERVAL", 0.01)
+    monkeypatch.setattr(broker_ingest, "_active_ingestion_brokers", list_brokers)
+    with pytest.raises(_Done):
+        asyncio.run(broker_ingest._run_loop())
+    assert stopped == [1]

@@ -101,6 +101,10 @@ const ReplaceUserMenu = ({
     (shiftUser: any) =>
       shiftUser.user_id === currentUser.id && !shiftUser.admin,
   );
+  // Shift admins are shift users too, so they can't take a member's slot
+  const currentUserInShift = shiftToManage.shift_users.some(
+    (shiftUser: any) => shiftUser.user_id === currentUser.id,
+  );
   if (currentUserIsMemberInShift) {
     // check if the user has already asked for a replacement
     if (
@@ -136,7 +140,7 @@ const ReplaceUserMenu = ({
         </Button>
       </Tooltip>
     );
-  } else if (usersToReplace.length === 0) return null;
+  } else if (usersToReplace.length === 0 || currentUserInShift) return null;
 
   return (
     <div

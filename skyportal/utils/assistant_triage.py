@@ -66,7 +66,9 @@ async def matching_queries(session, analysis):
         return []
     group_ids = set(
         await session.scalars(
-            sa.select(Source.group_id).where(Source.obj_id == analysis.obj_id)
+            sa.select(Source.group_id).where(
+                Source.obj_id == analysis.obj_id, Source.active.is_(True)
+            )
         )
     )
     if not group_ids:

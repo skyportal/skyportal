@@ -79,6 +79,9 @@ class ConfigHandler(BaseHandler):
                               description: |
                                 Boolean indicating whether new user invitation pipeline
                                 is enabled in current deployment.
+                            invitationsDaysUntilExpiry:
+                              type: integer
+                              description: Number of days an invitation link stays valid.
                             userApplicationsEnabled:
                               type: boolean
                               description: |
@@ -123,6 +126,7 @@ class ConfigHandler(BaseHandler):
             data={
                 "slackPreamble": cfg["slack.expected_url_preamble"],
                 "invitationsEnabled": cfg["invitations.enabled"],
+                "invitationsDaysUntilExpiry": cfg["invitations.days_until_expiry"],
                 "userApplicationsEnabled": user_applications_enabled(),
                 "canDecideUserApplications": may_decide(self.current_user),
                 "assistantEnabled": assistant_enabled(cfg),

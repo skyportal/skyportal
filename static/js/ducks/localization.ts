@@ -13,7 +13,7 @@
  * invalidate the `Localization` tag.
  */
 import { skyportalApi } from "../api/skyportalApi";
-import { invalidateOnMessage } from "../api/wsInvalidation";
+import { invalidateOnMessage, cachedQueries } from "../api/wsInvalidation";
 import type { RouteData } from "../types/routeSchemaMap";
 
 interface GetLocalizationArg {
@@ -63,8 +63,7 @@ export const {
 // committed. That message is also pushed for unrelated changes (a comment, an
 // alias update), so only refetch the ones still waiting for their contour.
 invalidateOnMessage("skyportal/REFRESH_GCN_EVENT", (payload, getState) => {
-  const queries = (getState() as any)?.skyportalApi?.queries ?? {};
-  const waitingForContour = Object.values(queries).some(
+  const waitingForContour = cachedQueries(getState).some(
     (entry: any) =>
       entry?.endpointName === "getLocalization" &&
       (payload?.gcnEvent_dateobs == null ||

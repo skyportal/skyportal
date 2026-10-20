@@ -1,13 +1,9 @@
 /**
  * A single stream (by id).
  *
- * RTK Query conversion of the old `FETCH_STREAM` duck. The old websocket handler
- * only refetched when the currently-loaded stream matched the pushed
- * `stream_id`; here we invalidate the "Stream" tag, which only refetches the
- * active stream query.
+ * RTK Query conversion of the old `FETCH_STREAM` duck.
  */
 import { skyportalApi } from "../api/skyportalApi";
-import { invalidateOnMessage } from "../api/wsInvalidation";
 import type { RouteData } from "../types/routeSchemaMap";
 
 export const streamApi = skyportalApi.injectEndpoints({
@@ -21,9 +17,5 @@ export const streamApi = skyportalApi.injectEndpoints({
     }),
   }),
 });
-
-// Websocket: only the active stream query (the one the user has open) is
-// invalidated, mirroring the old "loaded_stream_id === payload.stream_id" gate.
-invalidateOnMessage("skyportal/REFRESH_STREAM", () => ["Stream"]);
 
 export const { useGetStreamQuery } = streamApi;

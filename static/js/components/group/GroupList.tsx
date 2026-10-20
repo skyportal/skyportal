@@ -56,7 +56,8 @@ const GroupList = ({
 }: GroupListProps) => {
   const navigate = useNavigate();
   const dispatch = useAppDispatch();
-  const [requestGroupAdmission] = useRequestGroupAdmissionMutation();
+  const [requestGroupAdmission, { isLoading: isRequesting }] =
+    useRequestGroupAdmissionMutation();
   const [deleteAdmissionRequest] = useDeleteAdmissionRequestMutation();
   const [requestingGroup, setRequestingGroup] = useState<any>(null);
   const [reason, setReason] = useState("");
@@ -172,7 +173,7 @@ const GroupList = ({
           <Button
             secondary
             size="small"
-            disabled={isDisable}
+            disabled={isDisable || isRequesting}
             onClick={() => {
               if (group.auto_accept_requests) {
                 handleRequestAdmission(group);
@@ -266,7 +267,7 @@ const GroupList = ({
           </Button>
           <Button
             primary
-            disabled={!reason.trim()}
+            disabled={!reason.trim() || isRequesting}
             onClick={submitRequest}
             data-testid="submitAdmissionRequestButton"
           >

@@ -198,6 +198,7 @@ def _normalize_object(obj, object_id):
             "jd": c.get("jd"),
             "magpsf": c.get("magpsf"),
             "sigmapsf": c.get("sigmapsf"),
+            "isdiffpos": c.get("isdiffpos"),
             "band": _band(c),
             "ra": c.get("ra"),
             "dec": c.get("dec"),

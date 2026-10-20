@@ -168,6 +168,16 @@ class GroupAdmissionRequestHandler(BaseHandler):
                 return self.error(
                     f"User {user_id} is already a member of group {group_id}"
                 )
+            pending = await session.scalar(
+                GroupAdmissionRequest.select(session.user_or_token)
+                .where(GroupAdmissionRequest.group_id == group_id)
+                .where(GroupAdmissionRequest.user_id == user_id)
+                .where(GroupAdmissionRequest.status == "pending")
+            )
+            if pending is not None:
+                return self.error(
+                    f"User {user_id} already has a pending request for group {group_id}"
+                )
             # Ensure user has sufficient stream access for target group
             if group.streams and "System admin" not in requesting_user.permissions:
                 accessible_stream_ids = {

@@ -110,3 +110,31 @@ def test_top_source_prefs(page, user, public_group, upload_data_token):
     page.locator("//*[contains(@data-testid, 'topSources_30days')]").first.click()
 
     expect(page.locator(source_view_xpath).first).to_be_visible()
+
+
+def test_invalid_widget_preferences_return_400(page, user, upload_data_token):
+    # The widget handlers read current_user.preferences, which a token lacks,
+    # so query them through the user's browser session.
+    page.goto(f"/become_user/{user.id}")
+    for value, reason in [("ten", "invalid literal"), ("-5", "must not be negative")]:
+        status, _ = api(
+            "PATCH",
+            "internal/profile",
+            data={
+                "preferences": {
+                    "topSources": {"maxNumSources": value},
+                    "recentSources": {"maxNumSources": value},
+                    "recentGcnEvents": {"maxNumEvents": value},
+                }
+            },
+            token=upload_data_token,
+        )
+        assert status == 200
+        for endpoint, preference in [
+            ("source_views", "topSources preference maxNumSources"),
+            ("recent_sources", "recentSources preference maxNumSources"),
+            ("recent_gcn_events", "recentGcnEvents preference maxNumEvents"),
+        ]:
+            response = page.request.get(f"/api/internal/{endpoint}")
+            assert response.status == 400
+            assert f"Invalid {preference}: {reason}" in response.json()["message"]

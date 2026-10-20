@@ -63,6 +63,7 @@ def ensure_secret_key():
     if present not in (None, "", DEFAULT):
         return 0  # someone set one; leave it alone
 
+    fresh = not STORE.exists()
     key = stored_key()
     if present is not None:
         text = SECRET_KEY_LINE.sub(rf"\g<1>secret_key: {key}", text, count=1)
@@ -76,4 +77,10 @@ def ensure_secret_key():
         text = text.rstrip("\n") + f"\n\napp:\n  secret_key: {key}\n"
     CONFIG.write_text(text)
     print("generated an app.secret_key for this container", file=sys.stderr)
+    if fresh:
+        print(
+            "credentials already stored under the default key no longer decrypt; "
+            f"re-encrypt them with: OLD_SECRET_KEY={DEFAULT} make reencrypt_secret_key",
+            file=sys.stderr,
+        )
     return 0

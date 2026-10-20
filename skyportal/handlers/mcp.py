@@ -713,9 +713,11 @@ async def get_analysis(handler, args):
     "origin, and whether it came from a machine-learning model (ml) or a human. "
     "ML classifiers (e.g. FLARE, ORACLE) each post under their own origin, so "
     "grouping by origin gives one set per classifier. For a classifier's full "
-    "detail -- FLARE's probability vector, conformal prediction set and anomaly "
-    "score, or a spectral classifier's template matches -- read its analysis with "
-    "get_analysis. Pair with post_comment to record a triage verdict.",
+    "detail -- FLARE's probability vector, conformal prediction set, consensus "
+    "anomaly alarm (flare_anomaly_p p-value and the flare_alarm_far it is flagged "
+    "at), host_mismatch guard and g/r forecast overlay, or a spectral classifier's "
+    "template matches -- read its analysis with get_analysis. Pair with post_comment "
+    "to record a triage verdict.",
     {"obj_id": _prop("string", "Source ID.")},
     required=("obj_id",),
 )
@@ -1304,21 +1306,17 @@ async def get_broker_alerts(handler, args):
     args = dict(args)
     broker_id = args.pop("broker_id")
     full = bool(args.pop("full", False))
-    candid = args.pop("candid", None)
     # The provider names it objectId; accept the snake_case form as well.
     object_id = args.pop("object_id", None)
     if object_id is not None:
         args.setdefault("objectId", object_id)
-    if candid is None and not args:
+    if not args:
         raise ToolError(
             "Give object_id, candid, or ra/dec/radius to search for alerts."
         )
 
     path = f"/api/brokers/{int(broker_id)}/alerts"
-    if candid is not None:
-        path += f"/{candid}"
-        args = {}
-    data = await handler.api("GET", path, query=args or None)
+    data = await handler.api("GET", path, query=args)
     return _summarize_alerts(data, full)
 
 

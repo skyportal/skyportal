@@ -679,20 +679,21 @@ class CommentHandler(BaseHandler):
                         f"allocation on in a comment on *{obj_id}*"
                     )
                 elif associated_resource_type.lower() == "spectra":
-                    mention_text = f"*@{author_username}* mentioned you in a comment on *{spectrum_id}*"
-                    url_endpoint = f"/source/{spectrum_id}"
+                    mention_text = f"*@{author_username}* mentioned you in a comment on *{spectrum.obj_id}*"
+                    url_endpoint = f"/source/{spectrum.obj_id}"
                     instrument_text = (
                         f"*@{author_username}* "
                         "mentioned an instrument you have an "
-                        f"allocation on in a comment on *{spectrum_id}*"
+                        f"allocation on in a comment on *{spectrum.obj_id}*"
                     )
                 elif associated_resource_type.lower() == "gcn_event":
-                    mention_text = f"*@{author_username}* mentioned you in a comment on *{gcnevent_id}*"
-                    url_endpoint = f"/gcn_events/{gcnevent_id}"
+                    dateobs = gcn_event.dateobs.isoformat()
+                    mention_text = f"*@{author_username}* mentioned you in a comment on *{dateobs}*"
+                    url_endpoint = f"/gcn_events/{dateobs}"
                     instrument_text = (
                         f"*@{author_username}* "
                         "mentioned an instrument you have an "
-                        f"allocation on in a comment on *{gcnevent_id}*"
+                        f"allocation on in a comment on *{dateobs}*"
                     )
                 elif associated_resource_type.lower() == "shift":
                     mention_text = f"*@{author_username}* mentioned you in a comment on *shift {shift_id}*"
@@ -703,12 +704,12 @@ class CommentHandler(BaseHandler):
                         f"allocation on in a comment on *shift {shift_id}*"
                     )
                 elif associated_resource_type.lower() == "earthquake":
-                    mention_text = f"*@{author_username}* mentioned you in a comment on *{earthquake_id}*"
-                    url_endpoint = f"/earthquakes/{earthquake_id}"
+                    mention_text = f"*@{author_username}* mentioned you in a comment on *{earthquake.event_id}*"
+                    url_endpoint = f"/earthquakes/{earthquake.event_id}"
                     instrument_text = (
                         f"*@{author_username}* "
                         "mentioned an instrument you have an "
-                        f"allocation on in a comment on *{earthquake_id}*"
+                        f"allocation on in a comment on *{earthquake.event_id}*"
                     )
                 else:
                     return self.error(

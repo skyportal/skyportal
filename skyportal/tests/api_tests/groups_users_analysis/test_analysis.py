@@ -2024,9 +2024,9 @@ def test_default_gcnevent_analysis_on_grb_tag(
     )
     assert status == 200, data
 
-    # Only the GRB tag matches, so exactly one analysis should be auto-created
-    # (like test_default_analysis, we pin creation, not webhook completion).
-    def analysis_created():
+    # Only the GRB tag matches, so exactly one analysis should be auto-created,
+    # and it should leave "queued" once the service has been called.
+    def analysis_started():
         status, data = api(
             "GET",
             f"gcn_event/{dateobs}/analysis",
@@ -2037,9 +2037,10 @@ def test_default_gcnevent_analysis_on_grb_tag(
             a for a in data["data"] if a["analysis_service_id"] == analysis_service_id
         ]
         assert len(matches) == 1, f"expected one auto-run analysis, got {len(matches)}"
+        assert matches[0]["status"] != "queued", matches[0]["status_message"]
         return matches[0]
 
-    analysis = retry_until(analysis_created, timeout=60)
+    analysis = retry_until(analysis_started, timeout=100)
 
     status, data = api(
         "DELETE", f"gcn_event/analysis/{analysis['id']}", token=analysis_token

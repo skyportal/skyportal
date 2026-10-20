@@ -109,12 +109,14 @@ class BrokerAPI(_Base):
 
     @staticmethod
     def get_alert(broker, alert_id, session, **kwargs):
-        """Return a single alert (with auxiliary/history data if available)."""
+        """Return one object (``alert_id`` = objectId), with its detection
+        history if available."""
         raise NotImplementedError
 
     @staticmethod
     def get_cutouts(broker, alert_id, session, **kwargs):
-        """Return the science/template/difference cutouts for an alert."""
+        """Return the science/template/difference cutouts for an alert, keyed by
+        the candid or the objectId depending on the provider."""
         raise NotImplementedError
 
     @staticmethod
@@ -252,8 +254,13 @@ class BrokerAPI(_Base):
     # ------------------------------------------------------------------ #
 
     @staticmethod
-    def run_ingestion(broker, session, **kwargs):
-        """Run the long-lived ingestion loop for this broker (consumer/poller)."""
+    def run_ingestion(broker, stop=None, **kwargs):
+        """Run the long-lived ingestion loop for this broker (consumer/poller).
+
+        The broker_ingest service calls it as ``run_ingestion(broker, stop=stop)``
+        and stops a broker by setting ``stop`` (an asyncio.Event), so the loop
+        must return once it is set.
+        """
         raise NotImplementedError
 
     # ------------------------------------------------------------------ #

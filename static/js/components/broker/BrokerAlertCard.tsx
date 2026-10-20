@@ -17,7 +17,7 @@ import { Link } from "react-router-dom";
 import { makeStyles } from "tss-react/mui";
 
 import {
-  useGetBrokerAlertQuery,
+  useGetBrokerObjectQuery,
   useGetSourceIfSavedQuery,
 } from "../../ducks/brokers";
 import CutoutTriplet from "./CutoutTriplet";
@@ -145,8 +145,8 @@ const BrokerAlertCard = ({
   // brokers whose alert rows omit ra/dec/candid (e.g. Lasair cone results), we
   // fall back to the fetched object's candidate.
   const [historyShown, setHistoryShown] = useState(!lazyHistory);
-  const { data: alertData } = useGetBrokerAlertQuery(
-    { brokerId, alertId: objectId },
+  const { data: alertData } = useGetBrokerObjectQuery(
+    { brokerId, objectId },
     { skip: !objectId || !historyShown },
   );
   const cand = alertData?.candidate ?? {};
