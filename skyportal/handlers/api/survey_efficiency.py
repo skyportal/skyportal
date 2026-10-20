@@ -89,7 +89,7 @@ class SurveyEfficiencyForObservationPlanHandler(BaseHandler):
                     == query.observation_plan_id
                 )
             result = await session.scalars(stmt)
-            return self.success(data=result.all())
+            return self.success(data=result.unique().all())
 
 
 class SurveyEfficiencyForObservationsHandler(BaseHandler):
@@ -161,7 +161,7 @@ class SurveyEfficiencyForObservationsHandler(BaseHandler):
                     SurveyEfficiencyForObservations.gcnevent_id == query.gcnevent_id
                 )
             result = await session.scalars(stmt)
-            return self.success(data=result.all())
+            return self.success(data=result.unique().all())
 
 
 class DefaultSurveyEfficiencyRequestHandler(BaseHandler):
