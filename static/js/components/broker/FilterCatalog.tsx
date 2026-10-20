@@ -208,7 +208,7 @@ const FilterCatalog = ({ brokerId }: { brokerId?: number }) => {
       width: 100,
       sortable: false,
       renderCell: ({ row: f }: { row: BrokerFilter }) =>
-        f.group_admin && (
+        f.can_delete && (
           <Tooltip title={`Delete filter "${f.name}"`} placement="left">
             <Button color="error" onClick={() => setFilterToDelete(f)}>
               <DeleteIcon />

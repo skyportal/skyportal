@@ -6,10 +6,14 @@ people, so a model talked into a write by that text must have nothing to call.
 """
 
 from skyportal.handlers.mcp import TOOLS
-from skyportal.utils.assistant import FILTER_WRITE_TOOLS, offered_tools
+from skyportal.utils.assistant import (
+    FILTER_WRITE_TOOLS,
+    offered_tools,
+    targets_page_filter,
+)
 
 READ = {"name": "get_alert_schema", "annotations": {"readOnlyHint": True}}
-WRITE = {"name": "post_filter", "annotations": {"readOnlyHint": False}}
+WRITE = {"name": "post_broker_filter_version", "annotations": {"readOnlyHint": False}}
 OTHER_WRITE = {"name": "post_source", "annotations": {"readOnlyHint": False}}
 
 
@@ -29,7 +33,10 @@ def test_no_writing_tool_is_offered_off_a_filter_page():
 
 
 def test_filter_writing_tools_are_offered_on_a_filter_page():
-    assert names([READ, WRITE], "filter") == {"get_alert_schema", "post_filter"}
+    assert names([READ, WRITE], "filter") == {
+        "get_alert_schema",
+        "post_broker_filter_version",
+    }
 
 
 def test_a_filter_page_does_not_unlock_unrelated_writes():
@@ -49,13 +56,18 @@ def test_every_allowed_tool_exists_and_writes():
         assert TOOLS[name]["annotations"]["readOnlyHint"] is False, name
 
 
-def test_a_group_can_be_made_where_a_filter_is_built():
-    # Asking for a filter "in a group of its own" is one request, and it fails
-    # at the group if the tool for it is not there.
-    group = {"name": "post_group", "annotations": {"readOnlyHint": False}}
-    assert names([group], "filter") == {"post_group"}
-    assert names([group]) == set()
-    assert names([group], "source") == set()
+def test_a_filter_page_cannot_create_filters_or_groups():
+    for name in ("post_filter", "post_group"):
+        tool = {"name": name, "annotations": {"readOnlyHint": False}}
+        assert names([tool], "filter") == set()
+
+
+def test_filter_writes_must_name_the_page_filter():
+    assert targets_page_filter({"broker_id": 1, "filter_id": 1433}, "1/1433")
+    assert not targets_page_filter({"broker_id": 1, "filter_id": 1434}, "1/1433")
+    assert not targets_page_filter({"broker_id": 2, "filter_id": 1433}, "1/1433")
+    assert not targets_page_filter({"filter_id": 1433}, "1/1433")
+    assert not targets_page_filter({"broker_id": 1, "filter_id": 1433}, None)
 
 
 def test_every_gated_tool_is_a_tool_that_exists():
