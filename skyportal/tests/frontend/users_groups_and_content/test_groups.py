@@ -58,11 +58,11 @@ def test_add_new_group(page, super_admin_user, user, super_admin_token):
 
 
 @pytest.mark.parametrize(
-    "checkbox, admin_chip_count, admin, can_save",
+    "checkbox, admin, can_save",
     [
-        ("adminCheckbox", 1, True, True),
-        (None, 0, False, True),
-        ("canSaveCheckbox", 0, False, False),
+        ("adminCheckbox", True, True),
+        (None, False, True),
+        ("canSaveCheckbox", False, False),
     ],
 )
 def test_add_new_group_user(
@@ -72,7 +72,6 @@ def test_add_new_group_user(
     user_no_groups,
     public_group,
     checkbox,
-    admin_chip_count,
     admin,
     can_save,
 ):
@@ -93,9 +92,11 @@ def test_add_new_group_user(
     expect(
         page.locator(f'//a[contains(.,"{user_no_groups.username}")]').first
     ).to_be_visible()
-    expect(page.locator(f'//div[@id="{user_no_groups.id}-admin-chip"]')).to_have_count(
-        admin_chip_count
-    )
+    admin_box = page.get_by_test_id(f"admin-{user_no_groups.username}").locator("input")
+    if admin:
+        expect(admin_box).to_be_checked()
+    else:
+        expect(admin_box).not_to_be_checked()
 
     status, data = api(
         "GET",
