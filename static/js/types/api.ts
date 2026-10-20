@@ -23653,7 +23653,7 @@ export interface paths {
                 query?: {
                     /** @description Items per page, capped at 100. */
                     limit?: number;
-                    /** @description How many items to skip, for paging further back. */
+                    /** @description How many items to skip, for paging further back, at most 5000. */
                     offset?: number;
                     /** @description Only list this kind of contribution. */
                     kind?: string;
