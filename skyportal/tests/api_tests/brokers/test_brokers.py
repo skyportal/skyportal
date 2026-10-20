@@ -273,6 +273,7 @@ def _post_photometry(token, obj_id, instrument_id, group_ids, mjd):
         token=token,
     )
     assert status == 200, data
+    return data["data"]["ids"][0]
 
 
 def test_default_photometry_broker_serves_object_photometry(
@@ -428,6 +429,47 @@ def test_photometry_passthrough_keeps_the_source_page_contract(
         assert point["mag_corr"] is not None
     finally:
         api("DELETE", f"brokers/{broker_id}", token=super_admin_token)
+
+
+def test_photometry_passthrough_only_serves_readable_annotations(
+    upload_data_token_two_groups,
+    annotation_token_two_groups,
+    view_only_token,
+    public_source_two_groups,
+    public_group,
+    public_group2,
+    ztf_camera,
+):
+    """includeAnnotationInfo applies the annotations' own groups, as
+    GET /sources/{id}/photometry does."""
+    phot_id = _post_photometry(
+        upload_data_token_two_groups,
+        public_source_two_groups.id,
+        ztf_camera.id,
+        [public_group.id, public_group2.id],
+        58003.0,
+    )
+    # view_only_token's user is in public_group but not public_group2
+    for origin, group_ids in (
+        ("shared", [public_group.id, public_group2.id]),
+        ("group2", [public_group2.id]),
+    ):
+        status, data = api(
+            "POST",
+            f"photometry/{phot_id}/annotations",
+            data={"origin": origin, "data": {"score": 1}, "group_ids": group_ids},
+            token=annotation_token_two_groups,
+        )
+        assert status == 200, data
+
+    status, data = api(
+        "GET",
+        f"brokers/photometry/{public_source_two_groups.id}?includeAnnotationInfo=true",
+        token=view_only_token,
+    )
+    assert status == 200, data
+    point = next(p for p in data["data"] if p["id"] == phot_id)
+    assert [a["origin"] for a in point["annotations"]] == ["shared"]
 
 
 def test_photometry_passthrough_serves_photometric_series(
@@ -1545,6 +1587,44 @@ def test_deleting_a_filter_clears_it_from_topic_routing(
         assert status == 200, data
     finally:
         api("DELETE", f"brokers/{broker_id}/credentials", token=super_admin_token)
+        api("DELETE", f"brokers/{broker_id}", token=super_admin_token)
+
+
+def test_group_admin_deletes_a_filter_another_user_routes_to(
+    super_admin_token, view_only_token, group_admin_token, public_filter
+):
+    """The group admin cannot read or update another user's credentials, yet
+    deleting the filter still clears it from their routing."""
+    payload = _broker_payload()
+    status, data = api("POST", "brokers", data=payload, token=super_admin_token)
+    assert status == 200
+    broker_id = data["data"]["id"]
+    try:
+        status, data = api(
+            "PUT",
+            f"brokers/{broker_id}/credentials",
+            data={
+                "credentials": {"token": "mine"},
+                "topics": ["lasair_1x"],
+                "topic_filter_ids": {"lasair_1x": [public_filter.id]},
+            },
+            token=view_only_token,
+        )
+        assert status == 200, data
+
+        status, data = api(
+            "DELETE", f"filters/{public_filter.id}", token=group_admin_token
+        )
+        assert status == 200, data
+
+        status, data = api(
+            "GET", f"brokers/{broker_id}/credentials", token=view_only_token
+        )
+        assert status == 200
+        assert data["data"]["topics"] == ["lasair_1x"]
+        assert data["data"]["topic_filter_ids"] == {}
+    finally:
+        api("DELETE", f"brokers/{broker_id}/credentials", token=view_only_token)
         api("DELETE", f"brokers/{broker_id}", token=super_admin_token)
 
 

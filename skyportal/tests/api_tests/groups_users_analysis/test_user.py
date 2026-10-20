@@ -4,7 +4,7 @@ from pathlib import Path
 
 from skyportal.handlers.api.user import ACTIVITY_OFFSET_MAX, PUBLIC_PROFILE_FIELDS
 from skyportal.model_util import create_token
-from skyportal.models import DBSession, Token
+from skyportal.models import PUBLIC_PROFILE_FIELDS, DBSession, Token
 from skyportal.tests import api
 
 

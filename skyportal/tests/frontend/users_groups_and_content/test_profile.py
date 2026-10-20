@@ -305,3 +305,31 @@ def test_photometry_buttons_form(page, user, upload_data_token):
         assert buttons.get(photometry_button_name, {}).get("filters") == ["2massh"]
 
     retry_until(button_saved, timeout=20)
+
+
+def test_photometry_buttons_form_keeps_input_when_save_fails(page, user):
+    page.goto(f"/become_user/{user.id}")
+    page.goto("/profile")
+    open_preferences_panel(page, "plotting")
+
+    def fail_save(route):
+        if route.request.method == "PATCH":
+            return route.fulfill(
+                json={"status": "error", "message": "Simulated failure"}
+            )
+        return route.continue_()
+
+    page.route("**/api/internal/profile", fail_save)
+
+    page.locator('//div[@id="filterSelectPhotometryButtonsForm"]').first.click()
+    page.locator('//li[@data-value="2massh"]').first.click()
+    page.keyboard.press("Escape")
+
+    photometry_button_name = str(uuid.uuid4())
+    name_input = page.locator('//input[@name="photometryButtonName"]').first
+    name_input.fill(photometry_button_name)
+    page.locator('//button[@id="addPhotometryButtonButton"]').first.click()
+    expect(
+        page.locator('//*[contains(text(), "Simulated failure")]').first
+    ).to_be_visible()
+    expect(name_input).to_have_value(photometry_button_name)

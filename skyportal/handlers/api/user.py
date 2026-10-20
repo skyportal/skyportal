@@ -38,6 +38,7 @@ from ...models import (
     User,
     UserACL,
     UserRole,
+    shared_profile_fields,
 )
 from ..base import BaseHandler
 from .internal.source_views import t_index
@@ -46,26 +47,6 @@ from .roles import includes_admin_role
 
 log = make_log("api/user")
 env, cfg = load_env()
-
-
-# Mirrored by PUBLIC_FIELDS in static/js/components/user/UserProfileInfo.tsx
-PUBLIC_PROFILE_FIELDS = {
-    "affiliations": True,
-    "bio": True,
-    "contact_email": False,
-    "contact_phone": False,
-    "roles": False,
-    "groups": False,
-}
-
-
-def shared_profile_fields(user):
-    """The public profile fields this user chose to share, defaults applied."""
-    preferences = (user.preferences or {}).get("publicProfile") or {}
-    return {
-        field: bool(preferences.get(field, default))
-        for field, default in PUBLIC_PROFILE_FIELDS.items()
-    }
 
 
 def public_user_info(user):
@@ -332,7 +313,7 @@ class UserHandler(BaseHandler):
                 if not self.can_manage_user(user_id):
                     return self.success(data=public_user_info(user))
 
-                user_info = user.to_dict()
+                user_info = user.to_dict(private=True)
 
                 # return the phone number so it can be serialized
                 if user_info.get("contact_phone"):
@@ -441,7 +422,7 @@ class UserHandler(BaseHandler):
                 )
 
             for user in users_result.all():
-                user_info = user.to_dict()
+                user_info = user.to_dict(private=True)
                 user_info["permissions"] = sorted(user.permissions)
                 user_info["roles"] = sorted(role.id for role in user.roles)
                 user_info["acls"] = sorted(acl.id for acl in user.acls)

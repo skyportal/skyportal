@@ -32,17 +32,27 @@ LIST_FIELDS = (
 
 
 async def clear_filter_from_routing(filter_id, session):
-    """Drop a filter from every credential's routing; no foreign key does."""
-    rows = (await session.scalars(sa.select(BrokerCredential))).all()
-    for row in rows:
-        routing = row.topic_filter_ids or {}
+    """Drop a filter from every credential's routing; no foreign key does.
+    Other users' credentials stay out of the session: the commit-time access
+    check would refuse them, and their altdata is never decrypted."""
+    rows = (
+        await session.execute(
+            sa.select(BrokerCredential.id, BrokerCredential.topic_filter_ids)
+        )
+    ).all()
+    for credential_id, routing in rows:
+        routing = routing or {}
         pruned = {
             topic: [fid for fid in ids if fid != filter_id]
             for topic, ids in routing.items()
         }
         pruned = {topic: ids for topic, ids in pruned.items() if ids}
         if pruned != routing:
-            row.topic_filter_ids = pruned
+            await session.execute(
+                sa.update(BrokerCredential)
+                .where(BrokerCredential.id == credential_id)
+                .values(topic_filter_ids=pruned)
+            )
 
 
 def delete_filter_on_broker(broker, f, session):

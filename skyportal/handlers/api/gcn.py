@@ -2159,7 +2159,7 @@ class GcnEventSurveyEfficiencyHandler(BaseHandler):
             )
 
             analysis_data = []
-            for analysis in analyses:
+            for analysis in analyses.unique():
                 analysis_data.append(
                     {
                         **analysis.to_dict(),
@@ -2221,7 +2221,7 @@ class GcnEventObservationPlanRequestsHandler(BaseHandler):
             # go through some pain to get probability and area included
             # as these are properties
             request_data = []
-            for req in plan_requests.all():
+            for req in plan_requests.unique().all():
                 dat = req.to_dict()
                 plan_data = []
                 for plan in dat["observation_plans"]:
@@ -2748,13 +2748,14 @@ class GcnEventHandler(BaseHandler):
             events = []
             events_result = (await session.scalars(stmt)).unique().all()
             plan_requests_by_event = defaultdict(list)
-            for plan_request in await session.scalars(
+            plan_requests = await session.scalars(
                 ObservationPlanRequest.select(session.user_or_token).where(
                     ObservationPlanRequest.gcnevent_id.in_(
                         [event.id for event in events_result]
                     )
                 )
-            ):
+            )
+            for plan_request in plan_requests.unique():
                 plan_requests_by_event[plan_request.gcnevent_id].append(plan_request)
             for event in events_result:
                 event.gcn_notices = sorted(
@@ -5121,7 +5122,7 @@ def add_gcn_report(
                             instrument_ids
                         )
                     )
-                survey_efficiency_analyses = session.scalars(stmt).all()
+                survey_efficiency_analyses = session.scalars(stmt).unique().all()
 
                 contents["survey_efficiency_analyses"] = [
                     {

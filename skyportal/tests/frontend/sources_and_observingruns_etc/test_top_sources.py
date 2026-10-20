@@ -112,7 +112,9 @@ def test_top_source_prefs(page, user, public_group, upload_data_token):
     expect(page.locator(source_view_xpath).first).to_be_visible()
 
 
-def test_invalid_widget_preferences_return_400(page, user, upload_data_token):
+def test_invalid_widget_preferences_return_400(
+    page, user, upload_data_token, public_gcn_event_extraction
+):
     # The widget handlers read current_user.preferences, which a token lacks,
     # so query them through the user's browser session.
     page.goto(f"/become_user/{user.id}")
@@ -138,3 +140,9 @@ def test_invalid_widget_preferences_return_400(page, user, upload_data_token):
             response = page.request.get(f"/api/internal/{endpoint}")
             assert response.status == 400
             assert f"Invalid {preference}: {reason}" in response.json()["message"]
+
+    # The extractions feed reads the same preference, last saved as "-5" above.
+    # Postgres only rejects a negative LIMIT once it has an extraction to read.
+    response = page.request.get("/api/internal/recent_gcn_extractions")
+    assert response.status == 400
+    assert "maxNumEvents: must not be negative" in response.json()["message"]

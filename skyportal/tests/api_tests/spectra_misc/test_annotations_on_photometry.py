@@ -410,3 +410,48 @@ def test_fetch_all_photometry_annotations(
     assert len(data["data"]) == 2
     assert data["data"][0]["data"]["redshift"] == 0.07
     assert data["data"][1]["data"]["gaia_G"] == 15.7
+
+
+def test_annotation_shared_with_two_groups_returned_once(
+    annotation_token_two_groups,
+    upload_data_token_two_groups,
+    public_source_two_groups,
+    public_group,
+    public_group2,
+    ztf_camera,
+):
+    group_ids = [public_group.id, public_group2.id]
+    status, data = api(
+        "POST",
+        "photometry",
+        data={
+            "obj_id": str(public_source_two_groups.id),
+            "mjd": 58000.0,
+            "instrument_id": ztf_camera.id,
+            "flux": 12.24,
+            "fluxerr": 0.031,
+            "zp": 25.0,
+            "magsys": "ab",
+            "filter": "ztfg",
+            "group_ids": group_ids,
+        },
+        token=upload_data_token_two_groups,
+    )
+    assert_api(status, data)
+    photometry_id = data["data"]["ids"][0]
+
+    # the reader is in both of the annotation's groups
+    status, data = api(
+        "POST",
+        f"photometry/{photometry_id}/annotations",
+        data={"origin": "kowalski", "data": {"gaia_G": 15.7}, "group_ids": group_ids},
+        token=annotation_token_two_groups,
+    )
+    assert status == 200
+    annotation_id = data["data"]["annotation_id"]
+
+    status, data = api(
+        "GET", f"photometry/{photometry_id}", token=annotation_token_two_groups
+    )
+    assert status == 200
+    assert [a["id"] for a in data["data"]["annotations"]] == [annotation_id]

@@ -410,7 +410,7 @@ async def load_readable_annotations(session, photometry):
         .order_by(AnnotationOnPhotometry.created_at)
     )
     annotations = defaultdict(list)
-    for annotation in result.all():
+    for annotation in result.unique().all():
         annotations[annotation.photometry_id].append(annotation)
     for phot in photometry:
         set_committed_value(phot, "annotations", annotations[phot.id])
@@ -493,8 +493,6 @@ def serialize(
         return_value["tot_flux"] = phot.tot_flux
         return_value["ref_fluxerr"] = phot.ref_fluxerr
         return_value["tot_fluxerr"] = phot.tot_fluxerr
-        return_value["magref"] = phot.magref
-        return_value["magtot"] = phot.magtot
         return_value["e_magref"] = phot.e_magref
         return_value["e_magtot"] = phot.e_magtot
 
@@ -587,7 +585,11 @@ def serialize(
                             if nan_to_none(phot.magref) is not None
                             else None
                         ),
-                        "magtot": phot.magtot,
+                        "magtot": (
+                            phot.magtot + db_correction
+                            if nan_to_none(phot.magtot) is not None
+                            else None
+                        ),
                         "e_magref": phot.e_magref,
                         "e_magtot": phot.e_magtot,
                     }
@@ -622,6 +624,16 @@ def serialize(
                         "tot_flux": phot.tot_flux,
                         "ref_fluxerr": phot.ref_fluxerr,
                         "tot_fluxerr": phot.tot_fluxerr,
+                        "magref": (
+                            phot.magref + db_correction
+                            if nan_to_none(phot.magref) is not None
+                            else None
+                        ),
+                        "magtot": (
+                            phot.magtot + db_correction
+                            if nan_to_none(phot.magtot) is not None
+                            else None
+                        ),
                     }
                 )
     except ValueError as e:

@@ -392,8 +392,6 @@ const ConditionBuilderSection = ({
       <MapExpressionEditor
         mapFields={mapFields}
         onMapFieldsChange={onMapFieldsChange}
-        arrayField={selectedArrayField as any}
-        subFieldOptions={subFieldOptions}
         customVariables={customVariables}
       />
     );

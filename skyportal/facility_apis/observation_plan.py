@@ -26,7 +26,7 @@ log = make_log("api/observation_plan")
 
 env, cfg = load_env()
 
-SLACK_URL = f"{cfg['slack.expected_url_preamble']}/services"
+SLACK_URL = f"{cfg['slack.expected_url_preamble'].rstrip('/')}/services"
 
 default_filters = cfg["app.observation_plan.default_filters"]
 

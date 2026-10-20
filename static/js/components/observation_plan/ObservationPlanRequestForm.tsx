@@ -41,6 +41,7 @@ import {
 } from "../../ducks/instruments";
 import { useLazyGetPlanWithSameNameExistsQuery } from "../../ducks/observationPlans";
 import { useGetLocalizationQuery } from "../../ducks/localization";
+import { download } from "../../utils/download";
 import GroupShareSelect from "../group/GroupShareSelect";
 const LocalizationPlot = lazy(() => import("../localization/LocalizationPlot"));
 
@@ -527,13 +528,11 @@ const ObservationPlanRequestForm = ({
   };
 
   const exportData = (data: any) => {
-    const jsonString = `data:text/json;chatset=utf-8,${encodeURIComponent(
+    download(
       JSON.stringify(data.fields),
-    )}`;
-    const link = document.createElement("a");
-    link.href = jsonString;
-    link.download = `${dateobs.replaceAll(":", "-")}_fields_${data.name}.json`;
-    link.click();
+      "text/json",
+      `${dateobs.replaceAll(":", "-")}_fields_${data.name}.json`,
+    );
   };
 
   const filteredFieldsSkyMapInstrument = (skymap_instrument: any) => {

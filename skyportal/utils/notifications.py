@@ -33,11 +33,7 @@ ALLOWED_THUMBNAIL_TYPES = [
 
 SLACK_DIVIDER = {"type": "divider"}
 
-SLACK_BASE_URL = cfg["slack.expected_url_preamble"]
-if SLACK_BASE_URL.endswith("/"):
-    SLACK_URL = SLACK_BASE_URL[:-1]
-
-SLACK_URL = f"{SLACK_URL}/services"
+SLACK_URL = f"{cfg['slack.expected_url_preamble'].rstrip('/')}/services"
 
 SLACK_MICROSERVICE_URL = f"http://{cfg['hosts.slack']}:{cfg['slack.microservice_port']}"
 

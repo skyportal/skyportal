@@ -78,6 +78,38 @@ def test_get_invitations(
     assert data["data"]["totalMatches"] == 0
 
 
+def test_get_invitations_pages_newest_first(
+    manage_users_token, public_stream, public_group
+):
+    invitation_ids = []
+    for _ in range(2):
+        status, data = api(
+            "POST",
+            "invitations",
+            data={
+                "userEmail": str(uuid.uuid4()),
+                "streamIDs": [public_stream.id],
+                "groupIDs": [public_group.id],
+            },
+            token=manage_users_token,
+        )
+        assert status == 200
+        invitation_ids.append(data["data"]["id"])
+
+    paged_ids = []
+    for page in (1, 2):
+        status, data = api(
+            "GET",
+            "invitations",
+            params={"numPerPage": 1, "pageNumber": page},
+            token=manage_users_token,
+        )
+        assert status == 200
+        assert data["data"]["totalMatches"] == 2
+        paged_ids += [invitation["id"] for invitation in data["data"]["invitations"]]
+    assert paged_ids == invitation_ids[::-1]
+
+
 def test_patch_invitation(
     manage_users_token,
     manage_users_token_group2,

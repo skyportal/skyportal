@@ -49,12 +49,17 @@ const PhotometryButtonsForm = () => {
     const prefs = {
       photometryButtons: currPhotButtons,
     };
-    updateUserPreferences(prefs);
-    setSelectedFilters([]);
-    setSelectedOrigins([]);
-    reset({
-      photometryButtonName: "",
-    });
+    // Only clear the form once saved, so a failed save can be retried
+    updateUserPreferences(prefs)
+      .unwrap()
+      .then(() => {
+        setSelectedFilters([]);
+        setSelectedOrigins([]);
+        reset({
+          photometryButtonName: "",
+        });
+      })
+      .catch(() => {});
   };
 
   const onDelete = (buttonName: string) => {
