@@ -28,8 +28,6 @@ const escapeLatexForDisplay = (text: any) => {
 interface MapExpressionEditorProps {
   mapFields: any[];
   onMapFieldsChange: (...a: any[]) => void;
-  arrayField: string;
-  subFieldOptions: any[];
   customVariables?: any[];
 }
 
@@ -39,7 +37,6 @@ const MapExpressionEditor = ({
   customVariables = [],
 }: MapExpressionEditorProps) => {
   const [openEquationIds, setOpenEquationIds] = useState<any[]>([]);
-  const [, setSelectedChip] = useState<any>(null);
   const [equationAnchor, setEquationAnchor] = useState<any>(null);
 
   // Convert customVariables to fieldOptions format
@@ -144,7 +141,7 @@ const MapExpressionEditor = ({
                 }
                 conditionOrBlock={{ id: `map-expression-editor-${index}` }}
                 setOpenEquationIds={setOpenEquationIds}
-                setSelectedChip={setSelectedChip}
+                setSelectedChip={() => {}}
                 setEquationAnchor={setEquationAnchor}
                 side="left"
               />

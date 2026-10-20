@@ -216,8 +216,14 @@ const ListVariableInput = ({
     listVariable.listCondition?.operator || listVariable.operator;
   const selectedOperator = conditionOrBlock.operator;
 
-  // For $in and $nin operators, always show AutocompleteFields
-  if (selectedOperator === "$in" || selectedOperator === "$nin") {
+  // For $in and $nin operators, and for aggregation list variables with
+  // comparison operators, show the regular value input
+  if (
+    selectedOperator === "$in" ||
+    selectedOperator === "$nin" ||
+    ((mongoOperatorTypes as any)[operator] === "aggregation" &&
+      (mongoOperatorTypes as any)[selectedOperator] === "comparison")
+  ) {
     return (
       <AutocompleteFields
         key={`${conditionOrBlock.id}.right`}
@@ -269,38 +275,6 @@ const ListVariableInput = ({
         label={conditionOrBlock.booleanSwitch !== false ? "True" : "False"}
         labelPlacement="end"
         style={{ marginLeft: 0, marginRight: 8, minWidth: 100 }}
-      />
-    );
-  }
-
-  // For aggregation list variables with comparison operators, show regular value input
-  if (
-    (mongoOperatorTypes as any)[operator] === "aggregation" &&
-    (mongoOperatorTypes as any)[conditionOrBlock.operator] === "comparison"
-  ) {
-    return (
-      <AutocompleteFields
-        key={`${conditionOrBlock.id}.right`}
-        fieldOptions={fieldOptions}
-        value={(() => {
-          const val = conditionOrBlock.value;
-          if (!val) return "";
-          if (typeof val === "string") return val;
-          if (typeof val === "object" && val.name) return val.name;
-          return String(val);
-        })()}
-        onChange={(newValue: any) =>
-          updateCondition(block.id, conditionOrBlock.id, "value", newValue)
-        }
-        conditionOrBlock={conditionOrBlock}
-        setOpenEquationIds={setOpenEquationIds}
-        customVariables={[]}
-        setSelectedChip={setSelectedChip}
-        side={"right"}
-        style={{ width: "100%" }}
-        isListDialog={isListDialogOpen}
-        customListVariables={customListVariables}
-        setEquationAnchor={setEquationAnchor}
       />
     );
   }
@@ -444,19 +418,19 @@ const RegularValueInput = ({
     ],
   );
 
+  // Check if this is an aggregation operator that should be shown on the left
+  const isAggregationOnLeft =
+    conditionOrBlock.value &&
+    typeof conditionOrBlock.value === "object" &&
+    conditionOrBlock.value.type === "array" &&
+    conditionOrBlock.value.subField &&
+    ["$min", "$max", "$avg", "$sum"].includes(conditionOrBlock.operator);
+
   return (
     <AutocompleteFields
       key={`${conditionOrBlock.id}.right`}
       fieldOptions={fieldOptions}
       value={(() => {
-        // Check if this is an aggregation operator that should be shown on the left
-        const isAggregationOnLeft =
-          conditionOrBlock.value &&
-          typeof conditionOrBlock.value === "object" &&
-          conditionOrBlock.value.type === "array" &&
-          conditionOrBlock.value.subField &&
-          ["$min", "$max", "$avg", "$sum"].includes(conditionOrBlock.operator);
-
         const rawValue = isAggregationOnLeft ? "" : conditionOrBlock.value;
 
         // Normalize value to handle both string and object formats
@@ -471,14 +445,6 @@ const RegularValueInput = ({
         updateCondition(block.id, conditionOrBlock.id, "value", newValue);
       }}
       conditionOrBlock={(() => {
-        // Check if this is an aggregation operator that should be shown on the left
-        const isAggregationOnLeft =
-          conditionOrBlock.value &&
-          typeof conditionOrBlock.value === "object" &&
-          conditionOrBlock.value.type === "array" &&
-          conditionOrBlock.value.subField &&
-          ["$min", "$max", "$avg", "$sum"].includes(conditionOrBlock.operator);
-
         if (isAggregationOnLeft) {
           return {
             ...conditionOrBlock,
