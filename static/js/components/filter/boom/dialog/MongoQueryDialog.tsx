@@ -175,9 +175,10 @@ const MongoQueryDialog = () => {
   const { useAMPM } = profile?.preferences ?? {};
 
   const [copySuccess, setCopySuccess] = useState(false);
-  const [displayResults, setDisplayResults] = useState<{ data?: any[] }>({
-    data: [],
-  });
+  const [displayResults, setDisplayResults] = useState<{
+    data?: any[];
+    alerts?: Record<string, any>;
+  }>({ data: [] });
   const [selectedCollection, setSelectedCollection] = useState(
     ALERT_COLLECTIONS[filter_stream?.toUpperCase() ?? ""] ?? "",
   );
@@ -444,6 +445,7 @@ const MongoQueryDialog = () => {
       setHasMore(rows.length > maxResults);
       setDisplayResults({
         data: rows.slice(0, maxResults).sort(byJdDescending),
+        alerts: result?.alerts ?? {},
       });
       setLastRunArgs(args);
       setQueryCompleted(true);
@@ -792,6 +794,7 @@ const MongoQueryDialog = () => {
                     >
                       <FilterResultAlerts
                         rows={displayResults.data ?? []}
+                        alerts={displayResults.alerts ?? {}}
                         brokerId={brokerId}
                         survey={survey}
                       />

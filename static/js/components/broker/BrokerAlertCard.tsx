@@ -2,6 +2,7 @@ import { useState } from "react";
 
 import Card from "@mui/material/Card";
 import CardContent from "@mui/material/CardContent";
+import Button from "@mui/material/Button";
 import Chip from "@mui/material/Chip";
 import FormControl from "@mui/material/FormControl";
 import InputLabel from "@mui/material/InputLabel";
@@ -110,6 +111,7 @@ interface BrokerAlertCardProps {
   survey: string;
   alerts: AlertOption[];
   initialCandid?: string | number | undefined;
+  lazyHistory?: boolean;
   // Card rendered alone on a full-width row: give the cutouts more room.
   expanded?: boolean;
 }
@@ -124,6 +126,7 @@ const BrokerAlertCard = ({
   survey,
   alerts,
   initialCandid,
+  lazyHistory = false,
   expanded = false,
 }: BrokerAlertCardProps) => {
   const { classes, cx } = useStyles();
@@ -141,9 +144,10 @@ const BrokerAlertCard = ({
   // Full object (also used by the light curve; RTK dedupes the request). For
   // brokers whose alert rows omit ra/dec/candid (e.g. Lasair cone results), we
   // fall back to the fetched object's candidate.
+  const [historyShown, setHistoryShown] = useState(!lazyHistory);
   const { data: alertData } = useGetBrokerAlertQuery(
     { brokerId, alertId: objectId },
-    { skip: !objectId },
+    { skip: !objectId || !historyShown },
   );
   const cand = alertData?.candidate ?? {};
   const ra = selected?.ra ?? cand.ra;
@@ -263,11 +267,17 @@ const BrokerAlertCard = ({
             </div>
           )}
           <div className={classes.lc}>
-            <BrokerAlertLightCurve
-              brokerId={brokerId}
-              objectId={objectId}
-              jd={selected?.jd}
-            />
+            {historyShown ? (
+              <BrokerAlertLightCurve
+                brokerId={brokerId}
+                objectId={objectId}
+                jd={selected?.jd}
+              />
+            ) : (
+              <Button size="small" onClick={() => setHistoryShown(true)}>
+                Load light curve
+              </Button>
+            )}
           </div>
         </div>
 

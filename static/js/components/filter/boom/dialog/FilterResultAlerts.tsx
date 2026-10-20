@@ -1,74 +1,25 @@
 import { useState } from "react";
 import Box from "@mui/material/Box";
-import Card from "@mui/material/Card";
 import Pagination from "@mui/material/Pagination";
-import Skeleton from "@mui/material/Skeleton";
 
-import {
-  useGetBrokerAlertsQuery,
-  useGetBrokersQuery,
-} from "../../../../ducks/brokers";
+import { useGetBrokersQuery } from "../../../../ducks/brokers";
 import BrokerAlertCard, {
+  AlertOption,
   toAlertOption,
 } from "../../../broker/BrokerAlertCard";
-import { CutoutsSkeleton } from "../../../broker/CutoutTriplet";
 
 const PAGE_SIZE = 6;
 
-interface ResultCardProps {
-  brokerId: number;
-  brokerClassname: string;
-  objectId: string;
-  survey: string;
-  passingCandid: string | number | undefined;
-}
-
-const ResultCard = ({
-  brokerId,
-  brokerClassname,
-  objectId,
-  survey,
-  passingCandid,
-}: ResultCardProps) => {
-  const { data, isLoading } = useGetBrokerAlertsQuery({
-    brokerId,
-    params: { objectId, survey },
-  });
-
-  if (isLoading) {
-    return (
-      <Card variant="outlined" sx={{ p: 2 }}>
-        <Skeleton width="40%" height={28} />
-        <Skeleton width="60%" />
-        <Box sx={{ display: "flex", gap: 1, mt: 1 }}>
-          <CutoutsSkeleton size="5rem" />
-          <Skeleton variant="rounded" height="10rem" sx={{ flex: 1 }} />
-        </Box>
-      </Card>
-    );
-  }
-
-  const alerts = Array.isArray(data) ? data.map(toAlertOption) : [];
-  return (
-    <BrokerAlertCard
-      brokerId={brokerId}
-      brokerClassname={brokerClassname}
-      objectId={objectId}
-      survey={survey}
-      alerts={alerts.length ? alerts : [{ candid: passingCandid as any }]}
-      initialCandid={passingCandid}
-    />
-  );
-};
-
 interface FilterResultAlertsProps {
   rows: any[];
+  alerts: Record<string, any>;
   brokerId: number;
   survey: string;
 }
 
 const FilterResultAlerts = ({
   rows,
+  alerts,
   brokerId,
   survey,
 }: FilterResultAlertsProps) => {
@@ -77,15 +28,17 @@ const FilterResultAlerts = ({
   const brokerClassname =
     brokers?.find((b) => b.id === brokerId)?.broker_classname ?? "BOOMBROKER";
 
-  const passingCandids = new Map<string, string | number | undefined>();
+  const byObject = new Map<string, AlertOption[]>();
   rows.forEach((row) => {
-    const objectId = row?.objectId ?? row?.candidate?.objectId;
-    if (objectId && !passingCandids.has(objectId)) {
-      passingCandids.set(objectId, toAlertOption(row).candid);
-    }
+    const alert = alerts[String(row._id)] ?? row;
+    const objectId = alert.objectId ?? row.objectId;
+    if (!objectId) return;
+    byObject.set(objectId, [
+      ...(byObject.get(objectId) ?? []),
+      toAlertOption(alert),
+    ]);
   });
-  const objects = [...passingCandids];
-  const pageCount = Math.ceil(objects.length / PAGE_SIZE);
+  const pageCount = Math.ceil(byObject.size / PAGE_SIZE);
   const current = Math.min(page, Math.max(pageCount, 1));
   const start = (current - 1) * PAGE_SIZE;
 
@@ -98,16 +51,17 @@ const FilterResultAlerts = ({
           gap: 2,
         }}
       >
-        {objects
+        {[...byObject]
           .slice(start, start + PAGE_SIZE)
-          .map(([objectId, passingCandid]) => (
-            <ResultCard
+          .map(([objectId, objectAlerts]) => (
+            <BrokerAlertCard
               key={objectId}
               brokerId={brokerId}
               brokerClassname={brokerClassname}
               objectId={objectId}
               survey={survey}
-              passingCandid={passingCandid}
+              alerts={objectAlerts}
+              lazyHistory
             />
           ))}
       </Box>
