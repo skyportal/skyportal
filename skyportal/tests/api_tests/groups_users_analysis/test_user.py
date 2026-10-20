@@ -2,7 +2,7 @@ import re
 import uuid
 from pathlib import Path
 
-from skyportal.handlers.api.user import PUBLIC_PROFILE_FIELDS
+from skyportal.handlers.api.user import ACTIVITY_OFFSET_MAX, PUBLIC_PROFILE_FIELDS
 from skyportal.model_util import create_token
 from skyportal.models import DBSession, Token
 from skyportal.tests import api
@@ -521,6 +521,23 @@ def test_activity_pages_without_repeating_itself(
     assert not any(
         (i["kind"], i["obj_id"], i["created_at"], i["detail"]) in keys for i in second
     )
+
+
+def test_activity_caps_how_far_back_it_pages(user, super_admin_token):
+    """Every kind is read up to the offset, so the offset is bounded."""
+    status, data = api(
+        "GET",
+        f"user/{user.id}/activity?offset={ACTIVITY_OFFSET_MAX}",
+        token=super_admin_token,
+    )
+    assert status == 200, data
+
+    status, data = api(
+        "GET",
+        f"user/{user.id}/activity?offset={ACTIVITY_OFFSET_MAX + 1}",
+        token=super_admin_token,
+    )
+    assert status == 400, data
 
 
 def test_activity_is_scoped_to_what_the_viewer_can_see(
