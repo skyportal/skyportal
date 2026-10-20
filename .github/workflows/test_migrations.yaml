@@ -315,7 +315,7 @@ jobs:
           # on its own errors, so only accept 2 when migra wrote something.
           # schemainspect still imports pkg_resources, which setuptools 82 removed.
           # migra[pg] ships psycopg2, and SQLAlchemy 2.1 defaults postgresql:// to psycopg 3.
-          uvx --from 'migra[pg]' --with 'setuptools<82' migra --unsafe postgresql+psycopg2://skyportal:anything@localhost:5432/skyportal postgresql+psycopg2://skyportal:anything@localhost:5432/skyportal2 > migra.sql || [[ $? -eq 2 && -s migra.sql ]]
+          uvx --exclude-newer 2026-10-19 --from 'migra[pg]' --with 'setuptools<82' migra --unsafe postgresql+psycopg2://skyportal:anything@localhost:5432/skyportal postgresql+psycopg2://skyportal:anything@localhost:5432/skyportal2 > migra.sql || [[ $? -eq 2 && -s migra.sql ]]
           # This branch's app only starts on the fresh database, so enum values that
           # refresh_enums adds at startup (config bandpasses, SkyMapper/NASA thumbnail
           # types) are missing from the migrated one; ignore those two rebuilds only.
