@@ -675,7 +675,6 @@ class ShiftSummary(BaseHandler):
                     user_dict = su.user.to_dict()
                     user_dict["admin"] = su.admin
                     user_dict["needs_replacement"] = su.needs_replacement
-                    del user_dict["oauth_uid"]
                     susers.append(user_dict)
                 shift_dict = shift.to_dict()
                 shift_dict["shift_users"] = susers
