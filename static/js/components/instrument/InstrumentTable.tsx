@@ -108,6 +108,7 @@ const InstrumentTable = ({
 
   const renderFilters = (params: any) => (
     <ExpandableCell
+      maxVisible={6}
       items={(params.row.filters ?? []).map((filter: string) => (
         <Chip key={filter} label={filter} size="small" />
       ))}
@@ -197,8 +198,8 @@ const InstrumentTable = ({
     {
       field: "filters",
       headerName: "Filters",
-      flex: 1,
-      minWidth: 100,
+      flex: 2,
+      minWidth: 200,
       renderCell: renderFilters,
     },
     {
@@ -208,8 +209,8 @@ const InstrumentTable = ({
       minWidth: 160,
       renderCell: renderAPIClassnames,
     },
-    { field: "band", headerName: "Band", flex: 1, minWidth: 90 },
-    { field: "type", headerName: "Type", flex: 1, minWidth: 90 },
+    { field: "band", headerName: "Band", flex: 0.6, minWidth: 80 },
+    { field: "type", headerName: "Type", flex: 0.8, minWidth: 110 },
     {
       field: "region_summary",
       headerName: "FOV Region?",
@@ -219,13 +220,13 @@ const InstrumentTable = ({
     {
       field: "number_of_fields",
       headerName: "Fields",
-      flex: 1,
-      minWidth: 50,
+      flex: 0.5,
+      minWidth: 70,
     },
     managePermission && {
       field: "manage",
       headerName: " ",
-      minWidth: 120,
+      width: 100,
       sortable: false,
       filterable: false,
       renderCell: renderManage,
@@ -257,7 +258,14 @@ const InstrumentTable = ({
         getRowHeight={() => "auto"}
         pageSizeOptions={[25, 50, 100, { value: -1, label: "All" }]}
         initialState={{
-          columns: { columnVisibilityModel: { id: false } },
+          columns: {
+            columnVisibilityModel: {
+              id: false,
+              lat: false,
+              lon: false,
+              region_summary: false,
+            },
+          },
           pagination: { paginationModel: { pageSize: -1 } },
         }}
         slots={{ toolbar: CustomToolbar }}
