@@ -23,6 +23,7 @@ import {
 } from "../../ducks/instrument";
 import { useGetTelescopeQuery } from "../../ducks/telescopes";
 import InstrumentLogs from "./InstrumentLogs";
+import { QuadrantGrid } from "./ZtfQuadrantsField";
 import Paper from "../Paper";
 import Spinner from "../Spinner";
 
@@ -138,7 +139,15 @@ const Instrument = ({ route }: InstrumentProps) => {
 
   if (instrument?.id !== Number(route.id)) return <Spinner />;
 
-  const configuration = Object.entries(instrument.configuration_data ?? {});
+  const {
+    specific_configuration: specificConfiguration,
+    missing_quadrants: missingQuadrants,
+    ...generalConfiguration
+  } = (instrument.configuration_data ?? {}) as Record<string, any>;
+  const configuration = Object.entries({
+    ...generalConfiguration,
+    ...specificConfiguration,
+  });
   const sensitivity = instrument.sensitivity_data ?? {};
 
   const refreshStatus = async () => {
@@ -219,6 +228,14 @@ const Instrument = ({ route }: InstrumentProps) => {
                   value,
                 ])}
               />
+            </Section>
+          )}
+          {instrument.name === "ZTF" && (
+            <Section title="Active quadrants">
+              <Typography variant="body2" color="text.secondary">
+                {64 - (missingQuadrants?.length ?? 0)} / 64
+              </Typography>
+              <QuadrantGrid missing={missingQuadrants ?? []} />
             </Section>
           )}
           {Object.keys(sensitivity).length > 0 && (
