@@ -40,11 +40,16 @@ const SpectroscopyButtonsForm = () => {
     const prefs = {
       spectroscopyButtons: currSpectroscopyButtons,
     };
-    updateUserPreferences(prefs);
-    reset({
-      spectroscopyButtonName: "",
-      spectroscopyButtonWavelengths: "",
-    });
+    // Only clear the form once saved, so a failed save can be retried
+    updateUserPreferences(prefs)
+      .unwrap()
+      .then(() => {
+        reset({
+          spectroscopyButtonName: "",
+          spectroscopyButtonWavelengths: "",
+        });
+      })
+      .catch(() => {});
   };
 
   const onDelete = (buttonName: string) => {
