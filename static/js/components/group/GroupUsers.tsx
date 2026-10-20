@@ -89,8 +89,8 @@ const GroupUsers = ({ group, currentUser, isAdmin }: GroupUsersProps) => {
     {
       field: "admin",
       headerName: "Admin",
-      flex: 1,
-      minWidth: 100,
+      flex: 0.6,
+      minWidth: 90,
       renderCell: renderAdmin,
       description:
         "An admin is anyone that is a system admin, has group management permissions, and/or is specifically an admin of this group.",
@@ -99,7 +99,7 @@ const GroupUsers = ({ group, currentUser, isAdmin }: GroupUsersProps) => {
       field: "actions",
       headerName: "Actions",
       flex: 1,
-      minWidth: 160,
+      minWidth: 290,
       sortable: false,
       filterable: false,
       renderCell: renderActions,

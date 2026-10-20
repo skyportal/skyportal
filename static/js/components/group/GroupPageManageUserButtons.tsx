@@ -10,6 +10,7 @@ import DialogTitle from "@mui/material/DialogTitle";
 import DialogContentText from "@mui/material/DialogContentText";
 import DialogActions from "@mui/material/DialogActions";
 import Typography from "@mui/material/Typography";
+import Chip from "@mui/material/Chip";
 
 import { showNotification } from "baselayer/components/Notifications";
 import Button from "../Button";
@@ -70,78 +71,43 @@ const ManageUserButtons = ({
     }
   });
 
-  const canSave = (usr: any) => {
-    const matchingGroupUser = group?.users?.filter(
-      (groupUser) => groupUser["id"] === usr.id,
-    )[0];
-    return Boolean(matchingGroupUser?.["can_save"]);
-  };
+  const groupUser = group?.users?.find((u) => u["id"] === user.id);
+  const permissions = [
+    {
+      param: "admin",
+      label: "Admin",
+      name: "admin status",
+      granted: Boolean(isAdmin(user)),
+      disabled: isAdmin(user) && numAdmins === 1,
+    },
+    {
+      param: "canSave",
+      label: "Save",
+      name: "save access",
+      granted: Boolean(groupUser?.["can_save"]),
+      disabled: false,
+    },
+    {
+      param: "canSharePhotometry",
+      label: "Share photometry",
+      name: "photometry sharing",
+      granted: Boolean(groupUser?.["can_share_photometry"]),
+      disabled: false,
+    },
+  ];
 
-  const canSharePhotometry = (usr: any) => {
-    const matchingGroupUser = group?.users?.filter(
-      (groupUser) => groupUser["id"] === usr.id,
-    )[0];
-    return Boolean(matchingGroupUser?.["can_share_photometry"]);
-  };
-
-  const toggleUserAdmin = async (usr: any) => {
-    try {
-      await updateGroupUser({
-        groupID: loadedId,
-        params: {
-          userID: usr.id,
-          admin: !isAdmin(usr),
-        },
-      }).unwrap();
-      dispatch(
-        showNotification(
-          "User admin status for this group successfully updated.",
-        ),
-      );
-      dispatch(groupApi.util.invalidateTags([{ type: "Group", id: loadedId }]));
-    } catch {
-      // error notification handled by the API layer
-    }
-  };
-
-  const toggleUserCanSave = async (usr: any) => {
-    try {
-      await updateGroupUser({
-        groupID: loadedId,
-        params: {
-          userID: usr.id,
-          canSave: !canSave(usr),
-        },
-      }).unwrap();
-      dispatch(
-        showNotification(
-          "User's save access status for this group successfully updated.",
-        ),
-      );
-      dispatch(groupApi.util.invalidateTags([{ type: "Group", id: loadedId }]));
-    } catch {
-      // error notification handled by the API layer
-    }
-  };
-
-  const toggleUserCanShare = async (usr: any) => {
-    try {
-      await updateGroupUser({
-        groupID: loadedId,
-        params: {
-          userID: usr.id,
-          canSharePhotometry: !canSharePhotometry(usr),
-        },
-      }).unwrap();
-      dispatch(
-        showNotification(
-          "User's share access status for this group successfully updated.",
-        ),
-      );
-      dispatch(groupApi.util.invalidateTags([{ type: "Group", id: loadedId }]));
-    } catch {
-      // error notification handled by the API layer
-    }
+  const togglePermission = async (
+    param: string,
+    granted: boolean,
+    name: string,
+  ) => {
+    const { error } = await updateGroupUser({
+      groupID: loadedId,
+      params: { userID: user.id, [param]: !granted },
+    });
+    if (error) return;
+    dispatch(showNotification(`User ${name} for this group updated.`));
+    dispatch(groupApi.util.invalidateTags([{ type: "Group", id: loadedId }]));
   };
 
   const handleDelete = () => {
@@ -153,50 +119,36 @@ const ManageUserButtons = ({
   };
 
   return (
-    <Box sx={{ display: "flex", justifyContent: "space-around" }}>
-      {isAdmin(currentUser) && (
-        <Box
-          sx={{
-            display: "flex",
-            flexDirection: "column",
-            alignItems: "center",
-          }}
-        >
-          <Button
-            size="small"
-            onClick={() => toggleUserAdmin(user)}
-            disabled={isAdmin(user) && numAdmins === 1}
-            sx={{ color: isAdmin(user) ? "#d32f2f" : "#2e7d32" }}
+    <Box
+      sx={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 0.5 }}
+    >
+      {isAdmin(currentUser) &&
+        permissions.map(({ param, label, name, granted, disabled }) => (
+          <Tooltip
+            key={param}
+            title={`${granted ? "Revoke" : "Grant"} ${name}`}
           >
-            {`${isAdmin(user) ? "Revoke" : "Grant"} admin status`}
-          </Button>
-          <Tooltip title="Manage whether user can save sources to this group.">
-            <Button
-              size="small"
-              onClick={() => toggleUserCanSave(user)}
-              sx={{ color: canSave(user) ? "#d32f2f" : "#2e7d32" }}
-            >
-              {`${canSave(user) ? "Revoke" : "Grant"} save access`}
-            </Button>
+            <span>
+              <Chip
+                size="small"
+                label={label}
+                color={granted ? "primary" : "default"}
+                variant={granted ? "filled" : "outlined"}
+                disabled={disabled}
+                onClick={() => togglePermission(param, granted, name)}
+                data-testid={`${param}-${user.username}`}
+              />
+            </span>
           </Tooltip>
-          <Tooltip title="Manage whether user can share photometry points to other groups.">
-            <Button
-              size="small"
-              onClick={() => toggleUserCanShare(user)}
-              sx={{ color: canSharePhotometry(user) ? "#d32f2f" : "#2e7d32" }}
-            >
-              {`${canSharePhotometry(user) ? "Revoke" : "Grant"} share photometry`}
-            </Button>
-          </Tooltip>
-        </Box>
-      )}
+        ))}
       <IconButton
+        size="small"
         data-testid={`delete-${user.username}`}
         onClick={() => setConfirmDeleteOpen(true)}
         disabled={isAdmin(user) && numAdmins === 1}
         color="error"
       >
-        <DeleteIcon />
+        <DeleteIcon fontSize="small" />
       </IconButton>
       <Dialog
         fullWidth
