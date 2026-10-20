@@ -544,7 +544,7 @@ const CommentThread = ({
             ),
         )}
       </div>
-      {!channel && (
+      {!channel && !compact && (
         <div className={styles.panelBots}>
           <FormControlLabel
             label={<span className={styles.panelBotsLabel}>Include bots</span>}

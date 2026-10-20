@@ -283,6 +283,7 @@ const CandidateLink = ({ candidate }: { candidate: any }) => (
 
 interface CandidateInfoProps {
   candidate: any;
+  position: string;
   stack: any[];
   onSelect: (id: string) => void;
   filterGroups: Group[];
@@ -290,6 +291,7 @@ interface CandidateInfoProps {
 
 const CandidateInfo = ({
   candidate,
+  position,
   stack,
   onSelect,
   filterGroups,
@@ -362,6 +364,12 @@ const CandidateInfo = ({
           {candidate.photstats?.[0] && (
             <DisplayPhotStats photstats={candidate.photstats[0]} />
           )}
+          <Typography
+            variant="body2"
+            sx={{ fontWeight: "bold", color: "text.secondary", ml: 0.5 }}
+          >
+            {position}
+          </Typography>
         </Box>
       </Box>
       <ObjectTags source={{ ...candidate, groups: candidate.saved_groups }} />
@@ -515,6 +523,7 @@ const Candidate = ({
       <Box sx={{ gridArea: "info", pl: 2 }}>
         <CandidateInfo
           candidate={candidate}
+          position={`${index}/${totalMatches}`}
           stack={stack}
           onSelect={setSelectedId}
           filterGroups={filterGroups}
@@ -550,11 +559,6 @@ const Candidate = ({
         }}
       >
         <CandidateTabs candidate={candidate} filterGroups={filterGroups} />
-        <Typography
-          sx={{ fontWeight: "bold", alignSelf: "flex-end", mt: "auto" }}
-        >
-          {`${index}/${totalMatches}`}
-        </Typography>
       </Box>
     </Paper>
   );
