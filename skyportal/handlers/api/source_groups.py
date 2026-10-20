@@ -110,6 +110,10 @@ class SourceGroupsHandler(BaseHandler):
                 elif not source.active:
                     source.active = active
                     source.requested = requested
+                    source.saved_by_id = self.associated_user_object.id
+                    source.saved_at = utcnow_naive()
+                    source.unsaved_by_id = None
+                    source.unsaved_at = None
                 else:
                     return self.error(
                         f"Source already saved to group w/ ID {save_or_invite_group_id}"
