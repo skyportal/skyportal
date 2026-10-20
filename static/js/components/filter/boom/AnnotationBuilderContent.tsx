@@ -51,8 +51,8 @@ const AnnotationBuilderContent = ({
     setFilters,
     createDefaultBlock,
   } = useAnnotationBuilder();
-  const { hasValidQuery: hasValidFilterQuery } = useFilterBuilder();
   const filterContext = useFilterBuilder();
+  const { hasValidQuery: hasValidFilterQuery } = filterContext;
   const navigate = useNavigate();
 
   const { data: store_schema } = useFilterSchema();
@@ -66,7 +66,6 @@ const AnnotationBuilderContent = ({
   const [mapDialogFieldId, setMapDialogFieldId] = useState<any>(null);
   const [mapProjectionFields, setMapProjectionFields] = useState<any[]>([]);
   const [openEquationIds, setOpenEquationIds] = useState<any[]>([]);
-  const [, setSelectedChip] = useState<any>(null);
   const [equationAnchor, setEquationAnchor] = useState<any>(null);
 
   // Initialize annotation filters if empty
@@ -368,7 +367,7 @@ const AnnotationBuilderContent = ({
                         field: field.fieldName,
                       }}
                       setOpenEquationIds={setOpenEquationIds}
-                      setSelectedChip={setSelectedChip}
+                      setSelectedChip={() => {}}
                       setEquationAnchor={setEquationAnchor}
                       side="annotation"
                     />
