@@ -145,7 +145,7 @@ def test_group_admission_requests_notifications(
 
     page.goto(f"/become_user/{user.id}")
     page.goto("/groups")
-    page.get_by_role("tab", name="Non-member groups").click()
+    page.get_by_test_id("showAllGroupsSwitch").locator("input").check()
     filter_for_value(page, public_group2.name)
     page.locator(
         f'//*[@data-testid="requestAdmissionButton{public_group2.id}"]'

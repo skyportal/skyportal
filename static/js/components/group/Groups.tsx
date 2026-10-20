@@ -1,8 +1,11 @@
 import { useState } from "react";
-import { useGetProfileQuery } from "../../ducks/profile";
-import Box from "@mui/material/Box";
-import Tabs from "@mui/material/Tabs";
-import Tab from "@mui/material/Tab";
+import AddIcon from "@mui/icons-material/Add";
+import Dialog from "@mui/material/Dialog";
+import DialogContent from "@mui/material/DialogContent";
+import FormControlLabel from "@mui/material/FormControlLabel";
+import IconButton from "@mui/material/IconButton";
+import Switch from "@mui/material/Switch";
+import Tooltip from "@mui/material/Tooltip";
 
 import { useGetGroupsQuery } from "../../ducks/groups";
 import GroupList from "./GroupList";
@@ -10,81 +13,52 @@ import NewGroupForm from "./NewGroupForm";
 import Spinner from "../Spinner";
 
 const Groups = () => {
-  const { permissions } = useGetProfileQuery().data ?? {};
   const { data: groupsData } = useGetGroupsQuery();
   const userGroups = groupsData?.user ?? [];
   const allGroups = groupsData?.all ?? null;
-
-  const [tab, setTab] = useState(0);
-  // Shared across tabs so a search typed in one list survives switching
-  // tabs; it only resets when this component unmounts (i.e. leaving the page).
-  const [filterModel, setFilterModel] = useState({
-    items: [],
-    quickFilterValues: [],
-  });
+  const [showAll, setShowAll] = useState(false);
+  const [newGroupOpen, setNewGroupOpen] = useState(false);
 
   if (!userGroups.length || allGroups === null) return <Spinner />;
 
-  const canManageGroups = permissions?.includes("System admin");
-  const allMultiUserGroups = allGroups.filter((g) => !g["single_user_group"]);
-  const nonMemberGroups = allMultiUserGroups?.filter(
-    (g) => !userGroups.map((ug) => ug.id).includes(g.id),
-  );
-
-  const tabPanels = [
-    <GroupList
-      key="my-groups"
-      title="My groups"
-      groups={userGroups}
-      filterModel={filterModel}
-      onFilterModelChange={setFilterModel}
-    />,
-    ...(nonMemberGroups.length
-      ? [
-          <GroupList
-            key="non-member"
-            title="Non-member groups"
-            groups={nonMemberGroups}
-            admission
-            filterModel={filterModel}
-            onFilterModelChange={setFilterModel}
-          />,
-        ]
-      : []),
-    ...(canManageGroups
-      ? [
-          <GroupList
-            key="all-groups"
-            title="All Groups"
-            groups={allMultiUserGroups}
-            filterModel={filterModel}
-            onFilterModelChange={setFilterModel}
-          />,
-        ]
-      : []),
-    <Box key="new-group" sx={{ borderTop: 1, borderColor: "divider" }}>
-      <NewGroupForm />
-    </Box>,
-  ];
-
-  const activeTab = Math.min(tab, tabPanels.length - 1);
-
   return (
-    <Box>
-      <Tabs
-        value={activeTab}
-        onChange={(_event, value) => setTab(value)}
-        centered
+    <>
+      <GroupList
+        title="Groups"
+        groups={showAll ? allGroups : userGroups}
+        memberGroupIds={userGroups.map((g) => g.id)}
       >
-        <Tab label="My Groups" data-testid="tour-groups-list" />
-        {nonMemberGroups.length > 0 && (
-          <Tab label="Non-member groups" data-testid="tour-groups-request" />
-        )}
-        {canManageGroups && <Tab label="All Groups" />}
-        <Tab label="Create New Group" data-testid="tour-groups-new" />
-      </Tabs>
-      {tabPanels[activeTab]}
-    </Box>
+        <FormControlLabel
+          label="Show all groups"
+          data-testid="showAllGroupsSwitch"
+          control={
+            <Switch
+              size="small"
+              checked={showAll}
+              onChange={(e) => setShowAll(e.target.checked)}
+            />
+          }
+        />
+        <Tooltip title="Create new group">
+          <IconButton
+            onClick={() => setNewGroupOpen(true)}
+            data-testid="tour-groups-new"
+          >
+            <AddIcon />
+          </IconButton>
+        </Tooltip>
+      </GroupList>
+      <Dialog
+        open={newGroupOpen}
+        onClose={() => setNewGroupOpen(false)}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogContent>
+          <NewGroupForm onCreated={() => setNewGroupOpen(false)} />
+        </DialogContent>
+      </Dialog>
+    </>
   );
 };
 

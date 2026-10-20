@@ -6,7 +6,6 @@ import FormControl from "@mui/material/FormControl";
 import FormControlLabel from "@mui/material/FormControlLabel";
 import InputLabel from "@mui/material/InputLabel";
 import MenuItem from "@mui/material/MenuItem";
-import Paper from "@mui/material/Paper";
 import Select from "@mui/material/Select";
 import Slider from "@mui/material/Slider";
 import Switch from "@mui/material/Switch";
@@ -281,11 +280,11 @@ const SpectraAggregation = ({ points }: { points: PhotStatPoint[] }) => {
   );
 
   return (
-    <Paper sx={{ p: 1 }}>
+    <Box sx={{ p: 2 }}>
       <Box
         sx={{
           display: "flex",
-          gap: 2,
+          gap: 1.5,
           alignItems: "center",
           flexWrap: "wrap",
           mb: 1,
@@ -332,7 +331,7 @@ const SpectraAggregation = ({ points }: { points: PhotStatPoint[] }) => {
           }
           label="Normalize"
         />
-        <Box sx={{ width: "9rem", display: "flex", flexDirection: "column" }}>
+        <Box sx={{ width: "7rem", display: "flex", flexDirection: "column" }}>
           <Typography variant="caption">
             Clip spikes: {clipPct === 0 ? "off" : `${clipPct}%`}
           </Typography>
@@ -346,7 +345,7 @@ const SpectraAggregation = ({ points }: { points: PhotStatPoint[] }) => {
             valueLabelDisplay="auto"
           />
         </Box>
-        <Box sx={{ width: "9rem", display: "flex", flexDirection: "column" }}>
+        <Box sx={{ width: "7rem", display: "flex", flexDirection: "column" }}>
           <Typography variant="caption">Smoothing: {smoothWindow}</Typography>
           <Slider
             size="small"
@@ -359,7 +358,7 @@ const SpectraAggregation = ({ points }: { points: PhotStatPoint[] }) => {
           />
         </Box>
         {display === "waterfall" && (
-          <Box sx={{ width: "9rem", display: "flex", flexDirection: "column" }}>
+          <Box sx={{ width: "7rem", display: "flex", flexDirection: "column" }}>
             <Typography variant="caption">
               Offset: {offsetMult.toFixed(1)}×
             </Typography>
@@ -397,7 +396,7 @@ const SpectraAggregation = ({ points }: { points: PhotStatPoint[] }) => {
         spectra from {nSources} source{nSources === 1 ? "" : "s"}. Sources
         without a {t0Label[t0Mode]} are omitted.
         {data?.truncated
-          ? " Result truncated — narrow the selection to see everything."
+          ? " Result truncated, narrow the selection to see everything."
           : ""}
       </Typography>
 
@@ -416,7 +415,7 @@ const SpectraAggregation = ({ points }: { points: PhotStatPoint[] }) => {
           config={{ displaylogo: false, responsive: true } as any}
         />
       )}
-    </Paper>
+    </Box>
   );
 };
 

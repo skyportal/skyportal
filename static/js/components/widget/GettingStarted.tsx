@@ -75,8 +75,6 @@ const GettingStarted = (_props: { classes?: Record<string, string> }) => {
     };
   }, [on, dispatch]);
 
-  const dismissed = profile?.preferences?.["onboardingDismissed"] === true;
-
   const profileDone =
     Boolean(profile?.first_name) && (profile?.affiliations?.length ?? 0) > 0;
   const groupDone = (groups?.user ?? []).some((g: any) => !g.single_user_group);
@@ -211,28 +209,10 @@ const GettingStarted = (_props: { classes?: Record<string, string> }) => {
     },
   ];
 
-  if (dismissed) {
-    // Keep a small affordance so the checklist/tour can be reopened anytime.
-    return (
-      <Paper data-testid="tour-getting-started" sx={{ p: 2, height: "100%" }}>
-        <Typography variant="subtitle1" gutterBottom>
-          Getting started
-        </Typography>
-        <Button
-          size="small"
-          data-testid="tour-reopen"
-          onClick={() => updatePreferences({ onboardingDismissed: false })}
-        >
-          Show checklist
-        </Button>
-      </Paper>
-    );
-  }
-
   return (
     <Paper
       data-testid="tour-getting-started"
-      sx={{ p: 2, height: "100%", overflow: "auto" }}
+      sx={{ p: 1.5, height: "100%", overflow: "auto" }}
     >
       {Tour}
       <Box
@@ -265,6 +245,8 @@ const GettingStarted = (_props: { classes?: Record<string, string> }) => {
           .map((item) => (
             <ListItemButton
               key={item.label}
+              alignItems="flex-start"
+              sx={{ px: 0.75, borderRadius: 1 }}
               onClick={() =>
                 navigate(
                   item.to,
@@ -272,7 +254,7 @@ const GettingStarted = (_props: { classes?: Record<string, string> }) => {
                 )
               }
             >
-              <ListItemIcon sx={{ minWidth: 36 }}>
+              <ListItemIcon sx={{ minWidth: 28 }}>
                 {(item as any).explore ? (
                   <TourIcon color="action" fontSize="small" />
                 ) : (item as any).done ? (

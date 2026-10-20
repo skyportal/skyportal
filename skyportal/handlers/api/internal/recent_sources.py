@@ -128,7 +128,9 @@ class RecentSourcesHandler(BaseHandler):
                 classifications_dict[classification.obj_id].append(classification)
 
             source_rows_result = await session.scalars(
-                Source.select(session.user_or_token)
+                Source.select(
+                    session.user_or_token, options=[selectinload(Source.group)]
+                )
                 .where(Source.obj_id.in_(list(set(query_results))))
                 .order_by(Source.obj_id, desc(Source.created_at))
             )
@@ -178,6 +180,16 @@ class RecentSourcesHandler(BaseHandler):
                         "recency_index": recency_index,
                         "tns_name": s.tns_name,
                         "tags": tags_dict.get(s.id, []),
+                        "groups": list(
+                            {
+                                row.group_id: {
+                                    "id": row.group_id,
+                                    "name": row.group.name,
+                                }
+                                for row in rows
+                                if row.active
+                            }.values()
+                        ),
                     }
                 )
 

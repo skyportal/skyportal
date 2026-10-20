@@ -3470,6 +3470,8 @@ export interface paths {
                     includeFollowupRequests?: boolean;
                     /** @description Boolean indicating whether to include associated objects (objects grouped under the same super-object). Defaults to true. */
                     includeAssociatedObjs?: boolean;
+                    /** @description Stack candidates linked by a super-object (e.g. the same transient seen by several surveys) as one match: they share a stack_id, are returned together, and count once in totalMatches and pagination. */
+                    stackLinkedObjs?: boolean;
                     /** @description Boolean indicating whether to include associated alerts. Defaults to false. */
                     includeAlerts?: boolean;
                     /** @description Comma-separated string of classification(s) to filter for candidates matching that/those classification(s). */

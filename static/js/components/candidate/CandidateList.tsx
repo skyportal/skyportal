@@ -1,15 +1,16 @@
-import { Suspense, lazy, useEffect, useRef, useState } from "react";
+import { Suspense, lazy, useEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
+import type { Theme } from "@mui/material/styles";
 import Box from "@mui/material/Box";
 import Chip from "@mui/material/Chip";
 import CircularProgress from "@mui/material/CircularProgress";
+import FormControlLabel from "@mui/material/FormControlLabel";
 import IconButton from "@mui/material/IconButton";
 import MuiLink from "@mui/material/Link";
 import Paper from "@mui/material/Paper";
+import Switch from "@mui/material/Switch";
 import Tab from "@mui/material/Tab";
 import Tabs from "@mui/material/Tabs";
-import ToggleButton from "@mui/material/ToggleButton";
-import ToggleButtonGroup from "@mui/material/ToggleButtonGroup";
 import Tooltip from "@mui/material/Tooltip";
 import Typography from "@mui/material/Typography";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
@@ -49,6 +50,7 @@ import TrackCandidateSummary from "../moving_object/TrackCandidateSummary";
 import Spinner from "../Spinner";
 import ErrorBoundary from "../ErrorBoundary";
 import Button from "../Button";
+import SegmentedControl from "../SegmentedControl";
 import SaveCandidateButton from "./SaveCandidateButton";
 import FilterCandidateList from "./FilterCandidateList";
 import ScanningPageCandidateAnnotations from "./ScanningPageCandidateAnnotations";
@@ -75,6 +77,28 @@ const trackIdFor = (obj: any): string | null => {
   }
   return null;
 };
+
+const groupStacks = (candidates: any[]) => {
+  const stacks = new Map<string, any[]>();
+  for (const candidate of candidates) {
+    const key = candidate.stack_id ?? candidate.id;
+    stacks.set(key, [...(stacks.get(key) ?? []), candidate]);
+  }
+  return [...stacks.values()];
+};
+
+const surveyOf = (candidate: any): string | undefined =>
+  candidate.thumbnails?.find((t: any) => t.obj_id === candidate.id && t.survey)
+    ?.survey ??
+  candidate.photstats?.[0]?.last_detected_filter
+    ?.match(/^(ztf|lsst|decam)/i)?.[1]
+    .toUpperCase();
+
+const stackShadow = (theme: Theme, size: number) =>
+  Array.from({ length: Math.min(size - 1, 2) }, (_, i) => {
+    const offset = 6 * (i + 1);
+    return `${offset}px ${offset}px 0 -2px ${theme.palette.background.paper}, ${offset}px ${offset}px 0 0 ${theme.palette.divider}`;
+  }).join(", ");
 
 const InfoRow = ({
   label,
@@ -192,6 +216,7 @@ const CandidateTabs = ({ candidate, filterGroups }: CandidateTabsProps) => {
                 origin="scanning"
                 isCandidate
                 includeCommentsOnAllResourceTypes={false}
+                compact
               />
             </Suspense>
           </Box>
@@ -235,23 +260,55 @@ const SavedGroupChips = ({ groups }: { groups: any[] }) => {
   );
 };
 
+const CandidateLink = ({ candidate }: { candidate: any }) => (
+  <MuiLink
+    href={`/source/${candidate.id}`}
+    target="_blank"
+    rel="noreferrer"
+    data-testid={candidate.id}
+    sx={{
+      fontWeight: "bold",
+      fontSize: "1.05rem",
+      "&:hover": {
+        color: (theme) =>
+          theme.palette.mode === "dark"
+            ? theme.palette.primary.main
+            : theme.palette.primary.dark,
+      },
+    }}
+  >
+    {candidate.id}
+  </MuiLink>
+);
+
 interface CandidateInfoProps {
   candidate: any;
+  stack: any[];
+  onSelect: (id: string) => void;
   filterGroups: Group[];
 }
 
-const CandidateInfo = ({ candidate, filterGroups }: CandidateInfoProps) => {
+const CandidateInfo = ({
+  candidate,
+  stack,
+  onSelect,
+  filterGroups,
+}: CandidateInfoProps) => {
   const isReadOnly = useIsReadOnly();
   const { data: groups } = useGetGroupsQuery();
   const savedGroupIds = candidate.saved_groups?.map((g: any) => g.id) ?? [];
   const unsaved = (list: Group[]) =>
     list.filter((g) => !savedGroupIds.includes(g.id));
-  const unsavedFilterGroups = unsaved(filterGroups);
+  const unsavedUserGroups = unsaved(groups?.userAccessible ?? []);
   const humanClass = mostRecentClass(
     (candidate.classifications ?? []).filter((c: any) => !c.ml),
   );
   const mlClass = mostRecentClass(
     (candidate.classifications ?? []).filter((c: any) => c.ml),
+  );
+  const stackIds = stack.map((member) => member.id);
+  const otherMatches = (candidate.associated_objs ?? []).filter(
+    (a: any) => !stackIds.includes(a.obj_id),
   );
   const [lastDetectedDate, lastDetectedTime] = String(
     candidate.last_detected_at,
@@ -271,52 +328,43 @@ const CandidateInfo = ({ candidate, filterGroups }: CandidateInfoProps) => {
       <Box
         sx={{
           display: "flex",
+          flexWrap: "wrap",
           alignItems: "center",
           justifyContent: "space-between",
+          gap: 0.5,
         }}
       >
-        <MuiLink
-          href={`/source/${candidate.id}`}
-          target="_blank"
-          rel="noreferrer"
-          data-testid={candidate.id}
-          underline="hover"
-          sx={{ fontWeight: "bold", fontSize: "1.05rem" }}
-        >
-          {candidate.id}
-        </MuiLink>
+        <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+          <CandidateLink candidate={candidate} />
+          {stack.length > 1 && (
+            <SegmentedControl
+              size="small"
+              value={candidate.id}
+              onChange={onSelect}
+              options={stack.map((member) => ({
+                value: member.id,
+                label: surveyOf(member) ?? member.id,
+              }))}
+            />
+          )}
+        </Box>
         <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+          {!isReadOnly && unsavedUserGroups.length > 0 && (
+            <Box data-testid="tour-candidate-save">
+              <SaveCandidateButton
+                candidate={candidate}
+                userGroups={unsavedUserGroups}
+                filterGroups={unsaved(filterGroups)}
+              />
+            </Box>
+          )}
+          <RejectButton objID={candidate.id} />
           {candidate.photstats?.[0] && (
             <DisplayPhotStats photstats={candidate.photstats[0]} />
           )}
         </Box>
       </Box>
       <ObjectTags source={{ ...candidate, groups: candidate.saved_groups }} />
-      <Box
-        sx={{
-          display: "flex",
-          flexWrap: "wrap",
-          alignItems: "center",
-          gap: 0.5,
-        }}
-      >
-        <Chip
-          size="small"
-          label={candidate.is_source ? "Previously Saved" : "NOT SAVED"}
-          color={candidate.is_source ? "primary" : "default"}
-        />
-        <RejectButton objID={candidate.id} />
-        {!isReadOnly &&
-          (!candidate.is_source || unsavedFilterGroups.length > 0) && (
-            <Box data-testid="tour-candidate-save">
-              <SaveCandidateButton
-                candidate={candidate}
-                userGroups={unsaved(groups?.userAccessible ?? [])}
-                filterGroups={unsavedFilterGroups}
-              />
-            </Box>
-          )}
-      </Box>
       {candidate.is_source && (
         <InfoRow label="Saved groups:">
           <EditSourceGroups
@@ -327,9 +375,9 @@ const CandidateInfo = ({ candidate, filterGroups }: CandidateInfoProps) => {
           <SavedGroupChips groups={candidate.saved_groups} />
         </InfoRow>
       )}
-      {candidate.associated_objs?.length > 0 && (
+      {otherMatches.length > 0 && (
         <InfoRow label="Matches with:">
-          {candidate.associated_objs.map((a: any) => (
+          {otherMatches.map((a: any) => (
             <a
               key={a.obj_id}
               href={`/source/${a.obj_id}`}
@@ -405,18 +453,21 @@ const CandidateInfo = ({ candidate, filterGroups }: CandidateInfoProps) => {
 };
 
 interface CandidateProps {
-  candidate: any;
+  stack: any[];
   filterGroups: Group[];
   index: number;
   totalMatches: number;
 }
 
 const Candidate = ({
-  candidate,
+  stack,
   filterGroups,
   index,
   totalMatches,
 }: CandidateProps) => {
+  const lead = stack[0];
+  const [selectedId, setSelectedId] = useState<string>(lead.id);
+  const candidate = stack.find((c) => c.id === selectedId) ?? lead;
   const trackId = trackIdFor(candidate);
 
   return (
@@ -425,7 +476,11 @@ const Candidate = ({
       data-testid={`candidate-${index}`}
       sx={{
         borderWidth: 2,
-        mb: 2,
+        mb: stack.length > 1 ? 3 : 2,
+        boxShadow:
+          stack.length > 1
+            ? (theme: Theme) => stackShadow(theme, stack.length)
+            : undefined,
         p: 1,
         display: "grid",
         rowGap: 1,
@@ -444,10 +499,10 @@ const Candidate = ({
     >
       <Box sx={{ gridArea: "thumbnails" }}>
         <ThumbnailList
-          ra={candidate.ra}
-          dec={candidate.dec}
-          thumbnails={candidate.thumbnails}
-          objID={candidate.id}
+          ra={lead.ra}
+          dec={lead.dec}
+          thumbnails={lead.thumbnails}
+          objID={lead.id}
           size="100%"
           minSize="6rem"
           maxSize="8.8rem"
@@ -455,14 +510,24 @@ const Candidate = ({
           useGrid={false}
           columns={3}
           noMargin
+          footer={
+            <Typography sx={{ fontWeight: "bold" }}>
+              {`${index}/${totalMatches}`}
+            </Typography>
+          }
         />
       </Box>
       <Box sx={{ gridArea: "info", pl: 2 }}>
-        <CandidateInfo candidate={candidate} filterGroups={filterGroups} />
+        <CandidateInfo
+          candidate={candidate}
+          stack={stack}
+          onSelect={setSelectedId}
+          filterGroups={filterGroups}
+        />
       </Box>
       <Box sx={{ gridArea: "photometry" }}>
         <VegaPhotometry
-          sourceId={candidate.id}
+          sourceId={lead.id}
           style={{
             width: "68%",
             height: "100%",
@@ -490,11 +555,6 @@ const Candidate = ({
         }}
       >
         <CandidateTabs candidate={candidate} filterGroups={filterGroups} />
-        <Typography
-          sx={{ fontWeight: "bold", alignSelf: "flex-end", mt: "auto" }}
-        >
-          {`${index}/${totalMatches}`}
-        </Typography>
       </Box>
     </Paper>
   );
@@ -505,6 +565,7 @@ type ScanMode = "objects" | "tracks";
 const CandidateList = () => {
   const dispatch = useAppDispatch();
   const [scanMode, setScanMode] = useState<ScanMode>("objects");
+  const [onlyMultiEpoch, setOnlyMultiEpoch] = useState(true);
   const [filterGroups, setFilterGroups] = useState<Group[]>([]);
   const [reportDialogOpen, setReportDialogOpen] = useState(false);
   const [searchParams, setSearchParams] = useState<Record<string, any> | null>(
@@ -531,6 +592,7 @@ const CandidateList = () => {
     queryID = null,
   } = data ?? {};
   const pageCount = Math.max(1, Math.ceil(totalMatches / numPerPage));
+  const stacks = useMemo(() => groupStacks(candidates), [candidates]);
 
   useEffect(() => {
     if (!defaultScanningProfile?.sortingOrder) return;
@@ -586,16 +648,29 @@ const CandidateList = () => {
         <Typography variant="h5" sx={{ fontWeight: "bold" }}>
           Scan candidates
         </Typography>
-        <ToggleButtonGroup
-          size="small"
-          exclusive
+        <SegmentedControl
           value={scanMode}
-          onChange={(_event, value) => value && setScanMode(value)}
-          data-testid="candidate-scan-mode"
-        >
-          <ToggleButton value="objects">Sources</ToggleButton>
-          <ToggleButton value="tracks">Moving object tracks</ToggleButton>
-        </ToggleButtonGroup>
+          onChange={setScanMode}
+          options={[
+            { value: "objects", label: "Sources" },
+            { value: "tracks", label: "Moving object tracks" },
+          ]}
+        />
+        {scanMode === "tracks" && (
+          <FormControlLabel
+            label="Multi-epoch only"
+            control={
+              <Switch
+                size="small"
+                checked={onlyMultiEpoch}
+                onChange={(e) => setOnlyMultiEpoch(e.target.checked)}
+              />
+            }
+            slotProps={{
+              typography: { variant: "body2", color: "text.secondary" },
+            }}
+          />
+        )}
         <Box sx={{ ml: "auto", display: "flex", gap: 1 }}>
           <Tooltip title="Generate a report of saved candidates">
             <Button
@@ -624,7 +699,10 @@ const CandidateList = () => {
       </Box>
       {scanMode === "tracks" && (
         <Suspense fallback={<Spinner />}>
-          <TrackScanner />
+          <TrackScanner
+            onlyMultiEpoch={onlyMultiEpoch}
+            setOnlyMultiEpoch={setOnlyMultiEpoch}
+          />
         </Suspense>
       )}
       <Box
@@ -671,27 +749,20 @@ const CandidateList = () => {
                   <Typography variant="body2" color="text.secondary">
                     Cards open on
                   </Typography>
-                  <Tooltip title="Tab each card opens on. Comments only when the candidate has some.">
-                    <ToggleButtonGroup
-                      size="small"
-                      exclusive
-                      value={preferences?.scanningFirstTab ?? "comments"}
-                      sx={{
-                        "& .MuiToggleButton-root": {
-                          textTransform: "none",
-                          py: 0.25,
-                        },
-                      }}
-                      onChange={(_event, value) =>
-                        value &&
-                        updateUserPreferences({ scanningFirstTab: value })
-                      }
-                    >
-                      <ToggleButton value="annotations">
-                        Annotations
-                      </ToggleButton>
-                      <ToggleButton value="comments">Comments</ToggleButton>
-                    </ToggleButtonGroup>
+                  <Tooltip title="Comments only when the candidate has some">
+                    <Box sx={{ display: "flex" }}>
+                      <SegmentedControl
+                        size="small"
+                        value={preferences?.scanningFirstTab ?? "comments"}
+                        onChange={(value) =>
+                          updateUserPreferences({ scanningFirstTab: value })
+                        }
+                        options={[
+                          { value: "annotations", label: "Annotations" },
+                          { value: "comments", label: "Comments" },
+                        ]}
+                      />
+                    </Box>
                   </Tooltip>
                 </Box>
                 <Tooltip title="Sort on Selected Annotation">
@@ -741,18 +812,18 @@ const CandidateList = () => {
             {isFetching ? (
               <Spinner />
             ) : (
-              <ViewportList items={candidates}>
-                {(candidate: any, index: number) => (
+              <ViewportList items={stacks}>
+                {(stack: any[], index: number) => (
                   <ErrorBoundary
-                    key={candidate.id}
+                    key={stack[0].id}
                     fallback={
                       <Typography color="error" sx={{ mb: 2 }}>
-                        Could not display {candidate.id}.
+                        Could not display {stack[0].id}.
                       </Typography>
                     }
                   >
                     <Candidate
-                      candidate={candidate}
+                      stack={stack}
                       filterGroups={filterGroups}
                       index={(pageNumber - 1) * numPerPage + index + 1}
                       totalMatches={totalMatches}

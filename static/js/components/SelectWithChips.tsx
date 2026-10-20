@@ -91,6 +91,7 @@ const SelectWithChips = (props: SelectWithChipsProps) => {
           <div className={classes.chips}>
             {selected.slice(0, max_chips_nb).map((value: any) => (
               <RemovableChip
+                size="small"
                 key={value}
                 label={value}
                 onDelete={() =>
@@ -103,7 +104,7 @@ const SelectWithChips = (props: SelectWithChipsProps) => {
               />
             ))}
             {selected.length > max_chips_nb && (
-              <Chip label={`+${selected.length - max_chips_nb}`} />
+              <Chip size="small" label={`+${selected.length - max_chips_nb}`} />
             )}
           </div>
         )}
@@ -195,6 +196,7 @@ const SelectLabelWithChips = (props: SelectLabelWithChipsProps) => {
           <div className={classes.chips}>
             {selected.slice(0, max_chips_nb).map((value: any) => (
               <RemovableChip
+                size="small"
                 key={value.id}
                 label={value.label}
                 onDelete={() =>
@@ -207,7 +209,7 @@ const SelectLabelWithChips = (props: SelectLabelWithChipsProps) => {
               />
             ))}
             {selected.length > max_chips_nb && (
-              <Chip label={`+${selected.length - max_chips_nb}`} />
+              <Chip size="small" label={`+${selected.length - max_chips_nb}`} />
             )}
           </div>
         )}
@@ -250,7 +252,9 @@ const SelectSingleLabelWithChips = (props: SelectSingleLabelWithChipsProps) => {
         label={label}
         value={(initValue || "") as any}
         onChange={(event: any) => onChange(event)}
-        renderValue={(selected: any) => <Chip label={selected.label} />}
+        renderValue={(selected: any) => (
+          <Chip size="small" label={selected.label} />
+        )}
         MenuProps={menuProps}
       >
         {options?.map((option) => (

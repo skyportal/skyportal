@@ -6,13 +6,13 @@ import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import GroupAddIcon from "@mui/icons-material/GroupAddOutlined";
 import NotificationsIcon from "@mui/icons-material/NotificationsOutlined";
 import NotificationsOffIcon from "@mui/icons-material/NotificationsOffOutlined";
-import OpenInNewIcon from "@mui/icons-material/OpenInNew";
 import SearchIcon from "@mui/icons-material/Search";
 import Avatar from "@mui/material/Avatar";
 import Box from "@mui/material/Box";
 import Chip from "@mui/material/Chip";
 import IconButton from "@mui/material/IconButton";
 import InputAdornment from "@mui/material/InputAdornment";
+import MuiLink from "@mui/material/Link";
 import List from "@mui/material/List";
 import ListItemButton from "@mui/material/ListItemButton";
 import Tab from "@mui/material/Tab";
@@ -22,7 +22,6 @@ import Tooltip from "@mui/material/Tooltip";
 import Typography from "@mui/material/Typography";
 import useMediaQuery from "@mui/material/useMediaQuery";
 
-import Button from "../Button";
 import CommentThreadView from "../comment/CommentThread";
 import CommentThreadAvatar, { RESOURCES } from "./CommentThreadAvatar";
 import DiscussionAvatar from "./DiscussionAvatar";
@@ -141,23 +140,32 @@ const CommentThreadPane = ({
         )}
         <CommentThreadAvatar type={thread.resource_type} size={40} />
         <Box sx={{ flexGrow: 1, minWidth: 0 }}>
-          <Typography variant="h6" noWrap sx={{ lineHeight: 1.3 }}>
+          <MuiLink
+            component={Link}
+            to={thread.url}
+            variant="h6"
+            noWrap
+            sx={{
+              display: "inline-block",
+              maxWidth: "100%",
+              verticalAlign: "top",
+              lineHeight: 1.3,
+              fontWeight: 500,
+              "&:hover": {
+                color: (theme) =>
+                  theme.palette.mode === "dark"
+                    ? theme.palette.primary.main
+                    : theme.palette.primary.dark,
+              },
+            }}
+          >
             {thread.label}
-          </Typography>
+          </MuiLink>
           <Typography variant="body2" color="textSecondary" noWrap>
             {RESOURCES[thread.resource_type].name} comments
             {thread.channel && `, conversation "${thread.channel}"`}
           </Typography>
         </Box>
-        <Button
-          secondary
-          size="small"
-          component={Link}
-          to={thread.url}
-          endIcon={<OpenInNewIcon fontSize="small" />}
-        >
-          Open
-        </Button>
       </Box>
       <Box sx={{ flexGrow: 1, minHeight: 0 }}>
         {thread.resource_type === "sources" && (

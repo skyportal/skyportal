@@ -49,8 +49,11 @@ import {
 import { useGetProfileQuery } from "../../../../ducks/profile";
 import { useGetGcnEventsQuery } from "../../../../ducks/gcnEvents";
 import { download } from "../../../../utils/download";
+import { brokerFilterTargetId } from "../../../../ducks/brokerFilterTarget";
+import SegmentedControl from "../../../SegmentedControl";
 import PipelineViewer from "./PipelineViewer";
 import FullscreenResultsDialog from "./FullscreenResultsDialog";
+import FilterResultAlerts from "./FilterResultAlerts";
 
 dayjs.extend(utc);
 
@@ -162,6 +165,8 @@ const MongoQueryDialog = () => {
 
   const { data: boomFilterVersion } = useBoomFilterVersion();
   const filter_stream = boomFilterVersion?.stream?.name?.split(" ")[0];
+  const survey = filter_stream?.toUpperCase() ?? "";
+  const brokerId = Number(brokerFilterTargetId());
   const filter_id = boomFilterVersion?.id;
   const dispatch = useAppDispatch();
   const [runBoomFilter, { reset: clearBoomFilter }] =
@@ -170,9 +175,10 @@ const MongoQueryDialog = () => {
   const { useAMPM } = profile?.preferences ?? {};
 
   const [copySuccess, setCopySuccess] = useState(false);
-  const [displayResults, setDisplayResults] = useState<{ data?: any[] }>({
-    data: [],
-  });
+  const [displayResults, setDisplayResults] = useState<{
+    data?: any[];
+    alerts?: Record<string, any>;
+  }>({ data: [] });
   const [selectedCollection, setSelectedCollection] = useState(
     ALERT_COLLECTIONS[filter_stream?.toUpperCase() ?? ""] ?? "",
   );
@@ -185,6 +191,8 @@ const MongoQueryDialog = () => {
   const [expandedCells, setExpandedCells] = useState<Set<any>>(new Set());
   const [expandedStages, setExpandedStages] = useState<Set<any>>(new Set());
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [resultsView, setResultsView] = useState<"alerts" | "table">("alerts");
+  const [alertsSeen, setAlertsSeen] = useState(true);
   const [queryCompleted, setQueryCompleted] = useState(false);
   const [lastQueryString, setLastQueryString] = useState("");
   const [maxResultsInput, setMaxResultsInput] = useState(
@@ -221,6 +229,7 @@ const MongoQueryDialog = () => {
     setLastRunArgs(null);
     setExactCount({});
     setQueryCompleted(false);
+    setAlertsSeen(resultsView === "alerts");
   };
 
   useEffect(() => {
@@ -436,6 +445,7 @@ const MongoQueryDialog = () => {
       setHasMore(rows.length > maxResults);
       setDisplayResults({
         data: rows.slice(0, maxResults).sort(byJdDescending),
+        alerts: result?.alerts ?? {},
       });
       setLastRunArgs(args);
       setQueryCompleted(true);
@@ -702,6 +712,17 @@ const MongoQueryDialog = () => {
                     <Typography variant="subtitle1" sx={{ fontWeight: "bold" }}>
                       Query Results
                     </Typography>
+                    <SegmentedControl
+                      value={resultsView}
+                      onChange={(view: "alerts" | "table") => {
+                        setResultsView(view);
+                        if (view === "alerts") setAlertsSeen(true);
+                      }}
+                      options={[
+                        { value: "alerts", label: "Alerts" },
+                        { value: "table", label: "Table" },
+                      ]}
+                    />
                     <Chip
                       label={summary}
                       size="small"
@@ -745,181 +766,220 @@ const MongoQueryDialog = () => {
                       <FullscreenIcon />
                     </IconButton>
                   </Box>
-                  <Typography
-                    variant="body2"
-                    color="text.secondary"
-                    sx={{ mb: 2 }}
-                  >
-                    Generated query results — not all alert fields are shown.
-                    Rows are sorted by JD, newest first.
-                    {hasMore &&
-                      ` They are a sample of the matches the broker found first, not the latest ones.`}
-                  </Typography>
+                  {resultsView === "table" && (
+                    <Typography
+                      variant="body2"
+                      color="text.secondary"
+                      sx={{ mb: 2 }}
+                    >
+                      Only the fields kept by the pipeline, newest first.
+                      {hasMore &&
+                        " These are the first matches found, not the latest."}
+                    </Typography>
+                  )}
                   {exactCount.error && (
                     <Alert severity="warning" sx={{ mb: 2 }}>
                       {exactCount.error}
                     </Alert>
                   )}
-                  {(displayResults.data?.length ?? 0) > 0 ? (
-                    <>
-                      <TableContainer
-                        component={Paper}
-                        sx={{
-                          maxHeight: 400,
-                          overflow: "auto",
-                          width: "100%",
-                          "& .MuiTable-root": {
-                            minWidth: "100%",
-                            width: "max-content",
-                            tableLayout: "auto",
-                          },
-                          "&::-webkit-scrollbar": {
-                            width: 8,
-                            height: 8,
-                          },
-                          "&::-webkit-scrollbar-track": {
-                            backgroundColor: "rgba(0,0,0,0.1)",
-                          },
-                          "&::-webkit-scrollbar-thumb": {
-                            backgroundColor: "rgba(0,0,0,0.3)",
-                            borderRadius: 4,
-                          },
-                        }}
-                      >
-                        <Table
-                          size="small"
-                          stickyHeader
+                  {(displayResults.data?.length ?? 0) > 0 && alertsSeen && (
+                    <Box
+                      sx={{
+                        ...(resultsView !== "alerts" && {
+                          height: 0,
+                          overflow: "hidden",
+                          visibility: "hidden",
+                        }),
+                      }}
+                    >
+                      <FilterResultAlerts
+                        rows={displayResults.data ?? []}
+                        alerts={displayResults.alerts ?? {}}
+                        brokerId={brokerId}
+                        survey={survey}
+                      />
+                    </Box>
+                  )}
+                  {(displayResults.data?.length ?? 0) === 0 ? (
+                    <Typography
+                      variant="body2"
+                      color="text.secondary"
+                      sx={{ p: 2, textAlign: "center" }}
+                    >
+                      No documents matched the query
+                    </Typography>
+                  ) : (
+                    resultsView === "table" && (
+                      <>
+                        <TableContainer
+                          component={Paper}
                           sx={{
-                            tableLayout: "auto",
-                            width: "max-content",
-                            minWidth: "100%",
+                            maxHeight: 400,
+                            overflow: "auto",
+                            width: "100%",
+                            "& .MuiTable-root": {
+                              minWidth: "100%",
+                              width: "max-content",
+                              tableLayout: "auto",
+                            },
+                            "&::-webkit-scrollbar": {
+                              width: 8,
+                              height: 8,
+                            },
+                            "&::-webkit-scrollbar-track": {
+                              backgroundColor: "rgba(0,0,0,0.1)",
+                            },
+                            "&::-webkit-scrollbar-thumb": {
+                              backgroundColor: "rgba(0,0,0,0.3)",
+                              borderRadius: 4,
+                            },
                           }}
                         >
-                          <TableHead>
-                            <TableRow>
-                              {Object.keys(displayResults.data?.[0] || {})
-                                .filter((key) => key !== "_id")
-                                .map((key) => (
-                                  <TableCell
-                                    key={key}
+                          <Table
+                            size="small"
+                            stickyHeader
+                            sx={{
+                              tableLayout: "auto",
+                              width: "max-content",
+                              minWidth: "100%",
+                            }}
+                          >
+                            <TableHead>
+                              <TableRow>
+                                {Object.keys(displayResults.data?.[0] || {})
+                                  .filter((key) => key !== "_id")
+                                  .map((key) => (
+                                    <TableCell
+                                      key={key}
+                                      sx={{
+                                        fontWeight: "bold",
+                                        minWidth: 150,
+                                        whiteSpace: "nowrap",
+                                        position: "sticky",
+                                        top: 0,
+                                        backgroundColor: "background.paper",
+                                        zIndex: 1,
+                                      }}
+                                    >
+                                      {key}
+                                    </TableCell>
+                                  ))}
+                              </TableRow>
+                            </TableHead>
+                            <TableBody>
+                              {displayResults?.data?.map(
+                                (row: any, rowIndex: number) => (
+                                  <TableRow
+                                    key={rowIndex}
                                     sx={{
-                                      fontWeight: "bold",
-                                      minWidth: 150,
-                                      whiteSpace: "nowrap",
-                                      position: "sticky",
-                                      top: 0,
-                                      backgroundColor: "background.paper",
-                                      zIndex: 1,
-                                    }}
-                                  >
-                                    {key}
-                                  </TableCell>
-                                ))}
-                            </TableRow>
-                          </TableHead>
-                          <TableBody>
-                            {displayResults?.data?.map(
-                              (row: any, rowIndex: number) => (
-                                <TableRow
-                                  key={rowIndex}
-                                  sx={{
-                                    height: "auto",
-                                    minHeight: "fit-content",
-                                    "& .MuiTableCell-root": {
                                       height: "auto",
                                       minHeight: "fit-content",
-                                    },
-                                  }}
-                                >
-                                  {Object.entries(row)
-                                    .filter(([key]) => key !== "_id")
-                                    .map(
-                                      (
-                                        [key, value]: any,
-                                        cellIndex: number,
-                                      ) => {
-                                        const cellKey = `${rowIndex}-${cellIndex}`;
-                                        const isJsonExpanded =
-                                          expandedCells.has(cellKey);
-                                        const hasJsonContent =
-                                          typeof value === "object";
-                                        const isObjectId =
-                                          key === "objectId" &&
-                                          typeof value === "string";
+                                      "& .MuiTableCell-root": {
+                                        height: "auto",
+                                        minHeight: "fit-content",
+                                      },
+                                    }}
+                                  >
+                                    {Object.entries(row)
+                                      .filter(([key]) => key !== "_id")
+                                      .map(
+                                        (
+                                          [key, value]: any,
+                                          cellIndex: number,
+                                        ) => {
+                                          const cellKey = `${rowIndex}-${cellIndex}`;
+                                          const isJsonExpanded =
+                                            expandedCells.has(cellKey);
+                                          const hasJsonContent =
+                                            typeof value === "object";
+                                          const isObjectId =
+                                            key === "objectId" &&
+                                            typeof value === "string";
 
-                                        return (
-                                          <TableCell
-                                            key={cellIndex}
-                                            sx={{
-                                              verticalAlign: "top",
-                                              minWidth: hasJsonContent
-                                                ? isJsonExpanded
-                                                  ? 300
-                                                  : 150
-                                                : 100,
-                                              maxWidth: hasJsonContent
-                                                ? isJsonExpanded
-                                                  ? 600
-                                                  : 300
-                                                : 200,
-                                              width: hasJsonContent
-                                                ? isJsonExpanded
-                                                  ? "auto"
-                                                  : "auto"
-                                                : "auto",
-                                              padding: 1,
-                                              borderRight: "1px solid",
-                                              borderColor: "divider",
-                                              transition: "all 0.3s ease",
-                                              overflow: "visible",
-                                              height: "auto",
-                                              minHeight: "fit-content",
-                                            }}
-                                          >
-                                            {hasJsonContent ? (
-                                              <Box
-                                                sx={{
-                                                  minWidth: isJsonExpanded
-                                                    ? 250
-                                                    : 150,
-                                                  maxWidth: isJsonExpanded
-                                                    ? 550
-                                                    : 350,
-                                                  width: "100%",
-                                                  minHeight: "fit-content",
-                                                  height: "auto",
-                                                  overflow: "visible",
-                                                  "& .react-json-view": {
-                                                    height: "auto !important",
+                                          return (
+                                            <TableCell
+                                              key={cellIndex}
+                                              sx={{
+                                                verticalAlign: "top",
+                                                minWidth: hasJsonContent
+                                                  ? isJsonExpanded
+                                                    ? 300
+                                                    : 150
+                                                  : 100,
+                                                maxWidth: hasJsonContent
+                                                  ? isJsonExpanded
+                                                    ? 600
+                                                    : 300
+                                                  : 200,
+                                                width: hasJsonContent
+                                                  ? isJsonExpanded
+                                                    ? "auto"
+                                                    : "auto"
+                                                  : "auto",
+                                                padding: 1,
+                                                borderRight: "1px solid",
+                                                borderColor: "divider",
+                                                transition: "all 0.3s ease",
+                                                overflow: "visible",
+                                                height: "auto",
+                                                minHeight: "fit-content",
+                                              }}
+                                            >
+                                              {hasJsonContent ? (
+                                                <Box
+                                                  sx={{
+                                                    minWidth: isJsonExpanded
+                                                      ? 250
+                                                      : 150,
+                                                    maxWidth: isJsonExpanded
+                                                      ? 550
+                                                      : 350,
+                                                    width: "100%",
                                                     minHeight: "fit-content",
-                                                  },
-                                                }}
-                                              >
-                                                <ReactJson
-                                                  src={value}
-                                                  name={false}
-                                                  collapsed={
-                                                    key === "annotations"
-                                                      ? false
-                                                      : !isJsonExpanded
-                                                  }
-                                                  displayDataTypes={false}
-                                                  displayObjectSize={false}
-                                                  enableClipboard={false}
-                                                  style={{
                                                     height: "auto",
-                                                    minHeight: "fit-content",
-                                                    lineHeight: "1.4",
-                                                    fontSize: "12px",
+                                                    overflow: "visible",
+                                                    "& .react-json-view": {
+                                                      height: "auto !important",
+                                                      minHeight: "fit-content",
+                                                    },
                                                   }}
-                                                />
-                                              </Box>
-                                            ) : isObjectId ? (
-                                              <Link
-                                                href={`https://babamul.caltech.edu/objects/${filter_stream.toUpperCase()}/${value}`}
-                                                target="_blank"
-                                                rel="noopener noreferrer"
-                                              >
+                                                >
+                                                  <ReactJson
+                                                    src={value}
+                                                    name={false}
+                                                    collapsed={
+                                                      key === "annotations"
+                                                        ? false
+                                                        : !isJsonExpanded
+                                                    }
+                                                    displayDataTypes={false}
+                                                    displayObjectSize={false}
+                                                    enableClipboard={false}
+                                                    style={{
+                                                      height: "auto",
+                                                      minHeight: "fit-content",
+                                                      lineHeight: "1.4",
+                                                      fontSize: "12px",
+                                                    }}
+                                                  />
+                                                </Box>
+                                              ) : isObjectId ? (
+                                                <Link
+                                                  href={`/brokers/${brokerId}?objectId=${value}&survey=${survey}`}
+                                                  target="_blank"
+                                                  rel="noopener noreferrer"
+                                                >
+                                                  <Typography
+                                                    variant="body2"
+                                                    sx={{
+                                                      fontFamily: "monospace",
+                                                      wordBreak: "break-word",
+                                                    }}
+                                                  >
+                                                    {String(value)}
+                                                  </Typography>
+                                                </Link>
+                                              ) : (
                                                 <Typography
                                                   variant="body2"
                                                   sx={{
@@ -929,37 +989,19 @@ const MongoQueryDialog = () => {
                                                 >
                                                   {String(value)}
                                                 </Typography>
-                                              </Link>
-                                            ) : (
-                                              <Typography
-                                                variant="body2"
-                                                sx={{
-                                                  fontFamily: "monospace",
-                                                  wordBreak: "break-word",
-                                                }}
-                                              >
-                                                {String(value)}
-                                              </Typography>
-                                            )}
-                                          </TableCell>
-                                        );
-                                      },
-                                    )}
-                                </TableRow>
-                              ),
-                            )}
-                          </TableBody>
-                        </Table>
-                      </TableContainer>
-                    </>
-                  ) : (
-                    <Typography
-                      variant="body2"
-                      color="text.secondary"
-                      sx={{ p: 2, textAlign: "center" }}
-                    >
-                      No documents matched the query
-                    </Typography>
+                                              )}
+                                            </TableCell>
+                                          );
+                                        },
+                                      )}
+                                  </TableRow>
+                                ),
+                              )}
+                            </TableBody>
+                          </Table>
+                        </TableContainer>
+                      </>
+                    )
                   )}
 
                   <Divider sx={{ my: 2 }} />

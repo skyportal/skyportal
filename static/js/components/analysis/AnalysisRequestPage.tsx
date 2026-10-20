@@ -1,27 +1,20 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import { makeStyles } from "tss-react/mui";
 import Paper from "@mui/material/Paper";
 import Typography from "@mui/material/Typography";
 import Chip from "@mui/material/Chip";
-import Grid from "@mui/material/Grid";
+import Box from "@mui/material/Box";
 import Tabs from "@mui/material/Tabs";
 import Tab from "@mui/material/Tab";
-import ToggleButton from "@mui/material/ToggleButton";
-import ToggleButtonGroup from "@mui/material/ToggleButtonGroup";
 import Plotly from "plotly.js-basic-dist";
 import createPlotlyComponent from "react-plotly.js/factory";
 
-import StyledDataGrid from "../StyledDataGrid";
+import StyledDataGrid, { DataGridToolbar } from "../StyledDataGrid";
+import SegmentedControl from "../SegmentedControl";
 import DefaultAnalysisList from "./DefaultAnalysisList";
 import { useGetAnalysesQuery } from "../../ducks/source";
 import { useGetAnalysisServicesQuery } from "../../ducks/analysis_services";
 import { useGetProfileQuery } from "../../ducks/profile";
-
-const useStyles = makeStyles()((theme) => ({
-  root: { width: "100%" },
-  serviceBlock: { padding: theme.spacing(1), marginBottom: theme.spacing(1.5) },
-}));
 
 const Plot: any = createPlotlyComponent(Plotly);
 
@@ -57,9 +50,9 @@ const HealthTile = ({
 }) => (
   <Paper
     variant="outlined"
-    style={{ padding: "0.5rem 1rem", textAlign: "center", minWidth: "6.5rem" }}
+    sx={{ px: 2, py: 1, textAlign: "center", minWidth: "6.5rem" }}
   >
-    <Typography variant="h5" style={{ color }}>
+    <Typography variant="h5" sx={{ color }}>
       {value}
     </Typography>
     <Typography variant="caption">{label}</Typography>
@@ -115,40 +108,36 @@ const AnalysisHealth = ({ analyses }: { analyses: any[] }) => {
   const nonZero = slices.filter((s) => s.value > 0);
 
   return (
-    <Paper style={{ padding: "1rem", marginBottom: "1rem" }}>
-      <div
-        style={{
+    <Paper sx={{ p: 2 }}>
+      <Box
+        sx={{
           display: "flex",
           justifyContent: "space-between",
           alignItems: "center",
           flexWrap: "wrap",
-          gap: "0.5rem",
+          gap: 1,
         }}
       >
         <Typography variant="h6">Analysis health</Typography>
-        <ToggleButtonGroup
-          size="small"
-          exclusive
+        <SegmentedControl
           value={windowKey}
-          onChange={(_e, v) => v && setWindowKey(v)}
-        >
-          {HEALTH_WINDOWS.map((w) => (
-            <ToggleButton key={w.key} value={w.key}>
-              {w.label}
-            </ToggleButton>
-          ))}
-        </ToggleButtonGroup>
-      </div>
-      <div
-        style={{
+          onChange={setWindowKey}
+          options={HEALTH_WINDOWS.map((w) => ({
+            value: w.key,
+            label: w.label,
+          }))}
+        />
+      </Box>
+      <Box
+        sx={{
           display: "flex",
           flexWrap: "wrap",
-          gap: "1rem",
+          gap: 2,
           alignItems: "center",
-          marginTop: "0.5rem",
+          mt: 1,
         }}
       >
-        <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap" }}>
+        <Box sx={{ display: "flex", gap: 1.5, flexWrap: "wrap" }}>
           <HealthTile label="Total" value={total} />
           {nonZero.map((s) => (
             <HealthTile
@@ -158,11 +147,11 @@ const AnalysisHealth = ({ analyses }: { analyses: any[] }) => {
               color={s.color}
             />
           ))}
-        </div>
-        <div style={{ flex: "1 1 260px", minWidth: 240 }}>
+        </Box>
+        <Box sx={{ flex: "1 1 260px", minWidth: 240 }}>
           {total === 0 ? (
-            <Typography variant="body2" style={{ fontStyle: "italic" }}>
-              No analyses in this window.
+            <Typography variant="body2" color="text.secondary">
+              No analyses in this window
             </Typography>
           ) : (
             <Plot
@@ -186,14 +175,17 @@ const AnalysisHealth = ({ analyses }: { analyses: any[] }) => {
               style={{ width: "100%" }}
             />
           )}
-        </div>
-      </div>
+        </Box>
+      </Box>
     </Paper>
   );
 };
 
+const AnalysisRequestsToolbar = () => (
+  <DataGridToolbar title="Analysis Requests" />
+);
+
 const AnalysisRequestList = () => {
-  const { classes } = useStyles();
   const { data: analyses } = useGetAnalysesQuery({
     analysis_resource_type: "obj",
     params: {},
@@ -268,26 +260,23 @@ const AnalysisRequestList = () => {
   ];
 
   return (
-    <div className={classes.root}>
+    <>
       <AnalysisHealth analyses={(analyses as any[]) || []} />
-      <Paper>
-        <Typography variant="h6">Analysis Requests</Typography>
-        <StyledDataGrid
-          autoHeight
-          rows={(analyses as any[]) || []}
-          columns={columns}
-          getRowId={(row: any) => row.id}
-          initialState={{
-            sorting: { sortModel: [{ field: "created_at", sort: "desc" }] },
-          }}
-        />
-      </Paper>
-    </div>
+      <StyledDataGrid
+        autoHeight
+        rows={(analyses as any[]) || []}
+        columns={columns}
+        showToolbar
+        slots={{ toolbar: AnalysisRequestsToolbar }}
+        initialState={{
+          sorting: { sortModel: [{ field: "created_at", sort: "desc" }] },
+        }}
+      />
+    </>
   );
 };
 
 const DefaultAnalysesOverview = () => {
-  const { classes } = useStyles();
   const { data: analysisServices } = useGetAnalysisServicesQuery();
   const { data: currentUser } = useGetProfileQuery();
   const deletePermission =
@@ -296,9 +285,9 @@ const DefaultAnalysesOverview = () => {
     false;
 
   return (
-    <div className={classes.root}>
+    <>
       {((analysisServices as any[]) || []).map((service: any) => (
-        <Paper key={service.id} className={classes.serviceBlock}>
+        <Paper key={service.id} sx={{ p: 1 }}>
           <Typography variant="subtitle1">
             {service.display_name || service.name}
           </Typography>
@@ -309,7 +298,7 @@ const DefaultAnalysesOverview = () => {
           />
         </Paper>
       ))}
-    </div>
+    </>
   );
 };
 
@@ -317,15 +306,17 @@ const AnalysisRequestPage = () => {
   const [tabIndex, setTabIndex] = useState(0);
 
   return (
-    <Grid container spacing={3}>
-      <Grid size={12}>
-        <Tabs value={tabIndex} onChange={(_e, v) => setTabIndex(v)} centered>
-          <Tab label="Analysis Requests" />
-          <Tab label="Default Analyses" />
-        </Tabs>
-        {tabIndex === 0 ? <AnalysisRequestList /> : <DefaultAnalysesOverview />}
-      </Grid>
-    </Grid>
+    <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
+      <Tabs
+        value={tabIndex}
+        onChange={(_e, v) => setTabIndex(v)}
+        sx={{ borderBottom: 1, borderColor: "divider" }}
+      >
+        <Tab label="Analysis Requests" />
+        <Tab label="Default Analyses" />
+      </Tabs>
+      {tabIndex === 0 ? <AnalysisRequestList /> : <DefaultAnalysesOverview />}
+    </Box>
   );
 };
 

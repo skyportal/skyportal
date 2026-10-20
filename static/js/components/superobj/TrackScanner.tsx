@@ -1,14 +1,13 @@
-import { useState } from "react";
+import { Fragment, useState } from "react";
 import { Link } from "react-router-dom";
 
 import Alert from "@mui/material/Alert";
 import Box from "@mui/material/Box";
+import Button from "@mui/material/Button";
 import Chip from "@mui/material/Chip";
 import CircularProgress from "@mui/material/CircularProgress";
-import FormControlLabel from "@mui/material/FormControlLabel";
 import Paper from "@mui/material/Paper";
 import Stack from "@mui/material/Stack";
-import Switch from "@mui/material/Switch";
 import TablePagination from "@mui/material/TablePagination";
 import Typography from "@mui/material/Typography";
 
@@ -18,6 +17,8 @@ import {
   type SuperObj,
   type SuperObjEpoch,
 } from "../../ducks/superObjs";
+import SegmentedControl from "../SegmentedControl";
+import { SURVEY_FIELD_OF_VIEW_ARCSEC } from "../thumbnail/ThumbnailList";
 import SaveTrackButton from "./SaveTrackButton";
 
 const CUTOUT_TYPES = ["new", "ref", "sub"] as const;
@@ -58,45 +59,49 @@ const distinctEpochs = (track: SuperObj): SuperObjEpoch[] => {
   });
 };
 
-const cutoutUrl = (epoch: SuperObjEpoch, type: string) =>
-  (epoch.thumbnails || []).find((t) => t.type === type)?.public_url || null;
+const cutout = (epoch: SuperObjEpoch, type: string) =>
+  (epoch.thumbnails || []).find((t) => t.type === type && t.public_url);
 
-const EpochColumn = ({ epoch }: { epoch: SuperObjEpoch }) => (
-  <Stack spacing={0.5} sx={{ minWidth: 104 }}>
-    {CUTOUT_TYPES.map((type) => {
-      const url = cutoutUrl(epoch, type);
-      return (
-        <Box
-          key={type}
-          sx={{
-            width: 100,
-            height: 100,
-            bgcolor: "action.hover",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            overflow: "hidden",
+const epochSurvey = (epoch: SuperObjEpoch) =>
+  (epoch.thumbnails || []).find(
+    (t) => t.survey && (CUTOUT_TYPES as readonly string[]).includes(t.type),
+  )?.survey ?? null;
+
+const Cutout = ({
+  epoch,
+  type,
+  zoom,
+}: {
+  epoch: SuperObjEpoch;
+  type: string;
+  zoom: number;
+}) => {
+  const url = cutout(epoch, type)?.public_url;
+  return (
+    <Box
+      sx={{
+        width: 100,
+        height: 100,
+        borderRadius: 0.5,
+        overflow: "hidden",
+        bgcolor: url && zoom !== 1 ? "black" : "action.hover",
+      }}
+    >
+      {url && (
+        <img
+          src={url}
+          alt={`${CUTOUT_LABELS[type] ?? type} cutout for ${epoch.id}`}
+          style={{
+            width: "100%",
+            height: "100%",
+            objectFit: "cover",
+            ...(zoom !== 1 ? { transform: `scale(${zoom})` } : {}),
           }}
-        >
-          {url ? (
-            <img
-              src={url}
-              alt={`${CUTOUT_LABELS[type] ?? type} cutout for ${epoch.id}`}
-              style={{ width: "100%", height: "100%", objectFit: "cover" }}
-            />
-          ) : (
-            <Typography variant="caption" color="text.secondary">
-              no {(CUTOUT_LABELS[type] ?? type).toLowerCase()}
-            </Typography>
-          )}
-        </Box>
-      );
-    })}
-    <Typography variant="caption" noWrap sx={{ maxWidth: 100 }}>
-      <Link to={`/source/${epoch.id}`}>{epoch.id}</Link>
-    </Typography>
-  </Stack>
-);
+        />
+      )}
+    </Box>
+  );
+};
 
 const TrackRow = ({
   track,
@@ -108,102 +113,149 @@ const TrackRow = ({
   const orbit = trackOrbit(track);
   const digest2 = orbit["digest2"];
   const isNeo = typeof digest2 === "number" && digest2 >= NEO_DIGEST2_THRESHOLD;
+  const name = track.name || `Track ${track.id}`;
 
   const epochs = distinctEpochs(track);
   const repeats = track.objs.length - epochs.length;
 
+  const [sameScale, setSameScale] = useState(false);
+  const fieldOfView = (epoch: SuperObjEpoch) =>
+    SURVEY_FIELD_OF_VIEW_ARCSEC[epochSurvey(epoch) ?? ""];
+  const fieldsOfView = [
+    ...new Set(epochs.map(fieldOfView).filter(Boolean)),
+  ] as number[];
+  const widestFieldOfView = Math.max(...fieldsOfView);
+  const zoomOf = (epoch: SuperObjEpoch) => {
+    const fov = fieldOfView(epoch);
+    return sameScale && fov ? fov / widestFieldOfView : 1;
+  };
+
   const facts: [string, string | null][] = [
-    ["detections", String(epochs.length)],
-    ["tracklets", num(orbit["n_tracklets"], 0)],
-    ["nights", num(orbit["nights"], 0)],
-    ["residual", num(orbit["fit_residual_arcsec"], 2)],
+    ["Detections", String(epochs.length)],
+    ["Tracklets", num(orbit["n_tracklets"], 0)],
+    ["Nights", num(orbit["nights"], 0)],
+    ["Residual", num(orbit["fit_residual_arcsec"], 2)],
     ["r (au)", num(orbit["hypothesis_r_au"], 2)],
-    ["dr/dt", num(orbit["hypothesis_rdot_au_per_day"], 4)],
+    ["dr/dt (au/d)", num(orbit["hypothesis_rdot_au_per_day"], 4)],
     ["digest2", num(digest2, 1)],
   ];
+  const notes = [
+    Object.keys(orbit).length === 0 && "No orbit fit",
+    repeats > 0 &&
+      `${repeats} repeated detection${repeats === 1 ? "" : "s"} merged`,
+  ].filter((note): note is string => Boolean(note));
 
   return (
-    <Paper variant="outlined" sx={{ p: 2, mb: 2 }}>
-      <Stack
-        direction="row"
-        spacing={1}
-        sx={{ mb: 1, alignItems: "center", flexWrap: "wrap" }}
-      >
-        <Typography variant="subtitle1">
-          {track.name || `Track ${track.id}`}
+    <Paper variant="outlined" sx={{ p: 2 }}>
+      <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+        <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
+          {name}
         </Typography>
         {isNeo && <Chip size="small" color="warning" label="NEO candidate" />}
-        <Box sx={{ flexGrow: 1 }} />
-        <SaveTrackButton
-          trackName={track.name || `Track ${track.id}`}
-          epochs={epochs}
-          userGroups={userGroups}
-        />
+        <Box sx={{ ml: "auto" }}>
+          <SaveTrackButton
+            trackName={name}
+            epochs={epochs}
+            userGroups={userGroups}
+          />
+        </Box>
+      </Box>
+      <Box
+        sx={{
+          display: "flex",
+          flexWrap: "wrap",
+          columnGap: 2.5,
+          rowGap: 0.5,
+          mt: 0.25,
+          mb: 1.5,
+        }}
+      >
         {facts
           .filter(([, value]) => value !== null)
           .map(([label, value]) => (
-            <Chip
-              key={label}
-              size="small"
-              variant="outlined"
-              label={`${label} ${value}`}
-            />
-          ))}
-      </Stack>
-
-      {repeats > 0 && (
-        <Typography
-          variant="caption"
-          color="text.secondary"
-          sx={{ display: "block" }}
-        >
-          {repeats} of this track&apos;s {track.objs.length} rows repeat a
-          detection already shown: a detection can belong to more than one
-          tracklet, so the annotation&apos;s epoch count is rows rather than
-          distinct detections.
-        </Typography>
-      )}
-
-      {Object.keys(orbit).length === 0 && (
-        <Typography variant="caption" color="text.secondary">
-          No {TRACK_ANNOTATION_ORIGIN} annotation on this track, so nothing is
-          known about how it was built. The cutouts below are still the linkage
-          to judge.
-        </Typography>
-      )}
-
-      <Box sx={{ overflowX: "auto", pb: 1 }}>
-        <Stack direction="row" spacing={1}>
-          <Stack spacing={0.5} sx={{ justifyContent: "flex-start", pt: 0.5 }}>
-            {CUTOUT_TYPES.map((type) => (
+            <Typography key={label} variant="body2" color="text.secondary">
+              {label}{" "}
               <Box
-                key={type}
-                sx={{
-                  height: 100,
-                  display: "flex",
-                  alignItems: "center",
-                  pr: 1,
-                }}
+                component="span"
+                sx={{ color: "text.primary", fontWeight: 600 }}
               >
-                <Typography variant="caption" color="text.secondary">
-                  {CUTOUT_LABELS[type] ?? type}
-                </Typography>
+                {value}
               </Box>
-            ))}
-          </Stack>
-          {epochs.map((epoch) => (
-            <EpochColumn key={epoch.id} epoch={epoch} />
+            </Typography>
           ))}
-        </Stack>
+        {notes.map((note) => (
+          <Typography key={note} variant="body2" color="text.secondary">
+            {note}
+          </Typography>
+        ))}
       </Box>
+
+      <Box sx={{ overflowX: "auto", pb: 0.5 }}>
+        <Box
+          sx={{
+            display: "grid",
+            gridTemplateColumns: `auto repeat(${epochs.length}, 100px)`,
+            columnGap: 1,
+            rowGap: 0.5,
+            width: "max-content",
+          }}
+        >
+          {CUTOUT_TYPES.map((type) => (
+            <Fragment key={type}>
+              <Typography
+                variant="caption"
+                color="text.secondary"
+                sx={{ alignSelf: "center", pr: 1 }}
+              >
+                {CUTOUT_LABELS[type] ?? type}
+              </Typography>
+              {epochs.map((epoch) => (
+                <Cutout
+                  key={epoch.id}
+                  epoch={epoch}
+                  type={type}
+                  zoom={zoomOf(epoch)}
+                />
+              ))}
+            </Fragment>
+          ))}
+          <Box />
+          {epochs.map((epoch) => (
+            <Typography key={epoch.id} variant="caption" noWrap>
+              <Link to={`/source/${epoch.id}`}>{epoch.id}</Link>
+            </Typography>
+          ))}
+        </Box>
+      </Box>
+      {fieldsOfView.length > 1 && (
+        <Box sx={{ display: "flex", alignItems: "center", gap: 1, mt: 1 }}>
+          <Typography variant="caption" color="text.secondary">
+            Field of view
+          </Typography>
+          <SegmentedControl
+            size="small"
+            value={sameScale}
+            onChange={setSameScale}
+            options={[
+              { value: false, label: "Native" },
+              { value: true, label: "Same" },
+            ]}
+          />
+        </Box>
+      )}
     </Paper>
   );
 };
 
-const TrackScanner = () => {
+const TrackScanner = ({
+  onlyMultiEpoch,
+  setOnlyMultiEpoch,
+}: {
+  onlyMultiEpoch: boolean;
+  setOnlyMultiEpoch: (value: boolean) => void;
+}) => {
   const [page, setPage] = useState(0);
   const [perPage, setPerPage] = useState(25);
-  const [onlyMultiEpoch, setOnlyMultiEpoch] = useState(true);
   const userGroups = useGetGroupsQuery().data?.userAccessible ?? [];
 
   const { data, isFetching, error } = useGetSuperObjsQuery({
@@ -216,26 +268,15 @@ const TrackScanner = () => {
   const tracks = (data?.superObjs || []).filter(
     (track) => !onlyMultiEpoch || distinctEpochs(track).length > 1,
   );
+  const hiddenSingles = (data?.superObjs.length ?? 0) - tracks.length;
 
   return (
-    <Box sx={{ p: 2 }}>
-      <Stack
-        direction="row"
-        spacing={2}
-        sx={{ mb: 2, alignItems: "center", flexWrap: "wrap" }}
-      >
-        <Typography variant="h5">Moving object tracks</Typography>
-        <FormControlLabel
-          control={
-            <Switch
-              checked={onlyMultiEpoch}
-              onChange={(e) => setOnlyMultiEpoch(e.target.checked)}
-            />
-          }
-          label="Multi-epoch only"
-        />
-        {isFetching && <CircularProgress size={20} />}
-      </Stack>
+    <Box>
+      {isFetching && !data && (
+        <Box sx={{ display: "flex", justifyContent: "center", py: 4 }}>
+          <CircularProgress size={24} />
+        </Box>
+      )}
 
       {error && (
         <Alert severity="error" sx={{ mb: 2 }}>
@@ -243,31 +284,47 @@ const TrackScanner = () => {
         </Alert>
       )}
 
-      {!isFetching && tracks.length === 0 && (
-        <Typography color="text.secondary">
-          No tracks to review.
-          {onlyMultiEpoch && data?.totalMatches
-            ? " Every moving object on this page has a single epoch, which means a known body rather than a new track."
-            : ""}
-        </Typography>
+      {data && tracks.length === 0 && (
+        <Paper
+          variant="outlined"
+          sx={{
+            py: 6,
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            gap: 1,
+          }}
+        >
+          <Typography color="text.secondary">No tracks to review</Typography>
+          {hiddenSingles > 0 && (
+            <Button size="small" onClick={() => setOnlyMultiEpoch(false)}>
+              Show {hiddenSingles} single-epoch track
+              {hiddenSingles === 1 ? "" : "s"}
+            </Button>
+          )}
+        </Paper>
       )}
 
-      {tracks.map((track) => (
-        <TrackRow key={track.id} track={track} userGroups={userGroups} />
-      ))}
+      <Stack spacing={2}>
+        {tracks.map((track) => (
+          <TrackRow key={track.id} track={track} userGroups={userGroups} />
+        ))}
+      </Stack>
 
-      <TablePagination
-        component="div"
-        count={data?.totalMatches || 0}
-        page={page}
-        onPageChange={(_e, value) => setPage(value)}
-        rowsPerPage={perPage}
-        onRowsPerPageChange={(e) => {
-          setPerPage(parseInt(e.target.value, 10));
-          setPage(0);
-        }}
-        rowsPerPageOptions={[25, 50, 100]}
-      />
+      {((data?.totalMatches ?? 0) > perPage || page > 0) && (
+        <TablePagination
+          component="div"
+          count={data?.totalMatches || 0}
+          page={page}
+          onPageChange={(_e, value) => setPage(value)}
+          rowsPerPage={perPage}
+          onRowsPerPageChange={(e) => {
+            setPerPage(parseInt(e.target.value, 10));
+            setPage(0);
+          }}
+          rowsPerPageOptions={[25, 50, 100]}
+        />
+      )}
     </Box>
   );
 };

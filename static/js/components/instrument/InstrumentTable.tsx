@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 
 import Dialog from "@mui/material/Dialog";
 import DialogTitle from "@mui/material/DialogTitle";
@@ -9,17 +9,12 @@ import Chip from "@mui/material/Chip";
 import Tooltip from "@mui/material/Tooltip";
 import Box from "@mui/material/Box";
 import AddIcon from "@mui/icons-material/Add";
-import DeleteIcon from "@mui/icons-material/Delete";
-import EditIcon from "@mui/icons-material/Edit";
 
-import { showNotification } from "baselayer/components/Notifications";
-import { useDeleteInstrumentMutation } from "../../ducks/instrument";
 import StyledDataGrid, {
   DataGridToolbar,
   FULL_PAGE_HEIGHT,
 } from "../StyledDataGrid";
-import { useAppDispatch } from "../../types";
-import ConfirmDeletionDialog from "../ConfirmDeletionDialog";
+import ExpandableCell from "../ExpandableCell";
 import InstrumentForm from "./InstrumentForm";
 import { useIsReadOnly } from "../../ducks/profile";
 
@@ -27,7 +22,6 @@ interface InstrumentTableProps {
   title?: string;
   instruments: any[];
   telescopes?: any[];
-  managePermission?: boolean;
   telescopeInfo?: boolean;
   fixedHeader?: boolean;
 }
@@ -36,39 +30,12 @@ const InstrumentTable = ({
   title = "Instruments",
   instruments,
   telescopes,
-  managePermission = false,
   telescopeInfo = true,
   fixedHeader = false,
 }: InstrumentTableProps) => {
-  const dispatch = useAppDispatch();
+  const navigate = useNavigate();
   const isReadOnly = useIsReadOnly();
-  const [deleteInstrumentMutation] = useDeleteInstrumentMutation();
-
   const [newDialogOpen, setNewDialogOpen] = useState(false);
-  const [editDialogOpen, setEditDialogOpen] = useState(false);
-  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const [instrumentToManage, setInstrumentToManage] = useState<number | null>(
-    null,
-  );
-
-  const closeEditDialog = () => {
-    setEditDialogOpen(false);
-    setInstrumentToManage(null);
-  };
-  const closeDeleteDialog = () => {
-    setDeleteDialogOpen(false);
-    setInstrumentToManage(null);
-  };
-
-  const deleteInstrument = async () => {
-    try {
-      await deleteInstrumentMutation(instrumentToManage!).unwrap();
-      dispatch(showNotification("Instrument deleted"));
-      closeDeleteDialog();
-    } catch {
-      // error notification handled by the base query
-    }
-  };
 
   const enrichedInstruments = useMemo(() => {
     const telescopeById = new Map(telescopes?.map((t) => [t.id, t]) || []);
@@ -89,76 +56,50 @@ const InstrumentTable = ({
     });
   }, [instruments, telescopes]);
 
-  const renderInstrumentName = (params: any) => {
-    const instrument = params.row;
-    return (
-      <Link to={`/instrument/${instrument.id}`}>{instrument?.name || ""}</Link>
-    );
-  };
-
   const renderTelescopeNickname = (params: any) => {
     const instrument = params.row;
     return (
-      <Link to={`/telescope/${instrument?.telescope_id}`}>
+      <Link
+        to={`/telescope/${instrument?.telescope_id}`}
+        onClick={(event) => event.stopPropagation()}
+      >
         {instrument?.telescope_nickname || ""}
       </Link>
     );
   };
 
-  const renderFilters = (params: any) => {
-    const filters = params.row.filters;
-    return filters?.map((filter: any) => <div key={filter}>{filter}</div>);
-  };
+  const renderFilters = (params: any) => (
+    <ExpandableCell
+      maxVisible={6}
+      items={(params.row.filters ?? []).map((filter: string) => (
+        <Chip key={filter} label={filter} size="small" />
+      ))}
+    />
+  );
 
   const renderAPIClassnames = (params: any) => {
     const { api_classname, api_classname_obsplan } = params.row;
     if (!api_classname && !api_classname_obsplan) return null;
 
     return (
-      <div
-        style={{
+      <Box
+        sx={{
           display: "flex",
           flexDirection: "column",
-          gap: "2px",
           alignItems: "start",
+          gap: 0.5,
         }}
       >
         {api_classname && (
           <Tooltip title="API for Follow-up Requests" placement="top">
-            <Chip label={api_classname} />
+            <Chip label={api_classname} size="small" />
           </Tooltip>
         )}
         {api_classname_obsplan && (
           <Tooltip title="API for Observation Plan" placement="bottom">
-            <Chip label={api_classname_obsplan} />
+            <Chip label={api_classname_obsplan} size="small" />
           </Tooltip>
         )}
-      </div>
-    );
-  };
-
-  const renderManage = (params: any) => {
-    if (!managePermission) return null;
-    const instrument = params.row;
-    return (
-      <Box style={{ display: "flex" }}>
-        <IconButton
-          onClick={() => {
-            setEditDialogOpen(true);
-            setInstrumentToManage(instrument.id);
-          }}
-        >
-          <EditIcon />
-        </IconButton>
-        <IconButton
-          color="error"
-          onClick={() => {
-            setDeleteDialogOpen(true);
-            setInstrumentToManage(instrument.id);
-          }}
-        >
-          <DeleteIcon />
-        </IconButton>
       </Box>
     );
   };
@@ -175,7 +116,6 @@ const InstrumentTable = ({
       headerName: "Name",
       flex: 1,
       minWidth: 140,
-      renderCell: renderInstrumentName,
     },
     ...(telescopeInfo
       ? [
@@ -193,8 +133,8 @@ const InstrumentTable = ({
     {
       field: "filters",
       headerName: "Filters",
-      flex: 1,
-      minWidth: 100,
+      flex: 2,
+      minWidth: 200,
       renderCell: renderFilters,
     },
     {
@@ -204,8 +144,15 @@ const InstrumentTable = ({
       minWidth: 160,
       renderCell: renderAPIClassnames,
     },
-    { field: "band", headerName: "Band", flex: 1, minWidth: 90 },
-    { field: "type", headerName: "Type", flex: 1, minWidth: 90 },
+    { field: "band", headerName: "Band", flex: 0.6, minWidth: 80 },
+    {
+      field: "type",
+      headerName: "Type",
+      flex: 0.8,
+      minWidth: 150,
+      renderCell: ({ value }: any) =>
+        value && <Chip label={value} size="small" variant="outlined" />,
+    },
     {
       field: "region_summary",
       headerName: "FOV Region?",
@@ -215,18 +162,10 @@ const InstrumentTable = ({
     {
       field: "number_of_fields",
       headerName: "Fields",
-      flex: 1,
-      minWidth: 50,
+      flex: 0.5,
+      minWidth: 70,
     },
-    managePermission && {
-      field: "manage",
-      headerName: " ",
-      minWidth: 120,
-      sortable: false,
-      filterable: false,
-      renderCell: renderManage,
-    },
-  ].filter(Boolean);
+  ];
 
   const CustomToolbar = function InstrumentTableToolbar() {
     return (
@@ -250,10 +189,20 @@ const InstrumentTable = ({
         height={fixedHeader ? FULL_PAGE_HEIGHT : "auto"}
         rows={enrichedInstruments}
         columns={columns}
-        getRowId={(row: any) => row.id}
+        getRowHeight={() => "auto"}
+        sx={{ "& .MuiDataGrid-row": { cursor: "pointer" } }}
+        onRowClick={({ row }: any) => navigate(`/instrument/${row.id}`)}
         pageSizeOptions={[25, 50, 100, { value: -1, label: "All" }]}
         initialState={{
-          columns: { columnVisibilityModel: { id: false } },
+          columns: {
+            columnVisibilityModel: {
+              id: false,
+              lat: false,
+              lon: false,
+              region_summary: false,
+              number_of_fields: false,
+            },
+          },
           pagination: { paginationModel: { pageSize: -1 } },
         }}
         slots={{ toolbar: CustomToolbar }}
@@ -269,29 +218,6 @@ const InstrumentTable = ({
           <InstrumentForm onClose={() => setNewDialogOpen(false)} />
         </DialogContent>
       </Dialog>
-      <Dialog
-        open={editDialogOpen && instrumentToManage !== null}
-        onClose={closeEditDialog}
-        maxWidth="md"
-      >
-        <DialogTitle>
-          Edit{" "}
-          {enrichedInstruments.find((i) => i.id === instrumentToManage)?.name}{" "}
-          instrument
-        </DialogTitle>
-        <DialogContent dividers>
-          <InstrumentForm
-            onClose={closeEditDialog}
-            instrumentId={instrumentToManage}
-          />
-        </DialogContent>
-      </Dialog>
-      <ConfirmDeletionDialog
-        deleteFunction={deleteInstrument}
-        dialogOpen={deleteDialogOpen}
-        closeDialog={closeDeleteDialog}
-        resourceName="instrument"
-      />
     </>
   );
 };

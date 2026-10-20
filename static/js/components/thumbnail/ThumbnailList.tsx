@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { ReactNode, useEffect, useState } from "react";
 import dayjs from "dayjs";
 
 import Box from "@mui/material/Box";
@@ -6,14 +6,14 @@ import Grid from "@mui/material/Grid";
 import Button from "@mui/material/Button";
 import ButtonBase from "@mui/material/ButtonBase";
 import CircularProgress from "@mui/material/CircularProgress";
-import FormControlLabel from "@mui/material/FormControlLabel";
-import Switch from "@mui/material/Switch";
 import Tab from "@mui/material/Tab";
 import Tabs from "@mui/material/Tabs";
 import Tooltip from "@mui/material/Tooltip";
+import Typography from "@mui/material/Typography";
 import AddPhotoAlternateOutlinedIcon from "@mui/icons-material/AddPhotoAlternateOutlined";
 
 import Thumbnail from "./Thumbnail";
+import SegmentedControl from "../SegmentedControl";
 import { useGenerateSurveyThumbnailMutation } from "../../ducks/candidate/candidates";
 
 const ALERT_THUMBNAIL_TYPES = ["new", "ref", "sub"];
@@ -32,7 +32,7 @@ const FETCHED_TYPES = ["sdss", "ls"];
 const MAXIMUM_NB_OF_RETRIES = 3;
 const MAX_VISIBLE_THUMBNAILS = 3;
 const thumbnailTypes = [...ALERT_THUMBNAIL_TYPES, ...ARCHIVAL_THUMBNAIL_TYPES];
-const SURVEY_FIELD_OF_VIEW_ARCSEC: Record<string, number> = {
+export const SURVEY_FIELD_OF_VIEW_ARCSEC: Record<string, number> = {
   ZTF: 64,
   LSST: 6,
   DECAM: 17,
@@ -237,6 +237,7 @@ interface ThumbnailListProps {
   displayTypes?: string[] | undefined;
   objID?: string | undefined;
   columns?: number | undefined;
+  footer?: ReactNode;
 }
 
 const ThumbnailList = ({
@@ -252,6 +253,7 @@ const ThumbnailList = ({
   displayTypes = thumbnailTypes,
   objID = undefined,
   columns = undefined,
+  footer,
 }: ThumbnailListProps) => {
   const [pageIndex, setPageIndex] = useState(0);
   const [sameScale, setSameScale] = useState(false);
@@ -324,6 +326,8 @@ const ThumbnailList = ({
   ].filter(Boolean);
   const widestFieldOfView = Math.max(...fieldsOfView);
   const scaleMatched = sameScale && fieldsOfView.length > 1;
+  const mixedScalesShown =
+    new Set([...shown].map((t) => t.fieldOfView).filter(Boolean)).size > 1;
 
   const hasArchival = (types: string[]) =>
     latestArchival.some(
@@ -437,7 +441,9 @@ const ThumbnailList = ({
   );
 
   const content = (
-    <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
+    <Box
+      sx={{ display: "flex", flexDirection: "column", gap: 1, height: "100%" }}
+    >
       {pages.length > 1 && (
         <Tabs
           value={currentPage}
@@ -490,29 +496,37 @@ const ThumbnailList = ({
           </Box>
         )}
       </Box>
-      {fieldsOfView.length > 1 && (
-        <Tooltip
-          title={`Show every alert cutout at the ${formatFieldOfView(widestFieldOfView)} field of view`}
-        >
-          <FormControlLabel
-            control={
-              <Switch
-                size="small"
-                checked={sameScale}
-                onChange={(event) => setSameScale(event.target.checked)}
-              />
-            }
-            label="Same scale"
-            sx={{
-              alignSelf: "flex-start",
-              marginLeft: 0,
-              whiteSpace: "nowrap",
-              "& .MuiFormControlLabel-label": { fontSize: "0.8rem" },
-            }}
-          />
-        </Tooltip>
-      )}
       {showOnDemandButton && !freeSlot && <div>{onDemandButton}</div>}
+      {(footer || mixedScalesShown) && (
+        <Box
+          sx={{
+            mt: "auto",
+            display: "flex",
+            flexWrap: "wrap",
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: 1,
+          }}
+        >
+          <Box>{footer}</Box>
+          {mixedScalesShown && (
+            <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+              <Typography variant="caption" color="text.secondary">
+                Field of view
+              </Typography>
+              <SegmentedControl
+                size="small"
+                value={sameScale}
+                onChange={setSameScale}
+                options={[
+                  { value: false, label: "Native" },
+                  { value: true, label: "Same" },
+                ]}
+              />
+            </Box>
+          )}
+        </Box>
+      )}
     </Box>
   );
 

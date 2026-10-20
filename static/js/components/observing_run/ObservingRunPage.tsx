@@ -1,9 +1,9 @@
 import { useState } from "react";
 import Grid from "@mui/material/Grid";
 import Box from "@mui/material/Box";
+import FormControlLabel from "@mui/material/FormControlLabel";
+import Switch from "@mui/material/Switch";
 import IconButton from "@mui/material/IconButton";
-import ToggleButton from "@mui/material/ToggleButton";
-import ToggleButtonGroup from "@mui/material/ToggleButtonGroup";
 import Dialog from "@mui/material/Dialog";
 import DialogTitle from "@mui/material/DialogTitle";
 import DialogContent from "@mui/material/DialogContent";
@@ -39,15 +39,17 @@ interface RunsToolbarProps {
 
 const RunsToolbar = ({ displayAll, setDisplayAll }: RunsToolbarProps) => (
   <DataGridToolbar title="Observing Runs" showExport={false}>
-    <ToggleButtonGroup
-      size="small"
-      value={displayAll}
-      exclusive
-      onChange={(_e, value) => value !== null && setDisplayAll(value)}
-    >
-      <ToggleButton value={false}>Upcoming runs</ToggleButton>
-      <ToggleButton value={true}>All runs</ToggleButton>
-    </ToggleButtonGroup>
+    <FormControlLabel
+      label="Upcoming runs only"
+      data-testid="upcomingRunsOnlySwitch"
+      control={
+        <Switch
+          size="small"
+          checked={!displayAll}
+          onChange={(e) => setDisplayAll(!e.target.checked)}
+        />
+      }
+    />
   </DataGridToolbar>
 );
 

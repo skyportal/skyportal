@@ -52,7 +52,7 @@ import StyledDataGrid, {
   DataGridToolbar,
   FULL_PAGE_HEIGHT,
 } from "../StyledDataGrid";
-import ExpandableCell from "../ExpandableCell";
+import ExpandableCell, { ExpandableColumnHeader } from "../ExpandableCell";
 import DisplayPhotStats from "./DisplayPhotStats";
 
 import { dec_to_dms, mjd_to_utc, ra_to_hours } from "../../units";
@@ -254,12 +254,7 @@ const SourceTableToolbar = ({
   const [columnAnchor, setColumnAnchor] = useState<HTMLElement | null>(null);
 
   return (
-    <DataGridToolbar
-      title={title}
-      showExport={false}
-      showQuickFilter={false}
-      showExpandAll
-    >
+    <DataGridToolbar title={title} showExport={false} showQuickFilter={false}>
       {columnPickerOptions.length > 0 && (
         <>
           <Tooltip title="Add an annotation or altdata column">
@@ -467,6 +462,8 @@ const SourceTable = ({
     const hidden = [
       "alias",
       "origin",
+      "ra",
+      "dec",
       "ra_sex",
       "dec_sex",
       "l",
@@ -725,7 +722,7 @@ const SourceTable = ({
       {
         field: "id",
         headerName: "Source ID",
-        minWidth: 120,
+        minWidth: 190,
         renderCell: ({ value }: any) => (
           <Link
             to={`/source/${value}`}
@@ -750,7 +747,7 @@ const SourceTable = ({
       {
         field: "tns",
         headerName: "TNS",
-        minWidth: 90,
+        minWidth: 120,
         sortable: false,
         renderCell: ({ row }: any) =>
           row.tns_name && (
@@ -826,15 +823,18 @@ const SourceTable = ({
         minWidth: 90,
         valueGetter: (_value: any, row: any) => row.gal_lat?.toFixed(6),
       },
-      { field: "redshift", headerName: "Redshift", minWidth: 90 },
+      { field: "redshift", headerName: "Redshift", minWidth: 90, flex: 0.6 },
       {
         field: "tags",
         headerName: "Tags",
-        minWidth: 120,
-        maxWidth: 200,
+        minWidth: 150,
         sortable: false,
+        renderHeader: () => (
+          <ExpandableColumnHeader column="tags" label="Tags" />
+        ),
         renderCell: ({ row }: any) => (
           <ExpandableCell
+            column="tags"
             items={(row.tags ?? []).map((tag: any) => {
               const color =
                 tagOptions.find((o: any) => o.id === tag.objtagoption_id)
@@ -854,8 +854,7 @@ const SourceTable = ({
       {
         field: "classification",
         headerName: "Classification",
-        minWidth: 120,
-        maxWidth: 200,
+        minWidth: 140,
         sortable: false,
         renderCell: ({ row }: any) => <RenderShowClassification source={row} />,
       },
@@ -872,15 +871,6 @@ const SourceTable = ({
         valueFormatter: (value: number) => value?.toFixed(3),
       },
       {
-        field: "photstats",
-        headerName: " ",
-        width: 80,
-        sortable: false,
-        renderCell: ({ row }: any) => (
-          <DisplayPhotStats photstats={row.photstats?.[0]} />
-        ),
-      },
-      {
         field: "labelling",
         headerName: "Labelling",
         minWidth: 120,
@@ -889,10 +879,14 @@ const SourceTable = ({
       {
         field: "groups",
         headerName: "Groups",
-        minWidth: 120,
+        minWidth: 150,
         sortable: false,
+        renderHeader: () => (
+          <ExpandableColumnHeader column="groups" label="Groups" />
+        ),
         renderCell: ({ row }: any) => (
           <ExpandableCell
+            column="groups"
             items={(row.groups ?? [])
               .filter((group: any) => group.active)
               .map((group: any) => (
@@ -909,8 +903,9 @@ const SourceTable = ({
       {
         field: "saved_at",
         headerName: "Saved at",
-        minWidth: 150,
+        minWidth: 170,
         valueGetter: (_value: any, row: any) => getDate(row),
+        valueFormatter: (value: string) => value?.replace("T", " "),
       },
       {
         field: "saved_by",
@@ -943,21 +938,20 @@ const SourceTable = ({
         sortable: false,
       },
       {
-        field: "favorites",
-        headerName: " ",
-        width: 80,
-        sortable: false,
-        renderCell: ({ row }: any) => <FavoritesButton sourceID={row.id} />,
-      },
-      {
-        field: "finder",
-        headerName: "Finder",
-        width: 80,
+        field: "actions",
+        headerName: "Actions",
+        width: 130,
         sortable: false,
         renderCell: ({ row }: any) => (
-          <IconButton size="small" href={`/api/sources/${row.id}/finder`}>
-            <PictureAsPdfIcon />
-          </IconButton>
+          <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+            <DisplayPhotStats photstats={row.photstats?.[0]} />
+            <FavoritesButton sourceID={row.id} />
+            <Tooltip title="Finding chart">
+              <IconButton size="small" href={`/api/sources/${row.id}/finder`}>
+                <PictureAsPdfIcon />
+              </IconButton>
+            </Tooltip>
+          </Box>
         ),
       },
     ];

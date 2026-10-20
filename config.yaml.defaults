@@ -664,13 +664,13 @@ app:
     # section above (as well as other grid characteristics).
     GettingStarted:
       # Onboarding checklist + guided tour. Shown to every user until they
-      # dismiss it (persisted per-user); reopenable any time. Set show: false to
-      # disable it for a deployment.
+      # dismiss it (persisted per-user); resetting the page layout brings it
+      # back. Set show: false to disable it for a deployment.
       resizeable: true
       minW: 2
       layouts:
         xlg: [0, 0, 4, 3]
-        lg: [0, 0, 3, 3]
+        lg: [0, 0, 2, 3]
         md: [0, 0, 3, 3]
         sm: [0, 0, 6, 3]
         xs: [0, 0, 4, 3]
@@ -702,7 +702,7 @@ app:
       minW: 2
       layouts:
         xlg: [4, 0, 5, 3]
-        lg: [3, 0, 4, 3]
+        lg: [2, 0, 4, 3]
         md: [3, 0, 4, 3]
         sm: [3, 5, 3, 3]
         xs: [0, 9, 4, 3]
@@ -735,7 +735,7 @@ app:
       minW: 2
       layouts:
         xlg: [9, 0, 5, 3]
-        lg: [7, 0, 3, 3]
+        lg: [6, 0, 4, 3]
         md: [0, 3, 5, 3]
         sm: [0, 5, 3, 3]
         xs: [0, 6, 4, 3]

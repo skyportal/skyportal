@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 
-import CircularProgress from "@mui/material/CircularProgress";
+import Skeleton from "@mui/material/Skeleton";
 
 import { useGetBrokerObjectQuery } from "../../ducks/brokers";
 import VegaPlotAlert from "./VegaPlotAlert";
@@ -60,7 +60,7 @@ const BrokerAlertLightCurve = ({
 
   const markedJd = jd ?? latestJd;
 
-  if (isFetching) return <CircularProgress size={24} />;
+  if (isFetching) return <Skeleton variant="rounded" height="16rem" />;
   if (!values.length || markedJd == null) return null;
 
   return (

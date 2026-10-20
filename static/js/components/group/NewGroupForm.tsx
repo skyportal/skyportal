@@ -14,10 +14,9 @@ import { useTheme } from "@mui/material/styles";
 import { useAddNewGroupMutation } from "../../ducks/groups";
 import { useGetUsersQuery } from "../../ducks/users";
 import Button from "../Button";
-import Paper from "../Paper";
 import RemovableChip from "../RemovableChip";
 
-const NewGroupForm = () => {
+const NewGroupForm = ({ onCreated }: { onCreated?: () => void }) => {
   const theme = useTheme();
   const [addNewGroup] = useAddNewGroupMutation();
   const { data: usersData } = useGetUsersQuery();
@@ -53,6 +52,7 @@ const NewGroupForm = () => {
         group_admins: [],
         auto_accept_requests: false,
       });
+      onCreated?.();
     } catch {
       // error notification handled by the API layer
     }
@@ -68,7 +68,7 @@ const NewGroupForm = () => {
   };
 
   return (
-    <Paper sx={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
+    <Box sx={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
       <Typography variant="h6">Create New Group</Typography>
       <form
         onSubmit={handleSubmit}
@@ -80,7 +80,7 @@ const NewGroupForm = () => {
             name="name"
             value={formState.name}
             onChange={handleChange}
-            sx={{ width: { xs: "100%", sm: "50%" } }}
+            fullWidth
           />
         </Box>
         <Box>
@@ -89,7 +89,7 @@ const NewGroupForm = () => {
             name="nickname"
             value={formState.nickname}
             onChange={handleChange}
-            sx={{ width: { xs: "100%", sm: "50%" } }}
+            fullWidth
           />
         </Box>
         <Box>
@@ -98,11 +98,11 @@ const NewGroupForm = () => {
             name="description"
             value={formState.description}
             onChange={handleChange}
-            sx={{ width: { xs: "100%", sm: "50%" } }}
+            fullWidth
           />
         </Box>
         <Box>
-          <FormControl sx={{ width: { xs: "100%", sm: "50%" } }}>
+          <FormControl fullWidth>
             <InputLabel id="select-admins-label">Group Admins</InputLabel>
             <Select
               labelId="select-admins-label"
@@ -172,7 +172,7 @@ const NewGroupForm = () => {
           </Button>
         </Box>
       </form>
-    </Paper>
+    </Box>
   );
 };
 

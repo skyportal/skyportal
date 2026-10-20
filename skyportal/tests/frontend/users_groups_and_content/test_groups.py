@@ -12,14 +12,14 @@ _, cfg = load_env()
 def test_public_groups_list(page, user, public_group):
     page.goto(f"/become_user/{user.id}")
     page.goto("/groups")
-    expect(page.get_by_role("tab", name="My Groups")).to_be_visible()
+    expect(page.get_by_test_id("showAllGroupsSwitch")).to_be_visible()
     expect(page.locator(f'//div[@data-id="{public_group.id}"]').first).to_be_visible()
 
 
 def test_super_admin_groups_list(page, super_admin_user, public_group):
     page.goto(f"/become_user/{super_admin_user.id}")
     page.goto("/groups")
-    page.get_by_role("tab", name="All Groups").click()
+    page.get_by_test_id("showAllGroupsSwitch").locator("input").check()
     expect(page.locator(f'//div[@data-id="{public_group.id}"]').first).to_be_visible()
 
 
@@ -30,7 +30,7 @@ def test_add_new_group(page, super_admin_user, user, super_admin_token):
     page.goto("/")
     page.reload()
     page.goto("/groups")
-    page.get_by_role("tab", name="Create New Group").click()
+    page.get_by_test_id("tour-groups-new").click()
     page.locator('//input[@name="name"]').first.fill(test_proj_name)
     page.locator('//input[@name="description"]').first.fill(group_description)
     page.locator('//div[@id="groupAdminsSelect"]').first.click()
@@ -39,7 +39,7 @@ def test_add_new_group(page, super_admin_user, user, super_admin_token):
     # Create Group button
     page.keyboard.press("Escape")
     page.locator('//button[contains(.,"Create Group")]').first.click()
-    page.get_by_role("tab", name="All Groups").click()
+    page.get_by_test_id("showAllGroupsSwitch").locator("input").check()
     expect(page.get_by_role("gridcell", name=test_proj_name).first).to_be_visible()
     # check for group description
     status, data = api("GET", "groups", token=super_admin_token)
@@ -58,11 +58,11 @@ def test_add_new_group(page, super_admin_user, user, super_admin_token):
 
 
 @pytest.mark.parametrize(
-    "checkbox, admin_chip_count, admin, can_save",
+    "checkbox, admin, can_save",
     [
-        ("adminCheckbox", 1, True, True),
-        (None, 0, False, True),
-        ("canSaveCheckbox", 0, False, False),
+        ("adminCheckbox", True, True),
+        (None, False, True),
+        ("canSaveCheckbox", False, False),
     ],
 )
 def test_add_new_group_user(
@@ -72,13 +72,12 @@ def test_add_new_group_user(
     user_no_groups,
     public_group,
     checkbox,
-    admin_chip_count,
     admin,
     can_save,
 ):
     page.goto(f"/become_user/{super_admin_user.id}")
     page.goto("/groups")
-    page.get_by_role("tab", name="All Groups").click()
+    page.get_by_test_id("showAllGroupsSwitch").locator("input").check()
     page.locator(f'//div[@data-id="{public_group.id}"]').first.click()
     page.locator('//*[@data-testid="addMembersButton"]').first.click()
     page.locator('//div[@data-testid="newGroupUserTextInput"]').first.click()
@@ -93,9 +92,11 @@ def test_add_new_group_user(
     expect(
         page.locator(f'//a[contains(.,"{user_no_groups.username}")]').first
     ).to_be_visible()
-    expect(page.locator(f'//div[@id="{user_no_groups.id}-admin-chip"]')).to_have_count(
-        admin_chip_count
-    )
+    admin_box = page.get_by_test_id(f"admin-{user_no_groups.username}").locator("input")
+    if admin:
+        expect(admin_box).to_be_checked()
+    else:
+        expect(admin_box).not_to_be_checked()
 
     status, data = api(
         "GET",
@@ -117,7 +118,7 @@ def test_invite_all_users_from_other_group(
 ):
     page.goto(f"/become_user/{super_admin_user.id}")
     page.goto("/groups")
-    page.get_by_role("tab", name="All Groups").click()
+    page.get_by_test_id("showAllGroupsSwitch").locator("input").check()
     expect(
         page.locator(f'//a[contains(.,"{user_group2.username}")]').first
     ).to_be_hidden()
@@ -139,7 +140,7 @@ def test_invite_all_users_from_other_group(
 def test_delete_group_user(page, super_admin_user, user, public_group):
     page.goto(f"/become_user/{super_admin_user.id}")
     page.goto("/groups")
-    page.get_by_role("tab", name="All Groups").click()
+    page.get_by_test_id("showAllGroupsSwitch").locator("input").check()
     page.locator(f'//div[@data-id="{public_group.id}"]').first.click()
 
     expect(page.locator(f'//a[contains(.,"{user.username}")]').first).to_be_visible()
@@ -154,11 +155,11 @@ def test_delete_group_user(page, super_admin_user, user, public_group):
 def test_delete_group(page, super_admin_user, user, public_group):
     page.goto(f"/become_user/{super_admin_user.id}")
     page.goto("/groups")
-    page.get_by_role("tab", name="All Groups").click()
+    page.get_by_test_id("showAllGroupsSwitch").locator("input").check()
     page.locator(f'//div[@data-id="{public_group.id}"]').first.click()
     page.locator('//*[@data-testid="deleteGroupButton"]').first.click()
     page.locator('//button[contains(.,"Confirm")]').first.click()
-    page.get_by_role("tab", name="All Groups").click()
+    page.get_by_test_id("showAllGroupsSwitch").locator("input").check()
     expect(page.locator(f'//div[@data-id="{public_group.id}"]').first).to_be_hidden()
 
 
@@ -176,7 +177,7 @@ def test_add_stream_add_delete_filter_group(
 
     page.goto(f"/become_user/{super_admin_user.id}")
     page.goto("/groups")
-    page.get_by_role("tab", name="All Groups").click()
+    page.get_by_test_id("showAllGroupsSwitch").locator("input").check()
     page.locator(f'//div[@data-id="{public_group.id}"]').first.click()
     page.get_by_role("tab", name="Streams and filters").click()
 
@@ -210,7 +211,7 @@ def test_cannot_add_stream_group_users_cant_access(
 ):
     page.goto(f"/become_user/{super_admin_user.id}")
     page.goto("/groups")
-    page.get_by_role("tab", name="All Groups").click()
+    page.get_by_test_id("showAllGroupsSwitch").locator("input").check()
     page.locator(f'//div[@data-id="{public_group.id}"]').first.click()
     page.get_by_role("tab", name="Streams and filters").click()
 
@@ -234,14 +235,14 @@ def test_add_new_group_with_auto_accept(
     test_proj_name = str(uuid.uuid4())
     page.goto(f"/become_user/{super_admin_user.id}")
     page.goto("/groups")
-    page.get_by_role("tab", name="Create New Group").click()
+    page.get_by_test_id("tour-groups-new").click()
     page.locator('//input[@name="name"]').first.fill(test_proj_name)
     page.locator('//*[@data-testid="autoAcceptRequestsCheckbox"]').first.click()
     page.locator('//div[@id="groupAdminsSelect"]').first.click()
     page.locator(f'//li[contains(text(),"{user.username}")]').first.click()
     page.keyboard.press("Escape")
     page.locator('//button[contains(.,"Create Group")]').first.click()
-    page.get_by_role("tab", name="All Groups").click()
+    page.get_by_test_id("showAllGroupsSwitch").locator("input").check()
     expect(page.get_by_role("gridcell", name=test_proj_name).first).to_be_visible()
 
     status, data = api("GET", "groups", token=super_admin_token)

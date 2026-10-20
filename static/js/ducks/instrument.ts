@@ -37,13 +37,14 @@ export const instrumentApi = skyportalApi.injectEndpoints({
     getInstrument: build.query<
       RouteData<"GET /api/instrument/{instrument_id}"> & {
         log_exists?: boolean;
+        created_at?: string;
       },
       number | string
     >({
       query: (id) => `api/instrument/${id}`,
       providesTags: ["Instrument"],
     }),
-    getInstrumentLogs: build.query<Instrument, FetchInstrumentLogsArg>({
+    getInstrumentLogs: build.query<any[], FetchInstrumentLogsArg>({
       query: ({ id, params = {} }) => ({
         url: `api/instrument/${id}/log`,
         params,

@@ -2,6 +2,7 @@ import { useState } from "react";
 
 import Card from "@mui/material/Card";
 import CardContent from "@mui/material/CardContent";
+import Button from "@mui/material/Button";
 import Chip from "@mui/material/Chip";
 import FormControl from "@mui/material/FormControl";
 import InputLabel from "@mui/material/InputLabel";
@@ -91,12 +92,26 @@ export interface AlertOption {
   raw?: any;
 }
 
+export const toAlertOption = (a: any): AlertOption => {
+  const cand = a?.candidate ?? a ?? {};
+  return {
+    candid: cand?.candid ?? a?.candid ?? a?._id ?? cand?.diaSourceId,
+    ra: cand?.ra ?? a?.ra,
+    dec: cand?.dec ?? a?.dec,
+    magpsf: cand?.magpsf ?? a?.magpsf ?? cand?.mag,
+    jd: cand?.jd ?? a?.jd,
+    raw: a,
+  };
+};
+
 interface BrokerAlertCardProps {
   brokerId: number;
   brokerClassname: string;
   objectId: string;
   survey: string;
   alerts: AlertOption[];
+  initialCandid?: string | number | undefined;
+  lazyHistory?: boolean;
   // Card rendered alone on a full-width row: give the cutouts more room.
   expanded?: boolean;
 }
@@ -110,13 +125,16 @@ const BrokerAlertCard = ({
   objectId,
   survey,
   alerts,
+  initialCandid,
+  lazyHistory = false,
   expanded = false,
 }: BrokerAlertCardProps) => {
   const { classes, cx } = useStyles();
   // Newest alert first (highest jd), so the default selection is the latest.
   const sorted = [...alerts].sort((a, b) => (b.jd ?? 0) - (a.jd ?? 0));
   const [candid, setCandid] = useState<string | number | undefined>(
-    sorted[0]?.candid,
+    sorted.find((a) => String(a.candid) === String(initialCandid))?.candid ??
+      sorted[0]?.candid,
   );
   const [downloadAnchor, setDownloadAnchor] = useState<HTMLElement | null>(
     null,
@@ -126,9 +144,10 @@ const BrokerAlertCard = ({
   // Full object (also used by the light curve; RTK dedupes the request). For
   // brokers whose alert rows omit ra/dec/candid (e.g. Lasair cone results), we
   // fall back to the fetched object's candidate.
+  const [historyShown, setHistoryShown] = useState(!lazyHistory);
   const { data: alertData } = useGetBrokerObjectQuery(
     { brokerId, objectId },
-    { skip: !objectId },
+    { skip: !objectId || !historyShown },
   );
   const cand = alertData?.candidate ?? {};
   const ra = selected?.ra ?? cand.ra;
@@ -248,11 +267,17 @@ const BrokerAlertCard = ({
             </div>
           )}
           <div className={classes.lc}>
-            <BrokerAlertLightCurve
-              brokerId={brokerId}
-              objectId={objectId}
-              jd={selected?.jd}
-            />
+            {historyShown ? (
+              <BrokerAlertLightCurve
+                brokerId={brokerId}
+                objectId={objectId}
+                jd={selected?.jd}
+              />
+            ) : (
+              <Button size="small" onClick={() => setHistoryShown(true)}>
+                Load light curve
+              </Button>
+            )}
           </div>
         </div>
 

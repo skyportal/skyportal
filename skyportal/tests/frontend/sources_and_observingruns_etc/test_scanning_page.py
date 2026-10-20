@@ -327,7 +327,7 @@ def test_save_candidate_quick_save(
     expect(
         page.locator(f'//a[@data-testid="{public_candidate.id}"]').first
     ).to_be_visible()
-    expect(page.locator('//span[text()="Previously Saved"]').first).to_be_visible()
+    expect(page.locator('//b[text()="Saved groups:"]').first).to_be_visible()
 
 
 def wait_for_posted_comment(obj_id, comment_text, token, timeout=30):
@@ -417,14 +417,13 @@ def test_save_candidate_select_groups(
         f'//button[@name="saveCandidateButtonDropDownArrow{public_candidate.id}"]'
     ).first.click()
     menu_option = page.locator(
-        f'//*[@name="buttonMenuOption{public_candidate.id}_Select groups & save"]'
+        f'//*[@name="buttonMenuOption{public_candidate.id}_Choose groups"]'
     ).first
     # the menu item only responds to a native DOM click (matches the legacy
     # execute_script click); a normal click doesn't trigger its handler.
     menu_option.evaluate("el => el.click()")
-    # "Select groups & save" opens a group-select dialog directly (the split-button
-    # menu stays open behind it by design -- it only closes on click-away). Wait
-    # for the dialog, then save; the filtered group (public_group) is pre-checked.
+    # "Choose groups" opens a group-select dialog. Wait for the dialog, then
+    # save; the filtered group (public_group) is pre-checked.
     expect(
         page.locator('//*[text()="Select one or more groups:"]').first
     ).to_be_visible()
@@ -434,7 +433,7 @@ def test_save_candidate_select_groups(
     page.goto("/candidates")
     select_scan_group(page, public_group.id)
     search_candidates(page)
-    expect(page.locator('//span[text()="Previously Saved"]').first).to_be_visible()
+    expect(page.locator('//b[text()="Saved groups:"]').first).to_be_visible()
 
 
 @pytest.mark.flaky(reruns=2)
@@ -452,12 +451,12 @@ def test_save_candidate_no_groups_error_message(
         f'//button[@name="saveCandidateButtonDropDownArrow{public_candidate.id}"]'
     ).first.click()
     menu_option = page.locator(
-        f'//*[@name="buttonMenuOption{public_candidate.id}_Select groups & save"]'
+        f'//*[@name="buttonMenuOption{public_candidate.id}_Choose groups"]'
     ).first
     # the menu item only responds to a native DOM click (matches the legacy
     # execute_script click); a normal click doesn't trigger its handler.
     menu_option.evaluate("el => el.click()")
-    # "Select groups & save" opens a group-select dialog directly. Uncheck the
+    # "Choose groups" opens a group-select dialog directly. Uncheck the
     # pre-selected group so none is selected, then saving must surface a
     # validation error.
     expect(

@@ -4,6 +4,7 @@ import ButtonBase from "@mui/material/ButtonBase";
 import Tooltip from "@mui/material/Tooltip";
 import Typography from "@mui/material/Typography";
 import { alpha } from "@mui/material/styles";
+import type { Theme } from "@mui/material/styles";
 import type { FieldProps } from "@rjsf/utils";
 
 // CCDs as seen on the sky, north up and east left.
@@ -16,6 +17,116 @@ const CCD_ROWS = [
 const QUADRANT_ORDER = [1, 2, 4, 3];
 
 const rcid = (ccd: number, quadrant: number) => 4 * (ccd - 1) + quadrant - 1;
+
+export const QuadrantGrid = ({
+  missing,
+  onToggle,
+}: {
+  missing: number[];
+  onToggle?: (ids: number[]) => void;
+}) => {
+  const missingSet = new Set(missing);
+  const Cell: any = onToggle ? ButtonBase : Box;
+  return (
+    <Box
+      sx={{
+        display: "grid",
+        gridTemplateColumns: "repeat(4, 1fr)",
+        gap: "8px",
+        width: 296,
+        p: 1,
+        borderRadius: 2,
+        bgcolor: (theme: Theme) => alpha(theme.palette.text.primary, 0.04),
+      }}
+    >
+      {CCD_ROWS.flat().map((ccd) => {
+        const ids = QUADRANT_ORDER.map((q) => rcid(ccd, q));
+        const ccdMissing = ids.every((id) => missingSet.has(id));
+        return (
+          <Box
+            key={ccd}
+            sx={{
+              position: "relative",
+              display: "grid",
+              gridTemplateColumns: "1fr 1fr",
+              gap: "2px",
+            }}
+          >
+            {QUADRANT_ORDER.map((q) => {
+              const id = rcid(ccd, q);
+              const active = !missingSet.has(id);
+              return (
+                <Tooltip key={id} title={`CCD ${ccd}, quadrant ${q}`}>
+                  <Cell
+                    aria-pressed={active}
+                    aria-label={`CCD ${ccd}, quadrant ${q}`}
+                    onClick={onToggle && (() => onToggle([id]))}
+                    sx={{
+                      aspectRatio: "1",
+                      borderRadius: "4px",
+                      transition: "background-color 120ms, box-shadow 120ms",
+                      ...(active
+                        ? {
+                            bgcolor: (theme: Theme) =>
+                              alpha(theme.palette.primary.main, 0.75),
+                            ...(onToggle && {
+                              "&:hover": { bgcolor: "primary.main" },
+                            }),
+                          }
+                        : {
+                            backgroundImage: (theme: Theme) =>
+                              `repeating-linear-gradient(135deg, ${alpha(
+                                theme.palette.text.primary,
+                                0.18,
+                              )} 0 2px, transparent 2px 6px)`,
+                            boxShadow: (theme: Theme) =>
+                              `inset 0 0 0 1px ${alpha(
+                                theme.palette.text.primary,
+                                0.2,
+                              )}`,
+                            ...(onToggle && {
+                              "&:hover": {
+                                boxShadow: (theme: Theme) =>
+                                  `inset 0 0 0 1px ${theme.palette.primary.main}`,
+                              },
+                            }),
+                          }),
+                    }}
+                  />
+                </Tooltip>
+              );
+            })}
+            <Cell
+              aria-label={`CCD ${ccd}`}
+              onClick={onToggle && (() => onToggle(ids))}
+              sx={{
+                position: "absolute",
+                top: "50%",
+                left: "50%",
+                transform: "translate(-50%, -50%)",
+                width: 22,
+                height: 22,
+                borderRadius: "50%",
+                fontSize: 11,
+                fontWeight: 600,
+                bgcolor: "background.paper",
+                color: ccdMissing ? "text.disabled" : "text.primary",
+                boxShadow: (theme: Theme) =>
+                  `0 0 0 1px ${alpha(theme.palette.text.primary, 0.15)}`,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                ...(onToggle && { "&:hover": { color: "primary.main" } }),
+              }}
+            >
+              {ccd}
+            </Cell>
+          </Box>
+        );
+      })}
+    </Box>
+  );
+};
 
 const ZtfQuadrantsField = ({ formData, onChange, fieldPathId }: FieldProps) => {
   const missing = new Set<number>(formData || []);
@@ -46,96 +157,7 @@ const ZtfQuadrantsField = ({ formData, onChange, fieldPathId }: FieldProps) => {
           {64 - missing.size} / 64
         </Typography>
       </Box>
-      <Box
-        sx={{
-          display: "grid",
-          gridTemplateColumns: "repeat(4, 1fr)",
-          gap: "8px",
-          width: 296,
-          p: 1,
-          borderRadius: 2,
-          bgcolor: (theme) => alpha(theme.palette.text.primary, 0.04),
-        }}
-      >
-        {CCD_ROWS.flat().map((ccd) => {
-          const ids = QUADRANT_ORDER.map((q) => rcid(ccd, q));
-          const ccdMissing = ids.every((id) => missing.has(id));
-          return (
-            <Box
-              key={ccd}
-              sx={{
-                position: "relative",
-                display: "grid",
-                gridTemplateColumns: "1fr 1fr",
-                gap: "2px",
-              }}
-            >
-              {QUADRANT_ORDER.map((q) => {
-                const id = rcid(ccd, q);
-                const active = !missing.has(id);
-                return (
-                  <Tooltip key={id} title={`CCD ${ccd}, quadrant ${q}`}>
-                    <ButtonBase
-                      aria-pressed={active}
-                      aria-label={`CCD ${ccd}, quadrant ${q}`}
-                      onClick={() => toggle([id])}
-                      sx={{
-                        aspectRatio: "1",
-                        borderRadius: "4px",
-                        transition: "background-color 120ms, box-shadow 120ms",
-                        ...(active
-                          ? {
-                              bgcolor: (theme) =>
-                                alpha(theme.palette.primary.main, 0.75),
-                              "&:hover": { bgcolor: "primary.main" },
-                            }
-                          : {
-                              backgroundImage: (theme) =>
-                                `repeating-linear-gradient(135deg, ${alpha(
-                                  theme.palette.text.primary,
-                                  0.18,
-                                )} 0 2px, transparent 2px 6px)`,
-                              boxShadow: (theme) =>
-                                `inset 0 0 0 1px ${alpha(
-                                  theme.palette.text.primary,
-                                  0.2,
-                                )}`,
-                              "&:hover": {
-                                boxShadow: (theme) =>
-                                  `inset 0 0 0 1px ${theme.palette.primary.main}`,
-                              },
-                            }),
-                      }}
-                    />
-                  </Tooltip>
-                );
-              })}
-              <ButtonBase
-                aria-label={`CCD ${ccd}`}
-                onClick={() => toggle(ids)}
-                sx={{
-                  position: "absolute",
-                  top: "50%",
-                  left: "50%",
-                  transform: "translate(-50%, -50%)",
-                  width: 22,
-                  height: 22,
-                  borderRadius: "50%",
-                  fontSize: 11,
-                  fontWeight: 600,
-                  bgcolor: "background.paper",
-                  color: ccdMissing ? "text.disabled" : "text.primary",
-                  boxShadow: (theme) =>
-                    `0 0 0 1px ${alpha(theme.palette.text.primary, 0.15)}`,
-                  "&:hover": { color: "primary.main" },
-                }}
-              >
-                {ccd}
-              </ButtonBase>
-            </Box>
-          );
-        })}
-      </Box>
+      <QuadrantGrid missing={[...missing]} onToggle={toggle} />
       {missing.size > 0 && (
         <Button
           size="small"

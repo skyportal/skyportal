@@ -5,7 +5,9 @@ import { makeStyles } from "tss-react/mui";
 import { alpha } from "@mui/material/styles";
 import FormControlLabel from "@mui/material/FormControlLabel";
 import Checkbox from "@mui/material/Checkbox";
+import Box from "@mui/material/Box";
 import Chip from "@mui/material/Chip";
+import Skeleton from "@mui/material/Skeleton";
 import Tooltip from "@mui/material/Tooltip";
 
 import ReactMarkdown from "react-markdown";
@@ -149,12 +151,20 @@ const useStyles = makeStyles()((theme) => ({
     borderRadius: "15px",
     width: "100%",
   },
+  commentContentCompact: {
+    padding: "0.25rem 0.5rem",
+  },
   commentHeader: {
     display: "flex",
     alignItems: "center",
   },
   commentHeaderContent: {
     width: "70%",
+  },
+  commentHeaderContentCompact: {
+    width: "auto",
+    flex: 1,
+    minWidth: 0,
   },
   commentTime: {
     color: "gray",
@@ -185,6 +195,11 @@ const useStyles = makeStyles()((theme) => ({
   commentUserAvatar: {
     display: "block",
     margin: "0.5em",
+  },
+  commentUserAvatarInline: {
+    display: "inline-block",
+    verticalAlign: "middle",
+    marginRight: "0.375em",
   },
   commentUserGroup: {
     display: "inline-block",
@@ -218,6 +233,7 @@ interface CommentThreadProps {
   channel?: string | undefined;
   origin?: "scanning" | undefined;
   pinned?: boolean;
+  compact?: boolean;
 }
 
 const CommentThread = ({
@@ -235,6 +251,7 @@ const CommentThread = ({
   channel,
   origin,
   pinned = false,
+  compact = false,
 }: CommentThreadProps) => {
   const { classes: styles, cx } = useStyles();
   const [hoverID, setHoverID] = useState<any>(null);
@@ -345,7 +362,7 @@ const CommentThread = ({
   let specComments: any = null;
 
   if (resourceType === "sources") {
-    comments = channel ? (conversation ?? []) : obj?.comments;
+    comments = channel ? conversation : obj?.comments;
     if (
       !channel &&
       includeCommentsOnAllResourceTypes &&
@@ -388,6 +405,7 @@ const CommentThread = ({
     throw new Error(`Illegal input ${resourceType} to CommentThread. `);
   }
 
+  const loading = comments == null;
   comments = (comments || []).filter(Boolean);
 
   if (!includeBots && !channel) {
@@ -401,8 +419,18 @@ const CommentThread = ({
   const commentStyle =
     userColorTheme === "dark" ? styles.commentDark : styles.comment;
 
+  const commentStyles = compact
+    ? {
+        ...styles,
+        commentContent: cx(styles.commentContent, styles.commentContentCompact),
+        commentHeaderContent: cx(
+          styles.commentHeaderContent,
+          styles.commentHeaderContentCompact,
+        ),
+      }
+    : styles;
   const botStyles = {
-    ...styles,
+    ...commentStyles,
     commentUserName: cx(styles.commentUserName, styles.botUserName),
   };
 
@@ -421,7 +449,17 @@ const CommentThread = ({
         className={styles.panelList}
         style={{ maxHeight: maxHeightList }}
       >
-        {comments.length === 0 && (
+        {loading &&
+          [0, 1, 2].map((i) => (
+            <Box key={i} sx={{ display: "flex", gap: 1, p: 1 }}>
+              <Skeleton variant="circular" width={24} height={24} />
+              <Box sx={{ flex: 1 }}>
+                <Skeleton width="30%" />
+                <Skeleton width="80%" />
+              </Box>
+            </Box>
+          ))}
+        {!loading && comments.length === 0 && (
           <div className={styles.panelEmpty}>
             {channel && !pinned
               ? "This conversation is only kept once a message is sent."
@@ -487,7 +525,8 @@ const CommentThread = ({
                     (spectrum_id ? "spectra" : resourceType)
                   }
                   bot={bot}
-                  styles={bot ? botStyles : styles}
+                  compact={compact}
+                  styles={bot ? botStyles : commentStyles}
                   id={id}
                   objID={objID}
                   gcnEventID={gcnEventID}
@@ -505,7 +544,7 @@ const CommentThread = ({
             ),
         )}
       </div>
-      {!channel && (
+      {!channel && !compact && (
         <div className={styles.panelBots}>
           <FormControlLabel
             label={<span className={styles.panelBotsLabel}>Include bots</span>}

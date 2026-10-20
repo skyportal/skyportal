@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { ReactNode, useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import Box from "@mui/material/Box";
 import Paper from "@mui/material/Paper";
@@ -25,11 +25,16 @@ import {
   useDeleteAdmissionRequestMutation,
 } from "../../ducks/groupAdmissionRequests";
 import Button from "../Button";
-import StyledDataGrid, { DataGridToolbar } from "../StyledDataGrid";
+import StyledDataGrid, {
+  DataGridToolbar,
+  FULL_PAGE_HEIGHT,
+} from "../StyledDataGrid";
 import { Group } from "../../types";
 
-const GroupListToolbar = ({ title }: { title: string }) => (
-  <DataGridToolbar title={title} />
+const GroupListToolbar = ({ title, children }: any) => (
+  <DataGridToolbar title={title} showExport={false} showColumns={false}>
+    {children}
+  </DataGridToolbar>
 );
 
 interface GroupListProps {
@@ -37,9 +42,8 @@ interface GroupListProps {
   groups?: Group[];
   variant?: "normal" | "widget";
   linkToGroupSources?: boolean;
-  admission?: boolean;
-  filterModel?: any;
-  onFilterModelChange?: (model: any) => void;
+  memberGroupIds?: number[];
+  children?: ReactNode;
 }
 
 const GroupList = ({
@@ -47,9 +51,8 @@ const GroupList = ({
   groups = [],
   variant = "normal",
   linkToGroupSources = false,
-  admission = false,
-  filterModel,
-  onFilterModelChange,
+  memberGroupIds,
+  children,
 }: GroupListProps) => {
   const navigate = useNavigate();
   const dispatch = useAppDispatch();
@@ -103,7 +106,10 @@ const GroupList = ({
     );
   }
 
-  if (admission && currentUserID == null) return <CircularProgress />;
+  const isMember = (group: Group) =>
+    !memberGroupIds || memberGroupIds.includes(group.id);
+  const showAdmission = multiUserGroups.some((group) => !isMember(group));
+  if (showAdmission && currentUserID == null) return <CircularProgress />;
 
   const findRequest = (group: any, status: string) =>
     groupAdmissionRequests?.find(
@@ -133,6 +139,7 @@ const GroupList = ({
 
   const renderAdmissionActions = (params: any) => {
     const group = params.row;
+    if (isMember(group)) return null;
     let label = group.auto_accept_requests ? "Join group" : "Request admission";
     let tooltip = "";
     let isDisable = false;
@@ -162,7 +169,10 @@ const GroupList = ({
     }
     return (
       <Tooltip title={tooltip}>
-        <Box sx={{ display: "flex" }}>
+        <Box
+          sx={{ display: "flex" }}
+          onClick={(event) => event.stopPropagation()}
+        >
           <Button
             secondary
             size="small"
@@ -197,7 +207,7 @@ const GroupList = ({
   const columns = [
     { field: "name", headerName: "Name", flex: 1, minWidth: 120 },
     { field: "nickname", headerName: "Nickname", flex: 1, minWidth: 120 },
-    ...(admission
+    ...(showAdmission
       ? [
           {
             field: "actions",
@@ -211,6 +221,7 @@ const GroupList = ({
       : []),
   ];
 
+  const canOpen = (group: Group) => isMember(group) || isSystemAdmin;
   const closeRequestDialog = () => setRequestingGroup(null);
 
   const submitRequest = async () => {
@@ -221,18 +232,17 @@ const GroupList = ({
   return (
     <>
       <StyledDataGrid
-        autoHeight
+        data-testid="tour-groups-list"
         rows={multiUserGroups}
         columns={columns}
-        filterModel={filterModel}
-        onFilterModelChange={onFilterModelChange}
         showToolbar
-        onRowClick={
-          admission ? undefined : (params: any) => navigate(getLink(params.row))
+        onRowClick={(params: any) =>
+          canOpen(params.row) && navigate(getLink(params.row))
         }
+        getRowClassName={(params: any) => (canOpen(params.row) ? "open" : "")}
         slots={{ toolbar: GroupListToolbar }}
-        slotProps={{ toolbar: { title } }}
-        sx={admission ? {} : { "& .MuiDataGrid-row": { cursor: "pointer" } }}
+        slotProps={{ toolbar: { title, children } as any }}
+        sx={{ height: FULL_PAGE_HEIGHT, "& .open": { cursor: "pointer" } }}
       />
       <Dialog
         fullWidth

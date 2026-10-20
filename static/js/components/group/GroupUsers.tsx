@@ -1,12 +1,11 @@
-import { useState } from "react";
 import { Link } from "react-router-dom";
-import MoreVertIcon from "@mui/icons-material/MoreVert";
-import Popover from "@mui/material/Popover";
-import Chip from "@mui/material/Chip";
 import Box from "@mui/material/Box";
-import useMediaQuery from "@mui/material/useMediaQuery";
-import IconButton from "@mui/material/IconButton";
+import Checkbox from "@mui/material/Checkbox";
 
+import { showNotification } from "baselayer/components/Notifications";
+import { useAppDispatch } from "../../types/hooks";
+import { groupApi } from "../../ducks/group";
+import { useUpdateGroupUserMutation } from "../../ducks/groups";
 import StyledDataGrid, { DataGridToolbar } from "../StyledDataGrid";
 import ManageUserButtons from "./GroupPageManageUserButtons";
 
@@ -16,16 +15,6 @@ const renderUsername = ({ row }: any) => (
   <Link to={`/user/${row.id}`}>{row.username}</Link>
 );
 
-const renderAdmin = ({ row }: any) =>
-  row.admin && (
-    <Chip
-      id={`${row.id}-admin-chip`}
-      label="Admin"
-      size="small"
-      color="primary"
-    />
-  );
-
 interface GroupUsersProps {
   group: any;
   currentUser: any;
@@ -33,44 +22,45 @@ interface GroupUsersProps {
 }
 
 const GroupUsers = ({ group, currentUser, isAdmin }: GroupUsersProps) => {
-  const [menu, setMenu] = useState<{ anchorEl: Element; userId: number }>();
-  const mobile = useMediaQuery((theme: any) => theme.breakpoints.down("sm"));
+  const dispatch = useAppDispatch();
+  const [updateGroupUser] = useUpdateGroupUserMutation();
+  const canManage = isAdmin(currentUser);
+  const numAdmins = (group.users ?? []).filter((u: any) => u.admin).length;
 
-  const renderActions = ({ row }: any) => {
-    const actions = (
-      <ManageUserButtons
-        loadedId={group.id}
-        user={row}
-        isAdmin={isAdmin}
-        group={group}
-        currentUser={currentUser}
-      />
-    );
-    if (!mobile) return actions;
-    return (
-      <>
-        <IconButton
-          edge="end"
-          aria-label="open-manage-user-popover"
-          onClick={(e) =>
-            setMenu({ anchorEl: e.currentTarget, userId: row.id })
-          }
-          size="large"
-        >
-          <MoreVertIcon />
-        </IconButton>
-        <Popover
-          open={menu?.userId === row.id}
-          anchorEl={menu?.anchorEl}
-          onClose={() => setMenu(undefined)}
-          anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
-          transformOrigin={{ vertical: "top", horizontal: "center" }}
-        >
-          {actions}
-        </Popover>
-      </>
-    );
+  const togglePermission = async (row: any, param: string, field: string) => {
+    const { error } = await updateGroupUser({
+      groupID: group.id,
+      params: { userID: row.id, [param]: !row[field] },
+    });
+    if (error) return;
+    dispatch(showNotification(`Permissions of ${row.username} updated.`));
+    dispatch(groupApi.util.invalidateTags([{ type: "Group", id: group.id }]));
   };
+
+  const permissionColumn = (
+    field: string,
+    param: string,
+    headerName: string,
+    extra: Record<string, any> = {},
+  ) => ({
+    field,
+    headerName,
+    width: 160,
+    align: "center",
+    headerAlign: "center",
+    renderCell: ({ row }: any) => (
+      <Checkbox
+        size="small"
+        checked={Boolean(row[field])}
+        disabled={
+          !canManage || (field === "admin" && row.admin && numAdmins === 1)
+        }
+        onChange={() => togglePermission(row, param, field)}
+        data-testid={`${param}-${row.username}`}
+      />
+    ),
+    ...extra,
+  });
 
   const rows = (group.users ?? []).map((user: any) => ({
     ...user,
@@ -86,25 +76,30 @@ const GroupUsers = ({ group, currentUser, isAdmin }: GroupUsersProps) => {
       minWidth: 120,
       renderCell: renderUsername,
     },
-    {
-      field: "admin",
-      headerName: "Admin",
-      flex: 1,
-      minWidth: 100,
-      renderCell: renderAdmin,
+    permissionColumn("admin", "admin", "Admin", {
       description:
-        "An admin is anyone that is a system admin, has group management permissions, and/or is specifically an admin of this group.",
-    },
+        "Admin of this group. System admins and users who can manage groups are admins of every group.",
+    }),
+    permissionColumn("can_save", "canSave", "Can save"),
+    permissionColumn(
+      "can_share_photometry",
+      "canSharePhotometry",
+      "Share photometry",
+    ),
     {
       field: "actions",
-      headerName: "Actions",
-      flex: 1,
-      minWidth: 160,
+      headerName: "",
+      width: 60,
       sortable: false,
       filterable: false,
-      renderCell: renderActions,
-      description:
-        "Note that removing admin status only applies to group-specific admin status. Users who are also system admins and/or have 'Manage groups' permissions will remain admins regardless.",
+      renderCell: ({ row }: any) => (
+        <ManageUserButtons
+          user={row}
+          isAdmin={isAdmin}
+          group={group}
+          currentUser={currentUser}
+        />
+      ),
     },
   ];
 

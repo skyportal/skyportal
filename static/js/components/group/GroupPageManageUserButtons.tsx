@@ -3,7 +3,6 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import DeleteIcon from "@mui/icons-material/Delete";
 import IconButton from "@mui/material/IconButton";
-import Tooltip from "@mui/material/Tooltip";
 import Dialog from "@mui/material/Dialog";
 import DialogContent from "@mui/material/DialogContent";
 import DialogTitle from "@mui/material/DialogTitle";
@@ -11,19 +10,11 @@ import DialogContentText from "@mui/material/DialogContentText";
 import DialogActions from "@mui/material/DialogActions";
 import Typography from "@mui/material/Typography";
 
-import { showNotification } from "baselayer/components/Notifications";
 import Button from "../Button";
 
-import { useAppDispatch } from "../../types/hooks";
-import { groupApi } from "../../ducks/group";
-import {
-  useDeleteGroupUserMutation,
-  useUpdateGroupUserMutation,
-} from "../../ducks/groups";
-import { Box } from "@mui/material";
+import { useDeleteGroupUserMutation } from "../../ducks/groups";
 
 interface ManageUserButtonsProps {
-  loadedId: number;
   user: {
     id: number;
     username: string;
@@ -44,14 +35,11 @@ interface ManageUserButtonsProps {
 
 const ManageUserButtons = ({
   group,
-  loadedId,
   user,
   isAdmin,
   currentUser,
 }: ManageUserButtonsProps) => {
-  const dispatch = useAppDispatch();
   const navigate = useNavigate();
-  const [updateGroupUser] = useUpdateGroupUserMutation();
   const [deleteGroupUser] = useDeleteGroupUserMutation();
 
   const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
@@ -70,80 +58,6 @@ const ManageUserButtons = ({
     }
   });
 
-  const canSave = (usr: any) => {
-    const matchingGroupUser = group?.users?.filter(
-      (groupUser) => groupUser["id"] === usr.id,
-    )[0];
-    return Boolean(matchingGroupUser?.["can_save"]);
-  };
-
-  const canSharePhotometry = (usr: any) => {
-    const matchingGroupUser = group?.users?.filter(
-      (groupUser) => groupUser["id"] === usr.id,
-    )[0];
-    return Boolean(matchingGroupUser?.["can_share_photometry"]);
-  };
-
-  const toggleUserAdmin = async (usr: any) => {
-    try {
-      await updateGroupUser({
-        groupID: loadedId,
-        params: {
-          userID: usr.id,
-          admin: !isAdmin(usr),
-        },
-      }).unwrap();
-      dispatch(
-        showNotification(
-          "User admin status for this group successfully updated.",
-        ),
-      );
-      dispatch(groupApi.util.invalidateTags([{ type: "Group", id: loadedId }]));
-    } catch {
-      // error notification handled by the API layer
-    }
-  };
-
-  const toggleUserCanSave = async (usr: any) => {
-    try {
-      await updateGroupUser({
-        groupID: loadedId,
-        params: {
-          userID: usr.id,
-          canSave: !canSave(usr),
-        },
-      }).unwrap();
-      dispatch(
-        showNotification(
-          "User's save access status for this group successfully updated.",
-        ),
-      );
-      dispatch(groupApi.util.invalidateTags([{ type: "Group", id: loadedId }]));
-    } catch {
-      // error notification handled by the API layer
-    }
-  };
-
-  const toggleUserCanShare = async (usr: any) => {
-    try {
-      await updateGroupUser({
-        groupID: loadedId,
-        params: {
-          userID: usr.id,
-          canSharePhotometry: !canSharePhotometry(usr),
-        },
-      }).unwrap();
-      dispatch(
-        showNotification(
-          "User's share access status for this group successfully updated.",
-        ),
-      );
-      dispatch(groupApi.util.invalidateTags([{ type: "Group", id: loadedId }]));
-    } catch {
-      // error notification handled by the API layer
-    }
-  };
-
   const handleDelete = () => {
     if (user.username === currentUser.username) navigate("/groups");
     deleteGroupUser({
@@ -153,50 +67,15 @@ const ManageUserButtons = ({
   };
 
   return (
-    <Box sx={{ display: "flex", justifyContent: "space-around" }}>
-      {isAdmin(currentUser) && (
-        <Box
-          sx={{
-            display: "flex",
-            flexDirection: "column",
-            alignItems: "center",
-          }}
-        >
-          <Button
-            size="small"
-            onClick={() => toggleUserAdmin(user)}
-            disabled={isAdmin(user) && numAdmins === 1}
-            sx={{ color: isAdmin(user) ? "#d32f2f" : "#2e7d32" }}
-          >
-            {`${isAdmin(user) ? "Revoke" : "Grant"} admin status`}
-          </Button>
-          <Tooltip title="Manage whether user can save sources to this group.">
-            <Button
-              size="small"
-              onClick={() => toggleUserCanSave(user)}
-              sx={{ color: canSave(user) ? "#d32f2f" : "#2e7d32" }}
-            >
-              {`${canSave(user) ? "Revoke" : "Grant"} save access`}
-            </Button>
-          </Tooltip>
-          <Tooltip title="Manage whether user can share photometry points to other groups.">
-            <Button
-              size="small"
-              onClick={() => toggleUserCanShare(user)}
-              sx={{ color: canSharePhotometry(user) ? "#d32f2f" : "#2e7d32" }}
-            >
-              {`${canSharePhotometry(user) ? "Revoke" : "Grant"} share photometry`}
-            </Button>
-          </Tooltip>
-        </Box>
-      )}
+    <>
       <IconButton
+        size="small"
         data-testid={`delete-${user.username}`}
         onClick={() => setConfirmDeleteOpen(true)}
         disabled={isAdmin(user) && numAdmins === 1}
         color="error"
       >
-        <DeleteIcon />
+        <DeleteIcon fontSize="small" />
       </IconButton>
       <Dialog
         fullWidth
@@ -249,7 +128,7 @@ const ManageUserButtons = ({
           </Button>
         </DialogActions>
       </Dialog>
-    </Box>
+    </>
   );
 };
 

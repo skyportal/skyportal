@@ -1,10 +1,19 @@
 import { useEffect, useState } from "react";
 
-import CircularProgress from "@mui/material/CircularProgress";
+import Box from "@mui/material/Box";
+import Skeleton from "@mui/material/Skeleton";
 
 import ThumbnailList from "../thumbnail/ThumbnailList";
 
 import { bytes2image } from "../../utils/imageProcessing";
+
+export const CutoutsSkeleton = ({ size }: { size: string }) => (
+  <Box sx={{ display: "flex", gap: 0.5 }}>
+    {["new", "ref", "sub"].map((type) => (
+      <Skeleton key={type} variant="rounded" width={size} height={size} />
+    ))}
+  </Box>
+);
 
 interface CutoutTripletProps {
   brokerId: number;
@@ -74,9 +83,7 @@ const CutoutTriplet = ({
     };
   }, [brokerId, candid, survey]);
 
-  if (dataUris === null) {
-    return <CircularProgress size={32} />;
-  }
+  if (dataUris === null) return <CutoutsSkeleton size={size} />;
 
   return (
     <ThumbnailList

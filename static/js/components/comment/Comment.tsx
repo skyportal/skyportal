@@ -88,6 +88,7 @@ interface CommentProps {
   bot?: boolean;
   hoverID?: number | null;
   shiftID?: number | null;
+  compact?: boolean;
 }
 
 const Comment = ({
@@ -106,6 +107,7 @@ const Comment = ({
   bot = false,
   hoverID = null,
   shiftID = null,
+  compact = false,
 }: CommentProps) => {
   const [editing, setEditing] = useState(false);
   const { data: spectra } = useFetchSourceSpectraQuery(
@@ -212,22 +214,29 @@ const Comment = ({
       ? styles["commentMessageShift"]
       : styles["commentMessage"];
 
+  const avatar = (
+    <UserAvatar
+      size={compact ? 18 : 24}
+      userId={author["id"]}
+      firstName={author["first_name"]}
+      lastName={author["last_name"]}
+      username={author["username"]}
+      gravatarUrl={author["gravatar_url"]}
+      isBot={author?.["is_bot"] || false}
+    />
+  );
+
   return (
     <>
-      <div className={styles["commentUserAvatar"]}>
-        <UserAvatar
-          size={24}
-          userId={author["id"]}
-          firstName={author["first_name"]}
-          lastName={author["last_name"]}
-          username={author["username"]}
-          gravatarUrl={author["gravatar_url"]}
-          isBot={author?.["is_bot"] || false}
-        />
-      </div>
+      {!compact && <div className={styles["commentUserAvatar"]}>{avatar}</div>}
       <div className={styles["commentContent"]}>
         <div className={styles["commentHeader"]}>
           <div className={styles["commentHeaderContent"]}>
+            {compact && (
+              <span className={styles["commentUserAvatarInline"]}>
+                {avatar}
+              </span>
+            )}
             <span className={styles["commentUser"]}>
               <span className={styles["commentUserName"]}>
                 {bot ? (
@@ -239,8 +248,15 @@ const Comment = ({
                   <Link
                     component={RouterLink}
                     to={`/user/${author["id"]}`}
-                    underline="hover"
-                    sx={{ color: "inherit" }}
+                    sx={{
+                      color: "inherit",
+                      "&:hover": {
+                        color: (theme) =>
+                          theme.palette.mode === "dark"
+                            ? theme.palette.primary.main
+                            : theme.palette.primary.dark,
+                      },
+                    }}
                   >
                     {author["username"]}
                   </Link>
@@ -265,7 +281,7 @@ const Comment = ({
               justifyContent: "flex-end",
               alignItems: "center",
               gap: "0.25rem",
-              width: "30%",
+              width: compact ? "auto" : "30%",
               visibility: showActions ? "visible" : "hidden",
             }}
           >

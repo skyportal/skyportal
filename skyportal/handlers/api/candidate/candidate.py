@@ -393,6 +393,46 @@ async def linked_thumbnails(obj_ids, session):
     return by_obj
 
 
+async def stack_linked_objs(session, obj_ids):
+    """[obj_id, stack_id] rows, objs linked by a non-moving SuperObj stacked under the best-ranked."""
+    links = await session.execute(
+        sa.select(ObjToSuperObj.super_obj_id, ObjToSuperObj.obj_id)
+        .join(SuperObj, SuperObj.id == ObjToSuperObj.super_obj_id)
+        .where(
+            ObjToSuperObj.obj_id
+            == sa.any_(
+                sa.bindparam("obj_ids", list(obj_ids), type_=sa.ARRAY(sa.String))
+            ),
+            SuperObj.is_roid.is_not(True),
+        )
+    )
+    members = defaultdict(list)
+    for super_obj_id, obj_id in links.all():
+        members[super_obj_id].append(obj_id)
+
+    rank = {obj_id: i for i, obj_id in enumerate(obj_ids)}
+    parent = {}
+
+    def root(obj_id):
+        while obj_id in parent:
+            obj_id = parent[obj_id]
+        return obj_id
+
+    for linked in members.values():
+        roots = {root(obj_id) for obj_id in linked}
+        best = min(roots, key=rank.get)
+        for other in roots - {best}:
+            parent[other] = best
+
+    stacks = defaultdict(list)
+    for obj_id in obj_ids:
+        stacks[root(obj_id)].append(obj_id)
+    return np.array(
+        [[obj_id, stack_id] for stack_id, objs in stacks.items() for obj_id in objs],
+        dtype=str,
+    ).reshape(-1, 2)
+
+
 # The galactic pole, J2000. Latitude is derived from ra/dec rather than stored,
 # so the cut is an expression rather than a column comparison.
 _NGP_RA_DEG = 192.85948
@@ -1325,6 +1365,7 @@ class CandidateHandler(BaseHandler):
                     query_id=query_id,
                     use_cache=True,
                     include_detection_stats=True,
+                    stack_linked=query.stackLinkedObjs,
                 )
             except ValueError as e:
                 if "Page number out of range" in str(e):
@@ -1373,6 +1414,7 @@ class CandidateHandler(BaseHandler):
                 }
 
             linked_by_obj = await linked_thumbnails(page_obj_ids, session)
+            stack_of = query_results.pop("stacks", {})
 
             candidate_list = []
             if autosave:
@@ -1440,6 +1482,8 @@ class CandidateHandler(BaseHandler):
                     candidate_list.append(recursive_to_dict(candidate_info))
                     # frontend ws-refresh keys on internal_key (dropped by Obj.to_dict)
                     candidate_list[-1]["internal_key"] = obj.internal_key
+                    if stack_of:
+                        candidate_list[-1]["stack_id"] = stack_of[obj.id]
                     candidate_list[-1] = await include_requested_obj_data(
                         obj.id,
                         candidate_list[-1],
@@ -1695,6 +1739,7 @@ async def grab_query_results(
     include_detection_stats=False,
     query_id=None,
     use_cache=False,
+    stack_linked=False,
 ):
     """
     Returns a SQLAlchemy Query object (which is iterable) for the sorted Obj IDs desired.
@@ -1725,11 +1770,28 @@ async def grab_query_results(
                 query_id = str(uuid.uuid4())
                 all_result = await session.scalars(ordered_ids)
                 all_ids = all_result.unique().all()
+                if stack_linked:
+                    all_ids = await stack_linked_objs(session, all_ids)
                 cache[query_id] = array_to_bytes(all_ids)
-            total_matches = len(all_ids)
-            obj_ids_in_page = all_ids[
-                ((page - 1) * n_items_per_page) : (page * n_items_per_page)
-            ]
+            if np.ndim(all_ids) == 2:
+                stack_ids = list(dict.fromkeys(all_ids[:, 1]))
+                page_stacks = set(
+                    stack_ids[
+                        ((page - 1) * n_items_per_page) : (page * n_items_per_page)
+                    ]
+                )
+                info["stacks"] = {
+                    obj_id: stack_id
+                    for obj_id, stack_id in all_ids
+                    if stack_id in page_stacks
+                }
+                total_matches = len(stack_ids)
+                obj_ids_in_page = list(info["stacks"])
+            else:
+                total_matches = len(all_ids)
+                obj_ids_in_page = all_ids[
+                    ((page - 1) * n_items_per_page) : (page * n_items_per_page)
+                ]
             info["queryID"] = query_id
         else:
             count_stmt = sa.select(func.count()).select_from(ordered_ids.subquery())

@@ -2,7 +2,6 @@ import { useMemo, useState, useEffect, useCallback, useRef } from "react";
 import {
   Alert,
   Button,
-  ButtonBase,
   Box,
   CircularProgress,
   Link,
@@ -28,6 +27,7 @@ import MongoQueryDialog from "./dialog/MongoQueryDialog";
 import ImportPipelineDialog from "./dialog/ImportPipelineDialog";
 import SaveVersionDialog from "./dialog/SaveVersionDialog";
 import ConfirmDeletionDialog from "../../ConfirmDeletionDialog";
+import SegmentedControl from "../../SegmentedControl";
 import { VersionSelect } from "./FilterVersionLabel";
 import { shortFid } from "./filterVersions";
 import PipelineViewer from "./dialog/PipelineViewer";
@@ -616,61 +616,11 @@ const FilterBuilderContent = ({
         <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
           <Typography variant="h6">Filter Builder</Typography>
           {filter && (
-            <Box
-              sx={{
-                display: "inline-flex",
-                gap: 0.5,
-                p: 0.5,
-                borderRadius: 999,
-                border: 1,
-                borderColor: "divider",
-                backgroundColor: "background.default",
-              }}
-            >
-              {EDITOR_MODES.map(({ value, label }) => {
-                const selected = value === editorMode;
-                return (
-                  <ButtonBase
-                    key={value}
-                    aria-pressed={selected}
-                    onClick={() => handleEditorModeChange(value)}
-                    sx={{
-                      height: "1.75rem",
-                      px: 1.5,
-                      borderRadius: 999,
-                      fontSize: "0.8125rem",
-                      fontWeight: 600,
-                      whiteSpace: "nowrap",
-                      color: selected
-                        ? "primary.contrastText"
-                        : "text.secondary",
-                      backgroundColor: selected
-                        ? "primary.main"
-                        : "transparent",
-                      transition: (theme) =>
-                        theme.transitions.create(
-                          ["background-color", "color"],
-                          {
-                            duration: theme.transitions.duration.short,
-                          },
-                        ),
-                      "&:hover": {
-                        color: selected
-                          ? "primary.contrastText"
-                          : "text.primary",
-                      },
-                      "&.Mui-focusVisible": {
-                        outline: 2,
-                        outlineColor: "primary.main",
-                        outlineOffset: 2,
-                      },
-                    }}
-                  >
-                    {label}
-                  </ButtonBase>
-                );
-              })}
-            </Box>
+            <SegmentedControl
+              value={editorMode}
+              options={EDITOR_MODES}
+              onChange={handleEditorModeChange}
+            />
           )}
           {filter?.fv?.length > 0 && (
             <VersionSelect

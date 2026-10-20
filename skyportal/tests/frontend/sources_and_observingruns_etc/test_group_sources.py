@@ -51,7 +51,7 @@ def test_add_new_source_renders_on_group_sources_page(
     ).to_be_visible()
     expect(
         page.locator(
-            f"//*[text()[contains(., '{t0.strftime('%Y-%m-%dT%H:%M')}')]]"
+            f"//*[text()[contains(., '{t0.strftime('%Y-%m-%d %H:%M')}')]]"
         ).first
     ).to_be_visible()
     expect(page.locator("//*[text()[contains(., '0.153')]]").first).to_be_visible()
