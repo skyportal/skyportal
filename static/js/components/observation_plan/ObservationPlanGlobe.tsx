@@ -61,6 +61,11 @@ const ObservationPlanGlobe = ({
   const [selectedObservations, setSelectedObservations] = useState<any[]>([]);
   const [reloadCount, setReloadCount] = useState(0);
 
+  // Only complete or queued plans have fields to show
+  const planReady = ["complete", "submitted to telescope queue"].includes(
+    observationplanRequest.status ?? "",
+  );
+
   const { data: localization } = useGetLocalizationQuery(
     {
       dateobs: observationplanRequest.localization?.dateobs as string,
@@ -69,6 +74,7 @@ const ObservationPlanGlobe = ({
     },
     {
       skip:
+        !planReady ||
         !retrieveLocalization ||
         !observationplanRequest.localization?.dateobs ||
         !observationplanRequest.localization?.localization_name,
@@ -91,18 +97,15 @@ const ObservationPlanGlobe = ({
         setFetchFailed(true);
       }
     };
-    if (
-      ["complete", "submitted to telescope queue"].includes(
-        observationplanRequest.status ?? "",
-      )
-    ) {
+    if (planReady) {
       fetchObsList();
     }
     return () => {
       cancelled = true;
     };
-  }, [dispatch, observationplanRequest, reloadCount]);
+  }, [dispatch, observationplanRequest, planReady, reloadCount]);
 
+  if (!planReady) return null;
   if (fetchFailed) {
     return (
       <Typography variant="body2">

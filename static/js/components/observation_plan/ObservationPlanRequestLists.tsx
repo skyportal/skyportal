@@ -500,23 +500,13 @@ const ObservationPlanRequestLists = ({
         flex: 1,
         minWidth: 360,
         sortable: false,
-        renderCell: (params: any) => {
-          const observationplanRequest = params.row;
-          if (
-            !["complete", "submitted to telescope queue"].includes(
-              observationplanRequest?.status,
-            )
-          ) {
-            return null;
-          }
-          return (
-            <ObservationPlanGlobe
-              observationplanRequest={observationplanRequest}
-              size={350}
-              retrieveLocalization
-            />
-          );
-        },
+        renderCell: (params: any) => (
+          <ObservationPlanGlobe
+            observationplanRequest={params.row}
+            size={350}
+            retrieveLocalization
+          />
+        ),
       },
       {
         field: "manage",
