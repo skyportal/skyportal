@@ -115,6 +115,35 @@ def test_read_only_user_get_invalid_allocation_id(view_only_token):
     assert data["status"] == "error"
 
 
+def test_allocation_report_with_zero_hours(sedm, public_group, super_admin_token):
+    request_data = {
+        "group_id": public_group.id,
+        "instrument_id": sedm.id,
+        "pi": "Shri Kulkarni",
+        "hours_allocated": 0,
+        "validity_ranges": [
+            {
+                "start_date": "2021-02-27T00:00:00.000Z",
+                "end_date": "3021-07-20T00:00:00.000Z",
+            }
+        ],
+        "proposal_id": "COO-2020A-P01",
+    }
+
+    status, data = api("POST", "allocation", data=request_data, token=super_admin_token)
+    assert status == 200
+    assert data["status"] == "success"
+
+    response = api(
+        "GET",
+        f"allocation/report/{sedm.id}",
+        token=super_admin_token,
+        raw_response=True,
+    )
+    assert response.status_code == 200
+    assert response.content.startswith(b"%PDF")
+
+
 def test_delete_allocation_cascades_to_requests(
     public_group, public_source, super_admin_token, sedm
 ):

@@ -37,7 +37,7 @@ observation_id,RA,Dec,obstime,seeing,limmag,exposure_time,filter,processed_fract
 
 As part of the `ObservationPlanRequest` API, it is possible to retrieve `ExecutedObservation`s. We briefly describe the authentication form the available telescopes take below:
 
-- ZTF: Login information for IRSA, which takes the form: {"tap_service": "https://irsa.ipac.caltech.edu/TAP", "tap_username": "your_password", "tap_password": "your_password"}
+- ZTF: Login information for the ZTF depot at IPAC, which takes the form: {"depot": "depot_url", "depot_username": "your_username", "depot_password": "your_password"}
 
 ## GCN Event Ingestion
 
