@@ -13,6 +13,7 @@ ENV PATH="/root/.cargo/bin:${PATH}"
 ENV SNCOSMO_DATA_DIR=/skyportal/skyportal-data/sncosmo
 ENV UV_NO_DEV=1
 ENV UV_PYTHON_INSTALL_DIR=/opt/uv-python
+ENV UV_COMPILE_BYTECODE=1
 
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
 
@@ -95,6 +96,11 @@ RUN bash -c "\
 # A deployment adds to the image by placing this script in its build context.
 # It runs as root after the chown, so what it leaves under /skyportal is root-owned.
 RUN if [ -f /skyportal/docker-extra-setup.sh ]; then bash -euo pipefail /skyportal/docker-extra-setup.sh; fi
+
+RUN PYTHONPATH=. .venv/bin/python -m skyportal.utils.bandpass_wavelengths && \
+    .venv/bin/python -m compileall -q -j0 skyportal baselayer services projects
+
+ENV UV_NO_SYNC=1
 
 USER skyportal
 

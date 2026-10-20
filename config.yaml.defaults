@@ -842,7 +842,7 @@ server:
   # nginx parameter which sets both the time in seconds before which
   # the server is considered unavailable and the subsequent period of
   # time the server will be unavailable
-  fail_timeout: 20
+  fail_timeout: 5
 
   # Rate limit: number of requests per second (see https://www.nginx.com/blog/rate-limiting-nginx/)
   rate_limit: 5
