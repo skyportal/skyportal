@@ -817,4 +817,4 @@ class ScanReportItemHandler(BaseHandler):
                     ScanReportItem.scan_report_id == report_id
                 )
             )
-            return self.success(data=result.all())
+            return self.success(data=result.unique().all())
