@@ -1,8 +1,8 @@
 import { useState } from "react";
 import Box from "@mui/material/Box";
 import Card from "@mui/material/Card";
-import CircularProgress from "@mui/material/CircularProgress";
 import Pagination from "@mui/material/Pagination";
+import Skeleton from "@mui/material/Skeleton";
 
 import {
   useGetBrokerAlertsQuery,
@@ -11,6 +11,7 @@ import {
 import BrokerAlertCard, {
   toAlertOption,
 } from "../../../broker/BrokerAlertCard";
+import { CutoutsSkeleton } from "../../../broker/CutoutTriplet";
 
 const PAGE_SIZE = 6;
 
@@ -36,11 +37,13 @@ const ResultCard = ({
 
   if (isLoading) {
     return (
-      <Card
-        variant="outlined"
-        sx={{ display: "flex", justifyContent: "center", p: 4 }}
-      >
-        <CircularProgress size={24} />
+      <Card variant="outlined" sx={{ p: 2 }}>
+        <Skeleton width="40%" height={28} />
+        <Skeleton width="60%" />
+        <Box sx={{ display: "flex", gap: 1, mt: 1 }}>
+          <CutoutsSkeleton size="5rem" />
+          <Skeleton variant="rounded" height="10rem" sx={{ flex: 1 }} />
+        </Box>
       </Card>
     );
   }
