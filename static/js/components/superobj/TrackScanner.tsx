@@ -19,6 +19,8 @@ import {
   type SuperObj,
   type SuperObjEpoch,
 } from "../../ducks/superObjs";
+import SegmentedControl from "../SegmentedControl";
+import { SURVEY_FIELD_OF_VIEW_ARCSEC } from "../thumbnail/ThumbnailList";
 import SaveTrackButton from "./SaveTrackButton";
 
 const CUTOUT_TYPES = ["new", "ref", "sub"] as const;
@@ -59,11 +61,24 @@ const distinctEpochs = (track: SuperObj): SuperObjEpoch[] => {
   });
 };
 
-const cutoutUrl = (epoch: SuperObjEpoch, type: string) =>
-  (epoch.thumbnails || []).find((t) => t.type === type)?.public_url || null;
+const cutout = (epoch: SuperObjEpoch, type: string) =>
+  (epoch.thumbnails || []).find((t) => t.type === type && t.public_url);
 
-const Cutout = ({ epoch, type }: { epoch: SuperObjEpoch; type: string }) => {
-  const url = cutoutUrl(epoch, type);
+const epochSurvey = (epoch: SuperObjEpoch) =>
+  (epoch.thumbnails || []).find(
+    (t) => t.survey && (CUTOUT_TYPES as readonly string[]).includes(t.type),
+  )?.survey ?? null;
+
+const Cutout = ({
+  epoch,
+  type,
+  zoom,
+}: {
+  epoch: SuperObjEpoch;
+  type: string;
+  zoom: number;
+}) => {
+  const url = cutout(epoch, type)?.public_url;
   return (
     <Box
       sx={{
@@ -71,14 +86,19 @@ const Cutout = ({ epoch, type }: { epoch: SuperObjEpoch; type: string }) => {
         height: 100,
         borderRadius: 0.5,
         overflow: "hidden",
-        bgcolor: "action.hover",
+        bgcolor: url && zoom !== 1 ? "black" : "action.hover",
       }}
     >
       {url && (
         <img
           src={url}
           alt={`${CUTOUT_LABELS[type] ?? type} cutout for ${epoch.id}`}
-          style={{ width: "100%", height: "100%", objectFit: "cover" }}
+          style={{
+            width: "100%",
+            height: "100%",
+            objectFit: "cover",
+            ...(zoom !== 1 ? { transform: `scale(${zoom})` } : {}),
+          }}
         />
       )}
     </Box>
@@ -99,6 +119,18 @@ const TrackRow = ({
 
   const epochs = distinctEpochs(track);
   const repeats = track.objs.length - epochs.length;
+
+  const [sameScale, setSameScale] = useState(false);
+  const fieldOfView = (epoch: SuperObjEpoch) =>
+    SURVEY_FIELD_OF_VIEW_ARCSEC[epochSurvey(epoch) ?? ""];
+  const fieldsOfView = [
+    ...new Set(epochs.map(fieldOfView).filter(Boolean)),
+  ] as number[];
+  const widestFieldOfView = Math.max(...fieldsOfView);
+  const zoomOf = (epoch: SuperObjEpoch) => {
+    const fov = fieldOfView(epoch);
+    return sameScale && fov ? fov / widestFieldOfView : 1;
+  };
 
   const facts: [string, string | null][] = [
     ["Detections", String(epochs.length)],
@@ -122,7 +154,23 @@ const TrackRow = ({
           {name}
         </Typography>
         {isNeo && <Chip size="small" color="warning" label="NEO candidate" />}
-        <Box sx={{ ml: "auto" }}>
+        <Box sx={{ ml: "auto", display: "flex", alignItems: "center", gap: 2 }}>
+          {fieldsOfView.length > 1 && (
+            <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+              <Typography variant="caption" color="text.secondary">
+                Field of view
+              </Typography>
+              <SegmentedControl
+                size="small"
+                value={sameScale}
+                onChange={setSameScale}
+                options={[
+                  { value: false, label: "Native" },
+                  { value: true, label: "Same" },
+                ]}
+              />
+            </Box>
+          )}
           <SaveTrackButton
             trackName={name}
             epochs={epochs}
@@ -180,7 +228,12 @@ const TrackRow = ({
                 {CUTOUT_LABELS[type] ?? type}
               </Typography>
               {epochs.map((epoch) => (
-                <Cutout key={epoch.id} epoch={epoch} type={type} />
+                <Cutout
+                  key={epoch.id}
+                  epoch={epoch}
+                  type={type}
+                  zoom={zoomOf(epoch)}
+                />
               ))}
             </Fragment>
           ))}

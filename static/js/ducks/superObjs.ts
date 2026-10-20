@@ -9,6 +9,7 @@ import { skyportalApi } from "../api/skyportalApi";
 export interface SuperObjThumbnail {
   id: number;
   type: string;
+  survey: string | null;
   public_url: string | null;
   origin: string | null;
 }

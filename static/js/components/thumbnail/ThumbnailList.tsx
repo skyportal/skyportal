@@ -32,7 +32,7 @@ const FETCHED_TYPES = ["sdss", "ls"];
 const MAXIMUM_NB_OF_RETRIES = 3;
 const MAX_VISIBLE_THUMBNAILS = 3;
 const thumbnailTypes = [...ALERT_THUMBNAIL_TYPES, ...ARCHIVAL_THUMBNAIL_TYPES];
-const SURVEY_FIELD_OF_VIEW_ARCSEC: Record<string, number> = {
+export const SURVEY_FIELD_OF_VIEW_ARCSEC: Record<string, number> = {
   ZTF: 64,
   LSST: 6,
   DECAM: 17,

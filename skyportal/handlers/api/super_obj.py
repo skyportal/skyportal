@@ -37,6 +37,7 @@ def super_obj_to_dict(super_obj, epochs=False, annotations=None):
                 {
                     "id": t.id,
                     "type": t.type,
+                    "survey": t.survey,
                     "public_url": t.public_url,
                     "origin": t.origin,
                 }
