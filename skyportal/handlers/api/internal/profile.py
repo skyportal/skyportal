@@ -112,7 +112,7 @@ class ProfileHandler(BaseHandler):
                 for token in user.tokens
                 if not token.name.startswith(SERVICE_TOKEN_PREFIX)
             ]
-            user_info = user.to_dict()
+            user_info = user.to_dict(private=True)
             user_info["roles"] = user_roles
             user_info["permissions"] = user_permissions
             user_info["acls"] = user_acls
