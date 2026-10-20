@@ -283,7 +283,6 @@ const CandidateLink = ({ candidate }: { candidate: any }) => (
 
 interface CandidateInfoProps {
   candidate: any;
-  position: string;
   stack: any[];
   onSelect: (id: string) => void;
   filterGroups: Group[];
@@ -291,7 +290,6 @@ interface CandidateInfoProps {
 
 const CandidateInfo = ({
   candidate,
-  position,
   stack,
   onSelect,
   filterGroups,
@@ -364,12 +362,6 @@ const CandidateInfo = ({
           {candidate.photstats?.[0] && (
             <DisplayPhotStats photstats={candidate.photstats[0]} />
           )}
-          <Typography
-            variant="body2"
-            sx={{ fontWeight: "bold", color: "text.secondary", ml: 0.5 }}
-          >
-            {position}
-          </Typography>
         </Box>
       </Box>
       <ObjectTags source={{ ...candidate, groups: candidate.saved_groups }} />
@@ -499,9 +491,9 @@ const Candidate = ({
           lg: "26% 22% 32% 20%",
         },
         gridTemplateAreas: {
-          xs: `"info" "thumbnails" "photometry" "annotations"`,
-          sm: `"thumbnails info" "photometry annotations"`,
-          lg: `"thumbnails info photometry annotations"`,
+          xs: `"info" "thumbnails" "photometry" "annotations" "counter"`,
+          sm: `"thumbnails info" "photometry annotations" "counter annotations"`,
+          lg: `"thumbnails info photometry annotations" "counter info photometry annotations"`,
         },
       }}
     >
@@ -523,7 +515,6 @@ const Candidate = ({
       <Box sx={{ gridArea: "info", pl: 2 }}>
         <CandidateInfo
           candidate={candidate}
-          position={`${index}/${totalMatches}`}
           stack={stack}
           onSelect={setSelectedId}
           filterGroups={filterGroups}
@@ -560,6 +551,11 @@ const Candidate = ({
       >
         <CandidateTabs candidate={candidate} filterGroups={filterGroups} />
       </Box>
+      <Typography
+        sx={{ gridArea: "counter", alignSelf: "end", fontWeight: "bold" }}
+      >
+        {`${index}/${totalMatches}`}
+      </Typography>
     </Paper>
   );
 };
