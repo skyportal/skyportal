@@ -285,6 +285,48 @@ def test_update_instrument_across_id(super_admin_token):
     assert data["data"]["across_id"] == across_id
 
 
+def test_rejected_instrument_update_changes_nothing(super_admin_token):
+    name = str(uuid.uuid4())
+    status, data = api(
+        "POST",
+        "telescope",
+        data={"name": name, "nickname": name, "diameter": 0.0, "fixed_location": False},
+        token=super_admin_token,
+    )
+    assert status == 200
+    telescope_id = data["data"]["id"]
+
+    instrument_name = str(uuid.uuid4())
+    status, data = api(
+        "POST",
+        "instrument",
+        data={
+            "name": instrument_name,
+            "type": "imager",
+            "filters": ["f110w"],
+            "telescope_id": telescope_id,
+            "field_fov_type": "circle",
+            "field_fov_attributes": 3.0,
+        },
+        token=super_admin_token,
+    )
+    assert status == 200
+    instrument_id = data["data"]["id"]
+
+    status, data = api(
+        "PUT",
+        f"instrument/{instrument_id}",
+        data={"name": str(uuid.uuid4()), "field_data": "not-a-field-table"},
+        token=super_admin_token,
+    )
+    assert status == 400
+    assert "Could not parse the field data table" in data["message"]
+
+    status, data = api("GET", f"instrument/{instrument_id}", token=super_admin_token)
+    assert status == 200
+    assert data["data"]["name"] == instrument_name
+
+
 def test_token_user_delete_instrument(super_admin_token, view_only_token):
     name = str(uuid.uuid4())
     status, data = api(
