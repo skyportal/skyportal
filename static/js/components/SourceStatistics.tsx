@@ -655,13 +655,7 @@ const SourceStatistics = () => {
     >
       <Typography variant="h4">Source Statistics</Typography>
       <Typography variant="body2" color="textSecondary">
-        Plot photometry statistics across many sources at once to spot outliers.
-        Down-select by classification, a group&apos;s sources, or an explicit
-        object list; points are colored by each source&apos;s
-        highest-probability classification. Click any point to open that source.
-        In 2D, drag a box (or use the lasso/box tools in the plot toolbar) to
-        list a group of outliers below; the 3D view supports rotate and zoom
-        only.
+        Click a point to open its source, drag a box to list several below.
       </Typography>
 
       <Paper sx={{ p: 2, display: "flex", flexDirection: "column", gap: 2 }}>
