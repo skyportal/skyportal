@@ -1548,6 +1548,44 @@ def test_deleting_a_filter_clears_it_from_topic_routing(
         api("DELETE", f"brokers/{broker_id}", token=super_admin_token)
 
 
+def test_group_admin_deletes_a_filter_another_user_routes_to(
+    super_admin_token, view_only_token, group_admin_token, public_filter
+):
+    """The group admin cannot read or update another user's credentials, yet
+    deleting the filter still clears it from their routing."""
+    payload = _broker_payload()
+    status, data = api("POST", "brokers", data=payload, token=super_admin_token)
+    assert status == 200
+    broker_id = data["data"]["id"]
+    try:
+        status, data = api(
+            "PUT",
+            f"brokers/{broker_id}/credentials",
+            data={
+                "credentials": {"token": "mine"},
+                "topics": ["lasair_1x"],
+                "topic_filter_ids": {"lasair_1x": [public_filter.id]},
+            },
+            token=view_only_token,
+        )
+        assert status == 200, data
+
+        status, data = api(
+            "DELETE", f"filters/{public_filter.id}", token=group_admin_token
+        )
+        assert status == 200, data
+
+        status, data = api(
+            "GET", f"brokers/{broker_id}/credentials", token=view_only_token
+        )
+        assert status == 200
+        assert data["data"]["topics"] == ["lasair_1x"]
+        assert data["data"]["topic_filter_ids"] == {}
+    finally:
+        api("DELETE", f"brokers/{broker_id}/credentials", token=view_only_token)
+        api("DELETE", f"brokers/{broker_id}", token=super_admin_token)
+
+
 def test_broker_ingest_stops_brokers_no_longer_wanted(monkeypatch):
     """A broker switched off, deactivated or deleted drops out of the listing,
     and the service tells its running consumer to stop."""
