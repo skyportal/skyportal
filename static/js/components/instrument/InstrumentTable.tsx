@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 
 import Dialog from "@mui/material/Dialog";
 import DialogTitle from "@mui/material/DialogTitle";
@@ -9,17 +9,11 @@ import Chip from "@mui/material/Chip";
 import Tooltip from "@mui/material/Tooltip";
 import Box from "@mui/material/Box";
 import AddIcon from "@mui/icons-material/Add";
-import DeleteIcon from "@mui/icons-material/Delete";
-import EditIcon from "@mui/icons-material/Edit";
 
-import { showNotification } from "baselayer/components/Notifications";
-import { useDeleteInstrumentMutation } from "../../ducks/instrument";
 import StyledDataGrid, {
   DataGridToolbar,
   FULL_PAGE_HEIGHT,
 } from "../StyledDataGrid";
-import { useAppDispatch } from "../../types";
-import ConfirmDeletionDialog from "../ConfirmDeletionDialog";
 import ExpandableCell from "../ExpandableCell";
 import InstrumentForm from "./InstrumentForm";
 import { useIsReadOnly } from "../../ducks/profile";
@@ -28,7 +22,6 @@ interface InstrumentTableProps {
   title?: string;
   instruments: any[];
   telescopes?: any[];
-  managePermission?: boolean;
   telescopeInfo?: boolean;
   fixedHeader?: boolean;
 }
@@ -37,39 +30,12 @@ const InstrumentTable = ({
   title = "Instruments",
   instruments,
   telescopes,
-  managePermission = false,
   telescopeInfo = true,
   fixedHeader = false,
 }: InstrumentTableProps) => {
-  const dispatch = useAppDispatch();
+  const navigate = useNavigate();
   const isReadOnly = useIsReadOnly();
-  const [deleteInstrumentMutation] = useDeleteInstrumentMutation();
-
   const [newDialogOpen, setNewDialogOpen] = useState(false);
-  const [editDialogOpen, setEditDialogOpen] = useState(false);
-  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const [instrumentToManage, setInstrumentToManage] = useState<number | null>(
-    null,
-  );
-
-  const closeEditDialog = () => {
-    setEditDialogOpen(false);
-    setInstrumentToManage(null);
-  };
-  const closeDeleteDialog = () => {
-    setDeleteDialogOpen(false);
-    setInstrumentToManage(null);
-  };
-
-  const deleteInstrument = async () => {
-    try {
-      await deleteInstrumentMutation(instrumentToManage!).unwrap();
-      dispatch(showNotification("Instrument deleted"));
-      closeDeleteDialog();
-    } catch {
-      // error notification handled by the base query
-    }
-  };
 
   const enrichedInstruments = useMemo(() => {
     const telescopeById = new Map(telescopes?.map((t) => [t.id, t]) || []);
@@ -90,17 +56,13 @@ const InstrumentTable = ({
     });
   }, [instruments, telescopes]);
 
-  const renderInstrumentName = (params: any) => {
-    const instrument = params.row;
-    return (
-      <Link to={`/instrument/${instrument.id}`}>{instrument?.name || ""}</Link>
-    );
-  };
-
   const renderTelescopeNickname = (params: any) => {
     const instrument = params.row;
     return (
-      <Link to={`/telescope/${instrument?.telescope_id}`}>
+      <Link
+        to={`/telescope/${instrument?.telescope_id}`}
+        onClick={(event) => event.stopPropagation()}
+      >
         {instrument?.telescope_nickname || ""}
       </Link>
     );
@@ -142,32 +104,6 @@ const InstrumentTable = ({
     );
   };
 
-  const renderManage = (params: any) => {
-    if (!managePermission) return null;
-    const instrument = params.row;
-    return (
-      <Box style={{ display: "flex" }}>
-        <IconButton
-          onClick={() => {
-            setEditDialogOpen(true);
-            setInstrumentToManage(instrument.id);
-          }}
-        >
-          <EditIcon />
-        </IconButton>
-        <IconButton
-          color="error"
-          onClick={() => {
-            setDeleteDialogOpen(true);
-            setInstrumentToManage(instrument.id);
-          }}
-        >
-          <DeleteIcon />
-        </IconButton>
-      </Box>
-    );
-  };
-
   const columns: any[] = [
     {
       field: "id",
@@ -180,7 +116,6 @@ const InstrumentTable = ({
       headerName: "Name",
       flex: 1,
       minWidth: 140,
-      renderCell: renderInstrumentName,
     },
     ...(telescopeInfo
       ? [
@@ -223,15 +158,7 @@ const InstrumentTable = ({
       flex: 0.5,
       minWidth: 70,
     },
-    managePermission && {
-      field: "manage",
-      headerName: " ",
-      width: 100,
-      sortable: false,
-      filterable: false,
-      renderCell: renderManage,
-    },
-  ].filter(Boolean);
+  ];
 
   const CustomToolbar = function InstrumentTableToolbar() {
     return (
@@ -256,6 +183,8 @@ const InstrumentTable = ({
         rows={enrichedInstruments}
         columns={columns}
         getRowHeight={() => "auto"}
+        sx={{ "& .MuiDataGrid-row": { cursor: "pointer" } }}
+        onRowClick={({ row }: any) => navigate(`/instrument/${row.id}`)}
         pageSizeOptions={[25, 50, 100, { value: -1, label: "All" }]}
         initialState={{
           columns: {
@@ -282,29 +211,6 @@ const InstrumentTable = ({
           <InstrumentForm onClose={() => setNewDialogOpen(false)} />
         </DialogContent>
       </Dialog>
-      <Dialog
-        open={editDialogOpen && instrumentToManage !== null}
-        onClose={closeEditDialog}
-        maxWidth="md"
-      >
-        <DialogTitle>
-          Edit{" "}
-          {enrichedInstruments.find((i) => i.id === instrumentToManage)?.name}{" "}
-          instrument
-        </DialogTitle>
-        <DialogContent dividers>
-          <InstrumentForm
-            onClose={closeEditDialog}
-            instrumentId={instrumentToManage}
-          />
-        </DialogContent>
-      </Dialog>
-      <ConfirmDeletionDialog
-        deleteFunction={deleteInstrument}
-        dialogOpen={deleteDialogOpen}
-        closeDialog={closeDeleteDialog}
-        resourceName="instrument"
-      />
     </>
   );
 };

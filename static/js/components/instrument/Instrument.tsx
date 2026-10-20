@@ -1,27 +1,37 @@
-import { ReactNode } from "react";
+import { ReactNode, useState } from "react";
+import DeleteIcon from "@mui/icons-material/Delete";
+import EditIcon from "@mui/icons-material/Edit";
 import RefreshIcon from "@mui/icons-material/Refresh";
 import Box from "@mui/material/Box";
 import Chip from "@mui/material/Chip";
 import CircularProgress from "@mui/material/CircularProgress";
+import Dialog from "@mui/material/Dialog";
+import DialogContent from "@mui/material/DialogContent";
+import DialogTitle from "@mui/material/DialogTitle";
 import IconButton from "@mui/material/IconButton";
 import Tab from "@mui/material/Tab";
 import Tabs from "@mui/material/Tabs";
+import Tooltip from "@mui/material/Tooltip";
 import Typography from "@mui/material/Typography";
 import { skipToken } from "@reduxjs/toolkit/query";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 import JsonDashboard from "react-json-dashboard";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 
 import { showNotification } from "baselayer/components/Notifications";
 import withRouter from "../withRouter";
 import useTabParam from "../../hooks/useTabParam";
 import { useAppDispatch } from "../../types/hooks";
 import {
+  useDeleteInstrumentMutation,
   useGetInstrumentQuery,
   useUpdateInstrumentStatusMutation,
 } from "../../ducks/instrument";
+import { useGetProfileQuery } from "../../ducks/profile";
 import { useGetTelescopeQuery } from "../../ducks/telescopes";
+import ConfirmDeletionDialog from "../ConfirmDeletionDialog";
+import InstrumentForm from "./InstrumentForm";
 import InstrumentLogs from "./InstrumentLogs";
 import { QuadrantGrid } from "./ZtfQuadrantsField";
 import Paper from "../Paper";
@@ -135,7 +145,15 @@ const Instrument = ({ route }: InstrumentProps) => {
     instrument?.telescope_id ?? skipToken,
   );
   const [updateInstrumentStatus] = useUpdateInstrumentStatusMutation();
+  const [deleteInstrument] = useDeleteInstrumentMutation();
+  const navigate = useNavigate();
+  const permissions = useGetProfileQuery().data?.permissions ?? [];
+  const canManage =
+    permissions.includes("Manage instruments") ||
+    permissions.includes("System admin");
   const [tab, setTab] = useTabParam(["overview", "logs", "status"]);
+  const [editOpen, setEditOpen] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
 
   if (instrument?.id !== Number(route.id)) return <Spinner />;
 
@@ -150,6 +168,13 @@ const Instrument = ({ route }: InstrumentProps) => {
   });
   const sensitivity = instrument.sensitivity_data ?? {};
 
+  const handleDelete = async () => {
+    const { error } = await deleteInstrument(route.id);
+    if (error) return;
+    dispatch(showNotification("Instrument deleted"));
+    navigate("/instruments");
+  };
+
   const refreshStatus = async () => {
     const { error } = await updateInstrumentStatus(route.id);
     if (!error) dispatch(showNotification("Instrument status updated"));
@@ -157,17 +182,39 @@ const Instrument = ({ route }: InstrumentProps) => {
 
   return (
     <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
-      <Box>
-        <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-          <Typography variant="h5">{instrument.name}</Typography>
-          <Chip label={instrument.type} size="small" variant="outlined" />
+      <Box
+        sx={{
+          display: "flex",
+          alignItems: "flex-start",
+          justifyContent: "space-between",
+        }}
+      >
+        <Box>
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+            <Typography variant="h5">{instrument.name}</Typography>
+            <Chip label={instrument.type} size="small" variant="outlined" />
+          </Box>
+          {telescope ? (
+            <Link to={`/telescope/${instrument.telescope_id}`}>
+              {telescope["name"]} ({telescope["nickname"]})
+            </Link>
+          ) : (
+            <CircularProgress size={20} />
+          )}
         </Box>
-        {telescope ? (
-          <Link to={`/telescope/${instrument.telescope_id}`}>
-            {telescope["name"]} ({telescope["nickname"]})
-          </Link>
-        ) : (
-          <CircularProgress size={20} />
+        {canManage && (
+          <Box sx={{ display: "flex", gap: 0.5 }}>
+            <Tooltip title="Edit instrument">
+              <IconButton onClick={() => setEditOpen(true)}>
+                <EditIcon />
+              </IconButton>
+            </Tooltip>
+            <Tooltip title="Delete instrument">
+              <IconButton color="error" onClick={() => setDeleteOpen(true)}>
+                <DeleteIcon />
+              </IconButton>
+            </Tooltip>
+          </Box>
         )}
       </Box>
       <Tabs
@@ -277,6 +324,21 @@ const Instrument = ({ route }: InstrumentProps) => {
           />
         </Paper>
       )}
+      <Dialog open={editOpen} onClose={() => setEditOpen(false)} maxWidth="md">
+        <DialogTitle>Edit {instrument.name} instrument</DialogTitle>
+        <DialogContent dividers>
+          <InstrumentForm
+            onClose={() => setEditOpen(false)}
+            instrumentId={instrument.id}
+          />
+        </DialogContent>
+      </Dialog>
+      <ConfirmDeletionDialog
+        deleteFunction={handleDelete}
+        dialogOpen={deleteOpen}
+        closeDialog={() => setDeleteOpen(false)}
+        resourceName="instrument"
+      />
     </Box>
   );
 };
