@@ -239,6 +239,8 @@ def add_tns_spectra(tns_name, tns_source, tns_source_data, public_group_id, sess
         try:
             data = read_tns_spectrum(spectrum, session)
         except Exception as e:
+            failed_spectra.append(spectrum)
+            failed_spectra_errors.append(str(e))
             log(f"Cannot read TNS spectrum {str(spectrum)}: {str(e)}")
             continue
         data["obj_id"] = tns_source
