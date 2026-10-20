@@ -264,6 +264,7 @@ const InstrumentTable = ({
               lat: false,
               lon: false,
               region_summary: false,
+              number_of_fields: false,
             },
           },
           pagination: { paginationModel: { pageSize: -1 } },
