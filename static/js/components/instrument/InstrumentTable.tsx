@@ -20,6 +20,7 @@ import StyledDataGrid, {
 } from "../StyledDataGrid";
 import { useAppDispatch } from "../../types";
 import ConfirmDeletionDialog from "../ConfirmDeletionDialog";
+import ExpandableCell from "../ExpandableCell";
 import InstrumentForm from "./InstrumentForm";
 import { useIsReadOnly } from "../../ducks/profile";
 
@@ -105,35 +106,38 @@ const InstrumentTable = ({
     );
   };
 
-  const renderFilters = (params: any) => {
-    const filters = params.row.filters;
-    return filters?.map((filter: any) => <div key={filter}>{filter}</div>);
-  };
+  const renderFilters = (params: any) => (
+    <ExpandableCell
+      items={(params.row.filters ?? []).map((filter: string) => (
+        <Chip key={filter} label={filter} size="small" />
+      ))}
+    />
+  );
 
   const renderAPIClassnames = (params: any) => {
     const { api_classname, api_classname_obsplan } = params.row;
     if (!api_classname && !api_classname_obsplan) return null;
 
     return (
-      <div
-        style={{
+      <Box
+        sx={{
           display: "flex",
           flexDirection: "column",
-          gap: "2px",
           alignItems: "start",
+          gap: 0.5,
         }}
       >
         {api_classname && (
           <Tooltip title="API for Follow-up Requests" placement="top">
-            <Chip label={api_classname} />
+            <Chip label={api_classname} size="small" />
           </Tooltip>
         )}
         {api_classname_obsplan && (
           <Tooltip title="API for Observation Plan" placement="bottom">
-            <Chip label={api_classname_obsplan} />
+            <Chip label={api_classname_obsplan} size="small" />
           </Tooltip>
         )}
-      </div>
+      </Box>
     );
   };
 
@@ -250,7 +254,7 @@ const InstrumentTable = ({
         height={fixedHeader ? FULL_PAGE_HEIGHT : "auto"}
         rows={enrichedInstruments}
         columns={columns}
-        getRowId={(row: any) => row.id}
+        getRowHeight={() => "auto"}
         pageSizeOptions={[25, 50, 100, { value: -1, label: "All" }]}
         initialState={{
           columns: { columnVisibilityModel: { id: false } },
