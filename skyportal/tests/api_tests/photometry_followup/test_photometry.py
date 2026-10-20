@@ -1152,6 +1152,51 @@ def test_token_user_post_and_get_different_systems_mag(
     np.testing.assert_allclose(data["data"]["limiting_mag"], 22.3 - correction)
 
 
+def test_token_user_post_and_get_different_systems_ref_mag(
+    upload_data_token, public_source, ztf_camera, public_group
+):
+    status, data = api(
+        "POST",
+        "photometry",
+        data={
+            "obj_id": str(public_source.id),
+            "mjd": 58000.0,
+            "instrument_id": ztf_camera.id,
+            "mag": 19.0,
+            "magerr": 0.1,
+            "limiting_mag": 22.3,
+            "magref": 17.0,
+            "e_magref": 0.01,
+            "magsys": "vega",
+            "filter": "ztfg",
+            "group_ids": [public_group.id],
+        },
+        token=upload_data_token,
+    )
+    assert status == 200
+    assert data["status"] == "success"
+
+    photometry_id = data["data"]["ids"][0]
+    ab = sncosmo.get_magsystem("ab")
+    vega = sncosmo.get_magsystem("vega")
+    correction = 2.5 * np.log10(vega.zpbandflux("ztfg") / ab.zpbandflux("ztfg"))
+    magtot = -2.5 * np.log10(10 ** (-0.4 * 19.0) + 10 ** (-0.4 * 17.0))
+
+    # every format reports magref and magtot in the requested system
+    for output_format in ["mag", "flux", "both"]:
+        for magsys, offset in [("vega", 0.0), ("ab", correction)]:
+            status, data = api(
+                "GET",
+                f"photometry/{photometry_id}?format={output_format}&magsys={magsys}",
+                token=upload_data_token,
+            )
+            assert status == 200
+            assert data["status"] == "success"
+            assert data["data"]["magsys"] == magsys
+            np.testing.assert_allclose(data["data"]["magref"], 17.0 - offset)
+            np.testing.assert_allclose(data["data"]["magtot"], magtot - offset)
+
+
 def test_token_user_post_extinction_corrected_photometry(
     upload_data_token, public_source, ztf_camera, public_group
 ):
