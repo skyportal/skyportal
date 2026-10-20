@@ -2427,6 +2427,10 @@ class ObservationPlanFieldsHandler(BaseHandler):
                 return self.error(
                     f"Could not find observation_plan_request with ID {observation_plan_request_id}"
                 )
+            if observation_plan_request.status == "submitted to telescope queue":
+                return self.error(
+                    "Cannot delete fields from an observation plan sent to the telescope queue."
+                )
 
             observation_plans = observation_plan_request.observation_plans
             if not observation_plans:

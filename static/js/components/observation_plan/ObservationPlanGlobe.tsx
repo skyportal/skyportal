@@ -125,6 +125,8 @@ const ObservationPlanGlobe = ({
   const selectedFieldIds = selectedObservations
     .map((tile) => fieldIdByTile.get(tile))
     .filter((id) => id != null);
+  const canDeleteFields =
+    observationplanRequest.status === "complete" && selectedFieldIds.length > 0;
 
   return (
     <Box sx={{ display: "flex", flexDirection: "column" }}>
@@ -140,7 +142,7 @@ const ObservationPlanGlobe = ({
           setSelectedObservations={setSelectedObservations}
         />
       </Suspense>
-      {selectedFieldIds.length > 0 && (
+      {canDeleteFields && (
         <Button
           secondary
           onClick={() =>
