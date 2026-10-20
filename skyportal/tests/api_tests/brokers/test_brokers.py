@@ -273,6 +273,7 @@ def _post_photometry(token, obj_id, instrument_id, group_ids, mjd):
         token=token,
     )
     assert status == 200, data
+    return data["data"]["ids"][0]
 
 
 def test_default_photometry_broker_serves_object_photometry(
@@ -428,6 +429,47 @@ def test_photometry_passthrough_keeps_the_source_page_contract(
         assert point["mag_corr"] is not None
     finally:
         api("DELETE", f"brokers/{broker_id}", token=super_admin_token)
+
+
+def test_photometry_passthrough_only_serves_readable_annotations(
+    upload_data_token_two_groups,
+    annotation_token_two_groups,
+    view_only_token,
+    public_source_two_groups,
+    public_group,
+    public_group2,
+    ztf_camera,
+):
+    """includeAnnotationInfo applies the annotations' own groups, as
+    GET /sources/{id}/photometry does."""
+    phot_id = _post_photometry(
+        upload_data_token_two_groups,
+        public_source_two_groups.id,
+        ztf_camera.id,
+        [public_group.id, public_group2.id],
+        58003.0,
+    )
+    # view_only_token's user is in public_group but not public_group2
+    for origin, group_ids in (
+        ("shared", [public_group.id, public_group2.id]),
+        ("group2", [public_group2.id]),
+    ):
+        status, data = api(
+            "POST",
+            f"photometry/{phot_id}/annotations",
+            data={"origin": origin, "data": {"score": 1}, "group_ids": group_ids},
+            token=annotation_token_two_groups,
+        )
+        assert status == 200, data
+
+    status, data = api(
+        "GET",
+        f"brokers/photometry/{public_source_two_groups.id}?includeAnnotationInfo=true",
+        token=view_only_token,
+    )
+    assert status == 200, data
+    point = next(p for p in data["data"] if p["id"] == phot_id)
+    assert [a["origin"] for a in point["annotations"]] == ["shared"]
 
 
 def test_photometry_passthrough_serves_photometric_series(
