@@ -759,16 +759,17 @@ const MongoQueryDialog = () => {
                       <FullscreenIcon />
                     </IconButton>
                   </Box>
-                  <Typography
-                    variant="body2"
-                    color="text.secondary"
-                    sx={{ mb: 2 }}
-                  >
-                    Generated query results — not all alert fields are shown.
-                    Rows are sorted by JD, newest first.
-                    {hasMore &&
-                      ` They are a sample of the matches the broker found first, not the latest ones.`}
-                  </Typography>
+                  {resultsView === "table" && (
+                    <Typography
+                      variant="body2"
+                      color="text.secondary"
+                      sx={{ mb: 2 }}
+                    >
+                      Only the fields kept by the pipeline, newest first.
+                      {hasMore &&
+                        " These are the first matches found, not the latest."}
+                    </Typography>
+                  )}
                   {exactCount.error && (
                     <Alert severity="warning" sx={{ mb: 2 }}>
                       {exactCount.error}
