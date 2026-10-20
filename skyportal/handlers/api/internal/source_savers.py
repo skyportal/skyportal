@@ -38,6 +38,7 @@ class SourceSaverHandler(BaseHandler):
             Source.saved_at >= cutoff_day,
             # the broker ingestion user, which auto-saves in its own name
             Source.saved_by_id != 1,
+            Source.saved_by_id.not_in(sa.select(User.id).where(User.is_bot)),
         )
 
         if top_savers_prefs["candidatesOnly"]:
