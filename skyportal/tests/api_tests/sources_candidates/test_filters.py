@@ -216,6 +216,24 @@ def test_delete_requires_group_admin(upload_data_token, public_filter):
     assert status == 200
 
 
+def test_creator_can_delete_own_filter(upload_data_token, public_group, public_stream):
+    status, data = api(
+        "POST",
+        "filters",
+        data={
+            "name": str(uuid.uuid4()),
+            "stream_id": public_stream.id,
+            "group_id": public_group.id,
+        },
+        token=upload_data_token,
+    )
+    assert status == 200, data
+    filter_id = data["data"]["id"]
+
+    status, data = api("DELETE", f"filters/{filter_id}", token=upload_data_token)
+    assert status == 200, data
+
+
 def test_group_admin_can_delete_filter(group_admin_token, public_filter):
     status, data = api("DELETE", f"filters/{public_filter.id}", token=group_admin_token)
     assert status == 200, data

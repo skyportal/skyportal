@@ -1913,6 +1913,9 @@ class BrokerFilterCatalogHandler(BaseHandler):
                             "altdata": f.altdata,
                             "group_admin": manages_groups
                             or f.group_id in admin_group_ids,
+                            "can_delete": manages_groups
+                            or f.group_id in admin_group_ids
+                            or f.created_by_id == user.id,
                             "active": active.get(f.id),
                         }
                         for f in filters

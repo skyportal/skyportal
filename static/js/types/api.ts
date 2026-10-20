@@ -28249,6 +28249,8 @@ export interface components {
             group_id: number;
             /** @description ID of the Broker this Filter runs on, if any. */
             broker_id?: number | null;
+            /** @description ID of the User who created the Filter. */
+            created_by_id?: number | null;
             /** @description If set, objects passing this filter during broker ingestion are auto-saved as Sources to the Filter's Group (in addition to being registered as Candidates). */
             autosave?: boolean;
             /** @description Unique object identifier. */
@@ -28316,6 +28318,8 @@ export interface components {
             group_id: number;
             /** @description ID of the Broker this Filter runs on, if any. */
             broker_id?: number | null;
+            /** @description ID of the User who created the Filter. */
+            created_by_id?: number | null;
             /** @description If set, objects passing this filter during broker ingestion are auto-saved as Sources to the Filter's Group (in addition to being registered as Candidates). */
             autosave?: boolean;
         };

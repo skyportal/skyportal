@@ -14,7 +14,7 @@ class Filter(Base):
     with exactly one Group, and a Group may have multiple operational Filters.
     """
 
-    # TODO: Track filter ownership and allow owners to update, delete filters
+    # TODO: allow a filter's creator to update it
     create = read = update = delete = (
         accessible_by_group_members
         & AccessibleIfRelatedRowsAreAccessible(stream="read")
@@ -61,6 +61,12 @@ class Filter(Base):
         foreign_keys=[broker_id],
         back_populates="filters",
         doc="The Broker this Filter runs on.",
+    )
+    created_by_id = sa.Column(
+        sa.ForeignKey("users.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+        doc="ID of the User who created the Filter.",
     )
     autosave = sa.Column(
         sa.Boolean,

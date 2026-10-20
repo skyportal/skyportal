@@ -70,6 +70,7 @@ export interface BrokerFilter {
   broker_id: number | null;
   altdata?: Record<string, unknown>;
   group_admin?: boolean;
+  can_delete?: boolean;
   active?: boolean | null;
 }
 
