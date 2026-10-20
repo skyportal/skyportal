@@ -169,7 +169,10 @@ const GroupList = ({
     }
     return (
       <Tooltip title={tooltip}>
-        <Box sx={{ display: "flex" }}>
+        <Box
+          sx={{ display: "flex" }}
+          onClick={(event) => event.stopPropagation()}
+        >
           <Button
             secondary
             size="small"

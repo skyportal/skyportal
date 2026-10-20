@@ -69,8 +69,9 @@ def test_group_admission_auto_accept_join_button(
     ).first
     expect(join_button).to_have_text("Join group")
     join_button.click()
+    expect(page.get_by_text("Successfully joined group.")).to_be_visible()
     # After joining, the group moves into the user's "My Groups" list
-    page.get_by_test_id("showAllGroupsSwitch").locator("input").uncheck()
+    page.goto("/groups")
     expect(page.locator(f'//div[@data-id="{public_group.id}"]').first).to_be_visible()
 
 
