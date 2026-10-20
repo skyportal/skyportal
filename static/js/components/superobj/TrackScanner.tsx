@@ -223,11 +223,7 @@ const TrackRow = ({
           ))}
           <Box />
           {epochs.map((epoch) => (
-            <Typography
-              key={epoch.id}
-              variant="caption"
-              sx={{ wordBreak: "break-all" }}
-            >
+            <Typography key={epoch.id} variant="caption" noWrap>
               <Link to={`/source/${epoch.id}`}>{epoch.id}</Link>
             </Typography>
           ))}
