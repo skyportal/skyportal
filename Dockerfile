@@ -5,7 +5,6 @@ ARG DEBIAN_FRONTEND=noninteractive
 ENV LC_ALL=C.UTF-8
 ENV LANG=C.UTF-8
 ENV NODE_MAJOR=24
-ENV PATH="/root/.cargo/bin:${PATH}"
 # Point sncosmo at the vendored data in the skyportal-data submodule (baked in
 # by `ADD . /skyportal`). SNCOSMO_DATA_DIR takes precedence over the config's
 # misc.sncosmo_data_folder, so set it to the same location. The chown of
@@ -25,9 +24,8 @@ RUN apt-get update && \
     mkdir -p /etc/apt/keyrings && \
     curl -fsSL https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key | gpg --dearmor -o /etc/apt/keyrings/nodesource.gpg && \
     echo "deb [signed-by=/etc/apt/keyrings/nodesource.gpg] https://deb.nodesource.com/node_$NODE_MAJOR.x nodistro main" | tee /etc/apt/sources.list.d/nodesource.list && \
-    curl https://sh.rustup.rs -sSf | sh -s -- -y && \
     apt-get update && \
-    apt-get install -y cargo nodejs nginx libnginx-mod-http-brotli-static libnginx-mod-http-brotli-filter unzip && \
+    apt-get install -y nodejs nginx libnginx-mod-http-brotli-static libnginx-mod-http-brotli-filter unzip && \
     # bun is the project's package manager (per packageManager in package.json);
     # baselayer's check_js_deps.sh auto-detects it from there.
     curl -fsSL https://bun.sh/install | bash && \
