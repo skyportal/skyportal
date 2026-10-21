@@ -370,7 +370,7 @@ const RecentSourcesList = ({
                         <span
                           style={{
                             textAlign: "right",
-                            fontSize: "0.95rem",
+                            fontSize: "0.8rem",
                             fontStyle: "italic",
                             padding: 0,
                             margin: 0,
@@ -385,7 +385,7 @@ const RecentSourcesList = ({
                         <span
                           style={{
                             textAlign: "right",
-                            fontSize: "0.95rem",
+                            fontSize: "0.8rem",
                             fontStyle: "italic",
                             padding: 0,
                             margin: 0,
