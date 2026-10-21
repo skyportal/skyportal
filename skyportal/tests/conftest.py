@@ -1574,8 +1574,21 @@ def classification_token_two_groups(user_two_groups):
     delete_token(token_id)
 
 
+def grant_acls(user, acl_ids):
+    user = DBSession().get(models.User, user.id)
+    user.acls.extend(
+        DBSession().scalars(
+            sa.select(models.ACL).where(
+                models.ACL.id.in_(acl_ids), models.ACL.id.not_in(user.permissions)
+            )
+        )
+    )
+    DBSession().commit()
+
+
 @pytest.fixture()
 def taxonomy_token(user):
+    grant_acls(user, ["Post taxonomy", "Delete taxonomy"])
     token_id = create_token(
         ACLs=["Post taxonomy", "Delete taxonomy"],
         user_id=user.id,
@@ -1587,6 +1600,7 @@ def taxonomy_token(user):
 
 @pytest.fixture()
 def taxonomy_token_two_groups(user_two_groups):
+    grant_acls(user_two_groups, ["Post taxonomy", "Delete taxonomy"])
     token_id = create_token(
         ACLs=["Post taxonomy", "Delete taxonomy"],
         user_id=user_two_groups.id,
@@ -1795,6 +1809,7 @@ def public_source_group2_followup_request(
 
 @pytest.fixture()
 def sedm_listener_token(sedm, group_admin_user):
+    grant_acls(group_admin_user, [sedm.listener_class.get_acl_id()])
     token_id = create_token(
         ACLs=[sedm.listener_class.get_acl_id()],
         user_id=group_admin_user.id,
@@ -2250,6 +2265,7 @@ def shift_user(public_group, public_stream):
 
 @pytest.fixture()
 def analysis_service_token(user):
+    grant_acls(user, ["Manage Analysis Services"])
     token_id = create_token(
         ACLs=["Manage Analysis Services"],
         user_id=user.id,
@@ -2261,6 +2277,7 @@ def analysis_service_token(user):
 
 @pytest.fixture()
 def analysis_service_token_two_groups(user_two_groups):
+    grant_acls(user_two_groups, ["Manage Analysis Services"])
     token_id = create_token(
         ACLs=["Manage Analysis Services"],
         user_id=user_two_groups.id,
