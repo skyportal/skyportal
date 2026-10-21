@@ -1,4 +1,4 @@
-import Form from "@rjsf/mui";
+import Form from "../SchemaForm";
 import validator from "@rjsf/validator-ajv8";
 import { dataUriToBuffer } from "data-uri-to-buffer";
 import { showNotification } from "baselayer/components/Notifications";

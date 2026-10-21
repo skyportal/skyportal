@@ -16,7 +16,7 @@ import { DateTimePicker } from "@mui/x-date-pickers/DateTimePicker";
 import CircularProgress from "@mui/material/CircularProgress";
 import Grid from "@mui/material/Grid";
 import { makeStyles } from "tss-react/mui";
-import Form from "@rjsf/mui";
+import Form from "../SchemaForm";
 import validator from "@rjsf/validator-ajv8";
 import dayjs from "dayjs";
 import relativeTime from "dayjs/plugin/relativeTime";

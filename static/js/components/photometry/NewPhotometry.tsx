@@ -9,7 +9,7 @@ import Tooltip from "@mui/material/Tooltip";
 import CircularProgress from "@mui/material/CircularProgress";
 import { showNotification } from "baselayer/components/Notifications";
 
-import Form from "@rjsf/mui";
+import Form from "../SchemaForm";
 import validator from "@rjsf/validator-ajv8";
 
 import { useAppDispatch } from "../../types/hooks";

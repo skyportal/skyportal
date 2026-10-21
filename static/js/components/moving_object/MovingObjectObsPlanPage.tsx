@@ -1,7 +1,7 @@
 import { useState } from "react";
 import Paper from "@mui/material/Paper";
 import Grid from "@mui/material/Grid";
-import Form from "@rjsf/mui";
+import Form from "../SchemaForm";
 import validator from "@rjsf/validator-ajv8";
 import dayjs from "dayjs";
 import { showNotification } from "baselayer/components/Notifications";

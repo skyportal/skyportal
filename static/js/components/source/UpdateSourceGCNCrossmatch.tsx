@@ -6,7 +6,7 @@ import DialogTitle from "@mui/material/DialogTitle";
 import Box from "@mui/material/Box";
 import Divider from "@mui/material/Divider";
 import Tooltip from "@mui/material/Tooltip";
-import Form from "@rjsf/mui";
+import Form from "../SchemaForm";
 import validator from "@rjsf/validator-ajv8";
 import { makeStyles } from "tss-react/mui";
 import dayjs from "dayjs";

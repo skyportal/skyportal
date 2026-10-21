@@ -2,9 +2,9 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import useTabParam from "../../hooks/useTabParam";
 
-import { withTheme } from "@rjsf/core";
-import { Theme as MuiTheme } from "@rjsf/mui";
 import validator from "@rjsf/validator-ajv8";
+
+import Form from "../SchemaForm";
 
 import AddIcon from "@mui/icons-material/Add";
 import DeleteIcon from "@mui/icons-material/Delete";
@@ -38,8 +38,6 @@ import { useGetProfileQuery } from "../../ducks/profile";
 import StyledDataGrid from "../StyledDataGrid";
 import FilterCatalog from "./FilterCatalog";
 import NewFilterDialog from "../filter/NewFilterDialog";
-
-const Form = withTheme(MuiTheme);
 
 const capabilityLabels = (caps: Record<string, boolean>) =>
   [

@@ -1,7 +1,7 @@
 import { useGetGroupsQuery } from "../../ducks/groups";
 import { useState } from "react";
 
-import Form from "@rjsf/mui";
+import Form from "../SchemaForm";
 import validator from "@rjsf/validator-ajv8";
 import CircularProgress from "@mui/material/CircularProgress";
 import { showNotification } from "baselayer/components/Notifications";

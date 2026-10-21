@@ -9,7 +9,7 @@ import DeleteIcon from "@mui/icons-material/Delete";
 import Chip from "@mui/material/Chip";
 
 import { showNotification } from "baselayer/components/Notifications";
-import Form from "@rjsf/mui";
+import Form from "../SchemaForm";
 import validator from "@rjsf/validator-ajv8";
 import StyledDataGrid, {
   DataGridToolbar,

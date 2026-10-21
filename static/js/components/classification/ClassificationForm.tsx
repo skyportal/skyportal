@@ -9,7 +9,7 @@ import { createFilterOptions } from "@mui/material/Autocomplete";
 import { makeStyles } from "tss-react/mui";
 import SearchableSelect from "../SearchableSelect";
 
-import Form from "@rjsf/mui";
+import Form from "../SchemaForm";
 import validator from "@rjsf/validator-ajv8";
 
 import { showNotification } from "baselayer/components/Notifications";

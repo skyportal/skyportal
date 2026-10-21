@@ -2,7 +2,7 @@ import { useState } from "react";
 
 import Dialog from "@mui/material/Dialog";
 import DialogContent from "@mui/material/DialogContent";
-import Form from "@rjsf/mui";
+import Form from "../../SchemaForm";
 import validator from "@rjsf/validator-ajv8";
 import DialogTitle from "@mui/material/DialogTitle";
 

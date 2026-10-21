@@ -1,7 +1,7 @@
 import { useGetGroupsQuery } from "../../ducks/groups";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import Form from "@rjsf/mui";
+import Form from "../SchemaForm";
 import validator from "@rjsf/validator-ajv8";
 import Typography from "@mui/material/Typography";
 

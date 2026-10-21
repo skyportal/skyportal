@@ -1,6 +1,6 @@
 import { useState } from "react";
 
-import Form from "@rjsf/mui";
+import Form from "../SchemaForm";
 import validator from "@rjsf/validator-ajv8";
 import { makeStyles } from "tss-react/mui";
 import Typography from "@mui/material/Typography";

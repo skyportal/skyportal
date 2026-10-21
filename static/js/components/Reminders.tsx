@@ -14,7 +14,7 @@ import Typography from "@mui/material/Typography";
 import AddIcon from "@mui/icons-material/Add";
 import { grey } from "@mui/material/colors";
 
-import Form from "@rjsf/mui";
+import Form from "./SchemaForm";
 import validator from "@rjsf/validator-ajv8";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";

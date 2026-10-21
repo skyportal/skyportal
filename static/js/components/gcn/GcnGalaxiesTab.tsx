@@ -2,7 +2,7 @@ import { useState } from "react";
 
 import Grid from "@mui/material/Grid";
 import Typography from "@mui/material/Typography";
-import Form from "@rjsf/mui";
+import Form from "../SchemaForm";
 import validator from "@rjsf/validator-ajv8";
 
 import Button from "../Button";

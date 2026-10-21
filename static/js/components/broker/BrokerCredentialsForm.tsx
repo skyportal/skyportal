@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 
-import Form from "@rjsf/mui";
+import Form from "../SchemaForm";
 import validator from "@rjsf/validator-ajv8";
 
 import Autocomplete from "@mui/material/Autocomplete";
