@@ -37,7 +37,7 @@ ARG SKYPORTAL_GID=1000
 RUN groupadd -g $SKYPORTAL_GID skyportal && \
     useradd -u $SKYPORTAL_UID -g $SKYPORTAL_GID --create-home --shell /bin/bash skyportal
 
-ADD . /skyportal
+ADD --chown=skyportal:skyportal . /skyportal
 WORKDIR /skyportal
 
 RUN bash -c "\
@@ -50,8 +50,8 @@ RUN bash -c "\
     ./node_modules/.bin/rspack --mode=production && \
     rm -rf node_modules && \
     \
-    chown -R skyportal.skyportal .venv && \
-    chown -R skyportal.skyportal /skyportal && \
+    # Re-owning the added source would copy it into this layer.
+    chown -R --from=root skyportal:skyportal /skyportal && \
     chown -R skyportal.skyportal /opt/uv-python && \
     \
     mkdir -p /skyportal/static/thumbnails && \
