@@ -102,8 +102,18 @@ const withoutGettingStarted = (layouts: any) =>
     Object.entries(layouts).map(([breakpoint, items]: [string, any]) => {
       const gs = items.find((item: any) => item.i === "GettingStarted");
       const rest = items.filter((item: any) => item !== gs);
+      if (!gs) return [breakpoint, rest];
+      const beside = rest.filter(
+        (item: any) =>
+          item.x >= gs.x + gs.w &&
+          item.y < gs.y + gs.h &&
+          item.y + item.h > gs.y,
+      );
       if (
-        !gs ||
+        beside.length === 0 ||
+        beside.some(
+          (item: any) => item.y < gs.y || item.y + item.h > gs.y + gs.h,
+        ) ||
         rest.some(
           (item: any) =>
             item.x === gs.x && item.w <= gs.w && item.y === gs.y + gs.h,
@@ -111,13 +121,38 @@ const withoutGettingStarted = (layouts: any) =>
       ) {
         return [breakpoint, rest];
       }
+      const xs = [...new Set<number>(beside.map((item: any) => item.x))].sort(
+        (a, b) => a - b,
+      );
+      const columns = xs.map((x) => ({
+        x,
+        w: Math.max(
+          ...beside
+            .filter((item: any) => item.x === x)
+            .map((item: any) => item.w),
+        ),
+        extra: Math.floor(gs.w / xs.length),
+      }));
+      for (let left = gs.w % xs.length; left > 0; left -= 1) {
+        const narrowest = columns.reduce((a, b) =>
+          b.w + b.extra < a.w + a.extra ? b : a,
+        );
+        narrowest.extra += 1;
+      }
       return [
         breakpoint,
-        rest.map((item: any) =>
-          item.x === gs.x + gs.w && item.y === gs.y
-            ? { ...item, x: gs.x, w: item.w + gs.w }
-            : item,
-        ),
+        rest.map((item: any) => {
+          if (!beside.includes(item)) return item;
+          const before = columns
+            .filter((column) => column.x < item.x)
+            .reduce((sum, column) => sum + column.extra, 0);
+          const own = columns.find((column) => column.x === item.x)!;
+          return {
+            ...item,
+            x: item.x - gs.w + before,
+            w: item.w + own.extra,
+          };
+        }),
       ];
     }),
   );
