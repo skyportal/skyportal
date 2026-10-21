@@ -133,6 +133,10 @@ def valid_url(trial_url):
         return False
 
 
+def start_request_timeout_message(url):
+    return f"Request to {url} timed out."
+
+
 def call_external_analysis_service(
     url,
     callback_url,
@@ -193,7 +197,7 @@ def call_external_analysis_service(
             timeout=request_timeout,
         )
     except requests.exceptions.Timeout:
-        raise ValueError(f"Request to {url} timed out.")
+        raise ValueError(start_request_timeout_message(url))
     except Exception as e:
         raise Exception(f"Request to {url} had exception {e}.")
 
