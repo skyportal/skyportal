@@ -14,6 +14,7 @@ from ...utils.embedding_store import delete_embedding, upsert_embedding
 from ...utils.embedding_store_config import summary_embeddings_enabled
 from ...utils.naive_datetime import utcnow_naive
 from ..base import BaseHandler
+from .analysis import start_request_timeout_message
 from .candidate.candidate import (
     update_summary_history_if_relevant,
 )
@@ -73,7 +74,15 @@ class AnalysisWebhookHandler(BaseHandler):
                 if not analysis:
                     return self.error("Invalid token", status=403)
                 last_active = analysis.last_activity
-                if analysis.status not in ["pending", "queued"]:
+                start_request_timed_out = (
+                    analysis.status == "failure"
+                    and analysis.status_message
+                    == start_request_timeout_message(analysis.analysis_service.url)
+                )
+                if (
+                    analysis.status not in ["pending", "queued"]
+                    and not start_request_timed_out
+                ):
                     return self.error(
                         f"Analysis already updated with status='{analysis.status}'"
                         f" and message={analysis.status_message}",
