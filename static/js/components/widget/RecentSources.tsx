@@ -108,6 +108,10 @@ export const useSourceListStyles = makeStyles<{
     display: "flex",
     justifyContent: "flex-end",
     flexDirection: "column",
+    alignItems: "flex-end",
+    flexShrink: 0,
+    whiteSpace: "nowrap",
+    marginLeft: "auto",
     marginRight: "0.5rem",
   },
   classification: {
@@ -331,7 +335,10 @@ const RecentSourcesList = ({
                 <div className={styles.sourceItem}>
                   <SourceStamp source={source} styles={styles} />
                   <div className={styles.sourceContainer}>
-                    <div className={styles.sourceHeaderContainer}>
+                    <div
+                      className={styles.sourceHeaderContainer}
+                      style={{ flexWrap: "wrap" }}
+                    >
                       <div className={styles.sourceInfoContainer}>
                         <Link
                           to={`/source/${source.obj_id}`}
@@ -358,35 +365,12 @@ const RecentSourcesList = ({
                             {`δ: ${dec_to_dms(source.dec)}`}
                           </span>
                         </div>
-                        {source.groups?.length > 0 && (
-                          <Box sx={{ mt: 0.5, mb: 0.75 }}>
-                            <ExpandableCell
-                              maxVisible={2}
-                              items={source.groups.map((group: any) => (
-                                <Chip
-                                  key={group.id}
-                                  label={group.name}
-                                  size="small"
-                                  variant="outlined"
-                                  component={Link}
-                                  to={`/group/${group.id}`}
-                                  clickable
-                                  sx={{
-                                    height: 20,
-                                    maxWidth: "10rem",
-                                    fontSize: "0.7rem",
-                                  }}
-                                />
-                              ))}
-                            />
-                          </Box>
-                        )}
                       </div>
                       <div className={styles.sourceSavedSince}>
                         <span
                           style={{
                             textAlign: "right",
-                            fontSize: "0.95rem",
+                            fontSize: "0.8rem",
                             fontStyle: "italic",
                             padding: 0,
                             margin: 0,
@@ -401,7 +385,7 @@ const RecentSourcesList = ({
                         <span
                           style={{
                             textAlign: "right",
-                            fontSize: "0.95rem",
+                            fontSize: "0.8rem",
                             fontStyle: "italic",
                             padding: 0,
                             margin: 0,
@@ -410,15 +394,7 @@ const RecentSourcesList = ({
                         >
                           {` ago`}
                         </span>
-                      </div>
-                    </div>
-                    <div className={styles.sourceChipContainer}>
-                      {displayTNS && source?.tns_name?.length > 0 && (
-                        <div
-                          style={{
-                            marginTop: source?.tags?.length > 0 ? "-3rem" : "0",
-                          }}
-                        >
+                        {displayTNS && source?.tns_name?.length > 0 && (
                           <Chip
                             label={source.tns_name}
                             color={
@@ -429,6 +405,7 @@ const RecentSourcesList = ({
                             size="small"
                             style={{
                               fontWeight: "bold",
+                              marginTop: "0.3rem",
                             }}
                             onClick={() => {
                               window.open(
@@ -441,7 +418,32 @@ const RecentSourcesList = ({
                               );
                             }}
                           />
-                        </div>
+                        )}
+                      </div>
+                    </div>
+                    <div className={styles.sourceChipContainer}>
+                      {source.groups?.length > 0 && (
+                        <Box sx={{ width: "100%", mt: 0.5, mb: 0.25 }}>
+                          <ExpandableCell
+                            maxVisible={2}
+                            items={source.groups.map((group: any) => (
+                              <Chip
+                                key={group.id}
+                                label={group.name}
+                                size="small"
+                                variant="outlined"
+                                component={Link}
+                                to={`/group/${group.id}`}
+                                clickable
+                                sx={{
+                                  height: 20,
+                                  maxWidth: "10rem",
+                                  fontSize: "0.7rem",
+                                }}
+                              />
+                            ))}
+                          />
+                        </Box>
                       )}
                       <div style={{ width: "100%" }}>
                         <DynamicTagDisplay source={source} styles={styles} />
