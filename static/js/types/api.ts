@@ -43855,6 +43855,12 @@ export interface components {
              * @default null
              */
             catalogData: string | null;
+            /**
+             * Group Ids
+             * @description Groups that may see this catalog. Defaults to the sitewide public group.
+             * @default null
+             */
+            group_ids: number[] | null;
         };
         /**
          * GalaxyCatalogPostBody

@@ -154,6 +154,11 @@ class GalaxyASCIIFilePostBody(BaseModel):
     catalogData: str | None = Field(
         default=None, description="Catalog data ASCII string."
     )
+    group_ids: list[int] | None = Field(
+        default=None,
+        description="Groups that may see this catalog. Defaults to the "
+        "sitewide public group.",
+    )
 
 
 class GalaxyCatalogFitsPostBody(BaseModel):
