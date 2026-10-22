@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { JSONTree } from "react-json-tree";
 import CircularProgress from "@mui/material/CircularProgress";
 
 import { showNotification } from "baselayer/components/Notifications";
@@ -8,6 +7,7 @@ import DeleteIcon from "@mui/icons-material/Delete";
 import { useAppDispatch } from "../../types/hooks";
 import { useDeleteDefaultGcnTagMutation } from "../../ducks/default_gcn_tags";
 import Button from "../Button";
+import JsonCell from "../JsonCell";
 import StyledDataGrid from "../StyledDataGrid";
 import ConfirmDeletionDialog from "../ConfirmDeletionDialog";
 
@@ -54,7 +54,7 @@ const DefaultGcnTagTable = ({ default_gcn_tags }: DefaultGcnTagTableProps) => {
       minWidth: 200,
       sortable: false,
       renderCell: (params: any) =>
-        params.row ? <JSONTree data={params.row.filters} /> : "",
+        params.row ? <JsonCell data={params.row.filters} /> : "",
     },
     {
       field: "delete",
