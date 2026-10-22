@@ -13,13 +13,29 @@ from astropy.table import Table
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import deferred, relationship
 
-from baselayer.app.models import Base
+from baselayer.app.models import AccessibleIfRelatedRowsAreAccessible, Base
+
+from .group import accessible_by_groups_members
 
 
 class SpatialCatalog(Base):
     """Spatial catalog information, composed of SpatialCatalogEntry's"""
 
     __tablename__ = "spatial_catalogs"
+
+    read = accessible_by_groups_members
+
+    groups = relationship(
+        "Group",
+        secondary="group_spatialcatalogs",
+        cascade="save-update, merge, refresh-expire, expunge",
+        passive_deletes=True,
+        doc=(
+            "Groups that can see this catalog. A public catalog is attached to "
+            "the sitewide public group; a proprietary one only to the groups "
+            "entitled to it."
+        ),
+    )
 
     catalog_name = sa.Column(
         sa.String, unique=True, nullable=False, doc="Name of the catalog.", index=True
@@ -38,6 +54,10 @@ class SpatialCatalogEntry(Base):
     """Spatial catalog entry"""
 
     __tablename__ = "spatial_catalog_entries"
+
+    # An entry is only as visible as the catalog it belongs to; its tiles are
+    # reachable only through it.
+    read = AccessibleIfRelatedRowsAreAccessible(catalog="read")
 
     catalog_id = sa.Column(
         sa.ForeignKey("spatial_catalogs.id", ondelete="CASCADE"),

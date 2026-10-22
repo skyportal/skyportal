@@ -39,6 +39,7 @@ from ...models import (
     new_session,
 )
 from ...utils.asynchronous import run_async
+from ...utils.catalog_groups import groups_for_ids
 from ...utils.naive_datetime import utcnow_naive
 from ..base import BaseHandler, format_doc
 
@@ -526,7 +527,12 @@ class GalaxyCatalogHandler(BaseHandler):
             catalog_data["redshift_error"] = catalog_data.pop("z_unc")
 
         return _validate_and_ingest_galaxies(
-            self, catalog_name, catalog_description, catalog_url, catalog_data
+            self,
+            catalog_name,
+            catalog_description,
+            catalog_url,
+            catalog_data,
+            body.group_ids,
         )
 
     @auth_or_token
@@ -701,6 +707,9 @@ def add_galaxies(catalog_metadata, catalog_data):
                 description=catalog_metadata.get("description", None),
                 url=catalog_metadata.get("url", None),
             )
+            # Without groups the catalog, and every galaxy under it, reads as
+            # invisible to all but system admins.
+            catalog.groups = groups_for_ids(session, catalog_metadata.get("group_ids"))
             session.add(catalog)
             session.commit()
         galaxies = [
@@ -769,7 +778,12 @@ def add_galaxies(catalog_metadata, catalog_data):
 
 # Shared by the JSON and ASCII upload handlers once the data is a dict of columns.
 def _validate_and_ingest_galaxies(
-    handler, catalog_name, catalog_description, catalog_url, catalog_data
+    handler,
+    catalog_name,
+    catalog_description,
+    catalog_url,
+    catalog_data,
+    group_ids=None,
 ):
     # fill in any missing optional parameters
     optional_parameters = [
@@ -821,6 +835,7 @@ def _validate_and_ingest_galaxies(
         "name": catalog_name,
         "description": catalog_description,
         "url": catalog_url,
+        "group_ids": group_ids,
     }
 
     IOLoop.current().run_in_executor(
@@ -874,7 +889,12 @@ class GalaxyASCIIFileHandler(BaseHandler):
             return self.error("ra, dec, and name required in catalog_data.")
 
         return _validate_and_ingest_galaxies(
-            self, catalog_name, catalog_description, catalog_url, catalog_data
+            self,
+            catalog_name,
+            catalog_description,
+            catalog_url,
+            catalog_data,
+            body.group_ids,
         )
 
 
@@ -919,7 +939,7 @@ def _str_col(col):
     return np.char.strip(arr.astype("U"))
 
 
-def _get_or_create_catalog(name):
+def _get_or_create_catalog(name, group_ids=None):
     """Return the id of the GalaxyCatalog with this name, creating it if needed."""
     with DBSession() as session:
         catalog = session.scalar(
@@ -927,6 +947,7 @@ def _get_or_create_catalog(name):
         )
         if catalog is None:
             catalog = GalaxyCatalog(name=name)
+            catalog.groups = groups_for_ids(session, group_ids)
             session.add(catalog)
             session.commit()
         return catalog.id

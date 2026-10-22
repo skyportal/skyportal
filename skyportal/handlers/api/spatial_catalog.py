@@ -20,11 +20,13 @@ from baselayer.app.flow import Flow
 from baselayer.log import make_log
 
 from ...models import (
+    Group,
     SpatialCatalog,
     SpatialCatalogEntry,
     SpatialCatalogEntryTile,
     new_session,
 )
+from ...utils.catalog_groups import NoVisibleGroup, resolve_group_ids
 from ...utils.gcn import (
     from_cone,
     from_ellipse,
@@ -144,7 +146,9 @@ def delete_catalog(catalog_id):
 
 
 # Shared by the JSON and ASCII upload handlers once the data is a dict of columns.
-async def _validate_and_ingest_spatial_catalog(handler, catalog_name, catalog_data):
+async def _validate_and_ingest_spatial_catalog(
+    handler, catalog_name, catalog_data, group_ids=None
+):
     # check for required parameters
     if not {"name", "ra", "dec"}.issubset(set(catalog_data.keys())):
         return handler.error("name, ra, and dec required in field_data.")
@@ -169,7 +173,20 @@ async def _validate_and_ingest_spatial_catalog(handler, catalog_name, catalog_da
         )
         catalog = await session.scalar(stmt)
         if catalog is None:
+            # A catalog with no groups reads as invisible, so resolve them
+            # before it exists rather than leaving it orphaned on failure.
+            try:
+                resolved = await resolve_group_ids(
+                    session, handler.current_user, group_ids
+                )
+            except NoVisibleGroup as e:
+                return handler.error(str(e))
             catalog = SpatialCatalog(catalog_name=catalog_name)
+            catalog.groups = (
+                (await session.scalars(sa.select(Group).where(Group.id.in_(resolved))))
+                .unique()
+                .all()
+            )
             session.add(catalog)
             await session.commit()
 
@@ -209,7 +226,7 @@ class SpatialCatalogHandler(BaseHandler):
             return self.error("catalog_data must be a dictionary")
 
         return await _validate_and_ingest_spatial_catalog(
-            self, catalog_name, catalog_data
+            self, catalog_name, catalog_data, body.group_ids
         )
 
     @auth_or_token
@@ -363,5 +380,5 @@ class SpatialCatalogASCIIFileHandler(BaseHandler):
             return self.error("catalog_data is a required parameter.")
 
         return await _validate_and_ingest_spatial_catalog(
-            self, catalog_name, catalog_data
+            self, catalog_name, catalog_data, body.group_ids
         )

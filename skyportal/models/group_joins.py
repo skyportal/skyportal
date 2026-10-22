@@ -29,6 +29,8 @@ __all__ = [
     "GroupPublicRelease",
     "GroupScanReport",
     "GroupGcnEvent",
+    "GroupGalaxyCatalog",
+    "GroupSpatialCatalog",
     "GroupObservingRun",
     "system_admin_user_ids",
 ]
@@ -62,6 +64,7 @@ from .comment import (
     CommentOnSpectrum,
 )
 from .filter import Filter
+from .galaxy import GalaxyCatalog
 from .gcn import GcnEvent
 from .group import Group, accessible_by_group_admins, accessible_by_group_members
 from .invitation import Invitation
@@ -79,6 +82,7 @@ from .reminder import (
 )
 from .scan_report.scan_report import ScanReport
 from .source_notification import SourceNotification
+from .spatial_catalog import SpatialCatalog
 from .spectrum import Spectrum
 from .stream import Stream, StreamUser
 from .survey_efficiency import (
@@ -376,6 +380,18 @@ GroupGcnEvent = join_model("group_gcnevents", Group, GcnEvent)
 GroupGcnEvent.__doc__ = "Join table mapping Groups to GcnEvents."
 GroupGcnEvent.delete = GroupGcnEvent.update = (
     accessible_by_group_admins & GroupGcnEvent.read
+)
+
+GroupGalaxyCatalog = join_model("group_galaxycatalogs", Group, GalaxyCatalog)
+GroupGalaxyCatalog.__doc__ = "Join table mapping Groups to GalaxyCatalogs."
+GroupGalaxyCatalog.delete = GroupGalaxyCatalog.update = (
+    accessible_by_group_admins & GroupGalaxyCatalog.read
+)
+
+GroupSpatialCatalog = join_model("group_spatialcatalogs", Group, SpatialCatalog)
+GroupSpatialCatalog.__doc__ = "Join table mapping Groups to SpatialCatalogs."
+GroupSpatialCatalog.delete = GroupSpatialCatalog.update = (
+    accessible_by_group_admins & GroupSpatialCatalog.read
 )
 
 GroupObservingRun = join_model("group_observingruns", Group, ObservingRun)
