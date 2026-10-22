@@ -7,7 +7,7 @@ import Button from "@mui/material/Button";
 import Typography from "@mui/material/Typography";
 import CircularProgress from "@mui/material/CircularProgress";
 
-import Form from "../../SchemaForm";
+import Form from "@rjsf/mui";
 import validator from "@rjsf/validator-ajv8";
 import { makeStyles } from "tss-react/mui";
 

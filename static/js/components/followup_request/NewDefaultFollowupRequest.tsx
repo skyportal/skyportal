@@ -4,7 +4,7 @@ import CircularProgress from "@mui/material/CircularProgress";
 import InputLabel from "@mui/material/InputLabel";
 import MenuItem from "@mui/material/MenuItem";
 import Select from "@mui/material/Select";
-import Form from "../SchemaForm";
+import Form from "@rjsf/mui";
 import validator from "@rjsf/validator-ajv8";
 
 import { useGetGroupsQuery } from "../../ducks/groups";

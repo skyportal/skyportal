@@ -10,7 +10,7 @@ import CircularProgress from "@mui/material/CircularProgress";
 import Typography from "@mui/material/Typography";
 import { showNotification } from "baselayer/components/Notifications";
 
-import Form from "../SchemaForm";
+import Form from "@rjsf/mui";
 import validator from "@rjsf/validator-ajv8";
 
 import { useAppDispatch } from "../../types/hooks";

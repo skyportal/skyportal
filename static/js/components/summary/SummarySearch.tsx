@@ -10,7 +10,7 @@ import ReactMarkdown from "react-markdown";
 
 import CircularProgress from "@mui/material/CircularProgress";
 
-import Form from "../SchemaForm";
+import Form from "@rjsf/mui";
 import validator from "@rjsf/validator-ajv8";
 import Table from "@mui/material/Table";
 import TableBody from "@mui/material/TableBody";

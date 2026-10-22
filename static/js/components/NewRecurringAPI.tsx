@@ -1,4 +1,4 @@
-import Form from "./SchemaForm";
+import Form from "@rjsf/mui";
 import validator from "@rjsf/validator-ajv8";
 
 import { showNotification } from "baselayer/components/Notifications";

@@ -2,7 +2,7 @@ import { useGetGroupsQuery } from "../../ducks/groups";
 import { useEffect, useMemo, useRef, useState } from "react";
 import CircularProgress from "@mui/material/CircularProgress";
 
-import Form from "../SchemaForm";
+import Form from "@rjsf/mui";
 import validator from "@rjsf/validator-ajv8";
 
 import dayjs from "dayjs";

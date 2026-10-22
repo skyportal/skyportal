@@ -5,7 +5,7 @@ import DialogContent from "@mui/material/DialogContent";
 import Link from "@mui/material/Link";
 import Box from "@mui/material/Box";
 import VisibilityIcon from "@mui/icons-material/Visibility";
-import Form from "../../SchemaForm";
+import Form from "@rjsf/mui";
 import validator from "@rjsf/validator-ajv8";
 
 import { showNotification } from "baselayer/components/Notifications";

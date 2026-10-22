@@ -1,6 +1,6 @@
 import { useState } from "react";
 
-import Form from "../SchemaForm";
+import Form from "@rjsf/mui";
 import validator from "@rjsf/validator-ajv8";
 
 import Button from "../Button";

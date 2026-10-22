@@ -3,7 +3,7 @@ import Select from "@mui/material/Select";
 import InputLabel from "@mui/material/InputLabel";
 import MenuItem from "@mui/material/MenuItem";
 
-import Form from "../SchemaForm";
+import Form from "@rjsf/mui";
 import validator from "@rjsf/validator-ajv8";
 import { makeStyles } from "tss-react/mui";
 import { showNotification } from "baselayer/components/Notifications";

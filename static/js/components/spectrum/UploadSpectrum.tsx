@@ -3,7 +3,7 @@ import React, { Suspense, useEffect, useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import StyledDataGrid from "../StyledDataGrid";
 
-import Form from "../SchemaForm";
+import Form from "@rjsf/mui";
 import validator from "@rjsf/validator-ajv8";
 import { dataUriToBuffer } from "data-uri-to-buffer";
 import Typography from "@mui/material/Typography";

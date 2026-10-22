@@ -3,7 +3,7 @@ import { useAppDispatch } from "../../types/hooks";
 import { useGetTelescopesQuery } from "../../ducks/telescopes";
 import { useGetInstrumentsQuery } from "../../ducks/instruments";
 
-import Form from "../SchemaForm";
+import Form from "@rjsf/mui";
 import validator from "@rjsf/validator-ajv8";
 import CircularProgress from "@mui/material/CircularProgress";
 import { dataUriToBuffer } from "data-uri-to-buffer";

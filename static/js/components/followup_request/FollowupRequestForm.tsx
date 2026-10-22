@@ -12,8 +12,7 @@ import Select from "@mui/material/Select";
 import Tooltip from "@mui/material/Tooltip";
 import Typography from "@mui/material/Typography";
 import HelpOutlineIcon from "@mui/icons-material/HelpOutlineOutlined";
-import { Templates as MuiTemplates } from "@rjsf/mui";
-import Form from "../SchemaForm";
+import Form, { Templates as MuiTemplates } from "@rjsf/mui";
 import validator from "@rjsf/validator-ajv8";
 import { getUiOptions } from "@rjsf/utils";
 

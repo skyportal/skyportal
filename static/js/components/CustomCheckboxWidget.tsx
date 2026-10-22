@@ -3,8 +3,6 @@ import Tooltip from "@mui/material/Tooltip";
 import InfoIcon from "@mui/icons-material/Info";
 import { Theme as MuiTheme } from "@rjsf/mui";
 
-import { NumberField } from "./SchemaForm";
-
 interface CustomCheckboxWidgetProps {
   id: string;
   name: string;
@@ -49,10 +47,6 @@ const CustomCheckboxWidget = ({
 
 export const CustomCheckboxWidgetMuiTheme = {
   ...MuiTheme,
-  fields: {
-    ...MuiTheme.fields,
-    NumberField,
-  },
   widgets: {
     ...MuiTheme.widgets,
     CheckboxWidget: CustomCheckboxWidget,

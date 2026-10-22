@@ -1,6 +1,6 @@
 import { useGetGroupsQuery } from "../../../ducks/groups";
 import { makeStyles } from "tss-react/mui";
-import Form from "../../SchemaForm";
+import Form from "@rjsf/mui";
 import validator from "@rjsf/validator-ajv8";
 
 import { useGetStreamsQuery } from "../../../ducks/streams";
