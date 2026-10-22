@@ -273,6 +273,8 @@ def get_galaxies(
             .cte("localization_healpix_ranges")
             .prefix_with("MATERIALIZED")
         )
+        # Narrows by sky position only; the query that serves the rows is
+        # access-controlled below.
         candidates_query = sa.select(Galaxy.id).join(
             ranges,
             sa.and_(
@@ -696,6 +698,8 @@ def add_galaxies(catalog_metadata, catalog_data):
 
     try:
         # check if the catalog already exists. If not, create it
+        # Background ingest: no requester to scope this to, and the handler
+        # that scheduled it has already authorized the upload.
         catalog = session.scalar(
             sa.select(GalaxyCatalog).where(
                 GalaxyCatalog.name == catalog_metadata["name"]
@@ -942,6 +946,7 @@ def _str_col(col):
 def _get_or_create_catalog(name, group_ids=None):
     """Return the id of the GalaxyCatalog with this name, creating it if needed."""
     with DBSession() as session:
+        # Background ingest, as above.
         catalog = session.scalar(
             sa.select(GalaxyCatalog).where(GalaxyCatalog.name == name)
         )

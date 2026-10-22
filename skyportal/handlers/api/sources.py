@@ -2743,22 +2743,28 @@ async def get_sources(
                 host_ids = list(
                     {obj["host_id"] for obj in objs if obj["host_id"] is not None}
                 )
+                objs_with_host = []
                 if len(host_ids) > 0:
                     hosts_result = await session.scalars(
-                        sa.select(Galaxy).where(Galaxy.id.in_(host_ids)).distinct()
+                        Galaxy.select(session.user_or_token)
+                        .where(Galaxy.id.in_(host_ids))
+                        .distinct()
                     )
-                    hosts = {
+                    hosts_by_id = {
                         host.id: host.to_dict() for host in hosts_result.unique().all()
                     }
 
+                    # A host whose catalog this requester cannot read is left
+                    # off, as any other inaccessible related row would be.
                     objs_with_host = [
                         (i, obj["host_id"], (obj["ra"], obj["dec"]))
                         for i, obj in enumerate(objs)
-                        if obj["host_id"] is not None
+                        if obj["host_id"] in hosts_by_id
                     ]
+                if host_ids and objs_with_host:
                     objs_with_host_coords = np.array([obj[2] for obj in objs_with_host])
 
-                    hosts = [hosts[obj[1]] for obj in objs_with_host]
+                    hosts = [hosts_by_id[obj[1]] for obj in objs_with_host]
                     hosts_coords = np.array(
                         [[host["ra"], host["dec"]] for host in hosts]
                     )

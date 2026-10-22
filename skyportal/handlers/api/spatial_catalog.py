@@ -126,6 +126,7 @@ def delete_catalog(catalog_id):
     session = new_session()
 
     try:
+        # Re-fetch by an id the delete handler already authorized.
         catalog = session.scalar(
             sa.select(SpatialCatalog).where(SpatialCatalog.id == int(catalog_id))
         )
