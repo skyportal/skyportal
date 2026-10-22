@@ -12,14 +12,20 @@ from baselayer.app.access import auth_or_token
 from baselayer.app.env import load_env
 from baselayer.log import make_log
 
-from ....models import Obj, SharingService, SharingServiceSubmission
+from ....models import (
+    Classification,
+    Obj,
+    SharingService,
+    SharingServiceSubmission,
+    Spectrum,
+)
 from ....utils.data_access import (
     is_existing_submission_request_async,
     process_instrument_ids_async,
     process_stream_ids_async,
     validate_photometry_options,
 )
-from ....utils.parse import get_page_and_n_per_page
+from ....utils.parse import get_page_and_n_per_page, is_null
 from ...base import BaseHandler
 
 _, cfg = load_env()
@@ -64,6 +70,7 @@ class SharingServiceSubmissionHandler(BaseHandler):
         stream_ids = body.stream_ids
         photometry_options = body.photometry_options
         publish_to_tns = body.publish_to_tns
+        tns_report_type = body.tns_report_type or "at_report"
         publish_to_hermes = body.publish_to_hermes
         publish_to_trove = body.publish_to_trove
 
@@ -105,6 +112,33 @@ class SharingServiceSubmissionHandler(BaseHandler):
                 return self.error(
                     f"No sharing service available with ID {sharing_service_id}"
                 )
+
+            if publish_to_tns and tns_report_type == "classification_report":
+                # TNS takes a classification only for an object it already
+                # holds, and only with a spectrum behind it; both are resolved
+                # at submission time, so fail here rather than in the queue.
+                if is_null(obj.tns_name):
+                    return self.error(
+                        f"{obj.id} has no TNS name, so it cannot be classified "
+                        "on TNS; report it as a discovery first."
+                    )
+                has_classification = await session.scalar(
+                    Classification.select(session.user_or_token)
+                    .where(Classification.obj_id == obj.id)
+                    .limit(1)
+                )
+                if has_classification is None:
+                    return self.error(f"{obj.id} has no classification to report.")
+                has_spectrum = await session.scalar(
+                    Spectrum.select(session.user_or_token)
+                    .where(Spectrum.obj_id == obj.id)
+                    .limit(1)
+                )
+                if has_spectrum is None:
+                    return self.error(
+                        f"{obj.id} has no spectrum, and TNS will not take a "
+                        "classification without one."
+                    )
 
             if publish_to_tns:
                 tns_altdata = sharing_service.tns_altdata
@@ -175,6 +209,7 @@ class SharingServiceSubmissionHandler(BaseHandler):
                 photometry_options=photometry_options,
                 auto_submission=False,
                 publish_to_tns=publish_to_tns,
+                tns_report_type=tns_report_type,
                 tns_status="pending" if publish_to_tns else None,
                 publish_to_hermes=publish_to_hermes,
                 hermes_status="pending" if publish_to_hermes else None,

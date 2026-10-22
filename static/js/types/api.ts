@@ -38520,6 +38520,8 @@ export interface components {
             custom_remarks_string?: string | null;
             /** @description Whether to publish to TNS or not. */
             publish_to_tns?: boolean;
+            /** @description Which TNS report this submission files: 'at_report' announces a discovery, 'classification_report' classifies an object TNS already holds and requires a spectrum. */
+            tns_report_type?: string;
             /** @description Status of the TNS submission. */
             tns_status?: string | null;
             /** @description ID of the submission returned by TNS. */
@@ -38611,6 +38613,8 @@ export interface components {
             custom_remarks_string?: string | null;
             /** @description Whether to publish to TNS or not. */
             publish_to_tns?: boolean;
+            /** @description Which TNS report this submission files: 'at_report' announces a discovery, 'classification_report' classifies an object TNS already holds and requires a spectrum. */
+            tns_report_type?: string;
             /** @description Status of the TNS submission. */
             tns_status?: string | null;
             /** @description ID of the submission returned by TNS. */
@@ -50275,6 +50279,13 @@ export interface components {
              * @default false
              */
             publish_to_tns: boolean | null;
+            /**
+             * Tns Report Type
+             * @description Which TNS report to file: 'at_report' announces a discovery, 'classification_report' classifies an object already on TNS and requires it to have a classification and a spectrum.
+             * @default at_report
+             * @enum {string|null}
+             */
+            tns_report_type: "at_report" | "classification_report" | null;
             /**
              * Publish To Hermes
              * @description Flag to indicate if the submission should be published to Hermes

@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Any, ClassVar
+from typing import Any, ClassVar, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -465,6 +465,12 @@ class SharingServiceSubmissionPostBody(BaseModel):
     publish_to_tns: bool | None = Field(
         default=False,
         description="Flag to indicate if the submission should be published to TNS",
+    )
+    tns_report_type: Literal["at_report", "classification_report"] | None = Field(
+        default="at_report",
+        description="Which TNS report to file: 'at_report' announces a "
+        "discovery, 'classification_report' classifies an object already on "
+        "TNS and requires it to have a classification and a spectrum.",
     )
     publish_to_hermes: bool | None = Field(
         default=False,
