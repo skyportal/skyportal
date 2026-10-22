@@ -1,5 +1,5 @@
 import { useGetGroupsQuery } from "../../ducks/groups";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Select from "@mui/material/Select";
 import InputLabel from "@mui/material/InputLabel";
 import MenuItem from "@mui/material/MenuItem";
@@ -7,6 +7,7 @@ import Switch from "@mui/material/Switch";
 import FormControlLabel from "@mui/material/FormControlLabel";
 import Tooltip from "@mui/material/Tooltip";
 import CircularProgress from "@mui/material/CircularProgress";
+import Typography from "@mui/material/Typography";
 import { showNotification } from "baselayer/components/Notifications";
 
 import Form from "../SchemaForm";
@@ -60,10 +61,14 @@ const NewPhotometryForm = ({ obj_id }: NewPhotometryFormProps) => {
     useGetInstrumentsQuery() as { data: any[]; isLoading: boolean };
   const [selectedInstrumentId, setSelectedInstrumentId] = useState<any>(null);
   const [extinctionCorrected, setExtinctionCorrected] = useState(false);
-  const groups = useGetGroupsQuery().data?.userAccessible ?? [];
+  const groupsData = useGetGroupsQuery().data?.userAccessible;
+  const groups = useMemo(() => groupsData ?? [], [groupsData]);
 
+  // Seeded empty: groups are still loading on the first render, so taking a
+  // default here would pin group_ids to [undefined] and fail the enum check on
+  // submit. The effect below fills it in once they arrive.
   const [selectedFormData, setSelectedFormData] = useState<any>({
-    group_ids: [groups[0]?.id],
+    group_ids: [],
     obsdate: "",
     mag: "",
     magerr: "",
@@ -91,6 +96,21 @@ const NewPhotometryForm = ({ obj_id }: NewPhotometryFormProps) => {
   sortedInstrumentList?.forEach((instrumentObj) => {
     instLookUp[instrumentObj.id] = instrumentObj;
   });
+
+  // Default the sharing to the user's first group, once, after they load.
+  const didInitGroups = useRef(false);
+  useEffect(() => {
+    const first = groups[0];
+    if (didInitGroups.current || first === undefined) {
+      return;
+    }
+    didInitGroups.current = true;
+    setSelectedFormData((current: any) =>
+      current.group_ids?.length > 0
+        ? current
+        : { ...current, group_ids: [first.id] },
+    );
+  }, [groups]);
 
   useEffect(() => {
     // if no instrument is selected, default to the first instrument that has filters
@@ -438,6 +458,14 @@ const NewPhotometryForm = ({ obj_id }: NewPhotometryFormProps) => {
                 </MenuItem>
               ))}
             </Select>
+            {selectedInstrumentId &&
+              !instLookUp[selectedInstrumentId]?.filters?.length && (
+                <Typography variant="body2" color="error">
+                  {instLookUp[selectedInstrumentId]?.name} has no filters
+                  configured, so photometry cannot be attached to it. Ask an
+                  admin to add its filters on the instrument page.
+                </Typography>
+              )}
           </div>
           <div>
             <Tooltip title="Enable if the magnitude is already corrected for Milky Way (Galactic) extinction; SkyPortal re-reddens it on upload (SFD dust map + G23 law) so storage stays observed.">
