@@ -29,6 +29,7 @@ tns_url_dict = {
     "search": "api/get/search",
     "object": "api/get/object",
     "report": "api/set/bulk-report",
+    "file_upload": "api/set/file-upload",
     "report_reply": "api/get/bulk-report-reply",
     "groups": "groups",
 }
@@ -63,6 +64,109 @@ TNS_RETRIEVAL_INSTRUMENT_IDS = {
 }
 
 TNS_OTHER_INSTRUMENT_ID = 0
+
+# Object type ids a classification report carries, keyed by the classification
+# name a taxonomy uses. Lookup is case-insensitive; see tns_classification_id.
+TNS_CLASSIFICATION_IDS = {
+    "other": 0,
+    "supernova": 1,
+    "type i": 2,
+    "ia": 3,
+    "ia-norm": 3,
+    "ib": 4,
+    "ib-norm": 4,
+    "ic": 5,
+    "ic-norm": 5,
+    "ib/c": 6,
+    "ic-bl": 7,
+    "ib-ca-rich": 8,
+    "ibn": 9,
+    "type ii": 10,
+    "ii-norm": 10,
+    "iip": 11,
+    "iil": 12,
+    "iin": 13,
+    "iib": 14,
+    "i-faint": 15,
+    "i-rapid": 16,
+    "slsn-i": 18,
+    "ic-slsn": 18,
+    "slsn-ii": 19,
+    "ii-slsn": 19,
+    "slsn-r": 20,
+    "afterglow": 23,
+    "lbv": 24,
+    "ilrt": 25,
+    "novae": 26,
+    "classical nova": 26,
+    "cataclysmic": 27,
+    "stellar variable": 28,
+    "agn": 29,
+    "galactic nuclei": 30,
+    "qso": 31,
+    "light-echo": 40,
+    "std-spec": 50,
+    "gap": 60,
+    "gap i": 61,
+    "gap ii": 62,
+    "lrn": 65,
+    "fbot": 66,
+    "kilonova": 70,
+    "impostor-sn": 99,
+    "ia-pec": 100,
+    "ia-sc": 102,
+    "ia-03fg": 102,
+    "ia-91bg": 103,
+    "ia-91t": 104,
+    "ia-02cx": 105,
+    "ia-csm": 106,
+    "ib-pec": 107,
+    "ic-pec": 108,
+    "icn": 109,
+    "ibn/icn": 110,
+    "ii-pec": 111,
+    "iin-pec": 112,
+    "tidal disruption event": 120,
+    "frb": 130,
+    "wolf-rayet": 200,
+    "wr-wn": 201,
+    "wr-wc": 202,
+    "wr-wo": 203,
+    "m dwarf": 210,
+    "computed-ia": 1003,
+    "computed-iip": 1011,
+    "computed-iib": 1014,
+    "computed-pisn": 1020,
+    "computed-iin": 1021,
+}
+
+# TNS spectrum types: 1 object, 2 host, 3 sky, 4 arcs, 5 synthetic. SkyPortal's
+# configured types are source/host/host_center, so anything host-like is 2.
+TNS_SPECTRUM_TYPE_IDS = {
+    "source": 1,
+    "host": 2,
+    "host_center": 2,
+}
+TNS_DEFAULT_SPECTRUM_TYPE_ID = 1
+
+
+def tns_classification_id(classification):
+    """The TNS object type id for a classification name, or None if unmapped.
+
+    An unmapped classification is left to the caller: reporting it as "Other"
+    would assert something about the object that nobody classified it as.
+    """
+    if classification is None:
+        return None
+    return TNS_CLASSIFICATION_IDS.get(str(classification).strip().lower())
+
+
+def tns_spectrum_type_id(spectrum_type):
+    """The TNS spectrum type id for a SkyPortal spectrum type."""
+    return TNS_SPECTRUM_TYPE_IDS.get(
+        str(spectrum_type or "").strip().lower(), TNS_DEFAULT_SPECTRUM_TYPE_ID
+    )
+
 
 SNCOSMO_TO_TNSFILTER = {
     "atlasc": 71,
