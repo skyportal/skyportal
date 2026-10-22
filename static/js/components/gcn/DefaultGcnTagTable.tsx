@@ -84,6 +84,7 @@ const DefaultGcnTagTable = ({ default_gcn_tags }: DefaultGcnTagTableProps) => {
     <div style={{ width: "100%", minWidth: "40vw", overflow: "scroll" }}>
       <StyledDataGrid
         autoHeight
+        getRowHeight={() => "auto"}
         rows={default_gcn_tags}
         columns={columns}
         getRowId={(row: any) => row.id}

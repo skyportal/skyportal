@@ -1,15 +1,16 @@
-import { useContext } from "react";
+import { useContext, useMemo } from "react";
 import ReactJson from "react-json-view";
 
 import { ExpandAllContext } from "./ExpandableCell";
 
 const JsonCell = ({ data }: { data: any }) => {
   const { expandAll } = useContext(ExpandAllContext);
+  // ReactJson resets expansion whenever `src` changes identity, so key it on content
+  const json = JSON.stringify(data ?? {});
+  const src = useMemo(() => JSON.parse(json), [json]);
   return (
     <ReactJson
-      // ReactJson only reads `collapsed` on mount, so remount on toggle
-      key={String(expandAll)}
-      src={data ?? {}}
+      src={src}
       theme="rjv-default"
       collapsed={!expandAll}
       displayDataTypes={false}
