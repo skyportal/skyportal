@@ -3745,11 +3745,12 @@ def public_followup_request_user(public_group, public_source, user):
 
 
 @pytest.fixture()
-def public_galaxy_catalog():
+def public_galaxy_catalog(user):
     catalog = GalaxyCatalog(
         name=str(uuid.uuid4()),
         description="test galaxy catalog",
         url="http://example.com/catalog",
+        groups=user.groups,
     )
     DBSession.add(catalog)
     DBSession.commit()
@@ -4456,8 +4457,8 @@ def public_facility_transaction(user):
 
 
 @pytest.fixture()
-def public_galaxy():
-    catalog = GalaxyCatalog(name=str(uuid.uuid4()))
+def public_galaxy(user):
+    catalog = GalaxyCatalog(name=str(uuid.uuid4()), groups=user.groups)
     DBSession.add(catalog)
     DBSession.commit()
     catalog_id = catalog.id
@@ -7410,8 +7411,8 @@ def public_gcn_event_obj(public_source, user):
 
 
 @pytest.fixture()
-def public_spatial_catalog():
-    catalog = SpatialCatalog(catalog_name=str(uuid.uuid4()))
+def public_spatial_catalog(user):
+    catalog = SpatialCatalog(catalog_name=str(uuid.uuid4()), groups=user.groups)
     DBSession.add(catalog)
     DBSession.commit()
     catalog_id = catalog.id
