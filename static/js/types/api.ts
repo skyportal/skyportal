@@ -28549,6 +28549,8 @@ export interface components {
             data?: components["schemas"]["FollowupRequestUserNoID"][];
         };
         Galaxy: {
+            /** @description The catalog this galaxy belongs to. */
+            readonly catalog?: components["schemas"]["GalaxyCatalog"];
             readonly objects?: components["schemas"]["Obj"][];
             /** @description ID of the catalog this galaxy belongs to. */
             catalog_id: number;
@@ -28612,6 +28614,7 @@ export interface components {
             data?: components["schemas"]["Galaxy"][];
         };
         GalaxyCatalog: {
+            readonly groups?: components["schemas"]["Group"][];
             /** @description Name of the catalog. */
             name: string;
             /** @description Description of the catalog. */
@@ -28634,6 +28637,7 @@ export interface components {
             data?: components["schemas"]["GalaxyCatalog"][];
         };
         GalaxyCatalogNoID: {
+            readonly groups?: components["schemas"]["Group"][];
             /** @description Name of the catalog. */
             name: string;
             /** @description Description of the catalog. */
@@ -28654,6 +28658,8 @@ export interface components {
             data?: components["schemas"]["GalaxyCatalogNoID"][];
         };
         GalaxyNoID: {
+            /** @description The catalog this galaxy belongs to. */
+            readonly catalog?: components["schemas"]["GalaxyCatalog"];
             readonly objects?: components["schemas"]["Obj"][];
             /** @description ID of the catalog this galaxy belongs to. */
             catalog_id: number;
@@ -30353,6 +30359,44 @@ export interface components {
             message?: string;
             data?: components["schemas"]["GroupDefaultAnalysisNoID"][];
         };
+        GroupGalaxyCatalog: {
+            readonly group?: components["schemas"]["Group"];
+            readonly galaxycatalog?: components["schemas"]["GalaxyCatalog"];
+            group_id: number;
+            galaxycatalog_id: number;
+            /** @description Unique object identifier. */
+            id?: number;
+        };
+        SingleGroupGalaxyCatalog: {
+            /** @enum {string} */
+            status: "success";
+            message?: string;
+            data?: components["schemas"]["GroupGalaxyCatalog"];
+        };
+        ArrayOfGroupGalaxyCatalogs: {
+            /** @enum {string} */
+            status: "success";
+            message?: string;
+            data?: components["schemas"]["GroupGalaxyCatalog"][];
+        };
+        GroupGalaxyCatalogNoID: {
+            readonly group?: components["schemas"]["Group"];
+            readonly galaxycatalog?: components["schemas"]["GalaxyCatalog"];
+            group_id: number;
+            galaxycatalog_id: number;
+        };
+        SingleGroupGalaxyCatalogNoID: {
+            /** @enum {string} */
+            status: "success";
+            message?: string;
+            data?: components["schemas"]["GroupGalaxyCatalogNoID"];
+        };
+        ArrayOfGroupGalaxyCatalogNoIDs: {
+            /** @enum {string} */
+            status: "success";
+            message?: string;
+            data?: components["schemas"]["GroupGalaxyCatalogNoID"][];
+        };
         GroupGcnEvent: {
             readonly group?: components["schemas"]["Group"];
             readonly gcnevent?: components["schemas"]["GcnEvent"];
@@ -31178,6 +31222,44 @@ export interface components {
             status: "success";
             message?: string;
             data?: components["schemas"]["GroupSourceNotificationNoID"][];
+        };
+        GroupSpatialCatalog: {
+            readonly group?: components["schemas"]["Group"];
+            readonly spatialcatalog?: components["schemas"]["SpatialCatalog"];
+            group_id: number;
+            spatial_catalog_id: number;
+            /** @description Unique object identifier. */
+            id?: number;
+        };
+        SingleGroupSpatialCatalog: {
+            /** @enum {string} */
+            status: "success";
+            message?: string;
+            data?: components["schemas"]["GroupSpatialCatalog"];
+        };
+        ArrayOfGroupSpatialCatalogs: {
+            /** @enum {string} */
+            status: "success";
+            message?: string;
+            data?: components["schemas"]["GroupSpatialCatalog"][];
+        };
+        GroupSpatialCatalogNoID: {
+            readonly group?: components["schemas"]["Group"];
+            readonly spatialcatalog?: components["schemas"]["SpatialCatalog"];
+            group_id: number;
+            spatial_catalog_id: number;
+        };
+        SingleGroupSpatialCatalogNoID: {
+            /** @enum {string} */
+            status: "success";
+            message?: string;
+            data?: components["schemas"]["GroupSpatialCatalogNoID"];
+        };
+        ArrayOfGroupSpatialCatalogNoIDs: {
+            /** @enum {string} */
+            status: "success";
+            message?: string;
+            data?: components["schemas"]["GroupSpatialCatalogNoID"][];
         };
         GroupSpectrum: {
             readonly group?: components["schemas"]["Group"];
@@ -39013,6 +39095,7 @@ export interface components {
             data?: components["schemas"]["SourceViewNoID"][];
         };
         SpatialCatalog: {
+            readonly groups?: components["schemas"]["Group"][];
             readonly entries?: components["schemas"]["SpatialCatalogEntry"][];
             /** @description Name of the catalog. */
             catalog_name: string;
@@ -39128,6 +39211,7 @@ export interface components {
             data?: components["schemas"]["SpatialCatalogEntryTileNoID"][];
         };
         SpatialCatalogNoID: {
+            readonly groups?: components["schemas"]["Group"][];
             readonly entries?: components["schemas"]["SpatialCatalogEntry"][];
             /** @description Name of the catalog. */
             catalog_name: string;
@@ -43803,6 +43887,12 @@ export interface components {
             catalog_data: {
                 [key: string]: unknown;
             } | null;
+            /**
+             * Group Ids
+             * @description Groups that may see this catalog. Defaults to the sitewide public group.
+             * @default null
+             */
+            group_ids: number[] | null;
         };
         /**
          * EarthquakeMeasurementBody
@@ -48468,6 +48558,12 @@ export interface components {
              * @default null
              */
             catalogName: string | null;
+            /**
+             * Group Ids
+             * @description Groups that may see this catalog. Defaults to the sitewide public group.
+             * @default null
+             */
+            group_ids: number[] | null;
         };
         /**
          * SpatialCatalogASCIIFilePostResponse
@@ -48497,6 +48593,12 @@ export interface components {
              * @default null
              */
             catalog_data: unknown;
+            /**
+             * Group Ids
+             * @description Groups that may see this catalog. Defaults to the sitewide public group.
+             * @default null
+             */
+            group_ids: number[] | null;
         };
         /**
          * SpatialCatalogPostResponse
