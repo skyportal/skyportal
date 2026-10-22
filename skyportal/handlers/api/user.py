@@ -38,6 +38,7 @@ from ...models import (
     User,
     UserACL,
     UserRole,
+    shared_profile_fields,
 )
 from ..base import BaseHandler
 from .internal.source_views import t_index
@@ -46,26 +47,6 @@ from .roles import includes_admin_role
 
 log = make_log("api/user")
 env, cfg = load_env()
-
-
-# Mirrored by PUBLIC_FIELDS in static/js/components/user/UserProfileInfo.tsx
-PUBLIC_PROFILE_FIELDS = {
-    "affiliations": True,
-    "bio": True,
-    "contact_email": False,
-    "contact_phone": False,
-    "roles": False,
-    "groups": False,
-}
-
-
-def shared_profile_fields(user):
-    """The public profile fields this user chose to share, defaults applied."""
-    preferences = (user.preferences or {}).get("publicProfile") or {}
-    return {
-        field: bool(preferences.get(field, default))
-        for field, default in PUBLIC_PROFILE_FIELDS.items()
-    }
 
 
 def public_user_info(user):
@@ -332,7 +313,7 @@ class UserHandler(BaseHandler):
                 if not self.can_manage_user(user_id):
                     return self.success(data=public_user_info(user))
 
-                user_info = user.to_dict()
+                user_info = user.to_dict(private=True)
 
                 # return the phone number so it can be serialized
                 if user_info.get("contact_phone"):
@@ -441,7 +422,7 @@ class UserHandler(BaseHandler):
                 )
 
             for user in users_result.all():
-                user_info = user.to_dict()
+                user_info = user.to_dict(private=True)
                 user_info["permissions"] = sorted(user.permissions)
                 user_info["roles"] = sorted(role.id for role in user.roles)
                 user_info["acls"] = sorted(acl.id for acl in user.acls)
@@ -643,6 +624,8 @@ class UserHandler(BaseHandler):
 
 ACTIVITY_PAGE = 25
 ACTIVITY_PAGE_MAX = 100
+# The feed merges offset + limit rows of every kind in Python, so depth is capped.
+ACTIVITY_OFFSET_MAX = 5000
 ACTIVITY_PHOTOMETRY_POINTS = 200
 
 
@@ -692,6 +675,12 @@ def _mine(model, column, user_id, viewer):
         # Channel comments are conversation rather than a record of work, and
         # the news feed leaves them out on the same grounds.
         stmt = stmt.where(Comment.channel.is_(None))
+    if model is Source:
+        # Sharing with a group one is not in signs a row that the group may
+        # never save; only rows that are active or were unsaved were saves.
+        stmt = stmt.where(
+            sa.or_(Source.active.is_(True), Source.unsaved_by_id.isnot(None))
+        )
     return model.id.in_(stmt)
 
 
@@ -882,7 +871,7 @@ class UserActivityHandler(BaseHandler):
             name: offset
             schema:
               type: integer
-            description: How many items to skip, for paging further back.
+            description: How many items to skip, for paging further back, at most 5000.
           - in: query
             name: kind
             schema:
@@ -913,6 +902,8 @@ class UserActivityHandler(BaseHandler):
                 offset = max(int(self.get_query_argument("offset", 0)), 0)
             except ValueError:
                 return self.error("limit and offset must be numbers.")
+            if offset > ACTIVITY_OFFSET_MAX:
+                return self.error(f"offset must be at most {ACTIVITY_OFFSET_MAX}.")
             kind = self.get_query_argument("kind", None)
             if kind is not None and kind not in ACTIVITY:
                 return self.error(f"kind must be one of {', '.join(ACTIVITY)}.")
@@ -935,7 +926,8 @@ class UserActivityHandler(BaseHandler):
                     if offset == 0
                     else None,
                     "items": items,
-                    "has_more": has_more,
+                    # A next page past the offset cap would be refused
+                    "has_more": has_more and offset + limit <= ACTIVITY_OFFSET_MAX,
                     "objs": objs,
                     "filter_colors": filter_colors,
                 }

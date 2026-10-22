@@ -59,6 +59,12 @@ const ObservationPlanGlobe = ({
   const [obsList, setObsList] = useState<any>(null);
   const [fetchFailed, setFetchFailed] = useState(false);
   const [selectedObservations, setSelectedObservations] = useState<any[]>([]);
+  const [reloadCount, setReloadCount] = useState(0);
+
+  // Only complete or queued plans have fields to show
+  const planReady = ["complete", "submitted to telescope queue"].includes(
+    observationplanRequest.status ?? "",
+  );
 
   const { data: localization } = useGetLocalizationQuery(
     {
@@ -68,6 +74,7 @@ const ObservationPlanGlobe = ({
     },
     {
       skip:
+        !planReady ||
         !retrieveLocalization ||
         !observationplanRequest.localization?.dateobs ||
         !observationplanRequest.localization?.localization_name,
@@ -90,18 +97,15 @@ const ObservationPlanGlobe = ({
         setFetchFailed(true);
       }
     };
-    if (
-      ["complete", "submitted to telescope queue"].includes(
-        observationplanRequest.status ?? "",
-      )
-    ) {
+    if (planReady) {
       fetchObsList();
     }
     return () => {
       cancelled = true;
     };
-  }, [dispatch, observationplanRequest]);
+  }, [dispatch, observationplanRequest, planReady, reloadCount]);
 
+  if (!planReady) return null;
   if (fetchFailed) {
     return (
       <Typography variant="body2">
@@ -110,6 +114,19 @@ const ObservationPlanGlobe = ({
     );
   }
   if (!obsList) return <CircularProgress />;
+
+  // Footprints are selected by tile number, but the DELETE takes database IDs
+  const fieldIdByTile = new Map(
+    (obsList.geojson ?? []).map((f: any, i: number) => [
+      f?.properties?.field_id,
+      obsList.field_ids?.[i],
+    ]),
+  );
+  const selectedFieldIds = selectedObservations
+    .map((tile) => fieldIdByTile.get(tile))
+    .filter((id) => id != null);
+  const canDeleteFields =
+    observationplanRequest.status === "complete" && selectedFieldIds.length > 0;
 
   return (
     <Box sx={{ display: "flex", flexDirection: "column" }}>
@@ -125,14 +142,20 @@ const ObservationPlanGlobe = ({
           setSelectedObservations={setSelectedObservations}
         />
       </Suspense>
-      {obsList.geojson?.some((f: any) => f?.selected) && (
+      {canDeleteFields && (
         <Button
           secondary
           onClick={() =>
             deleteObservationPlanFields({
               id: observationplanRequest.id as number,
-              fieldIds: selectedObservations,
+              fieldIds: selectedFieldIds,
             })
+              .unwrap()
+              .then(() => {
+                setSelectedObservations([]);
+                setReloadCount((count) => count + 1);
+              })
+              .catch(() => {})
           }
           sx={{ mt: "2px" }}
         >

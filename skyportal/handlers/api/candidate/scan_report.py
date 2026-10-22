@@ -287,7 +287,9 @@ class ScanReportHandler(BaseHandler):
         page = query.page
 
         async with self.AsyncSession() as session:
-            base_stmt = ScanReport.select(session.user_or_token, mode="read")
+            # The read policy joins the report's groups, which repeats a report
+            # shared with several of the reader's groups.
+            base_stmt = ScanReport.select(session.user_or_token, mode="read").distinct()
             total_matches = await session.scalar(
                 sa.select(sa.func.count()).select_from(base_stmt.subquery())
             )

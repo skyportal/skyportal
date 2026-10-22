@@ -165,7 +165,6 @@ const ConditionalValueBuilder = ({
   const [switchData, setSwitchData] = useState<any>(normalizeData(value));
   const [collapsedCases, setCollapsedCases] = useState<any>(new Set());
   const [openEquationIds, setOpenEquationIds] = useState<any>([]);
-  const [, setSelectedChip] = useState("");
   const [equationAnchor, setEquationAnchor] = useState<any>(null);
 
   const handleBlockChange = (caseIndex: any, newBlock: any) => {
@@ -382,7 +381,7 @@ const ConditionalValueBuilder = ({
                       customListVariables: customListVariables || [],
                     } as any)}
                     setOpenEquationIds={setOpenEquationIds}
-                    setSelectedChip={setSelectedChip}
+                    setSelectedChip={() => {}}
                     setEquationAnchor={setEquationAnchor}
                   />
                 </Box>
@@ -446,7 +445,7 @@ const ConditionalValueBuilder = ({
             customListVariables: customListVariables || [],
           } as any)}
           setOpenEquationIds={setOpenEquationIds}
-          setSelectedChip={setSelectedChip}
+          setSelectedChip={() => {}}
           setEquationAnchor={setEquationAnchor}
         />
       </Box>

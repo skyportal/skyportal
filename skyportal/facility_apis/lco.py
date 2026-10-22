@@ -772,7 +772,9 @@ class LCOAPI(FollowUpAPI):
                 )
                 IOLoop.current().run_in_executor(None, download_obs)
             else:
-                request.status = ar_content
+                log(
+                    f"Archive query for request {request.id} failed: status {ar_status}: {ar_content}"
+                )
         elif state == "PENDING":
             request.status = "pending"
         else:

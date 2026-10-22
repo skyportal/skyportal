@@ -509,3 +509,95 @@ def test_rejected_manual_observation_plan_persists_nothing(
     assert data["data"]["requests"] == []
 
     remove_telescope_and_instrument(telescope_id, instrument_id, super_admin_token)
+
+
+def test_observation_plan_geojson_field_ids_delete_fields(
+    super_admin_token, public_group, gcn_GW190814
+):
+    telescope_id, instrument_id, _, _ = add_telescope_and_instrument(
+        "ZTF", super_admin_token, [200, 201]
+    )
+    allocation_data = {
+        "group_id": public_group.id,
+        "instrument_id": instrument_id,
+        "pi": "Shri Kulkarni",
+        "hours_allocated": 200,
+        "validity_ranges": [
+            {
+                "start_date": "2021-02-27T00:00:00.000Z",
+                "end_date": "3021-07-20T00:00:00.000Z",
+            }
+        ],
+        "proposal_id": "COO-2020A-P01",
+        "types": ["observation_plan"],
+    }
+    status, data = api(
+        "POST", "allocation", data=allocation_data, token=super_admin_token
+    )
+    assert status == 200
+    allocation_id = data["data"]["id"]
+
+    manual_plan = {
+        "gcnevent_id": gcn_GW190814.id,
+        "localization_id": gcn_GW190814.localizations[0].id,
+        "allocation_id": allocation_id,
+        "status": "complete",
+        "payload": {},
+        "plan_name": str(uuid.uuid4()),
+        "observation_plans": [
+            {
+                "validity_window_start": "2019-08-14T21:00:00",
+                "validity_window_end": "2019-08-15T21:00:00",
+                "status": "complete",
+                "planned_observations": [
+                    {
+                        "dateobs": "2019-08-14T22:00:00",
+                        "field_id": field_id,
+                        "exposure_time": 30,
+                        "weight": 1.0,
+                        "filt": "ztfr",
+                        "planned_observation_id": i,
+                        "overhead_per_exposure": 10,
+                    }
+                    for i, field_id in enumerate([200, 201])
+                ],
+            }
+        ],
+    }
+    status, data = api(
+        "POST", "observation_plan/manual", data=manual_plan, token=super_admin_token
+    )
+    assert status == 200, data
+    request_id = data["data"]["id"]
+
+    # the skymap selects fields by tile number and deletes them by field_ids
+    status, data = api(
+        "GET", f"observation_plan/{request_id}/geojson", token=super_admin_token
+    )
+    assert status == 200, data
+    tiles = [f["properties"]["field_id"] for f in data["data"]["geojson"]]
+    assert sorted(tiles) == [200, 201]
+    field_ids = data["data"]["field_ids"]
+    assert len(field_ids) == len(tiles)
+
+    status, data = api(
+        "DELETE",
+        f"observation_plan/{request_id}/fields",
+        data={"fieldIds": [field_ids[tiles.index(200)]]},
+        token=super_admin_token,
+    )
+    assert status == 200, data
+
+    status, data = api(
+        "GET", f"observation_plan/{request_id}/geojson", token=super_admin_token
+    )
+    assert status == 200, data
+    assert [f["properties"]["field_id"] for f in data["data"]["geojson"]] == [201]
+    assert data["data"]["field_ids"] == [field_ids[tiles.index(201)]]
+
+    status, data = api(
+        "DELETE", f"observation_plan/{request_id}", token=super_admin_token
+    )
+    assert status == 200, data
+
+    remove_telescope_and_instrument(telescope_id, instrument_id, super_admin_token)

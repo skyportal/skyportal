@@ -17,7 +17,7 @@ from .interface import push_followup_refresh
 env, cfg = load_env()
 
 
-SLACK_URL = f"{cfg['slack.expected_url_preamble']}/services"
+SLACK_URL = f"{cfg['slack.expected_url_preamble'].rstrip('/')}/services"
 
 
 class SLACKRequest:

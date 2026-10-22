@@ -69,29 +69,6 @@ class GroupAdmissionRequestHandler(BaseHandler):
                     return self.error(
                         f"Could not find an admission request with the ID: {admission_request_id}."
                     )
-                group = await session.scalar(
-                    Group.select(session.user_or_token).where(
-                        Group.id == admission_request.group_id
-                    )
-                )
-                if group is None:
-                    return self.error("Invalid group ID")
-                admins_result = await session.scalars(
-                    GroupUser.select(session.user_or_token)
-                    .options(selectinload(GroupUser.user))
-                    .where(GroupUser.group_id == admission_request.group_id)
-                    .where(GroupUser.admin.is_(True))
-                )
-                admins = admins_result.all()
-                admin_ids = [admin.user.id for admin in admins]
-
-                if (admission_request.user.id != self.current_user.created_by.id) and (
-                    self.current_user.created_by.id not in admin_ids
-                ):
-                    return self.error(
-                        "User must be group admin or requester to see request"
-                    )
-
                 response_data = {
                     **admission_request.to_dict(),
                     "user": public_user_info(admission_request.user),

@@ -17,6 +17,7 @@ import WarningAmberOutlined from "@mui/icons-material/WarningAmberOutlined";
 import { useAppDispatch } from "../types/hooks";
 import { GET } from "../API";
 import { useGetObservingRunQuery } from "../ducks/observingRun";
+import { download } from "../utils/download";
 
 interface StarListItem {
   str: string;
@@ -99,17 +100,13 @@ const StarListBody = ({
               <IconButton
                 disabled={!starList?.length}
                 onClick={() => {
-                  const element = document.createElement("a");
-                  const file = new Blob(
-                    [(starList || []).map((item) => item.str).join("\n")],
-                    { type: "text/plain" },
+                  download(
+                    (starList || []).map((item) => item.str).join("\n"),
+                    "text/plain",
+                    `starlist_${facility.toLowerCase()}${
+                      facility === "P200-NGPS" ? ".csv" : ".txt"
+                    }`,
                   );
-                  element.href = URL.createObjectURL(file);
-                  element.download = `starlist_${facility.toLowerCase()}${
-                    facility === "P200-NGPS" ? ".csv" : ".txt"
-                  }`;
-                  document.body.appendChild(element);
-                  element.click();
                 }}
               >
                 <DownloadOutlined />

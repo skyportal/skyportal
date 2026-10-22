@@ -655,15 +655,20 @@ class AllocationReportHandler(BaseHandler):
 
             matplotlib.use("Agg")
             fig, (ax1, ax2, ax3, ax4) = plt.subplots(1, 4, figsize=(16, 6))
-            ax1.pie(
-                values,
-                labels=labels,
-                shadow=True,
-                startangle=90,
-                autopct=make_autopct(values, label="Hours"),
-            )
-            ax1.axis("equal")
-            ax1.set_title("Time Allocated")
+            # hours_allocated has no lower bound, and pie refuses all-zero or
+            # negative sizes
+            if sum(values) > 0 and min(values) >= 0:
+                ax1.pie(
+                    values,
+                    labels=labels,
+                    shadow=True,
+                    startangle=90,
+                    autopct=make_autopct(values, label="Hours"),
+                )
+                ax1.axis("equal")
+                ax1.set_title("Time Allocated")
+            else:
+                ax1.remove()
 
             # number of requests per allocation, via SQL not lazy a.requests
             request_counts = []

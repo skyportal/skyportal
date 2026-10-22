@@ -49,6 +49,17 @@ WAIT_TIME_BETWEEN_QUERIES = 120  # in seconds
 CUTOFF_TIME_DAYS = 7  # max lookback time for requests to be processed
 
 
+def record_status(session, req, followup_request, status):
+    """Save the follow-up status and the query time, then log the status."""
+    if followup_request.status != status:
+        followup_request.status = status
+        session.add(followup_request)
+    req.last_query = utcnow_naive()
+    session.add(req)
+    session.commit()
+    log(f"Job {req.id}: {status}")
+
+
 def service():
     while True:
         queue = []
@@ -180,31 +191,13 @@ def service():
                                     f"Job {req.id}: running (started at {json_response['starttimestamp']})"
                                 )
                                 status = f"Job is running (started at {json_response['starttimestamp']})"
-                                if followup_request.status != status:
-                                    followup_request.status = status
-                                    session.add(followup_request)
-                                req.last_query = utcnow_naive()
-                                session.add(req)
-                                session.commit()
-                                log(f"Job {req.id}: {status}")
+                                record_status(session, req, followup_request, status)
                             else:
                                 status = f"Waiting for job to start (queued at {json_response['timestamp']})"
-                                if followup_request.status != status:
-                                    followup_request.status = status
-                                    session.add(followup_request)
-                                req.last_query = utcnow_naive()
-                                session.add(req)
-                                session.commit()
-                                log(f"Job {req.id}: {status}")
+                                record_status(session, req, followup_request, status)
                         else:
                             status = f"error: {response.content}"
-                            if followup_request.status != status:
-                                followup_request.status = status
-                                session.add(followup_request)
-                            req.last_query = utcnow_naive()
-                            session.add(req)
-                            session.commit()
-                            log(f"Job {req.id}: {status}")
+                            record_status(session, req, followup_request, status)
 
                     elif instrument.name == "ZTF":
                         from skyportal.facility_apis.ztf import commit_photometry
@@ -236,13 +229,7 @@ def service():
                             df_result = df_result.replace({np.nan: None})
                             if not set(keys).issubset(df_result.columns):
                                 status = "In progress: RA, Dec, jdstart, and jdend required in response."
-                                if followup_request.status != status:
-                                    followup_request.status = status
-                                    session.add(followup_request)
-                                req.last_query = utcnow_naive()
-                                session.add(req)
-                                session.commit()
-                                log(f"Job {req.id}: {status}")
+                                record_status(session, req, followup_request, status)
                                 continue
 
                             index_match = None
@@ -265,13 +252,7 @@ def service():
                             row = df_result.loc[index_match]
                             if row["lightcurve"] is None:
                                 status = "In progress: Light curve not yet available. Waiting for it to complete."
-                                if followup_request.status != status:
-                                    followup_request.status = status
-                                    session.add(followup_request)
-                                req.last_query = utcnow_naive()
-                                session.add(req)
-                                session.commit()
-                                log(f"Job {req.id}: {status}")
+                                record_status(session, req, followup_request, status)
                                 continue
 
                             lightcurve = row["lightcurve"]
@@ -311,34 +292,18 @@ def service():
                                         status = f"error: {str(e)}"
                                     else:
                                         status = "In progress: Light curve not yet available. Waiting for it to complete."
-                                    if followup_request.status != status:
-                                        followup_request.status = status
-                                        session.add(followup_request)
-                                    req.last_query = utcnow_naive()
-                                    session.add(req)
-                                    session.commit()
-                                    log(f"Job {req.id}: {status}")
+                                    record_status(
+                                        session, req, followup_request, status
+                                    )
                         elif (
                             "Error: database is busy; try again a minute later."
                             in str(response.content)
                         ):
                             status = "In progress: forced photometry database is busy; trying again in 2 minutes."
-                            if followup_request.status != status:
-                                followup_request.status = status
-                                session.add(followup_request)
-                            req.last_query = utcnow_naive()
-                            session.add(req)
-                            session.commit()
-                            log(f"Job {req.id}: {status}")
+                            record_status(session, req, followup_request, status)
                         else:
                             status = f"error: {response.content}"
-                            if followup_request.status != status:
-                                followup_request.status = status
-                                session.add(followup_request)
-                            req.last_query = utcnow_naive()
-                            session.add(req)
-                            session.commit()
-                            log(f"Job {req.id}: {status}")
+                            record_status(session, req, followup_request, status)
                     else:
                         log(f"Job {req.id}: API for {instrument.name} unknown")
 

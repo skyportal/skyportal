@@ -7,12 +7,11 @@ import healpix_alchemy as ha
 import numpy as np
 import numpy.testing as npt
 import pytest
-import sqlalchemy as sa
 from astropy.time import Time
 from dateutil import parser
 from tdtax import __version__, taxonomy
 
-from skyportal.models import DBSession, Obj, cosmo
+from skyportal.models import cosmo
 from skyportal.tests import api
 
 from ....utils.naive_datetime import utcnow_naive
@@ -495,6 +494,49 @@ def test_admin_save_source_as_other_user(
     assert data["data"]["id"] == obj_id
     assert len(data["data"]["groups"]) > 0
     assert data["data"]["groups"][0]["saved_by"]["id"] == view_only_user.id
+
+
+def test_saved_by_omits_unshared_contact_details(
+    upload_data_token, view_only_token, view_only_token2, user, public_group
+):
+    obj_id = str(uuid.uuid4())
+    status, data = api(
+        "POST",
+        "sources",
+        data={
+            "id": obj_id,
+            "ra": 234.22,
+            "dec": -22.33,
+            "group_ids": [public_group.id],
+        },
+        token=upload_data_token,
+    )
+    assert status == 200, data
+
+    def saved_by():
+        status, data = api("GET", f"sources/{obj_id}", token=view_only_token2)
+        assert status == 200, data
+        group = next(g for g in data["data"]["groups"] if g["id"] == public_group.id)
+        assert group["saved_by"]["id"] == user.id
+        return group["saved_by"]
+
+    assert not {"contact_email", "contact_phone", "oauth_uid"} & set(saved_by())
+
+    # The saver still sees their own details
+    status, data = api("GET", "internal/profile", token=view_only_token)
+    assert status == 200, data
+    assert data["data"]["contact_email"] == user.contact_email
+    assert "oauth_uid" in data["data"]
+
+    status, data = api(
+        "PATCH",
+        "internal/profile",
+        data={"preferences": {"publicProfile": {"contact_email": True, "bio": False}}},
+        token=view_only_token,
+    )
+    assert status == 200, data
+    assert saved_by()["contact_email"] == user.contact_email
+    assert "bio" not in saved_by()
 
 
 def test_source_notifications_unauthorized(
@@ -2777,11 +2819,6 @@ def test_request_save_to_group_requester_is_not_in(
     group = next(g for g in data["data"]["groups"] if g["id"] == public_group2.id)
     assert group["requested"] and not group["active"]
     assert group["saved_by"]["id"] == user.id
-
-    # The row still names the user who unsaved it, which would stop the fixture
-    # teardown from deleting them; deleting the source's object removes the row.
-    DBSession().execute(sa.delete(Obj).where(Obj.id == obj_id))
-    DBSession().commit()
 
 
 def test_copy_photometry_sources(

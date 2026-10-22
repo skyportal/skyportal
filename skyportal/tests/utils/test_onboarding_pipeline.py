@@ -4,7 +4,7 @@ import uuid
 import pytest
 import sqlalchemy as sa
 
-from skyportal.models import DBSession, GroupUser, StreamUser, User
+from skyportal.models import DBSession, GroupUser, Invitation, StreamUser, User
 from skyportal.onboarding import (
     cfg,
     create_user,
@@ -13,6 +13,7 @@ from skyportal.onboarding import (
     setup_invited_user_permissions,
     user_details,
 )
+from skyportal.tests import api, assert_api
 from skyportal.tests.fixtures import InvitationFactory
 from skyportal.utils.naive_datetime import utcnow_naive
 
@@ -292,6 +293,61 @@ def test_setup_invited_user_permissions_grants_groups_and_streams(
     assert public_group.id in group_ids
     assert public_stream.id in stream_ids
     assert pipeline_invitation.used is True
+
+
+def test_setup_invited_user_permissions_matches_flags_to_groups(
+    invitations_enabled,
+    manage_users_token,
+    public_group,
+    public_group2,
+    public_stream,
+    cleanup_users,
+):
+    # Group ids in descending order, so the caller's order is not the order
+    # the invitation's groups load in.
+    high, low = sorted([public_group, public_group2], key=lambda g: g.id, reverse=True)
+    status, data = api(
+        "POST",
+        "invitations",
+        data={
+            "userEmail": str(uuid.uuid4()),
+            "streamIDs": [public_stream.id],
+            "groupIDs": [high.id, low.id],
+            "groupAdmin": [True, False],
+            "canSave": [False, True],
+        },
+        token=manage_users_token,
+    )
+    assert_api(status, data)
+    invitation = DBSession().scalar(
+        sa.select(Invitation).where(Invitation.id == data["data"]["id"])
+    )
+    # Flags are stored in group id order, low then high
+    assert invitation.admin_for_groups == [False, True]
+    assert invitation.can_save_to_groups == [True, False]
+
+    invitee = User(
+        username=f"invitee{uuid.uuid4().hex[:8]}",
+        oauth_uid=f"uid-{uuid.uuid4().hex[:8]}",
+    )
+    DBSession().add(invitee)
+    DBSession().commit()
+    cleanup_users.append(invitee)
+
+    strategy = FakeStrategy(session_values={"invite_token": invitation.token})
+    setup_invited_user_permissions(strategy, invitee.oauth_uid, {}, invitee)
+    DBSession().commit()
+
+    memberships = {
+        group_user.group_id: group_user
+        for group_user in DBSession().scalars(
+            sa.select(GroupUser).where(GroupUser.user_id == invitee.id)
+        )
+    }
+    assert memberships[high.id].admin is True
+    assert memberships[high.id].can_save is False
+    assert memberships[low.id].admin is False
+    assert memberships[low.id].can_save is True
 
 
 def test_setup_invited_user_permissions_is_idempotent_for_existing_members(
