@@ -477,17 +477,24 @@ def test_notification_setting_select(page, user):
         page.locator(f'//*[@data-testid="{kind}_input"]').first.fill(value)
         page.locator(f'//*[@data-testid="{kind}_save_button"]').first.click()
 
-    def _enable_setting(name):
-        # wait for each save: the switch flips optimistically, before the PATCH lands
+    def _choice(label):
+        return page.locator(
+            f'//button[text()="{label}" and @aria-pressed="true"]'
+        ).first
+
+    def _box(name):
+        return page.locator(f'//input[@name="{name}"]').first
+
+    def _hour(which):
+        return page.locator(
+            f'//*[@role="combobox" and @aria-label="time_slot_{which}"]'
+        ).first
+
+    def _set_hour(which, hour):
+        _hour(which).click()
         with _profile_patch(page):
-            page.locator(
-                f'//*[@name="{name}" and contains(@class, "MuiSwitch-input")]'
-            ).first.click()
-        expect(
-            page.locator(
-                f'//*[@name="{name}" and contains(@class, "MuiSwitch-input")]/../../span[contains(@class,"Mui-checked")]'
-            ).first
-        ).to_be_visible()
+            page.locator(f'//li[@role="option" and @data-value="{hour}"]').first.click()
+        expect(_hour(which)).to_have_text(f"{hour}h")
 
     # the user has a contact email, so email turns on right away
     with _profile_patch(page):
@@ -503,42 +510,18 @@ def test_notification_setting_select(page, user):
     _set_up("phone", "+16125550142")
     expect(_pressed("sms")).to_be_visible()
 
-    _enable_setting("on_shift_sms")
-    _enable_setting("time_slot_sms")
-
-    expect(
-        page.locator('//*[@aria-label="time_slot_slider" and @value="8"]').first
-    ).to_be_visible()
-    expect(
-        page.locator('//*[@aria-label="time_slot_slider" and @value="20"]').first
-    ).to_be_visible()
-
-    # Move the start slider 8H -> 3H. Range inputs respond reliably to arrow
-    # keys (drag-and-drop on a slider thumb is flaky), so focus and step down.
-    slider = page.locator(
-        '//*[@aria-label="time_slot_slider" and @data-index="0"]'
-    ).first
-    slider.focus()
-    for _ in range(5):
-        with _profile_patch(page):
-            slider.press("ArrowLeft")
-
-    expect(
-        page.locator('//*[@aria-label="time_slot_slider" and @value="3"]').first
-    ).to_be_visible()
+    expect(_choice("Anytime")).to_be_visible()
+    with _profile_patch(page):
+        page.locator('//button[text()="Only when"]').first.click()
+    expect(_choice("Only when")).to_be_visible()
+    expect(_box("time_slot_sms")).to_be_checked()
 
     with _profile_patch(page):
-        page.locator(
-            '//*[@label="Invert" and contains(@class, "MuiCheckbox-root")]'
-        ).first.click()
-    expect(
-        page.locator('//*[@label="Invert" and contains(@class,"Mui-checked")]').first
-    ).to_be_visible()
-    expect(
-        page.locator(
-            '//*[contains(@class, "MuiSlider-root") and contains(@class, "MuiSlider-trackInverted")]'
-        ).first
-    ).to_be_visible()
+        _box("on_shift_sms").click()
+    expect(_box("on_shift_sms")).to_be_checked()
+
+    _set_hour("start", 20)
+    _set_hour("end", 3)
 
     # reload profile to see if the settings were saved
     page.goto(f"/become_user/{user.id}")
@@ -552,21 +535,8 @@ def test_notification_setting_select(page, user):
     ).to_be_visible()
     for channel in ("email", "slack", "sms"):
         expect(_pressed(channel)).to_be_visible()
+    expect(_choice("Only when")).to_be_visible()
     for name in ("on_shift_sms", "time_slot_sms"):
-        expect(
-            page.locator(
-                f'//*[@name="{name}" and contains(@class, "MuiSwitch-input")]/../../span[contains(@class,"Mui-checked")]'
-            ).first
-        ).to_be_visible()
-
-    expect(
-        page.locator('//*[@aria-label="time_slot_slider" and @value="3"]').first
-    ).to_be_visible()
-    expect(
-        page.locator('//*[@aria-label="time_slot_slider" and @value="20"]').first
-    ).to_be_visible()
-    expect(
-        page.locator(
-            '//*[contains(@class, "MuiSlider-root") and contains(@class, "MuiSlider-trackInverted")]'
-        ).first
-    ).to_be_visible()
+        expect(_box(name)).to_be_checked()
+    expect(_hour("start")).to_have_text("20h")
+    expect(_hour("end")).to_have_text("3h")

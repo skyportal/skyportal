@@ -392,7 +392,10 @@ def send_sms_notification(target):
     if not prefs:
         return
 
-    sending = False
+    sending = not (
+        prefs[resource_type]["sms"].get("on_shift")
+        or prefs[resource_type]["sms"].get("time_slot")
+    )
     if prefs[resource_type]["sms"].get("on_shift", False):
         current_shift = (
             Shift.query.join(ShiftUser)
@@ -435,7 +438,10 @@ def send_phone_notification(target):
     if not prefs:
         return
 
-    sending = False
+    sending = not (
+        prefs[resource_type]["phone"].get("on_shift")
+        or prefs[resource_type]["phone"].get("time_slot")
+    )
     if prefs[resource_type]["phone"].get("on_shift", False):
         current_shift = (
             Shift.query.join(ShiftUser)
@@ -478,7 +484,10 @@ def send_whatsapp_notification(target):
     if not prefs:
         return
 
-    sending = False
+    sending = not (
+        prefs[resource_type]["whatsapp"].get("on_shift")
+        or prefs[resource_type]["whatsapp"].get("time_slot")
+    )
     if prefs[resource_type]["whatsapp"].get("on_shift", False):
         current_shift = (
             Shift.query.join(ShiftUser)

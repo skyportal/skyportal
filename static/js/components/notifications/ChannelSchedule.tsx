@@ -1,11 +1,10 @@
-import { useState } from "react";
-
 import Box from "@mui/material/Box";
 import Checkbox from "@mui/material/Checkbox";
 import FormControlLabel from "@mui/material/FormControlLabel";
-import Slider from "@mui/material/Slider";
-import Switch from "@mui/material/Switch";
+import MenuItem from "@mui/material/MenuItem";
+import Select from "@mui/material/Select";
 import Typography from "@mui/material/Typography";
+import { alpha } from "@mui/material/styles";
 
 import type { Channel } from "./channels";
 import {
@@ -13,9 +12,78 @@ import {
   useUpdateUserPreferencesMutation,
 } from "../../ducks/profile";
 
-const DEFAULT_SLOT = [8, 20];
+const DEFAULT_START = 8;
+const DEFAULT_END = 20;
+const HOURS = Array.from({ length: 25 }, (_, hour) => hour);
 
-const ascending = (slot: number[]) => [...slot].sort((a, b) => a - b);
+const localHour = (utcHour: number) => {
+  const date = new Date();
+  date.setUTCHours(utcHour, 0, 0, 0);
+  return date.toLocaleTimeString([], { hour: "numeric" });
+};
+
+const Choice = ({
+  label,
+  selected,
+  onClick,
+}: {
+  label: string;
+  selected: boolean;
+  onClick: () => void;
+}) => (
+  <Box
+    component="button"
+    type="button"
+    aria-pressed={selected}
+    onClick={onClick}
+    sx={(theme) => ({
+      border: 0,
+      padding: "0.25rem 0.75rem",
+      borderRadius: 999,
+      fontFamily: "inherit",
+      fontSize: "0.8125rem",
+      fontWeight: 500,
+      cursor: "pointer",
+      color: selected ? "primary.main" : "text.secondary",
+      backgroundColor: selected
+        ? alpha(theme.palette.primary.main, 0.12)
+        : "transparent",
+      transition: "all 120ms",
+      "&:hover, &:focus-visible": { color: "primary.main", outline: "none" },
+    })}
+  >
+    {label}
+  </Box>
+);
+
+const HourSelect = ({
+  value,
+  disabled,
+  label,
+  onChange,
+}: {
+  value: number;
+  disabled: boolean;
+  label: string;
+  onChange: (hour: number) => void;
+}) => (
+  <Select
+    size="small"
+    variant="standard"
+    value={value}
+    disabled={disabled}
+    onChange={(event) => onChange(Number(event.target.value))}
+    inputProps={{ "aria-label": label }}
+    MenuProps={{ slotProps: { paper: { sx: { maxHeight: 280 } } } }}
+    sx={{ fontSize: "0.875rem" }}
+  >
+    {HOURS.map((hour) => (
+      <MenuItem key={hour} value={hour}>
+        {hour}h
+      </MenuItem>
+    ))}
+  </Select>
+);
 
 interface ChannelScheduleProps {
   type: string;
@@ -27,12 +95,13 @@ const ChannelSchedule = ({ type, channel }: ChannelScheduleProps) => {
   const [updateUserPreferences] = useUpdateUserPreferencesMutation();
   const prefs =
     profile?.preferences["notifications"]?.[type]?.[channel.key] ?? {};
-  const saved: number[] = prefs.time_slot ?? [];
-  const [slot, setSlot] = useState<number[]>(
-    ascending(saved.length ? saved : DEFAULT_SLOT),
-  );
+  const onShift = prefs.on_shift === true;
+  const slot: number[] = prefs.time_slot ?? [];
+  const hasSlot = slot.length > 0;
+  const limited = onShift || hasSlot;
+  const start = slot[0] ?? DEFAULT_START;
+  const end = slot[1] ?? DEFAULT_END;
 
-  const inverted = saved.length === 2 && (saved[0] ?? 0) > (saved[1] ?? 0);
   const update = (values: Record<string, unknown>) =>
     updateUserPreferences({
       notifications: { [type]: { [channel.key]: values } },
@@ -45,7 +114,8 @@ const ChannelSchedule = ({ type, channel }: ChannelScheduleProps) => {
         flexWrap: "wrap",
         alignItems: "center",
         columnGap: 2,
-        padding: "0.25rem 0.75rem",
+        rowGap: 0.5,
+        padding: "0.375rem 0.75rem",
         borderRadius: 2,
         backgroundColor: "action.hover",
       }}
@@ -53,72 +123,88 @@ const ChannelSchedule = ({ type, channel }: ChannelScheduleProps) => {
       <Typography variant="body2" sx={{ fontWeight: 600, minWidth: "5.5rem" }}>
         {channel.label}
       </Typography>
-      <FormControlLabel
-        control={
-          <Switch
-            size="small"
-            checked={prefs.on_shift === true}
-            name={`on_shift_${channel.key}`}
-            onChange={(event) => update({ on_shift: event.target.checked })}
-          />
-        }
-        label={<Typography variant="body2">While I am on shift</Typography>}
-      />
-      <FormControlLabel
-        control={
-          <Switch
-            size="small"
-            checked={saved.length > 0}
-            name={`time_slot_${channel.key}`}
-            onChange={(event) => {
-              setSlot(DEFAULT_SLOT);
-              update({ time_slot: event.target.checked ? DEFAULT_SLOT : [] });
-            }}
-          />
-        }
-        label={<Typography variant="body2">Only between (UTC)</Typography>}
-      />
-      {saved.length > 0 && (
+      <Box
+        sx={{
+          display: "inline-flex",
+          padding: "2px",
+          borderRadius: 999,
+          border: 1,
+          borderColor: "divider",
+          backgroundColor: "background.paper",
+        }}
+      >
+        <Choice
+          label="Anytime"
+          selected={!limited}
+          onClick={() => update({ on_shift: false, time_slot: [] })}
+        />
+        <Choice
+          label="Only when"
+          selected={limited}
+          onClick={() =>
+            !limited && update({ time_slot: [DEFAULT_START, DEFAULT_END] })
+          }
+        />
+      </Box>
+      {limited && (
         <Box
           sx={{
             display: "flex",
+            flexWrap: "wrap",
             alignItems: "center",
-            gap: 1,
-            flexGrow: 1,
-            minWidth: "16rem",
-            paddingTop: 3,
+            columnGap: 1,
           }}
         >
-          <Slider
-            size="small"
-            getAriaLabel={() => "time_slot_slider"}
-            value={slot}
-            onChange={(_, value) => setSlot(value as number[])}
-            onChangeCommitted={(_, value) => {
-              const range = value as number[];
-              update({ time_slot: inverted ? [...range].reverse() : range });
-            }}
-            valueLabelDisplay="on"
-            valueLabelFormat={(hour) => `${hour}h`}
-            min={0}
-            max={24}
-            step={1}
-            marks
-            track={inverted ? "inverted" : "normal"}
-          />
           <FormControlLabel
             control={
               <Checkbox
                 size="small"
-                checked={inverted}
-                onChange={() =>
-                  update({ time_slot: inverted ? slot : [...slot].reverse() })
-                }
-                {...({ label: "Invert" } as any)}
+                checked={onShift}
+                name={`on_shift_${channel.key}`}
+                onChange={(event) => update({ on_shift: event.target.checked })}
               />
             }
-            label={<Typography variant="body2">Outside</Typography>}
+            label={<Typography variant="body2">I am on shift</Typography>}
+            sx={{ marginRight: 0 }}
           />
+          <Typography variant="body2" color="textSecondary">
+            or
+          </Typography>
+          <FormControlLabel
+            control={
+              <Checkbox
+                size="small"
+                checked={hasSlot}
+                name={`time_slot_${channel.key}`}
+                onChange={(event) =>
+                  update({
+                    time_slot: event.target.checked ? [start, end] : [],
+                  })
+                }
+              />
+            }
+            label={<Typography variant="body2">between</Typography>}
+            sx={{ marginRight: 0 }}
+          />
+          <HourSelect
+            value={start}
+            disabled={!hasSlot}
+            label="time_slot_start"
+            onChange={(hour) => update({ time_slot: [hour, end] })}
+          />
+          <Typography variant="body2">and</Typography>
+          <HourSelect
+            value={end}
+            disabled={!hasSlot}
+            label="time_slot_end"
+            onChange={(hour) => update({ time_slot: [start, hour] })}
+          />
+          <Typography variant="body2" color="textSecondary">
+            UTC
+            {hasSlot &&
+              new Date().getTimezoneOffset() !== 0 &&
+              ` (${localHour(start)} to ${localHour(end)} local)`}
+          </Typography>
         </Box>
       )}
     </Box>
