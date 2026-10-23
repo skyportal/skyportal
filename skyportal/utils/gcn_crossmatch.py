@@ -1356,7 +1356,11 @@ async def run_cycle(config=None, user_id=1):
                         # The pre-event window is searched once, before the first
                         # forward pass, so a candidate that was already active is
                         # flagged as such the first time anyone looks at it.
-                        if conf(settings, "archival") and not state.archival_done:
+                        if (
+                            conf(settings, "archival")
+                            and conf(settings, "max_days_to_first_detection") is None
+                            and not state.archival_done
+                        ):
                             total += await process_event_filter(
                                 session,
                                 user,
