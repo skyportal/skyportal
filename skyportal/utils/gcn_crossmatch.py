@@ -267,11 +267,43 @@ def alert_position(alert):
 
 
 POSITION_FIELD = "coordinates.radec_geojson"
+JD_FIELD = "candidate.jd"
 NDETHIST_FIELD = "candidate.ndethist"
+FP_HISTS_FIELD = "fp_hists"
+AUX_FIELDS = (
+    "prv_candidates",
+    "prv_nondetections",
+    "fp_hists",
+    "cross_matches",
+    "host_galaxy",
+    "aliases",
+)
 
 
 def _overlaps(key, field):
     return key == field or field.startswith(f"{key}.") or key.startswith(f"{field}.")
+
+
+def _reads(value, field):
+    if isinstance(value, dict):
+        return any(_reads(k, field) or _reads(v, field) for k, v in value.items())
+    if isinstance(value, list):
+        return any(_reads(item, field) for item in value)
+    if isinstance(value, str):
+        path = value.strip().removeprefix("$")
+        return path == field or path.startswith(f"{field}.")
+    return False
+
+
+def first_aux_stage(pipeline):
+    return next(
+        (
+            i
+            for i, stage in enumerate(pipeline or [])
+            if any(_reads(stage, field) for field in AUX_FIELDS)
+        ),
+        None,
+    )
 
 
 def with_fields_projected(pipeline, fields):
@@ -708,10 +740,17 @@ async def process_event_filter(
         # the wire rather than after.
         cuts, cuts_source = await resolve_quality_pipeline(session, broker, filter_.id)
         min_detections = conf(config, "min_detections")
-        cuts = with_fields_projected(
-            cuts,
-            (POSITION_FIELD, NDETHIST_FIELD) if min_detections else (POSITION_FIELD,),
-        )
+        fields = (POSITION_FIELD, JD_FIELD)
+        if min_detections:
+            fields += (NDETHIST_FIELD,)
+        # BOOM joins the aux collection before the first stage naming one of its fields.
+        aux_index = first_aux_stage(cuts) if min_detections else None
+        if aux_index is None:
+            cuts = with_fields_projected(cuts, fields)
+        else:
+            cuts = with_fields_projected(
+                cuts[:aux_index], fields
+            ) + with_fields_projected(cuts[aux_index:], (*fields, FP_HISTS_FIELD))
         # First: the broker joins the alert history collection lazily, before the
         # first stage that reads it, so a cut placed after that stage is applied
         # to the joined set rather than shrinking it.
