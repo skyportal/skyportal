@@ -65,8 +65,6 @@ TNS_RETRIEVAL_INSTRUMENT_IDS = {
 
 TNS_OTHER_INSTRUMENT_ID = 0
 
-# Object type ids a classification report carries, keyed by the classification
-# name a taxonomy uses. Lookup is case-insensitive; see tns_classification_id.
 TNS_CLASSIFICATION_IDS = {
     "other": 0,
     "supernova": 1,
@@ -80,6 +78,7 @@ TNS_CLASSIFICATION_IDS = {
     "ib/c": 6,
     "ic-bl": 7,
     "ib-ca-rich": 8,
+    "ca-rich": 8,
     "ibn": 9,
     "type ii": 10,
     "ii-norm": 10,
@@ -102,7 +101,6 @@ TNS_CLASSIFICATION_IDS = {
     "cataclysmic": 27,
     "stellar variable": 28,
     "agn": 29,
-    "galactic nuclei": 30,
     "qso": 31,
     "light-echo": 40,
     "std-spec": 50,
@@ -110,6 +108,7 @@ TNS_CLASSIFICATION_IDS = {
     "gap i": 61,
     "gap ii": 62,
     "lrn": 65,
+    "luminous red nova": 65,
     "fbot": 66,
     "kilonova": 70,
     "impostor-sn": 99,
@@ -140,8 +139,6 @@ TNS_CLASSIFICATION_IDS = {
     "computed-iin": 1021,
 }
 
-# TNS spectrum types: 1 object, 2 host, 3 sky, 4 arcs, 5 synthetic. SkyPortal's
-# configured types are source/host/host_center, so anything host-like is 2.
 TNS_SPECTRUM_TYPE_IDS = {
     "source": 1,
     "host": 2,
@@ -151,11 +148,7 @@ TNS_DEFAULT_SPECTRUM_TYPE_ID = 1
 
 
 def tns_classification_id(classification):
-    """The TNS object type id for a classification name, or None if unmapped.
-
-    An unmapped classification is left to the caller: reporting it as "Other"
-    would assert something about the object that nobody classified it as.
-    """
+    """The TNS object type id for a classification name, or None if unmapped."""
     if classification is None:
         return None
     return TNS_CLASSIFICATION_IDS.get(str(classification).strip().lower())

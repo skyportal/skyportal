@@ -28,7 +28,11 @@ from skyportal.utils.data_access import (
 from skyportal.utils.hermes_submission import submit_to_hermes
 from skyportal.utils.naive_datetime import utcnow_naive
 from skyportal.utils.services import check_loaded
-from skyportal.utils.tns_submission import check_at_report, submit_to_tns
+from skyportal.utils.tns_submission import (
+    check_at_report,
+    check_classification_report,
+    submit_to_tns,
+)
 from skyportal.utils.trove_submission import submit_to_trove
 
 env, cfg = load_env()
@@ -234,6 +238,9 @@ def process_submission_request(submission_request, session, trove=False):
             submission_request.stream_ids,
             photometry_options,
             submission_request.auto_submission,
+            with_photometry=trove
+            or submission_request.publish_to_hermes
+            or submission_request.tns_report_type != "classification_report",
         )
 
         if trove:
@@ -476,6 +483,8 @@ def validate_submission_requests():
                                 == submission_request.sharing_service_id,
                                 SharingServiceSubmission.created_at
                                 > submission_request.created_at,
+                                SharingServiceSubmission.tns_report_type
+                                == submission_request.tns_report_type,
                                 sa.or_(
                                     SharingServiceSubmission.tns_status.ilike(
                                         "%submitted%"
@@ -495,7 +504,8 @@ def validate_submission_requests():
                             sa.select(Obj).where(Obj.id == submission_request.obj_id)
                         )
                         if (
-                            obj.tns_name is not None
+                            submission_request.tns_report_type == "at_report"
+                            and obj.tns_name is not None
                             and isinstance(obj.tns_info, dict)
                             and obj.tns_info.get("reporterid") is not None
                             and obj.tns_info.get("reporterid")
@@ -578,10 +588,26 @@ def validate_submission_requests():
                         )
                         continue
 
-                    tns_source, serialized_response, err = check_at_report(
+                    is_classification_report = (
+                        submission_request.tns_report_type == "classification_report"
+                    )
+                    check_report = (
+                        check_classification_report
+                        if is_classification_report
+                        else check_at_report
+                    )
+                    tns_source, serialized_response, err = check_report(
                         tns_submission_id, sharing_service
                     )
-                    if (
+                    if is_classification_report and not err:
+                        submission_request.tns_status = "complete"
+                        submission_request.tns_response = serialized_response
+                        session.merge(submission_request)
+                        session.commit()
+                        log(
+                            f"Classification report of {submission_request.obj_id} accepted by TNS"
+                        )
+                    elif (
                         not err
                         and not tns_source
                         and serialized_response

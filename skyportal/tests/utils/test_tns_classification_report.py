@@ -1,10 +1,3 @@
-"""The classification report a TNS submission carries.
-
-An AT report announces a discovery; a classification report classifies an
-object TNS already knows about, so it is keyed by IAU name and must reference a
-spectrum that was uploaded first.
-"""
-
 import datetime
 import types
 
@@ -58,8 +51,6 @@ def test_the_report_is_keyed_by_iau_name_not_an_internal_name():
 
 
 def test_the_spectrum_entry_names_the_uploaded_file():
-    # TNS matches the report to the file by the name it stored it under, so a
-    # report naming anything else attaches to nothing.
     spectra = _report()["classification_report"]["0"]["spectra"]["spectra-group"]
     assert spectra["0"]["ascii_file"] == "tns_2026abc.ascii"
     assert spectra["0"]["fits_file"] == ""
@@ -67,10 +58,10 @@ def test_the_spectrum_entry_names_the_uploaded_file():
 
 def test_the_spectrum_entry_carries_its_instrument_and_observation():
     entry = _report()["classification_report"]["0"]["spectra"]["spectra-group"]["0"]
-    assert entry["instrumentid"] == 149  # SEDM
+    assert entry["instrumentid"] == 149
     assert entry["obsdate"] == "2026-03-04 05:06:07"
     assert entry["exptime"] == 2250
-    assert entry["spectypeid"] == 1  # a source spectrum is TNS "object"
+    assert entry["spectypeid"] == 1
     assert entry["observer"] == "Ada Lovelace"
     assert entry["reducer"] == "Grace Hopper"
 
@@ -82,8 +73,6 @@ def test_an_unknown_instrument_reports_as_other_rather_than_failing():
 
 
 def test_an_unmapped_classification_is_refused():
-    # Defaulting to "Other" would assert something nobody classified the object
-    # as, so the caller has to deal with it.
     with pytest.raises(ValueError, match="no TNS object type id"):
         _report(classification="Not A Real Class")
 
@@ -109,7 +98,6 @@ def test_host_spectra_report_as_the_tns_host_type():
     assert tns_spectrum_type_id("host") == 2
     assert tns_spectrum_type_id("host_center") == 2
     assert tns_spectrum_type_id("source") == 1
-    # An unconfigured type is reported as an object spectrum rather than dropped.
     assert tns_spectrum_type_id("something else") == 1
 
 

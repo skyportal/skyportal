@@ -213,8 +213,6 @@ const SharingServicesDialog = ({
           title: "TNS report",
           enum: ["at_report", "classification_report"],
           default: "at_report",
-          description:
-            "A discovery report announces the object to TNS. A classification report classifies an object TNS already knows about, and needs the source to have a TNS name, a classification and a spectrum.",
         },
         archival: {
           type: "boolean",
