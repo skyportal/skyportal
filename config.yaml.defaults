@@ -1160,9 +1160,9 @@ additional_bandpasses:
     description: "Einstein Probe FXT tophat, 0.3-10 keV"
   - name: "svommxt"
     filterset: "mxt"
-    wavelength: [1.215, 1.24, 61.99, 63.23]
+    wavelength: [0.1, 1.2, 25, 100]
     transmission: [0, 1, 1, 0]
-    description: "SVOM MXT tophat, 0.2-10 keV"
+    description: "basic MXT filter - tophat transmission"
   - name: "svomeclairs"
     filterset: "eclairs"
     wavelength: [0.081, 0.08266, 3.1, 3.162]
