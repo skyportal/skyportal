@@ -20,13 +20,12 @@ from baselayer.app.flow import Flow
 from baselayer.log import make_log
 
 from ...models import (
-    Group,
     SpatialCatalog,
     SpatialCatalogEntry,
     SpatialCatalogEntryTile,
     new_session,
 )
-from ...utils.catalog_groups import NoVisibleGroup, resolve_group_ids
+from ...utils.catalog_groups import resolve_groups
 from ...utils.gcn import (
     from_cone,
     from_ellipse,
@@ -126,7 +125,6 @@ def delete_catalog(catalog_id):
     session = new_session()
 
     try:
-        # Re-fetch by an id the delete handler already authorized.
         catalog = session.scalar(
             sa.select(SpatialCatalog).where(SpatialCatalog.id == int(catalog_id))
         )
@@ -169,27 +167,32 @@ async def _validate_and_ingest_spatial_catalog(
         return handler.error("error or amaj, amin, and phi required in field_data.")
 
     async with handler.AsyncSession() as session:
-        stmt = SpatialCatalog.select(handler.current_user).where(
-            SpatialCatalog.catalog_name == catalog_name
+        catalog = await session.scalar(
+            sa.select(SpatialCatalog).where(SpatialCatalog.catalog_name == catalog_name)
         )
-        catalog = await session.scalar(stmt)
         if catalog is None:
-            # A catalog with no groups reads as invisible, so resolve them
-            # before it exists rather than leaving it orphaned on failure.
             try:
-                resolved = await resolve_group_ids(
-                    session, handler.current_user, group_ids
-                )
-            except NoVisibleGroup as e:
+                groups = await resolve_groups(session, handler.current_user, group_ids)
+            except ValueError as e:
                 return handler.error(str(e))
-            catalog = SpatialCatalog(catalog_name=catalog_name)
-            catalog.groups = (
-                (await session.scalars(sa.select(Group).where(Group.id.in_(resolved))))
-                .unique()
-                .all()
-            )
+            catalog = SpatialCatalog(catalog_name=catalog_name, groups=groups)
             session.add(catalog)
             await session.commit()
+        elif group_ids:
+            return handler.error(
+                f"Catalog {catalog_name} already exists, its groups cannot be changed"
+            )
+        elif (
+            await session.scalar(
+                SpatialCatalog.select(handler.current_user).where(
+                    SpatialCatalog.id == catalog.id
+                )
+            )
+            is None
+        ):
+            return handler.error(
+                f"Catalog {catalog_name} already exists and is not accessible"
+            )
 
         IOLoop.current().run_in_executor(
             None, lambda: add_catalog(catalog.id, catalog_data)
@@ -307,11 +310,10 @@ class SpatialCatalogHandler(BaseHandler):
             catalogs = result.all()
             data = []
             for catalog in catalogs:
-                count_stmt = SpatialCatalogEntry.select(self.current_user).where(
-                    SpatialCatalogEntry.catalog_id == catalog.id
-                )
                 entries_count = await session.scalar(
-                    sa.select(func.count()).select_from(count_stmt)
+                    sa.select(func.count()).where(
+                        SpatialCatalogEntry.catalog_id == catalog.id
+                    )
                 )
                 data.append({**catalog.to_dict(), "entries_count": entries_count})
             return self.success(data=data)

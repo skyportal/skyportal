@@ -13,9 +13,13 @@ from astropy.table import Table
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import deferred, relationship
 
-from baselayer.app.models import AccessibleIfRelatedRowsAreAccessible, Base
+from baselayer.app.models import (
+    AccessibleIfRelatedRowsAreAccessible,
+    Base,
+    CustomUserAccessControl,
+)
 
-from .group import accessible_by_groups_members
+from .group import groups_members_access_logic
 
 
 class SpatialCatalog(Base):
@@ -23,7 +27,7 @@ class SpatialCatalog(Base):
 
     __tablename__ = "spatial_catalogs"
 
-    read = accessible_by_groups_members
+    read = CustomUserAccessControl(groups_members_access_logic)
 
     groups = relationship(
         "Group",
@@ -55,8 +59,6 @@ class SpatialCatalogEntry(Base):
 
     __tablename__ = "spatial_catalog_entries"
 
-    # An entry is only as visible as the catalog it belongs to; its tiles are
-    # reachable only through it.
     read = AccessibleIfRelatedRowsAreAccessible(catalog="read")
 
     catalog_id = sa.Column(

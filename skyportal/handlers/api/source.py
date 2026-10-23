@@ -482,7 +482,6 @@ async def get_source(
                 ).isot
 
     if s.host_id:
-        # A host from a catalog this requester cannot read is left unset.
         host = await session.scalar(
             Galaxy.select(session.user_or_token).where(Galaxy.id == s.host_id)
         )

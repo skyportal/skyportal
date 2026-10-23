@@ -39,7 +39,7 @@ from ...models import (
     new_session,
 )
 from ...utils.asynchronous import run_async
-from ...utils.catalog_groups import groups_for_ids
+from ...utils.catalog_groups import groups_for_ids, resolve_groups
 from ...utils.naive_datetime import utcnow_naive
 from ..base import BaseHandler, format_doc
 
@@ -76,11 +76,9 @@ def get_galaxies(
         catalogs = session.scalars(stmt).all()
         query_result = []
         for catalog in catalogs:
-            stmt = Galaxy.select(session.user_or_token).where(
-                Galaxy.catalog_id == catalog.id
+            total_matches = session.scalar(
+                sa.select(func.count()).where(Galaxy.catalog_id == catalog.id)
             )
-            count_stmt = sa.select(func.count()).select_from(stmt)
-            total_matches = session.execute(count_stmt).scalar()
             query_result.append(
                 {
                     "catalog_name": catalog.name,
@@ -273,8 +271,6 @@ def get_galaxies(
             .cte("localization_healpix_ranges")
             .prefix_with("MATERIALIZED")
         )
-        # Narrows by sky position only; the query that serves the rows is
-        # access-controlled below.
         candidates_query = sa.select(Galaxy.id).join(
             ranges,
             sa.and_(
@@ -528,7 +524,7 @@ class GalaxyCatalogHandler(BaseHandler):
         if "z_unc" in catalog_data and "redshift_error" not in catalog_data:
             catalog_data["redshift_error"] = catalog_data.pop("z_unc")
 
-        return _validate_and_ingest_galaxies(
+        return await _validate_and_ingest_galaxies(
             self,
             catalog_name,
             catalog_description,
@@ -698,8 +694,6 @@ def add_galaxies(catalog_metadata, catalog_data):
 
     try:
         # check if the catalog already exists. If not, create it
-        # Background ingest: no requester to scope this to, and the handler
-        # that scheduled it has already authorized the upload.
         catalog = session.scalar(
             sa.select(GalaxyCatalog).where(
                 GalaxyCatalog.name == catalog_metadata["name"]
@@ -711,8 +705,6 @@ def add_galaxies(catalog_metadata, catalog_data):
                 description=catalog_metadata.get("description", None),
                 url=catalog_metadata.get("url", None),
             )
-            # Without groups the catalog, and every galaxy under it, reads as
-            # invisible to all but system admins.
             catalog.groups = groups_for_ids(session, catalog_metadata.get("group_ids"))
             session.add(catalog)
             session.commit()
@@ -781,7 +773,7 @@ def add_galaxies(catalog_metadata, catalog_data):
 
 
 # Shared by the JSON and ASCII upload handlers once the data is a dict of columns.
-def _validate_and_ingest_galaxies(
+async def _validate_and_ingest_galaxies(
     handler,
     catalog_name,
     catalog_description,
@@ -834,6 +826,32 @@ def _validate_and_ingest_galaxies(
     # check Declination bounds
     if any((x > 90) or (x < -90) for x in catalog_data["dec"]):
         return handler.error("declination should span -90<dec<90.")
+
+    async with handler.AsyncSession() as session:
+        catalog_id = await session.scalar(
+            sa.select(GalaxyCatalog.id).where(GalaxyCatalog.name == catalog_name)
+        )
+        if catalog_id is None:
+            try:
+                groups = await resolve_groups(session, handler.current_user, group_ids)
+            except ValueError as e:
+                return handler.error(str(e))
+            group_ids = [group.id for group in groups]
+        elif group_ids:
+            return handler.error(
+                f"Catalog {catalog_name} already exists, its groups cannot be changed"
+            )
+        elif (
+            await session.scalar(
+                GalaxyCatalog.select(session.user_or_token).where(
+                    GalaxyCatalog.id == catalog_id
+                )
+            )
+            is None
+        ):
+            return handler.error(
+                f"Catalog {catalog_name} already exists and is not accessible"
+            )
 
     catalog_metadata = {
         "name": catalog_name,
@@ -892,7 +910,7 @@ class GalaxyASCIIFileHandler(BaseHandler):
         if not all(k in catalog_data for k in ["ra", "dec", "name"]):
             return self.error("ra, dec, and name required in catalog_data.")
 
-        return _validate_and_ingest_galaxies(
+        return await _validate_and_ingest_galaxies(
             self,
             catalog_name,
             catalog_description,
@@ -943,16 +961,15 @@ def _str_col(col):
     return np.char.strip(arr.astype("U"))
 
 
-def _get_or_create_catalog(name, group_ids=None):
+def _get_or_create_catalog(name):
     """Return the id of the GalaxyCatalog with this name, creating it if needed."""
     with DBSession() as session:
-        # Background ingest, as above.
         catalog = session.scalar(
             sa.select(GalaxyCatalog).where(GalaxyCatalog.name == name)
         )
         if catalog is None:
             catalog = GalaxyCatalog(name=name)
-            catalog.groups = groups_for_ids(session, group_ids)
+            catalog.groups = groups_for_ids(session, None)
             session.add(catalog)
             session.commit()
         return catalog.id

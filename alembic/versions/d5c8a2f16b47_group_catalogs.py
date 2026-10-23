@@ -1,16 +1,5 @@
 """Group-scoped read access for galaxy and spatial catalogs
 
-Creates the group_galaxycatalogs and group_spatialcatalogs join tables and
-backfills every existing catalog into the sitewide public group.
-
-The backfill is required, not cosmetic: GalaxyCatalog.read and
-SpatialCatalog.read are now accessible_by_groups_members, so a catalog with no
-rows in these tables is invisible to everyone but system admins, and the
-galaxies and entries beneath it go with it. Every catalog that exists today was
-readable by all users, so all of them are attached to the public group to
-preserve that behavior. Only newly ingested proprietary catalogs are attached
-to narrower groups.
-
 Revision ID: d5c8a2f16b47
 Revises: c4f1d2a9b7e3
 Create Date: 2026-10-22 10:40:00.000000
@@ -71,10 +60,6 @@ def upgrade():
         count = conn.execute(sa.text(f"SELECT count(*) FROM {catalogs}")).scalar()
         if not count:
             continue
-        # Fail loudly rather than orphan every catalog. Without a public group
-        # to attach them to, the backfill is a silent no-op and every
-        # pre-existing catalog becomes unreadable by every non-admin user, with
-        # no error to explain why the galaxy and catalog pages went empty.
         if public_group_id is None:
             raise RuntimeError(
                 f"Cannot backfill catalog access: no group named "

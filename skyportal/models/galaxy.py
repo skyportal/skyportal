@@ -5,16 +5,20 @@ import healpix_alchemy
 import sqlalchemy as sa
 from sqlalchemy.orm import relationship
 
-from baselayer.app.models import AccessibleIfRelatedRowsAreAccessible, Base
+from baselayer.app.models import (
+    AccessibleIfRelatedRowsAreAccessible,
+    Base,
+    CustomUserAccessControl,
+)
 
-from .group import accessible_by_groups_members
+from .group import groups_members_access_logic
 
 
 class GalaxyCatalog(Base):
     """A record of a galaxy catalog and its metadata, such as name,
     description, and URL."""
 
-    read = accessible_by_groups_members
+    read = CustomUserAccessControl(groups_members_access_logic)
 
     groups = relationship(
         "Group",
@@ -37,7 +41,6 @@ class Galaxy(Base, ca.Point):
     """A record of a galaxy and its metadata, such as position,
     distance, name, and magnitude."""
 
-    # A galaxy is only as visible as the catalog it came from.
     read = AccessibleIfRelatedRowsAreAccessible(catalog="read")
 
     catalog_id = sa.Column(

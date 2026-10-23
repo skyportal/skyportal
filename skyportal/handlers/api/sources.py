@@ -29,6 +29,8 @@ from skyportal.models import (
     PhotStat,
     Source,
     SourceLabel,
+    SpatialCatalog,
+    SpatialCatalogEntry,
     Thumbnail,
     User,
     cosmo,
@@ -2127,27 +2129,16 @@ async def get_sources(
                 )
             try:
                 # first try to find the catalog
-                entry_stmt = """
-                SELECT entry_name
-                FROM spatial_catalog_entries
-                WHERE lower(entry_name) = :spatial_catalog_entry_name
-                AND catalog_id in (
-                    SELECT id
-                    FROM spatial_catalogs
-                    WHERE lower(catalog_name) = :spatial_catalog_name
-                )
-                """
                 entry_name = await session.scalar(
-                    text(entry_stmt).bindparams(
-                        bindparam(
-                            "spatial_catalog_entry_name",
-                            value=str(spatial_catalog_entry_name).strip().lower(),
-                            type_=sa.String,
-                        ),
-                        bindparam(
-                            "spatial_catalog_name",
-                            value=str(spatial_catalog_name).strip().lower(),
-                            type_=sa.String,
+                    SpatialCatalogEntry.select(
+                        session.user_or_token,
+                        columns=[SpatialCatalogEntry.entry_name],
+                    ).where(
+                        sa.func.lower(SpatialCatalogEntry.entry_name)
+                        == str(spatial_catalog_entry_name).strip().lower(),
+                        SpatialCatalogEntry.catalog.has(
+                            sa.func.lower(SpatialCatalog.catalog_name)
+                            == str(spatial_catalog_name).strip().lower()
                         ),
                     )
                 )
@@ -2754,8 +2745,6 @@ async def get_sources(
                         host.id: host.to_dict() for host in hosts_result.unique().all()
                     }
 
-                    # A host whose catalog this requester cannot read is left
-                    # off, as any other inaccessible related row would be.
                     objs_with_host = [
                         (i, obj["host_id"], (obj["ra"], obj["dec"]))
                         for i, obj in enumerate(objs)
