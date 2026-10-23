@@ -175,6 +175,19 @@ accessible_by_groups_members = AccessibleIfGroupUserMatches("groups.users")
 accessible_by_group_members = AccessibleIfGroupUserMatches("group.users")
 
 
+def groups_members_access_logic(cls, user_or_token):
+    if user_or_token.is_admin:
+        return sa.select(cls)
+    user_id = UserAccessControl.user_id_from_user_or_token(user_or_token)
+    return sa.select(cls).where(
+        cls.groups.any(
+            Group.id.in_(
+                sa.select(GroupUser.group_id).where(GroupUser.user_id == user_id)
+            )
+        )
+    )
+
+
 def delete_group_access_logic(cls, user_or_token):
     """User can delete a group that is not the sitewide public group, is not
     a single user group, and that they are an admin member of."""

@@ -7,6 +7,7 @@ from astropy.time import Time
 from pydantic import Field
 from skyportal_py_models.candidates import ScanReportItemPatchBody
 from sqlalchemy.orm import aliased, joinedload, selectinload
+from sqlalchemy.orm.attributes import set_committed_value
 
 from baselayer.app.access import auth_or_token
 from baselayer.log import make_log
@@ -18,6 +19,7 @@ from ....models import (
     Classification,
     Comment,
     FollowupRequest,
+    Galaxy,
     GcnEventObj,
     Obj,
     ObjToSuperObj,
@@ -506,16 +508,25 @@ async def create_scan_report_items(
         chunk_obj_ids = [obj_id for obj_id, _ in chunk]
         chunk_source_ids = [sid for _, sids in chunk for sid in sids]
 
-        for obj in (
+        chunk_objs = (
             await session.scalars(
                 Obj.select(user_or_token, mode="read")
-                .options(
-                    selectinload(Obj.photstats),
-                    selectinload(Obj.host),
-                )
+                .options(selectinload(Obj.photstats))
                 .where(Obj.id.in_(chunk_obj_ids))
             )
-        ).all():
+        ).all()
+        hosts = {
+            host.id: host
+            for host in (
+                await session.scalars(
+                    Galaxy.select(user_or_token).where(
+                        Galaxy.id.in_({obj.host_id for obj in chunk_objs})
+                    )
+                )
+            ).all()
+        }
+        for obj in chunk_objs:
+            set_committed_value(obj, "host", hosts.get(obj.host_id))
             objs[obj.id] = obj
 
         # The detection immediately before each obj's current (last-detected) one,

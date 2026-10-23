@@ -119,8 +119,10 @@ FIXTURE_MODEL = {
     "public_group": "Group",
     "public_group_sedm_allocation": "Allocation",
     "public_gcnevent_crossmatch_state": "GcnEventCrossmatchState",
+    "public_group_galaxycatalog": "GroupGalaxyCatalog",
     "public_group_gcnevent": "GroupGcnEvent",
     "public_group_observingrun": "GroupObservingRun",
+    "public_group_spatialcatalog": "GroupSpatialCatalog",
     "public_group_taxonomy": "GroupTaxonomy",
     "public_groupannotation": "GroupAnnotation",
     "public_groupclassification": "GroupClassification",
@@ -739,6 +741,44 @@ CASES = [
     ("super_admin_user", "public_groupstream", "read", True),
     ("super_admin_user", "public_groupstream", "update", True),
     ("super_admin_user", "public_groupstream", "delete", True),
+    # --- GroupGalaxyCatalog  (public_group_galaxycatalog) ---
+    # Same shape as GroupGcnEvent: join_model gives read == create == "can
+    # read both sides", update/delete are narrowed to group admins, and the
+    # catalog is attached to the sitewide group every user belongs to.
+    ("user", "public_group_galaxycatalog", "create", True),
+    ("user", "public_group_galaxycatalog", "read", True),
+    ("user", "public_group_galaxycatalog", "update", False),
+    ("user", "public_group_galaxycatalog", "delete", False),
+    ("user_group2", "public_group_galaxycatalog", "create", True),
+    ("user_group2", "public_group_galaxycatalog", "read", True),
+    ("user_group2", "public_group_galaxycatalog", "update", False),
+    ("user_group2", "public_group_galaxycatalog", "delete", False),
+    ("group_admin_user", "public_group_galaxycatalog", "create", True),
+    ("group_admin_user", "public_group_galaxycatalog", "read", True),
+    ("group_admin_user", "public_group_galaxycatalog", "update", True),
+    ("group_admin_user", "public_group_galaxycatalog", "delete", True),
+    ("super_admin_user", "public_group_galaxycatalog", "create", True),
+    ("super_admin_user", "public_group_galaxycatalog", "read", True),
+    ("super_admin_user", "public_group_galaxycatalog", "update", True),
+    ("super_admin_user", "public_group_galaxycatalog", "delete", True),
+    # --- GroupSpatialCatalog  (public_group_spatialcatalog) ---
+    # Same shape as GroupGalaxyCatalog.
+    ("user", "public_group_spatialcatalog", "create", True),
+    ("user", "public_group_spatialcatalog", "read", True),
+    ("user", "public_group_spatialcatalog", "update", False),
+    ("user", "public_group_spatialcatalog", "delete", False),
+    ("user_group2", "public_group_spatialcatalog", "create", True),
+    ("user_group2", "public_group_spatialcatalog", "read", True),
+    ("user_group2", "public_group_spatialcatalog", "update", False),
+    ("user_group2", "public_group_spatialcatalog", "delete", False),
+    ("group_admin_user", "public_group_spatialcatalog", "create", True),
+    ("group_admin_user", "public_group_spatialcatalog", "read", True),
+    ("group_admin_user", "public_group_spatialcatalog", "update", True),
+    ("group_admin_user", "public_group_spatialcatalog", "delete", True),
+    ("super_admin_user", "public_group_spatialcatalog", "create", True),
+    ("super_admin_user", "public_group_spatialcatalog", "read", True),
+    ("super_admin_user", "public_group_spatialcatalog", "update", True),
+    ("super_admin_user", "public_group_spatialcatalog", "delete", True),
     # --- GroupGcnEvent  (public_group_gcnevent) ---
     # join_model gives read == create == "can read both sides"; update/delete are
     # narrowed to group admins. Group.read is Public, so the read side reduces to

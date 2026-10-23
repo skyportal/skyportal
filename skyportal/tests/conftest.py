@@ -85,6 +85,7 @@ from skyportal.models import (
     GroupCommentOnShift,
     GroupCommentOnSpectrum,
     GroupDefaultAnalysis,
+    GroupGalaxyCatalog,
     GroupGcnEvent,
     GroupGcnEventAnalysis,
     GroupMMADetectorSpectrum,
@@ -101,6 +102,7 @@ from skyportal.models import (
     GroupReminderOnShift,
     GroupReminderOnSpectrum,
     GroupScanReport,
+    GroupSpatialCatalog,
     GroupSpectrum,
     GroupStream,
     GroupTaxonomy,
@@ -1855,6 +1857,42 @@ def public_taxonomy(public_group):
     taxonomy_id = taxonomy.id
     yield taxonomy
     TaxonomyFactory.teardown(taxonomy_id)
+
+
+@pytest.fixture()
+def public_group_galaxycatalog(public_group, public_galaxy_catalog):
+    """The GroupGalaxyCatalog row tying public_galaxy_catalog to public_group.
+
+    public_galaxy_catalog is attached to its creating user's groups, which
+    include public_group, so this row exists by the time the fixture runs.
+    """
+    return (
+        DBSession()
+        .execute(
+            sa.select(GroupGalaxyCatalog).filter(
+                GroupGalaxyCatalog.group_id == public_group.id,
+                GroupGalaxyCatalog.galaxycatalog_id == public_galaxy_catalog.id,
+            )
+        )
+        .scalars()
+        .first()
+    )
+
+
+@pytest.fixture()
+def public_group_spatialcatalog(public_group, public_spatial_catalog):
+    """The GroupSpatialCatalog row tying public_spatial_catalog to public_group."""
+    return (
+        DBSession()
+        .execute(
+            sa.select(GroupSpatialCatalog).filter(
+                GroupSpatialCatalog.group_id == public_group.id,
+                GroupSpatialCatalog.spatial_catalog_id == public_spatial_catalog.id,
+            )
+        )
+        .scalars()
+        .first()
+    )
 
 
 @pytest.fixture()
@@ -3745,11 +3783,12 @@ def public_followup_request_user(public_group, public_source, user):
 
 
 @pytest.fixture()
-def public_galaxy_catalog():
+def public_galaxy_catalog(user):
     catalog = GalaxyCatalog(
         name=str(uuid.uuid4()),
         description="test galaxy catalog",
         url="http://example.com/catalog",
+        groups=user.groups,
     )
     DBSession.add(catalog)
     DBSession.commit()
@@ -4456,8 +4495,8 @@ def public_facility_transaction(user):
 
 
 @pytest.fixture()
-def public_galaxy():
-    catalog = GalaxyCatalog(name=str(uuid.uuid4()))
+def public_galaxy(user):
+    catalog = GalaxyCatalog(name=str(uuid.uuid4()), groups=user.groups)
     DBSession.add(catalog)
     DBSession.commit()
     catalog_id = catalog.id
@@ -7410,8 +7449,8 @@ def public_gcn_event_obj(public_source, user):
 
 
 @pytest.fixture()
-def public_spatial_catalog():
-    catalog = SpatialCatalog(catalog_name=str(uuid.uuid4()))
+def public_spatial_catalog(user):
+    catalog = SpatialCatalog(catalog_name=str(uuid.uuid4()), groups=user.groups)
     DBSession.add(catalog)
     DBSession.commit()
     catalog_id = catalog.id

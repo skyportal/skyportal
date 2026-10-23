@@ -24,12 +24,12 @@ def build_schema():
     instrument.id = 1
 
     session = mock.MagicMock()
-    # galaxy catalog names
-    session.query.return_value.distinct.return_value.all.return_value = []
     # instruments with reference filters
     session.query.return_value.filter.return_value.count.return_value = 0
     with mock.patch.object(models, "DBSession", return_value=session):
-        return facility.MMAAPI.custom_json_schema(instrument, None)
+        return facility.MMAAPI.custom_json_schema(
+            instrument, None, galaxy_catalog_names=[]
+        )
 
 
 @pytest.fixture()

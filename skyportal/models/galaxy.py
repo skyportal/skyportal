@@ -5,12 +5,32 @@ import healpix_alchemy
 import sqlalchemy as sa
 from sqlalchemy.orm import relationship
 
-from baselayer.app.models import Base
+from baselayer.app.models import (
+    AccessibleIfRelatedRowsAreAccessible,
+    Base,
+    CustomUserAccessControl,
+)
+
+from .group import groups_members_access_logic
 
 
 class GalaxyCatalog(Base):
     """A record of a galaxy catalog and its metadata, such as name,
     description, and URL."""
+
+    read = CustomUserAccessControl(groups_members_access_logic)
+
+    groups = relationship(
+        "Group",
+        secondary="group_galaxycatalogs",
+        cascade="save-update, merge, refresh-expire, expunge",
+        passive_deletes=True,
+        doc=(
+            "Groups that can see this catalog. A public catalog is attached to "
+            "the sitewide public group; a proprietary one only to the groups "
+            "entitled to it."
+        ),
+    )
 
     name = sa.Column(sa.String, nullable=False, doc="Name of the catalog.", unique=True)
     description = sa.Column(sa.String, nullable=True, doc="Description of the catalog.")
@@ -21,11 +41,19 @@ class Galaxy(Base, ca.Point):
     """A record of a galaxy and its metadata, such as position,
     distance, name, and magnitude."""
 
+    read = AccessibleIfRelatedRowsAreAccessible(catalog="read")
+
     catalog_id = sa.Column(
         sa.ForeignKey("galaxycatalogs.id", ondelete="CASCADE"),
         index=True,
         doc="ID of the catalog this galaxy belongs to.",
         nullable=False,
+    )
+
+    catalog = relationship(
+        "GalaxyCatalog",
+        foreign_keys=catalog_id,
+        doc="The catalog this galaxy belongs to.",
     )
 
     name = sa.Column(sa.String, nullable=False, doc="Name of the object.")

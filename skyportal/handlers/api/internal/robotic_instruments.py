@@ -38,7 +38,9 @@ class RoboticInstrumentsHandler(BaseHandler):
                     # and pass them to the frontend_render_info method
                     # to avoid having to run that query for each instrument
                     galaxy_result = await session.scalars(
-                        sa.select(GalaxyCatalog.name).distinct()
+                        GalaxyCatalog.select(
+                            session.user_or_token, columns=[GalaxyCatalog.name]
+                        ).distinct()
                     )
                     galaxy_catalog_names = galaxy_result.all()
 

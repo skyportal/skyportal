@@ -1,9 +1,12 @@
+import { useState } from "react";
 import Form from "@rjsf/mui";
 import validator from "@rjsf/validator-ajv8";
 import { dataUriToBuffer } from "data-uri-to-buffer";
 import { showNotification } from "baselayer/components/Notifications";
 import { useAppDispatch } from "../../types/hooks";
 import { useUploadGalaxiesMutation } from "../../ducks/galaxies";
+import { useGetGroupsQuery } from "../../ducks/groups";
+import GroupShareSelect from "../group/GroupShareSelect";
 
 interface NewGalaxyProps {
   handleClose?: (() => void) | null;
@@ -12,6 +15,8 @@ interface NewGalaxyProps {
 const NewGalaxy = ({ handleClose = null }: NewGalaxyProps) => {
   const dispatch = useAppDispatch();
   const [uploadGalaxies] = useUploadGalaxiesMutation();
+  const groups = useGetGroupsQuery().data?.userAccessible ?? [];
+  const [selectedGroupIds, setSelectedGroupIds] = useState<number[]>([]);
 
   const handleSubmit = async ({ formData }: { formData: any }) => {
     const parsed = dataUriToBuffer(formData.file);
@@ -19,6 +24,7 @@ const NewGalaxy = ({ handleClose = null }: NewGalaxyProps) => {
     const payload = {
       catalogData: ascii,
       catalogName: formData.catalogName,
+      group_ids: selectedGroupIds,
     };
     try {
       await uploadGalaxies(payload).unwrap();
@@ -52,11 +58,18 @@ const NewGalaxy = ({ handleClose = null }: NewGalaxyProps) => {
   };
 
   return (
-    <Form
-      schema={galaxyFormSchema as any}
-      validator={validator}
-      onSubmit={handleSubmit as any}
-    />
+    <>
+      <GroupShareSelect
+        groupList={groups}
+        setGroupIDs={setSelectedGroupIds}
+        groupIDs={selectedGroupIds}
+      />
+      <Form
+        schema={galaxyFormSchema as any}
+        validator={validator}
+        onSubmit={handleSubmit as any}
+      />
+    </>
   );
 };
 
