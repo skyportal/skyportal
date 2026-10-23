@@ -22,7 +22,7 @@ from sqlalchemy.orm import selectinload
 from baselayer.app.env import load_env
 from baselayer.app.models import DBSession, init_db
 from baselayer.log import make_log
-from skyportal.models import DefaultAnalysis, Photometry, PhotStat, Source
+from skyportal.models import DefaultAnalysis, ObjAnalysis, Photometry, PhotStat, Source
 from skyportal.models.analysis import (
     _default_analysis_gated,
     _default_analysis_rerun_blocked,
@@ -61,6 +61,16 @@ def _sweep_default_analysis(session, default_analysis, cutoff):
     blocking = _default_analysis_rerun_blocked(
         default_analysis.analysis_service_id, Source.obj_id
     )
+    # Starting an analysis is refused once its author has this many on the object.
+    completed_by_author = (
+        sa.select(sa.func.count(ObjAnalysis.id))
+        .where(
+            ObjAnalysis.obj_id == Source.obj_id,
+            ObjAnalysis.author_id == default_analysis.author_id,
+            ObjAnalysis.status == "completed",
+        )
+        .scalar_subquery()
+    )
     obj_ids = session.scalars(
         sa.select(Source.obj_id)
         .distinct()
@@ -69,6 +79,8 @@ def _sweep_default_analysis(session, default_analysis, cutoff):
             Source.obj_id.in_(recent_objs),
             new_photometry,
             ~blocking,
+            completed_by_author
+            < cfg["analysis_services.max_analysis_per_obj_per_user"],
         )
     ).all()
 
