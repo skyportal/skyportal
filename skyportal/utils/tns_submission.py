@@ -249,12 +249,7 @@ def build_tns_report(
 
 
 def spectrum_ascii(spectrum):
-    """The spectrum as the two- or three-column ASCII text TNS accepts.
-
-    TNS stores the file and the classification report references it by the name
-    it was stored under, so the upload has to carry the data itself rather than
-    a link to it.
-    """
+    """The spectrum as the two- or three-column ASCII text TNS accepts."""
     errors = spectrum.errors
     rows = []
     for index, (wavelength, flux) in enumerate(
@@ -271,9 +266,6 @@ def upload_spectrum_to_tns(
     spectrum_name, spectrum_text, tns_bot_id, tns_bot_name, api_key, testing
 ):
     """Upload one ASCII spectrum to TNS and return the name TNS stored it under.
-
-    A classification report names its spectrum by that stored name, so this has
-    to run, and succeed, before the report is built.
 
     Returns
     -------
@@ -322,10 +314,6 @@ def build_tns_classification_report(
     external_reducer=None,
 ):
     """Build the classification report for a TNS submission.
-
-    Unlike an AT report, which announces a discovery, this one classifies an
-    object TNS already knows about, so it is keyed by the IAU name rather than
-    an internal survey name and it must reference an already-uploaded spectrum.
 
     Parameters
     ----------
