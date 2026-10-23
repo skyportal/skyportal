@@ -86,6 +86,7 @@ const UploadPhotometryForm = () => {
     control,
     getValues,
     setValue,
+    clearErrors,
 
     formState: { errors },
   } = useForm();
@@ -214,8 +215,6 @@ const UploadPhotometryForm = () => {
     setShowPreview(true);
   };
 
-  // Reading the file into the same textarea keeps one parse path, so a chosen
-  // file and pasted text behave identically from here on.
   const handleChooseFile = (event: any) => {
     const file = event.target.files?.[0];
     if (!file) {
@@ -224,6 +223,7 @@ const UploadPhotometryForm = () => {
     const reader = new FileReader();
     reader.onload = () => {
       setValue("csvData", String(reader.result ?? ""), { shouldDirty: true });
+      clearErrors("csvData");
       setShowPreview(false);
     };
     reader.onerror = () => {
@@ -419,7 +419,7 @@ const UploadPhotometryForm = () => {
                       Choose CSV file
                       <input
                         type="file"
-                        accept=".csv,.txt,text/csv,text/plain"
+                        accept=".csv,.tsv,.dat,.txt,text/csv,text/plain"
                         hidden
                         onChange={handleChooseFile}
                       />

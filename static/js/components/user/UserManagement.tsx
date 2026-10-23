@@ -369,8 +369,6 @@ const UserManagement = () => {
     );
   };
 
-  // The API refuses a group whose streams the user lacks, so name them here
-  // rather than letting the admin discover it from a 403.
   const missingStreamsFor = (group: any) =>
     (group.streams ?? [])
       .filter(
