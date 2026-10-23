@@ -1,7 +1,7 @@
 """Which TNS report a sharing service submission files
 
 Revision ID: e7f3b9d21a08
-Revises: c4f1d2a9b7e3
+Revises: d5c8a2f16b47
 Create Date: 2026-10-22 16:45:00.000000
 
 """
@@ -12,7 +12,7 @@ from alembic import op
 
 # revision identifiers, used by Alembic.
 revision = "e7f3b9d21a08"
-down_revision = "c4f1d2a9b7e3"
+down_revision = "d5c8a2f16b47"
 branch_labels = None
 depends_on = None
 
