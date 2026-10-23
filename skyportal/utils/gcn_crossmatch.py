@@ -322,6 +322,11 @@ def with_fields_projected(pipeline, fields):
             if kept:
                 patched.append({**stage, "$project": kept})
             continue
+        spec = {
+            k: v
+            for k, v in spec.items()
+            if not any(k.startswith(f"{field}.") for field in fields)
+        }
         missing = {
             field: 1
             for field in fields
