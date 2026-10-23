@@ -266,6 +266,71 @@ def alert_position(alert):
     return None
 
 
+POSITION_FIELD = "coordinates.radec_geojson"
+JD_FIELD = "candidate.jd"
+NDETHIST_FIELD = "candidate.ndethist"
+FP_HISTS_FIELD = "fp_hists"
+AUX_FIELDS = (
+    "prv_candidates",
+    "prv_nondetections",
+    "fp_hists",
+    "cross_matches",
+    "host_galaxy",
+    "aliases",
+)
+
+
+def _overlaps(key, field):
+    return key == field or field.startswith(f"{key}.") or key.startswith(f"{field}.")
+
+
+def _reads(value, field):
+    if isinstance(value, dict):
+        return any(_reads(k, field) or _reads(v, field) for k, v in value.items())
+    if isinstance(value, list):
+        return any(_reads(item, field) for item in value)
+    if isinstance(value, str):
+        path = value.strip().removeprefix("$")
+        return path == field or path.startswith(f"{field}.")
+    return False
+
+
+def first_aux_stage(pipeline):
+    return next(
+        (
+            i
+            for i, stage in enumerate(pipeline or [])
+            if any(_reads(stage, field) for field in AUX_FIELDS)
+        ),
+        None,
+    )
+
+
+def with_fields_projected(pipeline, fields):
+    patched = []
+    for stage in pipeline or []:
+        spec = stage.get("$project") if isinstance(stage, dict) else None
+        if not isinstance(spec, dict) or not spec:
+            patched.append(stage)
+            continue
+        if all(not value for value in spec.values()):
+            kept = {
+                k: v
+                for k, v in spec.items()
+                if not any(_overlaps(k, field) for field in fields)
+            }
+            if kept:
+                patched.append({**stage, "$project": kept})
+            continue
+        missing = {
+            field: 1
+            for field in fields
+            if not any(_overlaps(key, field) for key in spec)
+        }
+        patched.append({**stage, "$project": {**spec, **missing}})
+    return patched
+
+
 def alert_jd(alert):
     """Detection JD for a broker alert, or None."""
     for container in (alert, alert.get("candidate") or {}):
@@ -674,6 +739,18 @@ async def process_event_filter(
         # artifacts, asteroids and variable stars are rejected before they cross
         # the wire rather than after.
         cuts, cuts_source = await resolve_quality_pipeline(session, broker, filter_.id)
+        min_detections = conf(config, "min_detections")
+        fields = (POSITION_FIELD, JD_FIELD)
+        if min_detections:
+            fields += (NDETHIST_FIELD,)
+        # BOOM joins the aux collection before the first stage naming one of its fields.
+        aux_index = first_aux_stage(cuts) if min_detections else None
+        if aux_index is None:
+            cuts = with_fields_projected(cuts, fields)
+        else:
+            cuts = with_fields_projected(
+                cuts[:aux_index], fields
+            ) + with_fields_projected(cuts[aux_index:], (*fields, FP_HISTS_FIELD))
         # First: the broker joins the alert history collection lazily, before the
         # first stage that reads it, so a cut placed after that stage is applied
         # to the joined set rather than shrinking it.
@@ -684,7 +761,7 @@ async def process_event_filter(
         )
         # Last: it reads the joined alert history, which the earlier stages
         # have already shrunk.
-        detections = detection_count_stages(event_jd, conf(config, "min_detections"))
+        detections = detection_count_stages(event_jd, min_detections)
         result = broker.broker_class.test_filter(
             broker,
             session,
