@@ -33,6 +33,8 @@ import {
   useUploadPhotometryMutation,
 } from "../../ducks/source";
 import { useGetInstrumentsQuery } from "../../ducks/instruments";
+import { showNotification } from "baselayer/components/Notifications";
+import { useAppDispatch } from "../../types/hooks";
 import { useGetConfigQuery } from "../../ducks/config";
 import { useIsReadOnly } from "../../ducks/profile";
 
@@ -60,6 +62,7 @@ export const HtmlTooltip = withStyles(Tooltip, (theme) => ({
 }));
 
 const UploadPhotometryForm = () => {
+  const dispatch = useAppDispatch();
   const isReadOnly = useIsReadOnly();
   const [uploadPhotometry] = useUploadPhotometryMutation();
   const { data: instrumentList = [] } = useGetInstrumentsQuery() as {
@@ -83,6 +86,7 @@ const UploadPhotometryForm = () => {
     control,
     getValues,
     setValue,
+    clearErrors,
 
     formState: { errors },
   } = useForm();
@@ -209,6 +213,25 @@ const UploadPhotometryForm = () => {
       data: dataRows,
     });
     setShowPreview(true);
+  };
+
+  const handleChooseFile = (event: any) => {
+    const file = event.target.files?.[0];
+    if (!file) {
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => {
+      setValue("csvData", String(reader.result ?? ""), { shouldDirty: true });
+      clearErrors("csvData");
+      setShowPreview(false);
+    };
+    reader.onerror = () => {
+      dispatch(showNotification(`Could not read ${file.name}`, "error"));
+    };
+    reader.readAsText(file);
+    // Let the same file be chosen again after a reset.
+    event.target.value = "";
   };
 
   const handleReset = () => {
@@ -350,7 +373,7 @@ const UploadPhotometryForm = () => {
           }}
         >
           <Button
-            variant="contained"
+            variant={inputFormat === "csv" ? "contained" : "outlined"}
             color="primary"
             onClick={() => {
               setInputFormat("csv");
@@ -366,7 +389,7 @@ const UploadPhotometryForm = () => {
           }}
         >
           <Button
-            variant="contained"
+            variant={inputFormat === "form" ? "contained" : "outlined"}
             color="primary"
             onClick={() => {
               setInputFormat("form");
@@ -386,6 +409,22 @@ const UploadPhotometryForm = () => {
                     m: 1,
                   }}
                 >
+                  <Box
+                    component="span"
+                    sx={{
+                      mr: 1,
+                    }}
+                  >
+                    <Button component="label">
+                      Choose CSV file
+                      <input
+                        type="file"
+                        accept=".csv,.tsv,.dat,.txt,text/csv,text/plain"
+                        hidden
+                        onChange={handleChooseFile}
+                      />
+                    </Button>
+                  </Box>
                   <Box
                     component="span"
                     sx={{
