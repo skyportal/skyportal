@@ -208,6 +208,12 @@ const SharingServicesDialog = ({
           "If enabled, the sharing service will not publish the data if there is no first and last detection (at least 2 detections).",
       },
       ...(sendToTNS && {
+        tns_report_type: {
+          type: "string",
+          title: "TNS report",
+          enum: ["at_report", "classification_report"],
+          default: "at_report",
+        },
         archival: {
           type: "boolean",
           title: "TNS Archival",
@@ -259,6 +265,9 @@ const SharingServicesDialog = ({
     },
     stream_ids: {
       "ui:enumNames": streams.map((stream: any) => stream.name),
+    },
+    tns_report_type: {
+      "ui:enumNames": ["Discovery (AT report)", "Classification"],
     },
   };
 

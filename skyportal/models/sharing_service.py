@@ -309,6 +309,18 @@ class SharingServiceSubmission(Base):
         doc="Whether to publish to TNS or not.",
     )
 
+    tns_report_type = sa.Column(
+        sa.String,
+        nullable=False,
+        server_default="at_report",
+        default="at_report",
+        doc=(
+            "Which TNS report this submission files: 'at_report' announces a "
+            "discovery, 'classification_report' classifies an object TNS "
+            "already holds and requires a spectrum."
+        ),
+    )
+
     tns_status = sa.Column(
         sa.String, nullable=True, doc="Status of the TNS submission."
     )

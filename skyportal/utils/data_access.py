@@ -101,7 +101,7 @@ def check_access_to_sharing_service(session, user, sharing_service_id):
 
 
 def is_existing_submission_request(
-    session, obj, sharing_service_id, service, is_bot=False
+    session, obj, sharing_service_id, service, is_bot=False, tns_report_type="at_report"
 ):
     """Check if there is an existing submission request for the given object and sharing service and external service.
     session: SQLAlchemy
@@ -138,6 +138,8 @@ def is_existing_submission_request(
             service_status.like("complete%"),
         ),
     )
+    if service == "TNS":
+        stmt = stmt.where(SharingServiceSubmission.tns_report_type == tns_report_type)
     if is_bot:
         stmt = stmt.where(SharingServiceGroup.auto_sharing_allow_bots.is_(True))
     return session.scalars(stmt).first()
@@ -452,6 +454,7 @@ def get_publishable_source_and_photometry(
     stream_ids,
     photometry_options,
     is_auto_submission,
+    with_photometry=True,
 ):
     """Get publishable source and photometry after checking the access and the options.
 
@@ -569,6 +572,9 @@ def get_publishable_source_and_photometry(
     stream_ids = filter_accessible_stream_ids(
         session, user, stream_ids, sharing_service, auto_submission=is_auto_submission
     )
+
+    if not with_photometry:
+        return source, [], stream_ids
 
     photometry = get_photometry_by_instruments_stream_and_options(
         session, user, obj_id, instrument_ids, stream_ids, photometry_options
@@ -791,7 +797,7 @@ async def process_stream_ids_async(
 
 
 async def is_existing_submission_request_async(
-    session, obj, sharing_service_id, service, is_bot=False
+    session, obj, sharing_service_id, service, is_bot=False, tns_report_type="at_report"
 ):
     """Async equivalent of `is_existing_submission_request`."""
     if service not in ["TNS", "Hermes", "TROVE"]:
@@ -813,6 +819,8 @@ async def is_existing_submission_request_async(
             service_status.like("complete%"),
         ),
     )
+    if service == "TNS":
+        stmt = stmt.where(SharingServiceSubmission.tns_report_type == tns_report_type)
     if is_bot:
         stmt = stmt.where(SharingServiceGroup.auto_sharing_allow_bots.is_(True))
     return await session.scalar(stmt)
