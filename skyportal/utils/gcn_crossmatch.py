@@ -266,43 +266,36 @@ def alert_position(alert):
     return None
 
 
-# alert_position falls back to this when ra/dec are absent, and it is a
-# top-level field, so adding it never collides with a candidate.* projection.
-POSITION_FIELD = "coordinates"
+POSITION_FIELD = "coordinates.radec_geojson"
+NDETHIST_FIELD = "candidate.ndethist"
 
 
-def _projects_position(key):
-    return key == POSITION_FIELD or key.startswith(f"{POSITION_FIELD}.")
+def _overlaps(key, field):
+    return key == field or field.startswith(f"{key}.") or key.startswith(f"{field}.")
 
 
-def with_position_projected(pipeline):
-    """``pipeline`` with every ``$project`` stage made to keep the position.
-
-    The filter builder projects only the fields a filter names, so a filter
-    that never cuts on position returns alerts carrying none, and every one of
-    them is dropped before a candidate can be created. Position is the whole
-    point of a crossmatch, so it is added back here rather than left to
-    whoever wrote the filter.
-    """
+def with_fields_projected(pipeline, fields):
     patched = []
     for stage in pipeline or []:
         spec = stage.get("$project") if isinstance(stage, dict) else None
         if not isinstance(spec, dict) or not spec:
             patched.append(stage)
             continue
-        # An exclusion projection keeps every field it does not name, so there
-        # the position only needs rescuing from the exclusion list.
         if all(not value for value in spec.values()):
-            kept = {k: v for k, v in spec.items() if not _projects_position(k)}
-            # Mongo rejects an empty $project, and one that excluded nothing
-            # else was only there to drop the position.
+            kept = {
+                k: v
+                for k, v in spec.items()
+                if not any(_overlaps(k, field) for field in fields)
+            }
             if kept:
                 patched.append({**stage, "$project": kept})
             continue
-        if any(_projects_position(key) for key in spec):
-            patched.append(stage)
-            continue
-        patched.append({**stage, "$project": {**spec, POSITION_FIELD: 1}})
+        missing = {
+            field: 1
+            for field in fields
+            if not any(_overlaps(key, field) for key in spec)
+        }
+        patched.append({**stage, "$project": {**spec, **missing}})
     return patched
 
 
@@ -714,9 +707,11 @@ async def process_event_filter(
         # artifacts, asteroids and variable stars are rejected before they cross
         # the wire rather than after.
         cuts, cuts_source = await resolve_quality_pipeline(session, broker, filter_.id)
-        # The filter decides which alerts match; it does not get to decide
-        # whether they arrive with a position.
-        cuts = with_position_projected(cuts)
+        min_detections = conf(config, "min_detections")
+        cuts = with_fields_projected(
+            cuts,
+            (POSITION_FIELD, NDETHIST_FIELD) if min_detections else (POSITION_FIELD,),
+        )
         # First: the broker joins the alert history collection lazily, before the
         # first stage that reads it, so a cut placed after that stage is applied
         # to the joined set rather than shrinking it.
@@ -727,7 +722,7 @@ async def process_event_filter(
         )
         # Last: it reads the joined alert history, which the earlier stages
         # have already shrunk.
-        detections = detection_count_stages(event_jd, conf(config, "min_detections"))
+        detections = detection_count_stages(event_jd, min_detections)
         result = broker.broker_class.test_filter(
             broker,
             session,
