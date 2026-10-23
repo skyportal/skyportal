@@ -771,7 +771,7 @@ def read_tns_spectrum(spectrum, session):
         tab = Table.read(spectrum["asciifile"], format="fits")
 
     data = tab.to_pandas().to_dict(orient="list")
-    data["observed_at"] = Time(spectrum["jd"], format="jd").isot
+    data["observed_at"] = Time(spectrum["jd"], format="jd").datetime
     data["origin"] = "TNS"
 
     instrument = _resolve_tns_instrument(spectrum["instrument"]["id"], session)
