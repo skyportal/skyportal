@@ -154,6 +154,8 @@ _last_filter_report: dict = {}
 # When the last association pass started; in memory, so a restart runs a full one.
 _association_pass: dict = {"since": None}
 
+_applied_windows: dict = {}
+
 
 def report_once(key, message):
     """Log `message` only when it differs from the last one for `key`."""
@@ -1164,6 +1166,87 @@ async def drop_matches(session, annotation, keys, filter_id):
         )
 
 
+def outside_window(entry, before, after):
+    delta_t = entry.get("delta_t")
+    if not isinstance(delta_t, int | float):
+        return False
+    if delta_t < -before:
+        return not entry.get("prior_activity")
+    age = entry.get("age")
+    # delta_t is the latest alert's, so the upper bound uses the first detection
+    return isinstance(age, int | float) and delta_t - age > after
+
+
+async def retract_out_of_window(session, filter_, before, after):
+    annotations = (
+        await session.scalars(
+            sa.select(Annotation)
+            .join(Candidate, Candidate.obj_id == Annotation.obj_id)
+            .where(
+                Annotation.origin == ANNOTATION_ORIGIN,
+                Candidate.filter_id == filter_.id,
+            )
+            .distinct()
+        )
+    ).all()
+    found = []
+    for annotation in annotations:
+        keys = [
+            key
+            for key, entry in (annotation.data or {}).items()
+            if isinstance(entry, dict) and outside_window(entry, before, after)
+        ]
+        if keys:
+            found.append((annotation, keys))
+    if not found:
+        return 0
+
+    dateobs = {
+        entry_dateobs(annotation.data[key])
+        for annotation, keys in found
+        for key in keys
+    } - {None}
+    events = {
+        event.dateobs: event
+        for event in (
+            await session.scalars(
+                sa.select(GcnEvent)
+                .where(GcnEvent.dateobs.in_(dateobs))
+                .options(
+                    selectinload(GcnEvent._tags),
+                    selectinload(GcnEvent.localizations).selectinload(
+                        Localization.tags
+                    ),
+                )
+            )
+        )
+        .unique()
+        .all()
+    }
+
+    def applies(entry):
+        event = events.get(entry_dateobs(entry))
+        if event is None or not event.localizations:
+            return False
+        first = min(event.localizations, key=lambda loc: loc.created_at)
+        return event_matches(filter_, event, first)
+
+    retracted = 0
+    for annotation, keys in found:
+        keys = [key for key in keys if applies(annotation.data[key])]
+        if keys:
+            await drop_matches(session, annotation, keys, filter_.id)
+            retracted += len(keys)
+
+    if retracted:
+        await session.commit()
+        log(
+            f"{filter_.name}: retracted {retracted} match(es) outside its window "
+            f"of {before} day(s) before to {after} day(s) after the event"
+        )
+    return retracted
+
+
 async def newest_localization(session, user, dateobs):
     """The most recent localization's skymap for an event, as a plain row."""
     return (
@@ -1251,6 +1334,21 @@ async def run_cycle(config=None, user_id=1):
                 f"{f.name} [{filter_survey(f)} via {f.broker.name}]" for f in filters
             ),
         )
+
+        for filter_ in filters:
+            settings = filter_settings(filter_, config)
+            window = (
+                float(conf(settings, "delta_t_before")),
+                float(conf(settings, "delta_t_after")),
+            )
+            if _applied_windows.get(filter_.id) == window:
+                continue
+            try:
+                await retract_out_of_window(session, filter_, *window)
+                _applied_windows[filter_.id] = window
+            except Exception as e:
+                await session.rollback()
+                log(f"Could not retract matches outside {filter_.name}'s window: {e}")
 
         events = (
             (
