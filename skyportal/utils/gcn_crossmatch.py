@@ -324,6 +324,11 @@ def with_fields_projected(pipeline, fields):
             if kept:
                 patched.append({**stage, "$project": kept})
             continue
+        spec = {
+            k: v
+            for k, v in spec.items()
+            if not any(k.startswith(f"{field}.") for field in fields)
+        }
         missing = {
             field: 1
             for field in fields
@@ -1468,7 +1473,11 @@ async def run_cycle(config=None, user_id=1):
                         # The pre-event window is searched once, before the first
                         # forward pass, so a candidate that was already active is
                         # flagged as such the first time anyone looks at it.
-                        if conf(settings, "archival") and not state.archival_done:
+                        if (
+                            conf(settings, "archival")
+                            and conf(settings, "max_days_to_first_detection") is None
+                            and not state.archival_done
+                        ):
                             total += await process_event_filter(
                                 session,
                                 user,
