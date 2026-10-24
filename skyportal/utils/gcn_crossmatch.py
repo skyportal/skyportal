@@ -1120,21 +1120,8 @@ async def retract_superseded_matches(
         if still_matches:
             continue
 
-        for key in stale:
-            data.pop(key, None)
+        await drop_matches(session, annotation, stale, filter_.id)
         retracted += len(stale)
-        if data:
-            annotation.data = data
-            flag_modified(annotation, "data")
-        else:
-            await session.delete(annotation)
-            # The candidacy existed only because of this match, so it goes too.
-            await session.execute(
-                sa.delete(Candidate).where(
-                    Candidate.obj_id == annotation.obj_id,
-                    Candidate.filter_id == filter_.id,
-                )
-            )
 
     if retracted:
         await session.commit()
@@ -1143,6 +1130,38 @@ async def retract_superseded_matches(
             f"that its current localizations no longer contain"
         )
     return retracted
+
+
+def entry_dateobs(entry):
+    try:
+        return datetime.fromisoformat(str(entry.get("dateobs")))
+    except (TypeError, ValueError):
+        return None
+
+
+async def drop_matches(session, annotation, keys, filter_id):
+    data = dict(annotation.data or {})
+    dateobs = {entry_dateobs(data.pop(key, None) or {}) for key in keys} - {None}
+    if data:
+        annotation.data = data
+        flag_modified(annotation, "data")
+    else:
+        await session.delete(annotation)
+        # The candidacy existed only because of this match, so it goes too.
+        await session.execute(
+            sa.delete(Candidate).where(
+                Candidate.obj_id == annotation.obj_id,
+                Candidate.filter_id == filter_id,
+            )
+        )
+    if dateobs:
+        await session.execute(
+            sa.delete(GcnEventObj).where(
+                GcnEventObj.obj_id == annotation.obj_id,
+                GcnEventObj.dateobs.in_(dateobs),
+                GcnEventObj.status == "pending",
+            )
+        )
 
 
 async def newest_localization(session, user, dateobs):
