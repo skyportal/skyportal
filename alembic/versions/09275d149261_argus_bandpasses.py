@@ -1,7 +1,7 @@
 """Argus bandpasses
 
 Revision ID: 09275d149261
-Revises: 70db7c9f5f83
+Revises: e7f3b9d21a08
 Create Date: 2026-10-14 01:45:14.000000
 
 """
@@ -9,7 +9,7 @@ Create Date: 2026-10-14 01:45:14.000000
 from alembic import op
 
 revision = "09275d149261"
-down_revision = "70db7c9f5f83"
+down_revision = "e7f3b9d21a08"
 branch_labels = None
 depends_on = None
 
