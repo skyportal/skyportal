@@ -1,7 +1,5 @@
 #!/usr/bin/env python
 
-import time
-
 import arrow
 import sqlalchemy as sa
 
@@ -10,21 +8,17 @@ from skyportal.models import DBSession, Obj, init_db
 from skyportal.utils.candidates import stale_unsaved_candidates
 
 BATCH_SIZE = 100
-MAX_RUNTIME_SECONDS = 3600
 
 _, cfg = load_env()
 init_db(**cfg["database"])
 
 months = cfg["misc.months_to_keep_unsaved_candidates"]
 criteria = stale_unsaved_candidates(arrow.utcnow().shift(months=-months).naive)
-start = time.time()
 n_deleted = 0
 
 with DBSession() as session:
     obj_ids = session.scalars(sa.select(Obj.id).where(criteria)).all()
     for i in range(0, len(obj_ids), BATCH_SIZE):
-        if time.time() - start > MAX_RUNTIME_SECONDS:
-            break
         # Objects may be saved or pass a filter again during the run.
         objs = session.scalars(
             sa.select(Obj).where(Obj.id.in_(obj_ids[i : i + BATCH_SIZE]), criteria)
