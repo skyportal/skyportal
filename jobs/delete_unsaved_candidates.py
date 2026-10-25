@@ -12,8 +12,8 @@ BATCH_SIZE = 100
 _, cfg = load_env()
 init_db(**cfg["database"])
 
-months = cfg["misc.months_to_keep_unsaved_candidates"]
-criteria = stale_unsaved_candidates(arrow.utcnow().shift(months=-months).naive)
+days = cfg["misc.days_to_keep_unsaved_candidates"]
+criteria = stale_unsaved_candidates(arrow.utcnow().shift(days=-days).naive)
 n_deleted = 0
 
 with DBSession() as session:
@@ -29,6 +29,5 @@ with DBSession() as session:
         n_deleted += len(objs)
 
 print(
-    f"Deleted {n_deleted} of {len(obj_ids)} unsaved candidates "
-    f"older than {months} months."
+    f"Deleted {n_deleted} of {len(obj_ids)} unsaved candidates older than {days} days."
 )
