@@ -310,7 +310,7 @@ def delete_candidate(client: httpx.Client, obj_id: str, filter_id: int) -> None:
 def bulk_delete_candidates(
     client: httpx.Client,
     *,
-    max_age_months: int | None = None,
+    max_age_days: int | None = None,
     batch_size: int | None = None,
     dry_run: bool | None = None,
 ) -> BulkCandidateDeleteResponse:
@@ -318,7 +318,7 @@ def bulk_delete_candidates(
 
     Deletes objects that appear as candidates, are not saved as an active
     source in any group, and whose most recent ``passed_at`` is older than
-    ``max_age_months``. Deleting an object cascades to its candidates,
+    ``max_age_days``. Deleting an object cascades to its candidates,
     photometry, annotations and thumbnails. Requires the ``System admin``
     permission.
 
@@ -326,8 +326,9 @@ def bulk_delete_candidates(
     ----------
     client : httpx.Client
         Client from :func:`skyportal_py.create_client`.
-    max_age_months : int, optional
-        Age threshold in months. Server default is 6.
+    max_age_days : int, optional
+        Age threshold in days. Server default is the
+        ``days_to_keep_unsaved_candidates`` config value.
     batch_size : int, optional
         Maximum number of objects deleted in this call, oldest first.
         Server default is 1000; must be between 1 and 10000.
@@ -336,8 +337,8 @@ def bulk_delete_candidates(
         default is false.
     """
     payload: dict[str, int | bool] = {}
-    if max_age_months is not None:
-        payload["maxAgeMonths"] = max_age_months
+    if max_age_days is not None:
+        payload["maxAgeDays"] = max_age_days
     if batch_size is not None:
         payload["batchSize"] = batch_size
     if dry_run is not None:

@@ -928,7 +928,7 @@ boom:
 misc:
   # Whether a non-admin may delete an Obj they own all the data for.
   allow_nonadmins_delete_objs: false
-  days_to_keep_unsaved_candidates: 7
+  days_to_keep_unsaved_candidates: 30
   days_to_keep_finding_charts_cache: 30
   minutes_to_keep_candidate_query_cache: 60
   minutes_to_keep_source_query_cache: 360 # 6 hours
@@ -1039,8 +1039,6 @@ observability:
   service_name: skyportal
 
 cron:
-  # - interval: 60
-  #  script: jobs/count_unsaved_candidates.py
   # - interval: 1440
   #   script: jobs/delete_unsaved_candidates.py
   #   limit: ["01:00", "02:00"]
