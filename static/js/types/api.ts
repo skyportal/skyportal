@@ -3244,7 +3244,7 @@ export interface paths {
          * Bulk-delete old, unsaved candidates
          * @description <b>Permission(s) required:</b> <em>System admin (or System admin)</em><br><br>Delete objects that appear as candidates, are not currently saved as
          *     an active source in any group, and whose most recent candidate
-         *     `passed_at` is older than `maxAgeMonths`. Deleting the object cascades
+         *     `passed_at` is older than `maxAgeDays`. Deleting the object cascades
          *     to its candidates, photometry, annotations, thumbnails, etc. System
          *     admin only. Intended to be driven periodically via the Recurring API.
          */
@@ -42496,11 +42496,11 @@ export interface components {
          */
         BulkDeleteCandidatesPostBody: {
             /**
-             * Maxagemonths
-             * @description Delete objects whose most recent candidate `passed_at` is older than this many months. Defaults to 6.
-             * @default 6
+             * Maxagedays
+             * @description Delete objects whose most recent candidate `passed_at` is older than this many days. Defaults to the `days_to_keep_unsaved_candidates` config value.
+             * @default null
              */
-            maxAgeMonths: number;
+            maxAgeDays: number | null;
             /**
              * Batchsize
              * @description Maximum number of objects to delete in this call (deleted oldest-first). Defaults to 1000.

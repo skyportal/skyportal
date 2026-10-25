@@ -688,10 +688,11 @@ class BulkDeleteCandidatesPostBody(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
-    maxAgeMonths: int = Field(
-        6,
+    maxAgeDays: int | None = Field(
+        None,
         description="Delete objects whose most recent candidate `passed_at` is older "
-        "than this many months. Defaults to 6.",
+        "than this many days. Defaults to the `days_to_keep_unsaved_candidates` "
+        "config value.",
     )
     batchSize: int = Field(
         1000,

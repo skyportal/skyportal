@@ -1865,7 +1865,7 @@ class BulkDeleteCandidatesHandler(BaseHandler):
         description: |
           Delete objects that appear as candidates, are not currently saved as
           an active source in any group, and whose most recent candidate
-          `passed_at` is older than `maxAgeMonths`. Deleting the object cascades
+          `passed_at` is older than `maxAgeDays`. Deleting the object cascades
           to its candidates, photometry, annotations, thumbnails, etc. System
           admin only. Intended to be driven periodically via the Recurring API.
         tags:
@@ -1896,13 +1896,14 @@ class BulkDeleteCandidatesHandler(BaseHandler):
                 schema: Error
         """
         body = self.parse_body(BulkDeleteCandidatesPostBody)
-        if body.maxAgeMonths < 1:
-            return self.error("maxAgeMonths must be a positive integer.")
+        max_age_days = body.maxAgeDays or cfg["misc.days_to_keep_unsaved_candidates"]
+        if max_age_days < 1:
+            return self.error("maxAgeDays must be a positive integer.")
         if not 1 <= body.batchSize <= 10000:
             return self.error("batchSize must be between 1 and 10000.")
 
         criteria = stale_unsaved_candidates(
-            arrow.utcnow().shift(months=-body.maxAgeMonths).naive
+            arrow.utcnow().shift(days=-max_age_days).naive
         )
         count_stmt = sa.select(func.count()).select_from(Obj).where(criteria)
 
@@ -1929,7 +1930,7 @@ class BulkDeleteCandidatesHandler(BaseHandler):
             remaining = await session.scalar(count_stmt)
             log(
                 f"Bulk-deleted {len(objs)} unsaved candidate object(s) older than "
-                f"{body.maxAgeMonths} months; {remaining} remaining."
+                f"{max_age_days} days; {remaining} remaining."
             )
             return self.success(
                 data={"deleted": len(objs), "remaining": remaining, "dryRun": False}
