@@ -192,6 +192,7 @@ def user_preferences(target, notification_setting, resource_type):
             "feedback",
             "direct_messages",
             "group_discussions",
+            "group_admission_request",
         ]:
             if not prefs.get(resource_type, False):
                 return
@@ -1473,25 +1474,18 @@ def api(queue):
                                             placeholder="...",
                                         ),
                                     }
-                                    notification = UserNotification(
-                                        user=user,
-                                        text=group_admission_request_notification_text(
-                                            content, escape_markdown
-                                        ),
-                                        notification_type="group_admission_request",
-                                        url=f"/group/{group_from_request.id}?tab=admissions",
+                                    queue.append(
+                                        user_notification_target(
+                                            session,
+                                            user,
+                                            group_admission_request_notification_text(
+                                                content, escape_markdown
+                                            ),
+                                            "group_admission_request",
+                                            f"/group/{group_from_request.id}?tab=admissions",
+                                            content,
+                                        )
                                     )
-                                    session.add(notification)
-                                    session.commit()
-                                    target = {
-                                        **notification.to_dict(),
-                                        "user": {
-                                            **notification.user.to_dict(),
-                                            "preferences": notification.user.preferences,
-                                        },
-                                        "content": content,
-                                    }
-                                    queue.append(target)
                                 else:
                                     favorite_sources = session.scalars(
                                         sa.select(Listing)
