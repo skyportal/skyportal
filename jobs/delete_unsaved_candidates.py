@@ -1,37 +1,40 @@
 #!/usr/bin/env python
 
-import datetime
+import time
+
+import arrow
+import sqlalchemy as sa
 
 from baselayer.app.env import load_env
-from skyportal.models import Candidate, DBSession, Obj, Source, init_db
+from skyportal.models import DBSession, Obj, init_db
+from skyportal.utils.candidates import stale_unsaved_candidates
 
-env, cfg = load_env()
+BATCH_SIZE = 100
+MAX_RUNTIME_SECONDS = 3600
+
+_, cfg = load_env()
 init_db(**cfg["database"])
 
-try:
-    n_days = int(cfg["misc.days_to_keep_unsaved_candidates"])
-except ValueError:
-    raise ValueError(
-        "Invalid (non-integer) value provided for "
-        "days_to_keep_unsaved_candidates in config file."
-    )
+months = cfg["misc.months_to_keep_unsaved_candidates"]
+criteria = stale_unsaved_candidates(arrow.utcnow().shift(months=-months).naive)
+start = time.time()
+n_deleted = 0
 
-if not 1 <= n_days <= 30:
-    raise ValueError(
-        "days_to_keep_unsaved_candidates must be an integer between 1 and 30"
-    )
+with DBSession() as session:
+    obj_ids = session.scalars(sa.select(Obj.id).where(criteria)).all()
+    for i in range(0, len(obj_ids), BATCH_SIZE):
+        if time.time() - start > MAX_RUNTIME_SECONDS:
+            break
+        # Objects may be saved or pass a filter again during the run.
+        objs = session.scalars(
+            sa.select(Obj).where(Obj.id.in_(obj_ids[i : i + BATCH_SIZE]), criteria)
+        ).all()
+        for obj in objs:
+            session.delete(obj)
+        session.commit()
+        n_deleted += len(objs)
 
-cutoff_datetime = datetime.datetime.now() - datetime.timedelta(days=n_days)
-
-n_deleted = (
-    DBSession()
-    .query(Obj)
-    .filter(Obj.id.in_(DBSession.query(Candidate.obj_id)))
-    .filter(Obj.id.notin_(DBSession.query(Source.obj_id)))
-    .filter(Obj.created_at <= cutoff_datetime)
-    .delete(synchronize_session="fetch")
+print(
+    f"Deleted {n_deleted} of {len(obj_ids)} unsaved candidates "
+    f"older than {months} months."
 )
-
-DBSession.commit()
-
-print(f"Deleted {n_deleted} unsaved candidates.")
