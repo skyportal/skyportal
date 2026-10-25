@@ -700,8 +700,8 @@ class BOOMBROKER(BrokerAPI):
                         "title": "Topics",
                         "description": (
                             "BOOM results topics to consume, e.g. "
-                            "ZTF_alerts_results. Empty reads the ZTF, LSST, "
-                            "DECam and Argus ones."
+                            "ZTF_alerts_results. Empty reads the ZTF, LSST "
+                            "and DECam ones."
                         ),
                     },
                     "auto_offset_reset": {
