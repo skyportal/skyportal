@@ -9,6 +9,7 @@ import ClassificationSelect from "../../classification/ClassificationSelect";
 import { SelectLabelWithChips } from "../../SelectWithChips";
 import DeliveryChannels from "../../notifications/DeliveryChannels";
 import NotificationCard from "../../notifications/NotificationCard";
+import { ChannelKey } from "../../notifications/channels";
 import PreferenceOption, {
   PreferenceOptions,
 } from "../../notifications/PreferenceOption";
@@ -242,6 +243,7 @@ const NOTIFICATIONS: {
   title: string;
   text: string;
   options?: ReactNode;
+  channels?: ChannelKey[];
 }[] = [
   {
     key: "sources",
@@ -349,6 +351,12 @@ const NOTIFICATIONS: {
     ),
   },
   {
+    key: "group_admission_request",
+    title: "Group admission requests",
+    text: "When someone asks to join a group you administer. Email is always sent.",
+    channels: ["slack", "sms", "phone", "whatsapp"],
+  },
+  {
     key: "deployments",
     title: "Deployments",
     text: "Each time a new version is deployed. The history is on the Deployments page.",
@@ -360,8 +368,14 @@ const NotificationPreferences = () => {
   return (
     <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
       <DeliveryChannels />
-      {NOTIFICATIONS.map(({ key, title, text, options }) => (
-        <NotificationCard key={key} type={key} title={title} text={text}>
+      {NOTIFICATIONS.map(({ key, title, text, options, channels }) => (
+        <NotificationCard
+          key={key}
+          type={key}
+          title={title}
+          text={text}
+          {...(channels ? { channels } : {})}
+        >
           {options}
         </NotificationCard>
       ))}
