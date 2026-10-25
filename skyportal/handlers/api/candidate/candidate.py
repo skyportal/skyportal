@@ -58,6 +58,7 @@ from ....models import (
 )
 from ....utils.cache import Cache, array_to_bytes, cache_folder
 from ....utils.calculations import great_circle_distance
+from ....utils.candidates import stale_unsaved_candidates
 from ....utils.data_access import (
     accessible_group_and_filter_ids,
     accessible_group_ids_async,
@@ -1912,17 +1913,8 @@ class BulkDeleteCandidatesHandler(BaseHandler):
         if not (1 <= batch_size <= 10000):
             return self.error("batchSize must be between 1 and 10000.")
 
-        cutoff = arrow.utcnow().shift(months=-max_age_months).naive
-
-        # Objects that are candidates, are not currently saved as an active
-        # source anywhere, and have no candidate activity at/after the cutoff
-        # (i.e. their most recent passed_at is older than maxAgeMonths).
-        criteria = sa.and_(
-            Obj.id.in_(sa.select(Candidate.obj_id)),
-            Obj.id.notin_(sa.select(Source.obj_id).where(Source.active.is_(True))),
-            Obj.id.notin_(
-                sa.select(Candidate.obj_id).where(Candidate.passed_at >= cutoff)
-            ),
+        criteria = stale_unsaved_candidates(
+            arrow.utcnow().shift(months=-max_age_months).naive
         )
 
         async with self.AsyncSession() as session:
