@@ -278,6 +278,17 @@ class Obj(Base, conesearch_alchemy.Point):
         nullable=True,
         doc="TNS info in JSON format",
     )
+    withhold_from_tns = sa.Column(
+        sa.Boolean,
+        nullable=False,
+        server_default="false",
+        default=False,
+        doc=(
+            "Keep this object off TNS. Automatic sharing skips it silently and "
+            "a manual submission is refused, so an object held back stays held "
+            "back until someone clears this deliberately."
+        ),
+    )
     score = sa.Column(sa.Float, nullable=True, doc="Machine learning score.")
 
     origin = sa.Column(sa.String, nullable=True, doc="Origin of the object.")

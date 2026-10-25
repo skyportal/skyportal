@@ -15,6 +15,8 @@ import { makeStyles } from "tss-react/mui";
 import Grid from "@mui/material/Grid";
 import Chip from "@mui/material/Chip";
 import Tooltip from "@mui/material/Tooltip";
+import Checkbox from "@mui/material/Checkbox";
+import FormControlLabel from "@mui/material/FormControlLabel";
 import Accordion from "@mui/material/Accordion";
 import AccordionSummary from "@mui/material/AccordionSummary";
 import AccordionDetails from "@mui/material/AccordionDetails";
@@ -96,6 +98,7 @@ import {
   useAddHostMutation,
   useRemoveHostMutation,
   useAddSourceViewMutation,
+  useUpdateSourceMutation,
 } from "../../ducks/source";
 
 import PhotometryPlot from "../plot/PhotometryPlot";
@@ -257,6 +260,7 @@ const SourceContent = ({ source }: SourceContentProps) => {
   const associatedGCNs = associatedGcnsData?.["gcns"];
   const [addHost] = useAddHostMutation();
   const [removeHostMutation] = useRemoveHostMutation();
+  const [updateSource] = useUpdateSourceMutation();
 
   const { data: brokers = [] } = useGetBrokersQuery();
   const { data: instrumentList = [] } = useGetInstrumentsQuery();
@@ -1106,6 +1110,25 @@ const SourceContent = ({ source }: SourceContentProps) => {
                     dialogOpen={sendToDialogOpen}
                     setDialogOpen={setSendToDialogOpen}
                   />
+                  <Tooltip title="Keep this source off TNS. Automatic sharing skips it and a manual submission is refused until this is cleared.">
+                    <FormControlLabel
+                      control={
+                        <Checkbox
+                          size="small"
+                          checked={Boolean(source.withhold_from_tns)}
+                          onChange={(event) =>
+                            updateSource({
+                              id: source.id,
+                              payload: {
+                                withhold_from_tns: event.target.checked,
+                              },
+                            })
+                          }
+                        />
+                      }
+                      label="Withhold from TNS"
+                    />
+                  </Tooltip>
                 </div>
               )}
               {currentUser?.preferences?.["hideSourceSummary"] === true && (

@@ -35436,6 +35436,8 @@ export interface components {
             tns_info?: {
                 [key: string]: unknown;
             } | null;
+            /** @description Keep this object off TNS. Automatic sharing skips it silently and a manual submission is refused, so an object held back stays held back until someone clears this deliberately. */
+            withhold_from_tns?: boolean;
             /** @description Machine learning score. */
             score?: number | null;
             /** @description Origin of the object. */
@@ -35713,6 +35715,8 @@ export interface components {
             tns_info?: {
                 [key: string]: unknown;
             } | null;
+            /** @description Keep this object off TNS. Automatic sharing skips it silently and a manual submission is refused, so an object held back stays held back until someone clears this deliberately. */
+            withhold_from_tns?: boolean;
             /** @description Machine learning score. */
             score?: number | null;
             /** @description Origin of the object. */
@@ -35816,6 +35820,8 @@ export interface components {
             tns_info?: {
                 [key: string]: unknown;
             } | null;
+            /** @description Keep this object off TNS. Automatic sharing skips it silently and a manual submission is refused, so an object held back stays held back until someone clears this deliberately. */
+            withhold_from_tns?: boolean;
             /** @description Machine learning score. */
             score?: number | null;
             /** @description Origin of the object. */
@@ -42670,6 +42676,12 @@ export interface components {
              */
             tns_info: unknown;
             /**
+             * Withhold From Tns
+             * @description Keep this object off TNS: automatic sharing skips it and a manual submission is refused.
+             * @default null
+             */
+            withhold_from_tns: boolean | null;
+            /**
              * Score
              * @description Machine learning score.
              * @default null
@@ -48244,6 +48256,12 @@ export interface components {
              */
             tns_info: unknown;
             /**
+             * Withhold From Tns
+             * @description Keep this object off TNS: automatic sharing skips it and a manual submission is refused.
+             * @default null
+             */
+            withhold_from_tns: boolean | null;
+            /**
              * Score
              * @description Machine learning score.
              * @default null
@@ -48450,6 +48468,12 @@ export interface components {
              * @default null
              */
             tns_info: unknown;
+            /**
+             * Withhold From Tns
+             * @description Keep this object off TNS: automatic sharing skips it and a manual submission is refused.
+             * @default null
+             */
+            withhold_from_tns: boolean | null;
             /**
              * Score
              * @description Machine learning score.

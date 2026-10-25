@@ -583,6 +583,18 @@ def get_publishable_source_and_photometry(
     return source, photometry, stream_ids
 
 
+def destinations_not_withheld(obj, publish_to):
+    """``publish_to`` without the destinations this object is held back from.
+
+    Automatic sharing drops a withheld destination silently: nobody is watching
+    an automatic share, so the quiet path is the safe one. The manual path
+    refuses instead, since there a person is asking and can be told why.
+    """
+    if getattr(obj, "withhold_from_tns", False):
+        return [service for service in publish_to if service != "TNS"]
+    return list(publish_to)
+
+
 def auto_source_publishing(session, saver, group_id, obj, publish_to):
     """Check for every auto publishing procedure for a source that is saved to a group.
 
@@ -600,6 +612,7 @@ def auto_source_publishing(session, saver, group_id, obj, publish_to):
         The procedures to check for auto-publishing (e.g., ["TNS", "Hermes", "TROVE", "Public page"])
     """
     tns, hermes, trove = "TNS", "Hermes", "TROVE"
+    publish_to = destinations_not_withheld(obj, publish_to)
     if tns in publish_to or hermes in publish_to or trove in publish_to:
         # Check if group auto publish is enabled to an external service and a user is auto publisher
         stmt = (
@@ -864,6 +877,7 @@ async def any_group_auto_publishes(session, group_ids):
 async def auto_source_publishing_async(session, saver, group_id, obj, publish_to):
     """Async equivalent of `auto_source_publishing`."""
     tns, hermes, trove = "TNS", "Hermes", "TROVE"
+    publish_to = destinations_not_withheld(obj, publish_to)
     if tns in publish_to or hermes in publish_to or trove in publish_to:
         stmt = (
             SharingServiceGroup.select(saver)
