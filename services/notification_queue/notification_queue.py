@@ -192,13 +192,19 @@ def user_preferences(target, notification_setting, resource_type):
             "feedback",
             "direct_messages",
             "group_discussions",
-            "group_admission_request",
         ]:
             if not prefs.get(resource_type, False):
                 return
             if not prefs[resource_type].get(notification_setting, False):
                 return
             if not prefs[resource_type][notification_setting].get("active", False):
+                return
+        elif resource_type == "group_admission_request":
+            type_prefs = prefs.get(resource_type) or {}
+            channel = type_prefs.get(notification_setting) or {}
+            if type_prefs.get("active") is False:
+                return
+            if channel.get("active", notification_setting == "slack") is not True:
                 return
         elif notification_setting in ["sms", "phone", "whatsapp"]:
             if not prefs.get(resource_type, {}).get(notification_setting):
