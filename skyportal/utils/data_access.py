@@ -583,6 +583,96 @@ def get_publishable_source_and_photometry(
     return source, photometry, stream_ids
 
 
+def classification_is_reportable(classification):
+    """Whether this classification could go to TNS at all.
+
+    Machine classifications stay off TNS until someone decides otherwise, an
+    object can be held back individually, and a classification report attaches
+    to an IAU name, so an object TNS does not already know has nothing to
+    attach to.
+    """
+    obj = classification.obj
+    if classification.ml:
+        return False
+    if getattr(obj, "withhold_from_tns", False):
+        return False
+    if is_null(obj.tns_name):
+        return False
+    return bool(classification.groups)
+
+
+def auto_classification_publishing(session, author, classification):
+    """Queue a TNS classification report for a new classification, where a
+    group asked for that.
+
+    This is the classification counterpart to ``auto_source_publishing``, which
+    fires on save and announces a discovery. A classification arrives later and
+    says something different, so a group opts into it separately through
+    ``auto_share_classifications_to_tns``.
+
+    Nothing is queued for a machine classification, for an object held back
+    from TNS, or for one TNS does not already know by name, since a
+    classification report has nothing to attach to without an IAU name.
+    """
+    if not classification_is_reportable(classification):
+        return
+    obj = classification.obj
+    group_ids = [group.id for group in classification.groups]
+
+    stmt = (
+        SharingServiceGroup.select(author)
+        .join(
+            SharingServiceGroupAutoPublisher,
+            SharingServiceGroup.id
+            == SharingServiceGroupAutoPublisher.sharing_service_group_id,
+        )
+        .where(
+            SharingServiceGroup.group_id.in_(group_ids),
+            SharingServiceGroup.auto_share_classifications_to_tns.is_(True),
+            SharingServiceGroupAutoPublisher.group_user_id.in_(
+                sa.select(GroupUser.id).where(
+                    GroupUser.user_id == author.id,
+                    GroupUser.group_id.in_(group_ids),
+                )
+            ),
+        )
+    )
+    if author.is_bot:
+        stmt = stmt.where(SharingServiceGroup.auto_sharing_allow_bots.is_(True))
+
+    for group in session.scalars(stmt).unique().all():
+        sharing_service = group.sharing_service
+        if not sharing_service.enable_sharing_with_tns:
+            continue
+        if is_existing_submission_request(
+            session,
+            obj,
+            sharing_service.id,
+            "TNS",
+            tns_report_type="classification_report",
+        ):
+            continue
+        session.add(
+            SharingServiceSubmission(
+                sharing_service_id=sharing_service.id,
+                obj_id=obj.id,
+                user_id=author.id,
+                auto_submission=True,
+                publish_to_tns=True,
+                tns_report_type="classification_report",
+                tns_status="pending",
+            )
+        )
+        session.commit()
+        log(
+            f"Queued a TNS classification report for {obj.id} with sharing "
+            f"service {sharing_service.id} (auto submission)"
+        )
+        # One report per object: a second service would file the same
+        # classification against the same IAU name.
+        return
+
+
 def destinations_not_withheld(obj, publish_to):
     """``publish_to`` without the destinations this object is held back from.
 

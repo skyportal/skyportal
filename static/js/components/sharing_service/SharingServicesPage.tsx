@@ -148,6 +148,8 @@ const SharingServiceGroup = ({
   const [autoPublishTns, setAutoPublishTns] = useState(
     sharingServiceGroup.auto_share_to_tns,
   );
+  const [autoPublishTnsClassifications, setAutoPublishTnsClassifications] =
+    useState(sharingServiceGroup.auto_share_classifications_to_tns);
   const [autoPublishHermes, setAutoPublishHermes] = useState(
     sharingServiceGroup.auto_share_to_hermes,
   );
@@ -172,6 +174,9 @@ const SharingServiceGroup = ({
   useEffect(() => {
     setOwner(sharingServiceGroup.owner);
     setAutoPublishTns(sharingServiceGroup.auto_share_to_tns);
+    setAutoPublishTnsClassifications(
+      sharingServiceGroup.auto_share_classifications_to_tns,
+    );
     setAutoPublishHermes(sharingServiceGroup.auto_share_to_hermes);
     setAutoPublishTrove(sharingServiceGroup.auto_share_to_trove);
     setAutoPublishAllowBots(sharingServiceGroup.auto_sharing_allow_bots);
@@ -219,6 +224,8 @@ const SharingServiceGroup = ({
     if (
       owner !== sharingServiceGroup.owner ||
       autoPublishTns !== sharingServiceGroup.auto_share_to_tns ||
+      autoPublishTnsClassifications !==
+        sharingServiceGroup.auto_share_classifications_to_tns ||
       autoPublishHermes !== sharingServiceGroup.auto_share_to_hermes ||
       autoPublishTrove !== sharingServiceGroup.auto_share_to_trove ||
       autoPublishAllowBots !== sharingServiceGroup.auto_sharing_allow_bots
@@ -229,6 +236,7 @@ const SharingServiceGroup = ({
           data: {
             owner,
             auto_share_to_tns: autoPublishTns,
+            auto_share_classifications_to_tns: autoPublishTnsClassifications,
             auto_share_to_hermes: autoPublishHermes,
             auto_share_to_trove: autoPublishTrove,
             auto_sharing_allow_bots: autoPublishAllowBots,
@@ -304,6 +312,26 @@ const SharingServiceGroup = ({
                   />
                 }
                 label="TNS"
+                disabled={!sharingService.enable_sharing_with_tns}
+              />
+            </Tooltip>
+            <Tooltip
+              title={
+                sharingService.enable_sharing_with_tns
+                  ? "Report a classification to TNS when one is added to a source of this group. Human classifications only; sources withheld from TNS are skipped."
+                  : "TNS publishing is disabled for this sharingService."
+              }
+            >
+              <FormControlLabel
+                control={
+                  <Checkbox
+                    checked={autoPublishTnsClassifications}
+                    onChange={(e) =>
+                      setAutoPublishTnsClassifications(e.target.checked)
+                    }
+                  />
+                }
+                label="TNS classifications"
                 disabled={!sharingService.enable_sharing_with_tns}
               />
             </Tooltip>

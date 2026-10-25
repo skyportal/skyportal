@@ -51,6 +51,11 @@ class SharingServiceGroupHandler(BaseHandler):
             if "auto_share_to_tns" in body.model_fields_set
             else None
         )
+        auto_share_classifications_to_tns = (
+            str_to_bool(body.auto_share_classifications_to_tns)
+            if "auto_share_classifications_to_tns" in body.model_fields_set
+            else None
+        )
         auto_share_to_hermes = (
             str_to_bool(body.auto_share_to_hermes)
             if "auto_share_to_hermes" in body.model_fields_set
@@ -120,6 +125,14 @@ class SharingServiceGroupHandler(BaseHandler):
                     and auto_share_to_tns != group.auto_share_to_tns
                 ):
                     group.auto_share_to_tns = auto_share_to_tns
+                if (
+                    auto_share_classifications_to_tns is not None
+                    and auto_share_classifications_to_tns
+                    != group.auto_share_classifications_to_tns
+                ):
+                    group.auto_share_classifications_to_tns = (
+                        auto_share_classifications_to_tns
+                    )
                 if (
                     auto_share_to_hermes is not None
                     and auto_share_to_hermes != group.auto_share_to_hermes
@@ -191,6 +204,9 @@ class SharingServiceGroupHandler(BaseHandler):
                     sharing_service_id=sharing_service_id,
                     group_id=group_id,
                     auto_share_to_tns=auto_share_to_tns,
+                    auto_share_classifications_to_tns=(
+                        auto_share_classifications_to_tns
+                    ),
                     auto_share_to_hermes=auto_share_to_hermes,
                     auto_share_to_trove=auto_share_to_trove,
                     auto_sharing_allow_bots=auto_sharing_allow_bots,

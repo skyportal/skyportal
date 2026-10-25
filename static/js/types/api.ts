@@ -38460,6 +38460,7 @@ export interface components {
             group_id: number;
             owner?: boolean;
             auto_share_to_tns?: boolean;
+            auto_share_classifications_to_tns?: boolean;
             auto_share_to_hermes?: boolean;
             auto_share_to_mpc?: boolean;
             auto_share_to_trove?: boolean;
@@ -38529,6 +38530,7 @@ export interface components {
             group_id: number;
             owner?: boolean;
             auto_share_to_tns?: boolean;
+            auto_share_classifications_to_tns?: boolean;
             auto_share_to_hermes?: boolean;
             auto_share_to_mpc?: boolean;
             auto_share_to_trove?: boolean;
@@ -50482,6 +50484,12 @@ export interface components {
              * @default null
              */
             auto_share_to_tns: (boolean | string) | null;
+            /**
+             * Auto Share Classifications To Tns
+             * @description Whether to automatically report classifications of this group's sources to TNS
+             * @default null
+             */
+            auto_share_classifications_to_tns: (boolean | string) | null;
             /**
              * Auto Share To Hermes
              * @description Whether to automatically publish to Hermes
