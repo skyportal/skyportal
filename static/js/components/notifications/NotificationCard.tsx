@@ -79,9 +79,11 @@ const Pill = ({
 export const ChannelPills = ({
   type,
   channels = CHANNELS.map((channel) => channel.key),
+  defaultChannels = [],
 }: {
   type: string;
   channels?: ChannelKey[];
+  defaultChannels?: ChannelKey[];
 }) => {
   const { data: profile } = useGetProfileQuery();
   const [updateUserPreferences] = useUpdateUserPreferencesMutation();
@@ -127,8 +129,10 @@ export const ChannelPills = ({
           onClick={() => update({ in_app: { active: !inApp } })}
         />
         {shown.map((channel) => {
-          const on = prefs[channel.key]?.active === true;
           const ready = isSetUp(profile, channel.setup);
+          const on =
+            (prefs[channel.key]?.active ??
+              (ready && defaultChannels.includes(channel.key))) === true;
           return (
             <Pill
               key={channel.key}
@@ -180,6 +184,8 @@ interface NotificationCardProps {
   text: ReactNode;
   children?: ReactNode;
   channels?: ChannelKey[];
+  defaultActive?: boolean;
+  defaultChannels?: ChannelKey[];
 }
 
 const NotificationCard = ({
@@ -188,10 +194,14 @@ const NotificationCard = ({
   text,
   children,
   channels,
+  defaultActive = false,
+  defaultChannels = [],
 }: NotificationCardProps) => {
   const { data: profile } = useGetProfileQuery();
   const [updateUserPreferences] = useUpdateUserPreferencesMutation();
-  const active = profile?.preferences["notifications"]?.[type]?.active === true;
+  const active =
+    (profile?.preferences["notifications"]?.[type]?.active ?? defaultActive) ===
+    true;
 
   return (
     <Box
@@ -231,7 +241,11 @@ const NotificationCard = ({
           }}
         >
           {children}
-          <ChannelPills type={type} {...(channels ? { channels } : {})} />
+          <ChannelPills
+            type={type}
+            defaultChannels={defaultChannels}
+            {...(channels ? { channels } : {})}
+          />
         </Box>
       )}
     </Box>

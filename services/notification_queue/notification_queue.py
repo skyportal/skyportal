@@ -199,6 +199,13 @@ def user_preferences(target, notification_setting, resource_type):
                 return
             if not prefs[resource_type][notification_setting].get("active", False):
                 return
+        elif resource_type == "group_admission_request":
+            type_prefs = prefs.get(resource_type) or {}
+            channel = type_prefs.get(notification_setting) or {}
+            if type_prefs.get("active") is False:
+                return
+            if channel.get("active", notification_setting == "slack") is not True:
+                return
         elif notification_setting in ["sms", "phone", "whatsapp"]:
             if not prefs.get(resource_type, {}).get(notification_setting):
                 return
@@ -1473,25 +1480,18 @@ def api(queue):
                                             placeholder="...",
                                         ),
                                     }
-                                    notification = UserNotification(
-                                        user=user,
-                                        text=group_admission_request_notification_text(
-                                            content, escape_markdown
-                                        ),
-                                        notification_type="group_admission_request",
-                                        url=f"/group/{group_from_request.id}?tab=admissions",
+                                    queue.append(
+                                        user_notification_target(
+                                            session,
+                                            user,
+                                            group_admission_request_notification_text(
+                                                content, escape_markdown
+                                            ),
+                                            "group_admission_request",
+                                            f"/group/{group_from_request.id}?tab=admissions",
+                                            content,
+                                        )
                                     )
-                                    session.add(notification)
-                                    session.commit()
-                                    target = {
-                                        **notification.to_dict(),
-                                        "user": {
-                                            **notification.user.to_dict(),
-                                            "preferences": notification.user.preferences,
-                                        },
-                                        "content": content,
-                                    }
-                                    queue.append(target)
                                 else:
                                     favorite_sources = session.scalars(
                                         sa.select(Listing)
