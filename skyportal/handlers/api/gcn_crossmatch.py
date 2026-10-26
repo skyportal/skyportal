@@ -124,6 +124,7 @@ class GcnEventCrossmatchHandler(BaseHandler):
                     last_alert_jd=None,
                     archival_done=False,
                     error=None,
+                    n_matches=0,
                 )
             )
             await session.commit()

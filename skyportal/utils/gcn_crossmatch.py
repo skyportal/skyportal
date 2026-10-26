@@ -225,6 +225,7 @@ def requeue_crossmatch_for_filter(session, filter_id, config=None):
             last_alert_jd=None,
             archival_done=False,
             error=None,
+            n_matches=0,
         )
     )
     if result.rowcount:
