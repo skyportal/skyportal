@@ -72,8 +72,14 @@ class SharingServiceSubmissionHandler(BaseHandler):
         photometry_options = body.photometry_options
         publish_to_tns = body.publish_to_tns
         tns_report_type = body.tns_report_type or "at_report"
-        tns_spectrum_id = body.tns_spectrum_id
-        chosen_classification_id = body.tns_classification_id
+        # Only a TNS classification report checks and reads the chosen ids.
+        classification_report = (
+            publish_to_tns and tns_report_type == "classification_report"
+        )
+        tns_spectrum_id = body.tns_spectrum_id if classification_report else None
+        chosen_classification_id = (
+            body.tns_classification_id if classification_report else None
+        )
         publish_to_hermes = body.publish_to_hermes
         publish_to_trove = body.publish_to_trove
 
@@ -116,7 +122,7 @@ class SharingServiceSubmissionHandler(BaseHandler):
                     f"No sharing service available with ID {sharing_service_id}"
                 )
 
-            if publish_to_tns and tns_report_type == "classification_report":
+            if classification_report:
                 if is_null(obj.tns_name):
                     return self.error(
                         f"{obj.id} has no TNS name, so it cannot be classified "
