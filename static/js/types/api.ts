@@ -31605,6 +31605,8 @@ export interface components {
             treasuremap_id?: number | null;
             /** @description TNS API ID for this instrument */
             tns_id?: number | null;
+            /** @description Observer to credit on a TNS report when a spectrum from this instrument names none. A robotic instrument observes nothing by hand, so its spectra arrive without an observer, and TNS refuses a classification report that leaves the field empty. */
+            default_observer?: string | null;
             /** @description NASA ACROSS instrument UUID, used to route visibility queries to the ACROSS calculator. See https://across.sciencecloud.nasa.gov */
             across_id?: string | null;
             /** @description Instrument astropy.regions representation. */
@@ -31878,6 +31880,8 @@ export interface components {
             treasuremap_id?: number | null;
             /** @description TNS API ID for this instrument */
             tns_id?: number | null;
+            /** @description Observer to credit on a TNS report when a spectrum from this instrument names none. A robotic instrument observes nothing by hand, so its spectra arrive without an observer, and TNS refuses a classification report that leaves the field empty. */
+            default_observer?: string | null;
             /** @description NASA ACROSS instrument UUID, used to route visibility queries to the ACROSS calculator. See https://across.sciencecloud.nasa.gov */
             across_id?: string | null;
             /** @description Instrument astropy.regions representation. */
@@ -45635,6 +45639,12 @@ export interface components {
              */
             tns_id: number | null;
             /**
+             * Default Observer
+             * @description Observer credited on a TNS report when a spectrum from this instrument names none, e.g. 'SEDmRobot' for a robotic instrument. TNS refuses a classification report with the field empty.
+             * @default null
+             */
+            default_observer: string | null;
+            /**
              * Across Id
              * @description NASA ACROSS instrument UUID.
              * @default null
@@ -45805,6 +45815,12 @@ export interface components {
              * @default null
              */
             tns_id: number | null;
+            /**
+             * Default Observer
+             * @description Observer credited on a TNS report when a spectrum from this instrument names none, e.g. 'SEDmRobot' for a robotic instrument. TNS refuses a classification report with the field empty.
+             * @default null
+             */
+            default_observer: string | null;
             /**
              * Across Id
              * @description NASA ACROSS instrument UUID.

@@ -201,6 +201,13 @@ const InstrumentForm = ({
         description: "ID of the instrument to submit to Treasuremap (optional)",
         default: instrumentToEdit?.["treasuremap_id"] ?? undefined,
       },
+      default_observer: {
+        type: "string",
+        title: "Default observer",
+        description:
+          "Credited on a TNS report when a spectrum from this instrument names no observer, e.g. 'SEDmRobot' for a robotic instrument. TNS refuses a classification report that leaves this empty (optional)",
+        default: instrumentToEdit?.["default_observer"] ?? undefined,
+      },
       type: {
         type: "string",
         oneOf: [

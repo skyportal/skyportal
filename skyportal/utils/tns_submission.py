@@ -300,6 +300,17 @@ def upload_spectrum_to_tns(
     return uploaded[0]
 
 
+def _credited(external, people, default=None):
+    """Who to credit: a free-text name, else the linked users, else a default."""
+    if external:
+        return external
+    names = ", ".join(
+        f"{person.first_name or ''} {person.last_name or ''}".strip()
+        for person in (people or [])
+    ).strip(", ")
+    return names or (default or "")
+
+
 def build_tns_classification_report(
     iau_name,
     classification,
@@ -358,16 +369,15 @@ def build_tns_classification_report(
         "obsdate": spectrum.observed_at.strftime("%Y-%m-%d %H:%M:%S"),
         "instrumentid": instrument_id,
         "exptime": altdata.get("EXPTIME", altdata.get("exptime", "")),
-        "observer": external_observer
-        or ", ".join(
-            str(o.first_name or "") + " " + str(o.last_name or "")
-            for o in (spectrum.observers or [])
-        ).strip(", "),
-        "reducer": external_reducer
-        or ", ".join(
-            str(r.first_name or "") + " " + str(r.last_name or "")
-            for r in (spectrum.reducers or [])
-        ).strip(", "),
+        # TNS refuses a classification report with no observer, and a robotic
+        # instrument's spectra name none, so the instrument's own default is
+        # the last word before the field would go out empty.
+        "observer": _credited(
+            external_observer,
+            spectrum.observers,
+            getattr(spectrum.instrument, "default_observer", None),
+        ),
+        "reducer": _credited(external_reducer, spectrum.reducers),
         "spectypeid": tns_spectrum_type_id(spectrum.type),
         "ascii_file": stored_spectrum_name,
         "fits_file": "",
