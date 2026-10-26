@@ -47,6 +47,12 @@ def test_a_half_named_person_does_not_leave_stray_spacing():
     assert _credited(None, [_person(None, "Hopper")]) == "Hopper"
 
 
-def test_the_reducer_takes_no_instrument_default():
-    # Only the observer is defaulted; a missing reducer is allowed by TNS.
-    assert _credited(None, []) == ""
+def test_a_nameless_linked_user_is_skipped():
+    # Usernames are never published to TNS; the instrument default still applies.
+    assert _credited(None, [_person(None, None)], "SEDmRobot") == "SEDmRobot"
+    people = [
+        _person("Ada", "Lovelace"),
+        _person(None, None),
+        _person("Grace", "Hopper"),
+    ]
+    assert _credited(None, people) == "Ada Lovelace, Grace Hopper"
