@@ -328,6 +328,29 @@ class SharingServiceSubmission(Base):
         ),
     )
 
+    # A pick deleted while the submission is queued is nulled, so the report
+    # falls back to the default one rather than failing
+    tns_report_spectrum_id = sa.Column(
+        sa.ForeignKey("spectra.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+        doc=(
+            "Spectrum to report a classification against. Left unset, the "
+            "report takes the object's most recent spectrum, preferring a "
+            "source spectrum over a host one."
+        ),
+    )
+
+    tns_report_classification_id = sa.Column(
+        sa.ForeignKey("classifications.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+        doc=(
+            "Classification to report. Left unset, the report takes the "
+            "object's most recent human classification."
+        ),
+    )
+
     tns_status = sa.Column(
         sa.String, nullable=True, doc="Status of the TNS submission."
     )

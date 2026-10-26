@@ -31605,6 +31605,8 @@ export interface components {
             treasuremap_id?: number | null;
             /** @description TNS API ID for this instrument */
             tns_id?: number | null;
+            /** @description Observer to credit on a TNS report when a spectrum from this instrument names none. A robotic instrument observes nothing by hand, so its spectra arrive without an observer, and TNS refuses a classification report that leaves the field empty. */
+            default_observer?: string | null;
             /** @description NASA ACROSS instrument UUID, used to route visibility queries to the ACROSS calculator. See https://across.sciencecloud.nasa.gov */
             across_id?: string | null;
             /** @description Instrument astropy.regions representation. */
@@ -31878,6 +31880,8 @@ export interface components {
             treasuremap_id?: number | null;
             /** @description TNS API ID for this instrument */
             tns_id?: number | null;
+            /** @description Observer to credit on a TNS report when a spectrum from this instrument names none. A robotic instrument observes nothing by hand, so its spectra arrive without an observer, and TNS refuses a classification report that leaves the field empty. */
+            default_observer?: string | null;
             /** @description NASA ACROSS instrument UUID, used to route visibility queries to the ACROSS calculator. See https://across.sciencecloud.nasa.gov */
             across_id?: string | null;
             /** @description Instrument astropy.regions representation. */
@@ -38639,6 +38643,10 @@ export interface components {
             publish_to_tns?: boolean;
             /** @description Which TNS report this submission files: 'at_report' announces a discovery, 'classification_report' classifies an object TNS already holds and requires a spectrum. */
             tns_report_type?: string;
+            /** @description Spectrum to report a classification against. Left unset, the report takes the object's most recent spectrum, preferring a source spectrum over a host one. */
+            tns_report_spectrum_id?: number | null;
+            /** @description Classification to report. Left unset, the report takes the object's most recent human classification. */
+            tns_report_classification_id?: number | null;
             /** @description Status of the TNS submission. */
             tns_status?: string | null;
             /** @description ID of the submission returned by TNS. */
@@ -38732,6 +38740,10 @@ export interface components {
             publish_to_tns?: boolean;
             /** @description Which TNS report this submission files: 'at_report' announces a discovery, 'classification_report' classifies an object TNS already holds and requires a spectrum. */
             tns_report_type?: string;
+            /** @description Spectrum to report a classification against. Left unset, the report takes the object's most recent spectrum, preferring a source spectrum over a host one. */
+            tns_report_spectrum_id?: number | null;
+            /** @description Classification to report. Left unset, the report takes the object's most recent human classification. */
+            tns_report_classification_id?: number | null;
             /** @description Status of the TNS submission. */
             tns_status?: string | null;
             /** @description ID of the submission returned by TNS. */
@@ -45676,6 +45688,12 @@ export interface components {
              */
             tns_id: number | null;
             /**
+             * Default Observer
+             * @description Observer credited on a TNS report when a spectrum from this instrument names none, e.g. 'SEDmRobot' for a robotic instrument. TNS refuses a classification report with the field empty.
+             * @default null
+             */
+            default_observer: string | null;
+            /**
              * Across Id
              * @description NASA ACROSS instrument UUID.
              * @default null
@@ -45846,6 +45864,12 @@ export interface components {
              * @default null
              */
             tns_id: number | null;
+            /**
+             * Default Observer
+             * @description Observer credited on a TNS report when a spectrum from this instrument names none, e.g. 'SEDmRobot' for a robotic instrument. TNS refuses a classification report with the field empty.
+             * @default null
+             */
+            default_observer: string | null;
             /**
              * Across Id
              * @description NASA ACROSS instrument UUID.
@@ -50447,6 +50471,18 @@ export interface components {
              * @enum {string|null}
              */
             tns_report_type: "at_report" | "classification_report" | null;
+            /**
+             * Tns Report Spectrum Id
+             * @description Spectrum to report the classification against. Omit to use the object's most recent spectrum, preferring a source spectrum.
+             * @default null
+             */
+            tns_report_spectrum_id: number | null;
+            /**
+             * Tns Report Classification Id
+             * @description Classification to report. Omit to use the object's most recent human classification.
+             * @default null
+             */
+            tns_report_classification_id: number | null;
             /**
              * Publish To Hermes
              * @description Flag to indicate if the submission should be published to Hermes
