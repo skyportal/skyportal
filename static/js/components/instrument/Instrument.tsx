@@ -242,6 +242,7 @@ const Instrument = ({ route }: InstrumentProps) => {
                 ["Observation plan API", instrument.api_classname_obsplan],
                 ["Listener", instrument.listener_classname],
                 ["TNS ID", instrument.tns_id],
+                ["Default observer", instrument.default_observer],
                 ["Treasure Map ID", instrument.treasuremap_id],
                 ["ACROSS ID", instrument.across_id],
                 ["Fields", instrument.has_fields ? "Yes" : "No"],
