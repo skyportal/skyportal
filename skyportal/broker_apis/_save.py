@@ -13,7 +13,7 @@ log = make_log("broker/save")
 
 # AB zeropoint per survey, matching the units points arrive in: flux in nJy is
 # scaled to Jy and takes 8.9, magnitudes are converted to uJy and take 23.9.
-ZP_PER_SURVEY = {"LSST": 8.9, "ZTF": 23.9, "WINTER": 8.9, "DECAM": 8.9}
+ZP_PER_SURVEY = {"LSST": 8.9, "ZTF": 23.9, "WINTER": 8.9, "DECAM": 8.9, "ARGUS": 8.9}
 
 # Surveys whose filters are not named <survey><band>. Keys are normalized bands,
 # so any survey prefix is already stripped. An unmapped band raises rather than
@@ -62,7 +62,7 @@ def _normalize_band(band):
     """Collapse survey-prefixed band names to a bare filter letter so per-band
     criteria are provider-agnostic (``ztfg`` -> ``g``, ``g`` -> ``g``)."""
     b = str(band or "").lower()
-    for prefix in ("ztf", "lsst", "atlas", "winter", "decam"):
+    for prefix in ("ztf", "lsst", "atlas", "winter", "decam", "argus"):
         if b.startswith(prefix) and len(b) > len(prefix):
             return b[len(prefix) :].lstrip("_")
     return b
@@ -252,8 +252,9 @@ def build_photometry_groups(object_id, survey, data, instrument_id, programid2st
 
             programid = phot.get("programid", 1) if survey == "ZTF" else 1
             key = (survey, programid)
+            point_origin = phot.get("lane") or origin
 
-            epoch = (key, origin, round(jd - 2400000.5, 8), _normalize_band(band))
+            epoch = (key, point_origin, round(jd - 2400000.5, 8), _normalize_band(band))
             if epoch in seen:
                 continue
             seen.add(epoch)
@@ -284,7 +285,7 @@ def build_photometry_groups(object_id, survey, data, instrument_id, programid2st
             pd = photometry_data[key]
             pd["mjd"].append(jd - 2400000.5)
             pd["filter"].append(_filter_name(survey, band))
-            pd["origin"].append(origin)
+            pd["origin"].append(point_origin)
             pd["magsys"].append("ab")
             pd["ra"].append(phot.get("ra"))
             pd["dec"].append(phot.get("dec"))

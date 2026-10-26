@@ -32,6 +32,8 @@ import Spinner from "../Spinner";
 import { dec_to_deg, ra_to_deg } from "../../units";
 
 const PAGE_SIZE = 12;
+const ARGUS_OBJECT_ID =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 
 // Mirrors the backend's survey_from_object_id.
 const pickSurvey = (
@@ -46,7 +48,9 @@ const pickSurvey = (
       ? "DECAM"
       : /^\d+$/.test(id)
         ? "LSST"
-        : undefined;
+        : ARGUS_OBJECT_ID.test(id)
+          ? "ARGUS"
+          : undefined;
   return (
     override ||
     (guessed && surveys.includes(guessed) ? guessed : undefined) ||

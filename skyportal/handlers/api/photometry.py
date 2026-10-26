@@ -40,7 +40,7 @@ from baselayer.app.env import load_env
 from baselayer.app.flow import Flow
 from baselayer.log import make_log
 
-from ...enum_types import ALLOWED_BANDPASSES
+from ...enum_types import ALLOWED_BANDPASSES, BANDPASS_COLORS
 from ...models import (
     PHOT_ZP,
     Annotation,
@@ -207,9 +207,12 @@ def get_color(bandpass, format="hex"):
         Color of the bandpass in the requested format
     """
 
-    wavelength = get_effective_wavelength(bandpass)
+    configured = BANDPASS_COLORS.get(bandpass)
+    wavelength = None if configured else get_effective_wavelength(bandpass)
 
-    if 0 < wavelength <= 1500:  # EUV
+    if configured:
+        bandcolor = configured
+    elif 0 < wavelength <= 1500:  # EUV
         bandcolor = "#4B0082"
     elif 1500 < wavelength <= 2100:  # uvw2
         bandcolor = "#6A5ACD"
