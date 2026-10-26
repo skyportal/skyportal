@@ -20,6 +20,7 @@ from ..models import (
     SharingServiceGroupAutoPublisher,
     SharingServiceSubmission,
     Source,
+    Spectrum,
     Stream,
     StreamPhotometry,
     StreamSharingService,
@@ -28,7 +29,7 @@ from ..models import (
     Token,
     User,
 )
-from ..utils.tns import TNS_INSTRUMENT_IDS
+from ..utils.tns import TNS_INSTRUMENT_IDS, tns_classification_id
 from .asynchronous import run_async
 from .parse import get_list_typed, is_null
 
@@ -622,6 +623,47 @@ def classification_is_reportable(classification):
     return bool(classification.groups)
 
 
+async def classification_report_error(session, obj):
+    """Why a TNS classification report for ``obj`` would fail in the queue, or
+    None. Checked before queuing one, manually or automatically.
+    """
+    if is_null(obj.tns_name):
+        return (
+            f"{obj.id} has no TNS name, so it cannot be classified "
+            "on TNS; report it as a discovery first."
+        )
+    classification = await session.scalar(
+        Classification.select(
+            session.user_or_token, columns=[Classification.classification]
+        )
+        .where(
+            Classification.obj_id == obj.id,
+            Classification.ml.is_(False),
+            sa.or_(
+                Classification.probability.is_(None),
+                Classification.probability > 0,
+            ),
+        )
+        .order_by(Classification.created_at.desc())
+        .limit(1)
+    )
+    if classification is None:
+        return f"{obj.id} has no classification to report."
+    if tns_classification_id(classification) is None:
+        return f"Classification {classification} has no TNS object type."
+    has_spectrum = await session.scalar(
+        Spectrum.select(session.user_or_token, columns=[Spectrum.id])
+        .where(Spectrum.obj_id == obj.id)
+        .limit(1)
+    )
+    if has_spectrum is None:
+        return (
+            f"{obj.id} has no spectrum, and TNS will not take a "
+            "classification without one."
+        )
+    return None
+
+
 async def auto_classification_publishing_async(session, classification_id):
     """Queue a TNS classification report for a new classification, where a
     group asked for that.
@@ -689,6 +731,10 @@ async def auto_classification_publishing_async(session, classification_id):
             tns_report_type="classification_report",
         ):
             continue
+        error = await classification_report_error(session, obj)
+        if error is not None:
+            log(f"Not queuing a TNS classification report for {obj.id}: {error}")
+            return
         session.add(
             SharingServiceSubmission(
                 sharing_service_id=sharing_service.id,
