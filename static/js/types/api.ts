@@ -50403,13 +50403,13 @@ export interface components {
              */
             tns_report_type: "at_report" | "classification_report" | null;
             /**
-             * Tns Spectrum Id
+             * Tns Report Spectrum Id
              * @description Spectrum to report the classification against. Omit to use the object's most recent spectrum, preferring a source spectrum.
              * @default null
              */
             tns_report_spectrum_id: number | null;
             /**
-             * Tns Classification Id
+             * Tns Report Classification Id
              * @description Classification to report. Omit to use the object's most recent human classification.
              * @default null
              */
