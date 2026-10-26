@@ -68,6 +68,7 @@ const ALERT_COLLECTIONS: Record<string, string> = {
   ZTF: "ZTF_alerts",
   LSST: "LSST_alerts",
   DECAM: "DECAM_alerts",
+  ARGUS: "ARGUS_alerts",
 };
 
 const useStyles = makeStyles()((_theme) => ({

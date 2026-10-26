@@ -102,9 +102,9 @@ dependencies = [
     "prometheus-client>=0.20.0",
     "sentry-sdk==2.70.0",
     "typing-inspect==0.9.0",
-    "brotli==1.2.0",
+    "brotli==1.2.1",
     "numexpr==2.14.2",
-    "setuptools<84.1.0",
+    "setuptools<84.2.0",
 ]
 
 # Per-broker transport clients. Most brokers (Generic, ALeRCE, ANTARES, Lasair,

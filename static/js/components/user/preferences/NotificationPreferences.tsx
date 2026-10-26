@@ -368,10 +368,9 @@ const NotificationPreferences = () => {
       <NotificationCard
         type="group_admission_request"
         title="Group admission requests"
-        text="When someone asks to join a group you administer. Email is always sent."
-        channels={["slack", "sms", "phone", "whatsapp"]}
+        text="When someone asks to join a group you administer."
         defaultActive
-        defaultChannels={["slack"]}
+        defaultChannels={["email"]}
       />
       {isAdmin && (
         <NotificationCard

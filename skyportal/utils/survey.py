@@ -4,6 +4,7 @@ OBJECT_ID_PATTERNS = {
     "ZTF": r"ZTF\d{2}[a-z]{7}$",  # ZTF + 2 digits + 7 lowercase characters
     "DECAM": r"[ACT]20\d{6}\d{7}[pm]\d{6}$",  # A or C or T + 20 + 6 digits + 7 digits + p or m + 6 digits
     "LSST": r"LSST-P-DO-\d+$",  # LSST-P-DO- + diaObjectId (int64)
+    "ARGUS": r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
 }
 
 # Surveys whose instrument is not named after the survey.
