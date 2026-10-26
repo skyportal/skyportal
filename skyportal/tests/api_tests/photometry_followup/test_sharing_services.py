@@ -484,3 +484,124 @@ def test_trove_submission(public_group, super_admin_token, public_source, alfosc
         "DELETE", f"sharing_service/{sharing_service_id}", token=super_admin_token
     )
     assert status == 200
+
+
+def test_classification_report_names_its_spectrum_and_classification(
+    public_group,
+    super_admin_token,
+    public_source,
+    public_source_spectrum,
+    public_obj,
+    public_taxonomy,
+    alfosc,
+):
+    status, data = api(
+        "PUT",
+        "sharing_service",
+        data={
+            "name": str(uuid.uuid4()),
+            "owner_group_ids": [public_group.id],
+            "instrument_ids": [alfosc.id],
+            "tns_bot_name": str(uuid.uuid4()),
+            "tns_bot_id": 10,
+            "tns_source_group_id": 200,
+            "_tns_altdata": {"api_key": "test_key"},
+        },
+        token=super_admin_token,
+    )
+    assert status == 200
+    sharing_service_id = data["data"]["id"]
+
+    # TNS only classifies an object it already has a name for.
+    status, data = api(
+        "PATCH",
+        f"sources/{public_source.id}",
+        data={"tns_name": "2026abc"},
+        token=super_admin_token,
+    )
+    assert status == 200
+
+    classification_ids = {}
+    for obj in (public_source, public_obj):
+        status, data = api(
+            "POST",
+            "classification",
+            data={
+                "obj_id": obj.id,
+                "classification": "Ia",
+                "taxonomy_id": public_taxonomy.id,
+                "group_ids": [public_group.id],
+            },
+            token=super_admin_token,
+        )
+        assert status == 200, data
+        classification_ids[obj.id] = data["data"]["classification_id"]
+
+    request_data = {
+        "sharing_service_id": sharing_service_id,
+        "obj_id": public_source.id,
+        "publish_to_tns": True,
+        "tns_report_type": "classification_report",
+        "publishers": "test publisher string",
+        "archival": False,
+    }
+
+    # Another object's classification or spectrum is refused.
+    for key, other_id in (
+        ("tns_classification_id", classification_ids[public_obj.id]),
+        ("tns_spectrum_id", public_obj.spectra[0].id),
+    ):
+        status, data = api(
+            "POST",
+            "sharing_service/submission",
+            data={**request_data, key: other_id},
+            token=super_admin_token,
+        )
+        assert status == 400
+        assert f"{other_id} is not one of {public_source.id}'s" in data["message"]
+
+    status, data = api(
+        "POST",
+        "sharing_service/submission",
+        data={
+            **request_data,
+            "tns_classification_id": classification_ids[public_source.id],
+            "tns_spectrum_id": public_source_spectrum.id,
+        },
+        token=super_admin_token,
+    )
+    assert status == 200, data
+
+    # An AT report does not check the ids, so it does not store them.
+    status, data = api(
+        "POST",
+        "sharing_service/submission",
+        data={
+            **request_data,
+            "tns_report_type": "at_report",
+            "tns_classification_id": classification_ids[public_obj.id],
+            "tns_spectrum_id": 2**31 - 1,
+        },
+        token=super_admin_token,
+    )
+    assert status == 200, data
+
+    status, data = api(
+        "GET",
+        "sharing_service/submission",
+        params={"sharing_service_id": sharing_service_id},
+        token=super_admin_token,
+    )
+    assert status == 200
+    submissions = {s["tns_report_type"]: s for s in data["data"]["submissions"]}
+    assert submissions.keys() == {"classification_report", "at_report"}
+    submission = submissions["classification_report"]
+    assert submission["tns_classification_id"] == classification_ids[public_source.id]
+    assert submission["tns_spectrum_id"] == public_source_spectrum.id
+    assert submissions["at_report"]["tns_classification_id"] is None
+    assert submissions["at_report"]["tns_spectrum_id"] is None
+
+    status, data = api(
+        "DELETE", f"sharing_service/{sharing_service_id}", token=super_admin_token
+    )
+    assert status == 200
