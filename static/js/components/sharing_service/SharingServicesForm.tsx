@@ -178,14 +178,14 @@ const SharingServicesDialog = ({
   // has not been voted down.
   const reportableClassifications = [...objClassifications]
     .filter(
-      (classification: any) =>
+      (classification) =>
         classification.ml === false &&
         (classification.probability == null || classification.probability > 0),
     )
-    .sort((a: any, b: any) => (a.created_at > b.created_at ? -1 : 1));
+    .sort((a, b) => (a.created_at > b.created_at ? -1 : 1));
 
   const classificationOptions = reportableClassifications.map(
-    (classification: any) => ({
+    (classification) => ({
       enum: [classification.id],
       title: `${classification.classification}${
         classification.probability != null

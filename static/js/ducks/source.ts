@@ -80,7 +80,12 @@ export const sourceApi = skyportalApi.injectEndpoints({
       query: (id) => `api/sources/${id}/groups`,
       providesTags: (_result, _error, id) => ["Source", { type: "Source", id }],
     }),
-    getObjClassifications: build.query<any[], number | string>({
+    getObjClassifications: build.query<
+      (RouteData<"GET /api/sources/{obj_id}/classifications">[number] & {
+        created_at: string;
+      })[],
+      number | string
+    >({
       query: (id) => `api/sources/${id}/classifications`,
       providesTags: (_result, _error, id) => ["Source", { type: "Source", id }],
     }),
