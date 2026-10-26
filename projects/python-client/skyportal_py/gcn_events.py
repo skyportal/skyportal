@@ -524,12 +524,15 @@ def fetch_gcn_event_crossmatch(
 def post_gcn_event_crossmatch(
     client: httpx.Client,
     dateobs: str,
+    *,
+    filter_id: int | None = None,
 ) -> GcnEventCrossmatchRequeueResponse:
     """Requeue the alert crossmatch of a GCN event.
 
-    Every filter is re-queried from the start of the window, including the
-    one-shot archival pass. Existing sources and annotations are refreshed in
-    place rather than duplicated. Requires the ``Manage GCNs`` permission.
+    Every filter, or only ``filter_id`` when given, is re-queried from the
+    start of the window, including the one-shot archival pass. Existing
+    sources and annotations are refreshed in place rather than duplicated.
+    Requires the ``Manage GCNs`` permission.
 
     Parameters
     ----------
@@ -537,8 +540,12 @@ def post_gcn_event_crossmatch(
         Client from :func:`skyportal_py.create_client`.
     dateobs : str
         UTC event timestamp of the event.
+    filter_id : int, optional
+        Requeue only this filter's crossmatch. By default every filter on
+        the event is requeued.
     """
-    response = client.post(f"/api/gcn_event/{dateobs}/crossmatch")
+    payload = {"filter_id": filter_id} if filter_id is not None else None
+    response = client.post(f"/api/gcn_event/{dateobs}/crossmatch", json=payload)
     return GcnEventCrossmatchRequeueResponse.model_validate(unwrap(response))
 
 
