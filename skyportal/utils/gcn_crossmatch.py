@@ -776,6 +776,11 @@ async def process_event_filter(
         state.error = None
         return 0
 
+    seen = await session.scalar(
+        sa.select(GcnEventCrossmatchState.modified).where(
+            GcnEventCrossmatchState.id == state.id
+        )
+    )
     broker = filter_.broker
     survey = filter_survey(filter_)
     # Bounded by the filter's own stream: its group is who sees the candidates,
@@ -980,10 +985,18 @@ async def process_event_filter(
         if jd is not None and (newest_jd is None or jd > newest_jd):
             newest_jd = jd
 
+    modified = await session.scalar(
+        sa.select(GcnEventCrossmatchState.modified).where(
+            GcnEventCrossmatchState.id == state_id
+        )
+    )
     # Re-fetch rather than reuse the (possibly expired) instance for the same
     # reason.
     state = await session.get(GcnEventCrossmatchState, state_id)
-    if state is not None:
+    if state is not None and modified != seen:
+        # requeued during the search: keep the reset, not this pass's progress
+        await session.refresh(state)
+    elif state is not None:
         if archival:
             state.archival_done = True
         else:
