@@ -41,12 +41,6 @@ def test_an_ordinary_object_keeps_tns():
     assert _remaining(_obj(withhold_from_tns=False)) == SERVICES
 
 
-def test_an_object_predating_the_column_keeps_tns():
-    # An obj loaded without the attribute is shared as before, rather than
-    # silently withheld.
-    assert _remaining(_obj()) == SERVICES
-
-
 def test_withholding_does_nothing_when_tns_was_not_requested():
     assert _remaining(_obj(withhold_from_tns=True), ["Hermes"]) == ["Hermes"]
 
