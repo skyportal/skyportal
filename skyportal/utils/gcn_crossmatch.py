@@ -211,23 +211,24 @@ def requeue_crossmatch_for_filter(session, filter_id, config=None):
     from ..models import GcnEvent, GcnEventCrossmatchState
 
     cutoff = utcnow_naive() - timedelta(days=float(conf(config, "max_event_age")))
-    result = session.execute(
-        sa.update(GcnEventCrossmatchState)
-        .where(
-            GcnEventCrossmatchState.filter_id == int(filter_id),
-            GcnEventCrossmatchState.gcnevent_id.in_(
-                sa.select(GcnEvent.id).where(GcnEvent.dateobs >= cutoff)
-            ),
+    with session.begin_nested():
+        result = session.execute(
+            sa.update(GcnEventCrossmatchState)
+            .where(
+                GcnEventCrossmatchState.filter_id == int(filter_id),
+                GcnEventCrossmatchState.gcnevent_id.in_(
+                    sa.select(GcnEvent.id).where(GcnEvent.dateobs >= cutoff)
+                ),
+            )
+            .values(
+                status="pending",
+                last_queried=None,
+                last_alert_jd=None,
+                archival_done=False,
+                error=None,
+                n_matches=0,
+            )
         )
-        .values(
-            status="pending",
-            last_queried=None,
-            last_alert_jd=None,
-            archival_done=False,
-            error=None,
-            n_matches=0,
-        )
-    )
     if result.rowcount:
         log(
             f"Requeued {result.rowcount} crossmatch state(s) for filter "

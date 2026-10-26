@@ -6,6 +6,7 @@ once someone edits it: without a requeue, the new cuts only ever apply to
 events still to come.
 """
 
+import contextlib
 import datetime
 import types
 
@@ -23,6 +24,9 @@ class _Session:
     def execute(self, stmt):
         self.statements.append(stmt)
         return types.SimpleNamespace(rowcount=self.rowcount)
+
+    def begin_nested(self):
+        return contextlib.nullcontext()
 
 
 def _params(session):
