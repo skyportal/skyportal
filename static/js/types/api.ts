@@ -7738,8 +7738,10 @@ export interface paths {
         /**
          * Requeue the alert crossmatch for a GCN event
          * @description <b>Permission(s) required:</b> <em>Manage GCNs (or System admin)</em><br><br>Reset this event's crossmatch progress so the next service pass
-         *     re-queries every filter from the start of the window, including the
-         *     one-shot archival pass.
+         *     re-queries it from the start of the window, including the one-shot
+         *     archival pass. Give a ``filter_id`` to requeue one filter alone;
+         *     without one every filter on the event is requeued, and each one
+         *     re-queries the broker.
          *
          *     Existing sources and annotations are left alone: the crossmatch
          *     updates them in place, so re-running refreshes rather than
@@ -7755,7 +7757,11 @@ export interface paths {
                 };
                 cookie?: never;
             };
-            requestBody?: never;
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["GcnEventCrossmatchRequeueBody"];
+                };
+            };
             responses: {
                 200: {
                     headers: {
@@ -44440,6 +44446,18 @@ export interface components {
              * @default 0.5
              */
             min_consistency: number;
+        };
+        /**
+         * GcnEventCrossmatchRequeueBody
+         * @description Request body for requeueing the alert crossmatch of a GCN event.
+         */
+        GcnEventCrossmatchRequeueBody: {
+            /**
+             * Filter Id
+             * @description Requeue only this filter's crossmatch of the event. Omit to requeue every filter, which re-queries the broker for each.
+             * @default null
+             */
+            filter_id: number | null;
         };
         /** GcnReportPostBody */
         GcnReportPostBody: {
