@@ -28,6 +28,7 @@ from sqlalchemy.orm.attributes import flag_modified
 from tornado.ioloop import IOLoop
 
 from baselayer.app.access import auth_or_token, permissions
+from baselayer.app.env import load_env
 from baselayer.app.models import new_session
 from baselayer.log import make_log
 
@@ -49,6 +50,7 @@ from ...utils.survey import survey_from_instrument
 from ..base import BaseHandler
 from .filter import delete_filter_on_broker
 
+_, cfg = load_env()
 log = make_log("api/broker")
 
 MAX_FILTER_ACTIVATIONS = 100
