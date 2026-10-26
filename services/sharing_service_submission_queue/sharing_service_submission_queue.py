@@ -89,9 +89,11 @@ def build_reporters_and_remarks_string(
     else:
         author_ids = []
 
-        # Add source saver as first author if valid and different from submitter
+        # Add source saver as first author if valid and different from submitter.
+        # Not for a classification report: TNS lists these names as classifiers.
         if (
             submission_request.auto_submission
+            and submission_request.tns_report_type != "classification_report"
             and source.saved_by_id is not None
             and source.saved_by_id != user_id
         ):
