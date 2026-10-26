@@ -405,6 +405,17 @@ class Instrument(Base):
         doc="TNS API ID for this instrument",
     )
 
+    default_observer = sa.Column(
+        sa.String,
+        nullable=True,
+        doc=(
+            "Observer to credit on a TNS report when a spectrum from this "
+            "instrument names none. A robotic instrument observes nothing by "
+            "hand, so its spectra arrive without an observer, and TNS refuses "
+            "a classification report that leaves the field empty."
+        ),
+    )
+
     across_id = sa.Column(
         sa.String,
         nullable=True,

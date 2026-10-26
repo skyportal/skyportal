@@ -201,6 +201,13 @@ const InstrumentForm = ({
         description: "ID of the instrument to submit to Treasuremap (optional)",
         default: instrumentToEdit?.["treasuremap_id"] ?? undefined,
       },
+      default_observer: {
+        type: "string",
+        title: "Default observer",
+        description:
+          "Credited on a TNS report when a spectrum from this instrument names no observer, e.g. 'SEDmRobot' for a robotic instrument. TNS refuses a classification report that leaves this empty (optional)",
+        default: instrumentToEdit?.["default_observer"] ?? undefined,
+      },
       type: {
         type: "string",
         oneOf: [
@@ -344,6 +351,11 @@ const InstrumentForm = ({
   };
 
   const uiSchema = {
+    // send "" when emptied: rjsf drops an undefined key and the PUT keeps the
+    // old value, which would go on crediting it on TNS reports
+    default_observer: {
+      "ui:emptyValue": "",
+    },
     api_classname: {
       "ui:placeholder": "Choose an option",
     },
