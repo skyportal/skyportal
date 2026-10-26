@@ -51,13 +51,16 @@ def test_withholding_does_nothing_when_tns_was_not_requested():
     assert _remaining(_obj(withhold_from_tns=True), ["Hermes"]) == ["Hermes"]
 
 
-def _classification(ml=False, groups=(1,), tns_name="2026abc", withheld=False):
+def _classification(
+    ml=False, groups=(1,), tns_name="2026abc", withheld=False, probability=None
+):
     obj = types.SimpleNamespace(
         id="ZTF26abc", tns_name=tns_name, withhold_from_tns=withheld
     )
     return types.SimpleNamespace(
         id=1,
         ml=ml,
+        probability=probability,
         obj=obj,
         author_id=7,
         groups=[types.SimpleNamespace(id=g) for g in groups],
@@ -71,6 +74,12 @@ def test_a_human_classification_on_a_known_object_is_reportable():
 def test_a_machine_classification_is_never_reportable():
     # ML classifications stay off TNS until someone decides otherwise.
     assert classification_is_reportable(_classification(ml=True)) is False
+
+
+def test_a_zero_probability_classification_is_not_reportable():
+    # p=0 says the object is not that class; the queue would report another one.
+    assert classification_is_reportable(_classification(probability=0)) is False
+    assert classification_is_reportable(_classification(probability=0.8)) is True
 
 
 def test_an_object_held_back_is_not_reportable():

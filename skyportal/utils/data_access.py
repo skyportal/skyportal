@@ -596,6 +596,9 @@ def classification_is_reportable(classification):
     obj = classification.obj
     if classification.ml:
         return False
+    # p <= 0 means "not this class"; the queue skips it and would report another.
+    if classification.probability is not None and classification.probability <= 0:
+        return False
     if getattr(obj, "withhold_from_tns", False):
         return False
     if is_null(obj.tns_name):
