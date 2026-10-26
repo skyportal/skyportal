@@ -719,87 +719,92 @@ async def auto_classification_publishing_async(session, classification_id):
         stmt = stmt.where(SharingServiceGroup.auto_sharing_allow_bots.is_(True))
 
     result = await session.scalars(stmt)
-    for group in result.unique().all():
-        sharing_service = group.sharing_service
-        if not sharing_service.enable_sharing_with_tns:
-            continue
-        error = await classification_report_error(session, obj)
-        if error is not None:
-            log(f"Not queuing a TNS classification report for {obj.id}: {error}")
-            return
-        existing = (
-            await session.scalars(
-                SharingServiceSubmission.select(session.user_or_token).where(
-                    SharingServiceSubmission.obj_id == obj.id,
-                    SharingServiceSubmission.sharing_service_id == sharing_service.id,
-                    SharingServiceSubmission.tns_report_type == "classification_report",
-                    sa.or_(
-                        SharingServiceSubmission.tns_status.in_(
-                            ["pending", "processing"]
-                        ),
-                        SharingServiceSubmission.tns_status.like("submitted%"),
-                        SharingServiceSubmission.tns_status.like("complete%"),
-                    ),
-                )
+    sharing_service = next(
+        (
+            group.sharing_service
+            for group in result.unique().all()
+            if group.sharing_service.enable_sharing_with_tns
+        ),
+        None,
+    )
+    if sharing_service is None:
+        return
+    error = await classification_report_error(session, obj)
+    if error is not None:
+        log(f"Not queuing a TNS classification report for {obj.id}: {error}")
+        return
+    # One report per object, whichever service filed it.
+    existing = (
+        await session.scalars(
+            sa.select(SharingServiceSubmission).where(
+                SharingServiceSubmission.obj_id == obj.id,
+                SharingServiceSubmission.tns_report_type == "classification_report",
+                sa.or_(
+                    SharingServiceSubmission.tns_status.in_(["pending", "processing"]),
+                    SharingServiceSubmission.tns_status.like("submitted%"),
+                    SharingServiceSubmission.tns_status.like("complete%"),
+                ),
             )
-        ).all()
-        pending = next((s for s in existing if s.tns_status == "pending"), None)
-        if pending is not None:
-            # Repoint rather than skip: MultipleClassificationsForm posts a
-            # parent class before its child, and the child is the one to report.
-            repointed = await session.execute(
-                sa.update(SharingServiceSubmission)
-                .where(
-                    SharingServiceSubmission.id == pending.id,
-                    SharingServiceSubmission.tns_status == "pending",
-                )
-                .values(
-                    tns_report_classification_id=classification.id,
-                    user_id=author.id,
-                )
+        )
+    ).all()
+    pending = next(
+        (s for s in existing if s.tns_status == "pending" and s.auto_submission),
+        None,
+    )
+    if pending is not None:
+        # Repoint rather than skip: MultipleClassificationsForm posts a
+        # parent class before its child, and the child is the one to report.
+        repointed = await session.execute(
+            sa.update(SharingServiceSubmission)
+            .where(
+                SharingServiceSubmission.id == pending.id,
+                SharingServiceSubmission.tns_status == "pending",
+                SharingServiceSubmission.tns_payload.is_(None),
             )
-            await session.commit()
-            if repointed.rowcount:
-                log(
-                    f"Repointed the pending TNS classification report for "
-                    f"{obj.id} at classification {classification.id}"
-                )
-                return
-        # A sent report blocks another of the same TNS type. One with no pinned
-        # classification reported whichever was newest, so it blocks any.
-        reported_ids = [s.tns_report_classification_id for s in existing]
-        if None in reported_ids:
-            continue
-        reported_types = {
-            tns_classification_id(reported)
-            for reported in await session.scalars(
-                sa.select(Classification.classification).where(
-                    Classification.id.in_(reported_ids)
-                )
-            )
-        }
-        if tns_classification_id(classification.classification) in reported_types:
-            continue
-        session.add(
-            SharingServiceSubmission(
-                sharing_service_id=sharing_service.id,
-                obj_id=obj.id,
-                user_id=author.id,
-                auto_submission=True,
-                publish_to_tns=True,
-                tns_report_type="classification_report",
+            .values(
                 tns_report_classification_id=classification.id,
-                tns_status="pending",
+                user_id=author.id,
             )
         )
         await session.commit()
-        log(
-            f"Queued a TNS classification report for {obj.id} with sharing "
-            f"service {sharing_service.id} (auto submission)"
-        )
-        # One report per object: a second service would file the same
-        # classification against the same IAU name.
+        if repointed.rowcount:
+            log(
+                f"Repointed the pending TNS classification report for "
+                f"{obj.id} at classification {classification.id}"
+            )
+            return
+    # A sent report blocks another of the same TNS type. One with no pinned
+    # classification reported whichever was newest, so it blocks any.
+    reported_ids = [s.tns_report_classification_id for s in existing]
+    if None in reported_ids:
         return
+    reported_types = {
+        tns_classification_id(reported)
+        for reported in await session.scalars(
+            sa.select(Classification.classification).where(
+                Classification.id.in_(reported_ids)
+            )
+        )
+    }
+    if tns_classification_id(classification.classification) in reported_types:
+        return
+    session.add(
+        SharingServiceSubmission(
+            sharing_service_id=sharing_service.id,
+            obj_id=obj.id,
+            user_id=author.id,
+            auto_submission=True,
+            publish_to_tns=True,
+            tns_report_type="classification_report",
+            tns_report_classification_id=classification.id,
+            tns_status="pending",
+        )
+    )
+    await session.commit()
+    log(
+        f"Queued a TNS classification report for {obj.id} with sharing "
+        f"service {sharing_service.id} (auto submission)"
+    )
 
 
 def destinations_not_withheld(obj, publish_to):
