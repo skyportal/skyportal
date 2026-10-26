@@ -16,6 +16,7 @@ class ScanReportItem(Base):
     obj_id = sa.Column(
         sa.ForeignKey("objs.id", ondelete="CASCADE"),
         nullable=False,
+        index=True,
         doc="ID of the Object associated with the candidate",
     )
 

@@ -28,6 +28,7 @@ class ObjToSuperObj(Base):
         sa.String,
         sa.ForeignKey("objs.id", ondelete="CASCADE"),
         primary_key=True,
+        index=True,
         doc="ID of the associated Obj.",
     )
     super_obj_id = sa.Column(
