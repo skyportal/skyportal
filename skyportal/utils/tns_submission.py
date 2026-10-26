@@ -10,7 +10,7 @@ from baselayer.app.env import load_env
 from baselayer.app.flow import Flow
 from baselayer.log import make_log
 from skyportal.handlers.api.photometry import serialize
-from skyportal.models import Stream
+from skyportal.models import Obj, Stream
 from skyportal.utils.http import serialize_requests_response
 from skyportal.utils.parse import is_null
 from skyportal.utils.tns import (
@@ -634,6 +634,10 @@ def submit_to_tns(
             )
 
         obj_id = submission_request.obj_id
+        # Checked at send time too: the hold may postdate a queued or retried request.
+        obj = session.scalar(sa.select(Obj).where(Obj.id == obj_id))
+        if obj is not None and obj.withhold_from_tns:
+            raise TNSWarning(f"{obj_id} is withheld from TNS, not submitting.")
         tns_altdata = sharing_service.tns_altdata
 
         if not tns_altdata or "api_key" not in tns_altdata:

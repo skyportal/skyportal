@@ -110,6 +110,7 @@ async def create_sharing_service(
             group_id=owner_group_id,
             owner=True,
             auto_share_to_tns=False,
+            auto_share_classifications_to_tns=False,
             auto_share_to_hermes=False,
             auto_share_to_trove=False,
             auto_sharing_allow_bots=False,
@@ -173,6 +174,7 @@ async def update_sharing_service(
         for group in sharing_service.groups:
             if data.get("enable_sharing_with_tns") is False:
                 group.auto_share_to_tns = False
+                group.auto_share_classifications_to_tns = False
             if data.get("enable_sharing_with_hermes") is False:
                 group.auto_share_to_hermes = False
             if data.get("enable_sharing_with_trove") is False:
@@ -180,6 +182,7 @@ async def update_sharing_service(
             if (
                 group.auto_share_to_hermes is False
                 and group.auto_share_to_tns is False
+                and group.auto_share_classifications_to_tns is False
                 and group.auto_share_to_trove is False
             ):
                 group.auto_sharing_allow_bots = False

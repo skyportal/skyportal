@@ -35365,6 +35365,8 @@ export interface components {
         Obj: {
             /** @description The Galaxy associated with this source. */
             readonly host?: components["schemas"]["Galaxy"];
+            /** @description User who last set or cleared withhold_from_tns. */
+            readonly withhold_from_tns_set_by?: components["schemas"]["User"];
             readonly comments?: components["schemas"]["Comment"][];
             readonly reminders?: components["schemas"]["Reminder"][];
             readonly comments_on_spectra?: components["schemas"]["CommentOnSpectrum"][];
@@ -35440,6 +35442,15 @@ export interface components {
             tns_info?: {
                 [key: string]: unknown;
             } | null;
+            /** @description Keep this object off TNS. Automatic sharing skips it silently and a manual submission is refused, so an object held back stays held back until someone clears this deliberately. */
+            withhold_from_tns?: boolean;
+            /** @description Who last set or cleared withhold_from_tns. */
+            withhold_from_tns_set_by_id?: number | null;
+            /**
+             * Format: date-time
+             * @description When withhold_from_tns was last set or cleared, UTC.
+             */
+            withhold_from_tns_set_at?: string | null;
             /** @description Machine learning score. */
             score?: number | null;
             /** @description Origin of the object. */
@@ -35644,6 +35655,8 @@ export interface components {
         ObjNoID: {
             /** @description The Galaxy associated with this source. */
             readonly host?: components["schemas"]["Galaxy"];
+            /** @description User who last set or cleared withhold_from_tns. */
+            readonly withhold_from_tns_set_by?: components["schemas"]["User"];
             readonly comments?: components["schemas"]["Comment"][];
             readonly reminders?: components["schemas"]["Reminder"][];
             readonly comments_on_spectra?: components["schemas"]["CommentOnSpectrum"][];
@@ -35717,6 +35730,15 @@ export interface components {
             tns_info?: {
                 [key: string]: unknown;
             } | null;
+            /** @description Keep this object off TNS. Automatic sharing skips it silently and a manual submission is refused, so an object held back stays held back until someone clears this deliberately. */
+            withhold_from_tns?: boolean;
+            /** @description Who last set or cleared withhold_from_tns. */
+            withhold_from_tns_set_by_id?: number | null;
+            /**
+             * Format: date-time
+             * @description When withhold_from_tns was last set or cleared, UTC.
+             */
+            withhold_from_tns_set_at?: string | null;
             /** @description Machine learning score. */
             score?: number | null;
             /** @description Origin of the object. */
@@ -35749,6 +35771,8 @@ export interface components {
         ObjPost: {
             /** @description The Galaxy associated with this source. */
             readonly host?: components["schemas"]["Galaxy"];
+            /** @description User who last set or cleared withhold_from_tns. */
+            readonly withhold_from_tns_set_by?: components["schemas"]["User"];
             readonly comments?: components["schemas"]["Comment"][];
             readonly reminders?: components["schemas"]["Reminder"][];
             readonly comments_on_spectra?: components["schemas"]["CommentOnSpectrum"][];
@@ -35820,6 +35844,15 @@ export interface components {
             tns_info?: {
                 [key: string]: unknown;
             } | null;
+            /** @description Keep this object off TNS. Automatic sharing skips it silently and a manual submission is refused, so an object held back stays held back until someone clears this deliberately. */
+            withhold_from_tns?: boolean;
+            /** @description Who last set or cleared withhold_from_tns. */
+            withhold_from_tns_set_by_id?: number | null;
+            /**
+             * Format: date-time
+             * @description When withhold_from_tns was last set or cleared, UTC.
+             */
+            withhold_from_tns_set_at?: string | null;
             /** @description Machine learning score. */
             score?: number | null;
             /** @description Origin of the object. */
@@ -38458,6 +38491,7 @@ export interface components {
             group_id: number;
             owner?: boolean;
             auto_share_to_tns?: boolean;
+            auto_share_classifications_to_tns?: boolean;
             auto_share_to_hermes?: boolean;
             auto_share_to_mpc?: boolean;
             auto_share_to_trove?: boolean;
@@ -38527,6 +38561,7 @@ export interface components {
             group_id: number;
             owner?: boolean;
             auto_share_to_tns?: boolean;
+            auto_share_classifications_to_tns?: boolean;
             auto_share_to_hermes?: boolean;
             auto_share_to_mpc?: boolean;
             auto_share_to_trove?: boolean;
@@ -42681,6 +42716,12 @@ export interface components {
              * @default null
              */
             tns_info: unknown;
+            /**
+             * Withhold From Tns
+             * @description Keep this object off TNS: automatic sharing skips it and a manual submission is refused.
+             * @default null
+             */
+            withhold_from_tns: boolean | null;
             /**
              * Score
              * @description Machine learning score.
@@ -48268,6 +48309,12 @@ export interface components {
              */
             tns_info: unknown;
             /**
+             * Withhold From Tns
+             * @description Keep this object off TNS: automatic sharing skips it and a manual submission is refused.
+             * @default null
+             */
+            withhold_from_tns: boolean | null;
+            /**
              * Score
              * @description Machine learning score.
              * @default null
@@ -48474,6 +48521,12 @@ export interface components {
              * @default null
              */
             tns_info: unknown;
+            /**
+             * Withhold From Tns
+             * @description Keep this object off TNS: automatic sharing skips it and a manual submission is refused.
+             * @default null
+             */
+            withhold_from_tns: boolean | null;
             /**
              * Score
              * @description Machine learning score.
@@ -50494,6 +50547,12 @@ export interface components {
              * @default null
              */
             auto_share_to_tns: (boolean | string) | null;
+            /**
+             * Auto Share Classifications To Tns
+             * @description Whether to automatically report classifications of this group's sources to TNS
+             * @default null
+             */
+            auto_share_classifications_to_tns: (boolean | string) | null;
             /**
              * Auto Share To Hermes
              * @description Whether to automatically publish to Hermes

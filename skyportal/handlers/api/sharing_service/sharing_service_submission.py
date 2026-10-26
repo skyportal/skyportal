@@ -124,6 +124,14 @@ class SharingServiceSubmissionHandler(BaseHandler):
                     f"No sharing service available with ID {sharing_service_id}"
                 )
 
+            if publish_to_tns and obj.withhold_from_tns:
+                # Refused rather than skipped: a manual submission is someone
+                # asking, so they get told why instead of a silent no-op.
+                return self.error(
+                    f"{obj.id} is marked as withheld from TNS. Clear that on "
+                    "the source before submitting it."
+                )
+
             if classification_report:
                 if is_null(obj.tns_name):
                     return self.error(

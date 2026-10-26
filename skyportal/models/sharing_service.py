@@ -215,6 +215,11 @@ class SharingServiceGroup(Base):
 
     owner = sa.Column(sa.Boolean, nullable=False, default=False)
     auto_share_to_tns = sa.Column(sa.Boolean, nullable=False, server_default="false")
+    # Separate from auto_share_to_tns: a group may well want its discoveries
+    # announced automatically without its classifications going out too.
+    auto_share_classifications_to_tns = sa.Column(
+        sa.Boolean, nullable=False, server_default="false"
+    )
     auto_share_to_hermes = sa.Column(sa.Boolean, nullable=False, server_default="false")
     auto_share_to_mpc = sa.Column(sa.Boolean, nullable=False, server_default="false")
     auto_share_to_trove = sa.Column(sa.Boolean, nullable=False, server_default="false")

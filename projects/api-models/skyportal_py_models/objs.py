@@ -152,6 +152,11 @@ class ObjBody(BaseModel):
     mpc_name: str | None = Field(None, description="Minor planet center name.")
     tns_name: str | None = Field(None, description="Transient Name Server name.")
     tns_info: Any = Field(None, description="TNS info in JSON format")
+    withhold_from_tns: bool | None = Field(
+        None,
+        description="Keep this object off TNS: automatic sharing skips it and a "
+        "manual submission is refused.",
+    )
     score: float | None = Field(None, description="Machine learning score.")
     origin: str | None = Field(None, description="Origin of the object.")
     alias: list[str] | None = Field(
