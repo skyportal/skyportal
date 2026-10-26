@@ -70,6 +70,7 @@ class SharingServiceGroupResponse(BaseModel):
     group_id: int | None = None
     owner: bool | None = None
     auto_share_to_tns: bool | None = None
+    auto_share_classifications_to_tns: bool | None = None
     auto_share_to_hermes: bool | None = None
     auto_share_to_trove: bool | None = None
     auto_sharing_allow_bots: bool | None = None
@@ -335,6 +336,11 @@ class SharingServiceGroupPutBody(BaseModel):
     group_id: int | None = Field(default=None, description="ID of the group to add")
     auto_share_to_tns: bool | str | None = Field(
         default=None, description="Whether to automatically publish to TNS"
+    )
+    auto_share_classifications_to_tns: bool | str | None = Field(
+        default=None,
+        description="Whether to automatically report classifications of this "
+        "group's sources to TNS",
     )
     auto_share_to_hermes: bool | str | None = Field(
         default=None, description="Whether to automatically publish to Hermes"

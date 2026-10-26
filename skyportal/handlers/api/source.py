@@ -129,6 +129,7 @@ from .candidate.candidate import (
     update_healpix_if_relevant,
     update_redshift_history_if_relevant,
     update_summary_history_if_relevant,
+    update_withhold_from_tns_if_relevant,
 )
 from .color_mag import get_color_mag
 from .photometry import (
@@ -562,6 +563,17 @@ async def get_source(
         users_labellers = labellers_result.unique().all()
         source_info["labellers"] = [user.to_dict() for user in users_labellers]
 
+    # One lookup, and only for an object whose TNS flag has ever been touched.
+    if source_info.get("withhold_from_tns_set_by_id") is not None:
+        setter = await session.scalar(
+            User.select(session.user_or_token).where(
+                User.id == source_info["withhold_from_tns_set_by_id"]
+            )
+        )
+        source_info["withhold_from_tns_set_by"] = (
+            setter.to_dict() if setter is not None else None
+        )
+
     annotations_result = await session.scalars(
         Annotation.select(user)
         .options(selectinload(Annotation.author))
@@ -959,6 +971,7 @@ async def post_source_async(data, user_id, session, refresh_source=True):
         raise AttributeError("Not all group_ids could be loaded.")
 
     update_redshift_history_if_relevant(data, obj, user)
+    update_withhold_from_tns_if_relevant(data, obj, user)
 
     # Batch the per-group lookups into one query each (instead of two queries
     # per group in the loop below) so saving to N groups stays ~constant in
@@ -1217,6 +1230,7 @@ def post_source(data, user_id, session, refresh_source=True):
         raise AttributeError("Not all group_ids could be loaded.")
 
     update_redshift_history_if_relevant(data, obj, user)
+    update_withhold_from_tns_if_relevant(data, obj, user)
 
     # Batch the per-group lookups into one query each (instead of two queries
     # per group in the loop below) so saving to N groups stays ~constant in
@@ -1795,6 +1809,7 @@ class SourceHandler(BaseHandler):
                     f"Invalid/missing parameters: {e.normalized_messages()}"
                 )
             update_redshift_history_if_relevant(data, obj, self.associated_user_object)
+            update_withhold_from_tns_if_relevant(data, obj, self.associated_user_object)
             update_summary_history_if_relevant(data, obj, self.associated_user_object)
             if "summary" in data:
                 # The stored vector describes the summary it was made from.

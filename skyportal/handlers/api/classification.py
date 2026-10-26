@@ -19,6 +19,7 @@ from sqlalchemy.orm import selectinload
 from baselayer.app.access import auth_or_token, permissions
 from baselayer.app.env import load_env
 from baselayer.app.flow import Flow
+from baselayer.log import make_log
 
 from ...models import (
     Classification,
@@ -30,10 +31,12 @@ from ...models import (
     Taxonomy,
     User,
 )
+from ...utils.data_access import auto_classification_publishing_async
 from ..base import BaseHandler
 from .source_labels import add_source_labels
 
 _, cfg = load_env()
+log = make_log("api/classification")
 
 MAX_CLASSIFICATIONS_PER_PAGE = 500
 
@@ -151,6 +154,21 @@ async def post_classification(data, user_id, session):
 
 
 class ClassificationHandler(BaseHandler):
+    async def _queue_tns_classification_reports(self, classification_ids):
+        # A session of its own per classification, so a failure here neither
+        # fails the request nor leaves its session unusable
+        for classification_id in classification_ids:
+            try:
+                async with self.AsyncSession() as session:
+                    await auto_classification_publishing_async(
+                        session, classification_id
+                    )
+            except Exception as e:
+                log(
+                    "Error queuing a TNS classification report for "
+                    f"classification {classification_id}: {e}"
+                )
+
     @auth_or_token
     async def get(
         self,
@@ -309,6 +327,7 @@ class ClassificationHandler(BaseHandler):
                     except Exception as e:
                         return self.error(f"Error posting classification: {str(e)}")
                     classification_ids.append(classification_id)
+                await self._queue_tns_classification_reports(classification_ids)
                 return self.success(data={"classification_ids": classification_ids})
             else:
                 data = body.model_dump(exclude_unset=True)
@@ -319,6 +338,7 @@ class ClassificationHandler(BaseHandler):
                     )
                 except Exception as e:
                     return self.error(f"Error posting classification: {str(e)}")
+                await self._queue_tns_classification_reports([classification_id])
                 return self.success(data={"classification_id": classification_id})
 
     @permissions(["Classify"])
