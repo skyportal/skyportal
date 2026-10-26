@@ -372,7 +372,10 @@ const SharingServiceGroup = ({
               />
             </Tooltip>
           </FormGroup>
-          {(autoPublishTns || autoPublishHermes || autoPublishTrove) && (
+          {(autoPublishTns ||
+            autoPublishTnsClassifications ||
+            autoPublishHermes ||
+            autoPublishTrove) && (
             <>
               <InputLabel>Allow bots to auto publish</InputLabel>
               <Switch
