@@ -7,6 +7,9 @@ and should be told why.
 
 import types
 
+from skyportal.handlers.api.candidate.candidate import (
+    update_withhold_from_tns_if_relevant,
+)
 from skyportal.utils.data_access import (
     classification_is_reportable,
     destinations_not_withheld,
@@ -91,3 +94,32 @@ def test_a_classification_shared_with_no_group_is_not_reportable():
     # Groups are what opt in, so a classification shared with none has nobody
     # asking for it to go out.
     assert classification_is_reportable(_classification(groups=())) is False
+
+
+def test_the_flag_records_who_touched_it_and_when():
+    obj = _obj(withhold_from_tns_set_by_id=None, withhold_from_tns_set_at=None)
+    update_withhold_from_tns_if_relevant(
+        {"withhold_from_tns": True}, obj, types.SimpleNamespace(id=7)
+    )
+    assert obj.withhold_from_tns_set_by_id == 7
+    assert obj.withhold_from_tns_set_at is not None
+    # Naive UTC, matching the column and the rest of objs.
+    assert obj.withhold_from_tns_set_at.tzinfo is None
+
+
+def test_clearing_the_flag_is_recorded_too():
+    # Who un-withheld an object is as much the question as who withheld it.
+    obj = _obj(withhold_from_tns_set_by_id=7, withhold_from_tns_set_at=None)
+    update_withhold_from_tns_if_relevant(
+        {"withhold_from_tns": False}, obj, types.SimpleNamespace(id=9)
+    )
+    assert obj.withhold_from_tns_set_by_id == 9
+
+
+def test_an_unrelated_patch_leaves_the_record_alone():
+    obj = _obj(withhold_from_tns_set_by_id=7, withhold_from_tns_set_at="earlier")
+    update_withhold_from_tns_if_relevant(
+        {"redshift": 0.1}, obj, types.SimpleNamespace(id=9)
+    )
+    assert obj.withhold_from_tns_set_by_id == 7
+    assert obj.withhold_from_tns_set_at == "earlier"

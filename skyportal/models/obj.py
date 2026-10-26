@@ -289,6 +289,23 @@ class Obj(Base, conesearch_alchemy.Point):
             "back until someone clears this deliberately."
         ),
     )
+    # Setting and clearing are both recorded: the question after a report that
+    # did not go out is who last touched the flag, either way.
+    withhold_from_tns_set_by_id = sa.Column(
+        sa.ForeignKey("users.id", ondelete="SET NULL"),
+        nullable=True,
+        doc="Who last set or cleared withhold_from_tns.",
+    )
+    withhold_from_tns_set_at = sa.Column(
+        sa.DateTime,
+        nullable=True,
+        doc="When withhold_from_tns was last set or cleared, UTC.",
+    )
+    withhold_from_tns_set_by = relationship(
+        "User",
+        foreign_keys=[withhold_from_tns_set_by_id],
+        doc="User who last set or cleared withhold_from_tns.",
+    )
     score = sa.Column(sa.Float, nullable=True, doc="Machine learning score.")
 
     origin = sa.Column(sa.String, nullable=True, doc="Origin of the object.")

@@ -35361,6 +35361,8 @@ export interface components {
         Obj: {
             /** @description The Galaxy associated with this source. */
             readonly host?: components["schemas"]["Galaxy"];
+            /** @description User who last set or cleared withhold_from_tns. */
+            readonly withhold_from_tns_set_by?: components["schemas"]["User"];
             readonly comments?: components["schemas"]["Comment"][];
             readonly reminders?: components["schemas"]["Reminder"][];
             readonly comments_on_spectra?: components["schemas"]["CommentOnSpectrum"][];
@@ -35438,6 +35440,13 @@ export interface components {
             } | null;
             /** @description Keep this object off TNS. Automatic sharing skips it silently and a manual submission is refused, so an object held back stays held back until someone clears this deliberately. */
             withhold_from_tns?: boolean;
+            /** @description Who last set or cleared withhold_from_tns. */
+            withhold_from_tns_set_by_id?: number | null;
+            /**
+             * Format: date-time
+             * @description When withhold_from_tns was last set or cleared, UTC.
+             */
+            withhold_from_tns_set_at?: string | null;
             /** @description Machine learning score. */
             score?: number | null;
             /** @description Origin of the object. */
@@ -35642,6 +35651,8 @@ export interface components {
         ObjNoID: {
             /** @description The Galaxy associated with this source. */
             readonly host?: components["schemas"]["Galaxy"];
+            /** @description User who last set or cleared withhold_from_tns. */
+            readonly withhold_from_tns_set_by?: components["schemas"]["User"];
             readonly comments?: components["schemas"]["Comment"][];
             readonly reminders?: components["schemas"]["Reminder"][];
             readonly comments_on_spectra?: components["schemas"]["CommentOnSpectrum"][];
@@ -35717,6 +35728,13 @@ export interface components {
             } | null;
             /** @description Keep this object off TNS. Automatic sharing skips it silently and a manual submission is refused, so an object held back stays held back until someone clears this deliberately. */
             withhold_from_tns?: boolean;
+            /** @description Who last set or cleared withhold_from_tns. */
+            withhold_from_tns_set_by_id?: number | null;
+            /**
+             * Format: date-time
+             * @description When withhold_from_tns was last set or cleared, UTC.
+             */
+            withhold_from_tns_set_at?: string | null;
             /** @description Machine learning score. */
             score?: number | null;
             /** @description Origin of the object. */
@@ -35749,6 +35767,8 @@ export interface components {
         ObjPost: {
             /** @description The Galaxy associated with this source. */
             readonly host?: components["schemas"]["Galaxy"];
+            /** @description User who last set or cleared withhold_from_tns. */
+            readonly withhold_from_tns_set_by?: components["schemas"]["User"];
             readonly comments?: components["schemas"]["Comment"][];
             readonly reminders?: components["schemas"]["Reminder"][];
             readonly comments_on_spectra?: components["schemas"]["CommentOnSpectrum"][];
@@ -35822,6 +35842,13 @@ export interface components {
             } | null;
             /** @description Keep this object off TNS. Automatic sharing skips it silently and a manual submission is refused, so an object held back stays held back until someone clears this deliberately. */
             withhold_from_tns?: boolean;
+            /** @description Who last set or cleared withhold_from_tns. */
+            withhold_from_tns_set_by_id?: number | null;
+            /**
+             * Format: date-time
+             * @description When withhold_from_tns was last set or cleared, UTC.
+             */
+            withhold_from_tns_set_at?: string | null;
             /** @description Machine learning score. */
             score?: number | null;
             /** @description Origin of the object. */

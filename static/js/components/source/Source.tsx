@@ -1110,7 +1110,16 @@ const SourceContent = ({ source }: SourceContentProps) => {
                     dialogOpen={sendToDialogOpen}
                     setDialogOpen={setSendToDialogOpen}
                   />
-                  <Tooltip title="Keep this source off TNS. Automatic sharing skips it and a manual submission is refused until this is cleared.">
+                  <Tooltip
+                    title={`Keep this source off TNS. Automatic sharing skips it and a manual submission is refused until this is cleared.${
+                      source.withhold_from_tns_set_at
+                        ? ` Last changed by ${
+                            source.withhold_from_tns_set_by?.username ??
+                            "a deleted user"
+                          } on ${source.withhold_from_tns_set_at.slice(0, 10)}.`
+                        : ""
+                    }`}
+                  >
                     <FormControlLabel
                       control={
                         <Checkbox
