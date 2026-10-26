@@ -329,6 +329,16 @@ def process_submission_requests():
                                     SharingServiceSubmission.tns_submission_id.is_(
                                         None
                                     ),
+                                    # lets a child class repoint the report first
+                                    or_(
+                                        SharingServiceSubmission.auto_submission.is_(
+                                            False
+                                        ),
+                                        SharingServiceSubmission.tns_report_type
+                                        != "classification_report",
+                                        SharingServiceSubmission.created_at
+                                        < utcnow_naive() - timedelta(minutes=1),
+                                    ),
                                 ),
                                 and_(
                                     SharingServiceSubmission.publish_to_hermes == True,
