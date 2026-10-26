@@ -45,7 +45,10 @@ from ...models import (
     Photometry,
     Stream,
 )
-from ...utils.gcn_crossmatch import requeue_crossmatch_for_filter
+from ...utils.gcn_crossmatch import (
+    crossmatch_enabled,
+    requeue_crossmatch_for_filter,
+)
 from ...utils.survey import survey_from_instrument
 from ..base import BaseHandler
 from .filter import delete_filter_on_broker
@@ -1172,9 +1175,12 @@ def _validate_version(broker_id, filter_id, fid):
 def _requeue_crossmatch(session, f):
     """Re-search active events for this filter, now that its cuts have changed.
 
-    Only filters opted into the crossmatch have any state to requeue, so this
-    is a no-op for the rest.
+    Checked here rather than left to the UPDATE: a filter that never opted in
+    has no state to match, and someone iterating on versions of one would pay
+    for a window-wide statement on every save.
     """
+    if not crossmatch_enabled(f):
+        return
     try:
         requeue_crossmatch_for_filter(session, f.id, cfg.get("gcn_crossmatch") or {})
     except Exception as e:

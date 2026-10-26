@@ -61,7 +61,7 @@ def test_validate_body_accepts_a_string_fid():
     assert BrokerFilterValidateBody().fid is None
 
 
-def _pending_filter():
+def _pending_filter(crossmatch=True):
     calls = []
     broker = SimpleNamespace(
         broker_class=SimpleNamespace(
@@ -74,7 +74,8 @@ def _pending_filter():
             "boom": {
                 "filter_id": "boom-id",
                 "pending_switch": {"fid": "B", "by": "alice"},
-            }
+            },
+            **({"gcn_crossmatch": {"enabled": True}} if crossmatch else {}),
         },
     )
     return broker, f, calls
@@ -125,3 +126,18 @@ def test_pending_switch_requeues_the_crossmatch(monkeypatch):
     broker, f, _ = _pending_filter()
     _apply_pending_switch(broker, None, f, "B", True)
     assert requeued == [1]
+
+
+def test_a_filter_outside_the_crossmatch_is_not_requeued(monkeypatch):
+    # Most filters never opted in; iterating on their versions should not cost
+    # a window-wide UPDATE per save.
+    requeued = []
+    monkeypatch.setattr(
+        "skyportal.handlers.api.broker.requeue_crossmatch_for_filter",
+        lambda session, filter_id, config: requeued.append(filter_id),
+    )
+    broker, f, calls = _pending_filter(crossmatch=False)
+    _apply_pending_switch(broker, None, f, "B", True)
+    assert requeued == []
+    # The switch itself still happened; only the re-search was skipped.
+    assert calls and calls[0]["active_fid"] == "B"
