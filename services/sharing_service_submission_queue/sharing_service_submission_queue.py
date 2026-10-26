@@ -241,6 +241,7 @@ def process_submission_request(submission_request, session, trove=False):
             with_photometry=trove
             or submission_request.publish_to_hermes
             or submission_request.tns_report_type != "classification_report",
+            tns_report_type=submission_request.tns_report_type,
         )
 
         if trove:

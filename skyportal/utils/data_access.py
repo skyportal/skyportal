@@ -457,6 +457,7 @@ def get_publishable_source_and_photometry(
     photometry_options,
     is_auto_submission,
     with_photometry=True,
+    tns_report_type="at_report",
 ):
     """Get publishable source and photometry after checking the access and the options.
 
@@ -478,6 +479,9 @@ def get_publishable_source_and_photometry(
         Photometry options to use for the data
     is_auto_submission : bool
         Whether the submission is an auto-submission
+    tns_report_type : str
+        The TNS report type; an auto "classification_report" is gated on
+        auto_share_classifications_to_tns instead of the other auto-share flags
 
     Returns
     -------
@@ -505,13 +509,20 @@ def get_publishable_source_and_photometry(
     # if auto_submission, check if the group has auto-publish enabled for TNS, Hermes or TROVE
     # and if the user is an auto-publisher for that group
     if is_auto_submission:
-        valid_groups = [
-            group
-            for group in valid_groups
-            if group.auto_share_to_tns
-            or group.auto_share_to_hermes
-            or group.auto_share_to_trove
-        ]
+        if tns_report_type == "classification_report":
+            valid_groups = [
+                group
+                for group in valid_groups
+                if group.auto_share_classifications_to_tns
+            ]
+        else:
+            valid_groups = [
+                group
+                for group in valid_groups
+                if group.auto_share_to_tns
+                or group.auto_share_to_hermes
+                or group.auto_share_to_trove
+            ]
         if not valid_groups:
             raise ValueError(
                 f"No group with sharing services {sharing_service_id} set to auto-publish."
@@ -571,8 +582,13 @@ def get_publishable_source_and_photometry(
     instrument_ids = filter_accessible_instrument_ids(
         session, user, instrument_ids, sharing_service
     )
+    # the service's streams restrict photometry, so a report without any needs none
     stream_ids = filter_accessible_stream_ids(
-        session, user, stream_ids, sharing_service, auto_submission=is_auto_submission
+        session,
+        user,
+        stream_ids,
+        sharing_service,
+        auto_submission=is_auto_submission and with_photometry,
     )
 
     if not with_photometry:
@@ -643,6 +659,12 @@ async def auto_classification_publishing_async(session, classification_id):
         .where(
             SharingServiceGroup.group_id.in_(group_ids),
             SharingServiceGroup.auto_share_classifications_to_tns.is_(True),
+            # the queue only reports a source saved to one of these groups
+            SharingServiceGroup.group_id.in_(
+                sa.select(Source.group_id).where(
+                    Source.obj_id == obj.id, Source.active.is_(True)
+                )
+            ),
             SharingServiceGroupAutoPublisher.group_user_id.in_(
                 sa.select(GroupUser.id).where(
                     GroupUser.user_id == author.id,
