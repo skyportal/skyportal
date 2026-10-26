@@ -80,6 +80,10 @@ export const sourceApi = skyportalApi.injectEndpoints({
       query: (id) => `api/sources/${id}/groups`,
       providesTags: (_result, _error, id) => ["Source", { type: "Source", id }],
     }),
+    getObjClassifications: build.query<any[], number | string>({
+      query: (id) => `api/sources/${id}/classifications`,
+      providesTags: (_result, _error, id) => ["Source", { type: "Source", id }],
+    }),
     getSourcePosition: build.query<SourcePosition, number | string>({
       query: (id) => `api/sources/${id}/position`,
       // Its own tag: a REFRESH_SOURCE from e.g. a comment must not refetch the position.
@@ -762,6 +766,7 @@ invalidateOnMessage("skyportal/REFRESH_GCNEVENT", () => ["GcnEvent"]);
 export const {
   useGetSourceQuery,
   useGetObjGroupsQuery,
+  useGetObjClassificationsQuery,
   useGetSourceAcknowledgmentQuery,
   useGetSourcePositionQuery,
   useGetAssociatedGcnsQuery,

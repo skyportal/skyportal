@@ -392,6 +392,47 @@ def strip_iau_prefix(tns_name):
     return str(tns_name or "").replace("AT", "").replace("SN", "").strip()
 
 
+def pick_classification(session, user, obj_id, classification_id=None):
+    """The classification to report, chosen or else the latest human one.
+
+    A chosen classification still has to belong to this object and be one the
+    requester can read, so a stale id reports nothing rather than reporting
+    somebody else's object.
+    """
+    from skyportal.models import Classification
+
+    query = Classification.select(user).where(Classification.obj_id == obj_id)
+    if classification_id is not None:
+        return session.scalars(
+            query.where(Classification.id == classification_id)
+        ).first()
+    return session.scalars(
+        query.where(
+            Classification.ml.is_(False),
+            sa.or_(
+                Classification.probability.is_(None),
+                Classification.probability > 0,
+            ),
+        ).order_by(Classification.created_at.desc())
+    ).first()
+
+
+def pick_spectrum(session, user, obj_id, spectrum_id=None):
+    """The spectrum to report against, chosen or else the latest one.
+
+    Falling back, a source spectrum beats a host one of the same night, since
+    the classification is of the source.
+    """
+    from skyportal.models import Spectrum
+
+    query = Spectrum.select(user).where(Spectrum.obj_id == obj_id)
+    if spectrum_id is not None:
+        return session.scalars(query.where(Spectrum.id == spectrum_id)).first()
+    return session.scalars(
+        query.order_by((Spectrum.type == "source").desc(), Spectrum.observed_at.desc())
+    ).first()
+
+
 def prepare_tns_classification_report(
     submission_request, sharing_service, reporters, remarks, session
 ):
@@ -424,30 +465,25 @@ def prepare_tns_classification_report(
             "report it as a discovery first."
         )
 
-    classification = session.scalars(
-        Classification.select(user)
-        .where(
-            Classification.obj_id == obj_id,
-            Classification.ml.is_(False),
-            sa.or_(
-                Classification.probability.is_(None),
-                Classification.probability > 0,
-            ),
-        )
-        .order_by(Classification.created_at.desc())
-    ).first()
+    chosen_classification = submission_request.tns_classification_id
+    classification = pick_classification(session, user, obj_id, chosen_classification)
     if classification is None:
-        raise TNSWarning(f"{obj_id} has no classification to report.")
+        raise TNSWarning(
+            f"Classification {chosen_classification} is not one of {obj_id}'s, "
+            "or is no longer readable."
+            if chosen_classification is not None
+            else f"{obj_id} has no classification to report."
+        )
 
-    spectrum = session.scalars(
-        Spectrum.select(user)
-        .where(Spectrum.obj_id == obj_id)
-        .order_by((Spectrum.type == "source").desc(), Spectrum.observed_at.desc())
-    ).first()
+    chosen_spectrum = submission_request.tns_spectrum_id
+    spectrum = pick_spectrum(session, user, obj_id, chosen_spectrum)
     if spectrum is None:
         raise TNSWarning(
-            f"{obj_id} has no spectrum, and TNS will not take a classification "
-            "without one."
+            f"Spectrum {chosen_spectrum} is not one of {obj_id}'s, or is no "
+            "longer readable."
+            if chosen_spectrum is not None
+            else f"{obj_id} has no spectrum, and TNS will not take a "
+            "classification without one."
         )
 
     external_observer = session.scalar(

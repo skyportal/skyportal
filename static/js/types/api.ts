@@ -38604,6 +38604,10 @@ export interface components {
             publish_to_tns?: boolean;
             /** @description Which TNS report this submission files: 'at_report' announces a discovery, 'classification_report' classifies an object TNS already holds and requires a spectrum. */
             tns_report_type?: string;
+            /** @description Spectrum to report a classification against. Left unset, the report takes the object's most recent spectrum, preferring a source spectrum over a host one. */
+            tns_spectrum_id?: number | null;
+            /** @description Classification to report. Left unset, the report takes the object's most recent human classification. */
+            tns_classification_id?: number | null;
             /** @description Status of the TNS submission. */
             tns_status?: string | null;
             /** @description ID of the submission returned by TNS. */
@@ -38697,6 +38701,10 @@ export interface components {
             publish_to_tns?: boolean;
             /** @description Which TNS report this submission files: 'at_report' announces a discovery, 'classification_report' classifies an object TNS already holds and requires a spectrum. */
             tns_report_type?: string;
+            /** @description Spectrum to report a classification against. Left unset, the report takes the object's most recent spectrum, preferring a source spectrum over a host one. */
+            tns_spectrum_id?: number | null;
+            /** @description Classification to report. Left unset, the report takes the object's most recent human classification. */
+            tns_classification_id?: number | null;
             /** @description Status of the TNS submission. */
             tns_status?: string | null;
             /** @description ID of the submission returned by TNS. */
@@ -50394,6 +50402,18 @@ export interface components {
              * @enum {string|null}
              */
             tns_report_type: "at_report" | "classification_report" | null;
+            /**
+             * Tns Spectrum Id
+             * @description Spectrum to report the classification against. Omit to use the object's most recent spectrum, preferring a source spectrum.
+             * @default null
+             */
+            tns_spectrum_id: number | null;
+            /**
+             * Tns Classification Id
+             * @description Classification to report. Omit to use the object's most recent human classification.
+             * @default null
+             */
+            tns_classification_id: number | null;
             /**
              * Publish To Hermes
              * @description Flag to indicate if the submission should be published to Hermes

@@ -72,6 +72,8 @@ class SharingServiceSubmissionHandler(BaseHandler):
         photometry_options = body.photometry_options
         publish_to_tns = body.publish_to_tns
         tns_report_type = body.tns_report_type or "at_report"
+        tns_spectrum_id = body.tns_spectrum_id
+        chosen_classification_id = body.tns_classification_id
         publish_to_hermes = body.publish_to_hermes
         publish_to_trove = body.publish_to_trove
 
@@ -120,33 +122,54 @@ class SharingServiceSubmissionHandler(BaseHandler):
                         f"{obj.id} has no TNS name, so it cannot be classified "
                         "on TNS; report it as a discovery first."
                     )
-                classification = await session.scalar(
-                    Classification.select(
-                        session.user_or_token, columns=[Classification.classification]
+                # Resolved here as well as at submission time, so a choice
+                # that does not belong to this object is an error the
+                # submitter sees rather than a warning on a queued request.
+                query = Classification.select(
+                    session.user_or_token, columns=[Classification.classification]
+                ).where(Classification.obj_id == obj.id)
+                if chosen_classification_id is not None:
+                    classification = await session.scalar(
+                        query.where(Classification.id == chosen_classification_id)
                     )
-                    .where(
-                        Classification.obj_id == obj.id,
-                        Classification.ml.is_(False),
-                        sa.or_(
-                            Classification.probability.is_(None),
-                            Classification.probability > 0,
-                        ),
+                    if classification is None:
+                        return self.error(
+                            f"Classification {chosen_classification_id} is not "
+                            f"one of {obj.id}'s."
+                        )
+                else:
+                    classification = await session.scalar(
+                        query.where(
+                            Classification.ml.is_(False),
+                            sa.or_(
+                                Classification.probability.is_(None),
+                                Classification.probability > 0,
+                            ),
+                        )
+                        .order_by(Classification.created_at.desc())
+                        .limit(1)
                     )
-                    .order_by(Classification.created_at.desc())
-                    .limit(1)
-                )
-                if classification is None:
-                    return self.error(f"{obj.id} has no classification to report.")
+                    if classification is None:
+                        return self.error(f"{obj.id} has no classification to report.")
                 if tns_classification_id(classification) is None:
                     return self.error(
                         f"Classification {classification} has no TNS object type."
                     )
-                has_spectrum = await session.scalar(
-                    Spectrum.select(session.user_or_token, columns=[Spectrum.id])
-                    .where(Spectrum.obj_id == obj.id)
-                    .limit(1)
-                )
-                if has_spectrum is None:
+
+                spectrum_query = Spectrum.select(
+                    session.user_or_token, columns=[Spectrum.id]
+                ).where(Spectrum.obj_id == obj.id)
+                if tns_spectrum_id is not None:
+                    if (
+                        await session.scalar(
+                            spectrum_query.where(Spectrum.id == tns_spectrum_id)
+                        )
+                        is None
+                    ):
+                        return self.error(
+                            f"Spectrum {tns_spectrum_id} is not one of {obj.id}'s."
+                        )
+                elif await session.scalar(spectrum_query.limit(1)) is None:
                     return self.error(
                         f"{obj.id} has no spectrum, and TNS will not take a "
                         "classification without one."
@@ -226,6 +249,8 @@ class SharingServiceSubmissionHandler(BaseHandler):
                 auto_submission=False,
                 publish_to_tns=publish_to_tns,
                 tns_report_type=tns_report_type,
+                tns_spectrum_id=tns_spectrum_id,
+                tns_classification_id=chosen_classification_id,
                 tns_status="pending" if publish_to_tns else None,
                 publish_to_hermes=publish_to_hermes,
                 hermes_status="pending" if publish_to_hermes else None,
