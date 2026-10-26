@@ -11742,7 +11742,7 @@ export interface paths {
         };
         /**
          * Update an instrument
-         * @description <b>Permission(s) required:</b> <em>Manage instruments (or System admin)</em><br><br>Update instrument
+         * @description Update instrument
          */
         put: {
             parameters: {
