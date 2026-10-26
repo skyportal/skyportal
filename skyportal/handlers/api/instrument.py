@@ -575,7 +575,7 @@ class InstrumentHandler(BaseHandler):
             ]
             return self.success(data=data)
 
-    @permissions(["Manage instruments"])
+    @auth_or_token
     async def put(self, instrument_id: int, *, body: InstrumentPutBody = None):
         """
         ---

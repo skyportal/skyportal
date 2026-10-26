@@ -203,6 +203,7 @@ def test_token_user_update_instrument(
 
     new_name = f"Gattini2_{uuid.uuid4()}"
 
+    # Editing needs no more than creating does, which any token can do.
     status, data = api(
         "PUT",
         f"instrument/{instrument_id}",
@@ -215,23 +216,15 @@ def test_token_user_update_instrument(
         },
         token=manage_sources_token,
     )
-    assert status == 403
-    assert data["status"] == "error"
-
-    status, data = api(
-        "PUT",
-        f"instrument/{instrument_id}",
-        data={
-            "name": new_name,
-            "type": "imager",
-            "band": "NIR",
-            "filters": ["f110w"],
-            "telescope_id": telescope_id,
-        },
-        token=super_admin_token,
-    )
     assert status == 200
     assert data["status"] == "success"
+
+    # Deleting still does: an instrument takes its fields and observations with it.
+    status, data = api(
+        "DELETE", f"instrument/{instrument_id}", token=manage_sources_token
+    )
+    assert status == 403
+    assert data["status"] == "error"
 
     status, data = api("GET", f"instrument/{instrument_id}", token=view_only_token)
     assert status == 200
