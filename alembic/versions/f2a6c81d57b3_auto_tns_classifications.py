@@ -8,7 +8,7 @@ objs.withhold_from_tns_set_by_id and objs.withhold_from_tns_set_at record who
 last touched the flag.
 
 Revision ID: f2a6c81d57b3
-Revises: a81f5c03b6d4
+Revises: b53d1e7af209
 Create Date: 2026-10-25 13:45:00.000000
 
 """
@@ -19,7 +19,7 @@ from alembic import op
 
 # revision identifiers, used by Alembic.
 revision = "f2a6c81d57b3"
-down_revision = "a81f5c03b6d4"
+down_revision = "b53d1e7af209"
 branch_labels = None
 depends_on = None
 
