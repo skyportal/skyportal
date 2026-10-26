@@ -351,6 +351,11 @@ const InstrumentForm = ({
   };
 
   const uiSchema = {
+    // send "" when emptied: rjsf drops an undefined key and the PUT keeps the
+    // old value, which would go on crediting it on TNS reports
+    default_observer: {
+      "ui:emptyValue": "",
+    },
     api_classname: {
       "ui:placeholder": "Choose an option",
     },
