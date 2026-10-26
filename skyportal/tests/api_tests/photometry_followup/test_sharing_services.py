@@ -548,8 +548,8 @@ def test_classification_report_names_its_spectrum_and_classification(
 
     # Another object's classification or spectrum is refused.
     for key, other_id in (
-        ("tns_classification_id", classification_ids[public_obj.id]),
-        ("tns_spectrum_id", public_obj.spectra[0].id),
+        ("tns_report_classification_id", classification_ids[public_obj.id]),
+        ("tns_report_spectrum_id", public_obj.spectra[0].id),
     ):
         status, data = api(
             "POST",
@@ -565,8 +565,8 @@ def test_classification_report_names_its_spectrum_and_classification(
         "sharing_service/submission",
         data={
             **request_data,
-            "tns_classification_id": classification_ids[public_source.id],
-            "tns_spectrum_id": public_source_spectrum.id,
+            "tns_report_classification_id": classification_ids[public_source.id],
+            "tns_report_spectrum_id": public_source_spectrum.id,
         },
         token=super_admin_token,
     )
@@ -579,8 +579,8 @@ def test_classification_report_names_its_spectrum_and_classification(
         data={
             **request_data,
             "tns_report_type": "at_report",
-            "tns_classification_id": classification_ids[public_obj.id],
-            "tns_spectrum_id": 2**31 - 1,
+            "tns_report_classification_id": classification_ids[public_obj.id],
+            "tns_report_spectrum_id": 2**31 - 1,
         },
         token=super_admin_token,
     )
@@ -596,10 +596,13 @@ def test_classification_report_names_its_spectrum_and_classification(
     submissions = {s["tns_report_type"]: s for s in data["data"]["submissions"]}
     assert submissions.keys() == {"classification_report", "at_report"}
     submission = submissions["classification_report"]
-    assert submission["tns_classification_id"] == classification_ids[public_source.id]
-    assert submission["tns_spectrum_id"] == public_source_spectrum.id
-    assert submissions["at_report"]["tns_classification_id"] is None
-    assert submissions["at_report"]["tns_spectrum_id"] is None
+    assert (
+        submission["tns_report_classification_id"]
+        == classification_ids[public_source.id]
+    )
+    assert submission["tns_report_spectrum_id"] == public_source_spectrum.id
+    assert submissions["at_report"]["tns_report_classification_id"] is None
+    assert submissions["at_report"]["tns_report_spectrum_id"] is None
 
     status, data = api(
         "DELETE", f"sharing_service/{sharing_service_id}", token=super_admin_token

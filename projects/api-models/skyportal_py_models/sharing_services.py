@@ -472,12 +472,12 @@ class SharingServiceSubmissionPostBody(BaseModel):
         "discovery, 'classification_report' classifies an object already on "
         "TNS and requires it to have a classification and a spectrum.",
     )
-    tns_spectrum_id: int | None = Field(
+    tns_report_spectrum_id: int | None = Field(
         default=None,
         description="Spectrum to report the classification against. Omit to "
         "use the object's most recent spectrum, preferring a source spectrum.",
     )
-    tns_classification_id: int | None = Field(
+    tns_report_classification_id: int | None = Field(
         default=None,
         description="Classification to report. Omit to use the object's most "
         "recent human classification.",

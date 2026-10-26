@@ -463,7 +463,7 @@ def prepare_tns_classification_report(
             "report it as a discovery first."
         )
 
-    chosen_classification = submission_request.tns_classification_id
+    chosen_classification = submission_request.tns_report_classification_id
     classification = pick_classification(session, user, obj_id, chosen_classification)
     if classification is None:
         raise TNSWarning(
@@ -473,7 +473,7 @@ def prepare_tns_classification_report(
             else f"{obj_id} has no classification to report."
         )
 
-    chosen_spectrum = submission_request.tns_spectrum_id
+    chosen_spectrum = submission_request.tns_report_spectrum_id
     spectrum = pick_spectrum(session, user, obj_id, chosen_spectrum)
     if spectrum is None:
         raise TNSWarning(

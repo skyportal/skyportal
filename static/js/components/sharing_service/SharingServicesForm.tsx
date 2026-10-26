@@ -279,7 +279,7 @@ const SharingServicesDialog = ({
             properties: {
               tns_report_type: { enum: ["classification_report"] },
               ...(classificationOptions.length && {
-                tns_classification_id: {
+                tns_report_classification_id: {
                   type: "integer",
                   title: "Classification to report (optional)",
                   description:
@@ -288,7 +288,7 @@ const SharingServicesDialog = ({
                 },
               }),
               ...(spectrumOptions.length && {
-                tns_spectrum_id: {
+                tns_report_spectrum_id: {
                   type: "integer",
                   title: "Spectrum to report against (optional)",
                   description:
@@ -345,10 +345,10 @@ const SharingServicesDialog = ({
     tns_report_type: {
       "ui:enumNames": ["Discovery (AT report)", "Classification"],
     },
-    tns_classification_id: {
+    tns_report_classification_id: {
       "ui:placeholder": "Most recent classification",
     },
-    tns_spectrum_id: {
+    tns_report_spectrum_id: {
       "ui:placeholder": "Most recent spectrum",
     },
   };

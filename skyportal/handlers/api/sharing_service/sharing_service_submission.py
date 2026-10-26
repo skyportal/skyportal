@@ -76,9 +76,11 @@ class SharingServiceSubmissionHandler(BaseHandler):
         classification_report = (
             publish_to_tns and tns_report_type == "classification_report"
         )
-        tns_spectrum_id = body.tns_spectrum_id if classification_report else None
+        tns_report_spectrum_id = (
+            body.tns_report_spectrum_id if classification_report else None
+        )
         chosen_classification_id = (
-            body.tns_classification_id if classification_report else None
+            body.tns_report_classification_id if classification_report else None
         )
         publish_to_hermes = body.publish_to_hermes
         publish_to_trove = body.publish_to_trove
@@ -165,15 +167,15 @@ class SharingServiceSubmissionHandler(BaseHandler):
                 spectrum_query = Spectrum.select(
                     session.user_or_token, columns=[Spectrum.id]
                 ).where(Spectrum.obj_id == obj.id)
-                if tns_spectrum_id is not None:
+                if tns_report_spectrum_id is not None:
                     if (
                         await session.scalar(
-                            spectrum_query.where(Spectrum.id == tns_spectrum_id)
+                            spectrum_query.where(Spectrum.id == tns_report_spectrum_id)
                         )
                         is None
                     ):
                         return self.error(
-                            f"Spectrum {tns_spectrum_id} is not one of {obj.id}'s."
+                            f"Spectrum {tns_report_spectrum_id} is not one of {obj.id}'s."
                         )
                 elif await session.scalar(spectrum_query.limit(1)) is None:
                     return self.error(
@@ -255,8 +257,8 @@ class SharingServiceSubmissionHandler(BaseHandler):
                 auto_submission=False,
                 publish_to_tns=publish_to_tns,
                 tns_report_type=tns_report_type,
-                tns_spectrum_id=tns_spectrum_id,
-                tns_classification_id=chosen_classification_id,
+                tns_report_spectrum_id=tns_report_spectrum_id,
+                tns_report_classification_id=chosen_classification_id,
                 tns_status="pending" if publish_to_tns else None,
                 publish_to_hermes=publish_to_hermes,
                 hermes_status="pending" if publish_to_hermes else None,

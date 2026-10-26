@@ -323,7 +323,9 @@ class SharingServiceSubmission(Base):
         ),
     )
 
-    tns_spectrum_id = sa.Column(
+    # A pick deleted while the submission is queued is nulled, so the report
+    # falls back to the default one rather than failing
+    tns_report_spectrum_id = sa.Column(
         sa.ForeignKey("spectra.id", ondelete="SET NULL"),
         nullable=True,
         index=True,
@@ -334,7 +336,7 @@ class SharingServiceSubmission(Base):
         ),
     )
 
-    tns_classification_id = sa.Column(
+    tns_report_classification_id = sa.Column(
         sa.ForeignKey("classifications.id", ondelete="SET NULL"),
         nullable=True,
         index=True,
