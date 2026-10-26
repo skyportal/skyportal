@@ -1,7 +1,9 @@
 import uuid
 
 import pytest
+import sqlalchemy as sa
 
+from skyportal.models import DBSession, SharingServiceSubmission
 from skyportal.tests import api
 from skyportal.tests.fixtures import InstrumentFactory
 
@@ -666,7 +668,7 @@ def _update_obj(obj_id, data, token):
 
 
 def _classify(obj_id, taxonomy_id, group_id, token, ml=False, classification="Ia"):
-    status, _ = api(
+    status, data = api(
         "POST",
         "classification",
         data={
@@ -680,6 +682,7 @@ def _classify(obj_id, taxonomy_id, group_id, token, ml=False, classification="Ia
         token=token,
     )
     assert status == 200
+    return data["data"]["classification_id"]
 
 
 def _submissions(sharing_service_id, token):
@@ -836,3 +839,71 @@ def test_a_group_put_can_set_only_the_classification_flag(
         "DELETE", f"sharing_service/{sharing_service_id}", token=super_admin_token
     )
     assert status == 200
+
+
+def test_a_child_class_repoints_the_pending_tns_classification_report(
+    tns_classification_service,
+    public_source,
+    public_group,
+    public_taxonomy,
+    classification_token,
+    super_admin_token,
+):
+    _update_obj(public_source.id, {"tns_name": "2026abc"}, super_admin_token)
+    # MultipleClassificationsForm posts the parent class first
+    _classify(
+        public_source.id,
+        public_taxonomy.id,
+        public_group.id,
+        classification_token,
+        classification="Supernova",
+    )
+    child_id = _classify(
+        public_source.id, public_taxonomy.id, public_group.id, classification_token
+    )
+
+    (submission,) = _submissions(tns_classification_service, super_admin_token)
+    assert submission["tns_status"] == "pending"
+    assert submission["tns_report_classification_id"] == child_id
+
+
+def test_a_reclassification_after_a_sent_tns_report_files_another(
+    tns_classification_service,
+    public_source,
+    public_group,
+    public_taxonomy,
+    classification_token,
+    super_admin_token,
+):
+    _update_obj(public_source.id, {"tns_name": "2026abc"}, super_admin_token)
+    _classify(
+        public_source.id,
+        public_taxonomy.id,
+        public_group.id,
+        classification_token,
+        classification="Supernova",
+    )
+    (sent,) = _submissions(tns_classification_service, super_admin_token)
+    DBSession().execute(
+        sa.update(SharingServiceSubmission)
+        .where(SharingServiceSubmission.id == sent["id"])
+        .values(tns_status="complete")
+    )
+    DBSession().commit()
+
+    # the same TNS type again files nothing
+    _classify(
+        public_source.id,
+        public_taxonomy.id,
+        public_group.id,
+        classification_token,
+        classification="Supernova",
+    )
+    assert len(_submissions(tns_classification_service, super_admin_token)) == 1
+
+    ia_id = _classify(
+        public_source.id, public_taxonomy.id, public_group.id, classification_token
+    )
+    submissions = _submissions(tns_classification_service, super_admin_token)
+    (new,) = [s for s in submissions if s["tns_status"] == "pending"]
+    assert new["tns_report_classification_id"] == ia_id
