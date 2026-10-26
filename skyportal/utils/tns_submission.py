@@ -304,11 +304,12 @@ def _credited(external, people, default=None):
     """Who to credit: a free-text name, else the linked users, else a default."""
     if external:
         return external
-    names = ", ".join(
+    # skip a linked user with no name; usernames are never published to TNS
+    names = (
         f"{person.first_name or ''} {person.last_name or ''}".strip()
         for person in (people or [])
-    ).strip(", ")
-    return names or (default or "")
+    )
+    return ", ".join(name for name in names if name) or (default or "")
 
 
 def build_tns_classification_report(
