@@ -9,7 +9,7 @@ Both drop to NULL rather than cascading, since deleting a spectrum should not
 take a submission's record of what was reported with it.
 
 Revision ID: b53d1e7af209
-Revises: a81f5c03b6d4
+Revises: c4e9b2a71f08
 Create Date: 2026-10-26 09:30:00.000000
 
 """
@@ -20,7 +20,7 @@ from alembic import op
 
 # revision identifiers, used by Alembic.
 revision = "b53d1e7af209"
-down_revision = "a81f5c03b6d4"
+down_revision = "c4e9b2a71f08"
 branch_labels = None
 depends_on = None
 
