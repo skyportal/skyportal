@@ -326,6 +326,7 @@ class SharingServiceSubmission(Base):
     tns_spectrum_id = sa.Column(
         sa.ForeignKey("spectra.id", ondelete="SET NULL"),
         nullable=True,
+        index=True,
         doc=(
             "Spectrum to report a classification against. Left unset, the "
             "report takes the object's most recent spectrum, preferring a "
@@ -336,6 +337,7 @@ class SharingServiceSubmission(Base):
     tns_classification_id = sa.Column(
         sa.ForeignKey("classifications.id", ondelete="SET NULL"),
         nullable=True,
+        index=True,
         doc=(
             "Classification to report. Left unset, the report takes the "
             "object's most recent human classification."

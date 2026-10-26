@@ -34,6 +34,18 @@ def upgrade():
         "sharingservicesubmissions",
         sa.Column("tns_classification_id", sa.Integer(), nullable=True),
     )
+    op.create_index(
+        op.f("ix_sharingservicesubmissions_tns_spectrum_id"),
+        "sharingservicesubmissions",
+        ["tns_spectrum_id"],
+        unique=False,
+    )
+    op.create_index(
+        op.f("ix_sharingservicesubmissions_tns_classification_id"),
+        "sharingservicesubmissions",
+        ["tns_classification_id"],
+        unique=False,
+    )
     op.create_foreign_key(
         "sharingservicesubmissions_tns_spectrum_id_fkey",
         "sharingservicesubmissions",
@@ -62,6 +74,14 @@ def downgrade():
         "sharingservicesubmissions_tns_spectrum_id_fkey",
         "sharingservicesubmissions",
         type_="foreignkey",
+    )
+    op.drop_index(
+        op.f("ix_sharingservicesubmissions_tns_classification_id"),
+        table_name="sharingservicesubmissions",
+    )
+    op.drop_index(
+        op.f("ix_sharingservicesubmissions_tns_spectrum_id"),
+        table_name="sharingservicesubmissions",
     )
     op.drop_column("sharingservicesubmissions", "tns_classification_id")
     op.drop_column("sharingservicesubmissions", "tns_spectrum_id")
