@@ -149,10 +149,6 @@ def user_preferences(target, notification_setting, resource_type):
             return
         if not target["user"]["contact_email"]:
             return
-        # this ensures that an email is sent regardless of the user's preferences
-        # this is useful for group_admission_requests, where we want the admins to always be notified by email
-        if resource_type in ["group_admission_request"]:
-            return True
 
     if "preferences" not in target["user"]:
         return
@@ -175,7 +171,12 @@ def user_preferences(target, notification_setting, resource_type):
         ):
             return
 
-    prefs = target["user"]["preferences"].get("notifications")
+    prefs = (target["user"]["preferences"] or {}).get("notifications")
+    if resource_type == "group_admission_request":
+        channel = ((prefs or {}).get(resource_type) or {}).get(notification_setting)
+        if (channel or {}).get("active", notification_setting == "email") is not True:
+            return
+        return prefs or True
     if not prefs:
         return
     else:
@@ -198,13 +199,6 @@ def user_preferences(target, notification_setting, resource_type):
             if not prefs[resource_type].get(notification_setting, False):
                 return
             if not prefs[resource_type][notification_setting].get("active", False):
-                return
-        elif resource_type == "group_admission_request":
-            type_prefs = prefs.get(resource_type) or {}
-            channel = type_prefs.get(notification_setting) or {}
-            if type_prefs.get("active") is False:
-                return
-            if channel.get("active", notification_setting == "slack") is not True:
                 return
         elif notification_setting in ["sms", "phone", "whatsapp"]:
             if not prefs.get(resource_type, {}).get(notification_setting):
@@ -1441,6 +1435,10 @@ def api(queue):
                                         )
                                     )
                                 elif is_group_admission_request:
+                                    if (pref or {}).get(
+                                        "group_admission_request", {}
+                                    ).get("active") is False:
+                                        continue
                                     user_from_request = session.scalars(
                                         sa.select(User).where(
                                             User.id == target_data["user_id"]
