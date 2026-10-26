@@ -1562,6 +1562,10 @@ class BrokerFiltersHandler(BaseHandler):
             version["created_by"] = username
             if body.comment:
                 version["comment"] = body.comment
+            if boom_filter_id is None:
+                # The crossmatch now uses this version's cuts, not its defaults.
+                # Its UPDATE autoflushes altdata, so this runs after the edits above.
+                _requeue_crossmatch(session, f)
             switch_error = None
             pending_switch = False
             if boom_filter_id is not None and body.set_as_active:
