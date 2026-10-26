@@ -444,9 +444,7 @@ def prepare_tns_classification_report(
         The classification report to send.
     """
     from skyportal.models import (
-        Classification,
         Obj,
-        Spectrum,
         SpectrumObserver,
         SpectrumReducer,
         User,
