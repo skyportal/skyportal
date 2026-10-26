@@ -114,3 +114,14 @@ def test_validating_another_version_keeps_the_pending_switch():
     _apply_pending_switch(broker, None, f, "C", True)
     assert calls == []
     assert f.altdata["boom"]["pending_switch"]["fid"] == "B"
+
+
+def test_pending_switch_requeues_the_crossmatch(monkeypatch):
+    requeued = []
+    monkeypatch.setattr(
+        "skyportal.handlers.api.broker.requeue_crossmatch_for_filter",
+        lambda session, filter_id, config: requeued.append(filter_id),
+    )
+    broker, f, _ = _pending_filter()
+    _apply_pending_switch(broker, None, f, "B", True)
+    assert requeued == [1]

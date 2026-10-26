@@ -10,6 +10,7 @@ import datetime
 import types
 
 from skyportal.utils.gcn_crossmatch import DEFAULTS, conf, requeue_crossmatch_for_filter
+from skyportal.utils.naive_datetime import utcnow_naive
 
 
 class _Session:
@@ -24,33 +25,39 @@ class _Session:
         return types.SimpleNamespace(rowcount=self.rowcount)
 
 
-def _compiled(session):
-    return str(session.statements[0].compile(compile_kwargs={"literal_binds": False}))
+def _params(session):
+    return session.statements[0].compile().params
 
 
 def test_it_resets_the_fields_that_gate_a_re_search():
     session = _Session(rowcount=3)
     requeue_crossmatch_for_filter(session, 1446)
-    sql = _compiled(session)
+    params = _params(session)
     # last_queried is what clamps the lower bound past a closed window, and
     # archival_done is what skips the look-back.
-    for column in ("status", "last_queried", "last_alert_jd", "archival_done", "error"):
-        assert column in sql, column
+    assert params["status"] == "pending"
+    assert params["archival_done"] is False
+    assert params["last_queried"] is None
+    assert params["last_alert_jd"] is None
+    assert params["error"] is None
+    assert params["n_matches"] == 0
 
 
 def test_it_is_scoped_to_the_one_filter():
     session = _Session()
     requeue_crossmatch_for_filter(session, 1446)
-    assert "filter_id" in _compiled(session)
+    assert _params(session)["filter_id_1"] == 1446
 
 
 def test_it_only_touches_events_still_being_polled():
     # Events past max_event_age are never queried again, so resetting them
     # would be churn.
     session = _Session()
-    requeue_crossmatch_for_filter(session, 1446)
-    sql = _compiled(session)
-    assert "dateobs" in sql and "gcnevent_id" in sql
+    requeue_crossmatch_for_filter(session, 1446, {"max_event_age": 5.0})
+    compiled = session.statements[0].compile()
+    cutoff = utcnow_naive() - datetime.timedelta(days=5)
+    assert abs(compiled.params["dateobs_1"] - cutoff) < datetime.timedelta(minutes=1)
+    assert "dateobs >= :dateobs_1" in str(compiled)
 
 
 def test_the_age_cutoff_follows_the_instance_setting():
@@ -68,15 +75,7 @@ def test_a_filter_id_given_as_a_string_still_works():
     # The handler hands over whatever the Filter row holds.
     session = _Session()
     requeue_crossmatch_for_filter(session, "1446")
-    assert session.statements
-
-
-def test_the_cutoff_is_in_the_past():
-    # Guards against a sign error making the window exclude everything.
-    cutoff = datetime.datetime.utcnow() - datetime.timedelta(
-        days=float(DEFAULTS["max_event_age"])
-    )
-    assert cutoff < datetime.datetime.utcnow()
+    assert _params(session)["filter_id_1"] == 1446
 
 
 def test_the_requeue_body_defaults_to_every_filter():
