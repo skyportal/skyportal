@@ -6,6 +6,7 @@ from baselayer.app.models import RoleACL, UserACL, UserRole
 from baselayer.log import make_log
 
 from ..models import (
+    Classification,
     Filter,
     Group,
     GroupUser,
@@ -25,6 +26,7 @@ from ..models import (
     Team,
     Thumbnail,
     Token,
+    User,
 )
 from ..utils.tns import TNS_INSTRUMENT_IDS
 from .asynchronous import run_async
@@ -601,7 +603,7 @@ def classification_is_reportable(classification):
     return bool(classification.groups)
 
 
-def auto_classification_publishing(session, author, classification):
+async def auto_classification_publishing_async(session, classification_id):
     """Queue a TNS classification report for a new classification, where a
     group asked for that.
 
@@ -614,13 +616,22 @@ def auto_classification_publishing(session, author, classification):
     from TNS, or for one TNS does not already know by name, since a
     classification report has nothing to attach to without an IAU name.
     """
-    if not classification_is_reportable(classification):
+    classification = await session.scalar(
+        sa.select(Classification)
+        .options(selectinload(Classification.obj), selectinload(Classification.groups))
+        .where(Classification.id == classification_id)
+    )
+    if classification is None or not classification_is_reportable(classification):
         return
+    author = await session.scalar(
+        sa.select(User).where(User.id == classification.author_id)
+    )
     obj = classification.obj
     group_ids = [group.id for group in classification.groups]
 
     stmt = (
         SharingServiceGroup.select(author)
+        .options(selectinload(SharingServiceGroup.sharing_service))
         .join(
             SharingServiceGroupAutoPublisher,
             SharingServiceGroup.id
@@ -640,11 +651,12 @@ def auto_classification_publishing(session, author, classification):
     if author.is_bot:
         stmt = stmt.where(SharingServiceGroup.auto_sharing_allow_bots.is_(True))
 
-    for group in session.scalars(stmt).unique().all():
+    result = await session.scalars(stmt)
+    for group in result.unique().all():
         sharing_service = group.sharing_service
         if not sharing_service.enable_sharing_with_tns:
             continue
-        if is_existing_submission_request(
+        if await is_existing_submission_request_async(
             session,
             obj,
             sharing_service.id,
@@ -663,7 +675,7 @@ def auto_classification_publishing(session, author, classification):
                 tns_status="pending",
             )
         )
-        session.commit()
+        await session.commit()
         log(
             f"Queued a TNS classification report for {obj.id} with sharing "
             f"service {sharing_service.id} (auto submission)"

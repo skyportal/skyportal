@@ -9,7 +9,6 @@ __all__ = [
 import json
 
 import sqlalchemy as sa
-from sqlalchemy import event, inspect
 from sqlalchemy.dialects import postgresql as psql
 from sqlalchemy.orm import column_property, deferred, relationship
 from sqlalchemy_utils.types import JSONType
@@ -22,16 +21,12 @@ from baselayer.app.env import load_env
 from baselayer.app.models import (
     Base,
     CustomUserAccessControl,
-    User,
     UserAccessControl,
 )
-from baselayer.log import make_log
 
-from .classification import Classification
 from .group import Group, GroupUser
 
 _, cfg = load_env()
-log = make_log("models/sharing_service")
 
 
 class SharingService(Base):
@@ -644,25 +639,3 @@ SharingServiceSubmission.read = SharingServiceSubmission.create = (
 ) = SharingServiceSubmission.delete = CustomUserAccessControl(
     sharing_service_submission_access_logic
 )
-
-
-@event.listens_for(Classification, "after_insert")
-def auto_share_classification_to_tns(mapper, connection, target):
-    """Queue a TNS classification report when a group asked for one.
-
-    Classifications are the trigger rather than source saves: a save announces
-    a discovery, a classification says what the object turned out to be, and a
-    group opts into the two separately.
-    """
-
-    @event.listens_for(inspect(target).session, "after_flush", once=True)
-    def receive_after_flush(session, context):
-        try:
-            from ..utils.data_access import auto_classification_publishing
-
-            author = session.scalar(sa.select(User).where(User.id == target.author_id))
-            if author is None:
-                return
-            auto_classification_publishing(session, author, target)
-        except Exception as e:
-            log(f"Error auto-sharing classification {target.id} to TNS: {e}")
