@@ -77,3 +77,22 @@ def test_the_cutoff_is_in_the_past():
         days=float(DEFAULTS["max_event_age"])
     )
     assert cutoff < datetime.datetime.utcnow()
+
+
+def test_the_requeue_body_defaults_to_every_filter():
+    from skyportal_py_models.gcn_events import GcnEventCrossmatchRequeueBody as Body
+
+    # Omitting filter_id keeps the old behaviour, so existing callers are
+    # unaffected by the scoping.
+    assert Body().filter_id is None
+    assert Body(filter_id=1446).filter_id == 1446
+
+
+def test_the_requeue_body_rejects_what_it_cannot_use():
+    import pytest
+    from skyportal_py_models.gcn_events import GcnEventCrossmatchRequeueBody as Body
+
+    with pytest.raises(Exception):
+        Body(filter_id="not an id")
+    with pytest.raises(Exception):
+        Body(unexpected=1)

@@ -162,6 +162,18 @@ class DefaultGcnTagResponse(BaseModel):
     requester: UserResponse | None = None
 
 
+class GcnEventCrossmatchRequeueBody(BaseModel):
+    """Request body for requeueing the alert crossmatch of a GCN event."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    filter_id: int | None = Field(
+        default=None,
+        description="Requeue only this filter's crossmatch of the event. "
+        "Omit to requeue every filter, which re-queries the broker for each.",
+    )
+
+
 class GcnEventCrossmatchRequeueResponse(BaseModel):
     """Result of requeueing the alert crossmatch of a GCN event."""
 
@@ -902,6 +914,7 @@ __all__ = [
     "GcnEventObjCrossmatchPost",
     "DefaultGcnTagResponse",
     "GcnCatalogQueryResponse",
+    "GcnEventCrossmatchRequeueBody",
     "GcnEventCrossmatchRequeueResponse",
     "GcnEventCrossmatchStateResponse",
     "GcnEventExtractionIdResponse",
