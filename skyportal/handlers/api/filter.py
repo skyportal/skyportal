@@ -8,12 +8,18 @@ from skyportal_py_models.filters import (
 from sqlalchemy.orm import joinedload, load_only
 
 from baselayer.app.access import auth_or_token, permissions
+from baselayer.app.env import load_env
 from baselayer.log import make_log
 
 from ...models import Broker, BrokerCredential, Filter
+from ...utils.gcn_crossmatch import (
+    CROSSMATCH_ALTDATA_KEY,
+    requeue_crossmatch_for_filter,
+)
 from ..base import BaseHandler
 from .group import has_admin_access_for_group
 
+_, cfg = load_env()
 log = make_log("api/filter")
 
 # A filter's altdata holds its whole broker definition, which runs to tens of
@@ -247,7 +253,20 @@ class FilterHandler(BaseHandler):
             if body.name is not None:
                 f.name = body.name
             if body.altdata is not None:
+                crossmatch = (f.altdata or {}).get(CROSSMATCH_ALTDATA_KEY)
                 f.altdata = body.altdata
+                if body.altdata.get(CROSSMATCH_ALTDATA_KEY) != crossmatch:
+                    try:
+                        await session.run_sync(
+                            requeue_crossmatch_for_filter,
+                            f.id,
+                            cfg.get("gcn_crossmatch") or {},
+                        )
+                    except Exception as e:
+                        log(
+                            "Could not requeue the GCN crossmatch for filter "
+                            f"{f.id}: {e}"
+                        )
             if body.autosave is not None:
                 f.autosave = body.autosave
 
