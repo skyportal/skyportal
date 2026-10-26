@@ -3,8 +3,17 @@ import embedVega from "../plot/vegaEmbed";
 
 // Consistent color palette for photometric bands across surveys
 const BAND_COLOR_SCALE = {
-  domain: ["u", "g", "r", "i", "z", "y"],
-  range: ["#7B2D8B", "#28a745", "#dc3545", "#f3dc11", "#ff8c00", "#8B4513"],
+  domain: ["u", "g", "r", "i", "z", "y", "beta", "rho"],
+  range: [
+    "#7B2D8B",
+    "#28a745",
+    "#dc3545",
+    "#f3dc11",
+    "#ff8c00",
+    "#8B4513",
+    "#4B9CD3",
+    "#D71F26",
+  ],
 };
 
 const spec = (url: any, values: any, jd: any): any => {

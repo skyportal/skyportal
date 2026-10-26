@@ -25,6 +25,7 @@ if sncosmo_data_folder:
 
 existing_bandpasses_names = [val["name"] for val in _BANDPASSES.get_loaders_metadata()]
 additional_bandpasses_names = []
+BANDPASS_COLORS = {}
 for additional_bandpasses in cfg.get("additional_bandpasses", []):
     name = additional_bandpasses.get("name")
     if not name:
@@ -52,6 +53,8 @@ for additional_bandpasses in cfg.get("additional_bandpasses", []):
 
     sncosmo.registry.register(band)
     additional_bandpasses_names.append(name)
+    if additional_bandpasses.get("color"):
+        BANDPASS_COLORS[name] = additional_bandpasses["color"]
 
 if additional_bandpasses_names:
     log(f"registered {len(additional_bandpasses_names)} custom bandpasses")

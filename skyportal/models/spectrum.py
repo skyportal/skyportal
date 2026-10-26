@@ -139,12 +139,16 @@ class Spectrum(Base):
     )
 
     followup_request_id = sa.Column(
-        sa.ForeignKey("followuprequests.id", ondelete="SET NULL"), nullable=True
+        sa.ForeignKey("followuprequests.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
     )
     followup_request = relationship("FollowupRequest", back_populates="spectra")
 
     assignment_id = sa.Column(
-        sa.ForeignKey("classicalassignments.id", ondelete="SET NULL"), nullable=True
+        sa.ForeignKey("classicalassignments.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
     )
     assignment = relationship("ClassicalAssignment", back_populates="spectra")
 

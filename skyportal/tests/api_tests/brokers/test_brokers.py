@@ -812,6 +812,7 @@ def test_configured_surveys_per_record():
         "ZTF",
         "LSST",
         "DECAM",
+        "ARGUS",
     }
 
     # Lasair's ZTF/LSST are separate deployments (distinct endpoint + token)

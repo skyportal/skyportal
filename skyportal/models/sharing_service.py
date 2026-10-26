@@ -296,7 +296,9 @@ class SharingServiceSubmission(Base):
         sa.ForeignKey("sharingservices.id", ondelete="CASCADE"),
         nullable=False,
     )
-    obj_id = sa.Column(sa.ForeignKey("objs.id", ondelete="CASCADE"), nullable=False)
+    obj_id = sa.Column(
+        sa.ForeignKey("objs.id", ondelete="CASCADE"), nullable=False, index=True
+    )
     user_id = sa.Column(sa.ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
 
     custom_publishing_string = sa.Column(
