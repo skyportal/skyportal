@@ -203,7 +203,6 @@ def test_token_user_update_instrument(
 
     new_name = f"Gattini2_{uuid.uuid4()}"
 
-    # Editing needs no more than creating does, which any token can do.
     status, data = api(
         "PUT",
         f"instrument/{instrument_id}",
@@ -219,7 +218,6 @@ def test_token_user_update_instrument(
     assert status == 200
     assert data["status"] == "success"
 
-    # Deleting still does: an instrument takes its fields and observations with it.
     status, data = api(
         "DELETE", f"instrument/{instrument_id}", token=manage_sources_token
     )

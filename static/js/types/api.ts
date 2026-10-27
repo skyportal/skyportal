@@ -11546,7 +11546,7 @@ export interface paths {
         put?: never;
         /**
          * Add instrument logs
-         * @description Add log messages from an instrument
+         * @description <b>Permission(s) required:</b> <em>Manage instruments (or System admin)</em><br><br>Add log messages from an instrument
          */
         post: {
             parameters: {
@@ -11646,7 +11646,7 @@ export interface paths {
         get?: never;
         /**
          * Update instrument status
-         * @description <b>Permission(s) required:</b> <em>Upload data (or System admin)</em><br><br>Update the status of an instrument
+         * @description <b>Permission(s) required:</b> <em>Upload data, Manage instruments (or System admin)</em><br><br>Update the status of an instrument
          */
         put: {
             parameters: {

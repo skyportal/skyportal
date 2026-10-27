@@ -202,20 +202,20 @@ const Instrument = ({ route }: InstrumentProps) => {
             <CircularProgress size={20} />
           )}
         </Box>
-        {canManage && (
-          <Box sx={{ display: "flex", gap: 0.5 }}>
-            <Tooltip title="Edit instrument">
-              <IconButton onClick={() => setEditOpen(true)}>
-                <EditIcon />
-              </IconButton>
-            </Tooltip>
+        <Box sx={{ display: "flex", gap: 0.5 }}>
+          <Tooltip title="Edit instrument">
+            <IconButton onClick={() => setEditOpen(true)}>
+              <EditIcon />
+            </IconButton>
+          </Tooltip>
+          {canManage && (
             <Tooltip title="Delete instrument">
               <IconButton color="error" onClick={() => setDeleteOpen(true)}>
                 <DeleteIcon />
               </IconButton>
             </Tooltip>
-          </Box>
-        )}
+          )}
+        </Box>
       </Box>
       <Tabs
         value={tab}

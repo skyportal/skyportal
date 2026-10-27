@@ -25,7 +25,7 @@ InstrumentId = Annotated[
 
 
 class InstrumentLogHandler(BaseHandler):
-    @auth_or_token
+    @permissions(["Manage instruments"])
     async def post(
         self, instrument_id: InstrumentId, *, body: InstrumentLogPostBody = None
     ) -> InstrumentLogPostResponse:
@@ -207,7 +207,7 @@ class InstrumentLogExternalAPIHandler(BaseHandler):
 
 
 class InstrumentStatusHandler(BaseHandler):
-    @permissions(["Upload data"])
+    @permissions(["Upload data", "Manage instruments"])
     async def put(
         self, instrument_id: InstrumentId, *, body: InstrumentStatusPutBody = None
     ):
