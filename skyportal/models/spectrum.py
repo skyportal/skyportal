@@ -43,6 +43,8 @@ class NumpyArray(sa.types.TypeDecorator):
         return [float(x) for x in value]
 
     def process_result_value(self, value, dialect):
+        if value is None:
+            return None
         return np.array(value)
 
 

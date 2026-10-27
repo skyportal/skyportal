@@ -1,6 +1,7 @@
 import datetime
 import types
 
+import numpy as np
 import pytest
 
 from skyportal.utils.tns import tns_classification_id, tns_spectrum_type_id
@@ -127,3 +128,23 @@ def test_the_ascii_file_has_two_columns_without_errors_and_three_with():
         "4000.0000 1.5e-16 1e-18",
         "4002.5000 1.6e-16 2e-18",
     ]
+
+
+def test_a_spectrum_with_no_errors_in_the_database_still_serializes():
+    """NumpyArray returns None for a NULL column, not a 0-d array len() rejects."""
+    from skyportal.models.spectrum import NumpyArray
+
+    stored = NumpyArray().process_result_value(None, None)
+    assert stored is None
+    assert spectrum_ascii(_spectrum(errors=stored)).splitlines() == [
+        "4000.0000 1.5e-16",
+        "4002.5000 1.6e-16",
+    ]
+
+
+def test_numpy_array_round_trips_a_populated_column():
+    from skyportal.models.spectrum import NumpyArray
+
+    stored = NumpyArray().process_result_value([1.0, 2.0], None)
+    assert isinstance(stored, np.ndarray)
+    assert stored.tolist() == [1.0, 2.0]
