@@ -947,7 +947,7 @@ class BrokerDefaultPhotometryHandler(BrokerPhotometryHandler):
 
 class BrokerFilterTestHandler(BaseHandler):
     @auth_or_token
-    def post(self, broker_id: int, *, body: BrokerFilterTestBody = None):
+    async def post(self, broker_id: int, *, body: BrokerFilterTestBody = None):
         """
         ---
         summary: Preview a broker filter
@@ -994,7 +994,10 @@ class BrokerFilterTestHandler(BaseHandler):
             except ValueError as e:
                 return self.error(str(e))
             try:
-                data = broker.broker_class.test_filter(broker, session, **params)
+                data = await IOLoop.current().run_in_executor(
+                    None,
+                    lambda: broker.broker_class.test_filter(broker, session, **params),
+                )
             except Exception as e:
                 return self.error(f"Error running filter on {broker.name}: {e}")
             return self.success(data=data)
