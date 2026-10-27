@@ -1783,6 +1783,18 @@ class SourceHandler(BaseHandler):
             if source is None:
                 return self.error(f"Cannot find the object with name {obj_id}")
 
+            if "withhold_from_tns" in data and (
+                await session.scalar(
+                    Source.select(session.user_or_token).where(Source.obj_id == obj_id)
+                )
+                is None
+            ):
+                return self.error(
+                    "Only a user with access to this source can hold it back "
+                    "from TNS or release it.",
+                    status=403,
+                )
+
             updated_coordinates = False
             if data.get("ra", None) is not None or data.get("dec", None) is not None:
                 existing_candidates_result = await session.scalars(

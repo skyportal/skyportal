@@ -124,8 +124,8 @@ class SharingServiceSubmissionResponse(BaseModel):
     """A publication request (``SharingServiceSubmission``).
 
     ``tns_name`` is not a column: the endpoint copies it off the submitted
-    object. ``tns_payload``, ``tns_response`` and ``hermes_response`` are
-    deferred and only appear when explicitly requested. The ``user`` and
+    object. The payload and response columns are deferred and only appear
+    when explicitly requested. The ``user`` and
     ``sharing_service`` relationships are never eager-loaded, so they are
     not declared.
     """
@@ -143,10 +143,18 @@ class SharingServiceSubmissionResponse(BaseModel):
     custom_publishing_string: str | None = None
     custom_remarks_string: str | None = None
     publish_to_tns: bool | None = None
+    tns_report_type: str | None = None
+    tns_report_spectrum_id: int | None = None
+    tns_report_classification_id: int | None = None
     tns_status: str | None = None
     tns_submission_id: int | None = None
     tns_payload: dict[str, Any] | None = None
     tns_response: dict[str, Any] | None = None
+    publish_to_mpc: bool | None = None
+    mpc_status: str | None = None
+    mpc_submission_id: str | None = None
+    mpc_response: dict[str, Any] | None = None
+    mpc_payload: dict[str, Any] | None = None
     publish_to_hermes: bool | None = None
     hermes_status: str | None = None
     hermes_response: dict[str, Any] | None = None

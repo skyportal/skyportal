@@ -126,6 +126,7 @@ def update_withhold_from_tns_if_relevant(request_data, obj, user):
     # Stamped whenever the flag is sent, set or cleared, so a report that did
     # not go out can be traced to whoever last asked for that.
     if "withhold_from_tns" in request_data:
+        obj.withhold_from_tns = bool(request_data["withhold_from_tns"])
         obj.withhold_from_tns_set_by_id = user.id
         obj.withhold_from_tns_set_at = datetime.datetime.now(datetime.UTC).replace(
             tzinfo=None

@@ -475,6 +475,11 @@ def prepare_tns_classification_report(
         )
 
     chosen_classification = submission_request.tns_report_classification_id
+    if submission_request.auto_submission and chosen_classification is None:
+        raise TNSWarning(
+            f"The classification this automatic report on {obj_id} was queued "
+            "for has been deleted."
+        )
     classification = pick_classification(session, user, obj_id, chosen_classification)
     if classification is None:
         raise TNSWarning(
