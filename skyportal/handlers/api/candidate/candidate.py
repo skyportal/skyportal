@@ -122,6 +122,17 @@ def update_redshift_history_if_relevant(request_data, obj, user):
         obj.redshift_history = redshift_history
 
 
+def update_withhold_from_tns_if_relevant(request_data, obj, user):
+    # Stamped whenever the flag is sent, set or cleared, so a report that did
+    # not go out can be traced to whoever last asked for that.
+    if "withhold_from_tns" in request_data:
+        obj.withhold_from_tns = bool(request_data["withhold_from_tns"])
+        obj.withhold_from_tns_set_by_id = user.id
+        obj.withhold_from_tns_set_at = datetime.datetime.now(datetime.UTC).replace(
+            tzinfo=None
+        )
+
+
 def update_healpix_if_relevant(request_data, obj):
     # first check if the ra and dec is being updated
     ra = request_data.get("ra")
@@ -1586,6 +1597,9 @@ class CandidateHandler(BaseHandler):
                 update_redshift_history_if_relevant(
                     data, obj, self.associated_user_object
                 )
+                update_withhold_from_tns_if_relevant(
+                    data, obj, self.associated_user_object
+                )
                 update_healpix_if_relevant(data, obj)
                 try:
                     # Concurrent posts of the same new obj race here: the loser
@@ -1614,6 +1628,9 @@ class CandidateHandler(BaseHandler):
             # loaded, so applying the updates here can't lazy-load.
             if obj_already_exists:
                 update_redshift_history_if_relevant(
+                    data, obj, self.associated_user_object
+                )
+                update_withhold_from_tns_if_relevant(
                     data, obj, self.associated_user_object
                 )
                 update_healpix_if_relevant(data, obj)

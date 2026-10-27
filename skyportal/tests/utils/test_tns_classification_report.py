@@ -66,6 +66,22 @@ def test_the_spectrum_entry_carries_its_instrument_and_observation():
     assert entry["reducer"] == "Grace Hopper"
 
 
+def test_a_spectrum_naming_no_one_credits_the_instrument_default_observer():
+    sedm = types.SimpleNamespace(name="SEDM", default_observer="SEDmRobot")
+    report = _report(spectrum=_spectrum(observers=[], reducers=[], instrument=sedm))
+    entry = report["classification_report"]["0"]["spectra"]["spectra-group"]["0"]
+    assert entry["observer"] == "SEDmRobot"
+    # TNS accepts a missing reducer, so only the observer takes the default
+    assert entry["reducer"] == ""
+
+
+def test_a_linked_observer_wins_over_the_instrument_default():
+    sedm = types.SimpleNamespace(name="SEDM", default_observer="SEDmRobot")
+    report = _report(spectrum=_spectrum(instrument=sedm))
+    entry = report["classification_report"]["0"]["spectra"]["spectra-group"]["0"]
+    assert entry["observer"] == "Ada Lovelace"
+
+
 def test_an_unknown_instrument_reports_as_other_rather_than_failing():
     entry = _report(spectrum=_spectrum(instrument=types.SimpleNamespace(name="NoSuch")))
     spectra = entry["classification_report"]["0"]["spectra"]["spectra-group"]

@@ -6,6 +6,7 @@ from baselayer.app.models import RoleACL, UserACL, UserRole
 from baselayer.log import make_log
 
 from ..models import (
+    Classification,
     Filter,
     Group,
     GroupUser,
@@ -19,14 +20,16 @@ from ..models import (
     SharingServiceGroupAutoPublisher,
     SharingServiceSubmission,
     Source,
+    Spectrum,
     Stream,
     StreamPhotometry,
     StreamSharingService,
     Team,
     Thumbnail,
     Token,
+    User,
 )
-from ..utils.tns import TNS_INSTRUMENT_IDS
+from ..utils.tns import TNS_INSTRUMENT_IDS, tns_classification_id
 from .asynchronous import run_async
 from .parse import get_list_typed, is_null
 
@@ -455,6 +458,7 @@ def get_publishable_source_and_photometry(
     photometry_options,
     is_auto_submission,
     with_photometry=True,
+    tns_report_type="at_report",
 ):
     """Get publishable source and photometry after checking the access and the options.
 
@@ -476,6 +480,9 @@ def get_publishable_source_and_photometry(
         Photometry options to use for the data
     is_auto_submission : bool
         Whether the submission is an auto-submission
+    tns_report_type : str
+        The TNS report type; an auto "classification_report" is gated on
+        auto_share_classifications_to_tns instead of the other auto-share flags
 
     Returns
     -------
@@ -503,13 +510,20 @@ def get_publishable_source_and_photometry(
     # if auto_submission, check if the group has auto-publish enabled for TNS, Hermes or TROVE
     # and if the user is an auto-publisher for that group
     if is_auto_submission:
-        valid_groups = [
-            group
-            for group in valid_groups
-            if group.auto_share_to_tns
-            or group.auto_share_to_hermes
-            or group.auto_share_to_trove
-        ]
+        if tns_report_type == "classification_report":
+            valid_groups = [
+                group
+                for group in valid_groups
+                if group.auto_share_classifications_to_tns
+            ]
+        else:
+            valid_groups = [
+                group
+                for group in valid_groups
+                if group.auto_share_to_tns
+                or group.auto_share_to_hermes
+                or group.auto_share_to_trove
+            ]
         if not valid_groups:
             raise ValueError(
                 f"No group with sharing services {sharing_service_id} set to auto-publish."
@@ -569,8 +583,13 @@ def get_publishable_source_and_photometry(
     instrument_ids = filter_accessible_instrument_ids(
         session, user, instrument_ids, sharing_service
     )
+    # the service's streams restrict photometry, so a report without any needs none
     stream_ids = filter_accessible_stream_ids(
-        session, user, stream_ids, sharing_service, auto_submission=is_auto_submission
+        session,
+        user,
+        stream_ids,
+        sharing_service,
+        auto_submission=is_auto_submission and with_photometry,
     )
 
     if not with_photometry:
@@ -581,6 +600,225 @@ def get_publishable_source_and_photometry(
     )
 
     return source, photometry, stream_ids
+
+
+def classification_is_reportable(classification):
+    """Whether this classification could go to TNS at all.
+
+    Machine classifications stay off TNS until someone decides otherwise, an
+    object can be held back individually, and a classification report attaches
+    to an IAU name, so an object TNS does not already know has nothing to
+    attach to.
+    """
+    obj = classification.obj
+    if classification.ml:
+        return False
+    # p <= 0 means "not this class"; the queue skips it and would report another.
+    if classification.probability is not None and classification.probability <= 0:
+        return False
+    if getattr(obj, "withhold_from_tns", False):
+        return False
+    if is_null(obj.tns_name):
+        return False
+    return bool(classification.groups)
+
+
+async def classification_report_error(session, obj):
+    """Why a TNS classification report for ``obj`` would fail in the queue, or
+    None. Checked before queuing one, manually or automatically.
+    """
+    if is_null(obj.tns_name):
+        return (
+            f"{obj.id} has no TNS name, so it cannot be classified "
+            "on TNS; report it as a discovery first."
+        )
+    classification = await session.scalar(
+        Classification.select(
+            session.user_or_token, columns=[Classification.classification]
+        )
+        .where(
+            Classification.obj_id == obj.id,
+            Classification.ml.is_(False),
+            sa.or_(
+                Classification.probability.is_(None),
+                Classification.probability > 0,
+            ),
+        )
+        .order_by(Classification.created_at.desc())
+        .limit(1)
+    )
+    if classification is None:
+        return f"{obj.id} has no classification to report."
+    if tns_classification_id(classification) is None:
+        return f"Classification {classification} has no TNS object type."
+    has_spectrum = await session.scalar(
+        Spectrum.select(session.user_or_token, columns=[Spectrum.id])
+        .where(Spectrum.obj_id == obj.id)
+        .limit(1)
+    )
+    if has_spectrum is None:
+        return (
+            f"{obj.id} has no spectrum, and TNS will not take a "
+            "classification without one."
+        )
+    return None
+
+
+async def auto_classification_publishing_async(session, classification_id):
+    """Queue a TNS classification report for a new classification, where a
+    group asked for that.
+
+    This is the classification counterpart to ``auto_source_publishing``, which
+    fires on save and announces a discovery. A classification arrives later and
+    says something different, so a group opts into it separately through
+    ``auto_share_classifications_to_tns``.
+
+    Nothing is queued for a machine classification, for an object held back
+    from TNS, or for one TNS does not already know by name, since a
+    classification report has nothing to attach to without an IAU name.
+    """
+    classification = await session.scalar(
+        sa.select(Classification)
+        .options(selectinload(Classification.obj), selectinload(Classification.groups))
+        .where(Classification.id == classification_id)
+    )
+    if classification is None or not classification_is_reportable(classification):
+        return
+    author = await session.scalar(
+        sa.select(User).where(User.id == classification.author_id)
+    )
+    obj = classification.obj
+    group_ids = [group.id for group in classification.groups]
+
+    stmt = (
+        SharingServiceGroup.select(author)
+        .options(selectinload(SharingServiceGroup.sharing_service))
+        .join(
+            SharingServiceGroupAutoPublisher,
+            SharingServiceGroup.id
+            == SharingServiceGroupAutoPublisher.sharing_service_group_id,
+        )
+        .where(
+            SharingServiceGroup.group_id.in_(group_ids),
+            SharingServiceGroup.auto_share_classifications_to_tns.is_(True),
+            # the queue only reports a source saved to one of these groups
+            SharingServiceGroup.group_id.in_(
+                sa.select(Source.group_id).where(
+                    Source.obj_id == obj.id, Source.active.is_(True)
+                )
+            ),
+            SharingServiceGroupAutoPublisher.group_user_id.in_(
+                sa.select(GroupUser.id).where(
+                    GroupUser.user_id == author.id,
+                    GroupUser.group_id.in_(group_ids),
+                )
+            ),
+        )
+    )
+    if author.is_bot:
+        stmt = stmt.where(SharingServiceGroup.auto_sharing_allow_bots.is_(True))
+
+    result = await session.scalars(stmt)
+    sharing_service = next(
+        (
+            group.sharing_service
+            for group in result.unique().all()
+            if group.sharing_service.enable_sharing_with_tns
+        ),
+        None,
+    )
+    if sharing_service is None:
+        return
+    error = await classification_report_error(session, obj)
+    if error is not None:
+        log(f"Not queuing a TNS classification report for {obj.id}: {error}")
+        return
+    # One report per object, whichever service filed it.
+    existing = (
+        await session.scalars(
+            sa.select(SharingServiceSubmission).where(
+                SharingServiceSubmission.obj_id == obj.id,
+                SharingServiceSubmission.tns_report_type == "classification_report",
+                sa.or_(
+                    SharingServiceSubmission.tns_status.in_(["pending", "processing"]),
+                    SharingServiceSubmission.tns_status.like("submitted%"),
+                    SharingServiceSubmission.tns_status.like("complete%"),
+                ),
+            )
+        )
+    ).all()
+    pending = next(
+        (s for s in existing if s.tns_status == "pending" and s.auto_submission),
+        None,
+    )
+    if pending is not None:
+        # Repoint rather than skip: MultipleClassificationsForm posts a
+        # parent class before its child, and the child is the one to report.
+        repointed = await session.execute(
+            sa.update(SharingServiceSubmission)
+            .where(
+                SharingServiceSubmission.id == pending.id,
+                SharingServiceSubmission.tns_status == "pending",
+                SharingServiceSubmission.tns_payload.is_(None),
+            )
+            .values(
+                tns_report_classification_id=classification.id,
+                user_id=author.id,
+            )
+        )
+        await session.commit()
+        if repointed.rowcount:
+            log(
+                f"Repointed the pending TNS classification report for "
+                f"{obj.id} at classification {classification.id}"
+            )
+            return
+    # A sent report blocks another of the same TNS type. One with no pinned
+    # classification reported whichever was newest, so it blocks any.
+    reported_ids = [s.tns_report_classification_id for s in existing]
+    if None in reported_ids:
+        return
+    reported_types = {
+        tns_classification_id(reported)
+        for reported in await session.scalars(
+            sa.select(Classification.classification).where(
+                Classification.id.in_(reported_ids)
+            )
+        )
+    }
+    if tns_classification_id(classification.classification) in reported_types:
+        return
+    session.add(
+        SharingServiceSubmission(
+            sharing_service_id=sharing_service.id,
+            obj_id=obj.id,
+            user_id=author.id,
+            auto_submission=True,
+            publish_to_tns=True,
+            tns_report_type="classification_report",
+            tns_report_classification_id=classification.id,
+            tns_status="pending",
+        )
+    )
+    await session.commit()
+    log(
+        f"Queued a TNS classification report for {obj.id} with sharing "
+        f"service {sharing_service.id} (auto submission)"
+    )
+
+
+def destinations_not_withheld(obj, publish_to):
+    """Remove from ``publish_to`` the destinations this object is held back from.
+
+    In place, because callers share one ``publish_to`` across their group loop
+    so each destination is queued only once.
+
+    Automatic sharing drops a withheld destination silently: nobody is watching
+    an automatic share, so the quiet path is the safe one. The manual path
+    refuses instead, since there a person is asking and can be told why.
+    """
+    if getattr(obj, "withhold_from_tns", False) and "TNS" in publish_to:
+        publish_to.remove("TNS")
 
 
 def auto_source_publishing(session, saver, group_id, obj, publish_to):
@@ -600,6 +838,7 @@ def auto_source_publishing(session, saver, group_id, obj, publish_to):
         The procedures to check for auto-publishing (e.g., ["TNS", "Hermes", "TROVE", "Public page"])
     """
     tns, hermes, trove = "TNS", "Hermes", "TROVE"
+    destinations_not_withheld(obj, publish_to)
     if tns in publish_to or hermes in publish_to or trove in publish_to:
         # Check if group auto publish is enabled to an external service and a user is auto publisher
         stmt = (
@@ -864,6 +1103,7 @@ async def any_group_auto_publishes(session, group_ids):
 async def auto_source_publishing_async(session, saver, group_id, obj, publish_to):
     """Async equivalent of `auto_source_publishing`."""
     tns, hermes, trove = "TNS", "Hermes", "TROVE"
+    destinations_not_withheld(obj, publish_to)
     if tns in publish_to or hermes in publish_to or trove in publish_to:
         stmt = (
             SharingServiceGroup.select(saver)

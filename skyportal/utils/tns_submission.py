@@ -10,7 +10,7 @@ from baselayer.app.env import load_env
 from baselayer.app.flow import Flow
 from baselayer.log import make_log
 from skyportal.handlers.api.photometry import serialize
-from skyportal.models import Stream
+from skyportal.models import Obj, Stream
 from skyportal.utils.http import serialize_requests_response
 from skyportal.utils.parse import is_null
 from skyportal.utils.tns import (
@@ -300,6 +300,18 @@ def upload_spectrum_to_tns(
     return uploaded[0]
 
 
+def _credited(external, people, default=None):
+    """Who to credit: a free-text name, else the linked users, else a default."""
+    if external:
+        return external
+    # skip a linked user with no name; usernames are never published to TNS
+    names = (
+        f"{person.first_name or ''} {person.last_name or ''}".strip()
+        for person in (people or [])
+    )
+    return ", ".join(name for name in names if name) or (default or "")
+
+
 def build_tns_classification_report(
     iau_name,
     classification,
@@ -358,16 +370,15 @@ def build_tns_classification_report(
         "obsdate": spectrum.observed_at.strftime("%Y-%m-%d %H:%M:%S"),
         "instrumentid": instrument_id,
         "exptime": altdata.get("EXPTIME", altdata.get("exptime", "")),
-        "observer": external_observer
-        or ", ".join(
-            str(o.first_name or "") + " " + str(o.last_name or "")
-            for o in (spectrum.observers or [])
-        ).strip(", "),
-        "reducer": external_reducer
-        or ", ".join(
-            str(r.first_name or "") + " " + str(r.last_name or "")
-            for r in (spectrum.reducers or [])
-        ).strip(", "),
+        # TNS refuses a classification report with no observer, and a robotic
+        # instrument's spectra name none, so the instrument's own default is
+        # the last word before the field would go out empty.
+        "observer": _credited(
+            external_observer,
+            spectrum.observers,
+            getattr(spectrum.instrument, "default_observer", None),
+        ),
+        "reducer": _credited(external_reducer, spectrum.reducers),
         "spectypeid": tns_spectrum_type_id(spectrum.type),
         "ascii_file": stored_spectrum_name,
         "fits_file": "",
@@ -392,6 +403,47 @@ def strip_iau_prefix(tns_name):
     return str(tns_name or "").replace("AT", "").replace("SN", "").strip()
 
 
+def pick_classification(session, user, obj_id, classification_id=None):
+    """The classification to report, chosen or else the latest human one.
+
+    A chosen classification still has to belong to this object and be one the
+    requester can read, so a stale id reports nothing rather than reporting
+    somebody else's object.
+    """
+    from skyportal.models import Classification
+
+    query = Classification.select(user).where(Classification.obj_id == obj_id)
+    if classification_id is not None:
+        return session.scalars(
+            query.where(Classification.id == classification_id)
+        ).first()
+    return session.scalars(
+        query.where(
+            Classification.ml.is_(False),
+            sa.or_(
+                Classification.probability.is_(None),
+                Classification.probability > 0,
+            ),
+        ).order_by(Classification.created_at.desc())
+    ).first()
+
+
+def pick_spectrum(session, user, obj_id, spectrum_id=None):
+    """The spectrum to report against, chosen or else the latest one.
+
+    Falling back, a source spectrum beats a host one of the same night, since
+    the classification is of the source.
+    """
+    from skyportal.models import Spectrum
+
+    query = Spectrum.select(user).where(Spectrum.obj_id == obj_id)
+    if spectrum_id is not None:
+        return session.scalars(query.where(Spectrum.id == spectrum_id)).first()
+    return session.scalars(
+        query.order_by((Spectrum.type == "source").desc(), Spectrum.observed_at.desc())
+    ).first()
+
+
 def prepare_tns_classification_report(
     submission_request, sharing_service, reporters, remarks, session
 ):
@@ -403,9 +455,7 @@ def prepare_tns_classification_report(
         The classification report to send.
     """
     from skyportal.models import (
-        Classification,
         Obj,
-        Spectrum,
         SpectrumObserver,
         SpectrumReducer,
         User,
@@ -424,30 +474,30 @@ def prepare_tns_classification_report(
             "report it as a discovery first."
         )
 
-    classification = session.scalars(
-        Classification.select(user)
-        .where(
-            Classification.obj_id == obj_id,
-            Classification.ml.is_(False),
-            sa.or_(
-                Classification.probability.is_(None),
-                Classification.probability > 0,
-            ),
+    chosen_classification = submission_request.tns_report_classification_id
+    if submission_request.auto_submission and chosen_classification is None:
+        raise TNSWarning(
+            f"The classification this automatic report on {obj_id} was queued "
+            "for has been deleted."
         )
-        .order_by(Classification.created_at.desc())
-    ).first()
+    classification = pick_classification(session, user, obj_id, chosen_classification)
     if classification is None:
-        raise TNSWarning(f"{obj_id} has no classification to report.")
+        raise TNSWarning(
+            f"Classification {chosen_classification} is not one of {obj_id}'s, "
+            "or is no longer readable."
+            if chosen_classification is not None
+            else f"{obj_id} has no classification to report."
+        )
 
-    spectrum = session.scalars(
-        Spectrum.select(user)
-        .where(Spectrum.obj_id == obj_id)
-        .order_by((Spectrum.type == "source").desc(), Spectrum.observed_at.desc())
-    ).first()
+    chosen_spectrum = submission_request.tns_report_spectrum_id
+    spectrum = pick_spectrum(session, user, obj_id, chosen_spectrum)
     if spectrum is None:
         raise TNSWarning(
-            f"{obj_id} has no spectrum, and TNS will not take a classification "
-            "without one."
+            f"Spectrum {chosen_spectrum} is not one of {obj_id}'s, or is no "
+            "longer readable."
+            if chosen_spectrum is not None
+            else f"{obj_id} has no spectrum, and TNS will not take a "
+            "classification without one."
         )
 
     external_observer = session.scalar(
@@ -589,6 +639,10 @@ def submit_to_tns(
             )
 
         obj_id = submission_request.obj_id
+        # Checked at send time too: the hold may postdate a queued or retried request.
+        obj = session.scalar(sa.select(Obj).where(Obj.id == obj_id))
+        if obj is not None and obj.withhold_from_tns:
+            raise TNSWarning(f"{obj_id} is withheld from TNS, not submitting.")
         tns_altdata = sharing_service.tns_altdata
 
         if not tns_altdata or "api_key" not in tns_altdata:

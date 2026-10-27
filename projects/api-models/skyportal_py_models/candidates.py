@@ -77,6 +77,9 @@ class CandidateResponse(BaseModel):
     mpc_name: str | None = None
     tns_name: str | None = None
     tns_info: dict[str, Any] | None = None
+    withhold_from_tns: bool | None = None
+    withhold_from_tns_set_by_id: int | None = None
+    withhold_from_tns_set_at: datetime | None = None
     score: float | None = None
     origin: str | None = None
     alias: list[str] | None = None

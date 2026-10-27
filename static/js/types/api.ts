@@ -7738,8 +7738,10 @@ export interface paths {
         /**
          * Requeue the alert crossmatch for a GCN event
          * @description <b>Permission(s) required:</b> <em>Manage GCNs (or System admin)</em><br><br>Reset this event's crossmatch progress so the next service pass
-         *     re-queries every filter from the start of the window, including the
-         *     one-shot archival pass.
+         *     re-queries it from the start of the window, including the one-shot
+         *     archival pass. Give a ``filter_id`` to requeue one filter alone;
+         *     without one every filter on the event is requeued, and each one
+         *     re-queries the broker.
          *
          *     Existing sources and annotations are left alone: the crossmatch
          *     updates them in place, so re-running refreshes rather than
@@ -7755,7 +7757,11 @@ export interface paths {
                 };
                 cookie?: never;
             };
-            requestBody?: never;
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["GcnEventCrossmatchRequeueBody"];
+                };
+            };
             responses: {
                 200: {
                     headers: {
@@ -31605,6 +31611,8 @@ export interface components {
             treasuremap_id?: number | null;
             /** @description TNS API ID for this instrument */
             tns_id?: number | null;
+            /** @description Observer to credit on a TNS report when a spectrum from this instrument names none. A robotic instrument observes nothing by hand, so its spectra arrive without an observer, and TNS refuses a classification report that leaves the field empty. */
+            default_observer?: string | null;
             /** @description NASA ACROSS instrument UUID, used to route visibility queries to the ACROSS calculator. See https://across.sciencecloud.nasa.gov */
             across_id?: string | null;
             /** @description Instrument astropy.regions representation. */
@@ -31878,6 +31886,8 @@ export interface components {
             treasuremap_id?: number | null;
             /** @description TNS API ID for this instrument */
             tns_id?: number | null;
+            /** @description Observer to credit on a TNS report when a spectrum from this instrument names none. A robotic instrument observes nothing by hand, so its spectra arrive without an observer, and TNS refuses a classification report that leaves the field empty. */
+            default_observer?: string | null;
             /** @description NASA ACROSS instrument UUID, used to route visibility queries to the ACROSS calculator. See https://across.sciencecloud.nasa.gov */
             across_id?: string | null;
             /** @description Instrument astropy.regions representation. */
@@ -35361,6 +35371,8 @@ export interface components {
         Obj: {
             /** @description The Galaxy associated with this source. */
             readonly host?: components["schemas"]["Galaxy"];
+            /** @description User who last set or cleared withhold_from_tns. */
+            readonly withhold_from_tns_set_by?: components["schemas"]["User"];
             readonly comments?: components["schemas"]["Comment"][];
             readonly reminders?: components["schemas"]["Reminder"][];
             readonly comments_on_spectra?: components["schemas"]["CommentOnSpectrum"][];
@@ -35436,6 +35448,15 @@ export interface components {
             tns_info?: {
                 [key: string]: unknown;
             } | null;
+            /** @description Keep this object off TNS. Automatic sharing skips it silently and a manual submission is refused, so an object held back stays held back until someone clears this deliberately. */
+            withhold_from_tns?: boolean;
+            /** @description Who last set or cleared withhold_from_tns. */
+            withhold_from_tns_set_by_id?: number | null;
+            /**
+             * Format: date-time
+             * @description When withhold_from_tns was last set or cleared, UTC.
+             */
+            withhold_from_tns_set_at?: string | null;
             /** @description Machine learning score. */
             score?: number | null;
             /** @description Origin of the object. */
@@ -35640,6 +35661,8 @@ export interface components {
         ObjNoID: {
             /** @description The Galaxy associated with this source. */
             readonly host?: components["schemas"]["Galaxy"];
+            /** @description User who last set or cleared withhold_from_tns. */
+            readonly withhold_from_tns_set_by?: components["schemas"]["User"];
             readonly comments?: components["schemas"]["Comment"][];
             readonly reminders?: components["schemas"]["Reminder"][];
             readonly comments_on_spectra?: components["schemas"]["CommentOnSpectrum"][];
@@ -35713,6 +35736,15 @@ export interface components {
             tns_info?: {
                 [key: string]: unknown;
             } | null;
+            /** @description Keep this object off TNS. Automatic sharing skips it silently and a manual submission is refused, so an object held back stays held back until someone clears this deliberately. */
+            withhold_from_tns?: boolean;
+            /** @description Who last set or cleared withhold_from_tns. */
+            withhold_from_tns_set_by_id?: number | null;
+            /**
+             * Format: date-time
+             * @description When withhold_from_tns was last set or cleared, UTC.
+             */
+            withhold_from_tns_set_at?: string | null;
             /** @description Machine learning score. */
             score?: number | null;
             /** @description Origin of the object. */
@@ -35745,6 +35777,8 @@ export interface components {
         ObjPost: {
             /** @description The Galaxy associated with this source. */
             readonly host?: components["schemas"]["Galaxy"];
+            /** @description User who last set or cleared withhold_from_tns. */
+            readonly withhold_from_tns_set_by?: components["schemas"]["User"];
             readonly comments?: components["schemas"]["Comment"][];
             readonly reminders?: components["schemas"]["Reminder"][];
             readonly comments_on_spectra?: components["schemas"]["CommentOnSpectrum"][];
@@ -35816,6 +35850,15 @@ export interface components {
             tns_info?: {
                 [key: string]: unknown;
             } | null;
+            /** @description Keep this object off TNS. Automatic sharing skips it silently and a manual submission is refused, so an object held back stays held back until someone clears this deliberately. */
+            withhold_from_tns?: boolean;
+            /** @description Who last set or cleared withhold_from_tns. */
+            withhold_from_tns_set_by_id?: number | null;
+            /**
+             * Format: date-time
+             * @description When withhold_from_tns was last set or cleared, UTC.
+             */
+            withhold_from_tns_set_at?: string | null;
             /** @description Machine learning score. */
             score?: number | null;
             /** @description Origin of the object. */
@@ -38454,6 +38497,7 @@ export interface components {
             group_id: number;
             owner?: boolean;
             auto_share_to_tns?: boolean;
+            auto_share_classifications_to_tns?: boolean;
             auto_share_to_hermes?: boolean;
             auto_share_to_mpc?: boolean;
             auto_share_to_trove?: boolean;
@@ -38523,6 +38567,7 @@ export interface components {
             group_id: number;
             owner?: boolean;
             auto_share_to_tns?: boolean;
+            auto_share_classifications_to_tns?: boolean;
             auto_share_to_hermes?: boolean;
             auto_share_to_mpc?: boolean;
             auto_share_to_trove?: boolean;
@@ -38604,6 +38649,10 @@ export interface components {
             publish_to_tns?: boolean;
             /** @description Which TNS report this submission files: 'at_report' announces a discovery, 'classification_report' classifies an object TNS already holds and requires a spectrum. */
             tns_report_type?: string;
+            /** @description Spectrum to report a classification against. Left unset, the report takes the object's most recent spectrum, preferring a source spectrum over a host one. */
+            tns_report_spectrum_id?: number | null;
+            /** @description Classification to report. Left unset, the report takes the object's most recent human classification. */
+            tns_report_classification_id?: number | null;
             /** @description Status of the TNS submission. */
             tns_status?: string | null;
             /** @description ID of the submission returned by TNS. */
@@ -38697,6 +38746,10 @@ export interface components {
             publish_to_tns?: boolean;
             /** @description Which TNS report this submission files: 'at_report' announces a discovery, 'classification_report' classifies an object TNS already holds and requires a spectrum. */
             tns_report_type?: string;
+            /** @description Spectrum to report a classification against. Left unset, the report takes the object's most recent spectrum, preferring a source spectrum over a host one. */
+            tns_report_spectrum_id?: number | null;
+            /** @description Classification to report. Left unset, the report takes the object's most recent human classification. */
+            tns_report_classification_id?: number | null;
             /** @description Status of the TNS submission. */
             tns_status?: string | null;
             /** @description ID of the submission returned by TNS. */
@@ -42670,6 +42723,12 @@ export interface components {
              */
             tns_info: unknown;
             /**
+             * Withhold From Tns
+             * @description Keep this object off TNS: automatic sharing skips it and a manual submission is refused.
+             * @default null
+             */
+            withhold_from_tns: boolean | null;
+            /**
              * Score
              * @description Machine learning score.
              * @default null
@@ -44388,6 +44447,18 @@ export interface components {
              */
             min_consistency: number;
         };
+        /**
+         * GcnEventCrossmatchRequeueBody
+         * @description Request body for requeueing the alert crossmatch of a GCN event.
+         */
+        GcnEventCrossmatchRequeueBody: {
+            /**
+             * Filter Id
+             * @description Requeue only this filter's crossmatch of the event. Omit to requeue every filter, which re-queries the broker for each.
+             * @default null
+             */
+            filter_id: number | null;
+        };
         /** GcnReportPostBody */
         GcnReportPostBody: {
             /**
@@ -45635,6 +45706,12 @@ export interface components {
              */
             tns_id: number | null;
             /**
+             * Default Observer
+             * @description Observer credited on a TNS report when a spectrum from this instrument names none, e.g. 'SEDmRobot' for a robotic instrument. TNS refuses a classification report with the field empty.
+             * @default null
+             */
+            default_observer: string | null;
+            /**
              * Across Id
              * @description NASA ACROSS instrument UUID.
              * @default null
@@ -45805,6 +45882,12 @@ export interface components {
              * @default null
              */
             tns_id: number | null;
+            /**
+             * Default Observer
+             * @description Observer credited on a TNS report when a spectrum from this instrument names none, e.g. 'SEDmRobot' for a robotic instrument. TNS refuses a classification report with the field empty.
+             * @default null
+             */
+            default_observer: string | null;
             /**
              * Across Id
              * @description NASA ACROSS instrument UUID.
@@ -48244,6 +48327,12 @@ export interface components {
              */
             tns_info: unknown;
             /**
+             * Withhold From Tns
+             * @description Keep this object off TNS: automatic sharing skips it and a manual submission is refused.
+             * @default null
+             */
+            withhold_from_tns: boolean | null;
+            /**
              * Score
              * @description Machine learning score.
              * @default null
@@ -48450,6 +48539,12 @@ export interface components {
              * @default null
              */
             tns_info: unknown;
+            /**
+             * Withhold From Tns
+             * @description Keep this object off TNS: automatic sharing skips it and a manual submission is refused.
+             * @default null
+             */
+            withhold_from_tns: boolean | null;
             /**
              * Score
              * @description Machine learning score.
@@ -50395,6 +50490,18 @@ export interface components {
              */
             tns_report_type: "at_report" | "classification_report" | null;
             /**
+             * Tns Report Spectrum Id
+             * @description Spectrum to report the classification against. Omit to use the object's most recent spectrum, preferring a source spectrum.
+             * @default null
+             */
+            tns_report_spectrum_id: number | null;
+            /**
+             * Tns Report Classification Id
+             * @description Classification to report. Omit to use the object's most recent human classification.
+             * @default null
+             */
+            tns_report_classification_id: number | null;
+            /**
              * Publish To Hermes
              * @description Flag to indicate if the submission should be published to Hermes
              * @default false
@@ -50458,6 +50565,12 @@ export interface components {
              * @default null
              */
             auto_share_to_tns: (boolean | string) | null;
+            /**
+             * Auto Share Classifications To Tns
+             * @description Whether to automatically report classifications of this group's sources to TNS
+             * @default null
+             */
+            auto_share_classifications_to_tns: (boolean | string) | null;
             /**
              * Auto Share To Hermes
              * @description Whether to automatically publish to Hermes

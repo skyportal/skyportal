@@ -219,6 +219,9 @@ class ProfileHandler(BaseHandler):
                         SharingServiceGroup.group_id.in_(user.accessible_group_ids),
                         sa.or_(
                             SharingServiceGroup.auto_share_to_tns.is_(True),
+                            SharingServiceGroup.auto_share_classifications_to_tns.is_(
+                                True
+                            ),
                             SharingServiceGroup.auto_share_to_hermes.is_(True),
                             SharingServiceGroup.auto_share_to_trove.is_(True),
                         ),
