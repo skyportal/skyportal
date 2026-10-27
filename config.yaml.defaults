@@ -206,6 +206,11 @@ app:
     bot_name:
     api_key:
     look_back_days: 1
+    name_refresh:
+      enabled: True # Re-query TNS for classified objects still named AT
+      interval_hours: 6
+      batch_size: 50 # Objects queued per pass, which bounds the TNS API calls
+      look_back_days: 30 # How far back a classification counts as recent
 
   trove:
     endpoint: https://datatrove.as.arizona.edu # Base URL of the TROVE API
