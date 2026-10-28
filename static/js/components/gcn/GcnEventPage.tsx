@@ -6,7 +6,6 @@ import { useAppDispatch } from "../../types/hooks";
 
 import GetAppIcon from "@mui/icons-material/GetApp";
 import LocationOffOutlined from "@mui/icons-material/LocationOffOutlined";
-import useMediaQuery from "@mui/material/useMediaQuery";
 import Box from "@mui/material/Box";
 import Divider from "@mui/material/Divider";
 import Grid from "@mui/material/Grid";
@@ -15,7 +14,6 @@ import Link from "@mui/material/Link";
 import Stack from "@mui/material/Stack";
 import Tab from "@mui/material/Tab";
 import Tabs from "@mui/material/Tabs";
-import { useTheme } from "@mui/material/styles";
 import Tooltip from "@mui/material/Tooltip";
 import Typography from "@mui/material/Typography";
 import dayjs from "dayjs";
@@ -54,6 +52,7 @@ import UpdateSummary from "../summary/UpdateSummary";
 import GcnLocalizationsTable from "./GcnLocalizationsTable";
 import GcnProperties from "./GcnProperties";
 import GcnTags from "./GcnTags";
+import EventInfoRow from "./EventInfoRow";
 import Reminders from "../Reminders";
 
 import { usePostLocalizationFromNoticeMutation } from "../../ducks/localization";
@@ -64,18 +63,15 @@ dayjs.extend(utc);
 
 const slug = (title: string) => title.toLowerCase().replace(/\s+/g, "-");
 
-interface PropertiesSectionProps {
+interface SectionProps {
   title: string;
   action?: React.ReactNode;
+  testId?: string;
   children: React.ReactNode;
 }
 
-const PropertiesSection = ({
-  title,
-  action,
-  children,
-}: PropertiesSectionProps) => (
-  <Paper>
+const Section = ({ title, action, testId, children }: SectionProps) => (
+  <Paper data-testid={testId}>
     <Box
       sx={{
         display: "flex",
@@ -114,8 +110,6 @@ interface GcnEventPageProps {
 }
 
 const GcnEventPage = ({ route }: GcnEventPageProps) => {
-  const theme = useTheme();
-  const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
   const dispatch = useAppDispatch();
   const [updateGcnEvent] = useUpdateGcnEventMutation();
   const dateobs = route?.dateobs;
@@ -220,33 +214,21 @@ const GcnEventPage = ({ route }: GcnEventPageProps) => {
       title: "Overview",
       content: (
         <Stack spacing={1}>
-          <GcnEventAllocationTriggers
-            gcnEvent={gcnEvent}
-            showPassed
-            showUnset
-            showTitle={!isMobile}
-          />
-          <GcnEventAssociationSummary dateobs={dateobs} />
-          <Paper
-            sx={{
-              p: gcnEvent.summary ? "0.25rem 0.25rem 0 0.25rem" : "0.5rem",
-            }}
-            variant={gcnEvent.summary ? "outlined" : undefined}
-          >
-            <ShowSummaries summaries={gcnEvent.summary_history || []} />
-            <Box
-              sx={{
-                display: "flex",
-                justifyContent: gcnEvent.summary ? "flex-end" : "space-between",
-                alignItems: "center",
-              }}
-            >
-              {!gcnEvent.summary && (
-                <Typography variant="body2" sx={{ color: "text.disabled" }}>
-                  No summary yet.
-                </Typography>
-              )}
-              <Box sx={{ display: "flex", alignItems: "center" }}>
+          <Paper>
+            <Stack spacing={1}>
+              <EventInfoRow label="Summary">
+                {gcnEvent.summary ? (
+                  <Box sx={{ flex: 1, minWidth: 0 }}>
+                    <ShowSummaries summaries={gcnEvent.summary_history} />
+                  </Box>
+                ) : (
+                  <Typography
+                    variant="body2"
+                    sx={{ flex: 1, color: "text.disabled" }}
+                  >
+                    No summary yet
+                  </Typography>
+                )}
                 {permission && (
                   <>
                     <UpdateSummary
@@ -273,23 +255,30 @@ const GcnEventPage = ({ route }: GcnEventPageProps) => {
                     label={dateobs}
                   />
                 )}
-              </Box>
-            </Box>
+              </EventInfoRow>
+              <GcnEventAllocationTriggers
+                gcnEvent={gcnEvent}
+                showPassed
+                showUnset
+                showTitle
+              />
+              <GcnEventAssociationSummary dateobs={dateobs} />
+              <EventInfoRow label="Aliases">
+                <GcnAliases gcnEvent={gcnEvent} />
+              </EventInfoRow>
+              <EventInfoRow label="Advocates">
+                <GcnAdvocates gcnEvent={gcnEvent} />
+              </EventInfoRow>
+            </Stack>
           </Paper>
-          <GcnAliases gcnEvent={gcnEvent} show_title />
-          <GcnAdvocates gcnEvent={gcnEvent} show_title />
-          <Paper>
-            <Typography variant="h6">Analysis</Typography>
+          <Section title="Analysis">
             {gcnEvent.localizations?.length > 0 ? (
               <GcnSelectionForm dateobs={dateobs} />
             ) : (
               noLocalization
             )}
-          </Paper>
-          <Paper>
-            <Typography variant="h6" data-testid="tour-gcn-obsplan">
-              Observation Plans
-            </Typography>
+          </Section>
+          <Section title="Observation plans" testId="tour-gcn-obsplan">
             {gcnEvent.localizations?.length > 0 ? (
               <>
                 <ObservationPlanRequestForm dateobs={dateobs} />
@@ -298,7 +287,7 @@ const GcnEventPage = ({ route }: GcnEventPageProps) => {
             ) : (
               noLocalization
             )}
-          </Paper>
+          </Section>
         </Stack>
       ),
     },
@@ -342,7 +331,7 @@ const GcnEventPage = ({ route }: GcnEventPageProps) => {
         <Grid container spacing={2}>
           <Grid size={{ xs: 12, lg: 6 }}>
             <Stack spacing={2}>
-              <PropertiesSection title="GCN Notices">
+              <Section title="GCN Notices">
                 <Stack divider={<Divider />} spacing={1}>
                   {gcnEvent.gcn_notices?.map((notice: any) => (
                     <Box
@@ -387,9 +376,9 @@ const GcnEventPage = ({ route }: GcnEventPageProps) => {
                     </Box>
                   ))}
                 </Stack>
-              </PropertiesSection>
+              </Section>
               {gcnEvent.lightcurve && (
-                <PropertiesSection title="Light curve">
+                <Section title="Light curve">
                   {failedLightcurve === gcnEvent.lightcurve ? (
                     <Typography
                       variant="body2"
@@ -413,20 +402,17 @@ const GcnEventPage = ({ route }: GcnEventPageProps) => {
                       sx={{ maxWidth: "100%" }}
                     />
                   )}
-                </PropertiesSection>
+                </Section>
               )}
             </Stack>
           </Grid>
           <Grid size={{ xs: 12, lg: 6 }}>
             <Stack spacing={2}>
-              <PropertiesSection
-                title="GCN Circulars"
-                action={updateAliasesCirculars}
-              >
+              <Section title="GCN Circulars" action={updateAliasesCirculars}>
                 <GcnCirculars gcnEvent={gcnEvent} />
-              </PropertiesSection>
+              </Section>
               {isGW && (
-                <PropertiesSection
+                <Section
                   title="GraceDB"
                   action={
                     permission && (
@@ -437,7 +423,7 @@ const GcnEventPage = ({ route }: GcnEventPageProps) => {
                   }
                 >
                   <DisplayGraceDB gcnEvent={gcnEvent} />
-                </PropertiesSection>
+                </Section>
               )}
             </Stack>
           </Grid>

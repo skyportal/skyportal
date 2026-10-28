@@ -1,11 +1,10 @@
 import { Link } from "react-router-dom";
 
 import Chip from "@mui/material/Chip";
-import Stack from "@mui/material/Stack";
-import Typography from "@mui/material/Typography";
 import dayjs from "dayjs";
 
 import { useGetGcnEventAssociationsQuery } from "../../ducks/gcnEventAssociations";
+import EventInfoRow from "./EventInfoRow";
 
 interface GcnEventAssociationSummaryProps {
   dateobs: string;
@@ -27,14 +26,7 @@ const GcnEventAssociationSummary = ({
   if (!confirmed.length) return <></>;
 
   return (
-    <Stack
-      direction="row"
-      spacing={1}
-      sx={{ alignItems: "center", flexWrap: "wrap", p: "0.25rem 0" }}
-    >
-      <Typography variant="body2" sx={{ fontWeight: 500 }}>
-        Associated events:
-      </Typography>
+    <EventInfoRow label="Associated events">
       {confirmed.map((association) => (
         <Chip
           key={association.id}
@@ -45,11 +37,9 @@ const GcnEventAssociationSummary = ({
           component={Link}
           to={`/gcn_events/${association.dateobs}`}
           label={dayjs(association.dateobs).format("YYYY-MM-DD HH:mm:ss")}
-          // match the label beside it rather than the Chip default
-          sx={{ fontSize: (theme) => theme.typography.body2.fontSize }}
         />
       ))}
-    </Stack>
+    </EventInfoRow>
   );
 };
 

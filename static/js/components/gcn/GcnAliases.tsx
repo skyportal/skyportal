@@ -15,10 +15,9 @@ interface GcnAliasesProps {
     aliases: string[];
     [key: string]: any;
   };
-  show_title?: boolean;
 }
 
-const GcnAliases = ({ gcnEvent, show_title = false }: GcnAliasesProps) => {
+const GcnAliases = ({ gcnEvent }: GcnAliasesProps) => {
   const dispatch = useAppDispatch();
   const [deleteGcnAlias] = useDeleteGcnAliasMutation();
   const { data: userProfile } = useGetProfileQuery();
@@ -43,12 +42,7 @@ const GcnAliases = ({ gcnEvent, show_title = false }: GcnAliasesProps) => {
       });
 
   return (
-    <Box sx={{ display: "flex", alignItems: "center" }}>
-      {show_title && (
-        <Box component="h4" sx={{ m: 0, mr: "0.45rem" }}>
-          Aliases:
-        </Box>
-      )}
+    <>
       <Box
         sx={{ display: "flex", flexWrap: "wrap", gap: 0.5 }}
         {...({ name: "gcn_triggers-aliases" } as any)}
@@ -78,7 +72,7 @@ const GcnAliases = ({ gcnEvent, show_title = false }: GcnAliasesProps) => {
         closeDialog={() => setAliasToDelete(null)}
         resourceName="alias"
       />
-    </Box>
+    </>
   );
 };
 
