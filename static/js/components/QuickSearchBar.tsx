@@ -16,6 +16,7 @@ const ALLOWED_TYPES = [
   "Source comments",
   "GCN Events",
   "GCN comments",
+  "Users",
 ] as const;
 type AllowedType = (typeof ALLOWED_TYPES)[number];
 
@@ -145,6 +146,14 @@ const QuickSearchBar = () => {
           ),
         );
       }
+      if (type === "Users") {
+        return dispatch(
+          GET(
+            `/api/user?name=${encodeURIComponent(val)}&slim=true&numPerPage=25`,
+            "skyportal/FETCH_AUTOCOMPLETE_USERS",
+          ),
+        );
+      }
       return undefined;
     };
 
@@ -175,6 +184,8 @@ const QuickSearchBar = () => {
           matchingEntries = await response?.data?.events;
         } else if (["Source comments", "GCN comments"].includes(type)) {
           matchingEntries = await response?.data;
+        } else if (type === "Users") {
+          matchingEntries = await response?.data?.users;
         }
 
         if (matchingEntries) {
@@ -252,6 +263,18 @@ const QuickSearchBar = () => {
                 match_name: `${matchingEntries[key].dateobs} ${matchingEntries[key].text}`,
               };
             }
+            if (type === "Users") {
+              const { id, username, first_name, last_name } =
+                matchingEntries[key];
+              const fullName = [first_name, last_name]
+                .filter(Boolean)
+                .join(" ");
+              return {
+                id,
+                name: fullName ? `${fullName} (${username})` : username,
+                match_name: `${username} ${fullName}`,
+              };
+            }
             // fallback
             return {
               id: matchingEntries[key].id,
@@ -278,6 +301,8 @@ const QuickSearchBar = () => {
       navigate(`/source/${id}`);
     } else if (["GCN Events", "GCN comments"].includes(resourceType)) {
       navigate(`/gcn_events/${id}`);
+    } else if (resourceType === "Users") {
+      navigate(`/user/${id}`);
     }
   };
 
