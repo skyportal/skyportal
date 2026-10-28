@@ -726,10 +726,12 @@ const SharingServicesPage = () => {
 
   // `groups` is frozen RTK Query data, so copy before sorting.
   const groups = [...(groupsData?.userAccessible ?? [])].sort(byName);
-  const allowedInstruments = instrumentList.filter((instrument: any) =>
-    (allowedInstrumentsForSharing || []).includes(
-      instrument.name?.toLowerCase(),
-    ),
+  const allowedInstruments = instrumentList.filter(
+    (instrument: any) =>
+      instrument.tns_id != null ||
+      (allowedInstrumentsForSharing || []).includes(
+        instrument.name?.toLowerCase(),
+      ),
   );
   const groupsLookup = lookupById(groups);
   const allGroupsLookup = lookupById(groupsData?.all ?? []);
