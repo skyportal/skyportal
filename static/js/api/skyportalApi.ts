@@ -127,6 +127,7 @@ export const TAG_TYPES = [
   "Discussions",
   "CommentThreads",
   "Feedback",
+  "InstanceManagers",
   "Acls",
   "Earthquake",
   "Earthquakes",

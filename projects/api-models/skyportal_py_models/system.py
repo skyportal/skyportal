@@ -135,6 +135,38 @@ class DeploymentsResponse(BaseModel):
     system: InstanceSystemResponse | None = None
 
 
+class InstanceManagerResponse(BaseModel):
+    """A user listed as managing the instance."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    user_id: int
+    username: str | None = Field(
+        default=None, description="Only returned to signed-in users"
+    )
+    first_name: str | None = None
+    last_name: str | None = None
+    affiliations: list[str] = Field(default_factory=list)
+    gravatar_url: str
+    created_at: datetime
+
+
+class InstanceManagersResponse(BaseModel):
+    """The users listed as managing the instance."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    managers: list[InstanceManagerResponse] = Field(default_factory=list)
+
+
+class InstanceManagerPostBody(BaseModel):
+    """Request body for listing a user as managing the instance."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    user_id: int = Field(description="ID of the user")
+
+
 class LogPostBody(BaseModel):
     """Request body for logging a frontend error."""
 
@@ -152,6 +184,9 @@ __all__ = [
     "DeploymentsResponse",
     "GitLogEntryResponse",
     "HostResourcesResponse",
+    "InstanceManagerPostBody",
+    "InstanceManagerResponse",
+    "InstanceManagersResponse",
     "InstanceSystemResponse",
     "LogPostBody",
     "ServiceResponse",

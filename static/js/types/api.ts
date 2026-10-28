@@ -20839,6 +20839,94 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/instance_managers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get the users managing this instance
+         * @description Public, so that the login page can list them.
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Success"] & {
+                            data?: components["schemas"]["InstanceManagersResponse"];
+                        };
+                    };
+                };
+            };
+        };
+        put?: never;
+        /**
+         * List a user as managing this instance
+         * @description <b>Permission(s) required:</b> <em>System admin (or System admin)</em><br><br>
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["InstanceManagerPostBody"];
+                };
+            };
+            responses: never;
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/instance_managers/{user_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Stop listing a user as managing this instance
+         * @description <b>Permission(s) required:</b> <em>System admin (or System admin)</em><br><br>
+         */
+        delete: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    user_id: number;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: never;
+        };
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/feedback/{feedback_id}": {
         parameters: {
             query?: never;
@@ -31544,6 +31632,44 @@ export interface components {
             status: "success";
             message?: string;
             data?: components["schemas"]["GroupUserNoID"][];
+        };
+        InstanceManager: {
+            /** @description The managing User */
+            readonly user?: components["schemas"]["User"];
+            /** @description ID of the managing User */
+            user_id: number;
+            /** @description Unique object identifier. */
+            id?: number;
+        };
+        SingleInstanceManager: {
+            /** @enum {string} */
+            status: "success";
+            message?: string;
+            data?: components["schemas"]["InstanceManager"];
+        };
+        ArrayOfInstanceManagers: {
+            /** @enum {string} */
+            status: "success";
+            message?: string;
+            data?: components["schemas"]["InstanceManager"][];
+        };
+        InstanceManagerNoID: {
+            /** @description The managing User */
+            readonly user?: components["schemas"]["User"];
+            /** @description ID of the managing User */
+            user_id: number;
+        };
+        SingleInstanceManagerNoID: {
+            /** @enum {string} */
+            status: "success";
+            message?: string;
+            data?: components["schemas"]["InstanceManagerNoID"];
+        };
+        ArrayOfInstanceManagerNoIDs: {
+            /** @enum {string} */
+            status: "success";
+            message?: string;
+            data?: components["schemas"]["InstanceManagerNoID"][];
         };
         Instrument: {
             /** @description The Telescope that hosts the Instrument. */
@@ -49447,6 +49573,58 @@ export interface components {
             deployments?: components["schemas"]["DeploymentResponse"][];
             /** @default null */
             system: components["schemas"]["InstanceSystemResponse"];
+        };
+        /**
+         * InstanceManagerResponse
+         * @description A user listed as managing the instance.
+         */
+        InstanceManagerResponse: {
+            /** User Id */
+            user_id: number;
+            /**
+             * Username
+             * @description Only returned to signed-in users
+             * @default null
+             */
+            username: string | null;
+            /**
+             * First Name
+             * @default null
+             */
+            first_name: string | null;
+            /**
+             * Last Name
+             * @default null
+             */
+            last_name: string | null;
+            /** Affiliations */
+            affiliations?: string[];
+            /** Gravatar Url */
+            gravatar_url: string;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+        };
+        /**
+         * InstanceManagersResponse
+         * @description The users listed as managing the instance.
+         */
+        InstanceManagersResponse: {
+            /** Managers */
+            managers?: components["schemas"]["InstanceManagerResponse"][];
+        };
+        /**
+         * InstanceManagerPostBody
+         * @description Request body for listing a user as managing the instance.
+         */
+        InstanceManagerPostBody: {
+            /**
+             * User Id
+             * @description ID of the user
+             */
+            user_id: number;
         };
         /**
          * FeedbackAuthorResponse

@@ -5,7 +5,10 @@ import Typography from "@mui/material/Typography";
 import Paper from "@mui/material/Paper";
 
 import AboutPlugins from "./templates/AboutPlugins";
+import UserAvatar from "./user/UserAvatar";
+import { managerName } from "./deployment/InstanceManagers";
 import { useGetConfigQuery } from "../ducks/config";
+import { useGetInstanceManagersQuery } from "../ducks/instanceManagers";
 
 interface TeamMember {
   name: string;
@@ -72,6 +75,7 @@ const About = () => {
     (useGetConfigQuery().data as any)?.aboutDevelopers ?? [];
   const alumni: TeamMember[] =
     (useGetConfigQuery().data as any)?.aboutAlumni ?? [];
+  const { data: managers = [] } = useGetInstanceManagersQuery();
 
   const team = (people: TeamMember[]) => (
     <Grid container spacing={2}>
@@ -92,6 +96,31 @@ const About = () => {
 
   return (
     <Paper className={classes.root}>
+      {managers.length > 0 && (
+        <>
+          <Typography variant="body1">This instance is managed by:</Typography>
+          <Grid container spacing={2}>
+            {managers.map((manager) => (
+              <Grid size={{ md: 3, xs: 4 }} key={manager.user_id}>
+                <div className={classes.dev}>
+                  <UserAvatar
+                    size={80}
+                    noTooltip
+                    username={manager.username ?? ""}
+                    firstName={manager.first_name ?? null}
+                    lastName={manager.last_name ?? null}
+                    gravatarUrl={manager.gravatar_url}
+                    userId={manager.user_id}
+                  />
+                  <Typography variant="body1">
+                    {managerName(manager)}
+                  </Typography>
+                </div>
+              </Grid>
+            ))}
+          </Grid>
+        </>
+      )}
       <Typography variant="body1">Meet the SkyPortal dev team:</Typography>
       {team(developers)}
       <Typography variant="body1">and our alumni:</Typography>

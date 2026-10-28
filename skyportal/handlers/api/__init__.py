@@ -68,7 +68,7 @@ from .data_access_request import (
 )
 from .data_sharing import BulkDataShareHandler, SpectrumGroupsHandler
 from .db_stats import StatsHandler, StatsHistoryHandler
-from .deployment import DeploymentHandler
+from .deployment import DeploymentHandler, InstanceManagerHandler
 from .discussion import (
     CommentThreadHandler,
     DiscussionHandler,

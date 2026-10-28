@@ -9,15 +9,21 @@ from xmlrpc.client import ServerProxy
 
 import psutil
 import sqlalchemy as sa
-from skyportal_py_models.system import DeploymentsResponse
+from skyportal_py_models.system import (
+    DeploymentsResponse,
+    InstanceManagerPostBody,
+    InstanceManagersResponse,
+)
+from sqlalchemy.orm import selectinload
 from supervisor.xmlrpc import SupervisorTransport
 from tornado.ioloop import IOLoop
 
-from baselayer.app.access import auth_or_token
+from baselayer.app.access import auth_or_token, permissions
 from baselayer.app.env import load_env
+from baselayer.app.models import DBSession
 
 from ... import __version__
-from ...models import Deployment
+from ...models import Deployment, InstanceManager, User
 from ...utils.gitlog import load_gitlog
 from ..base import BaseHandler
 
@@ -264,3 +270,81 @@ class DeploymentHandler(BaseHandler):
                 "system": system,
             }
         )
+
+
+def manager_dict(manager, signed_in):
+    user = manager.user
+    return {
+        "user_id": user.id,
+        "username": user.username if signed_in else None,
+        "first_name": user.first_name,
+        "last_name": user.last_name,
+        "affiliations": user.affiliations or [],
+        "gravatar_url": user.gravatar_url,
+        "created_at": manager.created_at,
+    }
+
+
+class InstanceManagerHandler(BaseHandler):
+    terms_of_service_exempt = ("GET",)
+
+    async def get(self) -> InstanceManagersResponse:
+        """
+        ---
+        summary: Get the users managing this instance
+        description: Public, so that the login page can list them.
+        tags:
+          - system info
+        """
+        signed_in = self.current_user is not None and not self.is_anonymous_user
+        with DBSession() as session:
+            managers = session.scalars(
+                sa.select(InstanceManager)
+                .options(selectinload(InstanceManager.user))
+                .order_by(InstanceManager.created_at)
+            )
+            return self.success(
+                data={"managers": [manager_dict(m, signed_in) for m in managers]}
+            )
+
+    @permissions(["System admin"])
+    async def post(self, *, body: InstanceManagerPostBody = None):
+        """
+        ---
+        summary: List a user as managing this instance
+        tags:
+          - system info
+        """
+        body = self.parse_body(InstanceManagerPostBody)
+        async with self.AsyncSession() as session:
+            if await session.get(User, body.user_id) is None:
+                return self.error("Invalid user ID")
+            if await session.scalar(
+                sa.select(InstanceManager.id).where(
+                    InstanceManager.user_id == body.user_id
+                )
+            ):
+                return self.error("This user already manages the instance")
+            session.add(InstanceManager(user_id=body.user_id))
+            await session.commit()
+        self.push_all(action="skyportal/REFRESH_INSTANCE_MANAGERS")
+        return self.success()
+
+    @permissions(["System admin"])
+    async def delete(self, user_id: int):
+        """
+        ---
+        summary: Stop listing a user as managing this instance
+        tags:
+          - system info
+        """
+        async with self.AsyncSession() as session:
+            manager = await session.scalar(
+                sa.select(InstanceManager).where(InstanceManager.user_id == user_id)
+            )
+            if manager is None:
+                return self.error("This user does not manage the instance")
+            await session.delete(manager)
+            await session.commit()
+        self.push_all(action="skyportal/REFRESH_INSTANCE_MANAGERS")
+        return self.success()
