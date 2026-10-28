@@ -755,11 +755,11 @@ const GcnSelectionForm = ({ dateobs }: GcnSelectionFormProps) => {
           variant="scrollable"
           sx={{ maxWidth: "95vw" }}
         >
-          <Tab label="Skymap" sx={{ display: { md: "none" } }} />
-          <Tab label="Sources" />
-          <Tab label="Associated Events" />
-          <Tab label="Galaxies" />
-          <Tab label="Observations" />
+          {!isBig && <Tab label="Skymap" value={0} />}
+          <Tab label="Sources" value={1} />
+          <Tab label="Associated Events" value={2} />
+          <Tab label="Galaxies" value={3} />
+          <Tab label="Observations" value={4} />
         </Tabs>
 
         {tabIndex === 0 && (
