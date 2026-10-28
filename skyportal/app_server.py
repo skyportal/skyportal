@@ -160,7 +160,6 @@ from skyportal.handlers.api import (
     ObjSpectraHandler,
     ObjTagHandler,
     ObjTagOptionHandler,
-    ObjTNSBulkHandler,
     ObjTNSHandler,
     ObservationASCIIFileHandler,
     ObservationExternalAPIHandler,
@@ -630,7 +629,6 @@ skyportal_handlers = [
     (r"/api/sources(/[0-9A-Za-z-_\.\+]+)/gcn_event", ObjGcnEventHandler),
     (r"/api/sources(/[0-9A-Za-z-_\.\+]+)/mpc", ObjMPCHandler),
     (r"/api/sources(/[0-9A-Za-z-_\.\+]+)/tns", ObjTNSHandler),
-    (r"/api/sources/tns", ObjTNSBulkHandler),
     (r"/api/sources(/[0-9A-Za-z-_\.\+]+)/position", ObjPositionHandler),
     (
         r"/api/sources(/[0-9A-Za-z-_\.\+]+)/acknowledgment",
