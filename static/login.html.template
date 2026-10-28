@@ -122,8 +122,17 @@
         <div class="team">
           {%- for person in app.about.developers %}
           <figure>
+            {%- if person.email %}
+            <a href="mailto:{{ person.email }}" title="{{ person.email }}" aria-label="Email {{ person.name }}"><img src="{{ person.image }}" alt="" /></a>
+            {%- else %}
             <img src="{{ person.image }}" alt="" />
-            <figcaption>{{ person.name }}</figcaption>
+            {%- endif %}
+            <figcaption>
+              {{ person.name }}
+              {%- if person.affiliation %}
+              <span>{{ person.affiliation }}</span>
+              {%- endif %}
+            </figcaption>
           </figure>
           {%- endfor %}
         </div>

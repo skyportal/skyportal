@@ -590,6 +590,14 @@ body {
   inset: 0;
 }
 
+.team a img {
+  transition: box-shadow 0.15s ease;
+}
+
+.team a:hover img {
+  box-shadow: 0 0 0 3px #457b9d;
+}
+
 .team figcaption {
   margin-top: 0.5rem;
   font-size: 0.9rem;

@@ -198,23 +198,48 @@ export const Person = ({
 export interface TeamMember {
   name: string;
   image: string;
+  affiliation?: string;
+  email?: string;
 }
 
 export const TeamGrid = ({ people }: { people: TeamMember[] }) => (
   <PeopleGrid>
-    {people.map((person) => (
-      <Person
-        key={person.name}
-        name={person.name}
-        avatar={
-          <Avatar
-            alt=""
-            src={person.image}
-            sx={{ width: "5rem", height: "5rem" }}
-          />
-        }
-      />
-    ))}
+    {people.map((person) => {
+      const photo = (
+        <Avatar
+          alt=""
+          src={person.image}
+          sx={{ width: "5rem", height: "5rem" }}
+        />
+      );
+      return (
+        <Person
+          key={person.name}
+          name={person.name}
+          detail={person.affiliation}
+          avatar={
+            person.email ? (
+              <Link
+                href={`mailto:${person.email}`}
+                title={person.email}
+                aria-label={`Email ${person.name}`}
+                sx={{
+                  borderRadius: "50%",
+                  "&:hover .MuiAvatar-root": {
+                    boxShadow: (theme) =>
+                      `0 0 0 3px ${theme.palette.primary.main}`,
+                  },
+                }}
+              >
+                {photo}
+              </Link>
+            ) : (
+              photo
+            )
+          }
+        />
+      );
+    })}
   </PeopleGrid>
 );
 
