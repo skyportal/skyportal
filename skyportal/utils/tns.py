@@ -15,7 +15,7 @@ from astropy.time import Time
 from baselayer.app.env import load_env
 from baselayer.log import make_log
 
-from ..models import Instrument
+from ..models import Classification, Instrument, Obj
 from .calculations import great_circle_distance
 from .parse import is_null
 from .survey import OBJECT_ID_PATTERNS
@@ -695,6 +695,124 @@ def get_tns(
         log(
             f"TNS request failed for {str(request_body['obj_id'])} by user ID {request_body['user_id']}: {resp.content}"
         )
+
+
+def stale_tns_name_select(user_or_token, limit):
+    """Select classified objects whose stored TNS name still carries the AT prefix.
+
+    An object keeps the name TNS held when it was first matched, so one that has
+    since been classified reads AT until TNS is asked again; the most recently
+    classified come first, which is where a stale name is most noticed.
+
+    Parameters
+    ----------
+    user_or_token : `baselayer.app.models.User` or `baselayer.app.models.Token`
+        Whose accessible objects to search
+    limit : int
+        Largest number of object ids to return
+
+    Returns
+    -------
+    sqlalchemy select object
+        Yields object ids
+    """
+    return (
+        Obj.select(user_or_token, columns=[Obj.id])
+        .join(Classification, Classification.obj_id == Obj.id)
+        .where(
+            Obj.tns_name.ilike("AT%"),
+            Classification.ml.is_(False),
+        )
+        .group_by(Obj.id)
+        .order_by(sa.func.max(Classification.created_at).desc())
+        .limit(limit)
+    )
+
+
+def expand_bulk_tns_task(data):
+    """Split a bulk TNS retrieval request into one queue task per object.
+
+    Parameters
+    ----------
+    data : dict
+        Request body carrying an ``obj_ids`` list alongside the keys every task
+        shares, such as ``radius`` and ``user_id``
+
+    Returns
+    -------
+    list of dict
+        One task per object id, each carrying a single ``obj_id``
+    """
+    shared = {key: value for key, value in data.items() if key != "obj_ids"}
+    obj_ids = data.get("obj_ids")
+    if not isinstance(obj_ids, list) or not obj_ids:
+        raise ValueError("obj_ids must be a non-empty list")
+    return [{**shared, "obj_id": obj_id} for obj_id in obj_ids]
+
+
+def tns_request_delay(last_request_at, now, min_interval):
+    """Seconds to wait before the next TNS request.
+
+    Parameters
+    ----------
+    last_request_at : float
+        Monotonic time the previous request went out
+    now : float
+        Monotonic time now
+    min_interval : float
+        Smallest gap the TNS bot's rate limit allows between requests
+
+    Returns
+    -------
+    float
+        Seconds to sleep, zero once the interval has already elapsed
+    """
+    return max(0.0, min_interval - (now - last_request_at))
+
+
+def get_tns_bulk(
+    obj_ids,
+    radius=2.0,
+    user_id=None,
+    timeout=10,
+):
+    """Queue a TNS lookup for several objects in one request.
+
+    Parameters
+    ----------
+    obj_ids : list of str
+        Object ids to look up
+    radius : float, optional
+        Radius to search around each object, by default 2.0
+    user_id : str, optional
+        User ID, by default None
+    timeout : int, optional
+        Timeout for the request, by default 10
+
+    Returns
+    -------
+    int
+        Length of the retrieval queue once the objects were added
+    """
+    if not obj_ids:
+        raise ValueError("obj_ids")
+
+    request_body = {
+        "obj_ids": list(obj_ids),
+        "radius": radius,
+        "user_id": user_id,
+    }
+
+    tns_microservice_url = (
+        f"http://{cfg['hosts.tns_retrieval_queue']}:{cfg['ports.tns_retrieval_queue']}"
+    )
+
+    resp = requests.post(tns_microservice_url, json=request_body, timeout=timeout)
+    if resp.status_code != 200:
+        raise ValueError(
+            f"TNS retrieval queue refused {len(request_body['obj_ids'])} objects: {resp.content}"
+        )
+    return resp.json().get("data", {}).get("queue_length")
 
 
 def _resolve_tns_instrument(tns_instrument_id, session):

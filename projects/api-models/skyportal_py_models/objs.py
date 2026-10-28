@@ -292,12 +292,43 @@ class ObjTNSGetQuery(BaseModel):
     )
 
 
+class ObjTNSBulkPostBody(BaseModel):
+    """Request body for re-querying TNS for many objects at once."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    obj_ids: list[str] | None = Field(
+        default=None,
+        description="Objects to re-query TNS for.",
+    )
+    stale_names_only: bool = Field(
+        default=False,
+        description=(
+            "Select every classified object whose stored TNS name still carries "
+            "the AT prefix, most recently classified first. Mutually exclusive "
+            "with obj_ids."
+        ),
+    )
+    max_objects: int | None = Field(
+        default=None,
+        description=(
+            "Cap on how many objects to queue, defaulting to and bounded by "
+            "app.tns.max_bulk_refresh."
+        ),
+    )
+    radius: float = Field(
+        default=2.0,
+        description="Search radius, in arcsec, around each object. Defaults to 2.0.",
+    )
+
+
 __all__ = [
     "ObjAcknowledgmentGetQuery",
     "ObjBody",
     "ObjMPCPostBody",
     "ObjPositionGetQuery",
     "ObjPositionResponse",
+    "ObjTNSBulkPostBody",
     "ObjTNSGetQuery",
     "SuperObjGetQuery",
     "SuperObjMemberResponse",

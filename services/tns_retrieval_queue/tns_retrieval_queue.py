@@ -28,6 +28,7 @@ from skyportal.utils.services import check_loaded
 from skyportal.utils.tns import (
     TNS_OTHER_INSTRUMENT_ID,
     TNS_URL,
+    expand_bulk_tns_task,
     get_IAUname,
     get_recent_TNS,
     get_tns_headers,
@@ -36,6 +37,7 @@ from skyportal.utils.tns import (
     read_tns_spectrum,
     should_replace_tns_name,
     tns_designation,
+    tns_request_delay,
 )
 
 env, cfg = load_env()
@@ -50,6 +52,7 @@ bot_id = cfg.get("app.tns.bot_id", None)
 bot_name = cfg.get("app.tns.bot_name", None)
 api_key = cfg.get("app.tns.api_key", None)
 look_back_days = cfg.get("app.tns.look_back_days", 1)
+min_request_interval = cfg.get("app.tns.min_request_interval", 3)
 name_refresh_enabled = cfg.get("app.tns.name_refresh.enabled", True)
 name_refresh_interval_hours = cfg.get("app.tns.name_refresh.interval_hours", 6)
 name_refresh_batch_size = cfg.get("app.tns.name_refresh.batch_size", 50)
@@ -248,6 +251,7 @@ def process_queue(queue):
         log("TNS watcher not configured, skipping")
         return
     tns_headers = get_tns_headers(bot_id, bot_name)
+    last_request_at = 0.0
 
     while True:
         if not queue:
@@ -256,6 +260,15 @@ def process_queue(queue):
         task = queue.pop(0)
         if not task:
             continue
+
+        # TNS rate-limits a bot by requests per minute, so a backlog is spaced
+        # out here rather than left to the 429 retries further down.
+        wait = tns_request_delay(
+            last_request_at, time.monotonic(), min_request_interval
+        )
+        if wait > 0:
+            time.sleep(wait)
+        last_request_at = time.monotonic()
 
         tns_name = None
         existing_obj = None
@@ -604,6 +617,22 @@ def api(queue):
                     {
                         "status": "success",
                         "message": "TNS request accepted into queue",
+                        "data": {"queue_length": len(queue)},
+                    }
+                )
+
+            if "obj_ids" in data:
+                try:
+                    tasks = expand_bulk_tns_task(data)
+                except ValueError as e:
+                    self.set_status(400)
+                    return self.write({"status": "error", "message": str(e)})
+                queue.extend(tasks)
+                self.set_status(200)
+                return self.write(
+                    {
+                        "status": "success",
+                        "message": f"{len(tasks)} TNS requests accepted into queue",
                         "data": {"queue_length": len(queue)},
                     }
                 )

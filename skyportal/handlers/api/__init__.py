@@ -273,7 +273,7 @@ from .team import TeamHandler
 from .telescope import TelescopeHandler
 from .terms_of_service import TermsOfServiceHandler
 from .thumbnail import ThumbnailHandler, ThumbnailPathHandler
-from .tns.obj_tns import ObjTNSHandler
+from .tns.obj_tns import ObjTNSBulkHandler, ObjTNSHandler
 from .unsourced_finder import UnsourcedFinderHandler
 from .user import (
     UserActivityHandler,
