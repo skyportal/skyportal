@@ -650,6 +650,13 @@ export const sourceApi = skyportalApi.injectEndpoints({
       }),
       invalidatesTags: (_result, _error, { id }) => sourceTag(id),
     }),
+    bulkRefreshTNS: build.mutation<any, Record<string, any>>({
+      query: (body) => ({
+        url: `api/sources/tns`,
+        method: "POST",
+        body,
+      }),
+    }),
     addHost: build.mutation<
       any,
       { id: number | string; formData: Record<string, any> }
@@ -823,6 +830,7 @@ export const {
   useFetchDatalabMutation,
   useFetchPS1Mutation,
   useAddTNSMutation,
+  useBulkRefreshTNSMutation,
   useAddHostMutation,
   useRemoveHostMutation,
   useAddMPCMutation,

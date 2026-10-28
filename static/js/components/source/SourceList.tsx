@@ -5,6 +5,7 @@ import AlertTitle from "@mui/material/AlertTitle";
 
 import { showNotification } from "baselayer/components/Notifications";
 import SourceTable from "./SourceTable";
+import RefreshTNSNames from "./RefreshTNSNames";
 import { DownloadProgressDialog } from "../ProgressIndicators";
 import { useAppDispatch } from "../../types/hooks";
 import {
@@ -109,6 +110,9 @@ const SourceList = () => {
           add a source.
         </Alert>
       )}
+      <div style={{ display: "flex", justifyContent: "flex-end" }}>
+        <RefreshTNSNames />
+      </div>
       <SourceTable
         sources={sourcesState?.sources || EMPTY_SOURCES}
         paginateCallback={handleSourceTablePagination}
