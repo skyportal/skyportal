@@ -88,7 +88,7 @@ app:
       - name: Thomas Culino
         image: https://gravatar.com/avatar/869898c24b8e4192fa6732da1f2aa88c9a16997d95c19abb4e3008096a76f791?s=200
       - name: Camille Douzet
-        image: /static/images/developers/douzet.jpg
+        image: https://gravatar.com/avatar/70fb13f18f0770bd3c51ade98b36acc6d3b7fbb7a8b298ae3fd88afd7fb7b1d8?s=200
       - name: Matthew Graham
         image: /static/images/developers/graham.jpg
       - name: Mansi Kasliwal
