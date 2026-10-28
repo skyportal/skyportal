@@ -484,12 +484,6 @@ body {
   }
 }
 
-@media (min-width: 1400px) {
-  .instanceList {
-    grid-template-columns: repeat(3, 1fr);
-  }
-}
-
 .loginPage .instance {
   display: flex;
   flex-direction: column;
@@ -726,49 +720,4 @@ body {
   max-width: 180px;
   height: 3.5rem;
   object-fit: contain;
-}
-
-.signInCarousel {
-  display: flex;
-  flex-basis: 100%;
-  overflow: hidden;
-  mask-image: linear-gradient(
-    to right,
-    transparent,
-    black 10%,
-    black 90%,
-    transparent
-  );
-}
-
-.signInGroup {
-  display: flex;
-  flex-shrink: 0;
-  justify-content: space-around;
-  align-items: center;
-  gap: 1rem;
-  min-width: 100%;
-  padding: 0.5rem 1rem 0.5rem 0;
-  animation: marquee 3s linear infinite;
-}
-
-.signInCarousel:hover .signInGroup {
-  animation-play-state: paused;
-}
-
-@keyframes marquee {
-  to {
-    transform: translateX(-100%);
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .signInGroup {
-    justify-content: center;
-    animation: none;
-  }
-
-  .signInGroup[aria-hidden="true"] {
-    display: none;
-  }
 }
