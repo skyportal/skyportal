@@ -122,7 +122,7 @@
         <div class="team">
           {%- for person in app.about.developers %}
           <figure>
-            <img src="{{ person.image }}" alt="{{ person.name }}" />
+            <img src="{{ person.image }}" alt="" />
             <figcaption>{{ person.name }}</figcaption>
           </figure>
           {%- endfor %}
