@@ -85,14 +85,14 @@ app:
         image: https://gravatar.com/avatar/2d6c12ef8574e42f916f8b68f2bbb8638bf0e7dada5cc9ecb4809c65f14b79d9?s=200
         affiliation: University of Minnesota
         email: alecallo@umn.edu
-      - name: Leo Conforti
-        image: https://gravatar.com/avatar/3fa30d7c01d3b682cb9b1cceb22880fcdd1a726b1d7b7f77ba15b0e46b3f57f5?s=200
-        affiliation: University of Minnesota
-        email: leo@leoconforti.us
       - name: Thomas Culino
         image: https://gravatar.com/avatar/869898c24b8e4192fa6732da1f2aa88c9a16997d95c19abb4e3008096a76f791?s=200
         affiliation: Caltech
         email: tculino@caltech.edu
+      - name: Leo Conforti
+        image: https://gravatar.com/avatar/3fa30d7c01d3b682cb9b1cceb22880fcdd1a726b1d7b7f77ba15b0e46b3f57f5?s=200
+        affiliation: University of Minnesota
+        email: leo@leoconforti.us
       - name: Stéfan van der Walt
         image: /static/images/developers/vanderwalt.jpg
         affiliation: UC Berkeley
