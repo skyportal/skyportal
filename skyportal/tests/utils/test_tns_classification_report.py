@@ -148,3 +148,12 @@ def test_numpy_array_round_trips_a_populated_column():
     stored = NumpyArray().process_result_value([1.0, 2.0], None)
     assert isinstance(stored, np.ndarray)
     assert stored.tolist() == [1.0, 2.0]
+
+
+def test_the_palomar_spectrographs_report_as_themselves():
+    """A missing instrument reports as Other, which TNS shows instead of the name."""
+    for name, tns_id in (("NGPS", 285), ("DBSP", 1), ("TSPEC", 109)):
+        instrument = types.SimpleNamespace(name=name)
+        entry = _report(spectrum=_spectrum(instrument=instrument))
+        spectra = entry["classification_report"]["0"]["spectra"]["spectra-group"]
+        assert spectra["0"]["instrumentid"] == tns_id

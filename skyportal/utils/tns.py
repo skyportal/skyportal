@@ -42,6 +42,7 @@ TNS_INSTRUMENT_IDS = {
     "alfosc": 41,
     "asas-sn": 195,
     "atlas": [159, 160, 255, 256, 290],
+    "dbsp": 1,
     "decam": 172,
     "efosc2": 31,
     "gaia": 163,
@@ -50,9 +51,11 @@ TNS_INSTRUMENT_IDS = {
     "kast": 10,
     "lsst": 287,
     "lsstcomcam": 289,  # Rubin - LSSTComCam (commissioning camera)
+    "ngps": 285,
     "ps1": [155, 257],
     "sedm": 149,
     "sprat": 156,
+    "tspec": 109,
     "wifes": 115,
     "ztf": 196,
 }
