@@ -59,13 +59,14 @@ def classify(obj_id, token, taxonomy_token, group_id):
 
 
 def test_a_view_only_token_cannot_queue_a_refresh(public_source, view_only_token):
+    """A token without Manage sources is refused, not quietly given an empty batch."""
     status, _ = api(
         "POST",
         "sources/tns",
         data={"obj_ids": [public_source.id]},
         token=view_only_token,
     )
-    assert status in (400, 401)
+    assert status == 403
 
 
 def test_a_request_names_either_objects_or_the_stale_selection(
