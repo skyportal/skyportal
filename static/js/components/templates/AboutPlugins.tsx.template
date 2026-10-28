@@ -9,36 +9,36 @@
 {%- endfor -%}
 {{ ns.t }}
 {%- endmacro -%}
-import React, { useState } from "react";
-import { Link } from "react-router-dom";
+{%- set instances = namespace(current=none, others=[]) -%}
+{%- for instance in app.about.instances or [] -%}
+{%- if instance.name | lower == app.title | lower -%}
+{%- set instances.current = instance -%}
+{%- else -%}
+{%- set instances.others = instances.others + [instance] -%}
+{%- endif -%}
+{%- endfor -%}
+import { Link as RouterLink } from "react-router-dom";
 import Box from "@mui/material/Box";
-import Card from "@mui/material/Card";
-import CardContent from "@mui/material/CardContent";
-import CardActions from "@mui/material/CardActions";
-import { makeStyles } from "tss-react/mui";
+import Link from "@mui/material/Link";
 import Paper from "@mui/material/Paper";
+import Stack from "@mui/material/Stack";
 import Typography from "@mui/material/Typography";
+import { makeStyles } from "tss-react/mui";
 
-import clsx from "clsx";
 import dayjs from "dayjs";
 import { useGetSysInfoQuery } from "../../ducks/sysInfo";
-import Button from "../Button";
+import {
+  AboutCard,
+  CitationBlocks,
+  FunderLogos,
+  InstanceBlocks,
+  LinkPills,
+  SectionTitle,
+  TeamGrid,
+  type Citation,
+} from "../about/AboutSections";
 
 const useStyles = makeStyles()((theme) => ({
-  bibcard: {
-    marginTop: "5rem",
-    "& .MuiTypography-body1": {
-      margin: 0,
-    },
-  },
-  bibtex: {
-    marginTop: "2rem",
-    marginBottom: 0,
-    color: theme.palette.secondary.dark,
-  },
-  hidden: {
-    display: "none",
-  },
   gitlogPaper: {
     maxHeight: "30rem",
     overflow: "auto",
@@ -57,85 +57,15 @@ const useStyles = makeStyles()((theme) => ({
   },
 }));
 
-interface BibLinkProps {
-  bibtex: string;
-  children: React.ReactNode;
-}
-
-const BibLink = ({ bibtex, children }: BibLinkProps) => {
-  const { classes } = useStyles();
-  const [folded, setFolded] = useState(true);
-
-  return (
-    <Card className={classes.bibcard} variant="outlined">
-      <CardContent>
-        <Typography>{children}</Typography>
-        <pre
-          className={clsx(classes.bibtex, {
-            [classes.hidden]: folded,
-          })}
-        >
-          {bibtex}
-        </pre>
-      </CardContent>
-      <CardActions>
-        <Button size="small" onClick={() => setFolded(!folded)}>
-          {folded ? "Show BiBTeX" : "Hide BiBTeX"}
-        </Button>
-      </CardActions>
-    </Card>
-  );
-};
-
-const AboutPlugins = () => {
-  const { classes } = useStyles();
-  const { data: sysInfo } = useGetSysInfoQuery();
-  const version = sysInfo?.version;
-  const gitlog = sysInfo?.gitlog;
-
-  return (
-    <div>
-      <Typography variant="h5">
-        This is {{ app.title }}&nbsp;
-        <code>v{version}</code>.
-      </Typography>
-      <Typography variant="body1">
-        See the <Link to="/deployments">deployment history</Link> for what
-        changed and when.
-      </Typography>
-      <Typography variant="body1">
-        {{ jsx(app.about.description) }}
-      </Typography>
-{%- for paragraph in app.about.extra_paragraphs %}
-      <Typography variant="body1">
-        {{ jsx(paragraph.text, paragraph.links) }}
-      </Typography>
-{%- endfor %}
-      <Typography variant="body1">
-        The project homepage is at&nbsp;
-        <a href="{{ app.about.homepage_url }}">{{ app.about.homepage_url }}</a>
-      </Typography>
-      <Typography variant="body1">
-        Documentation lives at&nbsp;
-        <a href="{{ app.about.docs_url }}">{{ app.about.docs_url }}</a>
-      </Typography>
-      <Typography variant="body1">
-        You may also interact with {{ app.title }} through its API. Generate a
-        token from your&nbsp;
-        <Link to="/profile">profile</Link>&nbsp; page, then refer to the&nbsp;
-        <a href="{{ app.about.api_docs_url }}">API documentation</a>.
-      </Typography>
-      <Typography variant="body1">
-        Please file issues on our GitHub page at&nbsp;
-        <a href="{{ app.about.repository_url }}">
-          {{ app.about.repository_url }}
-        </a>
-      </Typography>
-      <div>
-        If you found {{ app.title }} useful, please consider citing our work:
 {#- BibTeX below contains {{ and {% sequences; keep Jinja out of it. #}
-{% raw %}        <BibLink
-          bibtex={`@article{Coughlin_2023,
+{% raw %}const CITATIONS: Citation[] = [
+  {
+    title: "A Data Science Platform to Enable Time-domain Astronomy",
+    authors: "Coughlin, Michael W., et al.",
+    venue: "The Astrophysical Journal Supplement Series, 267, 2, Jul 2023",
+    url: "https://doi.org/10.3847/1538-4365/acdee1",
+    reference: "doi:10.3847/1538-4365/acdee1",
+    bibtex: `@article{Coughlin_2023,
   doi = {10.3847/1538-4365/acdee1},
   url = {https://dx.doi.org/10.3847/1538-4365/acdee1},
   year = {2023},
@@ -148,19 +78,15 @@ const AboutPlugins = () => {
   title = {A Data Science Platform to Enable Time-domain Astronomy},
   journal = {The Astrophysical Journal Supplement Series},
   abstract = {SkyPortal is an open-source software package designed to discover interesting transients efficiently, manage follow-up, perform characterization, and visualize the results. By enabling fast access to archival and catalog data, crossmatching heterogeneous data streams, and the triggering and monitoring of on-demand observations for further characterization, a SkyPortal-based platform has been operating at scale for &gt;2 yr for the Zwicky Transient Facility Phase II community, with hundreds of users, containing tens of millions of time-domain sources, interacting with dozens of telescopes, and enabling community reporting. While SkyPortal emphasizes rich user experiences across common front-end workflows, recognizing that scientific inquiry is increasingly performed programmatically, SkyPortal also surfaces an extensive and well-documented application programming interface system. From back-end and front-end software to data science analysis tools and visualization frameworks, the SkyPortal design emphasizes the reuse and leveraging of best-in-class approaches, with a strong extensibility ethos. For instance, SkyPortal now leverages ChatGPT large language models to generate and surface source-level human-readable summaries automatically. With the imminent restart of the next generation of gravitational-wave detectors, SkyPortal now also includes dedicated multimessenger features addressing the requirements of rapid multimessenger follow-up: multitelescope management, team/group organizing interfaces, and crossmatching of multimessenger data streams with time-domain optical surveys, with interfaces sufficiently intuitive for newcomers to the field. This paper focuses on the detailed implementations, capabilities, and early science results that establish SkyPortal as a community software package ready to take on the data science challenges and opportunities presented by this next chapter in the multimessenger era.}
-}`}
-        >
-          Coughlin, Michael W., et al.,{" "}
-          <em>A Data Science Platform to Enable Time-domain Astronomy.</em>{" "}
-          Publications of the Astrophysical Journal Supplement Series, 267, 2,
-          Jul 2023.{" "}
-          <a href="https://doi.org/10.3847/1538-4365/acdee1">
-            https://doi.org/10.3847/1538-4365/acdee1
-          </a>
-          .
-        </BibLink>
-        <BibLink
-          bibtex={`@article{skyportal2019,
+}`,
+  },
+  {
+    title: "SkyPortal: An Astronomical Data Platform",
+    authors: "Stéfan J. van der Walt, Arien Crellin-Quick, Joshua S. Bloom",
+    venue: "Journal of Open Source Software, 4(37) 1247, May 2019",
+    url: "https://doi.org/10.21105/joss.01247",
+    reference: "doi:10.21105/joss.01247",
+    bibtex: `@article{skyportal2019,
   author = {St\\'efan J. van der Walt and Arien Crellin-Quick and Joshua S. Bloom},
   title = {{SkyPortal}: An Astronomical Data Platform},
   journal = {Journal of Open Source Software},
@@ -171,18 +97,15 @@ const AboutPlugins = () => {
   month = {may},
   doi = {10.21105/joss.01247},
   url = {http://joss.theoj.org/papers/10.21105/joss.01247}
-}`}
-        >
-          Stéfan J. van der Walt, Arien Crellin-Quick, Joshua S. Bloom,{" "}
-          <em>SkyPortal: An Astronomical Data Platform.</em> Journal of Open
-          Source Software, 4(37) 1247, May 2019.{" "}
-          <a href="https://doi.org/10.21105/joss.01247">
-            https://doi.org/10.21105/joss.01247
-          </a>
-          .
-        </BibLink>
-        <BibLink
-          bibtex={`@article{duev2019real,
+}`,
+  },
+  {
+    title: "Real-bogus classification for the Zwicky Transient Facility using deep learning",
+    authors: "Duev, Dmitry A., et al.",
+    venue: "Monthly Notices of the Royal Astronomical Society, 489(3) 3582-3590, 2019",
+    url: "https://doi.org/10.1093/mnras/stz2357",
+    reference: "doi:10.1093/mnras/stz2357",
+    bibtex: `@article{duev2019real,
   title={Real-bogus classification for the Zwicky Transient Facility using deep learning},
   author={Duev, Dmitry A and Mahabal, Ashish and Masci, Frank J and Graham, Matthew J and Rusholme, Ben and Walters, Richard and Karmarkar, Ishani and Frederick, Sara and Kasliwal, Mansi M and Rebbapragada, Umaa and others},
   journal={Monthly Notices of the Royal Astronomical Society},
@@ -192,22 +115,15 @@ const AboutPlugins = () => {
   year={2019},
   publisher={Oxford University Press}
   url={https://ui.adsabs.harvard.edu/abs/2019MNRAS.489.3582D/abstract}
-}`}
-        >
-          Duev, Dmitry A., et al.,{" "}
-          <em>
-            Real-bogus classification for the Zwicky Transient Facility using
-            deep learning.
-          </em>{" "}
-          Monthly Notices of the Royal Astronomical Society, 489(3) 3582-3590,
-          2019.{" "}
-          <a href="https://doi.org/10.1093/mnras/stz2357">
-            https://doi.org/10.1093/mnras/stz2357
-          </a>
-          .
-        </BibLink>
-        <BibLink
-          bibtex={`@article{Kasliwal_2019,
+}`,
+  },
+  {
+    title: "The GROWTH marshal: a dynamic science portal for time-domain astronomy",
+    authors: "Kasliwal, M., et al.",
+    venue: "Publications of the Astronomical Society of the Pacific, 131(997) 038003, Feb 2019",
+    url: "https://doi.org/10.1088/1538-3873/aafbc2",
+    reference: "doi:10.1088/1538-3873/aafbc2",
+    bibtex: `@article{Kasliwal_2019,
     doi = {10.1088/1538-3873/aafbc2},
     url = {https://doi.org/10.1088%2F1538-3873%2Faafbc2},
     year = 2019,
@@ -219,26 +135,15 @@ const AboutPlugins = () => {
     author = {M. M. Kasliwal and C. Cannella and A. Bagdasaryan and T. Hung and U. Feindt and L. P. Singer and M. Coughlin and C. Fremling and R. Walters and D. Duev and R. Itoh and R. M. Quimby},
     title = {The {GROWTH} Marshal: A Dynamic Science Portal for Time-domain Astronomy},
     journal = {Publications of the Astronomical Society of the Pacific},
-}`}
-        >
-          Kasliwal, M., et al.,{" "}
-          <em>
-            The GROWTH marshal: a dynamic science portal for time-domain
-            astronomy.
-          </em>{" "}
-          Publications of the Astronomical Society of the Pacific, 131(997)
-          038003, Feb 2019.{" "}
-          <a href="https://doi.org/10.1088%2F1538-3873%2Faafbc2">
-            https://doi.org/10.1088%2F1538-3873%2Faafbc2
-          </a>
-          .
-        </BibLink>
-      </div>
-      <div>
-        If you found the ACAI machine learning classifiers useful, please
-        consider citing:
-        <BibLink
-          bibtex={`@ARTICLE{2021arXiv211112142D,
+}`,
+  },
+  {
+    title: "Phenomenological classification of the Zwicky Transient Facility astronomical event alerts",
+    authors: "Dmitry A. Duev & Stéfan J. van der Walt",
+    venue: "ACAI classifiers, Nov 2021",
+    url: "https://arxiv.org/abs/2111.12142",
+    reference: "arXiv:2111.12142",
+    bibtex: `@ARTICLE{2021arXiv211112142D,
        author = {{Duev}, Dmitry A. and {van der Walt}, St{\\'e}fan J.},
         title = "{Phenomenological classification of the Zwicky Transient Facility astronomical event alerts}",
       journal = {arXiv e-prints},
@@ -252,69 +157,142 @@ archivePrefix = {arXiv},
  primaryClass = {astro-ph.IM},
        adsurl = {https://ui.adsabs.harvard.edu/abs/2021arXiv211112142D},
       adsnote = {Provided by the SAO/NASA Astrophysics Data System}
-}`}
-        >
-          Dmitry A. Duev & Stéfan J. van der Walt,{" "}
-          <em>
-            Phenomenological classification of the Zwicky Transient Facility
-            astronomical event alerts.{" "}
-          </em>
-          <a href="https://arxiv.org/abs/2111.12142">arXiv:2111.12142</a>.
-        </BibLink>
-      </div>{% endraw %}
+}`,
+  },
+];{% endraw %}
+
+export const AboutIntro = () => {
+  const { data: sysInfo } = useGetSysInfoQuery();
+
+  return (
+    <AboutCard title="About {{ app.title }}">
+{%- if instances.current and instances.current.description %}
       <Typography variant="body1">
-        {{ jsx(app.about.funding) }}
+        {{ jsx(instances.current.description) }}
       </Typography>
-      {gitlog && (
-        <>
-          <Typography variant="h5">Recent Changelog</Typography>
-          <Paper className={classes.gitlogPaper}>
-            <Box {% raw %}sx={{ p: 1 }}{% endraw %}>
-              <div>
-                See all pull requests at{" "}
-{%- for repo in app.about.changelog_repositories %}
-                <a href="{{ repo.url }}">{{ repo.name }}</a>
-{%- if not loop.last %}
-                {", "}
 {%- endif %}
+      <Typography variant="body1">
+        This is {{ app.title }}&nbsp;
+        <code>v{sysInfo?.version}</code>. See the{" "}
+        <Link component={RouterLink} to="/deployments">
+          deployment history
+        </Link>{" "}
+        for what changed and when.
+      </Typography>
+      <Typography variant="body1">
+        {{ jsx(app.about.description) }}
+      </Typography>
+{%- for paragraph in app.about.extra_paragraphs %}
+      <Typography variant="body1">
+        {{ jsx(paragraph.text, paragraph.links) }}
+      </Typography>
 {%- endfor %}
-              </div>
-              <ul className={classes.gitlogList}>
-                {gitlog.map(
-                  ({
-                    name,
-                    time,
-                    sha,
-                    description,
-                    pr_nr,
-                    pr_url,
-                    commit_url,
-                  }: any) => (
-                    <li key={sha}>
-                      {name && (
-                        <span className={classes.gitlogName}>[{name}]</span>
-                      )}
-                      [{dayjs(time).format("YYYY-MM-DD")}
-                      <a className={classes.gitlogSHA} href={commit_url}>
-                        &nbsp;{sha}
-                      </a>
-                      ] {description}
-                      {pr_nr && (
-                        <a href={pr_url}>
-                          &nbsp;(
-                          <span className={classes.gitlogPR}>#{pr_nr}</span>)
-                        </a>
-                      )}
-                    </li>
-                  ),
-                )}
-              </ul>
-            </Box>
-          </Paper>
-        </>
-      )}
-    </div>
+      <LinkPills
+        homepage="{{ app.about.homepage_url }}"
+        docs="{{ app.about.docs_url }}"
+        api="{{ app.about.api_docs_url }}"
+        repository="{{ app.about.repository_url }}"
+      />
+      <Typography variant="body2" color="text.secondary">
+        To use the API, generate a token from your{" "}
+        <Link component={RouterLink} to="/profile">
+          profile
+        </Link>{" "}
+        page. Please file issues on GitHub.
+      </Typography>
+    </AboutCard>
   );
 };
 
-export default AboutPlugins;
+export const AboutInstances = () => (
+{%- if instances.others %}
+  <Stack spacing={2}>
+    <SectionTitle>{{ "Other instances" if instances.current else "Instances" }}</SectionTitle>
+    <InstanceBlocks instances={ {{ instances.others | tojson }} } />
+  </Stack>
+{%- else %}
+  null
+{%- endif %}
+);
+
+export const AboutTeam = () => (
+  <AboutCard title="SkyPortal dev team">
+    <TeamGrid people={ {{ (app.about.developers or []) | tojson }} } />
+{%- if app.about.alumni %}
+    <SectionTitle>Alumni</SectionTitle>
+    <TeamGrid people={ {{ app.about.alumni | tojson }} } />
+{%- endif %}
+  </AboutCard>
+);
+
+export const AboutCitations = () => (
+  <AboutCard title="Citing {{ app.title }}">
+    <CitationBlocks citations={CITATIONS} />
+  </AboutCard>
+);
+
+export const AboutChangelog = () => {
+  const { classes } = useStyles();
+  const { data: sysInfo } = useGetSysInfoQuery();
+  const gitlog = sysInfo?.gitlog;
+
+  if (!gitlog) return null;
+  return (
+    <AboutCard title="Recent changes">
+      <Paper variant="outlined" className={classes.gitlogPaper}>
+        <Box {% raw %}sx={{ p: 1 }}{% endraw %}>
+          <div>
+            See all pull requests at{" "}
+{%- for repo in app.about.changelog_repositories %}
+            <a href="{{ repo.url }}">{{ repo.name }}</a>
+{%- if not loop.last %}
+            {", "}
+{%- endif %}
+{%- endfor %}
+          </div>
+          <ul className={classes.gitlogList}>
+            {gitlog.map(
+              ({
+                name,
+                time,
+                sha,
+                description,
+                pr_nr,
+                pr_url,
+                commit_url,
+              }: any) => (
+                <li key={sha}>
+                  {name && (
+                    <span className={classes.gitlogName}>[{name}]</span>
+                  )}
+                  [{dayjs(time).format("YYYY-MM-DD")}
+                  <a className={classes.gitlogSHA} href={commit_url}>
+                    &nbsp;{sha}
+                  </a>
+                  ] {description}
+                  {pr_nr && (
+                    <a href={pr_url}>
+                      &nbsp;(
+                      <span className={classes.gitlogPR}>#{pr_nr}</span>)
+                    </a>
+                  )}
+                </li>
+              ),
+            )}
+          </ul>
+        </Box>
+      </Paper>
+    </AboutCard>
+  );
+};
+
+export const AboutFunding = () => (
+  <AboutCard>
+    <Typography variant="body2" color="text.secondary" align="center">
+      {{ jsx(app.about.funding) }}
+    </Typography>
+{%- if app.about.funders %}
+    <FunderLogos funders={ {{ app.about.funders | tojson }} } />
+{%- endif %}
+  </AboutCard>
+);
