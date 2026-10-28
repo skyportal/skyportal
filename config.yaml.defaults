@@ -69,49 +69,33 @@ app:
         description: >-
           ZTF and LSST alerts. Managed by IJCLab (Université Paris-Saclay),
           hosted in France.
-    # SkyPortal core team, on the About and login pages. `email` makes the
-    # photo a mail link.
+    # SkyPortal core team, most active first, on the About and login pages.
+    # `email` makes the photo a mail link.
     developers:
-      - name: Sarah Antier
-        image: /static/images/developers/antier.jpeg
-        affiliation: IJCLab
-        email: antier@ijclab.in2p3.fr
-      - name: Pete Bachant
-        image: https://gravatar.com/avatar/bc242f20e6767ddef3db4e6afe7980cfe2c83fbc714cf291e963f3d7fcb0d782?s=200
-        affiliation: Caltech
-        email: petebachant@gmail.com
-      - name: Joshua Bloom
-        image: https://gravatar.com/avatar/edff272ba50d6de809eafc24bd11e8e402ba05ab9c7dbafb884ab128015eb806?s=200
-        affiliation: UC Berkeley
-        email: profjsb@gmail.com
-      - name: Leo Conforti
-        image: https://gravatar.com/avatar/3fa30d7c01d3b682cb9b1cceb22880fcdd1a726b1d7b7f77ba15b0e46b3f57f5?s=200
-        affiliation: University of Minnesota
-        email: leo@leoconforti.us
       - name: Michael Coughlin
         image: https://gravatar.com/avatar/b40171299edeb688bb1b2877167b07a2f8fd17e38ac17da944d09eed77c4eafe?s=200
         affiliation: University of Minnesota
         email: cough052@umn.edu
-      - name: Thomas Culino
-        image: https://gravatar.com/avatar/869898c24b8e4192fa6732da1f2aa88c9a16997d95c19abb4e3008096a76f791?s=200
-        affiliation: Caltech
-        email: tculino@caltech.edu
-      - name: Camille Douzet
-        image: https://gravatar.com/avatar/70fb13f18f0770bd3c51ade98b36acc6d3b7fbb7a8b298ae3fd88afd7fb7b1d8?s=200
-        affiliation: IJCLab
-        email: camille.douzet@ijclab.in2p3.fr
-      - name: Matthew Graham
-        image: /static/images/developers/graham.jpg
-        affiliation: Caltech
-        email: mjg@caltech.edu
-      - name: Mansi Kasliwal
-        image: /static/images/developers/kasliwal.jpg
-        affiliation: Caltech
-        email: mansi@astro.caltech.edu
       - name: Antoine Le Calloch
         image: https://gravatar.com/avatar/2d6c12ef8574e42f916f8b68f2bbb8638bf0e7dada5cc9ecb4809c65f14b79d9?s=200
         affiliation: University of Minnesota
         email: alecallo@umn.edu
+      - name: Thomas Culino
+        image: https://gravatar.com/avatar/869898c24b8e4192fa6732da1f2aa88c9a16997d95c19abb4e3008096a76f791?s=200
+        affiliation: Caltech
+        email: tculino@caltech.edu
+      - name: Pete Bachant
+        image: https://gravatar.com/avatar/bc242f20e6767ddef3db4e6afe7980cfe2c83fbc714cf291e963f3d7fcb0d782?s=200
+        affiliation: Caltech
+        email: petebachant@gmail.com
+      - name: Leo Conforti
+        image: https://gravatar.com/avatar/3fa30d7c01d3b682cb9b1cceb22880fcdd1a726b1d7b7f77ba15b0e46b3f57f5?s=200
+        affiliation: University of Minnesota
+        email: leo@leoconforti.us
+      - name: Camille Douzet
+        image: https://gravatar.com/avatar/70fb13f18f0770bd3c51ade98b36acc6d3b7fbb7a8b298ae3fd88afd7fb7b1d8?s=200
+        affiliation: IJCLab
+        email: camille.douzet@ijclab.in2p3.fr
       - name: Sneha Maharjan
         image: /static/images/developers/maharjan.jpg
         affiliation: University of Minnesota
@@ -120,14 +104,30 @@ app:
         image: /static/images/developers/sharmachaudhary.jpg
         affiliation: University of Minnesota
         email: ssharmac@umn.edu
-      - name: Leo Singer
-        image: https://gravatar.com/avatar/405847da73c1a657691db49e5730f6b492c953462ac4548f1d11a2987a3739fa?s=200
-        affiliation: NASA Goddard
-        email: leo.p.singer@nasa.gov
       - name: Stéfan van der Walt
         image: /static/images/developers/vanderwalt.jpg
         affiliation: UC Berkeley
         email: stefanv@berkeley.edu
+      - name: Joshua Bloom
+        image: https://gravatar.com/avatar/edff272ba50d6de809eafc24bd11e8e402ba05ab9c7dbafb884ab128015eb806?s=200
+        affiliation: UC Berkeley
+        email: profjsb@gmail.com
+      - name: Leo Singer
+        image: https://gravatar.com/avatar/405847da73c1a657691db49e5730f6b492c953462ac4548f1d11a2987a3739fa?s=200
+        affiliation: NASA Goddard
+        email: leo.p.singer@nasa.gov
+      - name: Sarah Antier
+        image: /static/images/developers/antier.jpeg
+        affiliation: IJCLab
+        email: antier@ijclab.in2p3.fr
+      - name: Matthew Graham
+        image: /static/images/developers/graham.jpg
+        affiliation: Caltech
+        email: mjg@caltech.edu
+      - name: Mansi Kasliwal
+        image: /static/images/developers/kasliwal.jpg
+        affiliation: Caltech
+        email: mansi@astro.caltech.edu
     alumni:
       - name: Arien Crellin-Quick
         image: /static/images/developers/crellinquick.jpg
