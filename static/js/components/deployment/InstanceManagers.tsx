@@ -2,10 +2,12 @@ import { useState } from "react";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 import Box from "@mui/material/Box";
+import FormControlLabel from "@mui/material/FormControlLabel";
 import Grid from "@mui/material/Grid";
 import IconButton from "@mui/material/IconButton";
 import Paper from "@mui/material/Paper";
 import Stack from "@mui/material/Stack";
+import Switch from "@mui/material/Switch";
 import Tooltip from "@mui/material/Tooltip";
 import Typography from "@mui/material/Typography";
 import CloseIcon from "@mui/icons-material/Close";
@@ -19,6 +21,7 @@ import {
   useAddInstanceManagerMutation,
   useGetInstanceManagersQuery,
   useRemoveInstanceManagerMutation,
+  useUpdateInstanceManagerMutation,
   type InstanceManager,
 } from "../../ducks/instanceManagers";
 
@@ -56,7 +59,7 @@ const AddManager = ({ managers }: { managers: InstanceManager[] }) => {
       sx={{ alignItems: { sm: "center" } }}
     >
       <SearchableSelect
-        label="Add a manager"
+        label="Add a maintainer"
         value={user}
         onChange={(_event, value) => setUser(value)}
         options={options}
@@ -76,78 +79,99 @@ const AddManager = ({ managers }: { managers: InstanceManager[] }) => {
 
 const ManagerCard = ({
   manager,
-  onRemove,
+  isAdmin,
 }: {
   manager: InstanceManager;
-  onRemove?: (() => void) | undefined;
-}) => (
-  <Paper
-    variant="outlined"
-    sx={{
-      p: 2,
-      borderRadius: 2,
-      height: "100%",
-      display: "flex",
-      alignItems: "center",
-      gap: 1.5,
-    }}
-  >
-    <UserAvatar
-      size={48}
-      noTooltip
-      username={manager.username ?? ""}
-      firstName={manager.first_name ?? null}
-      lastName={manager.last_name ?? null}
-      gravatarUrl={manager.gravatar_url}
-      userId={manager.user_id}
-    />
-    <Box sx={{ flexGrow: 1, minWidth: 0 }}>
-      <Typography sx={{ fontWeight: 600 }} noWrap>
-        {managerName(manager)}
-      </Typography>
-      {manager.affiliations?.length ? (
-        <Typography variant="body2" color="text.secondary" noWrap>
-          {manager.affiliations.join(", ")}
-        </Typography>
-      ) : null}
-      <Typography variant="caption" color="text.secondary">
-        Since {dayjs.utc(manager.created_at).format("MMM D, YYYY")}
-      </Typography>
-    </Box>
-    {onRemove && (
-      <Tooltip title="Remove">
-        <IconButton size="small" onClick={onRemove}>
-          <CloseIcon fontSize="small" />
-        </IconButton>
-      </Tooltip>
-    )}
-  </Paper>
-);
+  isAdmin: boolean;
+}) => {
+  const [updateManager] = useUpdateInstanceManagerMutation();
+  const [removeManager] = useRemoveInstanceManagerMutation();
+
+  return (
+    <Paper variant="outlined" sx={{ p: 2, borderRadius: 2, height: "100%" }}>
+      <Stack direction="row" spacing={1.5} sx={{ alignItems: "center" }}>
+        <UserAvatar
+          size={48}
+          noTooltip
+          username={manager.username ?? ""}
+          firstName={manager.first_name ?? null}
+          lastName={manager.last_name ?? null}
+          gravatarUrl={manager.gravatar_url}
+          userId={manager.user_id}
+        />
+        <Box sx={{ flexGrow: 1, minWidth: 0 }}>
+          <Typography sx={{ fontWeight: 600 }} noWrap>
+            {managerName(manager)}
+          </Typography>
+          {manager.affiliations?.length ? (
+            <Typography variant="body2" color="text.secondary" noWrap>
+              {manager.affiliations.join(", ")}
+            </Typography>
+          ) : null}
+          {manager.email && (
+            <Typography variant="body2" color="text.secondary" noWrap>
+              {manager.email}
+            </Typography>
+          )}
+          <Typography variant="caption" color="text.secondary">
+            Since {dayjs.utc(manager.created_at).format("MMM D, YYYY")}
+          </Typography>
+        </Box>
+        {isAdmin && (
+          <Tooltip title="Remove">
+            <IconButton
+              size="small"
+              onClick={() => removeManager(manager.user_id)}
+            >
+              <CloseIcon fontSize="small" />
+            </IconButton>
+          </Tooltip>
+        )}
+      </Stack>
+      {isAdmin && (
+        <FormControlLabel
+          sx={{ mt: 1, ml: 0 }}
+          control={
+            <Switch
+              size="small"
+              checked={manager.show_email}
+              onChange={(event) =>
+                updateManager({
+                  userId: manager.user_id,
+                  show_email: event.target.checked,
+                })
+              }
+            />
+          }
+          label={
+            <Typography variant="body2" color="text.secondary">
+              Show email publicly
+            </Typography>
+          }
+        />
+      )}
+    </Paper>
+  );
+};
 
 const InstanceManagers = ({ isAdmin }: { isAdmin: boolean }) => {
   const { data: managers = [], isLoading } = useGetInstanceManagersQuery();
-  const [removeManager] = useRemoveInstanceManagerMutation();
 
   if (isLoading) return <Spinner />;
 
   return (
     <Stack spacing={2}>
       <Typography color="text.secondary">
-        Shown on the login and About pages.
+        The people who run this instance, shown on the login and About pages.
       </Typography>
       {isAdmin && <AddManager managers={managers} />}
       {managers.length === 0 ? (
-        <Typography color="text.secondary">No manager yet.</Typography>
+        <Typography color="text.secondary">No maintainer yet.</Typography>
       ) : (
         <Grid container spacing={2}>
           {managers.map((manager) => (
             <Grid key={manager.user_id} size={{ xs: 12, sm: 6, md: 4, lg: 3 }}>
-              <ManagerCard
-                manager={manager}
-                onRemove={
-                  isAdmin ? () => removeManager(manager.user_id) : undefined
-                }
-              />
+              <ManagerCard manager={manager} isAdmin={isAdmin} />
             </Grid>
           ))}
         </Grid>

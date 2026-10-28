@@ -20,6 +20,17 @@ export const instanceManagersApi = skyportalApi.injectEndpoints({
       }),
       invalidatesTags: ["InstanceManagers"],
     }),
+    updateInstanceManager: build.mutation<
+      unknown,
+      { userId: number; show_email: boolean }
+    >({
+      query: ({ userId, ...body }) => ({
+        url: `api/instance_managers/${userId}`,
+        method: "PATCH",
+        body,
+      }),
+      invalidatesTags: ["InstanceManagers"],
+    }),
     removeInstanceManager: build.mutation<unknown, number>({
       query: (userId) => ({
         url: `api/instance_managers/${userId}`,
@@ -37,5 +48,6 @@ invalidateOnMessage("skyportal/REFRESH_INSTANCE_MANAGERS", () => [
 export const {
   useGetInstanceManagersQuery,
   useAddInstanceManagerMutation,
+  useUpdateInstanceManagerMutation,
   useRemoveInstanceManagerMutation,
 } = instanceManagersApi;

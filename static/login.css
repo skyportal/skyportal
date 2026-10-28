@@ -594,7 +594,8 @@ body {
   transition: box-shadow 0.15s ease;
 }
 
-.team a:hover img {
+.team a:hover img,
+.team a:hover .avatar {
   box-shadow: 0 0 0 3px #457b9d;
 }
 

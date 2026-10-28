@@ -11,6 +11,7 @@ import psutil
 import sqlalchemy as sa
 from skyportal_py_models.system import (
     DeploymentsResponse,
+    InstanceManagerPatchBody,
     InstanceManagerPostBody,
     InstanceManagersResponse,
 )
@@ -272,6 +273,12 @@ class DeploymentHandler(BaseHandler):
         )
 
 
+def contact_email(user):
+    if user.contact_email:
+        return user.contact_email
+    return user.username if "@" in user.username else None
+
+
 def manager_dict(manager, signed_in):
     user = manager.user
     return {
@@ -281,6 +288,8 @@ def manager_dict(manager, signed_in):
         "last_name": user.last_name,
         "affiliations": user.affiliations or [],
         "gravatar_url": user.gravatar_url,
+        "show_email": manager.show_email,
+        "email": contact_email(user) if manager.show_email else None,
         "created_at": manager.created_at,
     }
 
@@ -326,6 +335,26 @@ class InstanceManagerHandler(BaseHandler):
             ):
                 return self.error("This user already manages the instance")
             session.add(InstanceManager(user_id=body.user_id))
+            await session.commit()
+        self.push_all(action="skyportal/REFRESH_INSTANCE_MANAGERS")
+        return self.success()
+
+    @permissions(["System admin"])
+    async def patch(self, user_id: int, *, body: InstanceManagerPatchBody = None):
+        """
+        ---
+        summary: Change whether the login and About pages show a manager's email
+        tags:
+          - system info
+        """
+        body = self.parse_body(InstanceManagerPatchBody)
+        async with self.AsyncSession() as session:
+            manager = await session.scalar(
+                sa.select(InstanceManager).where(InstanceManager.user_id == user_id)
+            )
+            if manager is None:
+                return self.error("This user does not manage the instance")
+            manager.show_email = body.show_email
             await session.commit()
         self.push_all(action="skyportal/REFRESH_INSTANCE_MANAGERS")
         return self.success()

@@ -113,7 +113,7 @@
       </section>
       {%- endif %}
       <section class="aboutCard" id="managers" hidden>
-        <h2>Managed by</h2>
+        <h2>{{ app.title }} maintainers</h2>
         <div class="team" id="managerList"></div>
       </section>
       {%- if app.about is defined and app.about.developers %}
@@ -237,13 +237,21 @@
           photo.src = `${manager.gravatar_url}&s=160`;
           photo.alt = "";
           avatar.append(photo);
+          let picture = avatar;
+          if (manager.email) {
+            picture = document.createElement("a");
+            picture.href = `mailto:${manager.email}`;
+            picture.title = manager.email;
+            picture.setAttribute("aria-label", `Email ${name}`);
+            picture.append(avatar);
+          }
           const caption = document.createElement("figcaption");
           caption.textContent = name;
           const affiliation = document.createElement("span");
           affiliation.textContent = (manager.affiliations ?? []).join(", ");
           caption.append(affiliation);
           const figure = document.createElement("figure");
-          figure.append(avatar, caption);
+          figure.append(picture, caption);
           list.append(figure);
         }
         document.getElementById("managers").hidden = managers.length === 0;

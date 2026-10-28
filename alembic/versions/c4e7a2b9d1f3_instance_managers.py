@@ -20,6 +20,7 @@ def upgrade():
     op.create_table(
         "instance_managers",
         sa.Column("user_id", sa.Integer(), nullable=False),
+        sa.Column("show_email", sa.Boolean(), server_default="true", nullable=False),
         sa.Column("id", sa.Integer(), autoincrement=True, nullable=False),
         sa.Column("created_at", sa.DateTime(), nullable=False),
         sa.Column("modified", sa.DateTime(), nullable=False),

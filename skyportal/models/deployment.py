@@ -35,3 +35,10 @@ class InstanceManager(Base):
         doc="ID of the managing User",
     )
     user = relationship("User", foreign_keys=[user_id], doc="The managing User")
+    show_email = sa.Column(
+        sa.Boolean,
+        nullable=False,
+        default=True,
+        server_default="true",
+        doc="Whether the login and About pages show the manager's email",
+    )

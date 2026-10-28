@@ -28,6 +28,7 @@ import {
   FunderLogos,
   InstanceBlocks,
   LinkPills,
+  Maintainers,
   SectionTitle,
   TeamGrid,
   type Citation,
@@ -189,6 +190,10 @@ export const AboutInstances = () => (
 {%- else %}
   null
 {%- endif %}
+);
+
+export const AboutMaintainers = () => (
+  <Maintainers title="{{ app.title }} maintainers" />
 );
 
 export const AboutTeam = () => (

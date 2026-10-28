@@ -752,7 +752,7 @@ const Deployments = () => {
     return <Typography>Could not load the deployment information.</Typography>;
 
   const isAdmin = Boolean(data.system);
-  const tabs = ["history", "managers", "feedback", "notifications"];
+  const tabs = ["history", "maintainers", "feedback", "notifications"];
   if (isAdmin) tabs.push("instance");
   const requested = searchParams.get("tab") ?? "";
   const tab = tabs.includes(requested) ? requested : "history";
@@ -846,10 +846,10 @@ const Deployments = () => {
             label={`Deployment history (${deployments.length})`}
           />
           <Tab
-            value="managers"
+            value="maintainers"
             icon={<ManageAccountsIcon />}
             iconPosition="start"
-            label="Managers"
+            label="Maintainers"
           />
           <Tab
             value="feedback"
@@ -888,7 +888,7 @@ const Deployments = () => {
           )}
         </Tabs>
         <Box sx={{ p: { xs: 2, md: 3 } }}>
-          {tab === "managers" ? (
+          {tab === "maintainers" ? (
             <InstanceManagers isAdmin={isAdmin} />
           ) : tab === "feedback" ? (
             <FeedbackTab title={data.title} isAdmin={isAdmin} />

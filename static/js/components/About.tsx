@@ -7,13 +7,11 @@ import {
   AboutFunding,
   AboutInstances,
   AboutIntro,
+  AboutMaintainers,
   AboutTeam,
 } from "./templates/AboutPlugins";
-import { AboutCard, PeopleGrid, Person } from "./about/AboutSections";
-import UserAvatar from "./user/UserAvatar";
-import { managerName } from "./deployment/InstanceManagers";
+import { AboutCard } from "./about/AboutSections";
 import { useGetConfigQuery } from "../ducks/config";
-import { useGetInstanceManagersQuery } from "../ducks/instanceManagers";
 
 const useStyles = makeStyles()(() => ({
   cosmoTable: {
@@ -34,36 +32,12 @@ const About = () => {
   const { classes } = useStyles();
   const cosmologyParams = (useGetConfigQuery().data as any)?.cosmologyParams;
   const cosmoref = (useGetConfigQuery().data as any)?.cosmoref;
-  const { data: managers = [] } = useGetInstanceManagersQuery();
 
   return (
     <Stack spacing={3}>
       <AboutIntro />
       <AboutInstances />
-      {managers.length > 0 && (
-        <AboutCard title="Managed by">
-          <PeopleGrid>
-            {managers.map((manager) => (
-              <Person
-                key={manager.user_id}
-                name={managerName(manager)}
-                detail={manager.affiliations?.join(", ")}
-                avatar={
-                  <UserAvatar
-                    size={80}
-                    noTooltip
-                    username={manager.username ?? ""}
-                    firstName={manager.first_name ?? null}
-                    lastName={manager.last_name ?? null}
-                    gravatarUrl={manager.gravatar_url}
-                    userId={manager.user_id}
-                  />
-                }
-              />
-            ))}
-          </PeopleGrid>
-        </AboutCard>
-      )}
+      <AboutMaintainers />
       <AboutTeam />
       <AboutCitations />
       <AboutCard title="Cosmology">

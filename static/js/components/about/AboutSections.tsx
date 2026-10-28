@@ -14,6 +14,9 @@ import GitHubIcon from "@mui/icons-material/GitHub";
 
 import { showNotification } from "baselayer/components/Notifications";
 import Button from "../Button";
+import UserAvatar from "../user/UserAvatar";
+import { managerName } from "../deployment/InstanceManagers";
+import { useGetInstanceManagersQuery } from "../../ducks/instanceManagers";
 import { useAppDispatch } from "../../types/hooks";
 
 const headingColor = (theme: Theme) =>
@@ -214,6 +217,30 @@ export interface TeamMember {
   email?: string;
 }
 
+export const MailLink = ({
+  email,
+  name,
+  children,
+}: {
+  email: string;
+  name: string;
+  children: ReactNode;
+}) => (
+  <Link
+    href={`mailto:${email}`}
+    title={email}
+    aria-label={`Email ${name}`}
+    sx={{
+      borderRadius: "50%",
+      "&:hover .MuiAvatar-root": {
+        boxShadow: (theme) => `0 0 0 3px ${theme.palette.primary.main}`,
+      },
+    }}
+  >
+    {children}
+  </Link>
+);
+
 export const TeamGrid = ({ people }: { people: TeamMember[] }) => (
   <PeopleGrid>
     {people.map((person) => {
@@ -231,20 +258,9 @@ export const TeamGrid = ({ people }: { people: TeamMember[] }) => (
           detail={person.affiliation}
           avatar={
             person.email ? (
-              <Link
-                href={`mailto:${person.email}`}
-                title={person.email}
-                aria-label={`Email ${person.name}`}
-                sx={{
-                  borderRadius: "50%",
-                  "&:hover .MuiAvatar-root": {
-                    boxShadow: (theme) =>
-                      `0 0 0 3px ${theme.palette.primary.main}`,
-                  },
-                }}
-              >
+              <MailLink email={person.email} name={person.name}>
                 {photo}
-              </Link>
+              </MailLink>
             ) : (
               photo
             )
@@ -254,6 +270,48 @@ export const TeamGrid = ({ people }: { people: TeamMember[] }) => (
     })}
   </PeopleGrid>
 );
+
+export const Maintainers = ({ title }: { title: string }) => {
+  const { data: managers = [] } = useGetInstanceManagersQuery();
+
+  if (managers.length === 0) return null;
+  return (
+    <AboutCard title={title}>
+      <PeopleGrid>
+        {managers.map((manager) => {
+          const name = managerName(manager);
+          const avatar = (
+            <UserAvatar
+              size={80}
+              noTooltip
+              username={manager.username ?? ""}
+              firstName={manager.first_name ?? null}
+              lastName={manager.last_name ?? null}
+              gravatarUrl={manager.gravatar_url}
+              userId={manager.email ? null : manager.user_id}
+            />
+          );
+          return (
+            <Person
+              key={manager.user_id}
+              name={name}
+              detail={manager.affiliations?.join(", ")}
+              avatar={
+                manager.email ? (
+                  <MailLink email={manager.email} name={name}>
+                    {avatar}
+                  </MailLink>
+                ) : (
+                  avatar
+                )
+              }
+            />
+          );
+        })}
+      </PeopleGrid>
+    </AboutCard>
+  );
+};
 
 export interface Citation {
   title: string;

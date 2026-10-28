@@ -20924,7 +20924,26 @@ export interface paths {
         };
         options?: never;
         head?: never;
-        patch?: never;
+        /**
+         * Change whether the login and About pages show a manager's email
+         * @description <b>Permission(s) required:</b> <em>System admin (or System admin)</em><br><br>
+         */
+        patch: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    user_id: number;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["InstanceManagerPatchBody"];
+                };
+            };
+            responses: never;
+        };
         trace?: never;
     };
     "/api/feedback/{feedback_id}": {
@@ -31638,6 +31657,8 @@ export interface components {
             readonly user?: components["schemas"]["User"];
             /** @description ID of the managing User */
             user_id: number;
+            /** @description Whether the login and About pages show the manager's email */
+            show_email?: boolean;
             /** @description Unique object identifier. */
             id?: number;
         };
@@ -31658,6 +31679,8 @@ export interface components {
             readonly user?: components["schemas"]["User"];
             /** @description ID of the managing User */
             user_id: number;
+            /** @description Whether the login and About pages show the manager's email */
+            show_email?: boolean;
         };
         SingleInstanceManagerNoID: {
             /** @enum {string} */
@@ -49601,6 +49624,14 @@ export interface components {
             affiliations?: string[];
             /** Gravatar Url */
             gravatar_url: string;
+            /** Show Email */
+            show_email: boolean;
+            /**
+             * Email
+             * @description Only when show_email is set
+             * @default null
+             */
+            email: string | null;
             /**
              * Created At
              * Format: date-time
@@ -49625,6 +49656,17 @@ export interface components {
              * @description ID of the user
              */
             user_id: number;
+        };
+        /**
+         * InstanceManagerPatchBody
+         * @description Request body for changing how a manager is shown.
+         */
+        InstanceManagerPatchBody: {
+            /**
+             * Show Email
+             * @description Whether the login and About pages show the manager's email
+             */
+            show_email: boolean;
         };
         /**
          * FeedbackAuthorResponse
