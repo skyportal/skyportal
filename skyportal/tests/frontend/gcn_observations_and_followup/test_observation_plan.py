@@ -161,6 +161,10 @@ def test_observationplan_request(
         page.locator(f"//*[@data-testid='{instrument_name}-requests-header']").first
     ).to_be_visible()
     page.locator(f"//*[@data-testid='{instrument_name}-requests-header']").first.click()
+    # the payload cell starts collapsed
+    page.locator(
+        f'//div[contains(@data-testid, "{instrument_name}_observationplanRequestsTable")]//*[contains(@class, "collapsed-icon")]'
+    ).first.click()
     expect(
         page.locator(
             f'//div[contains(@data-testid, "{instrument_name}_observationplanRequestsTable")]//div[contains(., "ztfr")]'

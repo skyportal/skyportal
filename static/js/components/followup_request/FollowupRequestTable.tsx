@@ -15,7 +15,7 @@ import EditFollowupRequestDialog from "./EditFollowupRequestDialog";
 import FollowupPrioritizationDialog from "./FollowupPrioritizationDialog";
 import FollowupRequestActions from "./FollowupRequestActions";
 import FollowupScheduleDialog from "./FollowupScheduleDialog";
-import JsonCell from "./JsonCell";
+import JsonCell from "../JsonCell";
 import {
   PLAIN_LINKS_SX,
   allocationColumn,

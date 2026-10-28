@@ -5,9 +5,7 @@ import AddIcon from "@mui/icons-material/Add";
 import Dialog from "@mui/material/Dialog";
 import DialogTitle from "@mui/material/DialogTitle";
 import DialogContent from "@mui/material/DialogContent";
-import Box from "@mui/material/Box";
 import Chip from "@mui/material/Chip";
-import { JSONTree } from "react-json-tree";
 
 import { showNotification } from "baselayer/components/Notifications";
 import { useAppDispatch } from "../../types/hooks";
@@ -17,7 +15,7 @@ import StyledDataGrid, {
   FULL_PAGE_HEIGHT_WITH_TABS,
 } from "../StyledDataGrid";
 import Button from "../Button";
-import ExpandableCell from "../ExpandableCell";
+import JsonCell from "../JsonCell";
 import ConfirmDeletionDialog from "../ConfirmDeletionDialog";
 import NewDefaultObservationPlan from "./NewDefaultObservationPlan";
 
@@ -81,34 +79,10 @@ const DefaultObservationPlanTable = ({
     const default_observation_plan = params.row;
     if (!default_observation_plan?.filters) return null;
 
-    return (
-      <div style={{ whiteSpace: "nowrap" }}>
-        <JSONTree data={default_observation_plan.filters} hideRoot />
-      </div>
-    );
+    return <JsonCell data={default_observation_plan.filters} />;
   };
 
-  const renderPayload = (params: any) => {
-    const entries = Object.entries(params.row.payload ?? {});
-    return (
-      <ExpandableCell
-        count={entries.length}
-        render={(visible, collapsible) => (
-          <Box
-            sx={{
-              whiteSpace: "nowrap",
-              ...(collapsible && { "& > ul": { pb: "2.5rem !important" } }),
-            }}
-          >
-            <JSONTree
-              data={Object.fromEntries(entries.slice(0, visible))}
-              hideRoot
-            />
-          </Box>
-        )}
-      />
-    );
-  };
+  const renderPayload = (params: any) => <JsonCell data={params.row.payload} />;
 
   const renderAutoSend = (params: any) => {
     const default_observation_plan = params.row;
