@@ -36,7 +36,6 @@ const About = () => {
   return (
     <Stack spacing={3}>
       <AboutIntro />
-      <AboutInstances />
       <AboutMaintainers />
       <AboutTeam />
       <AboutCitations />
@@ -69,6 +68,7 @@ const About = () => {
           )}
         </Typography>
       </AboutCard>
+      <AboutInstances />
       <AboutFunding />
     </Stack>
   );
