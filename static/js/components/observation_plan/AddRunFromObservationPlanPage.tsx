@@ -48,7 +48,6 @@ const AddRunFromObservationPlanPage = ({
   return (
     <>
       <Button
-        secondary
         size="small"
         onClick={openDialog}
         data-testid={`addObservingRunButton_${observationplanRequest.id}`}

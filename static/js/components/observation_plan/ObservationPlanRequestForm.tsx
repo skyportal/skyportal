@@ -16,6 +16,7 @@ import { DateTimePicker } from "@mui/x-date-pickers/DateTimePicker";
 import CircularProgress from "@mui/material/CircularProgress";
 import Grid from "@mui/material/Grid";
 import { makeStyles } from "tss-react/mui";
+import Typography from "@mui/material/Typography";
 import Form from "@rjsf/mui";
 import validator from "@rjsf/validator-ajv8";
 import dayjs from "dayjs";
@@ -82,14 +83,9 @@ const useStyles = makeStyles()(() => ({
     },
   },
   buttons: {
-    display: "grid",
-    gridGap: "1rem",
-    gridTemplateColumns: "repeat(auto-fit, minmax(6.5rem, 1fr))",
-    "& > button": {
-      maxHeight: "4rem",
-      // no space between 2 lines of text
-      lineHeight: "1rem",
-    },
+    display: "flex",
+    flexWrap: "wrap",
+    gap: "0.25rem",
     marginTop: "0.5rem",
     marginBottom: "1rem",
   },
@@ -391,15 +387,19 @@ const ObservationPlanRequestForm = ({
   // render to update it, so it can be null even if allocationListApiObsplan is not
   // empty.
   if (!allocationListApiObsplan.length) {
-    return <h3>No allocations with an observation plan API...</h3>;
+    return (
+      <Typography variant="body2" sx={{ color: "text.secondary" }}>
+        No allocations with an observation plan API
+      </Typography>
+    );
   }
 
   if (!filteredAllocationListApiObsplan.length) {
     return (
-      <h3>
-        No allocations with an observation plan API and observation plan type
-        set...
-      </h3>
+      <Typography variant="body2" sx={{ color: "text.secondary" }}>
+        No allocations with an observation plan API and the observation plan
+        type
+      </Typography>
     );
   }
 
@@ -695,7 +695,6 @@ const ObservationPlanRequestForm = ({
             </div>
             <div className={classes.buttons}>
               <Button
-                secondary
                 href={`/api/localization/${selectedLocalizationId}/observability`}
                 download={`observabilityChartRequest-${selectedLocalizationId}`}
                 size="small"
@@ -705,7 +704,6 @@ const ObservationPlanRequestForm = ({
                 Observability Chart
               </Button>
               <Button
-                secondary
                 href={`/api/localization/${selectedLocalizationId}/airmass/${
                   instLookUp[
                     allocationLookUp[selectedAllocationId]?.instrument_id
@@ -719,7 +717,6 @@ const ObservationPlanRequestForm = ({
                 Airmass Chart
               </Button>
               <Button
-                secondary
                 href={`/api/localization/${selectedLocalizationId}/worldmap`}
                 download={`worldmapChartRequest-${selectedLocalizationId}`}
                 size="small"
@@ -729,7 +726,6 @@ const ObservationPlanRequestForm = ({
                 World Map Chart
               </Button>
               <Button
-                secondary
                 onClick={() => exportData(skymapInstrument)}
                 size="small"
                 type="submit"

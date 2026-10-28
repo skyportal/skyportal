@@ -71,7 +71,6 @@ const AddSurveyEfficiencyObservationPlanPage = ({
   return (
     <>
       <Button
-        secondary
         size="small"
         onClick={openDialog}
         data-testid={`addSimSurveyButton_${gcnevent.id}`}
