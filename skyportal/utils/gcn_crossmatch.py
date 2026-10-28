@@ -79,6 +79,7 @@ from skyportal.utils.jpl_sbident import (
     obscode_for_survey,
 )
 from skyportal.utils.naive_datetime import utcnow_naive
+from skyportal.utils.notifications import post_notification_in_background
 
 log = make_log("gcn_crossmatch")
 
@@ -925,13 +926,29 @@ async def process_event_filter(
     event_dateobs = event.dateobs
     state_id = state.id
     user_id = user.id
+    event_id = event.id
+    filter_id = filter_.id
     distance_at = distance_lookup(localization) if levels else None
+    window_start = Time(
+        event_jd - float(conf(config, "delta_t_before")), format="jd"
+    ).datetime
+    new_obj_ids = []
 
     for index in sorted(levels):
         alert = keep[index]
         object_id = alert_object_id(alert)
         try:
-            await ensure_candidate(
+            already_raised = await session.scalar(
+                sa.select(Candidate.id)
+                .where(
+                    Candidate.obj_id == object_id,
+                    Candidate.filter_id == filter_id,
+                    Candidate.uploader_id == user_id,
+                    Candidate.passed_at >= window_start,
+                )
+                .limit(1)
+            )
+            raised = await ensure_candidate(
                 session,
                 user,
                 alert,
@@ -960,8 +977,12 @@ async def process_event_filter(
                     credible_level=levels[index],
                 ),
             )
-            await propose_association(session, user_id, object_id, event_dateobs)
+            proposed = await propose_association(
+                session, user_id, object_id, event_dateobs
+            )
             await session.commit()
+            if raised and not archival and (proposed or already_raised is None):
+                new_obj_ids.append(object_id)
             # Ask whether the candidate is a known minor planet. Every survey is
             # asked, not just the ones whose alerts carry their own solar-system
             # match: a field a survey does not populate would otherwise read as
@@ -984,6 +1005,16 @@ async def process_event_filter(
         jd = alert_jd(alert)
         if jd is not None and (newest_jd is None or jd > newest_jd):
             newest_jd = jd
+
+    if new_obj_ids:
+        post_notification_in_background(
+            {
+                "target_class_name": "GcnEventMatches",
+                "target_id": event_id,
+                "filter_id": filter_id,
+                "obj_ids": new_obj_ids,
+            }
+        )
 
     modified = await session.scalar(
         sa.select(GcnEventCrossmatchState.modified).where(
@@ -1868,7 +1899,8 @@ def cone_match_stage(ra, dec, radius_deg):
 async def propose_association(session, user_id, obj_id, event_dateobs):
     """Record the match as awaiting review: status stays 'pending' until a human
     confirms or rejects it. confirmer_id is NOT NULL, so it records the service
-    user that proposed the row, not a verdict. Never overwrites an existing one."""
+    user that proposed the row, not a verdict. Never overwrites an existing one.
+    Returns whether a row was added."""
     existing = await session.scalar(
         sa.select(GcnEventObj).where(
             GcnEventObj.obj_id == obj_id,
@@ -1884,6 +1916,8 @@ async def propose_association(session, user_id, obj_id, event_dateobs):
                 confirmer_id=user_id,
             )
         )
+        return True
+    return False
 
 
 async def resolve_quality_pipeline(session, broker, filter_id):
