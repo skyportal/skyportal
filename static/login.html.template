@@ -118,7 +118,7 @@
       </section>
       {%- if app.about is defined and app.about.developers %}
       <section class="aboutCard">
-        <h2>SkyPortal dev team</h2>
+        <h2>SkyPortal team</h2>
         <div class="team">
           {%- for person in app.about.developers %}
           <figure>

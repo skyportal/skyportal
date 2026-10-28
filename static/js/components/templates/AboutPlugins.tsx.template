@@ -197,7 +197,7 @@ export const AboutMaintainers = () => (
 );
 
 export const AboutTeam = () => (
-  <AboutCard title="SkyPortal dev team">
+  <AboutCard title="SkyPortal team">
     <TeamGrid people={ {{ (app.about.developers or []) | tojson }} } />
 {%- if app.about.alumni %}
     <SectionTitle>Alumni</SectionTitle>
