@@ -35,6 +35,7 @@ from skyportal.utils.tns import (
     read_tns_photometry,
     read_tns_spectrum,
     should_replace_tns_name,
+    tns_designation,
 )
 
 env, cfg = load_env()
@@ -541,29 +542,34 @@ def tns_name_refresher(queue):
         log("TNS name refresher not configured, skipping")
         return
 
+    last_queued = {}
     while True:
         try:
             with DBSession() as session:
                 since = datetime.now() - timedelta(days=name_refresh_look_back_days)
-                obj_ids = session.scalars(
-                    sa.select(Obj.id)
+                tns_names = session.scalars(
+                    sa.select(Obj.tns_name)
                     .join(Classification, Classification.obj_id == Obj.id)
                     .where(
                         Obj.tns_name.ilike("AT%"),
                         Classification.ml.is_(False),
                         Classification.created_at >= since,
                     )
-                    .group_by(Obj.id)
+                    .group_by(Obj.tns_name)
                     .order_by(sa.func.max(Classification.created_at).desc())
-                    .limit(name_refresh_batch_size)
                 ).all()
 
-            for obj_id in obj_ids:
-                queue.append({"obj_id": obj_id, "user_id": USER_ID})
-            if obj_ids:
-                log(
-                    f"Queued {len(obj_ids)} classified AT objects for a TNS name refresh"
-                )
+            last_queued = {
+                name: last_queued[name] for name in tns_names if name in last_queued
+            }
+            batch = sorted(tns_names, key=lambda name: last_queued.get(name, 0))[
+                :name_refresh_batch_size
+            ]
+            for tns_name in batch:
+                queue.append({"tns_source": tns_designation(tns_name)})
+                last_queued[tns_name] = time.time()
+            if batch:
+                log(f"Queued {len(batch)} classified AT objects for a TNS name refresh")
         except Exception as e:
             log(f"Error queueing objects for a TNS name refresh: {e}")
 
