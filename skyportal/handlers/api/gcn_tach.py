@@ -256,8 +256,8 @@ def post_aliases(dateobs, tach_id, user_id):
             action_type="skyportal/REFRESH_GCN_EVENT",
             payload={"gcnEvent_dateobs": dateobs},
         )
-    except Exception:
-        log(f"Failed to post aliases for {dateobs}")
+    except Exception as e:
+        log(f"Failed to post aliases for {dateobs}: {e}")
     finally:
         session.close()
 
