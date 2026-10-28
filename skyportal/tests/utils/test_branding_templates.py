@@ -47,13 +47,6 @@ FRITZ_LIKE = {
                     },
                 }
             ],
-            "changelog_repositories": [
-                {
-                    "name": "Fritz",
-                    "url": "https://github.com/fritz-marshal/fritz/pulls",
-                },
-                {"name": "BOOM", "url": "https://github.com/boom-astro/boom/pulls"},
-            ],
         },
     },
 }
@@ -76,9 +69,6 @@ def test_about_template_renders_deployment_branding():
     assert "https://docs.fritz.science/api.html" in out
     assert "https://github.com/fritz-marshal/fritz" in out
     assert "Fritz development is funded by the Moore Foundation." in out
-    # every configured changelog repo is linked
-    assert '<a href="https://github.com/fritz-marshal/fritz/pulls">Fritz</a>' in out
-    assert '<a href="https://github.com/boom-astro/boom/pulls">BOOM</a>' in out
     # SkyPortal's own defaults must not leak through
     assert "This is SkyPortal" not in out
 
@@ -102,14 +92,13 @@ def test_about_template_escapes_characters_jsx_treats_specially():
     assert "&amp;" in out
 
 
-def test_about_template_leaves_bibtex_and_jsx_braces_alone():
-    """BibTeX (`{{SkyPortal}`) and JSX object props (`sx={{ p: 1 }}`) both look
-    like Jinja expressions; they are wrapped in {% raw %} and must survive."""
+def test_about_template_leaves_bibtex_braces_alone():
+    """BibTeX (`{{SkyPortal}`) looks like a Jinja expression; it is wrapped in
+    {% raw %} and must survive."""
     out = render(ABOUT_TEMPLATE, FRITZ_LIKE)
 
     assert "title = {{SkyPortal}: An Astronomical Data Platform}" in out
     assert "author = {{Duev}, Dmitry A." in out
-    assert "sx={{ p: 1 }}" in out
 
 
 def test_login_template_renders_configured_buttons():

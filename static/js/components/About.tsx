@@ -3,7 +3,6 @@ import Stack from "@mui/material/Stack";
 import Typography from "@mui/material/Typography";
 
 import {
-  AboutChangelog,
   AboutCitations,
   AboutFunding,
   AboutInstances,
@@ -67,7 +66,6 @@ const About = () => {
       )}
       <AboutTeam />
       <AboutCitations />
-      <AboutChangelog />
       <AboutCard title="Cosmology">
         <Typography variant="body1" component="div">
           The cosmology currently used here is an instance of{" "}

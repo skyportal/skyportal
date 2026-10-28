@@ -52,10 +52,6 @@ app:
     # Paragraphs added after the description (zero or more). In `text`, a
     # {Name} placeholder becomes a link to the matching entry in `links`.
     extra_paragraphs: []
-    # Repositories whose pull requests are linked above the changelog.
-    changelog_repositories:
-      - name: https://github.com/skyportal/skyportal/pulls
-        url: https://github.com/skyportal/skyportal/pulls?q=is%3Apr+
     # Other SkyPortal deployments, listed on the login page.
     instances:
       - name: Fritz

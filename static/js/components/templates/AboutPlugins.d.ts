@@ -6,5 +6,4 @@ export declare const AboutIntro: FC;
 export declare const AboutInstances: FC;
 export declare const AboutTeam: FC;
 export declare const AboutCitations: FC;
-export declare const AboutChangelog: FC;
 export declare const AboutFunding: FC;

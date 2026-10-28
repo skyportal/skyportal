@@ -18,14 +18,9 @@
 {%- endif -%}
 {%- endfor -%}
 import { Link as RouterLink } from "react-router-dom";
-import Box from "@mui/material/Box";
 import Link from "@mui/material/Link";
-import Paper from "@mui/material/Paper";
 import Stack from "@mui/material/Stack";
 import Typography from "@mui/material/Typography";
-import { makeStyles } from "tss-react/mui";
-
-import dayjs from "dayjs";
 import { useGetSysInfoQuery } from "../../ducks/sysInfo";
 import {
   AboutCard,
@@ -37,25 +32,6 @@ import {
   TeamGrid,
   type Citation,
 } from "../about/AboutSections";
-
-const useStyles = makeStyles()((theme) => ({
-  gitlogPaper: {
-    maxHeight: "30rem",
-    overflow: "auto",
-  },
-  gitlogList: {
-    fontFamily: "monospace",
-  },
-  gitlogName: {
-    paddingRight: "0.25rem",
-  },
-  gitlogSHA: {
-    color: `${theme.palette.error.main} !important`,
-  },
-  gitlogPR: {
-    color: theme.palette.secondary.dark,
-  },
-}));
 
 {#- BibTeX below contains {{ and {% sequences; keep Jinja out of it. #}
 {% raw %}const CITATIONS: Citation[] = [
@@ -230,61 +206,6 @@ export const AboutCitations = () => (
     <CitationBlocks citations={CITATIONS} />
   </AboutCard>
 );
-
-export const AboutChangelog = () => {
-  const { classes } = useStyles();
-  const { data: sysInfo } = useGetSysInfoQuery();
-  const gitlog = sysInfo?.gitlog;
-
-  if (!gitlog) return null;
-  return (
-    <AboutCard title="Recent changes">
-      <Paper variant="outlined" className={classes.gitlogPaper}>
-        <Box {% raw %}sx={{ p: 1 }}{% endraw %}>
-          <div>
-            See all pull requests at{" "}
-{%- for repo in app.about.changelog_repositories %}
-            <a href="{{ repo.url }}">{{ repo.name }}</a>
-{%- if not loop.last %}
-            {", "}
-{%- endif %}
-{%- endfor %}
-          </div>
-          <ul className={classes.gitlogList}>
-            {gitlog.map(
-              ({
-                name,
-                time,
-                sha,
-                description,
-                pr_nr,
-                pr_url,
-                commit_url,
-              }: any) => (
-                <li key={sha}>
-                  {name && (
-                    <span className={classes.gitlogName}>[{name}]</span>
-                  )}
-                  [{dayjs(time).format("YYYY-MM-DD")}
-                  <a className={classes.gitlogSHA} href={commit_url}>
-                    &nbsp;{sha}
-                  </a>
-                  ] {description}
-                  {pr_nr && (
-                    <a href={pr_url}>
-                      &nbsp;(
-                      <span className={classes.gitlogPR}>#{pr_nr}</span>)
-                    </a>
-                  )}
-                </li>
-              ),
-            )}
-          </ul>
-        </Box>
-      </Paper>
-    </AboutCard>
-  );
-};
 
 export const AboutFunding = () => (
   <AboutCard>
