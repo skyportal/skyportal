@@ -1,47 +1,250 @@
+{%- macro prose(text, links={}) -%}
+{%- set ns = namespace(t = text | trim | replace("&", "&amp;") | replace("<", "&lt;") | replace(">", "&gt;")) -%}
+{%- for name, url in (links or {}).items() -%}
+{%- set ns.t = ns.t | replace("{" ~ name ~ "}", '<a href="' ~ url ~ '">' ~ name ~ "</a>") -%}
+{%- endfor -%}
+{{ ns.t }}
+{%- endmacro -%}
+{%- set instances = namespace(current=none, others=[]) -%}
+{%- if app.about is defined and app.about.instances -%}
+{%- for instance in app.about.instances -%}
+{%- if instance.name | lower == app.title | lower -%}
+{%- set instances.current = instance -%}
+{%- else -%}
+{%- set instances.others = instances.others + [instance] -%}
+{%- endif -%}
+{%- endfor -%}
+{%- endif -%}
 <!DOCTYPE html>
 <html>
   <head>
     <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="robots" content="noindex">
     <title>{{ app.title }}</title>
     <link rel="stylesheet" type="text/css" href="/static/login.css" />
   </head>
-  <body>
-    <div class="loginBox">
-      <div class="loginHeader">
-        <div class="logos">
-          {%- for logo in app.logos %}
-          <div class="logoContainer">
-            <img src="{{ logo.src }}" altText="{{ logo.alt_text }}"  class="logo" />
+  <body class="loginPage">
+    <header class="loginBanner">
+      <div class="logos">
+        {%- for logo in app.logos %}
+        <div class="logoContainer">
+          <img src="{{ logo.src }}" altText="{{ logo.alt_text }}"  class="logo" />
+        </div>
+        {%- endfor %}
+      </div>
+      <h1 class="title">{% block title %} Welcome to {{ app.title }} {% endblock %}</h1>
+      {%- if instances.current and instances.current.description %}
+      <p class="bannerDescription">{{ instances.current.description }}</p>
+      {%- endif %}
+      {%- if user_applications is defined and user_applications.enabled and invitations is defined and invitations.enabled %}
+      <button type="button" class="applyOpen" onclick="document.getElementById('applyDialog').showModal()">Request an account</button>
+      {%- endif %}
+    </header>
+    <main class="loginMain">
+      <section class="signIn">
+        {% block loginText -%}
+        {%- if app.login_message %}
+        <p>{{ app.login_message }}</p>
+        {%- endif %}
+        {%- endblock %}
+        <div class="signInCarousel">
+          {%- for copy in range(2) %}
+          <div class="signInGroup"{% if copy %} aria-hidden="true"{% endif %}>
+            {%- for backend in auth_backends %}
+            {%- set button = app.login_buttons | selectattr('url', 'equalto', '/login/' ~ backend.name) | first | default(none) %}
+            <div class="loginButton{{ ' loginButtonCopy' if copy }}">
+              <a href="/login/{{ backend.name }}"{% if copy %} tabindex="-1"{% endif %}>
+                {%- if button %}
+                <img src="{{ button.image }}" alt="{{ button.alt_text }}" />
+                {%- else %}
+                <span class="loginButtonText">
+                  {%- if backend.name == "google-oauth2" %}
+                  <svg viewBox="0 0 48 48" aria-hidden="true">
+                    <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z" />
+                    <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z" />
+                    <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z" />
+                    <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z" />
+                  </svg>
+                  {%- elif backend.name == "orcid" %}
+                  <svg viewBox="0 0 256 256" aria-hidden="true">
+                    <path fill="#A6CE39" d="M256 128c0 70.7-57.3 128-128 128S0 198.7 0 128 57.3 0 128 0s128 57.3 128 128z" />
+                    <path fill="#FFF" d="M86.3 186.2H70.9V79.1h15.4v107.1zM108.9 79.1h41.6c39.6 0 57 28.3 57 53.6 0 27.5-21.5 53.6-56.8 53.6h-41.8V79.1zm15.4 93.3h24.5c34.9 0 42.9-26.5 42.9-39.7C191.7 111.2 178 93 148 93h-23.7v79.4zM88.7 56.8c0 5.5-4.5 10.1-10.1 10.1s-10.1-4.6-10.1-10.1c0-5.6 4.5-10.1 10.1-10.1s10.1 4.6 10.1 10.1z" />
+                  </svg>
+                  {%- elif backend.name == "github" %}
+                  <svg viewBox="0 0 16 16" aria-hidden="true">
+                    <path fill="#181717" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z" />
+                  </svg>
+                  {%- endif %}
+                  {{ backend.label }}
+                </span>
+                {%- endif %}
+              </a>
+            </div>
+            {%- endfor %}
           </div>
           {%- endfor %}
         </div>
-        <span class="title">{% block title %} Welcome to {{ app.title }} {% endblock %}</span>
-      </div>
-      <div class="loginText">
-        {% block loginText -%}
-        <p>{{ app.login_message }}</p>
-        {%- endblock %}
-        {%- for backend in auth_backends %}
-        {%- set button = app.login_buttons | selectattr('url', 'equalto', '/login/' ~ backend.name) | first | default(none) %}
-        <div class="loginButton">
-          <a href="/login/{{ backend.name }}">
-            {%- if button %}
-            <img src="{{ button.image }}" alt="{{ button.alt_text }}" />
-            {%- else %}
-            <span class="loginButtonText">{{ backend.label }}</span>
-            {%- endif %}
+        {%- if user_applications is defined and user_applications.enabled and invitations is defined and invitations.enabled %}
+        <dialog id="applyDialog" class="applyDialog">
+          <div class="applyDialogHeader">
+            <h2>Request an account</h2>
+            <button type="button" class="applyClose" aria-label="Close" onclick="this.closest('dialog').close()">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" /></svg>
+            </button>
+          </div>
+          <div class="applyDialogBody">
+            <p>{{ user_applications.form_preamble }}</p>
+            {% include "_apply_form.html" %}
+          </div>
+        </dialog>
+        {%- endif %}
+      </section>
+      {%- if instances.others %}
+      <section class="instances">
+        <h2>{{ "Other instances" if instances.current else "Instances" }}</h2>
+        <div class="instanceList">
+          {%- for instance in instances.others %}
+          <a class="instance" href="{{ instance.url }}">
+            <span class="instanceName">{{ instance.name }}</span>
+            <span class="instanceBody">
+              {%- if instance.description %}
+              <span class="instanceDescription">{{ instance.description }}</span>
+              {%- endif %}
+              <span class="instanceUrl">{{ instance.url | replace("https://", "") | replace("http://", "") | trim("/") }}</span>
+            </span>
+          </a>
+          {%- endfor %}
+        </div>
+      </section>
+      {%- endif %}
+      <section class="aboutCard" id="managers" hidden>
+        <h2>Managed by</h2>
+        <div class="team" id="managerList"></div>
+      </section>
+      {%- if app.about is defined and app.about.developers %}
+      <section class="aboutCard">
+        <h2>SkyPortal dev team</h2>
+        <div class="team">
+          {%- for person in app.about.developers %}
+          <figure>
+            <img src="{{ person.image }}" alt="{{ person.name }}" />
+            <figcaption>{{ person.name }}</figcaption>
+          </figure>
+          {%- endfor %}
+        </div>
+      </section>
+      {%- endif %}
+      {%- if app.about is defined %}
+      <section class="aboutCard">
+        <h2>About {{ app.title }}</h2>
+        <p>{{ prose(app.about.description) }}</p>
+        {%- for paragraph in app.about.extra_paragraphs %}
+        <p>{{ prose(paragraph.text, paragraph.links) }}</p>
+        {%- endfor %}
+        <div class="aboutLinks">
+          <a href="{{ app.about.homepage_url }}">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z" /></svg>
+            Website
+          </a>
+          <a href="{{ app.about.docs_url }}">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 2H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z" /></svg>
+            Documentation
+          </a>
+          <a href="{{ app.about.api_docs_url }}">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9.4 16.6 4.8 12l4.6-4.6L8 6l-6 6 6 6 1.4-1.4zm5.2 0 4.6-4.6-4.6-4.6L16 6l6 6-6 6-1.4-1.4z" /></svg>
+            API
+          </a>
+          <a href="{{ app.about.repository_url }}">
+            <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z" /></svg>
+            GitHub
           </a>
         </div>
+        <h2>Citing {{ app.title }}</h2>
+        <div class="citations">
+          <a class="citation" href="https://doi.org/10.3847/1538-4365/acdee1">
+            <span class="citationTitle">A Data Science Platform to Enable Time-domain Astronomy</span>
+            <span class="citationAuthors">Coughlin, Michael W., et al.</span>
+            <span class="citationVenue">The Astrophysical Journal Supplement Series, 267, 2, Jul 2023</span>
+            <span class="citationRef">doi:10.3847/1538-4365/acdee1</span>
+          </a>
+          <a class="citation" href="https://doi.org/10.21105/joss.01247">
+            <span class="citationTitle">SkyPortal: An Astronomical Data Platform</span>
+            <span class="citationAuthors">Stéfan J. van der Walt, Arien Crellin-Quick, Joshua S. Bloom</span>
+            <span class="citationVenue">Journal of Open Source Software, 4(37) 1247, May 2019</span>
+            <span class="citationRef">doi:10.21105/joss.01247</span>
+          </a>
+          <a class="citation" href="https://doi.org/10.1093/mnras/stz2357">
+            <span class="citationTitle">Real-bogus classification for the Zwicky Transient Facility using deep learning</span>
+            <span class="citationAuthors">Duev, Dmitry A., et al.</span>
+            <span class="citationVenue">Monthly Notices of the Royal Astronomical Society, 489(3) 3582-3590, 2019</span>
+            <span class="citationRef">doi:10.1093/mnras/stz2357</span>
+          </a>
+          <a class="citation" href="https://doi.org/10.1088/1538-3873/aafbc2">
+            <span class="citationTitle">The GROWTH marshal: a dynamic science portal for time-domain astronomy</span>
+            <span class="citationAuthors">Kasliwal, M., et al.</span>
+            <span class="citationVenue">Publications of the Astronomical Society of the Pacific, 131(997) 038003, Feb 2019</span>
+            <span class="citationRef">doi:10.1088/1538-3873/aafbc2</span>
+          </a>
+          <a class="citation" href="https://arxiv.org/abs/2111.12142">
+            <span class="citationTitle">Phenomenological classification of the Zwicky Transient Facility astronomical event alerts</span>
+            <span class="citationAuthors">Dmitry A. Duev &amp; Stéfan J. van der Walt</span>
+            <span class="citationVenue">ACAI classifiers, Nov 2021</span>
+            <span class="citationRef">arXiv:2111.12142</span>
+          </a>
+        </div>
+      </section>
+      {%- endif %}
+    </main>
+    {%- if app.about is defined %}
+    <footer class="funding">
+      <p>{{ prose(app.about.funding) }}</p>
+      {%- if app.about.funders %}
+      <div class="funders">
+        {%- for funder in app.about.funders %}
+        <a href="{{ funder.url }}"><img src="{{ funder.logo }}" alt="{{ funder.name }}" /></a>
         {%- endfor %}
-        {%- if user_applications is defined and user_applications.enabled and invitations is defined and invitations.enabled %}
-        <details class="applyDetails">
-          <summary>No account yet? Request one</summary>
-          <p>{{ user_applications.form_preamble }}</p>
-          {% include "_apply_form.html" %}
-        </details>
-        {%- endif %}
       </div>
-    </div>
+      {%- endif %}
+    </footer>
+    {%- endif %}
+    <script>
+      const applyDialog = document.getElementById("applyDialog");
+      applyDialog?.addEventListener("click", (event) => {
+        if (event.target === applyDialog) applyDialog.close();
+      });
+      (async () => {
+        let managers = [];
+        try {
+          const response = await fetch("/api/instance_managers");
+          managers = (await response.json()).data?.managers ?? [];
+        } catch {
+          return;
+        }
+        const list = document.getElementById("managerList");
+        for (const manager of managers) {
+          const name = [manager.first_name, manager.last_name]
+            .filter(Boolean)
+            .join(" ");
+          const avatar = document.createElement("div");
+          avatar.className = "avatar";
+          avatar.setAttribute("aria-hidden", "true");
+          avatar.textContent = (manager.first_name?.[0] ?? "") + (manager.last_name?.[0] ?? "");
+          const photo = document.createElement("img");
+          photo.src = `${manager.gravatar_url}&s=160`;
+          photo.alt = "";
+          avatar.append(photo);
+          const caption = document.createElement("figcaption");
+          caption.textContent = name;
+          const affiliation = document.createElement("span");
+          affiliation.textContent = (manager.affiliations ?? []).join(", ");
+          caption.append(affiliation);
+          const figure = document.createElement("figure");
+          figure.append(avatar, caption);
+          list.append(figure);
+        }
+        document.getElementById("managers").hidden = managers.length === 0;
+      })();
+    </script>
   </body>
 </html>

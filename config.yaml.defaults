@@ -12,18 +12,11 @@ app:
   logos: # Logos to place in the top-left of the header/login page (zero or more)
     - src: /static/images/skyportal_logo_dark.png
       alt_text: Skyportal logo
-  login_message: |
-    For more information about the project, see
-    <a href="https://github.com/skyportal/skyportal">
-      https://github.com/skyportal/skyportal
-    </a>
+  login_message: ""
   # Artwork for the login page buttons. The buttons themselves come from
   # `server.auth.backends`, so a provider needs no entry here; add one, matched
   # on `url`, to replace that provider's text button with an image.
-  login_buttons:
-    - url: /login/google-oauth2
-      image: /static/images/btn_google_signin_dark_normal_web.png
-      alt_text: Click this image to log in
+  login_buttons: []
 
   # Copy for the About page; `title` above supplies the platform name.
   about:
@@ -39,6 +32,23 @@ app:
     funding: >-
       SkyPortal development is funded by the Moore Foundation, Heising Simons
       Foundation, National Science Foundation, NASA and the Packard Foundation.
+    # Logos shown under `funding` on the login page.
+    funders:
+      - name: Gordon and Betty Moore Foundation
+        logo: /static/images/funders/moore.png
+        url: https://www.moore.org/grant-detail?grantId=GBMF9122
+      - name: Heising-Simons Foundation
+        logo: /static/images/funders/heising-simons.svg
+        url: https://www.hsfoundation.org
+      - name: National Science Foundation
+        logo: /static/images/funders/nsf.png
+        url: https://www.nsf.gov
+      - name: NASA
+        logo: /static/images/funders/nasa.png
+        url: https://www.nasa.gov
+      - name: David and Lucile Packard Foundation
+        logo: /static/images/funders/packard.svg
+        url: https://www.packard.org
     # Paragraphs added after the description (zero or more). In `text`, a
     # {Name} placeholder becomes a link to the matching entry in `links`.
     extra_paragraphs: []
@@ -46,7 +56,24 @@ app:
     changelog_repositories:
       - name: https://github.com/skyportal/skyportal/pulls
         url: https://github.com/skyportal/skyportal/pulls?q=is%3Apr+
-    # SkyPortal core team, on the About page.
+    # Other SkyPortal deployments, listed on the login page.
+    instances:
+      - name: Fritz
+        url: https://fritz.science
+        description: >-
+          Science data platform of the Zwicky Transient Facility. Managed by
+          Caltech, hosted on Google Cloud in the US.
+      - name: Orcus
+        url: https://orcusgate.org
+        description: >-
+          ZTF, LSST and DECam alerts filtered by BOOM. Managed by the University
+          of Minnesota, hosted on Google Cloud in the US.
+      - name: ICARE
+        url: https://skyportal-icare.ijclab.in2p3.fr
+        description: >-
+          ZTF and LSST alerts. Managed by IJCLab (Université Paris-Saclay),
+          hosted in France.
+    # SkyPortal core team, on the About and login pages.
     developers:
       - name: Sarah Antier
         image: /static/images/developers/antier.jpeg
