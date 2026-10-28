@@ -619,20 +619,38 @@ body {
 }
 
 @media (hover: hover) {
-  .aboutLinks a:not(:first-child) {
-    opacity: 0;
-    visibility: hidden;
-    transform: translateX(-0.5rem);
+  .aboutLinks {
+    pointer-events: none;
+  }
+
+  .loginPage .aboutLinks a {
+    position: relative;
+    pointer-events: auto;
+    transform: translateX(var(--stack, 0));
     transition:
-      opacity 0.2s ease,
-      transform 0.2s ease,
-      visibility 0.2s;
+      transform 0.4s cubic-bezier(0.2, 0.8, 0.2, 1),
+      background-color 0.15s ease,
+      color 0.15s ease;
+  }
+
+  .aboutLinks a:nth-child(1) {
+    z-index: 4;
+  }
+
+  .aboutLinks a:nth-child(2) {
+    z-index: 3;
+  }
+
+  .aboutLinks a:nth-child(3) {
+    z-index: 2;
+  }
+
+  .aboutLinks a:nth-child(4) {
+    z-index: 1;
   }
 
   .aboutLinks:hover a,
   .aboutLinks:focus-within a {
-    opacity: 1;
-    visibility: visible;
     transform: none;
   }
 }
@@ -644,6 +662,7 @@ body {
   padding: 0.55rem 1.3rem;
   border: 1px solid #457b9d;
   border-radius: 999px;
+  background-color: white;
   color: #1d3557;
   transition:
     background-color 0.15s ease,

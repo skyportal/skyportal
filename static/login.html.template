@@ -212,6 +212,20 @@
     </footer>
     {%- endif %}
     <script>
+      const aboutLinks = document.querySelector(".aboutLinks");
+      const stackLinks = () => {
+        const links = [...aboutLinks.children];
+        links.forEach((link, index) =>
+          link.style.setProperty(
+            "--stack",
+            `${links[0].offsetLeft + index * 6 - link.offsetLeft}px`,
+          ),
+        );
+      };
+      if (aboutLinks) {
+        stackLinks();
+        window.addEventListener("resize", stackLinks);
+      }
       const applyDialog = document.getElementById("applyDialog");
       applyDialog?.addEventListener("click", (event) => {
         if (event.target === applyDialog) applyDialog.close();

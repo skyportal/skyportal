@@ -1,4 +1,4 @@
-import { ReactNode } from "react";
+import { ReactNode, useLayoutEffect, useRef } from "react";
 import Avatar from "@mui/material/Avatar";
 import Box from "@mui/material/Box";
 import Chip from "@mui/material/Chip";
@@ -73,26 +73,34 @@ export const LinkPills = ({
     { label: "API", url: api, icon: <CodeIcon /> },
     { label: "GitHub", url: repository, icon: <GitHubIcon /> },
   ];
+  const stackRef = useRef<HTMLDivElement>(null);
+
+  useLayoutEffect(() => {
+    const stackLinks = () => {
+      const items = [...(stackRef.current?.children ?? [])] as HTMLElement[];
+      items.forEach((item, index) =>
+        item.style.setProperty(
+          "--stack",
+          `${items[0]!.offsetLeft + index * 6 - item.offsetLeft}px`,
+        ),
+      );
+    };
+    stackLinks();
+    window.addEventListener("resize", stackLinks);
+    return () => window.removeEventListener("resize", stackLinks);
+  }, []);
+
   return (
     <Stack
+      ref={stackRef}
       direction="row"
       sx={{
         flexWrap: "wrap",
         gap: 1.5,
         width: "fit-content",
         "@media (hover: hover)": {
-          "& > :not(:first-of-type)": {
-            opacity: 0,
-            visibility: "hidden",
-            transform: "translateX(-0.5rem)",
-            transition:
-              "opacity 0.2s ease, transform 0.2s ease, visibility 0.2s",
-          },
-          "&:hover > *, &:focus-within > *": {
-            opacity: 1,
-            visibility: "visible",
-            transform: "none",
-          },
+          pointerEvents: "none",
+          "&:hover > *, &:focus-within > *": { transform: "none" },
         },
       }}
     >
@@ -106,7 +114,18 @@ export const LinkPills = ({
           label={link.label}
           color="primary"
           variant={index === 0 ? "filled" : "outlined"}
-          sx={{ fontWeight: 600, px: 0.5 }}
+          sx={{
+            fontWeight: 600,
+            px: 0.5,
+            "@media (hover: hover)": {
+              position: "relative",
+              zIndex: links.length - index,
+              pointerEvents: "auto",
+              transform: "translateX(var(--stack, 0))",
+              transition: "transform 0.4s cubic-bezier(0.2, 0.8, 0.2, 1)",
+              ...(index > 0 && { bgcolor: surface }),
+            },
+          }}
         />
       ))}
     </Stack>
