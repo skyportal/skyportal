@@ -7,6 +7,11 @@ import Paper from "@mui/material/Paper";
 import AboutPlugins from "./templates/AboutPlugins";
 import { useGetConfigQuery } from "../ducks/config";
 
+interface TeamMember {
+  name: string;
+  image: string;
+}
+
 const useStyles = makeStyles()(() => ({
   root: {
     padding: "1rem 2rem 2rem 2rem",
@@ -63,136 +68,34 @@ const About = () => {
   const cosmologyParams = (useGetConfigQuery().data as any)?.cosmologyParams;
   const cosmoref = (useGetConfigQuery().data as any)?.cosmoref;
 
-  const developers = [
-    {
-      name: "Sarah Antier",
-      src: "/static/images/developers/antier.jpeg",
-    },
-    {
-      name: "Pete Bachant",
-      src: "/static/images/developers/bachant.jpg",
-    },
-    {
-      name: "Joshua Bloom",
-      src: "/static/images/developers/bloom.jpeg",
-    },
-    {
-      name: "Leo Conforti",
-      src: "/static/images/developers/conforti.jpg",
-    },
-    {
-      name: "Michael Coughlin",
-      src: "/static/images/developers/coughlin.jpg",
-    },
-    {
-      name: "Thomas Culino",
-      src: "/static/images/developers/culino.jpg",
-    },
-    {
-      name: "Camille Douzet",
-      src: "/static/images/developers/douzet.jpg",
-    },
-    {
-      name: "Matthew Graham",
-      src: "/static/images/developers/graham.jpg",
-    },
-    {
-      name: "Mansi Kasliwal",
-      src: "/static/images/developers/kasliwal.jpg",
-    },
-    {
-      name: "Antoine Le Calloch",
-      src: "/static/images/developers/lecalloch.jpg",
-    },
-    {
-      name: "Sneha Maharjan",
-      src: "/static/images/developers/maharjan.jpg",
-    },
-    {
-      name: "Sushant Sharma Chaudhary",
-      src: "/static/images/developers/sharmachaudhary.jpg",
-    },
-    {
-      name: "Leo Singer",
-      src: "/static/images/developers/singer.jpg",
-    },
-    {
-      name: "Stéfan van der Walt",
-      src: "/static/images/developers/vanderwalt.jpg",
-    },
-  ];
+  const developers: TeamMember[] =
+    (useGetConfigQuery().data as any)?.aboutDevelopers ?? [];
+  const alumni: TeamMember[] =
+    (useGetConfigQuery().data as any)?.aboutAlumni ?? [];
 
-  const alumni = [
-    {
-      name: "Arien Crellin-Quick",
-      src: "/static/images/developers/crellinquick.jpg",
-    },
-    {
-      name: "Dmitry Duev",
-      src: "/static/images/developers/duev.jpg",
-    },
-    {
-      name: "Daniel Goldstein",
-      src: "/static/images/developers/goldstein.jpg",
-    },
-    {
-      name: "Theophile Jegou du Laz",
-      src: "/static/images/developers/laz.jpeg",
-    },
-    {
-      name: "Jada Lilleboe",
-      src: "/static/images/developers/lilleboe.jpg",
-    },
-    {
-      name: "Don Neill",
-      src: "/static/images/developers/neill.jpg",
-    },
-    {
-      name: "Guy Nir",
-      src: "/static/images/developers/nir.jpg",
-    },
-    {
-      name: "Kyung Min Shin",
-      src: "/static/images/developers/shin.jpg",
-    },
-  ];
+  const team = (people: TeamMember[]) => (
+    <Grid container spacing={2}>
+      {people.map((dev) => (
+        <Grid size={{ md: 3, xs: 4 }} key={dev.name}>
+          <div className={classes.dev}>
+            <Avatar
+              alt={dev.name}
+              src={dev.image}
+              className={classes.devIcon}
+            />
+            <Typography variant="body1">{dev.name}</Typography>
+          </div>
+        </Grid>
+      ))}
+    </Grid>
+  );
 
   return (
     <Paper className={classes.root}>
-      <Typography variant="body1">Meet the core dev team:</Typography>
-      <div>
-        <Grid container spacing={2}>
-          {developers.map((dev) => (
-            <Grid size={{ md: 3, xs: 4 }} key={dev.name}>
-              <div className={classes.dev}>
-                <Avatar
-                  alt={dev.name}
-                  src={dev.src}
-                  className={classes.devIcon}
-                />
-                <Typography variant="body1">{dev.name}</Typography>
-              </div>
-            </Grid>
-          ))}
-        </Grid>
-      </div>
+      <Typography variant="body1">Meet the SkyPortal dev team:</Typography>
+      {team(developers)}
       <Typography variant="body1">and our alumni:</Typography>
-      <div>
-        <Grid container spacing={2}>
-          {alumni.map((dev) => (
-            <Grid size={{ md: 3, xs: 4 }} key={dev.name}>
-              <div className={classes.dev}>
-                <Avatar
-                  alt={dev.name}
-                  src={dev.src}
-                  className={classes.devIcon}
-                />
-                <Typography variant="body1">{dev.name}</Typography>
-              </div>
-            </Grid>
-          ))}
-        </Grid>
-      </div>
+      {team(alumni)}
       <div>
         <AboutPlugins />
       </div>

@@ -46,6 +46,53 @@ app:
     changelog_repositories:
       - name: https://github.com/skyportal/skyportal/pulls
         url: https://github.com/skyportal/skyportal/pulls?q=is%3Apr+
+    # SkyPortal core team, on the About page.
+    developers:
+      - name: Sarah Antier
+        image: /static/images/developers/antier.jpeg
+      - name: Pete Bachant
+        image: https://gravatar.com/avatar/bc242f20e6767ddef3db4e6afe7980cfe2c83fbc714cf291e963f3d7fcb0d782?s=200
+      - name: Joshua Bloom
+        image: https://gravatar.com/avatar/edff272ba50d6de809eafc24bd11e8e402ba05ab9c7dbafb884ab128015eb806?s=200
+      - name: Leo Conforti
+        image: https://gravatar.com/avatar/3fa30d7c01d3b682cb9b1cceb22880fcdd1a726b1d7b7f77ba15b0e46b3f57f5?s=200
+      - name: Michael Coughlin
+        image: https://gravatar.com/avatar/b40171299edeb688bb1b2877167b07a2f8fd17e38ac17da944d09eed77c4eafe?s=200
+      - name: Thomas Culino
+        image: /static/images/developers/culino.jpg
+      - name: Camille Douzet
+        image: /static/images/developers/douzet.jpg
+      - name: Matthew Graham
+        image: /static/images/developers/graham.jpg
+      - name: Mansi Kasliwal
+        image: /static/images/developers/kasliwal.jpg
+      - name: Antoine Le Calloch
+        image: https://gravatar.com/avatar/2d6c12ef8574e42f916f8b68f2bbb8638bf0e7dada5cc9ecb4809c65f14b79d9?s=200
+      - name: Sneha Maharjan
+        image: /static/images/developers/maharjan.jpg
+      - name: Sushant Sharma Chaudhary
+        image: /static/images/developers/sharmachaudhary.jpg
+      - name: Leo Singer
+        image: https://gravatar.com/avatar/405847da73c1a657691db49e5730f6b492c953462ac4548f1d11a2987a3739fa?s=200
+      - name: Stéfan van der Walt
+        image: https://gravatar.com/avatar/21cd7ff8423de0ab7c85ac7c8d94245b9a710ee213ad29da5bec00b5bb987972?s=200
+    alumni:
+      - name: Arien Crellin-Quick
+        image: /static/images/developers/crellinquick.jpg
+      - name: Dmitry Duev
+        image: https://gravatar.com/avatar/e6b42af5451715944b47046930e17828a5a0d15d9cbfd7c19ae438b3a92e5208?s=200
+      - name: Daniel Goldstein
+        image: https://gravatar.com/avatar/fe66d0e44c8483b98d9eace1902ad8c20b998955f360926ce8d42ff41ef0ee35?s=200
+      - name: Theophile Jegou du Laz
+        image: https://gravatar.com/avatar/d8fd253b3faa53ec899d9746977392fe17711132edb66bac92c65e1dcbb8635c?s=200
+      - name: Jada Lilleboe
+        image: /static/images/developers/lilleboe.jpg
+      - name: Don Neill
+        image: /static/images/developers/neill.jpg
+      - name: Guy Nir
+        image: https://gravatar.com/avatar/0e25f6a9accc448edc3f6c3e821c9c02211eb715c2f0c1b762e3912ca114372c?s=200
+      - name: Kyung Min Shin
+        image: /static/images/developers/shin.jpg
 
   # Until accepted, every endpoint returns 403. `text` is markdown. Bumping
   # `version` makes everyone accept again; editing the text alone does not.

@@ -138,6 +138,8 @@ class ConfigHandler(BaseHandler):
                 "openai_summary_apikey_set": summary_apikey_set,
                 "openai_summary_parameters": summary_parameters,
                 "cosmoref": cosmo.__doc__,
+                "aboutDevelopers": cfg["app.about.developers"] or [],
+                "aboutAlumni": cfg["app.about.alumni"] or [],
                 "allowedAllocationTypes": ALLOWED_ALLOCATION_TYPES,
                 "allowedSpectrumTypes": ALLOWED_SPECTRUM_TYPES,
                 "defaultSpectrumType": default_spectrum_type,
