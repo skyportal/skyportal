@@ -74,7 +74,28 @@ export const LinkPills = ({
     { label: "GitHub", url: repository, icon: <GitHubIcon /> },
   ];
   return (
-    <Stack direction="row" sx={{ flexWrap: "wrap", gap: 1.5 }}>
+    <Stack
+      direction="row"
+      sx={{
+        flexWrap: "wrap",
+        gap: 1.5,
+        width: "fit-content",
+        "@media (hover: hover)": {
+          "& > :not(:first-of-type)": {
+            opacity: 0,
+            visibility: "hidden",
+            transform: "translateX(-0.5rem)",
+            transition:
+              "opacity 0.2s ease, transform 0.2s ease, visibility 0.2s",
+          },
+          "&:hover > *, &:focus-within > *": {
+            opacity: 1,
+            visibility: "visible",
+            transform: "none",
+          },
+        },
+      }}
+    >
       {links.map((link, index) => (
         <Chip
           key={link.label}

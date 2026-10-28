@@ -614,7 +614,27 @@ body {
   display: flex;
   flex-wrap: wrap;
   gap: 0.75rem;
+  width: fit-content;
   margin: 0.5rem 0 1rem;
+}
+
+@media (hover: hover) {
+  .aboutLinks a:not(:first-child) {
+    opacity: 0;
+    visibility: hidden;
+    transform: translateX(-0.5rem);
+    transition:
+      opacity 0.2s ease,
+      transform 0.2s ease,
+      visibility 0.2s;
+  }
+
+  .aboutLinks:hover a,
+  .aboutLinks:focus-within a {
+    opacity: 1;
+    visibility: visible;
+    transform: none;
+  }
 }
 
 .loginPage .aboutLinks a {
