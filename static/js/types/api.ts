@@ -17129,6 +17129,59 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/sources/tns": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Re-query TNS for many objects
+         * @description <b>Permission(s) required:</b> <em>Manage sources (or System admin)</em><br><br>Queue a TNS lookup for a list of objects, or for every classified
+         *     object whose stored TNS name still carries the AT prefix. Each object
+         *     takes the name TNS currently holds, which is how an AT becomes an SN
+         *     once TNS accepts a classification.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["ObjTNSBulkPostBody"];
+                };
+            };
+            responses: {
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Success"];
+                    };
+                };
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/sources/{obj_id}/position": {
         parameters: {
             query?: never;
@@ -47941,6 +47994,36 @@ export interface components {
              * @default 1
              */
             search_radius: number;
+        };
+        /**
+         * ObjTNSBulkPostBody
+         * @description Request body for re-querying TNS for many objects at once.
+         */
+        ObjTNSBulkPostBody: {
+            /**
+             * Obj Ids
+             * @description Objects to re-query TNS for.
+             * @default null
+             */
+            obj_ids: string[] | null;
+            /**
+             * Stale Names Only
+             * @description Select every classified object whose stored TNS name still carries the AT prefix, most recently classified first. Mutually exclusive with obj_ids.
+             * @default false
+             */
+            stale_names_only: boolean;
+            /**
+             * Max Objects
+             * @description Cap on how many objects to queue, defaulting to and bounded by app.tns.max_bulk_refresh.
+             * @default null
+             */
+            max_objects: number | null;
+            /**
+             * Radius
+             * @description Search radius, in arcsec, around each object. Defaults to 2.0.
+             * @default 2
+             */
+            radius: number;
         };
         /**
          * ALMAQueryBody
