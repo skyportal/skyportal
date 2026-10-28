@@ -90,9 +90,25 @@ def tns_instrument_id(instrument):
     tns_id = getattr(instrument, "tns_id", None)
     if tns_id is not None:
         return tns_id
-    name = str(getattr(instrument, "name", "") or "").lower()
-    mapped = TNS_INSTRUMENT_IDS.get(name, TNS_OTHER_INSTRUMENT_ID)
+    return tns_instrument_id_for_name(getattr(instrument, "name", ""))
+
+
+def tns_instrument_id_for_name(name):
+    """The TNS id the mapping gives an instrument name, or the Other id.
+
+    Parameters
+    ----------
+    name : str
+        The instrument's name
+
+    Returns
+    -------
+    int
+        TNS instrument id
+    """
+    mapped = TNS_INSTRUMENT_IDS.get(str(name or "").lower(), TNS_OTHER_INSTRUMENT_ID)
     return mapped[0] if isinstance(mapped, list) else mapped
+
 
 TNS_CLASSIFICATION_IDS = {
     "other": 0,
