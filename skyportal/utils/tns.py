@@ -68,6 +68,32 @@ TNS_RETRIEVAL_INSTRUMENT_IDS = {
 
 TNS_OTHER_INSTRUMENT_ID = 0
 
+
+def tns_instrument_id(instrument):
+    """The TNS id to report an instrument under.
+
+    An instrument's own ``tns_id`` wins, so an instance can name an instrument
+    TNS knows but this mapping does not; the mapping is the default for the
+    instruments every instance shares. Neither one leaves the report as Other,
+    which TNS displays in place of the telescope and instrument names.
+
+    Parameters
+    ----------
+    instrument : `skyportal.models.Instrument`
+        The instrument that took the observation
+
+    Returns
+    -------
+    int
+        TNS instrument id
+    """
+    tns_id = getattr(instrument, "tns_id", None)
+    if tns_id is not None:
+        return tns_id
+    name = str(getattr(instrument, "name", "") or "").lower()
+    mapped = TNS_INSTRUMENT_IDS.get(name, TNS_OTHER_INSTRUMENT_ID)
+    return mapped[0] if isinstance(mapped, list) else mapped
+
 TNS_CLASSIFICATION_IDS = {
     "other": 0,
     "supernova": 1,

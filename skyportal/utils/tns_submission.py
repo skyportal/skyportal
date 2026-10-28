@@ -17,7 +17,6 @@ from skyportal.utils.tns import (
     SNCOSMO_TO_TNSFILTER,
     SURVEYS,
     TNS_INSTRUMENT_IDS,
-    TNS_OTHER_INSTRUMENT_ID,
     TNS_URL,
     get_IAUname,
     get_internal_names,
@@ -25,6 +24,7 @@ from skyportal.utils.tns import (
     get_tns_object_id_and_data_source_id,
     get_tns_url,
     tns_classification_id,
+    tns_instrument_id,
     tns_spectrum_type_id,
 )
 
@@ -360,10 +360,7 @@ def build_tns_classification_report(
             "add it to TNS_CLASSIFICATION_IDS to report this class."
         )
 
-    instrument_name = str(spectrum.instrument.name or "").lower()
-    instrument_id = TNS_INSTRUMENT_IDS.get(instrument_name, TNS_OTHER_INSTRUMENT_ID)
-    if isinstance(instrument_id, list):
-        instrument_id = instrument_id[0]
+    instrument_id = tns_instrument_id(spectrum.instrument)
 
     altdata = spectrum.altdata or {}
     spectrum_entry = {
