@@ -4,6 +4,7 @@ import { makeStyles } from "tss-react/mui";
 import { createFilterOptions } from "@mui/material/Autocomplete";
 import Select from "@mui/material/Select";
 import MenuItem from "@mui/material/MenuItem";
+import Checkbox from "@mui/material/Checkbox";
 import SearchableSelect from "./SearchableSelect";
 
 import { useAppDispatch } from "../types/hooks";
@@ -19,8 +20,7 @@ const SEARCH_TYPES = [
   "Users",
 ] as const;
 type SearchType = (typeof SEARCH_TYPES)[number];
-const ALLOWED_TYPES = ["All", ...SEARCH_TYPES] as const;
-type AllowedType = (typeof ALLOWED_TYPES)[number];
+const DEFAULT_TYPES: SearchType[] = ["Sources", "GCN Events", "Users"];
 
 const useStyles = makeStyles()((theme) => ({
   root: {
@@ -95,23 +95,18 @@ const QuickSearchBar = () => {
   const [inputValue, setInputValue] = useState("");
   const [loading, setLoading] = useState(false);
   const [open, setOpen] = useState(false);
-  const [type, setType] = useState<AllowedType>(ALLOWED_TYPES[0]);
+  const [types, setTypes] = useState<SearchType[]>(DEFAULT_TYPES);
   const [saveDialogObjId, setSaveDialogObjId] = useState<string | null>(null);
 
   const debouncedInputValue = useDebouncer(inputValue, 500);
   const cache = useRef<Record<string, any>>({});
 
   useEffect(() => {
-    // empty the cache when the type changes
-    cache.current = {};
-  }, [type]);
-
-  useEffect(() => {
-    const get = (searchType: SearchType, val: string) => {
+    const get = (searchType: SearchType, val: string, numPerPage: number) => {
       if (searchType === "GCN Events") {
         return dispatch(
           GET(
-            `/api/gcn_event?partialdateobs=${encodeURIComponent(val)}&pageNumber=1&numPerPage=25`,
+            `/api/gcn_event?partialdateobs=${encodeURIComponent(val)}&pageNumber=1&numPerPage=${numPerPage}`,
             "skyportal/FETCH_AUTOCOMPLETE_GCN_EVENTS",
           ),
         );
@@ -119,7 +114,7 @@ const QuickSearchBar = () => {
       if (searchType === "Sources") {
         return dispatch(
           GET(
-            `/api/sources?sourceID=${encodeURIComponent(val)}&pageNumber=1&numPerPage=25&includeComments=false&removeNested=true`,
+            `/api/sources?sourceID=${encodeURIComponent(val)}&pageNumber=1&numPerPage=${numPerPage}&includeComments=false&removeNested=true`,
             "skyportal/FETCH_AUTOCOMPLETE_SOURCES",
           ),
         );
@@ -127,7 +122,7 @@ const QuickSearchBar = () => {
       if (searchType === "Candidates") {
         return dispatch(
           GET(
-            `/api/candidates?objID=${encodeURIComponent(val)}&nameOnly=true&numPerPage=25`,
+            `/api/candidates?objID=${encodeURIComponent(val)}&nameOnly=true&numPerPage=${numPerPage}`,
             "skyportal/FETCH_AUTOCOMPLETE_CANDIDATES",
           ),
         );
@@ -135,7 +130,7 @@ const QuickSearchBar = () => {
       if (searchType === "Source comments") {
         return dispatch(
           GET(
-            `/api/sources/comments?text=${encodeURIComponent(val)}&pageNumber=1&numPerPage=25`,
+            `/api/sources/comments?text=${encodeURIComponent(val)}&pageNumber=1&numPerPage=${numPerPage}`,
             "skyportal/FETCH_AUTOCOMPLETE_SOURCE_COMMENTS",
           ),
         );
@@ -143,7 +138,7 @@ const QuickSearchBar = () => {
       if (searchType === "GCN comments") {
         return dispatch(
           GET(
-            `/api/gcn_event/comments?text=${encodeURIComponent(val)}&pageNumber=1&numPerPage=25`,
+            `/api/gcn_event/comments?text=${encodeURIComponent(val)}&pageNumber=1&numPerPage=${numPerPage}`,
             "skyportal/FETCH_AUTOCOMPLETE_SOURCE_COMMENTS",
           ),
         );
@@ -151,7 +146,7 @@ const QuickSearchBar = () => {
       if (searchType === "Users") {
         return dispatch(
           GET(
-            `/api/user?name=${encodeURIComponent(val)}&slim=true&numPerPage=25`,
+            `/api/user?name=${encodeURIComponent(val)}&slim=true&numPerPage=${numPerPage}`,
             "skyportal/FETCH_AUTOCOMPLETE_USERS",
           ),
         );
@@ -159,152 +154,156 @@ const QuickSearchBar = () => {
       return undefined;
     };
 
-    (async (): Promise<any> => {
-      if (debouncedInputValue === "") {
-        setOptions([]);
-        setOpen(false);
-        return undefined;
+    const toOptions = (searchType: SearchType, response: any) => {
+      let matchingEntries: any = [];
+      if (searchType === "Sources") {
+        matchingEntries = response?.data?.sources;
+      } else if (searchType === "Candidates") {
+        matchingEntries = response?.data?.candidates;
+      } else if (searchType === "GCN Events") {
+        matchingEntries = response?.data?.events;
+      } else if (["Source comments", "GCN comments"].includes(searchType)) {
+        matchingEntries = response?.data;
+      } else if (searchType === "Users") {
+        matchingEntries = response?.data?.users;
       }
-
-      let newOptions: any[] = [];
-
-      if (cache.current[debouncedInputValue]) {
-        setLoading(true);
-        newOptions = cache.current[debouncedInputValue];
-        setLoading(false);
-      } else {
-        setLoading(true);
-        const searchTypes = type === "All" ? SEARCH_TYPES : [type];
-        const responses: any[] = await Promise.all(
-          searchTypes.map((searchType) => get(searchType, debouncedInputValue)),
-        );
-        setLoading(false);
-
-        searchTypes.forEach((searchType, i) => {
-          const response = responses[i];
-          let matchingEntries: any = [];
+      if (!matchingEntries) {
+        return [];
+      }
+      return Object.keys(matchingEntries)
+        .map((key) => {
+          if (searchType === "GCN Events") {
+            let name = matchingEntries[key].dateobs;
+            let match_name = matchingEntries[key].dateobs;
+            if ((matchingEntries[key].aliases || []).length > 0) {
+              name = `${name} (${matchingEntries[key].aliases[0]})`;
+              match_name = `${match_name} ${matchingEntries[key].aliases[0]}`;
+            }
+            return {
+              id: matchingEntries[key].dateobs,
+              name,
+              match_name,
+            };
+          }
           if (searchType === "Sources") {
-            matchingEntries = response?.data?.sources;
-          } else if (searchType === "Candidates") {
-            matchingEntries = response?.data?.candidates;
-          } else if (searchType === "GCN Events") {
-            matchingEntries = response?.data?.events;
-          } else if (["Source comments", "GCN comments"].includes(searchType)) {
-            matchingEntries = response?.data;
-          } else if (searchType === "Users") {
-            matchingEntries = response?.data?.users;
+            let name = matchingEntries[key].id;
+            let match_name = matchingEntries[key].id;
+            if (matchingEntries[key]?.tns_name?.length > 0) {
+              name = `${name} (${matchingEntries[key].tns_name})`;
+              match_name = `${match_name} ${
+                matchingEntries[key].tns_name
+              } ${matchingEntries[key].tns_name?.replace(/\s/g, "")}`;
+              // if the tns_name starts with AT, also add to the match_name the name without SN instead of AT
+              // and vice versa. That way if a user searches for an object by AT name but the object
+              // has been classified as SN, the search will still match, and vice versa.
+              if (matchingEntries[key].tns_name.startsWith("AT")) {
+                const sn_name = matchingEntries[key].tns_name.replace(
+                  "AT",
+                  "SN",
+                );
+                match_name = `${match_name} ${sn_name} ${sn_name.replace(
+                  /\s/g,
+                  "",
+                )}`;
+              } else if (matchingEntries[key].tns_name.startsWith("SN")) {
+                const sn_name = matchingEntries[key].tns_name.replace(
+                  "SN",
+                  "AT",
+                );
+                match_name = `${match_name} ${sn_name} ${sn_name.replace(
+                  /\s/g,
+                  "",
+                )}`;
+              }
+            }
+            return {
+              id: matchingEntries[key].id,
+              name,
+              match_name,
+            };
           }
+          if (searchType === "Candidates") {
+            return {
+              id: matchingEntries[key].id,
+              name: matchingEntries[key].id,
+              match_name: matchingEntries[key].id,
+            };
+          }
+          if (searchType === "Source comments") {
+            // comments here have a text field (that we are searching for a match) and an obj_id field
+            return {
+              id: matchingEntries[key].obj_id,
+              name: `${matchingEntries[key].obj_id} - ${matchingEntries[key].text}`,
+              match_name: `${matchingEntries[key].obj_id} ${matchingEntries[key].text}`,
+            };
+          }
+          if (searchType === "GCN comments") {
+            // comments here have a text field (that we are searching for a match) and an dateobs field
+            return {
+              id: matchingEntries[key].dateobs,
+              name: `${matchingEntries[key].dateobs} - ${matchingEntries[key].text}`,
+              match_name: `${matchingEntries[key].dateobs} ${matchingEntries[key].text}`,
+            };
+          }
+          if (searchType === "Users") {
+            const { id, username, first_name, last_name } =
+              matchingEntries[key];
+            const fullName = [first_name, last_name].filter(Boolean).join(" ");
+            return {
+              id,
+              name: fullName ? `${fullName} (${username})` : username,
+              match_name: `${username} ${fullName}`,
+            };
+          }
+          // fallback
+          return {
+            id: matchingEntries[key].id,
+            name: matchingEntries[key].id,
+            match_name: matchingEntries[key].id,
+          };
+        })
+        .map((option) => ({ ...option, type: searchType }));
+    };
 
-          if (matchingEntries) {
-            const rez = Object.keys(matchingEntries).map((key) => {
-              if (searchType === "GCN Events") {
-                let name = matchingEntries[key].dateobs;
-                let match_name = matchingEntries[key].dateobs;
-                if ((matchingEntries[key].aliases || []).length > 0) {
-                  name = `${name} (${matchingEntries[key].aliases[0]})`;
-                  match_name = `${match_name} ${matchingEntries[key].aliases[0]}`;
-                }
-                return {
-                  id: matchingEntries[key].dateobs,
-                  name,
-                  match_name,
-                };
-              }
-              if (searchType === "Sources") {
-                let name = matchingEntries[key].id;
-                let match_name = matchingEntries[key].id;
-                if (matchingEntries[key]?.tns_name?.length > 0) {
-                  name = `${name} (${matchingEntries[key].tns_name})`;
-                  match_name = `${match_name} ${
-                    matchingEntries[key].tns_name
-                  } ${matchingEntries[key].tns_name?.replace(/\s/g, "")}`;
-                  // if the tns_name starts with AT, also add to the match_name the name without SN instead of AT
-                  // and vice versa. That way if a user searches for an object by AT name but the object
-                  // has been classified as SN, the search will still match, and vice versa.
-                  if (matchingEntries[key].tns_name.startsWith("AT")) {
-                    const sn_name = matchingEntries[key].tns_name.replace(
-                      "AT",
-                      "SN",
-                    );
-                    match_name = `${match_name} ${sn_name} ${sn_name.replace(
-                      /\s/g,
-                      "",
-                    )}`;
-                  } else if (matchingEntries[key].tns_name.startsWith("SN")) {
-                    const sn_name = matchingEntries[key].tns_name.replace(
-                      "SN",
-                      "AT",
-                    );
-                    match_name = `${match_name} ${sn_name} ${sn_name.replace(
-                      /\s/g,
-                      "",
-                    )}`;
-                  }
-                }
-                return {
-                  id: matchingEntries[key].id,
-                  name,
-                  match_name,
-                };
-              }
-              if (searchType === "Candidates") {
-                return {
-                  id: matchingEntries[key].id,
-                  name: matchingEntries[key].id,
-                  match_name: matchingEntries[key].id,
-                };
-              }
-              if (searchType === "Source comments") {
-                // comments here have a text field (that we are searching for a match) and an obj_id field
-                return {
-                  id: matchingEntries[key].obj_id,
-                  name: `${matchingEntries[key].obj_id} - ${matchingEntries[key].text}`,
-                  match_name: `${matchingEntries[key].obj_id} ${matchingEntries[key].text}`,
-                };
-              }
-              if (searchType === "GCN comments") {
-                // comments here have a text field (that we are searching for a match) and an dateobs field
-                return {
-                  id: matchingEntries[key].dateobs,
-                  name: `${matchingEntries[key].dateobs} - ${matchingEntries[key].text}`,
-                  match_name: `${matchingEntries[key].dateobs} ${matchingEntries[key].text}`,
-                };
-              }
-              if (searchType === "Users") {
-                const { id, username, first_name, last_name } =
-                  matchingEntries[key];
-                const fullName = [first_name, last_name]
-                  .filter(Boolean)
-                  .join(" ");
-                return {
-                  id,
-                  name: fullName ? `${fullName} (${username})` : username,
-                  match_name: `${username} ${fullName}`,
-                };
-              }
-              // fallback
-              return {
-                id: matchingEntries[key].id,
-                name: matchingEntries[key].id,
-                match_name: matchingEntries[key].id,
-              };
-            });
-            newOptions = [
-              ...newOptions,
-              ...rez.map((option) => ({ ...option, type: searchType })),
-            ];
-          }
-        });
-        cache.current[debouncedInputValue] = newOptions;
-      }
-      setOpen(true);
-      setOptions(newOptions);
+    if (debouncedInputValue === "") {
+      setOptions([]);
+      setOpen(false);
+      setLoading(false);
       return undefined;
-    })();
-  }, [dispatch, debouncedInputValue]);
+    }
 
-  const handleChangeType = (event: any) => {
-    setType(event.target.value);
+    let cancelled = false;
+    let pending = types.length;
+    const numPerPage = types.length > 1 ? 5 : 25;
+    const results: Partial<Record<SearchType, any[]>> = {};
+    setLoading(true);
+    types.forEach(async (searchType) => {
+      const key = `${searchType} ${numPerPage} ${debouncedInputValue}`;
+      if (!cache.current[key]) {
+        const response = await get(searchType, debouncedInputValue, numPerPage);
+        cache.current[key] = toOptions(searchType, response);
+      }
+      if (cancelled) {
+        return;
+      }
+      results[searchType] = cache.current[key];
+      pending -= 1;
+      setLoading(pending > 0);
+      setOptions(types.flatMap((t) => results[t] ?? []));
+      setOpen(true);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [dispatch, debouncedInputValue, types]);
+
+  const handleChangeTypes = (event: any) => {
+    const selected: SearchType[] = event.target.value;
+    if (selected.length > 0) {
+      setTypes(
+        SEARCH_TYPES.filter((searchType) => selected.includes(searchType)),
+      );
+    }
   };
 
   const goToPage = (id: any, resourceType: string) => {
@@ -331,14 +330,28 @@ const QuickSearchBar = () => {
       >
         <Select
           id="type-select"
-          value={type}
-          onChange={handleChangeType}
+          multiple
+          value={types}
+          onChange={handleChangeTypes}
+          renderValue={(selected) => {
+            if (selected.length === SEARCH_TYPES.length) {
+              return "All";
+            }
+            return selected.length > 1
+              ? `${selected[0]} +${selected.length - 1}`
+              : selected[0];
+          }}
           size="small"
           className={classes.typeSelect}
         >
-          {ALLOWED_TYPES.map((allowedType) => (
-            <MenuItem key={type} value={allowedType}>
-              {allowedType}
+          {SEARCH_TYPES.map((searchType) => (
+            <MenuItem key={searchType} value={searchType} dense>
+              <Checkbox
+                checked={types.includes(searchType)}
+                size="small"
+                sx={{ p: 0, mr: 1 }}
+              />
+              {searchType}
             </MenuItem>
           ))}
         </Select>
@@ -367,8 +380,12 @@ const QuickSearchBar = () => {
             }
           }}
           onClose={() => setOpen(false)}
-          groupBy={type === "All" ? (option) => option.type : undefined}
-          noOptionsText={`No matching ${type === "All" ? "results" : type}.`}
+          groupBy={types.length > 1 ? (option) => option.type : undefined}
+          noOptionsText={
+            types.length > 1
+              ? "No matching results."
+              : `No matching ${types[0]}.`
+          }
           options={options}
           open={open}
           loading={loading}
