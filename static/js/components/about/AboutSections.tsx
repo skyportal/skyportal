@@ -150,11 +150,23 @@ export const InstanceBlocks = ({ instances }: { instances: Instance[] }) => (
           }}
         >
           {instance.description && (
-            <Typography variant="body2" color="text.secondary">
+            <Typography
+              sx={{
+                color: "text.primary",
+                fontSize: "0.95rem",
+                fontWeight: 500,
+              }}
+            >
               {instance.description}
             </Typography>
           )}
-          <Typography variant="body2" color="text.secondary">
+          <Typography
+            sx={{
+              color: "text.secondary",
+              fontSize: "0.95rem",
+              fontWeight: 500,
+            }}
+          >
             {host(instance.url)}
           </Typography>
         </Stack>
