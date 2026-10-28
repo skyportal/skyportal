@@ -23,6 +23,8 @@ class Deployment(Base):
 class InstanceManager(Base):
     """A user listed as managing this instance, on the login and About pages."""
 
+    __tablename__ = "instance_managers"
+
     create = update = delete = restricted
 
     user_id = sa.Column(
