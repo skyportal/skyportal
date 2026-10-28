@@ -1,21 +1,22 @@
 import { useGetProfileQuery } from "../../ducks/profile";
 import React, { useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { skipToken } from "@reduxjs/toolkit/query";
 import { useAppDispatch } from "../../types/hooks";
 
-import Cancel from "@mui/icons-material/Cancel";
 import GetAppIcon from "@mui/icons-material/GetApp";
 import LocationOffOutlined from "@mui/icons-material/LocationOffOutlined";
 import useMediaQuery from "@mui/material/useMediaQuery";
 import Box from "@mui/material/Box";
-import Chip from "@mui/material/Chip";
-import DialogTitle from "@mui/material/DialogTitle";
 import Divider from "@mui/material/Divider";
-import Drawer from "@mui/material/Drawer";
 import Grid from "@mui/material/Grid";
 import IconButton from "@mui/material/IconButton";
+import Link from "@mui/material/Link";
 import Stack from "@mui/material/Stack";
+import Tab from "@mui/material/Tab";
+import Tabs from "@mui/material/Tabs";
 import { useTheme } from "@mui/material/styles";
+import Tooltip from "@mui/material/Tooltip";
 import Typography from "@mui/material/Typography";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
@@ -61,23 +62,33 @@ import Paper from "../Paper";
 
 dayjs.extend(utc);
 
+const slug = (title: string) => title.toLowerCase().replace(/\s+/g, "-");
+
 interface PropertiesSectionProps {
   title: string;
-  size?: number | Record<string, number>;
+  action?: React.ReactNode;
   children: React.ReactNode;
 }
 
 const PropertiesSection = ({
   title,
-  size = 12,
+  action,
   children,
 }: PropertiesSectionProps) => (
-  <Grid size={size}>
-    <Paper>
+  <Paper>
+    <Box
+      sx={{
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "space-between",
+        mb: 1,
+      }}
+    >
       <Typography variant="h6">{title}</Typography>
-      {children}
-    </Paper>
-  </Grid>
+      {action}
+    </Box>
+    {children}
+  </Paper>
 );
 
 const noLocalization = (
@@ -91,7 +102,7 @@ const noLocalization = (
     </Typography>
     <Typography variant="body2" sx={{ color: "text.disabled", maxWidth: 480 }}>
       Some only become available with later notices. You can try ingesting one
-      from the GCN Notices section of the Properties panel.
+      from the External data tab.
     </Typography>
   </Stack>
 );
@@ -123,7 +134,8 @@ const GcnEventPage = ({ route }: GcnEventPageProps) => {
   const permission =
     currentUser?.permissions?.includes("System admin") ||
     currentUser?.permissions?.includes("Manage GCNs");
-  const [rightPanelVisible, setRightPanelVisible] = useState(false);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [failedLightcurve, setFailedLightcurve] = useState<string | null>(null);
   useCommentTarget(
     gcnEvent?.id && gcnEvent?.dateobs === dateobs
       ? { type: "gcn_event", id: gcnEvent.id, dateobs: gcnEvent.dateobs }
@@ -134,7 +146,7 @@ const GcnEventPage = ({ route }: GcnEventPageProps) => {
 
   const updateAliasesCirculars = permission && (
     <Button
-      secondary
+      size="small"
       data-testid="update-aliases"
       onClick={() =>
         postTach(dateobs)
@@ -163,269 +175,321 @@ const GcnEventPage = ({ route }: GcnEventPageProps) => {
     </Button>
   );
 
-  return (
-    <>
-      <Stack spacing={1}>
-        <Grid container spacing={2}>
-          <Grid size={9}>
-            <Grid container>
-              <Grid size={{ md: 12, lg: 4 }}>
-                <Grid container spacing={1} sx={{ alignItems: "end" }}>
-                  <Box
-                    component="span"
-                    data-testid="tour-gcn-header"
-                    sx={{
-                      height: "2rem",
-                      fontSize: "2rem",
-                      fontWeight: "bold",
-                      lineHeight: "1.7rem",
-                      color: "primary.main",
-                      whiteSpace: "nowrap",
-                    }}
-                  >
-                    {dayjs(gcnEvent.dateobs).format("YYMMDD HH:mm:ss")}
-                  </Box>
-                  <Box
-                    component="span"
-                    sx={{ height: "1rem", whiteSpace: "nowrap" }}
-                  >
-                    ({dayjs().to(dayjs.utc(`${gcnEvent.dateobs}Z`))})
-                  </Box>
-                </Grid>
-              </Grid>
-              <Grid size={{ md: 12, lg: 8 }}>
-                <GcnTags gcnEvent={gcnEvent} />
-              </Grid>
-            </Grid>
-          </Grid>
-          <Grid
-            size={3}
+  const ingestLocalization = (notice: any) => {
+    dispatch(
+      showNotification(
+        `Starting ingestion attempt for localization from notice ${notice.id}. Please wait...`,
+        "warning",
+      ),
+    );
+    postLocalizationFromNotice({ dateobs: notice.dateobs, noticeID: notice.id })
+      .unwrap()
+      .then(() =>
+        dispatch(
+          showNotification(
+            `Localization successfully ingested from notice ${notice.id}. Please wait for the contour to be generated. Default observation plans will be created shortly.`,
+          ),
+        ),
+      )
+      .catch(() =>
+        dispatch(
+          showNotification(
+            `Error ingesting localization from notice ${notice.id}. It might not be available yet.`,
+            "error",
+          ),
+        ),
+      );
+  };
+
+  const retrieveGraceDB = () =>
+    postGraceDB(dateobs)
+      .unwrap()
+      .then(() =>
+        dispatch(showNotification("GraceDB retrieval started. Please wait...")),
+      )
+      .catch(() =>
+        dispatch(showNotification("Error retrieving GraceDB", "error")),
+      );
+
+  const isGW =
+    gcnEvent.aliases?.some((alias: string) => alias.startsWith("LVC#")) ||
+    Object.keys(gcnEvent.gracedb_labels ?? {}).length > 0;
+
+  const tabs = [
+    {
+      title: "Overview",
+      content: (
+        <Stack spacing={1}>
+          <GcnEventAllocationTriggers
+            gcnEvent={gcnEvent}
+            showPassed
+            showUnset
+            showTitle={!isMobile}
+          />
+          <GcnEventAssociationSummary dateobs={dateobs} />
+          <Paper
             sx={{
-              display: "flex",
-              justifyContent: "flex-end",
-              alignItems: "flex-start",
+              p: gcnEvent.summary ? "0.25rem 0.25rem 0 0.25rem" : "0.5rem",
             }}
+            variant={gcnEvent.summary ? "outlined" : undefined}
           >
-            <Button
-              secondary
-              onClick={() => setRightPanelVisible(!rightPanelVisible)}
-              data-testid="right-panel-button"
-              sx={{ fontSize: isMobile ? "0.7rem" : "0.85rem" }}
+            <ShowSummaries summaries={gcnEvent.summary_history || []} />
+            <Box
+              sx={{
+                display: "flex",
+                justifyContent: gcnEvent.summary ? "flex-end" : "space-between",
+                alignItems: "center",
+              }}
             >
-              Properties
-            </Button>
-          </Grid>
-        </Grid>
-        <GcnEventAllocationTriggers
-          gcnEvent={gcnEvent}
-          showPassed
-          showUnset
-          showTitle={!isMobile}
-        />
-        <GcnEventAssociationSummary dateobs={dateobs} />
-        <Paper
-          sx={{ p: gcnEvent.summary ? "0.25rem 0.25rem 0 0.25rem" : "0.5rem" }}
-          variant={gcnEvent.summary ? "outlined" : undefined}
-        >
-          <ShowSummaries summaries={gcnEvent.summary_history || []} />
-          <Box
-            sx={{
-              display: "flex",
-              justifyContent: gcnEvent.summary ? "flex-end" : "space-between",
-              alignItems: "center",
-            }}
-          >
-            {!gcnEvent.summary && (
-              <Typography variant="body2" sx={{ color: "text.disabled" }}>
-                No summary yet.
-              </Typography>
-            )}
-            <Box sx={{ display: "flex", alignItems: "center" }}>
-              {permission && (
-                <>
-                  <UpdateSummary
-                    summary={gcnEvent.summary}
-                    summaryHistory={gcnEvent.summary_history}
-                    onSave={async (summary) => {
-                      await updateGcnEvent({
-                        dateobs,
-                        payload: { summary },
-                      }).unwrap();
-                      dispatch(
-                        showNotification("Event summary successfully updated."),
-                      );
-                    }}
-                  />
-                  <GenerateGcnEventSummary dateobs={dateobs} />
-                </>
+              {!gcnEvent.summary && (
+                <Typography variant="body2" sx={{ color: "text.disabled" }}>
+                  No summary yet.
+                </Typography>
               )}
-              {gcnEvent.summary_history?.length > 0 && (
-                <ShowSummaryHistory
-                  summaries={gcnEvent.summary_history}
-                  label={dateobs}
-                />
-              )}
-            </Box>
-          </Box>
-        </Paper>
-        <GcnAliases gcnEvent={gcnEvent} show_title />
-        <GcnAdvocates gcnEvent={gcnEvent} show_title />
-        <Paper>
-          <Typography variant="h6">Analysis</Typography>
-          {gcnEvent.localizations?.length > 0 ? (
-            <GcnSelectionForm dateobs={dateobs} />
-          ) : (
-            noLocalization
-          )}
-        </Paper>
-        <Paper>
-          <Typography variant="h6" data-testid="tour-gcn-obsplan">
-            Observation Plans
-          </Typography>
-          {gcnEvent.localizations?.length > 0 ? (
-            <>
-              <ObservationPlanRequestForm dateobs={dateobs} />
-              <ObservationPlanRequestLists dateobs={dateobs} />
-            </>
-          ) : (
-            noLocalization
-          )}
-        </Paper>
-      </Stack>
-      <Drawer
-        anchor="right"
-        open={rightPanelVisible}
-        onClose={() => setRightPanelVisible(false)}
-        slotProps={{ paper: { sx: { width: "100%" } } }}
-      >
-        <DialogTitle>
-          <IconButton onClick={() => setRightPanelVisible(false)}>
-            <Cancel />
-          </IconButton>
-        </DialogTitle>
-        <Grid container spacing={2} sx={{ p: 2 }}>
-          <Grid size={12}>
-            <GcnProperties properties={gcnEvent.properties} />
-          </Grid>
-          <Grid size={12}>
-            <GcnLocalizationsTable localizations={gcnEvent.localizations} />
-          </Grid>
-          <Grid size={12}>
-            <Reminders
-              resourceId={gcnEvent.id.toString()}
-              resourceType="gcn_event"
-            />
-          </Grid>
-          <Grid size={12}>
-            <Typography variant="h6">Analyses</Typography>
-            <AnalysisForm obj_id={dateobs} analysisResourceType="gcn_event" />
-            <AnalysisList obj_id={dateobs} analysisResourceType="gcn_event" />
-          </Grid>
-          <PropertiesSection title="Light curve" size={{ sm: 12, lg: 6 }}>
-            {gcnEvent.lightcurve && (
-              <img src={gcnEvent.lightcurve} alt="loading..." />
-            )}
-          </PropertiesSection>
-          <PropertiesSection title="GCN Notices" size={{ sm: 12, lg: 6 }}>
-            <Stack
-              divider={<Divider />}
-              spacing={1}
-              sx={{ overflow: "hidden" }}
-            >
-              {gcnEvent.gcn_notices?.map((gcn_notice: any) => (
-                <Box key={gcn_notice.ivorn}>
-                  <Box sx={{ display: "flex", alignItems: "center" }}>
-                    <Chip
-                      size="small"
-                      label={gcn_notice.ivorn}
-                      sx={{ width: "100%" }}
+              <Box sx={{ display: "flex", alignItems: "center" }}>
+                {permission && (
+                  <>
+                    <UpdateSummary
+                      summary={gcnEvent.summary}
+                      summaryHistory={gcnEvent.summary_history}
+                      onSave={async (summary) => {
+                        await updateGcnEvent({
+                          dateobs,
+                          payload: { summary },
+                        }).unwrap();
+                        dispatch(
+                          showNotification(
+                            "Event summary successfully updated.",
+                          ),
+                        );
+                      }}
                     />
-                    <IconButton
-                      href={`/api/gcn_event/${gcn_notice.dateobs}/notice/${gcn_notice.id}/download`}
-                      download
-                      size="large"
-                      target="_blank"
-                    >
-                      <GetAppIcon />
-                    </IconButton>
-                  </Box>
-                  {gcn_notice.has_localization &&
-                    gcn_notice.localization_ingested === false && (
-                      <Button
-                        secondary
-                        onClick={() => {
-                          dispatch(
-                            showNotification(
-                              `Starting ingestion attempt for localization from notice ${gcn_notice.id}. Please wait...`,
-                              "warning",
-                            ),
-                          );
-                          postLocalizationFromNotice({
-                            dateobs: gcn_notice.dateobs,
-                            noticeID: gcn_notice.id,
-                          })
-                            .unwrap()
-                            .then(() =>
-                              dispatch(
-                                showNotification(
-                                  `Localization successfully ingested from notice ${gcn_notice.id}. Please wait for the contour to be generated. Default observation plans will be created shortly.`,
-                                ),
-                              ),
-                            )
-                            .catch(() =>
-                              dispatch(
-                                showNotification(
-                                  `Error ingesting localization from notice ${gcn_notice.id}. It might not be available yet.`,
-                                  "error",
-                                ),
-                              ),
-                            );
-                        }}
-                      >
-                        Ingest Localization
-                      </Button>
-                    )}
-                </Box>
-              ))}
-            </Stack>
-          </PropertiesSection>
-          <PropertiesSection title="GCN Aliases" size={{ sm: 12, lg: 6 }}>
-            <GcnAliases gcnEvent={gcnEvent} />
-            {updateAliasesCirculars}
-          </PropertiesSection>
-          <PropertiesSection title="GCN Circulars" size={{ sm: 12, lg: 6 }}>
-            <GcnCirculars gcnEvent={gcnEvent} />
-            {updateAliasesCirculars}
-          </PropertiesSection>
-          <PropertiesSection title="GraceDB" size={{ sm: 12, lg: 6 }}>
-            <DisplayGraceDB gcnEvent={gcnEvent} />
-            {permission && (
-              <Button
-                secondary
-                onClick={() =>
-                  postGraceDB(dateobs)
-                    .unwrap()
-                    .then(() =>
-                      dispatch(
-                        showNotification(
-                          "GraceDB retrieval started. Please wait...",
-                        ),
-                      ),
-                    )
-                    .catch(() =>
-                      dispatch(
-                        showNotification("Error retrieving GraceDB", "error"),
-                      ),
-                    )
-                }
-              >
-                Retrieve
-              </Button>
+                    <GenerateGcnEventSummary dateobs={dateobs} />
+                  </>
+                )}
+                {gcnEvent.summary_history?.length > 0 && (
+                  <ShowSummaryHistory
+                    summaries={gcnEvent.summary_history}
+                    label={dateobs}
+                  />
+                )}
+              </Box>
+            </Box>
+          </Paper>
+          <GcnAliases gcnEvent={gcnEvent} show_title />
+          <GcnAdvocates gcnEvent={gcnEvent} show_title />
+          <Paper>
+            <Typography variant="h6">Analysis</Typography>
+            {gcnEvent.localizations?.length > 0 ? (
+              <GcnSelectionForm dateobs={dateobs} />
+            ) : (
+              noLocalization
             )}
-          </PropertiesSection>
+          </Paper>
+          <Paper>
+            <Typography variant="h6" data-testid="tour-gcn-obsplan">
+              Observation Plans
+            </Typography>
+            {gcnEvent.localizations?.length > 0 ? (
+              <>
+                <ObservationPlanRequestForm dateobs={dateobs} />
+                <ObservationPlanRequestLists dateobs={dateobs} />
+              </>
+            ) : (
+              noLocalization
+            )}
+          </Paper>
+        </Stack>
+      ),
+    },
+    {
+      title: "Properties",
+      content: <GcnProperties properties={gcnEvent.properties} />,
+    },
+    {
+      title: "Localizations",
+      content: <GcnLocalizationsTable localizations={gcnEvent.localizations} />,
+    },
+    {
+      title: "Reminders",
+      content: (
+        <Reminders
+          resourceId={gcnEvent.id.toString()}
+          resourceType="gcn_event"
+        />
+      ),
+    },
+    {
+      title: "Analyses",
+      content: (
+        <Grid container spacing={2}>
+          <Grid size={12}>
+            <Paper>
+              <AnalysisList obj_id={dateobs} analysisResourceType="gcn_event" />
+            </Paper>
+          </Grid>
+          <Grid size={12}>
+            <Paper>
+              <AnalysisForm obj_id={dateobs} analysisResourceType="gcn_event" />
+            </Paper>
+          </Grid>
         </Grid>
-      </Drawer>
-    </>
+      ),
+    },
+    {
+      title: "External data",
+      content: (
+        <Grid container spacing={2}>
+          <Grid size={{ xs: 12, lg: 6 }}>
+            <Stack spacing={2}>
+              <PropertiesSection title="GCN Notices">
+                <Stack divider={<Divider />} spacing={1}>
+                  {gcnEvent.gcn_notices?.map((notice: any) => (
+                    <Box
+                      key={notice.id}
+                      sx={{ display: "flex", alignItems: "center", gap: 1 }}
+                    >
+                      <Box sx={{ flex: 1, minWidth: 0 }}>
+                        <Typography variant="body2">
+                          {notice.notice_type}
+                        </Typography>
+                        <Typography
+                          variant="caption"
+                          sx={{
+                            display: "block",
+                            color: "text.secondary",
+                            wordBreak: "break-all",
+                          }}
+                        >
+                          {dayjs.utc(notice.date).format("YYYY-MM-DD HH:mm:ss")}{" "}
+                          UTC · {notice.ivorn}
+                        </Typography>
+                      </Box>
+                      {notice.has_localization &&
+                        notice.localization_ingested === false && (
+                          <Button
+                            size="small"
+                            onClick={() => ingestLocalization(notice)}
+                          >
+                            Ingest localization
+                          </Button>
+                        )}
+                      <Tooltip title="Download notice">
+                        <IconButton
+                          href={`/api/gcn_event/${notice.dateobs}/notice/${notice.id}/download`}
+                          download
+                          size="small"
+                          target="_blank"
+                        >
+                          <GetAppIcon fontSize="small" />
+                        </IconButton>
+                      </Tooltip>
+                    </Box>
+                  ))}
+                </Stack>
+              </PropertiesSection>
+              {gcnEvent.lightcurve && (
+                <PropertiesSection title="Light curve">
+                  {failedLightcurve === gcnEvent.lightcurve ? (
+                    <Typography
+                      variant="body2"
+                      sx={{ color: "text.secondary" }}
+                    >
+                      HEASARC is unreachable, try again later.{" "}
+                      <Link
+                        href={gcnEvent.lightcurve}
+                        target="_blank"
+                        rel="noreferrer"
+                      >
+                        Open link
+                      </Link>
+                    </Typography>
+                  ) : (
+                    <Box
+                      component="img"
+                      src={gcnEvent.lightcurve}
+                      alt="Light curve"
+                      onError={() => setFailedLightcurve(gcnEvent.lightcurve)}
+                      sx={{ maxWidth: "100%" }}
+                    />
+                  )}
+                </PropertiesSection>
+              )}
+            </Stack>
+          </Grid>
+          <Grid size={{ xs: 12, lg: 6 }}>
+            <Stack spacing={2}>
+              <PropertiesSection
+                title="GCN Circulars"
+                action={updateAliasesCirculars}
+              >
+                <GcnCirculars gcnEvent={gcnEvent} />
+              </PropertiesSection>
+              {isGW && (
+                <PropertiesSection
+                  title="GraceDB"
+                  action={
+                    permission && (
+                      <Button size="small" onClick={retrieveGraceDB}>
+                        Retrieve
+                      </Button>
+                    )
+                  }
+                >
+                  <DisplayGraceDB gcnEvent={gcnEvent} />
+                </PropertiesSection>
+              )}
+            </Stack>
+          </Grid>
+        </Grid>
+      ),
+    },
+  ];
+  const current =
+    tabs.find(({ title }) => slug(title) === searchParams.get("tab")) ??
+    tabs[0]!;
+
+  return (
+    <Stack spacing={1}>
+      <Stack spacing={0.5}>
+        <Box sx={{ display: "flex", alignItems: "baseline", gap: 1.5 }}>
+          <Box
+            data-testid="tour-gcn-header"
+            sx={{
+              fontSize: "2rem",
+              fontWeight: "bold",
+              lineHeight: 1.1,
+              color: "primary.main",
+              whiteSpace: "nowrap",
+            }}
+          >
+            {dayjs(gcnEvent.dateobs).format("YYMMDD HH:mm:ss")}
+          </Box>
+          <Typography variant="body2" sx={{ color: "text.secondary" }}>
+            {dayjs().to(dayjs.utc(`${gcnEvent.dateobs}Z`))}
+          </Typography>
+        </Box>
+        <GcnTags gcnEvent={gcnEvent} />
+      </Stack>
+      <Tabs
+        value={slug(current.title)}
+        onChange={(_, value) =>
+          setSearchParams({ tab: value }, { replace: true })
+        }
+        variant="scrollable"
+        sx={{ borderBottom: 1, borderColor: "divider" }}
+      >
+        {tabs.map(({ title }) => (
+          <Tab
+            key={title}
+            value={slug(title)}
+            label={title}
+            data-testid={`${slug(title)}-tab`}
+          />
+        ))}
+      </Tabs>
+      {current.content}
+    </Stack>
   );
 };
 
