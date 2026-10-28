@@ -1,17 +1,20 @@
 import { useContext, useMemo } from "react";
+import { useTheme } from "@mui/material/styles";
 import ReactJson from "react-json-view";
 
 import { ExpandAllContext } from "./ExpandableCell";
 
 const JsonCell = ({ data }: { data: any }) => {
   const { expandAll } = useContext(ExpandAllContext);
+  const darkTheme = useTheme().palette.mode === "dark";
   // ReactJson resets expansion whenever `src` changes identity, so key it on content
   const json = JSON.stringify(data ?? {});
   const src = useMemo(() => JSON.parse(json), [json]);
   return (
     <ReactJson
+      key={String(expandAll)}
       src={src}
-      theme="rjv-default"
+      theme={darkTheme ? "monokai" : "rjv-default"}
       collapsed={!expandAll}
       displayDataTypes={false}
       displayObjectSize={false}
