@@ -139,7 +139,7 @@
         <div class="aboutLinks">
           <a href="{{ app.about.homepage_url }}">
             <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z" /></svg>
-            Website
+            {{ app.about.homepage_url | replace("https://", "") | replace("http://", "") | trim("/") }}
           </a>
           <a href="{{ app.about.docs_url }}">
             <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 2H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z" /></svg>
