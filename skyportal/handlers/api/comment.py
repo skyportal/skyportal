@@ -458,7 +458,7 @@ class CommentHandler(BaseHandler):
                                 Comment.attachment_bytes == attachment_bytes,
                                 Comment.attachment_name == attachment_name,
                                 Comment.author_id == author_id,
-                                Comment.bot == is_bot_request,
+                                Comment.bot.is_(True),
                                 Comment.origin == body.origin,
                             )
                         )
@@ -505,7 +505,7 @@ class CommentHandler(BaseHandler):
                                 CommentOnSpectrum.attachment_bytes == attachment_bytes,
                                 CommentOnSpectrum.attachment_name == attachment_name,
                                 CommentOnSpectrum.author_id == author_id,
-                                CommentOnSpectrum.bot == is_bot_request,
+                                CommentOnSpectrum.bot.is_(True),
                             )
                         )
                         existing = existing_result.first()
@@ -553,7 +553,7 @@ class CommentHandler(BaseHandler):
                                 CommentOnGCN.attachment_bytes == attachment_bytes,
                                 CommentOnGCN.attachment_name == attachment_name,
                                 CommentOnGCN.author_id == author_id,
-                                CommentOnGCN.bot == is_bot_request,
+                                CommentOnGCN.bot.is_(True),
                             )
                         )
                         existing = existing_result.first()
@@ -599,7 +599,7 @@ class CommentHandler(BaseHandler):
                                 == attachment_bytes,
                                 CommentOnEarthquake.attachment_name == attachment_name,
                                 CommentOnEarthquake.author_id == author_id,
-                                CommentOnEarthquake.bot == is_bot_request,
+                                CommentOnEarthquake.bot.is_(True),
                             )
                         )
                         existing = existing_result.first()
@@ -642,7 +642,7 @@ class CommentHandler(BaseHandler):
                                 CommentOnShift.attachment_bytes == attachment_bytes,
                                 CommentOnShift.attachment_name == attachment_name,
                                 CommentOnShift.author_id == author_id,
-                                CommentOnShift.bot == is_bot_request,
+                                CommentOnShift.bot.is_(True),
                             )
                         )
                         existing = existing_result.first()
