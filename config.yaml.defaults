@@ -78,6 +78,7 @@ app:
         email: antier@ijclab.in2p3.fr
       - name: Pete Bachant
         image: https://gravatar.com/avatar/bc242f20e6767ddef3db4e6afe7980cfe2c83fbc714cf291e963f3d7fcb0d782?s=200
+        affiliation: Caltech
         email: petebachant@gmail.com
       - name: Joshua Bloom
         image: https://gravatar.com/avatar/edff272ba50d6de809eafc24bd11e8e402ba05ab9c7dbafb884ab128015eb806?s=200
