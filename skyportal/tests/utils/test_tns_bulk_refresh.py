@@ -29,10 +29,22 @@ def test_the_batch_key_does_not_survive_into_a_task():
         assert "obj_ids" not in task
 
 
-@pytest.mark.parametrize("obj_ids", [[], None, "ZTF26aaa", 3])
-def test_a_batch_without_a_list_of_objects_is_refused(obj_ids):
+@pytest.mark.parametrize("key", ["obj_ids", "tns_sources"])
+@pytest.mark.parametrize("values", [[], None, "ZTF26aaa", 3])
+def test_a_batch_without_a_list_is_refused(key, values):
     with pytest.raises(ValueError, match="non-empty list"):
-        expand_bulk_tns_task({"obj_ids": obj_ids, "user_id": 1})
+        expand_bulk_tns_task({key: values, "user_id": 1})
+
+
+def test_a_batch_naming_nothing_to_look_up_is_refused():
+    with pytest.raises(ValueError, match="is required"):
+        expand_bulk_tns_task({"user_id": 1})
+
+
+def test_designations_become_tns_source_tasks():
+    """A name already on file is looked up directly, not by a cone search."""
+    tasks = expand_bulk_tns_task({"tns_sources": ["2026agsu"], "user_id": 7})
+    assert tasks == [{"tns_source": "2026agsu", "user_id": 7}]
 
 
 def test_requests_are_spaced_by_the_configured_interval():
@@ -68,13 +80,26 @@ def test_the_dispatch_sends_one_request_for_the_whole_batch(monkeypatch):
         "user_id": 7,
     }
 
+    calls.clear()
+    assert get_tns_bulk(tns_sources=["2026agsu"], user_id=7) == 2
+    assert calls[0] == {"tns_sources": ["2026agsu"], "radius": 2.0, "user_id": 7}
+
+
+def test_the_dispatch_takes_objects_or_designations_but_not_both(monkeypatch):
+    monkeypatch.setattr(
+        "skyportal.utils.tns.requests.post",
+        lambda *args, **kwargs: pytest.fail("no request should be sent"),
+    )
+    with pytest.raises(ValueError, match="exactly one"):
+        get_tns_bulk(["ZTF26aaa"], tns_sources=["2026agsu"], user_id=7)
+
 
 def test_a_refused_batch_raises_rather_than_reporting_success(monkeypatch):
     monkeypatch.setattr(
         "skyportal.utils.tns.requests.post",
         lambda *args, **kwargs: types.SimpleNamespace(status_code=400, content=b"nope"),
     )
-    with pytest.raises(ValueError, match="refused 1 objects"):
+    with pytest.raises(ValueError, match="refused 1 entries"):
         get_tns_bulk(["ZTF26aaa"], user_id=7)
 
 
@@ -83,5 +108,5 @@ def test_an_empty_batch_never_reaches_the_queue(monkeypatch):
         "skyportal.utils.tns.requests.post",
         lambda *args, **kwargs: pytest.fail("no request should be sent"),
     )
-    with pytest.raises(ValueError, match="obj_ids"):
+    with pytest.raises(ValueError, match="exactly one"):
         get_tns_bulk([], user_id=7)

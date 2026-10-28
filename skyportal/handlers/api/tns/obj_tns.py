@@ -8,7 +8,12 @@ from baselayer.log import make_log
 from ....models import (
     Obj,
 )
-from ....utils.tns import get_tns, get_tns_bulk, stale_tns_name_select
+from ....utils.tns import (
+    get_tns,
+    get_tns_bulk,
+    stale_tns_name_select,
+    tns_designation,
+)
 from ...base import BaseHandler
 
 log = make_log("api/obj_tns")
@@ -117,14 +122,19 @@ class ObjTNSBulkHandler(BaseHandler):
                     return self.error(
                         f"No object available with ID {', '.join(sorted(missing))}"
                     )
+                entries = {"obj_ids": list(obj_ids)}
             else:
-                obj_ids = (
+                # The designation is already on file, so TNS is asked for it
+                # directly rather than by a cone search around each object.
+                tns_names = (
                     await session.scalars(
                         stale_tns_name_select(session.user_or_token, limit)
                     )
                 ).all()
+                entries = {"tns_sources": [tns_designation(n) for n in tns_names]}
 
-            if not obj_ids:
+            queued = len(next(iter(entries.values())))
+            if not queued:
                 return self.success(data={"queued": 0, "queue_length": None})
 
             user_id = self.associated_user_object.id
@@ -132,7 +142,7 @@ class ObjTNSBulkHandler(BaseHandler):
                 queue_length = await IOLoop.current().run_in_executor(
                     None,
                     lambda: get_tns_bulk(
-                        obj_ids=list(obj_ids),
+                        **entries,
                         radius=body.radius,
                         user_id=user_id,
                     ),
@@ -140,7 +150,5 @@ class ObjTNSBulkHandler(BaseHandler):
             except Exception as e:
                 return self.error(f"Could not queue TNS refresh: {e}")
 
-            log(f"Queued {len(obj_ids)} TNS refreshes for user {user_id}")
-            return self.success(
-                data={"queued": len(obj_ids), "queue_length": queue_length}
-            )
+            log(f"Queued {queued} TNS refreshes for user {user_id}")
+            return self.success(data={"queued": queued, "queue_length": queue_length})

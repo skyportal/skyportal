@@ -698,56 +698,64 @@ def get_tns(
 
 
 def stale_tns_name_select(user_or_token, limit):
-    """Select classified objects whose stored TNS name still carries the AT prefix.
+    """Select the TNS names of classified objects still carrying the AT prefix.
 
     An object keeps the name TNS held when it was first matched, so one that has
     since been classified reads AT until TNS is asked again; the most recently
-    classified come first, which is where a stale name is most noticed.
+    classified come first, which is where a stale name is most noticed. Names
+    rather than objects, because one lookup covers every object sharing a name.
 
     Parameters
     ----------
     user_or_token : `baselayer.app.models.User` or `baselayer.app.models.Token`
         Whose accessible objects to search
     limit : int
-        Largest number of object ids to return
+        Largest number of names to return
 
     Returns
     -------
     sqlalchemy select object
-        Yields object ids
+        Yields TNS names, prefix included
     """
     return (
-        Obj.select(user_or_token, columns=[Obj.id])
+        Obj.select(user_or_token, columns=[Obj.tns_name])
         .join(Classification, Classification.obj_id == Obj.id)
         .where(
             Obj.tns_name.ilike("AT%"),
             Classification.ml.is_(False),
         )
-        .group_by(Obj.id)
+        .group_by(Obj.tns_name)
         .order_by(sa.func.max(Classification.created_at).desc())
         .limit(limit)
     )
 
 
+BULK_TNS_KEYS = {"obj_ids": "obj_id", "tns_sources": "tns_source"}
+
+
 def expand_bulk_tns_task(data):
-    """Split a bulk TNS retrieval request into one queue task per object.
+    """Split a bulk TNS retrieval request into one queue task each.
 
     Parameters
     ----------
     data : dict
-        Request body carrying an ``obj_ids`` list alongside the keys every task
-        shares, such as ``radius`` and ``user_id``
+        Request body carrying an ``obj_ids`` or ``tns_sources`` list alongside
+        the keys every task shares, such as ``radius`` and ``user_id``
 
     Returns
     -------
     list of dict
-        One task per object id, each carrying a single ``obj_id``
+        One task per entry, each carrying a single ``obj_id`` or ``tns_source``
     """
-    shared = {key: value for key, value in data.items() if key != "obj_ids"}
-    obj_ids = data.get("obj_ids")
-    if not isinstance(obj_ids, list) or not obj_ids:
-        raise ValueError("obj_ids must be a non-empty list")
-    return [{**shared, "obj_id": obj_id} for obj_id in obj_ids]
+    shared = {key: value for key, value in data.items() if key not in BULK_TNS_KEYS}
+    for plural, singular in BULK_TNS_KEYS.items():
+        if plural not in data:
+            continue
+        values = data[plural]
+        if not isinstance(values, list) or not values:
+            raise ValueError(f"{plural} must be a non-empty list")
+        return [{**shared, singular: value} for value in values]
+    raise ValueError(f"one of {', '.join(BULK_TNS_KEYS)} is required")
 
 
 def tns_request_delay(last_request_at, now, min_interval):
@@ -771,17 +779,23 @@ def tns_request_delay(last_request_at, now, min_interval):
 
 
 def get_tns_bulk(
-    obj_ids,
+    obj_ids=None,
+    tns_sources=None,
     radius=2.0,
     user_id=None,
     timeout=10,
 ):
-    """Queue a TNS lookup for several objects in one request.
+    """Queue a TNS lookup for several objects or TNS designations in one request.
+
+    An object id costs a cone search and then the object fetch; a designation is
+    looked up directly, so a refresh of a name already on file halves the calls.
 
     Parameters
     ----------
-    obj_ids : list of str
-        Object ids to look up
+    obj_ids : list of str, optional
+        Object ids to look up, by default None
+    tns_sources : list of str, optional
+        TNS designations to look up, without their prefix, by default None
     radius : float, optional
         Radius to search around each object, by default 2.0
     user_id : str, optional
@@ -792,16 +806,19 @@ def get_tns_bulk(
     Returns
     -------
     int
-        Length of the retrieval queue once the objects were added
+        Length of the retrieval queue once the entries were added
     """
-    if not obj_ids:
-        raise ValueError("obj_ids")
+    if bool(obj_ids) == bool(tns_sources):
+        raise ValueError("exactly one of obj_ids or tns_sources is required")
 
     request_body = {
-        "obj_ids": list(obj_ids),
         "radius": radius,
         "user_id": user_id,
     }
+    if obj_ids:
+        request_body["obj_ids"] = list(obj_ids)
+    else:
+        request_body["tns_sources"] = list(tns_sources)
 
     tns_microservice_url = (
         f"http://{cfg['hosts.tns_retrieval_queue']}:{cfg['ports.tns_retrieval_queue']}"
@@ -809,9 +826,8 @@ def get_tns_bulk(
 
     resp = requests.post(tns_microservice_url, json=request_body, timeout=timeout)
     if resp.status_code != 200:
-        raise ValueError(
-            f"TNS retrieval queue refused {len(request_body['obj_ids'])} objects: {resp.content}"
-        )
+        count = len(obj_ids or tns_sources)
+        raise ValueError(f"TNS retrieval queue refused {count} entries: {resp.content}")
     return resp.json().get("data", {}).get("queue_length")
 
 

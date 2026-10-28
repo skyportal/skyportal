@@ -23,7 +23,7 @@ def set_tns_name(obj_id, tns_name):
     DBSession().commit()
 
 
-def stale_ids(username, limit=1000):
+def stale_names(username, limit=1000):
     user = DBSession().scalar(sa.select(User).where(User.username == username))
     return DBSession().scalars(stale_tns_name_select(user, limit)).all()
 
@@ -135,7 +135,7 @@ def test_a_classified_at_name_enters_the_stale_selection(
 ):
     classify(public_source.id, classification_token, taxonomy_token, public_group.id)
     set_tns_name(public_source.id, "AT 2026agsu")
-    assert public_source.id in stale_ids(group_admin_user.username)
+    assert "AT 2026agsu" in stale_names(group_admin_user.username)
 
 
 def test_an_upgraded_name_leaves_the_stale_selection(
@@ -148,16 +148,16 @@ def test_an_upgraded_name_leaves_the_stale_selection(
     """The AT to SN upgrade is the whole point, so an SN name stops being picked."""
     classify(public_source.id, classification_token, taxonomy_token, public_group.id)
     set_tns_name(public_source.id, "AT 2026agsu")
-    assert public_source.id in stale_ids(group_admin_user.username)
+    assert "AT 2026agsu" in stale_names(group_admin_user.username)
 
     set_tns_name(public_source.id, "SN 2026agsu")
-    assert public_source.id not in stale_ids(group_admin_user.username)
+    assert "AT 2026agsu" not in stale_names(group_admin_user.username)
 
 
 def test_an_unclassified_at_name_is_left_alone(public_source_no_data, group_admin_user):
     """TNS has nothing new to say about an object nobody has classified."""
     set_tns_name(public_source_no_data.id, "AT 2026agsv")
-    assert public_source_no_data.id not in stale_ids(group_admin_user.username)
+    assert "AT 2026agsv" not in stale_names(group_admin_user.username)
 
 
 def test_the_selection_honours_its_limit(
@@ -169,4 +169,4 @@ def test_the_selection_honours_its_limit(
 ):
     classify(public_source.id, classification_token, taxonomy_token, public_group.id)
     set_tns_name(public_source.id, "AT 2026agsu")
-    assert len(stale_ids(group_admin_user.username, limit=1)) == 1
+    assert len(stale_names(group_admin_user.username, limit=1)) == 1

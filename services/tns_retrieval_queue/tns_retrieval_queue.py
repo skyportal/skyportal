@@ -621,7 +621,7 @@ def api(queue):
                     }
                 )
 
-            if "obj_ids" in data:
+            if "obj_ids" in data or "tns_sources" in data:
                 try:
                     tasks = expand_bulk_tns_task(data)
                 except ValueError as e:
