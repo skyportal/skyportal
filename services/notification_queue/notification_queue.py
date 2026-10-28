@@ -149,10 +149,6 @@ def user_preferences(target, notification_setting, resource_type):
             return
         if not target["user"]["contact_email"]:
             return
-        # this ensures that an email is sent regardless of the user's preferences
-        # this is useful for group_admission_requests, where we want the admins to always be notified by email
-        if resource_type in ["group_admission_request"]:
-            return True
 
     if "preferences" not in target["user"]:
         return
@@ -175,7 +171,12 @@ def user_preferences(target, notification_setting, resource_type):
         ):
             return
 
-    prefs = target["user"]["preferences"].get("notifications")
+    prefs = (target["user"]["preferences"] or {}).get("notifications")
+    if resource_type == "group_admission_request":
+        channel = ((prefs or {}).get(resource_type) or {}).get(notification_setting)
+        if (channel or {}).get("active", notification_setting == "email") is not True:
+            return
+        return prefs or True
     if not prefs:
         return
     else:
@@ -1434,6 +1435,10 @@ def api(queue):
                                         )
                                     )
                                 elif is_group_admission_request:
+                                    if (pref or {}).get(
+                                        "group_admission_request", {}
+                                    ).get("active") is False:
+                                        continue
                                     user_from_request = session.scalars(
                                         sa.select(User).where(
                                             User.id == target_data["user_id"]
@@ -1473,25 +1478,18 @@ def api(queue):
                                             placeholder="...",
                                         ),
                                     }
-                                    notification = UserNotification(
-                                        user=user,
-                                        text=group_admission_request_notification_text(
-                                            content, escape_markdown
-                                        ),
-                                        notification_type="group_admission_request",
-                                        url=f"/group/{group_from_request.id}?tab=admissions",
+                                    queue.append(
+                                        user_notification_target(
+                                            session,
+                                            user,
+                                            group_admission_request_notification_text(
+                                                content, escape_markdown
+                                            ),
+                                            "group_admission_request",
+                                            f"/group/{group_from_request.id}?tab=admissions",
+                                            content,
+                                        )
                                     )
-                                    session.add(notification)
-                                    session.commit()
-                                    target = {
-                                        **notification.to_dict(),
-                                        "user": {
-                                            **notification.user.to_dict(),
-                                            "preferences": notification.user.preferences,
-                                        },
-                                        "content": content,
-                                    }
-                                    queue.append(target)
                                 else:
                                     favorite_sources = session.scalars(
                                         sa.select(Listing)

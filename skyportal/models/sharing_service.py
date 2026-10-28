@@ -215,6 +215,11 @@ class SharingServiceGroup(Base):
 
     owner = sa.Column(sa.Boolean, nullable=False, default=False)
     auto_share_to_tns = sa.Column(sa.Boolean, nullable=False, server_default="false")
+    # Separate from auto_share_to_tns: a group may well want its discoveries
+    # announced automatically without its classifications going out too.
+    auto_share_classifications_to_tns = sa.Column(
+        sa.Boolean, nullable=False, server_default="false"
+    )
     auto_share_to_hermes = sa.Column(sa.Boolean, nullable=False, server_default="false")
     auto_share_to_mpc = sa.Column(sa.Boolean, nullable=False, server_default="false")
     auto_share_to_trove = sa.Column(sa.Boolean, nullable=False, server_default="false")
@@ -286,7 +291,9 @@ class SharingServiceSubmission(Base):
         sa.ForeignKey("sharingservices.id", ondelete="CASCADE"),
         nullable=False,
     )
-    obj_id = sa.Column(sa.ForeignKey("objs.id", ondelete="CASCADE"), nullable=False)
+    obj_id = sa.Column(
+        sa.ForeignKey("objs.id", ondelete="CASCADE"), nullable=False, index=True
+    )
     user_id = sa.Column(sa.ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
 
     custom_publishing_string = sa.Column(
@@ -307,6 +314,41 @@ class SharingServiceSubmission(Base):
         nullable=False,
         server_default="false",
         doc="Whether to publish to TNS or not.",
+    )
+
+    tns_report_type = sa.Column(
+        sa.String,
+        nullable=False,
+        server_default="at_report",
+        default="at_report",
+        doc=(
+            "Which TNS report this submission files: 'at_report' announces a "
+            "discovery, 'classification_report' classifies an object TNS "
+            "already holds and requires a spectrum."
+        ),
+    )
+
+    # A pick deleted while the submission is queued is nulled, so the report
+    # falls back to the default one rather than failing
+    tns_report_spectrum_id = sa.Column(
+        sa.ForeignKey("spectra.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+        doc=(
+            "Spectrum to report a classification against. Left unset, the "
+            "report takes the object's most recent spectrum, preferring a "
+            "source spectrum over a host one."
+        ),
+    )
+
+    tns_report_classification_id = sa.Column(
+        sa.ForeignKey("classifications.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+        doc=(
+            "Classification to report. Left unset, the report takes the "
+            "object's most recent human classification."
+        ),
     )
 
     tns_status = sa.Column(

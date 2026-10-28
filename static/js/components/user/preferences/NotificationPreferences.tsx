@@ -365,6 +365,13 @@ const NotificationPreferences = () => {
           {options}
         </NotificationCard>
       ))}
+      <NotificationCard
+        type="group_admission_request"
+        title="Group admission requests"
+        text="When someone asks to join a group you administer."
+        defaultActive
+        defaultChannels={["email"]}
+      />
       {isAdmin && (
         <NotificationCard
           type="feedback"

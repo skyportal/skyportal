@@ -1,7 +1,9 @@
 import uuid
 
 import pytest
+import sqlalchemy as sa
 
+from skyportal.models import DBSession, SharingServiceSubmission
 from skyportal.tests import api
 from skyportal.tests.fixtures import InstrumentFactory
 
@@ -484,3 +486,424 @@ def test_trove_submission(public_group, super_admin_token, public_source, alfosc
         "DELETE", f"sharing_service/{sharing_service_id}", token=super_admin_token
     )
     assert status == 200
+
+
+def test_classification_report_names_its_spectrum_and_classification(
+    public_group,
+    super_admin_token,
+    public_source,
+    public_source_spectrum,
+    public_obj,
+    public_taxonomy,
+    alfosc,
+):
+    status, data = api(
+        "PUT",
+        "sharing_service",
+        data={
+            "name": str(uuid.uuid4()),
+            "owner_group_ids": [public_group.id],
+            "instrument_ids": [alfosc.id],
+            "tns_bot_name": str(uuid.uuid4()),
+            "tns_bot_id": 10,
+            "tns_source_group_id": 200,
+            "_tns_altdata": {"api_key": "test_key"},
+        },
+        token=super_admin_token,
+    )
+    assert status == 200
+    sharing_service_id = data["data"]["id"]
+
+    # TNS only classifies an object it already has a name for.
+    status, data = api(
+        "PATCH",
+        f"sources/{public_source.id}",
+        data={"tns_name": "2026abc"},
+        token=super_admin_token,
+    )
+    assert status == 200
+
+    classification_ids = {}
+    for obj in (public_source, public_obj):
+        status, data = api(
+            "POST",
+            "classification",
+            data={
+                "obj_id": obj.id,
+                "classification": "Ia",
+                "taxonomy_id": public_taxonomy.id,
+                "group_ids": [public_group.id],
+            },
+            token=super_admin_token,
+        )
+        assert status == 200, data
+        classification_ids[obj.id] = data["data"]["classification_id"]
+
+    request_data = {
+        "sharing_service_id": sharing_service_id,
+        "obj_id": public_source.id,
+        "publish_to_tns": True,
+        "tns_report_type": "classification_report",
+        "publishers": "test publisher string",
+        "archival": False,
+    }
+
+    # Another object's classification or spectrum is refused.
+    for key, other_id in (
+        ("tns_report_classification_id", classification_ids[public_obj.id]),
+        ("tns_report_spectrum_id", public_obj.spectra[0].id),
+    ):
+        status, data = api(
+            "POST",
+            "sharing_service/submission",
+            data={**request_data, key: other_id},
+            token=super_admin_token,
+        )
+        assert status == 400
+        assert f"{other_id} is not one of {public_source.id}'s" in data["message"]
+
+    status, data = api(
+        "POST",
+        "sharing_service/submission",
+        data={
+            **request_data,
+            "tns_report_classification_id": classification_ids[public_source.id],
+            "tns_report_spectrum_id": public_source_spectrum.id,
+        },
+        token=super_admin_token,
+    )
+    assert status == 200, data
+
+    # An AT report does not check the ids, so it does not store them.
+    status, data = api(
+        "POST",
+        "sharing_service/submission",
+        data={
+            **request_data,
+            "tns_report_type": "at_report",
+            "tns_report_classification_id": classification_ids[public_obj.id],
+            "tns_report_spectrum_id": 2**31 - 1,
+        },
+        token=super_admin_token,
+    )
+    assert status == 200, data
+
+    status, data = api(
+        "GET",
+        "sharing_service/submission",
+        params={"sharing_service_id": sharing_service_id},
+        token=super_admin_token,
+    )
+    assert status == 200
+    submissions = {s["tns_report_type"]: s for s in data["data"]["submissions"]}
+    assert submissions.keys() == {"classification_report", "at_report"}
+    submission = submissions["classification_report"]
+    assert (
+        submission["tns_report_classification_id"]
+        == classification_ids[public_source.id]
+    )
+    assert submission["tns_report_spectrum_id"] == public_source_spectrum.id
+    assert submissions["at_report"]["tns_report_classification_id"] is None
+    assert submissions["at_report"]["tns_report_spectrum_id"] is None
+
+    status, data = api(
+        "DELETE", f"sharing_service/{sharing_service_id}", token=super_admin_token
+    )
+    assert status == 200
+
+
+def _post_tns_sharing_service(group_id, instrument_id, token):
+    status, data = api(
+        "PUT",
+        "sharing_service",
+        data={
+            "name": str(uuid.uuid4()),
+            "owner_group_ids": [group_id],
+            "instrument_ids": [instrument_id],
+            "tns_bot_name": str(uuid.uuid4()),
+            "tns_bot_id": 10,
+            "tns_source_group_id": 200,
+            "_tns_altdata": '{"api_key": "test_key"}',
+        },
+        token=token,
+    )
+    assert status == 200
+    return data["data"]["id"]
+
+
+@pytest.fixture()
+def tns_classification_service(public_group, super_admin_token, user, alfosc):
+    """A TNS sharing service whose group reports `user`'s classifications."""
+    sharing_service_id = _post_tns_sharing_service(
+        public_group.id, alfosc.id, super_admin_token
+    )
+    status, _ = api(
+        "PUT",
+        f"sharing_service/{sharing_service_id}/group/{public_group.id}",
+        data={"auto_share_classifications_to_tns": True},
+        token=super_admin_token,
+    )
+    assert status == 200
+    status, _ = api(
+        "PATCH",
+        f"internal/profile/{user.id}",
+        data={"affiliations": ["CIT"]},
+        token=super_admin_token,
+    )
+    assert status == 200
+    status, _ = api(
+        "POST",
+        f"sharing_service/{sharing_service_id}/group/{public_group.id}/auto_publisher",
+        data={"user_ids": [user.id]},
+        token=super_admin_token,
+    )
+    assert status == 200
+    yield sharing_service_id
+    api("DELETE", f"sharing_service/{sharing_service_id}", token=super_admin_token)
+
+
+def _update_obj(obj_id, data, token):
+    status, _ = api("PATCH", f"sources/{obj_id}", data=data, token=token)
+    assert status == 200
+
+
+def _classify(obj_id, taxonomy_id, group_id, token, ml=False, classification="Ia"):
+    status, data = api(
+        "POST",
+        "classification",
+        data={
+            "obj_id": obj_id,
+            "classification": classification,
+            "taxonomy_id": taxonomy_id,
+            "probability": 1.0,
+            "ml": ml,
+            "group_ids": [group_id],
+        },
+        token=token,
+    )
+    assert status == 200
+    return data["data"]["classification_id"]
+
+
+def _submissions(sharing_service_id, token):
+    status, data = api(
+        "GET",
+        "sharing_service/submission",
+        params={"sharing_service_id": sharing_service_id},
+        token=token,
+    )
+    assert status == 200
+    return data["data"]["submissions"]
+
+
+def test_a_human_classification_queues_a_tns_classification_report(
+    tns_classification_service,
+    public_source,
+    public_group,
+    public_taxonomy,
+    classification_token,
+    super_admin_token,
+    user,
+):
+    _update_obj(public_source.id, {"tns_name": "2026abc"}, super_admin_token)
+    _classify(
+        public_source.id, public_taxonomy.id, public_group.id, classification_token
+    )
+
+    (submission,) = _submissions(tns_classification_service, super_admin_token)
+    assert submission["obj_id"] == public_source.id
+    assert submission["user_id"] == user.id
+    assert submission["auto_submission"] is True
+    assert submission["tns_report_type"] == "classification_report"
+    assert submission["tns_status"] == "pending"
+
+
+def test_an_ml_classification_queues_no_tns_report(
+    tns_classification_service,
+    public_source,
+    public_group,
+    public_taxonomy,
+    classification_token,
+    super_admin_token,
+):
+    _update_obj(public_source.id, {"tns_name": "2026abc"}, super_admin_token)
+    _classify(
+        public_source.id,
+        public_taxonomy.id,
+        public_group.id,
+        classification_token,
+        ml=True,
+    )
+    assert _submissions(tns_classification_service, super_admin_token) == []
+
+    # the same classification by a human is reported
+    _classify(
+        public_source.id, public_taxonomy.id, public_group.id, classification_token
+    )
+    assert len(_submissions(tns_classification_service, super_admin_token)) == 1
+
+
+def test_a_class_tns_does_not_know_queues_no_tns_report(
+    tns_classification_service,
+    public_source,
+    public_group,
+    public_taxonomy,
+    classification_token,
+    super_admin_token,
+):
+    _update_obj(public_source.id, {"tns_name": "2026abc"}, super_admin_token)
+    # RRab has no TNS object type, so the queue could only fail the report
+    _classify(
+        public_source.id,
+        public_taxonomy.id,
+        public_group.id,
+        classification_token,
+        classification="RRab",
+    )
+    assert _submissions(tns_classification_service, super_admin_token) == []
+
+    _classify(
+        public_source.id, public_taxonomy.id, public_group.id, classification_token
+    )
+    assert len(_submissions(tns_classification_service, super_admin_token)) == 1
+
+
+def test_a_withheld_object_queues_no_tns_report(
+    tns_classification_service,
+    public_source,
+    public_group,
+    public_taxonomy,
+    classification_token,
+    super_admin_token,
+):
+    _update_obj(
+        public_source.id,
+        {"tns_name": "2026abc", "withhold_from_tns": True},
+        super_admin_token,
+    )
+    _classify(
+        public_source.id, public_taxonomy.id, public_group.id, classification_token
+    )
+    assert _submissions(tns_classification_service, super_admin_token) == []
+
+    _update_obj(public_source.id, {"withhold_from_tns": False}, super_admin_token)
+    _classify(
+        public_source.id, public_taxonomy.id, public_group.id, classification_token
+    )
+    assert len(_submissions(tns_classification_service, super_admin_token)) == 1
+
+
+def test_a_manual_tns_submission_of_a_withheld_object_is_refused(
+    tns_classification_service, public_source, super_admin_token
+):
+    _update_obj(public_source.id, {"withhold_from_tns": True}, super_admin_token)
+    status, data = api(
+        "POST",
+        "sharing_service/submission",
+        data={
+            "sharing_service_id": tns_classification_service,
+            "obj_id": public_source.id,
+            "publish_to_tns": True,
+            "publishers": "test publisher string",
+            "archival": False,
+        },
+        token=super_admin_token,
+    )
+    assert status == 400
+    assert "withheld from TNS" in data["message"]
+
+
+def test_a_group_put_can_set_only_the_classification_flag(
+    public_group, super_admin_token, alfosc
+):
+    sharing_service_id = _post_tns_sharing_service(
+        public_group.id, alfosc.id, super_admin_token
+    )
+    status, data = api(
+        "PUT",
+        f"sharing_service/{sharing_service_id}/group/{public_group.id}",
+        data={"auto_share_classifications_to_tns": True},
+        token=super_admin_token,
+    )
+    assert status == 200
+
+    status, data = api(
+        "GET", f"sharing_service/{sharing_service_id}", token=super_admin_token
+    )
+    assert status == 200
+    (group,) = [g for g in data["data"]["groups"] if g["group_id"] == public_group.id]
+    assert group["auto_share_classifications_to_tns"] is True
+    assert group["auto_share_to_tns"] is False
+
+    status, data = api(
+        "DELETE", f"sharing_service/{sharing_service_id}", token=super_admin_token
+    )
+    assert status == 200
+
+
+def test_a_child_class_repoints_the_pending_tns_classification_report(
+    tns_classification_service,
+    public_source,
+    public_group,
+    public_taxonomy,
+    classification_token,
+    super_admin_token,
+):
+    _update_obj(public_source.id, {"tns_name": "2026abc"}, super_admin_token)
+    # MultipleClassificationsForm posts the parent class first
+    _classify(
+        public_source.id,
+        public_taxonomy.id,
+        public_group.id,
+        classification_token,
+        classification="Supernova",
+    )
+    child_id = _classify(
+        public_source.id, public_taxonomy.id, public_group.id, classification_token
+    )
+
+    (submission,) = _submissions(tns_classification_service, super_admin_token)
+    assert submission["tns_status"] == "pending"
+    assert submission["tns_report_classification_id"] == child_id
+
+
+def test_a_reclassification_after_a_sent_tns_report_files_another(
+    tns_classification_service,
+    public_source,
+    public_group,
+    public_taxonomy,
+    classification_token,
+    super_admin_token,
+):
+    _update_obj(public_source.id, {"tns_name": "2026abc"}, super_admin_token)
+    _classify(
+        public_source.id,
+        public_taxonomy.id,
+        public_group.id,
+        classification_token,
+        classification="Supernova",
+    )
+    (sent,) = _submissions(tns_classification_service, super_admin_token)
+    DBSession().execute(
+        sa.update(SharingServiceSubmission)
+        .where(SharingServiceSubmission.id == sent["id"])
+        .values(tns_status="complete")
+    )
+    DBSession().commit()
+
+    # the same TNS type again files nothing
+    _classify(
+        public_source.id,
+        public_taxonomy.id,
+        public_group.id,
+        classification_token,
+        classification="Supernova",
+    )
+    assert len(_submissions(tns_classification_service, super_admin_token)) == 1
+
+    ia_id = _classify(
+        public_source.id, public_taxonomy.id, public_group.id, classification_token
+    )
+    submissions = _submissions(tns_classification_service, super_admin_token)
+    (new,) = [s for s in submissions if s["tns_status"] == "pending"]
+    assert new["tns_report_classification_id"] == ia_id

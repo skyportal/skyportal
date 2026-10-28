@@ -239,6 +239,9 @@ class SourceResponse(BaseModel):
     mpc_name: str | None = None
     tns_name: str | None = None
     tns_info: dict[str, Any] | None = None
+    withhold_from_tns: bool | None = None
+    withhold_from_tns_set_by_id: int | None = None
+    withhold_from_tns_set_at: datetime | None = None
     score: float | None = None
     origin: str | None = None
     alias: list[str] | None = None
@@ -281,6 +284,7 @@ class SourceResponse(BaseModel):
     comments: list[CommentResponse] = Field(default_factory=list)
     photometry: list[PhotometryPointResponse] = Field(default_factory=list)
     host: GalaxyResponse | None = None
+    withhold_from_tns_set_by: UserResponse | None = None
     followup_requests: list[SourceFollowupRequestResponse] = Field(default_factory=list)
     assignments: list[AssignmentResponse] = Field(default_factory=list)
     analyses: list[ObjAnalysisResponse] = Field(default_factory=list)

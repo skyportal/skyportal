@@ -63,7 +63,6 @@ const NewPhotometryForm = ({ obj_id }: NewPhotometryFormProps) => {
   const groups = useGetGroupsQuery().data?.userAccessible ?? [];
 
   const [selectedFormData, setSelectedFormData] = useState<any>({
-    group_ids: [groups[0]?.id],
     obsdate: "",
     mag: "",
     magerr: "",
@@ -433,7 +432,11 @@ const NewPhotometryForm = ({ obj_id }: NewPhotometryFormProps) => {
               name="instrumentSelect"
             >
               {sortedInstrumentList?.map((instrument) => (
-                <MenuItem value={instrument.id} key={instrument.id}>
+                <MenuItem
+                  value={instrument.id}
+                  key={instrument.id}
+                  disabled={!instrument.filters?.length}
+                >
                   {instrument.name}
                 </MenuItem>
               ))}

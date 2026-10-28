@@ -58,6 +58,7 @@ from ....models import (
 )
 from ....utils.cache import Cache, array_to_bytes, cache_folder
 from ....utils.calculations import great_circle_distance
+from ....utils.candidates import stale_unsaved_candidates
 from ....utils.data_access import (
     accessible_group_and_filter_ids,
     accessible_group_ids_async,
@@ -119,6 +120,17 @@ def update_redshift_history_if_relevant(request_data, obj, user):
 
         redshift_history.append(history_params)
         obj.redshift_history = redshift_history
+
+
+def update_withhold_from_tns_if_relevant(request_data, obj, user):
+    # Stamped whenever the flag is sent, set or cleared, so a report that did
+    # not go out can be traced to whoever last asked for that.
+    if "withhold_from_tns" in request_data:
+        obj.withhold_from_tns = bool(request_data["withhold_from_tns"])
+        obj.withhold_from_tns_set_by_id = user.id
+        obj.withhold_from_tns_set_at = datetime.datetime.now(datetime.UTC).replace(
+            tzinfo=None
+        )
 
 
 def update_healpix_if_relevant(request_data, obj):
@@ -1585,6 +1597,9 @@ class CandidateHandler(BaseHandler):
                 update_redshift_history_if_relevant(
                     data, obj, self.associated_user_object
                 )
+                update_withhold_from_tns_if_relevant(
+                    data, obj, self.associated_user_object
+                )
                 update_healpix_if_relevant(data, obj)
                 try:
                     # Concurrent posts of the same new obj race here: the loser
@@ -1613,6 +1628,9 @@ class CandidateHandler(BaseHandler):
             # loaded, so applying the updates here can't lazy-load.
             if obj_already_exists:
                 update_redshift_history_if_relevant(
+                    data, obj, self.associated_user_object
+                )
+                update_withhold_from_tns_if_relevant(
                     data, obj, self.associated_user_object
                 )
                 update_healpix_if_relevant(data, obj)
@@ -1864,7 +1882,7 @@ class BulkDeleteCandidatesHandler(BaseHandler):
         description: |
           Delete objects that appear as candidates, are not currently saved as
           an active source in any group, and whose most recent candidate
-          `passed_at` is older than `maxAgeMonths`. Deleting the object cascades
+          `passed_at` is older than `maxAgeDays`. Deleting the object cascades
           to its candidates, photometry, annotations, thumbnails, etc. System
           admin only. Intended to be driven periodically via the Recurring API.
         tags:
@@ -1895,43 +1913,22 @@ class BulkDeleteCandidatesHandler(BaseHandler):
                 schema: Error
         """
         body = self.parse_body(BulkDeleteCandidatesPostBody)
-        data = body.model_dump(exclude_unset=True)
-
-        try:
-            max_age_months = int(data.get("maxAgeMonths", 6))
-        except (TypeError, ValueError):
-            return self.error("maxAgeMonths must be an integer.")
-        try:
-            batch_size = int(data.get("batchSize", 1000))
-        except (TypeError, ValueError):
-            return self.error("batchSize must be an integer.")
-        dry_run = bool(data.get("dryRun", False))
-
-        if max_age_months < 1:
-            return self.error("maxAgeMonths must be a positive integer.")
-        if not (1 <= batch_size <= 10000):
+        max_age_days = body.maxAgeDays or cfg["misc.days_to_keep_unsaved_candidates"]
+        if max_age_days < 1:
+            return self.error("maxAgeDays must be a positive integer.")
+        if not 1 <= body.batchSize <= 10000:
             return self.error("batchSize must be between 1 and 10000.")
 
-        cutoff = arrow.utcnow().shift(months=-max_age_months).naive
-
-        # Objects that are candidates, are not currently saved as an active
-        # source anywhere, and have no candidate activity at/after the cutoff
-        # (i.e. their most recent passed_at is older than maxAgeMonths).
-        criteria = sa.and_(
-            Obj.id.in_(sa.select(Candidate.obj_id)),
-            Obj.id.notin_(sa.select(Source.obj_id).where(Source.active.is_(True))),
-            Obj.id.notin_(
-                sa.select(Candidate.obj_id).where(Candidate.passed_at >= cutoff)
-            ),
+        criteria = stale_unsaved_candidates(
+            arrow.utcnow().shift(days=-max_age_days).naive
         )
+        count_stmt = sa.select(func.count()).select_from(Obj).where(criteria)
 
         async with self.AsyncSession() as session:
-            count_stmt = sa.select(func.count()).select_from(Obj).where(criteria)
-
-            if dry_run:
-                total = int(await session.scalar(count_stmt) or 0)
+            if body.dryRun:
+                remaining = await session.scalar(count_stmt)
                 return self.success(
-                    data={"deleted": 0, "remaining": total, "dryRun": True}
+                    data={"deleted": 0, "remaining": remaining, "dryRun": True}
                 )
 
             objs = (
@@ -1939,22 +1936,19 @@ class BulkDeleteCandidatesHandler(BaseHandler):
                     sa.select(Obj)
                     .where(criteria)
                     .order_by(Obj.created_at)
-                    .limit(batch_size)
+                    .limit(body.batchSize)
                 )
             ).all()
-
-            # Per-row delete so ORM cascades and the Obj `before_delete` event
-            # (on-disk thumbnail cleanup) fire, rather than a bulk DELETE.
-            n = len(objs)
+            # Per-row delete so the Obj before_delete event removes thumbnails from disk.
             for obj in objs:
                 await session.delete(obj)
             await session.commit()
 
-            remaining = int(await session.scalar(count_stmt) or 0)
+            remaining = await session.scalar(count_stmt)
             log(
-                f"Bulk-deleted {n} unsaved candidate object(s) older than "
-                f"{max_age_months} months; {remaining} remaining."
+                f"Bulk-deleted {len(objs)} unsaved candidate object(s) older than "
+                f"{max_age_days} days; {remaining} remaining."
             )
             return self.success(
-                data={"deleted": n, "remaining": remaining, "dryRun": False}
+                data={"deleted": len(objs), "remaining": remaining, "dryRun": False}
             )

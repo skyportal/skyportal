@@ -144,6 +144,7 @@ const AddEntitiesDialog = ({
   errorMessage,
   options,
   getOptionLabel,
+  getOptionDisabled,
   selectTestId,
   submitId,
   control,
@@ -168,6 +169,7 @@ const AddEntitiesDialog = ({
               onChange={(_e, data) => onChange(data)}
               options={options}
               getOptionLabel={getOptionLabel}
+              getOptionDisabled={getOptionDisabled}
               filterSelectedOptions
               error={invalid}
               data-testid={selectTestId}
@@ -366,6 +368,14 @@ const UserManagement = () => {
       </Box>
     );
   };
+
+  const missingStreamsFor = (group: any) =>
+    (group.streams ?? [])
+      .filter(
+        (stream: any) =>
+          !clickedUser?.streams?.some((s: any) => s.id === stream.id),
+      )
+      .map((stream: any) => stream.name);
 
   const handleAddUserToGroups = (formData: any) =>
     runAndNotify(
@@ -593,7 +603,13 @@ const UserManagement = () => {
       options: groups.filter(
         (group) => !clickedUser?.groups?.some((g: any) => g.id === group.id),
       ),
-      getOptionLabel: (group: any) => group.name,
+      getOptionLabel: (group: any) => {
+        const missing = missingStreamsFor(group);
+        return missing.length > 0
+          ? `${group.name} (grant stream access first: ${missing.join(", ")})`
+          : group.name;
+      },
+      getOptionDisabled: (group: any) => missingStreamsFor(group).length > 0,
       selectTestId: "addUserToGroupsSelect",
       submitId: "submitAddFromGroupsButton",
       onSubmit: handleSubmit(handleAddUserToGroups),

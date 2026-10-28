@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Any, ClassVar
+from typing import Any, ClassVar, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -70,6 +70,7 @@ class SharingServiceGroupResponse(BaseModel):
     group_id: int | None = None
     owner: bool | None = None
     auto_share_to_tns: bool | None = None
+    auto_share_classifications_to_tns: bool | None = None
     auto_share_to_hermes: bool | None = None
     auto_share_to_trove: bool | None = None
     auto_sharing_allow_bots: bool | None = None
@@ -123,8 +124,8 @@ class SharingServiceSubmissionResponse(BaseModel):
     """A publication request (``SharingServiceSubmission``).
 
     ``tns_name`` is not a column: the endpoint copies it off the submitted
-    object. ``tns_payload``, ``tns_response`` and ``hermes_response`` are
-    deferred and only appear when explicitly requested. The ``user`` and
+    object. The payload and response columns are deferred and only appear
+    when explicitly requested. The ``user`` and
     ``sharing_service`` relationships are never eager-loaded, so they are
     not declared.
     """
@@ -142,10 +143,18 @@ class SharingServiceSubmissionResponse(BaseModel):
     custom_publishing_string: str | None = None
     custom_remarks_string: str | None = None
     publish_to_tns: bool | None = None
+    tns_report_type: str | None = None
+    tns_report_spectrum_id: int | None = None
+    tns_report_classification_id: int | None = None
     tns_status: str | None = None
     tns_submission_id: int | None = None
     tns_payload: dict[str, Any] | None = None
     tns_response: dict[str, Any] | None = None
+    publish_to_mpc: bool | None = None
+    mpc_status: str | None = None
+    mpc_submission_id: str | None = None
+    mpc_response: dict[str, Any] | None = None
+    mpc_payload: dict[str, Any] | None = None
     publish_to_hermes: bool | None = None
     hermes_status: str | None = None
     hermes_response: dict[str, Any] | None = None
@@ -336,6 +345,11 @@ class SharingServiceGroupPutBody(BaseModel):
     auto_share_to_tns: bool | str | None = Field(
         default=None, description="Whether to automatically publish to TNS"
     )
+    auto_share_classifications_to_tns: bool | str | None = Field(
+        default=None,
+        description="Whether to automatically report classifications of this "
+        "group's sources to TNS",
+    )
     auto_share_to_hermes: bool | str | None = Field(
         default=None, description="Whether to automatically publish to Hermes"
     )
@@ -465,6 +479,22 @@ class SharingServiceSubmissionPostBody(BaseModel):
     publish_to_tns: bool | None = Field(
         default=False,
         description="Flag to indicate if the submission should be published to TNS",
+    )
+    tns_report_type: Literal["at_report", "classification_report"] | None = Field(
+        default="at_report",
+        description="Which TNS report to file: 'at_report' announces a "
+        "discovery, 'classification_report' classifies an object already on "
+        "TNS and requires it to have a classification and a spectrum.",
+    )
+    tns_report_spectrum_id: int | None = Field(
+        default=None,
+        description="Spectrum to report the classification against. Omit to "
+        "use the object's most recent spectrum, preferring a source spectrum.",
+    )
+    tns_report_classification_id: int | None = Field(
+        default=None,
+        description="Classification to report. Omit to use the object's most "
+        "recent human classification.",
     )
     publish_to_hermes: bool | None = Field(
         default=False,

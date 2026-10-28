@@ -1,10 +1,11 @@
 import arrow
 import sqlalchemy as sa
+from skyportal_py_models.gcn_events import GcnEventCrossmatchRequeueBody
 
 from baselayer.app.access import auth_or_token, permissions
 from baselayer.log import make_log
 
-from ...models import GcnEvent, GcnEventCrossmatchState
+from ...models import Filter, GcnEvent, GcnEventCrossmatchState
 from ..base import BaseHandler
 
 log = make_log("api/gcn_crossmatch")
@@ -59,14 +60,16 @@ class GcnEventCrossmatchHandler(BaseHandler):
             return self.success(data=[s.to_dict() for s in states])
 
     @permissions(["Manage GCNs"])
-    async def post(self, dateobs):
+    async def post(self, dateobs, *, body: GcnEventCrossmatchRequeueBody = None):
         """
         ---
         summary: Requeue the alert crossmatch for a GCN event
         description: |
           Reset this event's crossmatch progress so the next service pass
-          re-queries every filter from the start of the window, including the
-          one-shot archival pass.
+          re-queries it from the start of the window, including the one-shot
+          archival pass. Give a ``filter_id`` to requeue one filter alone;
+          without one every filter on the event is requeued, and each one
+          re-queries the broker.
 
           Existing sources and annotations are left alone: the crossmatch
           updates them in place, so re-running refreshes rather than
@@ -84,6 +87,9 @@ class GcnEventCrossmatchHandler(BaseHandler):
               application/json:
                 schema: Error
         """
+        body = self.parse_body(GcnEventCrossmatchRequeueBody)
+        filter_id = body.filter_id
+
         try:
             dateobs = arrow.get(dateobs.strip()).naive
         except Exception as e:
@@ -98,18 +104,34 @@ class GcnEventCrossmatchHandler(BaseHandler):
             if event is None:
                 return self.error(f"No GCN event with dateobs {dateobs}")
 
+            stmt = sa.update(GcnEventCrossmatchState).where(
+                GcnEventCrossmatchState.gcnevent_id == event.id
+            )
+            if filter_id is not None:
+                # Checked against the requester's own access, so this cannot
+                # be used to probe for filters they cannot see.
+                filter_ = await session.scalar(
+                    Filter.select(session.user_or_token).where(Filter.id == filter_id)
+                )
+                if filter_ is None:
+                    return self.error(f"No filter with ID {filter_id}")
+                stmt = stmt.where(GcnEventCrossmatchState.filter_id == filter_id)
+
             result = await session.execute(
-                sa.update(GcnEventCrossmatchState)
-                .where(GcnEventCrossmatchState.gcnevent_id == event.id)
-                .values(
+                stmt.values(
                     status="pending",
                     last_queried=None,
                     last_alert_jd=None,
                     archival_done=False,
                     error=None,
+                    n_matches=0,
                 )
             )
             await session.commit()
 
-            log(f"Requeued crossmatch for {dateobs} ({result.rowcount} filter(s))")
+            scope = f" filter {filter_id}" if filter_id is not None else ""
+            log(
+                f"Requeued crossmatch for {dateobs}{scope} "
+                f"({result.rowcount} filter(s))"
+            )
             return self.success(data={"filters_requeued": result.rowcount})

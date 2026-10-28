@@ -478,9 +478,11 @@ class MMAAPI(FollowUpAPI):
         # re-runs this DISTINCT once each.
         galaxy_catalogs = kwargs.get("galaxy_catalog_names")
         if galaxy_catalogs is None:
-            galaxy_catalogs = [
-                g for (g,) in DBSession().query(GalaxyCatalog.name).distinct().all()
-            ]
+            galaxy_catalogs = (
+                DBSession()
+                .scalars(GalaxyCatalog.select(user, columns=[GalaxyCatalog.name]))
+                .all()
+            )
         end_date = instrument.telescope.next_twilight_morning_nautical()
         if end_date is None:
             end_date = str(utcnow_naive() + timedelta(days=1))

@@ -1936,7 +1936,7 @@ def test_candidate_filter_list(view_only_token, public_candidate):
 def test_bulk_delete_old_unsaved_candidates(
     super_admin_token, upload_data_token, view_only_token, public_filter, public_group
 ):
-    old = str(utcnow_naive() - datetime.timedelta(days=400))  # > 6 months
+    old = str(utcnow_naive() - datetime.timedelta(days=400))
     recent = str(utcnow_naive())
 
     old_unsaved = str(uuid.uuid4())  # old + never saved -> should be deleted
@@ -1979,7 +1979,7 @@ def test_bulk_delete_old_unsaved_candidates(
     status, data = api(
         "POST",
         "candidates/bulk_delete",
-        data={"maxAgeMonths": 6, "dryRun": True},
+        data={"maxAgeDays": 30, "dryRun": True},
         token=super_admin_token,
     )
     assert status == 200, data
@@ -1993,7 +1993,7 @@ def test_bulk_delete_old_unsaved_candidates(
     status, data = api(
         "POST",
         "candidates/bulk_delete",
-        data={"maxAgeMonths": 6},
+        data={"maxAgeDays": 30},
         token=super_admin_token,
     )
     assert status == 200, data

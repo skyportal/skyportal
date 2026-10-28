@@ -154,6 +154,8 @@ _last_filter_report: dict = {}
 # When the last association pass started; in memory, so a restart runs a full one.
 _association_pass: dict = {"since": None}
 
+_applied_windows: dict = {}
+
 
 def report_once(key, message):
     """Log `message` only when it differs from the last one for `key`."""
@@ -188,6 +190,51 @@ def is_rate_limited(error):
 def conf(config, key):
     """Read a crossmatch setting, falling back to the documented default."""
     return (config or {}).get(key, DEFAULTS[key])
+
+
+def requeue_crossmatch_for_filter(session, filter_id, config=None):
+    """Re-search still-active events after a filter's definition changes.
+
+    A crossmatch state records how far it has got, and a window that has been
+    searched in full is never searched again: that is right while the filter
+    holds still, and wrong the moment someone edits it. Broadening a filter
+    would otherwise leave every event it had already passed over untouched, so
+    the new cuts would only ever apply to events still to come.
+
+    Only events inside ``max_event_age`` are reset, because older ones are no
+    longer polled at all; the cost is the same as enabling the filter today.
+    ``config`` is the instance's ``gcn_crossmatch`` settings, passed in rather
+    than read here, as everything else in this module is.
+
+    Returns the number of states requeued.
+    """
+    from ..models import GcnEvent, GcnEventCrossmatchState
+
+    cutoff = utcnow_naive() - timedelta(days=float(conf(config, "max_event_age")))
+    with session.begin_nested():
+        result = session.execute(
+            sa.update(GcnEventCrossmatchState)
+            .where(
+                GcnEventCrossmatchState.filter_id == int(filter_id),
+                GcnEventCrossmatchState.gcnevent_id.in_(
+                    sa.select(GcnEvent.id).where(GcnEvent.dateobs >= cutoff)
+                ),
+            )
+            .values(
+                status="pending",
+                last_queried=None,
+                last_alert_jd=None,
+                archival_done=False,
+                error=None,
+                n_matches=0,
+            )
+        )
+    if result.rowcount:
+        log(
+            f"Requeued {result.rowcount} crossmatch state(s) for filter "
+            f"{filter_id} after its definition changed"
+        )
+    return result.rowcount
 
 
 CROSSMATCH_ALTDATA_KEY = "gcn_crossmatch"
@@ -264,6 +311,76 @@ def alert_position(alert):
     if isinstance(coords, (list, tuple)) and len(coords) == 2:
         return float(coords[0]) + 180.0, float(coords[1])
     return None
+
+
+POSITION_FIELD = "coordinates.radec_geojson"
+JD_FIELD = "candidate.jd"
+NDETHIST_FIELD = "candidate.ndethist"
+FP_HISTS_FIELD = "fp_hists"
+AUX_FIELDS = (
+    "prv_candidates",
+    "prv_nondetections",
+    "fp_hists",
+    "cross_matches",
+    "host_galaxy",
+    "aliases",
+)
+
+
+def _overlaps(key, field):
+    return key == field or field.startswith(f"{key}.") or key.startswith(f"{field}.")
+
+
+def _reads(value, field):
+    if isinstance(value, dict):
+        return any(_reads(k, field) or _reads(v, field) for k, v in value.items())
+    if isinstance(value, list):
+        return any(_reads(item, field) for item in value)
+    if isinstance(value, str):
+        path = value.strip().removeprefix("$")
+        return path == field or path.startswith(f"{field}.")
+    return False
+
+
+def first_aux_stage(pipeline):
+    return next(
+        (
+            i
+            for i, stage in enumerate(pipeline or [])
+            if any(_reads(stage, field) for field in AUX_FIELDS)
+        ),
+        None,
+    )
+
+
+def with_fields_projected(pipeline, fields):
+    patched = []
+    for stage in pipeline or []:
+        spec = stage.get("$project") if isinstance(stage, dict) else None
+        if not isinstance(spec, dict) or not spec:
+            patched.append(stage)
+            continue
+        if all(not value for value in spec.values()):
+            kept = {
+                k: v
+                for k, v in spec.items()
+                if not any(_overlaps(k, field) for field in fields)
+            }
+            if kept:
+                patched.append({**stage, "$project": kept})
+            continue
+        spec = {
+            k: v
+            for k, v in spec.items()
+            if not any(k.startswith(f"{field}.") for field in fields)
+        }
+        missing = {
+            field: 1
+            for field in fields
+            if not any(_overlaps(key, field) for key in spec)
+        }
+        patched.append({**stage, "$project": {**spec, **missing}})
+    return patched
 
 
 def alert_jd(alert):
@@ -659,6 +776,11 @@ async def process_event_filter(
         state.error = None
         return 0
 
+    seen = await session.scalar(
+        sa.select(GcnEventCrossmatchState.modified).where(
+            GcnEventCrossmatchState.id == state.id
+        )
+    )
     broker = filter_.broker
     survey = filter_survey(filter_)
     # Bounded by the filter's own stream: its group is who sees the candidates,
@@ -674,6 +796,18 @@ async def process_event_filter(
         # artifacts, asteroids and variable stars are rejected before they cross
         # the wire rather than after.
         cuts, cuts_source = await resolve_quality_pipeline(session, broker, filter_.id)
+        min_detections = conf(config, "min_detections")
+        fields = (POSITION_FIELD, JD_FIELD)
+        if min_detections:
+            fields += (NDETHIST_FIELD,)
+        # BOOM joins the aux collection before the first stage naming one of its fields.
+        aux_index = first_aux_stage(cuts) if min_detections else None
+        if aux_index is None:
+            cuts = with_fields_projected(cuts, fields)
+        else:
+            cuts = with_fields_projected(
+                cuts[:aux_index], fields
+            ) + with_fields_projected(cuts[aux_index:], (*fields, FP_HISTS_FIELD))
         # First: the broker joins the alert history collection lazily, before the
         # first stage that reads it, so a cut placed after that stage is applied
         # to the joined set rather than shrinking it.
@@ -684,7 +818,7 @@ async def process_event_filter(
         )
         # Last: it reads the joined alert history, which the earlier stages
         # have already shrunk.
-        detections = detection_count_stages(event_jd, conf(config, "min_detections"))
+        detections = detection_count_stages(event_jd, min_detections)
         result = broker.broker_class.test_filter(
             broker,
             session,
@@ -851,10 +985,18 @@ async def process_event_filter(
         if jd is not None and (newest_jd is None or jd > newest_jd):
             newest_jd = jd
 
+    modified = await session.scalar(
+        sa.select(GcnEventCrossmatchState.modified).where(
+            GcnEventCrossmatchState.id == state_id
+        )
+    )
     # Re-fetch rather than reuse the (possibly expired) instance for the same
     # reason.
     state = await session.get(GcnEventCrossmatchState, state_id)
-    if state is not None:
+    if state is not None and modified != seen:
+        # requeued during the search: keep the reset, not this pass's progress
+        await session.refresh(state)
+    elif state is not None:
         if archival:
             state.archival_done = True
         else:
@@ -1043,27 +1185,127 @@ async def retract_superseded_matches(
         if still_matches:
             continue
 
-        for key in stale:
-            data.pop(key, None)
+        await drop_matches(session, annotation, stale, filter_.id)
         retracted += len(stale)
-        if data:
-            annotation.data = data
-            flag_modified(annotation, "data")
-        else:
-            await session.delete(annotation)
-            # The candidacy existed only because of this match, so it goes too.
-            await session.execute(
-                sa.delete(Candidate).where(
-                    Candidate.obj_id == annotation.obj_id,
-                    Candidate.filter_id == filter_.id,
-                )
-            )
 
     if retracted:
         await session.commit()
         log(
             f"{filter_.name}: retracted {retracted} match(es) for {event.dateobs} "
             f"that its current localizations no longer contain"
+        )
+    return retracted
+
+
+def entry_dateobs(entry):
+    try:
+        return datetime.fromisoformat(str(entry.get("dateobs")))
+    except (TypeError, ValueError):
+        return None
+
+
+async def drop_matches(session, annotation, keys, filter_id):
+    data = dict(annotation.data or {})
+    dateobs = {entry_dateobs(data.pop(key, None) or {}) for key in keys} - {None}
+    if data:
+        annotation.data = data
+        flag_modified(annotation, "data")
+    else:
+        await session.delete(annotation)
+        # The candidacy existed only because of this match, so it goes too.
+        await session.execute(
+            sa.delete(Candidate).where(
+                Candidate.obj_id == annotation.obj_id,
+                Candidate.filter_id == filter_id,
+            )
+        )
+    if dateobs:
+        await session.execute(
+            sa.delete(GcnEventObj).where(
+                GcnEventObj.obj_id == annotation.obj_id,
+                GcnEventObj.dateobs.in_(dateobs),
+                GcnEventObj.status == "pending",
+            )
+        )
+
+
+def outside_window(entry, before, after):
+    delta_t = entry.get("delta_t")
+    if not isinstance(delta_t, int | float):
+        return False
+    if delta_t < -before:
+        return not entry.get("prior_activity")
+    age = entry.get("age")
+    # delta_t is the latest alert's, so the upper bound uses the first detection
+    return isinstance(age, int | float) and delta_t - age > after
+
+
+async def retract_out_of_window(session, filter_, before, after):
+    annotations = (
+        await session.scalars(
+            sa.select(Annotation)
+            .join(Candidate, Candidate.obj_id == Annotation.obj_id)
+            .where(
+                Annotation.origin == ANNOTATION_ORIGIN,
+                Candidate.filter_id == filter_.id,
+            )
+            .distinct()
+        )
+    ).all()
+    found = []
+    for annotation in annotations:
+        keys = [
+            key
+            for key, entry in (annotation.data or {}).items()
+            if isinstance(entry, dict) and outside_window(entry, before, after)
+        ]
+        if keys:
+            found.append((annotation, keys))
+    if not found:
+        return 0
+
+    dateobs = {
+        entry_dateobs(annotation.data[key])
+        for annotation, keys in found
+        for key in keys
+    } - {None}
+    events = {
+        event.dateobs: event
+        for event in (
+            await session.scalars(
+                sa.select(GcnEvent)
+                .where(GcnEvent.dateobs.in_(dateobs))
+                .options(
+                    selectinload(GcnEvent._tags),
+                    selectinload(GcnEvent.localizations).selectinload(
+                        Localization.tags
+                    ),
+                )
+            )
+        )
+        .unique()
+        .all()
+    }
+
+    def applies(entry):
+        event = events.get(entry_dateobs(entry))
+        if event is None or not event.localizations:
+            return False
+        first = min(event.localizations, key=lambda loc: loc.created_at)
+        return event_matches(filter_, event, first)
+
+    retracted = 0
+    for annotation, keys in found:
+        keys = [key for key in keys if applies(annotation.data[key])]
+        if keys:
+            await drop_matches(session, annotation, keys, filter_.id)
+            retracted += len(keys)
+
+    if retracted:
+        await session.commit()
+        log(
+            f"{filter_.name}: retracted {retracted} match(es) outside its window "
+            f"of {before} day(s) before to {after} day(s) after the event"
         )
     return retracted
 
@@ -1155,6 +1397,21 @@ async def run_cycle(config=None, user_id=1):
                 f"{f.name} [{filter_survey(f)} via {f.broker.name}]" for f in filters
             ),
         )
+
+        for filter_ in filters:
+            settings = filter_settings(filter_, config)
+            window = (
+                float(conf(settings, "delta_t_before")),
+                float(conf(settings, "delta_t_after")),
+            )
+            if _applied_windows.get(filter_.id) == window:
+                continue
+            try:
+                await retract_out_of_window(session, filter_, *window)
+                _applied_windows[filter_.id] = window
+            except Exception as e:
+                await session.rollback()
+                log(f"Could not retract matches outside {filter_.name}'s window: {e}")
 
         events = (
             (
@@ -1274,7 +1531,11 @@ async def run_cycle(config=None, user_id=1):
                         # The pre-event window is searched once, before the first
                         # forward pass, so a candidate that was already active is
                         # flagged as such the first time anyone looks at it.
-                        if conf(settings, "archival") and not state.archival_done:
+                        if (
+                            conf(settings, "archival")
+                            and conf(settings, "max_days_to_first_detection") is None
+                            and not state.archival_done
+                        ):
                             total += await process_event_filter(
                                 session,
                                 user,
