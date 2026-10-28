@@ -90,7 +90,7 @@ app:
         affiliation: Caltech
         email: tculino@caltech.edu
       - name: Leo Conforti
-        image: https://gravatar.com/avatar/3fa30d7c01d3b682cb9b1cceb22880fcdd1a726b1d7b7f77ba15b0e46b3f57f5?s=200
+        image: /static/images/developers/conforti.jpg
         affiliation: University of Minnesota
         email: leo@leoconforti.us
       - name: Stéfan van der Walt
