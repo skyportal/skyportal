@@ -42,6 +42,7 @@ TNS_INSTRUMENT_IDS = {
     "alfosc": 41,
     "asas-sn": 195,
     "atlas": [159, 160, 255, 256, 290],
+    "dbsp": 1,
     "decam": 172,
     "efosc2": 31,
     "gaia": 163,
@@ -50,9 +51,11 @@ TNS_INSTRUMENT_IDS = {
     "kast": 10,
     "lsst": 287,
     "lsstcomcam": 289,  # Rubin - LSSTComCam (commissioning camera)
+    "ngps": 285,
     "ps1": [155, 257],
     "sedm": 149,
     "sprat": 156,
+    "tspec": 109,
     "wifes": 115,
     "ztf": 196,
 }
@@ -64,6 +67,48 @@ TNS_RETRIEVAL_INSTRUMENT_IDS = {
 }
 
 TNS_OTHER_INSTRUMENT_ID = 0
+
+
+def tns_instrument_id(instrument):
+    """The TNS id to report an instrument under.
+
+    An instrument's own ``tns_id`` wins, so an instance can name an instrument
+    TNS knows but this mapping does not; the mapping is the default for the
+    instruments every instance shares. Neither one leaves the report as Other,
+    which TNS displays in place of the telescope and instrument names.
+
+    Parameters
+    ----------
+    instrument : `skyportal.models.Instrument`
+        The instrument that took the observation
+
+    Returns
+    -------
+    int
+        TNS instrument id
+    """
+    tns_id = getattr(instrument, "tns_id", None)
+    if tns_id is not None:
+        return tns_id
+    return tns_instrument_id_for_name(getattr(instrument, "name", ""))
+
+
+def tns_instrument_id_for_name(name):
+    """The TNS id the mapping gives an instrument name, or the Other id.
+
+    Parameters
+    ----------
+    name : str
+        The instrument's name
+
+    Returns
+    -------
+    int
+        TNS instrument id
+    """
+    mapped = TNS_INSTRUMENT_IDS.get(str(name or "").lower(), TNS_OTHER_INSTRUMENT_ID)
+    return mapped[0] if isinstance(mapped, list) else mapped
+
 
 TNS_CLASSIFICATION_IDS = {
     "other": 0,
