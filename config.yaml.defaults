@@ -86,7 +86,7 @@ app:
       - name: Michael Coughlin
         image: https://gravatar.com/avatar/b40171299edeb688bb1b2877167b07a2f8fd17e38ac17da944d09eed77c4eafe?s=200
       - name: Thomas Culino
-        image: /static/images/developers/culino.jpg
+        image: https://gravatar.com/avatar/869898c24b8e4192fa6732da1f2aa88c9a16997d95c19abb4e3008096a76f791?s=200
       - name: Camille Douzet
         image: /static/images/developers/douzet.jpg
       - name: Matthew Graham
