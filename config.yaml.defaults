@@ -102,7 +102,7 @@ app:
       - name: Leo Singer
         image: https://gravatar.com/avatar/405847da73c1a657691db49e5730f6b492c953462ac4548f1d11a2987a3739fa?s=200
       - name: Stéfan van der Walt
-        image: https://gravatar.com/avatar/21cd7ff8423de0ab7c85ac7c8d94245b9a710ee213ad29da5bec00b5bb987972?s=200
+        image: /static/images/developers/vanderwalt.jpg
     alumni:
       - name: Arien Crellin-Quick
         image: /static/images/developers/crellinquick.jpg
