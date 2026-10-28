@@ -77,6 +77,10 @@ app:
         image: https://gravatar.com/avatar/b40171299edeb688bb1b2877167b07a2f8fd17e38ac17da944d09eed77c4eafe?s=200
         affiliation: University of Minnesota
         email: cough052@umn.edu
+      - name: Camille Douzet
+        image: https://gravatar.com/avatar/70fb13f18f0770bd3c51ade98b36acc6d3b7fbb7a8b298ae3fd88afd7fb7b1d8?s=200
+        affiliation: IJCLab
+        email: camille.douzet@ijclab.in2p3.fr
       - name: Antoine Le Calloch
         image: https://gravatar.com/avatar/2d6c12ef8574e42f916f8b68f2bbb8638bf0e7dada5cc9ecb4809c65f14b79d9?s=200
         affiliation: University of Minnesota
@@ -85,10 +89,6 @@ app:
         image: https://gravatar.com/avatar/3fa30d7c01d3b682cb9b1cceb22880fcdd1a726b1d7b7f77ba15b0e46b3f57f5?s=200
         affiliation: University of Minnesota
         email: leo@leoconforti.us
-      - name: Camille Douzet
-        image: https://gravatar.com/avatar/70fb13f18f0770bd3c51ade98b36acc6d3b7fbb7a8b298ae3fd88afd7fb7b1d8?s=200
-        affiliation: IJCLab
-        email: camille.douzet@ijclab.in2p3.fr
       - name: Thomas Culino
         image: https://gravatar.com/avatar/869898c24b8e4192fa6732da1f2aa88c9a16997d95c19abb4e3008096a76f791?s=200
         affiliation: Caltech
