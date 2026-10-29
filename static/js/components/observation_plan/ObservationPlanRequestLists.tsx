@@ -50,11 +50,15 @@ import {
 dayjs.extend(relativeTime);
 dayjs.extend(utc);
 
-const STATUS_COLORS: Record<string, "success" | "warning" | "info"> = {
+const STATUS_COLORS: Record<string, "success" | "warning" | "primary"> = {
   complete: "success",
   "submitted to telescope queue": "warning",
-  running: "info",
+  running: "primary",
 };
+
+const statusColor = (status: string) =>
+  STATUS_COLORS[status] ??
+  (/^(failed|rejected)/.test(status) ? "error" : "default");
 
 const PLANNED_STATUSES = ["complete", "submitted to telescope queue"];
 
@@ -484,7 +488,7 @@ const ObservationPlanRequestLists = ({
         field: "payload",
         headerName: "Payload",
         flex: 2,
-        minWidth: 300,
+        minWidth: 240,
         sortable: false,
         renderCell: ({ row }: any) => <JsonCell data={row.payload} />,
       },
@@ -492,14 +496,19 @@ const ObservationPlanRequestLists = ({
         field: "status",
         headerName: "Status",
         flex: 1,
-        minWidth: 200,
+        minWidth: 170,
         sortable: false,
         renderCell: ({ value }: any) => (
           <Chip
             size="small"
             variant="outlined"
             label={value}
-            color={STATUS_COLORS[value] ?? "default"}
+            color={statusColor(value)}
+            sx={{
+              height: "auto",
+              py: 0.25,
+              "& .MuiChip-label": { whiteSpace: "normal" },
+            }}
           />
         ),
       },
@@ -517,21 +526,22 @@ const ObservationPlanRequestLists = ({
           flex: 1,
           minWidth: 220,
           sortable: false,
-          renderCell: ({ row }: any) => (
-            <ObservationPlanSummaryStatistics observationplanRequest={row} />
-          ),
+          renderCell: ({ row }: any) =>
+            PLANNED_STATUSES.includes(row.status) && (
+              <ObservationPlanSummaryStatistics observationplanRequest={row} />
+            ),
         },
         {
           field: "skymap",
           headerName: "Skymap",
           flex: 1,
-          minWidth: 360,
+          minWidth: 310,
           sortable: false,
           renderCell: ({ row }: any) =>
             PLANNED_STATUSES.includes(row.status) && (
               <ObservationPlanGlobe
                 observationplanRequest={row}
-                size={350}
+                size={300}
                 retrieveLocalization
               />
             ),
