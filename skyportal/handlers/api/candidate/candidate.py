@@ -871,12 +871,29 @@ class CandidateHandler(BaseHandler):
             q = sa.select(Obj.id).join(
                 candidate_subquery, Obj.id == candidate_subquery.c.obj_id
             )
+            accessible_ids = await accessible_group_ids_async(
+                session.user_or_token, session
+            )
             if annotation_filter_list is not None:
-                q = q.outerjoin(Annotation)
+                q = q.outerjoin(
+                    Annotation,
+                    sa.and_(
+                        Obj.id == Annotation.obj_id,
+                        Annotation.groups.any(Group.id.in_(accessible_ids)),
+                    ),
+                )
 
             if classifications:
-                q = q.join(Classification).where(
-                    Classification.classification.in_(classifications)
+                classifications_subquery = (
+                    Classification.select(
+                        session.user_or_token, columns=[Classification.obj_id]
+                    )
+                    .where(Classification.classification.in_(classifications))
+                    .subquery()
+                )
+                q = q.join(
+                    classifications_subquery,
+                    Obj.id == classifications_subquery.c.obj_id,
                 )
             if classifications_reject:
                 # here we want to keep candidates that:
@@ -904,9 +921,6 @@ class CandidateHandler(BaseHandler):
 
             # drop inaccessible groups first, so a stale list falls back too
             if saved_group_ids:
-                accessible_ids = await accessible_group_ids_async(
-                    session.user_or_token, session
-                )
                 saved_group_ids = [g for g in saved_group_ids if g in accessible_ids]
             q = await get_subquery_for_saved_status(
                 q,
@@ -1121,6 +1135,7 @@ class CandidateHandler(BaseHandler):
                     sa.and_(
                         Obj.id == sort_annotation.obj_id,
                         sort_annotation.origin == sort_by_origin,
+                        sort_annotation.groups.any(Group.id.in_(accessible_ids)),
                     ),
                 )
                 # Objects carrying that origin still sort ahead of those without
