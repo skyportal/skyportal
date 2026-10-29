@@ -1,6 +1,7 @@
 import datetime
 import types
 
+import numpy as np
 import pytest
 
 from skyportal.utils.tns import tns_classification_id, tns_spectrum_type_id
@@ -15,7 +16,7 @@ SHARING_SERVICE = types.SimpleNamespace(tns_source_group_id=48)
 def _spectrum(**overrides):
     spectrum = types.SimpleNamespace(
         observed_at=datetime.datetime(2026, 3, 4, 5, 6, 7),
-        instrument=types.SimpleNamespace(name="SEDM"),
+        instrument=types.SimpleNamespace(name="SEDM", tns_id=None),
         altdata={"EXPTIME": 2250},
         type="source",
         wavelengths=[4000.0, 4002.5],
@@ -67,7 +68,7 @@ def test_the_spectrum_entry_carries_its_instrument_and_observation():
 
 
 def test_a_spectrum_naming_no_one_credits_the_instrument_default_observer():
-    sedm = types.SimpleNamespace(name="SEDM", default_observer="SEDmRobot")
+    sedm = types.SimpleNamespace(name="SEDM", default_observer="SEDmRobot", tns_id=None)
     report = _report(spectrum=_spectrum(observers=[], reducers=[], instrument=sedm))
     entry = report["classification_report"]["0"]["spectra"]["spectra-group"]["0"]
     assert entry["observer"] == "SEDmRobot"
@@ -76,14 +77,16 @@ def test_a_spectrum_naming_no_one_credits_the_instrument_default_observer():
 
 
 def test_a_linked_observer_wins_over_the_instrument_default():
-    sedm = types.SimpleNamespace(name="SEDM", default_observer="SEDmRobot")
+    sedm = types.SimpleNamespace(name="SEDM", default_observer="SEDmRobot", tns_id=None)
     report = _report(spectrum=_spectrum(instrument=sedm))
     entry = report["classification_report"]["0"]["spectra"]["spectra-group"]["0"]
     assert entry["observer"] == "Ada Lovelace"
 
 
 def test_an_unknown_instrument_reports_as_other_rather_than_failing():
-    entry = _report(spectrum=_spectrum(instrument=types.SimpleNamespace(name="NoSuch")))
+    entry = _report(
+        spectrum=_spectrum(instrument=types.SimpleNamespace(name="NoSuch", tns_id=None))
+    )
     spectra = entry["classification_report"]["0"]["spectra"]["spectra-group"]
     assert spectra["0"]["instrumentid"] == 0
 
@@ -127,3 +130,45 @@ def test_the_ascii_file_has_two_columns_without_errors_and_three_with():
         "4000.0000 1.5e-16 1e-18",
         "4002.5000 1.6e-16 2e-18",
     ]
+
+
+def test_a_spectrum_with_no_errors_in_the_database_still_serializes():
+    """NumpyArray returns None for a NULL column, not a 0-d array len() rejects."""
+    from skyportal.models.spectrum import NumpyArray
+
+    stored = NumpyArray().process_result_value(None, None)
+    assert stored is None
+    assert spectrum_ascii(_spectrum(errors=stored)).splitlines() == [
+        "4000.0000 1.5e-16",
+        "4002.5000 1.6e-16",
+    ]
+
+
+def test_numpy_array_round_trips_a_populated_column():
+    from skyportal.models.spectrum import NumpyArray
+
+    stored = NumpyArray().process_result_value([1.0, 2.0], None)
+    assert isinstance(stored, np.ndarray)
+    assert stored.tolist() == [1.0, 2.0]
+
+
+def _instrument_id(instrument):
+    report = _report(spectrum=_spectrum(instrument=instrument))
+    spectra = report["classification_report"]["0"]["spectra"]["spectra-group"]
+    return spectra["0"]["instrumentid"]
+
+
+def test_the_palomar_spectrographs_report_as_themselves():
+    """An unmapped instrument reports as Other, which TNS shows instead of its name."""
+    for name, tns_id in (("NGPS", 285), ("DBSP", 1), ("TSPEC", 109)):
+        assert _instrument_id(types.SimpleNamespace(name=name, tns_id=None)) == tns_id
+
+
+def test_an_instruments_own_tns_id_wins_over_the_mapping():
+    """An instance can name an instrument TNS knows but the mapping does not."""
+    assert _instrument_id(types.SimpleNamespace(name="SEDM", tns_id=777)) == 777
+    assert _instrument_id(types.SimpleNamespace(name="NoSuch", tns_id=42)) == 42
+
+
+def test_an_unmapped_instrument_without_a_tns_id_is_still_other():
+    assert _instrument_id(types.SimpleNamespace(name="NoSuch", tns_id=None)) == 0

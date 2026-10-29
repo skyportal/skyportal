@@ -10,14 +10,12 @@ from baselayer.app.env import load_env
 from baselayer.app.flow import Flow
 from baselayer.log import make_log
 from skyportal.handlers.api.photometry import serialize
-from skyportal.models import Obj, Stream
+from skyportal.models import Instrument, Obj, Stream
 from skyportal.utils.http import serialize_requests_response
 from skyportal.utils.parse import is_null
 from skyportal.utils.tns import (
     SNCOSMO_TO_TNSFILTER,
     SURVEYS,
-    TNS_INSTRUMENT_IDS,
-    TNS_OTHER_INSTRUMENT_ID,
     TNS_URL,
     get_IAUname,
     get_internal_names,
@@ -25,6 +23,8 @@ from skyportal.utils.tns import (
     get_tns_object_id_and_data_source_id,
     get_tns_url,
     tns_classification_id,
+    tns_instrument_id,
+    tns_instrument_id_for_name,
     tns_spectrum_type_id,
 )
 
@@ -135,6 +135,22 @@ def build_tns_report(
     archival = submission_request.archival
     archival_comment = submission_request.archival_comment
 
+    # An instrument's own tns_id wins over the name mapping, so the id each
+    # point carries is resolved to its instrument before the report is built.
+    tns_ids = {
+        instrument.id: tns_instrument_id(instrument)
+        for instrument in session.scalars(
+            sa.select(Instrument).where(
+                Instrument.id.in_({p["instrument_id"] for p in photometry})
+            )
+        )
+    }
+
+    def instrument_value(phot):
+        if phot["instrument_id"] in tns_ids:
+            return tns_ids[phot["instrument_id"]]
+        return tns_instrument_id_for_name(phot["instrument_name"])
+
     # non detections are those with mag=None
     detections, non_detections = [], []
 
@@ -159,7 +175,7 @@ def build_tns_report(
         "flux_error": first["magerr"],
         "flux_units": "1",
         "filter_value": SNCOSMO_TO_TNSFILTER[first["filter"]],
-        "instrument_value": TNS_INSTRUMENT_IDS[first["instrument_name"].lower()],
+        "instrument_value": instrument_value(first),
     }
     phot_last = None
     if len(detections) > 1:
@@ -170,7 +186,7 @@ def build_tns_report(
             "flux_error": last["magerr"],
             "flux_units": "1",
             "filter_value": SNCOSMO_TO_TNSFILTER[last["filter"]],
-            "instrument_value": TNS_INSTRUMENT_IDS[last["instrument_name"].lower()],
+            "instrument_value": instrument_value(last),
         }
 
     # Manage archival mode if there are no non-detections
@@ -207,7 +223,7 @@ def build_tns_report(
             "limiting_flux": last_nd["limiting_mag"],
             "flux_units": "1",
             "filter_value": SNCOSMO_TO_TNSFILTER[last_nd["filter"]],
-            "instrument_value": TNS_INSTRUMENT_IDS[last_nd["instrument_name"].lower()],
+            "instrument_value": instrument_value(last_nd),
         }
 
     proprietary_period = {
@@ -360,10 +376,7 @@ def build_tns_classification_report(
             "add it to TNS_CLASSIFICATION_IDS to report this class."
         )
 
-    instrument_name = str(spectrum.instrument.name or "").lower()
-    instrument_id = TNS_INSTRUMENT_IDS.get(instrument_name, TNS_OTHER_INSTRUMENT_ID)
-    if isinstance(instrument_id, list):
-        instrument_id = instrument_id[0]
+    instrument_id = tns_instrument_id(spectrum.instrument)
 
     altdata = spectrum.altdata or {}
     spectrum_entry = {

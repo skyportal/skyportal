@@ -11,10 +11,12 @@ def test_quick_search(
     page.goto("/")
 
     page.locator("#quick-search-bar").first.fill(public_source.id)
-    page.locator("#quick-search-bar-listbox").first.click()
+    page.locator(
+        f'#quick-search-bar-listbox [role="option"]:text-is("{public_source.id}")'
+    ).first.click()
     # Should be redirected to source page; check for elements that should render
     expect(page.locator(f'//h6[text()="{public_source.id}"]').first).to_be_visible()
     expect(page.locator(f'//span[text()="{public_group.name}"]').first).to_be_visible()
 
     page.locator("#quick-search-bar").first.fill("invalid_source_id")
-    expect(page.locator('//*[text()="No matching Sources."]').first).to_be_visible()
+    expect(page.locator('//*[text()="No matching results."]').first).to_be_visible()

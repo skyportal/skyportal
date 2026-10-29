@@ -23,7 +23,7 @@ import StyledDataGrid, {
   FULL_PAGE_HEIGHT_WITH_TABS,
 } from "../StyledDataGrid";
 import NewDefaultFollowupRequest from "./NewDefaultFollowupRequest";
-import JsonCell from "./JsonCell";
+import JsonCell from "../JsonCell";
 import { PLAIN_LINKS_SX } from "./columns";
 
 const DefaultFollowupRequestToolbar = ({ onAdd }: { onAdd?: () => void }) => (

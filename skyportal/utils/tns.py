@@ -42,6 +42,7 @@ TNS_INSTRUMENT_IDS = {
     "alfosc": 41,
     "asas-sn": 195,
     "atlas": [159, 160, 255, 256, 290],
+    "dbsp": 1,
     "decam": 172,
     "efosc2": 31,
     "gaia": 163,
@@ -50,9 +51,11 @@ TNS_INSTRUMENT_IDS = {
     "kast": 10,
     "lsst": 287,
     "lsstcomcam": 289,  # Rubin - LSSTComCam (commissioning camera)
+    "ngps": 285,
     "ps1": [155, 257],
     "sedm": 149,
     "sprat": 156,
+    "tspec": 109,
     "wifes": 115,
     "ztf": 196,
 }
@@ -64,6 +67,48 @@ TNS_RETRIEVAL_INSTRUMENT_IDS = {
 }
 
 TNS_OTHER_INSTRUMENT_ID = 0
+
+
+def tns_instrument_id(instrument):
+    """The TNS id to report an instrument under.
+
+    An instrument's own ``tns_id`` wins, so an instance can name an instrument
+    TNS knows but this mapping does not; the mapping is the default for the
+    instruments every instance shares. Neither one leaves the report as Other,
+    which TNS displays in place of the telescope and instrument names.
+
+    Parameters
+    ----------
+    instrument : `skyportal.models.Instrument`
+        The instrument that took the observation
+
+    Returns
+    -------
+    int
+        TNS instrument id
+    """
+    tns_id = getattr(instrument, "tns_id", None)
+    if tns_id is not None:
+        return tns_id
+    return tns_instrument_id_for_name(getattr(instrument, "name", ""))
+
+
+def tns_instrument_id_for_name(name):
+    """The TNS id the mapping gives an instrument name, or the Other id.
+
+    Parameters
+    ----------
+    name : str
+        The instrument's name
+
+    Returns
+    -------
+    int
+        TNS instrument id
+    """
+    mapped = TNS_INSTRUMENT_IDS.get(str(name or "").lower(), TNS_OTHER_INSTRUMENT_ID)
+    return mapped[0] if isinstance(mapped, list) else mapped
+
 
 TNS_CLASSIFICATION_IDS = {
     "other": 0,
@@ -449,6 +494,49 @@ def get_recent_TNS(api_key, headers, public_timestamp, get_data=True):
                 }
             )
     return sources
+
+
+def tns_designation(tns_name):
+    """The year-and-letters part of a TNS name, without its AT or SN prefix."""
+    return str(tns_name or "").strip().split(" ")[-1].strip().lower()
+
+
+def should_replace_tns_name(obj, tns_name, tns_ra, tns_dec):
+    """Whether a TNS source supersedes the name already stored on an object.
+
+    Two things win: a TNS source closer to the object than the stored one, and
+    the stored source re-designated, which is how an AT becomes an SN once TNS
+    accepts a classification for it.
+    """
+    if obj.tns_name == tns_name:
+        return False
+    if is_null(obj.tns_name):
+        return True
+
+    if (
+        isinstance(obj.tns_info, dict)
+        and "radeg" in obj.tns_info
+        and "decdeg" in obj.tns_info
+    ):
+        existing_tns_dist = great_circle_distance(
+            obj.ra,
+            obj.dec,
+            float(obj.tns_info["radeg"]),
+            float(obj.tns_info["decdeg"]),
+        )
+        new_tns_dist = great_circle_distance(
+            obj.ra, obj.dec, float(tns_ra), float(tns_dec)
+        )
+        if new_tns_dist < existing_tns_dist:
+            return True
+
+    # A prefix only upgrades the name it already belongs to; a farther source
+    # takes the object over on distance or leaves it alone.
+    return (
+        tns_designation(obj.tns_name) == tns_designation(tns_name)
+        and not str(obj.tns_name).lower().strip().startswith("sn")
+        and "AT" not in str(tns_name)
+    )
 
 
 def get_IAUname(
