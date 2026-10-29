@@ -5,10 +5,7 @@ import Checkbox from "@mui/material/Checkbox";
 import Typography from "@mui/material/Typography";
 import { alpha } from "@mui/material/styles";
 
-import {
-  useGetProfileQuery,
-  useUpdateUserPreferencesMutation,
-} from "../../ducks/profile";
+import { useNotificationTarget } from "./target";
 
 export const PreferenceOptions = ({ children }: { children: ReactNode }) => (
   <Box
@@ -102,8 +99,7 @@ const PreferenceOption = ({
   title,
   text,
 }: PreferenceOptionProps) => {
-  const { data: profile } = useGetProfileQuery();
-  const [updateUserPreferences] = useUpdateUserPreferencesMutation();
+  const { profile, updateUserPreferences } = useNotificationTarget();
 
   return (
     <OptionTile

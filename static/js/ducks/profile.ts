@@ -65,6 +65,14 @@ export const profileApi = skyportalApi.injectEndpoints({
       query: () => "api/internal/profile",
       providesTags: ["Profile"],
     }),
+    // Another user's profile, for admins managing their settings. The backend
+    // leaves `tokens` empty here, since a token id is the bearer secret.
+    getUserProfile: build.query<Profile, number | string>({
+      query: (user_id) => `api/internal/profile/${user_id}`,
+      providesTags: (_result, _error, user_id) => [
+        { type: "UserProfile", id: user_id },
+      ],
+    }),
     updateUserPreferences: build.mutation<unknown, any>({
       query: (preferences) => ({
         url: "api/internal/profile",
@@ -90,6 +98,39 @@ export const profileApi = skyportalApi.injectEndpoints({
         }
       },
     }),
+    updateOtherUserPreferences: build.mutation<
+      unknown,
+      { user_id: number | string; preferences: any }
+    >({
+      query: ({ user_id, preferences }) => ({
+        url: `api/internal/profile/${user_id}`,
+        method: "PATCH",
+        body: { preferences },
+      }),
+      invalidatesTags: ["PublicProfile"],
+      // Merged into the cached profile for the same reason as the self case:
+      // a blanket refetch would reset every open form in the admin dialog.
+      async onQueryStarted(
+        { user_id, preferences },
+        { dispatch, queryFulfilled },
+      ) {
+        const patch = dispatch(
+          profileApi.util.updateQueryData(
+            "getUserProfile",
+            user_id,
+            (draft) => {
+              if (!(draft as any).preferences) (draft as any).preferences = {};
+              deepMergePreferences((draft as any).preferences, preferences);
+            },
+          ),
+        );
+        try {
+          await queryFulfilled;
+        } catch {
+          patch.undo();
+        }
+      },
+    }),
     updateBasicUserInfo: build.mutation<
       unknown,
       { formData: any; user_id?: number | string }
@@ -99,7 +140,10 @@ export const profileApi = skyportalApi.injectEndpoints({
         method: "PATCH",
         body: formData,
       }),
-      invalidatesTags: ["Profile", "PublicProfile"],
+      invalidatesTags: (_result, _error, { user_id }) =>
+        user_id
+          ? ["Profile", "PublicProfile", { type: "UserProfile", id: user_id }]
+          : ["Profile", "PublicProfile"],
     }),
     createToken: build.mutation<unknown, any>({
       query: (form_data) => ({
@@ -135,7 +179,9 @@ invalidateOnMessage("skyportal/FETCH_USER_PROFILE", () => ["Profile"]);
 
 export const {
   useGetProfileQuery,
+  useGetUserProfileQuery,
   useUpdateUserPreferencesMutation,
+  useUpdateOtherUserPreferencesMutation,
   useUpdateBasicUserInfoMutation,
   useCreateTokenMutation,
   useUpdateTokenMutation,

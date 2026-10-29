@@ -16,11 +16,7 @@ import NotificationGcnEvent from "./NotificationGcnEvent";
 import GcnTagsSelect from "../../gcn/GcnTagsSelect";
 import { useGetFiltersQuery } from "../../../ducks/filter";
 import { useGetGroupsQuery } from "../../../ducks/groups";
-import {
-  useGetProfileQuery,
-  useHasPermission,
-  useUpdateUserPreferencesMutation,
-} from "../../../ducks/profile";
+import { useNotificationTarget } from "../../notifications/target";
 import { useGetAllocationsApiClassnameQuery } from "../../../ducks/allocations";
 
 interface Option {
@@ -65,12 +61,10 @@ const Fields = ({ children }: { children: ReactNode }) => (
 
 const SourcesOptions = () => {
   const dispatch = useAppDispatch();
-  const prefs =
-    (useGetProfileQuery().data?.preferences["notifications"]?.sources as any) ??
-    {};
+  const { profile, updateUserPreferences } = useNotificationTarget();
+  const prefs = (profile?.preferences["notifications"]?.sources as any) ?? {};
   const groups = useGetGroupsQuery().data?.userAccessible ?? [];
   const { data: allocations = [] } = useGetAllocationsApiClassnameQuery();
-  const [updateUserPreferences] = useUpdateUserPreferencesMutation();
   const [classifications, setClassifications] = useState<any[]>(
     prefs.classifications || [],
   );
@@ -165,12 +159,10 @@ const SourcesOptions = () => {
 };
 
 const ExtractionOptions = () => {
+  const { profile, updateUserPreferences } = useNotificationTarget();
   const saved =
-    (
-      useGetProfileQuery().data?.preferences["notifications"]
-        ?.gcn_extractions as any
-    )?.classifications ?? [];
-  const [updateUserPreferences] = useUpdateUserPreferencesMutation();
+    (profile?.preferences["notifications"]?.gcn_extractions as any)
+      ?.classifications ?? [];
   const [classes, setClasses] = useState<string[]>(saved);
 
   useEffect(() => {
@@ -202,12 +194,11 @@ const ExtractionOptions = () => {
 
 const GcnMatchOptions = () => {
   const dispatch = useAppDispatch();
+  const { profile, updateUserPreferences } = useNotificationTarget();
   const prefs =
-    (useGetProfileQuery().data?.preferences["notifications"]
-      ?.gcn_matches as any) ?? {};
+    (profile?.preferences["notifications"]?.gcn_matches as any) ?? {};
   const { data: filters = [] } = useGetFiltersQuery();
   const groups = useGetGroupsQuery().data?.userAccessible ?? [];
-  const [updateUserPreferences] = useUpdateUserPreferencesMutation();
   const [selectedFilters, setSelectedFilters] = useState<Option[]>([]);
   const [gcnTags, setGcnTags] = useState<string[]>(prefs.gcn_tags || []);
 
@@ -266,9 +257,9 @@ const GcnMatchOptions = () => {
 };
 
 const FavoriteSourcesOptions = () => {
+  const { profile } = useNotificationTarget();
   const prefs =
-    (useGetProfileQuery().data?.preferences["notifications"]
-      ?.favorite_sources as any) ?? {};
+    (profile?.preferences["notifications"]?.favorite_sources as any) ?? {};
   return (
     <PreferenceOptions>
       <PreferenceOption
@@ -429,7 +420,10 @@ const NOTIFICATIONS: {
 ];
 
 const NotificationPreferences = () => {
-  const isAdmin = useHasPermission("System admin");
+  // The target's own permissions, so an admin editing someone else sees the
+  // cards that user can actually receive.
+  const { profile } = useNotificationTarget();
+  const isAdmin = profile?.permissions?.includes("System admin") === true;
   return (
     <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
       <DeliveryChannels />

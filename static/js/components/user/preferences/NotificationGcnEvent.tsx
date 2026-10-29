@@ -19,10 +19,7 @@ import GcnTagsSelect from "../../gcn/GcnTagsSelect";
 import GcnPropertiesSelect from "../../gcn/GcnPropertiesSelect";
 import LocalizationTagsSelect from "../../localization/LocalizationTagsSelect";
 import LocalizationPropertiesSelect from "../../localization/LocalizationPropertiesSelect";
-import {
-  useGetProfileQuery,
-  useUpdateUserPreferencesMutation,
-} from "../../../ducks/profile";
+import { useNotificationTarget } from "../../notifications/target";
 
 const conversions: Record<string, any> = {
   FAR: {
@@ -77,11 +74,11 @@ const ProfileSection = ({
 
 const NotificationGcnEvent = () => {
   const { classes } = useStyles();
-  const { data: profileData } = useGetProfileQuery();
+  const { profile: profileData, updateUserPreferences } =
+    useNotificationTarget();
   const profile = (profileData?.preferences ?? {}) as any;
   const { notifications } = profile;
   const dispatch = useAppDispatch();
-  const [updateUserPreferences] = useUpdateUserPreferencesMutation();
   const {
     handleSubmit,
     reset,
