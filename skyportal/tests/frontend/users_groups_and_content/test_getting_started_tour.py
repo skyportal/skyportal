@@ -21,7 +21,7 @@ _ATTR_RE = re.compile(r'data-testid"?(?:=|:\s*)"([^"]+)"')
 _EXPR_RE = re.compile(r"data-testid=\{[^}]*\}")
 _EXPR_VALUE_RE = re.compile(r'[?:]\s*"([^"]+)"')
 # Some components take the id as a prop and render it as data-testid.
-_PROP_RE = re.compile(r'testId:\s*"([^"]+)"')
+_PROP_RE = re.compile(r'testId(?::\s*|=)"([^"]+)"')
 _SRC_SUFFIXES = {".tsx", ".ts", ".jsx", ".js", ".template"}
 
 
