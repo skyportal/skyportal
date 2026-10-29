@@ -32,7 +32,11 @@ from skyportal.utils.calculations import get_airmass
 
 from ...enum_types import ALLOWED_BANDPASSES
 from ...models import (
+    Allocation,
+    DataAccessRequest,
     DBSession,
+    EventObservationPlan,
+    ExecutedObservation,
     GcnEvent,
     Instrument,
     InstrumentField,
@@ -40,7 +44,13 @@ from ...models import (
     InstrumentLog,
     Localization,
     LocalizationTile,
+    ObservingRun,
+    PhotometricSeries,
     Photometry,
+    PlannedObservation,
+    QueuedObservation,
+    Spectrum,
+    SurveyEfficiencyForObservations,
     Telescope,
     new_session,
 )
@@ -58,6 +68,36 @@ cache = Cache(
     max_age=cfg.get("misc.minutes_to_keep_localization_instrument_query_cache", 24 * 60)
     * 60,  # defaults to 1 day
 )
+
+INSTRUMENT_DATA_MODELS = (
+    Allocation,
+    DataAccessRequest,
+    EventObservationPlan,
+    ExecutedObservation,
+    ObservingRun,
+    PhotometricSeries,
+    Photometry,
+    PlannedObservation,
+    QueuedObservation,
+    Spectrum,
+    SurveyEfficiencyForObservations,
+)
+
+
+def can_manage_instruments(user_or_token):
+    return (
+        user_or_token.is_system_admin
+        or "Manage instruments" in user_or_token.permissions
+    )
+
+
+async def instrument_has_data(session, instrument_id):
+    for model in INSTRUMENT_DATA_MODELS:
+        if await session.scalar(
+            sa.select(sa.exists().where(model.instrument_id == instrument_id))
+        ):
+            return True
+    return False
 
 
 class InstrumentHandler(BaseHandler):
@@ -607,24 +647,24 @@ class InstrumentHandler(BaseHandler):
             )
             if instrument is None:
                 instrument = await session.scalar(
-                    Instrument.select(session.user_or_token).where(
-                        Instrument.id == instrument_id
-                    )
+                    Instrument.select(session.user_or_token)
+                    .where(Instrument.id == instrument_id)
+                    .with_for_update()
                 )
                 if instrument is None:
                     return self.error(f"Missing instrument with ID {instrument_id}")
-                filters = data.get("filters") or []
                 if (
                     set(data) != {"id", "filters"}
                     or "Upload data" not in session.user_or_token.permissions
-                    or not set(instrument.filters).issubset(filters)
                 ):
                     return self.error(
                         "Only adding filters is allowed without Manage instruments",
                         status=403,
                     )
-                if not set(filters).issubset(ALLOWED_BANDPASSES):
+                new_filters = data["filters"] or []
+                if not set(new_filters).issubset(ALLOWED_BANDPASSES):
                     return self.error(f"Filters must be one of {ALLOWED_BANDPASSES}")
+                filters = list(dict.fromkeys(instrument.filters + new_filters))
                 await session.execute(
                     sa.update(Instrument)
                     .where(Instrument.id == instrument.id)
@@ -633,6 +673,13 @@ class InstrumentHandler(BaseHandler):
                 await session.commit()
                 self.push_all(action="skyportal/REFRESH_INSTRUMENTS")
                 return self.success()
+
+            if not can_manage_instruments(session.user_or_token) and (
+                {"status", "last_status_update"} & set(data)
+            ):
+                return self.error(
+                    "Setting the status requires Manage instruments", status=403
+                )
 
             filters = data.get("filters", None)
             if filters is not None:
@@ -883,6 +930,13 @@ class InstrumentHandler(BaseHandler):
             )
             if instrument is None:
                 return self.error(f"Missing instrument with ID {instrument_id}")
+            if not can_manage_instruments(
+                session.user_or_token
+            ) and await instrument_has_data(session, instrument.id):
+                return self.error(
+                    "Deleting an instrument with data requires Manage instruments",
+                    status=403,
+                )
 
             await session.delete(instrument)
             await session.commit()
@@ -1300,6 +1354,13 @@ class InstrumentFieldHandler(BaseHandler):
             )
             if instrument is None:
                 return self.error(f"Missing instrument with ID {instrument_id}")
+            if not can_manage_instruments(
+                session.user_or_token
+            ) and await instrument_has_data(session, instrument.id):
+                return self.error(
+                    "Deleting the fields of an instrument with data requires Manage instruments",
+                    status=403,
+                )
 
             await session.execute(
                 sa.delete(InstrumentField).where(

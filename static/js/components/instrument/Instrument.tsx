@@ -143,7 +143,7 @@ interface InstrumentProps {
 
 const Instrument = ({ route }: InstrumentProps) => {
   const dispatch = useAppDispatch();
-  const { data: instrument } = useGetInstrumentQuery(route.id);
+  const { data: instrument, refetch } = useGetInstrumentQuery(route.id);
   const { data: telescope } = useGetTelescopeQuery(
     instrument?.telescope_id ?? skipToken,
   );
@@ -188,15 +188,18 @@ const Instrument = ({ route }: InstrumentProps) => {
     if (!error) dispatch(showNotification("Instrument status updated"));
   };
 
-  const missingFilters = [...(enumTypes?.ALLOWED_BANDPASSES ?? [])]
+  const missingFilters = [...(enumTypes?.["ALLOWED_BANDPASSES"] ?? [])]
     .filter((filter: string) => !instrument.filters?.includes(filter))
     .sort();
 
   const addFilter = async (filter: string | null) => {
     if (!filter) return;
+    const { data: latest } = await refetch();
+    const current = latest?.filters ?? [];
+    if (current.includes(filter)) return;
     const { error } = await modifyInstrument({
       id: route.id,
-      params: { filters: [...(instrument.filters ?? []), filter] },
+      params: { filters: [...current, filter] },
     });
     if (!error) dispatch(showNotification(`Added ${filter}`));
   };
