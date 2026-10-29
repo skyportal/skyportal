@@ -151,6 +151,12 @@ def test_observationplan_request(
     page.locator(
         '//div[@data-testid="observationplan-request-form"]//*[@id="root_filters"]'
     ).first.fill("ztfr")
+    page.locator(
+        '//div[@data-testid="observationplan-request-form"]//*[@id="root_start_date"]'
+    ).first.fill("2019-04-25 08:18:05")
+    page.locator(
+        '//div[@data-testid="observationplan-request-form"]//*[@id="root_end_date"]'
+    ).first.fill("2019-04-26 08:18:05")
 
     page.locator('//button[contains(., "Add to Queue")]').first.click()
     page.locator('//button[contains(., "Generate Observation Plans")]').first.click()
