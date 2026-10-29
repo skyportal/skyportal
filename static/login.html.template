@@ -215,10 +215,10 @@
       const aboutLinks = document.querySelector(".aboutLinks");
       const stackLinks = () => {
         const links = [...aboutLinks.children];
-        links.forEach((link, index) =>
+        links.forEach((link) =>
           link.style.setProperty(
             "--stack",
-            `${links[0].offsetLeft + index * 6 - link.offsetLeft}px`,
+            `${links[0].offsetLeft - link.offsetLeft}px`,
           ),
         );
       };

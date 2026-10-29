@@ -78,10 +78,10 @@ export const LinkPills = ({
   useLayoutEffect(() => {
     const stackLinks = () => {
       const items = [...(stackRef.current?.children ?? [])] as HTMLElement[];
-      items.forEach((item, index) =>
+      items.forEach((item) =>
         item.style.setProperty(
           "--stack",
-          `${items[0]!.offsetLeft + index * 6 - item.offsetLeft}px`,
+          `${items[0]!.offsetLeft - item.offsetLeft}px`,
         ),
       );
     };
@@ -100,7 +100,12 @@ export const LinkPills = ({
         width: "fit-content",
         "@media (hover: hover)": {
           pointerEvents: "none",
-          "&:hover > *, &:focus-within > *": { transform: "none" },
+          "&:hover, &:focus-within": { pointerEvents: "auto" },
+          "&:hover > *, &:focus-within > *": {
+            opacity: 1,
+            transform: "none",
+            transitionDelay: "var(--delay)",
+          },
         },
       }}
     >
@@ -118,11 +123,14 @@ export const LinkPills = ({
             fontWeight: 600,
             px: 0.5,
             "@media (hover: hover)": {
+              "--delay": `${Math.max(index - 1, 0) * 0.06}s`,
               position: "relative",
               zIndex: links.length - index,
               pointerEvents: "auto",
+              opacity: index === 0 ? 1 : 0,
               transform: "translateX(var(--stack, 0))",
-              transition: "transform 0.4s cubic-bezier(0.2, 0.8, 0.2, 1)",
+              transition:
+                "transform 0.6s cubic-bezier(0.22, 1, 0.36, 1) 0.2s, opacity 0.4s ease 0.2s, background-color 0.15s ease",
               ...(index > 0 && { bgcolor: surface }),
             },
           }}

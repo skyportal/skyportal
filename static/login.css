@@ -618,43 +618,6 @@ body {
   margin: 0.5rem 0 1rem;
 }
 
-@media (hover: hover) {
-  .aboutLinks {
-    pointer-events: none;
-  }
-
-  .loginPage .aboutLinks a {
-    position: relative;
-    pointer-events: auto;
-    transform: translateX(var(--stack, 0));
-    transition:
-      transform 0.4s cubic-bezier(0.2, 0.8, 0.2, 1),
-      background-color 0.15s ease,
-      color 0.15s ease;
-  }
-
-  .aboutLinks a:nth-child(1) {
-    z-index: 4;
-  }
-
-  .aboutLinks a:nth-child(2) {
-    z-index: 3;
-  }
-
-  .aboutLinks a:nth-child(3) {
-    z-index: 2;
-  }
-
-  .aboutLinks a:nth-child(4) {
-    z-index: 1;
-  }
-
-  .aboutLinks:hover a,
-  .aboutLinks:focus-within a {
-    transform: none;
-  }
-}
-
 .loginPage .aboutLinks a {
   display: inline-flex;
   align-items: center;
@@ -686,6 +649,65 @@ body {
   border-color: #457b9d;
   color: white;
   text-decoration: none;
+}
+
+@media (hover: hover) {
+  .aboutLinks {
+    pointer-events: none;
+  }
+
+  .aboutLinks:hover,
+  .aboutLinks:focus-within {
+    pointer-events: auto;
+  }
+
+  .loginPage .aboutLinks a {
+    position: relative;
+    pointer-events: auto;
+    transform: translateX(var(--stack, 0));
+    transition:
+      transform 0.6s cubic-bezier(0.22, 1, 0.36, 1) 0.2s,
+      opacity 0.4s ease 0.2s,
+      background-color 0.15s ease,
+      color 0.15s ease;
+  }
+
+  .loginPage .aboutLinks a:not(:first-child) {
+    opacity: 0;
+  }
+
+  .aboutLinks a:nth-child(1) {
+    z-index: 4;
+  }
+
+  .aboutLinks a:nth-child(2) {
+    z-index: 3;
+  }
+
+  .aboutLinks a:nth-child(3) {
+    z-index: 2;
+  }
+
+  .aboutLinks a:nth-child(4) {
+    z-index: 1;
+  }
+
+  .loginPage .aboutLinks:hover a,
+  .loginPage .aboutLinks:focus-within a {
+    opacity: 1;
+    transform: none;
+    transition-delay: 0s;
+  }
+
+  .loginPage .aboutLinks:hover a:nth-child(3),
+  .loginPage .aboutLinks:focus-within a:nth-child(3) {
+    transition-delay: 0.06s;
+  }
+
+  .loginPage .aboutLinks:hover a:nth-child(4),
+  .loginPage .aboutLinks:focus-within a:nth-child(4) {
+    transition-delay: 0.12s;
+  }
 }
 
 .citations {
