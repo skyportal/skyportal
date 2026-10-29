@@ -248,6 +248,7 @@ async def post_spectrum(data, user_id, session):
     # spectrum that satisfies one marks it done in the same transaction.
     await mark_assignments_observed(
         session,
+        user,
         spec,
         window_days=cfg.get("assignments.auto_observed_window_days", 1),
     )
