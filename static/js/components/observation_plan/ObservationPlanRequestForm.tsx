@@ -2,12 +2,16 @@ import { useGetProfileQuery } from "../../ducks/profile";
 import { useGetGroupsQuery } from "../../ducks/groups";
 import { lazy, Suspense, useEffect, useState } from "react";
 
+import Box from "@mui/material/Box";
 import Checkbox from "@mui/material/Checkbox";
 import Chip from "@mui/material/Chip";
+import FormControl from "@mui/material/FormControl";
 import FormControlLabel from "@mui/material/FormControlLabel";
 import InputLabel from "@mui/material/InputLabel";
+import Menu from "@mui/material/Menu";
 import MenuItem from "@mui/material/MenuItem";
 import Select from "@mui/material/Select";
+import Stack from "@mui/material/Stack";
 import TextField from "@mui/material/TextField";
 import { LocalizationProvider } from "@mui/x-date-pickers";
 import { AdapterDateFns } from "@mui/x-date-pickers/AdapterDateFns";
@@ -62,18 +66,6 @@ const useStyles = makeStyles()(() => ({
   marginTop: {
     marginTop: "1rem",
   },
-  allocationSelect: {
-    width: "100%",
-  },
-  localizationSelect: {
-    width: "100%",
-  },
-  fieldsToUseSelect: {
-    width: "75%",
-  },
-  SelectItem: {
-    whiteSpace: "break-spaces",
-  },
   container: {
     width: "99%",
     marginBottom: "1rem",
@@ -81,13 +73,6 @@ const useStyles = makeStyles()(() => ({
       marginTop: "1rem",
       marginBottom: "1rem",
     },
-  },
-  buttons: {
-    display: "flex",
-    flexWrap: "wrap",
-    gap: "0.25rem",
-    marginTop: "0.5rem",
-    marginBottom: "1rem",
   },
 }));
 
@@ -102,8 +87,6 @@ const FieldSelect = ({
   selectedFields,
   setSelectedFields,
 }: FieldSelectProps) => {
-  const { classes } = useStyles();
-
   const fields: number[] = [];
   skymapInstrument?.fields?.forEach((field: any) => {
     fields.push(Number(field.field_id));
@@ -123,36 +106,40 @@ const FieldSelect = ({
   };
 
   return (
-    <div style={{ display: "flex", flexDirection: "column" }}>
-      <InputLabel id="fieldsToUseSelectLabel">Fields to use</InputLabel>
-      <div style={{ display: "flex", flexDirection: "row" }}>
+    <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+      <FormControl size="small" sx={{ flex: 1 }}>
+        <InputLabel id="fieldsToUseSelectLabel">Fields to use</InputLabel>
         <Select
+          label="Fields to use"
           inputProps={{ MenuProps: { disableScrollLock: true } }}
-          labelId="fieldsToSelectLabel"
+          labelId="fieldsToUseSelectLabel"
           name="fieldsToUseSelect"
-          className={classes.fieldsToUseSelect}
           multiple
           value={selectedFields || []}
           onChange={handleSelectedFieldChange}
         >
           {fields?.map((field) => (
-            <MenuItem value={field} key={field} className={classes.SelectItem}>
+            <MenuItem value={field} key={field}>
               {field}
             </MenuItem>
           ))}
         </Select>
-        <Button
-          id="clear-fieldsToUseSelect"
-          onClick={() => clearSelectedFields()}
-          style={{ marginLeft: "1rem" }}
-        >
-          Clear all
-        </Button>
-        <Button id="all-fieldsToUseSelect" onClick={() => selectAllFields()}>
-          Select all
-        </Button>
-      </div>
-    </div>
+      </FormControl>
+      <Button
+        id="clear-fieldsToUseSelect"
+        size="small"
+        onClick={() => clearSelectedFields()}
+      >
+        Clear all
+      </Button>
+      <Button
+        id="all-fieldsToUseSelect"
+        size="small"
+        onClick={() => selectAllFields()}
+      >
+        Select all
+      </Button>
+    </Box>
   );
 };
 
@@ -353,6 +340,9 @@ const ObservationPlanRequestForm = ({
   ]);
 
   const [grid, setGrid] = useState("primary & secondary");
+  const [downloadAnchor, setDownloadAnchor] = useState<HTMLElement | null>(
+    null,
+  );
 
   useEffect(() => {
     if (allocationListApiObsplan?.length > 0 && !selectedAllocationId) {
@@ -586,213 +576,176 @@ const ObservationPlanRequestForm = ({
             />
           </Grid>
           <Grid size={{ xs: 12, sm: 5, md: 12 }}>
-            <div
-              style={{
-                display: "flex",
-                flexDirection: "column",
-                marginTop: "0.5rem",
-              }}
-            >
-              <InputLabel
-                style={{ marginTop: "0.5rem", marginBottom: "0.25rem" }}
-                id="projection"
-              >
-                Projection
-              </InputLabel>
-              <Select
-                labelId="projection"
-                id="projection"
-                value={selectedProjection}
-                onChange={(e) => setSelectedProjection(e.target.value)}
-                style={{ width: "100%" }}
-              >
-                {projectionOptions.map((option) => (
-                  <MenuItem value={option} key={option}>
-                    {option}
-                  </MenuItem>
-                ))}
-              </Select>
-              {skymapInstrument?.name === "ZTF" && (
-                <div>
-                  {/* show an MUI select to pick primary & secondary, primary, or secondary for the grid */}
-                  <InputLabel
-                    style={{ marginTop: "0.5rem", marginBottom: "0.25rem" }}
-                    id="grid"
-                  >
-                    Grid
-                  </InputLabel>
-                  <Select
-                    labelId="grid"
-                    id="grid"
+            <Stack spacing={2} sx={{ mt: 1 }}>
+              <Box sx={{ display: "flex", gap: 1 }}>
+                <TextField
+                  select
+                  size="small"
+                  label="Projection"
+                  value={selectedProjection}
+                  onChange={(e) => setSelectedProjection(e.target.value)}
+                  fullWidth
+                >
+                  {projectionOptions.map((option) => (
+                    <MenuItem value={option} key={option}>
+                      {option}
+                    </MenuItem>
+                  ))}
+                </TextField>
+                {skymapInstrument?.name === "ZTF" && (
+                  <TextField
+                    select
+                    size="small"
+                    label="Grid"
                     value={grid}
                     onChange={(e) => setGrid(e.target.value)}
-                    style={{ width: "100%" }}
+                    fullWidth
                   >
                     {gridOptions.map((option) => (
                       <MenuItem value={option} key={option}>
                         {option}
                       </MenuItem>
                     ))}
-                  </Select>
-                </div>
-              )}
-              <InputLabel
-                id="airmassTimeSelectLabel"
-                style={{ marginBottom: "0.5rem" }}
-              >
-                Airmass Time
-              </InputLabel>
-              <Grid
-                container
-                spacing={1}
-                sx={{
-                  alignItems: "center",
-                }}
-              >
-                <Grid
-                  style={{
-                    display: "grid",
-                    gridTemplateColumns: "3fr 1fr",
-                    gap: "0.2rem",
-                  }}
-                >
-                  <LocalizationProvider dateAdapter={AdapterDateFns}>
-                    <DateTimePicker
-                      value={temporaryAirmassTime}
-                      onChange={(newValue) => handleChange(newValue)}
-                      label="Time to compute airmass (UTC)"
-                      {...({ showTodayButton: false } as any)}
-                      ampm={useAMPM}
-                      slotProps={{ textField: { variant: "outlined" } }}
-                      {...({ style: { minWidth: "100%" } } as any)}
-                    />
-                  </LocalizationProvider>
-                  <TextField
-                    id="airmassThreshold"
-                    label="Threshold"
-                    type="number"
-                    value={airmassValue}
-                    onChange={(e) => setAirmassValue(e.target.value)}
+                  </TextField>
+                )}
+              </Box>
+              <Box sx={{ display: "flex", gap: 1, alignItems: "center" }}>
+                <LocalizationProvider dateAdapter={AdapterDateFns}>
+                  <DateTimePicker
+                    value={temporaryAirmassTime}
+                    onChange={(newValue) => handleChange(newValue)}
+                    label="Airmass time (UTC)"
+                    ampm={useAMPM}
                     slotProps={{
-                      inputLabel: {
-                        shrink: true,
-                      },
-                      htmlInput: {
-                        step: 0.1,
-                        min: 1.0,
-                        max: 3.0,
-                      },
+                      textField: { size: "small", sx: { flex: 1 } },
                     }}
-                    style={{ width: "100%" }}
                   />
-                </Grid>
-                <Grid>
-                  <Button id="setAirmassSelect" onClick={() => setAirmass()}>
-                    Update airmass calculation
-                  </Button>
-                </Grid>
-              </Grid>
-            </div>
-            <div className={classes.buttons}>
-              <Button
-                href={`/api/localization/${selectedLocalizationId}/observability`}
-                download={`observabilityChartRequest-${selectedLocalizationId}`}
-                size="small"
-                type="submit"
-                data-testid={`observabilityChartRequest_${selectedLocalizationId}`}
-              >
-                Observability Chart
-              </Button>
-              <Button
-                href={`/api/localization/${selectedLocalizationId}/airmass/${
-                  instLookUp[
-                    allocationLookUp[selectedAllocationId]?.instrument_id
-                  ]?.telescope_id
-                }`}
-                download={`airmassChartRequest-${selectedAllocationId}`}
-                size="small"
-                type="submit"
-                data-testid={`airmassChartRequest_${selectedAllocationId}`}
-              >
-                Airmass Chart
-              </Button>
-              <Button
-                href={`/api/localization/${selectedLocalizationId}/worldmap`}
-                download={`worldmapChartRequest-${selectedLocalizationId}`}
-                size="small"
-                type="submit"
-                data-testid={`worldmapChartRequest_${selectedLocalizationId}`}
-              >
-                World Map Chart
-              </Button>
-              <Button
-                onClick={() => exportData(skymapInstrument)}
-                size="small"
-                type="submit"
-                data-testid="exportSkymapInstrument"
-                disabled={
-                  !skymapInstrument || skymapInstrument?.fields?.length === 0
-                }
-              >
-                Download Fields
-              </Button>
-            </div>
+                </LocalizationProvider>
+                <TextField
+                  id="airmassThreshold"
+                  size="small"
+                  label="Threshold"
+                  type="number"
+                  value={airmassValue}
+                  onChange={(e) => setAirmassValue(e.target.value)}
+                  slotProps={{
+                    htmlInput: { step: 0.1, min: 1.0, max: 3.0 },
+                  }}
+                  sx={{ width: 100 }}
+                />
+                <Button
+                  id="setAirmassSelect"
+                  size="small"
+                  onClick={() => setAirmass()}
+                >
+                  Update
+                </Button>
+              </Box>
+              <Box>
+                <Button
+                  size="small"
+                  onClick={(e: any) => setDownloadAnchor(e.currentTarget)}
+                >
+                  Download
+                </Button>
+                <Menu
+                  anchorEl={downloadAnchor}
+                  open={Boolean(downloadAnchor)}
+                  onClose={() => setDownloadAnchor(null)}
+                  onClick={() => setDownloadAnchor(null)}
+                >
+                  <MenuItem
+                    component="a"
+                    href={`/api/localization/${selectedLocalizationId}/observability`}
+                    download={`observabilityChartRequest-${selectedLocalizationId}`}
+                    data-testid={`observabilityChartRequest_${selectedLocalizationId}`}
+                  >
+                    Observability chart
+                  </MenuItem>
+                  <MenuItem
+                    component="a"
+                    href={`/api/localization/${selectedLocalizationId}/airmass/${
+                      instLookUp[
+                        allocationLookUp[selectedAllocationId]?.instrument_id
+                      ]?.telescope_id
+                    }`}
+                    download={`airmassChartRequest-${selectedAllocationId}`}
+                    data-testid={`airmassChartRequest_${selectedAllocationId}`}
+                  >
+                    Airmass chart
+                  </MenuItem>
+                  <MenuItem
+                    component="a"
+                    href={`/api/localization/${selectedLocalizationId}/worldmap`}
+                    download={`worldmapChartRequest-${selectedLocalizationId}`}
+                    data-testid={`worldmapChartRequest_${selectedLocalizationId}`}
+                  >
+                    World map chart
+                  </MenuItem>
+                  <MenuItem
+                    onClick={() => exportData(skymapInstrument)}
+                    data-testid="exportSkymapInstrument"
+                    disabled={
+                      !skymapInstrument ||
+                      skymapInstrument?.fields?.length === 0
+                    }
+                  >
+                    Fields
+                  </MenuItem>
+                </Menu>
+              </Box>
+            </Stack>
           </Grid>
         </Grid>
       </Grid>
       <Grid size={{ xs: 12, sm: 12, md: 6, lg: 8 }}>
-        <div>
+        <Stack spacing={2} sx={{ mt: 1, mb: 2 }}>
           <FieldSelect
             selectedFields={selectedFields}
             setSelectedFields={setSelectedFields}
             skymapInstrument={skymapInstrument}
           />
-          <InputLabel id="allocationSelectLabel">Allocation</InputLabel>
-          <Select
-            inputProps={{ MenuProps: { disableScrollLock: true } }}
-            labelId="allocationSelectLabel"
-            value={selectedAllocationId}
-            onChange={handleSelectedAllocationChange}
-            name="followupRequestAllocationSelect"
-            className={classes.allocationSelect}
-          >
-            {filteredAllocationListApiObsplan?.map((allocation: any) => (
-              <MenuItem
-                value={allocation.id}
-                key={allocation.id}
-                className={classes.SelectItem}
-              >
-                {`${
-                  telLookUp[instLookUp[allocation.instrument_id]?.telescope_id]
-                    ?.name
-                } / ${instLookUp[allocation.instrument_id]?.name} - ${
-                  groupLookUp[allocation.group_id]?.name
-                } (PI ${allocation.pi})`}
-              </MenuItem>
-            ))}
-          </Select>
-        </div>
-        <div>
-          <InputLabel id="allocationSelectLabel">Localization</InputLabel>
-          <Select
-            inputProps={{ MenuProps: { disableScrollLock: true } }}
-            labelId="localizationSelectLabel"
-            value={selectedLocalizationId || ""}
-            onChange={handleSelectedLocalizationChange}
-            name="observationPlanRequestLocalizationSelect"
-            className={classes.localizationSelect}
-          >
-            {gcnEvent.localizations?.map((localization: any) => (
-              <MenuItem
-                value={localization.id}
-                key={localization.id}
-                className={classes.SelectItem}
-              >
-                {`Skymap: ${localization.localization_name} / Created: ${localization.created_at}`}
-              </MenuItem>
-            ))}
-          </Select>
-        </div>
+          <FormControl size="small" fullWidth>
+            <InputLabel id="allocationSelectLabel">Allocation</InputLabel>
+            <Select
+              label="Allocation"
+              inputProps={{ MenuProps: { disableScrollLock: true } }}
+              labelId="allocationSelectLabel"
+              value={selectedAllocationId}
+              onChange={handleSelectedAllocationChange}
+              name="followupRequestAllocationSelect"
+            >
+              {filteredAllocationListApiObsplan?.map((allocation: any) => (
+                <MenuItem value={allocation.id} key={allocation.id}>
+                  {`${
+                    telLookUp[
+                      instLookUp[allocation.instrument_id]?.telescope_id
+                    ]?.name
+                  } / ${instLookUp[allocation.instrument_id]?.name} - ${
+                    groupLookUp[allocation.group_id]?.name
+                  } (PI ${allocation.pi})`}
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+          <FormControl size="small" fullWidth>
+            <InputLabel id="localizationSelectLabel">Localization</InputLabel>
+            <Select
+              label="Localization"
+              inputProps={{ MenuProps: { disableScrollLock: true } }}
+              labelId="localizationSelectLabel"
+              value={selectedLocalizationId || ""}
+              onChange={handleSelectedLocalizationChange}
+              name="observationPlanRequestLocalizationSelect"
+            >
+              {gcnEvent.localizations?.map((localization: any) => (
+                <MenuItem value={localization.id} key={localization.id}>
+                  {`Skymap: ${localization.localization_name} / Created: ${localization.created_at}`}
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+        </Stack>
         <GroupShareSelect
           groupList={allGroups}
           setGroupIDs={setSelectedGroupIds}
