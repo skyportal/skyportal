@@ -26,8 +26,10 @@ import { useAppDispatch } from "../../types/hooks";
 import {
   useDeleteInstrumentMutation,
   useGetInstrumentQuery,
+  useModifyInstrumentMutation,
   useUpdateInstrumentStatusMutation,
 } from "../../ducks/instrument";
+import { useGetEnumTypesQuery } from "../../ducks/enum_types";
 import { useGetProfileQuery } from "../../ducks/profile";
 import { useGetTelescopeQuery } from "../../ducks/telescopes";
 import ConfirmDeletionDialog from "../ConfirmDeletionDialog";
@@ -35,6 +37,7 @@ import InstrumentForm from "./InstrumentForm";
 import InstrumentLogs from "./InstrumentLogs";
 import { QuadrantGrid } from "./ZtfQuadrantsField";
 import Paper from "../Paper";
+import SearchableSelect from "../SearchableSelect";
 import Spinner from "../Spinner";
 
 dayjs.extend(utc);
@@ -140,17 +143,22 @@ interface InstrumentProps {
 
 const Instrument = ({ route }: InstrumentProps) => {
   const dispatch = useAppDispatch();
-  const { data: instrument } = useGetInstrumentQuery(route.id);
+  const { data: instrument, refetch } = useGetInstrumentQuery(route.id);
   const { data: telescope } = useGetTelescopeQuery(
     instrument?.telescope_id ?? skipToken,
   );
   const [updateInstrumentStatus] = useUpdateInstrumentStatusMutation();
   const [deleteInstrument] = useDeleteInstrumentMutation();
+  const [modifyInstrument] = useModifyInstrumentMutation();
+  const { data: enumTypes } = useGetEnumTypesQuery();
   const navigate = useNavigate();
-  const permissions = useGetProfileQuery().data?.permissions ?? [];
+  const profile = useGetProfileQuery().data;
+  const permissions = profile?.permissions ?? [];
   const canManage =
     permissions.includes("Manage instruments") ||
-    permissions.includes("System admin");
+    permissions.includes("System admin") ||
+    (profile?.id != null && instrument?.created_by_id === profile.id);
+  const canAddFilters = canManage || permissions.includes("Upload data");
   const [tab, setTab] = useTabParam(["overview", "logs", "status"]);
   const [editOpen, setEditOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
@@ -178,6 +186,22 @@ const Instrument = ({ route }: InstrumentProps) => {
   const refreshStatus = async () => {
     const { error } = await updateInstrumentStatus(route.id);
     if (!error) dispatch(showNotification("Instrument status updated"));
+  };
+
+  const missingFilters = [...(enumTypes?.["ALLOWED_BANDPASSES"] ?? [])]
+    .filter((filter: string) => !instrument.filters?.includes(filter))
+    .sort();
+
+  const addFilter = async (filter: string | null) => {
+    if (!filter) return;
+    const { data: latest } = await refetch();
+    const current = latest?.filters ?? [];
+    if (current.includes(filter)) return;
+    const { error } = await modifyInstrument({
+      id: route.id,
+      params: { filters: [...current, filter] },
+    });
+    if (!error) dispatch(showNotification(`Added ${filter}`));
   };
 
   return (
@@ -265,6 +289,16 @@ const Instrument = ({ route }: InstrumentProps) => {
               <Typography variant="body2" color="text.secondary">
                 No filters
               </Typography>
+            )}
+            {canAddFilters && (
+              <SearchableSelect
+                options={missingFilters}
+                value={null}
+                onChange={(_e, filter) => addFilter(filter)}
+                placeholder="Add filter"
+                blurOnSelect
+                sx={{ mt: 1, maxWidth: 240 }}
+              />
             )}
           </Section>
           {configuration.length > 0 && (
