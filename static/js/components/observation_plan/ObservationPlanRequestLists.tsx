@@ -62,7 +62,12 @@ const statusColor = (status: string) =>
 
 const PLANNED_STATUSES = ["complete", "submitted to telescope queue"];
 
-const actionsSx = { display: "flex", flexWrap: "wrap", gap: 0.5 };
+const actionsSx = {
+  display: "flex",
+  alignItems: "center",
+  gap: 0.5,
+  "& .MuiButton-root": { whiteSpace: "nowrap" },
+};
 
 const RequestsToolbar = () => (
   <DataGridToolbar showExpandAll showQuickFilter={false} />
@@ -273,16 +278,7 @@ const ObservationPlanRequestLists = ({
       };
 
       return (
-        <Box sx={{ ...actionsSx, alignItems: "center" }}>
-          <Button
-            size="small"
-            href={`/api/observation_plan/${observationplanRequest.id}/gcn`}
-            download={`observation-plan-gcn-${observationplanRequest.id}`}
-            data-testid={`gcnRequest_${observationplanRequest.id}`}
-            disabled={!hasPlans}
-          >
-            GCN
-          </Button>
+        <Box sx={actionsSx}>
           <Button
             size="small"
             onClick={(e: any) =>
@@ -299,21 +295,32 @@ const ObservationPlanRequestLists = ({
             open={downloadMenu?.id === observationplanRequest.id}
             onClose={() => setDownloadMenu(null)}
           >
+            <MenuItem
+              component="a"
+              href={`/api/observation_plan/${observationplanRequest.id}/gcn`}
+              download={`observation-plan-gcn-${observationplanRequest.id}`}
+              data-testid={`gcnRequest_${observationplanRequest.id}`}
+              disabled={!hasPlans}
+              onClick={() => setDownloadMenu(null)}
+            >
+              GCN circular
+            </MenuItem>
             <MenuItem onClick={() => handleDownload(false)}>
               ZTF compatible
             </MenuItem>
             <MenuItem onClick={() => handleDownload(true)} disabled={!hasPlans}>
               Rubin compatible
             </MenuItem>
+            <MenuItem
+              component="a"
+              href={`/api/observation_plan/${observationplanRequest.id}/movie`}
+              download={`observation-plan-movie-${observationplanRequest.id}`}
+              disabled={!hasPlans}
+              onClick={() => setDownloadMenu(null)}
+            >
+              GIF
+            </MenuItem>
           </Menu>
-          <Button
-            size="small"
-            href={`/api/observation_plan/${observationplanRequest.id}/movie`}
-            download={`observation-plan-movie-${observationplanRequest.id}`}
-            disabled={!hasPlans}
-          >
-            GIF
-          </Button>
           <AddRunFromObservationPlanPage
             observationplanRequest={observationplanRequest}
           />
@@ -368,7 +375,6 @@ const ObservationPlanRequestLists = ({
         <Box sx={actionsSx}>
           {implementsSend && observationplanRequest.status === "complete" && (
             <Button
-              primary
               onClick={() => handleShowTable(observationplanRequest.id)}
               size="small"
               disabled={isSending === observationplanRequest.id}
@@ -488,7 +494,7 @@ const ObservationPlanRequestLists = ({
         field: "payload",
         headerName: "Payload",
         flex: 2,
-        minWidth: 240,
+        minWidth: 200,
         sortable: false,
         renderCell: ({ row }: any) => <JsonCell data={row.payload} />,
       },
@@ -496,21 +502,29 @@ const ObservationPlanRequestLists = ({
         field: "status",
         headerName: "Status",
         flex: 1,
-        minWidth: 170,
+        minWidth: 240,
         sortable: false,
-        renderCell: ({ value }: any) => (
-          <Chip
-            size="small"
-            variant="outlined"
-            label={value}
-            color={statusColor(value)}
-            sx={{
-              height: "auto",
-              py: 0.25,
-              "& .MuiChip-label": { whiteSpace: "normal" },
-            }}
-          />
-        ),
+        renderCell: ({ value }: any) => {
+          const [label, ...reason] = value.split(": ");
+          return (
+            <Box>
+              <Chip
+                size="small"
+                variant="outlined"
+                label={label}
+                color={statusColor(label)}
+              />
+              {reason.length > 0 && (
+                <Typography
+                  variant="caption"
+                  sx={{ display: "block", color: "text.secondary", mt: 0.5 }}
+                >
+                  {reason.join(": ")}
+                </Typography>
+              )}
+            </Box>
+          );
+        },
       },
     ];
 
@@ -553,7 +567,7 @@ const ObservationPlanRequestLists = ({
       field: "manage",
       headerName: "Manage",
       flex: 1.5,
-      minWidth: 280,
+      minWidth: 380,
       sortable: false,
       filterable: false,
       renderCell: renderManage,
@@ -564,7 +578,7 @@ const ObservationPlanRequestLists = ({
         field: "queue",
         headerName: "Telescope Queue",
         flex: 1,
-        minWidth: 160,
+        minWidth: 190,
         sortable: false,
         filterable: false,
         renderCell: renderQueue,

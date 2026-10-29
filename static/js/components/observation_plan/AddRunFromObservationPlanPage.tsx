@@ -52,7 +52,7 @@ const AddRunFromObservationPlanPage = ({
         onClick={openDialog}
         data-testid={`addObservingRunButton_${observationplanRequest.id}`}
       >
-        Create Observing Run
+        Observing run
       </Button>
       <Dialog open={dialogOpen} onClose={closeDialog}>
         <DialogTitle>Create Observing Run</DialogTitle>
