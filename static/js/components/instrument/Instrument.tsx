@@ -147,10 +147,14 @@ const Instrument = ({ route }: InstrumentProps) => {
   const [updateInstrumentStatus] = useUpdateInstrumentStatusMutation();
   const [deleteInstrument] = useDeleteInstrumentMutation();
   const navigate = useNavigate();
-  const permissions = useGetProfileQuery().data?.permissions ?? [];
+  const profile = useGetProfileQuery().data;
+  const permissions = profile?.permissions ?? [];
   const canManage =
     permissions.includes("Manage instruments") ||
     permissions.includes("System admin");
+  const canEdit =
+    canManage ||
+    (profile?.id != null && instrument?.created_by_id === profile.id);
   const [tab, setTab] = useTabParam(["overview", "logs", "status"]);
   const [editOpen, setEditOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
@@ -203,11 +207,13 @@ const Instrument = ({ route }: InstrumentProps) => {
           )}
         </Box>
         <Box sx={{ display: "flex", gap: 0.5 }}>
-          <Tooltip title="Edit instrument">
-            <IconButton onClick={() => setEditOpen(true)}>
-              <EditIcon />
-            </IconButton>
-          </Tooltip>
+          {canEdit && (
+            <Tooltip title="Edit instrument">
+              <IconButton onClick={() => setEditOpen(true)}>
+                <EditIcon />
+              </IconButton>
+            </Tooltip>
+          )}
           {canManage && (
             <Tooltip title="Delete instrument">
               <IconButton color="error" onClick={() => setDeleteOpen(true)}>

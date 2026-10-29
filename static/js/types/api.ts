@@ -31615,6 +31615,8 @@ export interface components {
             default_observer?: string | null;
             /** @description NASA ACROSS instrument UUID, used to route visibility queries to the ACROSS calculator. See https://across.sciencecloud.nasa.gov */
             across_id?: string | null;
+            /** @description ID of the User who created the Instrument. */
+            created_by_id?: number | null;
             /** @description Instrument astropy.regions representation. */
             region?: string | null;
             /** @description Whether the instrument has fields or not. */
@@ -31890,6 +31892,8 @@ export interface components {
             default_observer?: string | null;
             /** @description NASA ACROSS instrument UUID, used to route visibility queries to the ACROSS calculator. See https://across.sciencecloud.nasa.gov */
             across_id?: string | null;
+            /** @description ID of the User who created the Instrument. */
+            created_by_id?: number | null;
             /** @description Instrument astropy.regions representation. */
             region?: string | null;
             /** @description Whether the instrument has fields or not. */

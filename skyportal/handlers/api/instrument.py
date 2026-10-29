@@ -234,6 +234,7 @@ class InstrumentHandler(BaseHandler):
                     return self.error("ID, RA, and Dec required in field_data.")
 
             instrument.telescope_id = telescope.id
+            instrument.created_by_id = self.associated_user_object.id
             session.add(instrument)
             await session.commit()
 
