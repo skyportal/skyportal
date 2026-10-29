@@ -7,6 +7,7 @@ from skyportal.utils.tns import (
     get_tns_headers,
     get_tns_object_id_and_data_source_id,
     get_tns_url,
+    tns_classification_id,
 )
 
 
@@ -81,3 +82,20 @@ def test_get_tns_url(monkeypatch):
     monkeypatch.setattr("skyportal.utils.tns.TNS_URL", None)
     with pytest.raises(ValueError, match="TNS URL is not configured"):
         get_tns_url("search")
+
+
+def test_classification_id_ia_subtypes():
+    # Subtypes TNS has no slot of its own for fall back to their nearest class.
+    assert tns_classification_id("Ia-99aa") == tns_classification_id("Ia-91T")
+    assert tns_classification_id("Ia-00cx") == tns_classification_id("Ia-pec")
+    assert tns_classification_id("Ia-18byg") == tns_classification_id("Ia-pec")
+    assert tns_classification_id("Ia-03fg") == tns_classification_id("Ia-SC")
+
+
+def test_classification_id_is_case_and_space_insensitive():
+    assert tns_classification_id("  ia-99AA  ") == tns_classification_id("Ia-99aa")
+
+
+def test_classification_id_unmapped():
+    assert tns_classification_id("RR Lyrae") is None
+    assert tns_classification_id(None) is None
