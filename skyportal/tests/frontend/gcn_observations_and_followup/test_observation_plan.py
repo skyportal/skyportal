@@ -161,20 +161,15 @@ def test_observationplan_request(
         page.locator(f"//*[@data-testid='{instrument_name}-requests-header']").first
     ).to_be_visible()
     page.locator(f"//*[@data-testid='{instrument_name}-requests-header']").first.click()
-    payload_filters = page.locator(
-        f'//div[contains(@data-testid, "{instrument_name}_observationplanRequestsTable")]//div[contains(., "ztfr")]'
-    ).first
-    # a re-render of the cell during the click can fold the payload back
-    for _ in range(5):
+    # the payload cell starts collapsed
+    page.locator(
+        f'//div[contains(@data-testid, "{instrument_name}_observationplanRequestsTable")]//*[contains(@class, "collapsed-icon")]'
+    ).first.click()
+    expect(
         page.locator(
-            f'//div[contains(@data-testid, "{instrument_name}_observationplanRequestsTable")]//*[contains(@class, "collapsed-icon")]'
-        ).first.click()
-        try:
-            expect(payload_filters).to_be_visible(timeout=5000)
-            break
-        except AssertionError:
-            pass
-    expect(payload_filters).to_be_visible()
+            f'//div[contains(@data-testid, "{instrument_name}_observationplanRequestsTable")]//div[contains(., "ztfr")]'
+        ).first
+    ).to_be_visible()
     expect(
         page.locator(
             f'//div[contains(@data-testid, "{instrument_name}_observationplanRequestsTable")]//div[contains(., "complete")]'
