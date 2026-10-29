@@ -161,10 +161,10 @@ def test_observationplan_request(
         page.locator(f"//*[@data-testid='{instrument_name}-requests-header']").first
     ).to_be_visible()
     page.locator(f"//*[@data-testid='{instrument_name}-requests-header']").first.click()
-    # the payload cell starts collapsed
+    # starts collapsed; a real click in the grid can lose the toggle in Firefox
     page.locator(
         f'//div[contains(@data-testid, "{instrument_name}_observationplanRequestsTable")]//*[contains(@class, "collapsed-icon")]'
-    ).first.click()
+    ).first.dispatch_event("click")
     expect(
         page.locator(
             f'//div[contains(@data-testid, "{instrument_name}_observationplanRequestsTable")]//div[contains(., "ztfr")]'
