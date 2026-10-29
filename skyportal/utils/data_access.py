@@ -29,15 +29,17 @@ from ..models import (
     Token,
     User,
 )
-from ..utils.tns import TNS_INSTRUMENT_IDS, tns_classification_id
+from ..utils.tns import (
+    TNS_OTHER_INSTRUMENT_ID,
+    tns_classification_id,
+    tns_instrument_id,
+)
 from .asynchronous import run_async
 from .parse import get_list_typed, is_null
 
 log = make_log("publishable_access")
 
 _, cfg = load_env()
-
-SHARING_INSTRUMENT_IDS = TNS_INSTRUMENT_IDS
 
 
 def default_share_public_group_name():
@@ -188,7 +190,7 @@ def process_instrument_ids(
         if len(instruments) != len(instrument_ids):
             raise ValueError(f"One or more instruments not found: {instrument_ids}")
         for instrument in instruments:
-            if instrument.name.lower() not in SHARING_INSTRUMENT_IDS:
+            if tns_instrument_id(instrument) == TNS_OTHER_INSTRUMENT_ID:
                 raise ValueError(
                     f"Instrument {instrument.name} not supported for sharing"
                 )
@@ -1005,7 +1007,7 @@ async def process_instrument_ids_async(
         if len(instruments) != len(instrument_ids):
             raise ValueError(f"One or more instruments not found: {instrument_ids}")
         for instrument in instruments:
-            if instrument.name.lower() not in SHARING_INSTRUMENT_IDS:
+            if tns_instrument_id(instrument) == TNS_OTHER_INSTRUMENT_ID:
                 raise ValueError(
                     f"Instrument {instrument.name} not supported for sharing"
                 )

@@ -12,13 +12,13 @@ import Menu from "@mui/material/Menu";
 import MenuItem from "@mui/material/MenuItem";
 import Chip from "@mui/material/Chip";
 import { makeStyles } from "tss-react/mui";
-import { JSONTree } from "react-json-tree";
 
 import { skipToken } from "@reduxjs/toolkit/query";
 
 import { showNotification } from "baselayer/components/Notifications";
 import { useAppDispatch } from "../../types/hooks";
 import Button from "../Button";
+import JsonCell from "../JsonCell";
 import StyledDataGrid from "../StyledDataGrid";
 
 import {
@@ -457,11 +457,7 @@ const ObservationPlanRequestLists = ({
         minWidth: 160,
         sortable: false,
         renderCell: (params: any) =>
-          params.row ? (
-            <div style={{ whiteSpace: "nowrap" }}>
-              <JSONTree data={params.row.payload} hideRoot />
-            </div>
-          ) : null,
+          params.row ? <JsonCell data={params.row.payload} /> : null,
       },
       {
         field: "status",

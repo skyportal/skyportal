@@ -306,6 +306,7 @@ app:
     bot_name:
     api_key:
     look_back_days: 1
+    min_request_interval: 3 # Seconds between TNS requests, to stay inside the bot's rate limit
     name_refresh:
       enabled: True # Re-query TNS for classified objects still named AT
       interval_hours: 6

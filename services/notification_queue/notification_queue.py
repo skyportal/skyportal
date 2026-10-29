@@ -32,6 +32,7 @@ from skyportal.models import (
     EventObservationPlan,
     Feedback,
     FeedbackReply,
+    Filter,
     FollowupRequest,
     FollowupRequestUser,
     GcnEvent,
@@ -185,6 +186,7 @@ def user_preferences(target, notification_setting, resource_type):
             "favorite_sources",
             "gcn_events",
             "gcn_extractions",
+            "gcn_matches",
             "facility_transactions",
             "mention",
             "analysis_services",
@@ -301,6 +303,9 @@ def send_email_notification(target):
                 data=target["content"],
                 new_tag=(target["notification_type"] == "gcn_events_new_tag"),
             )
+
+        elif resource_type == "gcn_matches":
+            subject = f"{cfg['app.title']} - New GCN event matches"
 
         elif resource_type == "facility_transactions":
             subject = f"{cfg['app.title']} - New facility transaction"
@@ -665,6 +670,7 @@ def api(queue):
             is_gcn_tag = target_class_name == "GcnTag"
             is_classification = target_class_name == "Classification"
             is_gcn_extraction = target_class_name == "GcnEventExtraction"
+            is_gcn_match = target_class_name == "GcnEventMatches"
             is_spectra = target_class_name == "Spectrum"
             is_comment = target_class_name == "Comment"
             is_group_admission_request = target_class_name == "GroupAdmissionRequest"
@@ -714,6 +720,37 @@ def api(queue):
                         ).first()
                         target_data = target.to_dict()
                         target_content = gcn_notification_content(target, session)
+
+                    elif is_gcn_match:
+                        users = session.scalars(
+                            sa.select(User).where(
+                                User.preferences["notifications"]["gcn_matches"][
+                                    "active"
+                                ]
+                                .astext.cast(sa.Boolean)
+                                .is_(True)
+                            )
+                        ).all()
+                        target_class = GcnEvent
+                        gcn_event = session.scalar(
+                            sa.select(GcnEvent).where(GcnEvent.id == target_id)
+                        )
+                        match_filter = session.scalar(
+                            sa.select(Filter).where(Filter.id == data.get("filter_id"))
+                        )
+                        if (
+                            gcn_event is None
+                            or match_filter is None
+                            or not data.get("obj_ids")
+                        ):
+                            return
+                        target_data = {
+                            "dateobs": gcn_event.dateobs,
+                            "event_tags": gcn_event.tags,
+                            "filter_id": match_filter.id,
+                            "filter_name": match_filter.name,
+                            "obj_ids": data["obj_ids"],
+                        }
 
                     elif is_followup_request:
                         users = session.scalars(
@@ -1266,6 +1303,50 @@ def api(queue):
                                                 target_content,
                                             )
                                         )
+
+                                elif is_gcn_match:
+                                    match_prefs = pref["gcn_matches"]
+                                    if (
+                                        session.scalars(
+                                            Filter.select(user).where(
+                                                Filter.id == target_data["filter_id"]
+                                            )
+                                        ).first()
+                                        is None
+                                    ):
+                                        continue
+                                    filter_ids = match_prefs.get("filters") or []
+                                    if (
+                                        filter_ids
+                                        and target_data["filter_id"] not in filter_ids
+                                    ):
+                                        continue
+                                    gcn_tags = match_prefs.get("gcn_tags") or []
+                                    if gcn_tags and not set(gcn_tags) & set(
+                                        target_data["event_tags"]
+                                    ):
+                                        continue
+                                    obj_ids = target_data["obj_ids"]
+                                    if len(obj_ids) == 1:
+                                        text = (
+                                            f"*{obj_ids[0]}* from filter "
+                                            f"*{target_data['filter_name']}* matches "
+                                            f"GCN Event *{target_data['dateobs']}*"
+                                        )
+                                        url = f"/source/{obj_ids[0]}"
+                                    else:
+                                        text = (
+                                            f"*{len(obj_ids)}* new candidates from filter "
+                                            f"*{target_data['filter_name']}* match "
+                                            f"GCN Event *{target_data['dateobs']}*: "
+                                            f"{textwrap.shorten(', '.join(obj_ids), 120, placeholder='...')}"
+                                        )
+                                        url = f"/gcn_events/{target_data['dateobs'].isoformat()}"
+                                    queue.append(
+                                        user_notification_target(
+                                            session, user, text, "gcn_matches", url
+                                        )
+                                    )
 
                                 elif is_followup_request:
                                     if user.id in notification_user_ids:

@@ -91,9 +91,10 @@ const SharingServicesDialog = ({
           selectedSharingService.instruments.some(
             (i: any) => i.id === instrument.id,
           ) &&
-          (allowedInstrumentsForSharing || []).includes(
-            instrument.name?.toLowerCase(),
-          ),
+          (instrument.tns_id != null ||
+            (allowedInstrumentsForSharing || []).includes(
+              instrument.name?.toLowerCase(),
+            )),
       )
     : [];
   const allowedInstrumentIds = allowedInstruments.map(

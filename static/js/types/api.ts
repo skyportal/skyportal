@@ -24149,6 +24149,8 @@ export interface paths {
                     lastName?: string | null;
                     /** @description Get users whose username contains this string. */
                     username?: string | null;
+                    /** @description Get users whose username or full name contains this string, ignoring case. */
+                    name?: string | null;
                     /** @description Get users whose email contains this string. */
                     email?: string | null;
                     /** @description Get users with the role. */

@@ -2,7 +2,7 @@ import { Link } from "react-router-dom";
 import Chip from "@mui/material/Chip";
 import Tooltip from "@mui/material/Tooltip";
 
-import JsonCell from "./JsonCell";
+import JsonCell from "../JsonCell";
 import WatcherButton from "./WatcherButton";
 import { statusColor } from "./status";
 
