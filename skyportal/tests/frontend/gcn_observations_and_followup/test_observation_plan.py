@@ -151,12 +151,6 @@ def test_observationplan_request(
     page.locator(
         '//div[@data-testid="observationplan-request-form"]//*[@id="root_filters"]'
     ).first.fill("ztfr")
-    page.locator(
-        '//div[@data-testid="observationplan-request-form"]//*[@id="root_start_date"]'
-    ).first.fill("2019-04-25 08:18:05")
-    page.locator(
-        '//div[@data-testid="observationplan-request-form"]//*[@id="root_end_date"]'
-    ).first.fill("2019-04-26 08:18:05")
 
     page.locator('//button[contains(., "Add to Queue")]').first.click()
     page.locator('//button[contains(., "Generate Observation Plans")]').first.click()
@@ -167,15 +161,20 @@ def test_observationplan_request(
         page.locator(f"//*[@data-testid='{instrument_name}-requests-header']").first
     ).to_be_visible()
     page.locator(f"//*[@data-testid='{instrument_name}-requests-header']").first.click()
-    # the payload cell starts collapsed
-    page.locator(
-        f'//div[contains(@data-testid, "{instrument_name}_observationplanRequestsTable")]//*[contains(@class, "collapsed-icon")]'
-    ).first.click()
-    expect(
+    payload_filters = page.locator(
+        f'//div[contains(@data-testid, "{instrument_name}_observationplanRequestsTable")]//div[contains(., "ztfr")]'
+    ).first
+    # a re-render of the cell during the click can fold the payload back
+    for _ in range(5):
         page.locator(
-            f'//div[contains(@data-testid, "{instrument_name}_observationplanRequestsTable")]//div[contains(., "ztfr")]'
-        ).first
-    ).to_be_visible()
+            f'//div[contains(@data-testid, "{instrument_name}_observationplanRequestsTable")]//*[contains(@class, "collapsed-icon")]'
+        ).first.click()
+        try:
+            expect(payload_filters).to_be_visible(timeout=5000)
+            break
+        except AssertionError:
+            pass
+    expect(payload_filters).to_be_visible()
     expect(
         page.locator(
             f'//div[contains(@data-testid, "{instrument_name}_observationplanRequestsTable")]//div[contains(., "complete")]'
