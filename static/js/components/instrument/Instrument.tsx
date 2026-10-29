@@ -26,8 +26,10 @@ import { useAppDispatch } from "../../types/hooks";
 import {
   useDeleteInstrumentMutation,
   useGetInstrumentQuery,
+  useModifyInstrumentMutation,
   useUpdateInstrumentStatusMutation,
 } from "../../ducks/instrument";
+import { useGetEnumTypesQuery } from "../../ducks/enum_types";
 import { useGetProfileQuery } from "../../ducks/profile";
 import { useGetTelescopeQuery } from "../../ducks/telescopes";
 import ConfirmDeletionDialog from "../ConfirmDeletionDialog";
@@ -35,6 +37,7 @@ import InstrumentForm from "./InstrumentForm";
 import InstrumentLogs from "./InstrumentLogs";
 import { QuadrantGrid } from "./ZtfQuadrantsField";
 import Paper from "../Paper";
+import SearchableSelect from "../SearchableSelect";
 import Spinner from "../Spinner";
 
 dayjs.extend(utc);
@@ -146,15 +149,16 @@ const Instrument = ({ route }: InstrumentProps) => {
   );
   const [updateInstrumentStatus] = useUpdateInstrumentStatusMutation();
   const [deleteInstrument] = useDeleteInstrumentMutation();
+  const [modifyInstrument] = useModifyInstrumentMutation();
+  const { data: enumTypes } = useGetEnumTypesQuery();
   const navigate = useNavigate();
   const profile = useGetProfileQuery().data;
   const permissions = profile?.permissions ?? [];
   const canManage =
     permissions.includes("Manage instruments") ||
-    permissions.includes("System admin");
-  const canEdit =
-    canManage ||
+    permissions.includes("System admin") ||
     (profile?.id != null && instrument?.created_by_id === profile.id);
+  const canAddFilters = canManage || permissions.includes("Upload data");
   const [tab, setTab] = useTabParam(["overview", "logs", "status"]);
   const [editOpen, setEditOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
@@ -184,6 +188,19 @@ const Instrument = ({ route }: InstrumentProps) => {
     if (!error) dispatch(showNotification("Instrument status updated"));
   };
 
+  const missingFilters = [...(enumTypes?.ALLOWED_BANDPASSES ?? [])]
+    .filter((filter: string) => !instrument.filters?.includes(filter))
+    .sort();
+
+  const addFilter = async (filter: string | null) => {
+    if (!filter) return;
+    const { error } = await modifyInstrument({
+      id: route.id,
+      params: { filters: [...(instrument.filters ?? []), filter] },
+    });
+    if (!error) dispatch(showNotification(`Added ${filter}`));
+  };
+
   return (
     <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
       <Box
@@ -206,22 +223,20 @@ const Instrument = ({ route }: InstrumentProps) => {
             <CircularProgress size={20} />
           )}
         </Box>
-        <Box sx={{ display: "flex", gap: 0.5 }}>
-          {canEdit && (
+        {canManage && (
+          <Box sx={{ display: "flex", gap: 0.5 }}>
             <Tooltip title="Edit instrument">
               <IconButton onClick={() => setEditOpen(true)}>
                 <EditIcon />
               </IconButton>
             </Tooltip>
-          )}
-          {canManage && (
             <Tooltip title="Delete instrument">
               <IconButton color="error" onClick={() => setDeleteOpen(true)}>
                 <DeleteIcon />
               </IconButton>
             </Tooltip>
-          )}
-        </Box>
+          </Box>
+        )}
       </Box>
       <Tabs
         value={tab}
@@ -271,6 +286,16 @@ const Instrument = ({ route }: InstrumentProps) => {
               <Typography variant="body2" color="text.secondary">
                 No filters
               </Typography>
+            )}
+            {canAddFilters && (
+              <SearchableSelect
+                options={missingFilters}
+                value={null}
+                onChange={(_e, filter) => addFilter(filter)}
+                placeholder="Add filter"
+                blurOnSelect
+                sx={{ mt: 1, maxWidth: 240 }}
+              />
             )}
           </Section>
           {configuration.length > 0 && (

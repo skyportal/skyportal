@@ -67,18 +67,8 @@ def manage_instrument_access_logic(cls, user_or_token):
     elif "Manage instruments" in user_or_token.permissions:
         return sa.select(cls)
     else:
-        # return an empty query
-        return sa.select(cls).where(cls.id == -1)
-
-
-def update_instrument_access_logic(cls, user_or_token):
-    if (
-        user_or_token.is_system_admin
-        or "Manage instruments" in user_or_token.permissions
-    ):
-        return sa.select(cls)
-    user_id = UserAccessControl.user_id_from_user_or_token(user_or_token)
-    return sa.select(cls).where(cls.created_by_id == user_id)
+        user_id = UserAccessControl.user_id_from_user_or_token(user_or_token)
+        return sa.select(cls).where(cls.created_by_id == user_id)
 
 
 class InstrumentField(Base):
@@ -277,8 +267,7 @@ class Instrument(Base):
     """An instrument attached to a telescope."""
 
     read = create = public
-    update = CustomUserAccessControl(update_instrument_access_logic)
-    delete = CustomUserAccessControl(manage_instrument_access_logic)
+    update = delete = CustomUserAccessControl(manage_instrument_access_logic)
 
     name = sa.Column(sa.String, unique=True, nullable=False, doc="Instrument name.")
     type = sa.Column(

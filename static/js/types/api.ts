@@ -11477,7 +11477,7 @@ export interface paths {
         post?: never;
         /**
          * Delete an instrument's fields
-         * @description <b>Permission(s) required:</b> <em>Manage instruments (or System admin)</em><br><br>Delete fields associated with an instrument
+         * @description Delete fields associated with an instrument
          */
         delete: {
             parameters: {
@@ -11786,7 +11786,7 @@ export interface paths {
         post?: never;
         /**
          * Delete an instrument
-         * @description <b>Permission(s) required:</b> <em>Manage instruments (or System admin)</em><br><br>Delete an instrument
+         * @description Delete an instrument
          */
         delete: {
             parameters: {

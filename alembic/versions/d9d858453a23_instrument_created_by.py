@@ -1,7 +1,7 @@
 """Record who created an instrument
 
-Adds instruments.created_by_id so the creator can edit an instrument without
-Manage instruments. Existing instruments have no creator.
+Adds instruments.created_by_id so the creator can edit or delete an instrument
+without Manage instruments. Existing instruments have no creator.
 
 Revision ID: d9d858453a23
 Revises: f2a6c81d57b3

@@ -25,7 +25,7 @@ from sqlalchemy.orm import (
 )
 from tornado.ioloop import IOLoop
 
-from baselayer.app.access import auth_or_token, permissions
+from baselayer.app.access import auth_or_token
 from baselayer.app.env import load_env
 from baselayer.log import make_log
 from skyportal.utils.calculations import get_airmass
@@ -606,7 +606,33 @@ class InstrumentHandler(BaseHandler):
                 .where(Instrument.id == instrument_id)
             )
             if instrument is None:
-                return self.error(f"Missing instrument with ID {instrument_id}")
+                instrument = await session.scalar(
+                    Instrument.select(session.user_or_token).where(
+                        Instrument.id == instrument_id
+                    )
+                )
+                if instrument is None:
+                    return self.error(f"Missing instrument with ID {instrument_id}")
+                filters = data.get("filters") or []
+                if (
+                    set(data) != {"id", "filters"}
+                    or "Upload data" not in session.user_or_token.permissions
+                    or not set(instrument.filters).issubset(filters)
+                ):
+                    return self.error(
+                        "Only adding filters is allowed without Manage instruments",
+                        status=403,
+                    )
+                if not set(filters).issubset(ALLOWED_BANDPASSES):
+                    return self.error(f"Filters must be one of {ALLOWED_BANDPASSES}")
+                await session.execute(
+                    sa.update(Instrument)
+                    .where(Instrument.id == instrument.id)
+                    .values(filters=filters)
+                )
+                await session.commit()
+                self.push_all(action="skyportal/REFRESH_INSTRUMENTS")
+                return self.success()
 
             filters = data.get("filters", None)
             if filters is not None:
@@ -816,7 +842,7 @@ class InstrumentHandler(BaseHandler):
             self.push_all(action="skyportal/REFRESH_INSTRUMENTS")
             return self.success()
 
-    @permissions(["Manage instruments"])
+    @auth_or_token
     async def delete(self, instrument_id: int):
         """
         ---
@@ -1242,7 +1268,7 @@ def add_tiles(
 
 
 class InstrumentFieldHandler(BaseHandler):
-    @permissions(["Manage instruments"])
+    @auth_or_token
     async def delete(self, instrument_id: int):
         """
         ---
