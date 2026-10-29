@@ -182,14 +182,18 @@ def test_observationplan_request(
     observation_plan_request_id = data["data"]["requests"][-1]["observation_plans"][0][
         "observation_plan_request_id"
     ]
-    page.locator('//button[normalize-space(.)="Download"]').first.click()
+    page.locator(
+        f'//div[contains(@data-testid, "{instrument_name}_observationplanRequestsTable")]//button[normalize-space(.)="Download"]'
+    ).first.click()
     page.locator(
         f'//a[contains(@data-testid, "gcnRequest_{observation_plan_request_id}")]'
     ).first.click()
     page.locator(
         f'//button[contains(@data-testid, "treasuremapRequest_{observation_plan_request_id}")]'
     ).first.click()
-    page.locator('//button[normalize-space(.)="Download"]').first.click()
+    page.locator(
+        f'//div[contains(@data-testid, "{instrument_name}_observationplanRequestsTable")]//button[normalize-space(.)="Download"]'
+    ).first.click()
     page.locator('//li[contains(., "ZTF compatible")]').first.click()
     page.locator(
         f'//button[contains(@data-testid, "addObservingRunButton_{observation_plan_request_id}")]'
