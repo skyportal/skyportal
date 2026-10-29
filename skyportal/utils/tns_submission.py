@@ -379,10 +379,14 @@ def build_tns_classification_report(
     instrument_id = tns_instrument_id(spectrum.instrument)
 
     altdata = spectrum.altdata or {}
+    exptime = altdata.get("EXPTIME", altdata.get("exptime", ""))
+    # FITS header cards are stored as {"value": ..., "comment": ...}
+    if isinstance(exptime, dict):
+        exptime = exptime.get("value", "")
     spectrum_entry = {
         "obsdate": spectrum.observed_at.strftime("%Y-%m-%d %H:%M:%S"),
         "instrumentid": instrument_id,
-        "exptime": altdata.get("EXPTIME", altdata.get("exptime", "")),
+        "exptime": exptime,
         # TNS refuses a classification report with no observer, and a robotic
         # instrument's spectra name none, so the instrument's own default is
         # the last word before the field would go out empty.
