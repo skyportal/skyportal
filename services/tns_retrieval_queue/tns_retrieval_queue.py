@@ -50,6 +50,7 @@ bot_id = cfg.get("app.tns.bot_id", None)
 bot_name = cfg.get("app.tns.bot_name", None)
 api_key = cfg.get("app.tns.api_key", None)
 look_back_days = cfg.get("app.tns.look_back_days", 1)
+min_request_interval = cfg.get("app.tns.min_request_interval", 3)
 name_refresh_enabled = cfg.get("app.tns.name_refresh.enabled", True)
 name_refresh_interval_hours = cfg.get("app.tns.name_refresh.interval_hours", 6)
 name_refresh_batch_size = cfg.get("app.tns.name_refresh.batch_size", 50)
@@ -248,6 +249,7 @@ def process_queue(queue):
         log("TNS watcher not configured, skipping")
         return
     tns_headers = get_tns_headers(bot_id, bot_name)
+    last_request_at = 0.0
 
     while True:
         if not queue:
@@ -256,6 +258,11 @@ def process_queue(queue):
         task = queue.pop(0)
         if not task:
             continue
+
+        wait = min_request_interval - (time.monotonic() - last_request_at)
+        if wait > 0:
+            time.sleep(wait)
+        last_request_at = time.monotonic()
 
         tns_name = None
         existing_obj = None

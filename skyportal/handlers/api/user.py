@@ -364,6 +364,15 @@ class UserHandler(BaseHandler):
                 stmt = stmt.where(User.last_name.contains(query.lastName))
             if query.username is not None:
                 stmt = stmt.where(User.username.contains(query.username))
+            if query.name is not None:
+                stmt = stmt.where(
+                    sa.or_(
+                        User.username.icontains(query.name, autoescape=True),
+                        sa.func.concat_ws(
+                            " ", User.first_name, User.last_name
+                        ).icontains(query.name, autoescape=True),
+                    )
+                )
             if query.email is not None:
                 # else a redacted contact_email stays guessable one substring at a time
                 if not self.can_manage_users():
