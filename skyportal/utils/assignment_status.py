@@ -14,7 +14,7 @@ PENDING = "pending"
 DONE = "done"
 
 
-async def mark_assignments_observed(session, spectrum, window_days=1):
+async def mark_assignments_observed(session, user_or_token, spectrum, window_days=1):
     """Mark the assignments a spectrum satisfies as done.
 
     A spectrum that names its assignment settles the question outright. Most
@@ -30,7 +30,7 @@ async def mark_assignments_observed(session, spectrum, window_days=1):
     if spectrum.observed_at is None:
         return []
 
-    query = ClassicalAssignment.select(session.user_or_token, mode="update").where(
+    query = ClassicalAssignment.select(user_or_token, mode="update").where(
         ClassicalAssignment.status == PENDING
     )
 

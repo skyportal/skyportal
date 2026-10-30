@@ -2,6 +2,8 @@ import { useEffect } from "react";
 import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
 
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
+import HistoryIcon from "@mui/icons-material/History";
+import ReplayIcon from "@mui/icons-material/Replay";
 import SmartToyIcon from "@mui/icons-material/SmartToy";
 import Alert from "@mui/material/Alert";
 import Box from "@mui/material/Box";
@@ -25,7 +27,12 @@ import { useGetConfigQuery } from "../../ducks/config";
 import { useGetGroupQuery } from "../../ducks/group";
 import { useGetFilterQuery } from "../../ducks/filter";
 import { useGetStreamQuery } from "../../ducks/stream";
-import { useGetBrokerCredentialsQuery } from "../../ducks/brokers";
+import {
+  useBackfillBrokerFilterMutation,
+  useGetBrokerCredentialsQuery,
+  useGetBrokersQuery,
+  useReplayBrokerStreamMutation,
+} from "../../ducks/brokers";
 
 const AssistantHint = () => {
   const { setSpace, setOpen } = useCommentPanel();
@@ -89,12 +96,57 @@ const Filter = () => {
   const { data: credentials } = useGetBrokerCredentialsQuery(brokerId, {
     skip: !brokerId,
   });
+  const { data: brokers } = useGetBrokersQuery(undefined, { skip: !brokerId });
+  const broker = brokers?.find((b) => b.id === brokerId);
+  const [backfillFilter, { isLoading: backfilling }] =
+    useBackfillBrokerFilterMutation();
+  const [replayStream, { isLoading: replaying }] =
+    useReplayBrokerStreamMutation();
   // A topic with no status yet has had nothing consumed from it, which is not
   // the same as one ingestion has found it cannot read.
   const myTopics = Object.entries(credentials?.topic_filter_ids ?? {})
     .filter(([, ids]) => ids.includes(filter?.id))
     .map(([topic]) => ({ topic, status: credentials?.topic_status?.[topic] }));
   const faulted = myTopics.filter(({ status }) => status?.usable === false);
+  const canBackfill = broker?.capabilities?.["backfill"] === true;
+  const canReplay =
+    broker?.capabilities?.["replay"] === true && myTopics.length > 0;
+
+  const onBackfill = async () => {
+    try {
+      const { limit } = await backfillFilter({
+        brokerId,
+        filterId: filter.id,
+      }).unwrap();
+      dispatch(
+        showNotification(
+          `Backfill queued for up to ${limit} objects. It is paced to the ` +
+            `broker's call allowance, so give it time.`,
+        ),
+      );
+    } catch (e: any) {
+      dispatch(
+        showNotification(e?.error ?? "Could not queue backfill", "error"),
+      );
+    }
+  };
+
+  const onReplay = async () => {
+    try {
+      const { scope } = await replayStream(brokerId).unwrap();
+      dispatch(
+        showNotification(
+          scope === "broker"
+            ? "The broker's shared stream will be read from the start."
+            : "Your stream will be read from the start.",
+        ),
+      );
+    } catch (e: any) {
+      dispatch(
+        showNotification(e?.error ?? "Could not replay stream", "error"),
+      );
+    }
+  };
 
   if (filterError)
     return (filterError as any)?.error ?? "Failed to load filter";
@@ -149,6 +201,40 @@ const Filter = () => {
           <b>{topic}</b>: {status?.detail}
         </Alert>
       ))}
+      {brokerId && (canBackfill || canReplay) && (
+        <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap" }}>
+          {canBackfill && (
+            <Tooltip title="Ingest what the broker still holds for this filter. A stream only reaches back as far as the broker retains it; this reaches further, one upstream call per object.">
+              <span>
+                <Button
+                  size="small"
+                  variant="outlined"
+                  startIcon={<HistoryIcon />}
+                  disabled={backfilling}
+                  onClick={onBackfill}
+                >
+                  Backfill from broker
+                </Button>
+              </span>
+            </Tooltip>
+          )}
+          {canReplay && (
+            <Tooltip title="Read the stream again from its earliest retained message, rather than from where the last run stopped. Use after fixing a topic that was delivering nothing usable.">
+              <span>
+                <Button
+                  size="small"
+                  variant="outlined"
+                  startIcon={<ReplayIcon />}
+                  disabled={replaying}
+                  onClick={onReplay}
+                >
+                  Replay stream
+                </Button>
+              </span>
+            </Tooltip>
+          )}
+        </Box>
+      )}
       {brokerId && <AssistantHint />}
       {group && <FilterPlugins />}
     </Box>

@@ -21,6 +21,7 @@ class BrokerCapabilitiesResponse(BaseModel):
     get_alert: bool | None = None
     get_cutouts: bool | None = None
     cone_search: bool | None = None
+    gaia_cone_search: bool | None = None
     get_filters: bool | None = None
     create_filter: bool | None = None
     update_filter: bool | None = None
@@ -37,6 +38,8 @@ class BrokerCapabilitiesResponse(BaseModel):
     # returns reference catalogs, and the dialect ``test_filter`` expects its
     # pipeline in (``None`` when the provider takes no pipeline at all).
     cross_match_catalogs: bool | None = None
+    backfill: bool | None = None
+    replay: bool | None = None
     filter_pipeline: str | None = None
 
 
@@ -113,6 +116,14 @@ class BrokerCredentialResponse(BaseModel):
     topics: list[str] = Field(default_factory=list)
     # Topic name -> the skyportal filter IDs fed from it.
     topic_filter_ids: dict[str, list[int]] = Field(default_factory=dict)
+    # Topic name -> what ingestion last saw of it; absent until something is
+    # consumed from that topic.
+    topic_status: dict[str, Any] = Field(default_factory=dict)
+    stream_epoch: int = Field(
+        default=0,
+        description="Suffixes the consumer group; a higher value replays the "
+        "stream from its earliest retained offset.",
+    )
     credentials: dict[str, Any] = Field(default_factory=dict)
     secrets_set: list[str] = Field(default_factory=list)
 
@@ -517,6 +528,33 @@ class BrokerFilterAttachBody(BaseModel):
     broker_id: int = Field(description="ID of the broker to attach the filter to.")
 
 
+class BrokerFilterBackfillBody(BaseModel):
+    """Request body for backfilling a filter from a broker's own store."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    limit: int | None = Field(
+        default=None,
+        description="Objects to pull at most. Defaults to the instance's "
+        "`brokers.backfill.limit`, which also caps this.",
+    )
+
+
+class BrokerCredentialReplayResponse(BaseModel):
+    """The replay epoch a stream will next be consumed under."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    stream_epoch: int = Field(
+        description="Suffixes the consumer group, so a higher value reads the "
+        "stream from its earliest retained offset."
+    )
+    scope: Literal["user", "broker"] = Field(
+        description="Whose stream was reset: the caller's own account, or the "
+        "broker's shared one."
+    )
+
+
 class BrokerAlertsGetQuery(BaseModel):
     """Query parameters for searching a broker's alerts. Provider-specific ones
     (e.g. Lasair's requestType) pass through to the provider."""
@@ -651,9 +689,11 @@ __all__ = [
     "BrokerCredentialBody",
     "BrokerCredentialPutResponse",
     "BrokerCredentialResponse",
+    "BrokerCredentialReplayResponse",
     "BrokerCredentialTopicsResponse",
     "BrokerFilterAttachBody",
     "BrokerFilterAttachResponse",
+    "BrokerFilterBackfillBody",
     "BrokerFilterCatalogGetQuery",
     "BrokerFilterDetailResponse",
     "BrokerFilterKind",

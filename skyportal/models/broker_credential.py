@@ -64,6 +64,15 @@ class BrokerCredential(Base):
         "the filters the topic feeds.",
     )
 
+    stream_epoch = sa.Column(
+        sa.Integer,
+        nullable=False,
+        server_default="0",
+        doc="Suffixes the Kafka consumer group, so bumping it replays the "
+        "stream: a group the upstream has not seen before starts at the "
+        "earliest retained offset instead of a stored one.",
+    )
+
     _altdata = sa.Column(
         StringEncryptedType(JSONType, cfg["app.secret_key"], AesEngine, "pkcs5"),
         doc="The credentials themselves: the upstream API token and any stream "
@@ -100,4 +109,5 @@ class BrokerCredential(Base):
             "kafka": kafka,
             "topics": self.topics or [],
             "topic_filter_ids": self.topic_filter_ids or {},
+            "stream_epoch": self.stream_epoch or 0,
         }

@@ -59,11 +59,28 @@ function deepMergePreferences(target: any, source: any) {
   }
 }
 
+function applyPreferences(draft: any, preferences: any) {
+  if (!draft.preferences) draft.preferences = {};
+  deepMergePreferences(draft.preferences, preferences);
+  const properties = preferences?.notifications?.gcn_events?.properties;
+  if (properties != null) {
+    draft.preferences.notifications.gcn_events.properties = properties;
+  }
+}
+
 export const profileApi = skyportalApi.injectEndpoints({
   endpoints: (build) => ({
     getProfile: build.query<Profile, void>({
       query: () => "api/internal/profile",
       providesTags: ["Profile"],
+    }),
+    // Another user's profile, for admins managing their settings. The backend
+    // leaves `tokens` empty here, since a token id is the bearer secret.
+    getUserProfile: build.query<Profile, number | string>({
+      query: (user_id) => `api/internal/profile/${user_id}`,
+      providesTags: (_result, _error, user_id) => [
+        { type: "UserProfile", id: user_id },
+      ],
     }),
     updateUserPreferences: build.mutation<unknown, any>({
       query: (preferences) => ({
@@ -78,10 +95,39 @@ export const profileApi = skyportalApi.injectEndpoints({
       // the dashboard. Revert if the request fails.
       async onQueryStarted(preferences, { dispatch, queryFulfilled }) {
         const patch = dispatch(
-          profileApi.util.updateQueryData("getProfile", undefined, (draft) => {
-            if (!(draft as any).preferences) (draft as any).preferences = {};
-            deepMergePreferences((draft as any).preferences, preferences);
-          }),
+          profileApi.util.updateQueryData("getProfile", undefined, (draft) =>
+            applyPreferences(draft, preferences),
+          ),
+        );
+        try {
+          await queryFulfilled;
+        } catch {
+          patch.undo();
+        }
+      },
+    }),
+    updateOtherUserPreferences: build.mutation<
+      unknown,
+      { user_id: number | string; preferences: any }
+    >({
+      query: ({ user_id, preferences }) => ({
+        url: `api/internal/profile/${user_id}`,
+        method: "PATCH",
+        body: { preferences },
+      }),
+      // An earlier refetch still in flight can land on top of the merge below.
+      invalidatesTags: (_result, _error, { user_id }) => [
+        "PublicProfile",
+        { type: "UserProfile", id: user_id },
+      ],
+      async onQueryStarted(
+        { user_id, preferences },
+        { dispatch, queryFulfilled },
+      ) {
+        const patch = dispatch(
+          profileApi.util.updateQueryData("getUserProfile", user_id, (draft) =>
+            applyPreferences(draft, preferences),
+          ),
         );
         try {
           await queryFulfilled;
@@ -99,7 +145,10 @@ export const profileApi = skyportalApi.injectEndpoints({
         method: "PATCH",
         body: formData,
       }),
-      invalidatesTags: ["Profile", "PublicProfile"],
+      invalidatesTags: (_result, _error, { user_id }) =>
+        user_id
+          ? ["Profile", "PublicProfile", { type: "UserProfile", id: user_id }]
+          : ["Profile", "PublicProfile"],
     }),
     createToken: build.mutation<unknown, any>({
       query: (form_data) => ({
@@ -135,7 +184,9 @@ invalidateOnMessage("skyportal/FETCH_USER_PROFILE", () => ["Profile"]);
 
 export const {
   useGetProfileQuery,
+  useGetUserProfileQuery,
   useUpdateUserPreferencesMutation,
+  useUpdateOtherUserPreferencesMutation,
   useUpdateBasicUserInfoMutation,
   useCreateTokenMutation,
   useUpdateTokenMutation,

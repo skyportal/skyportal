@@ -181,7 +181,7 @@ def test_lasair_test_filter_passes_raw_sql(monkeypatch):
 
     captured = {}
 
-    def fake_request(broker, method, data):
+    def fake_request(broker, method, data, token=None):
         captured["method"] = method
         captured["data"] = data
         return []
@@ -1692,7 +1692,9 @@ class FakeConsumer:
 
 def _msg(offset, oid, **kw):
     return FakeKafkaMessage(
-        offset, {"objectId": oid, "candidates": [{"jd": 1.0}]}, **kw
+        offset,
+        {"objectId": oid, "candidates": [{"jd": 1.0, "ra": 1.0, "dec": 2.0}]},
+        **kw,
     )
 
 
@@ -1859,6 +1861,54 @@ def test_a_live_lasair_lite_lightcurve_message_normalizes():
     assert candidate["jd"] == pytest.approx(
         max(s["midpointMjdTai"] for s in sources) + 2400000.5
     )
+
+
+def test_a_live_lasair_watchlist_message_normalizes():
+    """Replayed from a real message on a watchlist filter's lite_lightcurve topic.
+
+    A filter names its own selected columns, and this one reports the position
+    as "RA" and "Dec"; the diaSources carry none of their own.
+    """
+    from skyportal.broker_apis import lasair
+
+    with open(os.path.join(CASSETTE_DIR, "lasair_lsst_watchlist_lite.json")) as f:
+        message = json.load(f)
+
+    assert all(
+        "ra" not in source and "dec" not in source
+        for source in lasair._lsst_sources(message)
+    )
+    data = lasair._normalize_object(message, lasair._object_id_from_message(message))
+    _assert_standard_shape(data)
+    assert data["candidate"]["ra"] == pytest.approx(message["RA"])
+    assert data["candidate"]["dec"] == pytest.approx(message["Dec"])
+
+
+def test_a_position_of_zero_survives_normalization():
+    """An object on the equator reports dec 0, which is a position, not a gap."""
+    from skyportal.broker_apis import lasair
+
+    data = lasair._normalize_object(
+        {
+            "objectId": "Z1",
+            "candidates": [{"jd": 1.0, "magpsf": 19.0, "ra": 0.0, "dec": 0.0}],
+        },
+        "Z1",
+    )
+    assert data["candidate"]["ra"] == 0.0
+    assert data["candidate"]["dec"] == 0.0
+
+
+def test_a_message_without_a_position_is_finished_rather_than_retried():
+    """An Obj with no coordinates is unusable, and no retry supplies them."""
+    from skyportal.broker_apis import lasair
+
+    nowhere = FakeKafkaMessage(1, {"objectId": "A", "candidates": [{"jd": 1.0}]})
+    finished, work, unusable = lasair._prepare_batch([nowhere, _msg(2, "B")], {}, [7])
+
+    assert list(work) == ["B"]
+    assert ("lasair_2mine", 0, 1) in finished
+    assert unusable["lasair_2mine"] == lasair.NO_POSITION_DETAIL
 
 
 def test_lasair_request_retries_on_rate_limit(monkeypatch):
@@ -2108,7 +2158,11 @@ def test_lasair_kafka_picks_up_a_new_account(monkeypatch):
         consumed.append(credentials["label"])
         await stop.wait()
 
+    async def same_broker(broker):
+        return broker
+
     monkeypatch.setattr(lasair_mod, "_user_credential_sets", fake_user_sets)
+    monkeypatch.setattr(lasair_mod, "_stored_broker", same_broker)
     monkeypatch.setattr(lasair_mod, "_consume_set", fake_consume)
     monkeypatch.setattr(lasair_mod, "CREDENTIAL_RESCAN_INTERVAL", 0.01)
     broker = types.SimpleNamespace(id=9, altdata={"survey": "LSST", "token": "x"})
@@ -2153,8 +2207,12 @@ def test_lasair_kafka_restarts_a_crashed_consumer_without_spinning(monkeypatch):
     async def fake_user_sets(broker):
         return [{"label": "camille", "topics": ["lasair_9a"], "kafka": {}}]
 
+    async def same_broker(broker):
+        return broker
+
     monkeypatch.setattr(lasair_mod, "_consume_set", crashing)
     monkeypatch.setattr(lasair_mod, "_user_credential_sets", fake_user_sets)
+    monkeypatch.setattr(lasair_mod, "_stored_broker", same_broker)
     monkeypatch.setattr(lasair_mod, "CREDENTIAL_RESCAN_INTERVAL", 0.02)
     monkeypatch.setattr(lasair_mod, "CONSUMER_RETRY_PAUSE", 0.02)
     broker = types.SimpleNamespace(id=9, altdata={"survey": "LSST", "token": "x"})

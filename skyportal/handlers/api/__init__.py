@@ -29,6 +29,7 @@ from .broker import (
     BrokerCutoutsHandler,
     BrokerDefaultPhotometryHandler,
     BrokerFilterAttachHandler,
+    BrokerFilterBackfillHandler,
     BrokerFilterCatalogHandler,
     BrokerFilterModulesHandler,
     BrokerFiltersHandler,
@@ -94,6 +95,7 @@ from .followup_request import (
     FollowupRequestHandler,
     FollowupRequestPrioritizationHandler,
     FollowupRequestSchedulerHandler,
+    FollowupRequestScriptHandler,
     FollowupRequestWatcherHandler,
 )
 from .galaxy import (

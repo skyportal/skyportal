@@ -127,6 +127,30 @@ already saved to that group are skipped. Use it only when the filter is selectiv
 enough to trust everything it passes; otherwise keep it off and tighten the
 filter's conditions so scanning stays manageable.
 
+### 6. Catching up on what the stream missed
+
+A stream reaches back only as far as the broker retains it (Lasair keeps roughly
+seven days), and a consumer resumes from where it last stopped. Two controls on
+the filter page cover what that leaves out, and neither needs
+`brokers.ingest_enabled`:
+
+- **Backfill from broker** runs the filter's own saved query against the broker's
+  database and ingests each match, so it reaches past the stream's retention.
+  Each object costs one upstream call, paced by
+  `brokers.backfill.min_request_interval` (45s by default, under Lasair's allowance
+  of 100 an hour) and capped at `brokers.backfill.limit` objects, so a full run
+  takes hours. The `broker_backfill` service runs one at a time. Offered by
+  providers that set `supports_backfill`.
+- **Replay stream** bumps the credential's `stream_epoch`, which suffixes the
+  Kafka consumer group. The broker holds no offset for a group it has not seen,
+  so the next run starts at the earliest message it still retains. Use it after
+  fixing a topic that was delivering nothing usable; a filter whose topic was
+  mis-routed or on the wrong stream has alerts still sitting in the broker's
+  cache.
+
+Neither moves an existing consumer offset, so both are safe to run while
+ingestion is consuming.
+
 ## Endpoints
 
 - `GET/POST/PATCH/DELETE /api/brokers[/{id}]`, manage `Broker` records.
@@ -142,6 +166,11 @@ filter's conditions so scanning stays manageable.
   (ALeRCE, ANTARES, Fink, Lasair).
 - The `/api/brokers/{id}/alerts/{object_id}` forms of the three object routes
   still work, for callers written against them.
+- `POST /api/brokers/{id}/filters/{filter_id}/backfill`, queue a one-off ingest
+  of what the broker still holds for a filter. Returns once queued.
+- `POST /api/brokers/{id}/credentials/replay`, read the stream again from its
+  earliest retained message. Resets the caller's own account, or the broker's
+  shared one when they have no credentials and administer it.
 - `GET /api/internal/broker_apis`, capabilities + config schema of every
   registered provider (for the frontend).
 

@@ -7,10 +7,7 @@ import Typography from "@mui/material/Typography";
 import { alpha } from "@mui/material/styles";
 
 import type { Channel } from "./channels";
-import {
-  useGetProfileQuery,
-  useUpdateUserPreferencesMutation,
-} from "../../ducks/profile";
+import { useNotificationTarget } from "./target";
 
 const DEFAULT_START = 8;
 const DEFAULT_END = 20;
@@ -91,8 +88,7 @@ interface ChannelScheduleProps {
 }
 
 const ChannelSchedule = ({ type, channel }: ChannelScheduleProps) => {
-  const { data: profile } = useGetProfileQuery();
-  const [updateUserPreferences] = useUpdateUserPreferencesMutation();
+  const { profile, updateUserPreferences } = useNotificationTarget();
   const prefs =
     profile?.preferences["notifications"]?.[type]?.[channel.key] ?? {};
   const onShift = prefs.on_shift === true;

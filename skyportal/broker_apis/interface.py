@@ -263,6 +263,22 @@ class BrokerAPI(_Base):
         """
         raise NotImplementedError
 
+    @staticmethod
+    async def run_backfill(broker, filter_row, token=None, stop=None, **kwargs):
+        """Ingest once whatever the broker already holds for one filter.
+
+        Where run_ingestion follows a live stream, this reaches back into the
+        broker's own store for what the stream no longer carries. The
+        broker_backfill service calls it for providers that set
+        ``supports_backfill``. Returns (ingested, failed, found).
+        """
+        raise NotImplementedError
+
+    @staticmethod
+    def backfill_query(filter_row):
+        """The query a backfill of this filter runs, or None when it holds none."""
+        raise NotImplementedError
+
     # ------------------------------------------------------------------ #
     # Configuration / UI                                                  #
     # ------------------------------------------------------------------ #
@@ -307,6 +323,13 @@ class BrokerAPI(_Base):
 
     # False where get_alert is too slow or too costly to run on every page view.
     photometry_passthrough = True
+
+    # whether run_backfill is implemented, so the frontend only offers it where
+    # the broker can reach past what its stream still retains.
+    supports_backfill = False
+
+    # whether ingestion reads ``stream_epoch``, so a replay restarts the stream.
+    supports_replay = False
 
     # Dialect ``test_filter`` expects its ``pipeline`` in, or None if it takes no
     # pipeline at all. A provider backed by SQL (Lasair) silently ignores a Mongo

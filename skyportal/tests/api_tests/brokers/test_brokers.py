@@ -804,16 +804,15 @@ def test_cross_match_catalogs_capability():
 
 def test_configured_surveys_per_record():
     """A record's surveys reflect the deployment for one-survey-per-instance
-    providers (Lasair), but stay the full list for multi-survey ones (BOOM)."""
+    providers (Lasair), and its configured list for BOOM."""
     from skyportal.broker_apis import BOOMBROKER, LASAIRBROKER
 
-    # BOOM serves every survey from one connection (survey is a per-query kwarg)
-    assert set(BOOMBROKER.configured_surveys({"survey": "ZTF"})) == {
+    assert BOOMBROKER.configured_surveys({"survey": "ZTF"}) == [
         "ZTF",
         "LSST",
         "DECAM",
-        "ARGUS",
-    }
+    ]
+    assert BOOMBROKER.configured_surveys({"surveys": ["LSST"]}) == ["LSST"]
 
     # Lasair's ZTF/LSST are separate deployments (distinct endpoint + token)
     assert LASAIRBROKER.configured_surveys(
