@@ -2625,6 +2625,11 @@ const generateListVariableExpression = (
   if (!listCondition) return null;
 
   const { operator, field, value, subField, subFieldOptions } = listCondition;
+  const aggregateRef = !subField
+    ? `$${field}`
+    : subField.startsWith(`${field}.`)
+      ? `$${subField}`
+      : `$${field}.${subField}`;
   switch (operator) {
     case "$anyElementTrue":
       if (value && value.children) {
@@ -2725,15 +2730,11 @@ const generateListVariableExpression = (
     case "$max":
     case "$avg":
     case "$sum":
-    case "$stdDevPop": {
-      const fieldRef = subField ? `$${field}.${subField}` : `$${field}`;
-      return { [operator]: fieldRef };
-    }
+    case "$stdDevPop":
+      return { [operator]: aggregateRef };
 
-    case "$median": {
-      const fieldRef = subField ? `$${field}.${subField}` : `$${field}`;
-      return { $median: { input: fieldRef, method: "approximate" } };
-    }
+    case "$median":
+      return { $median: { input: aggregateRef, method: "approximate" } };
 
     case "$size":
       return { $size: { $ifNull: [`$${field}`, []] } };
