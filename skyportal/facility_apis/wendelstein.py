@@ -6,6 +6,8 @@ records the request; the script itself is rendered on demand from the payload
 by ``generate_script``, so editing a request changes its script.
 """
 
+import re
+
 import sqlalchemy as sa
 from astropy.coordinates import SkyCoord
 from astropy.time import Time, TimeDelta
@@ -36,6 +38,20 @@ THREEKK_FILTERS = {
 ARMS = ("blue", "red", "nir")
 EXPOSURE_ARMS = ("nir", "red", "blue")
 ARM_EXPOSURE_TOKENS = {"nir": "n", "red": "r", "blue": "b"}
+DEFAULT_ARM_EXPOSURES = {
+    "blue": ("sdssg", 150.0),
+    "red": ("sdssi", 150.0),
+    "nir": ("2massks", 60.0),
+}
+
+SCRIPT_TOKEN = r"[^\s\x00-\x1f\x7f]*"
+SCRIPT_TOKEN_PARAMS = [
+    "object_name",
+    "program_id",
+    "start_date",
+    "end_date",
+    "priority",
+]
 
 SUPPORTED_INSTRUMENTS = {"Wendelstein 3KK"}
 
@@ -63,6 +79,13 @@ def validate_request(request, instrument):
         if param not in payload:
             raise ValueError(f"Parameter {param} required.")
 
+    for param in SCRIPT_TOKEN_PARAMS:
+        value = payload.get(param)
+        if value is not None and not re.fullmatch(SCRIPT_TOKEN, str(value)):
+            raise ValueError(
+                f"Parameter {param} cannot contain spaces or control characters."
+            )
+
     sequences = payload["sequences"]
     if not isinstance(sequences, list) or not sequences:
         raise ValueError("At least one sequence is required.")
@@ -84,12 +107,25 @@ def validate_request(request, instrument):
         if not any(sequence.get(f"{arm}_filter") for arm in ARMS):
             raise ValueError(f"Sequence {index}: at least one filter is required.")
         for arm in ARMS:
-            if sequence.get(f"{arm}_filter") and not sequence.get(
-                f"{arm}_exposure_time"
-            ):
+            if not sequence.get(f"{arm}_filter"):
+                continue
+            exposure_time = sequence.get(f"{arm}_exposure_time")
+            if not exposure_time:
                 raise ValueError(
                     f"Sequence {index}: {arm} filter set without an exposure time."
                 )
+            if not isinstance(exposure_time, (int, float)) or round(exposure_time) < 1:
+                raise ValueError(
+                    f"Sequence {index}: {arm} exposure time must round to at least 1 s."
+                )
+        readout_mode = sequence.get("readout_mode")
+        if readout_mode is not None and not re.fullmatch(
+            SCRIPT_TOKEN, str(readout_mode)
+        ):
+            raise ValueError(
+                f"Sequence {index}: readout mode cannot contain spaces or control"
+                " characters."
+            )
 
 
 def _sexagesimal(obj):
@@ -105,15 +141,15 @@ def _exposure_line(sequence):
     accepts; otherwise each arm carries its own token.
     """
     times = {
-        arm: sequence.get(f"{arm}_exposure_time")
+        arm: round(sequence.get(f"{arm}_exposure_time"))
         for arm in ARMS
         if sequence.get(f"{arm}_filter")
     }
     distinct = set(times.values())
     if len(distinct) == 1:
-        return f"2mt {int(distinct.pop())}"
+        return f"2mt {distinct.pop()}"
     parts = [
-        f"{ARM_EXPOSURE_TOKENS[arm]}{int(times[arm])}"
+        f"{ARM_EXPOSURE_TOKENS[arm]}{times[arm]}"
         for arm in EXPOSURE_ARMS
         if arm in times
     ]
@@ -181,6 +217,8 @@ def generate_script(request, instrument):
 
 class WENDELSTEINAPI(FollowUpAPI):
     """SkyPortal interface to the Wendelstein 2m (Fraunhofer) telescope."""
+
+    generate_script = staticmethod(generate_script)
 
     @staticmethod
     async def submit(request, session, **kwargs):
@@ -289,6 +327,7 @@ class WENDELSTEINAPI(FollowUpAPI):
             "type": "object",
             "properties": {},
         }
+        default_sequence = {}
         for arm in ARMS:
             options = filters_for_arm(instrument, arm)
             if not options:
@@ -301,7 +340,13 @@ class WENDELSTEINAPI(FollowUpAPI):
             sequence["properties"][f"{arm}_exposure_time"] = {
                 "type": ["number", "null"],
                 "title": f"{arm.capitalize()} exposure time [s]",
+                "exclusiveMinimum": 0,
             }
+            default_filter, default_exposure_time = DEFAULT_ARM_EXPOSURES[arm]
+            default_sequence[f"{arm}_filter"] = (
+                default_filter if default_filter in options else options[0]
+            )
+            default_sequence[f"{arm}_exposure_time"] = default_exposure_time
         sequence["properties"]["exposure_count"] = {
             "type": "number",
             "title": "Exposures",
@@ -312,7 +357,9 @@ class WENDELSTEINAPI(FollowUpAPI):
             "type": "string",
             "title": "Readout mode",
             "default": "r4",
+            "pattern": f"^{SCRIPT_TOKEN}$",
         }
+        default_sequence.update(exposure_count=5, readout_mode="r4")
 
         return {
             "type": "object",
@@ -322,18 +369,7 @@ class WENDELSTEINAPI(FollowUpAPI):
                     "title": "Sequences",
                     "minItems": 1,
                     "items": sequence,
-                    "default": [
-                        {
-                            "blue_filter": "sdssg",
-                            "blue_exposure_time": 150.0,
-                            "red_filter": "sdssi",
-                            "red_exposure_time": 150.0,
-                            "nir_filter": "2massks",
-                            "nir_exposure_time": 60.0,
-                            "exposure_count": 5,
-                            "readout_mode": "r4",
-                        }
-                    ],
+                    "default": [default_sequence],
                 },
                 "dither_size": {
                     "title": "Dither size",
@@ -349,10 +385,12 @@ class WENDELSTEINAPI(FollowUpAPI):
                     "title": "Object name in the script",
                     "type": "string",
                     "description": "Defaults to the SkyPortal object id.",
+                    "pattern": f"^{SCRIPT_TOKEN}$",
                 },
                 "program_id": {
                     "title": "Program id",
                     "type": ["string", "null"],
+                    "pattern": f"^{SCRIPT_TOKEN}$",
                 },
                 "priority": {
                     "type": "number",
@@ -365,11 +403,13 @@ class WENDELSTEINAPI(FollowUpAPI):
                     "type": "string",
                     "default": Time.now().isot,
                     "title": "Start Date (UT)",
+                    "pattern": f"^{SCRIPT_TOKEN}$",
                 },
                 "end_date": {
                     "type": "string",
                     "title": "End Date (UT)",
                     "default": (Time.now() + TimeDelta(7, format="jd")).isot,
+                    "pattern": f"^{SCRIPT_TOKEN}$",
                 },
                 "comment": {
                     "type": "string",

@@ -278,3 +278,7 @@ def test_the_script_route_reaches_its_handler():
             break
     else:
         raise AssertionError("no route serves a follow-up request's script")
+
+
+def test_the_script_handler_finds_the_api_script_builder():
+    assert getattr(WENDELSTEINAPI, "generate_script", None) is generate_script
