@@ -976,6 +976,51 @@
                 }
               ],
               "default": null
+            },
+            {
+              "name": "AllWISE",
+              "type": [
+                "null",
+                {
+                  "type": "record",
+                  "name": "AllWISEMatch",
+                  "fields": [
+                    {
+                      "name": "_id",
+                      "type": "string"
+                    },
+                    {
+                      "name": "ra",
+                      "type": "double"
+                    },
+                    {
+                      "name": "dec",
+                      "type": "double"
+                    },
+                    {
+                      "name": "w1mpro",
+                      "type": "float"
+                    },
+                    {
+                      "name": "w2mpro",
+                      "type": "float"
+                    },
+                    {
+                      "name": "w3mpro",
+                      "type": "float"
+                    },
+                    {
+                      "name": "w4mpro",
+                      "type": "float"
+                    },
+                    {
+                      "name": "distance_arcsec",
+                      "type": "float"
+                    }
+                  ]
+                }
+              ],
+              "default": null
             }
           ]
         }
