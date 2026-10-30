@@ -52,7 +52,7 @@ const EditFollowupRequestDialog = ({
   );
   Object.entries(schema.properties).forEach(
     ([key, property]: [string, any]) => {
-      if (!payload[key]) return;
+      if (payload[key] == null) return;
       property.default =
         property.format === "date"
           ? payload[key].split("T")[0].split(" ")[0]
@@ -63,7 +63,7 @@ const EditFollowupRequestDialog = ({
     dependency.oneOf.forEach((option: any) =>
       Object.entries(option.properties).forEach(
         ([key, property]: [string, any]) => {
-          if (!schema.properties[key] && payload[key])
+          if (!schema.properties[key] && payload[key] != null)
             property.default = payload[key];
         },
       ),

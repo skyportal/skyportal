@@ -94,6 +94,7 @@ from .followup_request import (
     FollowupRequestHandler,
     FollowupRequestPrioritizationHandler,
     FollowupRequestSchedulerHandler,
+    FollowupRequestScriptHandler,
     FollowupRequestWatcherHandler,
 )
 from .galaxy import (

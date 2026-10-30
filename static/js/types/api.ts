@@ -5309,6 +5309,55 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/followup_request/{followup_request_id}/script": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Download a follow-up request's observing script
+         * @description Render the observing script for a request, for facilities whose API builds one. The script is built from the request's current payload rather than stored, so an edited request yields a corrected script.
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    followup_request_id: number;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description The observing script */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": string;
+                    };
+                };
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/followup_request/prioritization": {
         parameters: {
             query?: never;
@@ -31598,12 +31647,12 @@ export interface components {
              * @description Name of the instrument's API class.
              * @enum {string|null}
              */
-            api_classname?: "MMAAPI" | "GENERICAPI" | "SLACKAPI" | "ATLASAPI" | "COLIBRIAPI" | "GROWTHINDIAMMAAPI" | "KAITAPI" | "SEDMAPI" | "SEDMV2API" | "IOOAPI" | "IOIAPI" | "SPRATAPI" | "SINISTROAPI" | "SPECTRALAPI" | "FLOYDSAPI" | "MUSCATAPI" | "NICERAPI" | "PS1API" | "SOARGHTSAPI" | "SOARGHTSIMAGERAPI" | "SOARTSPECAPI" | "UVOTXRTAPI" | "UVOTXRTMMAAPI" | "TAROTAPI" | "TESSAPI" | "TRTAPI" | "WINTERAPI" | "SPRINGAPI" | "ZTFAPI" | "ZTFMMAAPI" | "GEMINIAPI" | "BINOSPECAPI" | "MMIRSAPI" | "TTTAPI" | "NEWFIRMAPI" | "RUBINMMAAPI" | "NGPSAPI" | null;
+            api_classname?: "MMAAPI" | "GENERICAPI" | "SLACKAPI" | "ATLASAPI" | "COLIBRIAPI" | "GROWTHINDIAMMAAPI" | "KAITAPI" | "SEDMAPI" | "SEDMV2API" | "IOOAPI" | "IOIAPI" | "SPRATAPI" | "SINISTROAPI" | "SPECTRALAPI" | "FLOYDSAPI" | "MUSCATAPI" | "NICERAPI" | "PS1API" | "SOARGHTSAPI" | "SOARGHTSIMAGERAPI" | "SOARTSPECAPI" | "UVOTXRTAPI" | "UVOTXRTMMAAPI" | "TAROTAPI" | "TESSAPI" | "TRTAPI" | "WINTERAPI" | "SPRINGAPI" | "ZTFAPI" | "ZTFMMAAPI" | "GEMINIAPI" | "BINOSPECAPI" | "MMIRSAPI" | "TTTAPI" | "NEWFIRMAPI" | "RUBINMMAAPI" | "NGPSAPI" | "WENDELSTEINAPI" | null;
             /**
              * @description Name of the instrument's ObservationPlan API class.
              * @enum {string|null}
              */
-            api_classname_obsplan?: "MMAAPI" | "GENERICAPI" | "SLACKAPI" | "ATLASAPI" | "COLIBRIAPI" | "GROWTHINDIAMMAAPI" | "KAITAPI" | "SEDMAPI" | "SEDMV2API" | "IOOAPI" | "IOIAPI" | "SPRATAPI" | "SINISTROAPI" | "SPECTRALAPI" | "FLOYDSAPI" | "MUSCATAPI" | "NICERAPI" | "PS1API" | "SOARGHTSAPI" | "SOARGHTSIMAGERAPI" | "SOARTSPECAPI" | "UVOTXRTAPI" | "UVOTXRTMMAAPI" | "TAROTAPI" | "TESSAPI" | "TRTAPI" | "WINTERAPI" | "SPRINGAPI" | "ZTFAPI" | "ZTFMMAAPI" | "GEMINIAPI" | "BINOSPECAPI" | "MMIRSAPI" | "TTTAPI" | "NEWFIRMAPI" | "RUBINMMAAPI" | "NGPSAPI" | null;
+            api_classname_obsplan?: "MMAAPI" | "GENERICAPI" | "SLACKAPI" | "ATLASAPI" | "COLIBRIAPI" | "GROWTHINDIAMMAAPI" | "KAITAPI" | "SEDMAPI" | "SEDMV2API" | "IOOAPI" | "IOIAPI" | "SPRATAPI" | "SINISTROAPI" | "SPECTRALAPI" | "FLOYDSAPI" | "MUSCATAPI" | "NICERAPI" | "PS1API" | "SOARGHTSAPI" | "SOARGHTSIMAGERAPI" | "SOARTSPECAPI" | "UVOTXRTAPI" | "UVOTXRTMMAAPI" | "TAROTAPI" | "TESSAPI" | "TRTAPI" | "WINTERAPI" | "SPRINGAPI" | "ZTFAPI" | "ZTFMMAAPI" | "GEMINIAPI" | "BINOSPECAPI" | "MMIRSAPI" | "TTTAPI" | "NEWFIRMAPI" | "RUBINMMAAPI" | "NGPSAPI" | "WENDELSTEINAPI" | null;
             /**
              * @description Name of the instrument's listener class.
              * @enum {string|null}
@@ -31875,12 +31924,12 @@ export interface components {
              * @description Name of the instrument's API class.
              * @enum {string|null}
              */
-            api_classname?: "MMAAPI" | "GENERICAPI" | "SLACKAPI" | "ATLASAPI" | "COLIBRIAPI" | "GROWTHINDIAMMAAPI" | "KAITAPI" | "SEDMAPI" | "SEDMV2API" | "IOOAPI" | "IOIAPI" | "SPRATAPI" | "SINISTROAPI" | "SPECTRALAPI" | "FLOYDSAPI" | "MUSCATAPI" | "NICERAPI" | "PS1API" | "SOARGHTSAPI" | "SOARGHTSIMAGERAPI" | "SOARTSPECAPI" | "UVOTXRTAPI" | "UVOTXRTMMAAPI" | "TAROTAPI" | "TESSAPI" | "TRTAPI" | "WINTERAPI" | "SPRINGAPI" | "ZTFAPI" | "ZTFMMAAPI" | "GEMINIAPI" | "BINOSPECAPI" | "MMIRSAPI" | "TTTAPI" | "NEWFIRMAPI" | "RUBINMMAAPI" | "NGPSAPI" | null;
+            api_classname?: "MMAAPI" | "GENERICAPI" | "SLACKAPI" | "ATLASAPI" | "COLIBRIAPI" | "GROWTHINDIAMMAAPI" | "KAITAPI" | "SEDMAPI" | "SEDMV2API" | "IOOAPI" | "IOIAPI" | "SPRATAPI" | "SINISTROAPI" | "SPECTRALAPI" | "FLOYDSAPI" | "MUSCATAPI" | "NICERAPI" | "PS1API" | "SOARGHTSAPI" | "SOARGHTSIMAGERAPI" | "SOARTSPECAPI" | "UVOTXRTAPI" | "UVOTXRTMMAAPI" | "TAROTAPI" | "TESSAPI" | "TRTAPI" | "WINTERAPI" | "SPRINGAPI" | "ZTFAPI" | "ZTFMMAAPI" | "GEMINIAPI" | "BINOSPECAPI" | "MMIRSAPI" | "TTTAPI" | "NEWFIRMAPI" | "RUBINMMAAPI" | "NGPSAPI" | "WENDELSTEINAPI" | null;
             /**
              * @description Name of the instrument's ObservationPlan API class.
              * @enum {string|null}
              */
-            api_classname_obsplan?: "MMAAPI" | "GENERICAPI" | "SLACKAPI" | "ATLASAPI" | "COLIBRIAPI" | "GROWTHINDIAMMAAPI" | "KAITAPI" | "SEDMAPI" | "SEDMV2API" | "IOOAPI" | "IOIAPI" | "SPRATAPI" | "SINISTROAPI" | "SPECTRALAPI" | "FLOYDSAPI" | "MUSCATAPI" | "NICERAPI" | "PS1API" | "SOARGHTSAPI" | "SOARGHTSIMAGERAPI" | "SOARTSPECAPI" | "UVOTXRTAPI" | "UVOTXRTMMAAPI" | "TAROTAPI" | "TESSAPI" | "TRTAPI" | "WINTERAPI" | "SPRINGAPI" | "ZTFAPI" | "ZTFMMAAPI" | "GEMINIAPI" | "BINOSPECAPI" | "MMIRSAPI" | "TTTAPI" | "NEWFIRMAPI" | "RUBINMMAAPI" | "NGPSAPI" | null;
+            api_classname_obsplan?: "MMAAPI" | "GENERICAPI" | "SLACKAPI" | "ATLASAPI" | "COLIBRIAPI" | "GROWTHINDIAMMAAPI" | "KAITAPI" | "SEDMAPI" | "SEDMV2API" | "IOOAPI" | "IOIAPI" | "SPRATAPI" | "SINISTROAPI" | "SPECTRALAPI" | "FLOYDSAPI" | "MUSCATAPI" | "NICERAPI" | "PS1API" | "SOARGHTSAPI" | "SOARGHTSIMAGERAPI" | "SOARTSPECAPI" | "UVOTXRTAPI" | "UVOTXRTMMAAPI" | "TAROTAPI" | "TESSAPI" | "TRTAPI" | "WINTERAPI" | "SPRINGAPI" | "ZTFAPI" | "ZTFMMAAPI" | "GEMINIAPI" | "BINOSPECAPI" | "MMIRSAPI" | "TTTAPI" | "NEWFIRMAPI" | "RUBINMMAAPI" | "NGPSAPI" | "WENDELSTEINAPI" | null;
             /**
              * @description Name of the instrument's listener class.
              * @enum {string|null}
