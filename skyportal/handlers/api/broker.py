@@ -2110,6 +2110,8 @@ class BrokerCredentialHandler(BaseHandler):
             )
             if broker is None:
                 return self.error(f"No broker with id {broker_id}")
+            if not getattr(broker.broker_class, "supports_replay", False):
+                return self.error(f"{broker.broker_classname} cannot replay a stream.")
             row = await self.own_credentials(session, broker_id)
             if row is not None:
                 row.stream_epoch = next_stream_epoch(row.stream_epoch)

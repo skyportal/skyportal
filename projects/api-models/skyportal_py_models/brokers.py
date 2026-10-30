@@ -39,6 +39,7 @@ class BrokerCapabilitiesResponse(BaseModel):
     # pipeline in (``None`` when the provider takes no pipeline at all).
     cross_match_catalogs: bool | None = None
     backfill: bool | None = None
+    replay: bool | None = None
     filter_pipeline: str | None = None
 
 

@@ -1207,6 +1207,7 @@ class LASAIRBROKER(BrokerAPI):
     surveys = ["ZTF", "LSST"]
     filter_kind = "query"
     supports_backfill = True
+    supports_replay = True
     backfill_query = staticmethod(filter_query)
 
     @classmethod
