@@ -707,8 +707,8 @@ class BOOMBROKER(BrokerAPI):
                         "title": "Topics",
                         "description": (
                             "BOOM results topics to consume, e.g. "
-                            "ZTF_alerts_results. Empty reads the ZTF, LSST "
-                            "and DECam ones."
+                            "ZTF_alerts_results. Empty reads those of the "
+                            "broker's surveys."
                         ),
                     },
                     "auto_offset_reset": {
@@ -1076,9 +1076,8 @@ class BOOMBROKER(BrokerAPI):
         kafka = altdata.get("kafka") or {}
         default_filter_ids = altdata.get("filter_ids") or []
         topics = kafka.get("topics") or [
-            "ZTF_alerts_results",
-            "LSST_alerts_results",
-            "DECAM_alerts_results",
+            f"{survey}_alerts_results"
+            for survey in BOOMBROKER.configured_surveys(altdata)
         ]
         # kafka_consumer_config prefers altdata's group_id; match it so the log
         # and the actual Kafka group agree.
