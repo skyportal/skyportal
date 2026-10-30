@@ -921,6 +921,17 @@ brokers:
   # consumer groups, which Kafka rebalances) so REST pollers aren't duplicated.
   ingest_processes: 1
 
+  # One-off backfills (services/broker_backfill): ingest what a broker's own
+  # store still holds for a filter, which its stream may have aged out. Run
+  # independently of `ingest_enabled`, since a backfill moves no consumer offset.
+  backfill:
+    # Seconds between two upstream object calls. The default suits Lasair's
+    # allowance of 100 an hour; raising it slows a backfill, lowering it risks
+    # spending an allowance the rest of the instance also draws on.
+    min_request_interval: 45
+    # Objects a single backfill may pull, which bounds how long one runs.
+    limit: 1000
+
 # BOOM-specific settings. The filter builder's user-created modules (variables,
 # list variables, switch cases, blocks) live in BOOM's own MongoDB store, not in
 # skyportal's database. Point this at that store, or set the equivalent
@@ -1341,6 +1352,7 @@ ports:
   tns_retrieval_queue: 64810
   jpl_sbident_queue: 64820
   assistant: 64830
+  broker_backfill: 64840
 
 hosts:
   # Hostnames the application uses to reach its internal microservices. These
@@ -1353,6 +1365,7 @@ hosts:
   tns_retrieval_queue: 127.0.0.1
   jpl_sbident_queue: 127.0.0.1
   assistant: 127.0.0.1
+  broker_backfill: 127.0.0.1
   slack: 127.0.0.1
 
 assignments:

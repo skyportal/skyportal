@@ -7,6 +7,7 @@ import Typography from "@mui/material/Typography";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 
 import StyledDataGrid, { DataGridToolbar } from "../StyledDataGrid";
+import JsonCell from "../JsonCell";
 import EditFollowupRequestDialog from "./EditFollowupRequestDialog";
 import FollowupRequestActions from "./FollowupRequestActions";
 import {
@@ -18,6 +19,8 @@ import {
   transactionsColumn,
   watcherColumn,
 } from "./columns";
+
+const isObject = (value: any) => value !== null && typeof value === "object";
 
 const DISPLAYED_COLUMNS = [
   "requester",
@@ -135,8 +138,12 @@ const FollowupRequestLists = ({
         filterable: false,
         valueGetter: (_value: any, row: any) => {
           const value = row.payload?.[key];
-          return Array.isArray(value) ? value.join(",") : value;
+          return Array.isArray(value) && !value.some(isObject)
+            ? value.join(",")
+            : value;
         },
+        renderCell: ({ value }: any) =>
+          isObject(value) ? <JsonCell data={value} /> : String(value ?? ""),
       });
       if (!DISPLAYED_COLUMNS.includes(headerName.toLowerCase())) {
         defaultVisibility[field] = false;

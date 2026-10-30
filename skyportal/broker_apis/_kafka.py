@@ -43,3 +43,11 @@ def list_topics(kafka, default_group, timeout=10.0):
         return sorted(metadata.topics)
     finally:
         consumer.close()
+
+
+def replay_group_id(group, stream_epoch):
+    """``group`` suffixed with its replay epoch, which is what makes a replay
+    work: the upstream has no stored offset for a group it has not seen, so the
+    consumer falls back to ``auto.offset.reset`` and reads from the start."""
+    epoch = int(stream_epoch or 0)
+    return f"{group}-r{epoch}" if epoch else group

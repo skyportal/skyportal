@@ -1620,6 +1620,51 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/brokers/{broker_id}/filters/{filter_id}/backfill": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Backfill a filter from its broker
+         * @description <b>Permission(s) required:</b> <em>Upload data (or System admin)</em><br><br>Queues a one-off ingest of the objects the broker already holds for this filter, paced to the upstream call allowance. Returns once queued, not once finished.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    broker_id: number;
+                    filter_id: number;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["BrokerFilterBackfillBody"];
+                };
+            };
+            responses: {
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Success"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/brokers/{broker_id}/filter_modules/{name})?": {
         parameters: {
             query?: never;
@@ -1926,7 +1971,32 @@ export interface paths {
                 };
             };
         };
-        post?: never;
+        /**
+         * Replay a broker's stream from the start
+         * @description Bumps the replay epoch, which suffixes the consumer group. The upstream holds no offset for a group it has not seen, so the next run reads from the earliest message it still retains rather than from where the last one stopped. Resets the caller's own account, or the broker's shared one when they have no credentials and administer it.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    broker_id: number;
+                    action: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Success"];
+                    };
+                };
+            };
+        };
         /** Delete your credentials for a broker */
         delete: {
             parameters: {
@@ -25785,6 +25855,8 @@ export interface components {
             topic_status?: {
                 [key: string]: unknown;
             };
+            /** @description Suffixes the Kafka consumer group, so bumping it replays the stream: a group the upstream has not seen before starts at the earliest retained offset instead of a stored one. */
+            stream_epoch?: number;
             /** @description The credentials themselves: the upstream API token and any stream username/password. Never serialized back to a client. */
             _altdata?: string | null;
             /** @description Unique object identifier. */
@@ -25821,6 +25893,8 @@ export interface components {
             topic_status?: {
                 [key: string]: unknown;
             };
+            /** @description Suffixes the Kafka consumer group, so bumping it replays the stream: a group the upstream has not seen before starts at the earliest retained offset instead of a stored one. */
+            stream_epoch?: number;
             /** @description The credentials themselves: the upstream API token and any stream username/password. Never serialized back to a client. */
             _altdata?: string | null;
         };
@@ -42216,6 +42290,18 @@ export interface components {
              * @default null
              */
             fid: (number | string) | null;
+        };
+        /**
+         * BrokerFilterBackfillBody
+         * @description Request body for backfilling a filter from a broker's own store.
+         */
+        BrokerFilterBackfillBody: {
+            /**
+             * Limit
+             * @description Objects to pull at most. Defaults to the instance's `brokers.backfill.limit`, which also caps this.
+             * @default null
+             */
+            limit: number | null;
         };
         /**
          * BrokerFilterModuleWriteBody

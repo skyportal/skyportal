@@ -181,7 +181,7 @@ def test_lasair_test_filter_passes_raw_sql(monkeypatch):
 
     captured = {}
 
-    def fake_request(broker, method, data):
+    def fake_request(broker, method, data, token=None):
         captured["method"] = method
         captured["data"] = data
         return []
@@ -2158,7 +2158,11 @@ def test_lasair_kafka_picks_up_a_new_account(monkeypatch):
         consumed.append(credentials["label"])
         await stop.wait()
 
+    async def same_broker(broker):
+        return broker
+
     monkeypatch.setattr(lasair_mod, "_user_credential_sets", fake_user_sets)
+    monkeypatch.setattr(lasair_mod, "_stored_broker", same_broker)
     monkeypatch.setattr(lasair_mod, "_consume_set", fake_consume)
     monkeypatch.setattr(lasair_mod, "CREDENTIAL_RESCAN_INTERVAL", 0.01)
     broker = types.SimpleNamespace(id=9, altdata={"survey": "LSST", "token": "x"})
@@ -2203,8 +2207,12 @@ def test_lasair_kafka_restarts_a_crashed_consumer_without_spinning(monkeypatch):
     async def fake_user_sets(broker):
         return [{"label": "camille", "topics": ["lasair_9a"], "kafka": {}}]
 
+    async def same_broker(broker):
+        return broker
+
     monkeypatch.setattr(lasair_mod, "_consume_set", crashing)
     monkeypatch.setattr(lasair_mod, "_user_credential_sets", fake_user_sets)
+    monkeypatch.setattr(lasair_mod, "_stored_broker", same_broker)
     monkeypatch.setattr(lasair_mod, "CREDENTIAL_RESCAN_INTERVAL", 0.02)
     monkeypatch.setattr(lasair_mod, "CONSUMER_RETRY_PAUSE", 0.02)
     broker = types.SimpleNamespace(id=9, altdata={"survey": "LSST", "token": "x"})
