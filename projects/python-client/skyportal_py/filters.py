@@ -68,7 +68,10 @@ def update_filter(
 
     Only the provided fields are sent; omitted fields are left unchanged.
     ``group_id`` and ``stream_id`` cannot be changed and are accepted only
-    when they match the filter's current values. Renaming a filter that is
+    when they match the filter's current values. ``broker_id`` can be set
+    only while the filter has none (resending the current value is a no-op):
+    moving a filter between brokers would orphan whatever the first one
+    holds for it. Renaming a filter that is
     attached to a broker also renames it on the broker, and fails if the
     broker rejects the rename. ``autosave`` controls whether objects passing
     the filter during broker ingestion are saved as sources to the filter's

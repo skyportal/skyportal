@@ -23,6 +23,11 @@ env:
 jobs:
   scope:
     uses: ./.github/workflows/ci_scope.yaml
+    # A called workflow only gets permissions the caller grants; without this,
+    # repos whose default token permissions are restricted fail at startup.
+    permissions:
+      contents: read
+      pull-requests: read
 
   test-api-and-frontend:
     needs: scope
