@@ -56,6 +56,8 @@ name_refresh_interval_hours = cfg.get("app.tns.name_refresh.interval_hours", 6)
 name_refresh_batch_size = cfg.get("app.tns.name_refresh.batch_size", 50)
 name_refresh_look_back_days = cfg.get("app.tns.name_refresh.look_back_days", 30)
 
+processed_at = {}
+
 
 def refresh_obj_on_frontend(obj, user_id="*"):
     """Refresh an object's source page on the frontend for all users or a specific user.
@@ -485,6 +487,8 @@ def process_queue(queue):
                             "type": "error",
                         },
                     )
+        else:
+            processed_at[tns_name] = datetime.now()
 
 
 def tns_watcher(queue):
@@ -513,7 +517,13 @@ def tns_watcher(queue):
                 ),  # convert start date to isot format
                 get_data=False,
             )
+            now = datetime.now()
+            for name, processed in list(processed_at.items()):
+                if now - processed > timedelta(hours=2):
+                    processed_at.pop(name, None)
             for tns_source in tns_sources:
+                if f"{tns_source['prefix']} {tns_source['id']}" in processed_at:
+                    continue
                 queue.append(
                     {
                         "tns_prefix": tns_source["prefix"],
