@@ -1,4 +1,4 @@
-import { ReactNode, useEffect, useState } from "react";
+import { ReactNode, useEffect, useMemo, useState } from "react";
 import { showNotification } from "baselayer/components/Notifications";
 
 import Box from "@mui/material/Box";
@@ -32,6 +32,11 @@ const allocationOption = (allocation: any): Option => ({
   label: `${allocation.instrument?.name} [${allocation?.pi}]`,
 });
 
+const readableBy = (groupIds: number[] | null, rows: any[] | undefined) =>
+  (rows ?? []).filter(
+    (row: any) => !groupIds || groupIds.includes(row.group_id),
+  );
+
 const toggleOption = (setter: (value: Option[]) => void) => (event: any) => {
   const selected: Option[] = [];
   event.target.value.forEach((item: Option) => {
@@ -61,10 +66,21 @@ const Fields = ({ children }: { children: ReactNode }) => (
 
 const SourcesOptions = () => {
   const dispatch = useAppDispatch();
-  const { profile, updateUserPreferences } = useNotificationTarget();
+  const { profile, updateUserPreferences, groupIds } = useNotificationTarget();
   const prefs = (profile?.preferences["notifications"]?.sources as any) ?? {};
-  const groups = useGetGroupsQuery().data?.userAccessible ?? [];
-  const { data: allocations = [] } = useGetAllocationsApiClassnameQuery();
+  const allGroups = useGetGroupsQuery().data?.userAccessible;
+  const groups = useMemo(
+    () =>
+      (allGroups ?? []).filter(
+        (group: any) => !groupIds || groupIds.includes(group.id),
+      ),
+    [allGroups, groupIds],
+  );
+  const { data: allAllocations } = useGetAllocationsApiClassnameQuery();
+  const allocations = useMemo(
+    () => readableBy(groupIds, allAllocations),
+    [allAllocations, groupIds],
+  );
   const [classifications, setClassifications] = useState<any[]>(
     prefs.classifications || [],
   );
@@ -194,10 +210,14 @@ const ExtractionOptions = () => {
 
 const GcnMatchOptions = () => {
   const dispatch = useAppDispatch();
-  const { profile, updateUserPreferences } = useNotificationTarget();
+  const { profile, updateUserPreferences, groupIds } = useNotificationTarget();
   const prefs =
     (profile?.preferences["notifications"]?.gcn_matches as any) ?? {};
-  const { data: filters = [] } = useGetFiltersQuery();
+  const { data: allFilters } = useGetFiltersQuery();
+  const filters = useMemo(
+    () => readableBy(groupIds, allFilters),
+    [allFilters, groupIds],
+  );
   const groups = useGetGroupsQuery().data?.userAccessible ?? [];
   const [selectedFilters, setSelectedFilters] = useState<Option[]>([]);
   const [gcnTags, setGcnTags] = useState<string[]>(prefs.gcn_tags || []);

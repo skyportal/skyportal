@@ -23,7 +23,11 @@ const UserNotificationsDialog = ({
         change you make here.
       </Alert>
       {user && (
-        <NotificationTarget key={user.id} userId={user.id}>
+        <NotificationTarget
+          key={user.id}
+          userId={user.id}
+          groups={user.groups ?? []}
+        >
           <NotificationPreferences />
         </NotificationTarget>
       )}
