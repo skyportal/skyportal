@@ -928,7 +928,7 @@ brokers:
     # Seconds between two upstream object calls. The default suits Lasair's
     # allowance of 100 an hour; raising it slows a backfill, lowering it risks
     # spending an allowance the rest of the instance also draws on.
-    min_request_interval: 36
+    min_request_interval: 45
     # Objects a single backfill may pull, which bounds how long one runs.
     limit: 1000
 

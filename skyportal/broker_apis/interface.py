@@ -274,6 +274,11 @@ class BrokerAPI(_Base):
         """
         raise NotImplementedError
 
+    @staticmethod
+    def backfill_query(filter_row):
+        """The query a backfill of this filter runs, or None when it holds none."""
+        raise NotImplementedError
+
     # ------------------------------------------------------------------ #
     # Configuration / UI                                                  #
     # ------------------------------------------------------------------ #

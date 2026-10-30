@@ -992,6 +992,20 @@ async def _user_credential_sets(broker):
         return [r.as_credential_set() for r in rows if r.topics]
 
 
+async def _stored_broker(broker):
+    """The broker as stored now, since the caller's copy is detached and stale."""
+    from baselayer.app.models import async_plain_session_factory
+
+    from ..models import Broker
+
+    async with async_plain_session_factory() as session:
+        row = await session.scalar(sa.select(Broker).where(Broker.id == broker.id))
+        if row is None:
+            return broker
+        session.expunge(row)
+        return row
+
+
 async def _run_kafka_ingestion(
     broker, survey, stop=None, max_messages=None, credentials=None
 ):
@@ -1012,6 +1026,7 @@ async def _run_kafka_ingestion(
     budget = {"remaining": max_messages}
     running = {}
     stops = {}
+    epochs = {}
     retiring = []
     failures = {}
     started = False
@@ -1027,12 +1042,12 @@ async def _run_kafka_ingestion(
 
     try:
         while not stop.is_set() and not spent():
-            extra = (
-                credentials
-                if credentials is not None
-                else await _user_credential_sets(broker)
-            )
-            sets = {c["label"]: c for c in _credential_sets(broker, extra)}
+            if credentials is None:
+                extra = await _user_credential_sets(broker)
+                current = await _stored_broker(broker)
+            else:
+                extra, current = credentials, broker
+            sets = {c["label"]: c for c in _credential_sets(current, extra)}
             if not sets:
                 if started:
                     return
@@ -1047,8 +1062,16 @@ async def _run_kafka_ingestion(
                 (lb, t) for lb, t in retiring if not failed(lb, t) and not t.done()
             ]
             for label, account in sets.items():
+                if (
+                    label in running
+                    and not running[label].done()
+                    and epochs.get(label) != account["stream_epoch"]
+                ):
+                    stops.pop(label).set()
+                    retiring.append((label, running.pop(label)))
                 if label not in running or running[label].done():
                     stops[label] = asyncio.Event()
+                    epochs[label] = account["stream_epoch"]
                     running[label] = asyncio.create_task(
                         _consume_set(broker, survey, account, budget, stops[label])
                     )
@@ -1082,7 +1105,7 @@ async def _run_kafka_ingestion(
 
 DEFAULT_QUERY_FIELDS = "objects.objectId, objects.ramean, objects.decmean"
 # One ingest spends one REST object call, and a Lasair account gets 100 an hour.
-BACKFILL_REQUEST_INTERVAL = 36.0
+BACKFILL_REQUEST_INTERVAL = 45.0
 BACKFILL_LIMIT = 1000
 
 
@@ -1144,18 +1167,26 @@ async def _run_backfill(
         f"Lasair backfill (broker {broker.id}, filter {filter_row.id}): "
         f"{len(oids)} objects to ingest"
     )
-    ingested = failed = 0
-    for index, oid in enumerate(oids):
+    ingested = failed = calls = 0
+    pending = list(oids)
+    retried = set()
+    while pending:
         if stop is not None and stop.is_set():
             break
-        if index:
+        oid = pending.pop(0)
+        if calls:
             await asyncio.sleep(interval)
+        calls += 1
         try:
             await _ingest_object(broker, oid, survey, [filter_row.id], token=token)
             ingested += 1
         except Exception as e:
-            failed += 1
             log(f"Lasair backfill could not ingest {oid}: {e}")
+            if oid in retried:
+                failed += 1
+            else:
+                retried.add(oid)
+                pending.append(oid)
         if on_progress is not None:
             on_progress(ingested, failed, len(oids))
     log(
@@ -1176,6 +1207,7 @@ class LASAIRBROKER(BrokerAPI):
     surveys = ["ZTF", "LSST"]
     filter_kind = "query"
     supports_backfill = True
+    backfill_query = staticmethod(filter_query)
 
     @classmethod
     def parallel_ingestion(cls, altdata):

@@ -137,7 +137,7 @@ the filter page cover what that leaves out, and neither needs
 - **Backfill from broker** runs the filter's own saved query against the broker's
   database and ingests each match, so it reaches past the stream's retention.
   Each object costs one upstream call, paced by
-  `brokers.backfill.min_request_interval` (36s by default, for Lasair's allowance
+  `brokers.backfill.min_request_interval` (45s by default, under Lasair's allowance
   of 100 an hour) and capped at `brokers.backfill.limit` objects, so a full run
   takes hours. The `broker_backfill` service runs one at a time. Offered by
   providers that set `supports_backfill`.

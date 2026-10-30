@@ -2281,6 +2281,8 @@ class BrokerFilterBackfillHandler(BaseHandler):
             )
             if broker is None:
                 return self.error(f"No broker with id {broker_id}")
+            if not broker.active:
+                return self.error(f"Broker {broker.name} is not active")
             if not getattr(broker.broker_class, "supports_backfill", False):
                 return self.error(
                     f"{broker.broker_classname} cannot backfill a filter."
@@ -2295,6 +2297,10 @@ class BrokerFilterBackfillHandler(BaseHandler):
             if filter_row.broker_id != broker.id:
                 return self.error(
                     f"Filter {filter_id} is not attached to broker {broker_id}."
+                )
+            if broker.broker_class.backfill_query(filter_row) is None:
+                return self.error(
+                    f"Filter {filter_id} has no saved query to backfill from."
                 )
 
         accepted, message = await IOLoop.current().run_in_executor(

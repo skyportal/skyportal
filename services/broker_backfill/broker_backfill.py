@@ -31,7 +31,7 @@ init_db(**cfg["database"])
 
 # Seconds between two upstream object calls. The default suits Lasair's 100
 # calls an hour; a provider with a different allowance passes its own.
-DEFAULT_REQUEST_INTERVAL = cfg.get("brokers.backfill.min_request_interval", 36)
+DEFAULT_REQUEST_INTERVAL = cfg.get("brokers.backfill.min_request_interval", 45)
 DEFAULT_LIMIT = cfg.get("brokers.backfill.limit", 1000)
 
 
@@ -44,6 +44,8 @@ async def _load_job(session, job):
     )
     if broker is None:
         return None, None, None, f"no broker with id {job['broker_id']}"
+    if not broker.active:
+        return None, None, None, f"broker {broker.id} is not active"
     if not getattr(broker.broker_class, "supports_backfill", False):
         return None, None, None, f"{broker.broker_classname} cannot backfill"
     filter_row = await session.scalar(
@@ -66,19 +68,19 @@ async def _run_job(job):
 
     async with async_plain_session_factory() as session:
         broker, filter_row, token, problem = await _load_job(session, job)
-        if problem is not None:
-            log(f"refusing backfill: {problem}")
-            return
-        try:
-            await broker.broker_class.run_backfill(
-                broker,
-                filter_row,
-                token=token,
-                limit=job.get("limit") or DEFAULT_LIMIT,
-                interval=job.get("interval", DEFAULT_REQUEST_INTERVAL),
-            )
-        except Exception as e:
-            log(f"backfill of filter {job['filter_id']} failed: {e}")
+    if problem is not None:
+        log(f"refusing backfill: {problem}")
+        return
+    try:
+        await broker.broker_class.run_backfill(
+            broker,
+            filter_row,
+            token=token,
+            limit=job.get("limit") or DEFAULT_LIMIT,
+            interval=job.get("interval", DEFAULT_REQUEST_INTERVAL),
+        )
+    except Exception as e:
+        log(f"backfill of filter {job['filter_id']} failed: {e}")
 
 
 def process_queue(queue):
@@ -89,12 +91,14 @@ def process_queue(queue):
         if not queue:
             time.sleep(1)
             continue
-        job = queue.pop(0)
+        job = queue[0]
         try:
             loop.run_until_complete(_run_job(job))
         except Exception as e:
             # One job must never take the worker down.
             log(f"error processing backfill {job}: {e}")
+        finally:
+            queue.pop(0)
 
 
 def api(queue):
@@ -124,7 +128,7 @@ def api(queue):
                         "message": f"A backfill requires {sorted(required)}",
                     }
                 )
-            # Re-queueing a filter already waiting would ingest it twice over.
+            # Covers the running job too, which stays first in the queue until done.
             if any(
                 job["broker_id"] == data["broker_id"]
                 and job["filter_id"] == data["filter_id"]
@@ -134,7 +138,7 @@ def api(queue):
                 return self.write(
                     {
                         "status": "error",
-                        "message": "That filter is already queued for backfill",
+                        "message": "That filter is already queued or running",
                     }
                 )
 
@@ -162,8 +166,8 @@ def api(queue):
 def service(*args, **kwargs):
     """Run the backfill queue."""
     queue = []
-    worker = Thread(target=process_queue, args=(queue,))
-    endpoint = Thread(target=api, args=(queue,))
+    worker = Thread(target=process_queue, args=(queue,), daemon=True)
+    endpoint = Thread(target=api, args=(queue,), daemon=True)
     worker.start()
     endpoint.start()
     while True:
