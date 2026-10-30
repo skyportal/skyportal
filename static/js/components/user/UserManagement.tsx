@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Controller, useForm } from "react-hook-form";
+import { Link } from "react-router-dom";
 
 import Chip from "@mui/material/Chip";
 import Box from "@mui/material/Box";
@@ -103,15 +104,18 @@ const headerWithHelp = (label: string, help: any) => (
   </Box>
 );
 
-const editableCell = (user: any, parameter: string | string[]) => (
-  <Box sx={revealOnHoverSx}>
-    {(Array.isArray(parameter) ? parameter : [parameter])
-      .map((name) => user[name])
-      .filter(Boolean)
-      .join(" ")}
-    <UpdateUserParameter user={user} parameter={parameter} />
-  </Box>
-);
+const editableCell = (user: any, parameter: string | string[], to?: string) => {
+  const text = (Array.isArray(parameter) ? parameter : [parameter])
+    .map((name) => user[name])
+    .filter(Boolean)
+    .join(" ");
+  return (
+    <Box sx={revealOnHoverSx}>
+      {to && text ? <Link to={to}>{text}</Link> : text}
+      <UpdateUserParameter user={user} parameter={parameter} />
+    </Box>
+  );
+};
 
 const UsersToolbar = ({ includeExpired, onToggleExpired }: any) => (
   <DataGridToolbar
@@ -144,6 +148,7 @@ const AddEntitiesDialog = ({
   errorMessage,
   options,
   getOptionLabel,
+  getOptionDisabled,
   selectTestId,
   submitId,
   control,
@@ -168,6 +173,7 @@ const AddEntitiesDialog = ({
               onChange={(_e, data) => onChange(data)}
               options={options}
               getOptionLabel={getOptionLabel}
+              getOptionDisabled={getOptionDisabled}
               filterSelectedOptions
               error={invalid}
               data-testid={selectTestId}
@@ -367,6 +373,14 @@ const UserManagement = () => {
     );
   };
 
+  const missingStreamsFor = (group: any) =>
+    (group.streams ?? [])
+      .filter(
+        (stream: any) =>
+          !clickedUser?.streams?.some((s: any) => s.id === stream.id),
+      )
+      .map((stream: any) => stream.name);
+
   const handleAddUserToGroups = (formData: any) =>
     runAndNotify(
       () =>
@@ -462,9 +476,9 @@ const UserManagement = () => {
         [row.first_name, row.last_name, row.username].filter(Boolean).join(" "),
       renderCell: ({ row }: any) => (
         <Box>
-          {editableCell(row, ["first_name", "last_name"])}
+          {editableCell(row, ["first_name", "last_name"], `/user/${row.id}`)}
           <Box sx={{ color: "text.secondary", fontSize: "0.8rem" }}>
-            {editableCell(row, "username")}
+            {editableCell(row, "username", `/user/${row.id}`)}
           </Box>
         </Box>
       ),
@@ -593,7 +607,13 @@ const UserManagement = () => {
       options: groups.filter(
         (group) => !clickedUser?.groups?.some((g: any) => g.id === group.id),
       ),
-      getOptionLabel: (group: any) => group.name,
+      getOptionLabel: (group: any) => {
+        const missing = missingStreamsFor(group);
+        return missing.length > 0
+          ? `${group.name} (grant stream access first: ${missing.join(", ")})`
+          : group.name;
+      },
+      getOptionDisabled: (group: any) => missingStreamsFor(group).length > 0,
       selectTestId: "addUserToGroupsSelect",
       submitId: "submitAddFromGroupsButton",
       onSubmit: handleSubmit(handleAddUserToGroups),

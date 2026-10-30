@@ -10,19 +10,22 @@ from baselayer.app.env import load_env
 from baselayer.app.flow import Flow
 from baselayer.log import make_log
 from skyportal.handlers.api.photometry import serialize
-from skyportal.models import Stream
+from skyportal.models import Instrument, Obj, Stream
 from skyportal.utils.http import serialize_requests_response
 from skyportal.utils.parse import is_null
 from skyportal.utils.tns import (
     SNCOSMO_TO_TNSFILTER,
     SURVEYS,
-    TNS_INSTRUMENT_IDS,
     TNS_URL,
     get_IAUname,
     get_internal_names,
     get_tns_headers,
     get_tns_object_id_and_data_source_id,
     get_tns_url,
+    tns_classification_id,
+    tns_instrument_id,
+    tns_instrument_id_for_name,
+    tns_spectrum_type_id,
 )
 
 env, cfg = load_env()
@@ -132,6 +135,22 @@ def build_tns_report(
     archival = submission_request.archival
     archival_comment = submission_request.archival_comment
 
+    # An instrument's own tns_id wins over the name mapping, so the id each
+    # point carries is resolved to its instrument before the report is built.
+    tns_ids = {
+        instrument.id: tns_instrument_id(instrument)
+        for instrument in session.scalars(
+            sa.select(Instrument).where(
+                Instrument.id.in_({p["instrument_id"] for p in photometry})
+            )
+        )
+    }
+
+    def instrument_value(phot):
+        if phot["instrument_id"] in tns_ids:
+            return tns_ids[phot["instrument_id"]]
+        return tns_instrument_id_for_name(phot["instrument_name"])
+
     # non detections are those with mag=None
     detections, non_detections = [], []
 
@@ -156,7 +175,7 @@ def build_tns_report(
         "flux_error": first["magerr"],
         "flux_units": "1",
         "filter_value": SNCOSMO_TO_TNSFILTER[first["filter"]],
-        "instrument_value": TNS_INSTRUMENT_IDS[first["instrument_name"].lower()],
+        "instrument_value": instrument_value(first),
     }
     phot_last = None
     if len(detections) > 1:
@@ -167,7 +186,7 @@ def build_tns_report(
             "flux_error": last["magerr"],
             "flux_units": "1",
             "filter_value": SNCOSMO_TO_TNSFILTER[last["filter"]],
-            "instrument_value": TNS_INSTRUMENT_IDS[last["instrument_name"].lower()],
+            "instrument_value": instrument_value(last),
         }
 
     # Manage archival mode if there are no non-detections
@@ -204,7 +223,7 @@ def build_tns_report(
             "limiting_flux": last_nd["limiting_mag"],
             "flux_units": "1",
             "filter_value": SNCOSMO_TO_TNSFILTER[last_nd["filter"]],
-            "instrument_value": TNS_INSTRUMENT_IDS[last_nd["instrument_name"].lower()],
+            "instrument_value": instrument_value(last_nd),
         }
 
     proprietary_period = {
@@ -243,6 +262,295 @@ def build_tns_report(
         at_report["remarks"] = remarks
 
     return {"at_report": {"0": at_report}}
+
+
+def spectrum_ascii(spectrum):
+    """The spectrum as the two- or three-column ASCII text TNS accepts."""
+    errors = spectrum.errors
+    rows = []
+    for index, (wavelength, flux) in enumerate(
+        zip(spectrum.wavelengths, spectrum.fluxes)
+    ):
+        if errors is not None and index < len(errors) and errors[index] is not None:
+            rows.append(f"{wavelength:.4f} {flux:.6g} {errors[index]:.6g}")
+        else:
+            rows.append(f"{wavelength:.4f} {flux:.6g}")
+    return "\n".join(rows) + "\n"
+
+
+def upload_spectrum_to_tns(
+    spectrum_name, spectrum_text, tns_bot_id, tns_bot_name, api_key, testing
+):
+    """Upload one ASCII spectrum to TNS and return the name TNS stored it under.
+
+    Returns
+    -------
+    stored_name : str or None
+        The name TNS stored the file under, or None in testing mode.
+    """
+    if testing:
+        log(f"Testing mode, not uploading spectrum {spectrum_name} to TNS.")
+        return None
+
+    headers = get_tns_headers(tns_bot_id, tns_bot_name)
+    response = requests.post(
+        get_tns_url("file_upload"),
+        headers=headers,
+        data={"api_key": api_key},
+        files=[("files[]", (spectrum_name, spectrum_text, "text/plain"))],
+        timeout=30,
+    )
+    if response.status_code != 200:
+        raise ValueError(
+            f"Failed to upload spectrum {spectrum_name} to TNS: "
+            f"{response.status_code} {response.content}"
+        )
+
+    uploaded = response.json().get("data") or []
+    if isinstance(uploaded, str):
+        uploaded = [uploaded]
+    if not uploaded:
+        raise ValueError(
+            f"TNS accepted the upload of {spectrum_name} but named no stored file."
+        )
+    return uploaded[0]
+
+
+def _credited(external, people, default=None):
+    """Who to credit: a free-text name, else the linked users, else a default."""
+    if external:
+        return external
+    # skip a linked user with no name; usernames are never published to TNS
+    names = (
+        f"{person.first_name or ''} {person.last_name or ''}".strip()
+        for person in (people or [])
+    )
+    return ", ".join(name for name in names if name) or (default or "")
+
+
+def build_tns_classification_report(
+    iau_name,
+    classification,
+    classifiers,
+    spectrum,
+    stored_spectrum_name,
+    sharing_service,
+    redshift=None,
+    remarks=None,
+    spectrum_remarks=None,
+    external_observer=None,
+    external_reducer=None,
+):
+    """Build the classification report for a TNS submission.
+
+    Parameters
+    ----------
+    iau_name : str
+        The object's IAU name without its prefix (e.g. "2023abc").
+    classification : str
+        The classification name, as the taxonomy spells it.
+    classifiers : str
+        The classifier string credited on the report.
+    spectrum : `~skyportal.models.Spectrum`
+        The spectrum the classification rests on.
+    stored_spectrum_name : str
+        The name TNS stored the uploaded spectrum under.
+    sharing_service : `~skyportal.models.SharingService`
+        The sharing service the report is filed by.
+    redshift : float, optional
+        The redshift to report.
+    remarks : str, optional
+        Remarks on the classification.
+    spectrum_remarks : str, optional
+        Remarks on the spectrum.
+
+    Returns
+    -------
+    dict
+        The classification report to submit.
+    """
+    objtypeid = tns_classification_id(classification)
+    if objtypeid is None:
+        raise ValueError(
+            f"Classification {classification!r} has no TNS object type id; "
+            "add it to TNS_CLASSIFICATION_IDS to report this class."
+        )
+
+    instrument_id = tns_instrument_id(spectrum.instrument)
+
+    altdata = spectrum.altdata or {}
+    exptime = altdata.get("EXPTIME", altdata.get("exptime", ""))
+    # FITS header cards are stored as {"value": ..., "comment": ...}
+    if isinstance(exptime, dict):
+        exptime = exptime.get("value", "")
+    spectrum_entry = {
+        "obsdate": spectrum.observed_at.strftime("%Y-%m-%d %H:%M:%S"),
+        "instrumentid": instrument_id,
+        "exptime": exptime,
+        # TNS refuses a classification report with no observer, and a robotic
+        # instrument's spectra name none, so the instrument's own default is
+        # the last word before the field would go out empty.
+        "observer": _credited(
+            external_observer,
+            spectrum.observers,
+            getattr(spectrum.instrument, "default_observer", None),
+        ),
+        "reducer": _credited(external_reducer, spectrum.reducers),
+        "spectypeid": tns_spectrum_type_id(spectrum.type),
+        "ascii_file": stored_spectrum_name,
+        "fits_file": "",
+        "remarks": spectrum_remarks or "",
+    }
+
+    report = {
+        "name": iau_name,
+        "classifier": classifiers,
+        "objtypeid": objtypeid,
+        "redshift": redshift if redshift is not None else "",
+        "groupid": sharing_service.tns_source_group_id,
+        "remarks": remarks or "",
+        "spectra": {"spectra-group": {"0": spectrum_entry}},
+    }
+
+    return {"classification_report": {"0": report}}
+
+
+def strip_iau_prefix(tns_name):
+    """The bare IAU name TNS reports expect, e.g. "SN 2026abc" -> "2026abc"."""
+    return str(tns_name or "").replace("AT", "").replace("SN", "").strip()
+
+
+def pick_classification(session, user, obj_id, classification_id=None):
+    """The classification to report, chosen or else the latest human one.
+
+    A chosen classification still has to belong to this object and be one the
+    requester can read, so a stale id reports nothing rather than reporting
+    somebody else's object.
+    """
+    from skyportal.models import Classification
+
+    query = Classification.select(user).where(Classification.obj_id == obj_id)
+    if classification_id is not None:
+        return session.scalars(
+            query.where(Classification.id == classification_id)
+        ).first()
+    return session.scalars(
+        query.where(
+            Classification.ml.is_(False),
+            sa.or_(
+                Classification.probability.is_(None),
+                Classification.probability > 0,
+            ),
+        ).order_by(Classification.created_at.desc())
+    ).first()
+
+
+def pick_spectrum(session, user, obj_id, spectrum_id=None):
+    """The spectrum to report against, chosen or else the latest one.
+
+    Falling back, a source spectrum beats a host one of the same night, since
+    the classification is of the source.
+    """
+    from skyportal.models import Spectrum
+
+    query = Spectrum.select(user).where(Spectrum.obj_id == obj_id)
+    if spectrum_id is not None:
+        return session.scalars(query.where(Spectrum.id == spectrum_id)).first()
+    return session.scalars(
+        query.order_by((Spectrum.type == "source").desc(), Spectrum.observed_at.desc())
+    ).first()
+
+
+def prepare_tns_classification_report(
+    submission_request, sharing_service, reporters, remarks, session
+):
+    """Resolve what to classify, upload its spectrum, and build the report.
+
+    Returns
+    -------
+    dict
+        The classification report to send.
+    """
+    from skyportal.models import (
+        Obj,
+        SpectrumObserver,
+        SpectrumReducer,
+        User,
+    )
+
+    obj_id = submission_request.obj_id
+    user = session.scalar(sa.select(User).where(User.id == submission_request.user_id))
+    obj = session.scalar(sa.select(Obj).where(Obj.id == obj_id))
+    if obj is None:
+        raise ValueError(f"Object {obj_id} not found.")
+
+    iau_name = strip_iau_prefix(obj.tns_name)
+    if not iau_name:
+        raise TNSWarning(
+            f"{obj_id} has no IAU name on TNS, so there is nothing to classify; "
+            "report it as a discovery first."
+        )
+
+    chosen_classification = submission_request.tns_report_classification_id
+    if submission_request.auto_submission and chosen_classification is None:
+        raise TNSWarning(
+            f"The classification this automatic report on {obj_id} was queued "
+            "for has been deleted."
+        )
+    classification = pick_classification(session, user, obj_id, chosen_classification)
+    if classification is None:
+        raise TNSWarning(
+            f"Classification {chosen_classification} is not one of {obj_id}'s, "
+            "or is no longer readable."
+            if chosen_classification is not None
+            else f"{obj_id} has no classification to report."
+        )
+
+    chosen_spectrum = submission_request.tns_report_spectrum_id
+    spectrum = pick_spectrum(session, user, obj_id, chosen_spectrum)
+    if spectrum is None:
+        raise TNSWarning(
+            f"Spectrum {chosen_spectrum} is not one of {obj_id}'s, or is no "
+            "longer readable."
+            if chosen_spectrum is not None
+            else f"{obj_id} has no spectrum, and TNS will not take a "
+            "classification without one."
+        )
+
+    external_observer = session.scalar(
+        sa.select(SpectrumObserver.external_observer).where(
+            SpectrumObserver.spectr_id == spectrum.id,
+            SpectrumObserver.external_observer.isnot(None),
+        )
+    )
+    external_reducer = session.scalar(
+        sa.select(SpectrumReducer.external_reducer).where(
+            SpectrumReducer.spectr_id == spectrum.id,
+            SpectrumReducer.external_reducer.isnot(None),
+        )
+    )
+
+    stored_name = upload_spectrum_to_tns(
+        f"{obj_id}_{spectrum.id}.ascii",
+        spectrum_ascii(spectrum),
+        sharing_service.tns_bot_id,
+        sharing_service.tns_bot_name,
+        sharing_service.tns_altdata["api_key"],
+        sharing_service.testing,
+    )
+
+    return build_tns_classification_report(
+        iau_name=iau_name,
+        classification=classification.classification,
+        classifiers=reporters,
+        spectrum=spectrum,
+        stored_spectrum_name=stored_name or "",
+        sharing_service=sharing_service,
+        redshift=obj.redshift,
+        remarks=remarks,
+        external_observer=external_observer,
+        external_reducer=external_reducer,
+    )
 
 
 def send_tns_report(
@@ -348,6 +656,10 @@ def submit_to_tns(
             )
 
         obj_id = submission_request.obj_id
+        # Checked at send time too: the hold may postdate a queued or retried request.
+        obj = session.scalar(sa.select(Obj).where(Obj.id == obj_id))
+        if obj is not None and obj.withhold_from_tns:
+            raise TNSWarning(f"{obj_id} is withheld from TNS, not submitting.")
         tns_altdata = sharing_service.tns_altdata
 
         if not tns_altdata or "api_key" not in tns_altdata:
@@ -355,39 +667,44 @@ def submit_to_tns(
                 f"No TNS API key found for sharing service {sharing_service.id}."
             )
 
-        # Normalize the object ID to TNS-friendly format if a normalizer exists
-        tns_internal_name, tns_data_source_id = get_tns_object_id_and_data_source_id(
-            obj_id, photometry
-        )
-        if tns_internal_name is None or tns_data_source_id is None:
-            raise ValueError(
-                f"Object ID {obj_id} does not match the expected naming convention for any of the supported Surveys {SURVEYS.keys()}."
+        if submission_request.tns_report_type == "classification_report":
+            tns_report = prepare_tns_classification_report(
+                submission_request, sharing_service, reporters, remarks, session
+            )
+        else:
+            # Normalize the object ID to TNS-friendly format if a normalizer exists
+            tns_internal_name, tns_data_source_id = (
+                get_tns_object_id_and_data_source_id(obj_id, photometry)
+            )
+            if tns_internal_name is None or tns_data_source_id is None:
+                raise ValueError(
+                    f"Object ID {obj_id} does not match the expected naming convention for any of the supported Surveys {SURVEYS.keys()}."
+                )
+
+            apply_existing_tns_report_rules(
+                sharing_service, submission_request, internal_name=tns_internal_name
             )
 
-        apply_existing_tns_report_rules(
-            sharing_service, submission_request, internal_name=tns_internal_name
-        )
+            archival = submission_request.archival
+            archival_comment = submission_request.archival_comment
+            if archival and not archival_comment:
+                raise ValueError(
+                    f"Archival submission requested for {obj_id} but no archival_comment provided."
+                )
 
-        archival = submission_request.archival
-        archival_comment = submission_request.archival_comment
-        if archival and not archival_comment:
-            raise ValueError(
-                f"Archival submission requested for {obj_id} but no archival_comment provided."
+            photometry = [serialize(phot, "ab", "mag") for phot in photometry]
+            tns_report = build_tns_report(
+                submission_request,
+                sharing_service,
+                reporters,
+                remarks,
+                photometry,
+                photometry_options,
+                stream_ids,
+                session,
+                tns_internal_name,
+                tns_data_source_id,
             )
-
-        photometry = [serialize(phot, "ab", "mag") for phot in photometry]
-        tns_report = build_tns_report(
-            submission_request,
-            sharing_service,
-            reporters,
-            remarks,
-            photometry,
-            photometry_options,
-            stream_ids,
-            session,
-            tns_internal_name,
-            tns_data_source_id,
-        )
         submission_request.tns_payload = json.dumps(tns_report)
 
         # Snapshot what the HTTP call needs, then commit so the DB connection is
@@ -472,37 +789,8 @@ def check_at_report(submission_id, sharing_service):
     response : dict
         The response from TNS, serialized as a dictionary.
     """
-
-    obj_name, response = None, None
-
-    data = {
-        "api_key": sharing_service.tns_altdata["api_key"],
-        "report_id": submission_id,
-    }
-
-    # 24 * 10 seconds = 4 minutes of retries
-    max_retries = 24
-    retry_delay = 10
-    r = None
-    for _ in range(max_retries):
-        r = requests.post(
-            get_tns_url("report_reply"),
-            headers=get_tns_headers(
-                sharing_service.tns_bot_id, sharing_service.tns_bot_name
-            ),
-            data=data,
-        )
-        if r.status_code != 429:
-            break
-        time.sleep(retry_delay)
-
-    if r.status_code not in [200, 400, 404]:
-        raise ValueError(f"Error checking report: {r.text}")
-
-    try:
-        response = serialize_requests_response(r)
-    except Exception as e:
-        raise ValueError(f"Error serializing response: {e}")
+    obj_name = None
+    r, response = get_tns_report_reply(submission_id, sharing_service)
 
     if r.status_code == 404:
         return None, response, "report not found"
@@ -559,3 +847,53 @@ def check_at_report(submission_id, sharing_service):
 
     # for now catching errors from TNS is not implemented, so we just return None for the error
     return obj_name, response, None
+
+
+def get_tns_report_reply(submission_id, sharing_service):
+    data = {
+        "api_key": sharing_service.tns_altdata["api_key"],
+        "report_id": submission_id,
+    }
+
+    # 24 * 10 seconds = 4 minutes of retries
+    max_retries = 24
+    retry_delay = 10
+    r = None
+    for _ in range(max_retries):
+        r = requests.post(
+            get_tns_url("report_reply"),
+            headers=get_tns_headers(
+                sharing_service.tns_bot_id, sharing_service.tns_bot_name
+            ),
+            data=data,
+        )
+        if r.status_code != 429:
+            break
+        time.sleep(retry_delay)
+
+    if r.status_code not in [200, 400, 404]:
+        raise ValueError(f"Error checking report: {r.text}")
+
+    try:
+        response = serialize_requests_response(r)
+    except Exception as e:
+        raise ValueError(f"Error serializing response: {e}")
+
+    return r, response
+
+
+def check_classification_report(submission_id, sharing_service):
+    r, response = get_tns_report_reply(submission_id, sharing_service)
+
+    if r.status_code == 404:
+        return None, response, "report not found"
+
+    try:
+        feedback = r.json()["data"]["feedback"]["classification_report"]
+    except Exception:
+        feedback = None
+
+    if r.status_code != 200 or not feedback:
+        return None, response, f"Classification report not accepted: {feedback}"
+
+    return None, response, None

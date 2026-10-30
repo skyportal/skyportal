@@ -123,6 +123,10 @@ class UserGetQuery(BaseModel):
         default=None,
         description="Get users whose username contains this string.",
     )
+    name: str | None = Field(
+        default=None,
+        description="Get users whose username or full name contains this string, ignoring case.",
+    )
     email: str | None = Field(
         default=None,
         description="Get users whose email contains this string.",

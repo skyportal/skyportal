@@ -18,6 +18,7 @@ import {
   useGetAllocationsApiObsplanQuery,
 } from "../../ducks/allocations";
 import { useGetInstrumentsQuery } from "../../ducks/instruments";
+import EventInfoRow from "./EventInfoRow";
 
 const useStyles = makeStyles()(() => ({
   root: {
@@ -26,11 +27,6 @@ const useStyles = makeStyles()(() => ({
     display: "flex",
     flexDirection: "row",
     alignItems: "center",
-  },
-  title: {
-    margin: 0,
-    marginRight: "0.45rem",
-    padding: "0",
   },
   chips: {
     padding: "0",
@@ -238,9 +234,10 @@ const GcnEventAllocationTriggers = ({
     }
   });
 
-  return Object.keys(filtered_instruments_triggered).length > 0 ? (
-    <div className={classes.root}>
-      {showTitle && <h4 className={classes.title}>Instruments triggered:</h4>}
+  if (!Object.keys(filtered_instruments_triggered).length) return null;
+
+  const content = (
+    <>
       <div
         className={classes.chips}
         {...({ name: "gcn_triggers-chips" } as any)}
@@ -422,8 +419,13 @@ const GcnEventAllocationTriggers = ({
           </table>
         </DialogContent>
       </Dialog>
-    </div>
-  ) : null;
+    </>
+  );
+  return showTitle ? (
+    <EventInfoRow label="Triggered">{content}</EventInfoRow>
+  ) : (
+    <div className={classes.root}>{content}</div>
+  );
 };
 
 export default GcnEventAllocationTriggers;

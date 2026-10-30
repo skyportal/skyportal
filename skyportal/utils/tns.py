@@ -29,6 +29,7 @@ tns_url_dict = {
     "search": "api/get/search",
     "object": "api/get/object",
     "report": "api/set/bulk-report",
+    "file_upload": "api/set/file-upload",
     "report_reply": "api/get/bulk-report-reply",
     "groups": "groups",
 }
@@ -41,6 +42,7 @@ TNS_INSTRUMENT_IDS = {
     "alfosc": 41,
     "asas-sn": 195,
     "atlas": [159, 160, 255, 256, 290],
+    "dbsp": 1,
     "decam": 172,
     "efosc2": 31,
     "gaia": 163,
@@ -49,9 +51,11 @@ TNS_INSTRUMENT_IDS = {
     "kast": 10,
     "lsst": 287,
     "lsstcomcam": 289,  # Rubin - LSSTComCam (commissioning camera)
+    "ngps": 285,
     "ps1": [155, 257],
     "sedm": 149,
     "sprat": 156,
+    "tspec": 109,
     "wifes": 115,
     "ztf": 196,
 }
@@ -63,6 +67,148 @@ TNS_RETRIEVAL_INSTRUMENT_IDS = {
 }
 
 TNS_OTHER_INSTRUMENT_ID = 0
+
+
+def tns_instrument_id(instrument):
+    """The TNS id to report an instrument under.
+
+    An instrument's own ``tns_id`` wins, so an instance can name an instrument
+    TNS knows but this mapping does not; the mapping is the default for the
+    instruments every instance shares. Neither one leaves the report as Other,
+    which TNS displays in place of the telescope and instrument names.
+
+    Parameters
+    ----------
+    instrument : `skyportal.models.Instrument`
+        The instrument that took the observation
+
+    Returns
+    -------
+    int
+        TNS instrument id
+    """
+    tns_id = getattr(instrument, "tns_id", None)
+    if tns_id is not None:
+        return tns_id
+    return tns_instrument_id_for_name(getattr(instrument, "name", ""))
+
+
+def tns_instrument_id_for_name(name):
+    """The TNS id the mapping gives an instrument name, or the Other id.
+
+    Parameters
+    ----------
+    name : str
+        The instrument's name
+
+    Returns
+    -------
+    int
+        TNS instrument id
+    """
+    mapped = TNS_INSTRUMENT_IDS.get(str(name or "").lower(), TNS_OTHER_INSTRUMENT_ID)
+    return mapped[0] if isinstance(mapped, list) else mapped
+
+
+TNS_CLASSIFICATION_IDS = {
+    "other": 0,
+    "supernova": 1,
+    "type i": 2,
+    "ia": 3,
+    "ia-norm": 3,
+    "ib": 4,
+    "ib-norm": 4,
+    "ic": 5,
+    "ic-norm": 5,
+    "ib/c": 6,
+    "ic-bl": 7,
+    "ib-ca-rich": 8,
+    "ca-rich": 8,
+    "ibn": 9,
+    "type ii": 10,
+    "ii-norm": 10,
+    "iip": 11,
+    "iil": 12,
+    "iin": 13,
+    "iib": 14,
+    "i-faint": 15,
+    "i-rapid": 16,
+    "slsn-i": 18,
+    "ic-slsn": 18,
+    "slsn-ii": 19,
+    "ii-slsn": 19,
+    "slsn-r": 20,
+    "afterglow": 23,
+    "lbv": 24,
+    "ilrt": 25,
+    "novae": 26,
+    "classical nova": 26,
+    "cataclysmic": 27,
+    "stellar variable": 28,
+    "agn": 29,
+    "qso": 31,
+    "light-echo": 40,
+    "std-spec": 50,
+    "gap": 60,
+    "gap i": 61,
+    "gap ii": 62,
+    "lrn": 65,
+    "luminous red nova": 65,
+    "fbot": 66,
+    "kilonova": 70,
+    "impostor-sn": 99,
+    "ia-pec": 100,
+    "ia-00cx": 100,
+    "ia-18byg": 100,
+    "ia-sc": 102,
+    # TNS still labels 102 "SN Ia-SC", the older name for the 03fg-like class.
+    "ia-03fg": 102,
+    "ia-91bg": 103,
+    "ia-91t": 104,
+    "ia-99aa": 104,
+    "ia-02cx": 105,
+    "ia-csm": 106,
+    "ib-pec": 107,
+    "ic-pec": 108,
+    "icn": 109,
+    "ibn/icn": 110,
+    "ii-pec": 111,
+    "iin-pec": 112,
+    "tidal disruption event": 120,
+    "frb": 130,
+    "wolf-rayet": 200,
+    "wr-wn": 201,
+    "wr-wc": 202,
+    "wr-wo": 203,
+    "m dwarf": 210,
+    "computed-ia": 1003,
+    "computed-iip": 1011,
+    "computed-iib": 1014,
+    "computed-pisn": 1020,
+    "computed-iin": 1021,
+}
+
+TNS_SPECTRUM_TYPE_IDS = {
+    "source": 1,
+    "host": 2,
+    "host_center": 2,
+}
+TNS_DEFAULT_SPECTRUM_TYPE_ID = 1
+
+
+def tns_classification_id(classification):
+    """The TNS object type id for a classification name, or None if unmapped."""
+    if classification is None:
+        return None
+    return TNS_CLASSIFICATION_IDS.get(str(classification).strip().lower())
+
+
+def tns_spectrum_type_id(spectrum_type):
+    """The TNS spectrum type id for a SkyPortal spectrum type."""
+    return TNS_SPECTRUM_TYPE_IDS.get(
+        str(spectrum_type or "").strip().lower(), TNS_DEFAULT_SPECTRUM_TYPE_ID
+    )
+
 
 SNCOSMO_TO_TNSFILTER = {
     "atlasc": 71,
@@ -352,6 +498,49 @@ def get_recent_TNS(api_key, headers, public_timestamp, get_data=True):
                 }
             )
     return sources
+
+
+def tns_designation(tns_name):
+    """The year-and-letters part of a TNS name, without its AT or SN prefix."""
+    return str(tns_name or "").strip().split(" ")[-1].strip().lower()
+
+
+def should_replace_tns_name(obj, tns_name, tns_ra, tns_dec):
+    """Whether a TNS source supersedes the name already stored on an object.
+
+    Two things win: a TNS source closer to the object than the stored one, and
+    the stored source re-designated, which is how an AT becomes an SN once TNS
+    accepts a classification for it.
+    """
+    if obj.tns_name == tns_name:
+        return False
+    if is_null(obj.tns_name):
+        return True
+
+    if (
+        isinstance(obj.tns_info, dict)
+        and "radeg" in obj.tns_info
+        and "decdeg" in obj.tns_info
+    ):
+        existing_tns_dist = great_circle_distance(
+            obj.ra,
+            obj.dec,
+            float(obj.tns_info["radeg"]),
+            float(obj.tns_info["decdeg"]),
+        )
+        new_tns_dist = great_circle_distance(
+            obj.ra, obj.dec, float(tns_ra), float(tns_dec)
+        )
+        if new_tns_dist < existing_tns_dist:
+            return True
+
+    # A prefix only upgrades the name it already belongs to; a farther source
+    # takes the object over on distance or leaves it alone.
+    return (
+        tns_designation(obj.tns_name) == tns_designation(tns_name)
+        and not str(obj.tns_name).lower().strip().startswith("sn")
+        and "AT" not in str(tns_name)
+    )
 
 
 def get_IAUname(
@@ -674,7 +863,7 @@ def read_tns_spectrum(spectrum, session):
         tab = Table.read(spectrum["asciifile"], format="fits")
 
     data = tab.to_pandas().to_dict(orient="list")
-    data["observed_at"] = Time(spectrum["jd"], format="jd").isot
+    data["observed_at"] = Time(spectrum["jd"], format="jd").datetime
     data["origin"] = "TNS"
 
     instrument = _resolve_tns_instrument(spectrum["instrument"]["id"], session)

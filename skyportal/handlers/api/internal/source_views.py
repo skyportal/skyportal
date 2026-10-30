@@ -159,6 +159,11 @@ class SourceViewsHandler(BaseHandler):
     @tornado.web.authenticated
     async def post(self, obj_id: str):
         async with self.AsyncSession() as session:
+            obj = await session.scalar(
+                Obj.select(session.user_or_token).where(Obj.id == obj_id)
+            )
+            if obj is None:
+                return self.error(f"Source {obj_id} not found", status=404)
             sv = SourceView(
                 obj_id=obj_id,
                 username_or_token_id=self.current_user.username,

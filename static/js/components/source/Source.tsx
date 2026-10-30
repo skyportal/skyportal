@@ -15,6 +15,8 @@ import { makeStyles } from "tss-react/mui";
 import Grid from "@mui/material/Grid";
 import Chip from "@mui/material/Chip";
 import Tooltip from "@mui/material/Tooltip";
+import Checkbox from "@mui/material/Checkbox";
+import FormControlLabel from "@mui/material/FormControlLabel";
 import Accordion from "@mui/material/Accordion";
 import AccordionSummary from "@mui/material/AccordionSummary";
 import AccordionDetails from "@mui/material/AccordionDetails";
@@ -96,6 +98,7 @@ import {
   useAddHostMutation,
   useRemoveHostMutation,
   useAddSourceViewMutation,
+  useUpdateSourceMutation,
 } from "../../ducks/source";
 
 import PhotometryPlot from "../plot/PhotometryPlot";
@@ -257,6 +260,7 @@ const SourceContent = ({ source }: SourceContentProps) => {
   const associatedGCNs = associatedGcnsData?.["gcns"];
   const [addHost] = useAddHostMutation();
   const [removeHostMutation] = useRemoveHostMutation();
+  const [updateSource] = useUpdateSourceMutation();
 
   const { data: brokers = [] } = useGetBrokersQuery();
   const { data: instrumentList = [] } = useGetInstrumentsQuery();
@@ -1093,7 +1097,13 @@ const SourceContent = ({ source }: SourceContentProps) => {
                 </Menu>
               </div>
               {!isReadOnly && (
-                <div>
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "0.25rem",
+                  }}
+                >
                   <Button
                     onClick={() => setSendToDialogOpen(true)}
                     secondary
@@ -1106,6 +1116,37 @@ const SourceContent = ({ source }: SourceContentProps) => {
                     dialogOpen={sendToDialogOpen}
                     setDialogOpen={setSendToDialogOpen}
                   />
+                  <Tooltip
+                    title={`Keep this source off TNS. Automatic sharing skips it and a manual submission is refused until this is cleared.${
+                      source.withhold_from_tns_set_at
+                        ? ` Last changed by ${
+                            source.withhold_from_tns_set_by?.username ??
+                            "a deleted user"
+                          } on ${source.withhold_from_tns_set_at.slice(0, 10)}.`
+                        : ""
+                    }`}
+                  >
+                    <FormControlLabel
+                      sx={{ m: 0 }}
+                      control={
+                        <Checkbox
+                          size="small"
+                          sx={{ p: 0.5 }}
+                          checked={Boolean(source.withhold_from_tns)}
+                          onChange={(event) =>
+                            updateSource({
+                              id: source.id,
+                              payload: {
+                                withhold_from_tns: event.target.checked,
+                              },
+                            })
+                          }
+                        />
+                      }
+                      label="Withhold from TNS"
+                      slotProps={{ typography: { variant: "body2" } }}
+                    />
+                  </Tooltip>
                 </div>
               )}
               {currentUser?.preferences?.["hideSourceSummary"] === true && (

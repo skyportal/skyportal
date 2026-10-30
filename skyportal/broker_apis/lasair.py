@@ -2,6 +2,7 @@ import asyncio
 import base64
 import json
 import math
+import re
 import time
 from datetime import UTC, datetime
 
@@ -45,6 +46,17 @@ PLAIN_STREAM_DETAIL = (
     "Lasair: https://lasair-lsst.readthedocs.io/en/main/ (ZTF: "
     "https://lasair.readthedocs.io/en/main/)"
 )
+NO_POSITION_DETAIL = (
+    "This topic's alerts carry no sky position. A lite lightcurve reports one "
+    "only through its Lasair filter's selected columns, so add the object's ra "
+    "and dec to that filter's SELECT on its page in Lasair: "
+    "https://lasair-lsst.readthedocs.io/en/main/ (ZTF: "
+    "https://lasair.readthedocs.io/en/main/)"
+)
+# The position keys a message may use, normalized. A filter names its own
+# selected columns, so the same coordinate arrives as "ra", "RA" or "ramean".
+_RA_KEYS = ("ra", "ramean", "radeg", "rightascension")
+_DEC_KEYS = ("dec", "decl", "decmean", "decdeg", "declination")
 _CUTOUT_KINDS = {
     "Science": "cutoutScience",
     "Template": "cutoutTemplate",
@@ -94,6 +106,27 @@ def _lsst_magnitude(flux, flux_err):
     except (TypeError, ValueError, ZeroDivisionError):
         err = None
     return mag, err
+
+
+def _position(places, keys):
+    """First numeric value any of `places` holds under one of `keys`.
+
+    Keys match on their letters and digits alone, so a filter whose selected
+    columns came through as ``RA`` and ``Dec`` is still understood.
+    """
+    for place in places:
+        if not isinstance(place, dict):
+            continue
+        found = {re.sub(r"[^a-z0-9]", "", str(k).lower()): v for k, v in place.items()}
+        for key in keys:
+            value = found.get(key)
+            if value is None:
+                continue
+            try:
+                return float(value)
+            except (TypeError, ValueError):
+                continue
+    return None
 
 
 def _lsst_sources(payload):
@@ -152,13 +185,7 @@ def _normalize_lsst_alert(payload, object_id):
     detections = [r for r in rows if r["magpsf"] is not None]
     latest = detections[0] if detections else (rows[0] if rows else {})
 
-    def position(key, *fallbacks):
-        for source in (latest, payload, dia_object):
-            for name in (key, *fallbacks):
-                value = (source or {}).get(name)
-                if value is not None:
-                    return value
-        return None
+    places = (latest, payload, dia_object)
 
     return {
         "objectId": str(
@@ -166,8 +193,8 @@ def _normalize_lsst_alert(payload, object_id):
         ),
         "candidate": {
             "candid": latest.get("candid"),
-            "ra": position("ra"),
-            "dec": position("dec", "decl"),
+            "ra": _position(places, _RA_KEYS),
+            "dec": _position(places, _DEC_KEYS),
             "magpsf": latest.get("magpsf"),
             "jd": latest.get("jd"),
             "band": latest.get("band"),
@@ -229,13 +256,8 @@ def _normalize_object(obj, object_id):
         "objectId": obj.get("objectId") or object_id,
         "candidate": {
             "candid": latest.get("candid"),
-            "ra": latest.get("ra")
-            or object_data.get("ramean")
-            or object_data.get("ra"),
-            "dec": latest.get("dec")
-            or object_data.get("decmean")
-            or object_data.get("decl")
-            or object_data.get("dec"),
+            "ra": _position((latest, object_data), _RA_KEYS),
+            "dec": _position((latest, object_data), _DEC_KEYS),
             "magpsf": latest.get("magpsf"),
             "jd": latest.get("jd"),
             "band": _band(latest),
@@ -700,12 +722,13 @@ def _prepare_batch(msgs, topic_filter_ids, default_filter_ids):
     Returns the finished messages, the work, and any topic found to be
     streaming something we cannot ingest.
 
-    A message that cannot be decoded, that carries no objectId, or that is the
-    wrong stream for us is finished rather than failed: leaving it outstanding
-    would stall its partition for good, and none of the three gets better by
-    being tried again. Where one object appears more than once, only its newest
-    alert is ingested and the earlier ones are finished, which also keeps two
-    writes for the same object out of the same batch.
+    A message that cannot be decoded, that carries no objectId, that reports no
+    sky position, or that is the wrong stream for us is finished rather than
+    failed: leaving it outstanding would stall its partition for good, and none
+    of the four gets better by being tried again. Where one object appears more
+    than once, only its newest alert is ingested and the earlier ones are
+    finished, which also keeps two writes for the same object out of the same
+    batch.
     """
     finished = set()
     unusable = {}
@@ -728,6 +751,11 @@ def _prepare_batch(msgs, topic_filter_ids, default_filter_ids):
             continue
         if is_plain_stream_message(payload):
             unusable[msg.topic()] = PLAIN_STREAM_DETAIL
+            finished.add(key)
+            continue
+        candidate = normalize_stream_message(payload, oid).get("candidate") or {}
+        if candidate.get("ra") is None or candidate.get("dec") is None:
+            unusable[msg.topic()] = NO_POSITION_DETAIL
             finished.add(key)
             continue
         superseded = work.get(oid)

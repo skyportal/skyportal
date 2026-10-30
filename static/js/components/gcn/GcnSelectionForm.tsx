@@ -2,6 +2,7 @@ import { lazy, Suspense, useEffect, useState } from "react";
 import Box from "@mui/material/Box";
 import Checkbox from "@mui/material/Checkbox";
 import CircularProgress from "@mui/material/CircularProgress";
+import FormControl from "@mui/material/FormControl";
 import FormControlLabel from "@mui/material/FormControlLabel";
 import FormGroup from "@mui/material/FormGroup";
 import Grid from "@mui/material/Grid";
@@ -10,6 +11,7 @@ import MenuItem from "@mui/material/MenuItem";
 import Select from "@mui/material/Select";
 import Tab from "@mui/material/Tab";
 import Tabs from "@mui/material/Tabs";
+import TextField from "@mui/material/TextField";
 import Typography from "@mui/material/Typography";
 import useMediaQuery from "@mui/material/useMediaQuery";
 import { useTheme } from "@mui/material/styles";
@@ -331,25 +333,24 @@ const SkymapControls = ({
   column = false,
 }: SkymapControlsProps) => (
   <>
-    <InputLabel id="projection" sx={{ mt: 1, mb: 0.5 }}>
-      Projection
-    </InputLabel>
-    <Select
-      labelId="projection"
-      id="projection"
+    <TextField
+      select
+      size="small"
+      label="Projection"
       value={projection}
       onChange={(e) => setProjection(e.target.value)}
       fullWidth
+      sx={{ mt: 2 }}
     >
       {PROJECTIONS.map((option) => (
         <MenuItem value={option} key={option}>
           {option}
         </MenuItem>
       ))}
-    </Select>
-    <InputLabel id="showOnPlot" sx={{ mt: 1, mb: 0.5 }}>
-      Show/Hide on Plot
-    </InputLabel>
+    </TextField>
+    <Typography variant="body2" sx={{ color: "text.secondary", mt: 2 }}>
+      Show on plot
+    </Typography>
     <FormGroup
       sx={
         column
@@ -717,7 +718,7 @@ const GcnSelectionForm = ({ dateobs }: GcnSelectionFormProps) => {
     },
   };
 
-  const selectSx = { mt: "0.3rem", maxWidth: "87vw" };
+  const selectSx = { mt: 1, maxWidth: "87vw" };
 
   return (
     <Grid container spacing={4}>
@@ -732,10 +733,10 @@ const GcnSelectionForm = ({ dateobs }: GcnSelectionFormProps) => {
         )}
       </Grid>
       <Grid size={{ sm: 12, md: 8 }}>
-        <Box sx={selectSx}>
+        <FormControl size="small" fullWidth sx={selectSx}>
           <InputLabel id="localizationSelectLabel">Localization</InputLabel>
           <Select
-            fullWidth
+            label="Localization"
             inputProps={{ MenuProps: { disableScrollLock: true } }}
             labelId="localizationSelectLabel"
             value={selectedLocalizationId || ""}
@@ -747,7 +748,7 @@ const GcnSelectionForm = ({ dateobs }: GcnSelectionFormProps) => {
               </MenuItem>
             ))}
           </Select>
-        </Box>
+        </FormControl>
         <Tabs
           value={tabIndex}
           onChange={(_, value) => setTabIndex(value)}
@@ -755,11 +756,11 @@ const GcnSelectionForm = ({ dateobs }: GcnSelectionFormProps) => {
           variant="scrollable"
           sx={{ maxWidth: "95vw" }}
         >
-          <Tab label="Skymap" sx={{ display: { md: "none" } }} />
-          <Tab label="Sources" />
-          <Tab label="Associated Events" />
-          <Tab label="Galaxies" />
-          <Tab label="Observations" />
+          {!isBig && <Tab label="Skymap" value={0} />}
+          <Tab label="Sources" value={1} />
+          <Tab label="Associated Events" value={2} />
+          <Tab label="Galaxies" value={3} />
+          <Tab label="Observations" value={4} />
         </Tabs>
 
         {tabIndex === 0 && (
@@ -838,10 +839,10 @@ const GcnSelectionForm = ({ dateobs }: GcnSelectionFormProps) => {
 
         {tabIndex === 4 && (
           <>
-            <Box sx={selectSx}>
+            <FormControl size="small" fullWidth sx={selectSx}>
               <InputLabel id="instrumentSelectLabel">Instrument</InputLabel>
               <Select
-                fullWidth
+                label="Instrument"
                 inputProps={{ MenuProps: { disableScrollLock: true } }}
                 labelId="instrumentSelectLabel"
                 value={selectedInstrumentId || ""}
@@ -855,7 +856,7 @@ const GcnSelectionForm = ({ dateobs }: GcnSelectionFormProps) => {
                     </MenuItem>
                   ))}
               </Select>
-            </Box>
+            </FormControl>
             <Box
               data-testid="gcnsource-selection-form"
               sx={{ mt: "0.8rem", maxWidth: "87vw" }}

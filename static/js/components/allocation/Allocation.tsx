@@ -22,8 +22,6 @@ import ImageAspectRatioIcon from "@mui/icons-material/ImageAspectRatio";
 import Menu from "@mui/material/Menu";
 import MenuItem from "@mui/material/MenuItem";
 
-import { JSONTree } from "react-json-tree";
-
 import { showNotification } from "baselayer/components/Notifications";
 import { useAppDispatch } from "../../types/hooks";
 import StyledDataGrid from "../StyledDataGrid";
@@ -44,6 +42,7 @@ import ObservationPlanGlobe from "../observation_plan/ObservationPlanGlobe";
 import ObservationPlanSummaryStatistics from "../observation_plan/ObservationPlanSummaryStatistics";
 import VegaPhotometry from "../plot/VegaPhotometry";
 import Button from "../Button";
+import JsonCell from "../JsonCell";
 import Spinner from "../Spinner";
 
 const AirmassPlot = React.lazy(() => import("../plot/AirmassPlot"));
@@ -264,11 +263,8 @@ const AllocationObservationPlansTable = ({
       flex: 1,
       minWidth: 150,
       sortable: false,
-      renderCell: (params: any) => (
-        <div style={{ whiteSpace: "nowrap" }}>
-          {params.row ? <JSONTree data={params.row.payload} hideRoot /> : ""}
-        </div>
-      ),
+      renderCell: (params: any) =>
+        params.row ? <JsonCell data={params.row.payload} /> : "",
     },
     {
       field: "summarystatistics",

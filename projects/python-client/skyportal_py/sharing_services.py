@@ -287,6 +287,7 @@ def update_sharing_service_group(  # noqa: PLR0913 -- mirrors the endpoint's req
     *,
     owner: bool | None = None,
     auto_share_to_tns: bool | None = None,
+    auto_share_classifications_to_tns: bool | None = None,
     auto_share_to_hermes: bool | None = None,
     auto_share_to_trove: bool | None = None,
     auto_sharing_allow_bots: bool | None = None,
@@ -306,6 +307,9 @@ def update_sharing_service_group(  # noqa: PLR0913 -- mirrors the endpoint's req
         removed from the only owning group.
     auto_share_to_tns, auto_share_to_hermes, auto_share_to_trove : bool, optional
         Whether new sources saved to the group are published automatically.
+    auto_share_classifications_to_tns : bool, optional
+        Whether new human classifications of the group's sources are reported
+        to TNS automatically.
     auto_sharing_allow_bots : bool, optional
         Whether bot users may act as auto-publishers. It cannot be turned
         off while a bot is still listed as an auto-publisher.
@@ -320,6 +324,8 @@ def update_sharing_service_group(  # noqa: PLR0913 -- mirrors the endpoint's req
         payload["owner"] = owner
     if auto_share_to_tns is not None:
         payload["auto_share_to_tns"] = auto_share_to_tns
+    if auto_share_classifications_to_tns is not None:
+        payload["auto_share_classifications_to_tns"] = auto_share_classifications_to_tns
     if auto_share_to_hermes is not None:
         payload["auto_share_to_hermes"] = auto_share_to_hermes
     if auto_share_to_trove is not None:

@@ -32,6 +32,7 @@ from skyportal.models import (
     EventObservationPlan,
     Feedback,
     FeedbackReply,
+    Filter,
     FollowupRequest,
     FollowupRequestUser,
     GcnEvent,
@@ -149,10 +150,6 @@ def user_preferences(target, notification_setting, resource_type):
             return
         if not target["user"]["contact_email"]:
             return
-        # this ensures that an email is sent regardless of the user's preferences
-        # this is useful for group_admission_requests, where we want the admins to always be notified by email
-        if resource_type in ["group_admission_request"]:
-            return True
 
     if "preferences" not in target["user"]:
         return
@@ -175,7 +172,12 @@ def user_preferences(target, notification_setting, resource_type):
         ):
             return
 
-    prefs = target["user"]["preferences"].get("notifications")
+    prefs = (target["user"]["preferences"] or {}).get("notifications")
+    if resource_type == "group_admission_request":
+        channel = ((prefs or {}).get(resource_type) or {}).get(notification_setting)
+        if (channel or {}).get("active", notification_setting == "email") is not True:
+            return
+        return prefs or True
     if not prefs:
         return
     else:
@@ -184,6 +186,7 @@ def user_preferences(target, notification_setting, resource_type):
             "favorite_sources",
             "gcn_events",
             "gcn_extractions",
+            "gcn_matches",
             "facility_transactions",
             "mention",
             "analysis_services",
@@ -301,6 +304,9 @@ def send_email_notification(target):
                 new_tag=(target["notification_type"] == "gcn_events_new_tag"),
             )
 
+        elif resource_type == "gcn_matches":
+            subject = f"{cfg['app.title']} - New GCN event matches"
+
         elif resource_type == "facility_transactions":
             subject = f"{cfg['app.title']} - New facility transaction"
 
@@ -392,7 +398,10 @@ def send_sms_notification(target):
     if not prefs:
         return
 
-    sending = False
+    sending = not (
+        prefs[resource_type]["sms"].get("on_shift")
+        or prefs[resource_type]["sms"].get("time_slot")
+    )
     if prefs[resource_type]["sms"].get("on_shift", False):
         current_shift = (
             Shift.query.join(ShiftUser)
@@ -435,7 +444,10 @@ def send_phone_notification(target):
     if not prefs:
         return
 
-    sending = False
+    sending = not (
+        prefs[resource_type]["phone"].get("on_shift")
+        or prefs[resource_type]["phone"].get("time_slot")
+    )
     if prefs[resource_type]["phone"].get("on_shift", False):
         current_shift = (
             Shift.query.join(ShiftUser)
@@ -478,7 +490,10 @@ def send_whatsapp_notification(target):
     if not prefs:
         return
 
-    sending = False
+    sending = not (
+        prefs[resource_type]["whatsapp"].get("on_shift")
+        or prefs[resource_type]["whatsapp"].get("time_slot")
+    )
     if prefs[resource_type]["whatsapp"].get("on_shift", False):
         current_shift = (
             Shift.query.join(ShiftUser)
@@ -655,6 +670,7 @@ def api(queue):
             is_gcn_tag = target_class_name == "GcnTag"
             is_classification = target_class_name == "Classification"
             is_gcn_extraction = target_class_name == "GcnEventExtraction"
+            is_gcn_match = target_class_name == "GcnEventMatches"
             is_spectra = target_class_name == "Spectrum"
             is_comment = target_class_name == "Comment"
             is_group_admission_request = target_class_name == "GroupAdmissionRequest"
@@ -704,6 +720,37 @@ def api(queue):
                         ).first()
                         target_data = target.to_dict()
                         target_content = gcn_notification_content(target, session)
+
+                    elif is_gcn_match:
+                        users = session.scalars(
+                            sa.select(User).where(
+                                User.preferences["notifications"]["gcn_matches"][
+                                    "active"
+                                ]
+                                .astext.cast(sa.Boolean)
+                                .is_(True)
+                            )
+                        ).all()
+                        target_class = GcnEvent
+                        gcn_event = session.scalar(
+                            sa.select(GcnEvent).where(GcnEvent.id == target_id)
+                        )
+                        match_filter = session.scalar(
+                            sa.select(Filter).where(Filter.id == data.get("filter_id"))
+                        )
+                        if (
+                            gcn_event is None
+                            or match_filter is None
+                            or not data.get("obj_ids")
+                        ):
+                            return
+                        target_data = {
+                            "dateobs": gcn_event.dateobs,
+                            "event_tags": gcn_event.tags,
+                            "filter_id": match_filter.id,
+                            "filter_name": match_filter.name,
+                            "obj_ids": data["obj_ids"],
+                        }
 
                     elif is_followup_request:
                         users = session.scalars(
@@ -1257,6 +1304,50 @@ def api(queue):
                                             )
                                         )
 
+                                elif is_gcn_match:
+                                    match_prefs = pref["gcn_matches"]
+                                    if (
+                                        session.scalars(
+                                            Filter.select(user).where(
+                                                Filter.id == target_data["filter_id"]
+                                            )
+                                        ).first()
+                                        is None
+                                    ):
+                                        continue
+                                    filter_ids = match_prefs.get("filters") or []
+                                    if (
+                                        filter_ids
+                                        and target_data["filter_id"] not in filter_ids
+                                    ):
+                                        continue
+                                    gcn_tags = match_prefs.get("gcn_tags") or []
+                                    if gcn_tags and not set(gcn_tags) & set(
+                                        target_data["event_tags"]
+                                    ):
+                                        continue
+                                    obj_ids = target_data["obj_ids"]
+                                    if len(obj_ids) == 1:
+                                        text = (
+                                            f"*{obj_ids[0]}* from filter "
+                                            f"*{target_data['filter_name']}* matches "
+                                            f"GCN Event *{target_data['dateobs']}*"
+                                        )
+                                        url = f"/source/{obj_ids[0]}"
+                                    else:
+                                        text = (
+                                            f"*{len(obj_ids)}* new candidates from filter "
+                                            f"*{target_data['filter_name']}* match "
+                                            f"GCN Event *{target_data['dateobs']}*: "
+                                            f"{textwrap.shorten(', '.join(obj_ids), 120, placeholder='...')}"
+                                        )
+                                        url = f"/gcn_events/{target_data['dateobs'].isoformat()}"
+                                    queue.append(
+                                        user_notification_target(
+                                            session, user, text, "gcn_matches", url
+                                        )
+                                    )
+
                                 elif is_followup_request:
                                     if user.id in notification_user_ids:
                                         queue.append(
@@ -1425,6 +1516,10 @@ def api(queue):
                                         )
                                     )
                                 elif is_group_admission_request:
+                                    if (pref or {}).get(
+                                        "group_admission_request", {}
+                                    ).get("active") is False:
+                                        continue
                                     user_from_request = session.scalars(
                                         sa.select(User).where(
                                             User.id == target_data["user_id"]
@@ -1464,25 +1559,18 @@ def api(queue):
                                             placeholder="...",
                                         ),
                                     }
-                                    notification = UserNotification(
-                                        user=user,
-                                        text=group_admission_request_notification_text(
-                                            content, escape_markdown
-                                        ),
-                                        notification_type="group_admission_request",
-                                        url=f"/group/{group_from_request.id}?tab=admissions",
+                                    queue.append(
+                                        user_notification_target(
+                                            session,
+                                            user,
+                                            group_admission_request_notification_text(
+                                                content, escape_markdown
+                                            ),
+                                            "group_admission_request",
+                                            f"/group/{group_from_request.id}?tab=admissions",
+                                            content,
+                                        )
                                     )
-                                    session.add(notification)
-                                    session.commit()
-                                    target = {
-                                        **notification.to_dict(),
-                                        "user": {
-                                            **notification.user.to_dict(),
-                                            "preferences": notification.user.preferences,
-                                        },
-                                        "content": content,
-                                    }
-                                    queue.append(target)
                                 else:
                                     favorite_sources = session.scalars(
                                         sa.select(Listing)

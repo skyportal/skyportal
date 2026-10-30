@@ -212,7 +212,9 @@ class InstrumentResponse(BaseModel):
     listener_classname: str | None = None
     treasuremap_id: int | None = None
     tns_id: int | None = None
+    default_observer: str | None = None
     across_id: str | None = None
+    created_by_id: int | None = None
     region: str | None = None
     has_fields: bool | None = None
     has_region: bool | None = None

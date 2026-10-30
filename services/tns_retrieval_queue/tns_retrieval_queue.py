@@ -22,8 +22,7 @@ from baselayer.log import make_log
 from skyportal.handlers.api.photometry import add_external_photometry
 from skyportal.handlers.api.source import post_source_async
 from skyportal.handlers.api.spectrum import post_spectrum
-from skyportal.models import DBSession, Group, Obj, Source, User
-from skyportal.utils.calculations import great_circle_distance
+from skyportal.models import Classification, DBSession, Group, Obj, Source, User
 from skyportal.utils.parse import is_null
 from skyportal.utils.services import check_loaded
 from skyportal.utils.tns import (
@@ -35,6 +34,8 @@ from skyportal.utils.tns import (
     get_tns_url,
     read_tns_photometry,
     read_tns_spectrum,
+    should_replace_tns_name,
+    tns_designation,
 )
 
 env, cfg = load_env()
@@ -49,6 +50,11 @@ bot_id = cfg.get("app.tns.bot_id", None)
 bot_name = cfg.get("app.tns.bot_name", None)
 api_key = cfg.get("app.tns.api_key", None)
 look_back_days = cfg.get("app.tns.look_back_days", 1)
+min_request_interval = cfg.get("app.tns.min_request_interval", 3)
+name_refresh_enabled = cfg.get("app.tns.name_refresh.enabled", True)
+name_refresh_interval_hours = cfg.get("app.tns.name_refresh.interval_hours", 6)
+name_refresh_batch_size = cfg.get("app.tns.name_refresh.batch_size", 50)
+name_refresh_look_back_days = cfg.get("app.tns.name_refresh.look_back_days", 30)
 
 
 def refresh_obj_on_frontend(obj, user_id="*"):
@@ -96,39 +102,11 @@ def add_tns_name_to_existing_objs(tns_name, tns_source_data, tns_ra, tns_dec, se
     if len(existing_objs) > 0:
         for obj in existing_objs:
             try:
-                if obj.tns_name == tns_name:
-                    continue
-                elif obj.tns_name is None or obj.tns_name == "":
-                    obj.tns_name = tns_name
-                    obj.tns_info = tns_source_data
-                # if the obj has tns_info that contains radeg and decdeg,
-                # check if the new TNS source is closer to the obj than the existing TNS source
-                elif (
-                    isinstance(obj.tns_info, dict)
-                    and "radeg" in obj.tns_info
-                    and "decdeg" in obj.tns_info
-                ):
-                    existing_tns_dist = great_circle_distance(
-                        obj.ra,
-                        obj.dec,
-                        float(obj.tns_info["radeg"]),
-                        float(obj.tns_info["decdeg"]),
-                    )
-                    new_tns_dist = great_circle_distance(
-                        obj.ra, obj.dec, float(tns_ra), float(tns_dec)
-                    )
-                    if new_tns_dist < existing_tns_dist:
-                        obj.tns_name = tns_name
-                        obj.tns_info = tns_source_data
-                # if the current name doesn't have the SN designation but the new name has it, update
-                elif not str(obj.tns_name).lower().strip().startswith(
-                    "sn"
-                ) and "AT" not in str(tns_name):
-                    obj.tns_name = str(tns_name).strip()
-                    obj.tns_info = tns_source_data
-                else:
+                if not should_replace_tns_name(obj, tns_name, tns_ra, tns_dec):
                     continue
 
+                obj.tns_name = tns_name
+                obj.tns_info = tns_source_data
                 session.commit()
                 log(f"Updated object {obj.id} with TNS name {tns_name}")
                 refresh_obj_on_frontend(obj)
@@ -271,6 +249,7 @@ def process_queue(queue):
         log("TNS watcher not configured, skipping")
         return
     tns_headers = get_tns_headers(bot_id, bot_name)
+    last_request_at = 0.0
 
     while True:
         if not queue:
@@ -279,6 +258,11 @@ def process_queue(queue):
         task = queue.pop(0)
         if not task:
             continue
+
+        wait = min_request_interval - (time.monotonic() - last_request_at)
+        if wait > 0:
+            time.sleep(wait)
+        last_request_at = time.monotonic()
 
         tns_name = None
         existing_obj = None
@@ -549,6 +533,56 @@ def tns_watcher(queue):
         time.sleep(60 * 4)  # sleep for 4 minutes
 
 
+def tns_name_refresher(queue):
+    """Re-query TNS for recently classified objects that still carry an AT name.
+
+    TNS is searched by public timestamp, which does not move when an object is
+    classified, so a classification arriving after discovery never brings the
+    object back through ``tns_watcher`` and its name stays at AT.
+
+    Parameters
+    ----------
+    queue : list
+        The queue to add the objects to, shared across threads
+    """
+    if not TNS_URL or not bot_id or not bot_name or not api_key:
+        log("TNS name refresher not configured, skipping")
+        return
+
+    last_queued = {}
+    while True:
+        try:
+            with DBSession() as session:
+                since = datetime.now() - timedelta(days=name_refresh_look_back_days)
+                tns_names = session.scalars(
+                    sa.select(Obj.tns_name)
+                    .join(Classification, Classification.obj_id == Obj.id)
+                    .where(
+                        Obj.tns_name.ilike("AT%"),
+                        Classification.ml.is_(False),
+                        Classification.created_at >= since,
+                    )
+                    .group_by(Obj.tns_name)
+                    .order_by(sa.func.max(Classification.created_at).desc())
+                ).all()
+
+            last_queued = {
+                name: last_queued[name] for name in tns_names if name in last_queued
+            }
+            batch = sorted(tns_names, key=lambda name: last_queued.get(name, 0))[
+                :name_refresh_batch_size
+            ]
+            for tns_name in batch:
+                queue.append({"tns_source": tns_designation(tns_name)})
+                last_queued[tns_name] = time.time()
+            if batch:
+                log(f"Queued {len(batch)} classified AT objects for a TNS name refresh")
+        except Exception as e:
+            log(f"Error queueing objects for a TNS name refresh: {e}")
+
+        time.sleep(60 * 60 * name_refresh_interval_hours)
+
+
 def api(queue):
     """Start the internal API that endpoint that receives requests from the main app
 
@@ -617,18 +651,23 @@ def service(*args, **kwargs):
     """Process the TNS retrieval queue"""
 
     queue = []
-    t = Thread(target=process_queue, args=(queue,))
-    t2 = Thread(target=api, args=(queue,))
-    t3 = Thread(target=tns_watcher, args=(queue,))
-    t.start()
-    t2.start()
-    t3.start()
+    threads = [
+        Thread(target=process_queue, args=(queue,)),
+        Thread(target=api, args=(queue,)),
+        Thread(target=tns_watcher, args=(queue,)),
+    ]
+    # Started only when enabled, so a turned-off refresher is an absent thread
+    # rather than a dead one the liveness check below would restart us over.
+    if name_refresh_enabled:
+        threads.append(Thread(target=tns_name_refresher, args=(queue,)))
+    for thread in threads:
+        thread.start()
     while True:
         log(f"Current TNS retrieval queue length: {len(queue)}")
         time.sleep(120)
         # Exit if any worker thread died (e.g. DB connection drop in a context
         # manager exit, outside the loop's try/except) so supervisor restarts us.
-        if not (t.is_alive() and t2.is_alive() and t3.is_alive()):
+        if not all(thread.is_alive() for thread in threads):
             log("A TNS retrieval worker thread died, exiting for supervisor restart")
             sys.exit(1)
 

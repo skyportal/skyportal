@@ -28,6 +28,8 @@ import {
   useGetSharingServicesQuery,
 } from "../../ducks/sharingServices";
 import { useGetStreamsQuery } from "../../ducks/streams";
+import { useGetObjClassificationsQuery } from "../../ducks/source";
+import { useFetchSourceSpectraQuery } from "../../ducks/spectra";
 import { useGetConfigQuery } from "../../ducks/config";
 import { useGetInstrumentsQuery } from "../../ducks/instruments";
 import { CustomCheckboxWidgetMuiTheme } from "../CustomCheckboxWidget";
@@ -71,6 +73,14 @@ const SharingServicesDialog = ({
 
   const { data: instrumentList = [] } = useGetInstrumentsQuery();
   const { data: telescopeList = [] } = useGetTelescopesQuery();
+  const { data: objClassifications = [] } = useGetObjClassificationsQuery(
+    obj_id,
+    { skip: !dialogOpen },
+  );
+  const { data: objSpectra = [] } = useFetchSourceSpectraQuery(
+    { id: obj_id },
+    { skip: !dialogOpen },
+  );
 
   const selectedSharingService = sharingServicesList?.find(
     (b: any) => b.id === selectedSharingServiceId,
@@ -81,9 +91,10 @@ const SharingServicesDialog = ({
           selectedSharingService.instruments.some(
             (i: any) => i.id === instrument.id,
           ) &&
-          (allowedInstrumentsForSharing || []).includes(
-            instrument.name?.toLowerCase(),
-          ),
+          (instrument.tns_id != null ||
+            (allowedInstrumentsForSharing || []).includes(
+              instrument.name?.toLowerCase(),
+            )),
       )
     : [];
   const allowedInstrumentIds = allowedInstruments.map(
@@ -164,6 +175,40 @@ const SharingServicesDialog = ({
     setDialogOpen(false);
   };
 
+  // Only what the default rule would pick from: a human classification that
+  // has not been voted down.
+  const reportableClassifications = [...objClassifications]
+    .filter(
+      (classification) =>
+        classification.ml === false &&
+        (classification.probability == null || classification.probability > 0),
+    )
+    .sort((a, b) => (a.created_at > b.created_at ? -1 : 1));
+
+  const classificationOptions = reportableClassifications.map(
+    (classification) => ({
+      enum: [classification.id],
+      title: `${classification.classification}${
+        classification.probability != null
+          ? ` (p=${classification.probability})`
+          : ""
+      } - ${classification.author_name} - ${classification.created_at?.slice(
+        0,
+        10,
+      )}`,
+    }),
+  );
+
+  const spectrumOptions = [...objSpectra]
+    .sort((a: any, b: any) => (a.observed_at > b.observed_at ? -1 : 1))
+    .map((spectrum: any) => ({
+      enum: [spectrum.id],
+      title: `${spectrum.instrument_name} - ${spectrum.observed_at?.slice(
+        0,
+        10,
+      )}${spectrum.type && spectrum.type !== "source" ? ` (${spectrum.type})` : ""}`,
+    }));
+
   const formSchema: any = {
     type: "object",
     properties: {
@@ -208,6 +253,12 @@ const SharingServicesDialog = ({
           "If enabled, the sharing service will not publish the data if there is no first and last detection (at least 2 detections).",
       },
       ...(sendToTNS && {
+        tns_report_type: {
+          type: "string",
+          title: "TNS report",
+          enum: ["at_report", "classification_report"],
+          default: "at_report",
+        },
         archival: {
           type: "boolean",
           title: "TNS Archival",
@@ -218,6 +269,38 @@ const SharingServicesDialog = ({
       }),
     },
     dependencies: {
+      tns_report_type: {
+        oneOf: [
+          {
+            properties: {
+              tns_report_type: { enum: ["at_report"] },
+            },
+          },
+          {
+            properties: {
+              tns_report_type: { enum: ["classification_report"] },
+              ...(classificationOptions.length && {
+                tns_report_classification_id: {
+                  type: "integer",
+                  title: "Classification to report (optional)",
+                  description:
+                    "Left unset, the object's most recent classification is reported.",
+                  oneOf: classificationOptions,
+                },
+              }),
+              ...(spectrumOptions.length && {
+                tns_report_spectrum_id: {
+                  type: "integer",
+                  title: "Spectrum to report against (optional)",
+                  description:
+                    "Left unset, the object's most recent spectrum is used, preferring a source spectrum over a host one.",
+                  oneOf: spectrumOptions,
+                },
+              }),
+            },
+          },
+        ],
+      },
       archival: {
         oneOf: [
           {
@@ -259,6 +342,15 @@ const SharingServicesDialog = ({
     },
     stream_ids: {
       "ui:enumNames": streams.map((stream: any) => stream.name),
+    },
+    tns_report_type: {
+      "ui:enumNames": ["Discovery (AT report)", "Classification"],
+    },
+    tns_report_classification_id: {
+      "ui:placeholder": "Most recent classification",
+    },
+    tns_report_spectrum_id: {
+      "ui:placeholder": "Most recent spectrum",
     },
   };
 

@@ -4,7 +4,6 @@ import MenuItem from "@mui/material/MenuItem";
 import InputLabel from "@mui/material/InputLabel";
 import FormControl from "@mui/material/FormControl";
 import Chip from "@mui/material/Chip";
-import Input from "@mui/material/Input";
 import Box from "@mui/material/Box";
 
 import { Group } from "../../types";
@@ -37,7 +36,7 @@ const GroupShareSelect = ({
   );
 
   return (
-    <FormControl sx={{ minWidth: 170, mt: 1 }}>
+    <FormControl size="small" sx={{ minWidth: 170, mt: 1 }}>
       <InputLabel id="select-groups-label">Share Data With</InputLabel>
       <Select
         labelId="select-groups-label"
@@ -46,7 +45,7 @@ const GroupShareSelect = ({
         multiple
         value={groupIDs as any}
         onChange={(e) => setGroupIDs(e.target.value)}
-        input={<Input id="selectGroupsChip" />}
+        label="Share Data With"
         renderValue={(selected: number[]) => {
           if (selected.length <= maxGroups) {
             return (
@@ -54,6 +53,7 @@ const GroupShareSelect = ({
                 {selected.map((value) => (
                   <RemovableChip
                     key={value}
+                    size="small"
                     label={groupIDToName[value]}
                     onDelete={() =>
                       setGroupIDs(selected.filter((id) => id !== value))
@@ -63,7 +63,7 @@ const GroupShareSelect = ({
               </Box>
             );
           }
-          return <Chip label={`${selected.length} groups`} />;
+          return <Chip size="small" label={`${selected.length} groups`} />;
         }}
       >
         {groupList?.map((group) => (

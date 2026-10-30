@@ -1,13 +1,18 @@
+import { useState } from "react";
 import Form from "@rjsf/mui";
 import validator from "@rjsf/validator-ajv8";
 import { dataUriToBuffer } from "data-uri-to-buffer";
 import { showNotification } from "baselayer/components/Notifications";
 import { useAppDispatch } from "../../types/hooks";
 import { useUploadSpatialCatalogsMutation } from "../../ducks/spatialCatalogs";
+import { useGetGroupsQuery } from "../../ducks/groups";
+import GroupShareSelect from "../group/GroupShareSelect";
 
 const NewSpatialCatalog = () => {
   const dispatch = useAppDispatch();
   const [uploadSpatialCatalogs] = useUploadSpatialCatalogsMutation();
+  const groups = useGetGroupsQuery().data?.userAccessible ?? [];
+  const [selectedGroupIds, setSelectedGroupIds] = useState<number[]>([]);
 
   const handleSubmit = async ({ formData }: { formData: any }) => {
     const parsed = dataUriToBuffer(formData.file);
@@ -15,6 +20,7 @@ const NewSpatialCatalog = () => {
     const payload = {
       catalogData: ascii,
       catalogName: formData.catalogName,
+      group_ids: selectedGroupIds,
     };
     try {
       await uploadSpatialCatalogs(payload).unwrap();
@@ -45,11 +51,18 @@ const NewSpatialCatalog = () => {
   };
 
   return (
-    <Form
-      schema={spatialCatalogFormSchema as any}
-      validator={validator}
-      onSubmit={handleSubmit as any}
-    />
+    <>
+      <GroupShareSelect
+        groupList={groups}
+        setGroupIDs={setSelectedGroupIds}
+        groupIDs={selectedGroupIds}
+      />
+      <Form
+        schema={spatialCatalogFormSchema as any}
+        validator={validator}
+        onSubmit={handleSubmit as any}
+      />
+    </>
   );
 };
 

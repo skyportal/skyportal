@@ -29,6 +29,8 @@ from skyportal.models import (
     PhotStat,
     Source,
     SourceLabel,
+    SpatialCatalog,
+    SpatialCatalogEntry,
     Thumbnail,
     User,
     cosmo,
@@ -2127,27 +2129,16 @@ async def get_sources(
                 )
             try:
                 # first try to find the catalog
-                entry_stmt = """
-                SELECT entry_name
-                FROM spatial_catalog_entries
-                WHERE lower(entry_name) = :spatial_catalog_entry_name
-                AND catalog_id in (
-                    SELECT id
-                    FROM spatial_catalogs
-                    WHERE lower(catalog_name) = :spatial_catalog_name
-                )
-                """
                 entry_name = await session.scalar(
-                    text(entry_stmt).bindparams(
-                        bindparam(
-                            "spatial_catalog_entry_name",
-                            value=str(spatial_catalog_entry_name).strip().lower(),
-                            type_=sa.String,
-                        ),
-                        bindparam(
-                            "spatial_catalog_name",
-                            value=str(spatial_catalog_name).strip().lower(),
-                            type_=sa.String,
+                    SpatialCatalogEntry.select(
+                        session.user_or_token,
+                        columns=[SpatialCatalogEntry.entry_name],
+                    ).where(
+                        sa.func.lower(SpatialCatalogEntry.entry_name)
+                        == str(spatial_catalog_entry_name).strip().lower(),
+                        SpatialCatalogEntry.catalog.has(
+                            sa.func.lower(SpatialCatalog.catalog_name)
+                            == str(spatial_catalog_name).strip().lower()
                         ),
                     )
                 )
@@ -2743,22 +2734,26 @@ async def get_sources(
                 host_ids = list(
                     {obj["host_id"] for obj in objs if obj["host_id"] is not None}
                 )
+                objs_with_host = []
                 if len(host_ids) > 0:
                     hosts_result = await session.scalars(
-                        sa.select(Galaxy).where(Galaxy.id.in_(host_ids)).distinct()
+                        Galaxy.select(session.user_or_token)
+                        .where(Galaxy.id.in_(host_ids))
+                        .distinct()
                     )
-                    hosts = {
+                    hosts_by_id = {
                         host.id: host.to_dict() for host in hosts_result.unique().all()
                     }
 
                     objs_with_host = [
                         (i, obj["host_id"], (obj["ra"], obj["dec"]))
                         for i, obj in enumerate(objs)
-                        if obj["host_id"] is not None
+                        if obj["host_id"] in hosts_by_id
                     ]
+                if host_ids and objs_with_host:
                     objs_with_host_coords = np.array([obj[2] for obj in objs_with_host])
 
-                    hosts = [hosts[obj[1]] for obj in objs_with_host]
+                    hosts = [hosts_by_id[obj[1]] for obj in objs_with_host]
                     hosts_coords = np.array(
                         [[host["ra"], host["dec"]] for host in hosts]
                     )

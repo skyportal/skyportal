@@ -13,6 +13,8 @@ import PreferenceOption, {
   PreferenceOptions,
 } from "../../notifications/PreferenceOption";
 import NotificationGcnEvent from "./NotificationGcnEvent";
+import GcnTagsSelect from "../../gcn/GcnTagsSelect";
+import { useGetFiltersQuery } from "../../../ducks/filter";
 import { useGetGroupsQuery } from "../../../ducks/groups";
 import {
   useGetProfileQuery,
@@ -198,6 +200,71 @@ const ExtractionOptions = () => {
   );
 };
 
+const GcnMatchOptions = () => {
+  const dispatch = useAppDispatch();
+  const prefs =
+    (useGetProfileQuery().data?.preferences["notifications"]
+      ?.gcn_matches as any) ?? {};
+  const { data: filters = [] } = useGetFiltersQuery();
+  const groups = useGetGroupsQuery().data?.userAccessible ?? [];
+  const [updateUserPreferences] = useUpdateUserPreferencesMutation();
+  const [selectedFilters, setSelectedFilters] = useState<Option[]>([]);
+  const [gcnTags, setGcnTags] = useState<string[]>(prefs.gcn_tags || []);
+
+  const filterOptions = filters
+    .map((filter: any) => ({
+      id: filter.id,
+      label: `${filter.name} [${
+        groups.find((group: any) => group.id === filter.group_id)?.name ??
+        filter.group_id
+      }]`,
+    }))
+    .sort(byLabel);
+
+  useEffect(() => {
+    if (selectedFilters.length === 0 && filters.length > 0) {
+      setGcnTags(prefs.gcn_tags || []);
+      setSelectedFilters(
+        (prefs.filters || [])
+          .map((id: number) => filterOptions.find((option) => option.id === id))
+          .filter(Boolean),
+      );
+    }
+  }, [prefs, filters, groups]);
+
+  const save = () => {
+    updateUserPreferences({
+      notifications: {
+        gcn_matches: {
+          filters: [...new Set(selectedFilters.map((filter) => filter.id))],
+          gcn_tags: [...new Set(gcnTags)],
+        },
+      },
+    });
+    dispatch(showNotification("GCN match preferences updated"));
+  };
+
+  return (
+    <Fields>
+      <SelectLabelWithChips
+        label="Filters (optional)"
+        id="gcn-match-filters-select"
+        initValue={selectedFilters}
+        onChange={toggleOption(setSelectedFilters)}
+        options={filterOptions}
+      />
+      <GcnTagsSelect
+        title="Event tags (optional)"
+        selectedGcnTags={gcnTags}
+        setSelectedGcnTags={setGcnTags}
+      />
+      <Button secondary onClick={save} data-testid="updateGcnMatchesButton">
+        Update
+      </Button>
+    </Fields>
+  );
+};
+
 const FavoriteSourcesOptions = () => {
   const prefs =
     (useGetProfileQuery().data?.preferences["notifications"]
@@ -278,6 +345,12 @@ const NOTIFICATIONS: {
     title: "GCN circular extractions",
     text: "When a circular is parsed into a classification. Leave the list empty to hear about all of them.",
     options: <ExtractionOptions />,
+  },
+  {
+    key: "gcn_matches",
+    title: "GCN event matches",
+    text: "When a filter candidate falls in a GCN event's localization.",
+    options: <GcnMatchOptions />,
   },
   {
     key: "analysis_services",
@@ -365,6 +438,13 @@ const NotificationPreferences = () => {
           {options}
         </NotificationCard>
       ))}
+      <NotificationCard
+        type="group_admission_request"
+        title="Group admission requests"
+        text="When someone asks to join a group you administer."
+        defaultActive
+        defaultChannels={["email"]}
+      />
       {isAdmin && (
         <NotificationCard
           type="feedback"

@@ -77,6 +77,9 @@ class CandidateResponse(BaseModel):
     mpc_name: str | None = None
     tns_name: str | None = None
     tns_info: dict[str, Any] | None = None
+    withhold_from_tns: bool | None = None
+    withhold_from_tns_set_by_id: int | None = None
+    withhold_from_tns_set_at: datetime | None = None
     score: float | None = None
     origin: str | None = None
     alias: list[str] | None = None
@@ -688,10 +691,11 @@ class BulkDeleteCandidatesPostBody(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
-    maxAgeMonths: int = Field(
-        6,
+    maxAgeDays: int | None = Field(
+        None,
         description="Delete objects whose most recent candidate `passed_at` is older "
-        "than this many months. Defaults to 6.",
+        "than this many days. Defaults to the `days_to_keep_unsaved_candidates` "
+        "config value.",
     )
     batchSize: int = Field(
         1000,

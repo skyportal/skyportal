@@ -63,6 +63,11 @@ class SpatialCatalogPostBody(BaseModel):
 
     catalog_name: Any = Field(default=None, description="Spatial catalog name.")
     catalog_data: Any = Field(default=None, description="Spatial catalog data")
+    group_ids: list[int] | None = Field(
+        default=None,
+        description="Groups that may see this catalog. Defaults to the "
+        "sitewide public group.",
+    )
 
 
 class SpatialCatalogPostResponse(BaseModel):
@@ -80,6 +85,11 @@ class SpatialCatalogASCIIFilePostBody(BaseModel):
         default=None, description="Catalog data Ascii string"
     )
     catalogName: str | None = Field(default=None, description="Spatial catalog name.")
+    group_ids: list[int] | None = Field(
+        default=None,
+        description="Groups that may see this catalog. Defaults to the "
+        "sitewide public group.",
+    )
 
 
 class SpatialCatalogASCIIFilePostResponse(BaseModel):

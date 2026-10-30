@@ -1,17 +1,23 @@
 import { useState } from "react";
 import Box from "@mui/material/Box";
 import Chip from "@mui/material/Chip";
+import IconButton from "@mui/material/IconButton";
+import Link from "@mui/material/Link";
+import Tooltip from "@mui/material/Tooltip";
 import Typography from "@mui/material/Typography";
-import DeleteIcon from "@mui/icons-material/Delete";
+import DeleteIcon from "@mui/icons-material/DeleteOutlineOutlined";
+import dayjs from "dayjs";
+import utc from "dayjs/plugin/utc";
 
 import { showNotification } from "baselayer/components/Notifications";
 
 import { useAppDispatch } from "../../types/hooks";
-import Button from "../Button";
 import StyledDataGrid, { DataGridToolbar } from "../StyledDataGrid";
 import ConfirmDeletionDialog from "../ConfirmDeletionDialog";
 import { dec_to_dms, ra_to_hours } from "../../units";
 import { useDeleteLocalizationMutation } from "../../ducks/localization";
+
+dayjs.extend(utc);
 
 interface GcnLocalizationsTableProps {
   localizations: any[];
@@ -107,53 +113,30 @@ const GcnLocalizationsTable = ({
     return newProperty;
   });
 
-  const renderName = (params: any) => {
-    const localization = params.row;
-    return (
-      <Button
-        secondary
-        href={`/api/localization/${localization.dateobs}/name/${localization.localization_name}/download`}
-        download={`${localization.dateobs.replaceAll(":", "-")}_${
-          localization.localization_name
-        }.fits`}
-        size="small"
-        type="submit"
-        data-testid={`localization_${localization.id}`}
-      >
-        {localization.localization_name}
-      </Button>
-    );
-  };
+  const renderName = ({ row }: any) => (
+    <Link
+      href={`/api/localization/${row.dateobs}/name/${row.localization_name}/download`}
+      download={`${row.dateobs.replaceAll(":", "-")}_${row.localization_name}.fits`}
+      underline="hover"
+      data-testid={`localization_${row.id}`}
+      sx={{ wordBreak: "break-all" }}
+    >
+      {row.localization_name}
+    </Link>
+  );
 
-  const renderCenter = (params: any) => {
-    const center = params.row?.center;
+  const renderCenter = ({ row }: any) => {
+    const { center } = row;
     return (
-      <Box
-        sx={{
-          display: "flex",
-          flexFlow: "row wrap",
-          alignItems: "center",
-          py: 0.25,
-        }}
-      >
-        <Box component="span">
-          <b>Position (J2000):&nbsp; &nbsp;</b>
-          <Box component="span" sx={{ fontWeight: "bold", fontSize: "110%" }}>
-            {ra_to_hours(center.ra, ":")} &nbsp;
-            {dec_to_dms(center.dec, ":")} &nbsp;
-          </Box>
-        </Box>
-        <Box component="span">
-          (&alpha;,&delta;= {center.ra}, &nbsp;
-          {center.dec}; &nbsp;
-          <i>l</i>,<i>b</i>={center.gal_lon.toFixed(6)}, &nbsp;
-          {center.gal_lat.toFixed(6)})
-          {center.ebv ? (
-            <>
-              <i> E(B-V)</i>={center.ebv.toFixed(2)}
-            </>
-          ) : null}
-        </Box>
+      <Box>
+        <Typography variant="body2">
+          {ra_to_hours(center.ra, ":")} {dec_to_dms(center.dec, ":")}
+        </Typography>
+        <Typography variant="caption" sx={{ color: "text.secondary" }}>
+          α, δ = {center.ra.toFixed(5)}, {center.dec.toFixed(5)} · l, b ={" "}
+          {center.gal_lon.toFixed(5)}, {center.gal_lat.toFixed(5)}
+          {center.ebv ? ` · E(B-V) = ${center.ebv.toFixed(2)}` : ""}
+        </Typography>
       </Box>
     );
   };
@@ -162,30 +145,41 @@ const GcnLocalizationsTable = ({
     const tags = [
       ...new Set<string>(params.row.tags?.map((tag: any) => tag.text) || []),
     ];
-    return tags.map((tag) => <Chip size="small" label={tag} key={tag} />);
-  };
-
-  const renderDelete = (params: any) => {
-    const localization = params.row;
     return (
-      <Button
-        id="delete_button"
-        onClick={() =>
-          openDialog(localization.dateobs, localization.localization_name)
-        }
-      >
-        <DeleteIcon />
-      </Button>
+      <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.5 }}>
+        {tags.map((tag) => (
+          <Chip size="small" variant="outlined" label={tag} key={tag} />
+        ))}
+      </Box>
     );
   };
 
+  const renderDelete = ({ row }: any) => (
+    <Tooltip title="Delete localization">
+      <IconButton
+        id="delete_button"
+        size="small"
+        color="error"
+        onClick={() => openDialog(row.dateobs, row.localization_name)}
+      >
+        <DeleteIcon fontSize="small" />
+      </IconButton>
+    </Tooltip>
+  );
+
   const columns: any[] = [
-    { field: "created_at", headerName: "Created at", flex: 1, minWidth: 160 },
+    {
+      field: "created_at",
+      headerName: "Created at",
+      width: 170,
+      valueFormatter: (value: string) =>
+        dayjs.utc(value).format("YYYY-MM-DD HH:mm:ss"),
+    },
     {
       field: "localization_name",
       headerName: "Name",
-      flex: 1,
-      minWidth: 140,
+      flex: 2,
+      minWidth: 280,
       sortable: false,
       renderCell: renderName,
     },
@@ -193,7 +187,7 @@ const GcnLocalizationsTable = ({
       field: "Center",
       headerName: "Center",
       flex: 2,
-      minWidth: 280,
+      minWidth: 300,
       sortable: false,
       renderCell: renderCenter,
     },
@@ -208,15 +202,14 @@ const GcnLocalizationsTable = ({
     ...uniquePropertyNames.map((name) => ({
       field: name,
       headerName: name,
-      flex: 1,
-      minWidth: 100,
+      width: 130,
       sortable: false,
       valueGetter: (_value: any, row: any) => row[name],
     })),
     {
       field: "delete",
-      headerName: " ",
-      width: 70,
+      headerName: "",
+      width: 60,
       sortable: false,
       renderCell: renderDelete,
     },
@@ -228,7 +221,11 @@ const GcnLocalizationsTable = ({
         autoHeight
         rows={propertiesWithUniqueKeys}
         columns={columns}
-        getRowId={(row: any) => row.id}
+        getRowHeight={() => "auto"}
+        hideFooter={localizations.length <= 25}
+        sx={{
+          "& .MuiDataGrid-cell": { display: "flex", alignItems: "center" },
+        }}
         slots={{ toolbar: DataGridToolbar }}
         slotProps={{ toolbar: { title: "Localization Properties" } }}
         showToolbar

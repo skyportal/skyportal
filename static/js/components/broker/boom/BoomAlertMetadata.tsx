@@ -35,10 +35,23 @@ interface Column {
   color?: (v: unknown) => string | undefined;
 }
 
+const MAG_LABELS: Record<string, [string, string]> = {
+  DECAM: ["magap", "sigmagap"],
+  ARGUS: ["psfMagnitudeDif", "psfMagnitudeDifErr"],
+};
+
 const COLUMNS = (survey: string): Column[] => {
   const isLSST = survey === "LSST";
   const isDECAM = survey === "DECAM";
-  const hasProgramid = !isLSST && !isDECAM;
+  const isARGUS = survey === "ARGUS";
+  const hasProgramid = !isLSST && !isDECAM && !isARGUS;
+  const [magLabel, magErrLabel] = MAG_LABELS[survey] ?? ["magpsf", "sigmapsf"];
+  const signField = isARGUS ? "isFluxPositive" : "isdiffpos";
+  const realBogusField = hasProgramid
+    ? "drb"
+    : isARGUS
+      ? "realBogusScore"
+      : "reliability";
   return [
     {
       label: isLSST ? "diaSourceId" : "candid",
@@ -49,12 +62,12 @@ const COLUMNS = (survey: string): Column[] => {
     { label: "JD", value: ({ alert }) => alert.jd, format: num(5) },
     { label: "band", value: ({ raw }) => raw?.candidate?.band, format: str },
     {
-      label: isDECAM ? "magap" : "magpsf",
+      label: magLabel,
       value: ({ alert }) => alert.magpsf,
       format: num(3),
     },
     {
-      label: isDECAM ? "sigmagap" : "sigmapsf",
+      label: magErrLabel,
       value: ({ raw }) => raw?.candidate?.sigmapsf,
       format: num(3),
     },
@@ -62,22 +75,34 @@ const COLUMNS = (survey: string): Column[] => {
       ? []
       : [
           {
-            label: "isdiffpos",
-            value: ({ raw }: Row) => raw?.candidate?.isdiffpos,
+            label: signField,
+            value: ({ raw }: Row) => raw?.candidate?.[signField],
             format: str,
           },
         ]),
     {
-      label: hasProgramid ? "drb" : "reliability",
-      value: ({ raw }) =>
-        hasProgramid ? raw?.candidate?.drb : raw?.candidate?.reliability,
+      label: realBogusField,
+      value: ({ raw }) => raw?.candidate?.[realBogusField],
       format: num(5),
     },
     {
       label: "snr",
-      value: ({ raw }) => raw?.candidate?.snr_psf ?? raw?.candidate?.snr,
+      value: ({ raw }) =>
+        raw?.candidate?.snr_psf ??
+        raw?.candidate?.snr ??
+        raw?.candidate?.psfSnr,
       format: num(2),
     },
+    ...(isARGUS
+      ? [
+          { label: "lane", value: ({ raw }: Row) => raw?.lane, format: str },
+          {
+            label: "alertCadence",
+            value: ({ raw }: Row) => raw?.alertCadence,
+            format: str,
+          },
+        ]
+      : []),
     ...(hasProgramid
       ? [
           {

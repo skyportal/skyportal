@@ -43,6 +43,8 @@ class NumpyArray(sa.types.TypeDecorator):
         return [float(x) for x in value]
 
     def process_result_value(self, value, dialect):
+        if value is None:
+            return None
         return np.array(value)
 
 
@@ -139,12 +141,16 @@ class Spectrum(Base):
     )
 
     followup_request_id = sa.Column(
-        sa.ForeignKey("followuprequests.id", ondelete="SET NULL"), nullable=True
+        sa.ForeignKey("followuprequests.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
     )
     followup_request = relationship("FollowupRequest", back_populates="spectra")
 
     assignment_id = sa.Column(
-        sa.ForeignKey("classicalassignments.id", ondelete="SET NULL"), nullable=True
+        sa.ForeignKey("classicalassignments.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
     )
     assignment = relationship("ClassicalAssignment", back_populates="spectra")
 

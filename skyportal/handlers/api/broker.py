@@ -28,6 +28,7 @@ from sqlalchemy.orm.attributes import flag_modified
 from tornado.ioloop import IOLoop
 
 from baselayer.app.access import auth_or_token, permissions
+from baselayer.app.env import load_env
 from baselayer.app.models import new_session
 from baselayer.log import make_log
 
@@ -44,10 +45,15 @@ from ...models import (
     Photometry,
     Stream,
 )
+from ...utils.gcn_crossmatch import (
+    crossmatch_enabled,
+    requeue_crossmatch_for_filter,
+)
 from ...utils.survey import survey_from_instrument
 from ..base import BaseHandler
 from .filter import delete_filter_on_broker
 
+_, cfg = load_env()
 log = make_log("api/broker")
 
 MAX_FILTER_ACTIVATIONS = 100
@@ -941,7 +947,7 @@ class BrokerDefaultPhotometryHandler(BrokerPhotometryHandler):
 
 class BrokerFilterTestHandler(BaseHandler):
     @auth_or_token
-    def post(self, broker_id: int, *, body: BrokerFilterTestBody = None):
+    async def post(self, broker_id: int, *, body: BrokerFilterTestBody = None):
         """
         ---
         summary: Preview a broker filter
@@ -988,7 +994,10 @@ class BrokerFilterTestHandler(BaseHandler):
             except ValueError as e:
                 return self.error(str(e))
             try:
-                data = broker.broker_class.test_filter(broker, session, **params)
+                data = await IOLoop.current().run_in_executor(
+                    None,
+                    lambda: broker.broker_class.test_filter(broker, session, **params),
+                )
             except Exception as e:
                 return self.error(f"Error running filter on {broker.name}: {e}")
             return self.success(data=data)
@@ -1166,6 +1175,23 @@ def _validate_version(broker_id, filter_id, fid):
         session.commit()
 
 
+def _requeue_crossmatch(session, f):
+    """Re-search active events for this filter, now that its cuts have changed.
+
+    Checked here rather than left to the UPDATE: a filter that never opted in
+    has no state to match, and someone iterating on versions of one would pay
+    for a window-wide statement on every save.
+    """
+    if not crossmatch_enabled(f):
+        return
+    try:
+        requeue_crossmatch_for_filter(session, f.id, cfg.get("gcn_crossmatch") or {})
+    except Exception as e:
+        # A filter edit should not fail because the re-search could not be
+        # scheduled; the next edit, or an explicit requeue, picks it up.
+        log(f"Could not requeue the GCN crossmatch for filter {f.id}: {e}")
+
+
 def _apply_pending_switch(broker, session, f, fid, passed):
     boom = f.altdata.get("boom") or {}
     pending = boom.get("pending_switch") or {}
@@ -1187,6 +1213,7 @@ def _apply_pending_switch(broker, session, f, fid, passed):
         log(f"Switching filter {f.id} to version {fid}: {e}")
         return
     _log_activation(f.altdata, fid, True, True, pending.get("by"))
+    _requeue_crossmatch(session, f)
 
 
 class BrokerFilterModulesHandler(BaseHandler):
@@ -1544,6 +1571,10 @@ class BrokerFiltersHandler(BaseHandler):
             version["created_by"] = username
             if body.comment:
                 version["comment"] = body.comment
+            if boom_filter_id is None:
+                # The crossmatch now uses this version's cuts, not its defaults.
+                # Its UPDATE autoflushes altdata, so this runs after the edits above.
+                _requeue_crossmatch(session, f)
             switch_error = None
             pending_switch = False
             if boom_filter_id is not None and body.set_as_active:
@@ -1569,6 +1600,7 @@ class BrokerFiltersHandler(BaseHandler):
                             skip_validation=True,
                         )
                         _log_activation(f.altdata, new_fid, False, True, username)
+                        _requeue_crossmatch(session, f)
                 except Exception as e:
                     switch_error = (
                         "The version was saved but could not be made the active "
@@ -1679,6 +1711,8 @@ class BrokerFiltersHandler(BaseHandler):
                             switching,
                             self.associated_user_object.username,
                         )
+                        if switching:
+                            _requeue_crossmatch(session, f)
                     flag_modified(f, "altdata")
                 for flag in ("autoAnnotate", "autoFollowup"):
                     if flag in body.model_fields_set:

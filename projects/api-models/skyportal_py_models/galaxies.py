@@ -134,6 +134,11 @@ class GalaxyCatalogPostBody(BaseModel):
         description="Galaxy catalog data as a mapping of column name to list of "
         "values (must include ra, dec, and name).",
     )
+    group_ids: list[int] | None = Field(
+        default=None,
+        description="Groups that may see this catalog. Defaults to the "
+        "sitewide public group.",
+    )
 
 
 class GalaxyASCIIFilePostBody(BaseModel):
@@ -148,6 +153,11 @@ class GalaxyASCIIFilePostBody(BaseModel):
     catalogURL: str | None = Field(default=None, description="Galaxy catalog URL.")
     catalogData: str | None = Field(
         default=None, description="Catalog data ASCII string."
+    )
+    group_ids: list[int] | None = Field(
+        default=None,
+        description="Groups that may see this catalog. Defaults to the "
+        "sitewide public group.",
     )
 
 

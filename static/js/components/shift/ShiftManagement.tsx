@@ -395,11 +395,13 @@ const ShiftManagement = ({ shiftToManage }: ShiftManagementProps) => {
           />
         </>
       )}
-      <ReplaceUserMenu
-        shiftToManage={shiftToManage}
-        currentUser={currentUser}
-        dispatch={dispatch}
-      />
+      {currentUser && (
+        <ReplaceUserMenu
+          shiftToManage={shiftToManage}
+          currentUser={currentUser}
+          dispatch={dispatch}
+        />
+      )}
       <Typography
         variant="body2"
         sx={{
