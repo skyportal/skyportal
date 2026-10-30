@@ -12,18 +12,9 @@ app:
   logos: # Logos to place in the top-left of the header/login page (zero or more)
     - src: /static/images/skyportal_logo_dark.png
       alt_text: Skyportal logo
-  login_message: |
-    For more information about the project, see
-    <a href="https://github.com/skyportal/skyportal">
-      https://github.com/skyportal/skyportal
-    </a>
-  # Artwork for the login page buttons. The buttons themselves come from
-  # `server.auth.backends`, so a provider needs no entry here; add one, matched
-  # on `url`, to replace that provider's text button with an image.
-  login_buttons:
-    - url: /login/google-oauth2
-      image: /static/images/btn_google_signin_dark_normal_web.png
-      alt_text: Click this image to log in
+  login_message: ""
+  # Optional `icon` or full `image` for a provider's button, matched on `url`
+  login_buttons: []
 
   # Copy for the About page; `title` above supplies the platform name.
   about:
@@ -39,13 +30,120 @@ app:
     funding: >-
       SkyPortal development is funded by the Moore Foundation, Heising Simons
       Foundation, National Science Foundation, NASA and the Packard Foundation.
+    # Logos shown under `funding` on the login page.
+    funders:
+      - name: Gordon and Betty Moore Foundation
+        logo: /static/images/funders/moore.png
+        url: https://www.moore.org/grant-detail?grantId=GBMF9122
+      - name: Heising-Simons Foundation
+        logo: /static/images/funders/heising-simons.svg
+        url: https://www.hsfoundation.org
+      - name: National Science Foundation
+        logo: /static/images/funders/nsf.png
+        url: https://www.nsf.gov
+      - name: NASA
+        logo: /static/images/funders/nasa.png
+        url: https://www.nasa.gov
+      - name: David and Lucile Packard Foundation
+        logo: /static/images/funders/packard.svg
+        url: https://www.packard.org
     # Paragraphs added after the description (zero or more). In `text`, a
     # {Name} placeholder becomes a link to the matching entry in `links`.
     extra_paragraphs: []
-    # Repositories whose pull requests are linked above the changelog.
-    changelog_repositories:
-      - name: https://github.com/skyportal/skyportal/pulls
-        url: https://github.com/skyportal/skyportal/pulls?q=is%3Apr+
+    # Other SkyPortal deployments, listed on the login page.
+    instances:
+      - name: Fritz
+        url: https://fritz.science
+        description: >-
+          Science data platform of the Zwicky Transient Facility. Managed by
+          Caltech, hosted on Google Cloud in the US.
+      - name: Orcus
+        url: https://orcusgate.org
+        description: >-
+          ZTF, LSST and DECam alerts filtered by BOOM. Managed by the University
+          of Minnesota, hosted on Google Cloud in the US.
+      - name: ICARE
+        url: https://skyportal-icare.ijclab.in2p3.fr
+        description: >-
+          ZTF and LSST alerts. Managed by IJCLab (Université Paris-Saclay),
+          hosted in France.
+    # SkyPortal core team, most active in SkyPortal first, on the About and
+    # login pages.
+    # `email` makes the photo a mail link.
+    developers:
+      - name: Michael Coughlin
+        image: https://gravatar.com/avatar/b40171299edeb688bb1b2877167b07a2f8fd17e38ac17da944d09eed77c4eafe?s=200
+        affiliation: University of Minnesota
+        email: cough052@umn.edu
+      - name: Camille Douzet
+        image: https://gravatar.com/avatar/70fb13f18f0770bd3c51ade98b36acc6d3b7fbb7a8b298ae3fd88afd7fb7b1d8?s=200
+        affiliation: IJCLab
+        email: camille.douzet@ijclab.in2p3.fr
+      - name: Antoine Le Calloch
+        image: https://gravatar.com/avatar/2d6c12ef8574e42f916f8b68f2bbb8638bf0e7dada5cc9ecb4809c65f14b79d9?s=200
+        affiliation: University of Minnesota
+        email: alecallo@umn.edu
+      - name: Thomas Culino
+        image: https://gravatar.com/avatar/869898c24b8e4192fa6732da1f2aa88c9a16997d95c19abb4e3008096a76f791?s=200
+        affiliation: Caltech
+        email: tculino@caltech.edu
+      - name: Leo Conforti
+        image: /static/images/developers/conforti.jpg
+        affiliation: University of Minnesota
+        email: leo@leoconforti.us
+      - name: Stéfan van der Walt
+        image: /static/images/developers/vanderwalt.jpg
+        affiliation: UC Berkeley
+        email: stefanv@berkeley.edu
+      - name: Joshua Bloom
+        image: https://gravatar.com/avatar/edff272ba50d6de809eafc24bd11e8e402ba05ab9c7dbafb884ab128015eb806?s=200
+        affiliation: UC Berkeley
+        email: profjsb@gmail.com
+      - name: Leo Singer
+        image: https://gravatar.com/avatar/405847da73c1a657691db49e5730f6b492c953462ac4548f1d11a2987a3739fa?s=200
+        affiliation: NASA Goddard
+        email: leo.p.singer@nasa.gov
+      - name: Sarah Antier
+        image: /static/images/developers/antier.jpeg
+        affiliation: IJCLab
+        email: antier@ijclab.in2p3.fr
+      - name: Pete Bachant
+        image: https://gravatar.com/avatar/bc242f20e6767ddef3db4e6afe7980cfe2c83fbc714cf291e963f3d7fcb0d782?s=200
+        affiliation: Caltech
+        email: petebachant@gmail.com
+      - name: Matthew Graham
+        image: /static/images/developers/graham.jpg
+        affiliation: Caltech
+        email: mjg@caltech.edu
+      - name: Mansi Kasliwal
+        image: /static/images/developers/kasliwal.jpg
+        affiliation: Caltech
+        email: mansi@astro.caltech.edu
+      - name: Sneha Maharjan
+        image: /static/images/developers/maharjan.jpg
+        affiliation: University of Minnesota
+        email: mahar116@umn.edu
+      - name: Sushant Sharma Chaudhary
+        image: /static/images/developers/sharmachaudhary.jpg
+        affiliation: University of Minnesota
+        email: ssharmac@umn.edu
+    alumni:
+      - name: Arien Crellin-Quick
+        image: /static/images/developers/crellinquick.jpg
+      - name: Dmitry Duev
+        image: https://gravatar.com/avatar/e6b42af5451715944b47046930e17828a5a0d15d9cbfd7c19ae438b3a92e5208?s=200
+      - name: Daniel Goldstein
+        image: https://gravatar.com/avatar/fe66d0e44c8483b98d9eace1902ad8c20b998955f360926ce8d42ff41ef0ee35?s=200
+      - name: Theophile Jegou du Laz
+        image: https://gravatar.com/avatar/d8fd253b3faa53ec899d9746977392fe17711132edb66bac92c65e1dcbb8635c?s=200
+      - name: Jada Lilleboe
+        image: /static/images/developers/lilleboe.jpg
+      - name: Don Neill
+        image: /static/images/developers/neill.jpg
+      - name: Guy Nir
+        image: https://gravatar.com/avatar/0e25f6a9accc448edc3f6c3e821c9c02211eb715c2f0c1b762e3912ca114372c?s=200
+      - name: Kyung Min Shin
+        image: /static/images/developers/shin.jpg
 
   # Until accepted, every endpoint returns 403. `text` is markdown. Bumping
   # `version` makes everyone accept again; editing the text alone does not.

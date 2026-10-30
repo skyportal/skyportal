@@ -107,6 +107,7 @@ from skyportal.models import (
     GroupStream,
     GroupTaxonomy,
     GroupUser,
+    InstanceManager,
     Instrument,
     InstrumentField,
     InstrumentLog,
@@ -581,6 +582,24 @@ def deployment():
     obj = (
         DBSession()
         .execute(sa.select(Deployment).filter(Deployment.id == deployment_id))
+        .scalars()
+        .first()
+    )
+    if obj is not None:
+        DBSession().delete(obj)
+        DBSession().commit()
+
+
+@pytest.fixture()
+def instance_manager(user):
+    m = InstanceManager(user_id=user.id)
+    DBSession.add(m)
+    DBSession.commit()
+    manager_id = m.id
+    yield m
+    obj = (
+        DBSession()
+        .execute(sa.select(InstanceManager).filter(InstanceManager.id == manager_id))
         .scalars()
         .first()
     )

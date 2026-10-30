@@ -213,3 +213,586 @@ body {
 .applyDetails summary:hover {
   text-decoration: underline;
 }
+
+.loginPage {
+  margin: 0;
+  background-color: #f0f2f5;
+  color: rgba(0, 0, 0, 0.87);
+}
+
+.loginPage a {
+  color: #457b9d;
+  font-weight: bold;
+  text-decoration: none;
+}
+
+.loginPage a:hover {
+  text-decoration: underline;
+}
+
+.loginBanner {
+  position: relative;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+  gap: 0.75em;
+  padding: 1.75rem 1rem;
+  background-color: #1d3557;
+}
+
+.loginBanner .title {
+  margin: 0;
+}
+
+.bannerDescription {
+  flex-basis: 100%;
+  margin: 0;
+  color: rgba(255, 255, 255, 0.8);
+  font-size: 1.05rem;
+  text-align: center;
+}
+
+.loginMain {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  padding: 2rem 2.5% 3rem;
+}
+
+.aboutCard {
+  box-sizing: border-box;
+  border: 1px solid #e0e3e8;
+  border-radius: 8px;
+  background-color: white;
+}
+
+.signIn {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+  gap: 1rem;
+  padding: 1rem 0 0.5rem;
+  text-align: center;
+}
+
+.signIn > p {
+  flex-basis: 100%;
+  margin: 0;
+  color: #555;
+}
+
+.signIn .loginButton {
+  padding-top: 0;
+}
+
+.signIn .loginButton a:hover {
+  text-decoration: none;
+}
+
+.signIn .loginButtonText {
+  box-sizing: border-box;
+  display: inline-flex;
+  justify-content: center;
+  align-items: center;
+  min-width: 18rem;
+  gap: 0.85rem;
+  padding: 1rem 2.25rem;
+  border: 1px solid #dadce0;
+  border-radius: 999px;
+  background-color: white;
+  box-shadow: 0 2px 6px rgba(29, 53, 87, 0.1);
+  color: #1d3557;
+  font-size: 1.1rem;
+  font-weight: 600;
+  transition:
+    border-color 0.15s ease,
+    box-shadow 0.15s ease,
+    transform 0.15s ease;
+}
+
+.signIn .loginButtonText:hover {
+  border-color: #457b9d;
+  box-shadow: 0 6px 16px rgba(29, 53, 87, 0.18);
+  transform: translateY(-1px);
+}
+
+.signIn .loginButtonText svg {
+  width: 1.4rem;
+  height: 1.4rem;
+}
+
+.signIn .loginButtonText img {
+  width: auto;
+  height: 1.4rem;
+}
+
+.applyOpen {
+  position: absolute;
+  top: 50%;
+  right: 1.5rem;
+  padding: 0.55rem 1.3rem;
+  border: 1px solid rgba(255, 255, 255, 0.7);
+  border-radius: 999px;
+  background: none;
+  color: white;
+  font-family: inherit;
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  transform: translateY(-50%);
+  transition:
+    background-color 0.15s ease,
+    color 0.15s ease;
+}
+
+.applyOpen:hover {
+  background-color: white;
+  color: #1d3557;
+}
+
+@media (max-width: 899.95px) {
+  .applyOpen {
+    position: static;
+    transform: none;
+  }
+}
+
+.applyDialog {
+  box-sizing: border-box;
+  width: min(36rem, calc(100vw - 2rem));
+  max-height: calc(100vh - 2rem);
+  padding: 0;
+  border: none;
+  border-radius: 12px;
+  box-shadow: 0 24px 48px rgba(0, 0, 0, 0.25);
+  text-align: left;
+}
+
+.applyDialog::backdrop {
+  background-color: rgba(29, 53, 87, 0.55);
+}
+
+.applyDialogHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1.25rem 1.5rem;
+  background-color: #1d3557;
+  color: white;
+}
+
+.applyDialogHeader h2 {
+  margin: 0;
+  font-size: 1.3rem;
+}
+
+.applyClose {
+  display: flex;
+  padding: 0.35rem;
+  border: none;
+  border-radius: 50%;
+  background: none;
+  color: white;
+  cursor: pointer;
+}
+
+.applyClose:hover {
+  background-color: rgba(255, 255, 255, 0.15);
+}
+
+.applyClose svg {
+  width: 1.25rem;
+  height: 1.25rem;
+  fill: none;
+  stroke: currentcolor;
+  stroke-width: 2;
+  stroke-linecap: round;
+}
+
+.applyDialogBody {
+  padding: 1.5rem;
+}
+
+.applyDialogBody > p {
+  margin: 0 0 1.25rem;
+  color: #555;
+  line-height: 1.5;
+}
+
+.applyDialog .applyForm {
+  max-width: none;
+  gap: 1.1rem;
+}
+
+.applyDialog .applyForm label {
+  color: #1d3557;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.applyDialog .applyForm input,
+.applyDialog .applyForm textarea {
+  padding: 0.7rem 0.85rem;
+  border: 1px solid #d0d5dd;
+  border-radius: 8px;
+  font-size: 1rem;
+  transition:
+    border-color 0.15s ease,
+    box-shadow 0.15s ease;
+}
+
+.applyDialog .applyForm input:focus,
+.applyDialog .applyForm textarea:focus {
+  border-color: #457b9d;
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(69, 123, 157, 0.2);
+}
+
+.applyDialog .applyForm button {
+  align-self: stretch;
+  padding: 0.85rem;
+  border-radius: 999px;
+  background-color: #1d3557;
+  font-weight: 600;
+}
+
+.applyDialog .applyForm button:hover {
+  background-color: #457b9d;
+}
+
+.applyDialog .applyResult {
+  max-width: none;
+  border-radius: 8px;
+}
+
+.aboutCard {
+  padding: 0.5rem 2rem 2rem;
+}
+
+.instances h2 {
+  margin: 0.5rem 0 1rem;
+  color: #1d3557;
+  font-size: 1.15rem;
+}
+
+.instanceList {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1rem;
+}
+
+@media (min-width: 700px) {
+  .instanceList {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+.loginPage .instance {
+  display: flex;
+  flex-direction: column;
+  min-height: 12rem;
+  overflow: hidden;
+  border: 1px solid #e0e3e8;
+  border-radius: 8px;
+  background-color: white;
+  text-decoration: none;
+  transition:
+    border-color 0.15s ease,
+    box-shadow 0.15s ease,
+    transform 0.15s ease;
+}
+
+.loginPage .instance:hover {
+  border-color: #457b9d;
+  box-shadow: 0 6px 16px rgba(29, 53, 87, 0.15);
+  text-decoration: none;
+  transform: translateY(-2px);
+}
+
+.instanceName {
+  padding: 1.5rem 2rem;
+  background-color: #1d3557;
+  color: white;
+  font-size: 1.5rem;
+  font-weight: bold;
+}
+
+.loginPage .instance:hover .instanceName {
+  background-color: #457b9d;
+}
+
+.instanceBody {
+  display: flex;
+  flex-grow: 1;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1.5rem 2rem;
+}
+
+.instanceDescription {
+  color: #555;
+  font-size: 0.9rem;
+  font-weight: normal;
+  line-height: 1.5;
+}
+
+.instanceUrl {
+  color: #757575;
+  font-size: 0.95rem;
+  font-weight: normal;
+}
+
+.aboutCard h2 {
+  margin: 1.5rem 0 1rem;
+  color: #1d3557;
+  font-size: 1.15rem;
+}
+
+.aboutCard p {
+  margin: 0 0 1rem;
+  line-height: 1.5;
+}
+
+.team {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(9rem, 1fr));
+  gap: 1.5rem 1rem;
+}
+
+.team figure {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin: 0;
+  text-align: center;
+}
+
+.team img,
+.team .avatar {
+  width: 5rem;
+  height: 5rem;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.team .avatar {
+  position: relative;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  overflow: hidden;
+  background-color: #457b9d;
+  color: white;
+  font-size: 1.6rem;
+  font-weight: bold;
+}
+
+.team .avatar img {
+  position: absolute;
+  inset: 0;
+}
+
+.team a img {
+  transition: box-shadow 0.15s ease;
+}
+
+.team a:hover img,
+.team a:hover .avatar {
+  box-shadow: 0 0 0 3px #457b9d;
+}
+
+.team figcaption {
+  margin-top: 0.5rem;
+  font-size: 0.9rem;
+}
+
+.team figcaption span {
+  display: block;
+  color: #757575;
+  font-size: 0.8rem;
+}
+
+.aboutLinks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  width: fit-content;
+  margin: 0.5rem 0 1rem;
+}
+
+.loginPage .aboutLinks a {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.55rem 1.3rem;
+  border: 1px solid #457b9d;
+  border-radius: 999px;
+  background-color: white;
+  color: #1d3557;
+  transition:
+    background-color 0.15s ease,
+    color 0.15s ease;
+}
+
+.aboutLinks svg {
+  width: 1.1rem;
+  height: 1.1rem;
+  fill: currentcolor;
+}
+
+.loginPage .aboutLinks a:first-child {
+  background-color: #1d3557;
+  border-color: #1d3557;
+  color: white;
+}
+
+.loginPage .aboutLinks a:hover {
+  background-color: #457b9d;
+  border-color: #457b9d;
+  color: white;
+  text-decoration: none;
+}
+
+@media (hover: hover) {
+  .aboutLinks {
+    pointer-events: none;
+  }
+
+  .aboutLinks:hover,
+  .aboutLinks:focus-within {
+    pointer-events: auto;
+  }
+
+  .loginPage .aboutLinks a {
+    position: relative;
+    pointer-events: auto;
+    transform: translateX(var(--stack, 0));
+    transition:
+      transform 0.6s cubic-bezier(0.22, 1, 0.36, 1) 0.2s,
+      opacity 0.4s ease 0.2s,
+      background-color 0.15s ease,
+      color 0.15s ease;
+  }
+
+  .loginPage .aboutLinks a:not(:first-child) {
+    opacity: 0;
+  }
+
+  .aboutLinks a:nth-child(1) {
+    z-index: 4;
+  }
+
+  .aboutLinks a:nth-child(2) {
+    z-index: 3;
+  }
+
+  .aboutLinks a:nth-child(3) {
+    z-index: 2;
+  }
+
+  .aboutLinks a:nth-child(4) {
+    z-index: 1;
+  }
+
+  .loginPage .aboutLinks:hover a,
+  .loginPage .aboutLinks:focus-within a {
+    opacity: 1;
+    transform: none;
+    transition-delay: 0s;
+  }
+
+  .loginPage .aboutLinks:hover a:nth-child(3),
+  .loginPage .aboutLinks:focus-within a:nth-child(3) {
+    transition-delay: 0.06s;
+  }
+
+  .loginPage .aboutLinks:hover a:nth-child(4),
+  .loginPage .aboutLinks:focus-within a:nth-child(4) {
+    transition-delay: 0.12s;
+  }
+}
+
+.citations {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr));
+  gap: 1rem;
+}
+
+.loginPage .citation {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  padding: 1.25rem 1.5rem;
+  border: 1px solid #e0e3e8;
+  border-left: 4px solid #1d3557;
+  border-radius: 8px;
+  background-color: #f7f9fb;
+  font-weight: normal;
+  transition:
+    border-color 0.15s ease,
+    box-shadow 0.15s ease,
+    transform 0.15s ease;
+}
+
+.loginPage .citation:hover {
+  border-left-color: #457b9d;
+  box-shadow: 0 6px 16px rgba(29, 53, 87, 0.12);
+  text-decoration: none;
+  transform: translateY(-2px);
+}
+
+.citationTitle {
+  color: #1d3557;
+  font-size: 1.05rem;
+  font-weight: bold;
+  line-height: 1.35;
+}
+
+.citationAuthors {
+  color: rgba(0, 0, 0, 0.87);
+  font-size: 0.9rem;
+}
+
+.citationVenue {
+  flex-grow: 1;
+  color: #757575;
+  font-size: 0.85rem;
+  font-style: italic;
+}
+
+.citationRef {
+  margin-top: 0.4rem;
+  color: #457b9d;
+  font-size: 0.85rem;
+  font-weight: bold;
+}
+
+.funding {
+  padding: 0 0 3rem;
+  text-align: center;
+}
+
+.funding p {
+  margin: 0 1rem 1.5rem;
+  color: #757575;
+  font-size: 0.9rem;
+}
+
+.funders {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+  gap: 1.5rem 4rem;
+  padding: 0 1rem;
+}
+
+.funders img {
+  display: block;
+  max-width: 180px;
+  height: 3.5rem;
+  object-fit: contain;
+}
