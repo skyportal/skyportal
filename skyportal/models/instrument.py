@@ -22,6 +22,7 @@ from baselayer.app.models import (
     Base,
     CustomUserAccessControl,
     DBSession,
+    UserAccessControl,
     join_model,
     public,
 )
@@ -66,8 +67,8 @@ def manage_instrument_access_logic(cls, user_or_token):
     elif "Manage instruments" in user_or_token.permissions:
         return sa.select(cls)
     else:
-        # return an empty query
-        return sa.select(cls).where(cls.id == -1)
+        user_id = UserAccessControl.user_id_from_user_or_token(user_or_token)
+        return sa.select(cls).where(cls.created_by_id == user_id)
 
 
 class InstrumentField(Base):
@@ -422,6 +423,13 @@ class Instrument(Base):
         index=True,
         doc="NASA ACROSS instrument UUID, used to route visibility queries to "
         "the ACROSS calculator. See https://across.sciencecloud.nasa.gov",
+    )
+
+    created_by_id = sa.Column(
+        sa.ForeignKey("users.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+        doc="ID of the User who created the Instrument.",
     )
 
     region = deferred(

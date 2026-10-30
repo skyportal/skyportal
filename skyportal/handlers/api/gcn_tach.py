@@ -70,10 +70,9 @@ def get_tach_event_id(dateobs, tags, aliases=None):
     }
 
     response = requests.request("POST", url, json=payload, headers=headers, timeout=30)
+    response.raise_for_status()
     data = response.json()
-    if response.status_code != 200:
-        return None
-    if response.json()["data"]["allEventDetails"]["totalCount"] == 0:
+    if data["data"]["allEventDetails"]["totalCount"] == 0:
         return None
 
     events = data["data"]["allEventDetails"]["edges"]
@@ -257,8 +256,8 @@ def post_aliases(dateobs, tach_id, user_id):
             action_type="skyportal/REFRESH_GCN_EVENT",
             payload={"gcnEvent_dateobs": dateobs},
         )
-    except Exception:
-        log(f"Failed to post aliases for {dateobs}")
+    except Exception as e:
+        log(f"Failed to post aliases for {dateobs}: {e}")
     finally:
         session.close()
 
@@ -320,10 +319,18 @@ class GcnTachHandler(BaseHandler):
                 tach_id = gcn_event.tach_id
                 if tach_id is None:
                     tags, aliases = gcn_event.tags, gcn_event.aliases
-                    tach_id = await IOLoop.current().run_in_executor(
-                        None,
-                        lambda: get_tach_event_id(dateobs, tags=tags, aliases=aliases),
-                    )
+                    try:
+                        tach_id = await IOLoop.current().run_in_executor(
+                            None,
+                            lambda: get_tach_event_id(
+                                dateobs, tags=tags, aliases=aliases
+                            ),
+                        )
+                    except requests.RequestException as e:
+                        log(f"TACH request failed for {dateobs}: {e}")
+                        return self.error(
+                            "TACH (HEASARC) is unreachable, try again later"
+                        )
                 if tach_id is None:
                     return self.error(
                         f"Event {dateobs} not found on TACH, cannot retrieve aliases"
