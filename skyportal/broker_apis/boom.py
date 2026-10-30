@@ -20,6 +20,7 @@ log = make_log("broker/boom")
 _, cfg = load_env()
 
 DEFAULT_SURVEY = "ZTF"
+DEFAULT_SURVEYS = ["ZTF", "LSST", "DECAM"]
 DEFAULT_TIMEOUT = 30  # seconds
 # Filter validation runs the pipeline over data on BOOM, so it routinely exceeds
 # the default; give the slow endpoints their own budget.
@@ -645,8 +646,7 @@ class BOOMBROKER(BrokerAPI):
         "description": (
             "BOOM is reached two ways: its REST API serves alert search, "
             "cutouts and filters, and its Kafka stream feeds ingestion. Each "
-            "has its own host and credentials. ZTF, LSST, DECam and Argus are "
-            "served."
+            "has its own host and credentials."
         ),
         "required": ["host"],
         "properties": {
@@ -673,6 +673,13 @@ class BOOMBROKER(BrokerAPI):
                 "description": "BOOM account used to log in to the API.",
             },
             "password": {"type": "string", "title": "API password"},
+            "surveys": {
+                "type": "array",
+                "items": {"type": "string", "enum": surveys},
+                "uniqueItems": True,
+                "title": "Surveys",
+                "description": "Empty serves ZTF, LSST and DECam.",
+            },
             # Declared so the SASL password is rendered as one and, more to the
             # point, stripped from the broker a reader is served: what is not in
             # this schema is not in secret_config_fields either.
@@ -721,6 +728,10 @@ class BOOMBROKER(BrokerAPI):
         "password": {"ui:widget": "password"},
         "kafka": {"password": {"ui:widget": "password"}},
     }
+
+    @classmethod
+    def configured_surveys(cls, altdata):
+        return list((altdata or {}).get("surveys") or DEFAULT_SURVEYS)
 
     @staticmethod
     def validate_config(altdata):
