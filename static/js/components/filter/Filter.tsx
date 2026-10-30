@@ -109,6 +109,8 @@ const Filter = () => {
     .map(([topic]) => ({ topic, status: credentials?.topic_status?.[topic] }));
   const faulted = myTopics.filter(({ status }) => status?.usable === false);
   const canBackfill = broker?.capabilities?.["backfill"] === true;
+  const canReplay =
+    broker?.capabilities?.["replay"] === true && myTopics.length > 0;
 
   const onBackfill = async () => {
     try {
@@ -199,7 +201,7 @@ const Filter = () => {
           <b>{topic}</b>: {status?.detail}
         </Alert>
       ))}
-      {brokerId && (canBackfill || myTopics.length > 0) && (
+      {brokerId && (canBackfill || canReplay) && (
         <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap" }}>
           {canBackfill && (
             <Tooltip title="Ingest what the broker still holds for this filter. A stream only reaches back as far as the broker retains it; this reaches further, one upstream call per object.">
@@ -216,7 +218,7 @@ const Filter = () => {
               </span>
             </Tooltip>
           )}
-          {myTopics.length > 0 && (
+          {canReplay && (
             <Tooltip title="Read the stream again from its earliest retained message, rather than from where the last run stopped. Use after fixing a topic that was delivering nothing usable.">
               <span>
                 <Button

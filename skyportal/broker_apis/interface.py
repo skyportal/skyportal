@@ -328,6 +328,9 @@ class BrokerAPI(_Base):
     # the broker can reach past what its stream still retains.
     supports_backfill = False
 
+    # whether ingestion reads ``stream_epoch``, so a replay restarts the stream.
+    supports_replay = False
+
     # Dialect ``test_filter`` expects its ``pipeline`` in, or None if it takes no
     # pipeline at all. A provider backed by SQL (Lasair) silently ignores a Mongo
     # pipeline and runs an unconstrained query instead of erroring, so callers
