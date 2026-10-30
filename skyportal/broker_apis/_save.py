@@ -424,6 +424,10 @@ async def _ingest_object(
 
     object_id = data["objectId"]
     cand = data.get("candidate") or {}
+    # An Obj with no position is unreachable: no cone search, localization or
+    # galactic coordinate can be computed from it.
+    if cand.get("ra") is None or cand.get("dec") is None:
+        raise ValueError(f"Alert for {object_id} carries no sky position.")
     saved_group_ids = []  # groups this call newly saves to (for auto-publish)
     autosave_comments = []  # (group_id, text, saver_id) to post after auto-save
     group_saver_id = {}  # group_id -> user id the auto-actions run under

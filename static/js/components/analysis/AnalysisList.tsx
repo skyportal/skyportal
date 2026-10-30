@@ -1,23 +1,22 @@
-import { Link } from "react-router-dom";
+import { Link as RouterLink } from "react-router-dom";
 import { useState } from "react";
 
-import Accordion from "@mui/material/Accordion";
-import AccordionSummary from "@mui/material/AccordionSummary";
-import AccordionDetails from "@mui/material/AccordionDetails";
-import Typography from "@mui/material/Typography";
-import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
-import Tooltip from "@mui/material/Tooltip";
+import Box from "@mui/material/Box";
 import Chip from "@mui/material/Chip";
 import CircularProgress from "@mui/material/CircularProgress";
-import DeleteIcon from "@mui/icons-material/Delete";
+import Dialog from "@mui/material/Dialog";
+import DialogActions from "@mui/material/DialogActions";
+import DialogContent from "@mui/material/DialogContent";
+import DialogTitle from "@mui/material/DialogTitle";
+import IconButton from "@mui/material/IconButton";
+import Link from "@mui/material/Link";
+import Tooltip from "@mui/material/Tooltip";
+import Typography from "@mui/material/Typography";
+import DeleteIcon from "@mui/icons-material/DeleteOutlineOutlined";
 import { showNotification } from "baselayer/components/Notifications";
 import dayjs from "dayjs";
-import calendar from "dayjs/plugin/calendar";
-
 import utc from "dayjs/plugin/utc";
 import relativeTime from "dayjs/plugin/relativeTime";
-
-import { makeStyles } from "tss-react/mui";
 
 import { useAppDispatch } from "../../types/hooks";
 import {
@@ -25,65 +24,27 @@ import {
   useDeleteAnalysisMutation,
   useUpdateAnalysisMutation,
 } from "../../ducks/source";
+import { useGetAnalysisServicesQuery } from "../../ducks/analysis_services";
 import { useGetGroupsQuery } from "../../ducks/groups";
 import { useGetProfileQuery } from "../../ducks/profile";
-
-import Dialog from "@mui/material/Dialog";
-import DialogTitle from "@mui/material/DialogTitle";
-import DialogContent from "@mui/material/DialogContent";
-import DialogActions from "@mui/material/DialogActions";
-
 import GroupShareSelect from "../group/GroupShareSelect";
 import Button from "../Button";
-import StyledDataGrid from "../StyledDataGrid";
+import ConfirmDeletionDialog from "../ConfirmDeletionDialog";
+import StyledDataGrid, { DataGridToolbar } from "../StyledDataGrid";
 import AnalysisCornerPlot from "./AnalysisCornerPlot";
 
 dayjs.extend(relativeTime);
 dayjs.extend(utc);
-dayjs.extend(calendar);
 
-const useStyles = makeStyles()(() => ({
-  observationplanRequestTable: {
-    borderSpacing: "0.7em",
-  },
-  actionButtons: {
-    display: "flex",
-    flexFlow: "row wrap",
-    gap: "0.2rem",
-  },
-  chip: {
-    margin: "0.1em",
-  },
-  chips: {
-    display: "flex",
-    flexWrap: "wrap",
-    alignItems: "center",
-  },
-  plotThumb: {
-    maxHeight: "5rem",
-    maxWidth: "100%",
-    cursor: "pointer",
-    display: "block",
-  },
-  infoButton: {
-    paddingRight: "0.5rem",
-  },
-  tooltipContent: {
-    display: "flex",
-    flexDirection: "column",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  container: {
-    width: "100%",
-    margin: "auto",
-    height: "100%",
-  },
-}));
+const STATUS_COLORS: Record<string, "success" | "error"> = {
+  completed: "success",
+  failure: "error",
+};
+
+const AnalysisToolbar = () => <DataGridToolbar title="Analysis Requests" />;
 
 interface AnalysisListProps {
   obj_id: string;
-  // "gcn_event" expects the event dateobs as obj_id.
   analysisResourceType?: string;
 }
 
@@ -91,52 +52,55 @@ const AnalysisList = ({
   obj_id,
   analysisResourceType = "obj",
 }: AnalysisListProps) => {
-  const { classes } = useStyles();
   const dispatch = useAppDispatch();
   const [cornerAnalysis, setCornerAnalysis] = useState<any>(null);
+  const [deleting, setDeleting] = useState<any>(null);
+  const [shareTarget, setShareTarget] = useState<any>(null);
+  const [shareGroupIds, setShareGroupIds] = useState<number[]>([]);
 
   const { data: analyses, isLoading } = useGetAnalysesQuery({
     analysis_resource_type: analysisResourceType,
     params: { objID: obj_id },
   });
-  const [deleteAnalysisMutation] = useDeleteAnalysisMutation();
-  const [updateAnalysisMutation] = useUpdateAnalysisMutation();
+  const { data: services } = useGetAnalysisServicesQuery();
+  const [deleteAnalysis] = useDeleteAnalysisMutation();
+  const [updateAnalysis] = useUpdateAnalysisMutation();
   const profile = useGetProfileQuery().data;
   const myGroups = useGetGroupsQuery().data?.user ?? [];
   const singleUserGroup = myGroups.find((g: any) => g.single_user_group);
-  const shareableGroups = myGroups.filter((g: any) => !g.single_user_group);
-  const [shareTarget, setShareTarget] = useState<any>(null);
-  const [shareGroupIds, setShareGroupIds] = useState<number[]>([]);
+  const isObj = analysisResourceType === "obj";
 
   // gcn_event analyses are scoped server-side and carry no obj_id.
-  let analysesList: any[] = [];
-  if (analyses !== undefined && analyses !== null) {
-    analysesList =
-      analysisResourceType === "obj"
-        ? analyses.filter((analysis: any) => analysis.obj_id === obj_id)
-        : analyses;
+  const analysesList = (analyses ?? []).filter(
+    (analysis: any) => !isObj || analysis.obj_id === obj_id,
+  );
+
+  if (isLoading) return <CircularProgress size={24} />;
+  if (analysesList.length === 0) {
+    return (
+      <Typography variant="body2" sx={{ color: "text.secondary" }}>
+        No analyses yet
+      </Typography>
+    );
   }
 
-  if (isLoading) {
-    return <CircularProgress size={24} />;
-  }
+  const apiUrl = (analysis: any) =>
+    `/api/${analysisResourceType}/analysis/${analysis.id}`;
 
-  if (!analysesList || analysesList.length === 0) {
-    return <p>No analyses yet...</p>;
-  }
-
-  const deleteAnalysis = async (analysisID: any) => {
-    dispatch(showNotification(`Deleting Analysis (${analysisID}).`));
-    deleteAnalysisMutation({
-      analysis_id: analysisID,
-      analysis_resource_type: analysisResourceType,
-    });
+  const serviceName = (analysis: any) => {
+    const service: any = services?.find(
+      (s: any) => s.id === analysis.analysis_service_id,
+    );
+    return (
+      analysis.analysis_service_name ||
+      service?.display_name ||
+      service?.name ||
+      `Service ${analysis.analysis_service_id}`
+    );
   };
 
   const isPrivate = (row: any) =>
-    !!singleUserGroup &&
-    row.groups?.length === 1 &&
-    row.groups[0].id === singleUserGroup.id;
+    row.groups?.length === 1 && row.groups[0].id === singleUserGroup?.id;
 
   const openShare = (row: any) => {
     setShareTarget(row);
@@ -149,340 +113,210 @@ const AnalysisList = ({
 
   const submitShare = () => {
     if (!shareTarget) return;
-    const group_ids = shareGroupIds.length
-      ? shareGroupIds
-      : singleUserGroup
-        ? [singleUserGroup.id]
-        : [];
-    updateAnalysisMutation({ analysis_id: shareTarget.id, group_ids });
+    const fallback = singleUserGroup ? [singleUserGroup.id] : [];
+    updateAnalysis({
+      analysis_id: shareTarget.id,
+      group_ids: shareGroupIds.length ? shareGroupIds : fallback,
+    });
     dispatch(showNotification("Updated analysis sharing."));
     setShareTarget(null);
   };
 
-  const renderShare = (params: any) => {
-    if (analysisResourceType !== "obj") return null;
-    if (!profile || params.row.author_id !== profile.id) return null;
-    return (
-      <Button size="small" onClick={() => openShare(params.row)}>
-        {isPrivate(params.row) ? "Share…" : "Sharing…"}
-      </Button>
-    );
+  const confirmDelete = () => {
+    dispatch(showNotification(`Deleting Analysis (${deleting.id}).`));
+    deleteAnalysis({
+      analysis_id: deleting.id,
+      analysis_resource_type: analysisResourceType,
+    });
+    setDeleting(null);
   };
 
-  const renderDedicatedPage = (params: any) => {
-    const analysis = params.row;
-    return (
-      <div className={classes.infoButton}>
-        <Tooltip title="Link to analysis page" placement="top">
-          <Link
-            to={
-              analysisResourceType === "obj"
-                ? `/source/${obj_id}/analysis/${analysis.id}`
-                : `/gcn_events/${obj_id}/analysis/${analysis.id}`
-            }
-            role="link"
-          >
-            <Button primary size="small">
-              {analysis.id}
-            </Button>
-          </Link>
-        </Tooltip>
-      </div>
-    );
-  };
-
-  const renderStatus = (params: any) => {
-    const analysis = params.row;
-    let chip_color = "warning";
-    if (analysis.status === "completed") {
-      chip_color = "success";
-    }
-    if (analysis.status === "failure") {
-      chip_color = "error";
-    }
-    const last_active_str = `${dayjs().to(
-      dayjs.utc(`${analysis.last_activity}Z`),
-    )}`;
-    const duration_str = `${analysis.duration?.toFixed(2)} sec`;
-    const tooltip_str = `${last_active_str} (${duration_str})`;
-    return (
-      <div>
-        <Tooltip title={tooltip_str} placement="top">
-          <Chip
-            label={analysis?.status}
-            key={`chip${analysis.id}_${analysis.status}`}
-            size="small"
-            className={classes.chip}
-            color={chip_color as any}
-          />
-        </Tooltip>
-      </div>
-    );
-  };
-
-  const renderLastActivity = (params: any) => {
-    const analysis = params.row;
-    const last_active_str = `${dayjs().to(
-      dayjs.utc(`${analysis?.last_activity}Z`),
-    )}`;
-    const duration_str = `${analysis?.duration?.toFixed(2)} sec`;
-    const info_str = `${last_active_str} (duration ${duration_str})`;
-    return (
-      <div>
-        <Chip
-          label={info_str}
-          key={`chip${analysis.id}_${analysis.analysis_service_id}_activity`}
-          size="small"
-          className={classes.chip}
-        />
-      </div>
-    );
-  };
-
-  const renderService = (params: any) => {
-    const analysis = params.row;
-    return (
-      <div>
-        <Tooltip
-          title={`${analysis?.analysis_service_name}: ${analysis?.analysis_service_description}`}
-        >
-          <Chip
-            label={
-              analysis.analysis_service_name || analysis.analysis_service_id
-            }
-            key={`chip${analysis.id}_${analysis.analysis_service_id}`}
-            size="small"
-            className={classes.chip}
-          />
-        </Tooltip>
-      </div>
-    );
-  };
-
-  const renderDelete = (params: any) => {
-    const analysis = params.row;
-    const dataIndex = analysesList.findIndex((a) => a.id === analysis.id);
-    return (
-      <Button
-        size="small"
-        primary
-        type="button"
-        name={`deleteAnalysisButton${dataIndex}`}
-        onClick={() => deleteAnalysis(analysis.id)}
-        className="analysisDelete"
-      >
-        <DeleteIcon fontSize="small" />
-      </Button>
-    );
-  };
-
-  const renderAnalysisParameters = (params: any) => {
-    const analysisParameters = params.row.analysis_parameters || {};
-    const entries = Object.entries(analysisParameters);
-    if (entries.length === 0) return <div />;
-    return (
-      <div className={classes.chips}>
-        {entries.map(([key, value]) => (
-          <Chip
-            key={key}
-            label={`${key}: ${
-              typeof value === "object" ? JSON.stringify(value) : value
-            }`}
-            size="small"
-            className={classes.chip}
-          />
-        ))}
-      </div>
-    );
-  };
-
-  const renderPlot = (params: any) => {
-    const analysis = params.row;
-    if (analysis?.status !== "completed") return <div />;
-    const plotUrl = `/api/${analysisResourceType}/analysis/${analysis.id}/plots/0`;
-    return (
-      <div>
-        <a href={plotUrl} data-testid={`analysis_plots_${analysis.id}`}>
-          <img
-            src={plotUrl}
-            alt="analysis plot"
-            className={classes.plotThumb}
-            loading="lazy"
-            onError={(e) => {
-              (e.currentTarget as HTMLImageElement).style.display = "none";
-            }}
-          />
-        </a>
-      </div>
-    );
-  };
-
-  const renderCornerPlot = (params: any) => {
-    const analysis = params.row;
-    return (
-      <div>
-        {analysis?.status === "completed" && (
-          <Button
-            primary
-            onClick={() => setCornerAnalysis(analysis)}
-            size="small"
-            data-testid={`analysis_cornerplots_${analysis.id}`}
-          >
-            View Corner Plot
-          </Button>
-        )}
-      </div>
-    );
-  };
-
-  const renderResults = (params: any) => {
-    const analysis = params.row;
-    return (
-      <div>
-        {analysis?.status === "completed" && (
-          <div>
-            <div>
-              <Button
-                primary
-                href={`/api/${analysisResourceType}/analysis/${analysis.id}/results?download=True`}
-                size="small"
-                type="submit"
-                data-testid={`analysis_results_${analysis.id}`}
-              >
-                Download Results
-              </Button>
-            </div>
-            <div>
-              <Button
-                primary
-                href={`/api/${analysisResourceType}/analysis/${analysis.id}/results`}
-                size="small"
-                type="submit"
-                data-testid={`analysis_results_display_${analysis.id}`}
-              >
-                Display Results
-              </Button>
-            </div>
-          </div>
-        )}
-      </div>
-    );
-  };
-
-  const columns: any[] = [
+  const columns = [
     {
-      field: "Link",
-      headerName: "Analysis Page",
-      width: 120,
-      sortable: false,
-      renderCell: renderDedicatedPage,
+      field: "analysis",
+      headerName: "Analysis",
+      flex: 1,
+      minWidth: 170,
+      renderCell: ({ row }: any) => (
+        <Box>
+          <Link
+            component={RouterLink}
+            to={`/${isObj ? "source" : "gcn_events"}/${obj_id}/analysis/${row.id}`}
+            underline="hover"
+          >
+            {serviceName(row)}
+          </Link>
+          <Typography variant="caption" sx={{ color: "text.secondary" }}>
+            {" "}
+            #{row.id}
+          </Typography>
+        </Box>
+      ),
     },
     {
       field: "status",
       headerName: "Status",
       flex: 1,
-      minWidth: 110,
-      sortable: false,
-      renderCell: renderStatus,
-    },
-    {
-      field: "Last Activity",
-      headerName: "Last Activity",
-      flex: 1,
       minWidth: 180,
-      sortable: false,
-      renderCell: renderLastActivity,
+      renderCell: ({ row }: any) => (
+        <Box>
+          <Chip
+            label={row.status}
+            size="small"
+            color={STATUS_COLORS[row.status] ?? "warning"}
+            variant="outlined"
+          />
+          {row.status_message && (
+            <Typography
+              variant="caption"
+              sx={{ display: "block", color: "text.secondary", mt: 0.5 }}
+            >
+              {row.status_message}
+            </Typography>
+          )}
+        </Box>
+      ),
     },
     {
-      field: "Analysis Service",
-      headerName: "Analysis Service",
-      width: 140,
-      sortable: false,
-      renderCell: renderService,
-    },
-    {
-      field: "status_message",
-      headerName: "Message",
-      flex: 1,
-      minWidth: 160,
-      sortable: false,
-    },
-    {
-      field: "Delete",
-      headerName: "",
-      width: 70,
-      sortable: false,
-      renderCell: renderDelete,
-    },
-    {
-      field: "Share",
-      headerName: "",
-      width: 90,
-      sortable: false,
-      renderCell: renderShare,
+      field: "last_activity",
+      headerName: "Last Activity",
+      width: 130,
+      renderCell: ({ row }: any) => (
+        <Box>
+          <Typography variant="body2">
+            {dayjs().to(dayjs.utc(`${row.last_activity}Z`))}
+          </Typography>
+          {row.duration != null && (
+            <Typography variant="caption" sx={{ color: "text.secondary" }}>
+              {row.duration.toFixed(1)} s
+            </Typography>
+          )}
+        </Box>
+      ),
     },
     {
       field: "parameters",
       headerName: "Parameters",
       flex: 1,
-      minWidth: 160,
-      sortable: false,
-      renderCell: renderAnalysisParameters,
+      minWidth: 150,
+      renderCell: ({ row }: any) => (
+        <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.5 }}>
+          {Object.entries(row.analysis_parameters ?? {}).map(([key, value]) => (
+            <Chip
+              key={key}
+              label={`${key}: ${
+                typeof value === "object" ? JSON.stringify(value) : value
+              }`}
+              size="small"
+              variant="outlined"
+            />
+          ))}
+        </Box>
+      ),
     },
     {
       field: "plot",
       headerName: "Plot",
-      width: 140,
-      sortable: false,
-      renderCell: renderPlot,
+      width: 110,
+      renderCell: ({ row }: any) =>
+        row.status === "completed" && (
+          <a
+            href={`${apiUrl(row)}/plots/0`}
+            data-testid={`analysis_plots_${row.id}`}
+          >
+            <Box
+              component="img"
+              src={`${apiUrl(row)}/plots/0`}
+              alt="analysis plot"
+              loading="lazy"
+              onError={(e: any) => {
+                e.currentTarget.style.display = "none";
+              }}
+              sx={{ maxHeight: "4rem", maxWidth: "100%", display: "block" }}
+            />
+          </a>
+        ),
     },
     {
-      field: "cornerplot",
-      headerName: "Corner Plot",
-      width: 160,
-      sortable: false,
-      renderCell: renderCornerPlot,
+      field: "actions",
+      headerName: "",
+      width: 330,
+      renderCell: ({ row }: any) => (
+        <Box sx={{ display: "flex", alignItems: "center", gap: 1, flex: 1 }}>
+          {row.status === "completed" && (
+            <>
+              <Button
+                size="small"
+                onClick={() => setCornerAnalysis(row)}
+                data-testid={`analysis_cornerplots_${row.id}`}
+              >
+                Corner plot
+              </Button>
+              <Button
+                size="small"
+                href={`${apiUrl(row)}/results`}
+                data-testid={`analysis_results_display_${row.id}`}
+              >
+                Results
+              </Button>
+              <Button
+                size="small"
+                href={`${apiUrl(row)}/results?download=True`}
+                data-testid={`analysis_results_${row.id}`}
+              >
+                Download
+              </Button>
+            </>
+          )}
+          {isObj && profile && row.author_id === profile.id && (
+            <Button size="small" onClick={() => openShare(row)}>
+              {isPrivate(row) ? "Share" : "Sharing"}
+            </Button>
+          )}
+          <Tooltip title="Delete analysis">
+            <IconButton
+              size="small"
+              color="error"
+              onClick={() => setDeleting(row)}
+              sx={{ ml: "auto" }}
+            >
+              <DeleteIcon fontSize="small" />
+            </IconButton>
+          </Tooltip>
+        </Box>
+      ),
     },
-    {
-      field: "results",
-      headerName: "Results",
-      width: 160,
-      sortable: false,
-      renderCell: renderResults,
-    },
-  ];
+  ].map((column) => ({ sortable: false, ...column }));
 
   return (
-    <div style={{ height: "100%", width: "100%" }}>
-      <div className={classes.container}>
-        <Accordion key="analysis_table_div">
-          <AccordionSummary
-            expandIcon={<ExpandMoreIcon />}
-            aria-controls="analysis-requests"
-            data-testid="analysis-header"
-          >
-            <Typography variant="subtitle1">Analysis Requests</Typography>
-          </AccordionSummary>
-          <AccordionDetails data-testid="analysisTable">
-            <Typography
-              variant="caption"
-              gutterBottom
-              sx={{ display: "block", color: "text.secondary" }}
-            >
-              Completed light-curve fits are overlaid on this source&apos;s
-              photometry plot.
-            </Typography>
-            <StyledDataGrid
-              autoHeight
-              getRowHeight={() => "auto"}
-              rows={analysesList || []}
-              columns={columns}
-              getRowId={(row: any) => row.id}
-              showToolbar
-            />
-          </AccordionDetails>
-        </Accordion>
-      </div>
+    <>
+      {isObj && (
+        <Typography
+          variant="caption"
+          sx={{ display: "block", color: "text.secondary", mb: 1 }}
+        >
+          Completed light-curve fits are overlaid on this source&apos;s
+          photometry plot.
+        </Typography>
+      )}
+      <StyledDataGrid
+        autoHeight
+        getRowHeight={() => "auto"}
+        rows={analysesList}
+        columns={columns}
+        slots={{ toolbar: AnalysisToolbar }}
+        showToolbar
+        hideFooter={analysesList.length <= 25}
+        sx={{
+          "& .MuiDataGrid-cell": { display: "flex", alignItems: "center" },
+        }}
+      />
+      <ConfirmDeletionDialog
+        deleteFunction={confirmDelete}
+        dialogOpen={deleting !== null}
+        closeDialog={() => setDeleting(null)}
+        resourceName="analysis"
+      />
       <Dialog
         open={Boolean(cornerAnalysis)}
         onClose={() => setCornerAnalysis(null)}
@@ -516,7 +350,7 @@ const AnalysisList = ({
             empty to keep it private (visible only to you).
           </Typography>
           <GroupShareSelect
-            groupList={shareableGroups}
+            groupList={myGroups.filter((g: any) => !g.single_user_group)}
             setGroupIDs={setShareGroupIds}
             groupIDs={shareGroupIds}
           />
@@ -528,7 +362,7 @@ const AnalysisList = ({
           </Button>
         </DialogActions>
       </Dialog>
-    </div>
+    </>
   );
 };
 

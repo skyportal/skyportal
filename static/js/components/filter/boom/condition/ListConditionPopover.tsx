@@ -35,6 +35,17 @@ const OPERATOR_LABELS: Record<string, any> = {
 const getOperatorLabel = (operator: any) =>
   OPERATOR_LABELS[operator] || operator;
 
+const getInnerFieldOptions = (listCondition: any, fullFieldOpts: any[]) => {
+  const subFieldOpts = (listCondition.subFieldOptions || []).map((opt: any) =>
+    opt.label.startsWith(`${listCondition.field}.`)
+      ? opt
+      : { ...opt, label: `${listCondition.field}.${opt.label}` },
+  );
+  return subFieldOpts.length > 0
+    ? [...fullFieldOpts, ...subFieldOpts]
+    : fullFieldOpts;
+};
+
 const getOperatorOutputType = (operator: any) => {
   if (["$anyElementTrue", "$allElementsTrue"].includes(operator))
     return "boolean";
@@ -635,16 +646,10 @@ const ListConditionPopover = ({
               }
               parentBlockId={null}
               isRoot={true}
-              fieldOptionsList={(() => {
-                // Combine subFieldOptions with full field options for comprehensive coverage
-                const subFieldOpts =
-                  listVar.listCondition.subFieldOptions || [];
-                const fullFieldOpts = fieldOptionsList || fieldOptions || [];
-                // If we have subFieldOptions, combine them with full options, otherwise just use full options
-                return subFieldOpts.length > 0
-                  ? [...fullFieldOpts, ...subFieldOpts]
-                  : fullFieldOpts;
-              })()}
+              fieldOptionsList={getInnerFieldOptions(
+                listVar.listCondition,
+                fieldOptionsList || fieldOptions || [],
+              )}
               isListDialogOpen={false}
               localFilters={
                 editMode
@@ -868,15 +873,10 @@ const ListConditionPopover = ({
               block={conditionBlock.value.value}
               parentBlockId={null}
               isRoot={true}
-              fieldOptionsList={(() => {
-                // Combine subFieldOptions with full field options for comprehensive coverage
-                const subFieldOpts = conditionBlock.value.subFieldOptions || [];
-                const fullFieldOpts = fieldOptionsList || fieldOptions || [];
-                // If we have subFieldOptions, combine them with full options, otherwise just use full options
-                return subFieldOpts.length > 0
-                  ? [...fullFieldOpts, ...subFieldOpts]
-                  : fullFieldOpts;
-              })()}
+              fieldOptionsList={getInnerFieldOptions(
+                conditionBlock.value,
+                fieldOptionsList || fieldOptions || [],
+              )}
               localFilters={[conditionBlock.value.value]}
               setLocalFilters={(newFilters: any) => {
                 // Update the list condition value in the main filters

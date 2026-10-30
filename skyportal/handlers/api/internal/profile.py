@@ -29,10 +29,10 @@ class ProfileHandler(BaseHandler):
     terms_of_service_exempt = ("GET",)
 
     @auth_or_token
-    async def get(self):
+    async def get(self, user_id: int | None = None):
         """
         ---
-        description: Retrieve user profile
+        description: Retrieve a user profile. Only an admin may name another user.
         responses:
           200:
             content:
@@ -87,31 +87,47 @@ class ProfileHandler(BaseHandler):
                             preferences:
                               type: object
         """
+        own_profile = user_id is None or int(user_id) == self.associated_user_object.id
         async with self.AsyncSession() as session:
-            user = await session.scalar(
-                User.select(session.user_or_token)
-                .options(
-                    selectinload(User.acls),
-                    selectinload(User.roles),
-                    selectinload(User.tokens).selectinload(Token.acls),
-                    selectinload(User.group_admission_requests),
-                    selectinload(User.streams),
+            options = [
+                selectinload(User.acls),
+                selectinload(User.roles),
+                selectinload(User.group_admission_requests),
+                selectinload(User.streams),
+            ]
+            if own_profile:
+                options.append(selectinload(User.tokens).selectinload(Token.acls))
+            # A token id is the bearer secret, so another user's profile is read
+            # under the same rule that governs editing it, and without tokens.
+            statement = User.select(
+                session.user_or_token, mode="read" if own_profile else "update"
+            ).options(*options)
+            if own_profile:
+                statement = statement.where(
+                    User.username == self.associated_user_object.username
                 )
-                .where(User.username == self.associated_user_object.username)
-            )
+            else:
+                statement = statement.where(User.id == int(user_id))
+            user = await session.scalar(statement)
+            if user is None:
+                return self.error(f"Cannot find User with ID: {user_id}")
             user_roles = sorted(role.id for role in user.roles)
             user_acls = sorted(acl.id for acl in user.acls)
             user_permissions = sorted(user.permissions)
-            user_tokens = [
-                {
-                    "id": token.id,
-                    "name": token.name,
-                    "acls": sorted(acl.id for acl in token.acls),
-                    "created_at": token.created_at,
-                }
-                for token in user.tokens
-                if not token.name.startswith(SERVICE_TOKEN_PREFIX)
-            ]
+            user_tokens = (
+                [
+                    {
+                        "id": token.id,
+                        "name": token.name,
+                        "acls": sorted(acl.id for acl in token.acls),
+                        "created_at": token.created_at,
+                    }
+                    for token in user.tokens
+                    if not token.name.startswith(SERVICE_TOKEN_PREFIX)
+                ]
+                if own_profile
+                else []
+            )
             user_info = user.to_dict(private=True)
             user_info["roles"] = user_roles
             user_info["permissions"] = user_permissions
@@ -145,8 +161,9 @@ class ProfileHandler(BaseHandler):
         body = self.parse_body(ProfilePatchBody)
 
         async with self.AsyncSession() as session:
-            if user_id is None:
-                user_id = self.associated_user_object.id
+            user_id = (
+                self.associated_user_object.id if user_id is None else int(user_id)
+            )
             user = await session.scalar(
                 User.select(session.user_or_token, mode="update").where(
                     User.id == user_id
@@ -317,9 +334,10 @@ class ProfileHandler(BaseHandler):
                     .get("properties", None)
                 )
                 if gcn_event_properties is not None:
-                    user_prefs["notifications"]["gcn_events"]["properties"] = (
-                        gcn_event_properties
-                    )
+                    # Replaced rather than merged, so a removed property is gone.
+                    user_prefs.setdefault("notifications", {}).setdefault(
+                        "gcn_events", {}
+                    )["properties"] = gcn_event_properties
                 user_prefs = recursive_update(user_prefs, preferences)
             user.preferences = user_prefs
 
@@ -343,4 +361,6 @@ class ProfileHandler(BaseHandler):
                 self.push(action="skyportal/FETCH_RECENT_SOURCES")
             if "sourceCounts" in preferences:
                 self.push(action="skyportal/FETCH_SOURCE_COUNTS")
+            if user_id != self.associated_user_object.id:
+                self.flow.push(user_id, "skyportal/FETCH_USER_PROFILE", {})
             return self.success(action="skyportal/FETCH_USER_PROFILE")

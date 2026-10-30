@@ -1097,7 +1097,13 @@ const SourceContent = ({ source }: SourceContentProps) => {
                 </Menu>
               </div>
               {!isReadOnly && (
-                <div>
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "0.25rem",
+                  }}
+                >
                   <Button
                     onClick={() => setSendToDialogOpen(true)}
                     secondary
@@ -1121,9 +1127,11 @@ const SourceContent = ({ source }: SourceContentProps) => {
                     }`}
                   >
                     <FormControlLabel
+                      sx={{ m: 0 }}
                       control={
                         <Checkbox
                           size="small"
+                          sx={{ p: 0.5 }}
                           checked={Boolean(source.withhold_from_tns)}
                           onChange={(event) =>
                             updateSource({
@@ -1136,6 +1144,7 @@ const SourceContent = ({ source }: SourceContentProps) => {
                         />
                       }
                       label="Withhold from TNS"
+                      slotProps={{ typography: { variant: "body2" } }}
                     />
                   </Tooltip>
                 </div>

@@ -10,10 +10,7 @@ import Typography from "@mui/material/Typography";
 import Button from "../Button";
 import ChannelSetup from "./ChannelSetup";
 import { SetupKind, isSetUp } from "./channels";
-import {
-  useGetProfileQuery,
-  useUpdateUserPreferencesMutation,
-} from "../../ducks/profile";
+import { useNotificationTarget } from "./target";
 
 const Destination = ({
   icon,
@@ -53,8 +50,7 @@ const Destination = ({
 );
 
 const DeliveryChannels = () => {
-  const { data: profile } = useGetProfileQuery();
-  const [updateUserPreferences] = useUpdateUserPreferencesMutation();
+  const { profile, updateUserPreferences } = useNotificationTarget();
   const [editing, setEditing] = useState<SetupKind | null>(null);
   if (!profile) return null;
 

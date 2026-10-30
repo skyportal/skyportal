@@ -96,7 +96,7 @@ def test_vet_an_associated_event(
     page.goto(f"/gcn_events/{base.isoformat()}")
 
     # nothing is confirmed yet, so the summary above the tabs stays empty
-    expect(page.get_by_text("Associated events:")).not_to_be_visible()
+    expect(page.get_by_text("Associated events", exact=True)).not_to_be_visible()
 
     page.get_by_role("tab", name="Associated Events").click()
     expect(page.get_by_test_id("gcn-event-associations")).to_be_visible()
@@ -115,7 +115,7 @@ def test_vet_an_associated_event(
     # confirm it first: the summary lists only what somebody has ruled on
     page.get_by_role("button", name="CONFIRM").first.click()
     page.get_by_role("button", name="SAVE").first.click()
-    expect(page.get_by_text("Associated events:")).to_be_visible()
+    expect(page.get_by_text("Associated events", exact=True)).to_be_visible()
 
     page.get_by_role("tab", name="Associated Events").click()
     page.get_by_role("button", name="REJECT").first.click()

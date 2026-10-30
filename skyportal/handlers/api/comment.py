@@ -445,26 +445,27 @@ class CommentHandler(BaseHandler):
 
                 if associated_resource_type.lower() == "sources":
                     obj_id = resource_id
-                    existing_result = await session.scalars(
-                        Comment.select(session.user_or_token)
-                        .options(selectinload(Comment.groups))
-                        .where(
-                            Comment.text == comment_text,
-                            Comment.obj_id == obj_id,
-                            Comment.channel.is_(None)
-                            if channel is None
-                            else Comment.channel == channel,
-                            Comment.attachment_bytes == attachment_bytes,
-                            Comment.attachment_name == attachment_name,
-                            Comment.author_id == author_id,
-                            Comment.bot == is_bot_request,
-                            Comment.origin == body.origin,
+                    if is_bot_request:
+                        existing_result = await session.scalars(
+                            Comment.select(session.user_or_token)
+                            .options(selectinload(Comment.groups))
+                            .where(
+                                Comment.text == comment_text,
+                                Comment.obj_id == obj_id,
+                                Comment.channel.is_(None)
+                                if channel is None
+                                else Comment.channel == channel,
+                                Comment.attachment_bytes == attachment_bytes,
+                                Comment.attachment_name == attachment_name,
+                                Comment.author_id == author_id,
+                                Comment.bot.is_(True),
+                                Comment.origin == body.origin,
+                            )
                         )
-                    )
-                    existing = existing_result.first()
-                    if existing is not None:
-                        if {g.id for g in existing.groups} != set(group_ids):
-                            existing = None
+                        existing = existing_result.first()
+                        if existing is not None:
+                            if {g.id for g in existing.groups} != set(group_ids):
+                                existing = None
                     if existing is None:
                         comment = Comment(
                             text=comment_text,
@@ -491,25 +492,26 @@ class CommentHandler(BaseHandler):
                         return self.error(
                             f"Could not find any accessible spectra with ID {spectrum_id}."
                         )
-                    existing_result = await session.scalars(
-                        CommentOnSpectrum.select(session.user_or_token)
-                        .options(selectinload(CommentOnSpectrum.groups))
-                        .where(
-                            CommentOnSpectrum.text == comment_text,
-                            CommentOnSpectrum.channel.is_(None)
-                            if channel is None
-                            else CommentOnSpectrum.channel == channel,
-                            CommentOnSpectrum.spectrum_id == spectrum_id,
-                            CommentOnSpectrum.attachment_bytes == attachment_bytes,
-                            CommentOnSpectrum.attachment_name == attachment_name,
-                            CommentOnSpectrum.author_id == author_id,
-                            CommentOnSpectrum.bot == is_bot_request,
+                    if is_bot_request:
+                        existing_result = await session.scalars(
+                            CommentOnSpectrum.select(session.user_or_token)
+                            .options(selectinload(CommentOnSpectrum.groups))
+                            .where(
+                                CommentOnSpectrum.text == comment_text,
+                                CommentOnSpectrum.channel.is_(None)
+                                if channel is None
+                                else CommentOnSpectrum.channel == channel,
+                                CommentOnSpectrum.spectrum_id == spectrum_id,
+                                CommentOnSpectrum.attachment_bytes == attachment_bytes,
+                                CommentOnSpectrum.attachment_name == attachment_name,
+                                CommentOnSpectrum.author_id == author_id,
+                                CommentOnSpectrum.bot.is_(True),
+                            )
                         )
-                    )
-                    existing = existing_result.first()
-                    if existing is not None:
-                        if {g.id for g in existing.groups} != set(group_ids):
-                            existing = None
+                        existing = existing_result.first()
+                        if existing is not None:
+                            if {g.id for g in existing.groups} != set(group_ids):
+                                existing = None
                     if existing is None:
                         comment = CommentOnSpectrum(
                             text=comment_text,
@@ -538,25 +540,26 @@ class CommentHandler(BaseHandler):
                         return self.error(
                             f"Could not find any accessible gcn events with ID {gcnevent_id}."
                         )
-                    existing_result = await session.scalars(
-                        CommentOnGCN.select(session.user_or_token)
-                        .options(selectinload(CommentOnGCN.groups))
-                        .where(
-                            CommentOnGCN.text == comment_text,
-                            CommentOnGCN.channel.is_(None)
-                            if channel is None
-                            else CommentOnGCN.channel == channel,
-                            CommentOnGCN.gcn_id == gcnevent_id,
-                            CommentOnGCN.attachment_bytes == attachment_bytes,
-                            CommentOnGCN.attachment_name == attachment_name,
-                            CommentOnGCN.author_id == author_id,
-                            CommentOnGCN.bot == is_bot_request,
+                    if is_bot_request:
+                        existing_result = await session.scalars(
+                            CommentOnGCN.select(session.user_or_token)
+                            .options(selectinload(CommentOnGCN.groups))
+                            .where(
+                                CommentOnGCN.text == comment_text,
+                                CommentOnGCN.channel.is_(None)
+                                if channel is None
+                                else CommentOnGCN.channel == channel,
+                                CommentOnGCN.gcn_id == gcnevent_id,
+                                CommentOnGCN.attachment_bytes == attachment_bytes,
+                                CommentOnGCN.attachment_name == attachment_name,
+                                CommentOnGCN.author_id == author_id,
+                                CommentOnGCN.bot.is_(True),
+                            )
                         )
-                    )
-                    existing = existing_result.first()
-                    if existing is not None:
-                        if {g.id for g in existing.groups} != set(group_ids):
-                            existing = None
+                        existing = existing_result.first()
+                        if existing is not None:
+                            if {g.id for g in existing.groups} != set(group_ids):
+                                existing = None
                     if existing is None:
                         comment = CommentOnGCN(
                             text=comment_text,
@@ -582,25 +585,27 @@ class CommentHandler(BaseHandler):
                         return self.error(
                             f"Could not find any accessible earthquakes with ID {earthquake_id}."
                         )
-                    existing_result = await session.scalars(
-                        CommentOnEarthquake.select(session.user_or_token)
-                        .options(selectinload(CommentOnEarthquake.groups))
-                        .where(
-                            CommentOnEarthquake.text == comment_text,
-                            CommentOnEarthquake.channel.is_(None)
-                            if channel is None
-                            else CommentOnEarthquake.channel == channel,
-                            CommentOnEarthquake.earthquake_id == earthquake_id,
-                            CommentOnEarthquake.attachment_bytes == attachment_bytes,
-                            CommentOnEarthquake.attachment_name == attachment_name,
-                            CommentOnEarthquake.author_id == author_id,
-                            CommentOnEarthquake.bot == is_bot_request,
+                    if is_bot_request:
+                        existing_result = await session.scalars(
+                            CommentOnEarthquake.select(session.user_or_token)
+                            .options(selectinload(CommentOnEarthquake.groups))
+                            .where(
+                                CommentOnEarthquake.text == comment_text,
+                                CommentOnEarthquake.channel.is_(None)
+                                if channel is None
+                                else CommentOnEarthquake.channel == channel,
+                                CommentOnEarthquake.earthquake_id == earthquake_id,
+                                CommentOnEarthquake.attachment_bytes
+                                == attachment_bytes,
+                                CommentOnEarthquake.attachment_name == attachment_name,
+                                CommentOnEarthquake.author_id == author_id,
+                                CommentOnEarthquake.bot.is_(True),
+                            )
                         )
-                    )
-                    existing = existing_result.first()
-                    if existing is not None:
-                        if {g.id for g in existing.groups} != set(group_ids):
-                            existing = None
+                        existing = existing_result.first()
+                        if existing is not None:
+                            if {g.id for g in existing.groups} != set(group_ids):
+                                existing = None
                     if existing is None:
                         comment = CommentOnEarthquake(
                             text=comment_text,
@@ -624,25 +629,26 @@ class CommentHandler(BaseHandler):
                         return self.error(
                             f"Could not access Shift {shift_id}.", status=403
                         )
-                    existing_result = await session.scalars(
-                        CommentOnShift.select(session.user_or_token)
-                        .options(selectinload(CommentOnShift.groups))
-                        .where(
-                            CommentOnShift.text == comment_text,
-                            CommentOnShift.channel.is_(None)
-                            if channel is None
-                            else CommentOnShift.channel == channel,
-                            CommentOnShift.shift_id == shift_id,
-                            CommentOnShift.attachment_bytes == attachment_bytes,
-                            CommentOnShift.attachment_name == attachment_name,
-                            CommentOnShift.author_id == author_id,
-                            CommentOnShift.bot == is_bot_request,
+                    if is_bot_request:
+                        existing_result = await session.scalars(
+                            CommentOnShift.select(session.user_or_token)
+                            .options(selectinload(CommentOnShift.groups))
+                            .where(
+                                CommentOnShift.text == comment_text,
+                                CommentOnShift.channel.is_(None)
+                                if channel is None
+                                else CommentOnShift.channel == channel,
+                                CommentOnShift.shift_id == shift_id,
+                                CommentOnShift.attachment_bytes == attachment_bytes,
+                                CommentOnShift.attachment_name == attachment_name,
+                                CommentOnShift.author_id == author_id,
+                                CommentOnShift.bot.is_(True),
+                            )
                         )
-                    )
-                    existing = existing_result.first()
-                    if existing is not None:
-                        if {g.id for g in existing.groups} != set(group_ids):
-                            existing = None
+                        existing = existing_result.first()
+                        if existing is not None:
+                            if {g.id for g in existing.groups} != set(group_ids):
+                                existing = None
                     if existing is None:
                         comment = CommentOnShift(
                             text=comment_text,

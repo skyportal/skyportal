@@ -1755,6 +1755,67 @@ class FollowupRequestCommentHandler(BaseHandler):
                 return self.error(f"Failed to update followup request comment: {e}")
 
 
+class FollowupRequestScriptHandler(BaseHandler):
+    @auth_or_token
+    async def get(self, followup_request_id: int):
+        """
+        ---
+        summary: Download a follow-up request's observing script
+        description: Render the observing script for a request, for facilities
+          whose API builds one. The script is built from the request's current
+          payload rather than stored, so an edited request yields a corrected
+          script.
+        tags:
+          - followup requests
+        responses:
+          200:
+            description: The observing script
+            content:
+              text/plain:
+                schema:
+                  type: string
+          400:
+            content:
+              application/json:
+                schema: Error
+        """
+        try:
+            followup_request_id = int(followup_request_id)
+        except (TypeError, ValueError):
+            return self.error(f"Invalid request id: {followup_request_id}")
+
+        async with self.AsyncSession() as session:
+            followup_request = await session.scalar(
+                FollowupRequest.select(session.user_or_token)
+                .where(FollowupRequest.id == followup_request_id)
+                .options(
+                    selectinload(FollowupRequest.allocation).selectinload(
+                        Allocation.instrument
+                    ),
+                    selectinload(FollowupRequest.obj),
+                )
+            )
+            if followup_request is None:
+                return self.error(f"Followup request {followup_request_id} not found.")
+
+            instrument = followup_request.allocation.instrument
+            generate = getattr(instrument.api_class, "generate_script", None)
+            if generate is None:
+                return self.error(
+                    f"{instrument.api_classname} does not build an observing script."
+                )
+
+            try:
+                script = generate(followup_request, instrument)
+            except Exception as e:
+                return self.error(f"Could not build the script: {e}")
+
+        filename = f"{followup_request.obj_id}_{followup_request.id}.sh"
+        await self.send_file(
+            io.BytesIO(script.encode("utf-8")), filename, output_type="txt"
+        )
+
+
 class HourAngleConstraint(Constraint):
     """
     Constrain the hour angle of a target.

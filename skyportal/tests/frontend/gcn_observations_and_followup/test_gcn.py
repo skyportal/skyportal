@@ -49,15 +49,16 @@ def test_gcn_tach(page, super_admin_user, super_admin_token):
     page.goto(f"/become_user/{super_admin_user.id}")
     page.goto(f"/gcn_events/{dateobs}")
 
-    page.locator('//*[@data-testid="right-panel-button"]').first.click()
+    page.locator('//*[@data-testid="external-data-tab"]').first.click()
 
     page.locator('//*[@data-testid="update-aliases"]').first.click()
-    expect(page.locator('//*[contains(., "GRB180116A")]').first).to_be_visible()
-    expect(page.locator('//*[@name="gcn_triggers-aliases"]/*')).to_have_count(4)
-
     expect(
         page.locator('//a[contains(text(), "GRB 180116A: Fermi GBM Detection")]').first
     ).to_be_visible()
+
+    page.locator('//*[@data-testid="overview-tab"]').first.click()
+    expect(page.locator('//*[contains(., "GRB180116A")]').first).to_be_visible()
+    expect(page.locator('//*[@name="gcn_triggers-aliases"]/*')).to_have_count(2)
 
 
 def open_trigger_dialog(page, chip, row):

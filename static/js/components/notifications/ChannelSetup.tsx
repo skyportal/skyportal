@@ -12,11 +12,7 @@ import { alpha } from "@mui/material/styles";
 import Button from "../Button";
 import type { SetupKind } from "./channels";
 import { useGetConfigQuery } from "../../ducks/config";
-import {
-  useGetProfileQuery,
-  useUpdateBasicUserInfoMutation,
-  useUpdateUserPreferencesMutation,
-} from "../../ducks/profile";
+import { useNotificationTarget } from "./target";
 
 const TEXTS: Record<
   SetupKind,
@@ -55,10 +51,9 @@ interface ChannelSetupProps {
 }
 
 const ChannelSetup = ({ kind, onDone, onCancel }: ChannelSetupProps) => {
-  const { data: profile } = useGetProfileQuery();
+  const { profile, updateUserPreferences, updateBasicUserInfo } =
+    useNotificationTarget();
   const preamble = (useGetConfigQuery().data as any)?.slackPreamble ?? "";
-  const [updateUserPreferences] = useUpdateUserPreferencesMutation();
-  const [updateBasicUserInfo] = useUpdateBasicUserInfoMutation();
   const initial =
     kind === "slack"
       ? (profile?.preferences["slack_integration"]?.url ?? "")
@@ -85,12 +80,11 @@ const ChannelSetup = ({ kind, onDone, onCancel }: ChannelSetupProps) => {
           slack_integration: { active: true, url: entered },
         }).unwrap();
       } else {
-        await updateBasicUserInfo({
-          formData:
-            kind === "email"
-              ? { contact_email: entered }
-              : { contact_phone: entered },
-        }).unwrap();
+        await updateBasicUserInfo(
+          kind === "email"
+            ? { contact_email: entered }
+            : { contact_phone: entered },
+        ).unwrap();
       }
       onDone();
     } catch (err: any) {
