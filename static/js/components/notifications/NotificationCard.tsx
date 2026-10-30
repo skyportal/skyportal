@@ -11,10 +11,7 @@ import ChannelSchedule from "./ChannelSchedule";
 import ToggleRow from "./ToggleRow";
 import ChannelSetup from "./ChannelSetup";
 import { CHANNELS, ChannelKey, SetupKind, isSetUp } from "./channels";
-import {
-  useGetProfileQuery,
-  useUpdateUserPreferencesMutation,
-} from "../../ducks/profile";
+import { useNotificationTarget } from "./target";
 
 const Pill = ({
   icon,
@@ -85,8 +82,7 @@ export const ChannelPills = ({
   channels?: ChannelKey[];
   defaultChannels?: ChannelKey[];
 }) => {
-  const { data: profile } = useGetProfileQuery();
-  const [updateUserPreferences] = useUpdateUserPreferencesMutation();
+  const { profile, updateUserPreferences } = useNotificationTarget();
   const [setup, setSetup] = useState<{
     kind: SetupKind;
     key: ChannelKey;
@@ -197,8 +193,7 @@ const NotificationCard = ({
   defaultActive = false,
   defaultChannels = [],
 }: NotificationCardProps) => {
-  const { data: profile } = useGetProfileQuery();
-  const [updateUserPreferences] = useUpdateUserPreferencesMutation();
+  const { profile, updateUserPreferences } = useNotificationTarget();
   const active =
     (profile?.preferences["notifications"]?.[type]?.active ?? defaultActive) ===
     true;

@@ -12,6 +12,7 @@ import AddIcon from "@mui/icons-material/Add";
 import AddCircleIcon from "@mui/icons-material/AddCircle";
 import HelpIcon from "@mui/icons-material/Help";
 import EditIcon from "@mui/icons-material/Edit";
+import NotificationsIcon from "@mui/icons-material/NotificationsOutlined";
 import IconButton from "@mui/material/IconButton";
 import Dialog from "@mui/material/Dialog";
 import DialogContent from "@mui/material/DialogContent";
@@ -36,6 +37,7 @@ import FormValidationError from "../FormValidationError";
 import Spinner from "../Spinner";
 import UserInvitations from "./UserInvitations";
 import UpdateUserParameter from "./UpdateUserParameter";
+import UserNotificationsDialog from "./UserNotificationsDialog";
 import {
   useAddGroupUserMutation,
   useDeleteGroupUserMutation,
@@ -214,6 +216,7 @@ const UserManagement = () => {
   const [removeExpirationOpen, setRemoveExpirationOpen] = useState(false);
   const [bulkInviteOpen, setBulkInviteOpen] = useState(false);
   const [clickedUser, setClickedUser] = useState<any>(null);
+  const [notificationUser, setNotificationUser] = useState<any>(null);
   const {
     data: usersManagementData,
     refetch: refetchUsersManagement,
@@ -596,6 +599,32 @@ const UserManagement = () => {
         </Box>
       ),
     },
+    ...(currentUser.permissions?.includes("System admin")
+      ? [
+          {
+            field: "notifications",
+            headerName: "Notifications",
+            minWidth: 110,
+            sortable: false,
+            filterable: false,
+            renderHeader: () =>
+              headerWithHelp(
+                "Notifications",
+                "Open this user's own notification settings. They see every change you make, and can change it back.",
+              ),
+            renderCell: ({ row }: any) => (
+              <IconButton
+                aria-label="edit-notifications"
+                data-testid={`editUserNotifications${row.id}`}
+                onClick={() => setNotificationUser(row)}
+                size="small"
+              >
+                <NotificationsIcon color="disabled" />
+              </IconButton>
+            ),
+          },
+        ]
+      : []),
   ].map((column: any) => ({ flex: 1, ...column }));
 
   const addDialogs = [
@@ -715,6 +744,10 @@ const UserManagement = () => {
           onCloseBulkInvite={() => setBulkInviteOpen(false)}
         />
       )}
+      <UserNotificationsDialog
+        user={notificationUser}
+        onClose={() => setNotificationUser(null)}
+      />
       {addDialogs.map((dialog) => (
         <AddEntitiesDialog
           key={dialog.name}
