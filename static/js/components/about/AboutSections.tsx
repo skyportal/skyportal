@@ -226,7 +226,7 @@ export const InstanceBlocks = ({ instances }: { instances: Instance[] }) => (
   </Box>
 );
 
-export const PeopleGrid = ({ children }: { children: ReactNode }) => (
+const PeopleGrid = ({ children }: { children: ReactNode }) => (
   <Box
     sx={{
       display: "grid",
@@ -258,14 +258,14 @@ export const Person = ({
   </Stack>
 );
 
-export interface TeamMember {
+interface TeamMember {
   name: string;
   image: string;
   affiliation?: string;
   email?: string;
 }
 
-export const MailLink = ({
+const MailLink = ({
   email,
   name,
   children,
@@ -433,7 +433,7 @@ export const CitationBlocks = ({ citations }: { citations: Citation[] }) => {
   );
 };
 
-export interface Funder {
+interface Funder {
   name: string;
   logo: string;
   url: string;
