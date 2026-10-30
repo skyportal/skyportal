@@ -675,6 +675,91 @@
               "default": null
             },
             {
+              "name": "DESI_DR1_dwarfs",
+              "type": [
+                "null",
+                {
+                  "type": "record",
+                  "name": "DESI_DR1_dwarfsMatch",
+                  "fields": [
+                    {
+                      "name": "_id",
+                      "type": "long"
+                    },
+                    {
+                      "name": "ra",
+                      "type": "double"
+                    },
+                    {
+                      "name": "dec",
+                      "type": "double"
+                    },
+                    {
+                      "name": "z",
+                      "type": "double"
+                    },
+                    {
+                      "name": "zwarn",
+                      "type": "long"
+                    },
+                    {
+                      "name": "lumi_dist_mpc",
+                      "type": "float"
+                    },
+                    {
+                      "name": "dist_source",
+                      "type": "string"
+                    },
+                    {
+                      "name": "log_mstar_m24",
+                      "type": "float"
+                    },
+                    {
+                      "name": "log_mstar_m24_err",
+                      "type": "float"
+                    },
+                    {
+                      "name": "mag_g",
+                      "type": "float"
+                    },
+                    {
+                      "name": "mag_r",
+                      "type": "float"
+                    },
+                    {
+                      "name": "mag_z",
+                      "type": "float"
+                    },
+                    {
+                      "name": "r50_r",
+                      "type": "float"
+                    },
+                    {
+                      "name": "dwarf_maskbit",
+                      "type": "long"
+                    },
+                    {
+                      "name": "mstar_maskbit",
+                      "type": "long"
+                    },
+                    {
+                      "name": "in_sga_2020",
+                      "type": "boolean"
+                    },
+                    {
+                      "name": "distance_arcsec",
+                      "type": "float"
+                    },
+                    {
+                      "name": "distance_kpc",
+                      "type": "float"
+                    }
+                  ]
+                }
+              ],
+              "default": null
+            },
+            {
               "name": "PS1_DR2",
               "type": [
                 "null",
