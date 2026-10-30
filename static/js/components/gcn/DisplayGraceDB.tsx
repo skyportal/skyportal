@@ -1,52 +1,75 @@
 import { useState } from "react";
-import { JSONTree } from "react-json-tree";
+import Box from "@mui/material/Box";
+import Chip from "@mui/material/Chip";
 import Dialog from "@mui/material/Dialog";
 import DialogContent from "@mui/material/DialogContent";
 import DialogTitle from "@mui/material/DialogTitle";
-import IconButton from "@mui/material/IconButton";
-import VisibilityIcon from "@mui/icons-material/Visibility";
+import Divider from "@mui/material/Divider";
+import Stack from "@mui/material/Stack";
+import Typography from "@mui/material/Typography";
+
+import Button from "../Button";
 
 interface DisplayGraceDBProps {
   gcnEvent: {
-    gracedb_labels?: Record<string, any>;
-    gracedb_log?: Record<string, any>;
+    gracedb_labels?: { labels?: { name: string }[] };
+    gracedb_log?: {
+      log?: { N: number; created: string; issuer: string; comment: string }[];
+    };
   };
-  display_header?: boolean;
 }
 
-const DisplayGraceDB = ({
-  gcnEvent,
-  display_header = true,
-}: DisplayGraceDBProps) => {
+const DisplayGraceDB = ({ gcnEvent }: DisplayGraceDBProps) => {
   const [dialogOpen, setDialogOpen] = useState(false);
+  const labels = gcnEvent.gracedb_labels?.labels ?? [];
+  const logs = gcnEvent.gracedb_log?.log ?? [];
 
+  if (labels.length === 0 && logs.length === 0) {
+    return (
+      <Typography variant="body2" sx={{ color: "text.secondary" }}>
+        Not retrieved yet
+      </Typography>
+    );
+  }
   return (
-    <>
-      {display_header ? <b>GraceDB Messages: </b> : ""}
-      <IconButton
-        data-testid="showGraceDBMessagesIcon"
-        size="small"
-        onClick={() => {
-          setDialogOpen(true);
-        }}
+    <Stack spacing={1} sx={{ alignItems: "flex-start" }}>
+      <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.5 }}>
+        {labels.map(({ name }) => (
+          <Chip key={name} size="small" variant="outlined" label={name} />
+        ))}
+      </Box>
+      {logs.length > 0 && (
+        <Button
+          size="small"
+          onClick={() => setDialogOpen(true)}
+          data-testid="showGraceDBMessagesIcon"
+        >
+          {logs.length} log messages
+        </Button>
+      )}
+      <Dialog
+        open={dialogOpen}
+        onClose={() => setDialogOpen(false)}
+        maxWidth="md"
+        fullWidth
       >
-        <VisibilityIcon />
-      </IconButton>
-      <Dialog open={dialogOpen} onClose={() => setDialogOpen(false)}>
-        <DialogTitle>Labels</DialogTitle>
+        <DialogTitle>GraceDB log</DialogTitle>
         <DialogContent>
-          <div>
-            <JSONTree data={gcnEvent.gracedb_labels} hideRoot />
-          </div>
-        </DialogContent>
-        <DialogTitle>Logs</DialogTitle>
-        <DialogContent>
-          <div>
-            <JSONTree data={gcnEvent.gracedb_log} hideRoot />
-          </div>
+          <Stack divider={<Divider />} spacing={1}>
+            {logs.map((entry) => (
+              <Box key={entry.N}>
+                <Typography variant="caption" sx={{ color: "text.secondary" }}>
+                  {entry.created} · {entry.issuer}
+                </Typography>
+                <Typography variant="body2">
+                  {entry.comment.replace(/<[^>]+>/g, "")}
+                </Typography>
+              </Box>
+            ))}
+          </Stack>
         </DialogContent>
       </Dialog>
-    </>
+    </Stack>
   );
 };
 

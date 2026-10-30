@@ -71,12 +71,11 @@ const AddSurveyEfficiencyObservationPlanPage = ({
   return (
     <>
       <Button
-        secondary
         size="small"
         onClick={openDialog}
         data-testid={`addSimSurveyButton_${gcnevent.id}`}
       >
-        SimSurvey Analysis
+        SimSurvey
       </Button>
       <Dialog open={dialogOpen} onClose={closeDialog}>
         <DialogTitle>SimSurvey Analysis</DialogTitle>
