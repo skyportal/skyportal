@@ -1,7 +1,7 @@
 """instance managers
 
 Revision ID: c4e7a2b9d1f3
-Revises: d9d858453a23
+Revises: d4a7b91c6e52
 Create Date: 2026-10-27
 
 """
@@ -11,7 +11,7 @@ import sqlalchemy as sa
 from alembic import op
 
 revision = "c4e7a2b9d1f3"
-down_revision = "d9d858453a23"
+down_revision = "d4a7b91c6e52"
 branch_labels = None
 depends_on = None
 
