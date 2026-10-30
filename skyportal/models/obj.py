@@ -798,12 +798,16 @@ class Obj(Base, conesearch_alchemy.Point):
     @property
     def gal_lat_deg(self):
         """Get the galactic latitute of this object"""
+        if self.ra is None or self.dec is None:
+            return None
         coord = ap_coord.SkyCoord(self.ra, self.dec, unit="deg")
         return coord.galactic.b.deg
 
     @property
     def gal_lon_deg(self):
         """Get the galactic longitude of this object"""
+        if self.ra is None or self.dec is None:
+            return None
         coord = ap_coord.SkyCoord(self.ra, self.dec, unit="deg")
         return coord.galactic.l.deg
 
