@@ -1,0 +1,79 @@
+{
+ "diaObjectId": 313677517097533447,
+ "No. Detections": 4,
+ "Watchlist Obj Name": "HOLISMOKES_LensComp_5530",
+ "Separation": 0.725373,
+ "First Detection": 359.33538159923773,
+ "Recent Detection": 0.45029087292641634,
+ "Predicted Classification": "SN",
+ "RA": 53.25295902434293,
+ "Dec": -27.12756521722272,
+ "alert": {
+  "diaSourcesList": [
+   {
+    "psfFlux": 2377.436767578125,
+    "psfFluxErr": 469.8597717285156,
+    "midpointMjdTai": 60984.251250344765,
+    "band": "r",
+    "reliability": 0.24338752031326294
+   },
+   {
+    "psfFlux": 1750.900146484375,
+    "psfFluxErr": 211.630615234375,
+    "midpointMjdTai": 61002.22914140078,
+    "band": "r",
+    "reliability": 0.1155417189002037
+   },
+   {
+    "psfFlux": 2100.343505859375,
+    "psfFluxErr": 198.91513061523438,
+    "midpointMjdTai": 61002.22960603767,
+    "band": "r",
+    "reliability": 0.2555105984210968
+   },
+   {
+    "psfFlux": 6216.69921875,
+    "psfFluxErr": 447.94244384765625,
+    "midpointMjdTai": 61343.135857905916,
+    "band": "i",
+    "reliability": 0.9811097383499146
+   },
+   {
+    "psfFlux": 6745.10888671875,
+    "psfFluxErr": 444.6305236816406,
+    "midpointMjdTai": 61343.1360799451,
+    "band": "i",
+    "reliability": 0.9816795587539673
+   },
+   {
+    "psfFlux": 6829.30859375,
+    "psfFluxErr": 435.0057373046875,
+    "midpointMjdTai": 61343.13634107108,
+    "band": "i",
+    "reliability": 0.9929556846618652
+   },
+   {
+    "psfFlux": 7138.9912109375,
+    "psfFluxErr": 443.90625,
+    "midpointMjdTai": 61343.13656267027,
+    "band": "i",
+    "reliability": 0.9932966828346252
+   },
+   {
+    "psfFlux": 6698.3701171875,
+    "psfFluxErr": 292.1703186035156,
+    "midpointMjdTai": 61343.300043392184,
+    "band": "i",
+    "reliability": 0.9954332113265991
+   }
+  ],
+  "diaForcedSourcesList": [
+   {
+    "psfFlux": 6800.66162109375,
+    "psfFluxErr": 296.8179931640625,
+    "midpointMjdTai": 61343.300043392184,
+    "band": "i"
+   }
+  ]
+ }
+}
