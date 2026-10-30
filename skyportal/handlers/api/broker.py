@@ -1160,8 +1160,11 @@ def _start_version_validation(session, broker, f, fid):
 def _validate_version(broker_id, filter_id, fid):
     # DBSession's scope is a contextvar, not propagated to executor threads.
     with new_session() as session:
+        session.expire_on_commit = False
         broker = session.get(Broker, broker_id)
         f = session.get(Filter, filter_id)
+        # The validation can outlast pgbouncer's idle_transaction_timeout.
+        session.commit()
         try:
             verdict = broker.broker_class.validate_filter(
                 broker,
