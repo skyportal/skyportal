@@ -21,6 +21,7 @@ class BrokerCapabilitiesResponse(BaseModel):
     get_alert: bool | None = None
     get_cutouts: bool | None = None
     cone_search: bool | None = None
+    gaia_cone_search: bool | None = None
     get_filters: bool | None = None
     create_filter: bool | None = None
     update_filter: bool | None = None
@@ -37,6 +38,7 @@ class BrokerCapabilitiesResponse(BaseModel):
     # returns reference catalogs, and the dialect ``test_filter`` expects its
     # pipeline in (``None`` when the provider takes no pipeline at all).
     cross_match_catalogs: bool | None = None
+    backfill: bool | None = None
     filter_pipeline: str | None = None
 
 

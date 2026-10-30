@@ -905,6 +905,8 @@ async def _consume_set(broker, survey, credentials, budget, stop):
     group = f"{base}-{credentials['label']}"
     group = replay_group_id(group, credentials.get("stream_epoch"))
     config = kafka_consumer_config({**kafka, "group_id": group}, group)
+    if credentials.get("stream_epoch"):
+        config["auto.offset.reset"] = "earliest"
     # Auto-commit still runs, but only over offsets we store, and we store one
     # after it has been ingested: on the default a crash acknowledges whatever
     # the five-second timer had reached and those alerts are never seen again.
