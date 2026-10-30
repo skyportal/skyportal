@@ -115,9 +115,11 @@ export const profileApi = skyportalApi.injectEndpoints({
         method: "PATCH",
         body: { preferences },
       }),
-      invalidatesTags: ["PublicProfile"],
-      // Merged into the cached profile for the same reason as the self case:
-      // a blanket refetch would reset every open form in the admin dialog.
+      // An earlier refetch still in flight can land on top of the merge below.
+      invalidatesTags: (_result, _error, { user_id }) => [
+        "PublicProfile",
+        { type: "UserProfile", id: user_id },
+      ],
       async onQueryStarted(
         { user_id, preferences },
         { dispatch, queryFulfilled },
