@@ -181,7 +181,7 @@ def test_lasair_test_filter_passes_raw_sql(monkeypatch):
 
     captured = {}
 
-    def fake_request(broker, method, data):
+    def fake_request(broker, method, data, token=None):
         captured["method"] = method
         captured["data"] = data
         return []

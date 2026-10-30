@@ -1,7 +1,7 @@
 """broker credential stream epoch
 
 Revision ID: d4a7b91c6e52
-Revises: d9d858453a23
+Revises: e3c8a7b45d19
 Create Date: 2026-10-29 07:10:00.000000
 
 """
@@ -12,7 +12,7 @@ from alembic import op
 
 # revision identifiers, used by Alembic.
 revision = "d4a7b91c6e52"
-down_revision = "d9d858453a23"
+down_revision = "e3c8a7b45d19"
 branch_labels = None
 depends_on = None
 
