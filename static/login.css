@@ -323,6 +323,11 @@ body {
   height: 1.4rem;
 }
 
+.signIn .loginButtonText img {
+  width: auto;
+  height: 1.4rem;
+}
+
 .applyOpen {
   position: absolute;
   top: 50%;

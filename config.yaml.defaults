@@ -13,9 +13,7 @@ app:
     - src: /static/images/skyportal_logo_dark.png
       alt_text: Skyportal logo
   login_message: ""
-  # Artwork for the login page buttons. The buttons themselves come from
-  # `server.auth.backends`, so a provider needs no entry here; add one, matched
-  # on `url`, to replace that provider's text button with an image.
+  # Optional `icon` or full `image` for a provider's button, matched on `url`
   login_buttons: []
 
   # Copy for the About page; `title` above supplies the platform name.
