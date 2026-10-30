@@ -44,14 +44,8 @@ DEFAULT_ARM_EXPOSURES = {
     "nir": ("2massks", 60.0),
 }
 
-SCRIPT_TOKEN = r"[^\s\x00-\x1f\x7f]*"
-SCRIPT_TOKEN_PARAMS = [
-    "object_name",
-    "program_id",
-    "start_date",
-    "end_date",
-    "priority",
-]
+SCRIPT_TOKEN = r"[A-Za-z0-9_.:+-]*"
+CONTROL_CHARACTERS = r"[\x00-\x1f\x7f]"
 
 SUPPORTED_INSTRUMENTS = {"Wendelstein 3KK"}
 
@@ -79,16 +73,24 @@ def validate_request(request, instrument):
         if param not in payload:
             raise ValueError(f"Parameter {param} required.")
 
-    for param in SCRIPT_TOKEN_PARAMS:
-        value = payload.get(param)
-        if value is not None and not re.fullmatch(SCRIPT_TOKEN, str(value)):
-            raise ValueError(
-                f"Parameter {param} cannot contain spaces or control characters."
-            )
-
     sequences = payload["sequences"]
     if not isinstance(sequences, list) or not sequences:
         raise ValueError("At least one sequence is required.")
+
+    tokens = {
+        "object name": payload.get("object_name") or request.obj_id,
+        "program id": payload.get("program_id"),
+    }
+    for index, sequence in enumerate(sequences, start=1):
+        tokens[f"sequence {index} readout mode"] = sequence.get("readout_mode")
+    for name, value in tokens.items():
+        if value is not None and not re.fullmatch(SCRIPT_TOKEN, str(value)):
+            raise ValueError(
+                f"The {name} {value!r} may only contain letters, digits and _.:+-"
+            )
+    for param in ["start_date", "end_date", "priority"]:
+        if re.search(CONTROL_CHARACTERS, str(payload[param])):
+            raise ValueError(f"Parameter {param} cannot contain control characters.")
 
     known = instrument.to_dict().get("filters") or []
     for index, sequence in enumerate(sequences, start=1):
@@ -118,14 +120,6 @@ def validate_request(request, instrument):
                 raise ValueError(
                     f"Sequence {index}: {arm} exposure time must round to at least 1 s."
                 )
-        readout_mode = sequence.get("readout_mode")
-        if readout_mode is not None and not re.fullmatch(
-            SCRIPT_TOKEN, str(readout_mode)
-        ):
-            raise ValueError(
-                f"Sequence {index}: readout mode cannot contain spaces or control"
-                " characters."
-            )
 
 
 def _sexagesimal(obj):
@@ -403,13 +397,11 @@ class WENDELSTEINAPI(FollowUpAPI):
                     "type": "string",
                     "default": Time.now().isot,
                     "title": "Start Date (UT)",
-                    "pattern": f"^{SCRIPT_TOKEN}$",
                 },
                 "end_date": {
                     "type": "string",
                     "title": "End Date (UT)",
                     "default": (Time.now() + TimeDelta(7, format="jd")).isot,
-                    "pattern": f"^{SCRIPT_TOKEN}$",
                 },
                 "comment": {
                     "type": "string",
