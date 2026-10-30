@@ -59,6 +59,15 @@ function deepMergePreferences(target: any, source: any) {
   }
 }
 
+function applyPreferences(draft: any, preferences: any) {
+  if (!draft.preferences) draft.preferences = {};
+  deepMergePreferences(draft.preferences, preferences);
+  const properties = preferences?.notifications?.gcn_events?.properties;
+  if (properties != null) {
+    draft.preferences.notifications.gcn_events.properties = properties;
+  }
+}
+
 export const profileApi = skyportalApi.injectEndpoints({
   endpoints: (build) => ({
     getProfile: build.query<Profile, void>({
@@ -86,10 +95,9 @@ export const profileApi = skyportalApi.injectEndpoints({
       // the dashboard. Revert if the request fails.
       async onQueryStarted(preferences, { dispatch, queryFulfilled }) {
         const patch = dispatch(
-          profileApi.util.updateQueryData("getProfile", undefined, (draft) => {
-            if (!(draft as any).preferences) (draft as any).preferences = {};
-            deepMergePreferences((draft as any).preferences, preferences);
-          }),
+          profileApi.util.updateQueryData("getProfile", undefined, (draft) =>
+            applyPreferences(draft, preferences),
+          ),
         );
         try {
           await queryFulfilled;
@@ -115,13 +123,8 @@ export const profileApi = skyportalApi.injectEndpoints({
         { dispatch, queryFulfilled },
       ) {
         const patch = dispatch(
-          profileApi.util.updateQueryData(
-            "getUserProfile",
-            user_id,
-            (draft) => {
-              if (!(draft as any).preferences) (draft as any).preferences = {};
-              deepMergePreferences((draft as any).preferences, preferences);
-            },
+          profileApi.util.updateQueryData("getUserProfile", user_id, (draft) =>
+            applyPreferences(draft, preferences),
           ),
         );
         try {

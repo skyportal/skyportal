@@ -599,28 +599,32 @@ const UserManagement = () => {
         </Box>
       ),
     },
-    {
-      field: "notifications",
-      headerName: "Notifications",
-      minWidth: 110,
-      sortable: false,
-      filterable: false,
-      renderHeader: () =>
-        headerWithHelp(
-          "Notifications",
-          "Open this user's own notification settings. They see every change you make, and can change it back.",
-        ),
-      renderCell: ({ row }: any) => (
-        <IconButton
-          aria-label="edit-notifications"
-          data-testid={`editUserNotifications${row.id}`}
-          onClick={() => setNotificationUser(row)}
-          size="small"
-        >
-          <NotificationsIcon color="disabled" />
-        </IconButton>
-      ),
-    },
+    ...(currentUser.permissions?.includes("System admin")
+      ? [
+          {
+            field: "notifications",
+            headerName: "Notifications",
+            minWidth: 110,
+            sortable: false,
+            filterable: false,
+            renderHeader: () =>
+              headerWithHelp(
+                "Notifications",
+                "Open this user's own notification settings. They see every change you make, and can change it back.",
+              ),
+            renderCell: ({ row }: any) => (
+              <IconButton
+                aria-label="edit-notifications"
+                data-testid={`editUserNotifications${row.id}`}
+                onClick={() => setNotificationUser(row)}
+                size="small"
+              >
+                <NotificationsIcon color="disabled" />
+              </IconButton>
+            ),
+          },
+        ]
+      : []),
   ].map((column: any) => ({ flex: 1, ...column }));
 
   const addDialogs = [

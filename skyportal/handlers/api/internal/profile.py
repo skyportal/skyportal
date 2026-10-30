@@ -361,4 +361,6 @@ class ProfileHandler(BaseHandler):
                 self.push(action="skyportal/FETCH_RECENT_SOURCES")
             if "sourceCounts" in preferences:
                 self.push(action="skyportal/FETCH_SOURCE_COUNTS")
+            if user_id != self.associated_user_object.id:
+                self.flow.push(user_id, "skyportal/FETCH_USER_PROFILE", {})
             return self.success(action="skyportal/FETCH_USER_PROFILE")
