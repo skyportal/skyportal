@@ -44,6 +44,7 @@ export interface BrokerCredential {
   topics: string[];
   topic_filter_ids: Record<string, number[]>;
   topic_status?: Record<string, TopicStatus>;
+  stream_epoch?: number;
   /** Non-secret values only; secrets are reported by name in secrets_set. */
   credentials: Record<string, unknown>;
   secrets_set: string[];
@@ -274,6 +275,30 @@ export const brokersApi = skyportalApi.injectEndpoints({
       }),
       invalidatesTags: ["BrokerCredential"],
     }),
+    // One-off: ingest what the broker's own store still holds for a filter,
+    // which its stream may no longer retain.
+    backfillBrokerFilter: build.mutation<
+      { limit: number },
+      { brokerId: number; filterId: number; limit?: number }
+    >({
+      query: ({ brokerId, filterId, limit }) => ({
+        url: `api/brokers/${brokerId}/filters/${filterId}/backfill`,
+        method: "POST",
+        body: limit === undefined ? {} : { limit },
+      }),
+    }),
+    // Bump the replay epoch so the next run reads the stream from its earliest
+    // retained message rather than from where the last one stopped.
+    replayBrokerStream: build.mutation<
+      { stream_epoch: number; scope: "user" | "broker" },
+      number
+    >({
+      query: (brokerId) => ({
+        url: `api/brokers/${brokerId}/credentials/replay`,
+        method: "POST",
+      }),
+      invalidatesTags: ["BrokerCredential"],
+    }),
     deleteBrokerCredentials: build.mutation<void, number>({
       query: (id) => ({
         url: `api/brokers/${id}/credentials`,
@@ -309,4 +334,6 @@ export const {
   useLazyGetBrokerCredentialTopicsQuery,
   useSetBrokerCredentialsMutation,
   useDeleteBrokerCredentialsMutation,
+  useBackfillBrokerFilterMutation,
+  useReplayBrokerStreamMutation,
 } = brokersApi;

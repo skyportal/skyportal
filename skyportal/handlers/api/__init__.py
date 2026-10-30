@@ -29,6 +29,7 @@ from .broker import (
     BrokerCutoutsHandler,
     BrokerDefaultPhotometryHandler,
     BrokerFilterAttachHandler,
+    BrokerFilterBackfillHandler,
     BrokerFilterCatalogHandler,
     BrokerFilterModulesHandler,
     BrokerFiltersHandler,

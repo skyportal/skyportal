@@ -11,6 +11,7 @@ from skyportal_py_models.brokers import (
     BrokerConeSearchGetQuery,
     BrokerCredentialBody,
     BrokerFilterAttachBody,
+    BrokerFilterBackfillBody,
     BrokerFilterCatalogGetQuery,
     BrokerFilterModulesGetQuery,
     BrokerFilterModuleWriteBody,
@@ -45,6 +46,7 @@ from ...models import (
     Photometry,
     Stream,
 )
+from ...utils.broker_backfill import enqueue_backfill
 from ...utils.gcn_crossmatch import (
     crossmatch_enabled,
     requeue_crossmatch_for_filter,
@@ -2072,6 +2074,7 @@ class BrokerCredentialHandler(BaseHandler):
                     "topics": row.topics or [],
                     "topic_filter_ids": row.topic_filter_ids or {},
                     "topic_status": row.topic_status or {},
+                    "stream_epoch": row.stream_epoch or 0,
                     # Secrets report presence only; the rest prefill the form.
                     "credentials": {
                         k: v for k, v in altdata.items() if k not in secret_fields
@@ -2079,6 +2082,55 @@ class BrokerCredentialHandler(BaseHandler):
                     "secrets_set": sorted(k for k in secret_fields if altdata.get(k)),
                 }
             )
+
+    @auth_or_token
+    async def post(self, broker_id: int, action: str | None = None):
+        """
+        ---
+        summary: Replay a broker's stream from the start
+        description: Bumps the replay epoch, which suffixes the consumer group.
+          The upstream holds no offset for a group it has not seen, so the next
+          run reads from the earliest message it still retains rather than from
+          where the last one stopped. Resets the caller's own account, or the
+          broker's shared one when they have no credentials and administer it.
+        tags:
+          - brokers
+        responses:
+          200:
+            content:
+              application/json:
+                schema: Success
+        """
+        if action != "replay":
+            return self.error(f"Unknown credential action '{action}'")
+        async with self.AsyncSession() as session:
+            broker = await session.scalar(
+                sa.select(Broker).where(Broker.id == broker_id)
+            )
+            if broker is None:
+                return self.error(f"No broker with id {broker_id}")
+            row = await self.own_credentials(session, broker_id)
+            if row is not None:
+                row.stream_epoch = (row.stream_epoch or 0) + 1
+                epoch, scope = row.stream_epoch, "user"
+            else:
+                if not self.current_user.is_system_admin:
+                    return self.error(
+                        "You have no credentials for this broker to replay. "
+                        "Set them first, or ask an admin to replay the shared "
+                        "account."
+                    )
+                altdata = copy.deepcopy(broker.altdata or {})
+                kafka = altdata.setdefault("kafka", {})
+                kafka["stream_epoch"] = int(kafka.get("stream_epoch") or 0) + 1
+                broker.altdata = altdata
+                epoch, scope = kafka["stream_epoch"], "broker"
+            await session.commit()
+        log(
+            f"broker {broker_id}: {scope} stream replay requested by user "
+            f"{self.associated_user_object.id}, epoch now {epoch}"
+        )
+        return self.success(data={"stream_epoch": epoch, "scope": scope})
 
     @auth_or_token
     async def put(
@@ -2186,3 +2238,80 @@ class BrokerCredentialHandler(BaseHandler):
             await session.delete(row)
             await session.commit()
             return self.success()
+
+
+class BrokerFilterBackfillHandler(BaseHandler):
+    """Ingest what the broker's own store still holds for a filter.
+
+    Separate from the stream, which only reaches as far back as the broker
+    retains it, and from ``brokers.ingest_enabled``, which this does not need.
+    """
+
+    @permissions(["Upload data"])
+    async def post(
+        self,
+        broker_id: int,
+        filter_id: int,
+        *,
+        body: BrokerFilterBackfillBody = None,
+    ):
+        """
+        ---
+        summary: Backfill a filter from its broker
+        description: Queues a one-off ingest of the objects the broker already
+          holds for this filter, paced to the upstream call allowance. Returns
+          once queued, not once finished.
+        tags:
+          - brokers
+        responses:
+          200:
+            content:
+              application/json:
+                schema: Success
+        """
+        params = self.parse_body(BrokerFilterBackfillBody)
+        cap = cfg.get("brokers.backfill.limit", 1000)
+        limit = min(params.limit or cap, cap)
+        if limit < 1:
+            return self.error("limit must be at least 1")
+
+        async with self.AsyncSession() as session:
+            broker = await session.scalar(
+                sa.select(Broker).where(Broker.id == broker_id)
+            )
+            if broker is None:
+                return self.error(f"No broker with id {broker_id}")
+            if not broker.active:
+                return self.error(f"Broker {broker.name} is not active")
+            if not getattr(broker.broker_class, "supports_backfill", False):
+                return self.error(
+                    f"{broker.broker_classname} cannot backfill a filter."
+                )
+            filter_row = await session.scalar(
+                Filter.select(self.current_user).where(Filter.id == filter_id)
+            )
+            if filter_row is None:
+                return self.error(
+                    f"No filter with id {filter_id}, or it is not accessible to you."
+                )
+            if filter_row.broker_id != broker.id:
+                return self.error(
+                    f"Filter {filter_id} is not attached to broker {broker_id}."
+                )
+            if broker.broker_class.backfill_query(filter_row) is None:
+                return self.error(
+                    f"Filter {filter_id} has no saved query to backfill from."
+                )
+
+        accepted, message = await IOLoop.current().run_in_executor(
+            None,
+            lambda: enqueue_backfill(
+                broker_id,
+                filter_id,
+                self.associated_user_object.id,
+                limit=limit,
+            ),
+        )
+        if not accepted:
+            return self.error(message)
+        return self.success(data={"limit": limit})

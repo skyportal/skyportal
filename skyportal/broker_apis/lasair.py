@@ -455,7 +455,7 @@ def _cone(broker, ra, dec, radius=5, request_type="all"):
     )
 
 
-def _query(broker, selected, tables, conditions, limit=1000):
+def _query(broker, selected, tables, conditions, limit=1000, token=None):
     return _request(
         broker,
         "query",
@@ -465,6 +465,7 @@ def _query(broker, selected, tables, conditions, limit=1000):
             "conditions": conditions,
             "limit": limit,
         },
+        token=token,
     )
 
 
@@ -697,6 +698,7 @@ def _credential_sets(broker, extra=None):
         "topics": kafka.get("topics") or [],
         "topic_filter_ids": kafka.get("topic_filter_ids") or {},
         "filter_ids": altdata.get("filter_ids") or [],
+        "stream_epoch": kafka.get("stream_epoch") or 0,
     }
     sets = [shared] if (shared["topics"] or shared["topic_filter_ids"]) else []
     for entry in extra or []:
@@ -711,6 +713,7 @@ def _credential_sets(broker, extra=None):
                 "topic_filter_ids": entry.get("topic_filter_ids") or {},
                 "filter_ids": entry.get("filter_ids")
                 or (altdata.get("filter_ids") or []),
+                "stream_epoch": entry.get("stream_epoch") or 0,
             }
         )
     return sets
@@ -888,7 +891,7 @@ async def _consume_set(broker, survey, credentials, budget, stop):
     """Consume one account's topics until `stop` is set or `budget` is spent."""
     from confluent_kafka import Consumer
 
-    from ._kafka import kafka_consumer_config
+    from ._kafka import kafka_consumer_config, replay_group_id
 
     kafka = credentials["kafka"]
     topic_filter_ids = {
@@ -900,7 +903,10 @@ async def _consume_set(broker, survey, credentials, budget, stop):
     # Suffixed per account: a shared group drives another account's offsets.
     base = kafka.get("group_id") or f"skyportal-broker-{broker.id}"
     group = f"{base}-{credentials['label']}"
+    group = replay_group_id(group, credentials.get("stream_epoch"))
     config = kafka_consumer_config({**kafka, "group_id": group}, group)
+    if credentials.get("stream_epoch"):
+        config["auto.offset.reset"] = "earliest"
     # Auto-commit still runs, but only over offsets we store, and we store one
     # after it has been ingested: on the default a crash acknowledges whatever
     # the five-second timer had reached and those alerts are never seen again.
@@ -988,6 +994,20 @@ async def _user_credential_sets(broker):
         return [r.as_credential_set() for r in rows if r.topics]
 
 
+async def _stored_broker(broker):
+    """The broker as stored now, since the caller's copy is detached and stale."""
+    from baselayer.app.models import async_plain_session_factory
+
+    from ..models import Broker
+
+    async with async_plain_session_factory() as session:
+        row = await session.scalar(sa.select(Broker).where(Broker.id == broker.id))
+        if row is None:
+            return broker
+        session.expunge(row)
+        return row
+
+
 async def _run_kafka_ingestion(
     broker, survey, stop=None, max_messages=None, credentials=None
 ):
@@ -1008,6 +1028,7 @@ async def _run_kafka_ingestion(
     budget = {"remaining": max_messages}
     running = {}
     stops = {}
+    epochs = {}
     retiring = []
     failures = {}
     started = False
@@ -1023,12 +1044,12 @@ async def _run_kafka_ingestion(
 
     try:
         while not stop.is_set() and not spent():
-            extra = (
-                credentials
-                if credentials is not None
-                else await _user_credential_sets(broker)
-            )
-            sets = {c["label"]: c for c in _credential_sets(broker, extra)}
+            if credentials is None:
+                extra = await _user_credential_sets(broker)
+                current = await _stored_broker(broker)
+            else:
+                extra, current = credentials, broker
+            sets = {c["label"]: c for c in _credential_sets(current, extra)}
             if not sets:
                 if started:
                     return
@@ -1043,8 +1064,16 @@ async def _run_kafka_ingestion(
                 (lb, t) for lb, t in retiring if not failed(lb, t) and not t.done()
             ]
             for label, account in sets.items():
+                if (
+                    label in running
+                    and not running[label].done()
+                    and epochs.get(label) != account["stream_epoch"]
+                ):
+                    stops.pop(label).set()
+                    retiring.append((label, running.pop(label)))
                 if label not in running or running[label].done():
                     stops[label] = asyncio.Event()
+                    epochs[label] = account["stream_epoch"]
                     running[label] = asyncio.create_task(
                         _consume_set(broker, survey, account, budget, stops[label])
                     )
@@ -1076,6 +1105,99 @@ async def _run_kafka_ingestion(
         )
 
 
+DEFAULT_QUERY_FIELDS = "objects.objectId, objects.ramean, objects.decmean"
+# One ingest spends one REST object call, and a Lasair account gets 100 an hour.
+BACKFILL_REQUEST_INTERVAL = 45.0
+BACKFILL_LIMIT = 1000
+
+
+def filter_query(filter_row):
+    """The Lasair SQL a skyportal Filter stores, or None when it holds none."""
+    altdata = filter_row.altdata if isinstance(filter_row.altdata, dict) else {}
+    lasair = altdata.get("lasair") if isinstance(altdata, dict) else None
+    if not isinstance(lasair, dict) or not lasair.get("tables"):
+        return None
+    return {
+        "fields": lasair.get("selected")
+        or lasair.get("fields")
+        or DEFAULT_QUERY_FIELDS,
+        "tables": lasair["tables"],
+        "conditions": lasair.get("conditions", ""),
+    }
+
+
+async def _run_backfill(
+    broker,
+    survey,
+    filter_row,
+    token=None,
+    limit=BACKFILL_LIMIT,
+    interval=BACKFILL_REQUEST_INTERVAL,
+    stop=None,
+    on_progress=None,
+):
+    """Ingest what Lasair's own database already holds for one filter.
+
+    The stream only reaches back as far as Lasair retains it, so a filter that
+    matched something last month has nothing to replay. This runs the filter's
+    saved SQL instead and completes each object through the REST API, the same
+    call the poller makes, spaced by ``interval`` to stay inside the hourly
+    allowance. Returns (ingested, failed, found).
+    """
+    query = filter_query(filter_row)
+    if query is None:
+        raise ValueError(
+            f"Filter {filter_row.id} has no saved Lasair query to backfill from. "
+            "Open it in the filter builder, save a query, then try again."
+        )
+    rows = await asyncio.to_thread(
+        _query,
+        broker,
+        query["fields"],
+        query["tables"],
+        query["conditions"],
+        limit,
+        token,
+    )
+    rows = rows or []
+    oids = []
+    for row in rows:
+        oid = row.get("diaObjectId") or row.get("objectId") or row.get("object")
+        if oid is not None and str(oid) not in oids:
+            oids.append(str(oid))
+    log(
+        f"Lasair backfill (broker {broker.id}, filter {filter_row.id}): "
+        f"{len(oids)} objects to ingest"
+    )
+    ingested = failed = calls = 0
+    pending = list(oids)
+    retried = set()
+    while pending:
+        if stop is not None and stop.is_set():
+            break
+        oid = pending.pop(0)
+        if calls:
+            await asyncio.sleep(interval)
+        calls += 1
+        try:
+            await _ingest_object(broker, oid, survey, [filter_row.id], token=token)
+            ingested += 1
+        except Exception as e:
+            log(f"Lasair backfill could not ingest {oid}: {e}")
+            if oid in retried:
+                failed += 1
+            else:
+                retried.add(oid)
+                pending.append(oid)
+        if on_progress is not None:
+            on_progress(ingested, failed, len(oids))
+    log(
+        f"Lasair backfill (broker {broker.id}, filter {filter_row.id}): "
+        f"{ingested} ingested, {failed} failed, {len(oids)} found"
+    )
+    return ingested, failed, len(oids)
+
+
 class LASAIRBROKER(BrokerAPI):
     """The Lasair broker (https://lasair.lsst.ac.uk).
 
@@ -1086,6 +1208,8 @@ class LASAIRBROKER(BrokerAPI):
 
     surveys = ["ZTF", "LSST"]
     filter_kind = "query"
+    supports_backfill = True
+    backfill_query = staticmethod(filter_query)
 
     @classmethod
     def parallel_ingestion(cls, altdata):
@@ -1357,6 +1481,29 @@ class LASAIRBROKER(BrokerAPI):
         return _cached_cutouts(broker, _object(broker, alert_id), alert_id)
 
     @staticmethod
+    async def run_backfill(broker, filter_row, token=None, stop=None, **kwargs):
+        """Ingest Lasair's stored matches for one filter, once.
+
+        Independent of the stream: it neither reads nor moves a consumer offset,
+        so it can run while ingestion is consuming, or with ingestion off
+        entirely.
+        """
+        return await _run_backfill(
+            broker,
+            _survey(broker),
+            filter_row,
+            token=token,
+            limit=int(kwargs.get("limit") or BACKFILL_LIMIT),
+            interval=float(
+                kwargs.get("interval")
+                if kwargs.get("interval") is not None
+                else BACKFILL_REQUEST_INTERVAL
+            ),
+            stop=stop,
+            on_progress=kwargs.get("on_progress"),
+        )
+
+    @staticmethod
     async def run_ingestion(broker, stop=None, max_messages=None, **kwargs):
         """Ingest from Lasair, by Kafka stream when one is configured and by
         polling its SQL API otherwise.
@@ -1396,21 +1543,10 @@ class LASAIRBROKER(BrokerAPI):
                 ).all()
             queries = []
             for f in rows:
-                ad = f.altdata if isinstance(f.altdata, dict) else {}
-                lasair = ad.get("lasair") if isinstance(ad, dict) else None
-                if not isinstance(lasair, dict):
+                query = filter_query(f)
+                if query is None:
                     continue
-                if not lasair.get("tables"):
-                    continue
-                queries.append(
-                    {
-                        "name": f.name,
-                        "fields": lasair.get("selected") or lasair.get("fields"),
-                        "tables": lasair["tables"],
-                        "conditions": lasair.get("conditions", ""),
-                        "filter_ids": [f.id],
-                    }
-                )
+                queries.append({**query, "name": f.name, "filter_ids": [f.id]})
             return queries + legacy_queries
 
         count = 0
@@ -1429,10 +1565,7 @@ class LASAIRBROKER(BrokerAPI):
                 warned_no_queries = False
 
             for query in queries:
-                selected = (
-                    query.get("fields")
-                    or "objects.objectId, objects.ramean, objects.decmean"
-                )
+                selected = query.get("fields") or DEFAULT_QUERY_FIELDS
                 tables = query.get("tables", "objects")
                 conditions = query.get("conditions", "")
                 filter_ids = query.get("filter_ids") or default_filter_ids
