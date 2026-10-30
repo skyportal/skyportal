@@ -1,6 +1,7 @@
 """Shared Kafka helpers for broker ingestion (confluent_kafka + Avro)."""
 
 import io
+import time
 
 import fastavro
 
@@ -51,3 +52,10 @@ def replay_group_id(group, stream_epoch):
     consumer falls back to ``auto.offset.reset`` and reads from the start."""
     epoch = int(stream_epoch or 0)
     return f"{group}-r{epoch}" if epoch else group
+
+
+def next_stream_epoch(stream_epoch):
+    """The epoch a replay moves to: a timestamp rather than a count, so the
+    group of a deleted and re-created credential, whose count starts over, is
+    never one the upstream still holds offsets for."""
+    return max(int(stream_epoch or 0) + 1, int(time.time()))

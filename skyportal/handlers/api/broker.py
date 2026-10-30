@@ -33,6 +33,7 @@ from baselayer.app.env import load_env
 from baselayer.app.models import new_session
 from baselayer.log import make_log
 
+from ...broker_apis._kafka import next_stream_epoch
 from ...broker_apis._photometry import db_photometry_points, super_obj_obj_ids
 from ...broker_apis.interface import survey_permissions
 from ...enum_types import ALLOWED_BROKER_CLASSNAMES
@@ -2111,7 +2112,7 @@ class BrokerCredentialHandler(BaseHandler):
                 return self.error(f"No broker with id {broker_id}")
             row = await self.own_credentials(session, broker_id)
             if row is not None:
-                row.stream_epoch = (row.stream_epoch or 0) + 1
+                row.stream_epoch = next_stream_epoch(row.stream_epoch)
                 epoch, scope = row.stream_epoch, "user"
             else:
                 if not self.current_user.is_system_admin:
@@ -2122,7 +2123,7 @@ class BrokerCredentialHandler(BaseHandler):
                     )
                 altdata = copy.deepcopy(broker.altdata or {})
                 kafka = altdata.setdefault("kafka", {})
-                kafka["stream_epoch"] = int(kafka.get("stream_epoch") or 0) + 1
+                kafka["stream_epoch"] = next_stream_epoch(kafka.get("stream_epoch"))
                 broker.altdata = altdata
                 epoch, scope = kafka["stream_epoch"], "broker"
             await session.commit()
