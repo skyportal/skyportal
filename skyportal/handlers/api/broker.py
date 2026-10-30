@@ -972,6 +972,8 @@ class BrokerFilterTestHandler(BaseHandler):
         params = self.parse_body(BrokerFilterTestBody).root
 
         with self.Session() as session:
+            # The preview can outlast pgbouncer's idle_transaction_timeout.
+            session.connection(execution_options={"isolation_level": "AUTOCOMMIT"})
             broker = session.scalars(
                 Broker.select(self.current_user).where(Broker.id == int(broker_id))
             ).first()
