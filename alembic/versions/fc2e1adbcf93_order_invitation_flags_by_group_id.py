@@ -1,7 +1,7 @@
 """order invitation flag arrays by group id
 
 Revision ID: fc2e1adbcf93
-Revises: e3c8a7b45d19
+Revises: d4a7b91c6e52
 Create Date: 2026-10-30
 
 """
@@ -10,7 +10,7 @@ from alembic import op
 
 # revision identifiers, used by Alembic.
 revision = "fc2e1adbcf93"
-down_revision = "e3c8a7b45d19"
+down_revision = "d4a7b91c6e52"
 branch_labels = None
 depends_on = None
 
