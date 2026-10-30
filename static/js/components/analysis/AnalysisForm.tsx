@@ -1,75 +1,34 @@
 import { skipToken } from "@reduxjs/toolkit/query";
-import { useGetGroupsQuery } from "../../ducks/groups";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import SearchableSelect from "../SearchableSelect";
-import Select from "@mui/material/Select";
+import Box from "@mui/material/Box";
+import CircularProgress from "@mui/material/CircularProgress";
+import FormControlLabel from "@mui/material/FormControlLabel";
 import InputLabel from "@mui/material/InputLabel";
 import MenuItem from "@mui/material/MenuItem";
+import Select from "@mui/material/Select";
+import Stack from "@mui/material/Stack";
 import Switch from "@mui/material/Switch";
-import FormControlLabel from "@mui/material/FormControlLabel";
-
+import Typography from "@mui/material/Typography";
 import Form from "@rjsf/mui";
 import validator from "@rjsf/validator-ajv8";
-import CircularProgress from "@mui/material/CircularProgress";
-import Typography from "@mui/material/Typography";
-import { makeStyles } from "tss-react/mui";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
-import relativeTime from "dayjs/plugin/relativeTime";
+import { showNotification } from "baselayer/components/Notifications";
 
+import { useGetGroupsQuery } from "../../ducks/groups";
 import { useFetchSourcePhotometryQuery } from "../../ducks/photometry";
 import { useGetAnalysisServicesQuery } from "../../ducks/analysis_services";
 import {
   useStartAnalysisMutation,
   useGetAssociatedGcnsQuery,
 } from "../../ducks/source";
-import GroupShareSelect from "../group/GroupShareSelect";
-import { utc_to_mjd } from "../../units";
 import { useAppDispatch } from "../../types/hooks";
-import { showNotification } from "baselayer/components/Notifications";
+import { utc_to_mjd } from "../../units";
+import SearchableSelect from "../SearchableSelect";
+import GroupShareSelect from "../group/GroupShareSelect";
 
-dayjs.extend(relativeTime);
 dayjs.extend(utc);
 
-const useStyles = makeStyles()(() => ({
-  loading: {
-    display: "flex",
-    alignItems: "center",
-    gap: "0.5rem",
-  },
-  chips: {
-    display: "flex",
-    flexWrap: "wrap",
-  },
-  chip: {
-    margin: 2,
-  },
-  marginTop: {
-    marginTop: "1rem",
-  },
-  Select: {
-    width: "100%",
-  },
-  SelectItem: {
-    whiteSpace: "break-spaces",
-  },
-  serviceDescription: {
-    margin: "0.25rem 0 0 0",
-    fontSize: "0.85rem",
-    color: "gray",
-  },
-  container: {
-    width: "99%",
-    marginBottom: "1rem",
-    "& > *": {
-      marginTop: "1rem",
-      marginBottom: "1rem",
-    },
-  },
-}));
-
-// Section headers for the analysis dropdown, keyed by AnalysisService.analysis_type.
-// Unmapped types fall back to the raw value so a new type is still grouped.
 const ANALYSIS_TYPE_LABELS: Record<string, string> = {
   lightcurve_fitting: "Light-Curve Fitting",
   spectrum_fitting: "Spectral Classification",
@@ -77,6 +36,141 @@ const ANALYSIS_TYPE_LABELS: Record<string, string> = {
   gw_search: "Gravitational-Wave Searches",
   meta_analysis: "Meta / Summarization",
 };
+
+const toUtcInput = (date: string) =>
+  dayjs.utc(date).format("YYYY-MM-DDTHH:mm:ss");
+
+const serviceLabel = (service: any) =>
+  service?.display_name || service?.name || "";
+
+const readAsDataUrl = (file: File) =>
+  new Promise<string>((resolve) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result as string);
+    reader.readAsDataURL(file);
+  });
+
+const isTrue = (value: any) => ["True", "true", "t"].includes(value);
+
+const buildSchema = (service: any, photometry: any[] | undefined) => {
+  const properties: Record<string, any> = {};
+  const uiSchema: Record<string, any> = {};
+  const required = ["show_parameters", "show_plots", "show_corner"];
+  const fileKeys: string[] = [];
+  let acceptsTriggerTime = false;
+
+  Object.entries(service?.optional_analysis_parameters ?? {}).forEach(
+    ([key, params]: [string, any]) => {
+      if (key === "trigger_time") {
+        acceptsTriggerTime = true;
+        return;
+      }
+      if (Array.isArray(params) || typeof params !== "object") {
+        if (
+          Array.isArray(params) &&
+          ["True", "False"].every((val) => params.includes(val))
+        ) {
+          properties[key] = { type: "boolean" };
+        } else {
+          properties[key] = {
+            type: "string",
+            enum: params,
+            default: params?.[0],
+          };
+          required.push(key);
+        }
+        return;
+      }
+      if (Array.isArray(params?.enum)) {
+        properties[key] = { type: "string", enum: params.enum };
+      } else if (params?.type === "file") {
+        // rjsf v6 data-url FileWidget loops under MUI v7, so files bypass rjsf.
+        fileKeys.push(key);
+        return;
+      } else if (["number", "string", "boolean"].includes(params?.type)) {
+        properties[key] = { type: params.type };
+      } else {
+        return;
+      }
+
+      const title = params.title || key;
+      properties[key].title = params.units
+        ? `${title} (${params.units})`
+        : title;
+      if (params.default !== undefined) {
+        properties[key].default = params.default;
+      } else if (params.enum) {
+        properties[key].default = params.enum[0];
+      }
+      if (params.description) properties[key].description = params.description;
+      if (isTrue(params.required)) required.push(key);
+    },
+  );
+
+  if (
+    service?.optional_analysis_parameters &&
+    service.input_data_types?.includes("photometry") &&
+    photometry
+  ) {
+    const filters = [
+      ...new Set(photometry.map((p: any) => p.filter).filter(Boolean)),
+    ];
+    const instruments: Record<number, string> = {};
+    photometry.forEach(({ instrument_id, instrument_name }: any) => {
+      if (instrument_id && instrument_name && !instruments[instrument_id]) {
+        instruments[instrument_id] = instrument_name;
+      }
+    });
+    const instrumentIds = Object.keys(instruments).map(Number);
+    properties["input_filters_photometry_filters"] = {
+      type: "array",
+      title: "Filters to include (optional)",
+      items: { type: "string", enum: filters },
+      uniqueItems: true,
+    };
+    properties["input_filters_photometry_instruments"] = {
+      type: "array",
+      title: "Instruments to include (optional)",
+      items: { type: "integer", enum: instrumentIds },
+      uniqueItems: true,
+    };
+    uiSchema["input_filters_photometry_instruments"] = {
+      "ui:enumNames": instrumentIds.map((id) => instruments[id]),
+    };
+  }
+
+  return {
+    schema: {
+      type: "object",
+      properties: {
+        ...properties,
+        show_parameters: {
+          type: "boolean",
+          title: "Show Parameters",
+          default: true,
+        },
+        show_plots: { type: "boolean", title: "Show Plots", default: true },
+        show_corner: { type: "boolean", title: "Show Corner", default: true },
+      },
+      required,
+    },
+    uiSchema,
+    fileKeys,
+    acceptsTriggerTime,
+  };
+};
+
+const FieldGrid = ({ properties }: any) => (
+  <Box
+    sx={{
+      display: "grid",
+      gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))",
+      columnGap: 2,
+    }}
+  >
+    {properties.filter((p: any) => !p.hidden).map((p: any) => p.content)}
+  </Box>
+);
 
 interface AnalysisFormProps {
   obj_id: string;
@@ -87,17 +181,12 @@ const AnalysisForm = ({
   obj_id,
   analysisResourceType = "obj",
 }: AnalysisFormProps) => {
-  const { classes } = useStyles();
   const dispatch = useAppDispatch();
   const [startAnalysis] = useStartAnalysisMutation();
   const isObj = analysisResourceType === "obj";
 
-  // Photometry and associated GCNs are source concepts; skip them for other
-  // resource types (e.g. gcn_event, where obj_id is a dateobs).
   const { data: photometry, isSuccess: photometryLoaded } =
     useFetchSourcePhotometryQuery(isObj ? { id: obj_id } : skipToken);
-  // dateobs (== T0) of GW/GCN events associated with this source, used to
-  // prefill the afterglow trigger time (see the trigger_time widget below).
   const { data: associatedGcnsData } = useGetAssociatedGcnsQuery(
     isObj ? obj_id : skipToken,
   );
@@ -105,393 +194,146 @@ const AnalysisForm = ({
     () => (associatedGcnsData as any)?.gcns ?? [],
     [associatedGcnsData],
   );
-  const { data: analysisServiceListData, isLoading: servicesLoading } =
+  const { data: analysisServiceList = [], isLoading: servicesLoading } =
     useGetAnalysisServicesQuery();
-  const analysisServiceList = useMemo(
-    () => analysisServiceListData ?? [],
-    [analysisServiceListData],
-  );
-  const uniqueNames = [
-    ...new Set(analysisServiceList.map((item: any) => item.name)),
-  ];
-  const uniqueAnalysisServiceList = uniqueNames
-    .map((name) => analysisServiceList.find((item: any) => item.name === name))
-    .filter(Boolean)
-    // Sort by analysis_type (so Autocomplete groups don't fragment) then label.
-    .sort((a: any, b: any) => {
-      const byType = (a.analysis_type || "").localeCompare(
-        b.analysis_type || "",
-      );
-      return byType !== 0
-        ? byType
-        : (a.display_name || a.name).localeCompare(b.display_name || b.name);
-    });
-  // Only groups the user can access (all groups for sysadmins, member groups
-  // otherwise); the shareable list is the intersection of these with the
-  // selected service's groups, so users can't share with a group they're not in.
   const { data: groupsData, isLoading: groupsLoading } = useGetGroupsQuery();
-  const userAccessibleGroups = groupsData?.userAccessible ?? null;
-  // Each user has one single-user group; scoping a run to it keeps the result
-  // (and its annotation) private to that user, no shared annotation written.
-  const singleUserGroup = (groupsData?.user ?? []).find(
+  const userAccessibleGroups = groupsData?.userAccessible;
+  const singleUserGroup = groupsData?.user?.find(
     (g: any) => g.single_user_group,
   );
-  const [selectedAnalysisServiceId, setSelectedAnalysisServiceId] =
-    useState<any>(null);
+
+  const [selectedServiceId, setSelectedServiceId] = useState<any>(null);
   const [selectedGroupIds, setSelectedGroupIds] = useState<any[]>([]);
   const [runPrivately, setRunPrivately] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  // Selected files for `file`-type analysis parameters, handled outside rjsf.
+  const [triggerTimeUtc, setTriggerTimeUtc] = useState("");
   const fileValues = useRef<Record<string, File | null>>({});
-  // T0 (explosion/trigger time) as a UTC datetime string, handled outside rjsf
-  // and converted to an MJD `trigger_time` on submit. Prefilled from the
-  // source's associated G-event when the selected service accepts it.
-  const [triggerTimeUtc, setTriggerTimeUtc] = useState<string>("");
 
-  const groupLookUp: Record<string, any> = {};
+  const selectedService: any = analysisServiceList.find(
+    (s: any) => s.id === selectedServiceId,
+  );
 
-  userAccessibleGroups?.forEach((group: any) => {
-    groupLookUp[group.id] = group;
-  });
-
-  const analysisServiceLookUp = useMemo(() => {
-    const lookUp: Record<string, any> = {};
-    analysisServiceList?.forEach((analysisService: any) => {
-      lookUp[analysisService.id] = analysisService;
-    });
-    return lookUp;
-  }, [analysisServiceList]);
-
-  // Whether the source can feed a service's required inputs. We can verify
-  // photometry (it's fetched); other input types are assumed available. Only
-  // reported false when photometry is loaded and known to be empty, so a
-  // photometry-only fitter isn't offered on a source with no photometry.
   const serviceHasRequiredInputs = useCallback(
-    (service: any): boolean => {
-      const inputs = service?.input_data_types || [];
-      // Only judge once the query has resolved (so we don't disable during
-      // load); the endpoint yields null or [] for a source with no photometry.
-      if (
-        inputs.includes("photometry") &&
-        photometryLoaded &&
-        (photometry?.length ?? 0) === 0
-      ) {
-        return false;
-      }
-      return true;
-    },
+    (service: any) =>
+      !service?.input_data_types?.includes("photometry") ||
+      !photometryLoaded ||
+      (photometry?.length ?? 0) > 0,
     [photometry, photometryLoaded],
   );
 
-  // Build the rjsf schema in a memo so its reference is stable across renders.
-  // The schema is dynamic (derived from the selected service's parameters); if
-  // it were rebuilt every render, rjsf v6 would re-derive the uncontrolled form
-  // each time and a `data-url` (file) field would infinite-loop ("Maximum
-  // update depth exceeded"), resetting formData so the file never registers.
-  // The static-schema galaxy/observation upload forms don't hit this.
-  const {
-    schema: AnalysisSelectionFormSchema,
-    uiSchema: AnalysisSelectionFormUiSchema,
-    fileKeys,
-    acceptsTriggerTime,
-  } = useMemo(() => {
-    const service = analysisServiceLookUp[selectedAnalysisServiceId];
-    const OptionalParameters: Record<string, any> = {};
-    const OptionalUiSchema: Record<string, any> = {};
-    const RequiredParameters: any[] = [];
-    const collectedFileKeys: string[] = [];
-    let acceptsTriggerTimeParam = false;
-    if (service?.optional_analysis_parameters) {
-      Object.keys(service.optional_analysis_parameters).forEach((key) => {
-        // trigger_time gets a dedicated UTC datetime widget (with G-event
-        // prefill) outside rjsf, so keep it out of the generated schema.
-        if (key === "trigger_time") {
-          acceptsTriggerTimeParam = true;
-          return;
-        }
-        const params = service?.optional_analysis_parameters[key];
-        if (Array.isArray(params)) {
-          if (["True", "False"].every((val) => params.includes(val))) {
-            OptionalParameters[key] = { type: "boolean" };
-          } else {
-            // Default to the first allowed value so the dropdown starts filled
-            // (a required enum with no default forces the user to touch every
-            // one before submit — painful for services with many parameters).
-            OptionalParameters[key] = {
-              type: "string",
-              enum: params,
-              default: params[0],
-            };
-            RequiredParameters.push(key);
-          }
-        } else if (typeof params === "object") {
-          if (Array.isArray(params?.enum)) {
-            // Object form of an enum: carries a description/title/units
-            // alongside the choices (the bare-array form can't), defaulting to
-            // the first value so the dropdown starts filled.
-            OptionalParameters[key] = {
-              type: "string",
-              enum: params.enum,
-              title: key,
-              default: params.default ?? params.enum[0],
-            };
-          } else if (params?.type === "number") {
-            OptionalParameters[key] = { type: "number", title: key };
-          } else if (params?.type === "file") {
-            // File params are handled outside rjsf (see the file inputs in the
-            // render): rjsf v6's `data-url` FileWidget mis-handles files in this
-            // form under MUI v7 (a render loop, and the file never reaches
-            // formData). Collect the key and render a plain file input instead.
-            collectedFileKeys.push(key);
-            return;
-          } else if (params?.type === "string") {
-            OptionalParameters[key] = { type: "string", title: key };
-          } else if (params?.type === "boolean") {
-            // Object-form boolean: a labeled checkbox (the bare ["True","False"]
-            // array renders a checkbox too, but can't carry a title/description).
-            OptionalParameters[key] = { type: "boolean", title: key };
-          }
-          if (OptionalParameters[key]) {
-            if (params?.default !== undefined)
-              OptionalParameters[key].default = params.default;
-            if (params?.description)
-              OptionalParameters[key].description = params.description;
-            // Show units in the field title (e.g. "mejecta (Msun)").
-            const title = params?.title || OptionalParameters[key].title || key;
-            OptionalParameters[key].title = params?.units
-              ? `${title} (${params.units})`
-              : title;
-            if (
-              params?.required &&
-              ["True", "true", "t"].includes(params.required)
-            ) {
-              RequiredParameters.push(key);
-            }
-          }
-        } else {
-          OptionalParameters[key] = {
-            type: "string",
-            enum: params,
-            default: params?.[0],
-          };
-          RequiredParameters.push(key);
-        }
-      });
-      if (
-        (service?.input_data_types || []).includes("photometry") &&
-        photometry
-      ) {
-        const filters: any[] = [];
-        const instrumentLookUp: Record<string, any> = {};
-        photometry.forEach((photometryData: any) => {
-          const { filter, instrument_name, instrument_id } = photometryData;
-          if (filter && !filters.includes(filter)) filters.push(filter);
-          if (
-            instrument_name &&
-            instrument_id &&
-            !instrumentLookUp[instrument_id]
-          ) {
-            instrumentLookUp[instrument_id] = instrument_name;
-          }
-        });
-        const instrumentIds = Object.keys(instrumentLookUp).map(
-          (instrument_id) => parseInt(instrument_id, 10),
-        );
-        OptionalParameters["input_filters_photometry_filters"] = {
-          type: "array",
-          title: "Filters to include (optional)",
-          items: { type: "string", enum: filters },
-          uniqueItems: true,
-        };
-        OptionalParameters["input_filters_photometry_instruments"] = {
-          type: "array",
-          title: "Instruments to include (optional)",
-          items: { type: "integer", enum: instrumentIds },
-          uniqueItems: true,
-        };
-        OptionalUiSchema["input_filters_photometry_instruments"] = {
-          "ui:enumNames": instrumentIds.map((id) => instrumentLookUp[id]),
-        };
-      }
-    }
-    return {
-      schema: {
-        type: "object",
-        properties: {
-          ...OptionalParameters,
-          show_parameters: {
-            type: "boolean",
-            title: "Show Parameters",
-            description: "Whether to render the parameters of this analysis",
-            default: true,
-          },
-          show_plots: {
-            type: "boolean",
-            title: "Show Plots",
-            description: "Whether to render the plots of this analysis",
-            default: true,
-          },
-          show_corner: {
-            type: "boolean",
-            title: "Show Corner",
-            description: "Whether to render the corner of this analysis",
-            default: true,
-          },
-        },
-        required: ["show_parameters", "show_plots", "show_corner"].concat(
-          RequiredParameters,
-        ),
-      },
-      uiSchema: OptionalUiSchema,
-      fileKeys: collectedFileKeys,
-      acceptsTriggerTime: acceptsTriggerTimeParam,
-    };
-  }, [selectedAnalysisServiceId, analysisServiceLookUp, photometry]);
-
-  // Seed the T0 field from the source's first associated G-event when the
-  // selected service accepts a trigger time; clear it otherwise. Re-runs only
-  // on service / association changes, so a user's manual edit is preserved.
-  useEffect(() => {
-    if (acceptsTriggerTime && associatedGCNs.length > 0) {
-      setTriggerTimeUtc(
-        dayjs.utc(associatedGCNs[0]).format("YYYY-MM-DDTHH:mm:ss"),
-      );
-    } else {
-      setTriggerTimeUtc("");
-    }
-  }, [selectedAnalysisServiceId, acceptsTriggerTime, associatedGCNs]);
+  // Stable schema: rebuilding it each render resets the uncontrolled rjsf form.
+  const { schema, uiSchema, fileKeys, acceptsTriggerTime } = useMemo(
+    () => buildSchema(selectedService, photometry),
+    [selectedService, photometry],
+  );
 
   useEffect(() => {
-    if (selectedAnalysisServiceId == null && analysisServiceList.length > 0) {
+    setTriggerTimeUtc(
+      acceptsTriggerTime && associatedGCNs.length > 0
+        ? toUtcInput(associatedGCNs[0]!)
+        : "",
+    );
+  }, [selectedServiceId, acceptsTriggerTime, associatedGCNs]);
+
+  useEffect(() => {
+    if (selectedServiceId == null && analysisServiceList.length > 0) {
       const firstEnabled =
         analysisServiceList.find(
           (s: any) =>
             s?.display_on_resource_dropdown !== false &&
             serviceHasRequiredInputs(s),
         ) || analysisServiceList[0];
-      setSelectedAnalysisServiceId(firstEnabled?.id);
+      setSelectedServiceId(firstEnabled?.id);
     }
-  }, [
-    analysisServiceList,
-    selectedAnalysisServiceId,
-    serviceHasRequiredInputs,
-  ]);
+  }, [analysisServiceList, selectedServiceId, serviceHasRequiredInputs]);
 
-  // Returning null while these are still in flight is indistinguishable from
-  // having none, so the form looks permanently missing until they land.
   if (servicesLoading || groupsLoading) {
     return (
-      <div className={classes.loading}>
+      <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
         <CircularProgress size="1rem" />
         <Typography variant="body2" color="text.secondary">
           Loading analysis services...
         </Typography>
-      </div>
+      </Box>
     );
   }
-
-  if (
-    !userAccessibleGroups ||
-    userAccessibleGroups.length === 0 ||
-    !analysisServiceList ||
-    analysisServiceList.length === 0
-  ) {
+  if (!userAccessibleGroups?.length || !analysisServiceList.length) {
     return (
       <Typography variant="body2" color="text.secondary">
         No analysis services are available to you.
       </Typography>
     );
   }
+  if (!selectedService) return null;
 
-  if (!selectedAnalysisServiceId) {
-    return null;
-  }
-
-  // Groups the results can be shared with: the selected service's groups that
-  // the user can access (intersection).
-  const accessibleGroupIds = new Set(
-    userAccessibleGroups.map((g: any) => g.id),
+  const serviceOptions = analysisServiceList
+    .filter(
+      (s: any, i: number) =>
+        s.display_on_resource_dropdown !== false &&
+        analysisServiceList.findIndex((o: any) => o.name === s.name) === i,
+    )
+    // Autocomplete groupBy needs the options sorted by group.
+    .sort(
+      (a: any, b: any) =>
+        (a.analysis_type || "").localeCompare(b.analysis_type || "") ||
+        serviceLabel(a).localeCompare(serviceLabel(b)),
+    );
+  const shareableGroups = (selectedService.groups ?? []).filter((g: any) =>
+    userAccessibleGroups.some((u: any) => u.id === g.id),
   );
-  const shareableGroups = (
-    analysisServiceLookUp[selectedAnalysisServiceId]?.groups ?? []
-  ).filter((g: any) => accessibleGroupIds.has(g.id));
+  const triggerTime = triggerTimeUtc.trim();
+  const triggerMjd = triggerTime ? utc_to_mjd(triggerTime) : null;
 
   const handleSubmit = async ({ formData }: { formData: any }) => {
     setIsSubmitting(true);
-    const analysis_parameters = {
-      ...formData,
-    };
+    const {
+      show_parameters,
+      show_plots,
+      show_corner,
+      input_filters_photometry_filters: filters,
+      input_filters_photometry_instruments: instruments,
+      ...analysis_parameters
+    } = formData;
 
-    // Merge the files selected via the plain file inputs (file params are not in
-    // the rjsf schema) into the parameters as data URLs.
     await Promise.all(
-      fileKeys.map(async (key: string) => {
+      fileKeys.map(async (key) => {
         const file = fileValues.current[key];
-        if (file) {
-          analysis_parameters[key] = await new Promise<string>((resolve) => {
-            const reader = new FileReader();
-            reader.onload = () => resolve(reader.result as string);
-            reader.readAsDataURL(file);
-          });
-        }
+        if (file) analysis_parameters[key] = await readAsDataUrl(file);
       }),
     );
-
-    delete analysis_parameters.show_parameters;
-    delete analysis_parameters.show_plots;
-    delete analysis_parameters.show_corner;
-
-    // T0 widget (handled outside rjsf): convert the UTC datetime to an MJD
-    // trigger_time the fit backend understands. Blank = let the fit default it.
-    if (acceptsTriggerTime && triggerTimeUtc.trim() !== "") {
-      const mjd = utc_to_mjd(triggerTimeUtc.trim());
-      if (mjd !== null) analysis_parameters.trigger_time = mjd;
+    if (acceptsTriggerTime && triggerMjd !== null) {
+      analysis_parameters.trigger_time = triggerMjd;
     }
 
-    const input_filters: Record<string, any> = {};
-    if (
-      (
-        analysisServiceLookUp[selectedAnalysisServiceId]?.input_data_types || []
-      ).includes("photometry")
-    ) {
-      input_filters["photometry"] = {};
-      if (analysis_parameters.input_filters_photometry_filters) {
-        delete analysis_parameters.input_filters_photometry_filters;
-        input_filters["photometry"].filters =
-          formData.input_filters_photometry_filters;
-      }
-      if (analysis_parameters.input_filters_photometry_instruments) {
-        delete analysis_parameters.input_filters_photometry_instruments;
-        input_filters["photometry"].instruments =
-          formData.input_filters_photometry_instruments;
-      }
-    }
-
-    const params: Record<string, any> = {
-      show_parameters: formData.show_parameters,
-      show_plots: formData.show_plots,
-      show_corner: formData.show_corner,
-      analysis_parameters,
-      input_filters,
-    };
-
-    if (runPrivately && singleUserGroup) {
-      // Private run: scope to the user's own single-user group only.
-      params["group_ids"] = [singleUserGroup.id];
-    } else {
-      params["group_ids"] = selectedGroupIds;
-    }
     try {
       await startAnalysis({
         id: obj_id,
-        analysis_service_id: selectedAnalysisServiceId,
+        analysis_service_id: selectedServiceId,
         analysis_resource_type: analysisResourceType,
-        formData: params,
+        formData: {
+          show_parameters,
+          show_plots,
+          show_corner,
+          analysis_parameters,
+          input_filters: selectedService.input_data_types?.includes(
+            "photometry",
+          )
+            ? {
+                photometry: {
+                  ...(filters && { filters }),
+                  ...(instruments && { instruments }),
+                },
+              }
+            : {},
+          group_ids:
+            runPrivately && singleUserGroup
+              ? [singleUserGroup.id]
+              : selectedGroupIds,
+        },
       }).unwrap();
-      const service = analysisServiceLookUp[selectedAnalysisServiceId];
       dispatch(
         showNotification(
-          `Analysis started with ${service?.display_name || service?.name || "service"}.`,
+          `Analysis started with ${serviceLabel(selectedService) || "service"}.`,
         ),
       );
     } catch (error: any) {
@@ -506,19 +348,23 @@ const AnalysisForm = ({
   };
 
   return (
-    <div className={classes.container}>
-      <div>
+    <Stack spacing={2}>
+      <Box
+        sx={{
+          display: "flex",
+          flexWrap: "wrap",
+          alignItems: "flex-end",
+          columnGap: 3,
+          rowGap: 1,
+        }}
+      >
         <SearchableSelect
-          options={uniqueAnalysisServiceList.filter(
-            (s: any) => s?.display_on_resource_dropdown !== false,
-          )}
-          value={analysisServiceLookUp[selectedAnalysisServiceId] || null}
+          options={serviceOptions}
+          value={selectedService}
           onChange={(_e: any, value: any) =>
-            setSelectedAnalysisServiceId(value?.id ?? null)
+            setSelectedServiceId(value?.id ?? null)
           }
-          getOptionLabel={(option: any) =>
-            option?.display_name || option?.name || ""
-          }
+          getOptionLabel={serviceLabel}
           groupBy={(option: any) =>
             ANALYSIS_TYPE_LABELS[option?.analysis_type] ||
             option?.analysis_type ||
@@ -533,35 +379,35 @@ const AnalysisForm = ({
             name: "analysisServiceSelect",
             "data-testid": "analysisServiceSelect",
           }}
-          className={classes.Select}
+          sx={{ flex: "1 1 320px" }}
         />
-        {analysisServiceLookUp[selectedAnalysisServiceId]?.description && (
-          <p className={classes.serviceDescription}>
-            {analysisServiceLookUp[selectedAnalysisServiceId].description}
-          </p>
-        )}
-      </div>
-      <FormControlLabel
-        control={
-          <Switch
-            checked={runPrivately}
-            onChange={(e) => setRunPrivately(e.target.checked)}
-            disabled={!singleUserGroup}
-            data-testid="analysis-run-privately"
+        <FormControlLabel
+          control={
+            <Switch
+              checked={runPrivately}
+              onChange={(e) => setRunPrivately(e.target.checked)}
+              disabled={!singleUserGroup}
+              data-testid="analysis-run-privately"
+            />
+          }
+          label="Run privately (results and annotation visible only to me)"
+        />
+        {!runPrivately && (
+          <GroupShareSelect
+            groupList={shareableGroups}
+            setGroupIDs={setSelectedGroupIds}
+            groupIDs={selectedGroupIds}
           />
-        }
-        label="Run privately (results and annotation visible only to me)"
-      />
-      {!runPrivately && (
-        <GroupShareSelect
-          groupList={shareableGroups}
-          setGroupIDs={setSelectedGroupIds}
-          groupIDs={selectedGroupIds}
-        />
+        )}
+      </Box>
+      {selectedService.description && (
+        <Typography variant="body2" sx={{ color: "text.secondary" }}>
+          {selectedService.description}
+        </Typography>
       )}
-      <div data-testid="analysis-service-request-form">
-        {fileKeys.map((key: string) => (
-          <div key={key} className={classes.marginTop}>
+      <Stack spacing={2} data-testid="analysis-service-request-form">
+        {fileKeys.map((key) => (
+          <Box key={key}>
             <InputLabel htmlFor={`root_${key}`}>{key}</InputLabel>
             <input
               type="file"
@@ -570,80 +416,72 @@ const AnalysisForm = ({
                 fileValues.current[key] = e.target.files?.[0] ?? null;
               }}
             />
-          </div>
+          </Box>
         ))}
         {acceptsTriggerTime && (
-          <div className={classes.marginTop}>
+          <Box>
             <InputLabel htmlFor="trigger_time_utc">
-              T0 — explosion/trigger time (UTC)
+              T0: explosion/trigger time (UTC)
             </InputLabel>
             {associatedGCNs.length > 1 && (
               <Select
                 inputProps={{ MenuProps: { disableScrollLock: true } }}
                 value={
                   associatedGCNs.find(
-                    (d) =>
-                      dayjs.utc(d).format("YYYY-MM-DDTHH:mm:ss") ===
-                      triggerTimeUtc,
+                    (d) => toUtcInput(d) === triggerTimeUtc,
                   ) || ""
                 }
-                onChange={(e) =>
-                  setTriggerTimeUtc(
-                    dayjs
-                      .utc(e.target.value as string)
-                      .format("YYYY-MM-DDTHH:mm:ss"),
-                  )
-                }
+                onChange={(e) => setTriggerTimeUtc(toUtcInput(e.target.value))}
                 displayEmpty
-                className={classes.Select}
+                fullWidth
                 data-testid="triggerTimeGcnSelect"
               >
                 <MenuItem value="">Pick an associated G-event…</MenuItem>
                 {associatedGCNs.map((d) => (
-                  <MenuItem value={d} key={d} className={classes.SelectItem}>
+                  <MenuItem
+                    value={d}
+                    key={d}
+                    sx={{ whiteSpace: "break-spaces" }}
+                  >
                     {d}
                   </MenuItem>
                 ))}
               </Select>
             )}
-            <input
+            <Box
+              component="input"
               id="trigger_time_utc"
               data-testid="triggerTimeInput"
               type="text"
-              style={{ width: "100%" }}
               value={triggerTimeUtc}
-              placeholder="YYYY-MM-DDTHH:MM:SS UTC — blank = first detection − 2 d"
-              onChange={(e) => setTriggerTimeUtc(e.target.value)}
+              placeholder="YYYY-MM-DDTHH:MM:SS UTC (blank = first detection − 2 d)"
+              onChange={(e: any) => setTriggerTimeUtc(e.target.value)}
+              sx={{ width: "100%" }}
             />
-            <div style={{ fontSize: "0.8rem", opacity: 0.8 }}>
-              {triggerTimeUtc.trim() === ""
-                ? "No T0 set — the fit defaults to first detection − 2 days."
-                : utc_to_mjd(triggerTimeUtc.trim()) === null
+            <Box sx={{ fontSize: "0.8rem", opacity: 0.8 }}>
+              {!triggerTime
+                ? "No T0 set: the fit defaults to first detection − 2 days."
+                : triggerMjd === null
                   ? "Unrecognized UTC datetime."
-                  : `trigger_time = MJD ${utc_to_mjd(triggerTimeUtc.trim())!.toFixed(6)}${
+                  : `trigger_time = MJD ${triggerMjd.toFixed(6)}${
                       associatedGCNs.length > 0
                         ? ` (from associated G-event${associatedGCNs.length > 1 ? "s" : ""})`
                         : ""
                     }`}
-            </div>
-          </div>
+            </Box>
+          </Box>
         )}
-        <div>
-          <Form
-            key={selectedAnalysisServiceId}
-            schema={AnalysisSelectionFormSchema as any}
-            uiSchema={AnalysisSelectionFormUiSchema as any}
-            validator={validator}
-            onSubmit={handleSubmit as any}
-          />
-        </div>
-        {isSubmitting && (
-          <div className={classes.marginTop}>
-            <CircularProgress />
-          </div>
-        )}
-      </div>
-    </div>
+        <Form
+          key={selectedServiceId}
+          schema={schema as any}
+          uiSchema={uiSchema}
+          validator={validator}
+          templates={{ ObjectFieldTemplate: FieldGrid }}
+          onSubmit={handleSubmit as any}
+        />
+        {isSubmitting && <CircularProgress />}
+      </Stack>
+    </Stack>
   );
 };
 

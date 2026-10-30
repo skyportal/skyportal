@@ -1,4 +1,7 @@
+import { Fragment } from "react";
+import Box from "@mui/material/Box";
 import CircularProgress from "@mui/material/CircularProgress";
+import Typography from "@mui/material/Typography";
 
 interface ObservationPlanSummaryStatisticsProps {
   observationplanRequest: {
@@ -52,16 +55,34 @@ const ObservationPlanSummaryStatistics = ({
 
   const stats = summaryStatistics[0]!.statistics;
 
+  const rows: [string, React.ReactNode][] = [
+    ["Observations", stats.num_observations],
+    ["Delay from trigger", stats.dt],
+    ["Start", stats.start_observation],
+    ["Filters", stats.unique_filters?.join(", ")],
+    ["Total time [s]", stats.total_time],
+    ["Probability", stats.probability?.toFixed(3)],
+    ["Area [sq. deg.]", stats.area?.toFixed(1)],
+  ];
+
   return (
-    <ul>
-      <li> Number of Observations: {stats.num_observations} </li>
-      <li> Delay from Trigger: {stats.dt} </li>
-      <li> Start of Observations: {stats.start_observation} </li>
-      <li> Unique filters: {stats.unique_filters?.join(", ")} </li>
-      <li> Total time [s]: {stats.total_time} </li>
-      <li> Probability: {stats.probability?.toFixed(3)} </li>
-      <li> Area [sq. deg.]: {stats.area?.toFixed(1)} </li>
-    </ul>
+    <Box
+      sx={{
+        display: "grid",
+        gridTemplateColumns: "auto 1fr",
+        columnGap: 1.5,
+        rowGap: 0.25,
+      }}
+    >
+      {rows.map(([label, value]) => (
+        <Fragment key={label}>
+          <Typography variant="caption" sx={{ color: "text.secondary" }}>
+            {label}
+          </Typography>
+          <Typography variant="caption">{value}</Typography>
+        </Fragment>
+      ))}
+    </Box>
   );
 };
 

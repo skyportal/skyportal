@@ -90,6 +90,7 @@ from skyportal.handlers.api import (
     FollowupRequestHandler,
     FollowupRequestPrioritizationHandler,
     FollowupRequestSchedulerHandler,
+    FollowupRequestScriptHandler,
     FollowupRequestWatcherHandler,
     GaiaPhotometricAlertsQueryHandler,
     GaiaQueryHandler,
@@ -422,6 +423,7 @@ skyportal_handlers = [
     ),
     (r"/api/followup_request/watch(/[0-9]+)", FollowupRequestWatcherHandler),
     (r"/api/followup_request/schedule(/[0-9]+)", FollowupRequestSchedulerHandler),
+    (r"/api/followup_request/([0-9]+)/script", FollowupRequestScriptHandler),
     (
         r"/api/followup_request/prioritization(/.*)?",
         FollowupRequestPrioritizationHandler,
