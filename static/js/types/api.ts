@@ -11477,7 +11477,7 @@ export interface paths {
         post?: never;
         /**
          * Delete an instrument's fields
-         * @description <b>Permission(s) required:</b> <em>Manage instruments (or System admin)</em><br><br>Delete fields associated with an instrument
+         * @description Delete fields associated with an instrument
          */
         delete: {
             parameters: {
@@ -11546,7 +11546,7 @@ export interface paths {
         put?: never;
         /**
          * Add instrument logs
-         * @description Add log messages from an instrument
+         * @description <b>Permission(s) required:</b> <em>Manage instruments (or System admin)</em><br><br>Add log messages from an instrument
          */
         post: {
             parameters: {
@@ -11646,7 +11646,7 @@ export interface paths {
         get?: never;
         /**
          * Update instrument status
-         * @description <b>Permission(s) required:</b> <em>Upload data (or System admin)</em><br><br>Update the status of an instrument
+         * @description <b>Permission(s) required:</b> <em>Upload data, Manage instruments (or System admin)</em><br><br>Update the status of an instrument
          */
         put: {
             parameters: {
@@ -11748,7 +11748,7 @@ export interface paths {
         };
         /**
          * Update an instrument
-         * @description <b>Permission(s) required:</b> <em>Manage instruments (or System admin)</em><br><br>Update instrument
+         * @description Update instrument
          */
         put: {
             parameters: {
@@ -11786,7 +11786,7 @@ export interface paths {
         post?: never;
         /**
          * Delete an instrument
-         * @description <b>Permission(s) required:</b> <em>Manage instruments (or System admin)</em><br><br>Delete an instrument
+         * @description Delete an instrument
          */
         delete: {
             parameters: {
@@ -31766,6 +31766,8 @@ export interface components {
             default_observer?: string | null;
             /** @description NASA ACROSS instrument UUID, used to route visibility queries to the ACROSS calculator. See https://across.sciencecloud.nasa.gov */
             across_id?: string | null;
+            /** @description ID of the User who created the Instrument. */
+            created_by_id?: number | null;
             /** @description Instrument astropy.regions representation. */
             region?: string | null;
             /** @description Whether the instrument has fields or not. */
@@ -32041,6 +32043,8 @@ export interface components {
             default_observer?: string | null;
             /** @description NASA ACROSS instrument UUID, used to route visibility queries to the ACROSS calculator. See https://across.sciencecloud.nasa.gov */
             across_id?: string | null;
+            /** @description ID of the User who created the Instrument. */
+            created_by_id?: number | null;
             /** @description Instrument astropy.regions representation. */
             region?: string | null;
             /** @description Whether the instrument has fields or not. */

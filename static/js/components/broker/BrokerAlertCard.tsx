@@ -13,7 +13,7 @@ import DownloadIcon from "@mui/icons-material/Download";
 import IconButton from "@mui/material/IconButton";
 import Menu from "@mui/material/Menu";
 import Tooltip from "@mui/material/Tooltip";
-import { Link } from "react-router-dom";
+import Link from "@mui/material/Link";
 import { makeStyles } from "tss-react/mui";
 
 import {
@@ -170,7 +170,13 @@ const BrokerAlertCard = ({
         <div className={classes.header}>
           <div className={classes.titles}>
             {source ? (
-              <Link className={classes.objectId} to={`/source/${objectId}`}>
+              <Link
+                className={classes.objectId}
+                href={`/source/${objectId}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                underline="hover"
+              >
                 {objectId}
                 <OpenInNewIcon fontSize="inherit" />
               </Link>
