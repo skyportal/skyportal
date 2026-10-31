@@ -72,6 +72,7 @@ export const ROUTE_SCHEMA_MAP = {
   "GET /api/group_admission_requests": { schema: "GroupAdmissionRequest" as const, list: true },
   "GET /api/group_admission_requests/{admission_request_id}": { schema: "GroupAdmissionRequest" as const, list: false },
   "GET /api/groups/public": { schema: "Group" as const, list: false },
+  "GET /api/instance_managers": { schema: "InstanceManagersResponse" as const, list: false },
   "GET /api/instrument": { schema: "Instrument" as const, list: true },
   "GET /api/instrument/{instrument_id}": { schema: "Instrument" as const, list: false },
   "GET /api/invitations": { schema: "Invitation" as const, list: true, wrapper: "invitations" as const },

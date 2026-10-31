@@ -33,6 +33,7 @@ from baselayer.app.env import load_env
 from baselayer.app.models import new_session
 from baselayer.log import make_log
 
+from ...broker_apis._kafka import next_stream_epoch
 from ...broker_apis._photometry import db_photometry_points, super_obj_obj_ids
 from ...broker_apis.interface import survey_permissions
 from ...enum_types import ALLOWED_BROKER_CLASSNAMES
@@ -976,6 +977,8 @@ class BrokerFilterTestHandler(BaseHandler):
         params = self.parse_body(BrokerFilterTestBody).root
 
         with self.Session() as session:
+            # The preview can outlast pgbouncer's idle_transaction_timeout.
+            session.connection(execution_options={"isolation_level": "AUTOCOMMIT"})
             broker = session.scalars(
                 Broker.select(self.current_user).where(Broker.id == int(broker_id))
             ).first()
@@ -1162,8 +1165,11 @@ def _start_version_validation(session, broker, f, fid):
 def _validate_version(broker_id, filter_id, fid):
     # DBSession's scope is a contextvar, not propagated to executor threads.
     with new_session() as session:
+        session.expire_on_commit = False
         broker = session.get(Broker, broker_id)
         f = session.get(Filter, filter_id)
+        # The validation can outlast pgbouncer's idle_transaction_timeout.
+        session.commit()
         try:
             verdict = broker.broker_class.validate_filter(
                 broker,
@@ -2113,9 +2119,11 @@ class BrokerCredentialHandler(BaseHandler):
             )
             if broker is None:
                 return self.error(f"No broker with id {broker_id}")
+            if not getattr(broker.broker_class, "supports_replay", False):
+                return self.error(f"{broker.broker_classname} cannot replay a stream.")
             row = await self.own_credentials(session, broker_id)
             if row is not None:
-                row.stream_epoch = (row.stream_epoch or 0) + 1
+                row.stream_epoch = next_stream_epoch(row.stream_epoch)
                 epoch, scope = row.stream_epoch, "user"
             else:
                 if not self.current_user.is_system_admin:
@@ -2126,7 +2134,7 @@ class BrokerCredentialHandler(BaseHandler):
                     )
                 altdata = copy.deepcopy(broker.altdata or {})
                 kafka = altdata.setdefault("kafka", {})
-                kafka["stream_epoch"] = int(kafka.get("stream_epoch") or 0) + 1
+                kafka["stream_epoch"] = next_stream_epoch(kafka.get("stream_epoch"))
                 broker.altdata = altdata
                 epoch, scope = kafka["stream_epoch"], "broker"
             await session.commit()

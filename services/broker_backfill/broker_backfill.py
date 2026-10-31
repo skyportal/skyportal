@@ -99,6 +99,7 @@ def process_queue(queue):
             log(f"error processing backfill {job}: {e}")
         finally:
             queue.pop(0)
+        time.sleep(job.get("interval", DEFAULT_REQUEST_INTERVAL))
 
 
 def api(queue):

@@ -39,6 +39,7 @@ import Inventory2Icon from "@mui/icons-material/Inventory2Outlined";
 import MemoryIcon from "@mui/icons-material/MemoryOutlined";
 import NotificationsActiveIcon from "@mui/icons-material/NotificationsActiveOutlined";
 import FeedbackIcon from "@mui/icons-material/FeedbackOutlined";
+import ManageAccountsIcon from "@mui/icons-material/ManageAccountsOutlined";
 import CheckCircleIcon from "@mui/icons-material/CheckCircleOutlineOutlined";
 import ErrorIcon from "@mui/icons-material/ErrorOutlineOutlined";
 import PauseCircleIcon from "@mui/icons-material/PauseCircleOutlineOutlined";
@@ -56,6 +57,7 @@ import {
 } from "../../ducks/deployments";
 import { useGetFeedbackQuery } from "../../ducks/feedback";
 import FeedbackTab from "./Feedback";
+import InstanceManagers from "./InstanceManagers";
 import NotificationToggle from "./NotificationToggle";
 
 dayjs.extend(relativeTime);
@@ -750,7 +752,7 @@ const Deployments = () => {
     return <Typography>Could not load the deployment information.</Typography>;
 
   const isAdmin = Boolean(data.system);
-  const tabs = ["history", "feedback", "notifications"];
+  const tabs = ["history", "maintainers", "feedback", "notifications"];
   if (isAdmin) tabs.push("instance");
   const requested = searchParams.get("tab") ?? "";
   const tab = tabs.includes(requested) ? requested : "history";
@@ -844,6 +846,12 @@ const Deployments = () => {
             label={`Deployment history (${deployments.length})`}
           />
           <Tab
+            value="maintainers"
+            icon={<ManageAccountsIcon />}
+            iconPosition="start"
+            label="Maintainers"
+          />
+          <Tab
             value="feedback"
             icon={<FeedbackIcon />}
             iconPosition="start"
@@ -880,7 +888,9 @@ const Deployments = () => {
           )}
         </Tabs>
         <Box sx={{ p: { xs: 2, md: 3 } }}>
-          {tab === "feedback" ? (
+          {tab === "maintainers" ? (
+            <InstanceManagers isAdmin={isAdmin} />
+          ) : tab === "feedback" ? (
             <FeedbackTab title={data.title} isAdmin={isAdmin} />
           ) : tab === "notifications" ? (
             <Stack spacing={1}>

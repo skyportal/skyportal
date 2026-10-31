@@ -8,11 +8,10 @@ def test_skyportal_version_displayed(page):
     expect(
         page.locator(f"//*[contains(.,'{skyportal.__version__}')]").first
     ).to_be_visible()
-    page.locator("//button[contains(.,'Show BiBTeX')]").first.click()
     expect(
         page.locator("//*[contains(.,'Journal of Open Source Software')]").first
     ).to_be_visible()
-    page.locator("//button[contains(.,'Hide BiBTeX')]").first.click()
+    expect(page.locator("//button[contains(.,'Copy BibTeX')]").first).to_be_visible()
 
 
 def test_invalid_route(page):

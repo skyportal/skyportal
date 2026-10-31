@@ -135,6 +135,50 @@ class DeploymentsResponse(BaseModel):
     system: InstanceSystemResponse | None = None
 
 
+class InstanceManagerResponse(BaseModel):
+    """A user listed as managing the instance."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    user_id: int
+    username: str | None = Field(
+        default=None, description="Only returned to signed-in users"
+    )
+    first_name: str | None = None
+    last_name: str | None = None
+    affiliations: list[str] = Field(default_factory=list)
+    gravatar_url: str
+    show_email: bool
+    email: str | None = Field(default=None, description="Only when show_email is set")
+    created_at: datetime
+
+
+class InstanceManagersResponse(BaseModel):
+    """The users listed as managing the instance."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    managers: list[InstanceManagerResponse] = Field(default_factory=list)
+
+
+class InstanceManagerPostBody(BaseModel):
+    """Request body for listing a user as managing the instance."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    user_id: int = Field(description="ID of the user")
+
+
+class InstanceManagerPatchBody(BaseModel):
+    """Request body for changing how a manager is shown."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    show_email: bool = Field(
+        description="Whether the login and About pages show the manager's email"
+    )
+
+
 class LogPostBody(BaseModel):
     """Request body for logging a frontend error."""
 
@@ -152,6 +196,10 @@ __all__ = [
     "DeploymentsResponse",
     "GitLogEntryResponse",
     "HostResourcesResponse",
+    "InstanceManagerPatchBody",
+    "InstanceManagerPostBody",
+    "InstanceManagerResponse",
+    "InstanceManagersResponse",
     "InstanceSystemResponse",
     "LogPostBody",
     "ServiceResponse",

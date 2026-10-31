@@ -63,6 +63,7 @@ class _Base:
         # catalogs for the centroid cross-match overlay?
         caps["cross_match_catalogs"] = cls.cross_match_catalogs
         caps["backfill"] = cls.supports_backfill
+        caps["replay"] = cls.supports_replay
         caps["filter_pipeline"] = cls.filter_pipeline
         return caps
 

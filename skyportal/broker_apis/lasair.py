@@ -1169,16 +1169,14 @@ async def _run_backfill(
         f"Lasair backfill (broker {broker.id}, filter {filter_row.id}): "
         f"{len(oids)} objects to ingest"
     )
-    ingested = failed = calls = 0
+    ingested = failed = 0
     pending = list(oids)
     retried = set()
     while pending:
         if stop is not None and stop.is_set():
             break
         oid = pending.pop(0)
-        if calls:
-            await asyncio.sleep(interval)
-        calls += 1
+        await asyncio.sleep(interval)
         try:
             await _ingest_object(broker, oid, survey, [filter_row.id], token=token)
             ingested += 1
@@ -1209,6 +1207,7 @@ class LASAIRBROKER(BrokerAPI):
     surveys = ["ZTF", "LSST"]
     filter_kind = "query"
     supports_backfill = True
+    supports_replay = True
     backfill_query = staticmethod(filter_query)
 
     @classmethod
