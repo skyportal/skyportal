@@ -561,7 +561,7 @@ def user_notification_target(session, user, text, notification_type, url, conten
         "notification_type": notification_type,
         "url": url,
         "user_id": user.id,
-        "user": {**user.to_dict(), "preferences": user.preferences},
+        "user": {**user.to_dict(private=True), "preferences": user.preferences},
         "content": content,
     }
     if not wants_in_app(user.preferences, notification_resource_type(target)):
@@ -1849,7 +1849,7 @@ def api(queue):
                                         "url": _url,
                                         "content": _content,
                                         "user": {
-                                            **_mentioned_user.to_dict(),
+                                            **_mentioned_user.to_dict(private=True),
                                             "preferences": _mentioned_user.preferences,
                                         },
                                     }

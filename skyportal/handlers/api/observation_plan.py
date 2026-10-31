@@ -2291,7 +2291,7 @@ class ObservationPlanSurveyEfficiencyHandler(BaseHandler):
             )
 
             analysis_data = []
-            for analysis in analyses:
+            for analysis in analyses.unique():
                 analysis_data.append(
                     {
                         **analysis.to_dict(),
@@ -2355,6 +2355,8 @@ class ObservationPlanGeoJSONHandler(BaseHandler):
             # We use these to render the contours of the sky localization and
             # locations of the transients.
             geojson = []
+            # database IDs aligned with geojson, as accepted by the fields DELETE
+            field_ids = []
             fields_in = []
             for observation in observation_plans[0].planned_observations:
                 if observation.field_id not in fields_in:
@@ -2366,10 +2368,11 @@ class ObservationPlanGeoJSONHandler(BaseHandler):
                     field = observation.field
                     if field is not None and field.contour_summary is not None:
                         geojson.append(field.contour_summary)
+                        field_ids.append(field.id)
                 else:
                     continue
 
-            return self.success(data={"geojson": geojson})
+            return self.success(data={"geojson": geojson, "field_ids": field_ids})
 
 
 class ObservationPlanFieldsHandler(BaseHandler):
@@ -2423,6 +2426,10 @@ class ObservationPlanFieldsHandler(BaseHandler):
             if observation_plan_request is None:
                 return self.error(
                     f"Could not find observation_plan_request with ID {observation_plan_request_id}"
+                )
+            if observation_plan_request.status == "submitted to telescope queue":
+                return self.error(
+                    "Cannot delete fields from an observation plan sent to the telescope queue."
                 )
 
             observation_plans = observation_plan_request.observation_plans

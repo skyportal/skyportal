@@ -128,7 +128,7 @@ class ProfileHandler(BaseHandler):
                 if own_profile
                 else []
             )
-            user_info = user.to_dict()
+            user_info = user.to_dict(private=True)
             user_info["roles"] = user_roles
             user_info["permissions"] = user_permissions
             user_info["acls"] = user_acls

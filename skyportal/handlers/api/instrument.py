@@ -851,27 +851,27 @@ class InstrumentHandler(BaseHandler):
             if (field_count or 0) > 0:
                 instrument.has_fields = True
 
+            if field_data is not None:
+                if (
+                    (field_region is None)
+                    and (field_fov_type is None)
+                    and (regions is None)
+                ):
+                    return self.error(
+                        "field_region or field_fov_type or existing region is required with field_data"
+                    )
+
+                if type(field_data) is str:
+                    field_data = load_field_data(field_data)
+                    if field_data is None:
+                        return self.error("Could not parse the field data table")
+
+                if not {"ID", "RA", "Dec"}.issubset(field_data):
+                    return self.error("ID, RA, and Dec required in field_data.")
+
             await session.commit()
 
             if (field_data is not None) or (references is not None):
-                if field_data is not None:
-                    if (
-                        (field_region is None)
-                        and (field_fov_type is None)
-                        and (regions is None)
-                    ):
-                        return self.error(
-                            "field_region or field_fov_type or existing region is required with field_data"
-                        )
-
-                    if type(field_data) is str:
-                        field_data = load_field_data(field_data)
-                        if field_data is None:
-                            return self.error("Could not parse the field data table")
-
-                    if not {"ID", "RA", "Dec"}.issubset(field_data):
-                        return self.error("ID, RA, and Dec required in field_data.")
-
                 log(f"Started generating fields for instrument {instrument.id}")
                 # run async
                 IOLoop.current().run_in_executor(

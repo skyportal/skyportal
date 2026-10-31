@@ -36,11 +36,13 @@ class Invitation(Base):
         passive_deletes=True,
         uselist=False,
     )
+    # The per-group flag arrays below are stored in this order.
     groups = relationship(
         "Group",
         secondary="group_invitations",
         cascade="save-update, merge, refresh-expire, expunge",
         passive_deletes=True,
+        order_by="Group.id",
     )
     streams = relationship(
         "Stream",

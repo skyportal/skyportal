@@ -38,11 +38,42 @@ def basic_user_display_info(user):
     }
 
 
-def user_to_dict(self):
+# Mirrored by PUBLIC_FIELDS in static/js/components/user/UserProfileInfo.tsx
+PUBLIC_PROFILE_FIELDS = {
+    "affiliations": True,
+    "bio": True,
+    "contact_email": False,
+    "contact_phone": False,
+    "roles": False,
+    "groups": False,
+}
+
+
+def shared_profile_fields(user):
+    """The public profile fields this user chose to share, defaults applied."""
+    preferences = (user.preferences or {}).get("publicProfile")
+    # Every serialized User reads this, so a malformed preference must not raise
+    if not isinstance(preferences, dict):
+        preferences = {}
+    return {
+        field: bool(preferences.get(field, default))
+        for field, default in PUBLIC_PROFILE_FIELDS.items()
+    }
+
+
+def user_to_dict(self, private=False):
+    """The user's columns minus preferences. Unless `private` (for the user
+    themself, user managers and server-side senders), the OAuth UID and any
+    field the user does not share on their public profile are left out too."""
+    hidden = {"preferences"}
+    if not private:
+        shared = shared_profile_fields(self)
+        hidden.add("oauth_uid")
+        hidden.update(field for field, is_shared in shared.items() if not is_shared)
     return {
         field: getattr(self, field)
         for field in User.__table__.columns.keys()  # noqa: SIM118
-        if field != "preferences"
+        if field not in hidden
     }
 
 

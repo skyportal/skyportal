@@ -5,6 +5,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
+from skyportal.models import DBSession
 from skyportal.tests import api
 from skyportal.tests.external.test_moving_objects import (
     add_telescope_and_instrument,
@@ -220,3 +221,29 @@ def test_observation_unknown_instrument(super_admin_token):
     status, data = api("GET", "observation", params=params, token=super_admin_token)
     assert status == 400
     assert "Missing instrument NoSuchInstrument" in data["message"]
+
+
+def test_survey_efficiency_shared_with_two_groups_listed_once(
+    public_survey_efficiency_for_observations, public_group2, view_only_token_two_groups
+):
+    # the reader is in both of the analysis's groups
+    analysis = public_survey_efficiency_for_observations
+    analysis.groups.append(public_group2)
+    DBSession.commit()
+
+    status, data = api(
+        "GET",
+        f"gcn_event/{analysis.gcnevent_id}/survey_efficiency",
+        token=view_only_token_two_groups,
+    )
+    assert status == 200, data
+    assert [a["id"] for a in data["data"]] == [analysis.id]
+
+    status, data = api(
+        "GET",
+        "survey_efficiency/observations",
+        params={"gcnevent_id": analysis.gcnevent_id},
+        token=view_only_token_two_groups,
+    )
+    assert status == 200, data
+    assert [a["id"] for a in data["data"]] == [analysis.id]

@@ -827,8 +827,8 @@ async def post_analysis_async(
 
     Does the same work as the sync ``post_analysis`` but uses an
     ``AsyncSession``. The background HTTP call (via ``IOLoop.run_in_executor``)
-    is still dispatched here; its done-callback is a plain sync function, so it
-    uses the sync ``DBSession`` for its own writes.
+    is still dispatched here; its done-callback is a plain sync function that
+    can run after the request has ended, so it opens its own ``new_session``.
     """
 
     # `author` and `current_user` are passed in but may originate from a
@@ -1052,11 +1052,9 @@ async def post_analysis_async(
         },
     )
 
-    from ...models import DBSession
-
     analysis_done_callback = functools.partial(
         _record_service_response,
-        DBSession,
+        new_session,
         analysis_id=analysis_id,
         analysis_service_id=analysis_service_id,
         analysis_resource_type=analysis_resource_type,
