@@ -293,6 +293,7 @@ from skyportal.handlers.api.internal import (
     StandardsHandler,
     TokenHandler,
 )
+from skyportal.handlers.api.internal.memory import start_recording
 from skyportal.handlers.mcp import MCPHandler
 from skyportal.handlers.public import (
     ApplyPageHandler,
@@ -987,5 +988,7 @@ def make_app(cfg, baselayer_handlers, baselayer_settings, process=None, env=None
         except Exception as e:
             log(f"Could not record the deployment: {e}")
     DBSession.remove()
+
+    start_recording()
 
     return app
