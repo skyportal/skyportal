@@ -41,7 +41,7 @@ dependencies = [
     "jsonpath_ng==1.7.0",
     "tables>=3.10.1,<4.0.0",
     "h5py>=3.16.0,<4.0.0",
-    "timezonefinder==9.0.0",
+    "timezonefinder==9.2.0",
     "astroplan==0.10.1",
     "email-validator==2.3.0",
     "alembic==1.20.0",
