@@ -36,7 +36,7 @@ dependencies = [
     "mocpy==0.18.0",
     "obspy==1.5.1",
     "conesearch-alchemy==1.1.0",
-    "regions==0.12",
+    "regions==0.13",
     "jsonschema==4.26.0",
     "jsonpath_ng==1.14.0",
     "tables>=3.10.1,<4.0.0",
