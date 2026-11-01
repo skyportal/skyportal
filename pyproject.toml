@@ -100,7 +100,7 @@ dependencies = [
     "opentelemetry-exporter-prometheus>=0.51b0",
     "opentelemetry-instrumentation-tornado>=0.51b0",
     "prometheus-client>=0.20.0",
-    "sentry-sdk==2.70.0",
+    "sentry-sdk==2.73.0",
     "typing-inspect==0.9.0",
     "brotli==1.2.1",
     "numexpr==2.14.2",
