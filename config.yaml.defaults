@@ -56,12 +56,12 @@ app:
         url: https://fritz.science
         description: >-
           Science data platform of the Zwicky Transient Facility. Managed by
-          Caltech, hosted on Google Cloud in the US.
+          Caltech.
       - name: Orcus
         url: https://orcusgate.org
         description: >-
           ZTF, LSST and DECam alerts filtered by BOOM. Managed by the University
-          of Minnesota, hosted on Google Cloud in the US.
+          of Minnesota.
       - name: ICARE
         url: https://skyportal-icare.ijclab.in2p3.fr
         description: >-
