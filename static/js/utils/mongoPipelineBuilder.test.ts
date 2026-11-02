@@ -108,3 +108,19 @@ describe("buildMongoAggregationPipeline list conditions", () => {
     });
   });
 });
+
+describe("buildMongoAggregationPipeline literal values", () => {
+  it("reads a decimal comma as a number", () => {
+    const pipeline = buildMongoAggregationPipeline([
+      {
+        category: "block",
+        logic: "and",
+        children: [condition("candidate.reliability", "$gt", "0,7")],
+      },
+    ]);
+
+    expect(JSON.stringify(pipeline)).toContain(
+      '"candidate.reliability":{"$gt":0.7}',
+    );
+  });
+});

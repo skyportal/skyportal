@@ -2605,8 +2605,12 @@ const getBooleanSwitch = (condition, value) => {
 };
 
 const parseNumberIfNeeded = (value) => {
-  if (typeof value === "string" && !isNaN(value) && !isNaN(parseFloat(value))) {
-    return parseFloat(value);
+  if (typeof value !== "string") return value;
+  const normalized = /^\s*[-+]?\d*,\d+\s*$/.test(value)
+    ? value.replace(",", ".")
+    : value;
+  if (!isNaN(normalized) && !isNaN(parseFloat(normalized))) {
+    return parseFloat(normalized);
   }
   return value;
 };
@@ -3242,7 +3246,7 @@ const convertArithmeticVariableCondition = (
     return {};
   }
 
-  const compareValue = !isNaN(value) ? parseFloat(value) : value;
+  const compareValue = parseNumberIfNeeded(value);
 
   // Skip condition if compareValue is NaN (invalid number)
   if (typeof compareValue === "number" && isNaN(compareValue)) {
@@ -3555,7 +3559,7 @@ const parseValueForComparison = (
   }
 
   // Return as literal value
-  return !isNaN(value) && !isNaN(parseFloat(value)) ? parseFloat(value) : value;
+  return parseNumberIfNeeded(value);
 };
 
 /**
