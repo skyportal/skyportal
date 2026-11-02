@@ -50,6 +50,7 @@ interface SubFieldSelectorProps {
   onSubFieldChange: (...a: any[]) => void;
   subFieldOptions: any[];
   selectedOperator: string;
+  arrayField: string;
 }
 
 const SubFieldSelector = ({
@@ -57,6 +58,7 @@ const SubFieldSelector = ({
   onSubFieldChange,
   subFieldOptions,
   selectedOperator,
+  arrayField,
 }: SubFieldSelectorProps) => {
   // Get numeric subfields for aggregation operators
   const getNumericSubFields = () => {
@@ -70,7 +72,11 @@ const SubFieldSelector = ({
     return null;
   }
 
-  const numericFields = getNumericSubFields();
+  const numericFields = getNumericSubFields().map((option: any) =>
+    option.label.startsWith(`${arrayField}.`)
+      ? { ...option, label: option.label.slice(arrayField.length + 1) }
+      : option,
+  );
   const selectedOption =
     numericFields.find((field: any) => field.label === selectedSubField) ||
     null;
@@ -962,6 +968,7 @@ const AddListConditionDialog = () => {
                 onSubFieldChange={form.setSelectedSubField}
                 subFieldOptions={dialog.subFieldOptions}
                 selectedOperator={form.selectedOperator}
+                arrayField={dialog.listFieldName}
               />
 
               <ConditionNameInput

@@ -892,6 +892,7 @@ const MongoQueryDialog = () => {
                                           const isJsonExpanded =
                                             expandedCells.has(cellKey);
                                           const hasJsonContent =
+                                            value !== null &&
                                             typeof value === "object";
                                           const isObjectId =
                                             key === "objectId" &&
