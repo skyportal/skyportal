@@ -55,8 +55,8 @@ app:
       - name: Fritz
         url: https://fritz.science
         description: >-
-          Dynamic collaborative platform for time-domain astronomy. Managed by
-          Caltech.
+          Dynamic collaborative platform for time-domain astronomy of the
+          Zwicky Transient Facility. Managed by Caltech.
       - name: Orcus
         url: https://orcusgate.org
         description: >-
