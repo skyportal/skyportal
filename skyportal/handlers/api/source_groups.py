@@ -7,7 +7,7 @@ from skyportal_py_models.source_groups import (
 from baselayer.app.access import permissions
 from baselayer.log import make_log
 
-from ...models import GroupUser, Obj, Source
+from ...models import Group, GroupUser, Obj, Source
 from ...utils.asynchronous import run_async
 from ...utils.data_access import auto_source_publishing_async
 from ...utils.naive_datetime import utcnow_naive
@@ -63,6 +63,12 @@ class SourceGroupsHandler(BaseHandler):
                     requested = False
                     saved_to_group_ids.append(save_or_invite_group_id)
                 else:
+                    if not await session.scalar(
+                        sa.select(Group.id).where(Group.id == save_or_invite_group_id)
+                    ):
+                        return self.error(
+                            f"Group {save_or_invite_group_id} not found", status=404
+                        )
                     active = False
                     requested = True
                 if active:
