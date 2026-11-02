@@ -14,9 +14,11 @@ from astropy.io import ascii
 from astropy.time import Time
 from marshmallow.exceptions import ValidationError
 from requests import Session
+from requests.adapters import HTTPAdapter
 from requests.auth import HTTPBasicAuth
 from sqlalchemy.orm import selectinload
 from tornado.ioloop import IOLoop
+from urllib3.util import Retry
 
 from baselayer.app import models as baselayer_models
 from baselayer.app.env import load_env
@@ -1093,6 +1095,7 @@ class ZTFMMAAPI(MMAAPI):
 
         s = Session()
         s.auth = (altdata["depot_username"], altdata["depot_password"])
+        s.mount("https://", HTTPAdapter(max_retries=Retry(total=3, backoff_factor=1)))
 
         fetch_obs = functools.partial(
             fetch_depot_observations,
