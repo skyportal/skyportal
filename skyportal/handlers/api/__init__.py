@@ -276,6 +276,12 @@ from .telescope import TelescopeHandler
 from .terms_of_service import TermsOfServiceHandler
 from .thumbnail import ThumbnailHandler, ThumbnailPathHandler
 from .tns.obj_tns import ObjTNSHandler
+from .topic import (
+    TopicFeedHandler,
+    TopicHandler,
+    TopicSourceHandler,
+    TopicSubscriptionHandler,
+)
 from .unsourced_finder import UnsourcedFinderHandler
 from .user import (
     UserActivityHandler,

@@ -21604,6 +21604,287 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/topics/feed": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read a topic feed
+         * @description What happened lately to the sources of a topic, or of every topic the requesting user is subscribed to: posts, human classifications, object tags, comments and spectra. Only the data the user can already access is listed. Pass the time of the oldest item received as `before` to get the ones preceding it.
+         */
+        get: {
+            parameters: {
+                query?: {
+                    /** @description One topic, instead of every subscribed topic. */
+                    topic_id?: number | null;
+                    /** @description Only items older than this time. */
+                    before?: string | null;
+                    limit?: number;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Success"] & {
+                            data?: components["schemas"]["TopicFeedResponse"];
+                        };
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/topics/{topic_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Retrieve topics
+         * @description Every topic, most followed first, with whether the requesting user is subscribed to it.
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    topic_id: number;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Success"] & {
+                            data?: components["schemas"]["TopicListResponse"];
+                        };
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        /**
+         * Delete a topic
+         * @description Restricted to the user who created it.
+         */
+        delete: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    topic_id: number;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: never;
+        };
+        options?: never;
+        head?: never;
+        /**
+         * Edit a topic
+         * @description Restricted to the user who created it.
+         */
+        patch: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    topic_id: number;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["TopicPatchBody"];
+                };
+            };
+            responses: never;
+        };
+        trace?: never;
+    };
+    "/api/topics": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Create a topic
+         * @description Sources join the topic when they are posted to it, or when they get one of its classifications or object tags. Its creator is subscribed to it.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["TopicPostBody"];
+                };
+            };
+            responses: {
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Success"] & {
+                            data?: components["schemas"]["TopicIdResponse"];
+                        };
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/topics/{topic_id}/subscription": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Subscribe to a topic */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    topic_id: number;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: never;
+        };
+        /** Unsubscribe from a topic */
+        delete: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    topic_id: number;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: never;
+        };
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/topics/{topic_id}/sources": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Post a source to a topic */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    topic_id: number;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["TopicSourcePostBody"];
+                };
+            };
+            responses: {
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Success"] & {
+                            data?: components["schemas"]["TopicIdResponse"];
+                        };
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/topics/{topic_id}/sources/{obj_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Remove a source posted to a topic
+         * @description Restricted to the user who posted it and the topic creator.
+         */
+        delete: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    topic_id: number;
+                    obj_id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: never;
+        };
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/config": {
         parameters: {
             query?: never;
@@ -41170,6 +41451,168 @@ export interface components {
             message?: string;
             data?: components["schemas"]["TokenNoID"][];
         };
+        Topic: {
+            /** @description The User who created the topic. */
+            readonly creator?: components["schemas"]["User"];
+            readonly subscriptions?: components["schemas"]["TopicSubscription"][];
+            readonly sources?: components["schemas"]["TopicSource"][];
+            /** @description Name of the topic. */
+            name: string;
+            /** @description What the topic is about. */
+            description?: string | null;
+            /** @description ID of the User who created the topic. */
+            creator_id?: number | null;
+            /** @description Human classifications that bring a source into the topic. */
+            classifications?: string[];
+            /** @description IDs of the object tags that bring a source into the topic. */
+            tag_ids?: number[];
+            /** @description Unique object identifier. */
+            id?: number;
+        };
+        SingleTopic: {
+            /** @enum {string} */
+            status: "success";
+            message?: string;
+            data?: components["schemas"]["Topic"];
+        };
+        ArrayOfTopics: {
+            /** @enum {string} */
+            status: "success";
+            message?: string;
+            data?: components["schemas"]["Topic"][];
+        };
+        TopicNoID: {
+            /** @description The User who created the topic. */
+            readonly creator?: components["schemas"]["User"];
+            readonly subscriptions?: components["schemas"]["TopicSubscription"][];
+            readonly sources?: components["schemas"]["TopicSource"][];
+            /** @description Name of the topic. */
+            name: string;
+            /** @description What the topic is about. */
+            description?: string | null;
+            /** @description ID of the User who created the topic. */
+            creator_id?: number | null;
+            /** @description Human classifications that bring a source into the topic. */
+            classifications?: string[];
+            /** @description IDs of the object tags that bring a source into the topic. */
+            tag_ids?: number[];
+        };
+        SingleTopicNoID: {
+            /** @enum {string} */
+            status: "success";
+            message?: string;
+            data?: components["schemas"]["TopicNoID"];
+        };
+        ArrayOfTopicNoIDs: {
+            /** @enum {string} */
+            status: "success";
+            message?: string;
+            data?: components["schemas"]["TopicNoID"][];
+        };
+        TopicSource: {
+            /** @description The Topic. */
+            readonly topic?: components["schemas"]["Topic"];
+            /** @description The posted Obj. */
+            readonly obj?: components["schemas"]["Obj"];
+            /** @description The User who posted the source. */
+            readonly author?: components["schemas"]["User"];
+            /** @description ID of the Topic. */
+            topic_id: number;
+            /** @description ID of the posted Obj. */
+            obj_id: string;
+            /** @description ID of the User who posted the source. */
+            author_id: number;
+            /** @description Why the source belongs in the topic. */
+            text?: string | null;
+            /** @description Unique object identifier. */
+            id?: number;
+        };
+        SingleTopicSource: {
+            /** @enum {string} */
+            status: "success";
+            message?: string;
+            data?: components["schemas"]["TopicSource"];
+        };
+        ArrayOfTopicSources: {
+            /** @enum {string} */
+            status: "success";
+            message?: string;
+            data?: components["schemas"]["TopicSource"][];
+        };
+        TopicSourceNoID: {
+            /** @description The Topic. */
+            readonly topic?: components["schemas"]["Topic"];
+            /** @description The posted Obj. */
+            readonly obj?: components["schemas"]["Obj"];
+            /** @description The User who posted the source. */
+            readonly author?: components["schemas"]["User"];
+            /** @description ID of the Topic. */
+            topic_id: number;
+            /** @description ID of the posted Obj. */
+            obj_id: string;
+            /** @description ID of the User who posted the source. */
+            author_id: number;
+            /** @description Why the source belongs in the topic. */
+            text?: string | null;
+        };
+        SingleTopicSourceNoID: {
+            /** @enum {string} */
+            status: "success";
+            message?: string;
+            data?: components["schemas"]["TopicSourceNoID"];
+        };
+        ArrayOfTopicSourceNoIDs: {
+            /** @enum {string} */
+            status: "success";
+            message?: string;
+            data?: components["schemas"]["TopicSourceNoID"][];
+        };
+        TopicSubscription: {
+            /** @description The Topic. */
+            readonly topic?: components["schemas"]["Topic"];
+            /** @description The subscriber. */
+            readonly user?: components["schemas"]["User"];
+            /** @description ID of the Topic. */
+            topic_id: number;
+            /** @description ID of the subscriber. */
+            user_id: number;
+            /** @description Unique object identifier. */
+            id?: number;
+        };
+        SingleTopicSubscription: {
+            /** @enum {string} */
+            status: "success";
+            message?: string;
+            data?: components["schemas"]["TopicSubscription"];
+        };
+        ArrayOfTopicSubscriptions: {
+            /** @enum {string} */
+            status: "success";
+            message?: string;
+            data?: components["schemas"]["TopicSubscription"][];
+        };
+        TopicSubscriptionNoID: {
+            /** @description The Topic. */
+            readonly topic?: components["schemas"]["Topic"];
+            /** @description The subscriber. */
+            readonly user?: components["schemas"]["User"];
+            /** @description ID of the Topic. */
+            topic_id: number;
+            /** @description ID of the subscriber. */
+            user_id: number;
+        };
+        SingleTopicSubscriptionNoID: {
+            /** @enum {string} */
+            status: "success";
+            message?: string;
+            data?: components["schemas"]["TopicSubscriptionNoID"];
+        };
+        ArrayOfTopicSubscriptionNoIDs: {
+            /** @enum {string} */
+            status: "success";
+            message?: string;
+            data?: components["schemas"]["TopicSubscriptionNoID"][];
+        };
         User: {
             readonly roles?: components["schemas"]["Role"][];
             readonly tokens?: components["schemas"]["Token"][];
@@ -50198,6 +50641,184 @@ export interface components {
         CommentThreadListResponse: {
             /** Threads */
             threads?: components["schemas"]["CommentThreadResponse"][];
+        };
+        /**
+         * TopicFeedItemResponse
+         * @description Something that happened to a source of a topic.
+         */
+        TopicFeedItemResponse: {
+            /**
+             * Type
+             * @enum {string}
+             */
+            type: "post" | "classification" | "tag" | "comment" | "spectrum";
+            /**
+             * Id
+             * @description ID of the post, classification, tag, comment or spectrum.
+             */
+            id: number;
+            /**
+             * Time
+             * Format: date-time
+             */
+            time: string;
+            /** Obj Id */
+            obj_id: string;
+            /** @default null */
+            author: components["schemas"]["DiscussionUserResponse"];
+            /**
+             * Text
+             * @description Posts and comments.
+             * @default null
+             */
+            text: string | null;
+            /**
+             * Label
+             * @description The classification, the tag, or the spectrum's instrument.
+             * @default null
+             */
+            label: string | null;
+            /**
+             * Topic Ids
+             * @description Requested topics the source belongs to.
+             */
+            topic_ids?: number[];
+        };
+        /**
+         * TopicFeedResponse
+         * @description A page of a topic feed, latest first.
+         */
+        TopicFeedResponse: {
+            /** Items */
+            items?: components["schemas"]["TopicFeedItemResponse"][];
+            /**
+             * Has More
+             * @description Whether older items remain.
+             */
+            has_more: boolean;
+        };
+        /**
+         * TopicResponse
+         * @description A topic, as seen by the requesting user.
+         */
+        TopicResponse: {
+            /** Id */
+            id: number;
+            /** Name */
+            name: string;
+            /**
+             * Description
+             * @default null
+             */
+            description: string | null;
+            /** @default null */
+            creator: components["schemas"]["DiscussionUserResponse"];
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Classifications */
+            classifications?: string[];
+            /** Tags */
+            tags?: components["schemas"]["TopicTagResponse"][];
+            /** Subscriber Count */
+            subscriber_count: number;
+            /** Subscribed */
+            subscribed: boolean;
+        };
+        /**
+         * TopicTagResponse
+         * @description An object tag that brings sources into a topic.
+         */
+        TopicTagResponse: {
+            /** Id */
+            id: number;
+            /** Name */
+            name: string;
+            /**
+             * Color
+             * @default null
+             */
+            color: string | null;
+        };
+        /**
+         * TopicListResponse
+         * @description Every topic, most followed first.
+         */
+        TopicListResponse: {
+            /** Topics */
+            topics?: components["schemas"]["TopicResponse"][];
+        };
+        /**
+         * TopicPostBody
+         * @description Request body for creating a topic.
+         */
+        TopicPostBody: {
+            /** Name */
+            name: string;
+            /**
+             * Description
+             * @default null
+             */
+            description: string | null;
+            /**
+             * Classifications
+             * @description Human classifications that bring a source into the topic.
+             */
+            classifications?: string[];
+            /**
+             * Tag Ids
+             * @description Object tags that bring a source into the topic.
+             */
+            tag_ids?: number[];
+        };
+        /**
+         * TopicIdResponse
+         * @description The ID of the created record.
+         */
+        TopicIdResponse: {
+            /** Id */
+            id: number;
+        };
+        /**
+         * TopicPatchBody
+         * @description Request body for editing a topic. Restricted to its creator.
+         */
+        TopicPatchBody: {
+            /**
+             * Name
+             * @default null
+             */
+            name: string | null;
+            /**
+             * Description
+             * @default null
+             */
+            description: string | null;
+            /**
+             * Classifications
+             * @default null
+             */
+            classifications: string[] | null;
+            /**
+             * Tag Ids
+             * @default null
+             */
+            tag_ids: number[] | null;
+        };
+        /**
+         * TopicSourcePostBody
+         * @description Request body for posting a source to a topic.
+         */
+        TopicSourcePostBody: {
+            /** Obj Id */
+            obj_id: string;
+            /**
+             * Text
+             * @default null
+             */
+            text: string | null;
         };
         /**
          * AssistantConversationPatchBody

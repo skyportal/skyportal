@@ -64,6 +64,7 @@ from skyportal_py_models import (
     telescopes,
     thumbnails,
     tokens,
+    topics,
     users,
     weather,
 )
@@ -127,6 +128,7 @@ __all__ = [
     "telescopes",
     "thumbnails",
     "tokens",
+    "topics",
     "users",
     "weather",
 ]
