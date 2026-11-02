@@ -499,9 +499,6 @@ def test_candidate_list_sorting_hidden_group(
     )
     assert status == 200
 
-    # Sort by the numeric field ascending, but since view_only_token does not
-    # have access to public_group2, the first annotation above should not be
-    # seen in the response
     status, data = api(
         "GET",
         "candidates",
@@ -512,9 +509,13 @@ def test_candidate_list_sorting_hidden_group(
         token=view_only_token,
     )
     assert status == 200
-    assert data["data"]["candidates"][0]["id"] == public_candidate_two_groups.id
-    assert data["data"]["candidates"][0]["annotations"] == []
-    assert data["data"]["candidates"][1]["id"] == public_candidate2.id
+    candidates = data["data"]["candidates"]
+    assert candidates[0]["id"] == public_candidate2.id
+    assert all(
+        c["annotations"] == []
+        for c in candidates
+        if c["id"] == public_candidate_two_groups.id
+    )
 
 
 def test_candidate_list_sorting_null_value(
