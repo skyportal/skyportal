@@ -60,13 +60,13 @@ app:
       - name: Orcus
         url: https://orcusgate.org
         description: >-
-          ZTF, LSST and DECam alerts filtered by BOOM. Managed by the University
-          of Minnesota.
+          Dynamic collaborative platform for time-domain astronomy. Managed by
+          the University of Minnesota.
       - name: ICARE
         url: https://skyportal-icare.ijclab.in2p3.fr
         description: >-
-          ZTF and LSST alerts. Managed by IJCLab (Université Paris-Saclay),
-          hosted in France.
+          Dynamic collaborative platform for time-domain astronomy. Managed by
+          IJCLab (Université Paris-Saclay), hosted in France.
     # SkyPortal core team, most active in SkyPortal first, on the About and
     # login pages.
     # `email` makes the photo a mail link.
