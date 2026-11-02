@@ -150,11 +150,17 @@ async def programid_to_stream_ids(session):
 
 
 async def get_or_create_obj(session, obj_id, **columns):
+    import astropy.units as u
+    import healpix_alchemy as ha
     import sqlalchemy as sa
     from sqlalchemy.dialects.postgresql import insert as pg_insert
 
     from ..models import Obj
 
+    if columns.get("ra") is not None and columns.get("dec") is not None:
+        columns["healpix"] = ha.constants.HPX.lonlat_to_healpix(
+            columns["ra"] * u.deg, columns["dec"] * u.deg
+        )
     inserted = await session.scalar(
         pg_insert(Obj)
         .values(id=obj_id, **columns)
