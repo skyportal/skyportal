@@ -36,6 +36,56 @@ const AVRO_PRIMITIVE_TYPES = new Set([
   "string",
 ]);
 
+const nonNullType = (avroType) =>
+  Array.isArray(avroType)
+    ? avroType.find((t) => t !== "null") || avroType[0]
+    : avroType;
+
+const isRecordType = (avroType) =>
+  typeof avroType === "object" &&
+  avroType !== null &&
+  avroType.type === "record" &&
+  Array.isArray(avroType.fields);
+
+// The catalogs under `cross_matches`, each with the record of one match, or
+// null if the type is not shaped like cross matches. BOOM declares a record
+// with one array of matches per catalog, which is how the alert holds them;
+// the older shape, an array of records with one optional record per catalog,
+// is still read.
+const getCrossMatchCatalogs = (crossMatchesType) => {
+  const type = nonNullType(crossMatchesType);
+
+  if (isRecordType(type)) {
+    const catalogs = type.fields.map((catalogField) => {
+      const catalogType = nonNullType(catalogField.type);
+      const match =
+        typeof catalogType === "object" && catalogType?.type === "array"
+          ? nonNullType(catalogType.items)
+          : null;
+      return isRecordType(match)
+        ? { name: catalogField.name, record: match }
+        : null;
+    });
+    return catalogs.length > 0 && catalogs.every(Boolean) ? catalogs : null;
+  }
+
+  if (
+    typeof type === "object" &&
+    type?.type === "array" &&
+    isRecordType(type.items)
+  ) {
+    const catalogs = type.items.fields
+      .map((catalogField) => ({
+        name: catalogField.name,
+        record: nonNullType(catalogField.type),
+      }))
+      .filter((catalog) => isRecordType(catalog.record));
+    return catalogs.length > 0 ? catalogs : null;
+  }
+
+  return null;
+};
+
 export const flattenFieldOptions = (avroSchema) => {
   const flattenedOptions = [];
   const defaultGroupName = "Other Fields";
@@ -104,6 +154,24 @@ export const flattenFieldOptions = (avroSchema) => {
     }
     if (typeof actualType === "string") {
       actualType = resolveNamedType(actualType, avroSchema) ?? actualType;
+    }
+
+    const crossMatchCatalogs =
+      currentPath === "cross_matches"
+        ? getCrossMatchCatalogs(actualType)
+        : null;
+    if (crossMatchCatalogs) {
+      crossMatchCatalogs.forEach(({ name }) => {
+        flattenedOptions.push({
+          label: `${currentPath}.${name}`,
+          type: "array",
+          group: "Cross Matches",
+          parentArray: currentPath,
+          arrayObject: name,
+          catalogName: name,
+        });
+      });
+      return;
     }
 
     if (
@@ -478,75 +546,52 @@ export function getArrayFieldSubOptions(arrayFieldLabel, schema) {
       return [];
     }
 
-    let crossMatchType = crossMatchesField.type;
-    if (Array.isArray(crossMatchType)) {
-      crossMatchType =
-        crossMatchType.find((t) => t !== "null") || crossMatchType[0];
-    }
+    // The record of one match in the specific catalog
+    const catalogType = getCrossMatchCatalogs(crossMatchesField.type)?.find(
+      (catalog) => catalog.name === catalogName,
+    )?.record;
 
-    if (
-      crossMatchType.type === "array" &&
-      crossMatchType.items &&
-      crossMatchType.items.type === "record" &&
-      crossMatchType.items.fields
-    ) {
-      // Find the specific catalog field
-      const catalogField = crossMatchType.items.fields.find(
-        (f) => f.name === catalogName,
+    if (catalogType) {
+      // Convert Avro fields to our field options format
+      const catalogGroupName =
+        catalogName === "NED_BetaV3"
+          ? "NED BetaV3"
+          : catalogName === "CLU_20190625"
+            ? "CLU 20190625"
+            : catalogName === "Gaia_EDR3"
+              ? "Gaia EDR3"
+              : catalogName;
+
+      const convertAvroField = (field, prefix = "") => {
+        const fieldPath = prefix ? `${prefix}.${field.name}` : field.name;
+        let fieldType = field.type;
+        if (Array.isArray(fieldType)) {
+          fieldType = fieldType.find((t) => t !== "null") || fieldType[0];
+        }
+
+        if (
+          typeof fieldType === "object" &&
+          fieldType.type === "record" &&
+          fieldType.fields
+        ) {
+          return fieldType.fields.flatMap((nestedField) =>
+            convertAvroField(nestedField, fieldPath),
+          );
+        }
+        return [
+          {
+            label: `${arrayFieldLabel}.${fieldPath}`,
+            type: getSimpleType(fieldType),
+            group: catalogGroupName,
+          },
+        ];
+      };
+
+      const allFields = catalogType.fields.flatMap((field) =>
+        convertAvroField(field),
       );
-      if (!catalogField) return [];
 
-      let catalogType = catalogField.type;
-      if (Array.isArray(catalogType)) {
-        catalogType = catalogType.find((t) => t !== "null") || catalogType[0];
-      }
-
-      if (
-        typeof catalogType === "object" &&
-        catalogType.type === "record" &&
-        catalogType.fields
-      ) {
-        // Convert Avro fields to our field options format
-        const catalogGroupName =
-          catalogName === "NED_BetaV3"
-            ? "NED BetaV3"
-            : catalogName === "CLU_20190625"
-              ? "CLU 20190625"
-              : catalogName === "Gaia_EDR3"
-                ? "Gaia EDR3"
-                : catalogName;
-
-        const convertAvroField = (field, prefix = "") => {
-          const fieldPath = prefix ? `${prefix}.${field.name}` : field.name;
-          let fieldType = field.type;
-          if (Array.isArray(fieldType)) {
-            fieldType = fieldType.find((t) => t !== "null") || fieldType[0];
-          }
-
-          if (
-            typeof fieldType === "object" &&
-            fieldType.type === "record" &&
-            fieldType.fields
-          ) {
-            return fieldType.fields.flatMap((nestedField) =>
-              convertAvroField(nestedField, fieldPath),
-            );
-          }
-          return [
-            {
-              label: `${arrayFieldLabel}.${fieldPath}`,
-              type: getSimpleType(fieldType),
-              group: catalogGroupName,
-            },
-          ];
-        };
-
-        const allFields = catalogType.fields.flatMap((field) =>
-          convertAvroField(field),
-        );
-
-        return allFields.sort((a, b) => a.label.localeCompare(b.label));
-      }
+      return allFields.sort((a, b) => a.label.localeCompare(b.label));
     }
 
     return [];
