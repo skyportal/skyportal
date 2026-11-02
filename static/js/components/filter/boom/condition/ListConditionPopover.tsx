@@ -724,10 +724,13 @@ const ListConditionPopover = ({
       listCondition.field ||
       (listCondition.value && listCondition.value.field) ||
       "";
-    const subField =
+    const rawSubField =
       listCondition.subField ||
       (listCondition.value && listCondition.value.subField) ||
       "";
+    const subField = rawSubField.startsWith(`${arrayField}.`)
+      ? rawSubField.slice(arrayField.length + 1)
+      : rawSubField;
 
     // $size doesn't require a subField
     if (!operator || !arrayField) {
