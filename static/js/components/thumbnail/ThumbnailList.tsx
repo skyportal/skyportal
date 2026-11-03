@@ -496,8 +496,7 @@ const ThumbnailList = ({
           </Box>
         )}
       </Box>
-      {showOnDemandButton && !freeSlot && <div>{onDemandButton}</div>}
-      {(footer || mixedScalesShown) && (
+      {(footer || mixedScalesShown || (showOnDemandButton && !freeSlot)) && (
         <Box
           sx={{
             mt: "auto",
@@ -508,7 +507,10 @@ const ThumbnailList = ({
             gap: 1,
           }}
         >
-          <Box>{footer}</Box>
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+            {showOnDemandButton && !freeSlot && onDemandButton}
+            {footer}
+          </Box>
           {mixedScalesShown && (
             <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
               <Typography variant="caption" color="text.secondary">
