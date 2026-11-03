@@ -142,6 +142,7 @@ export const TAG_TYPES = [
   "SourceInterest",
   "Stream",
   "SuperObj",
+  "TrackMPC",
   "Telescopes",
   "TermsOfService",
   "Weather",

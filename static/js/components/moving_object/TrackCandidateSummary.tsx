@@ -5,6 +5,7 @@ import Button from "@mui/material/Button";
 import Chip from "@mui/material/Chip";
 import CircularProgress from "@mui/material/CircularProgress";
 import Dialog from "@mui/material/Dialog";
+import DialogActions from "@mui/material/DialogActions";
 import DialogContent from "@mui/material/DialogContent";
 import DialogTitle from "@mui/material/DialogTitle";
 
@@ -15,11 +16,13 @@ import {
   useMeasureTrackCutoutsMutation,
   useMeasureTrackGeometryMutation,
 } from "../../ducks/moving_object_track";
+import TrackMPCSubmit from "./TrackMPCSubmit";
 import TrackVettingPanel from "./TrackVettingPanel";
 
 interface TrackCandidateSummaryProps {
   trackId: string;
   brokerId: number;
+  objId: string;
   survey?: string;
 }
 
@@ -33,6 +36,7 @@ interface TrackCandidateSummaryProps {
 const TrackCandidateSummary = ({
   trackId,
   brokerId,
+  objId,
   survey = "ZTF",
 }: TrackCandidateSummaryProps) => {
   const { data: track } = useGetMovingObjectTrackQuery({
@@ -196,6 +200,15 @@ const TrackCandidateSummary = ({
         <DialogContent>
           {vetting && <TrackVettingPanel measurement={vetting} />}
         </DialogContent>
+        {survey === "ZTF" && (
+          <DialogActions>
+            <TrackMPCSubmit
+              trackId={track.id}
+              brokerId={brokerId}
+              objId={objId}
+            />
+          </DialogActions>
+        )}
       </Dialog>
     </Box>
   );

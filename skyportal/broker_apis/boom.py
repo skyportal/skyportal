@@ -947,6 +947,7 @@ class BOOMBROKER(BrokerAPI):
                     "filter": {"_id": {"$in": list(members)}, **scope},
                     "projection": {
                         "candidate.jd": 1,
+                        "candidate.exptime": 1,
                         "candidate.ra": 1,
                         "candidate.dec": 1,
                         "candidate.magpsf": 1,
@@ -964,12 +965,17 @@ class BOOMBROKER(BrokerAPI):
         detections = []
         for alert in alerts or []:
             candidate = alert.get("candidate") or {}
+            jd = candidate.get("jd")
             detections.append(
                 {
                     # A candid is a 19-digit integer, which JSON hands the
                     # browser as a float and rounds; keep it a string.
                     "candid": str(alert.get("_id")),
-                    "jd": candidate.get("jd"),
+                    "jd": jd,
+                    # ZTF's jd is the start of the exposure; the MPC wants its middle.
+                    "obs_jd": None
+                    if jd is None
+                    else jd + (candidate.get("exptime") or 30.0) / 2 / 86400,
                     "ra": candidate.get("ra"),
                     "dec": candidate.get("dec"),
                     "mag": candidate.get("magpsf"),

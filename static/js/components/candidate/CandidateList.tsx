@@ -539,6 +539,7 @@ const Candidate = ({
           <TrackCandidateSummary
             trackId={trackId}
             brokerId={candidate.broker_id ?? 1}
+            objId={candidate.id}
           />
         )}
       </Box>

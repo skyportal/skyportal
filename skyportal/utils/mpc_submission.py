@@ -4,7 +4,26 @@ Written against the submission that became MPC track BOOM01: 19 ZTF detections
 over a 13-day arc, acknowledged 2026-09-24.
 """
 
+import re
+
+import requests
 from astropy.time import Time
+
+from .http import serialize_requests_response
+
+MPC_SUBMIT_URL = "https://minorplanetcenter.net/submit_psv"
+
+MPC_HEADER_FIELDS = (
+    "observatory_code",
+    "observers",
+    "measurers",
+    "telescope_name",
+    "telescope_design",
+    "telescope_aperture",
+    "telescope_detector",
+)
+
+SUBMISSION_ID = re.compile(r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d+_\w+")
 
 # trkSub, not permID: permID is reserved for the permanent numbers of known
 # objects, and the MPC rejects a new track that claims one.
@@ -94,3 +113,70 @@ def psv_submission(
             )
         )
     return "\n".join(lines) + "\n"
+
+
+def default_submitter(user):
+    """The name a user files under, as the MPC writes names: "Q. Ye"."""
+    if user.first_name and user.last_name:
+        return f"{user.first_name[0]}. {user.last_name}"
+    return user.username
+
+
+def track_psv(track, sharing_service, submitter):
+    """A broker's track as the PSV the sharing service files under ``submitter``."""
+    header = sharing_service.mpc_altdata or {}
+    missing = [field for field in MPC_HEADER_FIELDS if not header.get(field)]
+    if missing:
+        raise NotSubmittable(
+            f"sharing service {sharing_service.name} is missing MPC {', '.join(missing)}"
+        )
+    return psv_submission(
+        [{**d, "jd": d["obs_jd"]} for d in track["detections"]],
+        track["id"],
+        observatory={"mpc_code": header["observatory_code"]},
+        telescope={
+            "name": header["telescope_name"],
+            "design": header["telescope_design"],
+            "aperture": header["telescope_aperture"],
+            "detector": header["telescope_detector"],
+        },
+        submitter=submitter,
+        observers=header["observers"],
+        measurers=header["measurers"],
+    )
+
+
+def ack_email(user, sharing_service):
+    """Where the MPC sends its acknowledgement: the submitter, else the service."""
+    email = user.contact_email or (sharing_service.mpc_altdata or {}).get("ack_email")
+    if not email:
+        raise NotSubmittable(
+            "No address for the MPC acknowledgement: set a contact email on "
+            "your profile or an ack_email on the sharing service"
+        )
+    return email
+
+
+def submit_to_mpc(submission_request, sharing_service, user, session):
+    """File a queued PSV with the MPC, or with its test endpoint when testing."""
+    payload = submission_request.mpc_payload
+    url = MPC_SUBMIT_URL + ("_test" if sharing_service.testing else "")
+    response = requests.post(
+        url,
+        data={"ack": payload["track_id"], "ac2": ack_email(user, sharing_service)},
+        files={"source": payload["psv"].encode()},
+        timeout=120,
+    )
+    submission_request.mpc_response = serialize_requests_response(response)
+    found = SUBMISSION_ID.search(response.text)
+    if not response.ok or found is None:
+        submission_request.mpc_status = (
+            f"Error: the MPC returned {response.status_code} with no submission "
+            f"ID: {response.text.strip()[:300]}"
+        )
+    else:
+        submission_request.mpc_submission_id = found.group(0)
+        submission_request.mpc_status = (
+            "test submission" if sharing_service.testing else "submitted"
+        )
+    session.commit()

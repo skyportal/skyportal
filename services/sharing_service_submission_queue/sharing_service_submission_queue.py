@@ -26,6 +26,7 @@ from skyportal.utils.data_access import (
     validate_photometry_options,
 )
 from skyportal.utils.hermes_submission import submit_to_hermes
+from skyportal.utils.mpc_submission import submit_to_mpc
 from skyportal.utils.naive_datetime import utcnow_naive
 from skyportal.utils.services import check_loaded
 from skyportal.utils.tns_submission import (
@@ -459,6 +460,78 @@ def process_trove_submission_requests():
             time.sleep(5)
 
 
+def process_mpc_submission_requests():
+    session_context_id.set(uuid.uuid4().hex)
+
+    while True:
+        try:
+            with DBSession() as session:
+                session.execute(
+                    sa.text(f"SET statement_timeout = '{STATEMENT_TIMEOUT}'")
+                )
+                # Not "processing": that request may already be at the MPC.
+                submission_request = session.scalar(
+                    sa.select(SharingServiceSubmission)
+                    .where(
+                        SharingServiceSubmission.publish_to_mpc.is_(True),
+                        SharingServiceSubmission.mpc_status == "pending",
+                    )
+                    .order_by(SharingServiceSubmission.created_at.asc())
+                )
+                if submission_request is None:
+                    time.sleep(5)
+                    continue
+
+                submission_request.mpc_status = "processing"
+                session.commit()
+                submission_request_id = submission_request.id
+                user_id = submission_request.user_id
+
+                try:
+                    submit_to_mpc(
+                        submission_request,
+                        session.get(
+                            SharingService, submission_request.sharing_service_id
+                        ),
+                        session.get(User, user_id),
+                        session,
+                    )
+                except Exception as e:
+                    session.rollback()
+                    log(
+                        f"Error processing MPC submission request {submission_request_id}: {e}"
+                    )
+                    submission_request = session.get(
+                        SharingServiceSubmission, submission_request_id
+                    )
+                    submission_request.mpc_status = f"Error: {e}"
+                    session.commit()
+
+                flow = Flow()
+                flow.push(
+                    user_id=user_id,
+                    action_type="baselayer/SHOW_NOTIFICATION",
+                    payload={
+                        "note": f"MPC submission of {submission_request.mpc_payload['track_id']}: "
+                        f"{submission_request.mpc_status}",
+                        "type": "error"
+                        if submission_request.mpc_status.startswith("Error")
+                        else "info",
+                        "duration": 8000,
+                    },
+                )
+                flow.push(
+                    "*",
+                    "skyportal/REFRESH_SHARING_SERVICE_SUBMISSIONS",
+                    payload={
+                        "sharing_service_id": submission_request.sharing_service_id
+                    },
+                )
+        except Exception as e:
+            log(f"Error in MPC submission request loop, retrying: {e}")
+            time.sleep(5)
+
+
 def validate_submission_requests():
     """Service to query TNS for the status of submitted AT reports and update the SharingServiceSubmission table."""
     session_context_id.set(uuid.uuid4().hex)
@@ -722,15 +795,17 @@ def service(*args, **kwargs):
     t = Thread(target=process_submission_requests)
     t2 = Thread(target=validate_submission_requests)
     t3 = Thread(target=process_trove_submission_requests)
+    t4 = Thread(target=process_mpc_submission_requests)
     t.start()
     t2.start()
     t3.start()
+    t4.start()
     while True:
         log("Sharing service submission queue heartbeat")
         time.sleep(120)
         # Exit if any worker thread died (e.g. DB connection drop in a context
         # manager exit, outside the loop's try/except) so supervisor restarts us.
-        if not (t.is_alive() and t2.is_alive() and t3.is_alive()):
+        if not (t.is_alive() and t2.is_alive() and t3.is_alive() and t4.is_alive()):
             log("A sharing service worker thread died, exiting for supervisor restart")
             sys.exit(1)
 

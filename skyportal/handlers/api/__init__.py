@@ -166,6 +166,7 @@ from .moving_object import (
     MovingObjectFollowupHandler,
     MovingObjectTrackHandler,
     MovingObjectTrackLookupHandler,
+    MovingObjectTrackMPCHandler,
 )
 from .mpc import ObjMPCHandler
 from .news_feed import NewsFeedHandler
