@@ -1078,7 +1078,10 @@ const SharingServicesPage = () => {
             <>
               <IconButton
                 onClick={() => {
-                  setSharingServiceToManage(row);
+                  setSharingServiceToManage({
+                    ...row,
+                    ...row.photometry_options,
+                  });
                   setEnablePublishToTNS(row.enable_sharing_with_tns);
                   setEnablePublishToHermes(row.enable_sharing_with_hermes);
                   setEnablePublishToTrove(row.enable_sharing_with_trove);
