@@ -165,6 +165,9 @@ from skyportal.models import (
     Telescope,
     TermsOfServiceAcceptance,
     Thumbnail,
+    Topic,
+    TopicSource,
+    TopicSubscription,
     User,
     UserInvitation,
     Weather,
@@ -697,6 +700,44 @@ def group_discussion(public_group, user):
     if obj is not None:
         DBSession().delete(obj)
         DBSession().commit()
+
+
+@pytest.fixture()
+def topic(user):
+    t = Topic(
+        name=f"Kilonovae {uuid.uuid4()}",
+        creator_id=user.id,
+        classifications=["Kilonova"],
+        subscriptions=[TopicSubscription(user_id=user.id)],
+    )
+    DBSession.add(t)
+    DBSession.commit()
+    topic_id = t.id
+    yield t
+    obj = (
+        DBSession()
+        .execute(sa.select(Topic).filter(Topic.id == topic_id))
+        .scalars()
+        .first()
+    )
+    if obj is not None:
+        DBSession().delete(obj)
+        DBSession().commit()
+
+
+@pytest.fixture()
+def topic_subscription(topic):
+    return topic.subscriptions[0]
+
+
+@pytest.fixture()
+def topic_source(topic, public_source, user_group2):
+    p = TopicSource(
+        topic_id=topic.id, obj_id=public_source.id, author_id=user_group2.id
+    )
+    DBSession.add(p)
+    DBSession.commit()
+    yield p
 
 
 @pytest.fixture()

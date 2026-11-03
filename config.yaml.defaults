@@ -367,6 +367,8 @@ app:
       component: listing/FavoritesPage
     - path: "/discussions"
       component: discussion/Discussions
+    - path: "/topics"
+      component: topic/Topics
     - path: "/data_access_requests"
       component: DataAccessRequestsPage
     - path: "/source_interests"
@@ -518,6 +520,10 @@ app:
         - name: Discussions
           icon: Forum
           url: /discussions
+
+        - name: Topics
+          icon: Tag
+          url: /topics
 
         - name: Groups
           icon: GroupWork
@@ -863,6 +869,16 @@ app:
         md: [0, 6, 5, 3]
         sm: [0, 11, 3, 3]
         xs: [0, 18, 4, 3]
+
+    TopicFeed:
+      resizeable: true
+      minW: 2
+      layouts:
+        xlg: [0, 9, 8, 3]
+        lg: [0, 9, 6, 3]
+        md: [0, 12, 5, 3]
+        sm: [0, 16, 6, 3]
+        xs: [0, 26, 4, 3]
 
     # Use linkToGroupSources: true in props to link to the group sources page instead.
     GroupList:
