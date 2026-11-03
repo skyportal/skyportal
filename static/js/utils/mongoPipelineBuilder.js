@@ -2973,6 +2973,7 @@ const convertConditionToMongoExpr = (
             subFieldOptions,
             condition,
             dependencyGraph,
+            expressionContext,
           );
         }
         break;
@@ -2991,7 +2992,12 @@ const convertConditionToMongoExpr = (
       case "switchCase":
         switchVar = customSwitchCases.find((v) => v.name === field);
         if (switchVar) {
-          return convertSwitchVariableCondition(switchVar, operator, value);
+          return convertSwitchVariableCondition(
+            switchVar,
+            operator,
+            value,
+            expressionContext,
+          );
         }
         break;
       case "schema":
@@ -3025,7 +3031,12 @@ const convertConditionToMongoExpr = (
     if (meta.isSwitchCase) {
       const switchVar = customSwitchCases.find((v) => v.name === field);
       if (switchVar) {
-        return convertSwitchVariableCondition(switchVar, operator, value);
+        return convertSwitchVariableCondition(
+          switchVar,
+          operator,
+          value,
+          expressionContext,
+        );
       }
     }
 
@@ -3044,6 +3055,7 @@ const convertConditionToMongoExpr = (
           subFieldOptions,
           condition,
           dependencyGraph,
+          expressionContext,
         );
       }
     }
@@ -3094,6 +3106,7 @@ const convertConditionToMongoExpr = (
       null,
       condition,
       dependencyGraph,
+      expressionContext,
     );
   }
 
@@ -3132,7 +3145,12 @@ const convertConditionToMongoExpr = (
   // Handle switch cases (only if not a schema field)
   const switchVar = customSwitchCases.find((v) => v.name === field);
   if (switchVar) {
-    return convertSwitchVariableCondition(switchVar, operator, value);
+    return convertSwitchVariableCondition(
+      switchVar,
+      operator,
+      value,
+      expressionContext,
+    );
   }
 
   // Fallback to schema field handling if nothing else matches
@@ -3166,6 +3184,7 @@ const convertListVariableCondition = (
   subFieldOptions,
   condition,
   dependencyGraph = null,
+  expressionContext = false,
 ) => {
   let compareValue = parseValueForComparison(
     value,
@@ -3220,13 +3239,28 @@ const convertListVariableCondition = (
   }
 
   // Always reference the field name (it should be defined in $addFields)
+  if (expressionContext) {
+    return makeExprArrayCondition(`$${listVar.name}`, operator, compareValue);
+  }
   return makeFieldCondition(listVar.name, operator, compareValue);
 };
 
 /**
  * Converts switch variable condition
  */
-const convertSwitchVariableCondition = (switchVar, operator, value) => {
+const convertSwitchVariableCondition = (
+  switchVar,
+  operator,
+  value,
+  expressionContext = false,
+) => {
+  if (expressionContext) {
+    return makeExprArrayCondition(
+      `$${switchVar.name}`,
+      operator,
+      parseNumberIfNeeded(value),
+    );
+  }
   return makeFieldCondition(
     switchVar.name,
     operator,
