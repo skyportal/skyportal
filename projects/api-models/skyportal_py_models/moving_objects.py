@@ -102,6 +102,12 @@ class TrackDetection(BaseModel):
     dec: float = Field(description="Declination in degrees.")
     mag: float | None = Field(default=None, description="Reported magnitude.")
     band: str | None = Field(default=None, description="Filter the detection is in.")
+    ssnamenr: str | None = Field(
+        default=None, description="Known object the survey matched, if any."
+    )
+    objectId: str | None = Field(
+        default=None, description="Survey object id of the detection."
+    )
 
 
 class MovingObjectTrackPostBody(BaseModel):

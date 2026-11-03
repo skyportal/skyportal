@@ -480,7 +480,7 @@ skyportal_handlers = [
     ),
     (r"/api/moving_object/([0-9A-Za-z-_\.\+]+)/followup", MovingObjectFollowupHandler),
     (r"/api/moving_object/track", MovingObjectTrackHandler),
-    (r"/api/moving_object/track/([0-9A-Za-z-_.+]+)", MovingObjectTrackLookupHandler),
+    (r"/api/moving_object/track/([0-9A-Za-z-_.+~]+)", MovingObjectTrackLookupHandler),
     (r"/api/earthquake/status", EarthquakeStatusHandler),
     (r"/api/earthquake(/.*)?", EarthquakeHandler),
     (r"/api/gcn_event(/.*)/alias", GcnEventAliasesHandler),

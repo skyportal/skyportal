@@ -247,11 +247,7 @@ class MovingObjectTrackHandler(BaseHandler):
                     # The count that makes the case: a real object arrives under
                     # a new object id almost every epoch.
                     "n_object_ids": len(
-                        {
-                            d.get("ztf_object_id")
-                            for d in measured
-                            if d.get("ztf_object_id")
-                        }
+                        {d.get("objectId") for d in measured if d.get("objectId")}
                     ),
                 }
             )
