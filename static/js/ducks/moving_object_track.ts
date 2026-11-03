@@ -20,6 +20,17 @@ export interface TrackLookup {
   n_nights: number | null;
   arc_days: number | null;
   designation: string | null;
+  kind: string | null;
+  flags: string[];
+  rms_ratio: number | null;
+  near_planet: string | null;
+  neo_score: number | null;
+  orbit: {
+    epoch_jd: number | null;
+    e: number;
+    q: number;
+    a: number | null;
+  } | null;
   detections: TrackEpoch[];
   members_withheld: number;
 }

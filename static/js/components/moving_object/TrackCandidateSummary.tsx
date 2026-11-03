@@ -107,6 +107,42 @@ const TrackCandidateSummary = ({
       {track.designation && (
         <Chip size="small" color="info" label={`known: ${track.designation}`} />
       )}
+      {track.kind && <Chip size="small" label={track.kind} />}
+      {track.orbit && (
+        <Chip
+          size="small"
+          label={
+            track.orbit.a != null
+              ? `a ${track.orbit.a.toFixed(2)} au, e ${track.orbit.e.toFixed(2)}`
+              : `q ${track.orbit.q.toFixed(2)} au, e ${track.orbit.e.toFixed(2)}`
+          }
+        />
+      )}
+      {track.neo_score != null && (
+        <Chip
+          size="small"
+          color={track.neo_score >= 65 ? "warning" : "default"}
+          label={`digest2 ${Math.round(track.neo_score)}`}
+        />
+      )}
+      {track.rms_ratio != null && (
+        <Chip
+          size="small"
+          color={track.rms_ratio > 3 ? "warning" : "default"}
+          label={`rms x${track.rms_ratio.toFixed(1)}`}
+          title="Fit residual over the expected astrometric scatter"
+        />
+      )}
+      {track.near_planet && (
+        <Chip
+          size="small"
+          color="warning"
+          label={`near ${track.near_planet}`}
+        />
+      )}
+      {track.flags.map((flag) => (
+        <Chip key={flag} size="small" color="warning" label={flag} />
+      ))}
       {turn != null && (
         <Chip size="small" label={`turns ${turn.toFixed(0)}°`} />
       )}

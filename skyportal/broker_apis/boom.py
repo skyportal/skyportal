@@ -189,6 +189,19 @@ NO_PROGRAMID_SURVEYS = {"LSST", "DECAM", "ARGUS"}
 DENY_ALL = {"_id": {"$in": []}}
 
 
+def _track_orbit(orbit):
+    """A track's fitted conic, with the semi-major axis when it is bound."""
+    if not orbit or orbit.get("e") is None or orbit.get("q") is None:
+        return None
+    e, q = orbit["e"], orbit["q"]
+    return {
+        "epoch_jd": orbit.get("epoch_jd"),
+        "e": e,
+        "q": q,
+        "a": q / (1 - e) if e < 1 else None,
+    }
+
+
 def _scope_filter(kwargs, survey):
     """Mongo clause restricting a query to the requester's accessible programids."""
     programids = _programids(kwargs, survey)
@@ -906,6 +919,14 @@ class BOOMBROKER(BrokerAPI):
                     "first_jd": 1,
                     "last_jd": 1,
                     "designation": 1,
+                    "kind": 1,
+                    "flags": 1,
+                    "rms_ratio": 1,
+                    "near_planet": 1,
+                    "neo_score": 1,
+                    "orbit.epoch_jd": 1,
+                    "orbit.e": 1,
+                    "orbit.q": 1,
                 },
                 "limit": 1,
             },
@@ -967,6 +988,12 @@ class BOOMBROKER(BrokerAPI):
             "first_jd": track.get("first_jd"),
             "last_jd": track.get("last_jd"),
             "designation": track.get("designation"),
+            "kind": track.get("kind"),
+            "flags": track.get("flags") or [],
+            "rms_ratio": track.get("rms_ratio"),
+            "near_planet": track.get("near_planet"),
+            "neo_score": track.get("neo_score"),
+            "orbit": _track_orbit(track.get("orbit")),
             "detections": detections,
             # Members the requester's streams do not cover are simply absent,
             # so say so rather than let a short arc look like the whole track.
