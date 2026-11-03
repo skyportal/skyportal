@@ -1081,7 +1081,11 @@ const buildSwitchDependencies = (
             // Add as dependency based on type
             if (meta.isSchemaField) {
               deps.add(thenName);
-            } else if (meta.isListVariable || meta.isSwitchCase) {
+            } else if (
+              meta.isVariable ||
+              meta.isListVariable ||
+              meta.isSwitchCase
+            ) {
               if (thenName !== varDef.name) {
                 deps.add(thenName);
               }
@@ -1130,7 +1134,11 @@ const buildSwitchDependencies = (
           // Add as dependency based on type
           if (meta.isSchemaField) {
             deps.add(defaultName);
-          } else if (meta.isListVariable || meta.isSwitchCase) {
+          } else if (
+            meta.isVariable ||
+            meta.isListVariable ||
+            meta.isSwitchCase
+          ) {
             if (defaultName !== varDef.name) {
               deps.add(defaultName);
             }
