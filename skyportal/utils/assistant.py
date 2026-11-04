@@ -329,16 +329,25 @@ def chat_payload(model, messages, tools, thinking=False):
     return payload
 
 
-def attempt_timeouts(budget, cap):
-    """How long to allow each try of one model round, longest first.
-
-    A stalled request holds whatever it is given, so an attempt bounded below
-    the deadline is what leaves room for a second one. Where the budget is too
-    small to divide there is a single attempt, which is the old behaviour.
-    """
-    if budget <= 0:
-        return []
-    first = min(cap, budget)
-    rest = budget - first
-    # A sliver of budget is not worth a round trip.
-    return [first, min(cap, rest)] if rest > 1.0 else [first]
+def merge_deltas(deltas):
+    """The message the deltas of a streamed chat completion add up to."""
+    content, calls = [], {}
+    for delta in deltas:
+        content.append(delta.get("content") or "")
+        for part in delta.get("tool_calls") or []:
+            call = calls.setdefault(
+                part.get("index", 0),
+                {
+                    "id": "",
+                    "type": "function",
+                    "function": {"name": "", "arguments": ""},
+                },
+            )
+            function = part.get("function") or {}
+            call["id"] = part.get("id") or call["id"]
+            call["function"]["name"] = function.get("name") or call["function"]["name"]
+            call["function"]["arguments"] += function.get("arguments") or ""
+    message = {"role": "assistant", "content": "".join(content) or None}
+    if calls:
+        message["tool_calls"] = [calls[index] for index in sorted(calls)]
+    return message

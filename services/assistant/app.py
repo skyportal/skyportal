@@ -30,10 +30,10 @@ from skyportal.utils.app import get_app_base_url
 from skyportal.utils.assistant import (
     FILTER_WRITE_TOOLS,
     SERVICE_TOKEN_PREFIX,
-    attempt_timeouts,
     build_messages,
     chat_payload,
     condense,
+    merge_deltas,
     offered_tools,
     proposal,
     record_call,
@@ -63,11 +63,16 @@ MAX_CONTEXT = int(CONFIG.get("max_context_messages", 40))
 # next to generation, so this buys breadth for very little time.
 RESULT_BUDGET = int(CONFIG.get("result_budget", 20000))
 TIMEOUT = float(CONFIG.get("request_timeout", 300))
-# A stalled request holds the whole answer budget and the turn ends with
-# nothing. Bounding one attempt leaves room to try again inside the same
-# deadline, which is worth doing: the failures seen so far hang from the
-# first call while neighbouring turns answer in seconds.
-ATTEMPT_TIMEOUT = float(CONFIG.get("attempt_timeout", 150))
+STALL_TIMEOUT = float(CONFIG.get("stall_timeout", 45))
+MAIN = {"base_url": BASE_URL, "model": MODEL, "api_key": API_KEY}
+FALLBACK = CONFIG.get("fallback") or {}
+FALLBACK_PERIOD = float(CONFIG.get("fallback_period", 300))
+SWITCH_ERRORS = (
+    requests.exceptions.Timeout,
+    requests.exceptions.ConnectionError,
+    requests.exceptions.ChunkedEncodingError,
+)
+_main_skipped_until = 0.0
 
 
 def _rpc(token, method, params, timeout, tool_name=None):
@@ -145,31 +150,31 @@ def call_tool(token, name, arguments, offered, context_id=None):
     )
 
 
-def chat(messages, tools, timeout=None):
-    """One chat-completions round, retried once if the first attempt stalls."""
+def endpoints():
+    """Where to send one round, in the order to try them."""
+    if not FALLBACK.get("base_url"):
+        return [MAIN, MAIN]
+    if time.monotonic() < _main_skipped_until:
+        return [FALLBACK, MAIN]
+    return [MAIN, FALLBACK]
+
+
+def stream_round(endpoint, messages, tools, budget):
+    """One streamed round from one endpoint, given up on as soon as it falls silent."""
     headers = {"Content-Type": "application/json"}
-    if API_KEY:
-        headers["Authorization"] = f"Bearer {API_KEY}"
-    payload = chat_payload(MODEL, messages, tools, THINKING)
+    if endpoint.get("api_key"):
+        headers["Authorization"] = f"Bearer {endpoint['api_key']}"
+    payload = chat_payload(endpoint.get("model") or "", messages, tools, THINKING)
+    payload["stream"] = True
+    deadline = time.monotonic() + budget
 
-    attempts = attempt_timeouts(timeout or TIMEOUT, ATTEMPT_TIMEOUT)
-
-    last: Exception | None = None
-    for number, attempt in enumerate(attempts, start=1):
-        try:
-            response = requests.post(
-                f"{BASE_URL.rstrip('/')}/chat/completions",
-                headers=headers,
-                json=payload,
-                timeout=attempt,
-            )
-        except requests.exceptions.Timeout as exc:
-            last = exc
-            log(
-                f"model did not answer within {attempt:.0f}s "
-                f"(attempt {number} of {len(attempts)})"
-            )
-            continue
+    with requests.post(
+        f"{endpoint['base_url'].rstrip('/')}/chat/completions",
+        headers=headers,
+        json=payload,
+        stream=True,
+        timeout=min(STALL_TIMEOUT, budget),
+    ) as response:
         if response.status_code >= 400:
             # The status alone says nothing: a refused request looks identical
             # whether the context was too long, a tool schema was rejected or
@@ -182,7 +187,43 @@ def chat(messages, tools, timeout=None):
                 f"payload={len(json.dumps(messages)) + len(json.dumps(tools))} chars)"
             )
         response.raise_for_status()
-        return response.json()["choices"][0]["message"]
+        deltas = []
+        for line in response.iter_lines():
+            if time.monotonic() > deadline:
+                raise requests.exceptions.Timeout(
+                    f"no full answer within {budget:.0f}s"
+                )
+            if not line.startswith(b"data:"):
+                continue
+            data = line[len(b"data:") :].strip()
+            if data == b"[DONE]":
+                break
+            choices = json.loads(data).get("choices") or []
+            if choices:
+                deltas.append(choices[0].get("delta") or {})
+    return merge_deltas(deltas)
+
+
+def chat(messages, tools, timeout=None):
+    """One chat-completions round, moved to the other endpoint if the first fails."""
+    global _main_skipped_until
+    deadline = time.monotonic() + (timeout or TIMEOUT)
+
+    last: Exception | None = None
+    for endpoint in endpoints():
+        if (left := remaining(deadline, floor=1.0)) is None:
+            break
+        try:
+            return stream_round(endpoint, messages, tools, left)
+        except requests.exceptions.HTTPError as exc:
+            if exc.response.status_code < 500 and exc.response.status_code != 429:
+                raise
+            last = exc
+        except SWITCH_ERRORS as exc:
+            last = exc
+        log(f"model at {endpoint['base_url']} failed: {last}")
+        if endpoint is MAIN and FALLBACK.get("base_url"):
+            _main_skipped_until = time.monotonic() + FALLBACK_PERIOD
 
     raise last if last is not None else RuntimeError("no attempt was made")
 
@@ -508,7 +549,7 @@ def respond(message_id):
             log(f"assistant failed on message {message_id}: {exc}")
             if misconfigured(exc):
                 text = "The assistant is not set up correctly; tell an administrator."
-            elif isinstance(exc, requests.exceptions.Timeout):
+            elif isinstance(exc, SWITCH_ERRORS):
                 # Distinguishable from a fault in what was asked: a reader who
                 # cannot tell them apart reports the wrong one.
                 text = (
