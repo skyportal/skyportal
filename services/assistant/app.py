@@ -65,11 +65,14 @@ RESULT_BUDGET = int(CONFIG.get("result_budget", 20000))
 TIMEOUT = float(CONFIG.get("request_timeout", 300))
 STALL_TIMEOUT = float(CONFIG.get("stall_timeout", 45))
 MAIN = {"base_url": BASE_URL, "model": MODEL, "api_key": API_KEY}
+FALLBACK = CONFIG.get("fallback") or {}
+FALLBACK_PERIOD = float(CONFIG.get("fallback_period", 300))
 SWITCH_ERRORS = (
     requests.exceptions.Timeout,
     requests.exceptions.ConnectionError,
     requests.exceptions.ChunkedEncodingError,
 )
+_main_skipped_until = 0.0
 
 
 def _rpc(token, method, params, timeout, tool_name=None):
@@ -147,6 +150,15 @@ def call_tool(token, name, arguments, offered, context_id=None):
     )
 
 
+def endpoints():
+    """Where to send one round, in the order to try them."""
+    if not FALLBACK.get("base_url"):
+        return [MAIN, MAIN]
+    if time.monotonic() < _main_skipped_until:
+        return [FALLBACK, MAIN]
+    return [MAIN, FALLBACK]
+
+
 def stream_round(endpoint, messages, tools, budget):
     """One streamed round from one endpoint, given up on as soon as it falls silent."""
     headers = {"Content-Type": "application/json"}
@@ -193,11 +205,12 @@ def stream_round(endpoint, messages, tools, budget):
 
 
 def chat(messages, tools, timeout=None):
-    """One chat-completions round, retried once if the first attempt fails."""
+    """One chat-completions round, moved to the other endpoint if the first fails."""
+    global _main_skipped_until
     deadline = time.monotonic() + (timeout or TIMEOUT)
 
     last: Exception | None = None
-    for endpoint in [MAIN, MAIN]:
+    for endpoint in endpoints():
         if (left := remaining(deadline, floor=1.0)) is None:
             break
         try:
@@ -209,6 +222,8 @@ def chat(messages, tools, timeout=None):
         except SWITCH_ERRORS as exc:
             last = exc
         log(f"model at {endpoint['base_url']} failed: {last}")
+        if endpoint is MAIN and FALLBACK.get("base_url"):
+            _main_skipped_until = time.monotonic() + FALLBACK_PERIOD
 
     raise last if last is not None else RuntimeError("no attempt was made")
 
