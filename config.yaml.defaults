@@ -740,6 +740,7 @@ app:
     # Oldest messages are dropped first when a conversation outgrows this.
     max_context_messages: 40
     request_timeout: 300
+    stall_timeout: 45
     # Master switch for autonomous triage: on completion
     analysis_triage:
       enabled: false
