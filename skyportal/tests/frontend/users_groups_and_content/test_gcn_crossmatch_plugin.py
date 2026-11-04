@@ -16,6 +16,7 @@ def test_enable_gcn_crossmatch_from_the_filter_page(
 ):
     page.goto(f"/become_user/{super_admin_user.id}")
     page.goto(f"/filter/{public_filter.id}")
+    page.get_by_role("tab", name="GCN crossmatch").click()
 
     toggle = page.get_by_label("enable gcn crossmatch")
     expect(toggle).not_to_be_checked()
