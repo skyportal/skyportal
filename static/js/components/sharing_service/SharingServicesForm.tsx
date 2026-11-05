@@ -242,7 +242,7 @@ const SharingServicesDialog = ({
       (i: any) => i.id === spectrum?.instrument_id,
     );
     return [
-      ...(classifier && !classifier.is_bot
+      ...(classifier && !classifier["is_bot"]
         ? [userLabel(classifier, false, true)]
         : []),
       ...(instrument?.tns_classification_authors || "")
