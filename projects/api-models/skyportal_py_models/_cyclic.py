@@ -213,6 +213,7 @@ class InstrumentResponse(BaseModel):
     treasuremap_id: int | None = None
     tns_id: int | None = None
     default_observer: str | None = None
+    tns_classification_authors: str | None = None
     across_id: str | None = None
     created_by_id: int | None = None
     region: str | None = None

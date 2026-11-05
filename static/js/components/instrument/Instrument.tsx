@@ -267,6 +267,10 @@ const Instrument = ({ route }: InstrumentProps) => {
                 ["Listener", instrument.listener_classname],
                 ["TNS ID", instrument.tns_id],
                 ["Default observer", instrument.default_observer],
+                [
+                  "TNS classification authors",
+                  instrument.tns_classification_authors,
+                ],
                 ["Treasure Map ID", instrument.treasuremap_id],
                 ["ACROSS ID", instrument.across_id],
                 ["Fields", instrument.has_fields ? "Yes" : "No"],

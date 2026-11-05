@@ -70,6 +70,8 @@ const SharingServicesDialog = ({
   const [sendToHermes, setSendToHermes] = useState(false);
   const [sendToTrove, setSendToTrove] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [dialogData, setDialogData] = useState<any>({});
+  const [publishersEdited, setPublishersEdited] = useState(false);
 
   const { data: instrumentList = [] } = useGetInstrumentsQuery();
   const { data: telescopeList = [] } = useGetTelescopesQuery();
@@ -118,25 +120,37 @@ const SharingServicesDialog = ({
       : ""
   }`;
 
-  const coauthorsString = (selectedSharingService?.coauthors || [])
-    .filter((coauthor: any) => coauthor.user_id !== currentUser?.id)
-    .map((coauthor: any) =>
+  const coauthorLabels = (selectedSharingService?.coauthors || []).map(
+    (coauthor: any) =>
       userLabel(
         allUsers.find((user: any) => user.id === coauthor.user_id),
         false,
         true,
       ),
-    )
-    .join(", ");
+  );
+
+  const publishersString = (leadAuthors: string[] = []) => {
+    const authors = new Map<string, string>();
+    [
+      ...leadAuthors,
+      userLabel(currentUser, false, true),
+      ...coauthorLabels,
+    ].forEach((author) => {
+      const key = author.split("(")[0].trim().toLowerCase();
+      if (!authors.has(key)) authors.set(key, author);
+    });
+    return `${[...authors.values()].join(", ")} ${
+      selectedSharingService?.acknowledgments || "on the behalf of ..."
+    }`.replace(/\s+/g, " ");
+  };
 
   const defaultSharersString =
-    currentUser && allUsers.length > 0
-      ? `${userLabel(currentUser, false, true)}${
-          coauthorsString ? `, ${coauthorsString}` : ""
-        } ${
-          selectedSharingService?.acknowledgments || "on the behalf of ..."
-        }`.replace(/\s+/g, " ")
-      : null;
+    currentUser && allUsers.length > 0 ? publishersString() : null;
+
+  useEffect(() => {
+    setDialogData({});
+    setPublishersEdited(false);
+  }, [selectedSharingServiceId, dialogOpen]);
 
   useEffect(() => {
     if (!selectedSharingServiceId && sharingServicesList.length) {
@@ -209,13 +223,49 @@ const SharingServicesDialog = ({
       )}${spectrum.type && spectrum.type !== "source" ? ` (${spectrum.type})` : ""}`,
     }));
 
+  const classificationLeadAuthors = () => {
+    const classification =
+      reportableClassifications.find(
+        (c) => c.id === dialogData.tns_report_classification_id,
+      ) ?? reportableClassifications[0];
+    const classifier = allUsers.find(
+      (user: any) => user.id === classification?.author_id,
+    );
+    const spectrum =
+      objSpectra.find((s: any) => s.id === dialogData.tns_report_spectrum_id) ??
+      [...objSpectra].sort(
+        (a: any, b: any) =>
+          Number(b.type === "source") - Number(a.type === "source") ||
+          (a.observed_at > b.observed_at ? -1 : 1),
+      )[0];
+    const instrument = instrumentList.find(
+      (i: any) => i.id === spectrum?.instrument_id,
+    );
+    return [
+      ...(classifier && !classifier["is_bot"]
+        ? [userLabel(classifier, false, true)]
+        : []),
+      ...(instrument?.tns_classification_authors || "")
+        .split(/,(?![^()]*\))/)
+        .map((author: string) => author.trim())
+        .filter(Boolean),
+    ];
+  };
+
+  const shownPublishers = publishersEdited
+    ? dialogData.publishers
+    : publishersString(
+        sendToTNS && dialogData.tns_report_type === "classification_report"
+          ? classificationLeadAuthors()
+          : [],
+      );
+
   const formSchema: any = {
     type: "object",
     properties: {
       publishers: {
         type: "string",
         title: "Publishers",
-        default: defaultSharersString,
       },
       instrument_ids: {
         type: "array",
@@ -408,6 +458,11 @@ const SharingServicesDialog = ({
         key={selectedSharingServiceId}
         schema={formSchema}
         uiSchema={uiSchema}
+        formData={{ ...dialogData, publishers: shownPublishers }}
+        onChange={({ formData: next }: any) => {
+          if (next.publishers !== shownPublishers) setPublishersEdited(true);
+          setDialogData(next);
+        }}
         validator={validator as any}
         onSubmit={handleSubmit as any}
         disabled={submitting}

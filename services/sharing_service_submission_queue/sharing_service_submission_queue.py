@@ -31,6 +31,8 @@ from skyportal.utils.services import check_loaded
 from skyportal.utils.tns_submission import (
     check_at_report,
     check_classification_report,
+    pick_spectrum,
+    split_authors,
     submit_to_tns,
 )
 from skyportal.utils.trove_submission import submit_to_trove
@@ -174,8 +176,25 @@ def build_reporters_and_remarks_string(
                     bio += "."
                 remarks.append(bio[0].upper() + bio[1:])
 
+        if submission_request.tns_report_type == "classification_report":
+            spectrum = pick_spectrum(
+                session,
+                next(author for author in authors if author.id == user_id),
+                obj_id,
+                submission_request.tns_report_spectrum_id,
+            )
+            if spectrum is not None:
+                reporters[1:1] = split_authors(
+                    spectrum.instrument.tns_classification_authors
+                )
+
         # avoid duplicates in the reporters, only keep the first occurrence of each reporter
-        reporters = ", ".join(list(dict.fromkeys(reporters)))
+        unique_reporters = {}
+        for reporter in reporters:
+            unique_reporters.setdefault(
+                reporter.split("(")[0].strip().lower(), reporter
+            )
+        reporters = ", ".join(unique_reporters.values())
         remarks = " ".join(remarks)
 
         if acknowledgments:
