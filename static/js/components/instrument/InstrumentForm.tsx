@@ -208,6 +208,13 @@ const InstrumentForm = ({
           "Credited on a TNS report when a spectrum from this instrument names no observer, e.g. 'SEDmRobot' for a robotic instrument. TNS refuses a classification report that leaves this empty (optional)",
         default: instrumentToEdit?.["default_observer"] ?? undefined,
       },
+      tns_classification_authors: {
+        type: "string",
+        title: "TNS classification authors",
+        description:
+          "Credited after the classifier on TNS classification reports of this instrument's spectra, e.g. 'Jesper Sollerman (SU)' (optional)",
+        default: instrumentToEdit?.["tns_classification_authors"] ?? undefined,
+      },
       type: {
         type: "string",
         oneOf: [
@@ -354,6 +361,9 @@ const InstrumentForm = ({
     // send "" when emptied: rjsf drops an undefined key and the PUT keeps the
     // old value, which would go on crediting it on TNS reports
     default_observer: {
+      "ui:emptyValue": "",
+    },
+    tns_classification_authors: {
       "ui:emptyValue": "",
     },
     api_classname: {

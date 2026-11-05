@@ -43,6 +43,7 @@ class InstrumentPost(BaseModel):
     treasuremap_id: int | None = None
     tns_id: int | None = None
     default_observer: str | None = None
+    tns_classification_authors: str | None = None
     across_id: str | None = None
     region: str | None = None
     field_data: dict[str, list[Any]] | str | None = None
@@ -70,6 +71,7 @@ class InstrumentPut(BaseModel):
     treasuremap_id: int | None = None
     tns_id: int | None = None
     default_observer: str | None = None
+    tns_classification_authors: str | None = None
     across_id: str | None = None
     region: str | None = None
     field_data: dict[str, list[Any]] | str | None = None
@@ -246,6 +248,12 @@ class InstrumentPostBody(BaseModel):
         description="Observer credited on a TNS report when a spectrum from "
         "this instrument names none, e.g. 'SEDmRobot' for a robotic "
         "instrument. TNS refuses a classification report with the field empty.",
+    )
+    tns_classification_authors: str | None = Field(
+        default=None,
+        description="Authors credited after the classifier on a TNS "
+        "classification report of a spectrum from this instrument, e.g. "
+        "'Jesper Sollerman (SU)'.",
     )
     across_id: str | None = Field(
         default=None, description="NASA ACROSS instrument UUID."

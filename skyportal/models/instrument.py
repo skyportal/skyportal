@@ -417,6 +417,16 @@ class Instrument(Base):
         ),
     )
 
+    tns_classification_authors = sa.Column(
+        sa.String,
+        nullable=True,
+        doc=(
+            "Authors credited after the classifier on a TNS classification "
+            "report of a spectrum from this instrument, e.g. "
+            "'Jesper Sollerman (SU)'."
+        ),
+    )
+
     across_id = sa.Column(
         sa.String,
         nullable=True,
