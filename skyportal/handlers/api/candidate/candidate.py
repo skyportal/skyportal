@@ -666,14 +666,14 @@ class CandidateHandler(BaseHandler):
                         )
                     )
                     candidate_info["saved_groups"] = saved_groups_result.unique().all()
-                    classifications_result = await session.scalars(
-                        Classification.select(session.user_or_token).where(
-                            Classification.obj_id == obj_id
-                        )
+                classifications_result = await session.scalars(
+                    Classification.select(session.user_or_token).where(
+                        Classification.obj_id == obj_id
                     )
-                    candidate_info["classifications"] = (
-                        classifications_result.unique().all()
-                    )
+                )
+                candidate_info["classifications"] = (
+                    classifications_result.unique().all()
+                )
                 add_computed_fields(candidate_info, c)
                 await attach_tags([candidate_info], session)
                 await attach_comment_counts([candidate_info], session)
@@ -1440,6 +1440,16 @@ class CandidateHandler(BaseHandler):
                     f.id: f.group_id for f in page_filters_result.all()
                 }
 
+            classifications_by_obj = defaultdict(list)
+            if page_obj_ids:
+                classifications_result = await session.scalars(
+                    Classification.select(self.current_user).where(
+                        Classification.obj_id.in_(page_obj_ids)
+                    )
+                )
+                for classification in classifications_result.unique().all():
+                    classifications_by_obj[classification.obj_id].append(classification)
+
             linked_by_obj = await linked_thumbnails(page_obj_ids, session)
             stack_of = query_results.pop("stacks", {})
 
@@ -1464,20 +1474,13 @@ class CandidateHandler(BaseHandler):
                             )
                         )
                         obj.saved_groups = saved_groups_result.unique().all()
-                        classifications_result = await session.scalars(
-                            Classification.select(self.current_user).where(
-                                Classification.obj_id == obj.id
-                            )
-                        )
-                        # Direct assignment would lazy-load the existing
-                        # `Obj.classifications` collection before replace,
-                        # which trips MissingGreenlet under async. Use
-                        # set_committed_value to set it without trigger.
-                        set_committed_value(
-                            obj,
-                            "classifications",
-                            classifications_result.unique().all(),
-                        )
+                    # Direct assignment would lazy-load the existing
+                    # `Obj.classifications` collection before replace,
+                    # which trips MissingGreenlet under async. Use
+                    # set_committed_value to set it without trigger.
+                    set_committed_value(
+                        obj, "classifications", classifications_by_obj[obj.id]
+                    )
                     obj.passing_group_ids = [
                         group_id_by_filter_id[filter_id]
                         for filter_id in filter_ids_by_obj.get(obj.id, [])
