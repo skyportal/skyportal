@@ -1,7 +1,11 @@
-import React from "react";
+import React, { useEffect, useRef, useState } from "react";
 import embedVega from "./vegaEmbed";
 import dayjs from "dayjs";
+import utc from "dayjs/plugin/utc";
+import Typography from "@mui/material/Typography";
 import { useTheme } from "@mui/material/styles";
+
+dayjs.extend(utc);
 
 export interface Ephemeris {
   twilight_evening_astronomical_unix_ms?: number;
@@ -12,8 +16,28 @@ export interface Ephemeris {
   sunrise_unix_ms?: number;
 }
 
+interface AirmassPoint {
+  time: number;
+  airmass: number | null;
+}
+
+const bestAirmassAtNight = (data: AirmassPoint[], ephemeris: Ephemeris) => {
+  const start = ephemeris.twilight_evening_astronomical_unix_ms ?? -Infinity;
+  const end = ephemeris.twilight_morning_astronomical_unix_ms ?? Infinity;
+  const night = data.filter(
+    (point): point is { time: number; airmass: number } =>
+      point.airmass !== null && point.time >= start && point.time <= end,
+  );
+  if (night.length === 0) {
+    return null;
+  }
+  return night.reduce((best, point) =>
+    point.airmass < best.airmass ? point : best,
+  );
+};
+
 const airmassSpec = (
-  url: string,
+  values: AirmassPoint[],
   ephemeris: Ephemeris,
   titleFontSize: number,
   labelFontSize: number,
@@ -23,14 +47,7 @@ const airmassSpec = (
   width: "container",
   height: 300,
   autosize: { type: "fit-x", contains: "padding" },
-  data: {
-    url,
-    format: {
-      type: "json",
-      property: "data", // where on the JSON does the data live
-      parse: { time: "number" },
-    },
-  },
+  data: { values },
   encoding: {
     y: {
       type: "quantitative",
@@ -174,28 +191,52 @@ interface AirmassPlotProps {
 const AirmassPlot = React.memo((props: AirmassPlotProps) => {
   const { dataUrl, ephemeris } = props;
   const theme = useTheme() as any;
+  const plotRef = useRef<HTMLDivElement>(null);
+  const [data, setData] = useState<AirmassPoint[] | null>(null);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    fetch(dataUrl, { signal: controller.signal })
+      .then((response) => response.json())
+      .then((json) => setData(json.data ?? []))
+      .catch(() => {});
+    return () => controller.abort();
+  }, [dataUrl]);
+
+  useEffect(() => {
+    if (!data) {
+      return undefined;
+    }
+    const result = embedVega(
+      plotRef.current,
+      airmassSpec(
+        data,
+        ephemeris,
+        theme.plotFontSizes.titleFontSize,
+        theme.plotFontSizes.labelFontSize,
+      ),
+    );
+    return () => {
+      result?.then(({ view }) => view.finalize());
+    };
+  }, [data, ephemeris, theme]);
+
+  const best = data && bestAirmassAtNight(data, ephemeris);
+
   return (
     <div
       // minWidth: call sites that place the plot in an auto-width flex item
       // would otherwise resolve the container to 0 and render nothing.
       style={{ width: "100%", minWidth: 360 }}
-      ref={(node) => {
-        if (node) {
-          embedVega(
-            node,
-            airmassSpec(
-              dataUrl,
-              ephemeris,
-              theme.plotFontSizes.titleFontSize,
-              theme.plotFontSizes.labelFontSize,
-            ),
-            {
-              actions: false,
-            },
-          );
-        }
-      }}
-    />
+    >
+      <div ref={plotRef} style={{ width: "100%" }} />
+      {best && (
+        <Typography variant="body2" sx={{ mt: 1 }}>
+          Best airmass during the night: {best.airmass.toFixed(2)} at{" "}
+          {dayjs.utc(best.time).format("YYYY-MM-DD HH:mm")} UT
+        </Typography>
+      )}
+    </div>
   );
 });
 
