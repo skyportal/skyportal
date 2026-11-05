@@ -415,6 +415,10 @@ def build_tns_classification_report(
     return {"classification_report": {"0": report}}
 
 
+def split_authors(authors):
+    return [a.strip() for a in re.split(r",(?![^()]*\))", authors or "") if a.strip()]
+
+
 def strip_iau_prefix(tns_name):
     """The bare IAU name TNS reports expect, e.g. "SN 2026abc" -> "2026abc"."""
     return str(tns_name or "").replace("AT", "").replace("SN", "").strip()
