@@ -364,11 +364,14 @@ def _modules_db(broker):
 _BOOM_SENTINEL = -99999.0
 
 
-def _boom_photometry_to_prv(photometry):
+def _boom_photometry_to_prv(photometry, forced=False):
     """BOOM native ``photometry[]`` (flux in nJy) -> standard ``prv_candidates``
-    (``psfFlux``/``psfFluxErr``) consumed by the shared save transform."""
+    (``psfFlux``/``psfFluxErr``) consumed by the shared save transform, or its
+    ``fp_hists`` with ``forced``."""
     prv = []
     for p in photometry or []:
+        if (p.get("origin") == "ForcedPhot") != forced:
+            continue
         flux_err = p.get("flux_err")
         if (
             flux_err is None
@@ -499,6 +502,7 @@ def _normalize_boom_alert(record):
             "drb": record.get("drb"),
         },
         "prv_candidates": _boom_photometry_to_prv(record.get("photometry")),
+        "fp_hists": _boom_photometry_to_prv(record.get("photometry"), forced=True),
     }
 
 
@@ -535,6 +539,7 @@ async def _ingest_survey_matches(
             "objectId": match_obj_id,
             "candidate": {"ra": match.get("ra"), "dec": match.get("dec")},
             "prv_candidates": _boom_photometry_to_prv(match.get("photometry")),
+            "fp_hists": _boom_photometry_to_prv(match.get("photometry"), forced=True),
         }
         try:
             await save_object_photometry(match_data, match_survey, session, user)
