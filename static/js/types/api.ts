@@ -26535,7 +26535,7 @@ export interface components {
             obj_id: string;
             /** @description A comment on the assignment. Typically a justification for the request, or instructions for taking the data. */
             comment?: string | null;
-            /** @description Status of the assignment [done, not done, pending]. */
+            /** @description Status of the assignment [complete, not observed, pending]. */
             status?: string;
             /**
              * @description Priority of the request (1 = lowest, 5 = highest).
@@ -26576,7 +26576,7 @@ export interface components {
             obj_id: string;
             /** @description A comment on the assignment. Typically a justification for the request, or instructions for taking the data. */
             comment?: string | null;
-            /** @description Status of the assignment [done, not done, pending]. */
+            /** @description Status of the assignment [complete, not observed, pending]. */
             status?: string;
             /**
              * @description Priority of the request (1 = lowest, 5 = highest).

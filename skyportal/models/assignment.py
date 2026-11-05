@@ -55,7 +55,7 @@ class ClassicalAssignment(Base):
         sa.String(),
         nullable=False,
         default="pending",
-        doc="Status of the assignment [done, not done, pending].",
+        doc="Status of the assignment [complete, not observed, pending].",
     )
     priority = sa.Column(
         followup_priorities,

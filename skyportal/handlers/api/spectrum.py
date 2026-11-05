@@ -1273,6 +1273,14 @@ class SpectrumASCIIFileHandler(BaseHandler, ASCIIHandler):
                 observer_assoc.spectr_id = spec.id
                 session.add(observer_assoc)
 
+            await session.refresh(spec, ["observed_at"])
+            await mark_assignments_observed(
+                session,
+                self.current_user,
+                spec,
+                window_days=cfg.get("assignments.auto_observed_window_days", 1),
+            )
+
             await session.commit()
 
             obj = await session.scalar(sa.select(Obj).where(Obj.id == spec.obj_id))

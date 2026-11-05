@@ -5,6 +5,8 @@ import EditIcon from "@mui/icons-material/Edit";
 import Dialog from "@mui/material/Dialog";
 import DialogTitle from "@mui/material/DialogTitle";
 import DialogContent from "@mui/material/DialogContent";
+import MenuItem from "@mui/material/MenuItem";
+import Select from "@mui/material/Select";
 import dayjs from "dayjs";
 
 import { showNotification } from "baselayer/components/Notifications";
@@ -12,9 +14,14 @@ import { useAppDispatch } from "../../types/hooks";
 import ConfirmDeletionDialog from "../ConfirmDeletionDialog";
 import ModifyAssignment from "./ModifyAssignment";
 import StyledDataGrid from "../StyledDataGrid";
-import { useDeleteAssignmentMutation } from "../../ducks/source";
+import {
+  useDeleteAssignmentMutation,
+  useEditAssignmentMutation,
+} from "../../ducks/source";
 import { useGetInstrumentsQuery } from "../../ducks/instruments";
 import Box from "@mui/material/Box";
+
+const ASSIGNMENT_STATUSES = ["pending", "complete", "not observed"];
 
 interface AssignmentListProps {
   assignments: any[];
@@ -23,6 +30,7 @@ interface AssignmentListProps {
 const AssignmentList = ({ assignments }: AssignmentListProps) => {
   const dispatch = useAppDispatch();
   const [deleteAssignmentMutation] = useDeleteAssignmentMutation();
+  const [editAssignment] = useEditAssignmentMutation();
 
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -49,6 +57,15 @@ const AssignmentList = ({ assignments }: AssignmentListProps) => {
   const closeDeleteDialog = () => {
     setDeleteDialogOpen(false);
     setAssignmentToEditDelete(null);
+  };
+
+  const updateStatus = (assignmentID: number, status: string) => {
+    editAssignment({ params: { status }, assignmentID })
+      .unwrap()
+      .then(() => {
+        dispatch(showNotification(`Assignment marked ${status}`));
+      })
+      .catch(() => {});
   };
 
   const deleteAssignment = () => {
@@ -138,8 +155,26 @@ const AssignmentList = ({ assignments }: AssignmentListProps) => {
       field: "status",
       headerName: "Status",
       flex: 1,
-      minWidth: 100,
+      minWidth: 140,
       sortable: false,
+      renderCell: (params: any) => (
+        <Select
+          variant="standard"
+          disableUnderline
+          size="small"
+          value={params.value}
+          onChange={(event) => updateStatus(params.row.id, event.target.value)}
+          data-testid={`assignmentStatusSelect_${params.row.id}`}
+        >
+          {[...new Set([...ASSIGNMENT_STATUSES, params.value])].map(
+            (status) => (
+              <MenuItem key={status} value={status}>
+                {status}
+              </MenuItem>
+            ),
+          )}
+        </Select>
+      ),
     },
     {
       field: "comment",

@@ -47,7 +47,7 @@ def _status_of(assignment_id):
     )
 
 
-def test_spectrum_on_the_run_date_marks_the_assignment_done(
+def test_spectrum_on_the_run_date_marks_the_assignment_complete(
     public_source, public_assignment, public_group, super_admin_token, posted_spectra
 ):
     assert _status_of(public_assignment.id) == "pending"
@@ -61,7 +61,7 @@ def test_spectrum_on_the_run_date_marks_the_assignment_done(
         posted_spectra,
     )
 
-    assert _status_of(public_assignment.id) == "done"
+    assert _status_of(public_assignment.id) == "complete"
 
 
 def test_spectrum_after_midnight_is_still_within_the_window(
@@ -77,7 +77,7 @@ def test_spectrum_after_midnight_is_still_within_the_window(
         posted_spectra,
     )
 
-    assert _status_of(public_assignment.id) == "done"
+    assert _status_of(public_assignment.id) == "complete"
 
 
 def test_spectrum_from_another_instrument_leaves_the_assignment_alone(
@@ -118,13 +118,13 @@ def test_spectrum_outside_the_window_leaves_the_assignment_alone(
 def test_an_explicit_verdict_is_never_overwritten(
     public_source, public_assignment, public_group, super_admin_token, posted_spectra
 ):
-    """Someone who said "not done" has decided; a later spectrum must not undo it."""
+    """Someone who said "not observed" has decided; a later spectrum must not undo it."""
     assignment = DBSession().scalar(
         sa.select(ClassicalAssignment).where(
             ClassicalAssignment.id == public_assignment.id
         )
     )
-    assignment.status = "not done"
+    assignment.status = "not observed"
     DBSession().commit()
 
     _post_spectrum(
@@ -136,4 +136,4 @@ def test_an_explicit_verdict_is_never_overwritten(
         posted_spectra,
     )
 
-    assert _status_of(public_assignment.id) == "not done"
+    assert _status_of(public_assignment.id) == "not observed"

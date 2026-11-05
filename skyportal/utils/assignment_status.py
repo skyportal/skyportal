@@ -9,13 +9,13 @@ from sqlalchemy.orm import aliased
 
 from ..models import ClassicalAssignment, ObservingRun
 
-# Only a pending assignment is ever touched, so an explicit "not done" stands.
+# Only a pending assignment is ever touched, so an explicit "not observed" stands.
 PENDING = "pending"
-DONE = "done"
+COMPLETE = "complete"
 
 
 async def mark_assignments_observed(session, user_or_token, spectrum, window_days=1):
-    """Mark the assignments a spectrum satisfies as done.
+    """Mark the assignments a spectrum satisfies as complete.
 
     A spectrum that names its assignment settles the question outright. Most
     arrive without that link, so the fallback matches the run's own instrument
@@ -25,7 +25,7 @@ async def mark_assignments_observed(session, user_or_token, spectrum, window_day
     Returns
     -------
     list of int
-        IDs of the assignments that were marked done.
+        IDs of the assignments that were marked complete.
     """
     if spectrum.observed_at is None:
         return []
@@ -53,5 +53,5 @@ async def mark_assignments_observed(session, user_or_token, spectrum, window_day
 
     assignments = (await session.scalars(query)).unique().all()
     for assignment in assignments:
-        assignment.status = DONE
+        assignment.status = COMPLETE
     return [assignment.id for assignment in assignments]
