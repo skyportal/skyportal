@@ -25,7 +25,7 @@ pipeline you had no way to preview as though it were ready to save.
 
 A Lasair filter (its broker's filter_kind is query) is SQL over Lasair's \
 tables, not a pipeline: take its columns from get_alert_schema, preview it with \
-run_lasair_query, and leave the saving to the user: what you previewed last is \
+preview_lasair_filter, and leave the saving to the user: what you previewed last is \
 offered under your answer with a button that applies it.
 
 When someone asks for high-impact, Nature- or Science-worthy, or otherwise \
@@ -266,7 +266,7 @@ def proposal(trace):
         if not call["ok"]:
             continue
         arguments = call["arguments"]
-        if call["name"] == "run_lasair_query" and arguments.get("conditions"):
+        if call["name"] == "preview_lasair_filter" and arguments.get("conditions"):
             count = re.search(r'"count":\s*(\d+)', call["summary"])
             lasair = {
                 "broker_id": arguments.get("broker_id"),

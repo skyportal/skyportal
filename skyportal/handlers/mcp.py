@@ -96,7 +96,7 @@ activation is refused without a passing one, and \
 validate_broker_filter_version re-runs it after a fix.
 
 A Lasair filter is SQL over Lasair's tables, not a pipeline: take its columns \
-from get_alert_schema and preview it with run_lasair_query, never \
+from get_alert_schema and preview it with preview_lasair_filter, never \
 run_broker_filter. The user applies the previewed filter from the page.
 
 Writing the pipeline itself:
@@ -1754,7 +1754,7 @@ def _with_window(result, start_jd, end_jd):
 
 
 @tool(
-    "run_lasair_query",
+    "preview_lasair_filter",
     "Preview a filter on a Lasair broker, without saving anything. Returns how "
     "many objects match, the first few, and the Lasair SQL it ran. Lasair joins "
     "the tables the fields name on the object.",
@@ -1770,7 +1770,7 @@ def _with_window(result, start_jd, end_jd):
     },
     required=("broker_id", "conditions"),
 )
-async def run_lasair_query(handler, args):
+async def preview_lasair_filter(handler, args):
     from ..broker_apis.lasair import compile_tree
 
     rows = await handler.api(
