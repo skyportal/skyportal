@@ -1604,16 +1604,11 @@ class AnalysisHandler(BaseHandler):
         """
         query = self.parse_query(AnalysisGetQuery)
 
-        # This GET serves two routes that pass path captures positionally:
-        #   /api/(obj)/<obj_id>/analysis(/<analysis_id>)  -> (obj_id_path, analysis_id)
-        #   /api/(obj)/analysis(/<analysis_id>)           -> the analysis_id lands in
-        #       the obj_id_path slot (it's the first optional capture).
-        # A bare numeric first capture with no analysis_id is therefore the
-        # analysis_id, not an obj_id (SkyPortal obj ids are non-numeric).
         if (
             analysis_id is None
             and obj_id_path is not None
             and str(obj_id_path).isdigit()
+            and self.request.path.split("/")[3:4] == ["analysis"]
         ):
             analysis_id = int(obj_id_path)
             obj_id_path = None
