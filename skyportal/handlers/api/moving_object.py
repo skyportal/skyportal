@@ -477,10 +477,10 @@ class MovingObjectTrackMPCQuery(BaseModel):
     )
 
 
-def track_submissions(track_id):
+def track_submissions(*track_ids):
     return (
         SharingServiceSubmission.publish_to_mpc.is_(True),
-        SharingServiceSubmission.mpc_payload["track_id"].astext == track_id,
+        SharingServiceSubmission.mpc_payload["track_id"].astext.in_(track_ids),
     )
 
 
@@ -612,21 +612,6 @@ class MovingObjectTrackMPCHandler(BaseHandler):
             if obj is None:
                 return self.error(f"No object available with ID {body.obj_id}")
 
-            # Checked across every group: the MPC must not get a track twice.
-            existing = await session.scalar(
-                sa.select(SharingServiceSubmission).where(
-                    *track_submissions(track_id),
-                    SharingServiceSubmission.mpc_status.in_(
-                        ["pending", "processing", "submitted"]
-                    ),
-                )
-            )
-            if existing is not None:
-                return self.error(
-                    f"{track_id} is already {existing.mpc_status} to the MPC "
-                    f"(submission {existing.id})."
-                )
-
             submitter = body.submitter or default_submitter(user)
             try:
                 ack_email(user, sharing_service)
@@ -634,6 +619,21 @@ class MovingObjectTrackMPCHandler(BaseHandler):
                 psv = track_psv(track, sharing_service, submitter)
             except Exception as e:
                 return self.error(f"Cannot submit {track_id}: {e}")
+
+            # Checked across every group: the MPC must not get a track twice.
+            existing = await session.scalar(
+                sa.select(SharingServiceSubmission).where(
+                    *track_submissions(track_id, track["id"]),
+                    SharingServiceSubmission.mpc_status.in_(
+                        ["pending", "processing", "submitted"]
+                    ),
+                )
+            )
+            if existing is not None:
+                return self.error(
+                    f"{track['id']} is already {existing.mpc_status} to the MPC "
+                    f"(submission {existing.id})."
+                )
 
             submission = SharingServiceSubmission(
                 sharing_service_id=sharing_service.id,
@@ -644,7 +644,7 @@ class MovingObjectTrackMPCHandler(BaseHandler):
                 publish_to_mpc=True,
                 mpc_status="pending",
                 mpc_payload={
-                    "track_id": track_id,
+                    "track_id": track["id"],
                     "broker_id": body.broker_id,
                     "submitter": submitter,
                     "psv": psv,
