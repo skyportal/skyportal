@@ -16,7 +16,7 @@ import { makeStyles } from "tss-react/mui";
 import Typography from "@mui/material/Typography";
 
 import { useGetGroupsQuery } from "../../ducks/groups";
-import { useGetStreamsQuery } from "../../ducks/streams";
+import { useGetProfileQuery } from "../../ducks/profile";
 import Button from "../Button";
 
 import UsernameTrie from "../../usernameTrie";
@@ -95,10 +95,8 @@ const CommentForm = ({
   const users = useGetUsersQuery({ slim: true }).data ?? { users: [] };
   const { data: groupsData } = useGetGroupsQuery();
   const groups = useMemo(() => groupsData?.userAccessible ?? [], [groupsData]);
-  const { data: streamsData } = useGetStreamsQuery(undefined, {
-    skip: !streamAccess,
-  });
-  const streams = streamAccess ? (streamsData ?? []) : [];
+  const { data: profile } = useGetProfileQuery();
+  const streams: any[] = streamAccess ? (profile?.streams ?? []) : [];
   const [selectedStreams, setSelectedStreams] = useState<number[]>([]);
   const { data: instrumentList = [] } = useGetInstrumentsQuery();
   const [textValue, setTextValue] = useState("");
