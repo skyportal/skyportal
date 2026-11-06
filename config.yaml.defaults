@@ -1045,10 +1045,9 @@ brokers:
   # store still holds for a filter, which its stream may have aged out. Run
   # independently of `ingest_enabled`, since a backfill moves no consumer offset.
   backfill:
-    # Seconds between two upstream object calls. The default suits Lasair's
-    # allowance of 100 an hour; raising it slows a backfill, lowering it risks
-    # spending an allowance the rest of the instance also draws on.
-    min_request_interval: 45
+    # Seconds between two upstream object calls, for a provider that pays one
+    # per object. Lasair does not: it runs one query and reads the rest from BOOM.
+    min_request_interval: 0
     # Objects a single backfill may pull, which bounds how long one runs.
     limit: 1000
 

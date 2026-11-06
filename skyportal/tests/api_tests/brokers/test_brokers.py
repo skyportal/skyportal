@@ -808,12 +808,6 @@ def _add_lasair_responses():
     directly rather than via the `lasair` client)."""
     responses.add(
         responses.POST,
-        "https://x/api/object/",
-        json={"objectId": "L9", "diaSourcesList": []},
-        status=200,
-    )
-    responses.add(
-        responses.POST,
         "https://x/api/cone/",
         json={"count": 1, "objects": [{"objectId": "L1"}]},
         status=200,
@@ -871,16 +865,11 @@ def test_lasairbroker_query_routing():
     _add_lasair_responses()
     broker = SimpleNamespace(altdata={"token": "t", "endpoint": "https://x/api"})
 
-    # objectId -> object()
-    assert LASAIRBROKER.query_alerts(broker, None, objectId="L9")["objectId"] == "L9"
-    assert responses.calls[0].request.url == "https://x/api/object/"
-    assert parse_qs(responses.calls[0].request.body)["objectId"] == ["L9"]
-
     # ra/dec -> cone()
     res = LASAIRBROKER.query_alerts(broker, None, ra=194.0, dec=-3.0, radius=60)
     assert res["count"] == 1
-    assert responses.calls[1].request.url == "https://x/api/cone/"
-    cone = parse_qs(responses.calls[1].request.body)
+    assert responses.calls[0].request.url == "https://x/api/cone/"
+    cone = parse_qs(responses.calls[0].request.body)
     assert (cone["ra"], cone["dec"], cone["radius"], cone["requestType"]) == (
         ["194.0"],
         ["-3.0"],
@@ -890,8 +879,8 @@ def test_lasairbroker_query_routing():
 
     # direct cone_search()
     LASAIRBROKER.cone_search(broker, 10.0, 20.0, 30.0, None)
-    assert responses.calls[2].request.url == "https://x/api/cone/"
-    cone = parse_qs(responses.calls[2].request.body)
+    assert responses.calls[1].request.url == "https://x/api/cone/"
+    cone = parse_qs(responses.calls[1].request.body)
     assert (cone["ra"], cone["dec"], cone["radius"], cone["requestType"]) == (
         ["10.0"],
         ["20.0"],

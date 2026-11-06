@@ -29,9 +29,8 @@ log = make_log("broker_backfill")
 
 init_db(**cfg["database"])
 
-# Seconds between two upstream object calls. The default suits Lasair's 100
-# calls an hour; a provider with a different allowance passes its own.
-DEFAULT_REQUEST_INTERVAL = cfg.get("brokers.backfill.min_request_interval", 45)
+# Seconds between two upstream object calls, for a provider that pays one per object.
+DEFAULT_REQUEST_INTERVAL = cfg.get("brokers.backfill.min_request_interval", 0)
 DEFAULT_LIMIT = cfg.get("brokers.backfill.limit", 1000)
 
 

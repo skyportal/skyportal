@@ -204,7 +204,7 @@ const Filter = () => {
       {brokerId && (canBackfill || canReplay) && (
         <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap" }}>
           {canBackfill && (
-            <Tooltip title="Ingest what the broker still holds for this filter. A stream only reaches back as far as the broker retains it; this reaches further, one upstream call per object.">
+            <Tooltip title="Ingest what the broker still holds for this filter. A stream only reaches back as far as the broker retains it; this reaches further.">
               <span>
                 <Button
                   size="small"
