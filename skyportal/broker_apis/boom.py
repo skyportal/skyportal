@@ -918,36 +918,13 @@ class BOOMBROKER(BrokerAPI):
         jd/ra/dec/mag/band, so fetching them here keeps that one round trip.
         """
         survey = _survey(kwargs)
-        found = _request(
-            broker,
-            "POST",
-            "queries/find",
-            json={
-                "catalog_name": f"{survey}_tracks",
-                "filter": {"_id": str(track_id)},
-                "projection": {
-                    "members": 1,
-                    "n_detections": 1,
-                    "n_nights": 1,
-                    "arc_days": 1,
-                    "first_jd": 1,
-                    "last_jd": 1,
-                    "designation": 1,
-                    "kind": 1,
-                    "flags": 1,
-                    "rms_ratio": 1,
-                    "near_planet": 1,
-                    "neo_score": 1,
-                    "orbit.epoch_jd": 1,
-                    "orbit.e": 1,
-                    "orbit.q": 1,
-                },
-                "limit": 1,
-            },
-        )
-        track = (found or [None])[0]
-        if not track:
-            raise ValueError(f"No track {track_id} in {survey}_tracks")
+        try:
+            # This route follows the alias of a track merged into another.
+            track = _request(broker, "GET", f"surveys/{survey}/tracks/{track_id}")
+        except requests.HTTPError as e:
+            if e.response is not None and e.response.status_code == 404:
+                raise ValueError(f"No track {track_id} in {survey}_tracks") from e
+            raise
 
         members = track.get("members") or []
         scope = _scope_filter(kwargs, survey)
