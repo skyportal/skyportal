@@ -147,6 +147,7 @@ from skyportal.handlers.api import (
     MMADetectorTimeIntervalHandler,
     MovingObjectFollowupHandler,
     MovingObjectTrackHandler,
+    MovingObjectTrackKnownHandler,
     MovingObjectTrackLookupHandler,
     MovingObjectTrackMPCHandler,
     NewsFeedHandler,
@@ -482,6 +483,10 @@ skyportal_handlers = [
     (r"/api/moving_object/([0-9A-Za-z-_\.\+]+)/followup", MovingObjectFollowupHandler),
     (r"/api/moving_object/track", MovingObjectTrackHandler),
     (r"/api/moving_object/track/([0-9A-Za-z-_.+~]+)/mpc", MovingObjectTrackMPCHandler),
+    (
+        r"/api/moving_object/track/([0-9A-Za-z-_.+~]+)/known",
+        MovingObjectTrackKnownHandler,
+    ),
     (r"/api/moving_object/track/([0-9A-Za-z-_.+~]+)", MovingObjectTrackLookupHandler),
     (r"/api/earthquake/status", EarthquakeStatusHandler),
     (r"/api/earthquake(/.*)?", EarthquakeHandler),
