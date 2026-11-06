@@ -328,13 +328,13 @@ class MMAAPI(FollowUpAPI):
                 "end_date",
                 "exposure_time",
                 "filters",
-                "maximum_airmass",
                 "integrated_probability",
             }
             if scheduler == "m4opt":
                 required_parameters.add("visits")
             else:
                 required_parameters |= {
+                    "maximum_airmass",
                     "schedule_type",
                     "schedule_strategy",
                     "filter_strategy",
@@ -778,8 +778,21 @@ class MMAAPI(FollowUpAPI):
             # that apply rather than leaving the others to be silently ignored.
             gwemopt_only = {
                 key: form_json_schema["properties"].pop(key)
-                for key in ("filter_strategy", "schedule_type", "schedule_strategy")
+                for key in (
+                    "filter_strategy",
+                    "schedule_type",
+                    "schedule_strategy",
+                    "maximum_airmass",
+                    "max_tiles",
+                    "balance_exposure",
+                    "ra_slice",
+                    "use_references",
+                )
+                if key in form_json_schema["properties"]
             }
+            gwemopt_required = [
+                key for key in form_json_schema["required"] if key in gwemopt_only
+            ]
             form_json_schema["required"] = [
                 key for key in form_json_schema["required"] if key not in gwemopt_only
             ]
@@ -790,7 +803,7 @@ class MMAAPI(FollowUpAPI):
                             "scheduler": {"enum": ["gwemopt"]},
                             **gwemopt_only,
                         },
-                        "required": list(gwemopt_only),
+                        "required": gwemopt_required,
                     },
                     {
                         "properties": {

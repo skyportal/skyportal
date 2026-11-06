@@ -13,6 +13,7 @@ __all__ = [
     "m4opt_enabled",
     "observation_count",
     "read_schedule",
+    "restrict_skymap",
     "mission_for",
     "publish_plan",
     "run_m4opt",
@@ -28,9 +29,12 @@ from pathlib import Path
 import astropy.units as u
 import ligo.skymap.io
 import numpy as np
-from astropy.coordinates import SkyCoord
+from astropy.coordinates import ICRS, SkyCoord
 from astropy.table import QTable
 from astropy.time import Time
+from astropy_healpix import HEALPix
+from ligo.skymap.bayestar import derasterize, rasterize
+from ligo.skymap.postprocess.util import find_greedy_credible_levels
 
 from baselayer.app.env import load_env
 from baselayer.log import make_log
@@ -61,17 +65,35 @@ def mission_for(instrument_name):
     return missions.get(instrument_name)
 
 
-def write_skymap(localization, path, event_time):
-    """Write a localization as the multi-order FITS file M4OPT reads.
+def write_skymap(skymap, path, event_time):
+    """Write a sky map as the multi-order FITS file M4OPT reads.
 
     M4OPT takes the trigger time from the sky map's `gps_time` header rather
     than from an argument, so it has to be written even though SkyPortal knows
     it independently.
     """
-    ligo.skymap.io.write_sky_map(
-        str(path), localization.table, moc=True, gps_time=event_time.gps
-    )
+    ligo.skymap.io.write_sky_map(str(path), skymap, moc=True, gps_time=event_time.gps)
     return path
+
+
+def restrict_skymap(skymap, nside, integrated_probability=None, galactic_latitude=None):
+    """Zero the probability outside the credible region and near the Galactic
+    plane, as gwemopt does: M4OPT has no option for either."""
+    credible_cut = integrated_probability is not None and integrated_probability < 100
+    if not credible_cut and not galactic_latitude:
+        return skymap
+
+    hpx = HEALPix(nside, order="nested", frame=ICRS())
+    flat = rasterize(skymap, hpx.level)
+    keep = np.ones(len(flat), dtype=bool)
+    if credible_cut:
+        levels = find_greedy_credible_levels(np.asarray(flat["PROB"]))
+        keep &= levels <= integrated_probability / 100
+    if galactic_latitude:
+        latitude = hpx.healpix_to_skycoord(np.arange(hpx.npix)).galactic.b
+        keep &= np.abs(latitude.deg) > galactic_latitude
+    flat["PROB"][~keep] = 0
+    return derasterize(flat)
 
 
 # M4OPT must observe every field it is given, so an over-large field count is
@@ -120,7 +142,7 @@ def largest_feasible_schedule(attempt, max_fields):
 
 
 def run_m4opt(
-    localization,
+    skymap,
     mission,
     *,
     start_time,
@@ -130,6 +152,8 @@ def run_m4opt(
     visits=None,
     exposure_time=None,
     max_fields=None,
+    integrated_probability=None,
+    galactic_latitude=None,
     workdir=None,
 ):
     """Run `m4opt schedule` and return the schedule table it wrote.
@@ -145,10 +169,13 @@ def run_m4opt(
         raise M4OPTError("The observing window ends before it starts.")
 
     requested_fields = int(max_fields or config.get("max_fields", 50))
+    skymap = restrict_skymap(
+        skymap, config.get("nside", 128), integrated_probability, galactic_latitude
+    )
 
     with tempfile.TemporaryDirectory(dir=workdir) as tmp:
         skymap_path = write_skymap(
-            localization, Path(tmp) / "skymap.multiorder.fits", event_time
+            skymap, Path(tmp) / "skymap.multiorder.fits", event_time
         )
 
         def attempt(n_fields):
@@ -200,6 +227,7 @@ def run_m4opt(
                     "visits": int(visits) if visits else None,
                     "exposure_time": float(exposure_time) if exposure_time else None,
                     "extra_args": config.get("extra_args") or [],
+                    "timeout_seconds": int(config.get("subprocess_timeout", 3600)),
                 }
                 try:
                     response = requests.post(
@@ -428,7 +456,7 @@ def generate_m4opt_plan(session, plans, requests):
         for job in jobs:
             payload = job["payload"]
             job["table"] = run_m4opt(
-                job["localization"],
+                job["localization"].table,
                 job["mission"],
                 start_time=Time(payload["start_date"], format="iso", scale="utc"),
                 end_time=Time(payload["end_date"], format="iso", scale="utc"),
@@ -441,6 +469,10 @@ def generate_m4opt_plan(session, plans, requests):
                 visits=payload.get("visits"),
                 max_fields=payload.get("max_fields"),
                 exposure_time=payload.get("exposure_time"),
+                integrated_probability=payload.get("integrated_probability"),
+                galactic_latitude=payload.get("galactic_latitude", 10)
+                if payload.get("galactic_plane")
+                else None,
             )
 
         for job in jobs:
