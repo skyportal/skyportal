@@ -26913,6 +26913,10 @@ export interface components {
             /** @description Comment's author. */
             readonly author?: components["schemas"]["User"];
             readonly groups?: components["schemas"]["Group"][];
+            /** @description Only users with access to all of these streams can see the comment. */
+            stream_ids?: number[] | null;
+            /** @description Users with access to all of these streams cannot see the comment, e.g. the public version of a comment whose full version needs them. */
+            hidden_stream_ids?: number[] | null;
             /** @description ID of the Comment's Obj. */
             obj_id: string;
             /** @description Unique object identifier. */
@@ -26954,6 +26958,10 @@ export interface components {
             /** @description Comment's author. */
             readonly author?: components["schemas"]["User"];
             readonly groups?: components["schemas"]["Group"][];
+            /** @description Only users with access to all of these streams can see the comment. */
+            stream_ids?: number[] | null;
+            /** @description Users with access to all of these streams cannot see the comment, e.g. the public version of a comment whose full version needs them. */
+            hidden_stream_ids?: number[] | null;
             /** @description ID of the Comment's Obj. */
             obj_id: string;
             /** @description Comment body. */
@@ -44853,6 +44861,18 @@ export interface components {
              * @default null
              */
             channel: string | null;
+            /**
+             * Stream Ids
+             * @description Only users with access to all of these streams can see the comment. Only used for comments on sources.
+             * @default null
+             */
+            stream_ids: number[] | null;
+            /**
+             * Hidden Stream Ids
+             * @description Users with access to all of these streams cannot see the comment, e.g. to post a public version next to a comment restricted with stream_ids. Only used for comments on sources.
+             * @default null
+             */
+            hidden_stream_ids: number[] | null;
             /**
              * Origin
              * @description Optional workflow that created the comment.

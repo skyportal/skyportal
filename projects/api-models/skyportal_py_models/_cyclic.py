@@ -352,6 +352,8 @@ class CommentResponse(BaseModel):
     modified: datetime | None = None
     text: str | None = None
     channel: str | None = None
+    stream_ids: list[int] | None = None
+    hidden_stream_ids: list[int] | None = None
     system: bool | None = None
     attachment_name: str | None = None
     attachment_bytes: Any = None
