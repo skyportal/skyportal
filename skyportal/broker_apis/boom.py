@@ -527,11 +527,7 @@ async def _ingest_survey_matches(
     and link them to the main obj via a SuperObj. BOOM emits ``survey_matches``
     (e.g. ``{"lsst": {objectId, ra, dec, photometry}}`` on a ZTF result) when the
     alert has a counterpart in another survey."""
-    import sqlalchemy as sa
-
-    from ..models import Obj
-    from ._save import associate_super_obj, save_object_photometry
-    from ._thumbnails import add_thumbnails
+    from ._save import associate_super_obj
 
     matches = record.get("survey_matches") or {}
     if not isinstance(matches, dict):
@@ -545,44 +541,55 @@ async def _ingest_survey_matches(
         if match_survey == main_survey or not match_obj_id:
             continue
         match_obj_id = str(match_obj_id)
-        is_new = (
-            await session.scalar(sa.select(Obj.id).where(Obj.id == match_obj_id))
-        ) is None
         match_data = {
             "objectId": match_obj_id,
             "candidate": {"ra": match.get("ra"), "dec": match.get("dec")},
             "prv_candidates": _boom_photometry_to_prv(match.get("photometry")),
             "fp_hists": _boom_photometry_to_prv(match.get("photometry"), forced=True),
         }
-        try:
-            await save_object_photometry(match_data, match_survey, session, user)
+        if await _ingest_counterpart(broker, match_survey, match_data, session, user):
             associated.add(match_obj_id)
-        except Exception as e:
-            log(f"survey match {match_survey}/{match_obj_id} ingest failed: {e}")
-            continue
-        # First sight of the counterpart: pull its cutouts from BOOM for thumbnails.
-        if is_new and broker is not None:
-            try:
-                cutouts = _request(
-                    broker,
-                    "GET",
-                    f"surveys/{match_survey}/cutouts",
-                    params={"objectId": match_obj_id},
-                )
-                if isinstance(cutouts, dict):
-                    await add_thumbnails(
-                        match_obj_id,
-                        cutouts,
-                        match_survey,
-                        session,
-                        user_id=user.id,
-                        jd=cutouts.get("jd"),
-                    )
-            except Exception as e:
-                log(f"survey match {match_survey}/{match_obj_id} cutouts failed: {e}")
     if associated:
         await associate_super_obj(session, main_obj_id, associated)
         await session.commit()
+
+
+async def _ingest_counterpart(broker, survey, data, session, user):
+    """Create or refresh a counterpart Obj and its photometry, with its cutout
+    thumbnails on first sight. Returns whether the Obj was ingested."""
+    import sqlalchemy as sa
+
+    from ..models import Obj
+    from ._save import save_object_photometry
+    from ._thumbnails import add_thumbnails
+
+    obj_id = data["objectId"]
+    is_new = (await session.scalar(sa.select(Obj.id).where(Obj.id == obj_id))) is None
+    try:
+        await save_object_photometry(data, survey, session, user)
+    except Exception as e:
+        log(f"survey match {survey}/{obj_id} ingest failed: {e}")
+        return False
+    if is_new and broker is not None:
+        try:
+            cutouts = _request(
+                broker,
+                "GET",
+                f"surveys/{survey}/cutouts",
+                params={"objectId": obj_id},
+            )
+            if isinstance(cutouts, dict):
+                await add_thumbnails(
+                    obj_id,
+                    cutouts,
+                    survey,
+                    session,
+                    user_id=user.id,
+                    jd=cutouts.get("jd"),
+                )
+        except Exception as e:
+            log(f"survey match {survey}/{obj_id} cutouts failed: {e}")
+    return True
 
 
 _CATALOGS_TTL = timedelta(hours=1)
