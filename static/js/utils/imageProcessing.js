@@ -366,7 +366,7 @@ export function bytes2image(
     const alpha = survey.toLowerCase() === "lsst" ? 10.0 : 1000.0;
     data = stretchImage(data, type, "log", alpha);
   }
-  data = normalizeImage(data, "asymmetric_percentile");
+  data = normalizeImage(data, "asymmetric_percentile", 0.01, 0.995);
   data = ensureFinite(data);
   data = data.map((value) =>
     Math.round(Math.max(0, Math.min(255, value * 255))),
