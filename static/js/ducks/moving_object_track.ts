@@ -1,4 +1,8 @@
+import messageHandler from "baselayer/MessageHandler";
+
 import { skyportalApi } from "../api/skyportalApi";
+
+const TRACK_KNOWN_OBJECT = "skyportal/TRACK_KNOWN_OBJECT";
 
 export interface TrackEpoch {
   candid: string;
@@ -182,17 +186,35 @@ export const movingObjectTrackApi = skyportalApi.injectEndpoints({
       query: (body) => ({
         url: "api/moving_object/track",
         method: "POST",
-        // Vetting is exactly when the known-object check is worth its
-        // JPL round trips.
-        body: {
-          ...body,
-          measure_cutouts: true,
-          include_images: true,
-          check_known: true,
-        },
+        body: { ...body, measure_cutouts: true, include_images: true },
+      }),
+    }),
+    // Filled over the websocket: JPL takes minutes, longer than a request may.
+    getTrackKnownObject: build.query<KnownObjectVerdict | null, string>({
+      queryFn: () => ({ data: null }),
+    }),
+    checkTrackKnownObject: build.mutation<
+      unknown,
+      { trackId: string; broker_id: number; survey?: string }
+    >({
+      query: ({ trackId, ...body }) => ({
+        url: `api/moving_object/track/${encodeURIComponent(trackId)}/known`,
+        method: "POST",
+        body,
       }),
     }),
   }),
+});
+
+messageHandler.add((actionType: string, payload: any, dispatch: any) => {
+  if (actionType !== TRACK_KNOWN_OBJECT) return;
+  dispatch(
+    movingObjectTrackApi.util.upsertQueryData(
+      "getTrackKnownObject",
+      payload.track_id,
+      payload.known_object,
+    ),
+  );
 });
 
 export const {
@@ -201,4 +223,6 @@ export const {
   useSubmitTrackToMPCMutation,
   useMeasureTrackGeometryMutation,
   useMeasureTrackCutoutsMutation,
+  useGetTrackKnownObjectQuery,
+  useCheckTrackKnownObjectMutation,
 } = movingObjectTrackApi;

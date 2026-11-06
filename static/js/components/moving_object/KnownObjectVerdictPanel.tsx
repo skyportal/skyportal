@@ -4,12 +4,14 @@ import NewReleasesOutlinedIcon from "@mui/icons-material/NewReleasesOutlined";
 import Alert from "@mui/material/Alert";
 import AlertTitle from "@mui/material/AlertTitle";
 import Box from "@mui/material/Box";
+import CircularProgress from "@mui/material/CircularProgress";
 import Typography from "@mui/material/Typography";
 
 import { KnownObjectVerdict } from "../../ducks/moving_object_track";
 
 interface KnownObjectVerdictPanelProps {
   verdict: KnownObjectVerdict | null | undefined;
+  checking?: boolean;
 }
 
 /**
@@ -19,7 +21,23 @@ interface KnownObjectVerdictPanelProps {
  * run must never look like one that ran and found nothing, because that is how
  * a known object gets submitted as a discovery.
  */
-const KnownObjectVerdictPanel = ({ verdict }: KnownObjectVerdictPanelProps) => {
+const KnownObjectVerdictPanel = ({
+  verdict,
+  checking = false,
+}: KnownObjectVerdictPanelProps) => {
+  if (!verdict && checking) {
+    return (
+      <Alert
+        severity="info"
+        icon={<CircularProgress size="1.1rem" />}
+        sx={{ fontSize: "0.8rem" }}
+      >
+        <AlertTitle sx={{ fontSize: "0.85rem" }}>Checking JPL</AlertTitle>
+        JPL takes a few minutes to answer.
+      </Alert>
+    );
+  }
+
   if (!verdict) {
     return (
       <Alert

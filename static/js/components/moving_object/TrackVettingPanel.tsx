@@ -8,6 +8,7 @@ import Typography from "@mui/material/Typography";
 import { useTheme } from "@mui/material/styles";
 
 import {
+  KnownObjectVerdict,
   MeasuredEpoch,
   TrackMeasurement,
 } from "../../ducks/moving_object_track";
@@ -75,6 +76,8 @@ const CutoutStrip = ({ detections }: { detections: MeasuredEpoch[] }) => (
 
 interface TrackVettingPanelProps {
   measurement: TrackMeasurement;
+  knownObject: KnownObjectVerdict | null | undefined;
+  checkingKnown: boolean;
 }
 
 /**
@@ -83,7 +86,11 @@ interface TrackVettingPanelProps {
  * The detections carry many object ids because a positional survey renames a
  * mover every visit, so nothing here is keyed on one.
  */
-const TrackVettingPanel = ({ measurement }: TrackVettingPanelProps) => {
+const TrackVettingPanel = ({
+  measurement,
+  knownObject,
+  checkingKnown,
+}: TrackVettingPanelProps) => {
   const theme = useTheme();
   const { detections, motion, position_angles: angles } = measurement;
 
@@ -165,7 +172,7 @@ const TrackVettingPanel = ({ measurement }: TrackVettingPanelProps) => {
         </Alert>
       )}
 
-      <KnownObjectVerdictPanel verdict={measurement.known_object} />
+      <KnownObjectVerdictPanel verdict={knownObject} checking={checkingKnown} />
 
       <Paper variant="outlined" sx={{ padding: "0.4rem" }}>
         <Typography
