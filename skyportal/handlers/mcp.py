@@ -27,6 +27,7 @@ from baselayer.app.access import auth_or_token
 from baselayer.log import make_log
 
 from .. import __version__
+from ..models.photometry import PHOT_DETECTION_THRESHOLD
 from ..utils import sso
 from ..utils.app import get_app_base_url
 from .base import BaseHandler
@@ -364,11 +365,16 @@ def _analyze_band(points, baseline_threshold):
 
     Returns None with fewer than two detections.
     """
-    detections = sorted(
-        (p for p in points if p.get("mag") is not None), key=lambda p: p["mjd"]
-    )
+
+    def detected(p):
+        snr = p.get("snr")
+        return p.get("mag") is not None and (
+            snr is None or snr >= PHOT_DETECTION_THRESHOLD
+        )
+
+    detections = sorted((p for p in points if detected(p)), key=lambda p: p["mjd"])
     limits = [
-        p for p in points if p.get("mag") is None and p.get("limiting_mag") is not None
+        p for p in points if not detected(p) and p.get("limiting_mag") is not None
     ]
     if len(detections) < 2:
         return None
