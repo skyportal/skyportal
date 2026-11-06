@@ -17,6 +17,8 @@ that use outside their web form is unsupported, so it is not something to build
 a service on.
 """
 
+from concurrent.futures import ThreadPoolExecutor
+
 import requests
 
 from baselayer.log import make_log
@@ -357,20 +359,28 @@ def check_known_object(detections, obs_time_for, obscode="500", control=None, **
     JPL should find. Without one the result is returned unverified rather than
     as a clean negative.
     """
+
+    def identify_at(row):
+        return identify(
+            row["ra"], row["dec"], obs_time_for(row["jd"]), obscode=obscode, **kwargs
+        )
+
+    # JPL takes minutes per query, so the epochs and the control are asked at once.
+    pool = ThreadPoolExecutor(max_workers=MAX_EPOCHS_QUERIED + 1)
+    queries = [
+        (row["jd"], pool.submit(identify_at, row)) for row in _sample_epochs(detections)
+    ]
+    control_query = pool.submit(identify_at, control) if control is not None else None
+    pool.shutdown(wait=False)
+
     per_epoch, errors = [], []
-    for row in _sample_epochs(detections):
+    for jd, query in queries:
         try:
-            found = identify(
-                row["ra"],
-                row["dec"],
-                obs_time_for(row["jd"]),
-                obscode=obscode,
-                **kwargs,
-            )
+            found = query.result()
         except JPLSBIdentError as e:
             errors.append(str(e))
             continue
-        per_epoch.append((row["jd"], found))
+        per_epoch.append((jd, found))
 
     # Judged against the whole arc, not a radius: a known object can sit far
     # outside a stale prediction and still be the object.
@@ -409,13 +419,7 @@ def check_known_object(detections, obs_time_for, obscode="500", control=None, **
         }
 
     try:
-        found = identify(
-            control["ra"],
-            control["dec"],
-            obs_time_for(control["jd"]),
-            obscode=obscode,
-            **kwargs,
-        )
+        found = control_query.result()
     except JPLSBIdentError as e:
         return {
             "known": None,

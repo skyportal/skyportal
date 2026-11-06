@@ -114,7 +114,7 @@ def test_the_ends_and_middle_are_what_get_queried(monkeypatch):
     calls = []
     patch_identify(monkeypatch, lambda ra, *a, **k: calls.append(ra) or [])
     check_known_object(TRACK, times)
-    assert calls == [d["ra"] for d in TRACK]
+    assert sorted(calls) == sorted(d["ra"] for d in TRACK)
 
 
 def test_a_control_from_the_same_night_is_what_we_ask_for():
