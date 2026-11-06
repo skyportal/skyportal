@@ -711,6 +711,17 @@ def test_boom_photometry_drops_infinite_flux_err():
     assert [p["jd"] for p in prv] == [2459000.5]
 
 
+def test_boom_normalize_routes_forced_photometry():
+    """Forced photometry lands in fp_hists, so it keeps its own origin instead of
+    being deduplicated against the alert point at the same epoch."""
+    point = {"flux": 500.0, "flux_err": 50.0, "jd": 2459000.5, "band": "g"}
+    d = _normalize_boom_alert(
+        _boom_record([{**point, "origin": "Alert"}, {**point, "origin": "ForcedPhot"}])
+    )
+    assert len(d["prv_candidates"]) == 1
+    assert len(d["fp_hists"]) == 1
+
+
 def test_boom_normalize_empty_photometry():
     """A record without photometry normalizes to an empty light curve rather than
     raising (the ingestion loop must not crash on a bare alert)."""
