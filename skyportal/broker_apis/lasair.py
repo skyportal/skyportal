@@ -458,11 +458,12 @@ def _request(broker, method, data, token=None):
     raise RuntimeError("unreachable")
 
 
-def _cone(broker, ra, dec, radius=5, request_type="all"):
+def _cone(broker, ra, dec, radius=5, request_type="all", token=None):
     return _request(
         broker,
         "cone",
         {"ra": ra, "dec": dec, "radius": radius, "requestType": request_type},
+        token=token,
     )
 
 
@@ -475,6 +476,21 @@ def _query(broker, selected, tables, conditions, limit=1000, token=None):
             "tables": tables,
             "conditions": conditions,
             "limit": limit,
+        },
+        token=token,
+    )
+
+
+def _publish(broker, name, query, token=None):
+    return _request(
+        broker,
+        "filters/create",
+        {
+            "name": name,
+            "selected": query["selected"],
+            "tables": query["tables"],
+            "conditions": query["conditions"],
+            "active": 2,
         },
         token=token,
     )
@@ -1283,6 +1299,12 @@ class LASAIRBROKER(BrokerAPI):
             "url": f"https://{host}.lsst.ac.uk/objects/{obj_id}/",
         }
 
+    @staticmethod
+    def publish_filter(broker, name, query, token=None):
+        return _publish(
+            broker, re.sub(r"\W+", "_", name.lower()).strip("_"), query, token=token
+        )
+
     @classmethod
     def parallel_ingestion(cls, altdata):
         """Whether extra broker_ingest processes may run this broker.
@@ -1429,8 +1451,8 @@ class LASAIRBROKER(BrokerAPI):
                 "type": "string",
                 "title": "Lasair API token",
                 "description": (
-                    "Your own token, from your Lasair profile. Used to read the "
-                    "objects your filters match."
+                    "Your own token, from your Lasair profile. Every Lasair "
+                    "query, filter and backfill you run uses it."
                 ),
             },
             "username": {
@@ -1477,6 +1499,7 @@ class LASAIRBROKER(BrokerAPI):
                 float(kwargs["dec"]),
                 radius=float(kwargs.get("radius", 5)),
                 request_type=kwargs.get("requestType", "all"),
+                token=kwargs.get("token"),
             )
         if kwargs.get("selected") and kwargs.get("tables"):
             return _query(
@@ -1485,6 +1508,7 @@ class LASAIRBROKER(BrokerAPI):
                 kwargs["tables"],
                 kwargs.get("conditions", ""),
                 limit=int(kwargs.get("limit", 1000)),
+                token=kwargs.get("token"),
             )
         raise ValueError(
             "Provide objectId, or ra+dec (cone), or selected+tables (query)."
@@ -1502,6 +1526,7 @@ class LASAIRBROKER(BrokerAPI):
             float(dec),
             radius=float(radius),
             request_type=kwargs.get("requestType", "all"),
+            token=kwargs.get("token"),
         )
 
     @staticmethod
@@ -1530,7 +1555,9 @@ class LASAIRBROKER(BrokerAPI):
         tables = kwargs.get("tables") or compiled.get("tables") or "objects"
         conditions = compiled.get("conditions", kwargs.get("conditions") or "")
         limit = int(kwargs.get("limit", 50))
-        return _query(broker, selected, tables, conditions, limit=limit)
+        return _query(
+            broker, selected, tables, conditions, limit=limit, token=kwargs.get("token")
+        )
 
     @staticmethod
     def get_cutouts(broker, alert_id, session, **kwargs):
