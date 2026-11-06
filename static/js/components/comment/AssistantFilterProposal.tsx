@@ -17,6 +17,7 @@ import {
   useUpdateBoomGroupFilterMutation,
 } from "../../ducks/boom_filter";
 import { decompilePipeline } from "../../utils/mongoPipelineDecompiler";
+import LasairFilterProposal from "../broker/lasair/LasairFilterProposal";
 
 const matchCount = (summary: string) => {
   try {
@@ -34,9 +35,7 @@ interface AssistantFilterProposalProps {
 // A pipeline the assistant built and previewed, offered for saving. Saving goes
 // through the same endpoint the builder's own Save does, so the new version is
 // validated on arrival and still has to be activated by hand.
-const AssistantFilterProposal = ({
-  proposal,
-}: AssistantFilterProposalProps) => {
+const PipelineFilterProposal = ({ proposal }: AssistantFilterProposalProps) => {
   const { fid } = useParams();
   const [saveFilter, { isLoading }] = useUpdateBoomGroupFilterMutation();
   const { refetch } = useBoomFilterVersion();
@@ -144,5 +143,12 @@ const AssistantFilterProposal = ({
     </Paper>
   );
 };
+
+const AssistantFilterProposal = ({ proposal }: AssistantFilterProposalProps) =>
+  proposal.lasair ? (
+    <LasairFilterProposal proposal={proposal} />
+  ) : (
+    <PipelineFilterProposal proposal={proposal} />
+  );
 
 export default AssistantFilterProposal;

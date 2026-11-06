@@ -198,7 +198,13 @@ export const brokersApi = skyportalApi.injectEndpoints({
       {
         brokerId: number;
         filterId: number;
-        query: { selected: string; tables: string; conditions: string };
+        query: {
+          selected?: string;
+          tables?: string;
+          conditions?: string;
+          tree?: any[];
+          publish?: boolean;
+        };
         autosave?: boolean;
       }
     >({

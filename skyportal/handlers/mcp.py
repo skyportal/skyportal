@@ -95,6 +95,10 @@ fid it returns. Posting validates the version and returns the verdict; \
 activation is refused without a passing one, and \
 validate_broker_filter_version re-runs it after a fix.
 
+A Lasair filter is SQL over Lasair's tables, not a pipeline: take its columns \
+from get_alert_schema and preview it with run_lasair_query, never \
+run_broker_filter. The user applies the previewed filter from the page.
+
 Writing the pipeline itself:
 
 - A pipeline is per-alert. $group, $unwind and $lookup are rejected, so \
@@ -1489,7 +1493,14 @@ async def get_broker_filter(handler, args):
     path = f"/api/brokers/{broker_id}/filters"
     if filter_id is not None:
         path += f"/{filter_id}"
-    return await handler.api("GET", path, query=args)
+    record = await handler.api("GET", path, query=args)
+    if filter_id is not None and isinstance(record, dict):
+        broker = await handler.api("GET", f"/api/brokers/{broker_id}")
+        record["broker"] = {
+            "name": broker.get("name"),
+            "filter_kind": broker.get("filter_kind"),
+        }
+    return record
 
 
 @tool(
@@ -1740,6 +1751,39 @@ def _with_window(result, start_jd, end_jd):
     if nights > 0 and isinstance(result.get("count"), int):
         window["count_per_night"] = round(result["count"] / nights, 2)
     return {**result, "window": window}
+
+
+@tool(
+    "run_lasair_query",
+    "Preview a filter on a Lasair broker, without saving anything. Returns how "
+    "many objects match, the first few, and the Lasair SQL it ran. Lasair joins "
+    "the tables the fields name on the object.",
+    {
+        "broker_id": _prop("integer", "Broker ID."),
+        "conditions": _prop(
+            "object",
+            'Condition tree: {"operator": "and" or "or", "children": [...]}, each '
+            'child a nested tree or {"field": "table.column", "operator": one of '
+            '$eq $ne $gt $gte $lt $lte $in, "value": ...}. Times are MJD; write '
+            'one relative to now as "mjdnow() - 14".',
+        ),
+    },
+    required=("broker_id", "conditions"),
+)
+async def run_lasair_query(handler, args):
+    from ..broker_apis.lasair import compile_tree
+
+    rows = await handler.api(
+        "POST",
+        f"/api/brokers/{args['broker_id']}/filter/test",
+        body={"tree": args["conditions"], "limit": 1000},
+    )
+    rows = rows if isinstance(rows, list) else []
+    return {
+        "count": len(rows),
+        "objects": rows[:5],
+        "sql": compile_tree(args["conditions"], "LSST")["conditions"],
+    }
 
 
 @tool(

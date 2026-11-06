@@ -1495,7 +1495,7 @@ class BrokerFiltersHandler(BaseHandler):
                 ).first()
                 if f is None:
                     return self.error(f"Cannot find a filter with ID: {filter_id}.")
-                query = body.query or {}
+                query = broker.broker_class.compile_query(broker, body.query or {})
                 selected = (query.get("selected") or "").strip()
                 tables = (query.get("tables") or "").strip()
                 conditions = (query.get("conditions") or "").strip()
@@ -1507,11 +1507,14 @@ class BrokerFiltersHandler(BaseHandler):
                 if "autosave" in body.model_fields_set:
                     f.autosave = bool(body.autosave)
                 ad = dict(f.altdata) if isinstance(f.altdata, dict) else {}
-                ad["lasair"] = {
+                saved = {
                     "selected": selected,
                     "tables": tables,
                     "conditions": conditions,
                 }
+                if query.get("tree") is not None:
+                    saved["tree"] = query["tree"]
+                ad["lasair"] = saved
                 f.altdata = ad
                 flag_modified(f, "altdata")
                 session.commit()

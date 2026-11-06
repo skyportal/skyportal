@@ -270,11 +270,16 @@ def _normalize_object(obj, object_id):
 _SQL_OPS = {"$eq": "=", "$ne": "!=", "$gt": ">", "$gte": ">=", "$lt": "<", "$lte": "<="}
 
 
+_RELATIVE_MJD = re.compile(r"mjdnow\(\)\s*(?:[-+]\s*\d+(?:\.\d+)?)?")
+
+
 def _sql_value(v):
     if isinstance(v, bool):
         return "1" if v else "0"
     if isinstance(v, (int, float)):
         return str(v)
+    if _RELATIVE_MJD.fullmatch(str(v).strip()):
+        return str(v).strip()
     return "'" + str(v).replace("'", "''") + "'"
 
 
@@ -285,7 +290,7 @@ def _compile_tree_to_sql(node):
     if not isinstance(node, dict):
         return ""
     if node.get("category") == "block" or "children" in node:
-        joiner = (node.get("operator") or "and").upper()
+        joiner = (node.get("logic") or node.get("operator") or "and").upper()
         parts = [_compile_tree_to_sql(c) for c in (node.get("children") or [])]
         parts = [p for p in parts if p]
         return "(" + f" {joiner} ".join(parts) + ")" if parts else ""
@@ -300,6 +305,36 @@ def _compile_tree_to_sql(node):
         return f"{field} LIKE {_sql_value('%' + str(value) + '%')}"
     sqlop = _SQL_OPS.get(operator)
     return f"{field} {sqlop} {_sql_value(value)}" if sqlop else ""
+
+
+_DEFAULT_SELECTED = {
+    "LSST": "objects.diaObjectId, objects.ra, objects.decl",
+    "ZTF": "objects.objectId, objects.ramean, objects.decmean",
+}
+
+
+def _tree_fields(node):
+    if not isinstance(node, dict):
+        return []
+    if node.get("category") == "block" or "children" in node:
+        return [f for c in node.get("children") or [] for f in _tree_fields(c)]
+    field = node.get("field")
+    field = field.get("name") if isinstance(field, dict) else field
+    return [field] if field else []
+
+
+def compile_tree(tree, survey):
+    if isinstance(tree, list):
+        tree = tree[0] if len(tree) == 1 else {"operator": "and", "children": tree}
+    fields = list(dict.fromkeys(_tree_fields(tree)))
+    base = _DEFAULT_SELECTED.get(survey, _DEFAULT_SELECTED["LSST"])
+    tables = ["objects"] + [f.split(".")[0] for f in fields if "." in f]
+    extra = [f for f in fields if f not in base.split(", ")]
+    return {
+        "selected": ", ".join([base, *extra]),
+        "tables": ", ".join(dict.fromkeys(tables)),
+        "conditions": _compile_tree_to_sql(tree),
+    }
 
 
 def _lasair_schema(survey):
@@ -1210,6 +1245,12 @@ class LASAIRBROKER(BrokerAPI):
     supports_replay = True
     backfill_query = staticmethod(filter_query)
 
+    @staticmethod
+    def compile_query(broker, query):
+        if query.get("tree") is None:
+            return query
+        return {**query, **compile_tree(query["tree"], _survey(broker))}
+
     @classmethod
     def parallel_ingestion(cls, altdata):
         """Whether extra broker_ingest processes may run this broker.
@@ -1448,20 +1489,15 @@ class LASAIRBROKER(BrokerAPI):
         """Run a Lasair SQL query and return the matching rows. Accepts raw
         ``conditions`` (SQL) or the builder's neutral ``tree``, compiled here."""
         survey = _survey(broker, kwargs)
-        default_selected = (
-            "objects.diaObjectId, objects.ra, objects.decl"
-            if survey == "LSST"
-            else "objects.objectId, objects.ramean, objects.decmean"
-        )
-        selected = kwargs.get("selected") or default_selected
-        tables = kwargs.get("tables") or "objects"
         tree = kwargs.get("tree") or kwargs.get("filters")
-        if tree is not None:
-            if isinstance(tree, list):
-                tree = {"operator": "and", "children": tree}
-            conditions = _compile_tree_to_sql(tree)
-        else:
-            conditions = kwargs.get("conditions") or ""
+        compiled = compile_tree(tree, survey) if tree is not None else {}
+        selected = (
+            kwargs.get("selected")
+            or compiled.get("selected")
+            or _DEFAULT_SELECTED.get(survey, _DEFAULT_SELECTED["LSST"])
+        )
+        tables = kwargs.get("tables") or compiled.get("tables") or "objects"
+        conditions = compiled.get("conditions", kwargs.get("conditions") or "")
         limit = int(kwargs.get("limit", 50))
         return _query(broker, selected, tables, conditions, limit=limit)
 
