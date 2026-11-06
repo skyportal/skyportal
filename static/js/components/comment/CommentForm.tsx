@@ -7,6 +7,7 @@ import SendIcon from "@mui/icons-material/Send";
 import Checkbox from "@mui/material/Checkbox";
 import IconButton from "@mui/material/IconButton";
 import ListItemText from "@mui/material/ListItemText";
+import ListSubheader from "@mui/material/ListSubheader";
 import Menu from "@mui/material/Menu";
 import MenuItem from "@mui/material/MenuItem";
 import TextField from "@mui/material/TextField";
@@ -15,6 +16,7 @@ import { makeStyles } from "tss-react/mui";
 import Typography from "@mui/material/Typography";
 
 import { useGetGroupsQuery } from "../../ducks/groups";
+import { useGetStreamsQuery } from "../../ducks/streams";
 import Button from "../Button";
 
 import UsernameTrie from "../../usernameTrie";
@@ -51,9 +53,13 @@ const useStyles = makeStyles()((theme) => ({
   groupFilter: {
     position: "sticky",
     top: 0,
-    zIndex: 1,
+    zIndex: 2,
     padding: theme.spacing(0.5, 1, 1),
     backgroundColor: theme.palette.background.paper,
+  },
+  menuSection: {
+    lineHeight: "2rem",
+    top: "3.25rem",
   },
   extras: {
     display: "flex",
@@ -71,6 +77,7 @@ interface CommentComposerProps {
   onClose?: (() => void) | null;
   placeholder?: string;
   textOnly?: boolean;
+  streamAccess?: boolean;
 }
 
 const CommentForm = ({
@@ -81,12 +88,18 @@ const CommentForm = ({
   onClose = null,
   placeholder = "Add a comment",
   textOnly = false,
+  streamAccess = false,
 }: CommentComposerProps) => {
   const { classes: styles, cx } = useStyles();
   // Only usernames are needed, for the @-mention trie.
   const users = useGetUsersQuery({ slim: true }).data ?? { users: [] };
   const { data: groupsData } = useGetGroupsQuery();
   const groups = useMemo(() => groupsData?.userAccessible ?? [], [groupsData]);
+  const { data: streamsData } = useGetStreamsQuery(undefined, {
+    skip: !streamAccess,
+  });
+  const streams = streamAccess ? (streamsData ?? []) : [];
+  const [selectedStreams, setSelectedStreams] = useState<number[]>([]);
   const { data: instrumentList = [] } = useGetInstrumentsQuery();
   const [textValue, setTextValue] = useState("");
   const [fileName, setFileName] = useState("");
@@ -188,6 +201,9 @@ const CommentForm = ({
       (_ID: any, idx: number) => data.group_ids[idx],
     );
     data.group_ids = selectedGroupIDs;
+    if (selectedStreams.length) {
+      data.stream_ids = selectedStreams;
+    }
     if (addComment) {
       addComment(data);
     } else if (editComment) {
@@ -197,6 +213,7 @@ const CommentForm = ({
     setTextValue("");
     setFileName("");
     setSelectedGroups([]);
+    setSelectedStreams([]);
     setGroupFilter("");
     setAutosuggestVisible(false);
     setUsernamePrefixMatches({});
@@ -417,14 +434,25 @@ const CommentForm = ({
             </Tooltip>
             <Tooltip
               title={
-                selectedGroups.length
-                  ? `Shared with ${selectedGroups.length} group(s)`
+                selectedGroups.length || selectedStreams.length
+                  ? [
+                      selectedGroups.length &&
+                        `Shared with ${selectedGroups.length} group(s)`,
+                      selectedStreams.length &&
+                        `restricted to ${selectedStreams.length} stream(s)`,
+                    ]
+                      .filter(Boolean)
+                      .join(", ")
                   : "Customize group access (public if not specified)"
               }
             >
               <IconButton
                 size="small"
-                color={selectedGroups.length ? "primary" : "default"}
+                color={
+                  selectedGroups.length || selectedStreams.length
+                    ? "primary"
+                    : "default"
+                }
                 onClick={(event) => setGroupAnchor(event.currentTarget)}
                 data-testid="customizeGroupsButton"
               >
@@ -444,12 +472,44 @@ const CommentForm = ({
               autoFocus
               fullWidth
               size="small"
-              placeholder="Filter groups"
+              placeholder={streams.length ? "Filter" : "Filter groups"}
               value={groupFilter}
               onChange={(event) => setGroupFilter(event.target.value)}
               onKeyDown={(event) => event.stopPropagation()}
             />
           </div>
+          {streams.length > 0 && (
+            <ListSubheader className={styles.menuSection}>
+              Restrict to streams
+            </ListSubheader>
+          )}
+          {streams
+            .filter((stream: any) =>
+              stream.name.toLowerCase().includes(groupFilter.toLowerCase()),
+            )
+            .map((stream: any) => (
+              <MenuItem
+                key={`stream-${stream.id}`}
+                dense
+                onClick={() =>
+                  setSelectedStreams(
+                    selectedStreams.includes(stream.id)
+                      ? selectedStreams.filter((id) => id !== stream.id)
+                      : [...selectedStreams, stream.id],
+                  )
+                }
+              >
+                <Checkbox
+                  size="small"
+                  checked={selectedStreams.includes(stream.id)}
+                  data-testid={`commentStreamCheckBox${stream.id}`}
+                />
+                <ListItemText primary={stream.name} />
+              </MenuItem>
+            ))}
+          {streams.length > 0 && (
+            <ListSubheader className={styles.menuSection}>Groups</ListSubheader>
+          )}
           {groups
             .map((group, idx) => ({ group, idx }))
             .filter(({ group }) =>
