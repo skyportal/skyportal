@@ -227,6 +227,7 @@ def run_m4opt(
                     "visits": int(visits) if visits else None,
                     "exposure_time": float(exposure_time) if exposure_time else None,
                     "extra_args": config.get("extra_args") or [],
+                    "timeout_seconds": int(config.get("subprocess_timeout", 3600)),
                 }
                 try:
                     response = requests.post(
