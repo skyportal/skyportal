@@ -97,7 +97,16 @@ def _request(broker, method, path, *, params=None, json=None, timeout=DEFAULT_TI
         )
         if response.status_code != 401:
             break
-    response.raise_for_status()
+    if not response.ok:
+        try:
+            body = response.json()
+        except ValueError:
+            body = None
+        message = body.get("message") if isinstance(body, dict) else None
+        raise requests.HTTPError(
+            f"BOOM returned {response.status_code}: {message or response.reason}",
+            response=response,
+        )
     payload = response.json()
     return payload.get("data", payload) if isinstance(payload, dict) else payload
 
