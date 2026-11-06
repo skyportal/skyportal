@@ -10,6 +10,7 @@ import os
 
 import sqlalchemy as sa
 from sqlalchemy import event
+from sqlalchemy.dialects.postgresql import ARRAY
 from sqlalchemy.ext.declarative import declared_attr
 from sqlalchemy.orm import deferred, relationship
 
@@ -18,6 +19,8 @@ from baselayer.app.models import (
     AccessibleIfRelatedRowsAreAccessible,
     AccessibleIfUserMatches,
     Base,
+    CustomUserAccessControl,
+    UserAccessControl,
 )
 from baselayer.log import make_log
 
@@ -190,16 +193,54 @@ class CommentMixin:
         self._attachment_path = None
 
 
+def stream_access_logic(cls, user_or_token):
+    """Comments the user may see given their stream access: system admins
+    count as having access to every stream."""
+    from .stream import StreamUser
+
+    def unrestricted(column):
+        return column.is_(None) | (sa.func.cardinality(column) == 0)
+
+    if user_or_token.is_admin:
+        return sa.select(cls).where(unrestricted(cls.hidden_stream_ids))
+    user_id = UserAccessControl.user_id_from_user_or_token(user_or_token)
+    user_streams = sa.func.array(
+        sa.select(StreamUser.stream_id)
+        .where(StreamUser.user_id == user_id)
+        .scalar_subquery()
+    )
+    return sa.select(cls).where(
+        unrestricted(cls.stream_ids) | cls.stream_ids.contained_by(user_streams),
+        unrestricted(cls.hidden_stream_ids)
+        | ~cls.hidden_stream_ids.contained_by(user_streams),
+    )
+
+
 class Comment(Base, CommentMixin):
     """A comment made by a User or a Robot (via the API) on a Source."""
 
     create = AccessibleIfRelatedRowsAreAccessible(obj="read")
 
-    read = accessible_by_groups_members & AccessibleIfRelatedRowsAreAccessible(
-        obj="read"
+    read = (
+        accessible_by_groups_members
+        & AccessibleIfRelatedRowsAreAccessible(obj="read")
+        & CustomUserAccessControl(stream_access_logic)
     )
 
     update = delete = AccessibleIfUserMatches("author")
+
+    stream_ids = sa.Column(
+        ARRAY(sa.Integer),
+        nullable=True,
+        doc="Only users with access to all of these streams can see the comment.",
+    )
+
+    hidden_stream_ids = sa.Column(
+        ARRAY(sa.Integer),
+        nullable=True,
+        doc="Users with access to all of these streams cannot see the comment, "
+        "e.g. the public version of a comment whose full version needs them.",
+    )
 
     obj_id = sa.Column(
         sa.ForeignKey("objs.id", ondelete="CASCADE"),

@@ -328,3 +328,35 @@ def test_fetch_all_comments_on_obj(comment_token, public_source):
 
     assert status == 200
     assert any(comment["text"] == comment_text for comment in data["data"])
+
+
+def test_comment_versions_by_stream_access(
+    super_admin_token,
+    comment_token,
+    upload_data_token_stream2,
+    public_source,
+    public_group,
+    public_stream2,
+):
+    for text, restriction in (("full", "stream_ids"), ("public", "hidden_stream_ids")):
+        status, data = api(
+            "POST",
+            f"sources/{public_source.id}/comments",
+            data={
+                "text": text,
+                "group_ids": [public_group.id],
+                restriction: [public_stream2.id],
+            },
+            token=super_admin_token,
+        )
+        assert status == 200
+
+    for token, expected in (
+        (upload_data_token_stream2, ["full"]),
+        (comment_token, ["public"]),
+        (super_admin_token, ["full"]),
+    ):
+        status, data = api("GET", f"sources/{public_source.id}/comments", token=token)
+        assert status == 200
+        texts = [comment["text"] for comment in data["data"]]
+        assert [text for text in texts if text in ("full", "public")] == expected

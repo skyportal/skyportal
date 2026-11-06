@@ -37,6 +37,7 @@ from ...models import (
     Obj,
     Shift,
     Spectrum,
+    Stream,
     Token,
     User,
     UserNotification,
@@ -434,6 +435,24 @@ class CommentHandler(BaseHandler):
                         f"Cannot find one or more groups with IDs: {group_ids}."
                     )
 
+                stream_ids = sorted(set(body.stream_ids or [])) or None
+                hidden_stream_ids = sorted(set(body.hidden_stream_ids or [])) or None
+                restricting_ids = set(stream_ids or []) | set(hidden_stream_ids or [])
+                if restricting_ids:
+                    if associated_resource_type.lower() != "sources":
+                        return self.error(
+                            "Stream restrictions are only supported on comments on sources."
+                        )
+                    streams = await session.scalars(
+                        Stream.select(session.user_or_token).where(
+                            Stream.id.in_(restricting_ids)
+                        )
+                    )
+                    if {s.id for s in streams} != restricting_ids:
+                        return self.error(
+                            f"Cannot find one or more streams with IDs: {sorted(restricting_ids)}."
+                        )
+
                 comment = None
                 existing = None
                 obj_id = None
@@ -460,6 +479,12 @@ class CommentHandler(BaseHandler):
                                 Comment.author_id == author_id,
                                 Comment.bot.is_(True),
                                 Comment.origin == body.origin,
+                                Comment.stream_ids.is_(None)
+                                if stream_ids is None
+                                else Comment.stream_ids == stream_ids,
+                                Comment.hidden_stream_ids.is_(None)
+                                if hidden_stream_ids is None
+                                else Comment.hidden_stream_ids == hidden_stream_ids,
                             )
                         )
                         existing = existing_result.first()
@@ -471,6 +496,8 @@ class CommentHandler(BaseHandler):
                             text=comment_text,
                             obj_id=obj_id,
                             channel=channel,
+                            stream_ids=stream_ids,
+                            hidden_stream_ids=hidden_stream_ids,
                             attachment_bytes=attachment_bytes,
                             attachment_name=attachment_name,
                             author_id=author_id,

@@ -74,6 +74,17 @@ class CommentPostBody(BaseModel):
         description="Conversation the comment belongs to; the main thread if unset. "
         "Only used for comments on sources.",
     )
+    stream_ids: list[int] | None = Field(
+        default=None,
+        description="Only users with access to all of these streams can see the "
+        "comment. Only used for comments on sources.",
+    )
+    hidden_stream_ids: list[int] | None = Field(
+        default=None,
+        description="Users with access to all of these streams cannot see the "
+        "comment, e.g. to post a public version next to a comment restricted with "
+        "stream_ids. Only used for comments on sources.",
+    )
     origin: Literal["scanning"] | None = Field(
         default=None,
         description="Optional workflow that created the comment.",
