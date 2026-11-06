@@ -1231,6 +1231,16 @@ class ZTFMMAAPI(MMAAPI):
             "program_id",
         ]
 
+        scheduler = form_json_schema.get("dependencies", {}).get("scheduler")
+        if scheduler is not None:
+            gwemopt = next(
+                branch["properties"]
+                for branch in scheduler["oneOf"]
+                if branch["properties"]["scheduler"]["enum"] == ["gwemopt"]
+            )
+            for key in ("use_primary", "use_secondary"):
+                gwemopt[key] = form_json_schema["properties"].pop(key)
+
         return form_json_schema
 
 
