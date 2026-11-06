@@ -24,6 +24,7 @@ from baselayer.app.env import load_env
 from baselayer.app.models import init_db
 from baselayer.log import make_log
 from skyportal.models import Broker
+from skyportal.utils.services import check_loaded
 
 env, cfg = load_env()
 log = make_log("broker_ingest")
@@ -140,6 +141,12 @@ async def _run_loop():
         await asyncio.sleep(RESCAN_INTERVAL)
 
 
+@check_loaded(logger=log)
+def service(*args, **kwargs):
+    log(f"broker_ingest process {_PROCESS_INDEX} starting")
+    asyncio.run(_run_loop())
+
+
 if __name__ == "__main__":
     if not cfg.get("brokers.ingest_enabled", False):
         log("broker ingestion disabled (set brokers.ingest_enabled: true to enable)")
@@ -149,5 +156,4 @@ if __name__ == "__main__":
         while True:
             time.sleep(3600)
     else:
-        log(f"broker_ingest process {_PROCESS_INDEX} starting")
-        asyncio.run(_run_loop())
+        service()
