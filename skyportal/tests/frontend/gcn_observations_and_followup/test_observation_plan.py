@@ -201,6 +201,11 @@ def test_observationplan_request(
     page.locator(
         f'//button[contains(@data-testid, "observingRunRequest_{observation_plan_request_id}")]'
     ).first.click()
+    expect(
+        page.locator(
+            '//div[@role="dialog"][.//h2[normalize-space(.)="Create Observing Run"]]'
+        )
+    ).to_be_hidden()
     page.locator(
         f'//button[contains(@data-testid, "deleteRequest_{observation_plan_request_id}")]'
     ).first.click()
