@@ -245,6 +245,30 @@ def test_a_real_m4opt_schedule_parses():
     assert all(row[0].field_id in observed_ids for row in rows)
 
 
+def test_the_sky_map_keeps_only_the_requested_region():
+    from pathlib import Path
+
+    import numpy as np
+    from astropy.coordinates import ICRS
+    from astropy_healpix import HEALPix
+    from ligo.skymap.bayestar import rasterize
+    from ligo.skymap.io import read_sky_map
+
+    skymap = read_sky_map(
+        str(Path(__file__).parents[1] / "data" / "bayestar.fits.gz"), moc=True
+    )
+    assert m4opt_plan.restrict_skymap(skymap, 128) is skymap
+
+    hpx = HEALPix(128, order="nested", frame=ICRS())
+    latitude = hpx.healpix_to_skycoord(np.arange(hpx.npix)).galactic.b.deg
+    credible = rasterize(m4opt_plan.restrict_skymap(skymap, 128, 90), hpx.level)
+    away = rasterize(m4opt_plan.restrict_skymap(skymap, 128, None, 10), hpx.level)
+
+    assert credible["PROB"].sum() == pytest.approx(0.9, abs=0.01)
+    assert away["PROB"][np.abs(latitude) <= 10].sum() == 0
+    assert away["PROB"].sum() > 0
+
+
 # --- generate_m4opt_plan: the driver that writes the plan --------------------
 
 
