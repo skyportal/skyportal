@@ -1251,6 +1251,17 @@ class LASAIRBROKER(BrokerAPI):
             return query
         return {**query, **compile_tree(query["tree"], _survey(broker))}
 
+    @staticmethod
+    def found_by(broker, filter_row, obj_id):
+        altdata = filter_row.altdata if isinstance(filter_row.altdata, dict) else {}
+        published = (altdata.get("lasair") or {}).get("published") or {}
+        host = "lasair-ztf" if _survey(broker) == "ZTF" else "lasair"
+        return {
+            "broker": "Lasair",
+            "filter": published.get("name") or filter_row.name,
+            "url": f"https://{host}.lsst.ac.uk/objects/{obj_id}/",
+        }
+
     @classmethod
     def parallel_ingestion(cls, altdata):
         """Whether extra broker_ingest processes may run this broker.

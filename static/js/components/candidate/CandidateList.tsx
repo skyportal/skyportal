@@ -389,6 +389,15 @@ const CandidateInfo = ({
           ))}
         </InfoRow>
       )}
+      {(candidate.found_by ?? []).map((credit: any) => (
+        <InfoRow key={credit.filter} label="Found by:">
+          <b>{credit.broker}</b>
+          <span>{credit.filter}</span>
+          <a href={credit.url} target="_blank" rel="noopener noreferrer">
+            View on {credit.broker}
+          </a>
+        </InfoRow>
+      ))}
       {candidate.last_detected_at && (
         <InfoRow label="Last detected:">
           <span>

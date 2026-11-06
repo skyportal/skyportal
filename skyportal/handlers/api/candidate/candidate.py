@@ -37,6 +37,7 @@ from ....models import (
     Allocation,
     Annotation,
     AnnotationOnPhotometry,
+    Broker,
     Candidate,
     Classification,
     Comment,
@@ -1430,15 +1431,23 @@ class CandidateHandler(BaseHandler):
                 for filter_id in filter_ids
             }
             group_id_by_filter_id = {}
+            page_filters = []
+            brokers_by_id = {}
             if page_filter_ids:
                 page_filters_result = await session.scalars(
                     Filter.select(session.user_or_token).where(
                         Filter.id.in_(page_filter_ids)
                     )
                 )
-                group_id_by_filter_id = {
-                    f.id: f.group_id for f in page_filters_result.all()
-                }
+                page_filters = page_filters_result.all()
+                group_id_by_filter_id = {f.id: f.group_id for f in page_filters}
+                broker_ids = {f.broker_id for f in page_filters if f.broker_id}
+                if broker_ids:
+                    brokers_result = await session.scalars(
+                        sa.select(Broker).where(Broker.id.in_(broker_ids))
+                    )
+                    brokers_by_id = {b.id: b for b in brokers_result.all()}
+            filters_by_id = {f.id: f for f in page_filters}
 
             classifications_by_obj = defaultdict(list)
             if page_obj_ids:
@@ -1486,6 +1495,15 @@ class CandidateHandler(BaseHandler):
                         for filter_id in filter_ids_by_obj.get(obj.id, [])
                         if filter_id in group_id_by_filter_id
                     ]
+                    obj.found_by = []
+                    for filter_id in filter_ids_by_obj.get(obj.id, []):
+                        f = filters_by_id.get(filter_id)
+                        broker = f and brokers_by_id.get(f.broker_id)
+                        credit = broker and broker.broker_class.found_by(
+                            broker, f, obj.id
+                        )
+                        if credit:
+                            obj.found_by.append(credit)
                     if autosave:
                         source = {
                             "id": obj.id,
