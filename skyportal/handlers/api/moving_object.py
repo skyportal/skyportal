@@ -3,9 +3,10 @@ from typing import Annotated
 
 import arrow
 import sqlalchemy as sa
-from pydantic import Field
+from pydantic import BaseModel, Field
 from skyportal_py_models.moving_objects import (
     MovingObjectFollowupPostBody,
+    MovingObjectTrackMPCPostBody,
     MovingObjectTrackPostBody,
 )
 from sqlalchemy.orm import joinedload
@@ -14,7 +15,7 @@ from tornado.ioloop import IOLoop
 from baselayer.app.access import auth_or_token
 from baselayer.app.env import load_env
 
-from ...models import Broker, Instrument
+from ...models import Broker, Instrument, Obj, SharingService, SharingServiceSubmission
 from ...utils.moving_object_track import (
     NotMeasurable,
     band_flux_agreements,
@@ -28,6 +29,7 @@ from ...utils.moving_objects import (
     find_observable_sequence,
     get_ephemeris,
 )
+from ...utils.mpc_submission import ack_email, default_submitter, track_psv
 from ..base import BaseHandler
 from .broker import alert_permissions_async
 
@@ -247,11 +249,7 @@ class MovingObjectTrackHandler(BaseHandler):
                     # The count that makes the case: a real object arrives under
                     # a new object id almost every epoch.
                     "n_object_ids": len(
-                        {
-                            d.get("ztf_object_id")
-                            for d in measured
-                            if d.get("ztf_object_id")
-                        }
+                        {d.get("objectId") for d in measured if d.get("objectId")}
                     ),
                 }
             )
@@ -384,3 +382,197 @@ class MovingObjectTrackLookupHandler(BaseHandler):
             except Exception as e:
                 return self.error(f"Error fetching track from {broker.name}: {e}")
             return self.success(data=data)
+
+
+class MovingObjectTrackMPCQuery(BaseModel):
+    broker_id: int = Field(description="Broker the track is fetched from.")
+    sharing_service_id: int | None = Field(
+        default=None,
+        description="Sharing service whose MPC header to preview the submission with.",
+    )
+    submitter: str | None = Field(
+        default=None,
+        description="Name to preview the submission under. Defaults to the requester's.",
+    )
+
+
+def track_submissions(track_id):
+    return (
+        SharingServiceSubmission.publish_to_mpc.is_(True),
+        SharingServiceSubmission.mpc_payload["track_id"].astext == track_id,
+    )
+
+
+class MovingObjectTrackMPCHandler(BaseHandler):
+    async def _track(self, session, broker_id, track_id):
+        broker = await session.scalar(
+            Broker.select(self.current_user).where(Broker.id == broker_id)
+        )
+        if broker is None:
+            raise ValueError(f"No broker with id {broker_id}")
+        if not hasattr(broker.broker_class, "get_track"):
+            raise ValueError(f"Broker {broker.name} does not serve tracks.")
+        permissions = await alert_permissions_async(self.current_user, session)
+        return await IOLoop.current().run_in_executor(
+            None,
+            lambda: broker.broker_class.get_track(
+                broker, track_id, session, survey="ZTF", permissions=permissions
+            ),
+        )
+
+    @auth_or_token
+    async def get(self, track_id: str):
+        """
+        ---
+        summary: Preview a track's MPC submission
+        description: |
+          The MPC submissions already made for a ZTF track and, given a sharing
+          service, the ADES PSV it would be filed with now.
+        tags:
+          - moving objects
+        responses:
+          200:
+            content:
+              application/json:
+                schema: Success
+          400:
+            content:
+              application/json:
+                schema: Error
+        """
+        query = self.parse_query(MovingObjectTrackMPCQuery)
+        async with self.AsyncSession() as session:
+            submissions = await session.scalars(
+                SharingServiceSubmission.select(
+                    session.user_or_token,
+                    options=[joinedload(SharingServiceSubmission.user)],
+                )
+                .where(*track_submissions(track_id))
+                .order_by(SharingServiceSubmission.created_at.desc())
+            )
+            data = {
+                "submissions": [
+                    {
+                        "id": s.id,
+                        "sharing_service_id": s.sharing_service_id,
+                        "username": s.user.username,
+                        "submitter": s.custom_publishing_string,
+                        "mpc_status": s.mpc_status,
+                        "mpc_submission_id": s.mpc_submission_id,
+                        "created_at": s.created_at,
+                    }
+                    for s in submissions.unique().all()
+                ]
+            }
+            if query.sharing_service_id is None:
+                return self.success(data=data)
+
+            sharing_service = await session.scalar(
+                SharingService.select(session.user_or_token).where(
+                    SharingService.id == query.sharing_service_id
+                )
+            )
+            if sharing_service is None:
+                return self.error(
+                    f"No sharing service available with ID {query.sharing_service_id}"
+                )
+            submitter = query.submitter or default_submitter(
+                self.associated_user_object
+            )
+            try:
+                track = await self._track(session, query.broker_id, track_id)
+                data["psv"] = track_psv(track, sharing_service, submitter)
+            except Exception as e:
+                return self.error(f"Cannot submit {track_id}: {e}")
+            data["submitter"] = submitter
+            data["members_withheld"] = track["members_withheld"]
+            return self.success(data=data)
+
+    @auth_or_token
+    async def post(self, track_id: str, *, body: MovingObjectTrackMPCPostBody = None):
+        """
+        ---
+        summary: Submit a ZTF track to the MPC
+        description: |
+          Queue a vetted track for the Minor Planet Center, filed under the
+          requester's name with the sharing service's MPC header. The PSV is
+          fixed now, so the MPC receives what the reviewer previewed.
+        tags:
+          - moving objects
+        responses:
+          200:
+            content:
+              application/json:
+                schema: Success
+          400:
+            content:
+              application/json:
+                schema: Error
+        """
+        body = self.parse_body(MovingObjectTrackMPCPostBody)
+        user = self.associated_user_object
+        async with self.AsyncSession() as session:
+            sharing_service = await session.scalar(
+                SharingService.select(session.user_or_token).where(
+                    SharingService.id == body.sharing_service_id
+                )
+            )
+            if sharing_service is None:
+                return self.error(
+                    f"No sharing service available with ID {body.sharing_service_id}"
+                )
+            if not sharing_service.enable_sharing_with_mpc:
+                return self.error(
+                    f"Sharing service {sharing_service.name} does not submit to the MPC."
+                )
+            obj = await session.scalar(
+                Obj.select(session.user_or_token).where(Obj.id == body.obj_id)
+            )
+            if obj is None:
+                return self.error(f"No object available with ID {body.obj_id}")
+
+            # Checked across every group: the MPC must not get a track twice.
+            existing = await session.scalar(
+                sa.select(SharingServiceSubmission).where(
+                    *track_submissions(track_id),
+                    SharingServiceSubmission.mpc_status.in_(
+                        ["pending", "processing", "submitted"]
+                    ),
+                )
+            )
+            if existing is not None:
+                return self.error(
+                    f"{track_id} is already {existing.mpc_status} to the MPC "
+                    f"(submission {existing.id})."
+                )
+
+            submitter = body.submitter or default_submitter(user)
+            try:
+                ack_email(user, sharing_service)
+                track = await self._track(session, body.broker_id, track_id)
+                psv = track_psv(track, sharing_service, submitter)
+            except Exception as e:
+                return self.error(f"Cannot submit {track_id}: {e}")
+
+            submission = SharingServiceSubmission(
+                sharing_service_id=sharing_service.id,
+                obj_id=obj.id,
+                user_id=user.id,
+                custom_publishing_string=submitter,
+                auto_submission=False,
+                publish_to_mpc=True,
+                mpc_status="pending",
+                mpc_payload={
+                    "track_id": track_id,
+                    "broker_id": body.broker_id,
+                    "submitter": submitter,
+                    "psv": psv,
+                },
+            )
+            session.add(submission)
+            await session.commit()
+            self.push_all(
+                action="skyportal/REFRESH_SHARING_SERVICE_SUBMISSIONS",
+                payload={"sharing_service_id": sharing_service.id},
+            )
+            return self.success(data={"id": submission.id})

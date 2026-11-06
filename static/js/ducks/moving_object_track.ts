@@ -7,7 +7,9 @@ export interface TrackEpoch {
   dec: number;
   mag: number | null;
   band: string | null;
+  obs_jd?: number | null;
   ssnamenr?: string | null;
+  objectId?: string | null;
   snr?: number;
   centroid_offset_px?: number;
   peak?: number;
@@ -20,8 +22,36 @@ export interface TrackLookup {
   n_nights: number | null;
   arc_days: number | null;
   designation: string | null;
+  kind: string | null;
+  flags: string[];
+  rms_ratio: number | null;
+  near_planet: string | null;
+  neo_score: number | null;
+  orbit: {
+    epoch_jd: number | null;
+    e: number;
+    q: number;
+    a: number | null;
+  } | null;
   detections: TrackEpoch[];
   members_withheld: number;
+}
+
+export interface TrackMPCSubmission {
+  id: number;
+  sharing_service_id: number;
+  username: string;
+  submitter: string | null;
+  mpc_status: string | null;
+  mpc_submission_id: string | null;
+  created_at: string;
+}
+
+export interface TrackMPCPreview {
+  submissions: TrackMPCSubmission[];
+  psv?: string;
+  submitter?: string;
+  members_withheld?: number;
 }
 
 /** An epoch whose pixels were measured. Geometry-only results have neither. */
@@ -102,6 +132,49 @@ export const movingObjectTrackApi = skyportalApi.injectEndpoints({
         body: { ...body, measure_cutouts: false, include_images: false },
       }),
     }),
+    getTrackMPC: build.query<
+      TrackMPCPreview,
+      {
+        trackId: string;
+        brokerId: number;
+        sharingServiceId?: number | undefined;
+        submitter?: string | undefined;
+      }
+    >({
+      query: ({ trackId, brokerId, sharingServiceId, submitter }) => ({
+        url: `api/moving_object/track/${encodeURIComponent(trackId)}/mpc`,
+        params: {
+          broker_id: brokerId,
+          ...(sharingServiceId != null
+            ? { sharing_service_id: sharingServiceId }
+            : {}),
+          ...(submitter ? { submitter } : {}),
+        },
+      }),
+      extraOptions: { suppressErrorNotification: true },
+      providesTags: (_result, _error, { trackId }) => [
+        { type: "TrackMPC", id: trackId },
+      ],
+    }),
+    submitTrackToMPC: build.mutation<
+      { id: number },
+      {
+        trackId: string;
+        sharing_service_id: number;
+        obj_id: string;
+        broker_id: number;
+        submitter?: string | undefined;
+      }
+    >({
+      query: ({ trackId, ...body }) => ({
+        url: `api/moving_object/track/${encodeURIComponent(trackId)}/mpc`,
+        method: "POST",
+        body,
+      }),
+      invalidatesTags: (_result, _error, { trackId }) => [
+        { type: "TrackMPC", id: trackId },
+      ],
+    }),
     measureTrackCutouts: build.mutation<
       TrackMeasurement,
       { detections: TrackEpoch[]; broker_id: number; survey?: string }
@@ -124,6 +197,8 @@ export const movingObjectTrackApi = skyportalApi.injectEndpoints({
 
 export const {
   useGetMovingObjectTrackQuery,
+  useGetTrackMPCQuery,
+  useSubmitTrackToMPCMutation,
   useMeasureTrackGeometryMutation,
   useMeasureTrackCutoutsMutation,
 } = movingObjectTrackApi;

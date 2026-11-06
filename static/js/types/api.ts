@@ -7148,6 +7148,93 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/moving_object/track/{track_id}/mpc": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Preview a track's MPC submission
+         * @description The MPC submissions already made for a ZTF track and, given a sharing
+         *     service, the ADES PSV it would be filed with now.
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    track_id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Success"];
+                    };
+                };
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        /**
+         * Submit a ZTF track to the MPC
+         * @description Queue a vetted track for the Minor Planet Center, filed under the
+         *     requester's name with the sharing service's MPC header. The PSV is
+         *     fixed now, so the MPC receives what the reviewer previewed.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    track_id: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["MovingObjectTrackMPCPostBody"];
+                };
+            };
+            responses: {
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Success"];
+                    };
+                };
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/moving_object/track/{track_id}": {
         parameters: {
             query?: never;
@@ -38982,6 +39069,8 @@ export interface components {
             enable_sharing_with_tns?: boolean;
             /** @description Whether to enable publishing to TROVE or not. */
             enable_sharing_with_trove?: boolean;
+            /** @description Whether to enable submitting moving-object tracks to the MPC or not. */
+            enable_sharing_with_mpc?: boolean;
             /** @description Name of the TNS bot. */
             tns_bot_name?: string | null;
             /** @description ID of the TNS bot. */
@@ -39170,6 +39259,8 @@ export interface components {
             enable_sharing_with_tns?: boolean;
             /** @description Whether to enable publishing to TROVE or not. */
             enable_sharing_with_trove?: boolean;
+            /** @description Whether to enable submitting moving-object tracks to the MPC or not. */
+            enable_sharing_with_mpc?: boolean;
             /** @description Name of the TNS bot. */
             tns_bot_name?: string | null;
             /** @description ID of the TNS bot. */
@@ -45000,6 +45091,24 @@ export interface components {
              * @default null
              */
             band: string | null;
+            /**
+             * Obs Jd
+             * @description Julian date of the middle of the exposure.
+             * @default null
+             */
+            obs_jd: number | null;
+            /**
+             * Ssnamenr
+             * @description Known object the survey matched, if any.
+             * @default null
+             */
+            ssnamenr: string | null;
+            /**
+             * Objectid
+             * @description Survey object id of the detection.
+             * @default null
+             */
+            objectId: string | null;
         };
         /**
          * MovingObjectTrackPostBody
@@ -45046,6 +45155,33 @@ export interface components {
              * @default true
              */
             measure_cutouts: boolean;
+        };
+        /**
+         * MovingObjectTrackMPCPostBody
+         * @description Request body for submitting a vetted track to the Minor Planet Center.
+         */
+        MovingObjectTrackMPCPostBody: {
+            /**
+             * Sharing Service Id
+             * @description Sharing service whose MPC header the submission is filed with.
+             */
+            sharing_service_id: number;
+            /**
+             * Obj Id
+             * @description One of the track's saved Objs, to file it under.
+             */
+            obj_id: string;
+            /**
+             * Broker Id
+             * @description Broker the track is fetched from.
+             */
+            broker_id: number;
+            /**
+             * Submitter
+             * @description Name the submission is filed under, as the MPC writes it ("Q. Ye"). Defaults to the requester's.
+             * @default null
+             */
+            submitter: string | null;
         };
         /**
          * EarthquakePostBody
@@ -51719,6 +51855,12 @@ export interface components {
              */
             enable_sharing_with_tns: boolean | null;
             /**
+             * Enable Sharing With Mpc
+             * @description Whether to enable submitting moving-object tracks to the MPC or not.
+             * @default null
+             */
+            enable_sharing_with_mpc: boolean | null;
+            /**
              * Tns Bot Name
              * @description Name of the TNS bot.
              * @default null
@@ -51750,6 +51892,14 @@ export interface components {
              * @default null
              */
             _trove_altdata: ({
+                [key: string]: unknown;
+            } | string) | null;
+            /**
+             * Mpc Altdata
+             * @description MPC submission header: observatory_code, observers, measurers, telescope_name, telescope_design, telescope_aperture, telescope_detector and an optional ack_email used when the reviewer has none, as a JSON object or string.
+             * @default null
+             */
+            _mpc_altdata: ({
                 [key: string]: unknown;
             } | string) | null;
             /**

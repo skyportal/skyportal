@@ -95,6 +95,13 @@ class SharingService(Base):
         doc="Whether to enable publishing to TROVE or not.",
     )
 
+    enable_sharing_with_mpc = sa.Column(
+        sa.Boolean,
+        nullable=False,
+        server_default="false",
+        doc="Whether to enable submitting moving-object tracks to the MPC or not.",
+    )
+
     # Fields specific to TNS
     tns_bot_name = sa.Column(sa.String, doc="Name of the TNS bot.", nullable=True)
     tns_bot_id = sa.Column(sa.Integer, doc="ID of the TNS bot.", nullable=True)

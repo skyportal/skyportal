@@ -102,6 +102,15 @@ class TrackDetection(BaseModel):
     dec: float = Field(description="Declination in degrees.")
     mag: float | None = Field(default=None, description="Reported magnitude.")
     band: str | None = Field(default=None, description="Filter the detection is in.")
+    obs_jd: float | None = Field(
+        default=None, description="Julian date of the middle of the exposure."
+    )
+    ssnamenr: str | None = Field(
+        default=None, description="Known object the survey matched, if any."
+    )
+    objectId: str | None = Field(
+        default=None, description="Survey object id of the detection."
+    )
 
 
 class MovingObjectTrackPostBody(BaseModel):
@@ -136,4 +145,21 @@ class MovingObjectTrackPostBody(BaseModel):
         description="Measure each epoch's pixels. Off returns the geometry "
         "alone, which needs no cutouts and so no broker call: a scanning page "
         "can show it for every candidate, where measuring cannot.",
+    )
+
+
+class MovingObjectTrackMPCPostBody(BaseModel):
+    """Request body for submitting a vetted track to the Minor Planet Center."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    sharing_service_id: int = Field(
+        description="Sharing service whose MPC header the submission is filed with."
+    )
+    obj_id: str = Field(description="One of the track's saved Objs, to file it under.")
+    broker_id: int = Field(description="Broker the track is fetched from.")
+    submitter: str | None = Field(
+        default=None,
+        description='Name the submission is filed under, as the MPC writes it ("Q. Ye"). '
+        "Defaults to the requester's.",
     )

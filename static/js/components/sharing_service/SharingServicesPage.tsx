@@ -699,6 +699,17 @@ const SharingServicesToolbar = ({ onCreate }: { onCreate?: () => void }) => (
   </DataGridToolbar>
 );
 
+const MPC_FIELDS = [
+  ["observatory_code", "MPC observatory code"],
+  ["observers", "MPC observers"],
+  ["measurers", "MPC measurers"],
+  ["telescope_name", "MPC telescope name"],
+  ["telescope_design", "MPC telescope design"],
+  ["telescope_aperture", "MPC telescope aperture (m)"],
+  ["telescope_detector", "MPC detector"],
+  ["ack_email", "MPC acknowledgement email (if the reviewer has none)"],
+] as const;
+
 const SharingServicesPage = () => {
   const dispatch = useAppDispatch();
   const { data: currentUser } = useGetProfileQuery();
@@ -710,6 +721,7 @@ const SharingServicesPage = () => {
   const [enablePublishToTNS, setEnablePublishToTNS] = useState(true);
   const [enablePublishToHermes, setEnablePublishToHermes] = useState(true);
   const [enablePublishToTrove, setEnablePublishToTrove] = useState(false);
+  const [enablePublishToMPC, setEnablePublishToMPC] = useState(false);
   const [sharingServiceToManage, setSharingServiceToManage] = useState<any>({});
 
   const [addSharingService] = useAddSharingServiceMutation();
@@ -756,6 +768,10 @@ const SharingServicesPage = () => {
       trove_username,
       trove_password,
     } = sharingServiceToManage;
+    const mpcHeader = Object.fromEntries(
+      MPC_FIELDS.map(([key]) => [key, sharingServiceToManage[`mpc_${key}`]]),
+    );
+    const mpcHeaderSet = MPC_FIELDS.some(([key]) => mpcHeader[key]);
 
     const data = {
       name,
@@ -784,7 +800,9 @@ const SharingServicesPage = () => {
         }),
       enable_sharing_with_tns: enablePublishToTNS,
       enable_sharing_with_hermes: enablePublishToHermes,
+      ...(mpcHeaderSet && { _mpc_altdata: mpcHeader }),
       enable_sharing_with_trove: enablePublishToTrove,
+      enable_sharing_with_mpc: enablePublishToMPC,
     };
 
     const result = isEdit
@@ -824,7 +842,11 @@ const SharingServicesPage = () => {
     return errors;
   };
 
-  const getFormSchema = (enableTNS: boolean, enableTrove: boolean) => {
+  const getFormSchema = (
+    enableTNS: boolean,
+    enableTrove: boolean,
+    enableMPC: boolean,
+  ) => {
     const isCreation = !sharingServiceToManage?.id;
     return {
       type: "object",
@@ -914,6 +936,13 @@ const SharingServicesPage = () => {
           trove_username: { type: "string", title: "TROVE Username" },
           trove_password: { type: "string", title: "TROVE Password" },
         }),
+        ...(enableMPC &&
+          Object.fromEntries(
+            MPC_FIELDS.map(([key, title]) => [
+              `mpc_${key}`,
+              { type: "string", title },
+            ]),
+          )),
       },
       required: [
         "name",
@@ -927,6 +956,11 @@ const SharingServicesPage = () => {
         ...(isCreation && enableTNS ? ["tns_api_key"] : []),
         ...(isCreation && enableTrove
           ? ["trove_username", "trove_password"]
+          : []),
+        ...(isCreation && enableMPC
+          ? MPC_FIELDS.filter(([key]) => key !== "ack_email").map(
+              ([key]) => `mpc_${key}`,
+            )
           : []),
       ],
     };
@@ -1004,6 +1038,9 @@ const SharingServicesPage = () => {
               color="primary"
               variant="outlined"
             />
+          )}
+          {row.enable_sharing_with_mpc && (
+            <Chip size="small" label="MPC" color="primary" variant="outlined" />
           )}
         </Box>
       ),
@@ -1085,6 +1122,7 @@ const SharingServicesPage = () => {
                   setEnablePublishToTNS(row.enable_sharing_with_tns);
                   setEnablePublishToHermes(row.enable_sharing_with_hermes);
                   setEnablePublishToTrove(row.enable_sharing_with_trove);
+                  setEnablePublishToMPC(row.enable_sharing_with_mpc);
                   setManageDialogOpen(true);
                 }}
               >
@@ -1125,6 +1163,7 @@ const SharingServicesPage = () => {
                   setEnablePublishToTNS(true);
                   setEnablePublishToHermes(true);
                   setEnablePublishToTrove(false);
+                  setEnablePublishToMPC(false);
                   setManageDialogOpen(true);
                 }
               : undefined,
@@ -1213,6 +1252,13 @@ const SharingServicesPage = () => {
                   variant={enablePublishToTrove ? "filled" : "outlined"}
                 />
               </Tooltip>
+              <Chip
+                label="MPC"
+                clickable
+                onClick={() => setEnablePublishToMPC(!enablePublishToMPC)}
+                color={enablePublishToMPC ? "primary" : "default"}
+                variant={enablePublishToMPC ? "filled" : "outlined"}
+              />
             </Box>
           </Box>
         </DialogTitle>
@@ -1221,7 +1267,11 @@ const SharingServicesPage = () => {
             formData={sharingServiceToManage}
             onChange={(e: any) => setSharingServiceToManage(e.formData)}
             schema={
-              getFormSchema(enablePublishToTNS, enablePublishToTrove) as any
+              getFormSchema(
+                enablePublishToTNS,
+                enablePublishToTrove,
+                enablePublishToMPC,
+              ) as any
             }
             uiSchema={{
               owner_group_ids: {

@@ -101,6 +101,7 @@ class SharingServiceResponse(BaseModel):
     enable_sharing_with_tns: bool | None = None
     enable_sharing_with_hermes: bool | None = None
     enable_sharing_with_trove: bool | None = None
+    enable_sharing_with_mpc: bool | None = None
     tns_bot_name: str | None = None
     tns_bot_id: int | None = None
     tns_source_group_id: int | None = None
@@ -210,11 +211,13 @@ class SharingServicePost(BaseModel):
     enable_sharing_with_tns: bool | None = None
     enable_sharing_with_hermes: bool | None = None
     enable_sharing_with_trove: bool | None = None
+    enable_sharing_with_mpc: bool | None = None
     tns_bot_name: str | None = None
     tns_bot_id: int | None = None
     tns_source_group_id: int | None = None
     tns_altdata: dict[str, Any] | None = Field(default=None, alias="_tns_altdata")
     trove_altdata: dict[str, Any] | None = Field(default=None, alias="_trove_altdata")
+    mpc_altdata: dict[str, Any] | None = Field(default=None, alias="_mpc_altdata")
     publish_existing_tns_objects: bool | None = None
 
 
@@ -280,6 +283,10 @@ class SharingServicePutBody(BaseModel):
     enable_sharing_with_tns: bool | None = Field(
         default=None, description="Whether to enable publishing to TNS or not."
     )
+    enable_sharing_with_mpc: bool | None = Field(
+        default=None,
+        description="Whether to enable submitting moving-object tracks to the MPC or not.",
+    )
     tns_bot_name: str | None = Field(default=None, description="Name of the TNS bot.")
     tns_bot_id: int | None = Field(default=None, description="ID of the TNS bot.")
     tns_source_group_id: int | None = Field(
@@ -295,6 +302,14 @@ class SharingServicePutBody(BaseModel):
         alias="_trove_altdata",
         description="TROVE altdata (the account username and password), as a "
         "JSON object or string.",
+    )
+    mpc_altdata: dict | str | None = Field(
+        default=None,
+        alias="_mpc_altdata",
+        description="MPC submission header: observatory_code, observers, "
+        "measurers, telescope_name, telescope_design, telescope_aperture, "
+        "telescope_detector and an optional ack_email used when the reviewer "
+        "has none, as a JSON object or string.",
     )
     publish_existing_tns_objects: bool | str | None = Field(
         default=None,

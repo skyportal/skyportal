@@ -189,6 +189,19 @@ NO_PROGRAMID_SURVEYS = {"LSST", "DECAM", "ARGUS"}
 DENY_ALL = {"_id": {"$in": []}}
 
 
+def _track_orbit(orbit):
+    """A track's fitted conic, with the semi-major axis when it is bound."""
+    if not orbit or orbit.get("e") is None or orbit.get("q") is None:
+        return None
+    e, q = orbit["e"], orbit["q"]
+    return {
+        "epoch_jd": orbit.get("epoch_jd"),
+        "e": e,
+        "q": q,
+        "a": q / (1 - e) if e < 1 else None,
+    }
+
+
 def _scope_filter(kwargs, survey):
     """Mongo clause restricting a query to the requester's accessible programids."""
     programids = _programids(kwargs, survey)
@@ -911,6 +924,14 @@ class BOOMBROKER(BrokerAPI):
                     "first_jd": 1,
                     "last_jd": 1,
                     "designation": 1,
+                    "kind": 1,
+                    "flags": 1,
+                    "rms_ratio": 1,
+                    "near_planet": 1,
+                    "neo_score": 1,
+                    "orbit.epoch_jd": 1,
+                    "orbit.e": 1,
+                    "orbit.q": 1,
                 },
                 "limit": 1,
             },
@@ -931,6 +952,7 @@ class BOOMBROKER(BrokerAPI):
                     "filter": {"_id": {"$in": list(members)}, **scope},
                     "projection": {
                         "candidate.jd": 1,
+                        "candidate.exptime": 1,
                         "candidate.ra": 1,
                         "candidate.dec": 1,
                         "candidate.magpsf": 1,
@@ -948,12 +970,17 @@ class BOOMBROKER(BrokerAPI):
         detections = []
         for alert in alerts or []:
             candidate = alert.get("candidate") or {}
+            jd = candidate.get("jd")
             detections.append(
                 {
                     # A candid is a 19-digit integer, which JSON hands the
                     # browser as a float and rounds; keep it a string.
                     "candid": str(alert.get("_id")),
-                    "jd": candidate.get("jd"),
+                    "jd": jd,
+                    # ZTF's jd is the start of the exposure; the MPC wants its middle.
+                    "obs_jd": None
+                    if jd is None
+                    else jd + (candidate.get("exptime") or 30.0) / 2 / 86400,
                     "ra": candidate.get("ra"),
                     "dec": candidate.get("dec"),
                     "mag": candidate.get("magpsf"),
@@ -972,6 +999,12 @@ class BOOMBROKER(BrokerAPI):
             "first_jd": track.get("first_jd"),
             "last_jd": track.get("last_jd"),
             "designation": track.get("designation"),
+            "kind": track.get("kind"),
+            "flags": track.get("flags") or [],
+            "rms_ratio": track.get("rms_ratio"),
+            "near_planet": track.get("near_planet"),
+            "neo_score": track.get("neo_score"),
+            "orbit": _track_orbit(track.get("orbit")),
             "detections": detections,
             # Members the requester's streams do not cover are simply absent,
             # so say so rather than let a short arc look like the whole track.

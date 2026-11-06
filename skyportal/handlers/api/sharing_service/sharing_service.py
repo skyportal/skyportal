@@ -20,6 +20,7 @@ from ....utils.data_access import (
     process_stream_ids_async,
     validate_photometry_options,
 )
+from ....utils.mpc_submission import MPC_HEADER_FIELDS
 from ....utils.parse import get_list_typed, str_to_bool
 from ...base import BaseHandler
 
@@ -43,6 +44,19 @@ def validate_tns_fields(sharing_service):
         ):
             raise ValueError(
                 "TNS API key must be provided when enable_sharing_with_tns is True"
+            )
+
+
+def validate_mpc_fields(sharing_service):
+    if sharing_service.enable_sharing_with_mpc:
+        missing = [
+            field
+            for field in MPC_HEADER_FIELDS
+            if not (sharing_service.mpc_altdata or {}).get(field)
+        ]
+        if missing:
+            raise ValueError(
+                f"MPC {', '.join(missing)} must be provided when enable_sharing_with_mpc is True"
             )
 
 
@@ -87,6 +101,7 @@ async def create_sharing_service(
     try:
         sharing_service = SharingService.__schema__().load(data=data)
         validate_tns_fields(sharing_service)
+        validate_mpc_fields(sharing_service)
     except ValidationError as e:
         raise ValueError(
             f'Error parsing posted sharing service: "{e.normalized_messages()}"'
@@ -170,6 +185,7 @@ async def update_sharing_service(
         "enable_sharing_with_tns" in data
         or "enable_sharing_with_hermes" in data
         or "enable_sharing_with_trove" in data
+        or "enable_sharing_with_mpc" in data
     ):
         for group in sharing_service.groups:
             if data.get("enable_sharing_with_tns") is False:
@@ -179,6 +195,8 @@ async def update_sharing_service(
                 group.auto_share_to_hermes = False
             if data.get("enable_sharing_with_trove") is False:
                 group.auto_share_to_trove = False
+            if data.get("enable_sharing_with_mpc") is False:
+                group.auto_share_to_mpc = False
             if (
                 group.auto_share_to_hermes is False
                 and group.auto_share_to_tns is False
@@ -195,9 +213,11 @@ async def update_sharing_service(
         "tns_source_group_id",
         "_tns_altdata",
         "_trove_altdata",
+        "_mpc_altdata",
         "enable_sharing_with_tns",
         "enable_sharing_with_hermes",
         "enable_sharing_with_trove",
+        "enable_sharing_with_mpc",
     ]:
         if field in data:
             setattr(sharing_service, field, data[field])
@@ -228,6 +248,7 @@ async def update_sharing_service(
     )
 
     validate_tns_fields(sharing_service)
+    validate_mpc_fields(sharing_service)
 
     await session.commit()
     return sharing_service.id
@@ -255,6 +276,9 @@ class SharingServiceHandler(BaseHandler):
 
         if isinstance(data.get("_trove_altdata"), dict):
             data["_trove_altdata"] = json.dumps(data["_trove_altdata"])
+
+        if isinstance(data.get("_mpc_altdata"), dict):
+            data["_mpc_altdata"] = json.dumps(data["_mpc_altdata"])
 
         owner_group_ids = get_list_typed(data.pop("owner_group_ids", []), int)
 
