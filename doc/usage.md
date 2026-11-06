@@ -115,11 +115,10 @@ Testing:
 - test : Launch web app & execute frontend tests
 - test_headless : (Linux only) The above, but without a visible browser
 
-Development:
+Monitoring:
 
-- lint-githook : Install a Git pre-commit hook that lints staged
-  chunks (this is done automatically when you lint
-  for the first time).
+- memory : Show the memory used by each service
+- memory-watch : The above, refreshed until Ctrl-C
 
 ## Code formatting / linters
 
