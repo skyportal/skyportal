@@ -16,12 +16,14 @@ from baselayer.app.flow import Flow
 from baselayer.app.models import ACL, init_db, session_context_id
 from baselayer.log import make_log
 from skyportal.models import (
+    AnalysisService,
     AssistantMessage,
     AssistantQuery,
     Comment,
     DBSession,
     Filter,
     GroupUser,
+    ObjAnalysis,
     Token,
     User,
     UserNotification,
@@ -39,7 +41,15 @@ from skyportal.utils.assistant import (
     record_call,
     targets_page_filter,
 )
-from skyportal.utils.assistant_triage import SKYBOT_USERNAME
+from skyportal.utils.assistant_triage import (
+    CROSSMATCH_RADIUS_ARCSEC,
+    FACTS_PROMPT,
+    HOST_CATALOGS,
+    SKYBOT_USERNAME,
+    flare_notifies,
+    flare_result,
+    triage_facts,
+)
 
 _, cfg = load_env()
 log = make_log("assistant")
@@ -291,6 +301,57 @@ def answer(conversation, context_type, context_id, user, token):
     return text, trace, proposal(trace)
 
 
+def answer_from_facts(obj_id, analysis_id, token):
+    """A FLARE triage the model only interprets, or None when the analysis is not one."""
+    trace = []
+
+    def read(name, **arguments):
+        try:
+            result = call_tool(token, name, arguments, {name})
+            value, ok = json.loads(result), True
+        except Exception as exc:
+            result, value, ok = f"tool {name} failed: {exc}", None, False
+        trace.append(record_call(name, arguments, result, ok))
+        return value
+
+    flare = flare_result(read("get_analysis", analysis_id=analysis_id))
+    if flare is None:
+        return None
+    source = read("get_sources", obj_id=obj_id) or {}
+    catalogs = None
+    if source.get("ra") is not None and source.get("dec") is not None:
+        brokers = read("list_brokers") or []
+        for broker in sorted(brokers, key=lambda b: b.get("name") != "BOOM"):
+            if not broker.get("active") or "cone_search" not in (
+                broker.get("supports") or []
+            ):
+                continue
+            found = read(
+                "crossmatch_broker_catalogs",
+                broker_id=broker["id"],
+                ra=source["ra"],
+                dec=source["dec"],
+                radius=CROSSMATCH_RADIUS_ARCSEC,
+                radius_units="arcsec",
+            )
+            if isinstance(found, dict) and any(k in found for k in HOST_CATALOGS):
+                catalogs = found
+                break
+    facts = triage_facts(
+        flare,
+        source,
+        read("analyze_light_curve", obj_id=obj_id),
+        catalogs,
+        read("get_classifications", obj_id=obj_id),
+    )
+    listed = "\n".join(f"- {fact}" for fact in facts)
+    prompt = FACTS_PROMPT.format(obj_id=obj_id, facts=listed)
+    reading = chat([{"role": "user", "content": prompt}], [], timeout=ANSWER_TIMEOUT)
+    notify = "yes" if flare_notifies(flare) else "no"
+    text = f"{(reading.get('content') or '').strip()}\n\n{listed}\n\nNOTIFY: {notify}"
+    return text.strip(), trace, None
+
+
 def service_token(session, user_id):
     """A short-lived token carrying the user's own access.
 
@@ -311,12 +372,46 @@ def service_token(session, user_id):
     return token
 
 
-def requester_of(session, message, user):
+def query_id_of(message, user):
     match = re.fullmatch(r"query:(\d+):.+", message.channel or "")
     if match is None or not (user.is_bot and user.username == SKYBOT_USERNAME):
+        return None
+    return int(match[1])
+
+
+def requester_of(session, message, user):
+    query_id = query_id_of(message, user)
+    if query_id is None:
         return message.user_id
     return session.scalar(
-        sa.select(AssistantQuery.owner_id).where(AssistantQuery.id == int(match[1]))
+        sa.select(AssistantQuery.owner_id).where(AssistantQuery.id == query_id)
+    )
+
+
+def triggering_analysis(session, message, user):
+    """The latest completed analysis of the service a query run on a source matches."""
+    query_id = query_id_of(message, user)
+    if query_id is None or message.context_type != "source":
+        return None
+    service_match = session.scalar(
+        sa.select(AssistantQuery.analysis_service_match).where(
+            AssistantQuery.id == query_id
+        )
+    )
+    if not service_match:
+        return None
+    return session.scalar(
+        sa.select(ObjAnalysis.id)
+        .join(AnalysisService, AnalysisService.id == ObjAnalysis.analysis_service_id)
+        .where(
+            ObjAnalysis.obj_id == message.context_id,
+            ObjAnalysis.status == "completed",
+            sa.func.lower(AnalysisService.name).contains(
+                service_match.lower(), autoescape=True
+            ),
+        )
+        .order_by(ObjAnalysis.id.desc())
+        .limit(1)
     )
 
 
@@ -537,14 +632,20 @@ def respond(message_id):
             ):
                 context_type = context_id = None
             token_id = service_token(session, requester_id).id
+            analysis_id = triggering_analysis(session, message, user)
 
         # Answering takes minutes, so no connection is held while it runs.
         trace, built = [], None
         failed = False
         try:
-            text, trace, built = answer(
-                conversation, context_type, context_id, profile, token_id
-            )
+            reply = None
+            if analysis_id is not None:
+                reply = answer_from_facts(context_id, analysis_id, token_id)
+            if reply is None:
+                reply = answer(
+                    conversation, context_type, context_id, profile, token_id
+                )
+            text, trace, built = reply
             failed = text == OUT_OF_TIME
         except Exception as exc:
             failed = True
