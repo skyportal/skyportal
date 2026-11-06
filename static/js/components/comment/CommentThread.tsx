@@ -561,7 +561,10 @@ const CommentThread = ({
         </div>
       )}
       {permissions?.includes("Comment") && resourceID[resourceType] && (
-        <CommentForm addComment={addComment} />
+        <CommentForm
+          addComment={addComment}
+          streamAccess={resourceType === "sources"}
+        />
       )}
     </div>
   );
