@@ -12,7 +12,9 @@ import DialogTitle from "@mui/material/DialogTitle";
 import {
   TrackAnalysis,
   TrackMeasurement,
+  useCheckTrackKnownObjectMutation,
   useGetMovingObjectTrackQuery,
+  useGetTrackKnownObjectQuery,
   useMeasureTrackCutoutsMutation,
   useMeasureTrackGeometryMutation,
 } from "../../ducks/moving_object_track";
@@ -49,6 +51,13 @@ const TrackCandidateSummary = ({
     useMeasureTrackCutoutsMutation();
   const [geometry, setGeometry] = useState<TrackAnalysis | null>(null);
   const [vetting, setVetting] = useState<TrackMeasurement | null>(null);
+  const { data: known } = useGetTrackKnownObjectQuery(trackId);
+  const [checkKnown] = useCheckTrackKnownObjectMutation();
+  const [checking, setChecking] = useState(false);
+
+  useEffect(() => {
+    if (known) setChecking(false);
+  }, [known]);
 
   useEffect(() => {
     let alive = true;
@@ -71,6 +80,12 @@ const TrackCandidateSummary = ({
   if (!track) return null;
 
   const openVetting = async () => {
+    if (!known && !checking) {
+      setChecking(true);
+      checkKnown({ trackId, broker_id: brokerId, survey })
+        .unwrap()
+        .catch(() => setChecking(false));
+    }
     try {
       setVetting(
         await measureCutouts({
@@ -166,24 +181,20 @@ const TrackCandidateSummary = ({
           title="Detections your streams do not cover, so this arc is partial"
         />
       )}
-      {vetting?.known_object && (
+      {known && (
         <Chip
           size="small"
           color={
-            !vetting.known_object.verified
-              ? "warning"
-              : vetting.known_object.known
-                ? "error"
-                : "success"
+            !known.verified ? "warning" : known.known ? "error" : "success"
           }
           label={
-            !vetting.known_object.verified
+            !known.verified
               ? "check failed"
-              : vetting.known_object.known
-                ? `known: ${vetting.known_object.matches[0]?.name ?? "yes"}`
+              : known.known
+                ? `known: ${known.matches[0]?.name ?? "yes"}`
                 : "nothing known"
           }
-          title={vetting.known_object.reason}
+          title={known.reason}
         />
       )}
       <Button size="small" onClick={openVetting} disabled={measuring}>
@@ -198,7 +209,13 @@ const TrackCandidateSummary = ({
       >
         <DialogTitle>Vetting {track.id}</DialogTitle>
         <DialogContent>
-          {vetting && <TrackVettingPanel measurement={vetting} />}
+          {vetting && (
+            <TrackVettingPanel
+              measurement={vetting}
+              knownObject={known}
+              checkingKnown={checking}
+            />
+          )}
         </DialogContent>
         {survey === "ZTF" && (
           <DialogActions>

@@ -163,3 +163,12 @@ class MovingObjectTrackMPCPostBody(BaseModel):
         description='Name the submission is filed under, as the MPC writes it ("Q. Ye"). '
         "Defaults to the requester's.",
     )
+
+
+class MovingObjectTrackKnownPostBody(BaseModel):
+    """Request body for checking a track against the known small bodies."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    broker_id: int = Field(description="Broker the track is fetched from.")
+    survey: str = Field(default="ZTF", description="Survey the track is from.")

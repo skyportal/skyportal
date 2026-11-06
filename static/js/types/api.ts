@@ -7235,6 +7235,60 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/moving_object/track/{track_id}/known": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Check a track against the known small bodies
+         * @description Start a JPL check of whether a track is an already-known small body
+         *     and return at once, since JPL takes minutes to answer. The verdict is
+         *     pushed to the requester's browser as skyportal/TRACK_KNOWN_OBJECT.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    track_id: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["MovingObjectTrackKnownPostBody"];
+                };
+            };
+            responses: {
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Success"];
+                    };
+                };
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/moving_object/track/{track_id}": {
         parameters: {
             query?: never;
@@ -45182,6 +45236,23 @@ export interface components {
              * @default null
              */
             submitter: string | null;
+        };
+        /**
+         * MovingObjectTrackKnownPostBody
+         * @description Request body for checking a track against the known small bodies.
+         */
+        MovingObjectTrackKnownPostBody: {
+            /**
+             * Broker Id
+             * @description Broker the track is fetched from.
+             */
+            broker_id: number;
+            /**
+             * Survey
+             * @description Survey the track is from.
+             * @default ZTF
+             */
+            survey: string;
         };
         /**
          * EarthquakePostBody

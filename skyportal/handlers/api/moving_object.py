@@ -6,6 +6,7 @@ import sqlalchemy as sa
 from pydantic import BaseModel, Field
 from skyportal_py_models.moving_objects import (
     MovingObjectFollowupPostBody,
+    MovingObjectTrackKnownPostBody,
     MovingObjectTrackMPCPostBody,
     MovingObjectTrackPostBody,
 )
@@ -14,6 +15,7 @@ from tornado.ioloop import IOLoop
 
 from baselayer.app.access import auth_or_token
 from baselayer.app.env import load_env
+from baselayer.app.flow import Flow
 
 from ...models import Broker, Instrument, Obj, SharingService, SharingServiceSubmission
 from ...utils.moving_object_track import (
@@ -165,6 +167,39 @@ class MovingObjectFollowupHandler(BaseHandler):
                 return self.error(f"Error: {e}")
 
 
+async def known_object_check(user, broker, detections, survey, session):
+    """Whether JPL already knows this object, with the negative verified, as a
+    blocking call to run off the event loop.
+
+    The control comes from the same night as the track: a detection whose
+    solar-system object is named in the alert itself. Without one, the
+    check reports unverified rather than claiming a discovery.
+    """
+    from astropy.time import Time
+
+    from ...utils.jpl_sbident import check_known_object, obscode_for_survey
+
+    obscode = await obscode_for_survey(session, survey)
+    permissions = await alert_permissions_async(user, session)
+    control = await IOLoop.current().run_in_executor(
+        None,
+        lambda: broker.broker_class.find_control_detection(
+            broker,
+            detections[0]["jd"],
+            session,
+            survey=survey,
+            permissions=permissions,
+        ),
+    )
+
+    def obs_time_for(jd):
+        return Time(float(jd), format="jd", scale="utc").to_datetime()
+
+    return lambda: check_known_object(
+        detections, obs_time_for, obscode=obscode or "500", control=control
+    )
+
+
 class MovingObjectTrackHandler(BaseHandler):
     @auth_or_token
     async def post(self, *, body: MovingObjectTrackPostBody = None):
@@ -255,38 +290,10 @@ class MovingObjectTrackHandler(BaseHandler):
             )
 
     async def _check_known(self, broker, measured, body, session):
-        """Whether JPL already knows this object, with the negative verified.
-
-        The control comes from the same night as the track: a detection whose
-        solar-system object is named in the alert itself. Without one, the
-        check reports unverified rather than claiming a discovery.
-        """
-        from astropy.time import Time
-
-        from ...utils.jpl_sbident import check_known_object, obscode_for_survey
-
-        obscode = await obscode_for_survey(session, body.survey)
-        permissions = await alert_permissions_async(self.current_user, session)
-        control = await IOLoop.current().run_in_executor(
-            None,
-            lambda: broker.broker_class.find_control_detection(
-                broker,
-                measured[0]["jd"],
-                session,
-                survey=body.survey,
-                permissions=permissions,
-            ),
+        check = await known_object_check(
+            self.current_user, broker, measured, body.survey, session
         )
-
-        def obs_time_for(jd):
-            return Time(float(jd), format="jd", scale="utc").to_datetime()
-
-        return await IOLoop.current().run_in_executor(
-            None,
-            lambda: check_known_object(
-                measured, obs_time_for, obscode=obscode or "500", control=control
-            ),
-        )
+        return await IOLoop.current().run_in_executor(None, check)
 
     async def _measure(self, broker, detection, body, session):
         """One detection measured in its difference cutout."""
@@ -382,6 +389,80 @@ class MovingObjectTrackLookupHandler(BaseHandler):
             except Exception as e:
                 return self.error(f"Error fetching track from {broker.name}: {e}")
             return self.success(data=data)
+
+
+class MovingObjectTrackKnownHandler(BaseHandler):
+    @auth_or_token
+    async def post(self, track_id: str, *, body: MovingObjectTrackKnownPostBody = None):
+        """
+        ---
+        summary: Check a track against the known small bodies
+        description: |
+          Start a JPL check of whether a track is an already-known small body
+          and return at once, since JPL takes minutes to answer. The verdict is
+          pushed to the requester's browser as skyportal/TRACK_KNOWN_OBJECT.
+        tags:
+          - moving objects
+        responses:
+          200:
+            content:
+              application/json:
+                schema: Success
+          400:
+            content:
+              application/json:
+                schema: Error
+        """
+        body = self.parse_body(MovingObjectTrackKnownPostBody)
+        user_id = self.associated_user_object.id
+        async with self.AsyncSession() as session:
+            broker = await session.scalar(
+                Broker.select(self.current_user).where(Broker.id == body.broker_id)
+            )
+            if broker is None:
+                return self.error(f"No broker with id {body.broker_id}")
+            if not hasattr(broker.broker_class, "get_track"):
+                return self.error(f"Broker {broker.name} does not serve tracks.")
+            permissions = await alert_permissions_async(self.current_user, session)
+            try:
+                track = await IOLoop.current().run_in_executor(
+                    None,
+                    lambda: broker.broker_class.get_track(
+                        broker,
+                        track_id,
+                        session,
+                        survey=body.survey,
+                        permissions=permissions,
+                    ),
+                )
+            except Exception as e:
+                return self.error(f"Error fetching track from {broker.name}: {e}")
+            if not track["detections"]:
+                return self.error(f"No detection of {track_id} is visible to you.")
+            check = await known_object_check(
+                self.current_user, broker, track["detections"], body.survey, session
+            )
+
+        def run():
+            try:
+                verdict = check()
+            except Exception as e:
+                verdict = {
+                    "known": None,
+                    "verified": False,
+                    "matches": [],
+                    "nearby": [],
+                    "errors": [str(e)],
+                    "reason": f"the check failed: {e}",
+                }
+            Flow().push(
+                user_id,
+                "skyportal/TRACK_KNOWN_OBJECT",
+                {"track_id": track_id, "known_object": verdict},
+            )
+
+        IOLoop.current().run_in_executor(None, run)
+        return self.success()
 
 
 class MovingObjectTrackMPCQuery(BaseModel):

@@ -165,6 +165,7 @@ from .mmadetector import (
 from .moving_object import (
     MovingObjectFollowupHandler,
     MovingObjectTrackHandler,
+    MovingObjectTrackKnownHandler,
     MovingObjectTrackLookupHandler,
     MovingObjectTrackMPCHandler,
 )
