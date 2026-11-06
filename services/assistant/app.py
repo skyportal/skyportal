@@ -73,6 +73,9 @@ SWITCH_ERRORS = (
     requests.exceptions.ChunkedEncodingError,
 )
 _main_skipped_until = 0.0
+OUT_OF_TIME = (
+    "I ran out of time working that out. Please ask again, or narrow the question."
+)
 
 
 def _rpc(token, method, params, timeout, tool_name=None):
@@ -281,11 +284,7 @@ def answer(conversation, context_type, context_id, user, token):
         }
     )
     if (left := remaining(deadline)) is None:
-        return (
-            "I ran out of time working that out. Please ask again, or narrow the question.",
-            trace,
-            proposal(trace),
-        )
+        return OUT_OF_TIME, trace, proposal(trace)
     # No tools on the last word, or the model asks for another instead of
     # answering and the reply comes back empty.
     text = (chat(messages, [], timeout=left).get("content") or "").strip()
@@ -541,11 +540,14 @@ def respond(message_id):
 
         # Answering takes minutes, so no connection is held while it runs.
         trace, built = [], None
+        failed = False
         try:
             text, trace, built = answer(
                 conversation, context_type, context_id, profile, token_id
             )
+            failed = text == OUT_OF_TIME
         except Exception as exc:
+            failed = True
             log(f"assistant failed on message {message_id}: {exc}")
             if misconfigured(exc):
                 text = "The assistant is not set up correctly; tell an administrator."
@@ -560,7 +562,7 @@ def respond(message_id):
                 text = "Something went wrong while looking that up."
 
         # A query run ends with a NOTIFY: yes/no marker deciding whether it is
-        # worth a notification; the comment is posted either way.
+        # worth a notification; the comment is posted either way unless it failed.
         is_urgent, text = _parse_urgency(text)
 
         with DBSession() as session:
@@ -581,7 +583,7 @@ def respond(message_id):
                         proposal=built,
                     )
                 )
-                if notify:
+                if notify and not failed:
                     # The bot comment is the durable record; a notification only
                     # fires when the triage flagged itself urgent, to avoid spam.
                     post_triage_comment(
