@@ -4,7 +4,6 @@ import { useState } from "react";
 
 import SaveIcon from "@mui/icons-material/Save";
 import { showNotification } from "baselayer/components/Notifications";
-import Box from "@mui/material/Box";
 import CircularProgress from "@mui/material/CircularProgress";
 import Tooltip from "@mui/material/Tooltip";
 
@@ -65,7 +64,7 @@ const QuickSaveButtons = ({
   };
 
   return (
-    <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1 }}>
+    <>
       {buttons.map(([name, groups]) => (
         <Tooltip
           key={name}
@@ -96,7 +95,7 @@ const QuickSaveButtons = ({
           </span>
         </Tooltip>
       ))}
-    </Box>
+    </>
   );
 };
 

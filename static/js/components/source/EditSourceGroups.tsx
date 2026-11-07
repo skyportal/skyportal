@@ -176,6 +176,7 @@ const EditSourceGroups = ({
           data-testid={`editGroups_${source.id}`}
           size="small"
           onClick={() => setDialogOpen(true)}
+          sx={{ whiteSpace: "nowrap" }}
         >
           Save to
         </Button>
