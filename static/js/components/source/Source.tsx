@@ -85,7 +85,7 @@ import PhotometryTable from "../photometry/PhotometryTable";
 import FavoritesButton from "../listing/FavoritesButton";
 import SourceAnnotationButtons from "./SourceAnnotationButtons";
 import Reminders from "../Reminders";
-import QuickSaveButton from "./QuickSaveSource";
+import QuickSaveButtons from "./QuickSaveSource";
 import SourceSkeleton from "./SourceSkeleton";
 import Button from "../Button";
 
@@ -1304,7 +1304,7 @@ const SourceContent = ({ source }: SourceContentProps) => {
                 )}
                 <SourceSaveHistory groups={source.groups} />
                 {!isReadOnly && (
-                  <QuickSaveButton
+                  <QuickSaveButtons
                     sourceId={source.id}
                     alreadySavedGroups={source.groups?.map((g: any) => g.id)}
                   />
