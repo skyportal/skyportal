@@ -492,7 +492,8 @@ def feedback_notification_text(content, escape, bold="*"):
     author = f"{bold}{escape(content['author'])}{bold}"
     snippet = escape(content["snippet"])
     if content["reply"]:
-        return f"{author} replied to your {content['label']}: {snippet}"
+        whose = "their" if content.get("by_author") else "your"
+        return f"{author} replied to {whose} {content['label']}: {snippet}"
     return f"New {content['label']} from {author}: {snippet}"
 
 

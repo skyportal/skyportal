@@ -33,7 +33,7 @@ class FeedbackPatchBody(BaseModel):
 
 
 class FeedbackReplyPostBody(BaseModel):
-    """Request body for an admin replying to a message."""
+    """Request body for replying to a message, as an admin or its author."""
 
     model_config = ConfigDict(extra="forbid")
 
@@ -53,7 +53,7 @@ class FeedbackAuthorResponse(BaseModel):
 
 
 class FeedbackReplyResponse(BaseModel):
-    """An admin's reply to a message."""
+    """A reply to a message, from an admin or its author."""
 
     model_config = ConfigDict(extra="forbid")
 
