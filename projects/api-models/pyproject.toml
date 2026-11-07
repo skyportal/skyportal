@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "skyportal-py-models"
-version = "0.4.0"
+version = "1.4.0"
 description = "Shared pydantic request/response models for the SkyPortal API"
 readme = "README.md"
 authors = [{ name = "Leo Conforti", email = "leo@leoconforti.us" }]
