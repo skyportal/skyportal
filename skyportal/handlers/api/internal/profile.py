@@ -328,6 +328,8 @@ class ProfileHandler(BaseHandler):
                     user_prefs["spectroscopyButtons"] = preferences[
                         "spectroscopyButtons"
                     ]
+                if "quickSaveButtons" in preferences:
+                    user_prefs["quickSaveButtons"] = preferences["quickSaveButtons"]
                 gcn_event_properties = (
                     preferences.get("notifications", {})
                     .get("gcn_events", {})
