@@ -12,6 +12,8 @@ import CloseIcon from "@mui/icons-material/Close";
 import EditIcon from "@mui/icons-material/Edit";
 import GroupIcon from "@mui/icons-material/Group";
 import SmartToyIcon from "@mui/icons-material/SmartToy";
+import VisibilityIcon from "@mui/icons-material/Visibility";
+import VisibilityOffIcon from "@mui/icons-material/VisibilityOff";
 
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
@@ -286,13 +288,27 @@ const Comment = ({
               {dayjs().to(dayjs.utc(`${created_at}Z`))}
             </span>
             {stream_ids?.length ? (
-              <span className={styles["commentTime"]}>
-                Visible with {streamNames(stream_ids)}
+              <span className={styles["commentUserGroup"]}>
+                <Tooltip title={`Visible to ${streamNames(stream_ids)}`}>
+                  <VisibilityIcon
+                    fontSize="small"
+                    viewBox="0 -2 24 24"
+                    sx={{ mr: 0.5 }}
+                  />
+                </Tooltip>
               </span>
             ) : null}
             {hidden_stream_ids?.length ? (
-              <span className={styles["commentTime"]}>
-                Hidden with {streamNames(hidden_stream_ids)}
+              <span className={styles["commentUserGroup"]}>
+                <Tooltip
+                  title={`Hidden from ${streamNames(hidden_stream_ids)}`}
+                >
+                  <VisibilityOffIcon
+                    fontSize="small"
+                    viewBox="0 -2 24 24"
+                    sx={{ mr: 0.5 }}
+                  />
+                </Tooltip>
               </span>
             ) : null}
             <span className={styles["commentUserGroup"]}>

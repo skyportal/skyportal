@@ -446,7 +446,7 @@ const CommentForm = ({
                       selectedGroups.length &&
                         `Shared with ${selectedGroups.length} group(s)`,
                       selectedStreams.length &&
-                        `${streamMode} with ${selectedStreams.length} stream(s)`,
+                        `${streamMode === "visible" ? "visible to" : "hidden from"} ${selectedStreams.length} stream(s)`,
                     ]
                       .filter(Boolean)
                       .join(", ")
@@ -494,8 +494,8 @@ const CommentForm = ({
                 size="small"
                 value={streamMode}
                 options={[
-                  { value: "visible", label: "Visible with" },
-                  { value: "hidden", label: "Hidden with" },
+                  { value: "visible", label: "Visible to" },
+                  { value: "hidden", label: "Hidden from" },
                 ]}
                 onChange={setStreamMode}
               />
