@@ -247,4 +247,19 @@ export const FEATURE_ANNOUNCEMENTS: FeatureAnnouncement[] = [
       },
     ],
   },
+  {
+    id: "source-quick-save-buttons",
+    path: /^\/source\/[^/]+$/,
+    announcedAt: "2026-11-07",
+    steps: [
+      {
+        target: '[data-testid^="editGroups_"]',
+        title: "Several quick saves",
+        content:
+          "Set up as many quick save buttons as you need in your profile, " +
+          "under Sources, each saving to its own groups. They show up next " +
+          "to this button, which saves to any other group.",
+      },
+    ],
+  },
 ];
