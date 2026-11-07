@@ -1258,7 +1258,7 @@ const SourceContent = ({ source }: SourceContentProps) => {
                 alignItems: "center",
                 flexFlow: "wrap",
                 gap: "0.5rem",
-                paddingTop: "0.25rem",
+                padding: "0.25rem 0",
               }}
             >
               <div
