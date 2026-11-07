@@ -62,11 +62,6 @@ const useStyles = makeStyles()((theme) => ({
     lineHeight: "2rem",
     top: "3.25rem",
   },
-  streamSection: {
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "space-between",
-  },
   extras: {
     display: "flex",
     flexWrap: "wrap",
@@ -104,7 +99,8 @@ const CommentForm = ({
   const { data: profile } = useGetProfileQuery();
   const streams: any[] = streamAccess ? (profile?.streams ?? []) : [];
   const [selectedStreams, setSelectedStreams] = useState<number[]>([]);
-  const [streamMode, setStreamMode] = useState<"visible" | "hidden">("visible");
+  const [showPublic, setShowPublic] = useState(false);
+  const [publicText, setPublicText] = useState("");
   const { data: instrumentList = [] } = useGetInstrumentsQuery();
   const [textValue, setTextValue] = useState("");
   const [fileName, setFileName] = useState("");
@@ -207,8 +203,10 @@ const CommentForm = ({
     );
     data.group_ids = selectedGroupIDs;
     if (selectedStreams.length) {
-      data[streamMode === "visible" ? "stream_ids" : "hidden_stream_ids"] =
-        selectedStreams;
+      data.stream_ids = selectedStreams;
+      if (publicText.trim()) {
+        data.public_text = publicText;
+      }
     }
     if (addComment) {
       addComment(data);
@@ -220,7 +218,8 @@ const CommentForm = ({
     setFileName("");
     setSelectedGroups([]);
     setSelectedStreams([]);
-    setStreamMode("visible");
+    setPublicText("");
+    setShowPublic(false);
     setGroupFilter("");
     setAutosuggestVisible(false);
     setUsernamePrefixMatches({});
@@ -382,6 +381,8 @@ const CommentForm = ({
     </div>
   );
 
+  const editingPublic = showPublic && selectedStreams.length > 0;
+
   return (
     <form
       className={styles.commentEntry}
@@ -403,17 +404,40 @@ const CommentForm = ({
           )}
         </div>
       )}
+      {selectedStreams.length > 0 && (
+        <div className={styles.extras}>
+          <SegmentedControl
+            size="small"
+            value={editingPublic ? "public" : "private"}
+            options={[
+              { value: "private", label: "Private" },
+              { value: "public", label: "Public" },
+            ]}
+            onChange={(version) => setShowPublic(version === "public")}
+          />
+        </div>
+      )}
       <div className={cx(styles.composer, isEdit && styles.composerInline)}>
         <Controller
           render={() => (
             <TextField
               id="root_comment"
               autoFocus={isEdit}
-              value={textValue}
-              onChange={handleTextInputChange}
-              placeholder={editComment ? "Edit comment" : placeholder}
+              value={editingPublic ? publicText : textValue}
+              onChange={
+                editingPublic
+                  ? (event) => setPublicText(event.target.value)
+                  : handleTextInputChange
+              }
+              placeholder={
+                editComment
+                  ? "Edit comment"
+                  : editingPublic
+                    ? "Public version"
+                    : placeholder
+              }
               name="text"
-              error={!!errors["text"]}
+              error={!editingPublic && !!errors["text"]}
               size="small"
               fullWidth
               multiline
@@ -446,7 +470,7 @@ const CommentForm = ({
                       selectedGroups.length &&
                         `Shared with ${selectedGroups.length} group(s)`,
                       selectedStreams.length &&
-                        `${streamMode === "visible" ? "visible to" : "hidden from"} ${selectedStreams.length} stream(s)`,
+                        `visible to ${selectedStreams.length} stream(s)`,
                     ]
                       .filter(Boolean)
                       .join(", ")
@@ -486,19 +510,8 @@ const CommentForm = ({
             />
           </div>
           {streams.length > 0 && (
-            <ListSubheader
-              className={cx(styles.menuSection, styles.streamSection)}
-            >
-              Streams
-              <SegmentedControl
-                size="small"
-                value={streamMode}
-                options={[
-                  { value: "visible", label: "Visible to" },
-                  { value: "hidden", label: "Hidden from" },
-                ]}
-                onChange={setStreamMode}
-              />
+            <ListSubheader className={styles.menuSection}>
+              Visible to
             </ListSubheader>
           )}
           {streams
