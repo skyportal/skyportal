@@ -77,14 +77,16 @@ const GroupChecklist = ({
             <>
               {group.name}
               {requestIds?.has(group.id) && (
-                <Typography
-                  component="span"
-                  variant="caption"
-                  color="text.secondary"
-                  sx={{ ml: 1 }}
-                >
-                  request
-                </Typography>
+                <Tooltip title="You are not in this group, so its admins are asked to save the source.">
+                  <Typography
+                    component="span"
+                    variant="caption"
+                    color="text.secondary"
+                    sx={{ ml: 1 }}
+                  >
+                    request
+                  </Typography>
+                </Tooltip>
               )}
             </>
           }
