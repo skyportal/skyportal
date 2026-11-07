@@ -85,6 +85,11 @@ class CommentPostBody(BaseModel):
         "comment, e.g. to post a public version next to a comment restricted with "
         "stream_ids. Only used for comments on sources.",
     )
+    public_text: str | None = Field(
+        default=None,
+        description="Public version of the comment, posted with it for users who do "
+        "not have access to all of stream_ids. Only used for comments on sources.",
+    )
     origin: Literal["scanning"] | None = Field(
         default=None,
         description="Optional workflow that created the comment.",

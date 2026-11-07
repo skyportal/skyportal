@@ -251,6 +251,13 @@ class Comment(Base, CommentMixin):
         "e.g. the public version of a comment whose full version needs them.",
     )
 
+    private_version_id = sa.Column(
+        sa.ForeignKey("comments.id", ondelete="CASCADE"),
+        nullable=True,
+        index=True,
+        doc="ID of the comment this one is the public version of.",
+    )
+
     obj_id = sa.Column(
         sa.ForeignKey("objs.id", ondelete="CASCADE"),
         nullable=False,
