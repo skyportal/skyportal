@@ -58,7 +58,7 @@ const SETTINGS: ProfileTab[] = [
       },
       {
         title: "Quick save",
-        text: "Groups the quick save button saves to.",
+        text: "Source page buttons that save to a set of groups.",
         content: <QuickSaveSourcePreferences />,
       },
       {
