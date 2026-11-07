@@ -37,6 +37,7 @@ import {
   useGetEarthquakeQuery,
   useAddCommentOnEarthquakeMutation,
 } from "../../ducks/earthquake";
+import SegmentedControl from "../SegmentedControl";
 
 import CommentForm from "./CommentForm";
 import Comment from "./Comment";
@@ -207,6 +208,11 @@ const useStyles = makeStyles()((theme) => ({
       fontSize: "1rem",
     },
   },
+  commentVersionSwitch: {
+    display: "inline-block",
+    marginLeft: "0.5em",
+    verticalAlign: "middle",
+  },
   wrap: {
     display: "flex",
     flexDirection: "row",
@@ -308,6 +314,7 @@ const CommentThread = ({
   const userColorTheme = (useGetProfileQuery().data?.preferences as any)?.theme;
 
   const [includeBots, setIncludeBots] = useState(false);
+  const [publicShown, setPublicShown] = useState<number[]>([]);
 
   useEffect(() => {
     setIncludeBots(showBotComments);
@@ -416,6 +423,56 @@ const CommentThread = ({
     a.created_at < b.created_at ? -1 : 1,
   );
 
+  const streamKey = (ids: number[]) => [...ids].sort((a, b) => a - b).join(",");
+  const publicVersions: Record<number, any> = {};
+  const pairedPublicIDs = new Set<number>();
+  comments.forEach((comment: any) => {
+    if (!comment.stream_ids?.length) return;
+    const publicVersion = comments.find(
+      (other: any) =>
+        other.hidden_stream_ids?.length &&
+        !pairedPublicIDs.has(other.id) &&
+        other.author?.id === comment.author?.id &&
+        (other.obj_id ?? null) === (comment.obj_id ?? null) &&
+        (other.spectrum_id ?? null) === (comment.spectrum_id ?? null) &&
+        streamKey(other.hidden_stream_ids) === streamKey(comment.stream_ids),
+    );
+    if (publicVersion) {
+      publicVersions[comment.id] = publicVersion;
+      pairedPublicIDs.add(publicVersion.id);
+    }
+  });
+  comments = comments
+    .filter((comment: any) => !pairedPublicIDs.has(comment.id))
+    .map((comment: any) =>
+      !publicVersions[comment.id]
+        ? comment
+        : {
+            ...(publicShown.includes(comment.id)
+              ? publicVersions[comment.id]
+              : comment),
+            pairID: comment.id,
+          },
+    );
+
+  const versionSwitch = (pairID: number) => (
+    <SegmentedControl
+      size="small"
+      value={publicShown.includes(pairID) ? "public" : "private"}
+      options={[
+        { value: "private", label: "Private" },
+        { value: "public", label: "Public" },
+      ]}
+      onChange={(version) =>
+        setPublicShown(
+          version === "public"
+            ? [...publicShown, pairID]
+            : publicShown.filter((id) => id !== pairID),
+        )
+      }
+    />
+  );
+
   const commentStyle =
     userColorTheme === "dark" ? styles.commentDark : styles.comment;
 
@@ -481,6 +538,7 @@ const CommentThread = ({
             obj_id,
             bot,
             system,
+            pairID,
           }: any) =>
             system ? (
               <ReactMarkdown
@@ -543,6 +601,7 @@ const CommentThread = ({
                   spectrum_id={spectrum_id}
                   hoverID={hoverID}
                   shiftID={shiftID}
+                  versionSwitch={pairID ? versionSwitch(pairID) : null}
                 />
               </span>
             ),

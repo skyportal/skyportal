@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { isMobile } from "react-device-detect";
@@ -94,6 +94,7 @@ interface CommentProps {
   hoverID?: number | null;
   shiftID?: number | null;
   compact?: boolean;
+  versionSwitch?: ReactNode;
 }
 
 const Comment = ({
@@ -115,6 +116,7 @@ const Comment = ({
   hoverID = null,
   shiftID = null,
   compact = false,
+  versionSwitch = null,
 }: CommentProps) => {
   const [editing, setEditing] = useState(false);
   const { data: streams } = useGetStreamsQuery(undefined, {
@@ -316,6 +318,11 @@ const Comment = ({
                 <GroupIcon fontSize="small" viewBox="0 -2 24 24" />
               </Tooltip>
             </span>
+            {versionSwitch && (
+              <span className={styles["commentVersionSwitch"]}>
+                {versionSwitch}
+              </span>
+            )}
           </div>
           <div
             style={{
