@@ -118,7 +118,7 @@ def make_thumbnail(obj_id, cutout_data, cutout_type, thumbnail_type, survey, jd=
     data_array, header = decode_cutout(cutout_data, survey)
     data_array = orient_cutout(data_array, survey, header)
     stretch = LinearStretch() if cutout_type == "cutoutDifference" else LogStretch()
-    normalizer = AsymmetricPercentileInterval(lower_percentile=1, upper_percentile=100)
+    normalizer = AsymmetricPercentileInterval(lower_percentile=1, upper_percentile=99.5)
     buff = render_cutout_png(data_array, stretch, normalizer, cmap="bone")
     return {
         "obj_id": obj_id,
