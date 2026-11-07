@@ -75,8 +75,12 @@ const STATUSES = {
 
 type Status = keyof typeof STATUSES;
 
-const statusOf = (message: Feedback): Status =>
-  message.resolved ? "resolved" : message.replies?.length ? "answered" : "open";
+const statusOf = (message: Feedback): Status => {
+  if (message.resolved) return "resolved";
+  const replies = message.replies ?? [];
+  const last = replies[replies.length - 1];
+  return last && last.author.id !== message.author.id ? "answered" : "open";
+};
 
 const nameOf = (user: Feedback["author"]) =>
   getUserRealName(user.first_name, user.last_name) || user.username;
@@ -287,10 +291,12 @@ const Message = ({
   isAdmin: boolean;
 }) => {
   const [replying, setReplying] = useState(false);
+  const { data: profile } = useGetProfileQuery();
   const [updateFeedback] = useUpdateFeedbackMutation();
   const [replyToFeedback, { isLoading }] = useReplyToFeedbackMutation();
   const { label, icon } = CATEGORIES[message.category];
   const status = STATUSES[statusOf(message)];
+  const isAuthor = profile?.id === message.author.id;
 
   return (
     <Paper
@@ -335,10 +341,12 @@ const Message = ({
                 p: 1.5,
                 borderRadius: 2,
                 bgcolor: (theme) =>
-                  alpha(
-                    theme.palette.primary.main,
-                    theme.palette.mode === "dark" ? 0.12 : 0.06,
-                  ),
+                  reply.author.id === message.author.id
+                    ? theme.palette.action.hover
+                    : alpha(
+                        theme.palette.primary.main,
+                        theme.palette.mode === "dark" ? 0.12 : 0.06,
+                      ),
               }}
             >
               <Author author={reply.author} size={28} />
@@ -360,7 +368,11 @@ const Message = ({
             <Stack spacing={1} sx={{ mt: 1.5 }}>
               <TextSend
                 label="Reply"
-                placeholder={`Reply to ${message.author.username}`}
+                placeholder={
+                  isAuthor
+                    ? "Reply to the admins"
+                    : `Reply to ${message.author.username}`
+                }
                 minRows={2}
                 loading={isLoading}
                 onSend={async (text) => {
@@ -370,7 +382,7 @@ const Message = ({
               />
             </Stack>
           )}
-          {isAdmin && (
+          {(isAdmin || isAuthor) && (
             <Stack
               direction="row"
               spacing={1}
@@ -383,19 +395,23 @@ const Message = ({
               >
                 {replying ? "Cancel" : "Reply"}
               </Button>
-              <AssignButton message={message} />
-              <Button
-                size="small"
-                endIcon={message.resolved ? <UndoIcon /> : <DoneIcon />}
-                onClick={() =>
-                  updateFeedback({
-                    id: message.id,
-                    resolved: !message.resolved,
-                  })
-                }
-              >
-                {message.resolved ? "Reopen" : "Mark as resolved"}
-              </Button>
+              {isAdmin && (
+                <>
+                  <AssignButton message={message} />
+                  <Button
+                    size="small"
+                    endIcon={message.resolved ? <UndoIcon /> : <DoneIcon />}
+                    onClick={() =>
+                      updateFeedback({
+                        id: message.id,
+                        resolved: !message.resolved,
+                      })
+                    }
+                  >
+                    {message.resolved ? "Reopen" : "Mark as resolved"}
+                  </Button>
+                </>
+              )}
             </Stack>
           )}
         </Box>
