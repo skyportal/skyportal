@@ -107,6 +107,7 @@ const QuickSaveSourcePreferences = () => {
               value={field.value}
               onChange={field.onChange}
               checkboxTestId="quickSaveGroupCheckbox"
+              size="medium"
               error={Boolean(errors.groupIds)}
               helperText={errors.groupIds ? "Select at least one group." : ""}
               sx={{ flex: "2 1 16rem" }}
