@@ -13,7 +13,6 @@ import { Link } from "react-router-dom";
 
 import { makeStyles } from "tss-react/mui";
 import Grid from "@mui/material/Grid";
-import Chip from "@mui/material/Chip";
 import Tooltip from "@mui/material/Tooltip";
 import Checkbox from "@mui/material/Checkbox";
 import FormControlLabel from "@mui/material/FormControlLabel";
@@ -52,6 +51,7 @@ import SourceNotification from "./SourceNotification";
 import DisplayPhotStats from "./DisplayPhotStats";
 import DisplayTNSInfo from "./DisplayTNSInfo";
 import EditSourceGroups from "./EditSourceGroups";
+import SavedGroupChips from "../group/SavedGroupChips";
 import SimilarSources from "./SimilarSources";
 import SourceAcknowledgment from "./SourceAcknowledgment";
 import SourceAlias from "./SourceAlias";
@@ -1270,23 +1270,7 @@ const SourceContent = ({ source }: SourceContentProps) => {
                   width: "auto",
                 }}
               >
-                {source.groups?.map((group: any) => (
-                  <Tooltip
-                    title={`Saved at ${group.saved_at} by ${group.saved_by?.username}`}
-                    key={group.id}
-                  >
-                    <Chip
-                      label={
-                        group.nickname
-                          ? group.nickname.substring(0, 15)
-                          : group.name.substring(0, 15)
-                      }
-                      size="small"
-                      className={classes.noSpace}
-                      data-testid={`groupChip_${group.id}`}
-                    />
-                  </Tooltip>
-                ))}
+                <SavedGroupChips groups={source.groups ?? []} max={5} />
               </div>
               <div
                 className={classes.flexRow}
