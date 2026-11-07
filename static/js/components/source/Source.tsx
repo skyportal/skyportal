@@ -1290,8 +1290,9 @@ const SourceContent = ({ source }: SourceContentProps) => {
               </div>
               <div
                 className={classes.flexRow}
-                style={{ alignItems: "center", width: "auto" }}
+                style={{ alignItems: "center", gap: "0.5rem", width: "auto" }}
               >
+                <SourceSaveHistory groups={source.groups} />
                 {!isReadOnly && (
                   <EditSourceGroups
                     source={{
@@ -1299,10 +1300,8 @@ const SourceContent = ({ source }: SourceContentProps) => {
                       currentGroupIds: source.groups?.map((g: any) => g.id),
                     }}
                     groups={groups}
-                    icon
                   />
                 )}
-                <SourceSaveHistory groups={source.groups} />
                 {!isReadOnly && (
                   <QuickSaveButtons
                     sourceId={source.id}

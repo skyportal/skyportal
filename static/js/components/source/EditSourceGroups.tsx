@@ -143,14 +143,14 @@ const EditSourceGroups = ({
           </Tooltip>
         ) : (
           <Button
-            secondary
-            aria-label="edit-groups"
-            data-testid={`editGroups${source.id}`}
+            variant="outlined"
+            color="primary"
+            data-testid={`editGroups_${source.id}`}
             size="small"
             onClick={openDialog}
             disabled={isSubmitting}
           >
-            Manage groups
+            Save to
           </Button>
         )}
       </div>
