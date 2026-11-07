@@ -109,7 +109,11 @@ const AssistantThread = ({ channel, target }: AssistantThreadProps) => {
           <Box sx={asideSx}>
             {target
               ? `Ask anything. The assistant knows you are on ${
-                  target.type === "source" ? target.id : "this GCN event"
+                  target.type === "source"
+                    ? target.id
+                    : target.type === "filter"
+                      ? "this filter"
+                      : "this GCN event"
                 }.`
               : "Ask anything."}
           </Box>

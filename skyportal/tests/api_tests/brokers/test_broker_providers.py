@@ -1825,7 +1825,7 @@ def test_a_batch_is_ingested_with_bounded_concurrency(monkeypatch):
 
     live, peak = {"n": 0}, {"n": 0}
 
-    async def fake_ingest(broker, oid, survey, filter_ids, token=None, payload=None):
+    async def fake_ingest(broker, oid, survey, filter_ids, payload=None):
         live["n"] += 1
         peak["n"] = max(peak["n"], live["n"])
         await asyncio.sleep(0.01)
@@ -1836,7 +1836,7 @@ def test_a_batch_is_ingested_with_bounded_concurrency(monkeypatch):
     monkeypatch.setattr(lasair, "_ingest_object", fake_ingest)
     msgs = [_msg(i, f"O{i}") for i in range(10)] + [_msg(99, "BAD")]
     _finished, work, _unusable = lasair._prepare_batch(msgs, {}, [1])
-    results = asyncio.run(lasair._ingest_batch(None, "LSST", "t", work, 3))
+    results = asyncio.run(lasair._ingest_batch(None, "LSST", work, 3))
     assert peak["n"] <= 3
     assert sum(1 for ok in results.values() if ok) == 10
     assert results[("lasair_2mine", 0, 99)] is False

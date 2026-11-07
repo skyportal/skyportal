@@ -114,6 +114,12 @@ class BrokerAPI(_Base):
         raise NotImplementedError
 
     @staticmethod
+    def found_by(broker, filter_row, obj_id):
+        """Credit for an object one of this broker's filters passed, as
+        ``{broker, filter, url}`` with the url of the object on the broker."""
+        return None
+
+    @staticmethod
     def get_cutouts(broker, alert_id, session, **kwargs):
         """Return the science/template/difference cutouts for an alert, keyed by
         the candid or the objectId depending on the provider."""

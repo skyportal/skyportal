@@ -8,9 +8,13 @@
  * `useFilterSchema()` hook. Endpoints target the active broker via
  * `brokerFilterBase()` (`/api/brokers/{id}`).
  */
+import { createContext, useContext } from "react";
+
 import { skyportalApi } from "../api/skyportalApi";
 import { brokerFilterBase } from "./brokerFilterTarget";
 import { useBoomFilterVersion } from "./boom_filter";
+
+export const FilterSurveyContext = createContext<string | undefined>(undefined);
 
 export const boomFilterModulesApi = skyportalApi.injectEndpoints({
   endpoints: (build) => ({
@@ -79,7 +83,11 @@ export const {
 // Query dedupes so the builder and its condition components share one entry.
 export const useFilterSchema = (surveyOverride?: string) => {
   const { data: filterVersion } = useBoomFilterVersion();
-  const survey = surveyOverride ?? filterVersion?.stream?.name?.split(" ")[0];
+  const contextSurvey = useContext(FilterSurveyContext);
+  const survey =
+    surveyOverride ??
+    contextSurvey ??
+    filterVersion?.stream?.name?.split(" ")[0];
   // Expose the resolved survey alongside the query state so callers can show a
   // clear "no schema for this survey" message when the broker has none.
   return {
