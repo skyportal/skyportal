@@ -85,7 +85,7 @@ import PhotometryTable from "../photometry/PhotometryTable";
 import FavoritesButton from "../listing/FavoritesButton";
 import SourceAnnotationButtons from "./SourceAnnotationButtons";
 import Reminders from "../Reminders";
-import QuickSaveButton from "./QuickSaveSource";
+import QuickSaveButtons from "./QuickSaveSource";
 import SourceSkeleton from "./SourceSkeleton";
 import Button from "../Button";
 
@@ -1258,7 +1258,7 @@ const SourceContent = ({ source }: SourceContentProps) => {
                 alignItems: "center",
                 flexFlow: "wrap",
                 gap: "0.5rem",
-                paddingTop: "0.25rem",
+                padding: "0.25rem 0",
               }}
             >
               <div
@@ -1290,8 +1290,9 @@ const SourceContent = ({ source }: SourceContentProps) => {
               </div>
               <div
                 className={classes.flexRow}
-                style={{ alignItems: "center", width: "auto" }}
+                style={{ alignItems: "center", gap: "0.5rem", width: "auto" }}
               >
+                <SourceSaveHistory groups={source.groups} />
                 {!isReadOnly && (
                   <EditSourceGroups
                     source={{
@@ -1299,12 +1300,10 @@ const SourceContent = ({ source }: SourceContentProps) => {
                       currentGroupIds: source.groups?.map((g: any) => g.id),
                     }}
                     groups={groups}
-                    icon
                   />
                 )}
-                <SourceSaveHistory groups={source.groups} />
                 {!isReadOnly && (
-                  <QuickSaveButton
+                  <QuickSaveButtons
                     sourceId={source.id}
                     alreadySavedGroups={source.groups?.map((g: any) => g.id)}
                   />
