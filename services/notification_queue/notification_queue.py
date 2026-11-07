@@ -346,11 +346,12 @@ def send_email_notification(target):
             subject = f"{cfg['app.title']} - New deployment"
 
         elif resource_type == "feedback":
-            subject = (
-                f"{cfg['app.title']} - Reply to your feedback"
-                if target["notification_type"] == "feedback_reply"
-                else f"{cfg['app.title']} - New feedback"
-            )
+            if target["notification_type"] != "feedback_reply":
+                subject = f"{cfg['app.title']} - New feedback"
+            elif (target.get("content") or {}).get("by_author"):
+                subject = f"{cfg['app.title']} - New reply to a feedback"
+            else:
+                subject = f"{cfg['app.title']} - Reply to your feedback"
             if target.get("content"):
                 text = feedback_notification_text(
                     target["content"], html.escape, bold=""
@@ -572,6 +573,16 @@ def user_notification_target(session, user, text, notification_type, url, conten
     session.add(notification)
     session.commit()
     return {**notification.to_dict(), **target}
+
+
+def system_admins(session):
+    admin_ids = sa.union(
+        sa.select(UserACL.user_id).where(UserACL.acl_id == "System admin"),
+        sa.select(UserRole.user_id)
+        .join(RoleACL, RoleACL.role_id == UserRole.role_id)
+        .where(RoleACL.acl_id == "System admin"),
+    )
+    return session.scalars(sa.select(User).where(User.id.in_(admin_ids))).all()
 
 
 def users_on_shift(session):
@@ -858,17 +869,7 @@ def api(queue):
                             .to_dict()
                         )
                     elif is_feedback:
-                        admin_ids = sa.union(
-                            sa.select(UserACL.user_id).where(
-                                UserACL.acl_id == "System admin"
-                            ),
-                            sa.select(UserRole.user_id)
-                            .join(RoleACL, RoleACL.role_id == UserRole.role_id)
-                            .where(RoleACL.acl_id == "System admin"),
-                        )
-                        users = session.scalars(
-                            sa.select(User).where(User.id.in_(admin_ids))
-                        ).all()
+                        users = system_admins(session)
                         target_class = Feedback
                         feedback = session.scalar(
                             sa.select(Feedback).where(Feedback.id == target_id)
@@ -884,11 +885,17 @@ def api(queue):
                                 FeedbackReply.id == target_id
                             )
                         )
-                        users = [reply.feedback.author]
+                        by_author = reply.author_id == reply.feedback.author_id
+                        users = (
+                            system_admins(session)
+                            if by_author
+                            else [reply.feedback.author]
+                        )
                         target_data = {
                             **reply.to_dict(),
                             "author": reply.author.username,
                             "category": reply.feedback.category,
+                            "by_author": by_author,
                         }
                     elif is_discussion_message:
                         target_class = DiscussionMessage
@@ -1471,6 +1478,9 @@ def api(queue):
                                             target_data["text"], 120, placeholder="..."
                                         ),
                                         "reply": is_feedback_reply,
+                                        "by_author": target_data.get(
+                                            "by_author", False
+                                        ),
                                     }
                                     queue.append(
                                         user_notification_target(

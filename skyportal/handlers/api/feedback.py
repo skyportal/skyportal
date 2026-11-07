@@ -117,12 +117,12 @@ class FeedbackHandler(BaseHandler):
 
 
 class FeedbackReplyHandler(BaseHandler):
-    @permissions(["System admin"])
+    @auth_or_token
     async def post(self, feedback_id: int, *, body: FeedbackReplyPostBody = None):
         """
         ---
         summary: Reply to a message left to the admins
-        description: The author of the message is notified.
+        description: Admins can reply to any message, users to their own. The other side is notified.
         tags:
           - system info
         """
