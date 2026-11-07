@@ -423,27 +423,24 @@ const CommentThread = ({
     a.created_at < b.created_at ? -1 : 1,
   );
 
-  const streamKey = (ids: number[]) => [...ids].sort((a, b) => a - b).join(",");
   const publicVersions: Record<number, any> = {};
-  const pairedPublicIDs = new Set<number>();
   comments.forEach((comment: any) => {
-    if (!comment.stream_ids?.length) return;
-    const publicVersion = comments.find(
-      (other: any) =>
-        other.hidden_stream_ids?.length &&
-        !pairedPublicIDs.has(other.id) &&
-        other.author?.id === comment.author?.id &&
-        (other.obj_id ?? null) === (comment.obj_id ?? null) &&
-        (other.spectrum_id ?? null) === (comment.spectrum_id ?? null) &&
-        streamKey(other.hidden_stream_ids) === streamKey(comment.stream_ids),
-    );
-    if (publicVersion) {
-      publicVersions[comment.id] = publicVersion;
-      pairedPublicIDs.add(publicVersion.id);
+    if (
+      comment.private_version_id &&
+      comments.some(
+        (other: any) =>
+          other.id === comment.private_version_id && !other.spectrum_id,
+      )
+    ) {
+      publicVersions[comment.private_version_id] = comment;
     }
   });
   comments = comments
-    .filter((comment: any) => !pairedPublicIDs.has(comment.id))
+    .filter(
+      (comment: any) =>
+        !comment.private_version_id ||
+        publicVersions[comment.private_version_id] !== comment,
+    )
     .map((comment: any) =>
       !publicVersions[comment.id]
         ? comment

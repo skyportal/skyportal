@@ -303,7 +303,7 @@ const Comment = ({
             {hidden_stream_ids?.length ? (
               <span className={styles["commentUserGroup"]}>
                 <Tooltip
-                  title={`Hidden from ${streamNames(hidden_stream_ids)}`}
+                  title={`Visible to users without ${streamNames(hidden_stream_ids)}`}
                 >
                   <VisibilityOffIcon
                     fontSize="small"
