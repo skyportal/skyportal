@@ -35,6 +35,7 @@ import {
   useEditCommentOnEarthquakeMutation,
   useDeleteCommentOnEarthquakeMutation,
 } from "../../ducks/earthquake";
+import { useGetStreamsQuery } from "../../ducks/streams";
 import UserAvatar from "../user/UserAvatar";
 
 import CommentAttachmentPreview from "./CommentAttachmentPreview";
@@ -84,6 +85,8 @@ interface CommentProps {
   text?: string | null;
   attachment_name?: string | null;
   groups?: { name: string; [key: string]: any }[];
+  stream_ids?: number[] | null;
+  hidden_stream_ids?: number[] | null;
   spectrum_id?: string | null;
   bot?: boolean;
   hoverID?: number | null;
@@ -103,6 +106,8 @@ const Comment = ({
   text = null,
   attachment_name = null,
   groups = [],
+  stream_ids = null,
+  hidden_stream_ids = null,
   spectrum_id = null,
   bot = false,
   hoverID = null,
@@ -110,6 +115,9 @@ const Comment = ({
   compact = false,
 }: CommentProps) => {
   const [editing, setEditing] = useState(false);
+  const { data: streams } = useGetStreamsQuery(undefined, {
+    skip: !stream_ids?.length && !hidden_stream_ids?.length,
+  });
   const { data: spectra } = useFetchSourceSpectraQuery(
     { id: objID as string },
     { skip: !objID || !spectrum_id },
@@ -209,6 +217,15 @@ const Comment = ({
     return formattedText;
   };
 
+  const streamNames = (ids: number[]) =>
+    ids
+      .map(
+        (streamID) =>
+          streams?.find((stream) => stream.id === streamID)?.name ??
+          `stream ${streamID}`,
+      )
+      .join(", ");
+
   const commentMessageStyle =
     resourceType === "shift"
       ? styles["commentMessageShift"]
@@ -268,6 +285,16 @@ const Comment = ({
             <span className={styles["commentTime"]}>
               {dayjs().to(dayjs.utc(`${created_at}Z`))}
             </span>
+            {stream_ids?.length ? (
+              <span className={styles["commentTime"]}>
+                Visible with {streamNames(stream_ids)}
+              </span>
+            ) : null}
+            {hidden_stream_ids?.length ? (
+              <span className={styles["commentTime"]}>
+                Hidden with {streamNames(hidden_stream_ids)}
+              </span>
+            ) : null}
             <span className={styles["commentUserGroup"]}>
               <Tooltip title={groups?.map((group) => group.name)?.join(", ")}>
                 <GroupIcon fontSize="small" viewBox="0 -2 24 24" />

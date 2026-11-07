@@ -474,6 +474,8 @@ const CommentThread = ({
             text,
             attachment_name,
             groups,
+            stream_ids,
+            hidden_stream_ids,
             spectrum_id,
             resourceType: commentResourceType,
             obj_id,
@@ -536,6 +538,8 @@ const CommentThread = ({
                   text={text}
                   attachment_name={attachment_name}
                   groups={groups}
+                  stream_ids={stream_ids}
+                  hidden_stream_ids={hidden_stream_ids}
                   spectrum_id={spectrum_id}
                   hoverID={hoverID}
                   shiftID={shiftID}
