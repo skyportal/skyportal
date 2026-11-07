@@ -1292,7 +1292,6 @@ const SourceContent = ({ source }: SourceContentProps) => {
                 className={classes.flexRow}
                 style={{ alignItems: "center", gap: "0.5rem", width: "auto" }}
               >
-                <SourceSaveHistory groups={source.groups} />
                 {!isReadOnly && (
                   <EditSourceGroups
                     source={{
@@ -1308,6 +1307,9 @@ const SourceContent = ({ source }: SourceContentProps) => {
                     alreadySavedGroups={source.groups?.map((g: any) => g.id)}
                   />
                 )}
+              </div>
+              <div style={{ marginLeft: "auto" }}>
+                <SourceSaveHistory groups={source.groups} />
               </div>
             </div>
             <ThumbnailList
