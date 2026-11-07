@@ -765,7 +765,7 @@ const SourceContent = ({ source }: SourceContentProps) => {
                 )}
                 {!isReadOnly && (
                   <Tooltip
-                    title={`Keep this source off TNS. Automatic sharing skips it and a manual submission is refused until this is cleared.${
+                    title={`Never send this source to TNS, automatically or manually.${
                       source.withhold_from_tns_set_at
                         ? ` Last changed by ${
                             source.withhold_from_tns_set_by?.username ??
@@ -791,7 +791,7 @@ const SourceContent = ({ source }: SourceContentProps) => {
                           }
                         />
                       }
-                      label="Withhold"
+                      label="Don't report"
                       slotProps={{ typography: { variant: "body2" } }}
                     />
                   </Tooltip>
