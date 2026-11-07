@@ -536,11 +536,7 @@ async def _ingest_survey_matches(
     and link them to the main obj via a SuperObj. BOOM emits ``survey_matches``
     (e.g. ``{"lsst": {objectId, ra, dec, photometry}}`` on a ZTF result) when the
     alert has a counterpart in another survey."""
-    import sqlalchemy as sa
-
-    from ..models import Obj
-    from ._save import associate_super_obj, save_object_photometry
-    from ._thumbnails import add_thumbnails
+    from ._save import associate_super_obj
 
     matches = record.get("survey_matches") or {}
     if not isinstance(matches, dict):
@@ -554,44 +550,142 @@ async def _ingest_survey_matches(
         if match_survey == main_survey or not match_obj_id:
             continue
         match_obj_id = str(match_obj_id)
-        is_new = (
-            await session.scalar(sa.select(Obj.id).where(Obj.id == match_obj_id))
-        ) is None
         match_data = {
             "objectId": match_obj_id,
             "candidate": {"ra": match.get("ra"), "dec": match.get("dec")},
             "prv_candidates": _boom_photometry_to_prv(match.get("photometry")),
             "fp_hists": _boom_photometry_to_prv(match.get("photometry"), forced=True),
         }
-        try:
-            await save_object_photometry(match_data, match_survey, session, user)
+        if await _ingest_counterpart(broker, match_survey, match_data, session, user):
             associated.add(match_obj_id)
-        except Exception as e:
-            log(f"survey match {match_survey}/{match_obj_id} ingest failed: {e}")
-            continue
-        # First sight of the counterpart: pull its cutouts from BOOM for thumbnails.
-        if is_new and broker is not None:
-            try:
-                cutouts = _request(
-                    broker,
-                    "GET",
-                    f"surveys/{match_survey}/cutouts",
-                    params={"objectId": match_obj_id},
-                )
-                if isinstance(cutouts, dict):
-                    await add_thumbnails(
-                        match_obj_id,
-                        cutouts,
-                        match_survey,
-                        session,
-                        user_id=user.id,
-                        jd=cutouts.get("jd"),
-                    )
-            except Exception as e:
-                log(f"survey match {match_survey}/{match_obj_id} cutouts failed: {e}")
     if associated:
         await associate_super_obj(session, main_obj_id, associated)
         await session.commit()
+
+
+async def _ingest_counterpart(broker, survey, data, session, user):
+    """Create or refresh a counterpart Obj and its photometry, with its cutout
+    thumbnails on first sight. Returns whether the Obj was ingested."""
+    import sqlalchemy as sa
+
+    from ..models import Obj
+    from ._save import save_object_photometry
+    from ._thumbnails import add_thumbnails
+
+    obj_id = data["objectId"]
+    is_new = (await session.scalar(sa.select(Obj.id).where(Obj.id == obj_id))) is None
+    try:
+        await save_object_photometry(data, survey, session, user)
+    except Exception as e:
+        log(f"survey match {survey}/{obj_id} ingest failed: {e}")
+        return False
+    if is_new and broker is not None:
+        try:
+            cutouts = _request(
+                broker,
+                "GET",
+                f"surveys/{survey}/cutouts",
+                params={"objectId": obj_id},
+            )
+            if isinstance(cutouts, dict):
+                await add_thumbnails(
+                    obj_id,
+                    cutouts,
+                    survey,
+                    session,
+                    user_id=user.id,
+                    jd=cutouts.get("jd"),
+                )
+        except Exception as e:
+            log(f"survey match {survey}/{obj_id} cutouts failed: {e}")
+    return True
+
+
+COUNTERPARTS_BATCH_SIZE = 1000
+
+
+async def link_saved_counterparts(broker, session, user):
+    """Link each saved source to the counterparts BOOM recorded for it in the
+    other surveys: ingestion only links them for an alert that passes a filter.
+    Returns the number of new links."""
+    import asyncio
+
+    import sqlalchemy as sa
+    from sqlalchemy.orm import aliased
+
+    from ..models import ObjToSuperObj, Source
+    from ._save import associate_super_obj
+
+    served = BOOMBROKER.configured_surveys(broker.altdata)
+    by_survey = {}
+    for obj_id in await session.scalars(
+        sa.select(Source.obj_id).where(Source.active.is_(True)).distinct()
+    ):
+        survey = survey_from_object_id(obj_id, served)
+        if survey is not None:
+            by_survey.setdefault(survey, []).append(obj_id)
+
+    member = aliased(ObjToSuperObj)
+    n_linked = 0
+    for survey, obj_ids in by_survey.items():
+        for i in range(0, len(obj_ids), COUNTERPARTS_BATCH_SIZE):
+            batch = obj_ids[i : i + COUNTERPARTS_BATCH_SIZE]
+            try:
+                docs = await asyncio.to_thread(
+                    _request,
+                    broker,
+                    "POST",
+                    "queries/find",
+                    json={
+                        "catalog_name": f"{survey}_alerts_aux",
+                        "filter": {"_id": {"$in": batch}},
+                        "projection": {"aliases": 1},
+                    },
+                )
+            except Exception as e:
+                log(f"{survey} aliases fetch failed: {e}")
+                continue
+            linked = set(
+                (
+                    await session.execute(
+                        sa.select(ObjToSuperObj.obj_id, member.obj_id)
+                        .join(member, member.super_obj_id == ObjToSuperObj.super_obj_id)
+                        .where(ObjToSuperObj.obj_id.in_(batch))
+                    )
+                ).all()
+            )
+            for doc in docs or []:
+                for match_survey, match_ids in (doc.get("aliases") or {}).items():
+                    if match_survey == survey or match_survey not in served:
+                        continue
+                    if not match_ids or (doc["_id"], str(match_ids[0])) in linked:
+                        continue
+                    match_obj_id = str(match_ids[0])
+                    try:
+                        data = await asyncio.to_thread(
+                            BOOMBROKER.get_alert,
+                            broker,
+                            match_obj_id,
+                            None,
+                            survey=match_survey,
+                            permissions=None,
+                        )
+                    except Exception as e:
+                        log(
+                            f"survey match {match_survey}/{match_obj_id} fetch failed: {e}"
+                        )
+                        continue
+                    if not data:
+                        continue
+                    if not await _ingest_counterpart(
+                        broker, match_survey, data, session, user
+                    ):
+                        await session.rollback()
+                        continue
+                    await associate_super_obj(session, doc["_id"], {match_obj_id})
+                    await session.commit()
+                    n_linked += 1
+    return n_linked
 
 
 _CATALOGS_TTL = timedelta(hours=1)
