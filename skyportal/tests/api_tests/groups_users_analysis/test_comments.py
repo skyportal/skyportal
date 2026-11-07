@@ -354,7 +354,7 @@ def test_comment_versions_by_stream_access(
     for token, expected in (
         (upload_data_token_stream2, ["full"]),
         (comment_token, ["public"]),
-        (super_admin_token, ["full"]),
+        (super_admin_token, ["full", "public"]),
     ):
         status, data = api("GET", f"sources/{public_source.id}/comments", token=token)
         assert status == 200

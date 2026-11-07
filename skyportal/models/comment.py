@@ -194,25 +194,34 @@ class CommentMixin:
 
 
 def stream_access_logic(cls, user_or_token):
-    """Comments the user may see given their stream access: system admins
-    count as having access to every stream."""
+    """Comments the user may see given their stream access: authors always
+    see their own comments, and system admins count as having access to
+    every stream."""
     from .stream import StreamUser
 
     def unrestricted(column):
         return column.is_(None) | (sa.func.cardinality(column) == 0)
 
-    if user_or_token.is_admin:
-        return sa.select(cls).where(unrestricted(cls.hidden_stream_ids))
     user_id = UserAccessControl.user_id_from_user_or_token(user_or_token)
+    if user_or_token.is_admin:
+        return sa.select(cls).where(
+            unrestricted(cls.hidden_stream_ids) | (cls.author_id == user_id)
+        )
     user_streams = sa.func.array(
         sa.select(StreamUser.stream_id)
         .where(StreamUser.user_id == user_id)
         .scalar_subquery()
     )
     return sa.select(cls).where(
-        unrestricted(cls.stream_ids) | cls.stream_ids.contained_by(user_streams),
-        unrestricted(cls.hidden_stream_ids)
-        | ~cls.hidden_stream_ids.contained_by(user_streams),
+        sa.or_(
+            cls.author_id == user_id,
+            sa.and_(
+                unrestricted(cls.stream_ids)
+                | cls.stream_ids.contained_by(user_streams),
+                unrestricted(cls.hidden_stream_ids)
+                | ~cls.hidden_stream_ids.contained_by(user_streams),
+            ),
+        )
     )
 
 
