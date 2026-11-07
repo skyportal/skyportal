@@ -18,6 +18,7 @@ import Typography from "@mui/material/Typography";
 import { useGetGroupsQuery } from "../../ducks/groups";
 import { useGetProfileQuery } from "../../ducks/profile";
 import Button from "../Button";
+import SegmentedControl from "../SegmentedControl";
 
 import UsernameTrie from "../../usernameTrie";
 import InstrumentTrie from "../../instrumentTrie";
@@ -61,6 +62,11 @@ const useStyles = makeStyles()((theme) => ({
     lineHeight: "2rem",
     top: "3.25rem",
   },
+  streamSection: {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
   extras: {
     display: "flex",
     flexWrap: "wrap",
@@ -98,6 +104,7 @@ const CommentForm = ({
   const { data: profile } = useGetProfileQuery();
   const streams: any[] = streamAccess ? (profile?.streams ?? []) : [];
   const [selectedStreams, setSelectedStreams] = useState<number[]>([]);
+  const [streamMode, setStreamMode] = useState<"visible" | "hidden">("visible");
   const { data: instrumentList = [] } = useGetInstrumentsQuery();
   const [textValue, setTextValue] = useState("");
   const [fileName, setFileName] = useState("");
@@ -200,7 +207,8 @@ const CommentForm = ({
     );
     data.group_ids = selectedGroupIDs;
     if (selectedStreams.length) {
-      data.stream_ids = selectedStreams;
+      data[streamMode === "visible" ? "stream_ids" : "hidden_stream_ids"] =
+        selectedStreams;
     }
     if (addComment) {
       addComment(data);
@@ -212,6 +220,7 @@ const CommentForm = ({
     setFileName("");
     setSelectedGroups([]);
     setSelectedStreams([]);
+    setStreamMode("visible");
     setGroupFilter("");
     setAutosuggestVisible(false);
     setUsernamePrefixMatches({});
@@ -437,7 +446,7 @@ const CommentForm = ({
                       selectedGroups.length &&
                         `Shared with ${selectedGroups.length} group(s)`,
                       selectedStreams.length &&
-                        `restricted to ${selectedStreams.length} stream(s)`,
+                        `${streamMode} with ${selectedStreams.length} stream(s)`,
                     ]
                       .filter(Boolean)
                       .join(", ")
@@ -477,8 +486,19 @@ const CommentForm = ({
             />
           </div>
           {streams.length > 0 && (
-            <ListSubheader className={styles.menuSection}>
-              Restrict to streams
+            <ListSubheader
+              className={cx(styles.menuSection, styles.streamSection)}
+            >
+              Streams
+              <SegmentedControl
+                size="small"
+                value={streamMode}
+                options={[
+                  { value: "visible", label: "Visible with" },
+                  { value: "hidden", label: "Hidden with" },
+                ]}
+                onChange={setStreamMode}
+              />
             </ListSubheader>
           )}
           {streams

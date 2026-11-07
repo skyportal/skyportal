@@ -351,6 +351,8 @@ export const sourceApi = skyportalApi.injectEndpoints({
           body["channel"] = formData["channel"];
         if (formData["stream_ids"] !== undefined)
           body["stream_ids"] = formData["stream_ids"];
+        if (formData["hidden_stream_ids"] !== undefined)
+          body["hidden_stream_ids"] = formData["hidden_stream_ids"];
         if (formData["origin"] !== undefined)
           body["origin"] = formData["origin"];
         if (formData["attachment"]) {
