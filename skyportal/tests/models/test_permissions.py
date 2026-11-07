@@ -339,8 +339,8 @@ CASES = [
     ("super_admin_user", "feedback", "read", True),
     ("super_admin_user", "feedback", "update", True),
     ("super_admin_user", "feedback", "delete", True),
-    # --- FeedbackReply  (feedback_reply): the message's author reads it ---
-    ("user", "feedback_reply", "create", False),
+    # --- FeedbackReply  (feedback_reply): the message's author reads and replies ---
+    ("user", "feedback_reply", "create", True),
     ("user", "feedback_reply", "read", True),
     ("user", "feedback_reply", "update", False),
     ("user", "feedback_reply", "delete", False),

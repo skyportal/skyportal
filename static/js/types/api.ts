@@ -21311,7 +21311,7 @@ export interface paths {
         put?: never;
         /**
          * Reply to a message left to the admins
-         * @description <b>Permission(s) required:</b> <em>System admin (or System admin)</em><br><br>The author of the message is notified.
+         * @description Admins can reply to any message, users to their own. The other side is notified.
          */
         post: {
             parameters: {
@@ -28852,11 +28852,11 @@ export interface components {
         FeedbackReply: {
             /** @description The message replied to */
             readonly feedback?: components["schemas"]["Feedback"];
-            /** @description The admin who replied */
+            /** @description The User who replied */
             readonly author?: components["schemas"]["User"];
             /** @description ID of the message replied to */
             feedback_id: number;
-            /** @description ID of the admin who replied */
+            /** @description ID of the User who replied */
             author_id: number;
             /** @description The reply */
             text: string;
@@ -28878,11 +28878,11 @@ export interface components {
         FeedbackReplyNoID: {
             /** @description The message replied to */
             readonly feedback?: components["schemas"]["Feedback"];
-            /** @description The admin who replied */
+            /** @description The User who replied */
             readonly author?: components["schemas"]["User"];
             /** @description ID of the message replied to */
             feedback_id: number;
-            /** @description ID of the admin who replied */
+            /** @description ID of the User who replied */
             author_id: number;
             /** @description The reply */
             text: string;
@@ -50522,7 +50522,7 @@ export interface components {
         };
         /**
          * FeedbackReplyResponse
-         * @description An admin's reply to a message.
+         * @description A reply to a message, from an admin or its author.
          */
         FeedbackReplyResponse: {
             /** Id */
@@ -50607,7 +50607,7 @@ export interface components {
         };
         /**
          * FeedbackReplyPostBody
-         * @description Request body for an admin replying to a message.
+         * @description Request body for replying to a message, as an admin or its author.
          */
         FeedbackReplyPostBody: {
             /**

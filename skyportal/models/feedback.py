@@ -52,17 +52,17 @@ class Feedback(Base):
         cascade="delete",
         passive_deletes=True,
         order_by="FeedbackReply.created_at",
-        doc="The admins' replies to the message",
+        doc="Replies to the message, from the admins or its author",
     )
 
 
 class FeedbackReply(Base):
-    """An admin's reply to a message left by a user."""
+    """A reply to a message left by a user, from an admin or its author."""
 
     __tablename__ = "feedback_replies"
 
-    read = AccessibleIfRelatedRowsAreAccessible(feedback="read")
-    create = update = delete = restricted
+    create = read = AccessibleIfRelatedRowsAreAccessible(feedback="read")
+    update = delete = restricted
 
     feedback_id = sa.Column(
         sa.ForeignKey("feedbacks.id", ondelete="CASCADE"),
@@ -77,7 +77,7 @@ class FeedbackReply(Base):
         sa.ForeignKey("users.id", ondelete="CASCADE"),
         nullable=False,
         index=True,
-        doc="ID of the admin who replied",
+        doc="ID of the User who replied",
     )
-    author = relationship("User", doc="The admin who replied")
+    author = relationship("User", doc="The User who replied")
     text = sa.Column(sa.String, nullable=False, doc="The reply")
