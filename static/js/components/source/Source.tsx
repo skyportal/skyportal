@@ -59,7 +59,7 @@ import UpdateSourceMPC from "./UpdateSourceMPC";
 import UpdateSourceRedshift from "./UpdateSourceRedshift";
 import UpdateSourceSummary from "./UpdateSourceSummary";
 import UpdateSourceT0 from "./UpdateSourceT0";
-import UpdateSourceTNS, { SearchTNSButton } from "./UpdateSourceTNS";
+import UpdateSourceTNS from "./UpdateSourceTNS";
 import StartBotSummary from "../StartBotSummary";
 import SourceGCNCrossmatchList from "./SourceGCNCrossmatchList";
 import SourceRedshiftHistory from "./SourceRedshiftHistory";
@@ -736,9 +736,6 @@ const SourceContent = ({ source }: SourceContentProps) => {
             >
               <div className={classes.rowInfo} data-testid="tour-source-tns">
                 <b>TNS Name: &nbsp;</b>
-                {!source.tns_name && !isReadOnly && (
-                  <SearchTNSButton sourceId={source.id} />
-                )}
                 {source.tns_name && (
                   <a
                     key={source.tns_name}
@@ -759,6 +756,7 @@ const SourceContent = ({ source }: SourceContentProps) => {
                     display_header={false}
                   />
                 )}
+                {!isReadOnly && <UpdateSourceTNS source={source} />}
                 {source.withhold_from_tns && (
                   <Tooltip title="Never send this source to TNS, automatically or manually.">
                     <Chip
@@ -770,7 +768,6 @@ const SourceContent = ({ source }: SourceContentProps) => {
                     />
                   </Tooltip>
                 )}
-                {!isReadOnly && <UpdateSourceTNS source={source} />}
               </div>
               <div
                 className={classes.rowInfo}

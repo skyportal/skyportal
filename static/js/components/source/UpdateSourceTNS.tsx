@@ -17,39 +17,6 @@ import { useAppDispatch } from "../../types/hooks";
 import { useAddTNSMutation, useUpdateSourceMutation } from "../../ducks/source";
 import Button from "../Button";
 
-const useSearchTNS = (sourceId: string) => {
-  const dispatch = useAppDispatch();
-  const [addTNS, { isLoading }] = useAddTNSMutation();
-  const search = async (radius: number) => {
-    try {
-      await addTNS({ id: sourceId, formData: { radius } }).unwrap();
-      dispatch(showNotification("Successfully queried TNS"));
-      return true;
-    } catch {
-      dispatch(showNotification("Failed to query TNS", "error"));
-      return false;
-    }
-  };
-  return { search, isLoading };
-};
-
-export const SearchTNSButton = ({ sourceId }: { sourceId: string }) => {
-  const { search, isLoading } = useSearchTNS(sourceId);
-  return (
-    <Button
-      variant="outlined"
-      color="primary"
-      size="small"
-      onClick={() => search(2)}
-      disabled={isLoading}
-      data-testid="searchTNSButton"
-      sx={{ py: 0 }}
-    >
-      Search
-    </Button>
-  );
-};
-
 interface UpdateSourceTNSProps {
   source: {
     id: string;
@@ -61,20 +28,47 @@ interface UpdateSourceTNSProps {
 }
 
 const UpdateSourceTNS = ({ source }: UpdateSourceTNSProps) => {
-  const { search, isLoading } = useSearchTNS(source.id);
+  const dispatch = useAppDispatch();
+  const [addTNS, { isLoading }] = useAddTNSMutation();
   const [updateSource] = useUpdateSourceMutation();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [radius, setRadius] = useState("2");
 
+  const search = async () => {
+    try {
+      await addTNS({
+        id: source.id,
+        formData: { radius: Number(radius) },
+      }).unwrap();
+      dispatch(showNotification("Successfully queried TNS"));
+      setDialogOpen(false);
+    } catch {
+      dispatch(showNotification("Failed to query TNS", "error"));
+    }
+  };
+
   return (
     <>
-      <IconButton
-        data-testid="updateTNSIconButton"
-        onClick={() => setDialogOpen(true)}
-        size="small"
-      >
-        <EditIcon sx={{ fontSize: "0.9rem" }} />
-      </IconButton>
+      {source.tns_name ? (
+        <IconButton
+          data-testid="updateTNSIconButton"
+          onClick={() => setDialogOpen(true)}
+          size="small"
+        >
+          <EditIcon sx={{ fontSize: "0.9rem" }} />
+        </IconButton>
+      ) : (
+        <Button
+          variant="outlined"
+          color="primary"
+          size="small"
+          onClick={() => setDialogOpen(true)}
+          data-testid="updateTNSIconButton"
+          sx={{ py: 0 }}
+        >
+          Search
+        </Button>
+      )}
       <Dialog
         open={dialogOpen}
         onClose={() => setDialogOpen(false)}
@@ -96,10 +90,8 @@ const UpdateSourceTNS = ({ source }: UpdateSourceTNSProps) => {
                 sx={{ flex: 1 }}
               />
               <Button
-                variant="outlined"
-                onClick={async () => {
-                  if (await search(Number(radius))) setDialogOpen(false);
-                }}
+                primary
+                onClick={search}
                 disabled={isLoading || !(Number(radius) > 0)}
               >
                 Search
