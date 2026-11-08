@@ -1643,6 +1643,7 @@ async def convert_time(handler, args):
     kind, value = next(iter(given.items()))
     try:
         moment = Time(float(value), format=kind) if kind != "iso" else Time(str(value))
+        when = moment.datetime
     except Exception as exc:
         raise ToolError(f"Not a time I can read: {value!r} ({exc}).") from exc
     # A spelled-out UTC the answer can quote: the numbers alone leave the
@@ -1651,8 +1652,8 @@ async def convert_time(handler, args):
         "jd": round(float(moment.jd), 6),
         "mjd": round(float(moment.mjd), 6),
         "iso": moment.isot[:19] + "Z",
-        "day_of_week": moment.datetime.strftime("%A"),
-        "utc": moment.datetime.strftime("%Y-%m-%d %H:%M:%S UTC (%A)"),
+        "day_of_week": when.strftime("%A"),
+        "utc": when.strftime("%Y-%m-%d %H:%M:%S UTC (%A)"),
     }
 
 
