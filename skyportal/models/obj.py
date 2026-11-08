@@ -527,37 +527,27 @@ class Obj(Base, conesearch_alchemy.Point):
             )
         await session.commit()
 
-        if "ps1" in thumbnails:
-            if ps1_url is None:
-                ps1_url = await asyncio.to_thread(lambda: self.panstarrs_url)
-            session.add(Thumbnail(obj_id=self.id, public_url=ps1_url, type="ps1"))
-            await session.commit()
+        async def ps1():
+            if ps1_url is not None:
+                return ps1_url
+            return await asyncio.to_thread(lambda: self.panstarrs_url)
 
-        if "sm" in thumbnails:
-            url = await self._look_up("skymapper_url")
-            if url is not None:
-                session.add(Thumbnail(obj_id=self.id, public_url=url, type="sm"))
-                await session.commit()
-
+        on_demand = {
+            "sm": "skymapper_url",
+            "hst": "hst_url",
+            "chandra": "chandra_url",
+            "jwst": "jwst_url",
+        }
+        types = [t for t in ["ps1", *on_demand] if t in thumbnails]
+        urls = await asyncio.gather(
+            *(ps1() if t == "ps1" else self._look_up(on_demand[t]) for t in types)
+        )
         # HST and Chandra are pointed (not all-sky); only add a thumbnail when
         # the position actually has coverage (url is not None).
-        if "hst" in thumbnails:
-            url = await self._look_up("hst_url")
-            if url is not None:
-                session.add(Thumbnail(obj_id=self.id, public_url=url, type="hst"))
-                await session.commit()
-
-        if "chandra" in thumbnails:
-            url = await self._look_up("chandra_url")
-            if url is not None:
-                session.add(Thumbnail(obj_id=self.id, public_url=url, type="chandra"))
-                await session.commit()
-
-        if "jwst" in thumbnails:
-            url = await self._look_up("jwst_url")
-            if url is not None:
-                session.add(Thumbnail(obj_id=self.id, public_url=url, type="jwst"))
-                await session.commit()
+        for t, url in zip(types, urls):
+            if t == "ps1" or url is not None:
+                session.add(Thumbnail(obj_id=self.id, public_url=url, type=t))
+        await session.commit()
 
     def to_dict(self):
         # internal_key anonymizes objs in websocket refresh messages, so it must

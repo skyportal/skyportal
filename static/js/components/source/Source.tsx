@@ -1238,9 +1238,9 @@ const SourceContent = ({ source }: SourceContentProps) => {
                       )}
                       {!isReadOnly &&
                         (source.comments?.length > 0 ||
-                          (source.classifications?.length > 0 && (
-                            <StartBotSummary obj_id={source.id} />
-                          )))}
+                          source.classifications?.length > 0) && (
+                          <StartBotSummary obj_id={source.id} />
+                        )}
                       {source.summary_history?.length > 0 && (
                         <ShowSummaryHistory
                           summaries={source.summary_history}
