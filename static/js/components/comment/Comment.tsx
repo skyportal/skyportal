@@ -12,8 +12,6 @@ import CloseIcon from "@mui/icons-material/Close";
 import EditIcon from "@mui/icons-material/Edit";
 import GroupIcon from "@mui/icons-material/Group";
 import SmartToyIcon from "@mui/icons-material/SmartToy";
-import VisibilityIcon from "@mui/icons-material/Visibility";
-import VisibilityOffIcon from "@mui/icons-material/VisibilityOff";
 
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
@@ -289,32 +287,22 @@ const Comment = ({
             <span className={styles["commentTime"]}>
               {dayjs().to(dayjs.utc(`${created_at}Z`))}
             </span>
-            {stream_ids?.length ? (
-              <span className={styles["commentUserGroup"]}>
-                <Tooltip title={`Visible to ${streamNames(stream_ids)}`}>
-                  <VisibilityIcon
-                    fontSize="small"
-                    viewBox="0 -2 24 24"
-                    sx={{ mr: 0.5 }}
-                  />
-                </Tooltip>
-              </span>
-            ) : null}
-            {hidden_stream_ids?.length ? (
-              <span className={styles["commentUserGroup"]}>
-                <Tooltip
-                  title={`Visible to users without ${streamNames(hidden_stream_ids)}`}
-                >
-                  <VisibilityOffIcon
-                    fontSize="small"
-                    viewBox="0 -2 24 24"
-                    sx={{ mr: 0.5 }}
-                  />
-                </Tooltip>
-              </span>
-            ) : null}
             <span className={styles["commentUserGroup"]}>
-              <Tooltip title={groups?.map((group) => group.name)?.join(", ")}>
+              <Tooltip
+                title={[
+                  groups?.map((group) => group.name)?.join(", "),
+                  stream_ids?.length
+                    ? `Visible to ${streamNames(stream_ids)}`
+                    : null,
+                  hidden_stream_ids?.length
+                    ? `Visible to users without ${streamNames(hidden_stream_ids)}`
+                    : null,
+                ]
+                  .filter(Boolean)
+                  .map((line) => (
+                    <div key={line}>{line}</div>
+                  ))}
+              >
                 <GroupIcon fontSize="small" viewBox="0 -2 24 24" />
               </Tooltip>
             </span>
