@@ -764,6 +764,15 @@ const SourceContent = ({ source }: SourceContentProps) => {
                   />
                 )}
                 {!isReadOnly && (
+                  <span
+                    style={{
+                      visibility: hovering === "tns" ? "visible" : "hidden",
+                    }}
+                  >
+                    <UpdateSourceTNS source={source} />
+                  </span>
+                )}
+                {!isReadOnly && (
                   <Tooltip
                     title={`Never send this source to TNS, automatically or manually.${
                       source.withhold_from_tns_set_at
@@ -795,9 +804,6 @@ const SourceContent = ({ source }: SourceContentProps) => {
                       slotProps={{ typography: { variant: "body2" } }}
                     />
                   </Tooltip>
-                )}
-                {!isReadOnly && hovering === "tns" && (
-                  <UpdateSourceTNS source={source} />
                 )}
               </div>
               <div
