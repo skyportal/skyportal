@@ -15,6 +15,7 @@ from baselayer.log import make_log
 from skyportal.handlers.api.spectrum import post_spectrum
 from skyportal.models import Instrument, Obj, Source, Spectrum
 from skyportal.utils.mast import (
+    INSTRUMENT_TNS_IDS,
     read_hst_x1d,
     read_jwst_x1d,
     recent_hst_datasets,
@@ -41,12 +42,6 @@ exp_types = mast_cfg.get("exp_types") or [
     "MIR_LRS-FIXEDSLIT",
 ]
 hst_instruments = mast_cfg.get("hst_instruments") or ["STIS", "COS"]
-instruments = mast_cfg.get("instruments") or {
-    "NIRSPEC": "NIRSpec",
-    "MIRI": "MIRI",
-    "STIS": "STIS",
-    "COS": "COS",
-}
 group_ids = mast_cfg.get("group_ids") or []
 bot_user_id = mast_cfg.get("bot_user_id")
 
@@ -90,6 +85,19 @@ def already_ingested(session, obj_id, filename):
     )
 
 
+def find_instrument_id(session, name):
+    tns_id = INSTRUMENT_TNS_IDS.get(name)
+    if tns_id is not None:
+        instrument_id = session.scalar(
+            sa.select(Instrument.id).where(Instrument.tns_id == tns_id)
+        )
+        if instrument_id is not None:
+            return instrument_id
+    return session.scalar(
+        sa.select(Instrument.id).where(sa.func.lower(Instrument.name) == name.lower())
+    )
+
+
 async def _post_spectrum(data):
     async with models.async_plain_session_factory() as session:
         await post_spectrum(data, bot_user_id, session)
@@ -103,14 +111,10 @@ def ingest_dataset(missions, dataset, skipped):
         ]
         if not objs:
             return 0
-        instrument_name = instruments.get(dataset["instrument"])
-        instrument_id = session.scalar(
-            sa.select(Instrument.id).where(Instrument.name == instrument_name)
-        )
+        instrument_id = find_instrument_id(session, dataset["instrument"])
     if instrument_id is None:
         log(
-            f"No instrument named {instrument_name} for {dataset['instrument']}, "
-            f"skipping {dataset['name']}"
+            f"No instrument found for {dataset['instrument']}, skipping {dataset['name']}"
         )
         return 0
 

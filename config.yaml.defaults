@@ -1513,11 +1513,6 @@ mast:
   radius_arcsec: 2
   exp_types: [NRS_FIXEDSLIT, NRS_IFU, MIR_MRS, MIR_LRS-FIXEDSLIT] # JWST
   hst_instruments: [STIS, COS]
-  instruments: # MAST instrument -> SkyPortal instrument name
-    NIRSPEC: NIRSpec
-    MIRI: MIRI
-    STIS: STIS
-    COS: COS
   group_ids: [] # groups the spectra are shared with
   bot_user_id: # user recorded as the spectra owner
 

@@ -31,6 +31,7 @@ HST_COLUMNS = [
 ]
 
 HST_PRODUCTS = ("x1dsum", "sx1", "x1d")
+INSTRUMENT_TNS_IDS = {"NIRSPEC": 186, "MIRI": 188, "STIS": 83}
 F_LAMBDA = u.erg / u.s / u.cm**2 / u.AA
 
 OBSERVATION_DATASET = re.compile(r"^jw\d{5}-o\d{3}_")
