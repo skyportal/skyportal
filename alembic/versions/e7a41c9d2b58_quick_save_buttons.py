@@ -1,7 +1,7 @@
 """Named quick save buttons
 
 Revision ID: e7a41c9d2b58
-Revises: c4e8b2a6d913
+Revises: e5b1d7c3a920
 Create Date: 2026-11-06 00:00:00.000000
 
 """
@@ -9,7 +9,7 @@ Create Date: 2026-11-06 00:00:00.000000
 from alembic import op
 
 revision = "e7a41c9d2b58"
-down_revision = "c4e8b2a6d913"
+down_revision = "e5b1d7c3a920"
 branch_labels = None
 depends_on = None
 
