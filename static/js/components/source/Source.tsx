@@ -638,6 +638,7 @@ const SourceContent = ({ source }: SourceContentProps) => {
               <div className={classes.header}>
                 {!isReadOnly && <FavoritesButton sourceID={source.id} />}
                 <h6 className={classes.name}>{source.id}</h6>
+                <SourceAcknowledgment obj_id={source.id} />
                 <div className={classes.sourceCandidates}>
                   <SourceCandidatesHistory
                     candidates={source?.candidates || []}
@@ -800,9 +801,6 @@ const SourceContent = ({ source }: SourceContentProps) => {
               </div>
               <div className={classes.rowInfo}>
                 <SourceAlias source={source} />
-              </div>
-              <div className={classes.rowInfo}>
-                <SourceAcknowledgment obj_id={source.id} />
               </div>
             </div>
             {source.host && (
