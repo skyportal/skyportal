@@ -1,278 +1,246 @@
-import { useEffect, useState } from "react";
-import { Controller, useForm } from "react-hook-form";
+import { useState } from "react";
 
+import Box from "@mui/material/Box";
+import Checkbox from "@mui/material/Checkbox";
 import Dialog from "@mui/material/Dialog";
+import DialogActions from "@mui/material/DialogActions";
 import DialogContent from "@mui/material/DialogContent";
 import DialogTitle from "@mui/material/DialogTitle";
-import Checkbox from "@mui/material/Checkbox";
+import FormControlLabel from "@mui/material/FormControlLabel";
 import IconButton from "@mui/material/IconButton";
 import EditIcon from "@mui/icons-material/Edit";
-import FormControlLabel from "@mui/material/FormControlLabel";
-import Tooltip from "@mui/material/Tooltip";
 import TextField from "@mui/material/TextField";
-import InputAdornment from "@mui/material/InputAdornment";
-import SearchIcon from "@mui/icons-material/Search";
-import { makeStyles } from "tss-react/mui";
+import Tooltip from "@mui/material/Tooltip";
+import Typography from "@mui/material/Typography";
 import { showNotification } from "baselayer/components/Notifications";
 import { useAppDispatch } from "../../types/hooks";
 import Button from "../Button";
+import { useGetGroupsQuery } from "../../ducks/groups";
 import { useUpdateSourceGroupsMutation } from "../../ducks/source";
-import FormValidationError from "../FormValidationError";
 
-const useStyles = makeStyles()(() => ({
-  iconButton: {
-    display: "inline-block",
-  },
-  editIcon: {
-    display: "inline-block",
-  },
-}));
+interface GroupOption {
+  id: number;
+  name?: string;
+}
 
 interface EditSourceGroupsProps {
   source: {
     id?: string;
     currentGroupIds: number[];
   };
-  groups: { id: number; name?: string }[];
+  groups: GroupOption[];
   icon?: boolean;
 }
+
+interface GroupChecklistProps {
+  title: string;
+  groups: GroupOption[];
+  selected: number[];
+  onToggle: (id: number) => void;
+  testIdPrefix: string;
+  requestIds?: Set<number>;
+  children?: React.ReactNode;
+}
+
+const byName = (a: GroupOption, b: GroupOption) =>
+  (a.name ?? "").localeCompare(b.name ?? "", undefined, {
+    sensitivity: "base",
+  });
+
+const GroupChecklist = ({
+  title,
+  groups,
+  selected,
+  onToggle,
+  testIdPrefix,
+  requestIds,
+  children,
+}: GroupChecklistProps) => (
+  <Box>
+    <Typography variant="subtitle2" sx={{ mb: 0.5 }}>
+      {title}
+    </Typography>
+    <Box sx={{ columnWidth: "15rem", columnGap: 2 }}>
+      {groups.map((group) => (
+        <FormControlLabel
+          key={group.id}
+          sx={{ display: "flex", breakInside: "avoid", mr: 0 }}
+          control={
+            <Checkbox
+              size="small"
+              checked={selected.includes(group.id)}
+              onChange={() => onToggle(group.id)}
+              data-testid={`${testIdPrefix}_${group.id}`}
+            />
+          }
+          label={
+            <>
+              {group.name}
+              {requestIds?.has(group.id) && (
+                <Tooltip title="You are not in this group, so its admins are asked to save the source.">
+                  <Typography
+                    component="span"
+                    variant="caption"
+                    color="text.secondary"
+                    sx={{ ml: 1 }}
+                  >
+                    request
+                  </Typography>
+                </Tooltip>
+              )}
+            </>
+          }
+        />
+      ))}
+    </Box>
+    {children}
+  </Box>
+);
 
 const EditSourceGroups = ({
   source,
   groups,
   icon = false,
 }: EditSourceGroupsProps) => {
-  const { classes } = useStyles();
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [dialogOpen, setDialogOpen] = useState(false);
-  const [searchFilter, setSearchFilter] = useState("");
   const dispatch = useAppDispatch();
-  const [updateSourceGroups] = useUpdateSourceGroupsMutation();
+  const [updateSourceGroups, { isLoading }] = useUpdateSourceGroupsMutation();
+  const { data: groupsData } = useGetGroupsQuery();
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [search, setSearch] = useState("");
+  const [toSave, setToSave] = useState<number[]>([]);
+  const [toRemove, setToRemove] = useState<number[]>([]);
 
-  const {
-    handleSubmit,
-    reset,
-    control,
-    getValues,
-
-    formState: { errors },
-  } = useForm();
-
-  const unsavedGroups = groups?.filter(
-    (g) => !source.currentGroupIds.includes(g.id),
+  const accessibleIds = new Set(
+    (groupsData?.userAccessible ?? []).map((g) => g.id),
   );
-  const savedGroups = groups?.filter((g) =>
-    source.currentGroupIds.includes(g.id),
+  const matches = (group: GroupOption) =>
+    (group.name ?? "").toLowerCase().includes(search.trim().toLowerCase());
+  const unsavedGroups = groups
+    .filter((g) => !source.currentGroupIds.includes(g.id))
+    .sort(byName);
+  const savedGroups = groups
+    .filter((g) => source.currentGroupIds.includes(g.id))
+    .sort(byName);
+  const shownUnsaved = unsavedGroups.filter(matches);
+  const shownSaved = savedGroups.filter(matches);
+  const requestIds = new Set(
+    unsavedGroups.filter((g) => !accessibleIds.has(g.id)).map((g) => g.id),
   );
 
-  useEffect(() => {
-    if (!dialogOpen) return;
-    reset({
-      inviteGroupIds: Array(
-        groups?.filter((g) => !source.currentGroupIds.includes(g.id)).length,
-      ).fill(false),
-      unsaveGroupIds: Array(
-        groups?.filter((g) => source.currentGroupIds.includes(g.id)).length,
-      ).fill(false),
-    });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [dialogOpen]);
-
-  const openDialog = () => {
-    setDialogOpen(true);
-  };
+  const toggle =
+    (setIds: React.Dispatch<React.SetStateAction<number[]>>) => (id: number) =>
+      setIds((ids) =>
+        ids.includes(id) ? ids.filter((x) => x !== id) : [...ids, id],
+      );
 
   const closeDialog = () => {
     setDialogOpen(false);
-    setSearchFilter("");
+    setSearch("");
+    setToSave([]);
+    setToRemove([]);
   };
 
-  const validateGroups = () => {
-    const formState = getValues();
-    return (
-      (formState["inviteGroupIds"]?.length &&
-        formState["inviteGroupIds"].filter((value: any) => Boolean(value))
-          .length >= 1) ||
-      (formState["unsaveGroupIds"]?.length &&
-        formState["unsaveGroupIds"].filter((value: any) => Boolean(value))
-          .length >= 1)
-    );
-  };
-
-  const onSubmit = async (data: any) => {
-    setIsSubmitting(true);
-    data.objId = source.id;
-    const unsavedGroupIds = unsavedGroups?.map((g) => g.id);
-    const inviteGroupIds = unsavedGroupIds?.filter(
-      (_ID, idx) => data.inviteGroupIds[idx],
-    );
-    data.inviteGroupIds = inviteGroupIds;
-    const savedGroupIds = savedGroups?.map((g) => g.id);
-    const unsaveGroupIds = savedGroupIds?.filter(
-      (_ID, idx) => data.unsaveGroupIds[idx],
-    );
-    data.unsaveGroupIds = unsaveGroupIds;
+  const onSubmit = async () => {
     try {
-      await updateSourceGroups(data).unwrap();
+      await updateSourceGroups({
+        objId: source.id,
+        inviteGroupIds: toSave,
+        unsaveGroupIds: toRemove,
+      }).unwrap();
       dispatch(showNotification("Source groups updated successfully", "info"));
-      reset();
-      setIsSubmitting(false);
-      setDialogOpen(false);
+      closeDialog();
     } catch {
-      setIsSubmitting(false);
+      return;
     }
   };
 
   return (
     <>
-      <div className={classes.editIcon}>
-        {icon ? (
-          <Tooltip title="Manage source groups">
-            <span>
-              <IconButton
-                aria-label="manage-groups"
-                data-testid={`editGroups_${source.id}`}
-                onClick={openDialog}
-                size="small"
-                disabled={isSubmitting}
-                className={classes.iconButton}
-              >
-                <EditIcon style={{ fontSize: "1rem" }} />
-              </IconButton>
-            </span>
-          </Tooltip>
-        ) : (
-          <Button
-            secondary
-            aria-label="edit-groups"
-            data-testid={`editGroups${source.id}`}
-            size="small"
-            onClick={openDialog}
-            disabled={isSubmitting}
-          >
-            Manage groups
-          </Button>
-        )}
-      </div>
+      {icon ? (
+        <Tooltip title="Manage source groups">
+          <span>
+            <IconButton
+              aria-label="manage-groups"
+              data-testid={`editGroups_${source.id}`}
+              onClick={() => setDialogOpen(true)}
+              size="small"
+            >
+              <EditIcon style={{ fontSize: "1rem" }} />
+            </IconButton>
+          </span>
+        </Tooltip>
+      ) : (
+        <Button
+          variant="outlined"
+          color="primary"
+          data-testid={`editGroups_${source.id}`}
+          size="small"
+          onClick={() => setDialogOpen(true)}
+          sx={{ whiteSpace: "nowrap" }}
+        >
+          Save to
+        </Button>
+      )}
 
-      <Dialog open={dialogOpen} onClose={closeDialog}>
-        <DialogTitle>Unsave or save to new groups:</DialogTitle>
-        <DialogContent>
+      <Dialog open={dialogOpen} onClose={closeDialog} maxWidth="sm" fullWidth>
+        <DialogTitle>Groups</DialogTitle>
+        <DialogContent
+          sx={{ display: "flex", flexDirection: "column", gap: 2 }}
+        >
           <TextField
-            style={{ marginTop: "0.5rem", marginBottom: "1rem", width: "100%" }}
-            label="Search groups"
-            value={searchFilter}
-            onChange={(e) => setSearchFilter(e.target.value)}
-            slotProps={{
-              input: {
-                startAdornment: (
-                  <InputAdornment position="start">
-                    <SearchIcon />
-                  </InputAdornment>
-                ),
-              },
-            }}
+            label="Search"
+            size="small"
+            fullWidth
+            autoFocus
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
             data-testid="searchGroupsInput"
+            sx={{ mt: 1 }}
           />
-          <form onSubmit={handleSubmit(onSubmit)}>
-            {(errors["inviteGroupIds"] || errors["unsaveGroupIds"]) && (
-              <FormValidationError message="Select at least one group." />
-            )}
-            {!!unsavedGroups.length && (
-              <>
-                <>
-                  You can save to groups you belong to or request group admins
-                  of groups you are not a member of to save this source to their
-                  group.
-                  <br />
-                  <b>Save</b> (or request save, for groups you do not belong to)
-                  to selected groups:
-                </>
-                <div>
-                  {unsavedGroups.map((unsavedGroup, idx) =>
-                    unsavedGroup.name
-                      ?.toLowerCase()
-                      .includes(searchFilter.toLowerCase()) ? (
-                      <FormControlLabel
-                        key={unsavedGroup.id}
-                        control={
-                          <Controller
-                            render={({ field: { onChange, value } }: any) => (
-                              <Checkbox
-                                onChange={(event) =>
-                                  onChange(event.target.checked)
-                                }
-                                checked={value}
-                                data-testid={`inviteGroupCheckbox_${unsavedGroup.id}`}
-                              />
-                            )}
-                            name={`inviteGroupIds[${idx}]`}
-                            defaultValue={false}
-                            control={control}
-                            rules={{ validate: validateGroups }}
-                          />
-                        }
-                        label={unsavedGroup.name}
-                      />
-                    ) : null,
-                  )}
-                </div>
-                <br />
-              </>
-            )}
-            {!!savedGroups.length && (
-              <>
-                <div>
-                  <b>Unsave</b> source from selected groups:
-                </div>
-                <div>
-                  <em>
-                    Warning: This will unsave the source from selected groups
-                    for all group members
-                  </em>
-                </div>
-                <div>
-                  {savedGroups.map((savedGroup, idx) =>
-                    savedGroup.name
-                      ?.toLowerCase()
-                      .includes(searchFilter.toLowerCase()) ? (
-                      <FormControlLabel
-                        key={savedGroup.id}
-                        control={
-                          <Controller
-                            render={({ field: { onChange, value } }: any) => (
-                              <Checkbox
-                                onChange={(event) =>
-                                  onChange(event.target.checked)
-                                }
-                                checked={value}
-                                data-testid={`unsaveGroupCheckbox_${savedGroup.id}`}
-                              />
-                            )}
-                            name={`unsaveGroupIds[${idx}]`}
-                            control={control}
-                            rules={{ validate: validateGroups }}
-                            defaultValue={false}
-                          />
-                        }
-                        label={savedGroup.name}
-                      />
-                    ) : null,
-                  )}
-                </div>
-              </>
-            )}
-            <div style={{ textAlign: "center" }}>
-              <Button
-                secondary
-                type="submit"
-                name={`editSourceGroupsButton_${source.id}`}
-              >
-                Save
-              </Button>
-            </div>
-          </form>
+          {shownUnsaved.length > 0 && (
+            <GroupChecklist
+              title="Save to"
+              groups={shownUnsaved}
+              selected={toSave}
+              onToggle={toggle(setToSave)}
+              testIdPrefix="inviteGroupCheckbox"
+              requestIds={requestIds}
+            />
+          )}
+          {shownSaved.length > 0 && (
+            <GroupChecklist
+              title="Remove from"
+              groups={shownSaved}
+              selected={toRemove}
+              onToggle={toggle(setToRemove)}
+              testIdPrefix="unsaveGroupCheckbox"
+            >
+              {toRemove.length > 0 && (
+                <Typography variant="caption" color="warning.main">
+                  Removed for all members of these groups.
+                </Typography>
+              )}
+            </GroupChecklist>
+          )}
+          {shownUnsaved.length === 0 && shownSaved.length === 0 && (
+            <Typography variant="body2" color="text.secondary">
+              No group found.
+            </Typography>
+          )}
         </DialogContent>
+        <DialogActions>
+          <Button onClick={closeDialog}>Cancel</Button>
+          <Button
+            primary
+            name={`editSourceGroupsButton_${source.id}`}
+            onClick={onSubmit}
+            disabled={
+              isLoading || (toSave.length === 0 && toRemove.length === 0)
+            }
+          >
+            Save
+          </Button>
+        </DialogActions>
       </Dialog>
     </>
   );

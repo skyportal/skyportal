@@ -100,11 +100,10 @@ export const PAGE_TOURS: Record<string, TourStep[]> = {
   source: [
     {
       target: '[data-testid="tour-source-tns"]',
-      title: "TNS name & reporting",
+      title: "TNS name",
       content:
-        "See whether this source is known to the Transient Name Server, and " +
-        "submit a TNS report right from here (hover to reveal the action) to " +
-        "announce a discovery or classification to the community.",
+        "See whether this source is known to the Transient Name Server, or " +
+        "search TNS for it when it has no TNS name yet.",
     },
     {
       target: '[data-testid="source-chat"]',

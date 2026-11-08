@@ -1,93 +1,79 @@
 import { useState } from "react";
 
-import EditIcon from "@mui/icons-material/Edit";
-import IconButton from "@mui/material/IconButton";
 import Dialog from "@mui/material/Dialog";
+import DialogActions from "@mui/material/DialogActions";
 import DialogContent from "@mui/material/DialogContent";
 import DialogTitle from "@mui/material/DialogTitle";
-import Form from "@rjsf/mui";
-import validator from "@rjsf/validator-ajv8";
-import { makeStyles } from "tss-react/mui";
-import dayjs from "dayjs";
-import utc from "dayjs/plugin/utc";
+import TextField from "@mui/material/TextField";
+import Tooltip from "@mui/material/Tooltip";
 
 import { showNotification } from "baselayer/components/Notifications";
 import { useAppDispatch } from "../../types/hooks";
 import { useAddTNSMutation } from "../../ducks/source";
+import Button from "../Button";
 
-dayjs.extend(utc);
-
-const useStyles = makeStyles()(() => ({
-  saveButton: {
-    textAlign: "center",
-    margin: "1rem",
-  },
-  editIcon: {
-    height: "0.75rem",
-    cursor: "pointer",
-  },
-  text: {
-    margin: 0,
-    padding: 0,
-  },
-}));
-
-interface UpdateSourceTNSProps {
-  source: {
-    id: string;
-    tns_name?: string;
-  };
-}
-
-const UpdateSourceTNS = ({ source }: UpdateSourceTNSProps) => {
-  const { classes } = useStyles();
+const UpdateSourceTNS = ({ sourceId }: { sourceId: string }) => {
   const dispatch = useAppDispatch();
-  const [addTNS] = useAddTNSMutation();
-
+  const [addTNS, { isLoading }] = useAddTNSMutation();
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [radius, setRadius] = useState("2");
 
-  const handleSubmit = async ({ formData }: { formData: any }) => {
+  const search = async () => {
     try {
-      await addTNS({ id: source.id, formData }).unwrap();
+      await addTNS({
+        id: sourceId,
+        formData: { radius: Number(radius) },
+      }).unwrap();
       dispatch(showNotification("Successfully queried TNS"));
+      setDialogOpen(false);
     } catch {
       dispatch(showNotification("Failed to query TNS", "error"));
     }
   };
 
-  const tnsFormSchema = {
-    type: "object",
-    properties: {
-      radius: {
-        type: "number",
-        title: "Search radius [arcsec]",
-        default: 2.0,
-      },
-    },
-  };
-
   return (
     <>
-      <IconButton
-        data-testid="updateTNSIconButton"
-        onClick={() => {
-          setDialogOpen(true);
-        }}
-        size="small"
+      <Tooltip title="Look for this source on TNS">
+        <Button
+          variant="outlined"
+          color="primary"
+          size="small"
+          onClick={() => setDialogOpen(true)}
+          data-testid="updateTNSIconButton"
+          sx={{ py: 0 }}
+        >
+          Search
+        </Button>
+      </Tooltip>
+      <Dialog
+        open={dialogOpen}
+        onClose={() => setDialogOpen(false)}
+        maxWidth="xs"
+        fullWidth
       >
-        <EditIcon className={classes.editIcon} />
-      </IconButton>
-      <Dialog open={dialogOpen} onClose={() => setDialogOpen(false)}>
-        <DialogTitle>{`Query TNS for an object's name`}</DialogTitle>
+        <DialogTitle>Search TNS</DialogTitle>
         <DialogContent>
-          <div>
-            <Form
-              schema={tnsFormSchema as any}
-              validator={validator}
-              onSubmit={handleSubmit as any}
-            />
-          </div>
+          <TextField
+            label="Search radius (arcsec)"
+            type="number"
+            size="small"
+            fullWidth
+            autoFocus
+            value={radius}
+            onChange={(e) => setRadius(e.target.value)}
+            sx={{ mt: 1 }}
+          />
         </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setDialogOpen(false)}>Cancel</Button>
+          <Button
+            primary
+            onClick={search}
+            disabled={isLoading || !(Number(radius) > 0)}
+          >
+            Search
+          </Button>
+        </DialogActions>
       </Dialog>
     </>
   );

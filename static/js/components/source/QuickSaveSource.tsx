@@ -11,100 +11,92 @@ import { useAppDispatch } from "../../types/hooks";
 import { useSaveSourceMutation } from "../../ducks/source";
 import Button from "../Button";
 
-interface QuickSaveButtonProps {
+interface QuickSaveButtonsProps {
   sourceId: string;
   alreadySavedGroups?: number[];
 }
 
-const QuickSaveButton = ({
+const QuickSaveButtons = ({
   sourceId,
   alreadySavedGroups = [],
-}: QuickSaveButtonProps) => {
+}: QuickSaveButtonsProps) => {
   const dispatch = useAppDispatch();
   const [saveSource] = useSaveSourceMutation();
   const { data: profile } = useGetProfileQuery();
-  const { data: groupsData, isSuccess: groupsLoaded } = useGetGroupsQuery();
+  const { data: groupsData } = useGetGroupsQuery();
   const userAccessibleGroups = groupsData?.userAccessible ?? [];
 
-  const [isSaving, setIsSaving] = useState(false);
+  const [savingButton, setSavingButton] = useState<string | null>(null);
 
-  const alreadySavedGroupsSet = new Set(alreadySavedGroups);
-  const quickSaveGroupsSet = new Set<number>(
-    (profile?.preferences as any)?.quicksave_group_ids || [],
-  );
+  const quickSaveButtons: Record<string, number[]> =
+    (profile?.preferences as any)?.quickSaveButtons ?? {};
+  const buttons = Object.entries(quickSaveButtons)
+    .map(
+      ([name, groupIds]) =>
+        [
+          name,
+          userAccessibleGroups.filter(
+            (group) =>
+              groupIds.includes(group.id) &&
+              !alreadySavedGroups.includes(group.id),
+          ),
+        ] as const,
+    )
+    .filter(([, groups]) => groups.length > 0);
 
-  const quickSaveSource = () => {
-    setIsSaving(true);
-    const saveGroups = [...quickSaveGroupsSet].filter(
-      (x) => !alreadySavedGroupsSet.has(x),
-    );
-    const data = {
-      id: sourceId,
-      group_ids: saveGroups,
-    };
-    saveSource(data)
+  if (buttons.length === 0) {
+    return null;
+  }
+
+  const quickSave = (name: string, groupIds: number[]) => {
+    setSavingButton(name);
+    saveSource({ id: sourceId, group_ids: groupIds })
       .unwrap()
       .then(() => {
         dispatch(
-          showNotification(
-            `Source quick saved to ${quickSaveGroupsSet.size} group(s)`,
-          ),
+          showNotification(`Source quick saved to ${groupIds.length} group(s)`),
         );
-        setIsSaving(false);
       })
       .catch(() => {
-        setIsSaving(false);
         dispatch(showNotification("Error saving source", "error"));
-      });
+      })
+      .finally(() => setSavingButton(null));
   };
 
-  if (!((profile?.preferences as any)?.quicksave_group_ids?.length > 0)) {
-    return null;
-  }
-
-  // if quickSaveGroupsSet alreadySavedGroupsSet contains all elements of quickSaveGroupsSet, return null
-  if (
-    alreadySavedGroupsSet.size > 0 &&
-    [...quickSaveGroupsSet].every((group) => alreadySavedGroupsSet.has(group))
-  ) {
-    return null;
-  }
-
-  if (userAccessibleGroups?.length === 0) {
-    return null;
-  }
-
-  const tooltipText = !groupsLoaded
-    ? "Loading..."
-    : `Quick Save Source to: ${[...quickSaveGroupsSet]
-        .map((groupId) => {
-          const group = userAccessibleGroups.find((g) => g.id === groupId);
-          return group?.["nickname"] || group?.name;
-        })
-        .join(", ")}`;
-
   return (
-    <Tooltip title={tooltipText}>
-      <span>
-        <Button
-          variant="contained"
-          color="primary"
-          size="small"
-          onClick={quickSaveSource}
-          disabled={isSaving || !groupsLoaded}
-          endIcon={
-            isSaving || !groupsLoaded ? (
-              <CircularProgress size="1rem" />
-            ) : (
-              <SaveIcon />
-            )
-          }
+    <>
+      {buttons.map(([name, groups]) => (
+        <Tooltip
+          key={name}
+          title={`Save to ${groups.map((g) => g["nickname"] || g.name).join(", ")}`}
         >
-          {groupsLoaded ? "Quick Save" : "Loading..."}
-        </Button>
-      </span>
-    </Tooltip>
+          <span>
+            <Button
+              variant="contained"
+              color="primary"
+              size="small"
+              onClick={() =>
+                quickSave(
+                  name,
+                  groups.map((g) => g.id),
+                )
+              }
+              disabled={savingButton !== null}
+              endIcon={
+                savingButton === name ? (
+                  <CircularProgress size="1rem" />
+                ) : (
+                  <SaveIcon />
+                )
+              }
+            >
+              {name}
+            </Button>
+          </span>
+        </Tooltip>
+      ))}
+    </>
   );
 };
 
-export default QuickSaveButton;
+export default QuickSaveButtons;

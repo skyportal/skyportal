@@ -13,7 +13,6 @@ import { Link } from "react-router-dom";
 
 import { makeStyles } from "tss-react/mui";
 import Grid from "@mui/material/Grid";
-import Chip from "@mui/material/Chip";
 import Tooltip from "@mui/material/Tooltip";
 import Checkbox from "@mui/material/Checkbox";
 import FormControlLabel from "@mui/material/FormControlLabel";
@@ -52,6 +51,7 @@ import SourceNotification from "./SourceNotification";
 import DisplayPhotStats from "./DisplayPhotStats";
 import DisplayTNSInfo from "./DisplayTNSInfo";
 import EditSourceGroups from "./EditSourceGroups";
+import SavedGroupChips from "../group/SavedGroupChips";
 import SimilarSources from "./SimilarSources";
 import SourceAcknowledgment from "./SourceAcknowledgment";
 import SourceAlias from "./SourceAlias";
@@ -85,7 +85,7 @@ import PhotometryTable from "../photometry/PhotometryTable";
 import FavoritesButton from "../listing/FavoritesButton";
 import SourceAnnotationButtons from "./SourceAnnotationButtons";
 import Reminders from "../Reminders";
-import QuickSaveButton from "./QuickSaveSource";
+import QuickSaveButtons from "./QuickSaveSource";
 import SourceSkeleton from "./SourceSkeleton";
 import Button from "../Button";
 
@@ -641,6 +641,7 @@ const SourceContent = ({ source }: SourceContentProps) => {
               <div className={classes.header}>
                 {!isReadOnly && <FavoritesButton sourceID={source.id} />}
                 <h6 className={classes.name}>{source.id}</h6>
+                <SourceAcknowledgment obj_id={source.id} />
                 <div className={classes.sourceCandidates}>
                   <SourceCandidatesHistory
                     candidates={source?.candidates || []}
@@ -725,23 +726,53 @@ const SourceContent = ({ source }: SourceContentProps) => {
                   {source.t0}
                   {!isReadOnly && <UpdateSourceT0 source={source} />}
                 </div>
+                {!isReadOnly && (
+                  <div>
+                    <Tooltip
+                      title={`Never send this source to TNS, automatically or manually.${
+                        source.withhold_from_tns_set_at
+                          ? ` Last changed by ${
+                              source.withhold_from_tns_set_by?.username ??
+                              "a deleted user"
+                            } on ${source.withhold_from_tns_set_at.slice(0, 10)}.`
+                          : ""
+                      }`}
+                    >
+                      <FormControlLabel
+                        sx={{ m: 0 }}
+                        control={
+                          <Checkbox
+                            size="small"
+                            sx={{ p: 0, mr: 0.5 }}
+                            checked={Boolean(source.withhold_from_tns)}
+                            onChange={(event) =>
+                              updateSource({
+                                id: source.id,
+                                payload: {
+                                  withhold_from_tns: event.target.checked,
+                                },
+                              })
+                            }
+                          />
+                        }
+                        label="Don't report to TNS"
+                        slotProps={{ typography: { variant: "body2" } }}
+                      />
+                    </Tooltip>
+                  </div>
+                )}
               </div>
             </div>
             <div
               className={classes.flexRow}
               style={{
                 justifyContent: "flex-start",
-                alignItems: "baseline",
+                alignItems: "center",
                 flexFlow: "wrap",
                 columnGap: "1rem",
               }}
             >
-              <div
-                className={classes.rowInfo}
-                onMouseEnter={() => handleHover("tns")}
-                onMouseLeave={() => handleStopHover("tns")}
-                data-testid="tour-source-tns"
-              >
+              <div className={classes.rowInfo} data-testid="tour-source-tns">
                 <b>TNS Name: &nbsp;</b>
                 {source.tns_name && (
                   <a
@@ -763,8 +794,8 @@ const SourceContent = ({ source }: SourceContentProps) => {
                     display_header={false}
                   />
                 )}
-                {!isReadOnly && hovering === "tns" && (
-                  <UpdateSourceTNS source={source} />
+                {!source.tns_name && !isReadOnly && (
+                  <UpdateSourceTNS sourceId={source.id} />
                 )}
               </div>
               <div
@@ -796,9 +827,6 @@ const SourceContent = ({ source }: SourceContentProps) => {
               </div>
               <div className={classes.rowInfo}>
                 <SourceAlias source={source} />
-              </div>
-              <div className={classes.rowInfo}>
-                <SourceAcknowledgment obj_id={source.id} />
               </div>
             </div>
             {source.host && (
@@ -1097,13 +1125,7 @@ const SourceContent = ({ source }: SourceContentProps) => {
                 </Menu>
               </div>
               {!isReadOnly && (
-                <div
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: "0.25rem",
-                  }}
-                >
+                <>
                   <Button
                     onClick={() => setSendToDialogOpen(true)}
                     secondary
@@ -1116,38 +1138,7 @@ const SourceContent = ({ source }: SourceContentProps) => {
                     dialogOpen={sendToDialogOpen}
                     setDialogOpen={setSendToDialogOpen}
                   />
-                  <Tooltip
-                    title={`Keep this source off TNS. Automatic sharing skips it and a manual submission is refused until this is cleared.${
-                      source.withhold_from_tns_set_at
-                        ? ` Last changed by ${
-                            source.withhold_from_tns_set_by?.username ??
-                            "a deleted user"
-                          } on ${source.withhold_from_tns_set_at.slice(0, 10)}.`
-                        : ""
-                    }`}
-                  >
-                    <FormControlLabel
-                      sx={{ m: 0 }}
-                      control={
-                        <Checkbox
-                          size="small"
-                          sx={{ p: 0.5 }}
-                          checked={Boolean(source.withhold_from_tns)}
-                          onChange={(event) =>
-                            updateSource({
-                              id: source.id,
-                              payload: {
-                                withhold_from_tns: event.target.checked,
-                              },
-                            })
-                          }
-                        />
-                      }
-                      label="Withhold from TNS"
-                      slotProps={{ typography: { variant: "body2" } }}
-                    />
-                  </Tooltip>
-                </div>
+                </>
               )}
               {currentUser?.preferences?.["hideSourceSummary"] === true && (
                 <ShowSummaryHistory
@@ -1258,7 +1249,7 @@ const SourceContent = ({ source }: SourceContentProps) => {
                 alignItems: "center",
                 flexFlow: "wrap",
                 gap: "0.5rem",
-                paddingTop: "0.25rem",
+                padding: "0.25rem 0",
               }}
             >
               <div
@@ -1270,27 +1261,17 @@ const SourceContent = ({ source }: SourceContentProps) => {
                   width: "auto",
                 }}
               >
-                {source.groups?.map((group: any) => (
-                  <Tooltip
-                    title={`Saved at ${group.saved_at} by ${group.saved_by?.username}`}
-                    key={group.id}
-                  >
-                    <Chip
-                      label={
-                        group.nickname
-                          ? group.nickname.substring(0, 15)
-                          : group.name.substring(0, 15)
-                      }
-                      size="small"
-                      className={classes.noSpace}
-                      data-testid={`groupChip_${group.id}`}
-                    />
-                  </Tooltip>
-                ))}
+                <SavedGroupChips groups={source.groups ?? []} max={5} />
               </div>
               <div
                 className={classes.flexRow}
-                style={{ alignItems: "center", width: "auto" }}
+                style={{
+                  alignItems: "center",
+                  flexFlow: "wrap",
+                  gap: "0.5rem",
+                  flex: "1 1 auto",
+                  width: "auto",
+                }}
               >
                 {!isReadOnly && (
                   <EditSourceGroups
@@ -1299,16 +1280,17 @@ const SourceContent = ({ source }: SourceContentProps) => {
                       currentGroupIds: source.groups?.map((g: any) => g.id),
                     }}
                     groups={groups}
-                    icon
                   />
                 )}
-                <SourceSaveHistory groups={source.groups} />
                 {!isReadOnly && (
-                  <QuickSaveButton
+                  <QuickSaveButtons
                     sourceId={source.id}
                     alreadySavedGroups={source.groups?.map((g: any) => g.id)}
                   />
                 )}
+                <div style={{ marginLeft: "auto" }}>
+                  <SourceSaveHistory groups={source.groups} />
+                </div>
               </div>
             </div>
             <ThumbnailList

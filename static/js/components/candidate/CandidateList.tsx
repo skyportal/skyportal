@@ -41,6 +41,7 @@ import { dec_to_dms, ra_to_hours } from "../../units";
 import { MAIN_CHANNEL } from "../comment/channels";
 import ThumbnailList from "../thumbnail/ThumbnailList";
 import EditSourceGroups from "../source/EditSourceGroups";
+import SavedGroupChips from "../group/SavedGroupChips";
 import UpdateSourceMPC from "../source/UpdateSourceMPC";
 import DisplayPhotStats from "../source/DisplayPhotStats";
 import ObjectTags from "../ObjectTags";
@@ -63,7 +64,6 @@ const CommentThread = lazy(() => import("../comment/CommentThread"));
 
 const numPerPage = 50;
 const appBarHeight = { xs: 56, sm: 64 };
-const shownSavedGroups = 3;
 
 const mostRecentClass = (classifications: any[]) =>
   classifications
@@ -235,31 +235,6 @@ const CandidateTabs = ({ candidate, filterGroups }: CandidateTabsProps) => {
   );
 };
 
-const SavedGroupChips = ({ groups }: { groups: any[] }) => {
-  const [expanded, setExpanded] = useState(false);
-  const hiddenCount = groups.length - shownSavedGroups;
-  return (
-    <>
-      {(expanded ? groups : groups.slice(0, shownSavedGroups)).map((group) => (
-        <Chip
-          key={group.id}
-          size="small"
-          label={(group.nickname || group.name).substring(0, 15)}
-        />
-      ))}
-      {hiddenCount > 0 && (
-        <Chip
-          size="small"
-          variant="outlined"
-          color="primary"
-          label={expanded ? "Show less" : `+${hiddenCount} more`}
-          onClick={() => setExpanded(!expanded)}
-        />
-      )}
-    </>
-  );
-};
-
 const CandidateLink = ({ candidate }: { candidate: any }) => (
   <MuiLink
     href={`/source/${candidate.id}`}
@@ -372,7 +347,7 @@ const CandidateInfo = ({
             groups={(groups?.all ?? []).filter((g) => !g["single_user_group"])}
             icon
           />
-          <SavedGroupChips groups={candidate.saved_groups} />
+          <SavedGroupChips groups={candidate.saved_groups} max={3} />
         </InfoRow>
       )}
       {otherMatches.length > 0 && (
