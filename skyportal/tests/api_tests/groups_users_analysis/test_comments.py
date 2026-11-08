@@ -359,4 +359,4 @@ def test_comment_versions_by_stream_access(
         status, data = api("GET", f"sources/{public_source.id}/comments", token=token)
         assert status == 200
         texts = [comment["text"] for comment in data["data"]]
-        assert [text for text in texts if text in ("full", "public")] == expected
+        assert sorted(text for text in texts if text in ("full", "public")) == expected
