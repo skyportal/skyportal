@@ -35,6 +35,7 @@ import {
   useEditCommentOnEarthquakeMutation,
   useDeleteCommentOnEarthquakeMutation,
 } from "../../ducks/earthquake";
+import { useGetConfigQuery } from "../../ducks/config";
 import { useGetStreamsQuery } from "../../ducks/streams";
 import UserAvatar from "../user/UserAvatar";
 
@@ -120,6 +121,7 @@ const Comment = ({
   const { data: streams } = useGetStreamsQuery(undefined, {
     skip: !stream_ids?.length && !hidden_stream_ids?.length,
   });
+  const config = useGetConfigQuery().data as any;
   const { data: spectra } = useFetchSourceSpectraQuery(
     { id: objID as string },
     { skip: !objID || !spectrum_id },
@@ -228,6 +230,16 @@ const Comment = ({
       )
       .join(", ");
 
+  const visibility = [
+    groups?.some((group) => group.name === config?.publicGroupName)
+      ? null
+      : groups?.map((group) => group.name)?.join(", "),
+    stream_ids?.length ? `Visible to ${streamNames(stream_ids)}` : null,
+    hidden_stream_ids?.length
+      ? `Visible to users without ${streamNames(hidden_stream_ids)}`
+      : null,
+  ].filter(Boolean) as string[];
+
   const commentMessageStyle =
     resourceType === "shift"
       ? styles["commentMessageShift"]
@@ -287,25 +299,17 @@ const Comment = ({
             <span className={styles["commentTime"]}>
               {dayjs().to(dayjs.utc(`${created_at}Z`))}
             </span>
-            <span className={styles["commentUserGroup"]}>
-              <Tooltip
-                title={[
-                  groups?.map((group) => group.name)?.join(", "),
-                  stream_ids?.length
-                    ? `Visible to ${streamNames(stream_ids)}`
-                    : null,
-                  hidden_stream_ids?.length
-                    ? `Visible to users without ${streamNames(hidden_stream_ids)}`
-                    : null,
-                ]
-                  .filter(Boolean)
-                  .map((line) => (
+            {visibility.length > 0 && (
+              <span className={styles["commentUserGroup"]}>
+                <Tooltip
+                  title={visibility.map((line) => (
                     <div key={line}>{line}</div>
                   ))}
-              >
-                <GroupIcon fontSize="small" viewBox="0 -2 24 24" />
-              </Tooltip>
-            </span>
+                >
+                  <GroupIcon fontSize="small" viewBox="0 -2 24 24" />
+                </Tooltip>
+              </span>
+            )}
             {versionSwitch && (
               <span className={styles["commentVersionSwitch"]}>
                 {versionSwitch}
