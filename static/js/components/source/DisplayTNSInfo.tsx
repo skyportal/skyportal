@@ -27,7 +27,7 @@ const DisplayTNSInfo = ({
           setDialogOpen(true);
         }}
       >
-        <VisibilityIcon />
+        <VisibilityIcon sx={{ fontSize: "1rem" }} />
       </IconButton>
       <Dialog open={dialogOpen} onClose={() => setDialogOpen(false)}>
         <DialogTitle>TNS Info</DialogTitle>

@@ -103,7 +103,7 @@ export const PAGE_TOURS: Record<string, TourStep[]> = {
       title: "TNS name & reporting",
       content:
         "See whether this source is known to the Transient Name Server, and " +
-        "submit a TNS report right from here (hover to reveal the action) to " +
+        "submit a TNS report right from here to " +
         "announce a discovery or classification to the community.",
     },
     {

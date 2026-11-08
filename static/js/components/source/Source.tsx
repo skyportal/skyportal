@@ -13,9 +13,8 @@ import { Link } from "react-router-dom";
 
 import { makeStyles } from "tss-react/mui";
 import Grid from "@mui/material/Grid";
+import Chip from "@mui/material/Chip";
 import Tooltip from "@mui/material/Tooltip";
-import Checkbox from "@mui/material/Checkbox";
-import FormControlLabel from "@mui/material/FormControlLabel";
 import Accordion from "@mui/material/Accordion";
 import AccordionSummary from "@mui/material/AccordionSummary";
 import AccordionDetails from "@mui/material/AccordionDetails";
@@ -98,7 +97,6 @@ import {
   useAddHostMutation,
   useRemoveHostMutation,
   useAddSourceViewMutation,
-  useUpdateSourceMutation,
 } from "../../ducks/source";
 
 import PhotometryPlot from "../plot/PhotometryPlot";
@@ -260,7 +258,6 @@ const SourceContent = ({ source }: SourceContentProps) => {
   const associatedGCNs = associatedGcnsData?.["gcns"];
   const [addHost] = useAddHostMutation();
   const [removeHostMutation] = useRemoveHostMutation();
-  const [updateSource] = useUpdateSourceMutation();
 
   const { data: brokers = [] } = useGetBrokersQuery();
   const { data: instrumentList = [] } = useGetInstrumentsQuery();
@@ -736,12 +733,7 @@ const SourceContent = ({ source }: SourceContentProps) => {
                 columnGap: "1rem",
               }}
             >
-              <div
-                className={classes.rowInfo}
-                onMouseEnter={() => handleHover("tns")}
-                onMouseLeave={() => handleStopHover("tns")}
-                data-testid="tour-source-tns"
-              >
+              <div className={classes.rowInfo} data-testid="tour-source-tns">
                 <b>TNS Name: &nbsp;</b>
                 {source.tns_name && (
                   <a
@@ -763,48 +755,18 @@ const SourceContent = ({ source }: SourceContentProps) => {
                     display_header={false}
                   />
                 )}
-                {!isReadOnly && (
-                  <span
-                    style={{
-                      visibility: hovering === "tns" ? "visible" : "hidden",
-                    }}
-                  >
-                    <UpdateSourceTNS source={source} />
-                  </span>
-                )}
-                {!isReadOnly && (
-                  <Tooltip
-                    title={`Never send this source to TNS, automatically or manually.${
-                      source.withhold_from_tns_set_at
-                        ? ` Last changed by ${
-                            source.withhold_from_tns_set_by?.username ??
-                            "a deleted user"
-                          } on ${source.withhold_from_tns_set_at.slice(0, 10)}.`
-                        : ""
-                    }`}
-                  >
-                    <FormControlLabel
-                      sx={{ m: 0, ml: 1 }}
-                      control={
-                        <Checkbox
-                          size="small"
-                          sx={{ p: 0.5 }}
-                          checked={Boolean(source.withhold_from_tns)}
-                          onChange={(event) =>
-                            updateSource({
-                              id: source.id,
-                              payload: {
-                                withhold_from_tns: event.target.checked,
-                              },
-                            })
-                          }
-                        />
-                      }
+                {source.withhold_from_tns && (
+                  <Tooltip title="Never send this source to TNS, automatically or manually.">
+                    <Chip
+                      size="small"
+                      variant="outlined"
+                      color="warning"
                       label="Don't report"
-                      slotProps={{ typography: { variant: "body2" } }}
+                      sx={{ ml: 1 }}
                     />
                   </Tooltip>
                 )}
+                {!isReadOnly && <UpdateSourceTNS source={source} />}
               </div>
               <div
                 className={classes.rowInfo}
