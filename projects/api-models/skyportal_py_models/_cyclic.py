@@ -354,6 +354,7 @@ class CommentResponse(BaseModel):
     channel: str | None = None
     stream_ids: list[int] | None = None
     hidden_stream_ids: list[int] | None = None
+    private_version_id: int | None = None
     system: bool | None = None
     attachment_name: str | None = None
     attachment_bytes: Any = None

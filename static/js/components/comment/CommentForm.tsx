@@ -15,9 +15,11 @@ import Tooltip from "@mui/material/Tooltip";
 import { makeStyles } from "tss-react/mui";
 import Typography from "@mui/material/Typography";
 
+import { useGetConfigQuery } from "../../ducks/config";
 import { useGetGroupsQuery } from "../../ducks/groups";
 import { useGetProfileQuery } from "../../ducks/profile";
 import Button from "../Button";
+import SegmentedControl from "../SegmentedControl";
 
 import UsernameTrie from "../../usernameTrie";
 import InstrumentTrie from "../../instrumentTrie";
@@ -95,9 +97,20 @@ const CommentForm = ({
   const users = useGetUsersQuery({ slim: true }).data ?? { users: [] };
   const { data: groupsData } = useGetGroupsQuery();
   const groups = useMemo(() => groupsData?.userAccessible ?? [], [groupsData]);
+  const config = useGetConfigQuery().data as any;
+  const publicGroup: any = groups.find(
+    (group) => group.name === config?.publicGroupName,
+  );
   const { data: profile } = useGetProfileQuery();
-  const streams: any[] = streamAccess ? (profile?.streams ?? []) : [];
+  const streams: any[] = streamAccess
+    ? (profile?.streams ?? []).filter(
+        (stream: any) =>
+          !publicGroup?.streams?.some((s: any) => s.id === stream.id),
+      )
+    : [];
   const [selectedStreams, setSelectedStreams] = useState<number[]>([]);
+  const [showPublic, setShowPublic] = useState(false);
+  const [publicText, setPublicText] = useState("");
   const { data: instrumentList = [] } = useGetInstrumentsQuery();
   const [textValue, setTextValue] = useState("");
   const [fileName, setFileName] = useState("");
@@ -201,6 +214,9 @@ const CommentForm = ({
     data.group_ids = selectedGroupIDs;
     if (selectedStreams.length) {
       data.stream_ids = selectedStreams;
+      if (publicText.trim()) {
+        data.public_text = publicText;
+      }
     }
     if (addComment) {
       addComment(data);
@@ -212,6 +228,8 @@ const CommentForm = ({
     setFileName("");
     setSelectedGroups([]);
     setSelectedStreams([]);
+    setPublicText("");
+    setShowPublic(false);
     setGroupFilter("");
     setAutosuggestVisible(false);
     setUsernamePrefixMatches({});
@@ -373,6 +391,8 @@ const CommentForm = ({
     </div>
   );
 
+  const editingPublic = showPublic && selectedStreams.length > 0;
+
   return (
     <form
       className={styles.commentEntry}
@@ -394,17 +414,40 @@ const CommentForm = ({
           )}
         </div>
       )}
+      {selectedStreams.length > 0 && (
+        <div className={styles.extras}>
+          <SegmentedControl
+            size="small"
+            value={editingPublic ? "public" : "private"}
+            options={[
+              { value: "private", label: "Private" },
+              { value: "public", label: "Public" },
+            ]}
+            onChange={(version) => setShowPublic(version === "public")}
+          />
+        </div>
+      )}
       <div className={cx(styles.composer, isEdit && styles.composerInline)}>
         <Controller
           render={() => (
             <TextField
               id="root_comment"
               autoFocus={isEdit}
-              value={textValue}
-              onChange={handleTextInputChange}
-              placeholder={editComment ? "Edit comment" : placeholder}
+              value={editingPublic ? publicText : textValue}
+              onChange={
+                editingPublic
+                  ? (event) => setPublicText(event.target.value)
+                  : handleTextInputChange
+              }
+              placeholder={
+                editComment
+                  ? "Edit comment"
+                  : editingPublic
+                    ? "Public version"
+                    : placeholder
+              }
               name="text"
-              error={!!errors["text"]}
+              error={!editingPublic && !!errors["text"]}
               size="small"
               fullWidth
               multiline
@@ -437,7 +480,7 @@ const CommentForm = ({
                       selectedGroups.length &&
                         `Shared with ${selectedGroups.length} group(s)`,
                       selectedStreams.length &&
-                        `restricted to ${selectedStreams.length} stream(s)`,
+                        `visible to ${selectedStreams.length} stream(s)`,
                     ]
                       .filter(Boolean)
                       .join(", ")
@@ -470,7 +513,7 @@ const CommentForm = ({
               autoFocus
               fullWidth
               size="small"
-              placeholder={streams.length ? "Filter" : "Filter groups"}
+              placeholder="Visible only to"
               value={groupFilter}
               onChange={(event) => setGroupFilter(event.target.value)}
               onKeyDown={(event) => event.stopPropagation()}
@@ -478,7 +521,7 @@ const CommentForm = ({
           </div>
           {streams.length > 0 && (
             <ListSubheader className={styles.menuSection}>
-              Restrict to streams
+              Streams
             </ListSubheader>
           )}
           {streams
@@ -510,8 +553,10 @@ const CommentForm = ({
           )}
           {groups
             .map((group, idx) => ({ group, idx }))
-            .filter(({ group }) =>
-              group.name.toLowerCase().includes(groupFilter.toLowerCase()),
+            .filter(
+              ({ group }) =>
+                group.id !== publicGroup?.id &&
+                group.name.toLowerCase().includes(groupFilter.toLowerCase()),
             )
             .map(({ group, idx }) => (
               <MenuItem key={group.id} dense onClick={() => toggleGroup(idx)}>

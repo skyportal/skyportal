@@ -1792,6 +1792,10 @@ def api(queue):
                                             if any(
                                                 target_data["obj_id"] == source.obj_id
                                                 for source in favorite_sources
+                                            ) and not (
+                                                target_data.get("private_version_id")
+                                                and target_data.get("author_id")
+                                                == user.id
                                             ):
                                                 queue.append(
                                                     user_notification_target(
@@ -1851,6 +1855,15 @@ def api(queue):
                             ).all()
                             for _mentioned_user in _mentioned_users:
                                 if not _mentioned_user.is_active():
+                                    continue
+                                if (
+                                    session.scalars(
+                                        Comment.select(
+                                            _mentioned_user, mode="read"
+                                        ).where(Comment.id == target_id)
+                                    ).first()
+                                    is None
+                                ):
                                     continue
                                 queue.append(
                                     {

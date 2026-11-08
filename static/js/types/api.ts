@@ -26971,6 +26971,8 @@ export interface components {
             stream_ids?: number[] | null;
             /** @description Users with access to all of these streams cannot see the comment, e.g. the public version of a comment whose full version needs them. */
             hidden_stream_ids?: number[] | null;
+            /** @description ID of the comment this one is the public version of. */
+            private_version_id?: number | null;
             /** @description ID of the Comment's Obj. */
             obj_id: string;
             /** @description Unique object identifier. */
@@ -27016,6 +27018,8 @@ export interface components {
             stream_ids?: number[] | null;
             /** @description Users with access to all of these streams cannot see the comment, e.g. the public version of a comment whose full version needs them. */
             hidden_stream_ids?: number[] | null;
+            /** @description ID of the comment this one is the public version of. */
+            private_version_id?: number | null;
             /** @description ID of the Comment's Obj. */
             obj_id: string;
             /** @description Comment body. */
@@ -44927,6 +44931,12 @@ export interface components {
              * @default null
              */
             hidden_stream_ids: number[] | null;
+            /**
+             * Public Text
+             * @description Public version of the comment, posted with it for users who do not have access to all of stream_ids. Only used for comments on sources.
+             * @default null
+             */
+            public_text: string | null;
             /**
              * Origin
              * @description Optional workflow that created the comment.

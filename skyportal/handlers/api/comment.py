@@ -438,6 +438,13 @@ class CommentHandler(BaseHandler):
                 stream_ids = sorted(set(body.stream_ids or [])) or None
                 hidden_stream_ids = sorted(set(body.hidden_stream_ids or [])) or None
                 restricting_ids = set(stream_ids or []) | set(hidden_stream_ids or [])
+                public_text = body.public_text or None
+                if public_text is not None and (
+                    stream_ids is None or hidden_stream_ids is not None
+                ):
+                    return self.error(
+                        "A public version needs stream_ids and no hidden_stream_ids."
+                    )
                 if restricting_ids:
                     if associated_resource_type.lower() != "sources":
                         return self.error(
@@ -782,6 +789,21 @@ class CommentHandler(BaseHandler):
                         )
 
                 session.add(comment)
+                if public_text is not None:
+                    await session.flush()
+                    session.add(
+                        Comment(
+                            text=public_text,
+                            obj_id=obj_id,
+                            channel=channel,
+                            hidden_stream_ids=stream_ids,
+                            private_version_id=comment.id,
+                            author_id=author_id,
+                            groups=groups,
+                            bot=is_bot_request,
+                            origin=body.origin,
+                        )
+                    )
                 await session.commit()
                 if data_to_disk is not None:
                     comment.save_data(attachment_name, data_to_disk)

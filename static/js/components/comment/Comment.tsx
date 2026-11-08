@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { isMobile } from "react-device-detect";
@@ -35,6 +35,8 @@ import {
   useEditCommentOnEarthquakeMutation,
   useDeleteCommentOnEarthquakeMutation,
 } from "../../ducks/earthquake";
+import { useGetConfigQuery } from "../../ducks/config";
+import { useGetStreamsQuery } from "../../ducks/streams";
 import UserAvatar from "../user/UserAvatar";
 
 import CommentAttachmentPreview from "./CommentAttachmentPreview";
@@ -84,11 +86,14 @@ interface CommentProps {
   text?: string | null;
   attachment_name?: string | null;
   groups?: { name: string; [key: string]: any }[];
+  stream_ids?: number[] | null;
+  hidden_stream_ids?: number[] | null;
   spectrum_id?: string | null;
   bot?: boolean;
   hoverID?: number | null;
   shiftID?: number | null;
   compact?: boolean;
+  versionSwitch?: ReactNode;
 }
 
 const Comment = ({
@@ -103,13 +108,20 @@ const Comment = ({
   text = null,
   attachment_name = null,
   groups = [],
+  stream_ids = null,
+  hidden_stream_ids = null,
   spectrum_id = null,
   bot = false,
   hoverID = null,
   shiftID = null,
   compact = false,
+  versionSwitch = null,
 }: CommentProps) => {
   const [editing, setEditing] = useState(false);
+  const { data: streams } = useGetStreamsQuery(undefined, {
+    skip: !stream_ids?.length && !hidden_stream_ids?.length,
+  });
+  const config = useGetConfigQuery().data as any;
   const { data: spectra } = useFetchSourceSpectraQuery(
     { id: objID as string },
     { skip: !objID || !spectrum_id },
@@ -209,6 +221,25 @@ const Comment = ({
     return formattedText;
   };
 
+  const streamNames = (ids: number[]) =>
+    ids
+      .map(
+        (streamID) =>
+          streams?.find((stream) => stream.id === streamID)?.name ??
+          `stream ${streamID}`,
+      )
+      .join(", ");
+
+  const visibility = [
+    groups?.some((group) => group.name === config?.publicGroupName)
+      ? null
+      : groups?.map((group) => group.name)?.join(", "),
+    stream_ids?.length ? `Visible to ${streamNames(stream_ids)}` : null,
+    hidden_stream_ids?.length
+      ? `Visible to users without ${streamNames(hidden_stream_ids)}`
+      : null,
+  ].filter(Boolean) as string[];
+
   const commentMessageStyle =
     resourceType === "shift"
       ? styles["commentMessageShift"]
@@ -268,11 +299,22 @@ const Comment = ({
             <span className={styles["commentTime"]}>
               {dayjs().to(dayjs.utc(`${created_at}Z`))}
             </span>
-            <span className={styles["commentUserGroup"]}>
-              <Tooltip title={groups?.map((group) => group.name)?.join(", ")}>
-                <GroupIcon fontSize="small" viewBox="0 -2 24 24" />
-              </Tooltip>
-            </span>
+            {visibility.length > 0 && (
+              <span className={styles["commentUserGroup"]}>
+                <Tooltip
+                  title={visibility.map((line) => (
+                    <div key={line}>{line}</div>
+                  ))}
+                >
+                  <GroupIcon fontSize="small" viewBox="0 -2 24 24" />
+                </Tooltip>
+              </span>
+            )}
+            {versionSwitch && (
+              <span className={styles["commentVersionSwitch"]}>
+                {versionSwitch}
+              </span>
+            )}
           </div>
           <div
             style={{
