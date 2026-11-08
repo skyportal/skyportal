@@ -1852,6 +1852,15 @@ def api(queue):
                             for _mentioned_user in _mentioned_users:
                                 if not _mentioned_user.is_active():
                                     continue
+                                if (
+                                    session.scalars(
+                                        Comment.select(
+                                            _mentioned_user, mode="read"
+                                        ).where(Comment.id == target_id)
+                                    ).first()
+                                    is None
+                                ):
+                                    continue
                                 queue.append(
                                     {
                                         "text": _mention_text,
