@@ -17,9 +17,43 @@ import { useAppDispatch } from "../../types/hooks";
 import { useAddTNSMutation, useUpdateSourceMutation } from "../../ducks/source";
 import Button from "../Button";
 
+const useSearchTNS = (sourceId: string) => {
+  const dispatch = useAppDispatch();
+  const [addTNS, { isLoading }] = useAddTNSMutation();
+  const search = async (radius: number) => {
+    try {
+      await addTNS({ id: sourceId, formData: { radius } }).unwrap();
+      dispatch(showNotification("Successfully queried TNS"));
+      return true;
+    } catch {
+      dispatch(showNotification("Failed to query TNS", "error"));
+      return false;
+    }
+  };
+  return { search, isLoading };
+};
+
+export const SearchTNSButton = ({ sourceId }: { sourceId: string }) => {
+  const { search, isLoading } = useSearchTNS(sourceId);
+  return (
+    <Button
+      variant="outlined"
+      color="primary"
+      size="small"
+      onClick={() => search(2)}
+      disabled={isLoading}
+      data-testid="searchTNSButton"
+      sx={{ py: 0 }}
+    >
+      Search
+    </Button>
+  );
+};
+
 interface UpdateSourceTNSProps {
   source: {
     id: string;
+    tns_name?: string | null;
     withhold_from_tns?: boolean;
     withhold_from_tns_set_at?: string | null;
     withhold_from_tns_set_by?: { username?: string } | null;
@@ -27,25 +61,10 @@ interface UpdateSourceTNSProps {
 }
 
 const UpdateSourceTNS = ({ source }: UpdateSourceTNSProps) => {
-  const dispatch = useAppDispatch();
-  const [addTNS, { isLoading }] = useAddTNSMutation();
+  const { search, isLoading } = useSearchTNS(source.id);
   const [updateSource] = useUpdateSourceMutation();
-
   const [dialogOpen, setDialogOpen] = useState(false);
   const [radius, setRadius] = useState("2");
-
-  const search = async () => {
-    try {
-      await addTNS({
-        id: source.id,
-        formData: { radius: Number(radius) },
-      }).unwrap();
-      dispatch(showNotification("Successfully queried TNS"));
-      setDialogOpen(false);
-    } catch {
-      dispatch(showNotification("Failed to query TNS", "error"));
-    }
-  };
 
   return (
     <>
@@ -64,15 +83,12 @@ const UpdateSourceTNS = ({ source }: UpdateSourceTNSProps) => {
       >
         <DialogTitle>TNS</DialogTitle>
         <DialogContent
-          sx={{ display: "flex", flexDirection: "column", gap: 2 }}
+          sx={{ display: "flex", flexDirection: "column", gap: 2.5 }}
         >
-          <Box>
-            <Typography variant="subtitle2" sx={{ mb: 1 }}>
-              Find the TNS name
-            </Typography>
-            <Box sx={{ display: "flex", gap: 1, alignItems: "center" }}>
+          {!source.tns_name && (
+            <Box sx={{ display: "flex", gap: 1, alignItems: "center", pt: 1 }}>
               <TextField
-                label="Radius (arcsec)"
+                label="Search radius (arcsec)"
                 type="number"
                 size="small"
                 value={radius}
@@ -81,46 +97,55 @@ const UpdateSourceTNS = ({ source }: UpdateSourceTNSProps) => {
               />
               <Button
                 variant="outlined"
-                onClick={search}
+                onClick={async () => {
+                  if (await search(Number(radius))) setDialogOpen(false);
+                }}
                 disabled={isLoading || !(Number(radius) > 0)}
               >
                 Search
               </Button>
             </Box>
-          </Box>
-          <Box>
-            <FormControlLabel
-              sx={{ m: 0 }}
-              control={
-                <Checkbox
-                  size="small"
-                  sx={{ p: 0.5, mr: 0.5 }}
-                  checked={Boolean(source.withhold_from_tns)}
-                  onChange={(event) =>
-                    updateSource({
-                      id: source.id,
-                      payload: { withhold_from_tns: event.target.checked },
-                    })
-                  }
-                />
-              }
-              label="Don't report"
-            />
-            <Typography
-              variant="caption"
-              color="text.secondary"
-              component="div"
-            >
-              {`Never send this source to TNS, automatically or manually.${
-                source.withhold_from_tns_set_at
-                  ? ` Last changed by ${
+          )}
+          <FormControlLabel
+            sx={{ m: 0, alignItems: "flex-start" }}
+            control={
+              <Checkbox
+                size="small"
+                sx={{ p: 0, mr: 1, mt: 0.25 }}
+                checked={Boolean(source.withhold_from_tns)}
+                onChange={(event) =>
+                  updateSource({
+                    id: source.id,
+                    payload: { withhold_from_tns: event.target.checked },
+                  })
+                }
+              />
+            }
+            label={
+              <>
+                <Typography variant="body2">Don&apos;t report</Typography>
+                <Typography
+                  variant="caption"
+                  color="text.secondary"
+                  component="div"
+                >
+                  Never send this source to TNS, automatically or manually.
+                </Typography>
+                {source.withhold_from_tns_set_at && (
+                  <Typography
+                    variant="caption"
+                    color="text.secondary"
+                    component="div"
+                  >
+                    {`Last changed by ${
                       source.withhold_from_tns_set_by?.username ??
                       "a deleted user"
-                    } on ${source.withhold_from_tns_set_at.slice(0, 10)}.`
-                  : ""
-              }`}
-            </Typography>
-          </Box>
+                    } on ${source.withhold_from_tns_set_at.slice(0, 10)}.`}
+                  </Typography>
+                )}
+              </>
+            }
+          />
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setDialogOpen(false)}>Close</Button>

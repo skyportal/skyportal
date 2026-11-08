@@ -59,7 +59,7 @@ import UpdateSourceMPC from "./UpdateSourceMPC";
 import UpdateSourceRedshift from "./UpdateSourceRedshift";
 import UpdateSourceSummary from "./UpdateSourceSummary";
 import UpdateSourceT0 from "./UpdateSourceT0";
-import UpdateSourceTNS from "./UpdateSourceTNS";
+import UpdateSourceTNS, { SearchTNSButton } from "./UpdateSourceTNS";
 import StartBotSummary from "../StartBotSummary";
 import SourceGCNCrossmatchList from "./SourceGCNCrossmatchList";
 import SourceRedshiftHistory from "./SourceRedshiftHistory";
@@ -728,13 +728,16 @@ const SourceContent = ({ source }: SourceContentProps) => {
               className={classes.flexRow}
               style={{
                 justifyContent: "flex-start",
-                alignItems: "baseline",
+                alignItems: "center",
                 flexFlow: "wrap",
                 columnGap: "1rem",
               }}
             >
               <div className={classes.rowInfo} data-testid="tour-source-tns">
                 <b>TNS Name: &nbsp;</b>
+                {!source.tns_name && !isReadOnly && (
+                  <SearchTNSButton sourceId={source.id} />
+                )}
                 {source.tns_name && (
                   <a
                     key={source.tns_name}
