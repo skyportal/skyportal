@@ -5,11 +5,9 @@ import Dialog from "@mui/material/Dialog";
 import DialogContent from "@mui/material/DialogContent";
 import DialogTitle from "@mui/material/DialogTitle";
 import FormControlLabel from "@mui/material/FormControlLabel";
-import IconButton from "@mui/material/IconButton";
 import Paper from "@mui/material/Paper";
 import Tooltip from "@mui/material/Tooltip";
 import Typography from "@mui/material/Typography";
-import FormatQuoteIcon from "@mui/icons-material/FormatQuote";
 
 import { showNotification } from "baselayer/components/Notifications";
 import { useAppDispatch } from "../../types/hooks";
@@ -104,13 +102,16 @@ const SourceAcknowledgment = ({ obj_id }: { obj_id: string }) => {
   return (
     <>
       <Tooltip title="How to cite this source">
-        <IconButton
+        <Button
+          variant="outlined"
+          color="primary"
           size="small"
           onClick={() => setOpen(true)}
           data-testid="acknowledgmentButton"
+          sx={{ py: 0 }}
         >
-          <FormatQuoteIcon />
-        </IconButton>
+          Cite
+        </Button>
       </Tooltip>
       <Dialog
         open={open}
