@@ -59,13 +59,9 @@ const useStyles = makeStyles()((theme) => ({
     padding: theme.spacing(0.5, 1, 1),
     backgroundColor: theme.palette.background.paper,
   },
-  menuTitle: {
-    lineHeight: "2rem",
-    padding: theme.spacing(0, 1),
-  },
   menuSection: {
     lineHeight: "2rem",
-    top: "5.25rem",
+    top: "3.25rem",
   },
   extras: {
     display: "flex",
@@ -513,14 +509,11 @@ const CommentForm = ({
           slotProps={{ paper: { className: styles.groupMenu } }}
         >
           <div className={styles.groupFilter}>
-            <Typography variant="subtitle2" className={styles.menuTitle}>
-              Visible only to
-            </Typography>
             <TextField
               autoFocus
               fullWidth
               size="small"
-              placeholder={streams.length ? "Filter" : "Filter groups"}
+              placeholder="Visible only to"
               value={groupFilter}
               onChange={(event) => setGroupFilter(event.target.value)}
               onKeyDown={(event) => event.stopPropagation()}
