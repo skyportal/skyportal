@@ -1792,6 +1792,10 @@ def api(queue):
                                             if any(
                                                 target_data["obj_id"] == source.obj_id
                                                 for source in favorite_sources
+                                            ) and not (
+                                                target_data.get("private_version_id")
+                                                and target_data.get("author_id")
+                                                == user.id
                                             ):
                                                 queue.append(
                                                     user_notification_target(
