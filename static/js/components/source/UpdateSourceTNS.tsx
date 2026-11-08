@@ -9,6 +9,7 @@ import DialogTitle from "@mui/material/DialogTitle";
 import FormControlLabel from "@mui/material/FormControlLabel";
 import IconButton from "@mui/material/IconButton";
 import TextField from "@mui/material/TextField";
+import Tooltip from "@mui/material/Tooltip";
 import Typography from "@mui/material/Typography";
 import EditIcon from "@mui/icons-material/Edit";
 
@@ -58,16 +59,18 @@ const UpdateSourceTNS = ({ source }: UpdateSourceTNSProps) => {
           <EditIcon sx={{ fontSize: "0.9rem" }} />
         </IconButton>
       ) : (
-        <Button
-          variant="outlined"
-          color="primary"
-          size="small"
-          onClick={() => setDialogOpen(true)}
-          data-testid="updateTNSIconButton"
-          sx={{ py: 0 }}
-        >
-          Search
-        </Button>
+        <Tooltip title="Look for this source on TNS">
+          <Button
+            variant="outlined"
+            color="primary"
+            size="small"
+            onClick={() => setDialogOpen(true)}
+            data-testid="updateTNSIconButton"
+            sx={{ py: 0 }}
+          >
+            Search
+          </Button>
+        </Tooltip>
       )}
       <Dialog
         open={dialogOpen}
