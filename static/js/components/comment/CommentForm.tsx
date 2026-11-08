@@ -15,6 +15,7 @@ import Tooltip from "@mui/material/Tooltip";
 import { makeStyles } from "tss-react/mui";
 import Typography from "@mui/material/Typography";
 
+import { useGetConfigQuery } from "../../ducks/config";
 import { useGetGroupsQuery } from "../../ducks/groups";
 import { useGetProfileQuery } from "../../ducks/profile";
 import Button from "../Button";
@@ -58,9 +59,13 @@ const useStyles = makeStyles()((theme) => ({
     padding: theme.spacing(0.5, 1, 1),
     backgroundColor: theme.palette.background.paper,
   },
+  menuTitle: {
+    lineHeight: "2rem",
+    padding: theme.spacing(0, 1),
+  },
   menuSection: {
     lineHeight: "2rem",
-    top: "3.25rem",
+    top: "5.25rem",
   },
   extras: {
     display: "flex",
@@ -96,8 +101,17 @@ const CommentForm = ({
   const users = useGetUsersQuery({ slim: true }).data ?? { users: [] };
   const { data: groupsData } = useGetGroupsQuery();
   const groups = useMemo(() => groupsData?.userAccessible ?? [], [groupsData]);
+  const config = useGetConfigQuery().data as any;
+  const publicGroup: any = groups.find(
+    (group) => group.name === config?.publicGroupName,
+  );
   const { data: profile } = useGetProfileQuery();
-  const streams: any[] = streamAccess ? (profile?.streams ?? []) : [];
+  const streams: any[] = streamAccess
+    ? (profile?.streams ?? []).filter(
+        (stream: any) =>
+          !publicGroup?.streams?.some((s: any) => s.id === stream.id),
+      )
+    : [];
   const [selectedStreams, setSelectedStreams] = useState<number[]>([]);
   const [showPublic, setShowPublic] = useState(false);
   const [publicText, setPublicText] = useState("");
@@ -499,6 +513,9 @@ const CommentForm = ({
           slotProps={{ paper: { className: styles.groupMenu } }}
         >
           <div className={styles.groupFilter}>
+            <Typography variant="subtitle2" className={styles.menuTitle}>
+              Visible only to
+            </Typography>
             <TextField
               autoFocus
               fullWidth
@@ -511,7 +528,7 @@ const CommentForm = ({
           </div>
           {streams.length > 0 && (
             <ListSubheader className={styles.menuSection}>
-              Visible to
+              Streams
             </ListSubheader>
           )}
           {streams
@@ -543,8 +560,10 @@ const CommentForm = ({
           )}
           {groups
             .map((group, idx) => ({ group, idx }))
-            .filter(({ group }) =>
-              group.name.toLowerCase().includes(groupFilter.toLowerCase()),
+            .filter(
+              ({ group }) =>
+                group.id !== publicGroup?.id &&
+                group.name.toLowerCase().includes(groupFilter.toLowerCase()),
             )
             .map(({ group, idx }) => (
               <MenuItem key={group.id} dense onClick={() => toggleGroup(idx)}>
