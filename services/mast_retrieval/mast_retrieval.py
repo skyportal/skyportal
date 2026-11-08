@@ -14,7 +14,13 @@ from baselayer.app.models import DBSession, init_db, session_context_id
 from baselayer.log import make_log
 from skyportal.handlers.api.spectrum import post_spectrum
 from skyportal.models import Instrument, Obj, Source, Spectrum
-from skyportal.utils.mast import dataset_position, read_x1d, recent_datasets
+from skyportal.utils.mast import (
+    read_hst_x1d,
+    read_jwst_x1d,
+    recent_hst_datasets,
+    recent_jwst_datasets,
+    spectrum_products,
+)
 from skyportal.utils.services import check_loaded
 
 env, cfg = load_env()
@@ -34,7 +40,13 @@ exp_types = mast_cfg.get("exp_types") or [
     "MIR_MRS",
     "MIR_LRS-FIXEDSLIT",
 ]
-instruments = mast_cfg.get("instruments") or {"NIRSPEC": "NIRSpec", "MIRI": "MIRI"}
+hst_instruments = mast_cfg.get("hst_instruments") or ["STIS", "COS"]
+instruments = mast_cfg.get("instruments") or {
+    "NIRSPEC": "NIRSpec",
+    "MIRI": "MIRI",
+    "STIS": "STIS",
+    "COS": "COS",
+}
 group_ids = mast_cfg.get("group_ids") or []
 bot_user_id = mast_cfg.get("bot_user_id")
 
@@ -52,7 +64,7 @@ def is_configured():
         if not value
     ]
     if missing:
-        log(f"Not retrieving JWST spectra, missing config: {', '.join(missing)}")
+        log(f"Not retrieving MAST spectra, missing config: {', '.join(missing)}")
         return False
     return True
 
@@ -84,27 +96,29 @@ async def _post_spectrum(data):
 
 
 def ingest_dataset(missions, dataset, skipped):
-    ra, dec = dataset_position(dataset)
     with DBSession() as session:
-        objs = [(obj.id, obj.ra, obj.dec) for obj in matching_sources(session, ra, dec)]
+        objs = [
+            (obj.id, obj.ra, obj.dec)
+            for obj in matching_sources(session, dataset["ra"], dataset["dec"])
+        ]
         if not objs:
             return 0
-        instrument_name = instruments.get(str(dataset["instrume"]).upper())
+        instrument_name = instruments.get(dataset["instrument"])
         instrument_id = session.scalar(
             sa.select(Instrument.id).where(Instrument.name == instrument_name)
         )
     if instrument_id is None:
         log(
-            f"No instrument named {instrument_name} for {dataset['instrume']}, "
-            f"skipping {dataset['fileSetName']}"
+            f"No instrument named {instrument_name} for {dataset['instrument']}, "
+            f"skipping {dataset['name']}"
         )
         return 0
 
-    products = missions.get_product_list(dataset["fileSetName"])
+    products = missions.get_product_list(dataset["name"])
     posted = 0
-    for product in products:
+    for product in spectrum_products(products, dataset):
         filename = str(product["filename"])
-        if not filename.endswith("_x1d.fits") or filename in skipped:
+        if filename in skipped:
             continue
         with DBSession() as session:
             pending = [
@@ -124,12 +138,16 @@ def ingest_dataset(missions, dataset, skipped):
 
             found = False
             for obj_id, obj_ra, obj_dec in pending:
-                spectra = read_x1d(
-                    path,
-                    obj_ra,
-                    obj_dec,
-                    radius_arcsec,
-                    default_mjd=dataset["expmid"],
+                spectra = (
+                    read_hst_x1d(path, dataset["mjd"])
+                    if dataset["mission"] == "hst"
+                    else read_jwst_x1d(
+                        path,
+                        obj_ra,
+                        obj_dec,
+                        radius_arcsec,
+                        default_mjd=dataset["mjd"],
+                    )
                 )
                 for spectrum in spectra:
                     found = True
@@ -144,8 +162,8 @@ def ingest_dataset(missions, dataset, skipped):
                                     "origin": "MAST",
                                     "original_file_filename": filename,
                                     "altdata": {
-                                        "dataset": str(dataset["fileSetName"]),
-                                        "program": str(dataset["program"]),
+                                        "dataset": dataset["name"],
+                                        "program": dataset["program"],
                                     },
                                 }
                             )
@@ -158,30 +176,39 @@ def ingest_dataset(missions, dataset, skipped):
     return posted
 
 
-def poll_once(missions, skipped):
+def poll_once(clients, skipped):
     session_context_id.set(uuid.uuid4().hex)
+    datasets = []
+    for mission, recent_datasets, criteria in (
+        ("jwst", recent_jwst_datasets, exp_types),
+        ("hst", recent_hst_datasets, hst_instruments),
+    ):
+        try:
+            datasets += recent_datasets(clients[mission], look_back_days, criteria)
+        except Exception as e:
+            log(f"Error querying {mission.upper()} datasets: {e}")
     posted = 0
-    for dataset in recent_datasets(missions, look_back_days, exp_types):
-        if dataset["access"] != "PUBLIC":
+    for dataset in datasets:
+        if not dataset["public"]:
             continue
         try:
-            posted += ingest_dataset(missions, dataset, skipped)
+            posted += ingest_dataset(clients[dataset["mission"]], dataset, skipped)
         except Exception as e:
-            log(f"Error retrieving {dataset['fileSetName']}: {e}")
+            log(f"Error retrieving {dataset['name']}: {e}")
     if posted:
-        log(f"Added {posted} JWST spectra from MAST")
+        log(f"Added {posted} spectra from MAST")
 
 
 @check_loaded(logger=log)
 def service(*args, **kwargs):
-    missions = MastMissions(mission="jwst")
+    clients = {mission: MastMissions(mission=mission) for mission in ("jwst", "hst")}
     skipped = set()
-    log(f"Retrieving JWST spectra from MAST every {interval}s")
+    log(f"Retrieving JWST and HST spectra from MAST every {interval}s")
     while True:
         try:
-            poll_once(missions, skipped)
+            poll_once(clients, skipped)
         except Exception as e:
-            log(f"Error retrieving JWST spectra from MAST: {e}")
+            log(f"Error retrieving spectra from MAST: {e}")
         time.sleep(interval)
 
 
