@@ -68,6 +68,7 @@ worth listing are those that poll for something you do not use.
 | `scout_service`                    | Consumes the JPL Scout NEO ToO Kafka stream                                             | Idles without `scout.*`                           |
 | `neofixer_service`                 | Polls NEOFixer target lists and annotates solar system objects                          | Idles without `neofixer.enabled`                  |
 | `tess_sector`                      | Loads TESS sector footprints and annotates coverage                                     | Idles without `tess.enabled`                      |
+| `mast_retrieval`                   | Adds new JWST spectra from MAST to the saved sources they target                        | Idles without `mast.enabled`                      |
 | `broker_ingest`                    | Runs the ingestion loop of each active broker, see [broker ingestion](broker_ingestion) | Idles without `brokers.ingest_enabled`            |
 | `hermes_skyportal_sync`            | Consumes the Hermes Kafka topic into sources and photometry                             | Idles without `app.hermes.sync.*`                 |
 | `pdl_service`                      | Watches a PDL receiver directory and ingests earthquake QuakeML                         | No PDL client feeding it                          |

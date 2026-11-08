@@ -1506,6 +1506,18 @@ tess:
   group_ids: [] # groups the annotations are visible to
   bot_user_id: # user recorded as the annotation author
 
+mast:
+  enabled: False # adds new JWST x1d spectra from MAST to the saved sources they target
+  interval_seconds: 3600
+  look_back_days: 7 # datasets observed or made public in this window
+  radius_arcsec: 2
+  exp_types: [NRS_FIXEDSLIT, NRS_IFU, MIR_MRS, MIR_LRS-FIXEDSLIT]
+  instruments: # MAST instrument -> SkyPortal instrument name
+    NIRSPEC: NIRSpec
+    MIRI: MIRI
+  group_ids: [] # groups the spectra are shared with
+  bot_user_id: # user recorded as the spectra owner
+
 # JPL Scout NEO Target-of-Opportunity candidates, published by
 # lsst-sssc/scout-alert-bridge. Leave `topic` unset to disable the service.
 scout:
