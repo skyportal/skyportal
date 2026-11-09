@@ -6,6 +6,7 @@ import {
 } from "../../../../hooks/useContexts";
 import BlockHeader from "./BlockHeader";
 import ConditionComponent from "../condition/ConditionComponent";
+import { dropIndicatorSx, edgePosition, useDropTarget } from "./dragAndDrop";
 
 interface BlockComponentProps {
   [key: string]: any;
@@ -44,7 +45,18 @@ const BlockComponent = ({
   sentencePrefix,
 }: BlockComponentProps) => {
   const { setListConditionDialog } = useFilterBuilder();
-  const { collapsedBlocks } = useCurrentBuilder();
+  const {
+    collapsedBlocks,
+    filters: contextFilters,
+    setFilters: contextSetFilters,
+  } = useCurrentBuilder();
+  const { position: dropPosition, dropProps } = useDropTarget({
+    filters: localFilters || contextFilters,
+    setFilters: setLocalFilters || contextSetFilters,
+    parentBlockId: isRoot ? null : parentBlockId,
+    anchorId: block?.id,
+    positionAt: edgePosition,
+  });
 
   if (!block?.id) return null;
 
@@ -59,7 +71,9 @@ const BlockComponent = ({
     <Paper
       component="section"
       elevation={isRoot ? 1 : 0}
+      {...dropProps}
       sx={{
+        position: "relative",
         display: "flex",
         flexDirection: "column",
         gap: isStickyHeader || isCollapsed ? 0 : 1,
@@ -76,6 +90,7 @@ const BlockComponent = ({
           backgroundColor: (theme: any) =>
             alpha(theme.palette[nestingColor].main, 0.04),
         }),
+        ...dropIndicatorSx(dropPosition),
       }}
       aria-label={`${block.category} block${
         customBlockName ? ` - ${customBlockName}` : ""

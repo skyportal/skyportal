@@ -20,6 +20,7 @@ import { blockHeaderStyles } from "../../../../styles/componentStyles";
 import { useFilterBuilder } from "../../../../hooks/useContexts";
 import SaveBlockComponent from "./SaveBlockComponent";
 import { mapBlock } from "./blockTree";
+import { DragHandle } from "./dragAndDrop";
 
 const InlineSelect = ({
   value,
@@ -541,6 +542,7 @@ const BlockHeader = ({
       >
         {!isRoot && (
           <>
+            <DragHandle itemId={block.id} />
             <Button
               size="small"
               onClick={() =>
