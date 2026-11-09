@@ -259,30 +259,32 @@ telescope:
     lat: 33.3580556
     lon: -116.861944
     elevation: 1706
-    diameter: 1.26
+    diameter: 1.2
     mpc_obscode: I41
     robotic: true
-    skycam_link: http://bianca.palomar.caltech.edu/images/allsky/AllSkyCurrentImage.JPG
+    skycam_link: http://algol.palomar.caltech.edu/instruments/allsky/AllSkyCurrentImage.JPG
     weather_link: https://www.cleardarksky.com/c/PalomarObkey.html
     =id: P48
   - name: Palomar 1.5m
     nickname: P60
-    lat: 33.3633675
-    lon: -116.8361345
-    elevation: 1870
+    lat: 33.35412
+    lon: -116.86254
+    elevation: 1712
     diameter: 1.5
     robotic: true
-    skycam_link: http://bianca.palomar.caltech.edu/images/allsky/AllSkyCurrentImage.JPG
+    skycam_link: http://algol.palomar.caltech.edu/instruments/allsky/AllSkyCurrentImage.JPG
     weather_link: https://www.cleardarksky.com/c/PalomarObkey.html
+    mpc_obscode: "675"
     =id: P60
   - name: Nordic Optical Telescope
     nickname: NOT
-    lat: 28.7572
-    lon: -17.8851
+    lat: 28.7583
+    lon: -17.88
     robotic: true
-    elevation: 2000
+    elevation: 2327
     diameter: 2.56
     skycam_link: http://catserver.ing.iac.es/weather/archive/concam/concam_labels.png
+    mpc_obscode: "950"
     =id: NOT
   - diameter: 10.0
     elevation: 4160.0
@@ -292,24 +294,27 @@ telescope:
     nickname: Keck2
     skycam_link: /static/images/kcam_2.jpg
     robotic: false
+    mpc_obscode: T17
     =id: Keck2
   - name: Keck I Telescope
     nickname: Keck1
     lat: 19.8283
     lon: -155.478
-    elevation: 2000
-    diameter: 2.56
+    elevation: 4160
+    diameter: 10.0
     skycam_link: /static/images/kcam_2.jpg
     robotic: false
+    mpc_obscode: T16
     =id: Keck1
   - name: Liverpool Telescope
     nickname: LT
-    lat: 28.762
-    lon: -17.872
+    lat: 28.7624
+    lon: -17.883
     elevation: 2363
     diameter: 2.0
     skycam_link: http://telescope.livjm.ac.uk/data/archive/webfiles/QS/Latest/t_latest_hms.jpg
     robotic: true
+    mpc_obscode: J13
     =id: LT
   - diameter: 1.0
     elevation: 2070.0
@@ -337,6 +342,7 @@ telescope:
     nickname: TAROT Calern
     skycam_link: null
     robotic: true
+    mpc_obscode: "010"
     =id: TCA
   - diameter: 0.2
     elevation: 991.0
@@ -346,6 +352,7 @@ telescope:
     nickname: TAROT Reunion
     skycam_link: null
     robotic: true
+    mpc_obscode: "181"
     =id: TRE
   - diameter: 0.3
     elevation: 2398.0
@@ -355,6 +362,7 @@ telescope:
     nickname: TAROT Chili
     skycam_link: null
     robotic: true
+    mpc_obscode: "809"
     =id: TCH
   - diameter: 2.0
     elevation: 3052.0
@@ -372,6 +380,7 @@ telescope:
     name: CTIO Victor M. Blanco 4-meter Telescope
     nickname: CTIO-4m
     skycam_link: null
+    mpc_obscode: W84
     =id: CTIO-4m
   - diameter: 1.0
     elevation: 1.0
@@ -382,7 +391,7 @@ telescope:
     skycam_link: null
     fixed_location: false
     =id: Swift
-  - diameter: 1.0
+  - diameter: 0.1
     nickname: NICER
     name: Neutron Star Interior Composition Explorer
     skycam_link: null
@@ -412,7 +421,7 @@ telescope:
     skycam_link: null
     fixed_location: false
     =id: INTEGRAL
-  - diameter: 1.0
+  - diameter: 0.0
     nickname: Fermi
     name: Fermi Gamma-ray Space Telescope
     skycam_link: null
@@ -424,7 +433,7 @@ telescope:
     skycam_link: null
     fixed_location: false
     =id: CALET
-  - diameter: 1.0
+  - diameter: 0.4
     nickname: NuSTAR
     name: Nuclear Spectroscopic Telescope Array
     skycam_link: null
@@ -436,19 +445,20 @@ telescope:
     skycam_link: null
     fixed_location: false
     =id: MAXI
-  - diameter: 0.94
+  - diameter: 0.5
     nickname: Gaia
     name: Gaia
     skycam_link: null
     fixed_location: false
     =id: Gaia
   - diameter: 1.8
-    elevation: 4215.0
-    lat: 19.825
-    lon: 204.5317
+    elevation: 3052.0
+    lat: 20.70723
+    lon: -156.25591
     name: PAN-STARRS 1.8m
     nickname: PS1
     skycam_link: null
+    mpc_obscode: F51
     =id: PS1
   - diameter: 25.0
     elevation: 2124.0
@@ -466,21 +476,23 @@ telescope:
     nickname: ATCA
     skycam_link: null
     =id: ATCA
-  - diameter: 0.3
-    elevation: 1283.0
-    lat: 37.341033
-    lon: -121.642932
+  - diameter: 0.76
+    elevation: 1290.0
+    lat: 37.343
+    lon: -121.6367
     name: Katzman Automatic Imaging Telescope
     nickname: KAIT
     skycam_link: null
+    mpc_obscode: "662"
     =id: KAIT
   - diameter: 1.3
-    elevation: 2800
-    lat: 31.0441
-    lon: 115.4637
+    elevation: 2600
+    lat: 31.0449
+    lon: -115.4645
     name: COLIBRI Telescope
     nickname: COLIBRI
     skycam_link: null
+    mpc_obscode: "679"
     =id: COLIBRI
   - diameter: 2.1
     elevation: 2096.0
@@ -489,6 +501,7 @@ telescope:
     name: Kitt Peak 2.1m Telescope
     nickname: KPNO2m
     skycam_link: null
+    mpc_obscode: "695"
     =id: KPNO2m
   - diameter: 0.8
     elevation: 1957.0
@@ -499,17 +512,18 @@ telescope:
     skycam_link: null
     =id: JAST
   - diameter: 0.5
-    elevation: 3055.0
-    lat: 20.7204
-    lon: -156.1552
+    elevation: 3040.0
+    lat: 20.70761
+    lon: -156.257
     name: Asteroid Terrestrial-impact Last Alert System
     nickname: ATLAS-0.5m
     skycam_link: null
+    mpc_obscode: T05
     =id: ATLAS-0p5m
   - diameter: 1.2
-    elevation: 2207.0
-    lat: -30.1716
-    lon: -70.8009
+    elevation: 2663.0
+    lat: -30.2446
+    lon: -70.74942
     name: Auxiliary Telescope
     nickname: AuxTel-1p2m
     skycam_link: null
@@ -521,6 +535,7 @@ telescope:
     robotic: true
     elevation: 4500
     diameter: 0.7
+    mpc_obscode: N51
     =id: GIT-0p7m
   - name: WINTER Telescope
     nickname: WINTER-1m
@@ -529,6 +544,7 @@ telescope:
     elevation: 1706
     robotic: true
     diameter: 1.0
+    mpc_obscode: "675"
     =id: WINTER-1m
   - name: TESS Telescope
     nickname: TESS
@@ -543,6 +559,7 @@ telescope:
     elevation: 500
     robotic: true
     diameter: 1.9
+    mpc_obscode: "088"
     =id: KAO-1p9m
   - name: SOAR Telescope
     nickname: SOAR
@@ -552,6 +569,7 @@ telescope:
     elevation: 2734.0
     robotic: true
     fixed_location: true
+    mpc_obscode: I33
     =id: SOAR-T
   - name: Southern Astrophysical Research Telescope
     nickname: SOAR
@@ -561,6 +579,7 @@ telescope:
     elevation: 2738.0
     robotic: false
     fixed_location: true
+    mpc_obscode: I33
     =id: SOAR
   - name: FRAM-Auger Telescope
     nickname: FRAM-Auger
@@ -576,6 +595,7 @@ telescope:
     elevation: 2737
     diameter: 8.1
     robotic: false
+    mpc_obscode: I11
     =id: GS
   - name: MMT
     nickname: MMT
@@ -585,15 +605,17 @@ telescope:
     diameter: 6.5
     robotic: false
     fixed_location: true
+    mpc_obscode: "696"
     =id: MMT
   - name: TTT
     nickname: TTT
     lat: 28.301111
     lon: -16.510556
     elevation: 2390.0
-    diameter: 2.0
+    diameter: 0.8
     robotic: true
     fixed_location: true
+    mpc_obscode: "954"
     =id: TTT
   - name: Gravitational-wave Optical Transient Observer North
     nickname: GOTO-N
@@ -603,6 +625,7 @@ telescope:
     elevation: 2275.0
     robotic: true
     fixed_location: true
+    mpc_obscode: R13
     =id: GOTO-N
   - name: Gravitational-wave Optical Transient Observer South
     nickname: GOTO-S
@@ -612,6 +635,7 @@ telescope:
     elevation: 1165.0
     robotic: true
     fixed_location: true
+    mpc_obscode: E55
     =id: GOTO-S
   - name: Simonyi Survey Telescope
     nickname: Simonyi
@@ -621,10 +645,11 @@ telescope:
     elevation: 2663.0
     robotic: true
     fixed_location: true
+    mpc_obscode: X05
     =id: Simonyi
   - name: All-Sky Automated Survey for Supernovae
     nickname: ASAS-SN
-    diameter: 0.1
+    diameter: 0.14
     robotic: true
     fixed_location: false
     =id: ASAS-SN
@@ -636,21 +661,24 @@ telescope:
     elevation: 1165.0
     robotic: false
     fixed_location: true
+    mpc_obscode: "413"
     =id: SSO
   - name: Palomar 200-inch (Hale) Telescope
     nickname: P200
-    lat: 33.3563
-    lon: -116.865
-    elevation: 1713
+    lat: 33.35412
+    lon: -116.86254
+    elevation: 1712
     diameter: 5.08
     robotic: false
     fixed_location: true
+    mpc_obscode: "675"
+    skycam_link: http://algol.palomar.caltech.edu/instruments/allsky/AllSkyCurrentImage.JPG
     =id: P200
 
 instrument:
   - name: ZTF
     type: imager
-    band: V
+    band: optical
     telescope_id: =P48
     filters: ["ztfg", "ztfr", "ztfi"]
     =id: ZTF
@@ -695,28 +723,33 @@ instrument:
         "slew_rate": 2.6,
         "filt_change_time": 60.0,
       }
+    tns_id: 196
   - name: ALFOSC
     type: imaging spectrograph
-    band: V
+    band: optical
     telescope_id: =NOT
+    tns_id: 41
     =id: ALFOSC
   - name: ESI
     type: spectrograph
     band: optical
     =id: ESI
     telescope_id: =Keck2
+    tns_id: 100
   - name: LRIS
-    type: spectrograph
+    type: imaging spectrograph
     band: optical
     =id: LRIS
     telescope_id: =Keck1
+    tns_id: 3
   - name: SEDM
     type: imaging spectrograph
-    band: V
+    band: optical
     telescope_id: =P60
     filters: ["sdssu", "sdssg", "sdssr", "sdssi"]
     api_classname: SEDMAPI
     listener_classname: SEDMListener
+    tns_id: 149
     =id: SEDM
   - name: NGPS
     type: spectrograph
@@ -724,13 +757,15 @@ instrument:
     telescope_id: =P200
     filters: ["sdssu", "sdssg", "sdssr", "sdssi"]
     api_classname: NGPSAPI
+    tns_id: 285
     =id: NGPS
   - name: IOO
     type: imager
-    band: V
+    band: optical
     telescope_id: =LT
     filters: ["sdssu", "sdssg", "sdssr", "sdssi", "sdssz"]
     api_classname: IOOAPI
+    tns_id: 244
     =id: IOO
   - name: IOI
     type: imager
@@ -743,6 +778,8 @@ instrument:
     type: spectrograph
     telescope_id: =LT
     api_classname: SPRATAPI
+    tns_id: 156
+    band: optical
     =id: SPRAT
   - band: optical
     name: Sinistro
@@ -750,6 +787,7 @@ instrument:
     type: imager
     filters: ["sdssu", "sdssg", "sdssr", "sdssi", "sdssz", "desy"]
     api_classname: SINISTROAPI
+    tns_id: 208
     =id: SINISTRO
   - band: optical
     name: TRT
@@ -791,6 +829,7 @@ instrument:
     type: imager
     filters: ["sdssu", "sdssg", "sdssr", "sdssi", "sdssz", "desy"]
     api_classname: SPECTRALAPI
+    tns_id: 209
     =id: SPECTRAL
   - band: optical
     name: FLOYDS
@@ -805,7 +844,7 @@ instrument:
     filters: ["sdssg", "sdssr", "sdssi", "sdssz"]
     api_classname: MUSCATAPI
     =id: MUSCAT
-  - band: optical
+  - band: Near-infrared
     name: NEWFIRM
     telescope_id: =CTIO-4m
     type: imager
@@ -875,6 +914,7 @@ instrument:
         "slew_rate": 0.36,
         "filt_change_time": 8.0,
       }
+    tns_id: 172
   - band: optical
     name: UVOTXRT
     api_classname: UVOTXRTAPI
@@ -900,7 +940,7 @@ instrument:
     api_classname: NICERAPI
     =id: XTI
     telescope_id: =NICER
-    type: imaging spectrograph
+    type: imager
     filters: ["nicerxti"]
   - band: X-ray
     name: WXT
@@ -1004,6 +1044,7 @@ instrument:
     telescope_id: =Gaia
     type: imaging spectrograph
     filters: ["gaia::gbp", "gaia::g", "gaia::grp", "gaia::grvs"]
+    tns_id: 163
   - band: optical
     name: PS1
     telescope_id: =PS1
@@ -1025,6 +1066,7 @@ instrument:
         "bessellv",
         "sdssu",
       ]
+    tns_id: 155
   - band: radio
     name: VLA
     telescope_id: =VLA
@@ -1041,6 +1083,7 @@ instrument:
         "radio-33GHz",
         "radio-45GHz",
       ]
+    tns_id: 226
     =id: VLA
   - band: radio
     name: ATCA
@@ -1076,6 +1119,7 @@ instrument:
         "besselli",
       ]
     api_classname: KAITAPI
+    tns_id: 203
     =id: KAIT
   - band: optical
     name: COLIBRI
@@ -1086,7 +1130,7 @@ instrument:
     =id: COLIBRI
   - name: SEDMv2
     type: imaging spectrograph
-    band: V
+    band: Optical
     telescope_id: =KPNO2m
     filters: ["sdssg", "sdssr", "sdssi", "sdssz"]
     api_classname: SEDMV2API
@@ -1118,6 +1162,7 @@ instrument:
     #   file: ../data/LSST_Fields.csv
     field_fov_type: rectangle
     field_fov_attributes: [3.113, 3.113]
+    tns_id: 287
     =id: LSST
   - band: optical
     name: AuxTel
@@ -1156,7 +1201,7 @@ instrument:
     field_fov_attributes: 0.38
     # field_data:
     #   file: ../data/GROWTH-India_Fields.csv.bz2
-  - band: optical
+  - band: nIR
     name: WINTER
     telescope_id: =WINTER-1m
     type: imager
@@ -1167,7 +1212,7 @@ instrument:
     field_fov_attributes: [1.2, 1]
     # field_data:
     #   file: ../data/WINTER_Fields.csv.bz2
-  - band: optical
+  - band: nIR
     name: SPRING
     telescope_id: =WINTER-1m
     type: imager
@@ -1183,6 +1228,7 @@ instrument:
     telescope_id: =TESS
     type: imager
     filters: ["tess"]
+    tns_id: 308
   - band: optical
     name: KAO
     telescope_id: =KAO-1p9m
@@ -1190,11 +1236,13 @@ instrument:
     =id: KAO
     api_classname: GENERICAPI
     filters: ["ps1::open", "sdssu", "sdssg", "sdssr", "sdssi", "sdssz"]
+    tns_id: 142
   - name: GHTS Camera
     type: imager
     telescope_id: =SOAR
     filters: ["sdssu", "sdssg", "sdssr", "sdssi", "sdssz"]
     api_classname: SOARGHTSIMAGERAPI
+    band: Optical
     =id: GHTSCamera
   - band: optical
     name: GHTS
@@ -1207,6 +1255,7 @@ instrument:
     telescope_id: =SOAR
     type: spectrograph
     api_classname: SOARTSPECAPI
+    tns_id: 260
     =id: TripleSpec
   - band: optical
     name: FRAM-Auger
@@ -1227,15 +1276,17 @@ instrument:
   - band: optical
     name: Binospec
     telescope_id: =MMT
-    type: imaging spectrograph
+    type: spectrograph
     api_classname: BINOSPECAPI
     filters: ["sdssg", "sdssr", "sdssi", "sdssz"]
+    tns_id: 221
     =id: Binospec
   - band: NEAR-IR
     name: MMIRS
     telescope_id: =MMT
     type: imaging spectrograph
     api_classname: MMIRSAPI
+    tns_id: 180
     =id: MMIRS
   - band: optical
     name: TTT
@@ -1260,11 +1311,13 @@ instrument:
     type: imaging spectrograph
     band: optical
     telescope_id: =SOAR
+    tns_id: 127
     =id: Goodman
   - name: WIFES
     type: spectrograph
     band: optical
     telescope_id: =SSO
+    tns_id: 115
     =id: WIFES
 
 instrument/=SEDMv2/log:
