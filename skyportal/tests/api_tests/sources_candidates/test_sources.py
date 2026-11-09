@@ -2707,6 +2707,88 @@ def test_filter_followup_request(
     assert any(obj["id"] == obj_id for obj in data["data"]["sources"])
 
 
+def test_sources_filter_by_analysis(
+    super_admin_token,
+    view_only_token,
+    view_only_token_two_groups,
+    public_group,
+    public_group2,
+    public_source,
+    public_source_two_groups,
+):
+    service_ids = []
+    for _ in range(2):
+        status, data = api(
+            "POST",
+            "analysis_service",
+            data={
+                "name": str(uuid.uuid4()),
+                "display_name": "test analysis service",
+                "contact_name": "Vera Rubin",
+                "url": "http://example.com",
+                "authentication_type": "none",
+                "analysis_type": "lightcurve_fitting",
+                "upload_only": True,
+                "group_ids": [public_group.id, public_group2.id],
+            },
+            token=super_admin_token,
+        )
+        assert status == 200, data
+        service_ids.append(data["data"]["id"])
+    fitted, never_run = service_ids
+
+    for obj_id, group_id in [
+        (public_source.id, public_group.id),
+        (public_source_two_groups.id, public_group2.id),
+    ]:
+        status, data = api(
+            "POST",
+            f"obj/{obj_id}/analysis_upload/{fitted}",
+            data={"group_ids": [group_id]},
+            token=super_admin_token,
+        )
+        assert status == 200, data
+
+    def matches(token, **params):
+        status, data = api("GET", "sources", params=params, token=token)
+        assert status == 200, data
+        return {s["id"] for s in data["data"]["sources"]}
+
+    both = {public_source.id, public_source_two_groups.id}
+    assert matches(view_only_token_two_groups, analysisServiceIds=fitted) == both
+    assert matches(view_only_token_two_groups, analysisServiceIds=never_run) == set()
+    assert (
+        matches(view_only_token_two_groups, analysisServiceIds=f"{fitted},{never_run}")
+        == both
+    )
+
+    # Both sources are visible to a group 1 member, but only one analysis is.
+    assert matches(view_only_token, analysisServiceIds=fitted) == {public_source.id}
+
+    # Service and status must hold for the same analysis.
+    assert (
+        matches(
+            view_only_token_two_groups,
+            analysisServiceIds=fitted,
+            analysisStatus="completed",
+        )
+        == both
+    )
+    assert (
+        matches(
+            view_only_token_two_groups,
+            analysisServiceIds=fitted,
+            analysisStatus="queued",
+        )
+        == set()
+    )
+
+    status, data = api(
+        "GET", "sources", params={"analysisStatus": "done"}, token=view_only_token
+    )
+    assert status == 400
+
+
 def test_add_and_delete_source_label(upload_data_token, view_only_token, public_group):
     obj_id = str(uuid.uuid4())
     status, data = api(

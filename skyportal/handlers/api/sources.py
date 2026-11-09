@@ -905,6 +905,8 @@ async def get_sources(
     has_spectrum_before=None,
     has_spectrum_after=None,
     followup_request_status=None,
+    analysis_service_ids=None,
+    analysis_status=None,
     saved_before=None,
     saved_after=None,
     saved_by_current_user=False,
@@ -1826,6 +1828,33 @@ async def get_sources(
                 raise ValueError(
                     f"Invalid has_followup_request: {has_followup_request} ({e})"
                 )
+
+        # ANALYSES
+        if analysis_service_ids or analysis_status is not None:
+            analysis_filter = ""
+            if analysis_service_ids:
+                ids_str, ids_bindparams = array2sql(
+                    analysis_service_ids, type=sa.Integer, prefix="analysis_service"
+                )
+                query_params.extend(ids_bindparams)
+                analysis_filter += f" and obj_analyses.analysis_service_id in {ids_str}"
+            if analysis_status is not None:
+                query_params.append(
+                    bindparam(
+                        "analysis_status", value=str(analysis_status), type_=sa.String
+                    )
+                )
+                # status is an enum column; the bind is typed as varchar
+                analysis_filter += (
+                    " and CAST(obj_analyses.status AS TEXT) = :analysis_status"
+                )
+            if not is_admin:
+                analysis_filter += " and obj_analyses.id in (select obj_analyse_id from group_obj_analyses where group_id in :accessible_group_ids)"
+            statements.append(
+                f"""
+                EXISTS (SELECT obj_id from obj_analyses where obj_analyses.obj_id=objs.id {analysis_filter})
+                """
+            )
 
         # LISTINGS
         if list_name is not None:

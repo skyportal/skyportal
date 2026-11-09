@@ -27,6 +27,7 @@ from baselayer.app.access import auth_or_token
 from baselayer.log import make_log
 
 from .. import __version__
+from ..enum_types import WEBHOOK_STATUS_TYPES
 from ..models.photometry import PHOT_DETECTION_THRESHOLD
 from ..utils import sso
 from ..utils.app import get_app_base_url
@@ -198,6 +199,19 @@ _GROUP_IDS = _prop(
             items={"type": "string"},
         ),
         "hasSpectrum": _prop("boolean", "Only sources with at least one spectrum."),
+        "analysisServiceIds": _prop(
+            "array",
+            "Only sources with an analysis from one of these services (ids from "
+            "list_analysis_services). Add analysisStatus=completed to keep only "
+            "finished runs, e.g. every source with a Redback fit.",
+            items={"type": "integer"},
+        ),
+        "analysisStatus": _prop(
+            "string",
+            "Only sources with an analysis in this status; with analysisServiceIds, "
+            "the same analysis must match both.",
+            enum=list(WEBHOOK_STATUS_TYPES),
+        ),
         "isRoid": _prop(
             "boolean",
             "Only moving objects (solar system bodies). Pair with "
@@ -674,7 +688,8 @@ async def analyze_solar_system_photometry(handler, args):
     "List the AnalysisServices that can be run on a source: light-curve fitters "
     "(e.g. Fiesta, Redback, MOSFiT), the PyGRB GW targeted search, and spectral "
     "classifiers (NGSF, SNID-SAGE). Returns each service's id, name, analysis type "
-    "and required input data types; use the id with run_analysis.",
+    "and required input data types; use the id with run_analysis, or with "
+    "get_sources' analysisServiceIds to find the sources a service has run on.",
     {},
 )
 async def list_analysis_services(handler, args):

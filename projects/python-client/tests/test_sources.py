@@ -68,6 +68,13 @@ def test_fetch_sources_pagination_and_filters(client: httpx.Client) -> None:
     assert params["numPerPage"] == "1"
     assert params["ra"] == "10.5"
 
+    sources.fetch_sources(
+        client, analysis_service_ids=[16, 17], analysis_status="completed"
+    )
+    params = route.calls[1].request.url.params
+    assert params["analysisServiceIds"] == "16,17"
+    assert params["analysisStatus"] == "completed"
+
 
 @respx.mock
 def test_post_source(client: httpx.Client) -> None:
