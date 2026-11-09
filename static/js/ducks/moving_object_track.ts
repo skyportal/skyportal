@@ -36,6 +36,14 @@ export interface TrackLookup {
     e: number;
     q: number;
     a: number | null;
+    incl: number | null;
+    node: number | null;
+    peri: number | null;
+    mean_anomaly: number | null;
+    tp: number | null;
+    rms_arcsec: number | null;
+    n_fitted: number | null;
+    expected_rms_arcsec: number | null;
   } | null;
   detections: TrackEpoch[];
   members_withheld: number;

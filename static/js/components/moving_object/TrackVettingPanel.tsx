@@ -10,6 +10,7 @@ import { useTheme } from "@mui/material/styles";
 import {
   KnownObjectVerdict,
   MeasuredEpoch,
+  TrackLookup,
   TrackMeasurement,
 } from "../../ducks/moving_object_track";
 import KnownObjectVerdictPanel from "./KnownObjectVerdictPanel";
@@ -23,6 +24,70 @@ const BAND_COLOR: Record<string, string> = {
   g: "#1b9e77",
   r: "#d95f02",
   i: "#7570b3",
+};
+
+const jdToUTC = (jd: number) =>
+  new Date((jd - 2440587.5) * 86400000)
+    .toISOString()
+    .slice(0, 16)
+    .replace("T", " ");
+
+const OrbitElements = ({
+  orbit,
+}: {
+  orbit: NonNullable<TrackLookup["orbit"]>;
+}) => {
+  const rows: [string, string | null][] = [
+    ["a", orbit.a != null ? `${orbit.a.toFixed(4)} au` : null],
+    ["e", orbit.e.toFixed(4)],
+    ["q", `${orbit.q.toFixed(4)} au`],
+    ["i", orbit.incl != null ? `${orbit.incl.toFixed(3)}°` : null],
+    ["Ω", orbit.node != null ? `${orbit.node.toFixed(3)}°` : null],
+    ["ω", orbit.peri != null ? `${orbit.peri.toFixed(3)}°` : null],
+    [
+      "M",
+      orbit.mean_anomaly != null ? `${orbit.mean_anomaly.toFixed(3)}°` : null,
+    ],
+    ["Tp", orbit.tp != null ? `${jdToUTC(orbit.tp)} UTC` : null],
+    ["Epoch", orbit.epoch_jd != null ? `${jdToUTC(orbit.epoch_jd)} UTC` : null],
+    [
+      "Fit rms",
+      orbit.rms_arcsec != null
+        ? `${orbit.rms_arcsec.toFixed(2)}″${orbit.n_fitted != null ? ` over ${orbit.n_fitted} detections` : ""}`
+        : null,
+    ],
+  ];
+  return (
+    <Paper variant="outlined" sx={{ padding: "0.4rem" }}>
+      <Typography
+        sx={{ fontSize: "0.75rem", fontWeight: 600, marginBottom: "0.25rem" }}
+      >
+        Fitted orbit, heliocentric ecliptic J2000
+      </Typography>
+      <Box
+        sx={{
+          display: "grid",
+          gridTemplateColumns: "repeat(auto-fill, minmax(11rem, 1fr))",
+          columnGap: "1rem",
+          rowGap: "0.1rem",
+        }}
+      >
+        {rows
+          .filter(([, value]) => value != null)
+          .map(([label, value]) => (
+            <Typography key={label} sx={{ fontSize: "0.75rem" }}>
+              <Box
+                component="span"
+                sx={{ opacity: 0.65, marginRight: "0.4rem" }}
+              >
+                {label}
+              </Box>
+              {value}
+            </Typography>
+          ))}
+      </Box>
+    </Paper>
+  );
 };
 
 /** Every epoch's difference cutout, in time order, labelled with band and SNR. */
@@ -75,6 +140,7 @@ const CutoutStrip = ({ detections }: { detections: MeasuredEpoch[] }) => (
 );
 
 interface TrackVettingPanelProps {
+  track: TrackLookup;
   measurement: TrackMeasurement;
   knownObject: KnownObjectVerdict | null | undefined;
   checkingKnown: boolean;
@@ -87,6 +153,7 @@ interface TrackVettingPanelProps {
  * mover every visit, so nothing here is keyed on one.
  */
 const TrackVettingPanel = ({
+  track,
   measurement,
   knownObject,
   checkingKnown,
@@ -173,6 +240,8 @@ const TrackVettingPanel = ({
       )}
 
       <KnownObjectVerdictPanel verdict={knownObject} checking={checkingKnown} />
+
+      {track.orbit && <OrbitElements orbit={track.orbit} />}
 
       <Paper variant="outlined" sx={{ padding: "0.4rem" }}>
         <Typography

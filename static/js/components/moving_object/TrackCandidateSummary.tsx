@@ -130,11 +130,11 @@ const TrackCandidateSummary = ({
       {track.orbit && (
         <Chip
           size="small"
-          label={
+          label={`${
             track.orbit.a != null
               ? `a ${track.orbit.a.toFixed(2)} au, e ${track.orbit.e.toFixed(2)}`
               : `q ${track.orbit.q.toFixed(2)} au, e ${track.orbit.e.toFixed(2)}`
-          }
+          }${track.orbit.incl != null ? `, i ${track.orbit.incl.toFixed(1)}°` : ""}`}
         />
       )}
       {track.neo_score != null && (
@@ -211,6 +211,7 @@ const TrackCandidateSummary = ({
         <DialogContent>
           {vetting && (
             <TrackVettingPanel
+              track={track}
               measurement={vetting}
               knownObject={known}
               checkingKnown={checking}

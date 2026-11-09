@@ -198,16 +198,35 @@ NO_PROGRAMID_SURVEYS = {"LSST", "DECAM", "ARGUS"}
 DENY_ALL = {"_id": {"$in": []}}
 
 
-def _track_orbit(orbit):
+GAUSS_K = 0.01720209895
+
+
+def _track_orbit(track):
     """A track's fitted conic, with the semi-major axis when it is bound."""
+    orbit = track.get("orbit")
     if not orbit or orbit.get("e") is None or orbit.get("q") is None:
         return None
     e, q = orbit["e"], orbit["q"]
+    a = q / (1 - e) if e < 1 else None
+    elements = track.get("elements") or {}
+    mean_anomaly = elements.get("mean_anomaly") if e < 1 else None
+    tp = elements.get("tp")
+    # BOOM's tp is the last perihelion, not the nearest.
+    if tp is not None and mean_anomaly is not None and mean_anomaly > 180:
+        tp += 2 * math.pi / GAUSS_K * a**1.5
     return {
         "epoch_jd": orbit.get("epoch_jd"),
         "e": e,
         "q": q,
-        "a": q / (1 - e) if e < 1 else None,
+        "a": a,
+        "incl": elements.get("incl"),
+        "node": elements.get("node"),
+        "peri": elements.get("peri"),
+        "mean_anomaly": mean_anomaly,
+        "tp": tp,
+        "rms_arcsec": track.get("bound_fit_residual_arcsec"),
+        "n_fitted": track.get("bound_fit_detections"),
+        "expected_rms_arcsec": track.get("expected_rms_arcsec"),
     }
 
 
@@ -1084,7 +1103,7 @@ class BOOMBROKER(BrokerAPI):
             "rms_ratio": track.get("rms_ratio"),
             "near_planet": track.get("near_planet"),
             "neo_score": track.get("neo_score"),
-            "orbit": _track_orbit(track.get("orbit")),
+            "orbit": _track_orbit(track),
             "detections": detections,
             # Members the requester's streams do not cover are simply absent,
             # so say so rather than let a short arc look like the whole track.
