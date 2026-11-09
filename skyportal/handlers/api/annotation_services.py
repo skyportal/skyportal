@@ -191,6 +191,7 @@ class GaiaQueryHandler(BaseHandler):
             """
 
             gaia_broker = await get_gaia_broker(session)
+            await session.commit()
             try:
                 gaia_table = await IOLoop.current().run_in_executor(
                     None,
@@ -342,6 +343,7 @@ class IRSAQueryWISEHandler(BaseHandler):
             radius_arcsec = body.crossmatchRadius
             candidate_coord = SkyCoord(ra=obj.ra * u.deg, dec=obj.dec * u.deg)
 
+            await session.commit()
             try:
                 df = await IOLoop.current().run_in_executor(
                     None,
@@ -445,6 +447,7 @@ class ALMAQueryHandler(BaseHandler):
             radius_arcsec = body.crossmatchRadius
             public_only = body.publicOnly
 
+            await session.commit()
             # Offload the blocking archive call so it doesn't stall the event loop.
             try:
                 rows = await IOLoop.current().run_in_executor(
@@ -547,6 +550,7 @@ class VizierQueryHandler(BaseHandler):
             radius_arcsec = body.crossmatchRadius
             candidate_coord = SkyCoord(ra=obj.ra * u.deg, dec=obj.dec * u.deg)
 
+            await session.commit()
             try:
                 tl = await IOLoop.current().run_in_executor(
                     None,
@@ -676,6 +680,7 @@ class DatalabQueryHandler(BaseHandler):
                               INNER JOIN {catalog}.tractor
                               ON {catalog}.tractor.ls_id = {catalog}.photo_z.ls_id
                               where 't' = Q3C_RADIAL_QUERY(ra, dec, {obj.ra}, {obj.dec}, {radius_deg})"""
+            await session.commit()
             try:
                 query = await IOLoop.current().run_in_executor(
                     None, lambda: qc.query(sql=sql_query)
@@ -786,6 +791,7 @@ class PS1QueryHandler(BaseHandler):
             }
 
             url = f"{PS1_URL}/api/v0.1/panstarrs/dr2/mean.csv"
+            await session.commit()
             # Offload the blocking external call so it doesn't stall the event
             # loop (and time-bound it so a hung request can't pin a worker thread).
             r = await IOLoop.current().run_in_executor(
