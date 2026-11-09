@@ -111,6 +111,21 @@ class TrackDetection(BaseModel):
     objectId: str | None = Field(
         default=None, description="Survey object id of the detection."
     )
+    residual_ra: float | None = Field(
+        default=None,
+        description="Observed minus computed RA from the track's orbit, on a great circle, in arcsec.",
+    )
+    residual_dec: float | None = Field(
+        default=None,
+        description="Observed minus computed Dec from the track's orbit, in arcsec.",
+    )
+    fwhm_ratio: float | None = Field(
+        default=None,
+        description="Source FWHM over the PSF FWHM of its exposure, unset when trailed.",
+    )
+    classtar: float | None = Field(
+        default=None, description="SExtractor star/galaxy score of the detection."
+    )
 
 
 class MovingObjectTrackPostBody(BaseModel):

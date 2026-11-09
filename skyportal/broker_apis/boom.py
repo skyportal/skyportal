@@ -11,6 +11,7 @@ from baselayer.app.env import load_env
 from baselayer.log import make_log
 
 from ..utils.cache import Cache, cache_folder, dict_to_bytes
+from ..utils.moving_object_track import activity, fwhm_ratio, sky_rate_arcsec_per_hour
 from ..utils.survey import survey_from_object_id
 from ._enrichment import annotate_schema, supplement_schema
 from .interface import BrokerAPI, normalize_module_streams
@@ -198,16 +199,35 @@ NO_PROGRAMID_SURVEYS = {"LSST", "DECAM", "ARGUS"}
 DENY_ALL = {"_id": {"$in": []}}
 
 
-def _track_orbit(orbit):
+GAUSS_K = 0.01720209895
+
+
+def _track_orbit(track):
     """A track's fitted conic, with the semi-major axis when it is bound."""
+    orbit = track.get("orbit")
     if not orbit or orbit.get("e") is None or orbit.get("q") is None:
         return None
     e, q = orbit["e"], orbit["q"]
+    a = q / (1 - e) if e < 1 else None
+    elements = track.get("elements") or {}
+    mean_anomaly = elements.get("mean_anomaly") if e < 1 else None
+    tp = elements.get("tp")
+    # BOOM's tp is the last perihelion, not the nearest.
+    if tp is not None and mean_anomaly is not None and mean_anomaly > 180:
+        tp += 2 * math.pi / GAUSS_K * a**1.5
     return {
         "epoch_jd": orbit.get("epoch_jd"),
         "e": e,
         "q": q,
-        "a": q / (1 - e) if e < 1 else None,
+        "a": a,
+        "incl": elements.get("incl"),
+        "node": elements.get("node"),
+        "peri": elements.get("peri"),
+        "mean_anomaly": mean_anomaly,
+        "tp": tp,
+        "rms_arcsec": track.get("bound_fit_residual_arcsec"),
+        "n_fitted": track.get("bound_fit_detections"),
+        "expected_rms_arcsec": track.get("expected_rms_arcsec"),
     }
 
 
@@ -1038,6 +1058,9 @@ class BOOMBROKER(BrokerAPI):
                         "candidate.magpsf": 1,
                         "candidate.band": 1,
                         "candidate.ssnamenr": 1,
+                        "candidate.fwhm": 1,
+                        "candidate.seeratio": 1,
+                        "candidate.classtar": 1,
                         "objectId": 1,
                     },
                     "limit": len(members),
@@ -1047,10 +1070,19 @@ class BOOMBROKER(BrokerAPI):
             else []
         )
 
-        detections = []
+        residuals = {
+            member: residual
+            for member, member_survey, residual in zip(
+                members, track.get("member_surveys") or [], track.get("residuals") or []
+            )
+            if member_survey == survey and residual
+        }
+        detections, candidates = [], {}
         for alert in alerts or []:
             candidate = alert.get("candidate") or {}
             jd = candidate.get("jd")
+            residual = residuals.get(alert.get("_id")) or [None, None]
+            candidates[str(alert.get("_id"))] = candidate
             detections.append(
                 {
                     # A candid is a 19-digit integer, which JSON hands the
@@ -1067,9 +1099,15 @@ class BOOMBROKER(BrokerAPI):
                     "band": candidate.get("band"),
                     "ssnamenr": candidate.get("ssnamenr"),
                     "objectId": alert.get("objectId"),
+                    "residual_ra": residual[0],
+                    "residual_dec": residual[1],
+                    "classtar": candidate.get("classtar"),
                 }
             )
         detections.sort(key=lambda d: d["jd"] if d["jd"] is not None else 0)
+        rate = sky_rate_arcsec_per_hour([d for d in detections if d["jd"] is not None])
+        for detection in detections:
+            detection["fwhm_ratio"] = fwhm_ratio(candidates[detection["candid"]], rate)
 
         return {
             "id": str(track.get("_id", track_id)),
@@ -1084,7 +1122,8 @@ class BOOMBROKER(BrokerAPI):
             "rms_ratio": track.get("rms_ratio"),
             "near_planet": track.get("near_planet"),
             "neo_score": track.get("neo_score"),
-            "orbit": _track_orbit(track.get("orbit")),
+            "orbit": _track_orbit(track),
+            "activity": activity(detections),
             "detections": detections,
             # Members the requester's streams do not cover are simply absent,
             # so say so rather than let a short arc look like the whole track.

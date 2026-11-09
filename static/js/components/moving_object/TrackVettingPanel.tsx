@@ -10,6 +10,7 @@ import { useTheme } from "@mui/material/styles";
 import {
   KnownObjectVerdict,
   MeasuredEpoch,
+  TrackLookup,
   TrackMeasurement,
 } from "../../ducks/moving_object_track";
 import KnownObjectVerdictPanel from "./KnownObjectVerdictPanel";
@@ -25,8 +26,81 @@ const BAND_COLOR: Record<string, string> = {
   i: "#7570b3",
 };
 
+const jdToUTC = (jd: number) =>
+  new Date((jd - 2440587.5) * 86400000)
+    .toISOString()
+    .slice(0, 16)
+    .replace("T", " ");
+
+const signed = (value: number) =>
+  `${value >= 0 ? "+" : "−"}${Math.abs(value).toFixed(2)}`;
+
+const OrbitElements = ({
+  orbit,
+}: {
+  orbit: NonNullable<TrackLookup["orbit"]>;
+}) => {
+  const rows: [string, string | null][] = [
+    ["a", orbit.a != null ? `${orbit.a.toFixed(4)} au` : null],
+    ["e", orbit.e.toFixed(4)],
+    ["q", `${orbit.q.toFixed(4)} au`],
+    ["i", orbit.incl != null ? `${orbit.incl.toFixed(3)}°` : null],
+    ["Ω", orbit.node != null ? `${orbit.node.toFixed(3)}°` : null],
+    ["ω", orbit.peri != null ? `${orbit.peri.toFixed(3)}°` : null],
+    [
+      "M",
+      orbit.mean_anomaly != null ? `${orbit.mean_anomaly.toFixed(3)}°` : null,
+    ],
+    ["Tp", orbit.tp != null ? `${jdToUTC(orbit.tp)} UTC` : null],
+    ["Epoch", orbit.epoch_jd != null ? `${jdToUTC(orbit.epoch_jd)} UTC` : null],
+    [
+      "Fit rms",
+      orbit.rms_arcsec != null
+        ? `${orbit.rms_arcsec.toFixed(2)}″${orbit.n_fitted != null ? ` over ${orbit.n_fitted} detections` : ""}`
+        : null,
+    ],
+  ];
+  return (
+    <Paper variant="outlined" sx={{ padding: "0.4rem" }}>
+      <Typography
+        sx={{ fontSize: "0.75rem", fontWeight: 600, marginBottom: "0.25rem" }}
+      >
+        Fitted orbit, heliocentric ecliptic J2000
+      </Typography>
+      <Box
+        sx={{
+          display: "grid",
+          gridTemplateColumns: "repeat(auto-fill, minmax(11rem, 1fr))",
+          columnGap: "1rem",
+          rowGap: "0.1rem",
+        }}
+      >
+        {rows
+          .filter(([, value]) => value != null)
+          .map(([label, value]) => (
+            <Typography key={label} sx={{ fontSize: "0.75rem" }}>
+              <Box
+                component="span"
+                sx={{ opacity: 0.65, marginRight: "0.4rem" }}
+              >
+                {label}
+              </Box>
+              {value}
+            </Typography>
+          ))}
+      </Box>
+    </Paper>
+  );
+};
+
 /** Every epoch's difference cutout, in time order, labelled with band and SNR. */
-const CutoutStrip = ({ detections }: { detections: MeasuredEpoch[] }) => (
+const CutoutStrip = ({
+  detections,
+  expectedRms,
+}: {
+  detections: MeasuredEpoch[];
+  expectedRms: number | null;
+}) => (
   <Box
     sx={{
       display: "flex",
@@ -69,12 +143,36 @@ const CutoutStrip = ({ detections }: { detections: MeasuredEpoch[] }) => (
             off {d.centroid_offset_px.toFixed(0)}px
           </Typography>
         )}
+        {d.residual_ra != null && d.residual_dec != null && (
+          <Typography
+            title="Observed minus computed RA, Dec (arcsec)"
+            sx={{
+              fontSize: "0.6rem",
+              color:
+                expectedRms != null &&
+                Math.hypot(d.residual_ra, d.residual_dec) > 3 * expectedRms
+                  ? "warning.main"
+                  : "text.secondary",
+            }}
+          >
+            {signed(d.residual_ra)} {signed(d.residual_dec)}
+          </Typography>
+        )}
+        {d.fwhm_ratio != null && (
+          <Typography
+            title="FWHM over the PSF of the exposure"
+            sx={{ fontSize: "0.6rem", color: "text.secondary" }}
+          >
+            fwhm ×{d.fwhm_ratio.toFixed(2)}
+          </Typography>
+        )}
       </Box>
     ))}
   </Box>
 );
 
 interface TrackVettingPanelProps {
+  track: TrackLookup;
   measurement: TrackMeasurement;
   knownObject: KnownObjectVerdict | null | undefined;
   checkingKnown: boolean;
@@ -87,6 +185,7 @@ interface TrackVettingPanelProps {
  * mover every visit, so nothing here is keyed on one.
  */
 const TrackVettingPanel = ({
+  track,
   measurement,
   knownObject,
   checkingKnown,
@@ -103,6 +202,10 @@ const TrackVettingPanel = ({
   }, [detections]);
 
   const t0 = detections[0]?.jd ?? 0;
+  const withResiduals = detections.filter(
+    (d) => d.residual_ra != null && d.residual_dec != null,
+  );
+  const { activity } = track;
   const faintest = Math.min(...detections.map((d) => d.snr));
   const offCentre = detections.filter((d) => d.centroid_offset_px > 1).length;
   const disagreeing = measurement.band_flux.filter((p) => !p.agrees).length;
@@ -163,6 +266,14 @@ const TrackVettingPanel = ({
             label={`${disagreeing} band mismatch`}
           />
         )}
+        {activity && (
+          <Chip
+            size="small"
+            color={activity.possible_comet ? "warning" : "default"}
+            label={activity.possible_comet ? "possible comet" : "point-like"}
+            title={`Median over ${activity.n_detections} untrailed detections: FWHM ${activity.fwhm_ratio.toFixed(2)}x the PSF, classtar ${activity.classtar?.toFixed(2) ?? "?"}`}
+          />
+        )}
       </Box>
 
       {!motion && (
@@ -174,13 +285,18 @@ const TrackVettingPanel = ({
 
       <KnownObjectVerdictPanel verdict={knownObject} checking={checkingKnown} />
 
+      {track.orbit && <OrbitElements orbit={track.orbit} />}
+
       <Paper variant="outlined" sx={{ padding: "0.4rem" }}>
         <Typography
           sx={{ fontSize: "0.75rem", fontWeight: 600, marginBottom: "0.25rem" }}
         >
           Difference cutouts, stretched to each epoch&apos;s own background
         </Typography>
-        <CutoutStrip detections={detections} />
+        <CutoutStrip
+          detections={detections}
+          expectedRms={track.orbit?.expected_rms_arcsec ?? null}
+        />
       </Paper>
 
       <Box
@@ -271,6 +387,43 @@ const TrackVettingPanel = ({
             style={{ width: "100%" }}
           />
         </Paper>
+
+        {withResiduals.length > 0 && (
+          <Paper variant="outlined" sx={{ padding: "0.25rem" }}>
+            <Plot
+              data={[
+                {
+                  x: withResiduals.map((d) => d.jd - t0),
+                  y: withResiduals.map((d) => d.residual_ra),
+                  mode: "markers",
+                  type: "scatter",
+                  name: "RA",
+                  marker: { size: 6, color: theme.palette.primary.main },
+                },
+                {
+                  x: withResiduals.map((d) => d.jd - t0),
+                  y: withResiduals.map((d) => d.residual_dec),
+                  mode: "markers",
+                  type: "scatter",
+                  name: "Dec",
+                  marker: { size: 6, color: theme.palette.secondary.main },
+                },
+              ]}
+              layout={{
+                ...layout,
+                showlegend: true,
+                title: {
+                  text: "Residuals from the fitted orbit",
+                  font: { size: 11 },
+                },
+                xaxis: { ...axis, title: { text: "days from first" } },
+                yaxis: { ...axis, title: { text: "O-C (arcsec)" } },
+              }}
+              config={{ displayModeBar: false }}
+              style={{ width: "100%" }}
+            />
+          </Paper>
+        )}
       </Box>
 
       {measurement.failures.length > 0 && (

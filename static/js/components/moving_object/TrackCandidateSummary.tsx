@@ -130,11 +130,11 @@ const TrackCandidateSummary = ({
       {track.orbit && (
         <Chip
           size="small"
-          label={
+          label={`${
             track.orbit.a != null
               ? `a ${track.orbit.a.toFixed(2)} au, e ${track.orbit.e.toFixed(2)}`
               : `q ${track.orbit.q.toFixed(2)} au, e ${track.orbit.e.toFixed(2)}`
-          }
+          }${track.orbit.incl != null ? `, i ${track.orbit.incl.toFixed(1)}°` : ""}`}
         />
       )}
       {track.neo_score != null && (
@@ -157,6 +157,14 @@ const TrackCandidateSummary = ({
           size="small"
           color="warning"
           label={`near ${track.near_planet}`}
+        />
+      )}
+      {track.activity?.possible_comet && (
+        <Chip
+          size="small"
+          color="warning"
+          label="possible comet"
+          title={`FWHM ${track.activity.fwhm_ratio.toFixed(2)}x the PSF, classtar ${track.activity.classtar?.toFixed(2) ?? "?"}`}
         />
       )}
       {track.flags.map((flag) => (
@@ -211,6 +219,7 @@ const TrackCandidateSummary = ({
         <DialogContent>
           {vetting && (
             <TrackVettingPanel
+              track={track}
               measurement={vetting}
               knownObject={known}
               checkingKnown={checking}

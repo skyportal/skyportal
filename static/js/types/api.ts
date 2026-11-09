@@ -45197,6 +45197,30 @@ export interface components {
              * @default null
              */
             objectId: string | null;
+            /**
+             * Residual Ra
+             * @description Observed minus computed RA from the track's orbit, on a great circle, in arcsec.
+             * @default null
+             */
+            residual_ra: number | null;
+            /**
+             * Residual Dec
+             * @description Observed minus computed Dec from the track's orbit, in arcsec.
+             * @default null
+             */
+            residual_dec: number | null;
+            /**
+             * Fwhm Ratio
+             * @description Source FWHM over the PSF FWHM of its exposure, unset when trailed.
+             * @default null
+             */
+            fwhm_ratio: number | null;
+            /**
+             * Classtar
+             * @description SExtractor star/galaxy score of the detection.
+             * @default null
+             */
+            classtar: number | null;
         };
         /**
          * MovingObjectTrackPostBody
