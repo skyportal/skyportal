@@ -19,7 +19,6 @@ from baselayer.app.models import (
     AccessibleIfRelatedRowsAreAccessible,
     AccessibleIfUserMatches,
     Base,
-    CustomUserAccessControl,
     UserAccessControl,
 )
 from baselayer.log import make_log
@@ -225,6 +224,13 @@ def stream_access_logic(cls, user_or_token):
     )
 
 
+class StreamAccessControl(UserAccessControl):
+    # CustomUserAccessControl's DISTINCT keeps Postgres from inlining this filter
+    def select_accessible_rows(self, cls, user_or_token, columns=None):
+        stmt = stream_access_logic(cls, user_or_token)
+        return stmt if columns is None else stmt.with_only_columns(*columns)
+
+
 class Comment(Base, CommentMixin):
     """A comment made by a User or a Robot (via the API) on a Source."""
 
@@ -233,7 +239,7 @@ class Comment(Base, CommentMixin):
     read = (
         accessible_by_groups_members
         & AccessibleIfRelatedRowsAreAccessible(obj="read")
-        & CustomUserAccessControl(stream_access_logic)
+        & StreamAccessControl()
     )
 
     update = delete = AccessibleIfUserMatches("author")
