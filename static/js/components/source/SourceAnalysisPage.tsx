@@ -34,6 +34,17 @@ const useStyles = makeStyles()((theme) => ({
     padding: "0.25rem 0.5rem 0.25rem 0",
     fontSize: "0.875rem",
   },
+  log: {
+    margin: "0.25rem 0 0",
+    padding: theme.spacing(1),
+    maxHeight: "20rem",
+    overflow: "auto",
+    whiteSpace: "pre-wrap",
+    wordBreak: "break-word",
+    fontSize: "0.75rem",
+    backgroundColor: theme.palette.action.hover,
+    borderRadius: theme.shape.borderRadius,
+  },
   cardTitle: {
     padding: `${theme.spacing(0.75)} ${theme.spacing(1)} ${theme.spacing(
       0.75,
@@ -159,11 +170,17 @@ const AnalysisPage = ({
               className={classes.chip}
             />
           </Tooltip>
-          {analysis?.status_message && (
-            <div className={classes.div}>
-              <b>Message</b>: {analysis?.status_message}
-            </div>
-          )}
+          {analysis?.status_message &&
+            (analysis.status_message.includes("\n") ? (
+              <div className={classes.div}>
+                <b>Message</b>
+                <pre className={classes.log}>{analysis.status_message}</pre>
+              </div>
+            ) : (
+              <div className={classes.div}>
+                <b>Message</b>: {analysis.status_message}
+              </div>
+            ))}
           {analysis?.analysis_parameters && (
             <div className={classes.div}>
               <b>Analysis Parameters</b>:

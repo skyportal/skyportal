@@ -71,3 +71,15 @@ export const allocationLabel = (allocation, instruments, telescopes, groups) =>
   )} - ${groups.find(({ id }) => id === allocation.group_id)?.name} (PI ${
     allocation.pi
   })`;
+
+export const statusMessageSummary = (message) => {
+  const lines = (message ?? "")
+    .split("\n")
+    .map((line) => line.trim())
+    .filter((line) => /[A-Za-z0-9]/.test(line));
+  if (lines.length <= 1) return lines[0] ?? "";
+  const last = lines[lines.length - 1];
+  return lines[0].endsWith(":") && !lines[0].startsWith("Traceback")
+    ? `${lines[0]} ${last}`
+    : last;
+};

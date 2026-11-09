@@ -15,6 +15,7 @@ import DefaultAnalysisList from "./DefaultAnalysisList";
 import { useGetAnalysesQuery } from "../../ducks/source";
 import { useGetAnalysisServicesQuery } from "../../ducks/analysis_services";
 import { useGetProfileQuery } from "../../ducks/profile";
+import { statusMessageSummary } from "../../utils/format";
 
 const Plot: any = createPlotlyComponent(Plotly);
 
@@ -242,6 +243,8 @@ const AnalysisRequestList = () => {
       flex: 1.5,
       minWidth: 200,
       sortable: false,
+      renderCell: (params: any) =>
+        statusMessageSummary(params.row.status_message),
     },
     {
       field: "created_at",
