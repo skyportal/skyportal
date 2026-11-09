@@ -18,18 +18,21 @@ import {
 } from "../../../ducks/brokers";
 import { useAppDispatch } from "../../../types/hooks";
 
-// Lasair streams a filter on lasair_<user id><first 8 hex of sha256(name)>.
-const topicSuffix = async (name: string) => {
+// Lasair topics are lasair_<user id><sha256(name)[:8]>, or the bare name for older filters.
+const topicPattern = async (name: string) => {
   const clean = name.replace(/[^\p{L}\p{N}_.-]/gu, "");
+  if (!clean) return null;
   const short =
     clean.length > 128 ? clean.slice(0, 64) + clean.slice(-64) : clean;
   const digest = await crypto.subtle.digest(
     "SHA-256",
     new TextEncoder().encode(short),
   );
-  return Array.from(new Uint8Array(digest).slice(0, 4), (b) =>
+  const hash = Array.from(new Uint8Array(digest).slice(0, 4), (b) =>
     b.toString(16).padStart(2, "0"),
   ).join("");
+  const bare = clean.replace(/\./g, "\\.");
+  return new RegExp(`^lasair_\\d+(${hash}|${bare})$`);
 };
 
 interface CopyFieldProps {
@@ -90,7 +93,7 @@ const LasairCreateDialog = ({
       ? "https://lasair-ztf.lsst.ac.uk"
       : "https://lasair.lsst.ac.uk";
   const [name, setName] = useState(defaultName);
-  const [suffix, setSuffix] = useState("");
+  const [pattern, setPattern] = useState<RegExp | null>(null);
   const [topic, setTopic] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [fetchTopics, { data, isFetching }] =
@@ -106,12 +109,12 @@ const LasairCreateDialog = ({
   }, [open, defaultName]);
 
   useEffect(() => {
-    topicSuffix(name).then(setSuffix);
+    topicPattern(name).then(setPattern);
   }, [name]);
 
-  const matches = suffix
-    ? (data?.topics ?? []).filter((t) => t.endsWith(suffix))
-    : [];
+  const matching = (topics: string[] | undefined) =>
+    pattern ? (topics ?? []).filter((t) => pattern.test(t)) : [];
+  const matches = matching(data?.topics);
 
   const copy = async (label: string, value: string) => {
     await navigator.clipboard.writeText(value);
@@ -120,7 +123,7 @@ const LasairCreateDialog = ({
 
   const findTopic = async () => {
     const result = await fetchTopics(brokerId, false);
-    const found = (result.data?.topics ?? []).filter((t) => t.endsWith(suffix));
+    const found = matching(result.data?.topics);
     if (found.length === 1) setTopic(found[0]);
     setError(
       result.data && found.length === 0
