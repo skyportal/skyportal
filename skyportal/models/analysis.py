@@ -1115,7 +1115,8 @@ def create_default_analysis_on_spectrum(mapper, connection, target):
     ``source_filter={"spectrum": "any"}`` auto-fires here for every new spectrum --
     the hook for auto-classifying each uploaded spectrum (e.g. NGSF/SNID-SAGE),
     complementing the save-to-group trigger which only fires at source-save time.
-    Adding ``"group_id": <id>`` restricts it to spectra shared with that group."""
+    Adding ``"group_id": <id>`` restricts it to spectra shared with that group, and
+    ``"wavelength_range": [min, max]`` (Angstrom) to spectra overlapping that range."""
 
     @event.listens_for(inspect(target).session, "after_flush", once=True)
     def receive_after_flush(session, context):
@@ -1147,6 +1148,17 @@ def create_default_analysis_on_spectrum(mapper, connection, target):
                             ).all()
                         )
                     if int(required_group) not in spectrum_group_ids:
+                        continue
+                wavelength_range = default_analysis.source_filter.get(
+                    "wavelength_range"
+                )
+                if wavelength_range is not None:
+                    wavelengths = np.asarray(target.wavelengths, dtype=float)
+                    if (
+                        wavelengths.size == 0
+                        or np.nanmax(wavelengths) < wavelength_range[0]
+                        or np.nanmin(wavelengths) > wavelength_range[1]
+                    ):
                         continue
                 log(
                     f"Creating default analysis {default_analysis.analysis_service.name} "

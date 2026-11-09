@@ -122,6 +122,15 @@ else:
     openai_api_key = None
 
 
+def valid_wavelength_range(value):
+    return (
+        isinstance(value, list)
+        and len(value) == 2
+        and all(isinstance(v, int | float) for v in value)
+        and value[0] < value[1]
+    )
+
+
 def valid_url(trial_url):
     """
     determine if the URL is valid
@@ -2541,11 +2550,17 @@ class DefaultAnalysisHandler(BaseHandler):
                     set(DEFAULT_ANALYSIS_FILTER_TYPES.keys())
                     | set(DEFAULT_ANALYSIS_SCALAR_FILTERS.keys())
                     | set(DEFAULT_ANALYSIS_LIST_FILTERS.keys())
+                    | {"wavelength_range"}
                 ):
                     return self.error(f"Invalid source_filter: {source_filter}.")
 
                 for key, value in source_filter.items():
-                    if key in DEFAULT_ANALYSIS_SCALAR_FILTERS:
+                    if key == "wavelength_range":
+                        if not valid_wavelength_range(value):
+                            return self.error(
+                                "Invalid source_filter. Key wavelength_range must be [min, max]."
+                            )
+                    elif key in DEFAULT_ANALYSIS_SCALAR_FILTERS:
                         if not isinstance(value, DEFAULT_ANALYSIS_SCALAR_FILTERS[key]):
                             return self.error(
                                 f"Invalid source_filter. Key {key} must be a "
@@ -2694,10 +2709,16 @@ class DefaultAnalysisHandler(BaseHandler):
                     if not set(source_filter.keys()).issubset(
                         set(DEFAULT_ANALYSIS_FILTER_TYPES.keys())
                         | set(DEFAULT_ANALYSIS_SCALAR_FILTERS.keys())
+                        | {"wavelength_range"}
                     ):
                         return self.error(f"Invalid source_filter: {source_filter}.")
                     for key, value in source_filter.items():
-                        if key in DEFAULT_ANALYSIS_SCALAR_FILTERS:
+                        if key == "wavelength_range":
+                            if not valid_wavelength_range(value):
+                                return self.error(
+                                    "Invalid source_filter. Key wavelength_range must be [min, max]."
+                                )
+                        elif key in DEFAULT_ANALYSIS_SCALAR_FILTERS:
                             if not isinstance(
                                 value, DEFAULT_ANALYSIS_SCALAR_FILTERS[key]
                             ):
