@@ -68,6 +68,7 @@ const useStyles = makeStyles()((theme) => ({
   cutouts: { flex: "1 1 240px", minWidth: 220 },
   cutoutsExpanded: { flex: "0 0 auto", minWidth: 460 },
   lc: { flex: "1 1 260px", minWidth: 240 },
+  lcWide: { flex: "1 1 100%" },
   footer: {
     marginTop: theme.spacing(1),
     display: "flex",
@@ -114,6 +115,7 @@ interface BrokerAlertCardProps {
   lazyHistory?: boolean;
   // Card rendered alone on a full-width row: give the cutouts more room.
   expanded?: boolean;
+  wideLightCurve?: boolean;
 }
 
 const num = (v: number | undefined, d = 4) =>
@@ -128,6 +130,7 @@ const BrokerAlertCard = ({
   initialCandid,
   lazyHistory = false,
   expanded = false,
+  wideLightCurve = false,
 }: BrokerAlertCardProps) => {
   const { classes, cx } = useStyles();
   // Newest alert first (highest jd), so the default selection is the latest.
@@ -272,7 +275,7 @@ const BrokerAlertCard = ({
               />
             </div>
           )}
-          <div className={classes.lc}>
+          <div className={cx(classes.lc, { [classes.lcWide]: wideLightCurve })}>
             {historyShown ? (
               <BrokerAlertLightCurve
                 brokerId={brokerId}

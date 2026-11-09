@@ -62,6 +62,7 @@ const FilterResultAlerts = ({
               survey={survey}
               alerts={objectAlerts}
               lazyHistory
+              wideLightCurve
             />
           ))}
       </Box>
