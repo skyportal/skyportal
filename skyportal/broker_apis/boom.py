@@ -1066,10 +1066,18 @@ class BOOMBROKER(BrokerAPI):
             else []
         )
 
+        residuals = {
+            member: residual
+            for member, member_survey, residual in zip(
+                members, track.get("member_surveys") or [], track.get("residuals") or []
+            )
+            if member_survey == survey and residual
+        }
         detections = []
         for alert in alerts or []:
             candidate = alert.get("candidate") or {}
             jd = candidate.get("jd")
+            residual = residuals.get(alert.get("_id")) or [None, None]
             detections.append(
                 {
                     # A candid is a 19-digit integer, which JSON hands the
@@ -1086,6 +1094,8 @@ class BOOMBROKER(BrokerAPI):
                     "band": candidate.get("band"),
                     "ssnamenr": candidate.get("ssnamenr"),
                     "objectId": alert.get("objectId"),
+                    "residual_ra": residual[0],
+                    "residual_dec": residual[1],
                 }
             )
         detections.sort(key=lambda d: d["jd"] if d["jd"] is not None else 0)

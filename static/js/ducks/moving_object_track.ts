@@ -14,6 +14,8 @@ export interface TrackEpoch {
   obs_jd?: number | null;
   ssnamenr?: string | null;
   objectId?: string | null;
+  residual_ra?: number | null;
+  residual_dec?: number | null;
   snr?: number;
   centroid_offset_px?: number;
   peak?: number;

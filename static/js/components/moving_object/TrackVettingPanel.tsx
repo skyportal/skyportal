@@ -32,6 +32,9 @@ const jdToUTC = (jd: number) =>
     .slice(0, 16)
     .replace("T", " ");
 
+const signed = (value: number) =>
+  `${value >= 0 ? "+" : "−"}${Math.abs(value).toFixed(2)}`;
+
 const OrbitElements = ({
   orbit,
 }: {
@@ -91,7 +94,13 @@ const OrbitElements = ({
 };
 
 /** Every epoch's difference cutout, in time order, labelled with band and SNR. */
-const CutoutStrip = ({ detections }: { detections: MeasuredEpoch[] }) => (
+const CutoutStrip = ({
+  detections,
+  expectedRms,
+}: {
+  detections: MeasuredEpoch[];
+  expectedRms: number | null;
+}) => (
   <Box
     sx={{
       display: "flex",
@@ -134,6 +143,21 @@ const CutoutStrip = ({ detections }: { detections: MeasuredEpoch[] }) => (
             off {d.centroid_offset_px.toFixed(0)}px
           </Typography>
         )}
+        {d.residual_ra != null && d.residual_dec != null && (
+          <Typography
+            title="Observed minus computed RA, Dec (arcsec)"
+            sx={{
+              fontSize: "0.6rem",
+              color:
+                expectedRms != null &&
+                Math.hypot(d.residual_ra, d.residual_dec) > 3 * expectedRms
+                  ? "warning.main"
+                  : "text.secondary",
+            }}
+          >
+            {signed(d.residual_ra)} {signed(d.residual_dec)}
+          </Typography>
+        )}
       </Box>
     ))}
   </Box>
@@ -170,6 +194,9 @@ const TrackVettingPanel = ({
   }, [detections]);
 
   const t0 = detections[0]?.jd ?? 0;
+  const withResiduals = detections.filter(
+    (d) => d.residual_ra != null && d.residual_dec != null,
+  );
   const faintest = Math.min(...detections.map((d) => d.snr));
   const offCentre = detections.filter((d) => d.centroid_offset_px > 1).length;
   const disagreeing = measurement.band_flux.filter((p) => !p.agrees).length;
@@ -249,7 +276,10 @@ const TrackVettingPanel = ({
         >
           Difference cutouts, stretched to each epoch&apos;s own background
         </Typography>
-        <CutoutStrip detections={detections} />
+        <CutoutStrip
+          detections={detections}
+          expectedRms={track.orbit?.expected_rms_arcsec ?? null}
+        />
       </Paper>
 
       <Box
@@ -340,6 +370,43 @@ const TrackVettingPanel = ({
             style={{ width: "100%" }}
           />
         </Paper>
+
+        {withResiduals.length > 0 && (
+          <Paper variant="outlined" sx={{ padding: "0.25rem" }}>
+            <Plot
+              data={[
+                {
+                  x: withResiduals.map((d) => d.jd - t0),
+                  y: withResiduals.map((d) => d.residual_ra),
+                  mode: "markers",
+                  type: "scatter",
+                  name: "RA",
+                  marker: { size: 6, color: theme.palette.primary.main },
+                },
+                {
+                  x: withResiduals.map((d) => d.jd - t0),
+                  y: withResiduals.map((d) => d.residual_dec),
+                  mode: "markers",
+                  type: "scatter",
+                  name: "Dec",
+                  marker: { size: 6, color: theme.palette.secondary.main },
+                },
+              ]}
+              layout={{
+                ...layout,
+                showlegend: true,
+                title: {
+                  text: "Residuals from the fitted orbit",
+                  font: { size: 11 },
+                },
+                xaxis: { ...axis, title: { text: "days from first" } },
+                yaxis: { ...axis, title: { text: "O-C (arcsec)" } },
+              }}
+              config={{ displayModeBar: false }}
+              style={{ width: "100%" }}
+            />
+          </Paper>
+        )}
       </Box>
 
       {measurement.failures.length > 0 && (
