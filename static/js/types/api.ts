@@ -18613,6 +18613,10 @@ export interface paths {
                     hasFollowupRequest?: boolean;
                     /** @description If provided, string to match status of followup_request against */
                     followupRequestStatus?: string | null;
+                    /** @description If provided, return only sources with at least one analysis from one of these analysis services (IDs from /api/analysis_service) */
+                    analysisServiceIds?: number[] | null;
+                    /** @description If provided, return only sources with at least one analysis in this status, e.g. completed. Combines with analysisServiceIds: the same analysis must match both. */
+                    analysisStatus?: "queued" | "pending" | "completed" | "failure" | "cancelled" | "timed_out" | null;
                     /** @description Arrow-parseable date-time string (e.g. 2020-01-01 or 2020-01-01T00:00:00 or 2020-01-01T00:00:00+00:00). If provided, filter by created_at or modified > createdOrModifiedAfter */
                     createdOrModifiedAfter?: string | null;
                     /** @description If provided, return only sources who have at least numberDetections detections. */

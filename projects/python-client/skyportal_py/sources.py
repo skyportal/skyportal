@@ -5,6 +5,7 @@ from __future__ import annotations
 from typing import Any
 
 import httpx
+from skyportal_py_models.analysis import WebhookStatus
 from skyportal_py_models.annotations import AnnotationResponse
 from skyportal_py_models.gcn_events import SourceResponse
 from skyportal_py_models.sources import (
@@ -240,6 +241,8 @@ def fetch_sources(  # noqa: PLR0913 -- mirrors the endpoint's query parameters
     has_no_tns_name: bool | None = None,
     has_followup_request: bool | None = None,
     followup_request_status: str | None = None,
+    analysis_service_ids: list[int] | None = None,
+    analysis_status: WebhookStatus | None = None,
     has_been_labelled: bool | None = None,
     has_not_been_labelled: bool | None = None,
     current_user_labeller: bool | None = None,
@@ -345,6 +348,13 @@ def fetch_sources(  # noqa: PLR0913 -- mirrors the endpoint's query parameters
     followup_request_status : str, optional
         With ``has_followup_request``, partial-match filter on the
         follow-up request status.
+    analysis_service_ids : list of int, optional
+        Keep only sources with an analysis from one of these analysis
+        services.
+    analysis_status : str, optional
+        Keep only sources with an analysis in this status, e.g.
+        ``"completed"``. With ``analysis_service_ids``, the same analysis
+        must match both.
     has_been_labelled : bool, optional
         Keep only sources that have been labelled.
     has_not_been_labelled : bool, optional
@@ -443,6 +453,8 @@ def fetch_sources(  # noqa: PLR0913 -- mirrors the endpoint's query parameters
             has_no_tns_name=has_no_tns_name,
             has_followup_request=has_followup_request,
             followup_request_status=followup_request_status,
+            analysis_service_ids=analysis_service_ids,
+            analysis_status=analysis_status,
             has_been_labelled=has_been_labelled,
             has_not_been_labelled=has_not_been_labelled,
             current_user_labeller=current_user_labeller,
@@ -516,6 +528,7 @@ _SOURCES_FILTER_WIRE_NAMES = {
     "has_no_tns_name": "hasNoTNSname",
     "has_followup_request": "hasFollowupRequest",
     "followup_request_status": "followupRequestStatus",
+    "analysis_status": "analysisStatus",
     "has_been_labelled": "hasBeenLabelled",
     "has_not_been_labelled": "hasNotBeenLabelled",
     "current_user_labeller": "currentUserLabeller",
@@ -559,6 +572,7 @@ def _sources_filter_params(
     classifications = kwargs.pop("classifications", None)
     nonclassifications = kwargs.pop("nonclassifications", None)
     rejected_source_ids = kwargs.pop("rejected_source_ids", None)
+    analysis_service_ids = kwargs.pop("analysis_service_ids", None)
     params: dict[str, str | int | float | bool] = {
         _SOURCES_FILTER_WIRE_NAMES[name]: value
         for name, value in kwargs.items()
@@ -572,6 +586,8 @@ def _sources_filter_params(
         params["nonclassifications"] = ",".join(nonclassifications)
     if rejected_source_ids is not None:
         params["rejectedSourceIDs"] = ",".join(rejected_source_ids)
+    if analysis_service_ids is not None:
+        params["analysisServiceIds"] = ",".join(str(i) for i in analysis_service_ids)
     return params
 
 

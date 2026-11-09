@@ -7,7 +7,7 @@ from typing import Any, ClassVar, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from skyportal_py_models.analysis import ObjAnalysisResponse
+from skyportal_py_models.analysis import ObjAnalysisResponse, WebhookStatus
 from skyportal_py_models.annotations import AnnotationResponse
 from skyportal_py_models.assignments import AssignmentResponse
 from skyportal_py_models.candidates import CandidateRecordResponse
@@ -1258,6 +1258,21 @@ class SourceGetQuery(BaseModel):
     followupRequestStatus: str | None = Field(
         default=None,
         description="If provided, string to match status of followup_request against",
+    )
+    analysisServiceIds: list[int] | None = Field(
+        default=None,
+        description=(
+            "If provided, return only sources with at least one analysis from one "
+            "of these analysis services (IDs from /api/analysis_service)"
+        ),
+    )
+    analysisStatus: WebhookStatus | None = Field(
+        default=None,
+        description=(
+            "If provided, return only sources with at least one analysis in this "
+            "status, e.g. completed. Combines with analysisServiceIds: the same "
+            "analysis must match both."
+        ),
     )
     createdOrModifiedAfter: str | None = Field(
         default=None,

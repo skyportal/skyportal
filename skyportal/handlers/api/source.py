@@ -1629,6 +1629,8 @@ class SourceHandler(BaseHandler):
                     has_no_spectrum=query.hasNoSpectrum,
                     has_followup_request=query.hasFollowupRequest,
                     followup_request_status=query.followupRequestStatus,
+                    analysis_service_ids=query.analysisServiceIds,
+                    analysis_status=query.analysisStatus,
                     min_redshift=query.minRedshift,
                     max_redshift=query.maxRedshift,
                     min_peak_magnitude=query.minPeakMagnitude,
