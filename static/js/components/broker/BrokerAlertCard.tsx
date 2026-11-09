@@ -147,7 +147,8 @@ const BrokerAlertCard = ({
   // Full object (also used by the light curve; RTK dedupes the request). For
   // brokers whose alert rows omit ra/dec/candid (e.g. Lasair cone results), we
   // fall back to the fetched object's candidate.
-  const [historyShown, setHistoryShown] = useState(!lazyHistory);
+  const [historyRequested, setHistoryRequested] = useState(false);
+  const historyShown = historyRequested || !lazyHistory;
   const { data: alertData } = useGetBrokerObjectQuery(
     { brokerId, objectId },
     { skip: !objectId || !historyShown },
@@ -283,7 +284,7 @@ const BrokerAlertCard = ({
                 jd={selected?.jd}
               />
             ) : (
-              <Button size="small" onClick={() => setHistoryShown(true)}>
+              <Button size="small" onClick={() => setHistoryRequested(true)}>
                 Load light curve
               </Button>
             )}
