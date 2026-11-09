@@ -7,7 +7,27 @@ import Box from "@mui/material/Box";
 import CircularProgress from "@mui/material/CircularProgress";
 import Typography from "@mui/material/Typography";
 
-import { KnownObjectVerdict } from "../../ducks/moving_object_track";
+import {
+  KnownObjectMatch,
+  KnownObjectVerdict,
+} from "../../ducks/moving_object_track";
+
+const NearestKnown = ({ objects }: { objects: KnownObjectMatch[] }) => {
+  const nearest = [...objects].sort(
+    (a, b) => a.nearest_arcsec - b.nearest_arcsec,
+  )[0];
+  return (
+    <Typography sx={{ fontSize: "0.72rem", marginTop: "0.35rem" }}>
+      {nearest
+        ? `Nearest known: ${nearest.name}, ${nearest.nearest_arcsec.toFixed(0)}″ away${
+            nearest.rate_difference_arcsec_per_hour != null
+              ? `, motion differs by ${nearest.rate_difference_arcsec_per_hour.toFixed(1)}″/h`
+              : ""
+          }`
+        : "No known object within 6′"}
+    </Typography>
+  );
+};
 
 interface KnownObjectVerdictPanelProps {
   verdict: KnownObjectVerdict | null | undefined;
@@ -70,6 +90,7 @@ const KnownObjectVerdictPanel = ({
             {errors[0]}
           </Typography>
         )}
+        {(nearby ?? []).length > 0 && <NearestKnown objects={nearby} />}
         <Typography sx={{ fontSize: "0.75rem", marginTop: "0.35rem" }}>
           This is not a clean negative. Treat the track as unidentified, not as
           a discovery.
@@ -100,6 +121,7 @@ const KnownObjectVerdictPanel = ({
             {match.motion_agrees ? ", and the motion agrees" : ""}.
           </Typography>
         )}
+        <NearestKnown objects={[...matches, ...(nearby ?? [])]} />
         <Typography sx={{ fontSize: "0.75rem", marginTop: "0.35rem" }}>
           Already catalogued. Do not submit as a discovery.
         </Typography>
@@ -115,6 +137,7 @@ const KnownObjectVerdictPanel = ({
     >
       <AlertTitle sx={{ fontSize: "0.85rem" }}>Nothing known here</AlertTitle>
       {reason}
+      <NearestKnown objects={nearby ?? []} />
       {nearby.length > 0 && (
         <Box sx={{ marginTop: "0.35rem" }}>
           <Typography sx={{ fontSize: "0.72rem", opacity: 0.85 }}>
