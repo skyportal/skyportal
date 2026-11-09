@@ -119,6 +119,13 @@ class TrackDetection(BaseModel):
         default=None,
         description="Observed minus computed Dec from the track's orbit, in arcsec.",
     )
+    fwhm_ratio: float | None = Field(
+        default=None,
+        description="Source FWHM over the PSF FWHM of its exposure, unset when trailed.",
+    )
+    classtar: float | None = Field(
+        default=None, description="SExtractor star/galaxy score of the detection."
+    )
 
 
 class MovingObjectTrackPostBody(BaseModel):

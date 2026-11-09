@@ -16,6 +16,8 @@ export interface TrackEpoch {
   objectId?: string | null;
   residual_ra?: number | null;
   residual_dec?: number | null;
+  fwhm_ratio?: number | null;
+  classtar?: number | null;
   snr?: number;
   centroid_offset_px?: number;
   peak?: number;
@@ -46,6 +48,12 @@ export interface TrackLookup {
     rms_arcsec: number | null;
     n_fitted: number | null;
     expected_rms_arcsec: number | null;
+  } | null;
+  activity: {
+    fwhm_ratio: number;
+    classtar: number | null;
+    n_detections: number;
+    possible_comet: boolean;
   } | null;
   detections: TrackEpoch[];
   members_withheld: number;

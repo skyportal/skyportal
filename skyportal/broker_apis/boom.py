@@ -11,6 +11,7 @@ from baselayer.app.env import load_env
 from baselayer.log import make_log
 
 from ..utils.cache import Cache, cache_folder, dict_to_bytes
+from ..utils.moving_object_track import activity, fwhm_ratio, sky_rate_arcsec_per_hour
 from ..utils.survey import survey_from_object_id
 from ._enrichment import annotate_schema, supplement_schema
 from .interface import BrokerAPI, normalize_module_streams
@@ -1057,6 +1058,9 @@ class BOOMBROKER(BrokerAPI):
                         "candidate.magpsf": 1,
                         "candidate.band": 1,
                         "candidate.ssnamenr": 1,
+                        "candidate.fwhm": 1,
+                        "candidate.seeratio": 1,
+                        "candidate.classtar": 1,
                         "objectId": 1,
                     },
                     "limit": len(members),
@@ -1073,11 +1077,12 @@ class BOOMBROKER(BrokerAPI):
             )
             if member_survey == survey and residual
         }
-        detections = []
+        detections, candidates = [], {}
         for alert in alerts or []:
             candidate = alert.get("candidate") or {}
             jd = candidate.get("jd")
             residual = residuals.get(alert.get("_id")) or [None, None]
+            candidates[str(alert.get("_id"))] = candidate
             detections.append(
                 {
                     # A candid is a 19-digit integer, which JSON hands the
@@ -1096,9 +1101,13 @@ class BOOMBROKER(BrokerAPI):
                     "objectId": alert.get("objectId"),
                     "residual_ra": residual[0],
                     "residual_dec": residual[1],
+                    "classtar": candidate.get("classtar"),
                 }
             )
         detections.sort(key=lambda d: d["jd"] if d["jd"] is not None else 0)
+        rate = sky_rate_arcsec_per_hour([d for d in detections if d["jd"] is not None])
+        for detection in detections:
+            detection["fwhm_ratio"] = fwhm_ratio(candidates[detection["candid"]], rate)
 
         return {
             "id": str(track.get("_id", track_id)),
@@ -1114,6 +1123,7 @@ class BOOMBROKER(BrokerAPI):
             "near_planet": track.get("near_planet"),
             "neo_score": track.get("neo_score"),
             "orbit": _track_orbit(track),
+            "activity": activity(detections),
             "detections": detections,
             # Members the requester's streams do not cover are simply absent,
             # so say so rather than let a short arc look like the whole track.

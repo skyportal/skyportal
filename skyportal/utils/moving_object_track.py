@@ -206,6 +206,52 @@ def band_flux_is_consistent(measurements):
     return all(pair["agrees"] for pair in band_flux_agreements(measurements))
 
 
+ZTF_PIXEL_ARCSEC = 1.012
+MAX_TRAIL_FRACTION = 0.5
+MAX_SEERATIO = 2.0
+MIN_ACTIVITY_DETECTIONS = 5
+# 99th percentile of known-asteroid tracks on BOOM Caltech, which flags 5 of 7 comet tracks.
+ACTIVE_FWHM_RATIO = 1.15
+ACTIVE_CLASSTAR = 0.87
+
+
+def sky_rate_arcsec_per_hour(detections):
+    rows = sorted(detections, key=lambda d: d["jd"])
+    if len(rows) < 2 or rows[-1]["jd"] <= rows[0]["jd"]:
+        return None
+    first, last = rows[0], rows[-1]
+    mean_dec = np.radians((first["dec"] + last["dec"]) / 2)
+    d_ra = _ra_difference(first["ra"], last["ra"]) * np.cos(mean_dec)
+    d_dec = last["dec"] - first["dec"]
+    return float(np.hypot(d_ra, d_dec) * 3600 / ((last["jd"] - first["jd"]) * 24))
+
+
+def fwhm_ratio(candidate, rate_arcsec_per_hour):
+    fwhm, seeratio = candidate.get("fwhm"), candidate.get("seeratio")
+    if not fwhm or not seeratio or seeratio >= MAX_SEERATIO:
+        return None
+    trail = (rate_arcsec_per_hour or 0.0) * (candidate.get("exptime") or 30.0) / 3600
+    if trail > MAX_TRAIL_FRACTION * fwhm * seeratio * ZTF_PIXEL_ARCSEC:
+        return None
+    return float(1 / seeratio)
+
+
+def activity(detections):
+    usable = [d for d in detections if d.get("fwhm_ratio") is not None]
+    if len(usable) < MIN_ACTIVITY_DETECTIONS:
+        return None
+    ratio = float(np.median([d["fwhm_ratio"] for d in usable]))
+    stars = [d["classtar"] for d in usable if d.get("classtar") is not None]
+    classtar = float(np.median(stars)) if stars else None
+    return {
+        "fwhm_ratio": ratio,
+        "classtar": classtar,
+        "n_detections": len(usable),
+        "possible_comet": ratio > ACTIVE_FWHM_RATIO
+        or (classtar is not None and classtar < ACTIVE_CLASSTAR),
+    }
+
+
 def render_epoch(data, survey="ZTF", header=None):
     """One epoch's difference cutout as a PNG, stretched to its own background.
 

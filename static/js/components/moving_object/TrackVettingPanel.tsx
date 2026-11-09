@@ -158,6 +158,14 @@ const CutoutStrip = ({
             {signed(d.residual_ra)} {signed(d.residual_dec)}
           </Typography>
         )}
+        {d.fwhm_ratio != null && (
+          <Typography
+            title="FWHM over the PSF of the exposure"
+            sx={{ fontSize: "0.6rem", color: "text.secondary" }}
+          >
+            fwhm ×{d.fwhm_ratio.toFixed(2)}
+          </Typography>
+        )}
       </Box>
     ))}
   </Box>
@@ -197,6 +205,7 @@ const TrackVettingPanel = ({
   const withResiduals = detections.filter(
     (d) => d.residual_ra != null && d.residual_dec != null,
   );
+  const { activity } = track;
   const faintest = Math.min(...detections.map((d) => d.snr));
   const offCentre = detections.filter((d) => d.centroid_offset_px > 1).length;
   const disagreeing = measurement.band_flux.filter((p) => !p.agrees).length;
@@ -255,6 +264,14 @@ const TrackVettingPanel = ({
             size="small"
             color="warning"
             label={`${disagreeing} band mismatch`}
+          />
+        )}
+        {activity && (
+          <Chip
+            size="small"
+            color={activity.possible_comet ? "warning" : "default"}
+            label={activity.possible_comet ? "possible comet" : "point-like"}
+            title={`Median over ${activity.n_detections} untrailed detections: FWHM ${activity.fwhm_ratio.toFixed(2)}x the PSF, classtar ${activity.classtar?.toFixed(2) ?? "?"}`}
           />
         )}
       </Box>
