@@ -12,6 +12,7 @@ from ..utils import http
 from ..utils.naive_datetime import utcnow_naive
 from . import FollowUpAPI
 from .interface import push_followup_refresh
+from .lco import observation_note
 
 env, cfg = load_env()
 
@@ -134,6 +135,7 @@ class BLANCO_NEWFIRM_Request:
                     "configurations": configurations,
                     "windows": windows,
                     "location": location,
+                    "observation_note": observation_note(request),
                 }
             ],
         }
@@ -263,6 +265,7 @@ class NEWFIRMAPI(BLANCOAPI):
             .options(
                 selectinload(FollowupRequest.allocation),
                 selectinload(FollowupRequest.obj),
+                selectinload(FollowupRequest.requester),
             )
         )
 
