@@ -1,5 +1,6 @@
 import { useState } from "react";
 import Box from "@mui/material/Box";
+import Button from "@mui/material/Button";
 import Pagination from "@mui/material/Pagination";
 
 import { useGetBrokersQuery } from "../../../../ducks/brokers";
@@ -24,6 +25,7 @@ const FilterResultAlerts = ({
   survey,
 }: FilterResultAlertsProps) => {
   const [page, setPage] = useState(1);
+  const [allLightCurves, setAllLightCurves] = useState(false);
   const { data: brokers } = useGetBrokersQuery();
   const brokerClassname =
     brokers?.find((b) => b.id === brokerId)?.broker_classname ?? "BOOMBROKER";
@@ -44,6 +46,13 @@ const FilterResultAlerts = ({
 
   return (
     <>
+      {!allLightCurves && (
+        <Box sx={{ display: "flex", justifyContent: "flex-end", mb: 1 }}>
+          <Button size="small" onClick={() => setAllLightCurves(true)}>
+            Load all light curves
+          </Button>
+        </Box>
+      )}
       <Box
         sx={{
           display: "grid",
@@ -61,7 +70,8 @@ const FilterResultAlerts = ({
               objectId={objectId}
               survey={survey}
               alerts={objectAlerts}
-              lazyHistory
+              lazyHistory={!allLightCurves}
+              wideLightCurve
             />
           ))}
       </Box>
