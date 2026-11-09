@@ -19,6 +19,7 @@ import utc from "dayjs/plugin/utc";
 import relativeTime from "dayjs/plugin/relativeTime";
 
 import { useAppDispatch } from "../../types/hooks";
+import { statusMessageSummary } from "../../utils/format";
 import {
   useGetAnalysesQuery,
   useDeleteAnalysisMutation,
@@ -169,9 +170,17 @@ const AnalysisList = ({
           {row.status_message && (
             <Typography
               variant="caption"
-              sx={{ display: "block", color: "text.secondary", mt: 0.5 }}
+              sx={{
+                display: "-webkit-box",
+                WebkitLineClamp: 3,
+                WebkitBoxOrient: "vertical",
+                overflow: "hidden",
+                wordBreak: "break-word",
+                color: "text.secondary",
+                mt: 0.5,
+              }}
             >
-              {row.status_message}
+              {statusMessageSummary(row.status_message)}
             </Typography>
           )}
         </Box>
