@@ -836,7 +836,14 @@
   band: optical
   telescope_id: =GOTO-N
   filters: ["gotob", "gotog", "gotol", "gotor"]
+  tns_id: 218
   =id: GOTO
+- name: GOTO-S
+  type: imager
+  band: optical
+  telescope_id: =GOTO-S
+  filters: ["gotob", "gotog", "gotol", "gotor"]
+  tns_id: 265
 - name: LSST
   type: imager
   band: optical
