@@ -5,6 +5,7 @@
   name: Hobby-Eberly Telescope
   nickname: HET
   skycam_link: null
+  mpc_obscode: "711"
   =id: HET
 - diameter: 1.3
   elevation: 2340.0
@@ -15,6 +16,7 @@
   skycam_link: null
   =id: PTEL
   robotic: true
+  mpc_obscode: "696"
 - diameter: 8.0
   elevation: 2722.0
   lat: -30.24075
@@ -22,22 +24,25 @@
   name: Gemini South
   nickname: GS
   skycam_link: null
+  mpc_obscode: I11
   =id: GS
 - diameter: 3.5799999
   elevation: 2396.0
   lat: 28.766
-  lon: 342.117
+  lon: -17.883
   name: Telescopio Nazionale Galileo
   nickname: TNG
   skycam_link: null
+  mpc_obscode: Z19
   =id: TNG
 - diameter: 4.0
-  elevation: 7079.0
+  elevation: 2120.0
   lat: 31.96
   lon: -111.6
   name: Kitt Peak 4m
   nickname: KPNO4m
   skycam_link: null
+  mpc_obscode: "695"
   =id: KPNO4m
 - diameter: 3.0
   elevation: 1283.0
@@ -46,56 +51,63 @@
   name: Lick 3-m
   nickname: Lick 3-m
   skycam_link: null
+  mpc_obscode: "662"
   =id: Lick 3-m
 - diameter: 4.1999998
   elevation: 2332.0
   lat: 28.76064
-  lon: 342.11836
+  lon: -17.883
   name: WHT 4.2m
   nickname: WHT
   skycam_link: null
+  mpc_obscode: "950"
   =id: WHT
 - diameter: 2.1600001
   elevation: 950.0
-  lat: 117.964
-  lon: 40.6592
+  lat: 40.39424
+  lon: 117.575
   name: Xinglong 2.16m
   nickname: XL216
   skycam_link: null
+  mpc_obscode: "327"
   =id: XL216
 - diameter: 0.46000001
   elevation: 875.0
-  lat: 34.763333
-  lon: 30.595833
-  name: Wise 18\"
-  nickname: C18
+  lat: 30.595833
+  lon: 34.763333
+  name: C18
+  nickname: Wise 18"
   skycam_link: null
   robotic: true
+  mpc_obscode: "097"
   =id: C18
 - diameter: 2.5
   elevation: 2336.0
   lat: 28.762
-  lon: 342.11836
+  lon: -17.883
   nickname: INT
   name: INT
   skycam_link: null
+  mpc_obscode: "950"
   =id: INT
 - diameter: 2.0
   elevation: 2363.0
   lat: 28.7624
-  lon: 342.1208
+  lon: -17.883
   name: Liverpool Telescope
   nickname: LT
   skycam_link: null
   =id: LT
   robotic: true
+  mpc_obscode: J13
 - diameter: 10.4
   elevation: 2275.0
   lat: 28.756611
-  lon: 342.107972
+  lon: -17.8792
   name: Gran Telescopio Canarias 10.4 m
   nickname: GTC
   skycam_link: null
+  mpc_obscode: Z18
   =id: GTC
 - diameter: 2.0
   elevation: 3055.0
@@ -104,6 +116,7 @@
   name: Faulkes Telescope North
   nickname: FTN
   skycam_link: null
+  mpc_obscode: F65
   =id: FTN
 - diameter: 2.0
   elevation: 1116.0
@@ -112,14 +125,16 @@
   name: Faulkes Telescope South
   nickname: FTS
   skycam_link: null
+  mpc_obscode: E10
   =id: FTS
 - diameter: 1.0
   elevation: 1859.0
   lat: 32.8424
-  lon: 243.572
+  lon: -116.428
   name: MLO 1m
   nickname: MLO
   skycam_link: null
+  mpc_obscode: U83
   =id: MLO
 - diameter: 2.0
   elevation: 1000.0
@@ -129,13 +144,14 @@
   nickname: IGO
   skycam_link: null
   =id: IGO
-- diameter: 2.0
+- diameter: 2.01
   elevation: 4500.0
-  lat: 32.779444
-  lon: 78.964167
-  name: Himalyan Chandra Telescope
+  lat: 32.77944
+  lon: 78.96417
+  name: Himalayan Chandra Telescope
   nickname: HCT
   skycam_link: null
+  mpc_obscode: N50
   =id: HCT
 - diameter: 1.5
   elevation: 2790.0
@@ -144,14 +160,16 @@
   name: San Pedro Martir 1.5m
   nickname: SPM15
   skycam_link: null
+  mpc_obscode: "679"
   =id: SPM15
 - diameter: 2.4000001
   elevation: 1938.5
   lat: 31.95
-  lon: 248.383
+  lon: -111.617
   name: MDM 2.4m Hiltner
   nickname: MDM24
   skycam_link: null
+  mpc_obscode: "697"
   =id: MDM24
 - diameter: 9.8000002
   elevation: 1798.0
@@ -160,6 +178,7 @@
   name: South African Large Telescope
   nickname: SALT
   skycam_link: null
+  mpc_obscode: B31
   =id: SALT
 - diameter: 1.0
   elevation: 2070.0
@@ -171,13 +190,14 @@
   robotic: true
   =id: LCOGT1m
 - diameter: 2.0
-  elevation: 3052.0
-  lat: 20.7083
-  lon: -156.2571
-  nickname: LCOGT 2m Network
-  name: LCOGT2m
+  elevation: null
+  lat: null
+  lon: null
+  nickname: LCOGT2m
+  name: LCOGT 2m network
   skycam_link: null
   robotic: true
+  fixed_location: false
   =id: LCOGT2m
 - diameter: 2.5
   elevation: 2282.0
@@ -186,6 +206,7 @@
   name: du Pont 2.5m
   nickname: DUP
   skycam_link: null
+  mpc_obscode: "304"
   =id: DUP
 - diameter: 1.0
   elevation: 2282.0
@@ -194,6 +215,7 @@
   name: Swope 1m
   nickname: Swope
   skycam_link: null
+  mpc_obscode: "304"
   =id: Swope
 - diameter: 1.0
   elevation: 2080.0
@@ -202,6 +224,7 @@
   name: Nanshan 1m
   nickname: Nanshan 1m
   skycam_link: null
+  mpc_obscode: C42
   =id: Nanshan 1m
 - diameter: 4.3000002
   elevation: 2337.0
@@ -210,6 +233,7 @@
   name: Discovery Channel Telescope
   nickname: DCT
   skycam_link: null
+  mpc_obscode: G37
   =id: DCT
 - diameter: 1.23
   elevation: 2168.0
@@ -218,17 +242,19 @@
   name: Calar Alto 1.2m
   nickname: CAHA 1.2m
   skycam_link: null
+  mpc_obscode: "493"
   =id: CAHA 1.2m
 - diameter: 1.8200001
   elevation: 1366.0
-  lat: 11.548
-  lon: 45.8486
+  lat: 45.8486
+  lon: 11.548
   name: Ekar 1.82m
   nickname: Ekar
   skycam_link: null
+  mpc_obscode: "098"
   =id: Ekar
 - diameter: 1.8
-  elevation: 4215.0
+  elevation: 3052.0
   lat: 20.70723
   lon: -156.25591
   name: PAN-STARRS 1.8m
@@ -238,8 +264,8 @@
   mpc_obscode: F51
 - diameter: 1.3
   elevation: 2450.0
-  lat: 29.4
-  lon: 79.46
+  lat: 29.3608
+  lon: 79.6845
   name: ARIES 1.3m Devasthal Fast Optical Telescope
   nickname: DFOT
   skycam_link: null
@@ -247,10 +273,11 @@
 - diameter: 2.5
   elevation: 2788.0
   lat: 32.780278
-  lon: 254.1797
+  lon: -105.8203
   name: SDSS 2.5-M
   nickname: SDSS2.5m
   skycam_link: null
+  mpc_obscode: "645"
   =id: SDSS2.5m
 - diameter: 3.5799999
   elevation: 2375.0
@@ -259,14 +286,15 @@
   name: New Technology Telescope
   nickname: NTT
   skycam_link: null
+  mpc_obscode: "809"
   =id: NTT
 - diameter: 1.2
-  elevation: 1870.0
-  lat: 33.3633675
-  lon: -116.8361345
+  elevation: 1706.0
+  lat: 33.35734
+  lon: -116.85978
   name: Palomar 1.2m Oschin
   nickname: P48
-  skycam_link: http://bianca.palomar.caltech.edu/images/allsky/AllSkyCurrentImage.JPG
+  skycam_link: http://algol.palomar.caltech.edu/instruments/allsky/AllSkyCurrentImage.JPG
   weather_link: https://www.cleardarksky.com/c/PalomarObkey.html
   =id: P48
   mpc_obscode: I41
@@ -278,6 +306,7 @@
   name: Keck II 10m
   nickname: Keck2
   skycam_link: http://kree.ifa.hawaii.edu/allsky/allsky_last.png
+  mpc_obscode: T17
   =id: Keck2
 - diameter: 8.1999998
   elevation: 4139.0
@@ -286,41 +315,37 @@
   nickname: Subaru FOCAS
   name: Subaru FOCAS
   skycam_link: http://kree.ifa.hawaii.edu/allsky/allsky_last.png
+  mpc_obscode: T09
   =id: Subaru FOCAS
 - diameter: 8.1000004
   elevation: 4213.0
-  lat: 19.8
-  lon: -155.5
+  lat: 19.82381
+  lon: -155.46907
   name: Gemini North
   nickname: Gemini N
   skycam_link: http://kree.ifa.hawaii.edu/allsky/allsky_last.png
+  mpc_obscode: T15
   =id: Gemini N
-- diameter: 2.2
-  elevation: 4123.0
-  lat: 19.826389
-  lon: -155.474167
-  name: UH 2.2-m
-  nickname: SNIFS
-  skycam_link: http://kree.ifa.hawaii.edu/allsky/allsky_last.png
-  =id: SNIFS
 - diameter: 1.5
-  elevation: 1870.0
-  lat: 33.3633675
-  lon: -116.8361345
+  elevation: 1712.0
+  lat: 33.35412
+  lon: -116.86254
   name: Palomar 1.5m
   nickname: P60
-  skycam_link: http://bianca.palomar.caltech.edu/images/allsky/AllSkyCurrentImage.JPG
+  skycam_link: http://algol.palomar.caltech.edu/instruments/allsky/AllSkyCurrentImage.JPG
   weather_link: https://www.cleardarksky.com/c/PalomarObkey.html
   =id: P60
   robotic: true
+  mpc_obscode: "675"
 - diameter: 5.0999999
-  elevation: 1870.0
-  lat: 33.3633675
-  lon: -116.8361345
+  elevation: 1712.0
+  lat: 33.35412
+  lon: -116.86254
   name: Palomar 5.1m Hale
   nickname: P200
-  skycam_link: http://bianca.palomar.caltech.edu/images/allsky/AllSkyCurrentImage.JPG
+  skycam_link: http://algol.palomar.caltech.edu/instruments/allsky/AllSkyCurrentImage.JPG
   weather_link: https://www.cleardarksky.com/c/PalomarObkey.html
+  mpc_obscode: "675"
   =id: P200
 - diameter: 0.5
   elevation: 900.0
@@ -332,11 +357,12 @@
   =id: Akeno
 - diameter: 1.0
   elevation: 2862.0
-  lat: 23.67
-  lon: 120.99
+  lat: 23.46858
+  lon: 120.8736
   name: Lulin
   nickname: LOT
   skycam_link: http://www.lulin.ncu.edu.tw/wea/cur_sky.jpg
+  mpc_obscode: D35
   =id: LOT
 - diameter: 2.2
   elevation: 4213.5601
@@ -345,6 +371,7 @@
   name: UH 88inch
   nickname: UH88
   skycam_link: null
+  mpc_obscode: T12
   =id: UH88
 - diameter: 10.0
   elevation: 4160.0
@@ -353,6 +380,7 @@
   name: Keck I 10m
   nickname: Keck1
   skycam_link: http://kree.ifa.hawaii.edu/allsky/allsky_last.png
+  mpc_obscode: T16
   =id: Keck1
 - diameter: 1.0
   elevation: 1.0
@@ -361,6 +389,7 @@
   nickname: Swift
   name: Swift
   skycam_link: null
+  fixed_location: false
   =id: Swift
 - diameter: 3.5
   elevation: 2788.0
@@ -369,6 +398,7 @@
   name: Apache Point 3.5m
   nickname: APO
   skycam_link: null
+  mpc_obscode: "705"
   =id: APO
 - diameter: 2.5599999
   elevation: 2327.0
@@ -379,6 +409,7 @@
   skycam_link: http://catserver.ing.iac.es/weather/archive/concam/concam_labels.png
   =id: NOT
   robotic: true
+  mpc_obscode: "950"
 - diameter: 4.0
   elevation: 2207.0
   lat: -30.169661
@@ -395,6 +426,7 @@
   nickname: VLT
   name: VLT
   skycam_link: null
+  mpc_obscode: "309"
   =id: VLT
 - diameter: 6.5
   elevation: 2282.0
@@ -403,6 +435,7 @@
   nickname: Magellan_Baade
   name: Magellan_Baade
   skycam_link: null
+  mpc_obscode: "304"
   =id: Magellan_Baade
 - diameter: 4.0999999
   elevation: 2518.0
@@ -411,7 +444,18 @@
   nickname: VISTA
   name: VISTA
   skycam_link: null
+  mpc_obscode: W91
   =id: VISTA
+- diameter: 2.6
+  elevation: 2635.0
+  lat: -24.62634
+  lon: -70.40396
+  nickname: VST
+  name: VLT Survey Telescope
+  skycam_link: null
+  fixed_location: true
+  mpc_obscode: X11
+  =id: VST
 - diameter: 6.5
   elevation: 2282.0
   lat: -29.0033
@@ -419,6 +463,7 @@
   nickname: Magellan_Clay
   name: Magellan_Clay
   skycam_link: null
+  mpc_obscode: "268"
   =id: Magellan_Clay
 - diameter: 2.4000001
   elevation: null
@@ -427,6 +472,7 @@
   name: Hubble Space Telescope
   nickname: HST
   skycam_link: null
+  fixed_location: false
   =id: HST
 - diameter: 1.4
   elevation: 1798.0
@@ -437,17 +483,18 @@
   skycam_link: null
   =id: IRSF
 - diameter: 1.6
-  elevation: 0.0
-  lat: 0.0
-  lon: 0.0
+  elevation: null
+  lat: null
+  lon: null
   name: Korea Microlensing Telescope Network
   nickname: KMTNet
   skycam_link: null
+  fixed_location: false
   =id: KMTNet
 - diameter: 0.40000001
   elevation: 1760.0
-  lat: 20.81
-  lon: -32.379
+  lat: -32.379
+  lon: 20.81
   nickname: MASTER-SAAO
   name: MASTER-SAAO
   skycam_link: null
@@ -460,6 +507,7 @@
   nickname: PROMPT5
   name: PROMPT5
   skycam_link: null
+  mpc_obscode: "807"
   =id: PROMPT5
 - diameter: 2.3
   elevation: 1165.0
@@ -468,6 +516,7 @@
   name: Siding Spring Observatory
   nickname: SSO
   skycam_link: null
+  mpc_obscode: "413"
   =id: SSO
 - diameter: 1.35
   elevation: 1163.0
@@ -476,22 +525,25 @@
   nickname: Skymapper
   name: Skymapper
   skycam_link: null
+  mpc_obscode: Q55
   =id: Skymapper
-- diameter: 6.6999998
+- diameter: 1.0
   elevation: 50.0
   lat: -31.35666667
   lon: 115.71361111
   nickname: Zadko
   name: Zadko
   skycam_link: null
+  mpc_obscode: D20
   =id: Zadko
 - diameter: 1.3
   elevation: 2207.0
   lat: -30.169661
   lon: -70.806525
-  nickname: CTIO 1.3m
-  name: CTIO-1.3m
+  nickname: CTIO-1.3m
+  name: CTIO 1.3m
   skycam_link: null
+  mpc_obscode: "807"
   =id: CTIO-1.3m
 - diameter: 2.2
   elevation: 2375.0
@@ -500,33 +552,39 @@
   nickname: MPI_ESO-2.2m
   name: MPI_ESO-2.2m
   skycam_link: null
+  mpc_obscode: "809"
   =id: MPI_ESO-2.2m
 - diameter: 1.5
-  elevation: 267.0
-  lat: 32.066667
-  lon: 118.816667
+  elevation: 219.0
+  lat: 32.73436
+  lon: 118.4639
   name: China Near Earth Object Survey Telescope
   nickname: CNEOST
   skycam_link: null
+  mpc_obscode: D29
   =id: CNEOST
-- diameter: 0.3
-  elevation: 1283.0
-  lat: 37.341033
-  lon: -121.642932
-  name: Katzman Automatic Imaging Telescope
+- diameter: 0.76
+  elevation: 1290.0
+  lat: 37.343
+  lon: -121.6367
+  name: KAIT
   nickname: KAIT
   skycam_link: null
+  robotic: true
+  mpc_obscode: "662"
   =id: KAIT
 - diameter: 2.1
-  elevation: 2096.0
+  elevation: 2099.0
   lat: 31.9599
   lon: -111.5997
-  name: Kitt Peak 2.1m Telescope
-  nickname: KPNO2m
+  name: Kitt Peak National Observatory 2.1m
+  nickname: KPNO2p1m
   skycam_link: null
+  robotic: true
+  mpc_obscode: "695"
   =id: KPNO2m
 - diameter: 0.5
-  elevation: 3055.0
+  elevation: 3040.0
   lat: 20.70761
   lon: -156.257
   name: Asteroid Terrestrial-impact Last Alert System
@@ -535,69 +593,76 @@
   =id: ATLAS
   mpc_obscode: T05
 - diameter: 0.3
-  elevation: 1870.0
-  lat: 33.3633675
-  lon: -116.8361345
-  nickname: Palomar Gattini-IR
-  name: PGIR
+  elevation: 1712.0
+  lat: 33.35412
+  lon: -116.86254
+  nickname: PGIR
+  name: Palomar Gattini-IR
   skycam_link: http://algol.palomar.caltech.edu/instruments/allsky/AllSkyCurrentImage.JPG
   weather_link: https://www.cleardarksky.com/c/PalomarObkey.html
   =id: PGIR
   robotic: true
+  mpc_obscode: "675"
 - diameter: 1.0
-  elevation: 1870.0
-  lat: 33.3633675
-  lon: -116.8361345
+  elevation: 1706.0
+  lat: 33.35412
+  lon: -116.86254
   nickname: WINTER
   name: WINTER
   skycam_link: http://algol.palomar.caltech.edu/instruments/allsky/AllSkyCurrentImage.JPG
   weather_link: https://www.cleardarksky.com/c/PalomarObkey.html
   =id: WINTER
   robotic: true
+  mpc_obscode: "675"
 - diameter: 0.3
   elevation: 1320.0
   lat: 43.7520
   lon: 6.9235
-  name: TCA
-  nickname: TAROT Calern
+  name: TAROT/TCA
+  nickname: TAROT/TCA
   skycam_link: null
   robotic: true
+  mpc_obscode: "010"
   =id: TCA
 - diameter: 0.2
   elevation: 991.0
   lat: -21.1988
   lon: 55.4102
-  name: TRE
-  nickname: TAROT Reunion
+  name: TAROT/TRE
+  nickname: TAROT/TRE
   skycam_link: null
   robotic: true
+  mpc_obscode: "181"
   =id: TRE
 - diameter: 0.3
   elevation: 2398.0
   lat: -29.2599
   lon: -70.7326
-  name: TCH
-  nickname: TAROT Chili
+  name: TAROT/TCH
+  nickname: TAROT/TCH
   skycam_link: null
   robotic: true
+  mpc_obscode: "809"
   =id: TCH
 - diameter: 6.5
   elevation: 2607.0
-  lat: 31.6883
+  lat: 31.68833
   lon: -110.8850
   name: MMT
   nickname: MMT
   robotic: false
   fixed_location: true
+  mpc_obscode: "696"
   =id: MMT
-- name: TTT
+- name: Two-meter Twin Telescope
   nickname: TTT
-  lat: 28.301111
-  lon: -16.510556
-  diameter: 2.0
+  lat: 28.3011
+  lon: -16.5105
+  diameter: 0.8
   elevation: 2390.0
   robotic: true
   fixed_location: true
+  mpc_obscode: "954"
   =id: TTT
 - name: Gravitational-wave Optical Transient Observer North
   nickname: GOTO-N
@@ -607,6 +672,7 @@
   elevation: 2275.0
   robotic: true
   fixed_location: true
+  mpc_obscode: R13
   =id: GOTO-N
 - name: Gravitational-wave Optical Transient Observer South
   nickname: GOTO-S
@@ -616,11 +682,12 @@
   elevation: 1165.0
   robotic: true
   fixed_location: true
+  mpc_obscode: E55
   =id: GOTO-S
 - name: Simonyi Survey Telescope
   nickname: Simonyi
-  lat: -30.2446
-  lon: -70.7494
+  lat: -30.244639
+  lon: -70.749417
   diameter: 8.4
   elevation: 2663.0
   robotic: true
@@ -629,7 +696,7 @@
   mpc_obscode: X05
 - name: All-Sky Automated Survey for Supernovae
   nickname: ASAS-SN
-  diameter: 0.1
+  diameter: 0.14
   robotic: true
   fixed_location: false
   =id: ASAS-SN
@@ -638,26 +705,340 @@
   diameter: 0.5
   fixed_location: false
   =id: Gaia
-- name: Euclid
+- name: Euclid Telescope
   nickname: Euclid
   diameter: 1.2
   fixed_location: false
-  =id: Euclid
-- name: SOAR Telescope
-  nickname: SOAR
-  lat: -30.2379
-  lon: -70.7337
-  diameter: 4.1
-  elevation: 2734.0
   robotic: true
-  fixed_location: true
-  =id: SOAR-T
+  =id: Euclid
 - name: Southern Astrophysical Research Telescope
   nickname: SOAR
   lat: -30.2380
-  lon: -70.7337
+  lon: -70.73372
   diameter: 4.1
   elevation: 2738.0
   robotic: false
   fixed_location: true
+  mpc_obscode: I33
   =id: SOAR
+- name: Growth India Telescope
+  nickname: GIT
+  lat: 32.7794
+  lon: 78.9642
+  elevation: 4500.0
+  diameter: 0.7
+  mpc_obscode: N51
+  robotic: false
+  fixed_location: true
+  =id: GIT
+- name: NASA Infrared Telescope Facility
+  nickname: IRTF
+  lat: 19.8263
+  lon: -155.473
+  elevation: 4207.0
+  diameter: 3.0
+  mpc_obscode: T13
+  robotic: false
+  fixed_location: true
+  =id: IRTF
+- name: LBT
+  nickname: LBT
+  lat: 32.701308
+  lon: -109.889064
+  elevation: 3221.0
+  diameter: 8.4
+  mpc_obscode: G83
+  skycam_link: https://info.lbto.org/webcams/webcam_cache.php?id=roof.cam
+  robotic: false
+  fixed_location: true
+  =id: LBT
+- name: NEOWISE
+  nickname: WISE
+  diameter: 0.4
+  robotic: true
+  fixed_location: false
+  =id: NEOWISE
+- name: Auxiliary Telescope
+  nickname: AuxTel-1p2m
+  lat: -30.2446
+  lon: -70.74942
+  elevation: 2663.0
+  diameter: 1.2
+  robotic: true
+  fixed_location: true
+  =id: AuxTel-1p2m
+- name: Kitt Peak National Observatory Bok Telescope
+  nickname: Bok
+  lat: 31.9599
+  lon: -111.5997
+  elevation: 2096.0
+  diameter: 2.3
+  mpc_obscode: V00
+  robotic: false
+  fixed_location: true
+  =id: Bok
+- name: TESS Telescope
+  nickname: TESS
+  diameter: 0.15
+  robotic: true
+  fixed_location: false
+  =id: TESS
+- name: KAO
+  nickname: KAO
+  lat: 29.934
+  lon: 31.8277
+  elevation: 500.0
+  diameter: 1.9
+  mpc_obscode: "088"
+  robotic: true
+  fixed_location: true
+  =id: KAO
+- name: Telescope Joan Oro
+  nickname: TJO
+  lat: 42.0517
+  lon: 0.7297
+  elevation: 1570.0
+  diameter: 0.8
+  mpc_obscode: C65
+  robotic: true
+  fixed_location: true
+  =id: TJO
+- name: Calar Alto 2.2m
+  nickname: CAHA 2.2m
+  lat: 37.22353
+  lon: -2.5458
+  elevation: 2168.0
+  diameter: 2.2
+  mpc_obscode: "493"
+  robotic: false
+  fixed_location: true
+  =id: CAHA 2.2m
+- name: Super Light Telescope
+  nickname: SLT
+  lat: 23.469294
+  lon: 120.8726848
+  elevation: 2862.0
+  diameter: 0.4
+  mpc_obscode: D35
+  robotic: true
+  fixed_location: true
+  =id: SLT
+- name: Lijiang-2.4m
+  nickname: LJT
+  lat: 26.695
+  lon: 100.03
+  elevation: 3193.0
+  diameter: 2.4
+  mpc_obscode: O44
+  robotic: false
+  fixed_location: true
+  =id: LJT
+- name: Catalina Sky Survey
+  nickname: CSS
+  lat: 32.41703
+  lon: -110.73264
+  elevation: 2510.0
+  diameter: 0.7
+  mpc_obscode: "703"
+  robotic: true
+  fixed_location: true
+  =id: CSS
+- name: Colibri
+  nickname: Colibri
+  lat: 31.0449
+  lon: -115.4645
+  elevation: 2600.0
+  diameter: 1.3
+  mpc_obscode: "679"
+  robotic: true
+  fixed_location: true
+  =id: Colibri
+- name: Fraunhofer 2m Telescope
+  nickname: Fraunhofer
+  lat: 47.703758
+  lon: 12.012247
+  elevation: 1784.0
+  diameter: 2.0
+  mpc_obscode: "230"
+  skycam_link: https://www.foto-webcam.eu/webcam/wendelstein-west/
+  weather_link: https://www.meteoblue.com/de/wetter/outdoorsports/seeing/wendelstein_deutschland_2811293
+  robotic: false
+  fixed_location: true
+  =id: Fraunhofer
+- name: Canada-France-Hawaii Telescope
+  nickname: CFHT
+  lat: 19.82544
+  lon: -155.46891
+  elevation: 4204.0
+  diameter: 3.6
+  mpc_obscode: T14
+  robotic: false
+  fixed_location: true
+  =id: CFHT
+- name: Wide Field Survey Telescope
+  nickname: WFST
+  lat: 38.6068
+  lon: 93.8961
+  elevation: 4200.0
+  diameter: 2.5
+  mpc_obscode: O18
+  robotic: true
+  fixed_location: true
+  =id: WFST
+- name: MDM 1.3m McGrawHill
+  nickname: MDM1.3
+  lat: 31.95
+  lon: -111.6167
+  elevation: 1938.5
+  diameter: 1.3
+  mpc_obscode: "697"
+  skycam_link: https://kpasca-db.tuc.noirlab.edu/
+  weather_link: https://www-kpno.kpno.noirlab.edu/Info/Mtn_Weather/
+  robotic: true
+  fixed_location: true
+  =id: MDM1.3
+- name: Imaging X-Ray Polarimetry Explorer
+  nickname: IXPE
+  diameter: 0.3
+  robotic: true
+  fixed_location: false
+  =id: IXPE
+- name: Pandora Observatory
+  nickname: Pandora
+  diameter: 0.45
+  robotic: true
+  fixed_location: false
+  =id: Pandora
+- name: Spectro-Photometer for the History of the Universe, Epoch of Reionization, and Ices Explorer
+  nickname: SPHEREx
+  diameter: 0.2
+  robotic: true
+  fixed_location: false
+  =id: SPHEREx
+- name: Fermi Gamma-ray Space Telescope
+  nickname: Fermi
+  diameter: 0.0
+  robotic: true
+  fixed_location: false
+  =id: Fermi
+- name: James Webb Space Telescope
+  nickname: JWST
+  diameter: 6.5
+  robotic: true
+  fixed_location: false
+  =id: JWST
+- name: Nuclear Spectroscopic Telescope Array
+  nickname: NuSTAR
+  diameter: 0.4
+  robotic: true
+  fixed_location: false
+  =id: NuSTAR
+- name: Chandra X-ray Telescope
+  nickname: Chandra
+  diameter: 1.2
+  robotic: true
+  fixed_location: false
+  =id: Chandra
+- name: Neutron Star Interior Composition Explorer
+  nickname: NICER
+  diameter: 0.1
+  robotic: true
+  fixed_location: false
+  =id: NICER
+- name: Star-Planet Activity Research CubeSat
+  nickname: SPARCS
+  diameter: 0.09
+  robotic: true
+  fixed_location: false
+  =id: SPARCS
+- name: X-ray Mirror Assembly
+  nickname: XMA
+  diameter: 0.45
+  robotic: true
+  fixed_location: false
+  =id: XMA
+- name: X-ray Multi-Mirror Mission
+  nickname: XMM-Newton
+  diameter: 0.7
+  robotic: true
+  fixed_location: false
+  =id: XMM-Newton
+- name: Karl G. Jansky Very Large Array
+  nickname: VLA
+  lat: 34.078745
+  lon: -107.618283
+  elevation: 2124.0
+  diameter: 25.0
+  robotic: false
+  fixed_location: true
+  =id: VLA
+- name: Thai Robotic Telescope
+  nickname: TRT0p7m
+  lat: 37.0713
+  lon: -119.4122
+  elevation: 1405.0
+  diameter: 0.7
+  robotic: true
+  fixed_location: true
+  =id: TRT0p7m
+- name: GCN Circulars
+  nickname: GCN
+  diameter: 0.0
+  robotic: false
+  fixed_location: false
+  =id: GCN
+- name: FRAM-CTA-N
+  nickname: FRAM-CTA-N
+  lat: 28.7616
+  lon: -17.8916
+  elevation: 2200.0
+  diameter: 1.0
+  mpc_obscode: "950"
+  robotic: true
+  fixed_location: true
+  =id: FRAM-CTA-N
+- name: Australia Telescope Compact Array
+  nickname: ATCA
+  lat: -30.312778
+  lon: 149.550278
+  elevation: 237.0
+  diameter: 22.0
+  robotic: false
+  fixed_location: true
+  =id: ATCA
+- name: Einstein Probe
+  nickname: EP
+  diameter: 1.0
+  robotic: false
+  fixed_location: false
+  =id: EP
+- name: Space Variable Objects Monitor
+  nickname: SVOM
+  diameter: 1.0
+  robotic: false
+  fixed_location: false
+  =id: SVOM
+- name: Konus-Wind
+  nickname: Konus
+  diameter: 1.0
+  robotic: false
+  fixed_location: false
+  =id: Konus
+- name: INTErnational Gamma-Ray Astrophysics Laboratory
+  nickname: INTEGRAL
+  diameter: 1.0
+  robotic: false
+  fixed_location: false
+  =id: INTEGRAL
+- name: CALorimetric Electron Telescope
+  nickname: CALET
+  diameter: 1.0
+  robotic: false
+  fixed_location: false
+  =id: CALET
+- name: Monitor of All-sky X-ray Image
+  nickname: MAXI
+  diameter: 1.0
+  robotic: false
+  fixed_location: false
+  =id: MAXI

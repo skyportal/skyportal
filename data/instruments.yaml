@@ -7,6 +7,34 @@
   name: ZTF
   telescope_id: =P48
   type: imager
+  api_classname: ZTFAPI
+  api_classname_obsplan: ZTFMMAAPI
+  tns_id: 196
+  sensitivity_data:
+    {
+      "ztfg":
+        {
+          "magsys": "ab",
+          "zeropoint": 26.3,
+          "exposure_time": 30,
+          "limiting_magnitude": 20.3,
+        },
+      "ztfi":
+        {
+          "magsys": "ab",
+          "zeropoint": 26.3,
+          "exposure_time": 30,
+          "limiting_magnitude": 19.6,
+        },
+      "ztfr":
+        {
+          "magsys": "ab",
+          "zeropoint": 26.3,
+          "exposure_time": 30,
+          "limiting_magnitude": 20.3,
+        },
+    }
+  configuration_data: { "missing_quadrants": [] }
 - =id: SEDM
   band: optical
   name: SEDM
@@ -14,11 +42,14 @@
   type: imaging spectrograph
   filters: ["sdssu", "sdssg", "sdssr", "sdssi"]
   api_classname: SEDMAPI
+  listener_classname: SEDMListener
+  tns_id: 149
 - =id: DBSP
   band: optical
   name: DBSP
   telescope_id: =P200
   type: spectrograph
+  tns_id: 1
 - =id: LFC
   band: optical
   name: LFC
@@ -37,6 +68,7 @@
       "bessellr",
       "besselli",
     ]
+  tns_id: 2
 - =id: WIRC
   band: ir
   name: WIRC
@@ -48,6 +80,7 @@
   name: TSPEC
   telescope_id: =P200
   type: spectrograph
+  tns_id: 109
 - =id: LRIS
   band: optical
   name: LRIS
@@ -66,17 +99,20 @@
       "bessellr",
       "besselli",
     ]
+  tns_id: 3
 - =id: MOSFIRE
   band: ir
   name: MOSFIRE
   telescope_id: =Keck1
   type: imaging spectrograph
   filters: ["bessellb", "bessellv", "bessellr", "besselli", "sdssg"]
+  tns_id: 130
 - =id: KAST
   band: optical
   name: KAST
   telescope_id: =Lick 3-m
   type: spectrograph
+  tns_id: 10
 - =id: GEMINI
   band: ir
   name: GEMINI
@@ -94,10 +130,11 @@
   name: ISIS
   telescope_id: =WHT
   type: spectrograph
+  tns_id: 16
 - =id: FORS2
   band: optical
   name: FORS2
-  telescope_id: =HET
+  telescope_id: =VLT
   type: spectrograph
 - =id: LRS
   band: optical
@@ -108,28 +145,58 @@
   band: optical
   name: FORS2_VLT
   telescope_id: =VLT
-  type: spectrograph
+  type: imaging spectrograph
+  filters:
+    [
+      "bessellb",
+      "besselli",
+      "bessellr",
+      "bessellux",
+      "bessellv",
+      "sdssg",
+      "sdssi",
+      "sdssr",
+      "sdssu",
+      "sdssz",
+    ]
 - =id: X-Shooter
   band: optical
   name: X-Shooter
   telescope_id: =VLT
   type: spectrograph
+  filters:
+    [
+      "sdssg",
+      "sdssi",
+      "sdssr",
+      "sdssu",
+      "sdssz",
+      "bessellv",
+      "bessellux",
+      "bessellr",
+      "besselli",
+      "bessellb",
+    ]
+  tns_id: 12
 - =id: UVES
   band: optical
   name: UVES
   telescope_id: =VLT
   type: spectrograph
+  tns_id: 148
 - =id: GMOS_GS
   band: optical
   name: GMOS_GS
   telescope_id: =GS
   type: imaging spectrograph
   filters: ["sdssu", "sdssg", "sdssr", "sdssi", "sdssz", "desy"]
+  api_classname: GEMINIAPI
 - =id: FLAMINGOS-2
   band: ir
   name: FLAMINGOS-2
   telescope_id: =GS
   type: spectrograph
+  tns_id: 197
 - =id: PTEL
   band: ir
   name: PTEL
@@ -138,35 +205,55 @@
   filters: ["cspjs", "csphs", "cspk"]
 - =id: GMOS_GN
   band: optical
-  name: GMOS_GN
+  name: GMOS
   telescope_id: =Gemini N
   type: imaging spectrograph
   filters: ["sdssu", "sdssg", "sdssr", "sdssi", "sdssz", "desy"]
+  api_classname: GEMINIAPI
+  tns_id: 6
 - =id: SNIFS
   band: optical
   name: SNIFS
   telescope_id: =UH88
   type: spectrograph
+  tns_id: 11
 - =id: DEIMOS
   band: optical
   name: DEIMOS
   telescope_id: =Keck2
   type: spectrograph
+  tns_id: 4
 - =id: ESI
   band: optical
   name: ESI
   telescope_id: =Keck2
   type: spectrograph
+  tns_id: 100
 - =id: DOLORES
   band: optical
   name: DOLORES
   telescope_id: =TNG
   type: spectrograph
+  filters:
+    [
+      "bessellb",
+      "besselli",
+      "bessellr",
+      "bessellux",
+      "bessellv",
+      "sdssg",
+      "sdssi",
+      "sdssr",
+      "sdssu",
+      "sdssz",
+    ]
+  tns_id: 15
 - =id: RC Spec
   band: optical
   name: RC Spec
   telescope_id: =KPNO4m
   type: spectrograph
+  tns_id: 5
 - =id: ALFOSC
   band: optical
   name: ALFOSC
@@ -185,17 +272,20 @@
       "bessellr",
       "besselli",
     ]
+  tns_id: 41
 - =id: NOTCam
   band: ir
   name: NOTCam
   telescope_id: =NOT
   type: imager
   filters: ["cspjs", "csphs", "cspk"]
+  tns_id: 254
 - =id: IDS
   band: optical
   name: IDS
   telescope_id: =INT
   type: spectrograph
+  tns_id: 19
 - =id: UVOT
   band: optical
   name: UVOT
@@ -212,6 +302,9 @@
       "uvot::uvw2",
       "uvot::white",
     ]
+  api_classname: UVOTXRTAPI
+  api_classname_obsplan: UVOTXRTMMAAPI
+  tns_id: 52
 - =id: IMACS
   band: optical
   name: IMACS
@@ -219,16 +312,19 @@
   type: imaging spectrograph
   filters:
     ["bessellb", "bessellv", "bessellr", "sdssu", "sdssg", "sdssr", "sdssi"]
+  tns_id: 75
 - =id: FIRE
   band: ir
   name: FIRE
   telescope_id: =Magellan_Baade
   type: spectrograph
+  tns_id: 116
 - =id: Frodospec
   band: optical
   name: Frodospec
   telescope_id: =LT
   type: spectrograph
+  tns_id: 95
 - =id: IOO
   band: optical
   name: IOO
@@ -236,8 +332,9 @@
   type: imager
   filters: ["sdssu", "sdssg", "sdssr", "sdssi", "sdssz", "bessellb", "bessellv"]
   api_classname: IOOAPI
+  tns_id: 244
 - =id: IOI
-  band: optical
+  band: ir
   name: IOI
   telescope_id: =LT
   type: imager
@@ -255,17 +352,20 @@
   telescope_id: =LT
   type: spectrograph
   api_classname: SPRATAPI
+  tns_id: 156
 - =id: DIS
   band: optical
   name: DIS
   telescope_id: =APO
   type: spectrograph
+  tns_id: 70
 - =id: OSIRIS
   band: optical
   name: OSIRIS
   telescope_id: =GTC
   type: imaging spectrograph
   filters: ["sdssu", "sdssg", "sdssr", "sdssi", "sdssz"]
+  tns_id: 101
 - =id: RATIR
   band: ir
   name: RATIR
@@ -282,6 +382,7 @@
       "bessellb",
       "bessellv",
     ]
+  tns_id: 126
 
 - =id: HCT_Spectograph
   band: optical
@@ -309,15 +410,31 @@
       "bessellv",
       "bessellr",
       "besselli",
+      "bessellux",
     ]
   api_classname: SINISTROAPI
+  tns_id: 208
   =id: SINISTRO
 - band: optical
-  name: SPECTRAL
+  name: Spectral
   telescope_id: =LCOGT2m
   type: imager
-  filters: ["sdssu", "sdssg", "sdssr", "sdssi", "sdssz", "desy"]
+  filters:
+    [
+      "sdssu",
+      "sdssg",
+      "sdssr",
+      "sdssi",
+      "sdssz",
+      "desy",
+      "bessellux",
+      "bessellb",
+      "bessellv",
+      "bessellr",
+      "besselli",
+    ]
   api_classname: SPECTRALAPI
+  tns_id: 209
   =id: SPECTRAL
 - band: optical
   name: FLOYDS
@@ -337,6 +454,7 @@
   name: WFCCD
   telescope_id: =DUP
   type: spectrograph
+  tns_id: 62
 - =id: e2v
   band: optical
   name: e2v
@@ -386,6 +504,7 @@
       "bessellr",
       "besselli",
     ]
+  tns_id: 143
 - =id: AFOSCH
   band: optical
   name: AFOSCH
@@ -398,31 +517,61 @@
   type: imager
   filters:
     ["ps1::open", "ps1::g", "ps1::r", "ps1::i", "ps1::z", "ps1::y", "ps1::w"]
+  api_classname: PS1API
+  tns_id: 155
 - =id: DFOT_ANDOR_2kx2k
   band: optical
   name: ANDOR_2kx2k
   telescope_id: =DFOT
   type: imager
+  filters:
+    [
+      "bessellux",
+      "bessellb",
+      "bessellv",
+      "bessellr",
+      "besselli",
+      "sdssu",
+      "sdssg",
+      "sdssr",
+      "sdssi",
+      "sdssz",
+    ]
 - =id: BOSS
   band: optical
   name: BOSS
   telescope_id: =SDSS2.5m
   type: spectrograph
+  tns_id: 250
 - =id: FOCAS
   band: optical
   name: FOCAS
   telescope_id: =Subaru FOCAS
   type: spectrograph
+  tns_id: 71
 - =id: EFOSC2
   band: optical
   name: EFOSC2
   telescope_id: =NTT
   type: imaging spectrograph
+  filters:
+    [
+      "bessellb",
+      "bessellv",
+      "bessellr",
+      "besselli",
+      "sdssg",
+      "sdssr",
+      "sdssi",
+      "sdssz",
+    ]
+  tns_id: 31
 - =id: LAMOST
   band: optical
   name: LAMOST
   telescope_id: =XL216
-  type: imaging spectrograph
+  type: spectrograph
+  tns_id: 251
 - =id: DECam
   band: optical
   name: DECam
@@ -430,6 +579,53 @@
   type: imager
   # TODO: make a PR to sncosmo to include desu ... substituting sdssu for now
   filters: ["sdssu", "desg", "desr", "desi", "desz", "desy"]
+  api_classname_obsplan: MMAAPI
+  tns_id: 172
+  sensitivity_data:
+    {
+      "desg":
+        {
+          "magsys": "ab",
+          "zeropoint": 28.91,
+          "exposure_time": 30,
+          "limiting_magnitude": 23.3,
+        },
+      "desi":
+        {
+          "magsys": "ab",
+          "zeropoint": 28.97,
+          "exposure_time": 30,
+          "limiting_magnitude": 22.8,
+        },
+      "desr":
+        {
+          "magsys": "ab",
+          "zeropoint": 29.06,
+          "exposure_time": 30,
+          "limiting_magnitude": 25.5,
+        },
+      "desy":
+        {
+          "magsys": "ab",
+          "zeropoint": 27.57,
+          "exposure_time": 30,
+          "limiting_magnitude": 20.9,
+        },
+      "desz":
+        {
+          "magsys": "ab",
+          "zeropoint": 28.68,
+          "exposure_time": 30,
+          "limiting_magnitude": 22.1,
+        },
+      "sdssu":
+        {
+          "magsys": "ab",
+          "zeropoint": 26.87,
+          "exposure_time": 30,
+          "limiting_magnitude": 21.6,
+        },
+    }
 - =id: VIRCAM
   band: ir
   name: VIRCAM
@@ -440,7 +636,7 @@
 - =id: OMEGACAM
   band: optical
   name: OMEGACAM
-  telescope_id: =VISTA
+  telescope_id: =VST
   type: imager
   filters:
     [
@@ -486,12 +682,14 @@
   telescope_id: =MPI_ESO-2.2m
   type: imager
   filters: ["sdssg", "sdssr", "sdssi", "sdssz", "cspjs", "csphs", "cspk"]
+  tns_id: 210
 - =id: Skymapper
   band: optical
   name: Skymapper
   telescope_id: =Skymapper
   type: imager
   filters: ["sdssg", "sdssr", "sdssi", "sdssz", "bessellb"]
+  tns_id: 152
 - =id: ANDICAM
   band: ir
   name: ANDICAM
@@ -518,11 +716,13 @@
   telescope_id: =Keck2
   type: spectrograph
   band: NIR
+  tns_id: 252
 - band: optical
   name: ATLAS
   telescope_id: =ATLAS
   type: imager
   filters: ["atlasc", "atlaso"]
+  api_classname: ATLASAPI
 - =id: PGIR
   band: NIR
   filters:
@@ -531,17 +731,20 @@
   telescope_id: =PGIR
   type: imager
 - =id: WNTR
-  band: optical
-  filters: ["desy", "2massj", "2massh"]
-  name: WNTR
+  band: nIR
+  filters: ["desy", "2massj", "2massh", "ps1::y"]
+  name: WINTER
   telescope_id: =WINTER
   type: imager
+  api_classname: WINTERAPI
+  api_classname_obsplan: MMAAPI
 - =id: SPRING
-  band: optical
-  filters: ["desy", "2massj", "2massh"]
+  band: nIR
+  filters: ["desy", "2massj", "2massh", "ps1::y"]
   name: SPRING
   telescope_id: =WINTER
   type: imager
+  api_classname: SPRINGAPI
 - =id: SUMMER
   band: optical
   filters: ["sdssu", "sdssg", "sdssr", "sdssi", "sdssz"]
@@ -563,54 +766,63 @@
       "bessellv",
       "bessellr",
       "besselli",
+      "sdssu",
     ]
   api_classname: KAITAPI
+  tns_id: 203
 - name: SEDMv2
   type: imaging spectrograph
-  band: V
+  band: Optical
   telescope_id: =KPNO2m
   filters: ["sdssg", "sdssr", "sdssi", "sdssz"]
   api_classname: SEDMV2API
+  api_classname_obsplan: MMAAPI
   =id: SEDMv2
 - band: optical
-  name: TAROT Calern
+  name: TAROT/TCA
   telescope_id: =TCA
   type: imager
-  filters: ["sdssg", "sdssr", "sdssi"]
+  filters: ["sdssg", "sdssr", "sdssi", "ps1::open", "sdssz"]
   api_classname: TAROTAPI
   =id: TCA
   configuration_data:
     { "specific_configuration": { "station_name": "Tarot_Calern" } }
+  api_classname_obsplan: MMAAPI
 - band: optical
-  name: TAROT Reunion
+  name: TAROT/TRE
   telescope_id: =TRE
   type: imager
-  filters: []
+  filters: ["ps1::open"]
   api_classname: TAROTAPI
   =id: TRE
   configuration_data:
     { "specific_configuration": { "station_name": "Tarot_Reunion" } }
+  api_classname_obsplan: MMAAPI
 - band: optical
-  name: TAROT Chili
+  name: TAROT/TCH
   telescope_id: =TCH
   type: imager
-  filters: ["sdssg", "sdssr", "sdssi"]
+  filters: ["sdssg", "sdssr", "sdssi", "bessellr", "ps1::open", "standard::r"]
   api_classname: TAROTAPI
   =id: TCH
   configuration_data:
     { "specific_configuration": { "station_name": "Tarot_Chili" } }
+  api_classname_obsplan: MMAAPI
 - band: optical
   name: Binospec
   telescope_id: =MMT
-  type: imaging spectrograph
+  type: spectrograph
   api_classname: BINOSPECAPI
   filters: ["sdssg", "sdssr", "sdssi", "sdssz"]
+  tns_id: 221
   =id: Binospec
 - band: NEAR-IR
   name: MMIRS
   telescope_id: =MMT
   type: imaging spectrograph
   api_classname: MMIRSAPI
+  filters: ["2massj", "2massh", "2massks"]
+  tns_id: 180
   =id: MMIRS
 - name: TTT
   type: imager
@@ -624,7 +836,14 @@
   band: optical
   telescope_id: =GOTO-N
   filters: ["gotob", "gotog", "gotol", "gotor"]
+  tns_id: 218
   =id: GOTO
+- name: GOTO-S
+  type: imager
+  band: optical
+  telescope_id: =GOTO-S
+  filters: ["gotob", "gotog", "gotol", "gotor"]
+  tns_id: 265
 - name: LSST
   type: imager
   band: optical
@@ -632,6 +851,9 @@
   filters: ["lsstg", "lssti", "lsstr", "lsstu", "lssty", "lsstz"]
   field_fov_type: rectangle
   field_fov_attributes: [3.113, 3.113]
+  api_classname: GENERICAPI
+  api_classname_obsplan: RUBINMMAAPI
+  tns_id: 287
   =id: LSST
 - name: ASAS-SN
   type: imager
@@ -644,26 +866,599 @@
   band: Optical
   telescope_id: =Gaia
   filters: ["gaia::g", "gaia::gbp", "gaia::grp", "gaia::grvs"]
+  tns_id: 163
   =id: Gaia
-- name: VIS
+- name: Euclid VIS
   type: imager
   band: Optical
   telescope_id: =Euclid
   filters: ["euclidvis"]
+  tns_id: 280
   =id: EuclidVIS
-- name: NISP
+- name: Euclid NISP
   type: imaging spectrograph
   band: Infrared
   telescope_id: =Euclid
   filters: ["euclidy", "euclidj", "euclidh"]
+  tns_id: 281
   =id: EuclidNISP
 - name: Goodman
   type: imaging spectrograph
   band: optical
   telescope_id: =SOAR
+  filters:
+    [
+      "sdssu",
+      "sdssg",
+      "sdssr",
+      "sdssi",
+      "sdssz",
+      "bessellux",
+      "bessellb",
+      "bessellv",
+      "bessellr",
+      "besselli",
+    ]
+  tns_id: 127
   =id: Goodman
 - name: WIFES
   type: spectrograph
   band: optical
   telescope_id: =SSO
+  tns_id: 115
   =id: WIFES
+- name: GITCamera
+  type: imager
+  band: optical
+  telescope_id: =GIT
+  filters: ["sdssu", "sdssg", "sdssr", "sdssi", "sdssz"]
+- name: MODS
+  type: imaging spectrograph
+  band: Optical
+  telescope_id: =LBT
+  filters: ["sdssu", "sdssg", "sdssr", "sdssi", "sdssz"]
+- name: LUCI
+  type: imaging spectrograph
+  band: IR
+  telescope_id: =LBT
+  filters: ["sdssz", "desy", "cspjs", "csphs", "cspk"]
+  tns_id: 128
+- name: SOFI
+  type: imaging spectrograph
+  band: IR
+  telescope_id: =NTT
+  filters: ["cspjs", "csphs", "cspk"]
+  tns_id: 34
+- name: NEOWISE camera
+  type: imager
+  band: IR
+  telescope_id: =NEOWISE
+  filters: ["f356w", "f444w"]
+- name: GNIRS
+  type: imaging spectrograph
+  band: NEAR-IR
+  telescope_id: =Gemini N
+  api_classname: GEMINIAPI
+  tns_id: 166
+- name: SpeX
+  type: imaging spectrograph
+  band: nIR
+  telescope_id: =IRTF
+  filters: ["2massh", "2massj", "2massks"]
+  tns_id: 122
+- name: Spartan
+  type: imager
+  band: nIR
+  telescope_id: =SOAR
+  filters: ["2massh", "2massj", "2massks"]
+- name: TSPEC-SOAR
+  type: spectrograph
+  band: nIR
+  telescope_id: =SOAR
+- name: MUSE
+  type: spectrograph
+  band: Optical
+  telescope_id: =VLT
+  tns_id: 182
+- name: WFC
+  type: imager
+  band: Optical
+  telescope_id: =INT
+  filters: ["sdssg", "sdssr", "sdssi"]
+- name: LDSS-3
+  type: imaging spectrograph
+  band: Optical
+  telescope_id: =Magellan_Clay
+  filters: ["sdssg", "sdssr", "sdssi", "sdssz"]
+  tns_id: 78
+- name: AuxTel
+  type: imager
+  band: Optical
+  telescope_id: =AuxTel-1p2m
+  filters: ["lsstr", "lssti"]
+  api_classname_obsplan: MMAAPI
+  sensitivity_data:
+    {
+      "lssti":
+        {
+          "magsys": "ab",
+          "zeropoint": 26.3,
+          "exposure_time": 30,
+          "limiting_magnitude": 20.8,
+        },
+      "lsstr":
+        {
+          "magsys": "ab",
+          "zeropoint": 26.3,
+          "exposure_time": 30,
+          "limiting_magnitude": 20.8,
+        },
+    }
+- name: BandC
+  type: spectrograph
+  band: Optical
+  telescope_id: =Bok
+- name: TESS
+  type: imager
+  band: Optical
+  telescope_id: =TESS
+  filters: ["tess"]
+  api_classname: TESSAPI
+  tns_id: 308
+- name: KAO
+  type: imager
+  band: Optical
+  telescope_id: =KAO
+  filters: ["sdssg", "sdssi", "sdssr", "sdssu", "sdssz", "ps1::open"]
+  api_classname: GENERICAPI
+  tns_id: 142
+- name: WaSP
+  type: imager
+  band: Optical
+  telescope_id: =P200
+  filters: ["sdssg", "sdssi", "sdssr", "sdssu", "sdssz"]
+- name: MEIA2
+  type: imager
+  band: Optical
+  telescope_id: =TJO
+  filters: ["sdssg", "sdssi", "sdssr", "sdssz"]
+- name: ACAM
+  type: imaging spectrograph
+  band: Optical
+  telescope_id: =WHT
+  filters: ["sdssg", "sdssi", "sdssr", "sdssu", "sdssz"]
+  tns_id: 97
+- name: FOSC
+  type: spectrograph
+  band: Optical
+  telescope_id: =C18
+- name: CAFOS
+  type: spectrograph
+  band: Optical
+  telescope_id: =CAHA 2.2m
+  tns_id: 48
+- name: KCWI
+  type: spectrograph
+  band: Optical
+  telescope_id: =Keck2
+  tns_id: 259
+- name: MEIA3
+  type: imager
+  band: optical
+  telescope_id: =TJO
+  filters:
+    [
+      "bessellb",
+      "besselli",
+      "bessellr",
+      "sdssg",
+      "sdssi",
+      "sdssr",
+      "sdssu",
+      "sdssz",
+      "bessellv",
+    ]
+- name: LOT
+  type: imager
+  band: optical
+  telescope_id: =LOT
+  filters: ["sdssg", "sdssi", "sdssr", "sdssu", "sdssz"]
+- name: HiPERCAM
+  type: imager
+  band: optical
+  telescope_id: =GTC
+  filters: ["sdssg", "sdssi", "sdssr", "sdssu", "sdssz"]
+  tns_id: 271
+- name: YFOSC
+  type: spectrograph
+  band: Optical
+  telescope_id: =LJT
+  tns_id: 107
+- name: GHTS Camera
+  type: imager
+  band: Optical
+  telescope_id: =SOAR
+  filters: ["sdssg", "sdssi", "sdssr", "sdssu", "sdssz"]
+  api_classname: SOARGHTSIMAGERAPI
+- name: GHTS
+  type: spectrograph
+  band: Optical
+  telescope_id: =SOAR
+  api_classname: SOARGHTSAPI
+- name: TripleSpec
+  type: spectrograph
+  band: ir
+  telescope_id: =SOAR
+  api_classname: SOARTSPECAPI
+  tns_id: 260
+- name: STIS
+  type: imaging spectrograph
+  band: UV+Optical+IR
+  telescope_id: =HST
+  tns_id: 83
+- name: COS
+  type: spectrograph
+  band: UV
+  telescope_id: =HST
+- name: OSMOS
+  type: imaging spectrograph
+  band: Optical
+  telescope_id: =MDM24
+  filters: ["sdssu", "sdssg", "sdssr", "sdssi", "sdssz"]
+  tns_id: 150
+- name: iPTF
+  type: imager
+  band: Optical
+  telescope_id: =P48
+  filters: ["ztfi", "ztfr", "ztfg"]
+- name: NGPS
+  type: spectrograph
+  band: Optical
+  telescope_id: =P200
+  tns_id: 285
+- name: HCT imager
+  type: imager
+  band: Optical
+  telescope_id: =HCT
+  filters: ["sdssi", "sdssr", "sdssu", "sdssz", "sdssg"]
+- name: DESI
+  type: spectrograph
+  band: Optical
+  telescope_id: =KPNO4m
+  tns_id: 258
+- name: CSS
+  type: imager
+  band: optical
+  telescope_id: =CSS
+  filters: ["ps1::g", "ps1::i", "ps1::open", "ps1::r"]
+  tns_id: 276
+- name: MASTER
+  type: imager
+  band: Optical
+  telescope_id: =MASTER-SAAO
+  filters: ["ps1::open"]
+- name: FourStar
+  type: imager
+  band: IR
+  telescope_id: =Magellan_Baade
+  filters: ["2massj", "2massks", "2massh"]
+- name: COLIBRI-VIS
+  type: imager
+  band: Optical
+  telescope_id: =Colibri
+  filters: ["sdssg", "sdssi", "sdssr", "sdssu", "sdssz", "ps1::y"]
+  api_classname: COLIBRIAPI
+- name: Wendelstein 3KK
+  type: imager
+  band: Optical
+  telescope_id: =Fraunhofer
+  filters:
+    ["2massh", "2massj", "sdssg", "sdssi", "sdssr", "sdssu", "sdssz", "2massks"]
+- name: Wendelstein WWFI
+  type: imager
+  band: Optical
+  telescope_id: =Fraunhofer
+  filters: ["sdssg", "sdssi", "sdssr", "sdssu", "sdssz"]
+- name: MegaCam
+  type: imager
+  band: Optical
+  telescope_id: =CFHT
+  filters: ["sdssg", "sdssi", "sdssr", "sdssz"]
+  tns_id: 202
+- name: NEWFIRM
+  type: imager
+  band: Near-infrared
+  telescope_id: =CTIO-4m
+  filters: ["csphs", "cspjs", "cspk"]
+  api_classname: NEWFIRMAPI
+- name: Binospec_imager
+  type: imager
+  band: optical
+  telescope_id: =MMT
+  filters:
+    ["2massh", "2massj", "2massks", "sdssg", "sdssi", "sdssr", "sdssz", "sdssu"]
+- name: WFST
+  type: imager
+  band: Optical
+  telescope_id: =WFST
+  filters: ["sdssg", "sdssi", "sdssr", "sdssu", "sdssz", "ps1::w"]
+  tns_id: 282
+- name: SLT
+  type: imager
+  band: Optical
+  telescope_id: =SLT
+  filters: ["sdssg", "sdssi", "sdssr", "sdssu", "sdssz"]
+- name: MIRAGE
+  type: imager
+  band: IR
+  telescope_id: =MDM1.3
+  filters: ["2massh", "2massj", "desy", "ps1::y"]
+- name: IXPE
+  type: imager
+  telescope_id: =IXPE
+- name: VISDA
+  type: imager
+  telescope_id: =Pandora
+- name: NIRDA
+  type: imager
+  telescope_id: =Pandora
+- name: SPHEREx
+  type: imager
+  telescope_id: =SPHEREx
+- name: LAT
+  type: imager
+  telescope_id: =Fermi
+  filters: ["fermilat"]
+- name: JWST_NIRISS
+  type: imaging spectrograph
+  telescope_id: =JWST
+  tns_id: 187
+- name: JWST_NIRCAM
+  type: imager
+  telescope_id: =JWST
+  filters:
+    ["f070w", "f090w", "f115w", "f150w", "f200w", "f277w", "f356w", "f444w"]
+  tns_id: 185
+- name: JWST_NIRSPEC
+  type: spectrograph
+  telescope_id: =JWST
+  tns_id: 186
+- name: JWST_MIRI
+  type: imaging spectrograph
+  telescope_id: =JWST
+  filters:
+    [
+      "f560w",
+      "f770w",
+      "f1000w",
+      "f1130w",
+      "f1280w",
+      "f1500w",
+      "f1800w",
+      "f2100w",
+      "f2550w",
+    ]
+  tns_id: 188
+- name: FPM A/B
+  type: imager
+  telescope_id: =NuSTAR
+  filters: ["nustar"]
+- name: HRC-HETG
+  type: imaging spectrograph
+  telescope_id: =Chandra
+- name: HRC
+  type: imager
+  telescope_id: =Chandra
+- name: HRC-LETG
+  type: imaging spectrograph
+  telescope_id: =Chandra
+- name: ACIS
+  type: imaging spectrograph
+  telescope_id: =Chandra
+- name: ACIS-CC
+  type: imaging spectrograph
+  telescope_id: =Chandra
+- name: ACIS-LETG
+  type: imaging spectrograph
+  telescope_id: =Chandra
+- name: ACIS-HETG
+  type: imaging spectrograph
+  telescope_id: =Chandra
+- name: HRC-Timing
+  type: imager
+  telescope_id: =Chandra
+- name: Swift_XRT
+  type: imager
+  telescope_id: =Swift
+  filters: ["swiftxrt"]
+- name: GBM
+  type: imager
+  telescope_id: =Fermi
+  filters: ["fermigbm"]
+- name: NIRSPEC
+  type: spectrograph
+  telescope_id: =Keck2
+- name: NIRC2
+  type: imager
+  telescope_id: =Keck2
+  filters: ["2massj", "2massh", "2massks"]
+- name: XTI
+  type: imager
+  telescope_id: =NICER
+- name: SPARCS
+  type: imager
+  telescope_id: =SPARCS
+- name: KPF
+  type: spectrograph
+  telescope_id: =Keck1
+- name: HIRES
+  type: spectrograph
+  telescope_id: =Keck1
+  tns_id: 82
+- name: Swift_BAT
+  type: imager
+  telescope_id: =Swift
+  filters: ["swiftbat"]
+- name: HST_WFC3_IR
+  type: imager
+  telescope_id: =HST
+  filters: ["f105w", "f110w", "f125w", "f140w", "f160w"]
+- name: HST_ACS
+  type: imager
+  telescope_id: =HST
+  filters: ["f435w", "f475w", "f555w", "f606w", "f625w", "f775w", "f850lp"]
+- name: Xtend
+  type: imager
+  telescope_id: =XMA
+- name: Resolve
+  type: imager
+  telescope_id: =XMA
+- name: EPIC-MOS
+  type: imager
+  telescope_id: =XMM-Newton
+- name: EPIC-PN
+  type: imager
+  telescope_id: =XMM-Newton
+- name: OM
+  type: imager
+  telescope_id: =XMM-Newton
+- name: RGS
+  type: spectrograph
+  telescope_id: =XMM-Newton
+- name: VLA
+  type: imager
+  band: radio
+  telescope_id: =VLA
+  filters:
+    [
+      "radio-0.34GHz",
+      "radio-1.4GHz",
+      "radio-3GHz",
+      "radio-6GHz",
+      "radio-10GHz",
+      "radio-15GHz",
+      "radio-22GHz",
+      "radio-33GHz",
+      "radio-45GHz",
+    ]
+  tns_id: 226
+- name: TRT
+  type: imager
+  band: optical
+  telescope_id: =TRT0p7m
+  filters:
+    [
+      "bessellb",
+      "bessellv",
+      "bessellr",
+      "besselli",
+      "sdssg",
+      "sdssr",
+      "sdssi",
+      "sdssz",
+    ]
+  api_classname: TRTAPI
+- name: GCN
+  type: imager
+  band: optical
+  telescope_id: =GCN
+  filters:
+    [
+      "sdssu",
+      "sdssg",
+      "sdssr",
+      "sdssi",
+      "sdssz",
+      "ps1::y",
+      "bessellb",
+      "bessellv",
+      "bessellr",
+      "besselli",
+      "bessellux",
+      "2massj",
+      "2massh",
+      "2massks",
+    ]
+- name: ATCA
+  type: imager
+  band: radio
+  telescope_id: =ATCA
+  filters:
+    [
+      "radio-1.4GHz",
+      "radio-3GHz",
+      "radio-6GHz",
+      "radio-10GHz",
+      "radio-22GHz",
+      "radio-33GHz",
+      "radio-45GHz",
+      "radio-93GHz",
+      "radio-95GHz",
+    ]
+- name: FRAM-CTA-N
+  type: imager
+  band: optical
+  telescope_id: =FRAM-CTA-N
+  filters: ["bessellr", "bessellv", "sdssz", "bessellb"]
+  api_classname: GENERICAPI
+  api_classname_obsplan: MMAAPI
+- name: WXT
+  type: imager
+  band: X-ray
+  telescope_id: =EP
+  filters: ["epwxt"]
+- name: FXT
+  type: imager
+  band: X-ray
+  telescope_id: =EP
+  filters: ["epfxt"]
+- name: MXT
+  type: imager
+  band: X-ray
+  telescope_id: =SVOM
+  filters: ["svommxt"]
+- name: ECLAIRs
+  type: imager
+  band: X-ray
+  telescope_id: =SVOM
+  filters: ["svomeclairs"]
+- name: GRM
+  type: imager
+  band: X-ray
+  telescope_id: =SVOM
+  filters: ["svomgrm"]
+- name: VT
+  type: imager
+  band: Optical
+  telescope_id: =SVOM
+  filters: ["svomvtb", "svomvtr"]
+- name: Konus
+  type: imager
+  band: X-ray
+  telescope_id: =Konus
+  filters: ["konus"]
+- name: SPI-ACS
+  type: imager
+  band: X-ray
+  telescope_id: =INTEGRAL
+  filters: ["integralacs"]
+- name: IBIS
+  type: imager
+  band: X-ray
+  telescope_id: =INTEGRAL
+  filters: ["integralibis"]
+- name: JEM-X
+  type: imager
+  band: X-ray
+  telescope_id: =INTEGRAL
+  filters: ["integraljemx"]
+- name: CGBM
+  type: imager
+  band: X-ray
+  telescope_id: =CALET
+  filters: ["caletcgbm"]
+- name: GSC
+  type: imager
+  band: X-ray
+  telescope_id: =MAXI
+  filters: ["maxigsc"]
