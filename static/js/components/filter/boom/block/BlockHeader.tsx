@@ -14,12 +14,15 @@ import {
 import { alpha } from "@mui/material/styles";
 import AddIcon from "@mui/icons-material/Add";
 import ClearIcon from "@mui/icons-material/Clear";
+import ContentCopyIcon from "@mui/icons-material/ContentCopy";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import ExpandLessIcon from "@mui/icons-material/ExpandLess";
 import { blockHeaderStyles } from "../../../../styles/componentStyles";
 import { useFilterBuilder } from "../../../../hooks/useContexts";
 import SaveBlockComponent from "./SaveBlockComponent";
-import { mapBlock } from "./blockTree";
+import { cloneWithNewIds, insertItem, mapBlock } from "./blockTree";
+import { DragHandle } from "./dragAndDrop";
+import { copyFilterItem, useCopiedFilterItem } from "./filterClipboard";
 
 const InlineSelect = ({
   value,
@@ -488,6 +491,10 @@ const BlockHeader = ({
       })),
     );
 
+  const copied = useCopiedFilterItem();
+  const handlePaste = () =>
+    setFilters(insertItem(filters, block.id, cloneWithNewIds(copied)));
+
   const handleOperatorChange = (value: string) => {
     if (!localFilters || !setLocalFilters) {
       updateBlockLogic(block.id, `$${value}`);
@@ -541,6 +548,7 @@ const BlockHeader = ({
       >
         {!isRoot && (
           <>
+            <DragHandle itemId={block.id} />
             <Button
               size="small"
               onClick={() =>
@@ -639,6 +647,32 @@ const BlockHeader = ({
               >
                 Add
               </Button>
+            </Tooltip>
+            {copied && (
+              <Tooltip
+                title={`Paste the copied ${
+                  copied.category === "block" ? "block" : "condition"
+                }`}
+              >
+                <Button
+                  variant="outlined"
+                  size="small"
+                  onClick={handlePaste}
+                  sx={{ py: 0, minWidth: 0 }}
+                >
+                  Paste
+                </Button>
+              </Tooltip>
+            )}
+            <Tooltip title="Copy this block">
+              <IconButton
+                size="small"
+                aria-label="Copy this block"
+                onClick={() => copyFilterItem(block)}
+                sx={{ p: 0.5 }}
+              >
+                <ContentCopyIcon fontSize="small" />
+              </IconButton>
             </Tooltip>
           </>
         )}

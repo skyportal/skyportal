@@ -25,6 +25,12 @@ import ValueInput, {
 } from "./ValueInputs";
 import SpecialOperatorInputs from "./SpecialOperatorInputs";
 import ConditionTypeMenu from "./ConditionTypeMenu";
+import {
+  DragHandle,
+  dropIndicatorSx,
+  halfPosition,
+  useDropTarget,
+} from "../block/dragAndDrop";
 
 interface FieldSelectorProps {
   conditionOrBlock: any;
@@ -146,6 +152,13 @@ const ConditionComponentInner = ({
   );
   const { isYoungestHovered, handleMouseEnter, handleMouseLeave } =
     useHoverState(conditionOrBlock.id, filters);
+  const { position: dropPosition, dropProps } = useDropTarget({
+    filters,
+    setFilters,
+    parentBlockId: block.id,
+    anchorId: conditionOrBlock.id,
+    positionAt: halfPosition,
+  });
 
   // Helper to normalize values that might contain metadata objects
   const normalizeFieldOrValue = (val: any) => {
@@ -371,6 +384,7 @@ const ConditionComponentInner = ({
     return (
       <Box
         key={conditionOrBlock.id}
+        {...dropProps}
         sx={{
           ml: 2,
           pr: "140px",
@@ -389,10 +403,12 @@ const ConditionComponentInner = ({
             : "transparent",
           boxShadow: isYoungestHovered ? 2 : 0,
           zIndex: 1,
+          ...dropIndicatorSx(dropPosition),
         }}
         onMouseEnter={() => handleMouseEnter(conditionOrBlock.id)}
         onMouseLeave={() => handleMouseLeave(conditionOrBlock.id)}
       >
+        <DragHandle itemId={conditionOrBlock.id} sx={{ mt: 1.25 }} />
         {/* Remove button on the left */}
         <IconButton
           size="small"
@@ -423,10 +439,11 @@ const ConditionComponentInner = ({
     <Box
       key={conditionOrBlock.id}
       data-testid="tour-filter-condition"
+      {...dropProps}
       sx={{
         display: "grid",
         gridTemplateColumns:
-          "auto auto minmax(160px, 2fr) minmax(120px, 1fr) minmax(160px, 2fr)",
+          "auto auto auto minmax(160px, 2fr) minmax(120px, 1fr) minmax(160px, 2fr)",
         gap: 1,
         alignItems: "center",
         position: "relative",
@@ -455,10 +472,12 @@ const ConditionComponentInner = ({
           : "transparent",
         boxShadow: isYoungestHovered ? 2 : 0,
         zIndex: 1,
+        ...dropIndicatorSx(dropPosition),
       }}
       onMouseEnter={() => handleMouseEnter(conditionOrBlock.id)}
       onMouseLeave={() => handleMouseLeave(conditionOrBlock.id)}
     >
+      <DragHandle itemId={conditionOrBlock.id} />
       {/* Remove button */}
       <IconButton
         size="small"
