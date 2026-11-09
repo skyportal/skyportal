@@ -73,6 +73,11 @@ def _survey(broker, kwargs=None):
     return _survey_from_altdata(broker.altdata or {}, kwargs)
 
 
+def _site(broker):
+    host = "lasair-ztf" if _survey(broker) == "ZTF" else "lasair"
+    return f"https://{host}.lsst.ac.uk"
+
+
 def _lsst_magnitude(flux, flux_err):
     """AB magnitude and error from an LSST psfFlux in nJy.
 
@@ -1292,11 +1297,10 @@ class LASAIRBROKER(BrokerAPI):
     def found_by(broker, filter_row, obj_id):
         altdata = filter_row.altdata if isinstance(filter_row.altdata, dict) else {}
         published = (altdata.get("lasair") or {}).get("published") or {}
-        host = "lasair-ztf" if _survey(broker) == "ZTF" else "lasair"
         return {
             "broker": "Lasair",
             "filter": published.get("name") or filter_row.name,
-            "url": f"https://{host}.lsst.ac.uk/objects/{obj_id}/",
+            "url": f"{_site(broker)}/objects/{obj_id}/",
         }
 
     @staticmethod
@@ -1304,6 +1308,15 @@ class LASAIRBROKER(BrokerAPI):
         return _publish(
             broker, re.sub(r"\W+", "_", name.lower()).strip("_"), query, token=token
         )
+
+    @staticmethod
+    def link_filter(broker, name, topic, credentials=None):
+        if topic not in available_topics(broker, credentials):
+            raise ValueError(
+                f"{topic} is not streaming yet. Save the filter on Lasair with "
+                "a kafka stream output first."
+            )
+        return {"name": name, "topic": topic, "url": f"{_site(broker)}/filters/"}
 
     @classmethod
     def parallel_ingestion(cls, altdata):

@@ -1547,19 +1547,25 @@ class BrokerFiltersHandler(BaseHandler):
                 if query.get("tree") is not None:
                     saved["tree"] = query["tree"]
                 published = (ad.get("lasair") or {}).get("published")
-                if query.get("publish"):
+                if query.get("publish") or query.get("topic"):
                     user_id = self.associated_user_object.id
                     try:
-                        published = broker.broker_class.publish_filter(
-                            broker,
-                            f.name,
-                            saved,
-                            **own_upstream_token(session, broker, user_id),
-                        )
+                        token = own_upstream_token(session, broker, user_id)
+                        row = own_credential(session, broker.id, user_id)
+                        if query.get("publish"):
+                            published = broker.broker_class.publish_filter(
+                                broker, f.name, saved, **token
+                            )
+                        else:
+                            published = broker.broker_class.link_filter(
+                                broker,
+                                query.get("name") or f.name,
+                                query["topic"],
+                                row.as_credential_set(),
+                            )
                     except Exception as e:
-                        return self.error(f"Could not save the filter on Lasair: {e}")
+                        return self.error(f"Could not link the filter to Lasair: {e}")
                     topic = isinstance(published, dict) and published.get("topic")
-                    row = own_credential(session, broker.id, user_id)
                     if topic and row is not None:
                         row.topics = sorted({*(row.topics or []), topic})
                         routing = dict(row.topic_filter_ids or {})

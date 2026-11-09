@@ -32,8 +32,8 @@ const LasairFilterEditor = ({ broker, filterId }: LasairFilterEditorProps) => {
   const survey = broker.surveys?.[0] ?? "LSST";
   const [mode, setMode] = useState<"blocks" | "sql">("blocks");
   const { data: filters } = useGetBrokerFiltersQuery(broker.id);
-  const saved = (filters?.find((f) => f.id === filterId)?.altdata as any)
-    ?.lasair;
+  const filter = filters?.find((f) => f.id === filterId);
+  const saved = (filter?.altdata as any)?.lasair;
   const published = saved?.published;
   const [triggerFilter, { data: previewData, isFetching: previewing }] =
     useLazyTestBrokerFilterQuery();
@@ -79,6 +79,8 @@ const LasairFilterEditor = ({ broker, filterId }: LasairFilterEditorProps) => {
             <LasairBlocks
               brokerId={broker.id}
               filterId={filterId}
+              filterName={filter?.name ?? ""}
+              survey={survey}
               tree={saved?.tree}
               onPreview={onPreview}
             />

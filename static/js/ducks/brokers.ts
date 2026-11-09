@@ -204,6 +204,8 @@ export const brokersApi = skyportalApi.injectEndpoints({
           conditions?: string;
           tree?: any[];
           publish?: boolean;
+          topic?: string;
+          name?: string;
         };
         autosave?: boolean;
       }
