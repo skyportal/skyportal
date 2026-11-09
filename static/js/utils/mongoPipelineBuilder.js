@@ -114,6 +114,8 @@ const makeFieldCondition = (fieldName, operator, value) => {
       return {
         [fieldName]: { $in: Array.isArray(value) ? value : [value] },
       };
+    case "$regex":
+      return { [fieldName]: { $regex: String(value) } };
     case "$exists":
       return {
         [fieldName]: {
@@ -155,6 +157,8 @@ const makeExprArrayCondition = (fieldExpr, operator, value) => {
       return { $lte: [fieldExpr, value] };
     case "$in":
       return { $in: [fieldExpr, Array.isArray(value) ? value : [value]] };
+    case "$regex":
+      return { $regexMatch: { input: fieldExpr, regex: String(value) } };
     case "$exists":
       return {
         [value === false ? "$eq" : "$ne"]: [{ $type: fieldExpr }, "missing"],
@@ -3443,6 +3447,8 @@ const convertSchemaFieldCondition = (
         },
       };
     }
+    case "$regex":
+      return { [field]: { $regex: String(processedValue) } };
     case "$lengthGt":
     case "length >":
       return { $expr: { $gt: [{ $size: `$${field}` }, processedValue] } };
