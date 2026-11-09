@@ -16,9 +16,12 @@ import MoreVertIcon from "@mui/icons-material/MoreVert";
 import { useFilterBuilder } from "../../../../hooks/useContexts";
 import {
   cloneCustomBlock,
+  cloneWithNewIds,
+  insertItem,
   mapBlock,
   replaceOrAppend,
 } from "../block/blockTree";
+import { copyFilterItem } from "../block/filterClipboard";
 
 interface ConditionTypeMenuProps {
   condition: any;
@@ -95,6 +98,24 @@ const ConditionTypeMenu = ({
     }));
   };
 
+  const duplicate = () => {
+    setFilters(
+      insertItem(
+        filters,
+        block.id,
+        cloneWithNewIds(condition),
+        condition.id,
+        true,
+      ),
+    );
+    close();
+  };
+
+  const copy = () => {
+    copyFilterItem(condition);
+    close();
+  };
+
   const matchingCustomBlocks = (customBlocks ?? []).filter(
     (cb: any) =>
       !search ||
@@ -106,7 +127,7 @@ const ConditionTypeMenu = ({
 
   return (
     <>
-      <Tooltip title={`${label}: click to change its type`}>
+      <Tooltip title={`${label}: change its type, copy or duplicate it`}>
         <IconButton
           size="small"
           onClick={(e) => (anchor ? close() : setAnchor(e.currentTarget))}
@@ -168,6 +189,21 @@ const ConditionTypeMenu = ({
               }
             >
               Block
+            </Button>
+            <Divider sx={{ my: 1 }} />
+            <Button
+              fullWidth
+              sx={itemSx("text.primary", "action.hover")}
+              onClick={copy}
+            >
+              Copy
+            </Button>
+            <Button
+              fullWidth
+              sx={itemSx("text.primary", "action.hover")}
+              onClick={duplicate}
+            >
+              Duplicate
             </Button>
             {(customBlocks ?? []).length > 0 && (
               <>
