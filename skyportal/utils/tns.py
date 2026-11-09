@@ -47,7 +47,8 @@ TNS_INSTRUMENT_IDS = {
     "efosc2": 31,
     "gaia": 163,
     "goodman": 127,
-    "goto": [218, 264, 265, 266],
+    "goto": [218, 264],
+    "goto-s": [265, 266],
     "kast": 10,
     "lsst": 287,
     "lsstcomcam": 289,  # Rubin - LSSTComCam (commissioning camera)
@@ -65,6 +66,8 @@ TNS_RETRIEVAL_INSTRUMENT_IDS = {
     "asas-sn": [153, 154, 191, 192, 195],
     "wfst": 282,
 }
+
+TNS_RETRIEVAL_FALLBACKS = {"goto-s": "goto"}
 
 TNS_OTHER_INSTRUMENT_ID = 0
 
@@ -774,12 +777,13 @@ def _resolve_tns_instrument(tns_instrument_id, session):
     if inst_name is None:
         raise ValueError(f"Cannot find TNS ID mapping for {tns_instrument_id}")
 
-    instrument = session.scalars(
-        sa.select(Instrument).where(sa.func.lower(Instrument.name) == inst_name)
-    ).first()
-    if instrument is None:
-        raise ValueError(f"Cannot find instrument with name {inst_name}")
-    return instrument
+    for name in filter(None, [inst_name, TNS_RETRIEVAL_FALLBACKS.get(inst_name)]):
+        instrument = session.scalars(
+            sa.select(Instrument).where(sa.func.lower(Instrument.name) == name)
+        ).first()
+        if instrument is not None:
+            return instrument
+    raise ValueError(f"Cannot find instrument with name {inst_name}")
 
 
 def read_tns_photometry(photometry, session):
