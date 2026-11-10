@@ -153,6 +153,7 @@ def test_mcp_tools_list(view_only_token):
         "diff_broker_filter_versions",
         "convert_time",
         "run_broker_filter",
+        "preview_lasair_filter",
         "post_broker_filter_version",
         "validate_broker_filter_version",
         "activate_broker_filter_version",

@@ -12,6 +12,7 @@ export interface AssistantProposal {
   pipeline: any[];
   preview: { summary: string; start_jd: number | null; end_jd: number | null };
   target: { broker_id: number; filter_id: number } | null;
+  lasair?: { broker_id: number; tree: any; count: number | null };
 }
 
 export interface AssistantMessage {

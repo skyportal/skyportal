@@ -119,8 +119,8 @@ def test_backfill_ingests_each_object_once(monkeypatch):
     monkeypatch.setattr(lasair, "_query", lambda *a, **k: rows)
     ingested = []
 
-    async def fake_ingest(broker, oid, survey, filter_ids, token=None, payload=None):
-        ingested.append((oid, filter_ids, token))
+    async def fake_ingest(broker, oid, survey, filter_ids, payload=None):
+        ingested.append((oid, filter_ids))
 
     monkeypatch.setattr(lasair, "_ingest_object", fake_ingest)
 
@@ -130,11 +130,10 @@ def test_backfill_ingests_each_object_once(monkeypatch):
             "ZTF",
             types.SimpleNamespace(id=9, altdata={"lasair": {"tables": "objects"}}),
             token="tok",
-            interval=0,
         )
     )
     assert (done, failed, found) == (2, 0, 2)
-    assert ingested == [("ZTF1", [9], "tok"), ("ZTF2", [9], "tok")]
+    assert ingested == [("ZTF1", [9]), ("ZTF2", [9])]
 
 
 def test_backfill_counts_a_failure_and_keeps_going(monkeypatch):
@@ -142,7 +141,7 @@ def test_backfill_counts_a_failure_and_keeps_going(monkeypatch):
         lasair, "_query", lambda *a, **k: [{"objectId": "A"}, {"objectId": "B"}]
     )
 
-    async def fake_ingest(broker, oid, survey, filter_ids, token=None, payload=None):
+    async def fake_ingest(broker, oid, survey, filter_ids, payload=None):
         if oid == "A":
             raise ValueError("upstream said no")
 
@@ -152,9 +151,21 @@ def test_backfill_counts_a_failure_and_keeps_going(monkeypatch):
             types.SimpleNamespace(id=3),
             "ZTF",
             types.SimpleNamespace(id=9, altdata={"lasair": {"tables": "objects"}}),
-            interval=0,
+            token="tok",
         )
     ) == (1, 1, 2)
+
+
+def test_backfill_refuses_to_run_without_the_users_own_token(monkeypatch):
+    monkeypatch.setattr(lasair, "_query", lambda *a, **k: pytest.fail("queried"))
+    with pytest.raises(ValueError, match="your own Lasair token"):
+        asyncio.run(
+            lasair._run_backfill(
+                types.SimpleNamespace(id=3),
+                "ZTF",
+                types.SimpleNamespace(id=9, altdata={"lasair": {"tables": "objects"}}),
+            )
+        )
 
 
 def test_backfill_refuses_a_filter_with_no_saved_query():

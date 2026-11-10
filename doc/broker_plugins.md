@@ -62,9 +62,8 @@ photometry passthrough runs on every source page view under a 10s bound, so a
 provider whose object fetch cannot meet that sets `photometry_passthrough =
 False` and stops advertising the capability. ANTARES (walks its whole paginated
 alert history) and Pitt-Google (bills the deployment for a BigQuery job per view)
-opt out. Lasair advertises it, but its API is throttled per token per hour (100
-calls for a user token, 10,000 for a power user), so only pick it as the
-photometry default on a power-user token.
+opt out. Lasair advertises it, and reads the object from BOOM rather than from
+Lasair.
 
 Ingestion (broker → SkyPortal): `run_ingestion`, a long-lived consumer/poller
 (see "Ingestion and filters" below).
@@ -136,11 +135,10 @@ the filter page cover what that leaves out, and neither needs
 
 - **Backfill from broker** runs the filter's own saved query against the broker's
   database and ingests each match, so it reaches past the stream's retention.
-  Each object costs one upstream call, paced by
-  `brokers.backfill.min_request_interval` (45s by default, under Lasair's allowance
-  of 100 an hour) and capped at `brokers.backfill.limit` objects, so a full run
-  takes hours. The `broker_backfill` service runs one at a time. Offered by
-  providers that set `supports_backfill`.
+  For Lasair that is one query on the requesting user's own token, with each
+  match's photometry and cutouts read from BOOM, capped at
+  `brokers.backfill.limit` objects. The `broker_backfill` service runs one at a
+  time. Offered by providers that set `supports_backfill`.
 - **Replay stream** bumps the credential's `stream_epoch`, which suffixes the
   Kafka consumer group. The broker holds no offset for a group it has not seen,
   so the next run starts at the earliest message it still retains. Use it after
