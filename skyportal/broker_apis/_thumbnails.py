@@ -37,6 +37,8 @@ THUMBNAIL_TYPES = [
     ("cutoutDifference", "sub"),
 ]
 
+BRIGHT_STAR_RATIO = 5
+
 
 # Side, in pixels, of a survey's full stamp. One taken near a chip edge comes
 # clipped, which leaves the detection off-centre.
@@ -130,6 +132,23 @@ def clean_image_array(img):
     return img
 
 
+def central_region(img):
+    ny, nx = img.shape
+    ry, rx = max(ny // 8, 1), max(nx // 8, 1)
+    return img[ny // 2 - ry : ny // 2 + ry + 1, nx // 2 - rx : nx // 2 + rx + 1]
+
+
+class CutoutInterval(AsymmetricPercentileInterval):
+    def __init__(self, img):
+        img = img - np.median(img)
+        bright = img.max() > BRIGHT_STAR_RATIO * np.abs(central_region(img)).max()
+        super().__init__(lower_percentile=1, upper_percentile=99.5 if bright else 100)
+
+    def get_limits(self, values):
+        vmin, vmax = super().get_limits(values)
+        return vmin, max(vmax, float(central_region(values).max()))
+
+
 def render_cutout_png(data_array, stretch, normalizer, cmap="bone", limits=None):
     """Normalize and render a 2D array to PNG bytes (BytesIO, seeked to 0).
 
@@ -158,10 +177,11 @@ def make_thumbnail(
     data_array, header = decode_cutout(cutout_data, survey)
     if padding is not None and data_array.ndim == 2:
         data_array = np.pad(data_array.astype(float), padding, constant_values=np.nan)
-    data_array = orient_cutout(data_array, survey, header)
+    data_array = clean_image_array(orient_cutout(data_array, survey, header))
     stretch = LinearStretch() if cutout_type == "cutoutDifference" else LogStretch()
-    normalizer = AsymmetricPercentileInterval(lower_percentile=1, upper_percentile=99.5)
-    buff = render_cutout_png(data_array, stretch, normalizer, cmap="bone")
+    buff = render_cutout_png(
+        data_array, stretch, CutoutInterval(data_array), cmap="bone"
+    )
     return {
         "obj_id": obj_id,
         "data": base64.b64encode(buff.read()).decode("utf-8"),
