@@ -27,6 +27,9 @@ cutouts_cache = Cache(
     max_age=cfg.get("misc.minutes_to_keep_broker_cutouts_cache", 1440) * 60,
 )
 
+ALERTS_BROKER_CLASSES = ("BOOMBROKER", "BABAMULBROKER")
+PUBLIC_PERMISSIONS = {"ZTF": [1], "LSST": [1]}
+
 DEFAULT_ENDPOINT = "https://api.lasair.lsst.ac.uk/api"
 DEFAULT_TIMEOUT = 30
 CREDENTIAL_RESCAN_INTERVAL = 60
@@ -523,6 +526,75 @@ def _cutouts_from_object(obj, alert_id):
     return cutouts
 
 
+def _alerts_broker(survey):
+    """The BOOM (or babamul) broker a Lasair object missing from its stream
+    message is read from, so Lasair is never asked for it."""
+    from baselayer.app.models import new_session
+
+    from ..models import Broker
+
+    with new_session() as session:
+        rows = session.scalars(
+            sa.select(Broker)
+            .where(
+                Broker.active.is_(True),
+                Broker.broker_classname.in_(ALERTS_BROKER_CLASSES),
+            )
+            .order_by(Broker.default_photometry.desc(), Broker.id)
+        ).all()
+        for row in rows:
+            if survey in row.broker_class.configured_surveys(row.altdata):
+                session.expunge(row)
+                return row
+    raise ValueError(f"No active BOOM or babamul broker serves {survey} alerts.")
+
+
+def _from_alerts_broker(object_id, survey, cutouts=True):
+    """The object's alert as BOOM holds it, and its cutouts when asked for.
+    Raises LookupError when BOOM has no alert for it."""
+    source = _alerts_broker(survey)
+    kwargs = {"survey": survey, "permissions": PUBLIC_PERMISSIONS}
+    try:
+        data = source.broker_class.get_alert(source, object_id, None, **kwargs)
+    except requests.HTTPError as e:
+        if getattr(e.response, "status_code", None) != 404:
+            raise
+        data = None
+    if isinstance(data, list):
+        data = data[0] if data else None
+    if not data:
+        raise LookupError(f"{source.name} holds no {survey} alert for {object_id}")
+    data = {**data, "objectId": str(object_id)}
+    images = None
+    candid = data.get("candid") or (data.get("candidate") or {}).get("candid")
+    if cutouts and candid is not None:
+        try:
+            images = source.broker_class.get_cutouts(source, candid, None, **kwargs)
+        except Exception as e:
+            log(f"No cutouts for {object_id} from {source.name}: {e}")
+    return data, images
+
+
+def _latest_candid(data):
+    detections = [
+        p
+        for p in data.get("prv_candidates") or []
+        if p.get("candid") is not None and p.get("jd") is not None
+    ]
+    if detections:
+        return max(detections, key=lambda p: p["jd"])["candid"]
+    return data.get("candid") or (data.get("candidate") or {}).get("candid")
+
+
+def _incomplete_message(payload, object_id):
+    """Whether a stream message lacks the photometry or the position an object
+    needs, as every message off the selected-columns stream does."""
+    if is_plain_stream_message(payload):
+        return True
+    candidate = normalize_stream_message(payload, object_id).get("candidate") or {}
+    return candidate.get("ra") is None or candidate.get("dec") is None
+
+
 def is_plain_stream_message(payload):
     """Whether a stream message came from the wrong one of Lasair's three streams.
 
@@ -549,26 +621,22 @@ async def _ingest_object(broker, oid, survey, filter_ids, token=None, payload=No
     which differ only in how they learn an objectId.
 
     The REST call is made only when polling, where there is no object in hand.
-    A stream message is used exactly as it arrived, never topped up by that
-    call: an active filter delivers at the rate alerts arrive, which no hourly
-    call allowance bounds, so one call per alert exhausts it. A message off the
-    wrong stream is refused instead, and the consumer screens those out a batch
-    at a time, so reaching here means some other caller passed one.
+    A stream message is never topped up by that call: an active filter delivers
+    at the rate alerts arrive, which no hourly call allowance bounds, so one call
+    per alert exhausts it. A message lacking the photometry or the position is
+    read from BOOM instead.
     """
     from baselayer.app.models import async_plain_session_factory
 
     from ..models import Thumbnail, User
     from ._save import save_object_as_candidate
 
-    if payload is not None:
-        if is_plain_stream_message(payload):
-            raise ValueError(
-                f"Lasair message for {oid} carries no alert. {PLAIN_STREAM_DETAIL}"
-            )
-        obj = payload
-    else:
+    if payload is None:
         obj = await asyncio.to_thread(_object, broker, oid, token)
-    data = _normalize_object(obj, oid)
+    elif _incomplete_message(payload, oid):
+        obj = None
+    else:
+        obj = payload
     async with async_plain_session_factory() as session:
         user = await session.scalar(sa.select(User).where(User.id == 1))
         # Cutouts are stored once per object, so an object already carrying
@@ -577,18 +645,26 @@ async def _ingest_object(broker, oid, survey, filter_ids, token=None, payload=No
         has_thumbnails = await session.scalar(
             sa.select(sa.exists().where(Thumbnail.obj_id == oid))
         )
-        if not has_thumbnails:
-            try:
-                cutouts = await asyncio.to_thread(_cached_cutouts, broker, obj, oid)
-            except Exception:
-                cutouts = None
+        if obj is None:
+            data, cutouts = await asyncio.to_thread(
+                _from_alerts_broker, oid, survey, not has_thumbnails
+            )
+            passing_alert_id = _latest_candid(data)
+        else:
+            data = _normalize_object(obj, oid)
+            passing_alert_id = data.get("candidate", {}).get("candid")
+            if not has_thumbnails:
+                try:
+                    cutouts = await asyncio.to_thread(_cached_cutouts, broker, obj, oid)
+                except Exception:
+                    cutouts = None
         await save_object_as_candidate(
             data,
             survey,
             session,
             user,
             filter_ids,
-            passing_alert_id=data.get("candidate", {}).get("candid"),
+            passing_alert_id=passing_alert_id,
             cutouts=cutouts or None,
         )
         # save_object_as_candidate committed; save annotator data next.
@@ -721,19 +797,19 @@ def _credential_sets(broker, extra=None):
     return sets
 
 
-def _prepare_batch(msgs, topic_filter_ids, default_filter_ids):
+def _prepare_batch(msgs, topic_filter_ids, default_filter_ids, read_from_boom=False):
     """Split a polled batch into work to do and messages that need none.
 
     Returns the finished messages, the work, and any topic found to be
     streaming something we cannot ingest.
 
-    A message that cannot be decoded, that carries no objectId, that reports no
-    sky position, or that is the wrong stream for us is finished rather than
-    failed: leaving it outstanding would stall its partition for good, and none
-    of the four gets better by being tried again. Where one object appears more
-    than once, only its newest alert is ingested and the earlier ones are
-    finished, which also keeps two writes for the same object out of the same
-    batch.
+    A message that cannot be decoded or carries no objectId is finished rather
+    than failed, and so is one lacking the photometry or the sky position when
+    there is no BOOM to read them from: leaving it outstanding would stall its
+    partition for good, and none of these gets better by being tried again.
+    Where one object appears more than once, only its newest alert is ingested
+    and the earlier ones are finished, which also keeps two writes for the same
+    object out of the same batch.
     """
     finished = set()
     unusable = {}
@@ -754,15 +830,16 @@ def _prepare_batch(msgs, topic_filter_ids, default_filter_ids):
             log(f"Lasair message on {msg.topic()} carried no objectId; skipping")
             finished.add(key)
             continue
-        if is_plain_stream_message(payload):
-            unusable[msg.topic()] = PLAIN_STREAM_DETAIL
-            finished.add(key)
-            continue
-        candidate = normalize_stream_message(payload, oid).get("candidate") or {}
-        if candidate.get("ra") is None or candidate.get("dec") is None:
-            unusable[msg.topic()] = NO_POSITION_DETAIL
-            finished.add(key)
-            continue
+        if not read_from_boom:
+            if is_plain_stream_message(payload):
+                unusable[msg.topic()] = PLAIN_STREAM_DETAIL
+                finished.add(key)
+                continue
+            candidate = normalize_stream_message(payload, oid).get("candidate") or {}
+            if candidate.get("ra") is None or candidate.get("dec") is None:
+                unusable[msg.topic()] = NO_POSITION_DETAIL
+                finished.add(key)
+                continue
         superseded = work.get(oid)
         if superseded is not None:
             older = superseded[0]
@@ -913,6 +990,11 @@ async def _consume_set(broker, survey, credentials, budget, stop):
     # after it has been ingested: on the default a crash acknowledges whatever
     # the five-second timer had reached and those alerts are never seen again.
     config["enable.auto.offset.store"] = False
+    try:
+        await asyncio.to_thread(_alerts_broker, survey)
+        read_from_boom = True
+    except ValueError:
+        read_from_boom = False
     consumer = Consumer(config)
     consumer.subscribe(topics)
     log(
@@ -939,7 +1021,7 @@ async def _consume_set(broker, survey, credentials, budget, stop):
             if not msgs:
                 continue
             finished, work, unusable = _prepare_batch(
-                msgs, topic_filter_ids, credentials["filter_ids"]
+                msgs, topic_filter_ids, credentials["filter_ids"], read_from_boom
             )
             if _update_topic_status(topic_status, work, unusable) and credentials.get(
                 "credential_id"

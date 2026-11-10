@@ -81,19 +81,6 @@ def test_an_empty_result_is_not_cached(monkeypatch):
     assert calls == ["ZTF26aaa", "ZTF26aaa"]
 
 
-def test_a_plain_kafka_message_is_refused_not_completed_by_an_api_call():
-    # Lasair's plain stream carries the filter's selected columns only. Fetching
-    # the rest would cost a call per alert, at whatever rate the filter fires,
-    # so the message is refused and the error names the setting that fixes it.
-    import asyncio
-
-    plain = {"objectId": "ZTF26aaa", "ramean": 1.0, "decmean": 2.0, "gmag": 20.1}
-    assert lasair.is_plain_stream_message(plain)
-
-    with pytest.raises(ValueError, match="lite lightcurve"):
-        asyncio.run(lasair._ingest_object(None, "ZTF26aaa", "ZTF", [1], payload=plain))
-
-
 def test_an_empty_lightcurve_is_not_blamed_on_the_stream_setting():
     # The setting is wrong only when the alert is absent. One present but quiet
     # is an ordinary object, and must not send the user to change a correct
