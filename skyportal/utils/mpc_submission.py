@@ -43,6 +43,10 @@ def obs_time(jd):
     return Time(float(jd), format="jd", scale="utc").isot + "Z"
 
 
+def _names(names):
+    return [f"! name {name.strip()}" for name in names.split(",") if name.strip()]
+
+
 def _header(observatory, telescope, submitter, observers, measurers):
     lines = [
         "# version=2022",
@@ -51,9 +55,9 @@ def _header(observatory, telescope, submitter, observers, measurers):
         "# submitter",
         f"! name {submitter}",
         "# observers",
-        f"! name {observers}",
+        *_names(observers),
         "# measurers",
-        f"! name {measurers}",
+        *_names(measurers),
         "# telescope",
         f"! name {telescope['name']}",
         f"! design {telescope['design']}",
