@@ -59,7 +59,11 @@ import {
 import { useGetConfigQuery } from "../../ducks/config";
 import { useGetAnalysesQuery } from "../../ducks/source";
 import PhotometryCutoutStrip, { CutoutPin } from "./PhotometryCutoutStrip";
-import { buildModelLightcurveTraces, ModelFit } from "./modelLightcurveTraces";
+import {
+  buildModelLightcurveTraces,
+  ModelFit,
+  modelFitExtent,
+} from "./modelLightcurveTraces";
 import {
   RequestSpectrumDialog,
   UNSHARED_SPECTRUM,
@@ -1548,12 +1552,52 @@ const PhotometryPlot = ({
     return [];
   };
 
+  // Widen the photometry ranges to the shown model fits, which can extend past
+  // the data (a forecast lies entirely after it). The secondary x axis moves
+  // with the MJD axis so the two stay aligned.
+  const withModelFitRanges = (stats: any): any => {
+    const ext = modelFitExtent(
+      shownModelFits,
+      extinctionByFilter,
+      showExtinctionCorrection,
+    );
+    if (!stats || !ext) return stats;
+    const [lo, hi] = stats.mjd.range;
+    const dLo = Math.max(0, lo - (ext.mjd[0] - 1));
+    const dHi = Math.max(0, ext.mjd[1] + 1 - hi);
+    const out = {
+      ...stats,
+      mjd: { ...stats.mjd, range: [lo - dLo, hi + dHi] },
+      mag: {
+        ...stats.mag,
+        range: [
+          Math.max(stats.mag.range[0], ext.mag[1] * 1.02),
+          Math.min(stats.mag.range[1], ext.mag[0] * 0.98),
+        ],
+      },
+    };
+    if (stats.days_ago) {
+      const [a, b] = stats.days_ago.range;
+      out.days_ago = { ...stats.days_ago, range: [a + dLo, b - dHi] };
+    } else if (stats.sec_since_t0) {
+      const unit = displayXAxisInlog ? daysToSec(1) : 1;
+      const [a, b] = stats.sec_since_t0.range;
+      out.sec_since_t0 = {
+        ...stats.sec_since_t0,
+        range: [a - dLo * unit, b + dHi * unit],
+      };
+    }
+    return out;
+  };
+
   const createLayouts = (
     plotType: any,
-    photStats_value: any,
+    photStatsArg: any,
     dm_value: any,
     showExtinctionCorrectionValue: any,
   ): any => {
+    const photStats_value =
+      plotType === "mag" ? withModelFitRanges(photStatsArg) : photStatsArg;
     const newLayouts: any = {};
     if (plotType === "mag" || plotType === "flux") {
       if (t0 && displayXAxisInlog) {
