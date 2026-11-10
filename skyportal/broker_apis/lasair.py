@@ -463,6 +463,15 @@ def _request(broker, method, data, token=None):
     raise RuntimeError("unreachable")
 
 
+def _object(broker, object_id, token=None):
+    return _request(
+        broker,
+        "object",
+        {"objectId": object_id, "lite": True, "lasair_added": True},
+        token=token,
+    )
+
+
 def _cone(broker, ra, dec, radius=5, request_type="all", token=None):
     return _request(
         broker,
@@ -635,12 +644,12 @@ def normalize_stream_message(payload, object_id):
     return _normalize_object(payload, object_id)
 
 
-async def _ingest_object(broker, oid, survey, filter_ids, payload=None):
+async def _ingest_object(broker, oid, survey, filter_ids, payload=None, token=None):
     """Register one Lasair object as a Candidate and save any annotator
     annotations it carried. The photometry is the stream message's, or BOOM's
     when there is no message (backfill, polling) or the message lacks the
-    photometry or the position, and the cutouts are BOOM's: Lasair is never
-    asked for the object.
+    photometry or the position, and the cutouts are BOOM's. Lasair is asked for
+    the object only when BOOM does not hold it.
     """
     from baselayer.app.models import async_plain_session_factory
 
@@ -656,9 +665,15 @@ async def _ingest_object(broker, oid, survey, filter_ids, payload=None):
         )
         cutouts = None
         if payload is None:
-            data, cutouts = await asyncio.to_thread(
-                _from_alerts_broker, oid, survey, not has_thumbnails
-            )
+            try:
+                data, cutouts = await asyncio.to_thread(
+                    _from_alerts_broker, oid, survey, not has_thumbnails
+                )
+            except LookupError:
+                obj = await asyncio.to_thread(_object, broker, oid, token)
+                data = _normalize_object(obj, oid)
+                if not has_thumbnails:
+                    _retry_cutouts(oid, survey)
             passing_alert_id = _latest_candid(data)
         else:
             data = _normalize_object(payload, oid)
@@ -915,14 +930,16 @@ async def _store_topic_status(credential_id, status):
         log(f"Could not record Lasair topic status on credential {credential_id}: {e}")
 
 
-async def _ingest_batch(broker, survey, work, concurrency):
+async def _ingest_batch(broker, survey, work, concurrency, token=None):
     """Ingest a batch, at most `concurrency` at a time. Returns {key: succeeded}."""
     semaphore = asyncio.Semaphore(concurrency)
 
     async def run(oid, msg, payload, filter_ids):
         async with semaphore:
             try:
-                await _ingest_object(broker, oid, survey, filter_ids, payload=payload)
+                await _ingest_object(
+                    broker, oid, survey, filter_ids, payload=payload, token=token
+                )
                 return True
             except Exception as e:
                 log(f"Error ingesting Lasair object {oid}: {e}")
@@ -1039,7 +1056,9 @@ async def _consume_set(broker, survey, credentials, budget, stop):
                 "credential_id"
             ):
                 await _store_topic_status(credentials["credential_id"], topic_status)
-            results = await _ingest_batch(broker, survey, work, concurrency)
+            results = await _ingest_batch(
+                broker, survey, work, concurrency, token=credentials["token"]
+            )
             _store_batch_offsets(consumer, msgs, finished, results)
             ingested += sum(1 for ok in results.values() if ok)
 
@@ -1270,7 +1289,7 @@ async def _run_backfill(
             break
         oid = pending.pop(0)
         try:
-            await _ingest_object(broker, oid, survey, [filter_row.id])
+            await _ingest_object(broker, oid, survey, [filter_row.id], token=token)
             ingested += 1
         except Exception as e:
             log(f"Lasair backfill could not ingest {oid}: {e}")

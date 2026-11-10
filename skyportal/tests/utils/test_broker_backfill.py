@@ -119,7 +119,7 @@ def test_backfill_ingests_each_object_once(monkeypatch):
     monkeypatch.setattr(lasair, "_query", lambda *a, **k: rows)
     ingested = []
 
-    async def fake_ingest(broker, oid, survey, filter_ids, payload=None):
+    async def fake_ingest(broker, oid, survey, filter_ids, payload=None, token=None):
         ingested.append((oid, filter_ids))
 
     monkeypatch.setattr(lasair, "_ingest_object", fake_ingest)
@@ -141,7 +141,7 @@ def test_backfill_counts_a_failure_and_keeps_going(monkeypatch):
         lasair, "_query", lambda *a, **k: [{"objectId": "A"}, {"objectId": "B"}]
     )
 
-    async def fake_ingest(broker, oid, survey, filter_ids, payload=None):
+    async def fake_ingest(broker, oid, survey, filter_ids, payload=None, token=None):
         if oid == "A":
             raise ValueError("upstream said no")
 
