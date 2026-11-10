@@ -1,6 +1,6 @@
 """The home page's standing to-do list.
 
-Notifications fire once and scroll away; an unanswered request is state, not an
+Notifications fire once and scroll away; a scheduling clash is state, not an
 event. This widget is where that state stays visible.
 """
 

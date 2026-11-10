@@ -459,6 +459,18 @@ const NotificationPreferences = () => {
         defaultActive
         defaultChannels={["email"]}
       />
+      {(isAdmin || profile?.isGroupAdmin) && (
+        <NotificationCard
+          type="data_access_request"
+          title="Data requests"
+          text={
+            isAdmin
+              ? "As an admin, when anyone asks for data they cannot see. Owners are always told when their data is asked for."
+              : "When someone asks for data held by a group you administer. Owners are always told when their data is asked for."
+          }
+          channels={[]}
+        />
+      )}
       {isAdmin && (
         <NotificationCard
           type="feedback"

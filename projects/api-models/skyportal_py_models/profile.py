@@ -57,6 +57,7 @@ class UserProfileResponse(BaseModel):
     )
     streams: list[StreamResponse] = Field(default_factory=list)
     is_anonymous: bool | None = None
+    is_group_admin: bool | None = Field(alias="isGroupAdmin", default=None)
 
 
 class ProfilePatch(BaseModel):
