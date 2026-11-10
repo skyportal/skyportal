@@ -149,7 +149,7 @@ const LasairCreateDialog = ({
         sx={{ display: "flex", flexDirection: "column", gap: 2, pt: 1 }}
       >
         <Typography variant="body2">
-          1. Create a filter on Lasair with these fields and a kafka stream
+          1. Create a filter on Lasair with these fields and a Kafka stream
           output.
         </Typography>
         <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>

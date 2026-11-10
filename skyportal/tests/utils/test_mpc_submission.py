@@ -67,6 +67,17 @@ def test_the_data_lines_match_what_the_mpc_accepted():
     assert produced == SUBMITTED.splitlines()
 
 
+def test_each_name_has_its_own_line():
+    out = submission()
+    measurers = out.split("# measurers\n")[1].split("# telescope")[0]
+    assert measurers.splitlines() == [
+        "! name A. Le Calloch",
+        "! name T. Culino",
+        "! name M. Coughlin",
+        "! name Q.-Z. Ye",
+    ]
+
+
 def test_the_column_line_uses_trksub():
     # permID is reserved for the permanent numbers of known objects; the MPC
     # rejects a new track that claims one.

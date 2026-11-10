@@ -25,10 +25,14 @@ from ...models import (
     Instrument,
     Obj,
     Photometry,
+    RoleACL,
     Spectrum,
     User,
+    UserACL,
     UserNotification,
+    UserRole,
 )
+from ...utils.notifications import wants_in_app
 from ...utils.parse import get_page_and_n_per_page
 from ..base import BaseHandler
 
@@ -548,7 +552,6 @@ class DataAccessRequestHandler(BaseHandler):
             }
 
             created = []
-            notify = {}
 
             for dataset in body.photometry:
                 key = _photometry_key(
@@ -585,8 +588,6 @@ class DataAccessRequestHandler(BaseHandler):
                 )
                 session.add(request)
                 created.append(request)
-                notify.setdefault(dataset.ownerID, 0)
-                notify[dataset.ownerID] += 1
 
             if body.spectrumIDs:
                 visible_spectra = Spectrum.select(
@@ -633,30 +634,93 @@ class DataAccessRequestHandler(BaseHandler):
                     )
                     session.add(request)
                     created.append(request)
-                    notify.setdefault(owner_id, 0)
-                    notify[owner_id] += 1
 
             if not created:
                 return self.error("You have already asked for this data.")
 
-            requester = self.associated_user_object
-            asker = requester.username
-            for owner_id, count in notify.items():
+            asker = self.associated_user_object.username
+            counts = {}
+            for request in created:
+                counts[request.owner_id] = counts.get(request.owner_id, 0) + 1
+            notifications = {
+                owner_id: f"*{asker}* asked for {count} of your dataset(s) on "
+                f"*{body.objId}*"
+                for owner_id, count in counts.items()
+            }
+            # Admins can answer requests they do not own, but hear of them only
+            # on opt-in: system admins of every request, group admins of those
+            # on data their groups hold.
+            opted_in = (
+                User.preferences["notifications"]["data_access_request"]["active"]
+                .astext.cast(sa.Boolean)
+                .is_(True)
+            )
+            system_admin_ids = sa.union(
+                sa.select(UserACL.user_id).where(UserACL.acl_id == "System admin"),
+                sa.select(UserRole.user_id)
+                .join(RoleACL, RoleACL.role_id == UserRole.role_id)
+                .where(RoleACL.acl_id == "System admin"),
+            )
+            system_admins = (
+                await session.scalars(
+                    sa.select(User.id).where(User.id.in_(system_admin_ids), opted_in)
+                )
+            ).all()
+            group_admins = (
+                await session.execute(
+                    sa.select(GroupUser.group_id, GroupUser.user_id)
+                    .join(User, User.id == GroupUser.user_id)
+                    .where(
+                        GroupUser.admin.is_(True),
+                        GroupUser.group_id.in_(
+                            [
+                                group_id
+                                for request in created
+                                for group_id in request.owner_group_ids
+                            ]
+                        ),
+                        opted_in,
+                    )
+                )
+            ).all()
+            admin_counts = {}
+            for request in created:
+                for admin_id in set(system_admins) | {
+                    admin_id
+                    for group_id, admin_id in group_admins
+                    if group_id in request.owner_group_ids
+                }:
+                    admin_counts[admin_id] = admin_counts.get(admin_id, 0) + 1
+            admins = (
+                await session.scalars(
+                    sa.select(User).where(User.id.in_(list(admin_counts)))
+                )
+            ).all()
+            for admin in admins:
+                if (
+                    admin.id != user_id
+                    and admin.id not in notifications
+                    and wants_in_app(admin.preferences, "data_access_request")
+                ):
+                    notifications[admin.id] = (
+                        f"*{asker}* asked for {admin_counts[admin.id]} dataset(s) "
+                        f"on *{body.objId}*"
+                    )
+            for recipient_id, text in notifications.items():
                 session.add(
                     UserNotification(
-                        user_id=owner_id,
-                        text=f"*{asker}* asked for {count} of your "
-                        f"dataset(s) on *{body.objId}*",
-                        url="/data_access_requests",
+                        user_id=recipient_id, text=text, url="/data_access_requests"
                     )
                 )
             await session.commit()
 
-            for owner_id in notify:
-                self.flow.push(owner_id, "skyportal/FETCH_NOTIFICATIONS", {})
+            for recipient_id in notifications:
+                self.flow.push(recipient_id, "skyportal/FETCH_NOTIFICATIONS", {})
                 # A pending request is an open obligation, not just a
                 # notification: refresh the lists that show it as outstanding.
-                self.flow.push(owner_id, "skyportal/REFRESH_DATA_ACCESS_REQUESTS", {})
+                self.flow.push(
+                    recipient_id, "skyportal/REFRESH_DATA_ACCESS_REQUESTS", {}
+                )
             return self.success(data={"ids": [request.id for request in created]})
 
     @permissions(["Upload data"])

@@ -6,7 +6,10 @@ and spectra, so these pin what it may say (metadata) and what it may not
 """
 
 import pytest
+import sqlalchemy as sa
 
+from baselayer.app.models import DBSession
+from skyportal.models import GroupUser
 from skyportal.tests import api
 
 
@@ -531,3 +534,85 @@ def test_asking_twice_for_the_same_dataset_is_refused(
     )
     assert status == 400
     assert "already asked" in data["message"]
+
+
+@pytest.mark.parametrize("admin", ["system", "group"])
+def test_admins_are_notified_only_once_they_opt_in(
+    admin,
+    upload_data_token_two_groups,
+    public_source_two_groups,
+    public_group2,
+    view_only_token,
+    user_two_groups,
+    super_admin_token,
+    group_admin_user_two_groups,
+    manage_sources_token_two_groups,
+    ztf_camera,
+):
+    obj_id = public_source_two_groups.id
+    if admin == "system":
+        admin_token = super_admin_token
+    else:
+        admin_token = manage_sources_token_two_groups
+        group_user = DBSession().scalar(
+            sa.select(GroupUser).where(
+                GroupUser.group_id == public_group2.id,
+                GroupUser.user_id == group_admin_user_two_groups.id,
+            )
+        )
+        group_user.admin = True
+        DBSession().commit()
+        status, data = api("GET", "internal/profile", token=admin_token)
+        assert status == 200
+        assert data["data"]["isGroupAdmin"] is True
+
+    def ask_for(filter):
+        upload_hidden_photometry(
+            obj_id,
+            ztf_camera.id,
+            public_group2.id,
+            upload_data_token_two_groups,
+            filter=filter,
+        )
+        status, _ = api(
+            "POST",
+            "data_access_request",
+            data={
+                "objId": obj_id,
+                "photometry": [
+                    {
+                        "ownerID": user_two_groups.id,
+                        "instrumentID": ztf_camera.id,
+                        "filter": filter,
+                    }
+                ],
+            },
+            token=view_only_token,
+        )
+        assert status == 200
+
+    def notifications(token):
+        status, data = api("GET", "internal/notifications", token=token)
+        assert status == 200
+        return [
+            n
+            for n in data["data"]
+            if n["url"] == "/data_access_requests" and obj_id in n["text"]
+        ]
+
+    ask_for("ztfg")
+    assert len(notifications(upload_data_token_two_groups)) == 1
+    assert notifications(admin_token) == []
+
+    status, _ = api(
+        "PATCH",
+        "internal/profile",
+        data={
+            "preferences": {"notifications": {"data_access_request": {"active": True}}}
+        },
+        token=admin_token,
+    )
+    assert status == 200
+    ask_for("ztfr")
+    assert len(notifications(admin_token)) == 1
+    assert len(notifications(upload_data_token_two_groups)) == 2

@@ -6,7 +6,7 @@ export type ModelSpectrumPoints = number[][];
 // spectra taken with the same instrument on the same night.
 export const formatObservedAt = (value?: string | null): string => {
   if (!value) return "";
-  const [date = "", rest = ""] = String(value).split("T");
+  const [date = "", rest = ""] = String(value).split(/[T ]/);
   // Anything that is not an ISO date comes back untouched rather than being
   // sliced into nonsense.
   if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return String(value);
@@ -16,19 +16,48 @@ export const formatObservedAt = (value?: string | null): string => {
   return time ? `${stamp} ${time}` : stamp;
 };
 
+const minuteOf = (value?: string | null) =>
+  value ? String(value).replace(" ", "T").slice(0, 16) : undefined;
+
+// Matches a fit to the plotted spectrum it was made against; services report
+// the spectrum by instrument and observation time, not by id.
+export const spectrumKey = (
+  instrument?: string | null,
+  observedAt?: string | null,
+): string | undefined => {
+  const minute = minuteOf(observedAt);
+  return minute ? `${instrument || ""}|${minute}` : undefined;
+};
+
+// Not every service reports the instrument, so the observation time alone
+// finds the spectrum when it is missing.
+const findSourceSpectrum = (source: any, spectra: any[]) => {
+  const minute = minuteOf(source.observed_at);
+  if (!minute) return undefined;
+  return spectra.find(
+    (s) =>
+      minuteOf(s.observed_at) === minute &&
+      (!source.instrument_name || s.instrument_name === source.instrument_name),
+  );
+};
+
 /** Name a fit by the spectrum it was made against, not just by its service.
  *
  * Several runs of one service on one object all carry that service's name, so
  * the spectrum is what tells them apart; a service that does not report which
  * spectrum it used falls back to when the fit ran.
  */
-export const describeFit = (analysis: any): ModelSpectrumFit => {
+export const describeFit = (
+  analysis: any,
+  spectra: any[] = [],
+): ModelSpectrumFit => {
   const service =
     analysis.analysis_parameters?.source ||
     analysis.model_name ||
     analysis.analysis_service_name ||
     `analysis ${analysis.id}`;
-  const source = analysis.model_spectrum_source || {};
+  const reported = analysis.model_spectrum_source || {};
+  const source = findSourceSpectrum(reported, spectra) || reported;
   const spectrum = source.observed_at
     ? `${source.instrument_name || "spectrum"} ${formatObservedAt(source.observed_at)}`
     : formatObservedAt(analysis.created_at);
@@ -38,6 +67,7 @@ export const describeFit = (analysis: any): ModelSpectrumFit => {
     service,
     spectrum,
     sortKey: `${source.observed_at || analysis.created_at || ""}|${service}`,
+    sourceKey: spectrumKey(source.instrument_name, source.observed_at),
     summary: analysis.model_spectrum_summary,
     model_spectrum: analysis.model_spectrum,
   };
@@ -49,8 +79,10 @@ export interface ModelSpectrumFit {
   service?: string; // the analysis service that produced the fit
   spectrum?: string; // the spectrum it was fitted against, or its run time
   sortKey?: string;
+  sourceKey?: string | undefined; // spectrumKey of the fitted spectrum, when reported
   summary?: string; // classification headline (type/subtype/z/quality) for the hover
   dash?: string; // Plotly line dash, to distinguish overlaid models
+  width?: number;
   model_spectrum: ModelSpectrumPoints;
 }
 
@@ -97,7 +129,11 @@ export function buildModelSpectrumTraces(
       // The fit picker below the plot is the legend; a long fit name here
       // would widen the legend and squeeze the plot.
       showlegend: false,
-      line: { width: 1.5, color: colorOf(fi), dash: fit.dash || "solid" },
+      line: {
+        width: fit.width || 1.5,
+        color: colorOf(fi),
+        dash: fit.dash || "solid",
+      },
       hoverlabel: { align: "left" },
       hovertemplate: `<b>${title}</b><br>${summaryLine}%{x:.1f} &#8491;<br>model flux %{y:.3f}<extra></extra>`,
       visible: true,

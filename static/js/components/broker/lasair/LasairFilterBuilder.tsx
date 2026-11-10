@@ -76,8 +76,6 @@ const LasairFilterBuilder = ({
 
   return (
     <Box sx={{ mt: 2, display: "flex", flexDirection: "column", gap: 1.5 }}>
-      <Typography variant="subtitle1">Lasair query filter</Typography>
-
       <TextField
         size="small"
         label="Select (fields)"
@@ -91,7 +89,7 @@ const LasairFilterBuilder = ({
         label="From (tables)"
         value={tables}
         onChange={(e) => setTables(e.target.value)}
-        helperText={`Comma-separated; joins allowed. Available: ${REFERENCE_TABLES}`}
+        helperText={`Joins allowed: ${REFERENCE_TABLES}`}
       />
       <TextField
         size="small"
@@ -118,23 +116,25 @@ const LasairFilterBuilder = ({
           Preview
         </Button>
 
-        <FormControl size="small" sx={{ minWidth: 200 }}>
-          <InputLabel id={`lasair-filter-${brokerId}`}>
-            Save to filter
-          </InputLabel>
-          <Select
-            labelId={`lasair-filter-${brokerId}`}
-            label="Save to filter"
-            value={filterId}
-            onChange={(e) => setFilterId(e.target.value as number)}
-          >
-            {(filters || []).map((f) => (
-              <MenuItem key={f.id} value={f.id}>
-                {f.name}
-              </MenuItem>
-            ))}
-          </Select>
-        </FormControl>
+        {initialFilterId === undefined && (
+          <FormControl size="small" sx={{ minWidth: 200 }}>
+            <InputLabel id={`lasair-filter-${brokerId}`}>
+              Save to filter
+            </InputLabel>
+            <Select
+              labelId={`lasair-filter-${brokerId}`}
+              label="Save to filter"
+              value={filterId}
+              onChange={(e) => setFilterId(e.target.value as number)}
+            >
+              {(filters || []).map((f) => (
+                <MenuItem key={f.id} value={f.id}>
+                  {f.name}
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+        )}
 
         <FormControlLabel
           control={

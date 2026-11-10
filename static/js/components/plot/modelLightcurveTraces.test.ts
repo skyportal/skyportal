@@ -1,6 +1,10 @@
 import { describe, it, expect } from "bun:test";
 
-import { buildModelLightcurveTraces, ModelFit } from "./modelLightcurveTraces";
+import {
+  buildModelLightcurveTraces,
+  ModelFit,
+  modelFitExtent,
+} from "./modelLightcurveTraces";
 
 // A model overlay must be drawn in the same extinction frame as the plotted
 // photometry: dereddened iff the toggle is on. A fit that ran on dereddened
@@ -69,5 +73,34 @@ describe("buildModelLightcurveTraces extinction frame", () => {
     expect(traces.find((t) => typeof t.name === "string").y[0]).toBeCloseTo(
       20.0,
     );
+  });
+});
+
+describe("modelFitExtent", () => {
+  it("spans every point of every fit and skips NaN gaps", () => {
+    const forecast: ModelFit = {
+      model_lightcurve: {
+        ztfg: [
+          [59010, 19.5, 19.3, 19.8],
+          [59040, 21.0, 20.4, 21.6],
+        ],
+        ztfr: [[59025, null, null, null]],
+      } as any,
+    };
+    expect(modelFitExtent([fit(false), forecast])).toEqual({
+      mjd: [59000, 59040],
+      mag: [19.3, 21.6],
+    });
+  });
+
+  it("uses the same extinction frame as the drawn traces", () => {
+    const mag = modelFitExtent([fit(false)], A, true)!.mag;
+    expect(mag[0]).toBeCloseTo(19.4);
+    expect(mag[1]).toBeCloseTo(19.6);
+  });
+
+  it("is null when there is nothing to draw", () => {
+    expect(modelFitExtent([])).toBeNull();
+    expect(modelFitExtent([{ model_lightcurve: { ztfg: [] } }])).toBeNull();
   });
 });

@@ -8,6 +8,7 @@ the save machinery this is survey-keyed, not broker-keyed.
 import base64
 import gzip
 import io
+import itertools
 
 import matplotlib
 
@@ -35,6 +36,45 @@ THUMBNAIL_TYPES = [
     ("cutoutTemplate", "ref"),
     ("cutoutDifference", "sub"),
 ]
+
+BRIGHT_STAR_RATIO = 5
+
+
+# Side, in pixels, of a survey's full stamp. One taken near a chip edge comes
+# clipped, which leaves the detection off-centre.
+STAMP_SIZE = {"ZTF": 63}
+
+
+def edge_padding(cutouts, survey):
+    """Padding that restores a clipped stamp to full size, with the detection
+    back at its centre, or None if the stamp is whole.
+
+    Neither the cutout header nor every broker's alert says which edge was
+    clipped, so each clipped axis leaves two places the detection can be: the
+    difference image picks the one with signal.
+    """
+    size = STAMP_SIZE.get((survey or "").upper())
+    difference = (cutouts or {}).get("cutoutDifference")
+    if not size or not difference:
+        return None
+    try:
+        diff, _ = decode_cutout(difference, survey)
+    except Exception:
+        return None
+    if diff.ndim != 2 or all(n >= size for n in diff.shape):
+        return None
+
+    signal = np.abs(np.nan_to_num(diff - np.nanmedian(diff)))
+    half = size // 2
+
+    def flux(padding):
+        y, x = (max(half - before, 0) for before, _ in padding)
+        return signal[max(y - 1, 0) : y + 2, max(x - 1, 0) : x + 2].sum()
+
+    options = [
+        [(0, size - n), (size - n, 0)] if n < size else [(0, 0)] for n in diff.shape
+    ]
+    return max(itertools.product(*options), key=flux)
 
 
 def decode_cutout(cutout_data, survey):
@@ -92,6 +132,23 @@ def clean_image_array(img):
     return img
 
 
+def central_region(img):
+    ny, nx = img.shape
+    ry, rx = max(ny // 8, 1), max(nx // 8, 1)
+    return img[ny // 2 - ry : ny // 2 + ry + 1, nx // 2 - rx : nx // 2 + rx + 1]
+
+
+class CutoutInterval(AsymmetricPercentileInterval):
+    def __init__(self, img):
+        img = img - np.median(img)
+        bright = img.max() > BRIGHT_STAR_RATIO * np.abs(central_region(img)).max()
+        super().__init__(lower_percentile=1, upper_percentile=99.5 if bright else 100)
+
+    def get_limits(self, values):
+        vmin, vmax = super().get_limits(values)
+        return vmin, max(vmax, float(central_region(values).max()))
+
+
 def render_cutout_png(data_array, stretch, normalizer, cmap="bone", limits=None):
     """Normalize and render a 2D array to PNG bytes (BytesIO, seeked to 0).
 
@@ -114,12 +171,17 @@ def render_cutout_png(data_array, stretch, normalizer, cmap="bone", limits=None)
     return buff
 
 
-def make_thumbnail(obj_id, cutout_data, cutout_type, thumbnail_type, survey, jd=None):
+def make_thumbnail(
+    obj_id, cutout_data, cutout_type, thumbnail_type, survey, jd=None, padding=None
+):
     data_array, header = decode_cutout(cutout_data, survey)
-    data_array = orient_cutout(data_array, survey, header)
+    if padding is not None and data_array.ndim == 2:
+        data_array = np.pad(data_array.astype(float), padding, constant_values=np.nan)
+    data_array = clean_image_array(orient_cutout(data_array, survey, header))
     stretch = LinearStretch() if cutout_type == "cutoutDifference" else LogStretch()
-    normalizer = AsymmetricPercentileInterval(lower_percentile=1, upper_percentile=99.5)
-    buff = render_cutout_png(data_array, stretch, normalizer, cmap="bone")
+    buff = render_cutout_png(
+        data_array, stretch, CutoutInterval(data_array), cmap="bone"
+    )
     return {
         "obj_id": obj_id,
         "data": base64.b64encode(buff.read()).decode("utf-8"),
@@ -136,13 +198,20 @@ async def add_thumbnails(obj_id, cutouts, survey, session, user_id=1, jd=None):
     Best-effort: a failed cutout is logged and skipped, not fatal."""
     from ..handlers.api.thumbnail import post_thumbnail
 
+    padding = edge_padding(cutouts, survey)
     for cutout_type, thumbnail_type in THUMBNAIL_TYPES:
         cutout_data = (cutouts or {}).get(cutout_type)
         if not cutout_data:
             continue
         try:
             thumbnail = make_thumbnail(
-                obj_id, cutout_data, cutout_type, thumbnail_type, survey, jd=jd
+                obj_id,
+                cutout_data,
+                cutout_type,
+                thumbnail_type,
+                survey,
+                jd=jd,
+                padding=padding,
             )
             await post_thumbnail(thumbnail, user_id=user_id, session=session)
         except Exception as e:

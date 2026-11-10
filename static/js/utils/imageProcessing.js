@@ -9,6 +9,7 @@ const FITS_CARD_LEN = 80;
 const END_CARD_BYTES = new TextEncoder().encode("END     ");
 const SPACE_BYTES = new TextEncoder().encode(" ");
 const SPACE_BYTE = SPACE_BYTES[0];
+const BRIGHT_STAR_RATIO = 5;
 
 function bone(n) {
   const points = [
@@ -245,11 +246,30 @@ function ensureFinite(image) {
   return image.map((value) => (isFinite(value) ? value : 0));
 }
 
+function centralPixels(image, size) {
+  const r = Math.max(Math.floor(size / 8), 1);
+  const c = Math.floor(size / 2);
+  const pixels = [];
+  for (let i = c - r; i <= c + r; i++) {
+    pixels.push(...image.slice(i * size + c - r, i * size + c + r + 1));
+  }
+  return pixels;
+}
+
+function hasBrightStar(image, size) {
+  const median = [...image].sort((a, b) => a - b)[Math.floor(image.length / 2)];
+  const centralPeak = Math.max(
+    ...centralPixels(image, size).map((value) => Math.abs(value - median)),
+  );
+  return Math.max(...image) - median > BRIGHT_STAR_RATIO * centralPeak;
+}
+
 function normalizeImage(
   image,
   method = "minmax",
   lower_percentile = 0.01,
   upper_percentile = 1,
+  min_upper = 0,
 ) {
   if (method === "minmax") {
     const max = Math.max(...image);
@@ -265,10 +285,12 @@ function normalizeImage(
       lower_percentile > 0
         ? sorted[Math.floor(lower_percentile * sorted.length)]
         : 0;
-    const upper =
+    const upper = Math.max(
+      min_upper,
       upper_percentile < 1
         ? sorted[Math.floor(upper_percentile * sorted.length)]
-        : 1;
+        : 1,
+    );
     const range = upper - lower;
     if (range === 0) {
       return image.map(() => 0.5);
@@ -362,11 +384,18 @@ export function bytes2image(
   const NAXIS_STANDARD = Math.max(naxis1, naxis2);
   data = cleanupImage(data);
   data = normalizeImage(data, "minmax");
+  const brightStar = hasBrightStar(data, NAXIS_STANDARD);
   if (type !== "difference") {
     const alpha = survey.toLowerCase() === "lsst" ? 10.0 : 1000.0;
     data = stretchImage(data, type, "log", alpha);
   }
-  data = normalizeImage(data, "asymmetric_percentile", 0.01, 0.995);
+  data = normalizeImage(
+    data,
+    "asymmetric_percentile",
+    0.01,
+    brightStar ? 0.995 : 1,
+    Math.max(...centralPixels(data, NAXIS_STANDARD)),
+  );
   data = ensureFinite(data);
   data = data.map((value) =>
     Math.round(Math.max(0, Math.min(255, value * 255))),
