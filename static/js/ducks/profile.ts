@@ -35,6 +35,7 @@ export interface Profile {
   tokens?: any[];
   groupAdmissionRequests?: any[];
   is_anonymous?: boolean;
+  isGroupAdmin?: boolean;
   [key: string]: any;
 }
 

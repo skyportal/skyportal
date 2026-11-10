@@ -834,8 +834,7 @@ app:
         xs: [0, 12, 4, 3]
 
     NeedsAttention:
-      # Open obligations rather than events: data another group has asked you
-      # for and has not been answered, and objects you have scheduled that
+      # Open obligations rather than events: objects you have scheduled that
       # another group has scheduled too.
       resizeable: true
       minW: 2

@@ -137,6 +137,18 @@ class ProfileHandler(BaseHandler):
             user_info["preferences"] = user.preferences or {}
             user_info["groupAdmissionRequests"] = user.group_admission_requests
             user_info["streams"] = user.streams
+            user_info["isGroupAdmin"] = bool(
+                await session.scalar(
+                    sa.select(
+                        sa.exists().where(
+                            GroupUser.user_id == user.id,
+                            GroupUser.admin.is_(True),
+                            GroupUser.group_id == Group.id,
+                            Group.single_user_group.is_(False),
+                        )
+                    )
+                )
+            )
             # flag the read-only anonymous account so the frontend can hide account UI
             user_info["is_anonymous"] = bool(
                 self.cfg["app.anonymous_access"]
