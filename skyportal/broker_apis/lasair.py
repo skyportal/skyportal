@@ -1099,10 +1099,9 @@ async def _run_kafka_ingestion(
     Candidate, one consumer per account.
 
     A topic carrying the lightcurve (``lite_lightcurve`` or ``full``) is ingested
-    from the message itself. A message holding only an objectId is completed
-    through the REST API with that account's token, the same path the SQL poller
-    uses; that call is rate-limited by Lasair well below stream rate, so it runs
-    only when the message is not enough on its own. ``credentials`` pins the
+    from the message itself. A message lacking the lightcurve or the position is
+    completed from BOOM's alert for the object, never from Lasair's REST API,
+    which is rate-limited well below stream rate. ``credentials`` pins the
     accounts to consume; by default the stored ones, re-read every
     ``CREDENTIAL_RESCAN_INTERVAL`` so a user registering an account is picked up
     without restarting the service.
