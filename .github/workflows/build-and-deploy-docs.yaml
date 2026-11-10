@@ -17,7 +17,8 @@ jobs:
 
   build-and-deploy-docs:
     needs: scope
-    runs-on: ubuntu-latest
+    # FIXME: back to ubuntu-latest once a stable pygraphviz 2.x builds against Graphviz 14.
+    runs-on: ubuntu-24.04
     timeout-minutes: 60
 
     # On a PR the docs are only built to validate them, which is worth doing
