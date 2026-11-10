@@ -602,11 +602,13 @@ async def _ingest_object(broker, oid, survey, filter_ids, token=None, payload=No
 
 def _object_id_from_message(payload):
     """The objectId carried by a Lasair stream message, under any of the keys
-    Lasair uses across its LSST and ZTF deployments."""
+    Lasair uses across its LSST and ZTF deployments. A filter's selected columns
+    keep the case its SQL gave them, so the key is matched in any case."""
     if not isinstance(payload, dict):
         return None
-    for key in ("diaObjectId", "objectId", "object", "objectID"):
-        value = payload.get(key)
+    keys = {str(k).lower(): v for k, v in payload.items()}
+    for key in ("diaobjectid", "objectid", "object"):
+        value = keys.get(key)
         if isinstance(value, str | int):
             return str(value)
     return None
