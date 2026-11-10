@@ -1825,7 +1825,7 @@ def test_a_batch_is_ingested_with_bounded_concurrency(monkeypatch):
 
     live, peak = {"n": 0}, {"n": 0}
 
-    async def fake_ingest(broker, oid, survey, filter_ids, payload=None):
+    async def fake_ingest(broker, oid, survey, filter_ids, payload=None, token=None):
         live["n"] += 1
         peak["n"] = max(peak["n"], live["n"])
         await asyncio.sleep(0.01)
