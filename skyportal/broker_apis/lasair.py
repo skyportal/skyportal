@@ -621,6 +621,15 @@ def is_plain_stream_message(payload):
     )
 
 
+def _incomplete_message(payload, object_id):
+    """Whether a stream message lacks the photometry or the position an object
+    needs, as every message off the selected-columns stream does."""
+    if is_plain_stream_message(payload):
+        return True
+    candidate = normalize_stream_message(payload, object_id).get("candidate") or {}
+    return candidate.get("ra") is None or candidate.get("dec") is None
+
+
 def normalize_stream_message(payload, object_id):
     """Standard alert shape from a stream message, whichever instance sent it."""
     return _normalize_object(payload, object_id)
@@ -629,20 +638,17 @@ def normalize_stream_message(payload, object_id):
 async def _ingest_object(broker, oid, survey, filter_ids, payload=None):
     """Register one Lasair object as a Candidate and save any annotator
     annotations it carried. The photometry is the stream message's, or BOOM's
-    when there is no message (backfill, polling), and the cutouts are BOOM's:
-    Lasair is never asked for the object. A message off the wrong stream is
-    refused, and the consumer screens those out a batch at a time, so reaching
-    here means some other caller passed one.
+    when there is no message (backfill, polling) or the message lacks the
+    photometry or the position, and the cutouts are BOOM's: Lasair is never
+    asked for the object.
     """
     from baselayer.app.models import async_plain_session_factory
 
     from ..models import Thumbnail, User
     from ._save import save_object_as_candidate
 
-    if payload is not None and is_plain_stream_message(payload):
-        raise ValueError(
-            f"Lasair message for {oid} carries no alert. {PLAIN_STREAM_DETAIL}"
-        )
+    if payload is not None and _incomplete_message(payload, oid):
+        payload = None
     async with async_plain_session_factory() as session:
         user = await session.scalar(sa.select(User).where(User.id == 1))
         has_thumbnails = await session.scalar(
@@ -686,11 +692,13 @@ async def _ingest_object(broker, oid, survey, filter_ids, payload=None):
 
 def _object_id_from_message(payload):
     """The objectId carried by a Lasair stream message, under any of the keys
-    Lasair uses across its LSST and ZTF deployments."""
+    Lasair uses across its LSST and ZTF deployments. A filter's selected columns
+    keep the case its SQL gave them, so the key is matched in any case."""
     if not isinstance(payload, dict):
         return None
-    for key in ("diaObjectId", "objectId", "object", "objectID"):
-        value = payload.get(key)
+    keys = {str(k).lower(): v for k, v in payload.items()}
+    for key in ("diaobjectid", "objectid", "object"):
+        value = keys.get(key)
         if isinstance(value, str | int):
             return str(value)
     return None
@@ -803,19 +811,19 @@ def _credential_sets(broker, extra=None):
     return sets
 
 
-def _prepare_batch(msgs, topic_filter_ids, default_filter_ids):
+def _prepare_batch(msgs, topic_filter_ids, default_filter_ids, read_from_boom=False):
     """Split a polled batch into work to do and messages that need none.
 
     Returns the finished messages, the work, and any topic found to be
     streaming something we cannot ingest.
 
-    A message that cannot be decoded, that carries no objectId, that reports no
-    sky position, or that is the wrong stream for us is finished rather than
-    failed: leaving it outstanding would stall its partition for good, and none
-    of the four gets better by being tried again. Where one object appears more
-    than once, only its newest alert is ingested and the earlier ones are
-    finished, which also keeps two writes for the same object out of the same
-    batch.
+    A message that cannot be decoded or carries no objectId is finished rather
+    than failed, and so is one lacking the photometry or the sky position when
+    there is no BOOM to read them from: leaving it outstanding would stall its
+    partition for good, and none of these gets better by being tried again.
+    Where one object appears more than once, only its newest alert is ingested
+    and the earlier ones are finished, which also keeps two writes for the same
+    object out of the same batch.
     """
     finished = set()
     unusable = {}
@@ -836,15 +844,16 @@ def _prepare_batch(msgs, topic_filter_ids, default_filter_ids):
             log(f"Lasair message on {msg.topic()} carried no objectId; skipping")
             finished.add(key)
             continue
-        if is_plain_stream_message(payload):
-            unusable[msg.topic()] = PLAIN_STREAM_DETAIL
-            finished.add(key)
-            continue
-        candidate = normalize_stream_message(payload, oid).get("candidate") or {}
-        if candidate.get("ra") is None or candidate.get("dec") is None:
-            unusable[msg.topic()] = NO_POSITION_DETAIL
-            finished.add(key)
-            continue
+        if not read_from_boom:
+            if is_plain_stream_message(payload):
+                unusable[msg.topic()] = PLAIN_STREAM_DETAIL
+                finished.add(key)
+                continue
+            candidate = normalize_stream_message(payload, oid).get("candidate") or {}
+            if candidate.get("ra") is None or candidate.get("dec") is None:
+                unusable[msg.topic()] = NO_POSITION_DETAIL
+                finished.add(key)
+                continue
         superseded = work.get(oid)
         if superseded is not None:
             older = superseded[0]
@@ -993,6 +1002,11 @@ async def _consume_set(broker, survey, credentials, budget, stop):
     # after it has been ingested: on the default a crash acknowledges whatever
     # the five-second timer had reached and those alerts are never seen again.
     config["enable.auto.offset.store"] = False
+    try:
+        await asyncio.to_thread(_alerts_broker, survey)
+        read_from_boom = True
+    except ValueError:
+        read_from_boom = False
     consumer = Consumer(config)
     consumer.subscribe(topics)
     log(
@@ -1019,7 +1033,7 @@ async def _consume_set(broker, survey, credentials, budget, stop):
             if not msgs:
                 continue
             finished, work, unusable = _prepare_batch(
-                msgs, topic_filter_ids, credentials["filter_ids"]
+                msgs, topic_filter_ids, credentials["filter_ids"], read_from_boom
             )
             if _update_topic_status(topic_status, work, unusable) and credentials.get(
                 "credential_id"
@@ -1095,7 +1109,8 @@ async def _run_kafka_ingestion(
     Candidate, one consumer per account.
 
     A topic carrying the lightcurve (``lite_lightcurve`` or ``full``) is ingested
-    from the message itself, with the cutouts read from BOOM. ``credentials``
+    from the message itself, with the cutouts read from BOOM. A message lacking
+    the lightcurve or the position is read from BOOM entirely. ``credentials``
     pins the accounts to consume; by default the stored ones, re-read every
     ``CREDENTIAL_RESCAN_INTERVAL`` so a user registering an account is picked up
     without restarting the service.

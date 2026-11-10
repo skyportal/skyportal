@@ -1922,6 +1922,20 @@ def test_a_message_without_a_position_is_finished_rather_than_retried():
     assert unusable["lasair_2mine"] == lasair.NO_POSITION_DETAIL
 
 
+def test_selected_columns_are_ingested_when_boom_can_complete_them():
+    from skyportal.broker_apis import lasair
+
+    columns = FakeKafkaMessage(1, {"diaobjectid": 170, "ra": 1.0, "decl": 2.0})
+    nowhere = FakeKafkaMessage(2, {"objectId": "A", "candidates": [{"jd": 1.0}]})
+    finished, work, unusable = lasair._prepare_batch(
+        [columns, nowhere], {}, [7], read_from_boom=True
+    )
+
+    assert sorted(work) == ["170", "A"]
+    assert not finished
+    assert not unusable
+
+
 def test_lasair_request_retries_on_rate_limit(monkeypatch):
     """Lasair rate-limits per account; a 429 must be waited out, not dropped."""
     import types
