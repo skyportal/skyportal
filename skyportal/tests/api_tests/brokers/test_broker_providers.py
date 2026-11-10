@@ -2053,6 +2053,31 @@ def test_decode_cutout_rejects_a_url_placeholder():
         decode_cutout("https://example.test/cutout.fits", "ZTF")
 
 
+def test_edge_padding_recentres_a_clipped_stamp():
+    """A ZTF stamp clipped at the chip edge is padded back to 63x63 on the side
+    that puts the detection at the centre."""
+    import io
+
+    import numpy as np
+    from astropy.io import fits
+
+    from skyportal.broker_apis._thumbnails import edge_padding
+
+    def cutouts(shape, detection=None):
+        data = np.zeros(shape, dtype=np.float32)
+        if detection:
+            data[detection] = 100.0
+        buff = io.BytesIO()
+        fits.PrimaryHDU(data).writeto(buff)
+        return {"cutoutDifference": buff.getvalue()}
+
+    assert edge_padding(cutouts((63, 63), (31, 31)), "ZTF") is None
+    assert edge_padding(cutouts((46, 63), (31, 31)), "ZTF") == ((0, 17), (0, 0))
+    assert edge_padding(cutouts((46, 63), (14, 31)), "ZTF") == ((17, 0), (0, 0))
+    assert edge_padding(cutouts((46, 50), (14, 31)), "ZTF") == ((17, 0), (0, 13))
+    assert edge_padding(cutouts((46, 63), (31, 31)), "LSST") is None
+
+
 def test_lasair_stream_message_object_ids():
     """Lasair streams carry the objectId under different keys per deployment, and
     a filter's stream may wrap the row, so all of those must resolve."""
