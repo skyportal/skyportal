@@ -5,6 +5,7 @@ import {
   describeFit,
   formatObservedAt,
   ModelSpectrumFit,
+  spectrumKey,
 } from "./modelSpectrumTraces";
 
 // Overlay must sit on the plot's per-spectrum normalized scale (flux / |median|),
@@ -149,5 +150,62 @@ describe("formatObservedAt", () => {
     expect(formatObservedAt("2026-09-12")).toBe("09/12/26");
     expect(formatObservedAt("")).toBe("");
     expect(formatObservedAt("not-a-date")).toBe("not-a-date");
+    expect(formatObservedAt("2026-10-09 05:09:02")).toBe("10/09/26 05:09");
+  });
+});
+
+describe("describeFit source spectrum", () => {
+  const spectra = [
+    { instrument_name: "SEDM", observed_at: "2026-10-09T05:09:02" },
+    { instrument_name: "SPRAT", observed_at: "2026-10-09T21:10:00" },
+  ];
+
+  it("takes the instrument from the plotted spectrum when the service omits it", () => {
+    const described = describeFit(
+      { id: 1, model_spectrum_source: { observed_at: "2026-10-09 05:09:02" } },
+      spectra,
+    );
+    expect(described.spectrum).toBe("SEDM 10/09/26 05:09");
+    expect(described.sourceKey).toBe(
+      spectrumKey("SEDM", "2026-10-09T05:09:02"),
+    );
+  });
+
+  it("does not match a spectrum from another instrument", () => {
+    const described = describeFit(
+      {
+        id: 1,
+        model_spectrum_source: {
+          instrument_name: "LRIS",
+          observed_at: "2026-10-09T05:09:02",
+        },
+      },
+      spectra,
+    );
+    expect(described.spectrum).toBe("LRIS 10/09/26 05:09");
+  });
+});
+
+describe("spectrumKey", () => {
+  it("matches a fit's source to the spectrum whatever the timestamp format", () => {
+    const described = describeFit({
+      id: 1,
+      model_spectrum: [[4000, 1]],
+      model_spectrum_source: {
+        instrument_name: "SEDM",
+        observed_at: "2026-09-12 09:31:47",
+      },
+    });
+    expect(described.sourceKey).toBe(
+      spectrumKey("SEDM", "2026-09-12T09:31:00Z"),
+    );
+    expect(described.sourceKey).not.toBe(
+      spectrumKey("SPRAT", "2026-09-12T09:31"),
+    );
+  });
+
+  it("is undefined without an observation time", () => {
+    expect(spectrumKey("SEDM", null)).toBeUndefined();
+    expect(describeFit({ id: 1 }).sourceKey).toBeUndefined();
   });
 });
