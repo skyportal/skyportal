@@ -10,6 +10,7 @@ from baselayer.log import make_log
 
 from ....models import Annotation, GroupAnnotation
 from ....utils.cache import Cache, cache_folder, dict_to_bytes
+from ....utils.data_access import accessible_group_ids_async
 from ...base import BaseHandler
 
 _, cfg = load_env()
@@ -39,6 +40,14 @@ class AnnotationsInfoHandler(BaseHandler):
             description: |
               Comma-separated group IDs; only annotations shared with one of these
               groups are considered.
+          - in: query
+            name: includeGroups
+            nullable: true
+            schema:
+              type: boolean
+            description: |
+              If true, return { keys, groups }, where groups maps each origin to the
+              IDs of the user's groups its annotations are shared with.
         responses:
           200:
             content:
@@ -66,6 +75,9 @@ class AnnotationsInfoHandler(BaseHandler):
             group_ids = {int(g) for g in group_ids.split(",")} if group_ids else set()
         except ValueError:
             return self.error(f"Invalid groupIDs: {group_ids}")
+        include_groups = (
+            self.get_query_argument("includeGroups", "false").lower() == "true"
+        )
 
         try:
             cache_key = f"annotations_info_by_group_{self.associated_user_object.id}"
@@ -122,11 +134,27 @@ class AnnotationsInfoHandler(BaseHandler):
                 info = {"keys": dict(grouped), "groups": dict(groups_by_origin)}
                 cache[cache_key] = dict_to_bytes(info)
 
+            origin_keys = {
+                origin: keys
+                for origin, keys in info["keys"].items()
+                if not group_ids or info["groups"].get(origin, set()) & group_ids
+            }
+            if not include_groups:
+                return self.success(data=origin_keys)
+
+            async with self.AsyncSession() as session:
+                user_group_ids = set(
+                    await accessible_group_ids_async(self.current_user, session)
+                )
             return self.success(
                 data={
-                    origin: keys
-                    for origin, keys in info["keys"].items()
-                    if not group_ids or info["groups"].get(origin, set()) & group_ids
+                    "keys": origin_keys,
+                    "groups": {
+                        origin: sorted(
+                            info["groups"].get(origin, set()) & user_group_ids
+                        )
+                        for origin in origin_keys
+                    },
                 }
             )
 
