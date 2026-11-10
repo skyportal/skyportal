@@ -157,9 +157,7 @@ def make_thumbnail(
 ):
     data_array, header = decode_cutout(cutout_data, survey)
     if padding is not None and data_array.ndim == 2:
-        data_array = np.pad(
-            data_array.astype(float), padding, constant_values=np.nan
-        )
+        data_array = np.pad(data_array.astype(float), padding, constant_values=np.nan)
     data_array = orient_cutout(data_array, survey, header)
     stretch = LinearStretch() if cutout_type == "cutoutDifference" else LogStretch()
     normalizer = AsymmetricPercentileInterval(lower_percentile=1, upper_percentile=99.5)
