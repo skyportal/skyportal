@@ -165,7 +165,7 @@ const FieldGrid = ({ properties }: any) => (
     sx={{
       display: "grid",
       gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))",
-      columnGap: 2,
+      gap: 2,
     }}
   >
     {properties.filter((p: any) => !p.hidden).map((p: any) => p.content)}
