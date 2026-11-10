@@ -17,6 +17,16 @@ export interface ModelFit {
   dereddened?: boolean; // fit ran on extinction-corrected (dereddened) photometry
 }
 
+// Magnitude offset that puts a fit in the plot's current extinction frame.
+const fitShift = (
+  fit: ModelFit,
+  filt: string,
+  extinctionByFilter: Record<string, number>,
+  showExtinction: boolean,
+): number =>
+  (extinctionByFilter?.[filt] || 0) *
+  ((fit.dereddened ? 1 : 0) - (showExtinction ? 1 : 0));
+
 // Build Plotly traces (credible band + median line) per filter to overlay an
 // analysis-service model fit (e.g. NMMA) on the source photometry plot.
 //
@@ -45,8 +55,7 @@ export function buildModelLightcurveTraces(
       // dereddened only when the extinction toggle is on. Shift by A_lambda so
       // the two always match (dereddened mag = observed mag - A). NaN-gap nulls
       // are left untouched.
-      const a = extinctionByFilter?.[filt] || 0;
-      const shift = a * ((fit.dereddened ? 1 : 0) - (showExtinction ? 1 : 0));
+      const shift = fitShift(fit, filt, extinctionByFilter, showExtinction);
       const shifted = (v: number | null | undefined): number | null =>
         v == null ? null : v + shift;
       const xs = pts.map((p) => xOf(p[0]!));
@@ -88,4 +97,30 @@ export function buildModelLightcurveTraces(
     });
   });
   return traces;
+}
+
+// MJD and magnitude span of the fits as drawn (null when nothing is drawn),
+// so the axes can include a fit that runs past the data, e.g. a forecast.
+export function modelFitExtent(
+  modelFits: ModelFit[],
+  extinctionByFilter: Record<string, number> = {},
+  showExtinction: boolean = false,
+): { mjd: [number, number]; mag: [number, number] } | null {
+  const mjd: [number, number] = [Infinity, -Infinity];
+  const mag: [number, number] = [Infinity, -Infinity];
+  (modelFits || []).forEach((fit) => {
+    Object.entries(fit?.model_lightcurve || {}).forEach(([filt, pts]) => {
+      if (!Array.isArray(pts)) return;
+      const shift = fitShift(fit, filt, extinctionByFilter, showExtinction);
+      pts.forEach((p) => {
+        const ys = p.slice(1, 4).filter((v) => Number.isFinite(v));
+        if (!Number.isFinite(p[0]) || ys.length === 0) return;
+        mjd[0] = Math.min(mjd[0], p[0]!);
+        mjd[1] = Math.max(mjd[1], p[0]!);
+        mag[0] = Math.min(mag[0], Math.min(...ys) + shift);
+        mag[1] = Math.max(mag[1], Math.max(...ys) + shift);
+      });
+    });
+  });
+  return Number.isFinite(mjd[0]) ? { mjd, mag } : null;
 }
