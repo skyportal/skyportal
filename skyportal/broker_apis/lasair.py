@@ -1,31 +1,18 @@
 import asyncio
-import base64
 import json
 import math
 import re
 import time
 from datetime import UTC, datetime
 
-import numpy as np
 import requests
 import sqlalchemy as sa
 
-from baselayer.app.env import load_env
 from baselayer.log import make_log
 
-from ..utils.cache import Cache, cache_folder, dict_to_bytes
 from .interface import BrokerAPI, altdata_filter_modules
 
 log = make_log("broker/lasair")
-
-env, cfg = load_env()
-
-# The cutouts of an object do not change, so a fetched set is kept and reused
-# rather than spending a call asking again for an object we already have.
-cutouts_cache = Cache(
-    cache_dir=f"{cache_folder}/broker_cutouts",
-    max_age=cfg.get("misc.minutes_to_keep_broker_cutouts_cache", 1440) * 60,
-)
 
 ALERTS_BROKER_CLASSES = ("BOOMBROKER", "BABAMULBROKER")
 PUBLIC_PERMISSIONS = {"ZTF": [1], "LSST": [1]}
@@ -60,11 +47,6 @@ NO_POSITION_DETAIL = (
 # selected columns, so the same coordinate arrives as "ra", "RA" or "ramean".
 _RA_KEYS = ("ra", "ramean", "radeg", "rightascension")
 _DEC_KEYS = ("dec", "decl", "decmean", "decdeg", "declination")
-_CUTOUT_KINDS = {
-    "Science": "cutoutScience",
-    "Template": "cutoutTemplate",
-    "Difference": "cutoutDifference",
-}
 _FID_TO_BAND = {1: "g", 2: "r", 3: "i"}
 MJD_TO_JD = 2400000.5
 # LSST reports difference-image fluxes in nJy; AB mag = -2.5 log10(f/3631 Jy),
@@ -89,6 +71,11 @@ def _survey_from_altdata(altdata, kwargs=None):
 
 def _survey(broker, kwargs=None):
     return _survey_from_altdata(broker.altdata or {}, kwargs)
+
+
+def _site(broker):
+    host = "lasair-ztf" if _survey(broker) == "ZTF" else "lasair"
+    return f"https://{host}.lsst.ac.uk"
 
 
 def _lsst_magnitude(flux, flux_err):
@@ -273,11 +260,16 @@ def _normalize_object(obj, object_id):
 _SQL_OPS = {"$eq": "=", "$ne": "!=", "$gt": ">", "$gte": ">=", "$lt": "<", "$lte": "<="}
 
 
+_RELATIVE_MJD = re.compile(r"mjdnow\(\)\s*(?:[-+]\s*\d+(?:\.\d+)?)?")
+
+
 def _sql_value(v):
     if isinstance(v, bool):
         return "1" if v else "0"
     if isinstance(v, (int, float)):
         return str(v)
+    if _RELATIVE_MJD.fullmatch(str(v).strip()):
+        return str(v).strip()
     return "'" + str(v).replace("'", "''") + "'"
 
 
@@ -288,7 +280,7 @@ def _compile_tree_to_sql(node):
     if not isinstance(node, dict):
         return ""
     if node.get("category") == "block" or "children" in node:
-        joiner = (node.get("operator") or "and").upper()
+        joiner = (node.get("logic") or node.get("operator") or "and").upper()
         parts = [_compile_tree_to_sql(c) for c in (node.get("children") or [])]
         parts = [p for p in parts if p]
         return "(" + f" {joiner} ".join(parts) + ")" if parts else ""
@@ -303,6 +295,36 @@ def _compile_tree_to_sql(node):
         return f"{field} LIKE {_sql_value('%' + str(value) + '%')}"
     sqlop = _SQL_OPS.get(operator)
     return f"{field} {sqlop} {_sql_value(value)}" if sqlop else ""
+
+
+_DEFAULT_SELECTED = {
+    "LSST": "objects.diaObjectId, objects.ra, objects.decl",
+    "ZTF": "objects.objectId, objects.ramean, objects.decmean",
+}
+
+
+def _tree_fields(node):
+    if not isinstance(node, dict):
+        return []
+    if node.get("category") == "block" or "children" in node:
+        return [f for c in node.get("children") or [] for f in _tree_fields(c)]
+    field = node.get("field")
+    field = field.get("name") if isinstance(field, dict) else field
+    return [field] if field else []
+
+
+def compile_tree(tree, survey):
+    if isinstance(tree, list):
+        tree = tree[0] if len(tree) == 1 else {"operator": "and", "children": tree}
+    fields = list(dict.fromkeys(_tree_fields(tree)))
+    base = _DEFAULT_SELECTED.get(survey, _DEFAULT_SELECTED["LSST"])
+    tables = ["objects"] + [f.split(".")[0] for f in fields if "." in f]
+    extra = [f for f in fields if f not in base.split(", ")]
+    return {
+        "selected": ", ".join([base, *extra]),
+        "tables": ", ".join(dict.fromkeys(tables)),
+        "conditions": _compile_tree_to_sql(tree),
+    }
 
 
 def _lasair_schema(survey):
@@ -441,20 +463,12 @@ def _request(broker, method, data, token=None):
     raise RuntimeError("unreachable")
 
 
-def _object(broker, object_id, token=None):
-    return _request(
-        broker,
-        "object",
-        {"objectId": object_id, "lite": True, "lasair_added": True},
-        token=token,
-    )
-
-
-def _cone(broker, ra, dec, radius=5, request_type="all"):
+def _cone(broker, ra, dec, radius=5, request_type="all", token=None):
     return _request(
         broker,
         "cone",
         {"ra": ra, "dec": dec, "radius": radius, "requestType": request_type},
+        token=token,
     )
 
 
@@ -472,63 +486,24 @@ def _query(broker, selected, tables, conditions, limit=1000, token=None):
     )
 
 
-def _cached_cutouts(broker, obj, alert_id):
-    """Cutouts for an object, fetched once and reused.
-
-    The images are keyed by object because Lasair keys them that way, so every
-    later alert on the same object is served from the cache rather than costing
-    a call.
-    """
-    key = f"{broker.id}_{alert_id}"
-    cached = cutouts_cache[key]
-    if cached is not None:
-        try:
-            return np.load(cached, allow_pickle=True).item()["cutouts"]
-        except Exception:
-            log(f"unreadable cutout cache entry for {key}, refetching")
-    cutouts = _cutouts_from_object(obj, alert_id)
-    if cutouts:
-        cutouts_cache[key] = dict_to_bytes({"cutouts": cutouts})
-    return cutouts
-
-
-def _cutouts_from_object(obj, alert_id):
-    """Base64 cutouts from an already-fetched Lasair object, so an ingest that
-    holds one does not spend a second call: a Lasair account gets 100 an hour."""
-    # ZTF carries image_urls on the latest candidate, LSST lasairData.imageUrls.
-    image_urls = {}
-    candidates = obj.get("candidates") or []
-    if (
-        candidates
-        and isinstance(candidates[0], dict)
-        and candidates[0].get("image_urls")
-    ):
-        image_urls = candidates[0]["image_urls"]
-    elif obj.get("image_urls"):
-        image_urls = obj["image_urls"]
-    else:
-        urls = (obj.get("lasairData", {}) or {}).get("imageUrls")
-        if isinstance(urls, list) and urls:
-            image_urls = urls[0]
-        elif isinstance(urls, dict):
-            image_urls = urls
-    cutouts = {}
-    for kind, field in _CUTOUT_KINDS.items():
-        url = image_urls.get(kind)
-        if not url:
-            continue
-        try:
-            response = requests.get(url, timeout=DEFAULT_TIMEOUT)
-            response.raise_for_status()
-            cutouts[field] = base64.b64encode(response.content).decode("utf-8")
-        except Exception as e:
-            log(f"Failed to fetch {kind} cutout for {alert_id}: {e}")
-    return cutouts
+def _publish(broker, name, query, token=None):
+    return _request(
+        broker,
+        "filters/create",
+        {
+            "name": name,
+            "selected": query["selected"],
+            "tables": query["tables"],
+            "conditions": query["conditions"],
+            "active": 2,
+        },
+        token=token,
+    )
 
 
 def _alerts_broker(survey):
-    """The BOOM (or babamul) broker a Lasair object missing from its stream
-    message is read from, so Lasair is never asked for it."""
+    """The BOOM (or babamul) broker Lasair objects are read from, so Lasair is
+    never asked for an object or its images."""
     from baselayer.app.models import new_session
 
     from ..models import Broker
@@ -586,13 +561,49 @@ def _latest_candid(data):
     return data.get("candid") or (data.get("candidate") or {}).get("candid")
 
 
-def _incomplete_message(payload, object_id):
-    """Whether a stream message lacks the photometry or the position an object
-    needs, as every message off the selected-columns stream does."""
-    if is_plain_stream_message(payload):
-        return True
-    candidate = normalize_stream_message(payload, object_id).get("candidate") or {}
-    return candidate.get("ra") is None or candidate.get("dec") is None
+CUTOUT_RETRY_DELAY = 300
+CUTOUT_RETRIES = 3
+_cutout_retries = set()
+
+
+async def _add_cutouts_later(oid, survey):
+    """Thumbnails for an object whose alert reached us before it reached BOOM."""
+    from baselayer.app.models import async_plain_session_factory
+
+    from ..models import Thumbnail
+    from ._thumbnails import add_thumbnails
+
+    for _ in range(CUTOUT_RETRIES):
+        await asyncio.sleep(CUTOUT_RETRY_DELAY)
+        try:
+            data, cutouts = await asyncio.to_thread(_from_alerts_broker, oid, survey)
+        except LookupError:
+            continue
+        except Exception as e:
+            log(f"No cutouts for {oid}: {e}")
+            return
+        if not cutouts:
+            return
+        async with async_plain_session_factory() as session:
+            if await session.scalar(
+                sa.select(sa.exists().where(Thumbnail.obj_id == oid))
+            ):
+                return
+            await add_thumbnails(
+                oid,
+                cutouts,
+                survey,
+                session,
+                jd=(data.get("candidate") or {}).get("jd"),
+            )
+            await session.commit()
+        return
+
+
+def _retry_cutouts(oid, survey):
+    task = asyncio.create_task(_add_cutouts_later(oid, survey))
+    _cutout_retries.add(task)
+    task.add_done_callback(_cutout_retries.discard)
 
 
 def is_plain_stream_message(payload):
@@ -610,54 +621,57 @@ def is_plain_stream_message(payload):
     )
 
 
+def _incomplete_message(payload, object_id):
+    """Whether a stream message lacks the photometry or the position an object
+    needs, as every message off the selected-columns stream does."""
+    if is_plain_stream_message(payload):
+        return True
+    candidate = normalize_stream_message(payload, object_id).get("candidate") or {}
+    return candidate.get("ra") is None or candidate.get("dec") is None
+
+
 def normalize_stream_message(payload, object_id):
     """Standard alert shape from a stream message, whichever instance sent it."""
     return _normalize_object(payload, object_id)
 
 
-async def _ingest_object(broker, oid, survey, filter_ids, token=None, payload=None):
-    """Build the standard alert for one Lasair object, register it as a Candidate
-    and save any annotator annotations it carried. Shared by both ingestion modes,
-    which differ only in how they learn an objectId.
-
-    The REST call is made only when polling, where there is no object in hand.
-    A stream message is never topped up by that call: an active filter delivers
-    at the rate alerts arrive, which no hourly call allowance bounds, so one call
-    per alert exhausts it. A message lacking the photometry or the position is
-    read from BOOM instead.
+async def _ingest_object(broker, oid, survey, filter_ids, payload=None):
+    """Register one Lasair object as a Candidate and save any annotator
+    annotations it carried. The photometry is the stream message's, or BOOM's
+    when there is no message (backfill, polling) or the message lacks the
+    photometry or the position, and the cutouts are BOOM's: Lasair is never
+    asked for the object.
     """
     from baselayer.app.models import async_plain_session_factory
 
     from ..models import Thumbnail, User
     from ._save import save_object_as_candidate
 
-    if payload is None:
-        obj = await asyncio.to_thread(_object, broker, oid, token)
-    elif _incomplete_message(payload, oid):
-        obj = None
-    else:
-        obj = payload
+    if payload is not None and _incomplete_message(payload, oid):
+        payload = None
     async with async_plain_session_factory() as session:
         user = await session.scalar(sa.select(User).where(User.id == 1))
-        # Cutouts are stored once per object, so an object already carrying
-        # thumbnails does not re-download them on every alert.
-        cutouts = None
         has_thumbnails = await session.scalar(
             sa.select(sa.exists().where(Thumbnail.obj_id == oid))
         )
-        if obj is None:
+        cutouts = None
+        if payload is None:
             data, cutouts = await asyncio.to_thread(
                 _from_alerts_broker, oid, survey, not has_thumbnails
             )
             passing_alert_id = _latest_candid(data)
         else:
-            data = _normalize_object(obj, oid)
+            data = _normalize_object(payload, oid)
             passing_alert_id = data.get("candidate", {}).get("candid")
             if not has_thumbnails:
                 try:
-                    cutouts = await asyncio.to_thread(_cached_cutouts, broker, obj, oid)
-                except Exception:
-                    cutouts = None
+                    _, cutouts = await asyncio.to_thread(
+                        _from_alerts_broker, oid, survey
+                    )
+                except LookupError:
+                    _retry_cutouts(oid, survey)
+                except Exception as e:
+                    log(f"No cutouts for {oid}: {e}")
         await save_object_as_candidate(
             data,
             survey,
@@ -901,16 +915,14 @@ async def _store_topic_status(credential_id, status):
         log(f"Could not record Lasair topic status on credential {credential_id}: {e}")
 
 
-async def _ingest_batch(broker, survey, token, work, concurrency):
+async def _ingest_batch(broker, survey, work, concurrency):
     """Ingest a batch, at most `concurrency` at a time. Returns {key: succeeded}."""
     semaphore = asyncio.Semaphore(concurrency)
 
     async def run(oid, msg, payload, filter_ids):
         async with semaphore:
             try:
-                await _ingest_object(
-                    broker, oid, survey, filter_ids, token=token, payload=payload
-                )
+                await _ingest_object(broker, oid, survey, filter_ids, payload=payload)
                 return True
             except Exception as e:
                 log(f"Error ingesting Lasair object {oid}: {e}")
@@ -1027,9 +1039,7 @@ async def _consume_set(broker, survey, credentials, budget, stop):
                 "credential_id"
             ):
                 await _store_topic_status(credentials["credential_id"], topic_status)
-            results = await _ingest_batch(
-                broker, survey, credentials["token"], work, concurrency
-            )
+            results = await _ingest_batch(broker, survey, work, concurrency)
             _store_batch_offsets(consumer, msgs, finished, results)
             ingested += sum(1 for ok in results.values() if ok)
 
@@ -1099,10 +1109,9 @@ async def _run_kafka_ingestion(
     Candidate, one consumer per account.
 
     A topic carrying the lightcurve (``lite_lightcurve`` or ``full``) is ingested
-    from the message itself. A message lacking the lightcurve or the position is
-    completed from BOOM's alert for the object, never from Lasair's REST API,
-    which is rate-limited well below stream rate. ``credentials`` pins the
-    accounts to consume; by default the stored ones, re-read every
+    from the message itself, with the cutouts read from BOOM. A message lacking
+    the lightcurve or the position is read from BOOM entirely. ``credentials``
+    pins the accounts to consume; by default the stored ones, re-read every
     ``CREDENTIAL_RESCAN_INTERVAL`` so a user registering an account is picked up
     without restarting the service.
     """
@@ -1189,8 +1198,6 @@ async def _run_kafka_ingestion(
 
 
 DEFAULT_QUERY_FIELDS = "objects.objectId, objects.ramean, objects.decmean"
-# One ingest spends one REST object call, and a Lasair account gets 100 an hour.
-BACKFILL_REQUEST_INTERVAL = 45.0
 BACKFILL_LIMIT = 1000
 
 
@@ -1215,7 +1222,6 @@ async def _run_backfill(
     filter_row,
     token=None,
     limit=BACKFILL_LIMIT,
-    interval=BACKFILL_REQUEST_INTERVAL,
     stop=None,
     on_progress=None,
 ):
@@ -1223,15 +1229,19 @@ async def _run_backfill(
 
     The stream only reaches back as far as Lasair retains it, so a filter that
     matched something last month has nothing to replay. This runs the filter's
-    saved SQL instead and completes each object through the REST API, the same
-    call the poller makes, spaced by ``interval`` to stay inside the hourly
-    allowance. Returns (ingested, failed, found).
+    saved SQL once, with the requesting user's own token, and reads each match
+    from BOOM. Returns (ingested, failed, found).
     """
     query = filter_query(filter_row)
     if query is None:
         raise ValueError(
             f"Filter {filter_row.id} has no saved Lasair query to backfill from. "
             "Open it in the filter builder, save a query, then try again."
+        )
+    if not token:
+        raise ValueError(
+            "A Lasair backfill runs on your own Lasair token. Add it on the "
+            "Lasair broker's page, then try again."
         )
     rows = await asyncio.to_thread(
         _query,
@@ -1259,9 +1269,8 @@ async def _run_backfill(
         if stop is not None and stop.is_set():
             break
         oid = pending.pop(0)
-        await asyncio.sleep(interval)
         try:
-            await _ingest_object(broker, oid, survey, [filter_row.id], token=token)
+            await _ingest_object(broker, oid, survey, [filter_row.id])
             ingested += 1
         except Exception as e:
             log(f"Lasair backfill could not ingest {oid}: {e}")
@@ -1292,6 +1301,37 @@ class LASAIRBROKER(BrokerAPI):
     supports_backfill = True
     supports_replay = True
     backfill_query = staticmethod(filter_query)
+
+    @staticmethod
+    def compile_query(broker, query):
+        if query.get("tree") is None:
+            return query
+        return {**query, **compile_tree(query["tree"], _survey(broker))}
+
+    @staticmethod
+    def found_by(broker, filter_row, obj_id):
+        altdata = filter_row.altdata if isinstance(filter_row.altdata, dict) else {}
+        published = (altdata.get("lasair") or {}).get("published") or {}
+        return {
+            "broker": "Lasair",
+            "filter": published.get("name") or filter_row.name,
+            "url": f"{_site(broker)}/objects/{obj_id}/",
+        }
+
+    @staticmethod
+    def publish_filter(broker, name, query, token=None):
+        return _publish(
+            broker, re.sub(r"\W+", "_", name.lower()).strip("_"), query, token=token
+        )
+
+    @staticmethod
+    def link_filter(broker, name, topic, credentials=None):
+        if topic not in available_topics(broker, credentials):
+            raise ValueError(
+                f"{topic} is not streaming yet. Save the filter on Lasair with "
+                "a kafka stream output first."
+            )
+        return {"name": name, "topic": topic, "url": f"{_site(broker)}/filters/"}
 
     @classmethod
     def parallel_ingestion(cls, altdata):
@@ -1371,8 +1411,7 @@ class LASAIRBROKER(BrokerAPI):
                         "description": (
                             "Lasair Kafka broker host. The LSST instance's public "
                             "stream is lasair-lsst-kafka_pub.lsst.ac.uk:9092, which "
-                            "needs no credentials -- the API token is still needed "
-                            "to fetch each object."
+                            "needs no credentials."
                         ),
                     },
                     "port": {
@@ -1440,8 +1479,8 @@ class LASAIRBROKER(BrokerAPI):
                 "type": "string",
                 "title": "Lasair API token",
                 "description": (
-                    "Your own token, from your Lasair profile. Used to read the "
-                    "objects your filters match."
+                    "Your own token, from your Lasair profile. Every Lasair "
+                    "query, filter and backfill you run uses it."
                 ),
             },
             "username": {
@@ -1480,7 +1519,7 @@ class LASAIRBROKER(BrokerAPI):
     def query_alerts(broker, session, **kwargs):
         object_id = kwargs.get("objectId") or kwargs.get("object_id")
         if object_id:
-            return _object(broker, object_id)
+            return [LASAIRBROKER.get_alert(broker, object_id, session)]
         if kwargs.get("ra") is not None and kwargs.get("dec") is not None:
             return _cone(
                 broker,
@@ -1488,6 +1527,7 @@ class LASAIRBROKER(BrokerAPI):
                 float(kwargs["dec"]),
                 radius=float(kwargs.get("radius", 5)),
                 request_type=kwargs.get("requestType", "all"),
+                token=kwargs.get("token"),
             )
         if kwargs.get("selected") and kwargs.get("tables"):
             return _query(
@@ -1496,6 +1536,7 @@ class LASAIRBROKER(BrokerAPI):
                 kwargs["tables"],
                 kwargs.get("conditions", ""),
                 limit=int(kwargs.get("limit", 1000)),
+                token=kwargs.get("token"),
             )
         raise ValueError(
             "Provide objectId, or ra+dec (cone), or selected+tables (query)."
@@ -1503,7 +1544,7 @@ class LASAIRBROKER(BrokerAPI):
 
     @staticmethod
     def get_alert(broker, alert_id, session, **kwargs):
-        return _normalize_object(_object(broker, alert_id), alert_id)
+        return _from_alerts_broker(alert_id, _survey(broker), cutouts=False)[0]
 
     @staticmethod
     def cone_search(broker, ra, dec, radius, session, **kwargs):
@@ -1513,6 +1554,7 @@ class LASAIRBROKER(BrokerAPI):
             float(dec),
             radius=float(radius),
             request_type=kwargs.get("requestType", "all"),
+            token=kwargs.get("token"),
         )
 
     @staticmethod
@@ -1531,36 +1573,24 @@ class LASAIRBROKER(BrokerAPI):
         """Run a Lasair SQL query and return the matching rows. Accepts raw
         ``conditions`` (SQL) or the builder's neutral ``tree``, compiled here."""
         survey = _survey(broker, kwargs)
-        default_selected = (
-            "objects.diaObjectId, objects.ra, objects.decl"
-            if survey == "LSST"
-            else "objects.objectId, objects.ramean, objects.decmean"
-        )
-        selected = kwargs.get("selected") or default_selected
-        tables = kwargs.get("tables") or "objects"
         tree = kwargs.get("tree") or kwargs.get("filters")
-        if tree is not None:
-            if isinstance(tree, list):
-                tree = {"operator": "and", "children": tree}
-            conditions = _compile_tree_to_sql(tree)
-        else:
-            conditions = kwargs.get("conditions") or ""
+        compiled = compile_tree(tree, survey) if tree is not None else {}
+        selected = (
+            kwargs.get("selected")
+            or compiled.get("selected")
+            or _DEFAULT_SELECTED.get(survey, _DEFAULT_SELECTED["LSST"])
+        )
+        tables = kwargs.get("tables") or compiled.get("tables") or "objects"
+        conditions = compiled.get("conditions", kwargs.get("conditions") or "")
         limit = int(kwargs.get("limit", 50))
-        return _query(broker, selected, tables, conditions, limit=limit)
+        return _query(
+            broker, selected, tables, conditions, limit=limit, token=kwargs.get("token")
+        )
 
     @staticmethod
     def get_cutouts(broker, alert_id, session, **kwargs):
-        # Lasair keys cutouts by object, not candid, so alert_id is an objectId.
-        # A cached set answers without fetching the object, which is what makes
-        # this cheap: the object call and the three image fetches both go away.
-        key = f"{broker.id}_{alert_id}"
-        cached = cutouts_cache[key]
-        if cached is not None:
-            try:
-                return np.load(cached, allow_pickle=True).item()["cutouts"]
-            except Exception:
-                log(f"unreadable cutout cache entry for {key}, refetching")
-        return _cached_cutouts(broker, _object(broker, alert_id), alert_id)
+        # Lasair rows carry no candid, so alert_id is an objectId.
+        return _from_alerts_broker(alert_id, _survey(broker))[1]
 
     @staticmethod
     async def run_backfill(broker, filter_row, token=None, stop=None, **kwargs):
@@ -1576,11 +1606,6 @@ class LASAIRBROKER(BrokerAPI):
             filter_row,
             token=token,
             limit=int(kwargs.get("limit") or BACKFILL_LIMIT),
-            interval=float(
-                kwargs.get("interval")
-                if kwargs.get("interval") is not None
-                else BACKFILL_REQUEST_INTERVAL
-            ),
             stop=stop,
             on_progress=kwargs.get("on_progress"),
         )

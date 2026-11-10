@@ -26,6 +26,12 @@ archivepath = f"{cfg['app.lco_archive_endpoint']}/frames/"
 log = make_log("facility_apis/lco")
 
 
+def observation_note(request):
+    if request.requester is None:
+        return ""
+    return f"Submitted from {cfg['app.title']} by {request.requester.username}"
+
+
 def format_date(date_str: str) -> str:
     """Format date string to LCO API expected format."""
     return (
@@ -124,6 +130,7 @@ class SINISTRORequest:
                     "configurations": configurations,
                     "windows": windows,
                     "location": location,
+                    "observation_note": observation_note(request),
                 }
             ],
         }
@@ -225,6 +232,7 @@ class SPECTRALRequest:
                     "configurations": configurations,
                     "windows": windows,
                     "location": location,
+                    "observation_note": observation_note(request),
                 }
             ],
         }
@@ -333,6 +341,7 @@ class MUSCATRequest:
                     "configurations": configurations,
                     "windows": windows,
                     "location": location,
+                    "observation_note": observation_note(request),
                 }
             ],
         }
@@ -494,6 +503,7 @@ class FLOYDSRequest:
                     "configurations": configurations,
                     "windows": windows,
                     "location": location,
+                    "observation_note": observation_note(request),
                 }
             ],
         }
@@ -582,6 +592,7 @@ class LCOAPI(FollowUpAPI):
                     Allocation.instrument
                 ),
                 selectinload(FollowupRequest.obj),
+                selectinload(FollowupRequest.requester),
             )
         )
 

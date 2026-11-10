@@ -15,6 +15,7 @@ from ..utils.naive_datetime import utcnow_naive
 from ..utils.offset import get_finding_chart
 from . import FollowUpAPI
 from .interface import push_followup_refresh
+from .lco import observation_note
 
 env, cfg = load_env()
 
@@ -168,6 +169,7 @@ class SOAR_GHTS_IMAGER_Request:
                     "configurations": configurations,
                     "windows": windows,
                     "location": location,
+                    "observation_note": observation_note(request),
                 }
             ],
         }
@@ -331,6 +333,7 @@ class SOAR_GHTS_Request:
                     "configurations": configurations,
                     "windows": windows,
                     "location": location,
+                    "observation_note": observation_note(request),
                 }
             ],
         }
@@ -451,6 +454,7 @@ class SOAR_TripleSpec_Request:
                     "configurations": configurations,
                     "windows": windows,
                     "location": location,
+                    "observation_note": observation_note(request),
                 }
             ],
         }
@@ -587,6 +591,7 @@ class SOARGHTSIMAGERAPI(SOARAPI):
                     Allocation.instrument
                 ),
                 selectinload(FollowupRequest.obj),
+                selectinload(FollowupRequest.requester),
             )
         )
 
@@ -761,6 +766,7 @@ class SOARGHTSAPI(SOARAPI):
                     Allocation.instrument
                 ),
                 selectinload(FollowupRequest.obj),
+                selectinload(FollowupRequest.requester),
             )
         )
 
@@ -957,6 +963,7 @@ class SOARTSPECAPI(SOARAPI):
                     Allocation.instrument
                 ),
                 selectinload(FollowupRequest.obj),
+                selectinload(FollowupRequest.requester),
             )
         )
 

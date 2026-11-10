@@ -1,4 +1,5 @@
 import json
+import re
 
 import requests
 
@@ -21,6 +22,11 @@ for it are in front of you. Asked to build one anywhere else, say that a filter 
 is built from the filter page and offer to work out the cuts meanwhile; do not \
 ask for an endpoint or a payload to call on your own, and do not present a \
 pipeline you had no way to preview as though it were ready to save.
+
+A Lasair filter (its broker's filter_kind is query) is SQL over Lasair's \
+tables, not a pipeline: take its columns from get_alert_schema, preview it with \
+preview_lasair_filter, and leave the saving to the user: what you previewed last is \
+offered under your answer with a button that applies it.
 
 When someone asks for high-impact, Nature- or Science-worthy, or otherwise \
 "special" or "interesting" objects, they mean scientifically unusual ones, not \
@@ -240,7 +246,7 @@ def trim(arguments, budget):
     """
     out = {}
     for key, value in (arguments or {}).items():
-        if key == "pipeline":
+        if key in ("pipeline", "conditions"):
             out[key] = value
             continue
         rendered = value if isinstance(value, str) else json.dumps(value, default=str)
@@ -255,12 +261,19 @@ def proposal(trace):
     that it matches anything, and offering one without it invites saving a
     filter that passes nothing.
     """
-    pipeline = preview = target = None
+    pipeline = preview = target = lasair = None
     for call in trace:
         if not call["ok"]:
             continue
         arguments = call["arguments"]
-        if call["name"] == "run_broker_filter" and arguments.get("pipeline"):
+        if call["name"] == "preview_lasair_filter" and arguments.get("conditions"):
+            count = re.search(r'"count":\s*(\d+)', call["summary"])
+            lasair = {
+                "broker_id": arguments.get("broker_id"),
+                "tree": arguments["conditions"],
+                "count": int(count.group(1)) if count else None,
+            }
+        elif call["name"] == "run_broker_filter" and arguments.get("pipeline"):
             pipeline = arguments["pipeline"]
             preview = {
                 "summary": call["summary"],
@@ -274,6 +287,8 @@ def proposal(trace):
                 "broker_id": arguments.get("broker_id"),
                 "filter_id": arguments.get("filter_id"),
             }
+    if lasair is not None:
+        return {"lasair": lasair, "target": target}
     if pipeline is None or preview is None:
         return None
     return {"pipeline": pipeline, "preview": preview, "target": target}

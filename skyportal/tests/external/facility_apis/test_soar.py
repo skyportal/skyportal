@@ -25,6 +25,7 @@ def _request(**payload):
         obj=SimpleNamespace(id="ZTF26ablnnlb", ra=SOURCE_RA, dec=SOURCE_DEC),
         payload={**base, **payload},
         allocation=SimpleNamespace(altdata={"PROPOSAL_ID": "SOAR-2026B-001"}),
+        requester=SimpleNamespace(username="testuser"),
     )
 
 
