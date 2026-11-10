@@ -19,7 +19,6 @@ import Typography from "@mui/material/Typography";
 import {
   useGetBrokersQuery,
   useLazyGetBrokerAlertsQuery,
-  useLazyTestBrokerFilterQuery,
 } from "../../ducks/brokers";
 import BrokerAlertCard, { AlertOption, toAlertOption } from "./BrokerAlertCard";
 import BrokerAlertFilters from "./BrokerAlertFilters";
@@ -27,7 +26,6 @@ import BrokerCredentialsForm from "./BrokerCredentialsForm";
 import FilterCatalog from "./FilterCatalog";
 import { AlertFilter, fieldsOf, flatten, matchesFilters } from "./alertFields";
 import NewFilterDialog from "../filter/NewFilterDialog";
-import LasairFilterBuilder from "./lasair/LasairFilterBuilder";
 import Spinner from "../Spinner";
 import { dec_to_deg, ra_to_deg } from "../../units";
 
@@ -78,24 +76,13 @@ const Broker = () => {
   const [radius, setRadius] = useState("");
   const [survey, setSurvey] = useState("");
   const [queriedSurvey, setQueriedSurvey] = useState("");
-  const [mode, setMode] = useState<"search" | "preview">("search");
   const [page, setPage] = useState(1);
   const [tab, setTab] = useTabParam(["alerts", "filters", "credentials"]);
   const [newFilterOpen, setNewFilterOpen] = useState(false);
   const [filters, setFilters] = useState<AlertFilter[]>([]);
 
-  const [
-    triggerAlerts,
-    { data: alertData, error: alertError, isFetching: alertFetching },
-  ] = useLazyGetBrokerAlertsQuery();
-  const [
-    triggerFilter,
-    { data: filterData, error: filterError, isFetching: filterFetching },
-  ] = useLazyTestBrokerFilterQuery();
-
-  const data = mode === "preview" ? filterData : alertData;
-  const error = mode === "preview" ? filterError : alertError;
-  const isFetching = alertFetching || filterFetching;
+  const [triggerAlerts, { data, error, isFetching }] =
+    useLazyGetBrokerAlertsQuery();
 
   const broker = brokers?.find((b) => b.id === brokerId);
   const surveys = broker?.surveys ?? [];
@@ -120,12 +107,6 @@ const Broker = () => {
     ? tabs.findIndex((t) => !t.disabledReason)
     : tab;
 
-  const startQuery = (newMode: typeof mode) => {
-    setMode(newMode);
-    setPage(1);
-    setFilters([]);
-  };
-
   const search = (params: {
     objectId: string;
     survey: string;
@@ -133,7 +114,8 @@ const Broker = () => {
     dec?: string;
     radius?: string;
   }) => {
-    startQuery("search");
+    setPage(1);
+    setFilters([]);
     setQueriedSurvey(params.survey);
     triggerAlerts({
       brokerId,
@@ -349,24 +331,7 @@ const Broker = () => {
             </Box>
           )}
 
-          {activeTab === 1 &&
-            (broker.broker_classname === "LASAIRBROKER" &&
-            broker.capabilities?.["test_filter"] ? (
-              <LasairFilterBuilder
-                brokerId={brokerId}
-                survey={searchSurvey}
-                onPreview={(params) => {
-                  startQuery("preview");
-                  triggerFilter({ brokerId, params });
-                }}
-              />
-            ) : broker.broker_classname === "BOOMBROKER" ? (
-              <FilterCatalog brokerId={brokerId} />
-            ) : (
-              <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                {`${broker.name}: filter editor coming soon.`}
-              </Typography>
-            ))}
+          {activeTab === 1 && <FilterCatalog brokerId={brokerId} />}
 
           <NewFilterDialog
             open={newFilterOpen}
@@ -380,7 +345,7 @@ const Broker = () => {
             />
           )}
 
-          {activeTab === (mode === "preview" ? 1 : 0) && (
+          {activeTab === 0 && (
             <>
               {error && (
                 <Typography color="error" gutterBottom>
