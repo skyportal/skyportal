@@ -102,6 +102,7 @@ const bandGroup = (filter: string): string =>
 // effectiveModelFits memo every render → setState-in-effect → render loop.
 const EMPTY_MODEL_FITS: ModelFit[] = [];
 const MODEL_DASHES = ["solid", "dash", "dot", "dashdot"];
+const MAX_FIT_MAG_BEYOND_DATA = 2;
 
 // New layouts, keeping the axis ranges already declared. Plotly holds a user's
 // zoom only while the declared range it compares against stays put, so a range
@@ -1565,14 +1566,19 @@ const PhotometryPlot = ({
     const [lo, hi] = stats.mjd.range;
     const dLo = Math.max(0, lo - (ext.mjd[0] - 1));
     const dHi = Math.max(0, ext.mjd[1] + 1 - hi);
+    const faint = Math.min(ext.mag[1], stats.mag.max + MAX_FIT_MAG_BEYOND_DATA);
+    const bright = Math.max(
+      ext.mag[0],
+      stats.mag.min - MAX_FIT_MAG_BEYOND_DATA,
+    );
     const out = {
       ...stats,
       mjd: { ...stats.mjd, range: [lo - dLo, hi + dHi] },
       mag: {
         ...stats.mag,
         range: [
-          Math.max(stats.mag.range[0], ext.mag[1] * 1.02),
-          Math.min(stats.mag.range[1], ext.mag[0] * 0.98),
+          Math.max(stats.mag.range[0], faint * 1.02),
+          Math.min(stats.mag.range[1], bright * 0.98),
         ],
       },
     };
@@ -2124,10 +2130,14 @@ const PhotometryPlot = ({
 
   const yMarkers: any[] = [];
   if (photStats) {
+    const markerStats =
+      tabToPlotType(tabIndex) === "mag"
+        ? withModelFitRanges(photStats)
+        : photStats;
     yMarkers.push(
       ["mag", "period"].includes(tabToPlotType(tabIndex) as string)
-        ? photStats.mag.range[1]
-        : photStats.flux.range[1],
+        ? markerStats.mag.range[1]
+        : markerStats.flux.range[1],
     );
   }
 
