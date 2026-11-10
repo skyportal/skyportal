@@ -2376,6 +2376,15 @@ class BrokerFilterBackfillHandler(BaseHandler):
                 return self.error(
                     f"Filter {filter_id} has no saved query to backfill from."
                 )
+            user_id = self.associated_user_object.id
+            try:
+                await session.run_sync(
+                    lambda sync_session: own_upstream_token(
+                        sync_session, broker, user_id
+                    )
+                )
+            except ValueError as e:
+                return self.error(str(e))
 
         accepted, message = await IOLoop.current().run_in_executor(
             None,
