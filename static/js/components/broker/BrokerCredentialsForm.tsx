@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { ReactNode, useEffect, useState } from "react";
 
 import Form from "@rjsf/mui";
 import validator from "@rjsf/validator-ajv8";
@@ -11,6 +11,7 @@ import MenuItem from "@mui/material/MenuItem";
 import Select from "@mui/material/Select";
 import Stack from "@mui/material/Stack";
 import TextField from "@mui/material/TextField";
+import Tooltip from "@mui/material/Tooltip";
 import Typography from "@mui/material/Typography";
 
 import { showNotification } from "baselayer/components/Notifications";
@@ -27,6 +28,37 @@ import { useAppDispatch } from "../../types/hooks";
 
 const errorText = (e: unknown, fallback: string) =>
   (e as { data?: { message?: string } })?.data?.message ?? fallback;
+
+const Section = ({
+  title,
+  subtitle,
+  children,
+}: {
+  title: string;
+  subtitle: string;
+  children: ReactNode;
+}) => (
+  <Box
+    sx={{
+      border: 1,
+      borderColor: "divider",
+      borderRadius: 2,
+      padding: "0.75rem",
+      display: "flex",
+      flexDirection: "column",
+      gap: 1,
+      backgroundColor: "background.paper",
+    }}
+  >
+    <Box>
+      <Typography sx={{ fontWeight: 600 }}>{title}</Typography>
+      <Typography variant="body2" color="textSecondary">
+        {subtitle}
+      </Typography>
+    </Box>
+    {children}
+  </Box>
+);
 
 const BrokerCredentialsForm = ({
   brokerId,
@@ -118,43 +150,44 @@ const BrokerCredentialsForm = ({
   }
 
   return (
-    <Box sx={{ maxWidth: 640 }}>
-      <Typography variant="h6" gutterBottom>
-        Your credentials
-      </Typography>
-      <Typography variant="body2" color="text.secondary" gutterBottom>
-        Used to read filters private to your own account on this broker. They
-        are stored encrypted, are never shown back, and are visible to nobody
-        else. Leave a secret blank to keep the stored one.
-      </Typography>
-
-      {stored && stored.secrets_set.length > 0 && (
-        <Stack direction="row" spacing={1} sx={{ my: 1 }}>
-          {stored.secrets_set.map((name) => (
-            <Chip
-              key={name}
-              size="small"
-              color="success"
-              label={`${name} set`}
-            />
-          ))}
-        </Stack>
-      )}
-
-      <Form
-        schema={schema}
-        uiSchema={provider?.userCredentialUiSchema ?? {}}
-        validator={validator}
-        formData={formData}
-        onChange={(e: { formData?: Record<string, unknown> }) =>
-          setFormData(e.formData ?? {})
-        }
+    <Box
+      sx={{ maxWidth: 900, display: "flex", flexDirection: "column", gap: 2 }}
+    >
+      <Section
+        title="Your account"
+        subtitle="Stored encrypted and never shown back. Leave a secret blank to keep it."
       >
-        {/* Children suppress rjsf's own submit button; saving is below. */}
-        <></>
-      </Form>
+        {stored && stored.secrets_set.length > 0 && (
+          <Stack direction="row" spacing={1}>
+            {stored.secrets_set.map((name) => (
+              <Chip
+                key={name}
+                size="small"
+                variant="outlined"
+                color="success"
+                label={`${name} saved`}
+              />
+            ))}
+          </Stack>
+        )}
+        <Form
+          schema={schema}
+          uiSchema={provider?.userCredentialUiSchema ?? {}}
+          validator={validator}
+          formData={formData}
+          onChange={(e: { formData?: Record<string, unknown> }) =>
+            setFormData(e.formData ?? {})
+          }
+        >
+          {/* Children suppress rjsf's own submit button; saving is below. */}
+          <></>
+        </Form>
+      </Section>
 
-      <Box sx={{ mt: 2 }}>
+      <Section
+        title="Topics"
+        subtitle="Ingestion runs only for the topics listed here."
+      >
         <Autocomplete
           multiple
           freeSolo
@@ -166,43 +199,58 @@ const BrokerCredentialsForm = ({
           renderInput={(params) => (
             <TextField
               {...params}
+              size="small"
               label="Topics"
-              helperText={
-                topicsError ??
-                "A topic is one of your filters on the broker; ingestion runs " +
-                  "only for the ones listed here. Open to load what your " +
-                  "account can read."
-              }
+              helperText={topicsError}
               error={Boolean(topicsError)}
             />
           )}
         />
-      </Box>
-
-      {topics.length > 0 && brokerFilters && brokerFilters.length > 0 && (
-        <Box sx={{ mt: 2 }}>
-          <Typography variant="subtitle2" gutterBottom>
-            Topic → filter routing
-          </Typography>
-          <Typography variant="body2" color="text.secondary" gutterBottom>
-            Map each topic to the SkyPortal filters its objects become
-            candidates for.
-          </Typography>
-          <Stack spacing={1}>
-            {topics.map((topic) => (
-              <Stack
-                key={topic}
-                direction="row"
-                spacing={1}
-                sx={{ alignItems: "center" }}
-              >
-                <Typography
-                  variant="body2"
-                  sx={{ minWidth: 200, wordBreak: "break-all" }}
+        {topics.length > 0 && brokerFilters && brokerFilters.length > 0 && (
+          <Box
+            sx={{
+              display: "grid",
+              gridTemplateColumns: "minmax(0, 1fr) minmax(0, 1fr)",
+              columnGap: 2,
+              rowGap: 1,
+              alignItems: "center",
+              mt: 1,
+            }}
+          >
+            <Typography variant="body2" color="textSecondary">
+              Topic
+            </Typography>
+            <Typography variant="body2" color="textSecondary">
+              Filters its objects become candidates for
+            </Typography>
+            {topics.map((topic) => {
+              const status = stored?.topic_status?.[topic];
+              return [
+                <Box
+                  key={`${topic}-name`}
+                  sx={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 1,
+                    minWidth: 0,
+                  }}
                 >
-                  {topic}
-                </Typography>
+                  <Typography variant="body2" sx={{ wordBreak: "break-all" }}>
+                    {topic}
+                  </Typography>
+                  {status && (
+                    <Tooltip title={status.detail ?? ""}>
+                      <Chip
+                        size="small"
+                        variant="outlined"
+                        color={status.usable ? "success" : "warning"}
+                        label={status.usable ? "delivering" : "not ingested"}
+                      />
+                    </Tooltip>
+                  )}
+                </Box>,
                 <Select
+                  key={`${topic}-filters`}
                   multiple
                   size="small"
                   displayEmpty
@@ -214,28 +262,31 @@ const BrokerCredentialsForm = ({
                     }))
                   }
                   renderValue={(selected) =>
-                    (selected as number[]).length === 0
-                      ? "No filter"
-                      : brokerFilters
-                          .filter((f) => (selected as number[]).includes(f.id))
-                          .map((f) => f.name)
-                          .join(", ")
+                    (selected as number[]).length === 0 ? (
+                      <Box component="span" sx={{ color: "text.secondary" }}>
+                        No filter
+                      </Box>
+                    ) : (
+                      brokerFilters
+                        .filter((f) => (selected as number[]).includes(f.id))
+                        .map((f) => f.name)
+                        .join(", ")
+                    )
                   }
-                  sx={{ minWidth: 200 }}
                 >
                   {brokerFilters.map((f) => (
                     <MenuItem key={f.id} value={f.id}>
                       {f.name}
                     </MenuItem>
                   ))}
-                </Select>
-              </Stack>
-            ))}
-          </Stack>
-        </Box>
-      )}
+                </Select>,
+              ];
+            })}
+          </Box>
+        )}
+      </Section>
 
-      <Stack direction="row" spacing={1} sx={{ mt: 2 }}>
+      <Stack direction="row" spacing={1}>
         <Button variant="contained" onClick={onSave} disabled={isSaving}>
           Save
         </Button>

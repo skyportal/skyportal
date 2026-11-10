@@ -2,6 +2,7 @@ import copy
 import datetime
 from typing import Annotated, Any
 
+import requests
 import sqlalchemy as sa
 from pydantic import Field
 from skyportal_py_models.brokers import (
@@ -1038,6 +1039,10 @@ class BrokerFilterTestHandler(BaseHandler):
                 data = await IOLoop.current().run_in_executor(
                     None,
                     lambda: broker.broker_class.test_filter(broker, session, **params),
+                )
+            except requests.ConnectionError:
+                return self.error(
+                    f"Could not reach {broker.name}. Check the endpoint in its settings."
                 )
             except Exception as e:
                 return self.error(f"Error running filter on {broker.name}: {e}")

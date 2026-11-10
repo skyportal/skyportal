@@ -1478,20 +1478,17 @@ class LASAIRBROKER(BrokerAPI):
             "token": {
                 "type": "string",
                 "title": "Lasair API token",
-                "description": (
-                    "Your own token, from your Lasair profile. Every Lasair "
-                    "query, filter and backfill you run uses it."
-                ),
+                "description": "From your Lasair profile.",
             },
             "username": {
                 "type": "string",
                 "title": "SASL username",
-                "description": "Only for a stream that requires authentication.",
+                "description": "Only for a private stream.",
             },
             "password": {
                 "type": "string",
                 "title": "SASL password",
-                "description": "Only for a stream that requires authentication.",
+                "description": "Only for a private stream.",
             },
         },
     }
