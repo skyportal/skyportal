@@ -124,7 +124,7 @@ const LasairCreateDialog = ({
   const findTopic = async () => {
     const result = await fetchTopics(brokerId, false);
     const found = matching(result.data?.topics);
-    if (found.length === 1) setTopic(found[0]);
+    if (found.length === 1) setTopic(found[0] ?? null);
     setError(
       result.data && found.length === 0
         ? "No topic yet for this name. Save the filter on Lasair first."
