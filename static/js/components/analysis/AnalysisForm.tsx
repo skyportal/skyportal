@@ -124,13 +124,13 @@ const buildSchema = (service: any, photometry: any[] | undefined) => {
     const instrumentIds = Object.keys(instruments).map(Number);
     properties["input_filters_photometry_filters"] = {
       type: "array",
-      title: "Filters to include (optional)",
+      title: "Filters",
       items: { type: "string", enum: filters },
       uniqueItems: true,
     };
     properties["input_filters_photometry_instruments"] = {
       type: "array",
-      title: "Instruments to include (optional)",
+      title: "Instruments",
       items: { type: "integer", enum: instrumentIds },
       uniqueItems: true,
     };
@@ -165,7 +165,7 @@ const FieldGrid = ({ properties }: any) => (
     sx={{
       display: "grid",
       gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))",
-      columnGap: 2,
+      gap: 2,
     }}
   >
     {properties.filter((p: any) => !p.hidden).map((p: any) => p.content)}
