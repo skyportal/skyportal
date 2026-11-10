@@ -1,6 +1,5 @@
 import { useState } from "react";
 import { Controller, useForm, useWatch } from "react-hook-form";
-import { skipToken } from "@reduxjs/toolkit/query";
 
 import Box from "@mui/material/Box";
 import MenuItem from "@mui/material/MenuItem";
@@ -9,7 +8,7 @@ import SaveIcon from "@mui/icons-material/Save";
 import Button from "../Button";
 import SearchableSelect from "../SearchableSelect";
 import ClassificationSelect from "../classification/ClassificationSelect";
-import { useGetAnnotationsInfoQuery } from "../../ducks/candidate/candidates";
+import { useAnnotationsInfoForGroups } from "../../ducks/candidate/candidates";
 import { useGetFiltersQuery } from "../../ducks/filter";
 import { useGetGroupsQuery } from "../../ducks/groups";
 import {
@@ -104,9 +103,7 @@ const CandidatesPreferencesForm = ({
   const { data: filters = [] } = useGetFiltersQuery();
   const selectableFilters = scanFilters(filters, groupIDs);
   const showSavedGroups = savedStatus.endsWith("Selected");
-  const { data: availableAnnotationsInfo } = useGetAnnotationsInfoQuery(
-    groupIDs.length ? groupIDs : skipToken,
-  );
+  const availableAnnotationsInfo = useAnnotationsInfoForGroups(groupIDs);
   const resetFields = (values: Record<string, any>) =>
     reset({ ...getValues(), ...values });
 

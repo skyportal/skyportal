@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Controller, useForm, useWatch } from "react-hook-form";
 import type { Control, FieldErrors } from "react-hook-form";
-import { skipToken } from "@reduxjs/toolkit/query";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 
@@ -24,7 +23,7 @@ import { useAppDispatch } from "../../types/hooks";
 import type { Group } from "../../types";
 import {
   setCandidatesAnnotationSortOptions,
-  useGetAnnotationsInfoQuery,
+  useAnnotationsInfoForGroups,
 } from "../../ducks/candidate/candidates";
 import { useGetFiltersQuery } from "../../ducks/filter";
 import { useGetGcnEventsQuery } from "../../ducks/gcnEvents";
@@ -200,9 +199,7 @@ const FilterCandidateList = ({
   const groupIDs: number[] = values.groupIDs ?? [];
   const scanGroups = useScanGroups(groupIDs);
   const selectableFilters = scanFilters(allFilters, groupIDs);
-  const { data: availableAnnotationsInfo } = useGetAnnotationsInfoQuery(
-    groupIDs.length ? groupIDs : skipToken,
-  );
+  const availableAnnotationsInfo = useAnnotationsInfoForGroups(groupIDs);
   const showCrossmatchCuts =
     Boolean(availableAnnotationsInfo?.[GCN_CROSSMATCH_ORIGIN]) ||
     gcnNumberFields.some(({ name }) => isFilled(values[name]));

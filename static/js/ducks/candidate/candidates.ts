@@ -23,6 +23,8 @@
  * merged into the list with `updateQueryData`, preserving the old "only if
  * loaded" guard.
  */
+import { useMemo } from "react";
+import { skipToken } from "@reduxjs/toolkit/query";
 import messageHandler from "baselayer/MessageHandler";
 
 import { buildQueryString, filterOutEmptyValues } from "../../API";
@@ -99,10 +101,14 @@ export const candidatesApi = skyportalApi.injectEndpoints({
       providesTags: ["Candidate"],
     }),
     getAnnotationsInfo: build.query({
-      query: (groupIDs?: number[]) =>
-        groupIDs?.length
-          ? `api/internal/annotations_info?groupIDs=${groupIDs.join()}`
-          : "api/internal/annotations_info",
+      query: () => "api/internal/annotations_info",
+      providesTags: ["AnnotationsInfo"],
+    }),
+    getAnnotationsInfoWithGroups: build.query<
+      { keys: Record<string, any[]>; groups: Record<string, number[]> },
+      void
+    >({
+      query: () => "api/internal/annotations_info?includeGroups=true",
       providesTags: ["AnnotationsInfo"],
     }),
     generateSurveyThumbnail: build.mutation({
@@ -118,8 +124,25 @@ export const candidatesApi = skyportalApi.injectEndpoints({
 export const {
   useGetCandidatesQuery,
   useGetAnnotationsInfoQuery,
+  useGetAnnotationsInfoWithGroupsQuery,
   useGenerateSurveyThumbnailMutation,
 } = candidatesApi;
+
+export const useAnnotationsInfoForGroups = (groupIDs: number[]) => {
+  const { data } = useGetAnnotationsInfoWithGroupsQuery(
+    groupIDs.length ? undefined : skipToken,
+  );
+  const groupKey = groupIDs.join();
+  return useMemo(() => {
+    if (!data || !groupKey) return undefined;
+    const selected = new Set(groupKey.split(",").map(Number));
+    return Object.fromEntries(
+      Object.entries(data.keys).filter(([origin]) =>
+        (data.groups[origin] ?? []).some((id) => selected.has(id)),
+      ),
+    );
+  }, [data, groupKey]);
+};
 
 // ---------------------------------------------------------------------------
 // Client UI state (NOT server data): retained reducer + plain action creators.
