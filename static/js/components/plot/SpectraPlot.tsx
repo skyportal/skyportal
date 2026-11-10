@@ -1,4 +1,4 @@
-import { useTheme } from "@mui/material/styles";
+import { alpha, useTheme } from "@mui/material/styles";
 import { useGetProfileQuery } from "../../ducks/profile";
 import { useEffect, useState, useMemo, useRef, useCallback } from "react";
 
@@ -20,6 +20,7 @@ import {
   describeFit,
   formatObservedAt,
   ModelSpectrumFit,
+  spectrumKey,
 } from "./modelSpectrumTraces";
 import {
   BASE_LAYOUT,
@@ -36,15 +37,14 @@ import {
 
 const Plot = createPlotlyComponent(Plotly);
 
-// Distinct colors for overlaid model-spectrum fits (kept off the rainbow scale
-// used for the data traces so an overlay stands out from the spectra).
-const MODEL_OVERLAY_COLORS = [
-  "#e6194B",
-  "#3cb44b",
-  "#4363d8",
-  "#f58231",
-  "#911eb4",
-];
+// Overlaid fits are darker (lighter in dark mode) than the bright rainbow the
+// spectra use, and each also gets a dash so overlapping fits stay apart. The
+// first fit is drawn in the theme's text color.
+const MODEL_OVERLAY_COLORS = {
+  light: ["#0F6E56", "#993556", "#993C1D", "#3C3489"],
+  dark: ["#5DCAA5", "#ED93B1", "#F0997B", "#AFA9EC"],
+};
+const MODEL_OVERLAY_DASHES = ["solid", "dash", "dot", "dashdot", "longdash"];
 
 const useStyles = makeStyles()(() => ({
   gridContainerLines: {
@@ -154,15 +154,16 @@ const SpectraPlot = ({
     () =>
       ((objAnalyses as any[]) || [])
         .filter((a) => a.obj_id === objId && a.model_spectrum)
-        .map(describeFit)
+        .map((a) => describeFit(a, spectra || []))
         // A stable order: oldest spectrum first, then by service name.
         .sort((a, b) => (a.sortKey || "").localeCompare(b.sortKey || "")),
-    [objAnalyses, objId],
+    [objAnalyses, objId, spectra],
   );
-  // Overlaid fits and their colors; default none (opt-in, like the photometry
-  // overlay). A fit keeps its color while shown so the picker matches the plot.
+  // Overlaid fits and their style slot; default none (opt-in, like the
+  // photometry overlay). A fit keeps its slot while shown so the picker matches
+  // the plot.
   const [shownModelIds, setShownModelIds] = useState<
-    Map<string | number, string>
+    Map<string | number, number>
   >(new Map());
   const toggleModelFit = (key: string | number) =>
     setShownModelIds((prev) => {
@@ -171,14 +172,32 @@ const SpectraPlot = ({
         next.delete(key);
       } else {
         const used = new Set(next.values());
-        next.set(
-          key,
-          MODEL_OVERLAY_COLORS.find((c) => !used.has(c)) ??
-            MODEL_OVERLAY_COLORS[next.size % MODEL_OVERLAY_COLORS.length]!,
-        );
+        const free = MODEL_OVERLAY_DASHES.findIndex((_, i) => !used.has(i));
+        next.set(key, free >= 0 ? free : next.size);
       }
       return next;
     });
+  const fitStyles = useMemo(() => {
+    const colors = [
+      muiTheme.palette.text.primary,
+      ...MODEL_OVERLAY_COLORS[
+        muiTheme.palette.mode === "dark" ? "dark" : "light"
+      ],
+    ];
+    return new Map(
+      [...shownModelIds].map(([key, slot]) => [
+        key,
+        {
+          color: colors[slot % colors.length]!,
+          dash: MODEL_OVERLAY_DASHES[slot % MODEL_OVERLAY_DASHES.length]!,
+        },
+      ]),
+    );
+  }, [shownModelIds, muiTheme]);
+  // The fit hovered in the picker, emphasized in the plot.
+  const [hoveredFit, setHoveredFit] = useState<string | number | null>(null);
+  const highlightedFit =
+    hoveredFit !== null && shownModelIds.has(hoveredFit) ? hoveredFit : null;
 
   // Memoize user custom lines to avoid recreating on every render
   const userCustomLines = useMemo(() => {
@@ -203,6 +222,18 @@ const SpectraPlot = ({
 
   const [types, setTypes] = useState<any[]>([]);
   const [tabIndex, setTabIndex] = useState(0);
+  // Each plotted spectrum's line color, for the picker's spectrum swatches.
+  const spectrumColors = useMemo(() => {
+    const plotted = ((data as any[]) || []).filter(
+      (s) => s.type === types[tabIndex],
+    );
+    const colors = new Map<string, string>();
+    plotted.forEach((s, i) => {
+      const key = spectrumKey(s.instrument_name, s.observed_at);
+      if (key) colors.set(key, colorScaleRainbow(i, plotted.length - 1));
+    });
+    return colors;
+  }, [data, types, tabIndex]);
 
   // Memoize helper functions that don't depend on state
   const findTypes = useCallback((spectraData: any[]) => {
@@ -356,6 +387,35 @@ const SpectraPlot = ({
       const formatTraceName = (spectrum: any) =>
         `${spectrum.instrument_name} (${formatObservedAt(spectrum.observed_at)})`;
 
+      // With fits shown, spectra without one go faint grey so the fits and the
+      // spectra they were made against stand out; if no fit can be matched to
+      // a plotted spectrum, all spectra fade instead.
+      const keyOf = (spectrum: any) =>
+        spectrumKey(spectrum.instrument_name, spectrum.observed_at);
+      const plottedKeys = new Set(spectraFiltered.map(keyOf));
+      const shownFits = modelSpectrumFits.filter((f) =>
+        shownModelIds.has(f.id as string | number),
+      );
+      const fittedKeys = new Set(
+        shownFits
+          .map((f) => f.sourceKey)
+          .filter((k) => k && plottedKeys.has(k)),
+      );
+      const highlightedKey = shownFits.find(
+        (f) => f.id === highlightedFit,
+      )?.sourceKey;
+      const spectrumColor = (spectrum: any, color: string) => {
+        if (shownFits.length === 0) return color;
+        if (fittedKeys.size === 0) return alpha(color, 0.35);
+        const key = keyOf(spectrum);
+        if (!fittedKeys.has(key)) {
+          return alpha(muiTheme.palette.text.secondary, 0.15);
+        }
+        return highlightedKey && highlightedKey !== key
+          ? alpha(color, 0.3)
+          : color;
+      };
+
       const traces = spectraFiltered.map((spectrum: any, index: number) => {
         const name = formatTraceName(spectrum);
         const existingTraceVisibility = existingPlotData
@@ -378,7 +438,10 @@ const SpectraPlot = ({
           line: {
             shape: "hvh",
             width: 0.85,
-            color: colorScaleRainbow(index, spectraFiltered.length - 1),
+            color: spectrumColor(
+              spectrum,
+              colorScaleRainbow(index, spectraFiltered.length - 1),
+            ),
           },
           hoverlabel: {
             bgcolor: muiTheme.palette.background.paper,
@@ -546,12 +609,19 @@ const SpectraPlot = ({
       );
       const lineTraces = createLineTraces();
       // Overlay the opted-in best-fit model spectra (normalized to the plot's scale).
-      const shownFits = modelSpectrumFits.filter((f) =>
-        shownModelIds.has(f.id as string | number),
-      );
-      const modelTraces = buildModelSpectrumTraces(shownFits, (i) =>
-        shownModelIds.get(shownFits[i]!.id as string | number)!,
-      );
+      const shownFits = modelSpectrumFits
+        .filter((f) => shownModelIds.has(f.id as string | number))
+        .map((f) => ({
+          ...f,
+          dash: fitStyles.get(f.id as string | number)!.dash,
+          width: f.id === highlightedFit ? 3 : 2,
+        }));
+      const modelTraces = buildModelSpectrumTraces(shownFits, (i) => {
+        const { color } = fitStyles.get(shownFits[i]!.id as string | number)!;
+        return highlightedFit !== null && shownFits[i]!.id !== highlightedFit
+          ? alpha(color, 0.2)
+          : color;
+      });
       setPlotData([...traces, ...lineTraces, ...modelTraces]);
     }
   }, [
@@ -563,6 +633,8 @@ const SpectraPlot = ({
     allLines,
     modelSpectrumFits,
     shownModelIds,
+    fitStyles,
+    highlightedFit,
   ]);
 
   // Effect for updating only smoothing (update y-values in place)
@@ -1074,13 +1146,6 @@ const SpectraPlot = ({
           onRelayout={handleRelayout}
         />
       </div>
-      {modelSpectrumFits.length > 0 && (
-        <ModelFitPicker
-          fits={modelSpectrumFits}
-          shown={shownModelIds}
-          onToggle={toggleModelFit}
-        />
-      )}
       <div className={classes.gridContainerLines}>
         {/* we want to display a grid with buttons to toggle each of the lines */}
         {/* the buttons should have a rectangle of the color of the lines, and then the button itself with the name of the line */}
@@ -1121,6 +1186,15 @@ const SpectraPlot = ({
           </div>
         ))}
       </div>
+      {modelSpectrumFits.length > 0 && (
+        <ModelFitPicker
+          fits={modelSpectrumFits}
+          shown={fitStyles}
+          onToggle={toggleModelFit}
+          onHover={setHoveredFit}
+          spectrumColors={spectrumColors}
+        />
+      )}
       <div className={classes.gridContainer}>
         <div className={classes.gridItem}>
           <Typography id="input-slider">Velocity Expansion (km/s)</Typography>
