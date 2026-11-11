@@ -87,6 +87,7 @@ const COLUMN_PRECISION: Record<string, number> = {
 
 const formatCell = (key: string) => (value: any) => {
   if (isFloat(value)) return value.toFixed(COLUMN_PRECISION[key] ?? 6);
+  if (key === "origin" && value === "None") return "";
   if (key === "altdata" && typeof value === "object" && value !== null) {
     return JSON.stringify(value);
   }

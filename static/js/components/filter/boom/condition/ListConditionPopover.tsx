@@ -799,7 +799,8 @@ const ListConditionPopover = ({
           This aggregation operation calculates the{" "}
           {operator.replace("$", "").toLowerCase()} value of the &quot;
           {subField}&quot; field across all elements in the &quot;{arrayField}
-          &quot; array.
+          &quot; array
+          {arrayField === "prv_candidates" && " (current alert included)"}.
         </div>
       </div>
     );
