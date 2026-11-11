@@ -19,6 +19,7 @@ class _Base:
     _methods = (
         "query_alerts",
         "get_alert",
+        "get_hosts",
         "get_cutouts",
         "cone_search",
         "gaia_cone_search",

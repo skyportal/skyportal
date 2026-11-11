@@ -114,6 +114,12 @@ class BrokerAPI(_Base):
         raise NotImplementedError
 
     @staticmethod
+    def get_hosts(broker, object_ids, session, **kwargs):
+        """The best host galaxy the broker associated with each object, as
+        ``{object_id: host}``, leaving out objects without one."""
+        raise NotImplementedError
+
+    @staticmethod
     def found_by(broker, filter_row, obj_id):
         """Credit for an object one of this broker's filters passed, as
         ``{broker, filter, url}`` with the url of the object on the broker."""

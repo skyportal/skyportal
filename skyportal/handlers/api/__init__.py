@@ -27,6 +27,7 @@ from .broker import (
     BrokerConeSearchHandler,
     BrokerCredentialHandler,
     BrokerCutoutsHandler,
+    BrokerDefaultHostsHandler,
     BrokerDefaultPhotometryHandler,
     BrokerFilterAttachHandler,
     BrokerFilterBackfillHandler,

@@ -34,6 +34,7 @@ from skyportal.handlers.api import (
     BrokerConeSearchHandler,
     BrokerCredentialHandler,
     BrokerCutoutsHandler,
+    BrokerDefaultHostsHandler,
     BrokerDefaultPhotometryHandler,
     BrokerFilterAttachHandler,
     BrokerFilterBackfillHandler,
@@ -387,6 +388,7 @@ skyportal_handlers = [
     (r"/api/brokers/photometry/alert", PhotometryAlertHandler),
     # non-numeric, so this never shadows the numeric /api/brokers/{id} routes
     (r"/api/brokers/photometry/([^/]+)", BrokerDefaultPhotometryHandler),
+    (r"/api/brokers/hosts", BrokerDefaultHostsHandler),
     (r"/api/brokers/([0-9]+)/objects/([^/]+)/save", BrokerSaveHandler),
     (r"/api/brokers/([0-9]+)/alerts/([^/]+)/save", BrokerSaveHandler),
     (r"/api/brokers/([0-9]+)/objects/([^/]+)", BrokerObjectHandler),
