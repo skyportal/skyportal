@@ -58,6 +58,17 @@ export interface BrokerCredentialPatch {
   topic_filter_ids?: Record<string, number[]>;
 }
 
+export interface BrokerHost {
+  objname: string | null;
+  catalog: string | null;
+  z: number | null;
+  z_err: number | null;
+  dist_mpc: number | null;
+  sep_arcsec: number | null;
+  sep_kpc: number | null;
+  d_dlr: number | null;
+}
+
 export interface BrokerAlertQuery {
   brokerId: number;
   params: Record<string, string | number | undefined>;
@@ -122,6 +133,12 @@ export const brokersApi = skyportalApi.injectEndpoints({
       query: ({ brokerId, objectId }) => ({
         url: `api/brokers/${brokerId}/objects/${objectId}`,
         responseHandler: parseKeepingIds,
+      }),
+    }),
+    getBrokerHosts: build.query<Record<string, BrokerHost>, string[]>({
+      query: (objectIds) => ({
+        url: "api/brokers/hosts",
+        params: { objectIds: objectIds.join(",") },
       }),
     }),
     // Cross-match a position against a broker's reference catalogs (Gaia, PS1,
@@ -326,6 +343,7 @@ export const {
   useGetBrokerAlertsQuery,
   useLazyGetBrokerAlertsQuery,
   useGetBrokerObjectQuery,
+  useGetBrokerHostsQuery,
   useLazyGetBrokerConeSearchQuery,
   useGetSourceIfSavedQuery,
   useSaveBrokerObjectAsSourceMutation,
