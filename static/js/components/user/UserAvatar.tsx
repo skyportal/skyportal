@@ -132,8 +132,11 @@ const UserAvatar = ({
   const avatar = (
     <Avatar
       alt={backUpLetters}
-      // 2x so the image stays sharp on HiDPI screens
-      src={`${gravatarUrl}&s=${size * 2}`}
+      src={`${gravatarUrl}&s=${size}`}
+      // denser candidates so the image stays sharp on HiDPI screens
+      srcSet={[1, 2, 3]
+        .map((density) => `${gravatarUrl}&s=${size * density} ${density}x`)
+        .join(", ")}
       classes={{
         root: classes.avatar,
         img: classes.avatarImg,
