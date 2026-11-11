@@ -132,7 +132,8 @@ const UserAvatar = ({
   const avatar = (
     <Avatar
       alt={backUpLetters}
-      src={`${gravatarUrl}&s=${size}`}
+      // 2x so the image stays sharp on HiDPI screens
+      src={`${gravatarUrl}&s=${size * 2}`}
       classes={{
         root: classes.avatar,
         img: classes.avatarImg,
