@@ -20,6 +20,7 @@ from skyportal_py_models.brokers import (
     BrokerFiltersPostBody,
     BrokerFilterTestBody,
     BrokerFilterValidateBody,
+    BrokerHostsGetQuery,
     BrokerPatchBody,
     BrokerPhotometryGetQuery,
     BrokerPostBody,
@@ -980,6 +981,62 @@ class BrokerDefaultPhotometryHandler(BrokerPhotometryHandler):
             return await self._respond_photometry(
                 session, broker, object_id, query, degrade=True
             )
+
+
+class BrokerDefaultHostsHandler(BaseHandler):
+    @auth_or_token
+    async def get(self, *, query: BrokerHostsGetQuery = None):
+        """
+        ---
+        summary: Get the host galaxies of objects via the default broker
+        description: |
+          Best host galaxy the broker flagged ``default_crossmatch`` associated
+          with each object the requester can read, keyed by object id. Objects
+          without a host are left out, and the result is null when no such
+          broker serves hosts or it cannot be reached.
+        tags:
+          - brokers
+        responses:
+          200:
+            content:
+              application/json:
+                schema: Success
+          400:
+            content:
+              application/json:
+                schema: Error
+        """
+        query = self.parse_query(BrokerHostsGetQuery)
+        object_ids = [i.strip() for i in query.objectIds.split(",") if i.strip()]
+
+        async with self.AsyncSession() as session:
+            broker = await session.scalar(
+                Broker.select(self.current_user).where(
+                    Broker.active.is_(True), Broker.default_crossmatch.is_(True)
+                )
+            )
+            if broker is None or not broker.broker_class.implements()["get_hosts"]:
+                return self.success(data=None)
+            readable = (
+                await session.scalars(
+                    Obj.select(self.associated_user_object, columns=[Obj.id]).where(
+                        Obj.id.in_(object_ids)
+                    )
+                )
+            ).all()
+            if not readable:
+                return self.success(data={})
+            session.expunge(broker)
+
+        try:
+            data = await IOLoop.current().run_in_executor(
+                None,
+                lambda: broker.broker_class.get_hosts(broker, readable, None),
+            )
+        except Exception as e:
+            log(f"{broker.name} host lookup failed: {e}")
+            data = None
+        return self.success(data=data)
 
 
 class BrokerFilterTestHandler(BaseHandler):

@@ -2627,6 +2627,58 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/brokers/hosts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get the host galaxies of objects via the default broker
+         * @description Best host galaxy the broker flagged ``default_crossmatch`` associated
+         *     with each object the requester can read, keyed by object id. Objects
+         *     without a host are left out, and the result is null when no such
+         *     broker serves hosts or it cannot be reached.
+         */
+        get: {
+            parameters: {
+                query: {
+                    /** @description Comma-separated object ids. */
+                    objectIds: string;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Success"];
+                    };
+                };
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/brokers/{broker_id}/objects/{object_id}/save": {
         parameters: {
             query?: never;

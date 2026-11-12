@@ -19,6 +19,7 @@ class BrokerCapabilitiesResponse(BaseModel):
 
     query_alerts: bool | None = None
     get_alert: bool | None = None
+    get_hosts: bool | None = None
     get_cutouts: bool | None = None
     cone_search: bool | None = None
     gaia_cone_search: bool | None = None
@@ -623,6 +624,14 @@ class BrokerPhotometryGetQuery(BaseModel):
         default=False,
         description="Include Galactic extinction and extinction-corrected values.",
     )
+
+
+class BrokerHostsGetQuery(BaseModel):
+    """Query parameters for reading the host galaxies of objects."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    objectIds: str = Field(description="Comma-separated object ids.")
 
 
 class BrokerFilterModulesGetQuery(BaseModel):

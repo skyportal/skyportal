@@ -34,6 +34,8 @@ import {
   useGetCandidatesQuery,
 } from "../../ducks/candidate/candidates";
 import { photometryMinimalApi } from "../../ducks/photometry_minimal";
+import { useGetBrokerHostsQuery } from "../../ducks/brokers";
+import type { BrokerHost } from "../../ducks/brokers";
 import { useCommentPanel } from "../../contexts/CommentPanelContext";
 import { useAppDispatch, useAppSelector } from "../../types/hooks";
 import type { Group } from "../../types";
@@ -48,6 +50,7 @@ import ObjectTags from "../ObjectTags";
 import RejectButton from "../RejectButton";
 import VegaPhotometry from "../plot/VegaPhotometry";
 import TrackCandidateSummary from "../moving_object/TrackCandidateSummary";
+import BrokerHostChip from "../broker/BrokerHostChip";
 import Spinner from "../Spinner";
 import ErrorBoundary from "../ErrorBoundary";
 import Button from "../Button";
@@ -261,6 +264,7 @@ interface CandidateInfoProps {
   stack: any[];
   onSelect: (id: string) => void;
   filterGroups: Group[];
+  hosts: Record<string, BrokerHost> | null | undefined;
 }
 
 const CandidateInfo = ({
@@ -268,6 +272,7 @@ const CandidateInfo = ({
   stack,
   onSelect,
   filterGroups,
+  hosts,
 }: CandidateInfoProps) => {
   const isReadOnly = useIsReadOnly();
   const { data: groups } = useGetGroupsQuery();
@@ -398,6 +403,11 @@ const CandidateInfo = ({
           </Box>
         </Box>
       )}
+      {hosts && (
+        <InfoRow label="Host:">
+          <BrokerHostChip host={hosts[candidate.id]} />
+        </InfoRow>
+      )}
       <InfoRow label="MPC:">
         {candidate.is_roid && (
           <Chip
@@ -443,6 +453,7 @@ interface CandidateProps {
   filterGroups: Group[];
   index: number;
   totalMatches: number;
+  hosts: Record<string, BrokerHost> | null | undefined;
 }
 
 const Candidate = ({
@@ -450,6 +461,7 @@ const Candidate = ({
   filterGroups,
   index,
   totalMatches,
+  hosts,
 }: CandidateProps) => {
   const lead = stack[0];
   const [selectedId, setSelectedId] = useState<string>(lead.id);
@@ -509,6 +521,7 @@ const Candidate = ({
           stack={stack}
           onSelect={setSelectedId}
           filterGroups={filterGroups}
+          hosts={hosts}
         />
       </Box>
       <Box sx={{ gridArea: "photometry" }}>
@@ -580,6 +593,13 @@ const CandidateList = () => {
   } = data ?? {};
   const pageCount = Math.max(1, Math.ceil(totalMatches / numPerPage));
   const stacks = useMemo(() => groupStacks(candidates), [candidates]);
+  const candidateIds = useMemo(
+    () => candidates.map((c: any) => c.id),
+    [candidates],
+  );
+  const { data: hosts } = useGetBrokerHostsQuery(candidateIds, {
+    skip: candidateIds.length === 0,
+  });
 
   useEffect(() => {
     if (!defaultScanningProfile?.sortingOrder) return;
@@ -814,6 +834,7 @@ const CandidateList = () => {
                       filterGroups={filterGroups}
                       index={(pageNumber - 1) * numPerPage + index + 1}
                       totalMatches={totalMatches}
+                      hosts={hosts}
                     />
                   </ErrorBoundary>
                 )}

@@ -33,6 +33,18 @@ TEST_TIMEOUT = 600  # seconds
 RADIUS_UNIT_MAP = {"deg": "Degrees", "arcmin": "Arcminutes", "arcsec": "Arcseconds"}
 NO_CUTOUT_PROJECTION = {"cutoutScience": 0, "cutoutTemplate": 0, "cutoutDifference": 0}
 FILTER_LINKS_TTL = timedelta(minutes=1)
+HOST_FIELDS = (
+    "objname",
+    "catalog",
+    "ra",
+    "dec",
+    "z",
+    "z_err",
+    "dist_mpc",
+    "sep_arcsec",
+    "sep_kpc",
+    "d_dlr",
+)
 
 cutouts_cache = Cache(
     cache_dir=f"{cache_folder}/broker_cutouts",
@@ -979,6 +991,40 @@ class BOOMBROKER(BrokerAPI):
         )
         record = data[0] if isinstance(data, list) and data else data
         return _scope_history(_to_standard(survey, record), programids)
+
+    @staticmethod
+    def get_hosts(broker, object_ids, session, **kwargs):
+        served = BOOMBROKER.configured_surveys(broker.altdata)
+        ids_by_survey = {}
+        for object_id in object_ids:
+            survey = survey_from_object_id(object_id, served)
+            if survey:
+                ids_by_survey.setdefault(survey, []).append(str(object_id))
+
+        hosts = {}
+        for survey, ids in ids_by_survey.items():
+            values = [v for i in ids for v in ([i, int(i)] if i.isdigit() else [i])]
+            docs = _request(
+                broker,
+                "POST",
+                "queries/find",
+                json={
+                    "catalog_name": f"{survey}_alerts_aux",
+                    "filter": {"_id": {"$in": values}},
+                    "projection": {
+                        f"host_galaxy.best_host.{field}": 1 for field in HOST_FIELDS
+                    },
+                    "max_time_ms": 10000,
+                },
+                timeout=15,
+            )
+            for doc in docs or []:
+                best = (doc.get("host_galaxy") or {}).get("best_host")
+                if best:
+                    hosts[str(doc["_id"])] = {
+                        field: best.get(field) for field in HOST_FIELDS
+                    }
+        return hosts
 
     @staticmethod
     def get_cutouts(broker, alert_id, session, **kwargs):

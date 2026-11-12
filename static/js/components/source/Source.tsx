@@ -112,7 +112,11 @@ import {
   useGetInstrumentFormsQuery,
   useGetInstrumentsQuery,
 } from "../../ducks/instruments";
-import { useGetBrokersQuery } from "../../ducks/brokers";
+import {
+  useGetBrokerHostsQuery,
+  useGetBrokersQuery,
+} from "../../ducks/brokers";
+import BrokerHostChip from "../broker/BrokerHostChip";
 
 // The legacy <font> element isn't in React's JSX intrinsic types; alias it
 // through `any` so the existing markup keeps rendering unchanged.
@@ -263,6 +267,9 @@ const SourceContent = ({ source }: SourceContentProps) => {
   const [updateSource] = useUpdateSourceMutation();
 
   const { data: brokers = [] } = useGetBrokersQuery();
+  const { data: brokerHosts } = useGetBrokerHostsQuery([source.id], {
+    skip: source.is_roid,
+  });
   const { data: instrumentList = [] } = useGetInstrumentsQuery();
   const { data: instrumentFormParams = {} } = useGetInstrumentFormsQuery();
   // Only runs a target can still be assigned to; the full history is a couple
@@ -860,6 +867,14 @@ const SourceContent = ({ source }: SourceContentProps) => {
                       <RemoveIcon style={{ fontSize: "1rem" }} />
                     </IconButton>
                   )}
+                </div>
+              </div>
+            )}
+            {brokerHosts && (
+              <div className={classes.infoLine}>
+                <div className={classes.sourceInfo}>
+                  <b className={classes.noWrapMargin}>Host:</b>
+                  <BrokerHostChip host={brokerHosts[source.id]} />
                 </div>
               </div>
             )}
