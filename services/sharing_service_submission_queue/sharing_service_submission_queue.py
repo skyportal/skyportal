@@ -34,8 +34,7 @@ from skyportal.utils.tns_submission import (
     check_at_report,
     check_classification_report,
     pick_spectrum,
-    spectrum_pi_authors,
-    split_authors,
+    spectrum_authors,
     submit_to_tns,
 )
 from skyportal.utils.trove_submission import submit_to_trove
@@ -176,9 +175,7 @@ def build_reporters_and_remarks_string(
                 submission_request.tns_report_spectrum_id,
             )
             if spectrum is not None:
-                reporters[1:1] = spectrum_pi_authors(session, spectrum) + split_authors(
-                    spectrum.instrument.tns_classification_authors
-                )
+                reporters[1:1] = spectrum_authors(session, spectrum)
 
         # avoid duplicates in the reporters, only keep the first occurrence of each reporter
         unique_reporters = {}
