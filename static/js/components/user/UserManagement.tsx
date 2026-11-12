@@ -214,7 +214,7 @@ const UserManagement = () => {
   const [includeExpired, setIncludeExpired] = useState(false);
   const [openDialog, setOpenDialog] = useState<string | null>(null);
   const [removeExpirationOpen, setRemoveExpirationOpen] = useState(false);
-  const [bulkInviteOpen, setBulkInviteOpen] = useState(false);
+  const [inviteOpen, setInviteOpen] = useState(false);
   const [clickedUser, setClickedUser] = useState<any>(null);
   const [notificationUser, setNotificationUser] = useState<any>(null);
   const {
@@ -706,13 +706,13 @@ const UserManagement = () => {
             primary
             size="small"
             endIcon={<AddIcon />}
-            data-testid="bulkInviteUsersButton"
+            data-testid="inviteUsersButton"
             onClick={() => {
               setTab(1);
-              setBulkInviteOpen(true);
+              setInviteOpen(true);
             }}
           >
-            Bulk Invite
+            Invite
           </Button>
         </Box>
       )}
@@ -740,8 +740,8 @@ const UserManagement = () => {
       )}
       {invitationsEnabled && tab === 1 && (
         <UserInvitations
-          bulkInviteOpen={bulkInviteOpen}
-          onCloseBulkInvite={() => setBulkInviteOpen(false)}
+          inviteOpen={inviteOpen}
+          onCloseInvite={() => setInviteOpen(false)}
         />
       )}
       <UserNotificationsDialog
