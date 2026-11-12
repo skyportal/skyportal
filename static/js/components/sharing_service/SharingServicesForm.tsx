@@ -246,17 +246,20 @@ const SharingServicesDialog = ({
         .split(/,(?![^()]*\))/)
         .map((author: string) => author.trim())
         .filter(Boolean);
-    const pis = spectrum?.external_pi
-      ? splitAuthors(spectrum.external_pi)
-      : (spectrum?.pis || [])
-          .filter((pi: any) => !pi.is_bot && pi.first_name && pi.last_name)
-          .map((pi: any) => userLabel(pi, false, true));
+    const credited = (external?: string | null, users?: any[] | null) =>
+      external
+        ? splitAuthors(external)
+        : (users || [])
+            .filter((u: any) => !u.is_bot && u.first_name && u.last_name)
+            .map((u: any) => userLabel(u, false, true));
     return [
       ...(classifier && !classifier["is_bot"]
         ? [userLabel(classifier, false, true)]
         : []),
-      ...pis,
       ...splitAuthors(instrument?.tns_classification_authors),
+      ...credited(spectrum?.external_pi, spectrum?.pis),
+      ...credited(spectrum?.external_observer, spectrum?.observers),
+      ...credited(spectrum?.external_reducer, spectrum?.reducers),
     ];
   };
 
