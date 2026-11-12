@@ -137,7 +137,7 @@ export const brokersApi = skyportalApi.injectEndpoints({
         responseHandler: parseKeepingIds,
       }),
     }),
-    getBrokerHosts: build.query<Record<string, BrokerHost>, string[]>({
+    getBrokerHosts: build.query<Record<string, BrokerHost> | null, string[]>({
       query: (objectIds) => ({
         url: "api/brokers/hosts",
         params: { objectIds: objectIds.join(",") },

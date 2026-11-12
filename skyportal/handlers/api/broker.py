@@ -992,7 +992,7 @@ class BrokerDefaultHostsHandler(BaseHandler):
         description: |
           Best host galaxy the broker flagged ``default_crossmatch`` associated
           with each object the requester can read, keyed by object id. Objects
-          without a host are left out, and the result is empty when no such
+          without a host are left out, and the result is null when no such
           broker serves hosts or it cannot be reached.
         tags:
           - brokers
@@ -1016,7 +1016,7 @@ class BrokerDefaultHostsHandler(BaseHandler):
                 )
             )
             if broker is None or not broker.broker_class.implements()["get_hosts"]:
-                return self.success(data={})
+                return self.success(data=None)
             readable = (
                 await session.scalars(
                     Obj.select(self.associated_user_object, columns=[Obj.id]).where(
@@ -1035,7 +1035,7 @@ class BrokerDefaultHostsHandler(BaseHandler):
             )
         except Exception as e:
             log(f"{broker.name} host lookup failed: {e}")
-            data = {}
+            data = None
         return self.success(data=data)
 
 

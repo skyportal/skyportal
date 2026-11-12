@@ -1004,24 +1004,20 @@ class BOOMBROKER(BrokerAPI):
         hosts = {}
         for survey, ids in ids_by_survey.items():
             values = [v for i in ids for v in ([i, int(i)] if i.isdigit() else [i])]
-            try:
-                docs = _request(
-                    broker,
-                    "POST",
-                    "queries/find",
-                    json={
-                        "catalog_name": f"{survey}_alerts_aux",
-                        "filter": {"_id": {"$in": values}},
-                        "projection": {
-                            f"host_galaxy.best_host.{field}": 1 for field in HOST_FIELDS
-                        },
-                        "max_time_ms": 10000,
+            docs = _request(
+                broker,
+                "POST",
+                "queries/find",
+                json={
+                    "catalog_name": f"{survey}_alerts_aux",
+                    "filter": {"_id": {"$in": values}},
+                    "projection": {
+                        f"host_galaxy.best_host.{field}": 1 for field in HOST_FIELDS
                     },
-                    timeout=15,
-                )
-            except Exception as e:
-                log(f"host lookup failed for {survey}: {e}")
-                continue
+                    "max_time_ms": 10000,
+                },
+                timeout=15,
+            )
             for doc in docs or []:
                 best = (doc.get("host_galaxy") or {}).get("best_host")
                 if best:

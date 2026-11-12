@@ -50,7 +50,7 @@ import ObjectTags from "../ObjectTags";
 import RejectButton from "../RejectButton";
 import VegaPhotometry from "../plot/VegaPhotometry";
 import TrackCandidateSummary from "../moving_object/TrackCandidateSummary";
-import BrokerHostInfo from "../broker/BrokerHostInfo";
+import BrokerHostChip from "../broker/BrokerHostChip";
 import Spinner from "../Spinner";
 import ErrorBoundary from "../ErrorBoundary";
 import Button from "../Button";
@@ -264,7 +264,7 @@ interface CandidateInfoProps {
   stack: any[];
   onSelect: (id: string) => void;
   filterGroups: Group[];
-  host: BrokerHost | undefined;
+  hosts: Record<string, BrokerHost> | null | undefined;
 }
 
 const CandidateInfo = ({
@@ -272,7 +272,7 @@ const CandidateInfo = ({
   stack,
   onSelect,
   filterGroups,
-  host,
+  hosts,
 }: CandidateInfoProps) => {
   const isReadOnly = useIsReadOnly();
   const { data: groups } = useGetGroupsQuery();
@@ -403,9 +403,9 @@ const CandidateInfo = ({
           </Box>
         </Box>
       )}
-      {host && (
+      {hosts && (
         <InfoRow label="Host:">
-          <BrokerHostInfo host={host} />
+          <BrokerHostChip host={hosts[candidate.id]} />
         </InfoRow>
       )}
       <InfoRow label="MPC:">
@@ -453,7 +453,7 @@ interface CandidateProps {
   filterGroups: Group[];
   index: number;
   totalMatches: number;
-  hosts: Record<string, BrokerHost> | undefined;
+  hosts: Record<string, BrokerHost> | null | undefined;
 }
 
 const Candidate = ({
@@ -521,7 +521,7 @@ const Candidate = ({
           stack={stack}
           onSelect={setSelectedId}
           filterGroups={filterGroups}
-          host={hosts?.[candidate.id]}
+          hosts={hosts}
         />
       </Box>
       <Box sx={{ gridArea: "photometry" }}>

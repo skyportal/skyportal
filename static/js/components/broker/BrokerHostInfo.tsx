@@ -1,9 +1,9 @@
 import type { BrokerHost } from "../../ducks/brokers";
 
-const zDigits = (zErr: number | null) =>
+export const zDigits = (zErr: number | null) =>
   zErr ? Math.min(6, Math.max(1, Math.ceil(Math.abs(Math.log10(zErr))))) : 4;
 
-const hostUrl = (host: BrokerHost) => {
+export const hostUrl = (host: BrokerHost) => {
   if (host.catalog === "NED" && host.objname) {
     return `https://ned.ipac.caltech.edu/byname?objname=${encodeURIComponent(
       host.objname,
