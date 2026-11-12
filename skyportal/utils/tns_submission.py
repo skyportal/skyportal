@@ -10,7 +10,7 @@ from baselayer.app.env import load_env
 from baselayer.app.flow import Flow
 from baselayer.log import make_log
 from skyportal.handlers.api.photometry import serialize
-from skyportal.models import Instrument, Obj, Stream
+from skyportal.models import Instrument, Obj, SpectrumPI, Stream
 from skyportal.utils.http import serialize_requests_response
 from skyportal.utils.parse import is_null
 from skyportal.utils.tns import (
@@ -417,6 +417,32 @@ def build_tns_classification_report(
 
 def split_authors(authors):
     return [a.strip() for a in re.split(r",(?![^()]*\))", authors or "") if a.strip()]
+
+
+def author_label(user):
+    affiliations = sorted(
+        a.strip()[0].upper() + a.strip()[1:]
+        for a in user.affiliations or []
+        if a and a.strip()
+    )
+    name = f"{user.first_name} {user.last_name}"
+    return f"{name} ({', '.join(affiliations)})" if affiliations else name
+
+
+def spectrum_pi_authors(session, spectrum):
+    external_pi = session.scalar(
+        sa.select(SpectrumPI.external_pi).where(
+            SpectrumPI.spectr_id == spectrum.id,
+            SpectrumPI.external_pi.isnot(None),
+        )
+    )
+    if external_pi:
+        return split_authors(external_pi)
+    return [
+        author_label(pi)
+        for pi in spectrum.pis
+        if not pi.is_bot and pi.first_name and pi.last_name
+    ]
 
 
 def strip_iau_prefix(tns_name):
