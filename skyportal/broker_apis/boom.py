@@ -36,6 +36,8 @@ FILTER_LINKS_TTL = timedelta(minutes=1)
 HOST_FIELDS = (
     "objname",
     "catalog",
+    "ra",
+    "dec",
     "z",
     "z_err",
     "dist_mpc",

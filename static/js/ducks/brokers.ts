@@ -61,6 +61,8 @@ export interface BrokerCredentialPatch {
 export interface BrokerHost {
   objname: string | null;
   catalog: string | null;
+  ra: number | null;
+  dec: number | null;
   z: number | null;
   z_err: number | null;
   dist_mpc: number | null;
