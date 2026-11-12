@@ -204,7 +204,7 @@ def setup_permissions():
     """Create default ACLs/Roles needed by application.
 
     If a given ACL or Role already exists, it will be skipped."""
-    all_acls = [ACL.create_or_get(a) for a in all_acl_ids]
+    all_acls = [DBSession().get(ACL, a) or ACL(id=a) for a in all_acl_ids]
     DBSession().add_all(all_acls)
     DBSession().commit()
 
