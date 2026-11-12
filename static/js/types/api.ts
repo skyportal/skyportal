@@ -2638,7 +2638,7 @@ export interface paths {
          * Get the host galaxies of objects via the default broker
          * @description Best host galaxy the broker flagged ``default_crossmatch`` associated
          *     with each object the requester can read, keyed by object id. Objects
-         *     without a host are left out, and the result is empty when no such
+         *     without a host are left out, and the result is null when no such
          *     broker serves hosts or it cannot be reached.
          */
         get: {
