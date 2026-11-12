@@ -241,14 +241,25 @@ const SharingServicesDialog = ({
     const instrument = instrumentList.find(
       (i: any) => i.id === spectrum?.instrument_id,
     );
+    const splitAuthors = (authors?: string | null) =>
+      (authors || "")
+        .split(/,(?![^()]*\))/)
+        .map((author: string) => author.trim())
+        .filter(Boolean);
+    const credited = (external?: string | null, users?: any[] | null) =>
+      external
+        ? splitAuthors(external)
+        : (users || [])
+            .filter((u: any) => !u.is_bot && u.first_name && u.last_name)
+            .map((u: any) => userLabel(u, false, true));
     return [
       ...(classifier && !classifier["is_bot"]
         ? [userLabel(classifier, false, true)]
         : []),
-      ...(instrument?.tns_classification_authors || "")
-        .split(/,(?![^()]*\))/)
-        .map((author: string) => author.trim())
-        .filter(Boolean),
+      ...splitAuthors(instrument?.tns_classification_authors),
+      ...credited(spectrum?.external_pi, spectrum?.pis),
+      ...credited(spectrum?.external_observer, spectrum?.observers),
+      ...credited(spectrum?.external_reducer, spectrum?.reducers),
     ];
   };
 

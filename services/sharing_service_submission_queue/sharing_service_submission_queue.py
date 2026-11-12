@@ -30,10 +30,11 @@ from skyportal.utils.mpc_submission import submit_to_mpc
 from skyportal.utils.naive_datetime import utcnow_naive
 from skyportal.utils.services import check_loaded
 from skyportal.utils.tns_submission import (
+    author_label,
     check_at_report,
     check_classification_report,
     pick_spectrum,
-    split_authors,
+    spectrum_authors,
     submit_to_tns,
 )
 from skyportal.utils.trove_submission import submit_to_trove
@@ -158,18 +159,7 @@ def build_reporters_and_remarks_string(
 
         reporters = []
         for author in authors:
-            affiliations = [
-                a.strip()[0].upper() + a.strip()[1:]
-                for a in author.affiliations
-                if a and a.strip()
-            ]
-
-            # sort alphabetically (A -> Z)
-            affiliations.sort()
-
-            reporters.append(
-                f"{author.first_name} {author.last_name} ({', '.join(affiliations)})"
-            )
+            reporters.append(author_label(author))
 
             if author.is_bot:
                 bio = author.bio.strip()
@@ -185,9 +175,7 @@ def build_reporters_and_remarks_string(
                 submission_request.tns_report_spectrum_id,
             )
             if spectrum is not None:
-                reporters[1:1] = split_authors(
-                    spectrum.instrument.tns_classification_authors
-                )
+                reporters[1:1] = spectrum_authors(session, spectrum)
 
         # avoid duplicates in the reporters, only keep the first occurrence of each reporter
         unique_reporters = {}

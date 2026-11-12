@@ -10,7 +10,14 @@ from baselayer.app.env import load_env
 from baselayer.app.flow import Flow
 from baselayer.log import make_log
 from skyportal.handlers.api.photometry import serialize
-from skyportal.models import Instrument, Obj, Stream
+from skyportal.models import (
+    Instrument,
+    Obj,
+    SpectrumObserver,
+    SpectrumPI,
+    SpectrumReducer,
+    Stream,
+)
 from skyportal.utils.http import serialize_requests_response
 from skyportal.utils.parse import is_null
 from skyportal.utils.tns import (
@@ -417,6 +424,38 @@ def build_tns_classification_report(
 
 def split_authors(authors):
     return [a.strip() for a in re.split(r",(?![^()]*\))", authors or "") if a.strip()]
+
+
+def author_label(user):
+    affiliations = sorted(
+        a.strip()[0].upper() + a.strip()[1:]
+        for a in user.affiliations or []
+        if a and a.strip()
+    )
+    name = f"{user.first_name} {user.last_name}"
+    return f"{name} ({', '.join(affiliations)})" if affiliations else name
+
+
+def spectrum_authors(session, spectrum):
+    authors = split_authors(spectrum.instrument.tns_classification_authors)
+    for role, external, users in (
+        (SpectrumPI, SpectrumPI.external_pi, spectrum.pis),
+        (SpectrumObserver, SpectrumObserver.external_observer, spectrum.observers),
+        (SpectrumReducer, SpectrumReducer.external_reducer, spectrum.reducers),
+    ):
+        name = session.scalar(
+            sa.select(external).where(role.spectr_id == spectrum.id, external != "")
+        )
+        authors += (
+            split_authors(name)
+            if name
+            else [
+                author_label(user)
+                for user in users
+                if not user.is_bot and user.first_name and user.last_name
+            ]
+        )
+    return authors
 
 
 def strip_iau_prefix(tns_name):
