@@ -9,6 +9,8 @@ import Select from "@mui/material/Select";
 import MenuItem from "@mui/material/MenuItem";
 import FormControlLabel from "@mui/material/FormControlLabel";
 import Switch from "@mui/material/Switch";
+import Tab from "@mui/material/Tab";
+import Tabs from "@mui/material/Tabs";
 import { alpha } from "@mui/material/styles";
 import SearchableSelect from "../SearchableSelect";
 import AddCircleIcon from "@mui/icons-material/AddCircle";
@@ -239,11 +241,11 @@ const AddEntitiesDialog = ({
 };
 
 const UserInvitations = ({
-  bulkInviteOpen,
-  onCloseBulkInvite,
+  inviteOpen,
+  onCloseInvite,
 }: {
-  bulkInviteOpen: boolean;
-  onCloseBulkInvite: () => void;
+  inviteOpen: boolean;
+  onCloseInvite: () => void;
 }) => {
   const dispatch = useAppDispatch();
   const { data: streams } = useGetStreamsQuery();
@@ -255,6 +257,7 @@ const UserInvitations = ({
   const [updateInvitation] = useUpdateInvitationMutation();
   const [deleteInvitation] = useDeleteInvitationMutation();
   const [showExpired, setShowExpired] = useState(false);
+  const [bulkMode, setBulkMode] = useState(false);
   const [openDialog, setOpenDialog] = useState<string | null>(null);
   const [clickedInvitation, setClickedInvitation] = useState<any>(null);
   const [columnVisibility, setColumnVisibility] = useState<any>(null);
@@ -372,6 +375,43 @@ const UserInvitations = ({
     );
   };
 
+  const handleInvite = async (formData: any) => {
+    if (formData.inviteDate && !dayjs.utc(formData.inviteDate).isValid()) {
+      dispatch(
+        showNotification(
+          "Invalid date. Please use MM/DD/YYYY format.",
+          "error",
+        ),
+      );
+      return;
+    }
+    const invited = await runAndNotify(
+      () =>
+        inviteUser({
+          userEmail: formData.inviteEmail.trim(),
+          groupIDs: formData.inviteGroups.map((group: any) => group.id),
+          streamIDs: formData.inviteStreams.length
+            ? formData.inviteStreams.map((stream: any) => stream.id)
+            : null,
+          role: formData.inviteRole,
+          ...(formData.inviteDate && {
+            userExpirationDate: dayjs.utc(formData.inviteDate).toISOString(),
+          }),
+        }).unwrap(),
+      `Invitation successfully sent to ${formData.inviteEmail.trim()}`,
+    );
+    if (invited) {
+      reset({
+        inviteEmail: "",
+        inviteGroups: [],
+        inviteStreams: [],
+        inviteRole: "Full user",
+        inviteDate: null,
+      });
+      onCloseInvite();
+    }
+  };
+
   const handleBulkInvite = async (formData: any) => {
     const lines = parseCsv(formData.bulkInviteCSV);
     const invited = await runAndNotify(
@@ -394,7 +434,7 @@ const UserInvitations = ({
     );
     if (invited) {
       reset({ bulkInviteCSV: "" });
-      onCloseBulkInvite();
+      onCloseInvite();
     }
   };
 
@@ -542,44 +582,146 @@ const UserInvitations = ({
         />
       </Box>
       <FormDialog
-        open={bulkInviteOpen}
-        onClose={onCloseBulkInvite}
+        open={inviteOpen}
+        onClose={onCloseInvite}
         fullWidth
-        title="Bulk invite new users"
-        onSubmit={handleSubmit(handleBulkInvite)}
-        submitProps={{ "data-testid": "bulkAddUsersButton" }}
+        title={
+          <Tabs
+            value={bulkMode ? 1 : 0}
+            onChange={(_event, value) => setBulkMode(value === 1)}
+          >
+            <Tab label="Invite user" />
+            <Tab label="Bulk" />
+          </Tabs>
+        }
+        onSubmit={handleSubmit(bulkMode ? handleBulkInvite : handleInvite)}
+        submitProps={{
+          "data-testid": bulkMode ? "bulkAddUsersButton" : "inviteUserButton",
+        }}
       >
-        <Typography variant="caption" sx={{ color: "text.secondary" }}>
-          One invitation per line, no space after the commas. Stream IDs, group
-          IDs and the true/false admin flags are space-separated lists; the
-          expiration date is optional.
-        </Typography>
-        {!!errors["bulkInviteCSV"] && (
-          <FormValidationError
-            message={String(errors["bulkInviteCSV"].message)}
-          />
-        )}
-        <Controller
-          name="bulkInviteCSV"
-          control={control}
-          rules={{ validate: validateBulkInvite }}
-          defaultValue=""
-          render={({ field: { onChange, value } }) => (
-            <TextField
-              multiline
-              minRows={8}
-              name="bulkInviteCSVInput"
-              label="email,streamIDs,groupIDs,groupAdmin,expirationDate"
-              placeholder={SAMPLE_CSV_TEXT}
-              value={value}
-              onChange={onChange}
-              error={!!errors["bulkInviteCSV"]}
-              slotProps={{
-                htmlInput: { sx: { fontFamily: "monospace" } },
+        {!bulkMode && (
+          <>
+            <Controller
+              name="inviteEmail"
+              control={control}
+              rules={{
+                validate: (value: string) =>
+                  /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim()) ||
+                  "Invalid email",
               }}
+              defaultValue=""
+              render={({ field: { onChange, value } }) => (
+                <TextField
+                  label="Email"
+                  value={value}
+                  onChange={onChange}
+                  error={!!errors["inviteEmail"]}
+                  helperText={errors["inviteEmail"]?.message as string}
+                  data-testid="inviteEmailInput"
+                  autoFocus
+                />
+              )}
             />
-          )}
-        />
+            <Controller
+              name="inviteGroups"
+              control={control}
+              defaultValue={[]}
+              render={({ field: { onChange, value } }) => (
+                <SearchableSelect
+                  multiple
+                  label="Groups"
+                  value={value}
+                  onChange={(_e, data) => onChange(data)}
+                  options={groups}
+                  getOptionLabel={(group: any) => group.name}
+                  filterSelectedOptions
+                />
+              )}
+            />
+            <Controller
+              name="inviteStreams"
+              control={control}
+              defaultValue={[]}
+              render={({ field: { onChange, value } }) => (
+                <SearchableSelect
+                  multiple
+                  label="Streams (default: those of the groups)"
+                  value={value}
+                  onChange={(_e, data) => onChange(data)}
+                  options={streams}
+                  getOptionLabel={(stream: any) => stream.name}
+                  filterSelectedOptions
+                />
+              )}
+            />
+            <Controller
+              name="inviteRole"
+              control={control}
+              defaultValue="Full user"
+              render={({ field: { onChange, value } }) => (
+                <TextField
+                  select
+                  label="Role"
+                  value={value}
+                  onChange={onChange}
+                >
+                  {["Full user", "View only"].map((role) => (
+                    <MenuItem key={role} value={role}>
+                      {role}
+                    </MenuItem>
+                  ))}
+                </TextField>
+              )}
+            />
+            <Controller
+              name="inviteDate"
+              control={control}
+              defaultValue={null}
+              render={({ field: { onChange, value } }) => (
+                <DatePicker
+                  value={value}
+                  onChange={onChange}
+                  label="Account expiration (UTC, optional)"
+                />
+              )}
+            />
+          </>
+        )}
+        {bulkMode && (
+          <>
+            <Typography variant="caption" sx={{ color: "text.secondary" }}>
+              One invitation per line, no space after the commas. Stream IDs,
+              group IDs and the true/false admin flags are space-separated
+              lists; the expiration date is optional.
+            </Typography>
+            {!!errors["bulkInviteCSV"] && (
+              <FormValidationError
+                message={String(errors["bulkInviteCSV"].message)}
+              />
+            )}
+            <Controller
+              name="bulkInviteCSV"
+              control={control}
+              rules={{ validate: validateBulkInvite }}
+              defaultValue=""
+              render={({ field: { onChange, value } }) => (
+                <TextField
+                  multiline
+                  minRows={8}
+                  name="bulkInviteCSVInput"
+                  label="email,streamIDs,groupIDs,groupAdmin,expirationDate"
+                  placeholder={SAMPLE_CSV_TEXT}
+                  value={value}
+                  onChange={onChange}
+                  error={!!errors["bulkInviteCSV"]}
+                  slotProps={{
+                    htmlInput: { sx: { fontFamily: "monospace" } },
+                  }}
+                />
+              )}
+            />
+          </>
+        )}
       </FormDialog>
       {(["Groups", "Streams"] as const).map((kind) => (
         <AddEntitiesDialog

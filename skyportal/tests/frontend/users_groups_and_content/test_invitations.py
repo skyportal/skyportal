@@ -13,7 +13,8 @@ def click_add_button(page, testid):
 
 
 def bulk_invite(page, csv):
-    page.locator("//*[@data-testid='bulkInviteUsersButton']").first.click()
+    page.locator("//*[@data-testid='inviteUsersButton']").first.click()
+    page.get_by_role("tab", name="Bulk").click()
     page.locator("//textarea[@name='bulkInviteCSVInput']").first.fill(csv)
     page.locator("//*[@data-testid='bulkAddUsersButton']").first.click()
 
