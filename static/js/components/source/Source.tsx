@@ -116,7 +116,7 @@ import {
   useGetBrokerHostsQuery,
   useGetBrokersQuery,
 } from "../../ducks/brokers";
-import BrokerHostInfo from "../broker/BrokerHostInfo";
+import BrokerHostChip from "../broker/BrokerHostChip";
 
 // The legacy <font> element isn't in React's JSX intrinsic types; alias it
 // through `any` so the existing markup keeps rendering unchanged.
@@ -270,7 +270,6 @@ const SourceContent = ({ source }: SourceContentProps) => {
   const { data: brokerHosts } = useGetBrokerHostsQuery([source.id], {
     skip: source.is_roid,
   });
-  const brokerHost = brokerHosts?.[source.id];
   const { data: instrumentList = [] } = useGetInstrumentsQuery();
   const { data: instrumentFormParams = {} } = useGetInstrumentFormsQuery();
   // Only runs a target can still be assigned to; the full history is a couple
@@ -871,11 +870,11 @@ const SourceContent = ({ source }: SourceContentProps) => {
                 </div>
               </div>
             )}
-            {brokerHost && (
+            {brokerHosts && (
               <div className={classes.infoLine}>
                 <div className={classes.sourceInfo}>
-                  <b className={classes.noWrapMargin}>BOOM host:</b>
-                  <BrokerHostInfo host={brokerHost} />
+                  <b className={classes.noWrapMargin}>Host:</b>
+                  <BrokerHostChip host={brokerHosts[source.id]} />
                 </div>
               </div>
             )}

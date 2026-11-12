@@ -1,9 +1,23 @@
 import { useState } from "react";
+import Link from "@mui/material/Link";
 import Box from "@mui/material/Box";
 import Chip from "@mui/material/Chip";
 import Popover from "@mui/material/Popover";
 import type { BrokerHost } from "../../ducks/brokers";
-import { hostUrl, zDigits } from "./BrokerHostInfo";
+
+const zDigits = (zErr: number | null) =>
+  zErr ? Math.min(6, Math.max(1, Math.ceil(Math.abs(Math.log10(zErr))))) : 4;
+
+const hostUrl = (host: BrokerHost) => {
+  if (host.catalog === "NED" && host.objname) {
+    return `https://ned.ipac.caltech.edu/byname?objname=${encodeURIComponent(
+      host.objname,
+    )}`;
+  }
+  if (host.ra == null || host.dec == null) return null;
+  const layer = host.catalog === "LSDR9" ? "ls-dr9" : "ls-dr10";
+  return `https://www.legacysurvey.org/viewer?ra=${host.ra}&dec=${host.dec}&layer=${layer}&zoom=16&mark=${host.ra},${host.dec}`;
+};
 
 const hostRows = (host: BrokerHost): [string, string][] => {
   const digits = zDigits(host.z_err);
@@ -65,9 +79,14 @@ const BrokerHostChip = ({ host }: { host: BrokerHost | undefined }) => {
         <Box sx={{ p: 1.5, fontSize: "0.85rem" }}>
           <Box sx={{ fontWeight: "bold", mb: 1 }}>
             {url ? (
-              <a href={url} target="_blank" rel="noopener noreferrer">
+              <Link
+                href={url}
+                target="_blank"
+                rel="noopener noreferrer"
+                underline="hover"
+              >
                 {name}
-              </a>
+              </Link>
             ) : (
               name
             )}
