@@ -245,6 +245,10 @@ const SurveyLinkList = ({ ra, dec, id }: SurveyLinkListProps) => {
         url={`http://simbad.u-strasbg.fr/simbad/sim-coo?protocol=html&NbIdent=us=30&Radius.unit=arcsec&CooFrame=FK5&CooEpoch=2000&CooEqui=2000&Coord=${ra}d+${dec}d`}
       />
       <SurveyLink
+        name="SPHEREx"
+        url={`https://irsa.ipac.caltech.edu/SIA?COLLECTION=spherex_dr1&COLLECTION=spherex_dr1_deep&COLLECTION=spherex_qr3&COLLECTION=spherex_qr3_deep&POS=circle+${ra}+${dec}+0.0003&RESPONSEFORMAT=HTML`}
+      />
+      <SurveyLink
         name="Subaru"
         url={`http://smoka.nao.ac.jp/search?RadorRec=radius&longitudeC=${ra}&latitudeC=${dec}&instruments=SUP&instruments=FCS&instruments=HDS&instruments=OHS&instruments=IRC&instruments=CIA&instruments=COM&instruments=CAC&instruments=MIR&instruments=MCS&instruments=K3D&instruments=HIC&instruments=FMS&obs_mod=IMAG&obs_mod=SPEC&data_typ=OBJECT&dispcol=FRAMEID&dispcol=DATE_OBS&dispcol=&dispcol=FILTER&dispcol=WVLEN&dispcol=UT_START&dispcol=EXPTIME&radius=10&action=Search`}
       />

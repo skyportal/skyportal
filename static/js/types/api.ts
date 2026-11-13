@@ -18111,6 +18111,61 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/sources/{obj_id}/annotations/spherex": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Add SPHEREx archive annotations
+         * @description Ask IRSA which SPHEREx spectral images cover this source's position
+         *     and post a summary of the coverage as an annotation: images per
+         *     release, detectors, wavelength range and the dates of each visit.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    /** @description ID of the object to retrieve the Vizier crossmatch for */
+                    obj_id: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["SpherexQueryBody"];
+                };
+            };
+            responses: {
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Success"];
+                    };
+                };
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/{associated_resource_type}/{resource_id}/annotations": {
         parameters: {
             query?: never;
@@ -49280,6 +49335,18 @@ export interface components {
              * @default 5
              */
             crossmatchNumber: number | null;
+            /**
+             * Group Ids
+             * @description List of group IDs corresponding to which groups should be able to view annotation. Defaults to all of requesting user's groups.
+             * @default null
+             */
+            group_ids: number[] | null;
+        };
+        /**
+         * SpherexQueryBody
+         * @description Request body for posting SPHEREx archive coverage annotations.
+         */
+        SpherexQueryBody: {
             /**
              * Group Ids
              * @description List of group IDs corresponding to which groups should be able to view annotation. Defaults to all of requesting user's groups.

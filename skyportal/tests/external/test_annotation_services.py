@@ -145,6 +145,50 @@ def test_datalab_photoz(annotation_token, public_source, public_group):
 
 
 @pytest.mark.flaky(reruns=3)
+def test_spherex_coverage(public_group, upload_data_token):
+    obj_id = str(uuid.uuid4())
+    status, data = api(
+        "POST",
+        "sources",
+        # A galaxy in COSMOS, covered by DR1 since April 2025.
+        data={
+            "id": obj_id,
+            "ra": 150.067693,
+            "dec": 2.193719,
+            "group_ids": [public_group.id],
+        },
+        token=upload_data_token,
+    )
+    assert status == 200
+
+    # Coverage grows with each weekly release, so asking twice updates the
+    # one annotation.
+    for _ in range(2):
+        status, data = api(
+            "POST", f"sources/{obj_id}/annotations/spherex", token=upload_data_token
+        )
+        # A 400 is IRSA failing; anything else but 200 is the handler's fault.
+        if status == 400:
+            pytest.skip(f"IRSA SPHEREx query unavailable for {obj_id}: {data}")
+        assert status == 200, data
+
+    status, data = api("GET", f"sources/{obj_id}/annotations", token=upload_data_token)
+    assert status == 200
+    annotations = [a for a in data["data"] if a["origin"] == "spherex-archive"]
+    assert len(annotations) == 1
+
+    coverage = annotations[0]["data"]
+    assert coverage["observed"] is True
+    # DR1 alone holds 208 images of this position.
+    assert coverage["n_images"] >= 208
+    assert coverage["collections"]["spherex_dr1"] == 208
+    assert coverage["detectors"] == [1, 2, 3, 4, 5, 6]
+    assert coverage["first_observed"] == "2025-04-25"
+    assert sum(v["n_images"] for v in coverage["visits"]) == coverage["n_images"]
+    assert coverage["query"] == {"ra": 150.067693, "dec": 2.193719}
+
+
+@pytest.mark.flaky(reruns=3)
 def test_alma_coverage_is_revised_not_duplicated(public_group, upload_data_token):
     obj_id = str(uuid.uuid4())
     status, data = api(

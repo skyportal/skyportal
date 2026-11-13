@@ -30,6 +30,7 @@ from skyportal_py_models.annotations import (
     DatalabQueryBody,
     IRSAQueryWISEBody,
     PS1QueryBody,
+    SpherexQueryBody,
     VizierQueryBody,
 )
 from sqlalchemy.exc import IntegrityError
@@ -43,6 +44,9 @@ from skyportal.utils.alma import query_coverage as query_alma_coverage
 from skyportal.utils.alma import summarize as summarize_alma_coverage
 from skyportal.utils.calculations import great_circle_distance
 from skyportal.utils.offset import query_gaia
+from skyportal.utils.spherex import ANNOTATION_ORIGIN as SPHEREX_ANNOTATION_ORIGIN
+from skyportal.utils.spherex import query_coverage as query_spherex_coverage
+from skyportal.utils.spherex import summarize as summarize_spherex_coverage
 
 from ...models import (
     Annotation,
@@ -492,6 +496,96 @@ class ALMAQueryHandler(BaseHandler):
                         data=data,
                         obj_id=obj_id,
                         origin=ALMA_ANNOTATION_ORIGIN,
+                        author_id=self.associated_user_object.id,
+                        groups=groups,
+                    )
+                )
+            else:
+                annotation.data = data
+                annotation.groups = groups
+
+            try:
+                await session.commit()
+            except IntegrityError:
+                return self.error("Annotation already posted.")
+
+            self.push_all(
+                action="skyportal/REFRESH_SOURCE",
+                payload={"obj_key": obj.internal_key},
+            )
+            return self.success()
+
+
+class SpherexQueryHandler(BaseHandler):
+    @auth_or_token
+    async def post(self, obj_id: ObjId, *, body: SpherexQueryBody = None):
+        """
+        ---
+        summary: Add SPHEREx archive annotations
+        description: |
+            Ask IRSA which SPHEREx spectral images cover this source's position
+            and post a summary of the coverage as an annotation: images per
+            release, detectors, wavelength range and the dates of each visit.
+        tags:
+            - annotations
+        responses:
+          200:
+            content:
+              application/json:
+                schema: Success
+          400:
+            content:
+              application/json:
+                schema: Error
+        """
+        body = self.parse_body(SpherexQueryBody)
+
+        async with self.AsyncSession() as session:
+            obj = await session.scalar(
+                Obj.select(self.current_user).where(Obj.id == obj_id)
+            )
+            if obj is None:
+                return self.error(
+                    f'Cannot find source with id "{obj_id}". ', status=403
+                )
+            if obj.ra is None or obj.dec is None:
+                return self.error(f"Source {obj_id} has no position to search on.")
+
+            groups = await _annotation_groups(self, session, body.group_ids)
+            if groups is None:
+                return
+
+            try:
+                rows = await IOLoop.current().run_in_executor(
+                    None, lambda: query_spherex_coverage(obj.ra, obj.dec)
+                )
+            except Exception as e:
+                return self.error(
+                    f"Error querying IRSA for SPHEREx images of {obj_id}: {e}. "
+                    "Please try again later."
+                )
+
+            if not rows:
+                return self.error("No SPHEREx images cover this position.")
+
+            data = summarize_spherex_coverage(rows, ra=obj.ra, dec=obj.dec)
+            # IRSA adds new images every week, so a repeat request updates the
+            # annotation in place. Its groups are loaded up front, since an
+            # async session cannot lazy-load the old ones when they are replaced.
+            annotation = await session.scalar(
+                sa.select(Annotation)
+                .where(
+                    Annotation.obj_id == obj_id,
+                    Annotation.origin == SPHEREX_ANNOTATION_ORIGIN,
+                )
+                .options(selectinload(Annotation.groups))
+            )
+            if annotation is None:
+                session.add(
+                    Annotation(
+                        data=data,
+                        obj_id=obj_id,
+                        origin=SPHEREX_ANNOTATION_ORIGIN,
                         author_id=self.associated_user_object.id,
                         groups=groups,
                     )
