@@ -53,6 +53,7 @@ import DisplayTNSInfo from "./DisplayTNSInfo";
 import EditSourceGroups from "./EditSourceGroups";
 import SavedGroupChips from "../group/SavedGroupChips";
 import SimilarSources from "./SimilarSources";
+import SimilarObjects from "./SimilarObjects";
 import SourceAcknowledgment from "./SourceAcknowledgment";
 import SourceAlias from "./SourceAlias";
 import UpdateSourceGCNCrossmatch from "./UpdateSourceGCNCrossmatch";
@@ -309,6 +310,9 @@ const SourceContent = ({ source }: SourceContentProps) => {
   const alertBroker = brokers.find(
     (b) =>
       b.active && b.capabilities?.["query_alerts"] && b.default_alert_search,
+  );
+  const hasSimilarityBroker = brokers.some(
+    (b) => b.active && b.capabilities?.["similar_objects"],
   );
 
   const sourceDuplicatesWithoutAssociatedObjs = useMemo(
@@ -592,6 +596,33 @@ const SourceContent = ({ source }: SourceContentProps) => {
           )}
         </Accordion>
       </Grid>
+      {hasSimilarityBroker && (
+        <Grid
+          size={{ xs: 12, lg: 6 }}
+          sx={{
+            order: 14,
+          }}
+        >
+          <Accordion
+            defaultExpanded
+            disableGutters
+            className={classes.flexColumn}
+          >
+            <AccordionSummary
+              expandIcon={<ExpandMoreIcon />}
+              aria-controls="similar-objects-content"
+              id="similar-objects-header"
+            >
+              <Typography className={classes.accordionHeading}>
+                Similar Objects
+              </Typography>
+            </AccordionSummary>
+            <AccordionDetails>
+              <SimilarObjects objId={source.id} />
+            </AccordionDetails>
+          </Accordion>
+        </Grid>
+      )}
       <Grid
         size={{ xs: 12, lg: 6 }}
         sx={{
