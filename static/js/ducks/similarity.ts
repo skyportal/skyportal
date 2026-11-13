@@ -5,6 +5,8 @@ export type SimilarSources = components["schemas"]["SimilarSourcesResponse"];
 export type SimilarSource = components["schemas"]["SimilarSourceResponse"];
 export type SimilarityVetting =
   components["schemas"]["SimilarityVettingResponse"];
+export type MoreLikeThis = components["schemas"]["MoreLikeThisResponse"];
+export type MoreLikeThisBody = components["schemas"]["MoreLikeThisPostBody"];
 
 export const similarityApi = skyportalApi.injectEndpoints({
   endpoints: (build) => ({
@@ -24,8 +26,18 @@ export const similarityApi = skyportalApi.injectEndpoints({
           groupIds?.length ? `&groupIds=${groupIds.join(",")}` : ""
         }`,
     }),
+    moreLikeThis: build.mutation<MoreLikeThis, Partial<MoreLikeThisBody>>({
+      query: (body) => ({
+        url: "api/similarity/more_like_this",
+        method: "POST",
+        body,
+      }),
+    }),
   }),
 });
 
-export const { useGetSimilarSourcesQuery, useLazyGetSimilarityVettingQuery } =
-  similarityApi;
+export const {
+  useGetSimilarSourcesQuery,
+  useLazyGetSimilarityVettingQuery,
+  useMoreLikeThisMutation,
+} = similarityApi;
