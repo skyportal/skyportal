@@ -12,7 +12,6 @@ from ..models import Broker, Classification, Obj, Source, Taxonomy
 
 log = make_log("similarity")
 
-# Parallel broker searches when many seeds are searched at once.
 SEARCH_CONCURRENCY = 8
 
 
