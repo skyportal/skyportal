@@ -1,9 +1,19 @@
 """Nearest neighbors in a broker's embedding space, labeled from SkyPortal."""
 
+import asyncio
+from collections import Counter
+
 import sqlalchemy as sa
 from tornado.ioloop import IOLoop
 
-from ..models import Broker, Classification, Obj
+from baselayer.log import make_log
+
+from ..models import Broker, Classification, Obj, Source, Taxonomy
+
+log = make_log("similarity")
+
+# Parallel broker searches when many seeds are searched at once.
+SEARCH_CONCURRENCY = 8
 
 
 async def similarity_broker(session, user, broker_id=None):
@@ -82,3 +92,119 @@ async def label_neighbors(session, user, neighbors):
             }
         )
     return labeled
+
+
+async def find_neighbors_many(broker, obj_ids, top_k, permissions):
+    """Neighbors of each object; a failed search leaves that object out."""
+    semaphore = asyncio.Semaphore(SEARCH_CONCURRENCY)
+
+    async def search(obj_id):
+        async with semaphore:
+            try:
+                return obj_id, await find_neighbors(broker, obj_id, top_k, permissions)
+            except Exception as e:
+                log(f"Similarity search failed for {obj_id}: {e}")
+                return obj_id, None
+
+    results = await asyncio.gather(*(search(obj_id) for obj_id in obj_ids))
+    return {obj_id: hits for obj_id, hits in results if hits is not None}
+
+
+def class_lineages(hierarchies):
+    """Each class mapped to itself and its ancestors in the given taxonomies."""
+    lineages = {}
+
+    def walk(node, ancestors):
+        name = node.get("class")
+        path = [*ancestors, name] if name else ancestors
+        if name:
+            lineages.setdefault(name, set()).update(path)
+        for subclass in node.get("subclasses") or []:
+            walk(subclass, path)
+
+    for hierarchy in hierarchies:
+        walk(hierarchy, [])
+    return lineages
+
+
+def same_branch(a, b, lineages):
+    """Whether one class is the other or one of its ancestors (Ia and Ia-91T)."""
+    return a == b or a in lineages.get(b, ()) or b in lineages.get(a, ())
+
+
+async def recently_classified(session, user, since, group_ids=None, limit=500):
+    """Objects a person classified since ``since``, most recent first."""
+    stmt = (
+        Classification.select(user)
+        .where(Classification.ml.is_(False), Classification.created_at >= since)
+        .order_by(Classification.created_at.desc())
+    )
+    if group_ids:
+        stmt = stmt.where(
+            Classification.obj_id.in_(
+                sa.select(Source.obj_id).where(
+                    Source.group_id.in_(group_ids), Source.active.is_(True)
+                )
+            )
+        )
+    obj_ids = []
+    for classification in await session.scalars(stmt):
+        if classification.obj_id not in obj_ids:
+            obj_ids.append(classification.obj_id)
+            if len(obj_ids) >= limit:
+                break
+    return obj_ids
+
+
+async def vetting_queue(
+    session,
+    user,
+    broker,
+    permissions,
+    since,
+    top_k,
+    min_labeled,
+    max_agreement,
+    group_ids=None,
+):
+    """Recently classified sources whose human-classified neighbors mostly
+    belong to another branch of the taxonomy, worst first."""
+    seed_ids = await recently_classified(session, user, since, group_ids)
+    seeds = await human_classifications(session, user, seed_ids)
+    neighbors = await find_neighbors_many(broker, list(seeds), top_k, permissions)
+    neighbor_ids = {n["object_id"] for hits in neighbors.values() for n in hits}
+    labels = await human_classifications(session, user, list(neighbor_ids))
+    taxonomy_ids = {c.taxonomy_id for c in [*seeds.values(), *labels.values()]}
+    taxonomies = await session.scalars(
+        Taxonomy.select(user).where(Taxonomy.id.in_(taxonomy_ids))
+    )
+    lineages = class_lineages([t.hierarchy for t in taxonomies])
+
+    items = []
+    for obj_id, hits in neighbors.items():
+        seed = seeds[obj_id]
+        classes = [
+            labels[n["object_id"]].classification
+            for n in hits
+            if n["object_id"] in labels
+        ]
+        if len(classes) < min_labeled:
+            continue
+        agreement = sum(
+            same_branch(seed.classification, c, lineages) for c in classes
+        ) / len(classes)
+        if agreement > max_agreement:
+            continue
+        items.append(
+            {
+                "obj_id": obj_id,
+                "classification": seed.classification,
+                "probability": seed.probability,
+                "classified_at": seed.created_at.isoformat(),
+                "labeled_neighbors": len(classes),
+                "agreement": agreement,
+                "neighbor_classes": dict(Counter(classes).most_common()),
+            }
+        )
+    items.sort(key=lambda item: (item["agreement"], -item["labeled_neighbors"]))
+    return len(neighbors), items
