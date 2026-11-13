@@ -26168,6 +26168,11 @@ export interface components {
             status?: string;
             /** @description An optional comment describing the request. */
             comment?: string;
+            /**
+             * @description Purpose of the assignment.
+             * @enum {string|null}
+             */
+            purpose?: "classification" | "follow-up" | null;
         };
         SingleAssignmentSchema: {
             /** @enum {string} */
@@ -26787,6 +26792,8 @@ export interface components {
              * @enum {string}
              */
             priority: "1" | "2" | "3" | "4" | "5";
+            /** @description Purpose of the assignment [classification, follow-up]. */
+            purpose?: string | null;
             /** @description ID of the ObservingRun this target was assigned to. */
             run_id: number;
             /** @description Unique object identifier. */
@@ -26828,6 +26835,8 @@ export interface components {
              * @enum {string}
              */
             priority: "1" | "2" | "3" | "4" | "5";
+            /** @description Purpose of the assignment [classification, follow-up]. */
+            purpose?: string | null;
             /** @description ID of the ObservingRun this target was assigned to. */
             run_id: number;
         };
@@ -43080,6 +43089,13 @@ export interface components {
              * @default null
              */
             comment: string | null;
+            /**
+             * Purpose
+             * @description Purpose of the assignment.
+             * @default null
+             * @enum {string|null}
+             */
+            purpose: "classification" | "follow-up" | null;
         };
         /**
          * AssignmentPostResponse
@@ -43127,6 +43143,13 @@ export interface components {
              * @default null
              */
             comment: string | null;
+            /**
+             * Purpose
+             * @description Purpose of the assignment.
+             * @default null
+             * @enum {string|null}
+             */
+            purpose: "classification" | "follow-up" | null;
         };
         /**
          * BrokerFilterTestBody
