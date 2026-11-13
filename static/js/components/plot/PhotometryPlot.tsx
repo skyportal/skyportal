@@ -1,5 +1,5 @@
 import { useTheme } from "@mui/material/styles";
-import { useGetProfileQuery } from "../../ducks/profile";
+import { useGetProfileQuery, useIsReadOnly } from "../../ducks/profile";
 import { useEffect, useMemo, useRef, useState } from "react";
 
 import Plotly from "plotly.js-basic-dist";
@@ -58,6 +58,7 @@ import {
 } from "../../utils";
 import { useGetConfigQuery } from "../../ducks/config";
 import { useGetAnalysesQuery } from "../../ducks/source";
+import AnalysisForm from "../analysis/AnalysisForm";
 import PhotometryCutoutStrip, { CutoutPin } from "./PhotometryCutoutStrip";
 import {
   buildModelLightcurveTraces,
@@ -101,6 +102,7 @@ const bandGroup = (filter: string): string =>
 // destructure is a new array each render, which would invalidate the
 // effectiveModelFits memo every render → setState-in-effect → render loop.
 const EMPTY_MODEL_FITS: ModelFit[] = [];
+const FIT_ANALYSIS_TYPES = ["lightcurve_fitting"];
 const MODEL_DASHES = ["solid", "dash", "dot", "dashdot"];
 const MAX_FIT_MAG_BEYOND_DATA = 2;
 
@@ -410,8 +412,10 @@ const PhotometryPlot = ({
   const { classes } = useStyles();
 
   const { data: profile } = useGetProfileQuery();
+  const isReadOnly = useIsReadOnly();
   const { data: config } = useGetConfigQuery() as { data: any };
   const dispatch = useAppDispatch();
+  const [runFitOpen, setRunFitOpen] = useState(false);
 
   // Analysis-service model fits to overlay (self-fetched unless passed in).
   const { data: objAnalyses } = useGetAnalysesQuery({
@@ -2541,7 +2545,7 @@ const PhotometryPlot = ({
         }
         onClear={() => setCutoutPins([])}
       />
-      {effectiveModelFits.length > 0 && (
+      {(effectiveModelFits.length > 0 || !isReadOnly) && (
         <div
           style={{
             display: "flex",
@@ -2551,9 +2555,11 @@ const PhotometryPlot = ({
             padding: "0.3rem 0.5rem",
           }}
         >
-          <Typography variant="caption" style={{ marginRight: 4 }}>
-            Model fits:
-          </Typography>
+          {effectiveModelFits.length > 0 && (
+            <Typography variant="caption" style={{ marginRight: 4 }}>
+              Model fits:
+            </Typography>
+          )}
           {modelGroups.map((g) => {
             const shown = shownModels.has(g.key);
             const selected = selectedFitFor(g);
@@ -2630,8 +2636,35 @@ const PhotometryPlot = ({
               </span>
             );
           })}
+          {!isReadOnly && (
+            <Button
+              size="small"
+              variant="outlined"
+              onClick={() => setRunFitOpen(true)}
+              data-testid="photometry-run-fit"
+            >
+              Run fit
+            </Button>
+          )}
         </div>
       )}
+      <Dialog
+        open={runFitOpen}
+        onClose={() => setRunFitOpen(false)}
+        maxWidth="md"
+        fullWidth
+      >
+        <DialogTitle>Run fit</DialogTitle>
+        <DialogContent>
+          <div style={{ paddingTop: 8 }}>
+            <AnalysisForm
+              obj_id={obj_id}
+              analysisTypes={FIT_ANALYSIS_TYPES}
+              onStarted={() => setRunFitOpen(false)}
+            />
+          </div>
+        </DialogContent>
+      </Dialog>
       <Menu
         open={!!runMenu}
         anchorEl={runMenu?.anchor}
