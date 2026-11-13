@@ -708,7 +708,10 @@ const MPC_FIELDS = [
   ["telescope_aperture", "MPC telescope aperture (m)"],
   ["telescope_detector", "MPC detector"],
   ["ack_email", "MPC acknowledgement email (if the reviewer has none)"],
+  ["submitters", "MPC default submitters (comma-separated)"],
 ] as const;
+
+const OPTIONAL_MPC_FIELDS = ["ack_email", "submitters"];
 
 const SharingServicesPage = () => {
   const dispatch = useAppDispatch();
@@ -958,9 +961,9 @@ const SharingServicesPage = () => {
           ? ["trove_username", "trove_password"]
           : []),
         ...(isCreation && enableMPC
-          ? MPC_FIELDS.filter(([key]) => key !== "ack_email").map(
-              ([key]) => `mpc_${key}`,
-            )
+          ? MPC_FIELDS.filter(
+              ([key]) => !OPTIONAL_MPC_FIELDS.includes(key),
+            ).map(([key]) => `mpc_${key}`)
           : []),
       ],
     };

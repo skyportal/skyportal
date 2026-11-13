@@ -34,6 +34,7 @@ from ...utils.moving_objects import (
 from ...utils.mpc_submission import (
     ack_email,
     default_submitter,
+    service_submitters,
     track_psv,
 )
 from ..base import BaseHandler
@@ -477,7 +478,8 @@ class MovingObjectTrackMPCQuery(BaseModel):
     )
     submitter: str | None = Field(
         default=None,
-        description="Name to preview the submission under. Defaults to the requester's.",
+        description="Name to preview the submission under. Defaults to the sharing "
+        "service's first MPC submitter, else the requester's.",
     )
     exclude_candids: str | None = Field(
         default=None,
@@ -566,7 +568,7 @@ class MovingObjectTrackMPCHandler(BaseHandler):
                     f"No sharing service available with ID {query.sharing_service_id}"
                 )
             submitter = query.submitter or default_submitter(
-                self.associated_user_object
+                self.associated_user_object, sharing_service
             )
             exclude = [c for c in (query.exclude_candids or "").split(",") if c]
             try:
@@ -575,6 +577,7 @@ class MovingObjectTrackMPCHandler(BaseHandler):
             except Exception as e:
                 return self.error(f"Cannot submit {track_id}: {e}")
             data["submitter"] = submitter
+            data["submitters"] = service_submitters(sharing_service)
             data["members_withheld"] = track["members_withheld"]
             return self.success(data=data)
 
@@ -621,7 +624,7 @@ class MovingObjectTrackMPCHandler(BaseHandler):
             if obj is None:
                 return self.error(f"No object available with ID {body.obj_id}")
 
-            submitter = body.submitter or default_submitter(user)
+            submitter = body.submitter or default_submitter(user, sharing_service)
             try:
                 ack_email(user, sharing_service)
                 track = await self._track(session, body.broker_id, track_id)

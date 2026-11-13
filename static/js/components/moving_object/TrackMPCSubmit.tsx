@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import Alert from "@mui/material/Alert";
+import Autocomplete from "@mui/material/Autocomplete";
 import Button from "@mui/material/Button";
 import CircularProgress from "@mui/material/CircularProgress";
 import Dialog from "@mui/material/Dialog";
@@ -152,12 +153,20 @@ const TrackMPCSubmit = ({
               ))}
             </TextField>
           )}
-          <TextField
+          <Autocomplete
+            freeSolo
             size="small"
-            label="Submitter"
-            value={draft ?? ""}
-            onChange={(e) => setDraft(e.target.value)}
-            onBlur={() => setSubmitter(draft ?? "")}
+            options={preview?.submitters ?? []}
+            inputValue={draft ?? ""}
+            onInputChange={(_e, value) => setDraft(value)}
+            onChange={(_e, value) => setSubmitter(value ?? "")}
+            renderInput={(params) => (
+              <TextField
+                {...params}
+                label="Submitter"
+                onBlur={() => setSubmitter(draft ?? "")}
+              />
+            )}
           />
           {error && serviceId !== "" && (
             <Alert severity="error">{errorMessage(error)}</Alert>

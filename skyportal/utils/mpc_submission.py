@@ -119,8 +119,16 @@ def psv_submission(
     return "\n".join(lines) + "\n"
 
 
-def default_submitter(user):
-    """The name a user files under, as the MPC writes names: "Q. Ye"."""
+def service_submitters(sharing_service):
+    """The names a sharing service files under by default, in order."""
+    names = (sharing_service.mpc_altdata or {}).get("submitters") or ""
+    return [name.strip() for name in names.split(",") if name.strip()]
+
+
+def default_submitter(user, sharing_service=None):
+    """The service's first submitter, else the user's name as the MPC writes it: "Q. Ye"."""
+    if sharing_service is not None and (names := service_submitters(sharing_service)):
+        return names[0]
     if user.first_name and user.last_name:
         return f"{user.first_name[0]}. {user.last_name}"
     return user.username

@@ -73,6 +73,7 @@ export interface TrackMPCPreview {
   submissions: TrackMPCSubmission[];
   psv?: string;
   submitter?: string;
+  submitters?: string[];
   members_withheld?: number;
 }
 
