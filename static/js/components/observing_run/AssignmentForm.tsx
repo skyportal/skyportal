@@ -162,7 +162,7 @@ const AssignmentForm = ({ obj_id, observingRunList }: AssignmentFormProps) => {
               )}
             />
           </FormControl>
-          <FormControl className={classes.formControl}>
+          <FormControl className={classes.formControl} size="small">
             <InputLabel id="purposeSelect">Purpose</InputLabel>
             <Controller
               {...({

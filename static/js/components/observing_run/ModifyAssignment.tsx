@@ -122,7 +122,7 @@ const ModifyAssignment = ({
               )}
             />
           </FormControl>
-          <FormControl className={classes.formControl}>
+          <FormControl className={classes.formControl} size="small">
             <InputLabel id="purposeSelectLabel">Purpose</InputLabel>
             <Controller
               defaultValue=""
