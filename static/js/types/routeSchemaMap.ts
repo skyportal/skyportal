@@ -198,6 +198,7 @@ export const ROUTE_SCHEMA_MAP = {
   "POST /api/sharing_service/{sharing_service_id}/group/{group_id}/auto_publisher/{user_id}": { schema: "SharingServiceGroupAutoPublisherPostResponse" as const, list: false },
   "POST /api/shifts": { schema: "ShiftPostResponse" as const, list: false },
   "POST /api/shifts/{shift_id}/users": { schema: "ShiftUserPostResponse" as const, list: false },
+  "POST /api/similarity/more_like_this": { schema: "MoreLikeThisResponse" as const, list: false },
   "POST /api/sources_in_gcn/{dateobs}/{source_id}": { schema: "GcnEventObjIdResponse" as const, list: false },
   "POST /api/spatial_catalog": { schema: "SpatialCatalogPostResponse" as const, list: false },
   "POST /api/spatial_catalog/ascii": { schema: "SpatialCatalogASCIIFilePostResponse" as const, list: false },

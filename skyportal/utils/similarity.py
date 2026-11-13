@@ -208,3 +208,75 @@ async def vetting_queue(
         )
     items.sort(key=lambda item: (item["agreement"], -item["labeled_neighbors"]))
     return len(neighbors), items
+
+
+async def classified_as(session, user, classifications, group_ids=None, limit=1000):
+    """Objects a person gave one of ``classifications``, most recent first."""
+    stmt = (
+        Classification.select(user)
+        .where(
+            Classification.ml.is_(False),
+            Classification.classification.in_(classifications),
+            sa.or_(
+                Classification.probability.is_(None), Classification.probability > 0
+            ),
+        )
+        .order_by(Classification.created_at.desc())
+    )
+    if group_ids:
+        stmt = stmt.where(
+            Classification.obj_id.in_(
+                sa.select(Source.obj_id).where(
+                    Source.group_id.in_(group_ids), Source.active.is_(True)
+                )
+            )
+        )
+    obj_ids = []
+    for classification in await session.scalars(stmt):
+        if classification.obj_id not in obj_ids:
+            obj_ids.append(classification.obj_id)
+            if len(obj_ids) >= limit:
+                break
+    return obj_ids
+
+
+async def more_like_this(
+    session, user, broker, permissions, seed_ids, min_jd, top_k, limit
+):
+    """Objects near the seeds with a recent embedding and no human
+    classification, ranked by how many seeds they are near."""
+    neighbors = await find_neighbors_many(broker, seed_ids, top_k, permissions)
+    seeds = set(seed_ids)
+    candidates = {}
+    for seed_id, hits in neighbors.items():
+        for hit in hits:
+            if hit["object_id"] in seeds or (hit.get("jd") or 0) < min_jd:
+                continue
+            candidate = candidates.setdefault(
+                hit["object_id"], {**hit, "seeds": 0, "nearest_seed": seed_id}
+            )
+            candidate["seeds"] += 1
+            if hit["score"] > candidate["score"]:
+                candidate.update(score=hit["score"], nearest_seed=seed_id)
+    classified = await human_classifications(session, user, list(candidates))
+    ranked = sorted(
+        (c for obj_id, c in candidates.items() if obj_id not in classified),
+        key=lambda c: (-c["seeds"], -c["score"]),
+    )[:limit]
+    labeled = await label_neighbors(session, user, ranked)
+    items = [
+        {
+            "obj_id": item["obj_id"],
+            "seeds": candidate["seeds"],
+            "best_score": candidate["score"],
+            "nearest_seed": candidate["nearest_seed"],
+            "jd": item["jd"],
+            "model_label": item["model_label"],
+            "model_probability": item["model_probability"],
+            "in_skyportal": item["in_skyportal"],
+            "redshift": item["redshift"],
+        }
+        for item, candidate in zip(labeled, ranked)
+    ]
+    searched = sum(1 for hits in neighbors.values() if hits)
+    return searched, items

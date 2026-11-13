@@ -107,7 +107,61 @@ class SimilarityVettingResponse(BaseModel):
     items: list[SimilarityVettingItem] = Field(default_factory=list)
 
 
+class MoreLikeThisPostBody(BaseModel):
+    """Seeds for a "more like this" search."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    objIds: list[str] | None = Field(default=None, description="Seed objects.")
+    classifications: list[str] | None = Field(
+        default=None,
+        description="Seed with every source a person gave one of these classes.",
+    )
+    groupIds: list[int] | None = Field(
+        default=None, description="Only seed with sources saved to these groups."
+    )
+    days: float = Field(
+        default=30,
+        gt=0,
+        le=365,
+        description="Only return objects whose embedding is this recent.",
+    )
+    topK: int = Field(default=50, ge=1, le=100, description="Neighbors per seed.")
+    limit: int = Field(default=100, ge=1, le=500, description="Objects to return.")
+    brokerId: int | None = Field(default=None, description="Broker to search.")
+
+
+class MoreLikeThisItem(BaseModel):
+    """An unclassified object near the seeds."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    obj_id: str
+    seeds: int = Field(description="Seeds that have it among their neighbors.")
+    best_score: float
+    nearest_seed: str
+    jd: float | None = None
+    model_label: str | None = None
+    model_probability: float | None = None
+    in_skyportal: bool
+    redshift: float | None = None
+
+
+class MoreLikeThisResponse(BaseModel):
+    """Unclassified recent objects near the seeds, most seeds first."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    broker_id: int
+    seeds: int = Field(description="Seed objects.")
+    seeds_searched: int = Field(description="Seeds with an embedding.")
+    items: list[MoreLikeThisItem] = Field(default_factory=list)
+
+
 __all__ = [
+    "MoreLikeThisItem",
+    "MoreLikeThisPostBody",
+    "MoreLikeThisResponse",
     "NeighborClassification",
     "SimilarSourceResponse",
     "SimilarSourcesGetQuery",

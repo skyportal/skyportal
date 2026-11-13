@@ -9970,6 +9970,50 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/similarity/more_like_this": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Find objects like a set of sources
+         * @description Objects near any of the seed sources in a broker's embedding space, with a recent embedding and no human classification, ranked by how many seeds they are near. Seeds are the given objects, or every source a person gave one of the given classes, optionally only those saved to the given groups. Seeds older than the broker's embeddings have no neighbors.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["MoreLikeThisPostBody"];
+                };
+            };
+            responses: {
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Success"] & {
+                            data?: components["schemas"]["MoreLikeThisResponse"];
+                        };
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/phot_stats": {
         parameters: {
             query?: never;
@@ -46170,6 +46214,113 @@ export interface components {
             checked: number;
             /** Items */
             items?: components["schemas"]["SimilarityVettingItem"][];
+        };
+        /**
+         * MoreLikeThisPostBody
+         * @description Seeds for a "more like this" search.
+         */
+        MoreLikeThisPostBody: {
+            /**
+             * Objids
+             * @description Seed objects.
+             * @default null
+             */
+            objIds: string[] | null;
+            /**
+             * Classifications
+             * @description Seed with every source a person gave one of these classes.
+             * @default null
+             */
+            classifications: string[] | null;
+            /**
+             * Groupids
+             * @description Only seed with sources saved to these groups.
+             * @default null
+             */
+            groupIds: number[] | null;
+            /**
+             * Days
+             * @description Only return objects whose embedding is this recent.
+             * @default 30
+             */
+            days: number;
+            /**
+             * Topk
+             * @description Neighbors per seed.
+             * @default 50
+             */
+            topK: number;
+            /**
+             * Limit
+             * @description Objects to return.
+             * @default 100
+             */
+            limit: number;
+            /**
+             * Brokerid
+             * @description Broker to search.
+             * @default null
+             */
+            brokerId: number | null;
+        };
+        /**
+         * MoreLikeThisItem
+         * @description An unclassified object near the seeds.
+         */
+        MoreLikeThisItem: {
+            /** Obj Id */
+            obj_id: string;
+            /**
+             * Seeds
+             * @description Seeds that have it among their neighbors.
+             */
+            seeds: number;
+            /** Best Score */
+            best_score: number;
+            /** Nearest Seed */
+            nearest_seed: string;
+            /**
+             * Jd
+             * @default null
+             */
+            jd: number | null;
+            /**
+             * Model Label
+             * @default null
+             */
+            model_label: string | null;
+            /**
+             * Model Probability
+             * @default null
+             */
+            model_probability: number | null;
+            /** In Skyportal */
+            in_skyportal: boolean;
+            /**
+             * Redshift
+             * @default null
+             */
+            redshift: number | null;
+        };
+        /**
+         * MoreLikeThisResponse
+         * @description Unclassified recent objects near the seeds, most seeds first.
+         */
+        MoreLikeThisResponse: {
+            /** Broker Id */
+            broker_id: number;
+            /**
+             * Seeds
+             * @description Seed objects.
+             */
+            seeds: number;
+            /**
+             * Seeds Searched
+             * @description Seeds with an embedding.
+             */
+            seeds_searched: number;
+            /** Items */
+            items?: components["schemas"]["MoreLikeThisItem"][];
         };
         LocalizationHandlerGet: {
             /** @description Localization name */
