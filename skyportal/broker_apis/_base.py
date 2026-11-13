@@ -23,6 +23,7 @@ class _Base:
         "get_cutouts",
         "cone_search",
         "gaia_cone_search",
+        "similar_objects",
         "get_filters",
         "create_filter",
         "update_filter",

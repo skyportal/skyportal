@@ -137,6 +137,14 @@ class BrokerAPI(_Base):
         raise NotImplementedError
 
     @staticmethod
+    def similar_objects(broker, object_id, session, top_k=10, **kwargs):
+        """Nearest neighbors of an object in the broker's embedding space, as
+        dicts with ``object_id``, ``score`` and optionally ``jd``,
+        ``model_label`` and ``model_probability``, best first. Empty when the
+        object has no embedding."""
+        raise NotImplementedError
+
+    @staticmethod
     def gaia_cone_search(broker, ra, dec, radius_degrees, columns):
         """Gaia DR3 sources within ``radius_degrees`` of a position, as dicts with
         the Gaia ``source_id`` as ``_id`` and the requested ``columns``."""

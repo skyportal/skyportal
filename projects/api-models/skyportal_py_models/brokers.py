@@ -35,6 +35,7 @@ class BrokerCapabilitiesResponse(BaseModel):
     test_connection: bool | None = None
     save_as_source: bool | None = None
     get_photometry: bool | None = None
+    similar_objects: bool | None = None
     # Data-semantics flags rather than methods: whether ``cone_search``
     # returns reference catalogs, and the dialect ``test_filter`` expects its
     # pipeline in (``None`` when the provider takes no pipeline at all).
