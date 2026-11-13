@@ -1,7 +1,7 @@
 """Assignment purpose
 
 Revision ID: b4d2e8f1c7a3
-Revises: e7a41c9d2b58
+Revises: b4e8d2f61a37
 Create Date: 2026-11-12 00:00:00.000000
 
 """
@@ -11,7 +11,7 @@ import sqlalchemy as sa
 from alembic import op
 
 revision = "b4d2e8f1c7a3"
-down_revision = "e7a41c9d2b58"
+down_revision = "b4e8d2f61a37"
 branch_labels = None
 depends_on = None
 
