@@ -1043,7 +1043,28 @@ const SharingServicesPage = () => {
             />
           )}
           {row.enable_sharing_with_mpc && (
-            <Chip size="small" label="MPC" color="primary" variant="outlined" />
+            <Tooltip
+              title={
+                <Box sx={{ fontSize: "0.8rem", fontWeight: 500 }}>
+                  MPC config:
+                  {MPC_FIELDS.filter(([key]) => row.mpc_header?.[key]).map(
+                    ([key, title]) => (
+                      <div key={key}>
+                        - {title.replace(/^MPC /, "")}: {row.mpc_header[key]}
+                      </div>
+                    ),
+                  )}
+                </Box>
+              }
+            >
+              <Chip
+                size="small"
+                label="MPC"
+                icon={<InfoIcon />}
+                color="primary"
+                variant="outlined"
+              />
+            </Tooltip>
           )}
         </Box>
       ),
@@ -1121,6 +1142,12 @@ const SharingServicesPage = () => {
                   setSharingServiceToManage({
                     ...row,
                     ...row.photometry_options,
+                    ...Object.fromEntries(
+                      MPC_FIELDS.map(([key]) => [
+                        `mpc_${key}`,
+                        row.mpc_header?.[key],
+                      ]),
+                    ),
                   });
                   setEnablePublishToTNS(row.enable_sharing_with_tns);
                   setEnablePublishToHermes(row.enable_sharing_with_hermes);
