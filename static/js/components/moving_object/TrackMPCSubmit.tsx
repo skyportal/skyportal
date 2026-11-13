@@ -26,6 +26,14 @@ interface TrackMPCSubmitProps {
 
 const ACTIVE_STATUSES = ["pending", "processing", "submitted"];
 
+const SUBMISSION_TYPES = [
+  { value: "regular", label: "Regular" },
+  { value: "neo_candidate", label: "NEO candidate" },
+  { value: "new_comet", label: "New comet" },
+] as const;
+
+type SubmissionType = (typeof SUBMISSION_TYPES)[number]["value"];
+
 const errorMessage = (error: unknown) => {
   const e = error as { error?: string; data?: { message?: string } };
   return e?.data?.message ?? e?.error ?? "Cannot build the submission";
@@ -37,6 +45,8 @@ const TrackMPCSubmit = ({ trackId, brokerId, objId }: TrackMPCSubmitProps) => {
   const [serviceId, setServiceId] = useState<number | "">("");
   const [submitter, setSubmitter] = useState("");
   const [draft, setDraft] = useState<string | null>(null);
+  const [submissionType, setSubmissionType] =
+    useState<SubmissionType>("regular");
 
   const { data: services = [] } = useGetSharingServicesQuery(undefined, {
     skip: !open,
@@ -79,6 +89,7 @@ const TrackMPCSubmit = ({ trackId, brokerId, objId }: TrackMPCSubmitProps) => {
       obj_id: objId,
       broker_id: brokerId,
       submitter: draft || undefined,
+      submission_type: submissionType,
     });
     if ("error" in result) return;
     dispatch(showNotification(`${trackId} queued for the MPC`));
@@ -135,6 +146,21 @@ const TrackMPCSubmit = ({ trackId, brokerId, objId }: TrackMPCSubmitProps) => {
             onChange={(e) => setDraft(e.target.value)}
             onBlur={() => setSubmitter(draft ?? "")}
           />
+          <TextField
+            select
+            size="small"
+            label="Type"
+            value={submissionType}
+            onChange={(e) =>
+              setSubmissionType(e.target.value as SubmissionType)
+            }
+          >
+            {SUBMISSION_TYPES.map((t) => (
+              <MenuItem key={t.value} value={t.value}>
+                {t.label}
+              </MenuItem>
+            ))}
+          </TextField>
           {error && serviceId !== "" && (
             <Alert severity="error">{errorMessage(error)}</Alert>
           )}

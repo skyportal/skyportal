@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from datetime import datetime
+from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -177,6 +178,11 @@ class MovingObjectTrackMPCPostBody(BaseModel):
         default=None,
         description='Name the submission is filed under, as the MPC writes it ("Q. Ye"). '
         "Defaults to the requester's.",
+    )
+    submission_type: Literal["regular", "neo_candidate", "new_comet"] = Field(
+        default="regular",
+        description="MPC channel the track goes to: the regular one, NEO candidates "
+        "or new comets.",
     )
 
 
