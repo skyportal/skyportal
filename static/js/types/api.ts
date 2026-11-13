@@ -45388,6 +45388,13 @@ export interface components {
              * @default null
              */
             submitter: string | null;
+            /**
+             * Submission Type
+             * @description MPC channel the track goes to: the regular one, NEO candidates or new comets.
+             * @default regular
+             * @enum {string}
+             */
+            submission_type: "regular" | "neo_candidate" | "new_comet";
         };
         /**
          * MovingObjectTrackKnownPostBody

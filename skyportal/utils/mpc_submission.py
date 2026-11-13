@@ -33,6 +33,12 @@ COLUMNS = ("trkSub", "mode", "stn", "obsTime", "ra", "dec", "astCat", "mag", "ba
 # astrometric error. Submit from the alert's own jd.
 MIN_JD_DECIMALS = 6
 
+SUBMISSION_TYPE_FIELDS = {
+    "regular": {},
+    "neo_candidate": {"ack": "NEO CANDIDATE", "obj_type": "NEO"},
+    "new_comet": {"ack": "NEW COMET"},
+}
+
 
 class NotSubmittable(Exception):
     """The track cannot be written as a submission, with the reason."""
@@ -167,7 +173,11 @@ def submit_to_mpc(submission_request, sharing_service, user, session):
     url = MPC_SUBMIT_URL + ("_test" if sharing_service.testing else "")
     response = requests.post(
         url,
-        data={"ack": payload["track_id"], "ac2": ack_email(user, sharing_service)},
+        data={
+            "ack": payload["track_id"],
+            "ac2": ack_email(user, sharing_service),
+            **SUBMISSION_TYPE_FIELDS[payload.get("submission_type", "regular")],
+        },
         files={"source": payload["psv"].encode()},
         timeout=120,
     )
