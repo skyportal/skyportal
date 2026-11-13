@@ -262,4 +262,23 @@ export const FEATURE_ANNOUNCEMENTS: FeatureAnnouncement[] = [
       },
     ],
   },
+  {
+    id: "assignment-purpose",
+    path: /^\/source\/[^/]+$/,
+    announcedAt: "2026-11-13",
+    steps: [
+      {
+        target: '[data-testid="assignmentPurposeSelect"]',
+        before: async () => {
+          document
+            .querySelector('[data-testid="assignmentPurposeSelect"]')
+            ?.scrollIntoView({ block: "center" });
+        },
+        title: "Assignment purpose",
+        content:
+          "Tag an observing run assignment as classification or follow-up. " +
+          "The run page shows it in its own column and can filter on it.",
+      },
+    ],
+  },
 ];
