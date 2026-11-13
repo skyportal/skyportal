@@ -1267,6 +1267,8 @@ class BOOMBROKER(BrokerAPI):
             if e.response is not None and e.response.status_code == 404:
                 return []
             raise
+        if isinstance(neighbors, dict):
+            neighbors = neighbors.get("neighbors")
         return [
             {
                 "object_id": n["object_id"],

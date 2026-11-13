@@ -84,7 +84,6 @@ class CandidateResponse(BaseModel):
     origin: str | None = None
     alias: list[str] | None = None
     healpix: int | None = None
-    detect_photometry_count: int | None = None
     internal_key: str | None = None
 
     # Relationships the handlers eager-load.
@@ -251,7 +250,6 @@ class CandidatePost(BaseModel):
     score: float | None = None
     origin: str | None = None
     alias: list[str] | None = None
-    detect_photometry_count: int | None = None
 
 
 class ScanReportPassedFiltersRange(BaseModel):

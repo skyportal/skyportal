@@ -413,12 +413,6 @@ class Obj(Base, conesearch_alchemy.Point):
         doc="Photometry statistics associated with the object.",
     )
 
-    detect_photometry_count = sa.Column(
-        sa.Integer,
-        nullable=True,
-        doc="How many times the object was detected above :math:`S/N = phot_detection_threshold (3.0 by default)`.",
-    )
-
     photometric_series = relationship(
         "PhotometricSeries",
         back_populates="obj",

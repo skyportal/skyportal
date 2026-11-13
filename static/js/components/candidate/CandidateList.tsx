@@ -286,6 +286,7 @@ const CandidateInfo = ({
   const mlClass = mostRecentClass(
     (candidate.classifications ?? []).filter((c: any) => c.ml),
   );
+  const tnsClass = candidate.tns_info?.object_type?.name;
   const stackIds = stack.map((member) => member.id);
   const otherMatches = (candidate.associated_objs ?? []).filter(
     (a: any) => !stackIds.includes(a.obj_id),
@@ -440,6 +441,11 @@ const CandidateInfo = ({
         {mlClass && (
           <Tooltip title="classification from an ML classifier">
             <Chip size="small" label={`ML: ${mlClass}`} />
+          </Tooltip>
+        )}
+        {tnsClass && (
+          <Tooltip title={candidate.tns_name ?? "classification from TNS"}>
+            <Chip size="small" label={`TNS: ${tnsClass}`} />
           </Tooltip>
         )}
         <AddClassificationsScanningPage obj_id={candidate.id} />
