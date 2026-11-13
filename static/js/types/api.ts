@@ -36338,8 +36338,6 @@ export interface components {
             alias?: string[] | null;
             /** @description Internal key used for secure websocket messaging. */
             internal_key?: string;
-            /** @description How many times the object was detected above :math:`S/N = phot_detection_threshold (3.0 by default)`. */
-            detect_photometry_count?: number | null;
             ra?: number | null;
             dec?: number | null;
             readonly candidates?: components["schemas"]["Candidate"][];
@@ -36626,8 +36624,6 @@ export interface components {
             alias?: string[] | null;
             /** @description Internal key used for secure websocket messaging. */
             internal_key?: string;
-            /** @description How many times the object was detected above :math:`S/N = phot_detection_threshold (3.0 by default)`. */
-            detect_photometry_count?: number | null;
             ra?: number | null;
             dec?: number | null;
             readonly candidates?: components["schemas"]["Candidate"][];
@@ -36739,8 +36735,6 @@ export interface components {
             /** @description Alternative names for this object. */
             alias?: string[] | null;
             healpix?: number | null;
-            /** @description How many times the object was detected above :math:`S/N = phot_detection_threshold (3.0 by default)`. */
-            detect_photometry_count?: number | null;
             ra?: number | null;
             dec?: number | null;
             readonly candidates?: components["schemas"]["Candidate"][];
