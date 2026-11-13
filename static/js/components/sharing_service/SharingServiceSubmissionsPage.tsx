@@ -25,7 +25,10 @@ import StyledDataGridBase, { DataGridToolbar } from "../StyledDataGrid";
 import Button from "../Button";
 
 import UserAvatar from "../user/UserAvatar";
-import { useGetSharingServiceSubmissionsQuery } from "../../ducks/sharingServices";
+import {
+  useGetSharingServicesQuery,
+  useGetSharingServiceSubmissionsQuery,
+} from "../../ducks/sharingServices";
 import { userLabel } from "../../utils/format";
 import { useGetUsersQuery } from "../../ducks/users";
 
@@ -43,7 +46,11 @@ const SubmissionsToolbar = () => (
 
 function getStatusVariant(status: string) {
   const value = status.toLowerCase();
-  if (value.startsWith("complete") || value.startsWith("success")) {
+  if (
+    value.startsWith("complete") ||
+    value.startsWith("success") ||
+    value === "submitted"
+  ) {
     return { severity: "success", Icon: CheckCircleIcon };
   }
   if (value.includes("already posted to tns")) {
@@ -52,7 +59,7 @@ function getStatusVariant(status: string) {
   if (value.startsWith("error")) {
     return { severity: "error", Icon: ErrorIcon };
   }
-  if (value.startsWith("testing mode")) {
+  if (value.startsWith("testing mode") || value === "test submission") {
     return { severity: "info", Icon: BugReportIcon };
   }
   return { severity: null, Icon: null };
@@ -102,6 +109,11 @@ const SharingServiceSubmissionsPage = () => {
   const [page, setPage] = useState(1);
   const [rowsPerPage, setRowsPerPage] = useState(100);
   const [showTNSPayload, setShowTNSPayload] = useState<any>(null);
+  const [showPSV, setShowPSV] = useState<string | null>(null);
+  const { data: sharingServices = [] } = useGetSharingServicesQuery();
+  const sharingService: any = sharingServices.find(
+    (service: any) => String(service.id) === id,
+  );
 
   const { data: submissionsData, isFetching: loading } =
     useGetSharingServiceSubmissionsQuery(
@@ -169,6 +181,41 @@ const SharingServiceSubmissionsPage = () => {
       </Box>
     );
   };
+
+  const renderMpcInfo = (params: any) => {
+    const { mpc_submission_id, mpc_payload } = params.row;
+    if (!mpc_submission_id && !mpc_payload) return emptyCell;
+
+    return (
+      <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+        <Box>
+          {mpc_payload?.track_id && (
+            <Typography variant="body2">{mpc_payload.track_id}</Typography>
+          )}
+          {mpc_submission_id && (
+            <Tooltip title="ID of the submission returned by the MPC">
+              <Typography variant="caption" sx={{ color: "text.secondary" }}>
+                {mpc_submission_id}
+              </Typography>
+            </Tooltip>
+          )}
+        </Box>
+        {mpc_payload?.psv && (
+          <Tooltip title="PSV sent to the MPC">
+            <IconButton
+              size="small"
+              onClick={() => setShowPSV(mpc_payload.psv)}
+            >
+              <HistoryEduIcon fontSize="small" />
+            </IconButton>
+          </Tooltip>
+        )}
+      </Box>
+    );
+  };
+
+  const enabled = (key: string) =>
+    !sharingService || sharingService[`enable_sharing_with_${key}`] === true;
 
   const columns: any[] = [
     {
@@ -238,34 +285,64 @@ const SharingServiceSubmissionsPage = () => {
         );
       },
     },
-    {
-      field: "hermes_status",
-      headerName: "Hermes status",
-      flex: 1.6,
-      minWidth: 200,
-      renderCell: (params: any) => renderStatus(params.row.hermes_status),
-    },
-    {
-      field: "trove_status",
-      headerName: "TROVE status",
-      flex: 1.6,
-      minWidth: 200,
-      renderCell: (params: any) => renderStatus(params.row.trove_status),
-    },
-    {
-      field: "tns_status",
-      headerName: "TNS status",
-      flex: 1.6,
-      minWidth: 200,
-      renderCell: (params: any) => renderStatus(params.row.tns_status),
-    },
-    {
-      field: "tns_info",
-      headerName: "TNS info",
-      flex: 0.7,
-      minWidth: 130,
-      renderCell: renderTnsInfo,
-    },
+    ...(enabled("hermes")
+      ? [
+          {
+            field: "hermes_status",
+            headerName: "Hermes status",
+            flex: 1.6,
+            minWidth: 200,
+            renderCell: (params: any) => renderStatus(params.row.hermes_status),
+          },
+        ]
+      : []),
+    ...(enabled("trove")
+      ? [
+          {
+            field: "trove_status",
+            headerName: "TROVE status",
+            flex: 1.6,
+            minWidth: 200,
+            renderCell: (params: any) => renderStatus(params.row.trove_status),
+          },
+        ]
+      : []),
+    ...(enabled("tns")
+      ? [
+          {
+            field: "tns_status",
+            headerName: "TNS status",
+            flex: 1.6,
+            minWidth: 200,
+            renderCell: (params: any) => renderStatus(params.row.tns_status),
+          },
+          {
+            field: "tns_info",
+            headerName: "TNS info",
+            flex: 0.7,
+            minWidth: 130,
+            renderCell: renderTnsInfo,
+          },
+        ]
+      : []),
+    ...(enabled("mpc")
+      ? [
+          {
+            field: "mpc_status",
+            headerName: "MPC status",
+            flex: 1.6,
+            minWidth: 200,
+            renderCell: (params: any) => renderStatus(params.row.mpc_status),
+          },
+          {
+            field: "mpc_info",
+            headerName: "MPC info",
+            flex: 1,
+            minWidth: 200,
+            renderCell: renderMpcInfo,
+          },
+        ]
+      : []),
     {
       field: "custom_publishing_string",
       headerName: "Custom publishing string",
@@ -367,6 +444,42 @@ const SharingServiceSubmissionsPage = () => {
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setShowTNSPayload(null)} color="primary">
+            Close
+          </Button>
+        </DialogActions>
+      </Dialog>
+      <Dialog
+        open={showPSV !== null}
+        onClose={() => setShowPSV(null)}
+        maxWidth="lg"
+      >
+        <DialogTitle
+          sx={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: 2,
+          }}
+        >
+          MPC PSV
+          <Tooltip title="Copy to clipboard">
+            <IconButton
+              onClick={() => navigator.clipboard.writeText(showPSV ?? "")}
+            >
+              <ContentCopyIcon />
+            </IconButton>
+          </Tooltip>
+        </DialogTitle>
+        <DialogContent>
+          <Box
+            component="pre"
+            sx={{ fontSize: "0.75rem", m: 0, overflowX: "auto" }}
+          >
+            {showPSV}
+          </Box>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setShowPSV(null)} color="primary">
             Close
           </Button>
         </DialogActions>

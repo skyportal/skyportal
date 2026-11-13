@@ -56,6 +56,7 @@ import { useGetInstrumentsQuery } from "../../ducks/instruments";
 import { CustomCheckboxWidgetMuiTheme } from "../CustomCheckboxWidget";
 import { userLabel } from "../../utils/format";
 import { useGetUsersQuery } from "../../ducks/users";
+import testingModeText from "./testingMode";
 
 const Form = withTheme(CustomCheckboxWidgetMuiTheme as any);
 
@@ -903,7 +904,7 @@ const SharingServicesPage = () => {
           title: "Testing Mode",
           default: true,
           description:
-            "If enabled, the sharing service will not publish the data but only store the payload in the DB (useful for debugging).",
+            "If enabled, nothing is published: TNS payloads are only stored, Hermes, TROVE and the MPC get their test endpoints.",
         },
         first_and_last_detections: {
           type: "boolean",
@@ -980,12 +981,12 @@ const SharingServicesPage = () => {
           {row.testing === true && (
             <Tooltip
               title={
-                <h2>
-                  This sharing service is currently in testing mode. It will not
-                  publish any data to TNS but will store the payload in the
-                  database instead (useful for debugging purposes). For Hermes,
-                  it will publish to the test topic.
-                </h2>
+                <Box sx={{ fontSize: "0.8rem", fontWeight: 500 }}>
+                  Testing mode:
+                  {testingModeText(row).map((line) => (
+                    <div key={line}>- {line}</div>
+                  ))}
+                </Box>
               }
               placement="right"
             >
