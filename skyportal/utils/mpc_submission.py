@@ -126,7 +126,7 @@ def default_submitter(user):
     return user.username
 
 
-def track_psv(track, sharing_service, submitter):
+def track_psv(track, sharing_service, submitter, exclude_candids=()):
     """A broker's track as the PSV the sharing service files under ``submitter``."""
     header = sharing_service.mpc_altdata or {}
     missing = [field for field in MPC_HEADER_FIELDS if not header.get(field)]
@@ -134,8 +134,13 @@ def track_psv(track, sharing_service, submitter):
         raise NotSubmittable(
             f"sharing service {sharing_service.name} is missing MPC {', '.join(missing)}"
         )
+    excluded = {str(candid) for candid in exclude_candids}
     return psv_submission(
-        [{**d, "jd": d["obs_jd"]} for d in track["detections"]],
+        [
+            {**d, "jd": d["obs_jd"]}
+            for d in track["detections"]
+            if str(d.get("candid")) not in excluded
+        ],
         track["id"],
         observatory={"mpc_code": header["observatory_code"]},
         telescope={

@@ -31,7 +31,11 @@ from ...utils.moving_objects import (
     find_observable_sequence,
     get_ephemeris,
 )
-from ...utils.mpc_submission import ack_email, default_submitter, track_psv
+from ...utils.mpc_submission import (
+    ack_email,
+    default_submitter,
+    track_psv,
+)
 from ..base import BaseHandler
 from .broker import alert_permissions_async
 
@@ -475,6 +479,10 @@ class MovingObjectTrackMPCQuery(BaseModel):
         default=None,
         description="Name to preview the submission under. Defaults to the requester's.",
     )
+    exclude_candids: str | None = Field(
+        default=None,
+        description="Comma-separated candids of detections to leave out.",
+    )
 
 
 def track_submissions(*track_ids):
@@ -560,9 +568,10 @@ class MovingObjectTrackMPCHandler(BaseHandler):
             submitter = query.submitter or default_submitter(
                 self.associated_user_object
             )
+            exclude = [c for c in (query.exclude_candids or "").split(",") if c]
             try:
                 track = await self._track(session, query.broker_id, track_id)
-                data["psv"] = track_psv(track, sharing_service, submitter)
+                data["psv"] = track_psv(track, sharing_service, submitter, exclude)
             except Exception as e:
                 return self.error(f"Cannot submit {track_id}: {e}")
             data["submitter"] = submitter
@@ -616,7 +625,9 @@ class MovingObjectTrackMPCHandler(BaseHandler):
             try:
                 ack_email(user, sharing_service)
                 track = await self._track(session, body.broker_id, track_id)
-                psv = track_psv(track, sharing_service, submitter)
+                psv = body.psv or track_psv(
+                    track, sharing_service, submitter, body.exclude_candids
+                )
             except Exception as e:
                 return self.error(f"Cannot submit {track_id}: {e}")
 
@@ -647,6 +658,7 @@ class MovingObjectTrackMPCHandler(BaseHandler):
                     "track_id": track["id"],
                     "broker_id": body.broker_id,
                     "submitter": submitter,
+                    "exclude_candids": body.exclude_candids,
                     "psv": psv,
                 },
             )

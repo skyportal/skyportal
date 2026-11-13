@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
 import Alert from "@mui/material/Alert";
-import Box from "@mui/material/Box";
 import Button from "@mui/material/Button";
 import CircularProgress from "@mui/material/CircularProgress";
 import Dialog from "@mui/material/Dialog";
@@ -22,6 +21,7 @@ interface TrackMPCSubmitProps {
   trackId: string;
   brokerId: number;
   objId: string;
+  excludeCandids: string[];
 }
 
 const ACTIVE_STATUSES = ["pending", "processing", "submitted"];
@@ -31,12 +31,18 @@ const errorMessage = (error: unknown) => {
   return e?.data?.message ?? e?.error ?? "Cannot build the submission";
 };
 
-const TrackMPCSubmit = ({ trackId, brokerId, objId }: TrackMPCSubmitProps) => {
+const TrackMPCSubmit = ({
+  trackId,
+  brokerId,
+  objId,
+  excludeCandids,
+}: TrackMPCSubmitProps) => {
   const dispatch = useAppDispatch();
   const [open, setOpen] = useState(false);
   const [serviceId, setServiceId] = useState<number | "">("");
   const [submitter, setSubmitter] = useState("");
   const [draft, setDraft] = useState<string | null>(null);
+  const [psv, setPsv] = useState("");
 
   const { data: services = [] } = useGetSharingServicesQuery(undefined, {
     skip: !open,
@@ -54,6 +60,7 @@ const TrackMPCSubmit = ({ trackId, brokerId, objId }: TrackMPCSubmitProps) => {
       brokerId,
       sharingServiceId: serviceId === "" ? undefined : serviceId,
       submitter: submitter || undefined,
+      excludeCandids,
     },
     { skip: !open },
   );
@@ -67,6 +74,21 @@ const TrackMPCSubmit = ({ trackId, brokerId, objId }: TrackMPCSubmitProps) => {
     if (draft === null && preview?.submitter) setDraft(preview.submitter);
   }, [draft, preview?.submitter]);
 
+  useEffect(() => {
+    setPsv(preview?.psv ?? "");
+  }, [preview?.psv]);
+
+  const edited = Boolean(preview?.psv) && psv !== preview?.psv;
+
+  const download = () => {
+    const url = URL.createObjectURL(new Blob([psv], { type: "text/plain" }));
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `${trackId}.psv`;
+    link.click();
+    URL.revokeObjectURL(url);
+  };
+
   const active = preview?.submissions.find((s) =>
     ACTIVE_STATUSES.includes(s.mpc_status ?? ""),
   );
@@ -79,6 +101,8 @@ const TrackMPCSubmit = ({ trackId, brokerId, objId }: TrackMPCSubmitProps) => {
       obj_id: objId,
       broker_id: brokerId,
       submitter: draft || undefined,
+      exclude_candids: excludeCandids,
+      psv: edited ? psv : undefined,
     });
     if ("error" in result) return;
     dispatch(showNotification(`${trackId} queued for the MPC`));
@@ -145,29 +169,39 @@ const TrackMPCSubmit = ({ trackId, brokerId, objId }: TrackMPCSubmitProps) => {
             </Alert>
           )}
           {preview?.psv && (
-            <Box
-              component="pre"
-              sx={{
-                fontSize: "0.7rem",
-                overflowX: "auto",
-                m: 0,
-                p: "0.5rem",
-                border: 1,
-                borderColor: "divider",
-                borderRadius: 1,
+            <TextField
+              multiline
+              fullWidth
+              label={edited ? "PSV (edited)" : "PSV"}
+              value={psv}
+              onChange={(e) => setPsv(e.target.value)}
+              slotProps={{
+                htmlInput: {
+                  spellCheck: false,
+                  style: {
+                    fontFamily: "monospace",
+                    fontSize: "0.7rem",
+                    whiteSpace: "pre",
+                    overflowX: "auto",
+                  },
+                },
               }}
-            >
-              {preview.psv}
-            </Box>
+            />
           )}
         </DialogContent>
         <DialogActions>
+          {edited && (
+            <Button onClick={() => setPsv(preview?.psv ?? "")}>Reset</Button>
+          )}
+          <Button onClick={download} disabled={!psv}>
+            Download
+          </Button>
           <Button onClick={() => setOpen(false)}>Cancel</Button>
           <Button
             variant="contained"
             onClick={onSubmit}
             disabled={
-              !preview?.psv || isFetching || submitting || Boolean(active)
+              !psv.trim() || isFetching || submitting || Boolean(active)
             }
           >
             {submitting ? (
