@@ -19,6 +19,11 @@ import { useGetInstrumentsQuery } from "../../ducks/instruments";
 
 dayjs.extend(utc);
 
+export const ASSIGNMENT_PURPOSES = [
+  { value: "classification", label: "Classification" },
+  { value: "follow-up", label: "Follow-up" },
+];
+
 const useStyles = makeStyles()((theme) => ({
   formControl: {
     margin: theme.spacing(1),
@@ -71,6 +76,7 @@ const AssignmentForm = ({ obj_id, observingRunList }: AssignmentFormProps) => {
     run_id:
       upcomingObservingRuns.length > 0 ? upcomingObservingRuns[0].id : null,
     priority: "1",
+    purpose: "",
     obj_id,
   };
 
@@ -80,7 +86,7 @@ const AssignmentForm = ({ obj_id, observingRunList }: AssignmentFormProps) => {
       ...initialFormState,
       ...getValues(),
     };
-    submitAssignment(formData);
+    submitAssignment({ ...formData, purpose: formData.purpose || null });
     reset(initialFormState);
   };
 
@@ -150,6 +156,34 @@ const AssignmentForm = ({ obj_id, observingRunList }: AssignmentFormProps) => {
                   {["1", "2", "3", "4", "5"].map((prio) => (
                     <MenuItem value={prio} key={prio}>
                       {prio}
+                    </MenuItem>
+                  ))}
+                </Select>
+              )}
+            />
+          </FormControl>
+          <FormControl className={classes.formControl}>
+            <InputLabel id="purposeSelect">Purpose</InputLabel>
+            <Controller
+              {...({
+                inputProps: { MenuProps: { disableScrollLock: true } },
+              } as any)}
+              defaultValue=""
+              name="purpose"
+              control={control}
+              render={({ field: { onChange, value } }) => (
+                <Select
+                  labelId="purposeSelect"
+                  label="Purpose"
+                  onChange={onChange}
+                  value={value}
+                  size="small"
+                  data-testid="assignmentPurposeSelect"
+                >
+                  <MenuItem value="">None</MenuItem>
+                  {ASSIGNMENT_PURPOSES.map(({ value: purpose, label }) => (
+                    <MenuItem value={purpose} key={purpose}>
+                      {label}
                     </MenuItem>
                   ))}
                 </Select>
