@@ -246,7 +246,6 @@ class SourceResponse(BaseModel):
     origin: str | None = None
     alias: list[str] | None = None
     healpix: int | None = None
-    detect_photometry_count: int | None = None
     # Obj.to_dict strips this; the source handlers add it back by hand.
     internal_key: str | None = None
 
@@ -465,7 +464,6 @@ class SourcePost(BaseModel):
     score: float | None = None
     origin: str | None = None
     alias: list[str] | None = None
-    detect_photometry_count: int | None = None
     group_ids: list[int] | None = None
     refresh_source: bool | None = None
     ignore_if_in_group_ids: dict[str, list[int]] | None = None
