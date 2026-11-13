@@ -114,6 +114,7 @@ export const ROUTE_SCHEMA_MAP = {
   "GET /api/sources/{obj_id}/classifications": { schema: "Classification" as const, list: true },
   "GET /api/sources/{obj_id}/groups": { schema: "Group" as const, list: true },
   "GET /api/sources/{obj_id}/phot_stat": { schema: "PhotStat" as const, list: false },
+  "GET /api/sources/{obj_id}/similar": { schema: "SimilarSourcesResponse" as const, list: false },
   "GET /api/sources_in_gcn/{dateobs}": { schema: "GcnEventObj" as const, list: true },
   "GET /api/sources_in_gcn/{dateobs}/{source_id}": { schema: "GcnEventObj" as const, list: true },
   "GET /api/spatial_catalog": { schema: "SpatialCatalog" as const, list: true },

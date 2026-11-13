@@ -9869,6 +9869,54 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/sources/{obj_id}/similar": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get an object's nearest neighbors
+         * @description Objects closest to this one in a broker's embedding space (BOOM's AppleCiDEr embeddings), limited to the programs the requester's streams grant. Each neighbor carries its redshift and latest human classification when the requester can read it here.
+         */
+        get: {
+            parameters: {
+                query?: {
+                    /** @description Neighbors to return. */
+                    topK?: number;
+                    /** @description Broker to search. Defaults to the first active broker that serves similarity search. */
+                    brokerId?: number | null;
+                };
+                header?: never;
+                path: {
+                    /** @description Object whose neighbors to find. */
+                    obj_id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Success"] & {
+                            data?: components["schemas"]["SimilarSourcesResponse"];
+                        };
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/phot_stats": {
         parameters: {
             query?: never;
@@ -45957,6 +46005,75 @@ export interface components {
              * @default null
              */
             notes: string | null;
+        };
+        /**
+         * NeighborClassification
+         * @description The most recent human classification of a neighbor.
+         */
+        NeighborClassification: {
+            /** Classification */
+            classification: string;
+            /**
+             * Probability
+             * @default null
+             */
+            probability: number | null;
+            /** Taxonomy Id */
+            taxonomy_id: number;
+        };
+        /**
+         * SimilarSourceResponse
+         * @description One neighbor of an object in the broker's embedding space.
+         */
+        SimilarSourceResponse: {
+            /** Obj Id */
+            obj_id: string;
+            /**
+             * Score
+             * @description Cosine similarity, higher is closer.
+             */
+            score: number;
+            /**
+             * Jd
+             * @description JD of the alert the embedding came from.
+             * @default null
+             */
+            jd: number | null;
+            /**
+             * Model Label
+             * @description The broker model's class for the neighbor.
+             * @default null
+             */
+            model_label: string | null;
+            /**
+             * Model Probability
+             * @default null
+             */
+            model_probability: number | null;
+            /**
+             * In Skyportal
+             * @description Whether the requester can read this object here.
+             */
+            in_skyportal: boolean;
+            /**
+             * Redshift
+             * @default null
+             */
+            redshift: number | null;
+            /** @default null */
+            classification: components["schemas"]["NeighborClassification"];
+        };
+        /**
+         * SimilarSourcesResponse
+         * @description An object's nearest neighbors, best first.
+         */
+        SimilarSourcesResponse: {
+            /** Obj Id */
+            obj_id: string;
+            /** Broker Id */
+            broker_id: number;
+            /** Neighbors */
+            neighbors?: components["schemas"]["SimilarSourceResponse"][];
         };
         LocalizationHandlerGet: {
             /** @description Localization name */
