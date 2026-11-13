@@ -400,6 +400,9 @@ class AssignmentHandler(BaseHandler):
             if "priority" in data:
                 assignment.priority = data["priority"]
 
+            if "purpose" in data:
+                assignment.purpose = data["purpose"]
+
             if "last_modified_by_id" in data:
                 assignment.last_modified_by_id = data["last_modified_by_id"]
 

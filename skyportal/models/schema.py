@@ -41,6 +41,7 @@ from skyportal.enum_types import (
     ALLOWED_BANDPASSES,
     ALLOWED_MAGSYSTEMS,
     ALLOWED_SPECTRUM_TYPES,
+    ASSIGNMENT_PURPOSES,
     default_spectrum_type,
     force_render_enum_markdown,
     py_allowed_bandpasses,
@@ -1176,6 +1177,11 @@ class AssignmentSchema(_Schema):
     status = fields.String(metadata={"description": "The status of the request"})
     comment = fields.String(
         metadata={"description": "An optional comment describing the request."}
+    )
+    purpose = fields.String(
+        allow_none=True,
+        validate=validate.OneOf(ASSIGNMENT_PURPOSES),
+        metadata={"description": "Purpose of the assignment."},
     )
 
 
