@@ -208,6 +208,7 @@ def _programids(kwargs, survey):
 
 
 NO_PROGRAMID_SURVEYS = {"LSST", "DECAM", "ARGUS"}
+ALL_ZTF_PROGRAMIDS = [1, 2, 3]
 DENY_ALL = {"_id": {"$in": []}}
 
 
@@ -1241,6 +1242,43 @@ class BOOMBROKER(BrokerAPI):
                 if sources:
                     results[catalog] = sources
         return results
+
+    @staticmethod
+    def similar_objects(broker, object_id, session, top_k=10, **kwargs):
+        if survey_from_object_id(object_id, ["ZTF"]) != "ZTF":
+            return []
+        programids = _programids(kwargs, "ZTF")
+        if programids is None:
+            programids = ALL_ZTF_PROGRAMIDS
+        if not programids:
+            return []
+        try:
+            neighbors = _request(
+                broker,
+                "POST",
+                "similarity/objects",
+                json={
+                    "object_id": object_id,
+                    "top_k": int(top_k),
+                    "programids": programids,
+                },
+            )
+        except requests.HTTPError as e:
+            if e.response is not None and e.response.status_code == 404:
+                return []
+            raise
+        return [
+            {
+                "object_id": n["object_id"],
+                "score": n["score"],
+                "jd": n.get("jd"),
+                "model_label": (n.get("applecider_fusion") or {}).get("decision_label"),
+                "model_probability": (n.get("applecider_fusion") or {}).get(
+                    "decision_probability"
+                ),
+            }
+            for n in neighbors or []
+        ]
 
     @staticmethod
     def gaia_cone_search(broker, ra, dec, radius_degrees, columns):

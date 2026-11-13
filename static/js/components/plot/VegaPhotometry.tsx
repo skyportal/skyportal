@@ -105,10 +105,17 @@ interface VegaPhotometryProps {
   annotations?: any[];
   folded?: boolean;
   style?: React.CSSProperties;
+  controls?: boolean;
 }
 
 const VegaPhotometry = (props: VegaPhotometryProps) => {
-  const { sourceId, annotations = [], folded = false, style = {} } = props;
+  const {
+    sourceId,
+    annotations = [],
+    folded = false,
+    style = {},
+    controls = true,
+  } = props;
   const { data: photometry, isLoading } =
     useGetSourcePhotometryMinimalQuery(sourceId);
   const { data: config } = useGetConfigQuery() as { data: any };
@@ -204,7 +211,7 @@ const VegaPhotometry = (props: VegaPhotometryProps) => {
       {/* the left margin is to align the toggle with the y-axis of the plot */}
       <div
         style={{
-          display: "flex",
+          display: controls ? "flex" : "none",
           flexDirection: "row",
           justifyContent: "flex-start",
           gap: "0.5rem",
