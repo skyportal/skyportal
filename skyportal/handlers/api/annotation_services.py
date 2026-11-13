@@ -33,6 +33,7 @@ from skyportal_py_models.annotations import (
     VizierQueryBody,
 )
 from sqlalchemy.exc import IntegrityError
+from sqlalchemy.orm import selectinload
 from tornado.ioloop import IOLoop
 
 from baselayer.app.access import auth_or_token
@@ -475,11 +476,15 @@ class ALMAQueryHandler(BaseHandler):
             )
             # Coverage grows as proprietary periods lapse, so a repeat request
             # revises the annotation rather than colliding with it.
+            # Its groups are loaded up front, since an async session cannot
+            # lazy-load the old ones when they are replaced.
             annotation = await session.scalar(
-                sa.select(Annotation).where(
+                sa.select(Annotation)
+                .where(
                     Annotation.obj_id == obj_id,
                     Annotation.origin == ALMA_ANNOTATION_ORIGIN,
                 )
+                .options(selectinload(Annotation.groups))
             )
             if annotation is None:
                 session.add(

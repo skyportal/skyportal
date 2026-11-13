@@ -142,3 +142,37 @@ def test_datalab_photoz(annotation_token, public_source, public_group):
         and d["data"]["type"] == "REX"
         for d in data["data"]
     )
+
+
+@pytest.mark.flaky(reruns=3)
+def test_alma_coverage_is_revised_not_duplicated(public_group, upload_data_token):
+    obj_id = str(uuid.uuid4())
+    status, data = api(
+        "POST",
+        "sources",
+        # Centaurus A, which ALMA has observed in several bands.
+        data={
+            "id": obj_id,
+            "ra": 201.365063,
+            "dec": -43.019113,
+            "group_ids": [public_group.id],
+        },
+        token=upload_data_token,
+    )
+    assert status == 200
+
+    for _ in range(2):
+        status, data = api(
+            "POST", f"sources/{obj_id}/annotations/alma", token=upload_data_token
+        )
+        # A 400 is the archive failing; anything else but 200 is the handler's fault.
+        if status == 400:
+            pytest.skip(f"ALMA archive query unavailable for {obj_id}: {data}")
+        assert status == 200, data
+
+    status, data = api("GET", f"sources/{obj_id}/annotations", token=upload_data_token)
+    assert status == 200
+    annotations = [a for a in data["data"] if a["origin"] == "alma-archive"]
+    assert len(annotations) == 1
+    assert annotations[0]["data"]["observed"] is True
+    assert annotations[0]["data"]["n_observations"] > 0
