@@ -13,6 +13,7 @@ import { showNotification } from "baselayer/components/Notifications";
 import Button from "../Button";
 import { useEditAssignmentMutation } from "../../ducks/source";
 import { useAppDispatch } from "../../types/hooks";
+import { ASSIGNMENT_PURPOSES } from "./AssignmentForm";
 
 dayjs.extend(utc);
 
@@ -35,6 +36,7 @@ interface Assignment {
   id?: number;
   comment?: string;
   priority?: number;
+  purpose?: string | null;
 }
 
 interface ModifyAssignmentProps {
@@ -56,6 +58,7 @@ const ModifyAssignment = ({
     reset({
       comment: assignment?.comment,
       priority: assignment?.priority,
+      purpose: assignment?.purpose ?? "",
     });
   }, [assignment]);
 
@@ -75,6 +78,9 @@ const ModifyAssignment = ({
     // if the comment is different, update it
     if (newValues["comment"] !== assignment.comment) {
       formData.comment = newValues["comment"];
+    }
+    if ((newValues["purpose"] || null) !== (assignment.purpose ?? null)) {
+      formData.purpose = newValues["purpose"] || null;
     }
     editAssignment({ params: formData, assignmentID: assignment.id })
       .unwrap()
@@ -110,6 +116,30 @@ const ModifyAssignment = ({
                   {["1", "2", "3", "4", "5"].map((prio) => (
                     <MenuItem value={prio} key={prio}>
                       {prio}
+                    </MenuItem>
+                  ))}
+                </Select>
+              )}
+            />
+          </FormControl>
+          <FormControl className={classes.formControl} size="small">
+            <InputLabel id="purposeSelectLabel">Purpose</InputLabel>
+            <Controller
+              defaultValue=""
+              name="purpose"
+              control={control}
+              render={({ field: { onChange, value } }) => (
+                <Select
+                  labelId="purposeSelectLabel"
+                  label="Purpose"
+                  onChange={onChange}
+                  value={value}
+                  size="small"
+                >
+                  <MenuItem value="">None</MenuItem>
+                  {ASSIGNMENT_PURPOSES.map(({ value: purpose, label }) => (
+                    <MenuItem value={purpose} key={purpose}>
+                      {label}
                     </MenuItem>
                   ))}
                 </Select>

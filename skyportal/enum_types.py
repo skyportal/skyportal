@@ -92,6 +92,7 @@ GCN_EVENT_OBJ_STATUSES = ("pending", "confirmed", "ambiguous", "rejected")
 INSTRUMENT_TYPES = ("imager", "spectrograph", "imaging spectrograph")
 MMA_DETECTOR_TYPES = ("gravitational-wave", "neutrino", "gamma-ray-burst", "x-ray")
 FOLLOWUP_PRIORITIES = ("1", "2", "3", "4", "5")
+ASSIGNMENT_PURPOSES = ("classification", "follow-up")
 
 ANALYSIS_TYPES = (
     "lightcurve_fitting",

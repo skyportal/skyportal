@@ -30,6 +30,7 @@ class AssignmentResponse(BaseModel):
     status: str | None = None
     priority: Literal["1", "2", "3", "4", "5"] | None = None
     comment: str | None = None
+    purpose: str | None = None
     # typed as dict to avoid an import cycle with sources
     obj: dict[str, Any] | None = None
     requester: UserResponse | None = None
@@ -47,6 +48,7 @@ class AssignmentResponse(BaseModel):
 
 
 FollowupPriority = Literal["1", "2", "3", "4", "5"]
+AssignmentPurpose = Literal["classification", "follow-up"]
 
 
 class AssignmentPost(BaseModel):
@@ -59,10 +61,12 @@ class AssignmentPost(BaseModel):
     priority: FollowupPriority
     status: str | None = None
     comment: str | None = None
+    purpose: AssignmentPurpose | None = None
 
 
 __all__ = [
     "AssignmentPost",
+    "AssignmentPurpose",
     "AssignmentResponse",
     "FollowupPriority",
 ]
