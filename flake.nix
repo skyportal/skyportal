@@ -20,6 +20,7 @@
             nixfmt
             bun
             corepack
+            knope
             nodejs-slim_26
             python3
             uv
