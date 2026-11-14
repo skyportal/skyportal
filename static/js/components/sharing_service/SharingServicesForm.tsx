@@ -35,6 +35,7 @@ import { useGetInstrumentsQuery } from "../../ducks/instruments";
 import { CustomCheckboxWidgetMuiTheme } from "../CustomCheckboxWidget";
 import { userLabel } from "../../utils/format";
 import { useGetUsersQuery } from "../../ducks/users";
+import testingModeText from "./testingMode";
 
 const Form = withTheme(CustomCheckboxWidgetMuiTheme as any);
 
@@ -586,14 +587,12 @@ const SharingServicesDialog = ({
                   {sharingService.testing === true && (
                     <Tooltip
                       title={
-                        <h3>
-                          This Sharing Service is currently in testing mode. It
-                          will not publish any data to TNS but will store the
-                          payload in the database instead (useful for debugging
-                          purposes). For Hermes, it will publish to the test
-                          topic. You can remove it from the sharing services
-                          page.
-                        </h3>
+                        <Box sx={{ fontSize: "0.8rem", fontWeight: 500 }}>
+                          Testing mode:
+                          {testingModeText(sharingService).map((line) => (
+                            <div key={line}>- {line}</div>
+                          ))}
+                        </Box>
                       }
                       placement="right"
                     >

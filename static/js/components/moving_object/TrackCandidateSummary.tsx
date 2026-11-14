@@ -54,6 +54,7 @@ const TrackCandidateSummary = ({
   const { data: known } = useGetTrackKnownObjectQuery(trackId);
   const [checkKnown] = useCheckTrackKnownObjectMutation();
   const [checking, setChecking] = useState(false);
+  const [excluded, setExcluded] = useState<string[]>([]);
 
   useEffect(() => {
     if (known) setChecking(false);
@@ -223,6 +224,14 @@ const TrackCandidateSummary = ({
               measurement={vetting}
               knownObject={known}
               checkingKnown={checking}
+              excluded={excluded}
+              onToggleExcluded={(candid) =>
+                setExcluded((current) =>
+                  current.includes(candid)
+                    ? current.filter((c) => c !== candid)
+                    : [...current, candid],
+                )
+              }
             />
           )}
         </DialogContent>
@@ -232,6 +241,7 @@ const TrackCandidateSummary = ({
               trackId={track.id}
               brokerId={brokerId}
               objId={objId}
+              excludeCandids={excluded}
             />
           </DialogActions>
         )}

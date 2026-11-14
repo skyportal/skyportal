@@ -73,6 +73,7 @@ export interface TrackMPCPreview {
   submissions: TrackMPCSubmission[];
   psv?: string;
   submitter?: string;
+  submitters?: string[];
   members_withheld?: number;
 }
 
@@ -161,9 +162,16 @@ export const movingObjectTrackApi = skyportalApi.injectEndpoints({
         brokerId: number;
         sharingServiceId?: number | undefined;
         submitter?: string | undefined;
+        excludeCandids?: string[];
       }
     >({
-      query: ({ trackId, brokerId, sharingServiceId, submitter }) => ({
+      query: ({
+        trackId,
+        brokerId,
+        sharingServiceId,
+        submitter,
+        excludeCandids,
+      }) => ({
         url: `api/moving_object/track/${encodeURIComponent(trackId)}/mpc`,
         params: {
           broker_id: brokerId,
@@ -171,6 +179,9 @@ export const movingObjectTrackApi = skyportalApi.injectEndpoints({
             ? { sharing_service_id: sharingServiceId }
             : {}),
           ...(submitter ? { submitter } : {}),
+          ...(excludeCandids?.length
+            ? { exclude_candids: excludeCandids.join(",") }
+            : {}),
         },
       }),
       extraOptions: { suppressErrorNotification: true },
@@ -186,6 +197,8 @@ export const movingObjectTrackApi = skyportalApi.injectEndpoints({
         obj_id: string;
         broker_id: number;
         submitter?: string | undefined;
+        exclude_candids?: string[];
+        psv?: string | undefined;
         submission_type: "regular" | "neo_candidate" | "new_comet";
       }
     >({

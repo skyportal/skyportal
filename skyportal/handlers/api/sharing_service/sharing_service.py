@@ -398,6 +398,7 @@ class SharingServiceHandler(BaseHandler):
                     if group.owner:
                         owner_group_ids.append(group.group_id)
                 sharing_service.owner_group_ids = owner_group_ids
+                sharing_service.mpc_header = sharing_service.mpc_altdata
                 return self.success(data=sharing_service)
             else:
                 result = await session.scalars(stmt)
@@ -408,6 +409,7 @@ class SharingServiceHandler(BaseHandler):
                         if group.owner:
                             owner_group_ids.append(group.group_id)
                     sharing_service.owner_group_ids = owner_group_ids
+                    sharing_service.mpc_header = sharing_service.mpc_altdata
                 return self.success(data=sharing_services)
 
     @permissions(["Manage sharing services"])

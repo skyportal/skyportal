@@ -31,7 +31,12 @@ from ...utils.moving_objects import (
     find_observable_sequence,
     get_ephemeris,
 )
-from ...utils.mpc_submission import ack_email, default_submitter, track_psv
+from ...utils.mpc_submission import (
+    ack_email,
+    default_submitter,
+    service_submitters,
+    track_psv,
+)
 from ..base import BaseHandler
 from .broker import alert_permissions_async
 
@@ -473,7 +478,12 @@ class MovingObjectTrackMPCQuery(BaseModel):
     )
     submitter: str | None = Field(
         default=None,
-        description="Name to preview the submission under. Defaults to the requester's.",
+        description="Name to preview the submission under. Defaults to the sharing "
+        "service's first MPC submitter, else the requester's.",
+    )
+    exclude_candids: str | None = Field(
+        default=None,
+        description="Comma-separated candids of detections to leave out.",
     )
 
 
@@ -558,14 +568,16 @@ class MovingObjectTrackMPCHandler(BaseHandler):
                     f"No sharing service available with ID {query.sharing_service_id}"
                 )
             submitter = query.submitter or default_submitter(
-                self.associated_user_object
+                self.associated_user_object, sharing_service
             )
+            exclude = [c for c in (query.exclude_candids or "").split(",") if c]
             try:
                 track = await self._track(session, query.broker_id, track_id)
-                data["psv"] = track_psv(track, sharing_service, submitter)
+                data["psv"] = track_psv(track, sharing_service, submitter, exclude)
             except Exception as e:
                 return self.error(f"Cannot submit {track_id}: {e}")
             data["submitter"] = submitter
+            data["submitters"] = service_submitters(sharing_service)
             data["members_withheld"] = track["members_withheld"]
             return self.success(data=data)
 
@@ -612,11 +624,13 @@ class MovingObjectTrackMPCHandler(BaseHandler):
             if obj is None:
                 return self.error(f"No object available with ID {body.obj_id}")
 
-            submitter = body.submitter or default_submitter(user)
+            submitter = body.submitter or default_submitter(user, sharing_service)
             try:
                 ack_email(user, sharing_service)
                 track = await self._track(session, body.broker_id, track_id)
-                psv = track_psv(track, sharing_service, submitter)
+                psv = body.psv or track_psv(
+                    track, sharing_service, submitter, body.exclude_candids
+                )
             except Exception as e:
                 return self.error(f"Cannot submit {track_id}: {e}")
 
@@ -647,6 +661,7 @@ class MovingObjectTrackMPCHandler(BaseHandler):
                     "track_id": track["id"],
                     "broker_id": body.broker_id,
                     "submitter": submitter,
+                    "exclude_candids": body.exclude_candids,
                     "submission_type": body.submission_type,
                     "psv": psv,
                 },

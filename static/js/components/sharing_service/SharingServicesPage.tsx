@@ -56,6 +56,7 @@ import { useGetInstrumentsQuery } from "../../ducks/instruments";
 import { CustomCheckboxWidgetMuiTheme } from "../CustomCheckboxWidget";
 import { userLabel } from "../../utils/format";
 import { useGetUsersQuery } from "../../ducks/users";
+import testingModeText from "./testingMode";
 
 const Form = withTheme(CustomCheckboxWidgetMuiTheme as any);
 
@@ -708,7 +709,10 @@ const MPC_FIELDS = [
   ["telescope_aperture", "MPC telescope aperture (m)"],
   ["telescope_detector", "MPC detector"],
   ["ack_email", "MPC acknowledgement email (if the reviewer has none)"],
+  ["submitters", "MPC default submitters (comma-separated)"],
 ] as const;
+
+const OPTIONAL_MPC_FIELDS = ["ack_email", "submitters"];
 
 const SharingServicesPage = () => {
   const dispatch = useAppDispatch();
@@ -900,7 +904,7 @@ const SharingServicesPage = () => {
           title: "Testing Mode",
           default: true,
           description:
-            "If enabled, the sharing service will not publish the data but only store the payload in the DB (useful for debugging).",
+            "If enabled, nothing is published: TNS payloads are only stored, Hermes, TROVE and the MPC get their test endpoints.",
         },
         first_and_last_detections: {
           type: "boolean",
@@ -958,9 +962,9 @@ const SharingServicesPage = () => {
           ? ["trove_username", "trove_password"]
           : []),
         ...(isCreation && enableMPC
-          ? MPC_FIELDS.filter(([key]) => key !== "ack_email").map(
-              ([key]) => `mpc_${key}`,
-            )
+          ? MPC_FIELDS.filter(
+              ([key]) => !OPTIONAL_MPC_FIELDS.includes(key),
+            ).map(([key]) => `mpc_${key}`)
           : []),
       ],
     };
@@ -977,12 +981,12 @@ const SharingServicesPage = () => {
           {row.testing === true && (
             <Tooltip
               title={
-                <h2>
-                  This sharing service is currently in testing mode. It will not
-                  publish any data to TNS but will store the payload in the
-                  database instead (useful for debugging purposes). For Hermes,
-                  it will publish to the test topic.
-                </h2>
+                <Box sx={{ fontSize: "0.8rem", fontWeight: 500 }}>
+                  Testing mode:
+                  {testingModeText(row).map((line) => (
+                    <div key={line}>- {line}</div>
+                  ))}
+                </Box>
               }
               placement="right"
             >
@@ -1040,7 +1044,28 @@ const SharingServicesPage = () => {
             />
           )}
           {row.enable_sharing_with_mpc && (
-            <Chip size="small" label="MPC" color="primary" variant="outlined" />
+            <Tooltip
+              title={
+                <Box sx={{ fontSize: "0.8rem", fontWeight: 500 }}>
+                  MPC config:
+                  {MPC_FIELDS.filter(([key]) => row.mpc_header?.[key]).map(
+                    ([key, title]) => (
+                      <div key={key}>
+                        - {title.replace(/^MPC /, "")}: {row.mpc_header[key]}
+                      </div>
+                    ),
+                  )}
+                </Box>
+              }
+            >
+              <Chip
+                size="small"
+                label="MPC"
+                icon={<InfoIcon />}
+                color="primary"
+                variant="outlined"
+              />
+            </Tooltip>
           )}
         </Box>
       ),
@@ -1118,6 +1143,12 @@ const SharingServicesPage = () => {
                   setSharingServiceToManage({
                     ...row,
                     ...row.photometry_options,
+                    ...Object.fromEntries(
+                      MPC_FIELDS.map(([key]) => [
+                        `mpc_${key}`,
+                        row.mpc_header?.[key],
+                      ]),
+                    ),
                   });
                   setEnablePublishToTNS(row.enable_sharing_with_tns);
                   setEnablePublishToHermes(row.enable_sharing_with_hermes);

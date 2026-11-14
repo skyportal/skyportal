@@ -44,7 +44,7 @@ const UpdateSourceMPC = ({ source }: UpdateSourceMPCProps) => {
       ).slice(0, 16),
       search_radius: 1,
       limiting_magnitude: 24,
-      obscode: "500",
+      obscode: source.id.startsWith("ZTF") ? "I41" : "500",
     },
   });
   const field = (
@@ -121,7 +121,7 @@ const UpdateSourceMPC = ({ source }: UpdateSourceMPCProps) => {
               <TextField
                 {...field("obscode")}
                 label="Observatory code"
-                helperText="500 is the geocenter"
+                helperText="500 is the geocenter, I41 is ZTF"
                 sx={{ gridColumn: "1 / -1" }}
               />
             </Box>

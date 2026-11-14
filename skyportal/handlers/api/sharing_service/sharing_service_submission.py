@@ -412,12 +412,14 @@ class SharingServiceSubmissionHandler(BaseHandler):
                     stmt = stmt.options(
                         undefer(SharingServiceSubmission.tns_payload),
                         undefer(SharingServiceSubmission.trove_payload),
+                        undefer(SharingServiceSubmission.mpc_payload),
                     )
                 if query.include_response:
                     stmt = stmt.options(
                         undefer(SharingServiceSubmission.tns_response),
                         undefer(SharingServiceSubmission.hermes_response),
                         undefer(SharingServiceSubmission.trove_response),
+                        undefer(SharingServiceSubmission.mpc_response),
                     )
 
                 result = await session.scalars(

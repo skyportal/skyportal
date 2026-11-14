@@ -177,7 +177,15 @@ class MovingObjectTrackMPCPostBody(BaseModel):
     submitter: str | None = Field(
         default=None,
         description='Name the submission is filed under, as the MPC writes it ("Q. Ye"). '
-        "Defaults to the requester's.",
+        "Defaults to the sharing service's first MPC submitter, else the requester's.",
+    )
+    exclude_candids: list[str] = Field(
+        default_factory=list,
+        description="Detections the reviewer left out of the submission.",
+    )
+    psv: str | None = Field(
+        default=None,
+        description="The PSV as the reviewer edited it, sent instead of the generated one.",
     )
     submission_type: Literal["regular", "neo_candidate", "new_comet"] = Field(
         default="regular",
