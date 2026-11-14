@@ -238,7 +238,11 @@ from .sharing_service.sharing_service_submission import (
     SharingServiceSubmissionHandler,
 )
 from .shift import ShiftHandler, ShiftSummary, ShiftUserHandler
-from .similarity import SimilarSourcesHandler
+from .similarity import (
+    MoreLikeThisHandler,
+    SimilarityVettingHandler,
+    SimilarSourcesHandler,
+)
 from .skymap_trigger import SkymapTriggerAPIHandler
 from .source import (
     FinderChartFacilitiesHandler,
