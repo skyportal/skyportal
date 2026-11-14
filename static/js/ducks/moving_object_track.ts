@@ -199,6 +199,7 @@ export const movingObjectTrackApi = skyportalApi.injectEndpoints({
         submitter?: string | undefined;
         exclude_candids?: string[];
         psv?: string | undefined;
+        submission_type: "regular" | "neo_candidate" | "new_comet";
       }
     >({
       query: ({ trackId, ...body }) => ({

@@ -662,6 +662,7 @@ class MovingObjectTrackMPCHandler(BaseHandler):
                     "broker_id": body.broker_id,
                     "submitter": submitter,
                     "exclude_candids": body.exclude_candids,
+                    "submission_type": body.submission_type,
                     "psv": psv,
                 },
             )
