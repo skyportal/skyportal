@@ -24,8 +24,8 @@ An alert becomes a candidate only if all of these are true:
 2. **The survey has a zeropoint.** `ZP_PER_SURVEY` in
    `skyportal/broker_apis/_save.py` maps the survey name to an AB zeropoint. A
    survey missing from it raises on every alert, which shows up in the ingest
-   log. The value follows the units the points arrive in: flux in nJy is scaled
-   to Jy and takes 8.9, magnitudes are converted against 23.9.
+   log. Flux in nJy is scaled to Jy and takes 8.9, and magnitudes are converted
+   against the same zeropoint.
 3. **Its bands map to filters.** Filters are named `<survey><band>` by default.
    A survey that names its filters otherwise needs an entry in
    `BAND_TO_FILTER_PER_SURVEY`, alongside the zeropoints.
