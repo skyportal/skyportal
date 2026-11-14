@@ -9917,6 +9917,59 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/similarity/vetting": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get the neighbor vetting queue
+         * @description Sources a person classified recently whose human-classified neighbors in a broker's embedding space mostly belong to another branch of the taxonomy. Machine classifications are ignored on both sides. A subclass agrees with its parent class (SN Ia-91T with SN Ia).
+         */
+        get: {
+            parameters: {
+                query?: {
+                    /** @description Look back this many days. */
+                    days?: number;
+                    /** @description Neighbors per source. */
+                    topK?: number;
+                    /** @description Fewest human-classified neighbors to judge. */
+                    minLabeled?: number;
+                    /** @description Keep sources whose share of agreeing neighbors is at most this. */
+                    maxAgreement?: number;
+                    /** @description Only sources saved to these groups. */
+                    groupIds?: number[] | null;
+                    /** @description Broker to search. */
+                    brokerId?: number | null;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Success"] & {
+                            data?: components["schemas"]["SimilarityVettingResponse"];
+                        };
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/phot_stats": {
         parameters: {
             query?: never;
@@ -46109,6 +46162,49 @@ export interface components {
             broker_id: number;
             /** Neighbors */
             neighbors?: components["schemas"]["SimilarSourceResponse"][];
+        };
+        /**
+         * SimilarityVettingItem
+         * @description A source whose human-classified neighbors disagree with its class.
+         */
+        SimilarityVettingItem: {
+            /** Obj Id */
+            obj_id: string;
+            /** Classification */
+            classification: string;
+            /**
+             * Probability
+             * @default null
+             */
+            probability: number | null;
+            /** Classified At */
+            classified_at: string;
+            /** Labeled Neighbors */
+            labeled_neighbors: number;
+            /**
+             * Agreement
+             * @description Share of labeled neighbors on the same taxonomy branch.
+             */
+            agreement: number;
+            /** Neighbor Classes */
+            neighbor_classes?: {
+                [key: string]: number;
+            };
+        };
+        /**
+         * SimilarityVettingResponse
+         * @description Recently classified sources whose neighbors disagree, worst first.
+         */
+        SimilarityVettingResponse: {
+            /** Broker Id */
+            broker_id: number;
+            /**
+             * Checked
+             * @description Classified sources searched.
+             */
+            checked: number;
+            /** Items */
+            items?: components["schemas"]["SimilarityVettingItem"][];
         };
         LocalizationHandlerGet: {
             /** @description Localization name */
