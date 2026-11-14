@@ -247,69 +247,7 @@ class SEDMV2API(FollowUpAPI):
             Database session for this transaction
         """
 
-        from ..models import Allocation, FacilityTransaction, FollowupRequest
-
-        # Reload with the lazy chains this method walks eager-loaded, since
-        # async sessions raise on implicit lazy loads.
-        request = await session.scalar(
-            sa.select(FollowupRequest)
-            .where(FollowupRequest.id == request.id)
-            .options(
-                selectinload(FollowupRequest.allocation).selectinload(
-                    Allocation.instrument
-                ),
-                selectinload(FollowupRequest.obj),
-            )
-        )
-
-        validate_request_to_sedmv2(request)
-
-        if cfg["app.sedmv2_endpoint"] is not None:
-            altdata = request.allocation.altdata
-
-            if not altdata:
-                raise ValueError("Missing allocation information.")
-
-            payload = {
-                "obj_id": request.obj_id,
-                "allocation_id": request.allocation.id,
-                "payload": request.payload,
-            }
-
-            url = cfg["app.sedmv2_endpoint"]
-            headers = {"Authorization": f"token {altdata['api_token']}"}
-
-            async with aiohttp.ClientSession() as http_session:
-                async with http_session.post(url, json=payload, headers=headers) as r:
-                    content = await r.text()
-                    status = r.status
-
-            if status == 200:
-                request.status = "submitted"
-            else:
-                request.status = f"rejected: {content}"
-
-            transaction = FacilityTransaction(
-                request=http.serialize_aiohttp_request("POST", url, headers, payload),
-                response=await http.serialize_aiohttp_response(r, content),
-                followup_request=request,
-                initiator_id=request.last_modified_by_id,
-            )
-        else:
-            request.status = "submitted"
-
-            transaction = FacilityTransaction(
-                request=None,
-                response=None,
-                followup_request=request,
-                initiator_id=request.last_modified_by_id,
-            )
-
-        session.add(transaction)
-
-        push_followup_refresh(
-            request.obj.internal_key, request.last_modified_by_id, **kwargs
-        )
+        await SEDMV2API.submit(request, session, **kwargs)
 
     @staticmethod
     async def retrieve_log(allocation, start_date, end_date):

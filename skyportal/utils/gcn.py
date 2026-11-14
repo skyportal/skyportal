@@ -865,7 +865,9 @@ def from_ellipse(localization_name, ra, dec, amaj, amin, phi):
     return skymap
 
 
-def from_bytes(arr):
+def _read_skymap(path, localization_name):
+    """Read a multi-order skymap from a path or URL, zeroing Earth-occulted pixels."""
+
     def get_col(m, name):
         try:
             col = m[name]
@@ -874,6 +876,36 @@ def from_bytes(arr):
         else:
             return col.tolist()
 
+    skymap = ligo.skymap.io.read_sky_map(path, moc=True)
+    properties_dict, tags_list = properties_tags_from_meta(skymap.meta)
+
+    idx = np.where(skymap["PROBDENSITY"] < SKYMAP_MIN)[0]
+    skymap["PROBDENSITY"][idx] = 0
+
+    nside = 128
+    occulted = get_occulted(path, nside=nside)
+    if occulted is not None:
+        order = hp.nside2order(nside)
+        skymap_flat = ligo_bayestar.rasterize(skymap, order)["PROB"]
+        skymap_flat = hp.reorder(skymap_flat, "NESTED", "RING")
+        skymap_flat[occulted] = 0.0
+        skymap_flat = skymap_flat / skymap_flat.sum()
+        skymap_flat = hp.reorder(skymap_flat, "RING", "NESTED")
+        skymap = ligo_bayestar.derasterize(Table([skymap_flat], names=["PROB"]))
+
+    skymap = {
+        "localization_name": localization_name,
+        "uniq": get_col(skymap, "UNIQ"),
+        "probdensity": get_col(skymap, "PROBDENSITY"),
+        "distmu": get_col(skymap, "DISTMU"),
+        "distsigma": get_col(skymap, "DISTSIGMA"),
+        "distnorm": get_col(skymap, "DISTNORM"),
+    }
+
+    return skymap, properties_dict, tags_list
+
+
+def from_bytes(arr):
     with tempfile.NamedTemporaryFile(suffix=".fits.gz", mode="wb") as f:
         arrSplit = arr.split("base64,")
         filename = arrSplit[0].split("name=")[-1].replace(";", "")
@@ -883,34 +915,7 @@ def from_bytes(arr):
         f.write(base64.b64decode(arrSplit[-1]))
         f.flush()
 
-        skymap = ligo.skymap.io.read_sky_map(f.name, moc=True)
-
-        idx = np.where(skymap["PROBDENSITY"] < SKYMAP_MIN)[0]
-        skymap["PROBDENSITY"][idx] = 0
-
-        properties_dict, tags_list = properties_tags_from_meta(skymap.meta)
-
-        nside = 128
-        occulted = get_occulted(f.name, nside=nside)
-        if occulted is not None:
-            order = hp.nside2order(nside)
-            skymap_flat = ligo_bayestar.rasterize(skymap, order)["PROB"]
-            skymap_flat = hp.reorder(skymap_flat, "NESTED", "RING")
-            skymap_flat[occulted] = 0.0
-            skymap_flat = skymap_flat / skymap_flat.sum()
-            skymap_flat = hp.reorder(skymap_flat, "RING", "NESTED")
-            skymap = ligo_bayestar.derasterize(Table([skymap_flat], names=["PROB"]))
-
-        skymap = {
-            "localization_name": filename,
-            "uniq": get_col(skymap, "UNIQ"),
-            "probdensity": get_col(skymap, "PROBDENSITY"),
-            "distmu": get_col(skymap, "DISTMU"),
-            "distsigma": get_col(skymap, "DISTSIGMA"),
-            "distnorm": get_col(skymap, "DISTNORM"),
-        }
-
-    return skymap, properties_dict, tags_list
+        return _read_skymap(f.name, filename)
 
 
 def get_occulted(url, nside=64):
@@ -959,43 +964,7 @@ def properties_tags_from_meta(meta):
 
 
 def from_url(url):
-    def get_col(m, name):
-        try:
-            col = m[name]
-        except KeyError:
-            return None
-        else:
-            return col.tolist()
-
-    filename = os.path.basename(urlparse(url).path)
-
-    skymap = ligo.skymap.io.read_sky_map(url, moc=True)
-    properties_dict, tags_list = properties_tags_from_meta(skymap.meta)
-
-    idx = np.where(skymap["PROBDENSITY"] < SKYMAP_MIN)[0]
-    skymap["PROBDENSITY"][idx] = 0
-
-    nside = 128
-    occulted = get_occulted(url, nside=nside)
-    if occulted is not None:
-        order = hp.nside2order(nside)
-        skymap_flat = ligo_bayestar.rasterize(skymap, order)["PROB"]
-        skymap_flat = hp.reorder(skymap_flat, "NESTED", "RING")
-        skymap_flat[occulted] = 0.0
-        skymap_flat = skymap_flat / skymap_flat.sum()
-        skymap_flat = hp.reorder(skymap_flat, "RING", "NESTED")
-        skymap = ligo_bayestar.derasterize(Table([skymap_flat], names=["PROB"]))
-
-    skymap = {
-        "localization_name": filename,
-        "uniq": get_col(skymap, "UNIQ"),
-        "probdensity": get_col(skymap, "PROBDENSITY"),
-        "distmu": get_col(skymap, "DISTMU"),
-        "distsigma": get_col(skymap, "DISTSIGMA"),
-        "distnorm": get_col(skymap, "DISTNORM"),
-    }
-
-    return skymap, properties_dict, tags_list
+    return _read_skymap(url, os.path.basename(urlparse(url).path))
 
 
 def get_contour(localization):
