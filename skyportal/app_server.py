@@ -241,6 +241,7 @@ from skyportal.handlers.api import (
     SpectrumGroupsHandler,
     SpectrumHandler,
     SpectrumRangeHandler,
+    SpherexQueryHandler,
     StatsHandler,
     StatsHistoryHandler,
     StreamHandler,
@@ -687,6 +688,7 @@ skyportal_handlers = [
     (r"/api/sources(/[0-9A-Za-z-_\.\+]+)/annotations/vizier", VizierQueryHandler),
     (r"/api/sources(/[0-9A-Za-z-_\.\+]+)/annotations/datalab", DatalabQueryHandler),
     (r"/api/sources(/[0-9A-Za-z-_\.\+]+)/annotations/ps1", PS1QueryHandler),
+    (r"/api/sources(/[0-9A-Za-z-_\.\+]+)/annotations/spherex", SpherexQueryHandler),
     (
         r"/api/(sources|spectra|photometry)(/[0-9A-Za-z-_\.\+]+)/annotations",
         AnnotationHandler,

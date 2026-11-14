@@ -180,6 +180,18 @@ class ALMAQueryBody(BaseModel):
     )
 
 
+class SpherexQueryBody(BaseModel):
+    """Request body for posting SPHEREx archive coverage annotations."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    group_ids: list[int] | None = Field(
+        default=None,
+        description="List of group IDs corresponding to which groups should be able "
+        "to view annotation. Defaults to all of requesting user's groups.",
+    )
+
+
 class PS1QueryBody(BaseModel):
     """Request body for posting PS1 cross-match annotations."""
 
@@ -223,5 +235,6 @@ __all__ = [
     "DatalabQueryBody",
     "IRSAQueryWISEBody",
     "PS1QueryBody",
+    "SpherexQueryBody",
     "VizierQueryBody",
 ]

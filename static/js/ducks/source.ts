@@ -602,6 +602,16 @@ export const sourceApi = skyportalApi.injectEndpoints({
       }),
       invalidatesTags: (_result, _error, sourceID) => sourceTag(sourceID),
     }),
+    fetchSpherex: build.mutation<
+      RouteData<"POST /api/sources/{obj_id}/annotations/spherex">,
+      number | string
+    >({
+      query: (sourceID) => ({
+        url: `api/sources/${sourceID}/annotations/spherex`,
+        method: "POST",
+      }),
+      invalidatesTags: (_result, _error, sourceID) => sourceTag(sourceID),
+    }),
     fetchWise: build.mutation<
       RouteData<"POST /api/sources/{obj_id}/annotations/irsa">,
       number | string
@@ -826,6 +836,7 @@ export const {
   useFetchVizierMutation,
   useFetchDatalabMutation,
   useFetchPS1Mutation,
+  useFetchSpherexMutation,
   useAddTNSMutation,
   useAddHostMutation,
   useRemoveHostMutation,
