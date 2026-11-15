@@ -614,7 +614,7 @@ const UploadPhotometryForm = () => {
                           </code>
                           <br />
                           See the&nbsp;
-                          <a href="https://skyportal.io/docs/api.html#/paths/~1api~1photometry/post">
+                          <a href="https://docs.skyportal.io/api.html#/paths/~1api~1photometry/post">
                             API docs
                           </a>
                           &nbsp;for other allowable fields (note: omit{" "}

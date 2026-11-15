@@ -44,7 +44,7 @@ On the frontend, classifications can be managed from an individual source page o
 
 ### Programmatic access:
 
-- The API allows classifications to be managed using HTTP requests (see <https://skyportal.io/docs/api.html>).
+- The API allows classifications to be managed using HTTP requests (see <https://docs.skyportal.io/api.html>).
 - The `GET` request allows existing classifications for a source with id `source_id` to be retrieved:
 
 ```
