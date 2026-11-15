@@ -52317,11 +52317,11 @@ export interface components {
             groupIDs: number[] | null;
             /**
              * Role
-             * @description The role the new user will have in the system.
+             * @description The role the new user will have in the system. Super admin can only be granted by a system admin.
              * @default Full user
              * @enum {string}
              */
-            role: "Full user" | "View only";
+            role: "Super admin" | "Full user" | "View only";
             /**
              * Declinereason
              * @description Why the application was declined.
