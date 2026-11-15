@@ -153,8 +153,9 @@ const DecisionDialog = ({
   const dispatch = useAppDispatch();
   const [decide] = useDecideUserApplicationMutation();
   const myStreams = useGetStreamsQuery().data ?? [];
+  const publicGroupName = useGetConfigQuery().data?.publicGroupName as string;
   const myGroups = (useGetGroupsQuery().data?.user ?? []).filter(
-    (group: any) => !group.single_user_group,
+    (group: any) => !group.single_user_group && group.name !== publicGroupName,
   );
   const [streamIDs, setStreamIDs] = useState<number[]>([]);
   const [groupIDs, setGroupIDs] = useState<number[]>([]);
@@ -319,6 +320,8 @@ const DecisionDialog = ({
               </FormControl>
               <DialogContentText variant="body2">
                 {`An invitation will be emailed to ${application.contact_email}. You can only grant streams you have yourself, and groups you belong to that those streams cover.`}
+                {publicGroupName &&
+                  ` They also join ${publicGroupName} by default.`}
               </DialogContentText>
             </>
           ) : (
