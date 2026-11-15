@@ -1148,6 +1148,7 @@
   telescope_id: =Colibri
   filters: ["sdssg", "sdssi", "sdssr", "sdssu", "sdssz", "ps1::y"]
   api_classname: COLIBRIAPI
+  tns_id: 298
 - name: Wendelstein 3KK
   type: imager
   band: Optical
