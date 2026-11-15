@@ -526,7 +526,7 @@ async def annotate_match(
     event -- the same shape ep_fritz.py used.
     """
     if not data:
-        return
+        return False
 
     annotation = await session.scalar(
         Annotation.select(user, mode="update").where(
@@ -547,6 +547,7 @@ async def annotate_match(
             await session.scalars(sa.select(Group).where(Group.id.in_(group_ids)))
         ).all()
         session.add(annotation)
+        return True
     else:
         merged = dict(annotation.data or {})
         existing = merged.get(event_key) or {}
@@ -554,15 +555,17 @@ async def annotate_match(
         # trigger stays true however many alerts follow it.
         if existing.get("prior_activity") or payload.get("prior_activity"):
             payload["prior_activity"] = True
-        if describes_later_alert(payload, existing):
+        later = describes_later_alert(payload, existing)
+        if later:
             merged[event_key] = payload
         elif payload.get("prior_activity") and not existing.get("prior_activity"):
             # The older alert owns nothing here but what it proves.
             merged[event_key] = {**existing, "prior_activity": True}
         else:
-            return
+            return False
         annotation.data = merged
         flag_modified(annotation, "data")
+        return later
 
 
 async def ensure_candidate(session, user, alert, obj_id, filter_id, survey=None):
@@ -959,7 +962,7 @@ async def process_event_filter(
             await ingest_match_photometry(
                 session, user, broker, object_id, survey, permissions
             )
-            await annotate_match(
+            annotated = await annotate_match(
                 session,
                 user,
                 object_id,
@@ -988,7 +991,7 @@ async def process_event_filter(
             # match: a field a survey does not populate would otherwise read as
             # "no minor planet here" for exactly the candidates nobody checked.
             alert_time = alert_jd(alert)
-            if alert_time is not None:
+            if annotated and alert_time is not None:
                 enqueue_identification(
                     object_id,
                     user_id,
