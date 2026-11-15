@@ -723,6 +723,19 @@ def _default_analysis_under_limit():
 def _default_analysis_rerun_blocked(analysis_service_id, obj_id):
     from .photometry import Photometry
 
+    def attempt(column, n):
+        return (
+            sa.select(column)
+            .where(
+                ObjAnalysis.obj_id == obj_id,
+                ObjAnalysis.analysis_service_id == analysis_service_id,
+            )
+            .order_by(ObjAnalysis.created_at.desc())
+            .offset(n)
+            .limit(1)
+            .scalar_subquery()
+        )
+
     insufficient = func.coalesce(ObjAnalysis.status_message, "").ilike(
         "%insufficient_data%"
     )
@@ -731,16 +744,26 @@ def _default_analysis_rerun_blocked(analysis_service_id, obj_id):
         Photometry.created_at > ObjAnalysis.created_at,
         Photometry.snr > cfg["misc.photometry_detection_threshold_nsigma"],
     )
-    return sa.exists().where(
-        ObjAnalysis.obj_id == obj_id,
-        ObjAnalysis.analysis_service_id == analysis_service_id,
-        or_(
-            ObjAnalysis.status.in_(["queued", "pending"]),
-            sa.and_(
-                ObjAnalysis.status == "completed",
-                or_(~insufficient, ~detection_since),
+    return or_(
+        sa.exists().where(
+            ObjAnalysis.obj_id == obj_id,
+            ObjAnalysis.analysis_service_id == analysis_service_id,
+            or_(
+                ObjAnalysis.status.in_(["queued", "pending"]),
+                sa.and_(
+                    ObjAnalysis.status == "completed",
+                    or_(~insufficient, ~detection_since),
+                ),
+                sa.and_(ObjAnalysis.status == "failure", ~detection_since),
             ),
-            sa.and_(ObjAnalysis.status == "failure", ~detection_since),
+        ),
+        attempt(ObjAnalysis.status, 0).is_not_distinct_from("timed_out"),
+        sa.and_(
+            attempt(ObjAnalysis.status, 0).is_not_distinct_from("failure"),
+            attempt(ObjAnalysis.status, 1).is_not_distinct_from("failure"),
+            attempt(ObjAnalysis.status_message, 0).is_not_distinct_from(
+                attempt(ObjAnalysis.status_message, 1)
+            ),
         ),
     )
 
