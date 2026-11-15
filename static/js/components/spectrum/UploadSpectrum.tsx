@@ -707,7 +707,7 @@ const UploadSpectrumForm = ({ route }: UploadSpectrumFormProps) => {
                   Use this form to upload ASCII spectrum files to SkyPortal. For
                   details on allowed file formatting, see the&nbsp;
                   <Link
-                    to="https://skyportal.io/docs/api#/paths/~1api~1spectrum~1parse~1ascii/post"
+                    to="https://docs.skyportal.io/api#/paths/~1api~1spectrum~1parse~1ascii/post"
                     target="_blank"
                     rel="noreferrer"
                   >

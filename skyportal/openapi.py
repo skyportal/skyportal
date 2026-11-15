@@ -86,7 +86,7 @@ def spec_from_handlers(handlers, exclude_internal=True, metadata=None):
                 "url": "https://raw.githubusercontent.com/skyportal/skyportal/main/static/images/skyportal_logo.png",
                 "backgroundColor": "#FFFFFF",
                 "altText": "SkyPortal logo",
-                "href": "https://skyportal.io/docs",
+                "href": "https://docs.skyportal.io",
             },
         },
         "security": [{"token": []}],
