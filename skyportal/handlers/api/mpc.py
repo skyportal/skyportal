@@ -4,6 +4,7 @@ import urllib
 import arrow
 import astropy.units as u
 import requests
+import sqlalchemy as sa
 from astropy.coordinates import Angle
 from astropy.time import Time
 from skyportal_py_models.objs import ObjMPCPostBody
@@ -16,10 +17,15 @@ from baselayer.app.flow import Flow
 from baselayer.log import make_log
 
 from ...models import (
+    Instrument,
     Obj,
+    Photometry,
+    Telescope,
     User,
     new_session,
 )
+from ...models.photometry import PHOT_DETECTION_THRESHOLD
+from ...utils.jpl_sbident import GEOCENTRIC_OBSCODE
 from ..base import BaseHandler
 
 env, cfg = load_env()
@@ -27,6 +33,25 @@ log = make_log("api/mpc")
 
 MPC_ENDPOINT = cfg["app.mpc_endpoint"]
 mpcheck_url = urllib.parse.urljoin(MPC_ENDPOINT, "cgi-bin/mpcheck.cgi")
+
+
+async def detection_obscode(session, obj_id, date):
+    nearest = (
+        Photometry.select(session.user_or_token)
+        .where(
+            Photometry.obj_id == obj_id,
+            Photometry.snr > PHOT_DETECTION_THRESHOLD,
+        )
+        .order_by(sa.func.abs(Photometry.mjd - date.mjd))
+        .limit(1)
+        .subquery()
+    )
+    obscode = await session.scalar(
+        sa.select(Telescope.mpc_obscode)
+        .join(Instrument, Instrument.telescope_id == Telescope.id)
+        .join(nearest, nearest.c.instrument_id == Instrument.id)
+    )
+    return obscode or GEOCENTRIC_OBSCODE
 
 
 class ObjMPCHandler(BaseHandler):
@@ -71,14 +96,16 @@ class ObjMPCHandler(BaseHandler):
         except Exception:
             return self.error("Cannot read in search radius.")
 
-        obscode = body.obscode
-
         async with self.AsyncSession() as session:
             obj = await session.scalar(
                 Obj.select(session.user_or_token, mode="update").where(Obj.id == obj_id)
             )
             if obj is None:
                 return self.error(f"Cannot find object with ID {obj_id}.")
+
+            obscode = (body.obscode or "").strip() or await detection_obscode(
+                session, obj_id, date
+            )
 
             year = date.strftime("%Y")
             month = date.strftime("%m")
@@ -124,7 +151,7 @@ class ObjMPCHandler(BaseHandler):
                 lambda: query_mpc(obj_id, self.associated_user_object.id, url),
             )
 
-            return self.success()
+            return self.success(data={"obscode": obscode})
 
 
 # Row: "<designation>  <RA hh mm ss.s>  <Dec ±dd mm ss>  ...".

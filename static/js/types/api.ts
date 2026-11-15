@@ -49137,10 +49137,10 @@ export interface components {
         ObjMPCPostBody: {
             /**
              * Obscode
-             * @description Minor planet center observatory code. Defaults to 500, corresponds to geocentric.
-             * @default 500
+             * @description Minor planet center observatory code. Defaults to the code of the telescope behind the detection closest to the date, or 500 (geocentric) when it has none.
+             * @default null
              */
-            obscode: string;
+            obscode: string | null;
             /**
              * Date
              * @description Time to check MPC for. Defaults to current time.
