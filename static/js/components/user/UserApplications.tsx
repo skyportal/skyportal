@@ -154,7 +154,7 @@ const DecisionDialog = ({
   const dispatch = useAppDispatch();
   const [decide] = useDecideUserApplicationMutation();
   const myStreams = useGetStreamsQuery().data ?? [];
-  const publicGroupName = useGetConfigQuery().data?.publicGroupName as string;
+  const { publicGroupName } = (useGetConfigQuery().data as any) ?? {};
   const myGroups = (useGetGroupsQuery().data?.user ?? []).filter(
     (group: any) => !group.single_user_group && group.name !== publicGroupName,
   );
