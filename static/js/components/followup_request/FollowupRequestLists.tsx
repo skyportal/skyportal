@@ -58,6 +58,7 @@ interface FollowupRequestListsProps {
   instrumentList: any[];
   instrumentFormParams: any;
   requestType?: string;
+  showEmptyMessage?: boolean;
 }
 
 const FollowupRequestLists = ({
@@ -65,6 +66,7 @@ const FollowupRequestLists = ({
   instrumentList,
   instrumentFormParams,
   requestType = "triggered",
+  showEmptyMessage = true,
 }: FollowupRequestListsProps) => {
   // Not in the cell: its DataGrid column is virtualized, a remount would close the dialog.
   const [requestIdToEdit, setRequestIdToEdit] = useState<number | null>(null);
@@ -88,11 +90,11 @@ const FollowupRequestLists = ({
   );
 
   if (!requests.length || !instruments.length) {
-    return (
+    return showEmptyMessage ? (
       <Typography variant="body2" sx={{ color: "text.secondary" }}>
         No follow-up requests found.
       </Typography>
-    );
+    ) : null;
   }
 
   const instLookUp = Object.fromEntries(

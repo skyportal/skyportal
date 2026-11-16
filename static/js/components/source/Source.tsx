@@ -30,6 +30,9 @@ import Menu from "@mui/material/Menu";
 import MenuItem from "@mui/material/MenuItem";
 import IconButton from "@mui/material/IconButton";
 import Paper from "@mui/material/Paper";
+import Dialog from "@mui/material/Dialog";
+import DialogContent from "@mui/material/DialogContent";
+import DialogTitle from "@mui/material/DialogTitle";
 import useMediaQuery from "@mui/material/useMediaQuery";
 import KeyboardArrowLeftIcon from "@mui/icons-material/KeyboardArrowLeft";
 import KeyboardArrowRightIcon from "@mui/icons-material/KeyboardArrowRight";
@@ -295,6 +298,7 @@ const SourceContent = ({ source }: SourceContentProps) => {
   const [showPhotometry, setShowPhotometry] = useState(false);
   const closePhotometryTable = useCallback(() => setShowPhotometry(false), []);
   const [rightPanelVisible, setRightPanelVisible] = useState(true);
+  const [analysisDialogOpen, setAnalysisDialogOpen] = useState(false);
   const commentPanel = useCommentPanel();
   useCommentTarget(isReadOnly ? null : { type: "source", id: source.id });
   const [magsys, setMagsys] = useState("ab");
@@ -535,72 +539,11 @@ const SourceContent = ({ source }: SourceContentProps) => {
           </AccordionDetails>
         </Accordion>
       </Grid>
-      <Grid
-        size={{ xs: 12, lg: 6 }}
-        sx={{
-          order: { xs: 9, lg: 13 },
-        }}
-      >
-        <Accordion defaultExpanded disableGutters>
-          <AccordionSummary
-            expandIcon={<ExpandMoreIcon />}
-            aria-controls="hr-diagram-content"
-            id="hr-diagram-header"
-          >
-            <Typography className={classes.accordionHeading}>
-              HR Diagram
-            </Typography>
-          </AccordionSummary>
-          <AccordionDetails data-testid={`hr_diagram_${source.id}`}>
-            {source.color_magnitude?.length ? (
-              <Suspense fallback={<CircularProgress color="secondary" />}>
-                <VegaHR
-                  data={source.color_magnitude}
-                  width={300}
-                  height={300}
-                />
-              </Suspense>
-            ) : (
-              "No color magnitude for this source"
-            )}
-          </AccordionDetails>
-        </Accordion>
-      </Grid>
-      <Grid
-        size={{ xs: 12, lg: 6 }}
-        sx={{
-          order: 13,
-        }}
-      >
-        <Accordion
-          defaultExpanded
-          disableGutters
-          className={classes.flexColumn}
-        >
-          <AccordionSummary
-            expandIcon={<ExpandMoreIcon />}
-            aria-controls="analysis-content"
-            id="analysis-header"
-          >
-            <Typography className={classes.accordionHeading}>
-              External Analysis
-            </Typography>
-          </AccordionSummary>
-          <AccordionDetails>
-            <AnalysisList obj_id={source.id} />
-          </AccordionDetails>
-          {!isReadOnly && (
-            <AccordionDetails>
-              <AnalysisForm obj_id={source.id} />
-            </AccordionDetails>
-          )}
-        </Accordion>
-      </Grid>
       {hasSimilarityBroker && (
         <Grid
           size={{ xs: 12, lg: 6 }}
           sx={{
-            order: 14,
+            order: { xs: 14, lg: 12 },
           }}
         >
           <Accordion
@@ -626,34 +569,51 @@ const SourceContent = ({ source }: SourceContentProps) => {
       <Grid
         size={{ xs: 12, lg: 6 }}
         sx={{
+          order: { xs: 9, lg: 13 },
+        }}
+      >
+        <Paper className={classes.flexColumn} sx={{ p: 2, gap: 1.5 }}>
+          <Typography
+            id="hr-diagram-header"
+            className={classes.accordionHeading}
+          >
+            HR Diagram
+          </Typography>
+          <div data-testid={`hr_diagram_${source.id}`}>
+            {source.color_magnitude?.length ? (
+              <Suspense fallback={<CircularProgress color="secondary" />}>
+                <VegaHR
+                  data={source.color_magnitude}
+                  width={300}
+                  height={300}
+                />
+              </Suspense>
+            ) : (
+              <Typography variant="body2" sx={{ color: "text.secondary" }}>
+                No color magnitude for this source
+              </Typography>
+            )}
+          </div>
+        </Paper>
+      </Grid>
+      <Grid
+        size={{ xs: 12, lg: 6 }}
+        sx={{
           order: 15,
         }}
       >
-        <Accordion
-          defaultExpanded
-          disableGutters
-          className={classes.flexColumn}
-        >
-          <AccordionSummary
-            expandIcon={<ExpandMoreIcon />}
-            aria-controls="notifications-content"
+        <Paper className={classes.flexColumn} sx={{ p: 2, gap: 1.5 }}>
+          <Typography
             id="notifications-header"
+            className={classes.accordionHeading}
           >
-            <Typography className={classes.accordionHeading}>
-              Source Notification
-            </Typography>
-          </AccordionSummary>
+            Source Notification
+          </Typography>
+          {!isReadOnly && <SourceNotification sourceId={source.id} />}
           {!isReadOnly && (
-            <AccordionDetails>
-              <SourceNotification sourceId={source.id} />
-            </AccordionDetails>
+            <Reminders resourceId={source.id} resourceType="source" />
           )}
-          {!isReadOnly && (
-            <AccordionDetails>
-              <Reminders resourceId={source.id} resourceType="source" />
-            </AccordionDetails>
-          )}
-        </Accordion>
+        </Paper>
       </Grid>
     </>
   );
@@ -664,9 +624,7 @@ const SourceContent = ({ source }: SourceContentProps) => {
         container
         size={{ xs: 12, lg: rightPanelVisible && !downLg ? 7 : 12 }}
         spacing={1.5}
-        style={{
-          display: downLg || !rightPanelVisible ? "flex" : "block",
-        }}
+        sx={{ alignContent: "flex-start" }}
       >
         <Grid
           size={12}
@@ -1627,6 +1585,7 @@ const SourceContent = ({ source }: SourceContentProps) => {
                   followupRequests={source.followup_requests}
                   instrumentList={instrumentList}
                   instrumentFormParams={instrumentFormParams}
+                  showEmptyMessage={isReadOnly}
                 />
               </div>
             </AccordionDetails>
@@ -1638,7 +1597,7 @@ const SourceContent = ({ source }: SourceContentProps) => {
             order: { xs: 11, md: 12, lg: 10 },
           }}
         >
-          <Accordion>
+          <Accordion disableGutters className={classes.flexColumn}>
             <AccordionSummary
               expandIcon={<ExpandMoreIcon />}
               aria-controls="followup-content"
@@ -1667,6 +1626,7 @@ const SourceContent = ({ source }: SourceContentProps) => {
                   instrumentList={instrumentList}
                   instrumentFormParams={instrumentFormParams}
                   requestType="forced_photometry"
+                  showEmptyMessage={isReadOnly}
                 />
               </div>
             </AccordionDetails>
@@ -1703,10 +1663,50 @@ const SourceContent = ({ source }: SourceContentProps) => {
                     observingRunList={observingRunList}
                   />
                 )}
-                <AssignmentList assignments={source.assignments} />
+                <AssignmentList
+                  assignments={source.assignments}
+                  showEmptyMessage={isReadOnly}
+                />
               </div>
             </AccordionDetails>
           </Accordion>
+        </Grid>
+        <Grid
+          size={12}
+          sx={{
+            order: 16,
+          }}
+        >
+          <Paper className={classes.flexColumn} sx={{ p: 2, gap: 1.5 }}>
+            <Typography
+              id="analysis-header"
+              className={classes.accordionHeading}
+            >
+              External Analysis
+            </Typography>
+            <AnalysisList
+              obj_id={source.id}
+              onAdd={isReadOnly ? undefined : () => setAnalysisDialogOpen(true)}
+            />
+            {!isReadOnly && (
+              <Dialog
+                open={analysisDialogOpen}
+                onClose={() => setAnalysisDialogOpen(false)}
+                maxWidth="md"
+                fullWidth
+              >
+                <DialogTitle>New analysis</DialogTitle>
+                <DialogContent>
+                  <div style={{ paddingTop: 8 }}>
+                    <AnalysisForm
+                      obj_id={source.id}
+                      onStarted={() => setAnalysisDialogOpen(false)}
+                    />
+                  </div>
+                </DialogContent>
+              </Dialog>
+            )}
+          </Paper>
         </Grid>
         {downLg || !rightPanelVisible
           ? rightPanelContent(downLg, rightPanelVisible)

@@ -1,4 +1,5 @@
 import { makeStyles } from "tss-react/mui";
+import Box from "@mui/material/Box";
 import Typography from "@mui/material/Typography";
 
 import { greatCircleDistance } from "../../utils";
@@ -242,21 +243,22 @@ const CentroidPlotPlugins = ({
 
   return (
     <div className={classes.pluginContainer}>
-      <Typography variant="h6">
-        Offsets from nearest sources in reference catalogs:
+      <Typography variant="body2" sx={{ color: "text.secondary", mb: 0.5 }}>
+        Offset to the nearest source in each catalog
       </Typography>
-      <div>
-        {Object.keys(nearestOffsets).map((catalog) => {
-          const offset = nearestOffsets[catalog];
-          return (
-            <div key={catalog}>
-              <Typography variant="body1">
-                {catalog}: {offset.offset_arcsec.toFixed(2)}&quot;
-              </Typography>
-            </div>
-          );
-        })}
-      </div>
+      <Box
+        sx={{
+          display: "grid",
+          gridTemplateColumns: "repeat(auto-fill, minmax(9rem, 1fr))",
+          columnGap: 2,
+        }}
+      >
+        {Object.keys(nearestOffsets).map((catalog) => (
+          <Typography key={catalog} variant="body2">
+            {catalog}: {nearestOffsets[catalog].offset_arcsec.toFixed(2)}&quot;
+          </Typography>
+        ))}
+      </Box>
     </div>
   );
 };

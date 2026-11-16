@@ -10,6 +10,10 @@ from skyportal.tests import api
 analysis_port = 6802
 
 
+def _open_analysis_form(page):
+    page.locator('[data-testid="new-analysis-button"]').first.click()
+
+
 def _select_analysis_service(page, query):
     """Open the analysis-service Autocomplete, type `query` to filter, and click
     the matching option. Typing avoids the reopen-with-a-value filter trap and
@@ -55,6 +59,7 @@ def test_analysis_start(
     page.goto(f"/source/{public_source.id}")
     expect(page.locator(f'//h6[text()="{public_source.id}"]').first).to_be_visible()
     expect(page.locator('//*[text()="External Analysis"]').first).to_be_visible()
+    _open_analysis_form(page)
 
     # select this run's service by its unique display_name to populate the form
     _select_analysis_service(page, name)
@@ -109,6 +114,7 @@ def test_analysis_with_file_input_start(
     page.goto(f"/source/{public_source.id}")
     expect(page.locator(f'//h6[text()="{public_source.id}"]').first).to_be_visible()
     expect(page.locator('//*[text()="External Analysis"]').first).to_be_visible()
+    _open_analysis_form(page)
 
     _select_analysis_service(page, name)
 
@@ -165,6 +171,7 @@ def test_analysis_service_dropdown_shows_display_name(
     page.goto(f"/become_user/{user.id}")
     page.goto(f"/source/{public_source.id}")
     expect(page.locator('//*[text()="External Analysis"]').first).to_be_visible()
+    _open_analysis_form(page)
 
     page.locator('//div[@data-testid="analysisServiceSelect"]//input').first.click()
     page.locator('//div[@data-testid="analysisServiceSelect"]//input').first.fill(name)
@@ -275,6 +282,7 @@ def test_analysis_service_disabled_without_required_photometry(
     page.goto(f"/become_user/{user.id}")
     page.goto(f"/source/{public_source_no_data.id}")
     expect(page.locator('//*[text()="External Analysis"]').first).to_be_visible()
+    _open_analysis_form(page)
 
     page.locator('//div[@data-testid="analysisServiceSelect"]//input').first.click()
     page.locator('//div[@data-testid="analysisServiceSelect"]//input').first.fill(name)

@@ -65,8 +65,8 @@ const AssignmentForm = ({ obj_id, observingRunList }: AssignmentFormProps) => {
 
   if (upcomingObservingRuns.length === 0) {
     return (
-      <Typography variant="subtitle2">
-        No upcoming observing runs to assign target to...
+      <Typography variant="body2" sx={{ color: "text.secondary" }}>
+        No upcoming observing runs
       </Typography>
     );
   }
