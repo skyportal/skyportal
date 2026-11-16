@@ -7,6 +7,7 @@ import DialogTitle from "@mui/material/DialogTitle";
 import DialogContent from "@mui/material/DialogContent";
 import MenuItem from "@mui/material/MenuItem";
 import Select from "@mui/material/Select";
+import Typography from "@mui/material/Typography";
 import dayjs from "dayjs";
 
 import { showNotification } from "baselayer/components/Notifications";
@@ -82,7 +83,11 @@ const AssignmentList = ({ assignments }: AssignmentListProps) => {
   };
 
   if (assignments.length === 0) {
-    return <b>No assignments to show for this object...</b>;
+    return (
+      <Typography variant="body2" sx={{ color: "text.secondary" }}>
+        No assignments yet
+      </Typography>
+    );
   }
 
   // `assignments` is frozen RTK Query data, so copy before sorting in place.

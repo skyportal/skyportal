@@ -139,11 +139,11 @@ const FollowupRequestForm = ({
 
   if (!allocation) {
     return (
-      <h3>
-        {`No allocations with an API class ${
-          isForcedPhotometry ? "(for forced photometry) " : ""
-        }where found...`}
-      </h3>
+      <Typography variant="body2" sx={{ color: "text.secondary" }}>
+        {isForcedPhotometry
+          ? "No forced photometry allocation available"
+          : "No follow-up allocation available"}
+      </Typography>
     );
   }
   if (!allGroups?.length || !telescopeList.length || !instrumentList.length) {
