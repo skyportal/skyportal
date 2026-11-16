@@ -254,7 +254,7 @@ const SurveyLinkList = ({ ra, dec, id }: SurveyLinkListProps) => {
       />
       <SurveyLink
         name="TNS"
-        url={`https://wis-tns.org/search?&ra=${ra}&decl=${dec}&radius=10&coords_unit=arcsec`}
+        url={`https://www.wis-tns.org/search?&ra=${ra}&decl=${dec}&radius=10&coords_unit=arcsec`}
       />
       <SurveyLink
         name="VizieR"
