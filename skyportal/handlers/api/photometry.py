@@ -1163,6 +1163,55 @@ async def find_duplicate_photometry(session, df, ignore_flux=False):
     return out
 
 
+async def update_flux_of_resent_points(session, df):
+    """Overwrite the flux and error of stored points that the posted rows send again.
+
+    Returns the ids of the objects whose photometry changed.
+    """
+    stored_by_row = defaultdict(list)
+    for i, p in await find_duplicate_photometry(session, df, ignore_flux=True):
+        stored_by_row[i].append(p)
+    flux_columns = ("flux", "fluxerr")
+    changed = set()
+    for i, stored in stored_by_row.items():
+        # Two stored copies of an epoch cannot both take the posted flux (dedup index).
+        if len(stored) != 1:
+            continue
+        p = stored[0]
+        posted = {
+            "flux": df.at[i, "standardized_flux"],
+            "fluxerr": df.at[i, "standardized_fluxerr"],
+        }
+        if pd.isna(posted["flux"]) != pd.isna(p.flux):
+            continue
+        if _dedup_key(posted, flux_columns) == _dedup_key(p, flux_columns):
+            continue
+        p.flux = float(posted["flux"])
+        p.fluxerr = float(posted["fluxerr"])
+        changed.add(p.obj_id)
+    if changed:
+        await session.flush()
+    return changed
+
+
+async def full_update_phot_stats(session, obj_ids):
+    """Recompute the PhotStat of each object from all of its photometry."""
+    for obj_id in obj_ids:
+        phot_stat = await session.scalar(
+            sa.select(PhotStat).where(PhotStat.obj_id == obj_id).with_for_update()
+        )
+        if phot_stat is None:
+            continue
+        all_phot = (
+            await session.scalars(
+                sa.select(Photometry).where(Photometry.obj_id == obj_id)
+            )
+        ).all()
+        phot_stat.full_update(all_phot)
+        for phot in all_phot:
+            session.expunge(phot)
+
+
 async def bulk_upsert_photometry(session, params, duplicates, return_inserted=False):
     """Atomic INSERT … ON CONFLICT on the photometry deduplication index.
 
@@ -1628,7 +1677,13 @@ async def get_stream_ids(data, user, session):
 
 
 async def add_external_photometry(
-    json, user, session, duplicates="update", refresh=False, apply_default_share=True
+    json,
+    user,
+    session,
+    duplicates="update",
+    refresh=False,
+    apply_default_share=True,
+    update_flux=False,
 ):
     """Post external photometry to the database (e.g. from a facility API
     or the TNS retrieval worker).
@@ -1648,6 +1703,11 @@ async def add_external_photometry(
     apply_default_share : bool
         Whether to add the configured default-share groups when none are given.
         False for broker ingestion so ingested photometry is not shared publicly.
+    update_flux : bool
+        With ``duplicates="update"``, a posted point whose object, instrument,
+        origin, mjd and filter match a stored point overwrites its flux and
+        error instead of being inserted beside it. For brokers that recompute
+        the flux of points they already sent.
     """
     if duplicates not in ["error", "ignore", "update"]:
         raise ValueError(
@@ -1672,6 +1732,9 @@ async def add_external_photometry(
     savepoint = await session.begin_nested()
     try:
         if duplicates in ["ignore", "update"]:
+            if update_flux and duplicates == "update":
+                changed = await update_flux_of_resent_points(session, df)
+                await full_update_phot_stats(session, changed)
             duplicated_photometry = await find_duplicate_photometry(session, df)
             duplicated_photometry_pdidx = {g[0] for g in duplicated_photometry}
             if len(duplicated_photometry_pdidx) > 0:
