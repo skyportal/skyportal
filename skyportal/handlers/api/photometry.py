@@ -1163,29 +1163,51 @@ async def find_duplicate_photometry(session, df, ignore_flux=False):
     return out
 
 
-async def update_flux_of_resent_points(session, df):
-    """Overwrite the flux and error of stored points that the posted rows send again.
+RESENT_FLUX_TOLERANCE = 0.01
 
-    Returns the ids of the objects whose photometry changed.
+
+def _resent_distance(posted, p):
+    if pd.isna(posted["flux"]) != pd.isna(p.flux):
+        return None
+    scale = max(abs(posted["fluxerr"]), abs(p.fluxerr))
+    distance = abs(posted["fluxerr"] - p.fluxerr)
+    if not pd.isna(p.flux):
+        distance = max(distance, abs(posted["flux"] - p.flux))
+    if distance > RESENT_FLUX_TOLERANCE * scale:
+        return None
+    return distance
+
+
+async def update_flux_of_resent_points(session, df):
+    """Overwrite the flux and error of the closest stored copy of each point the
+    posted rows send again. Returns the ids of the objects whose photometry changed.
     """
     stored_by_row = defaultdict(list)
     for i, p in await find_duplicate_photometry(session, df, ignore_flux=True):
         stored_by_row[i].append(p)
     flux_columns = ("flux", "fluxerr")
     changed = set()
+    taken = set()
     for i, stored in stored_by_row.items():
-        # Two stored copies of an epoch cannot both take the posted flux (dedup index).
-        if len(stored) != 1:
-            continue
-        p = stored[0]
         posted = {
             "flux": df.at[i, "standardized_flux"],
             "fluxerr": df.at[i, "standardized_fluxerr"],
         }
-        if pd.isna(posted["flux"]) != pd.isna(p.flux):
+        if any(
+            _dedup_key(posted, flux_columns) == _dedup_key(p, flux_columns)
+            for p in stored
+        ):
             continue
-        if _dedup_key(posted, flux_columns) == _dedup_key(p, flux_columns):
+        close = [
+            (distance, p)
+            for p in stored
+            if p.id not in taken
+            and (distance := _resent_distance(posted, p)) is not None
+        ]
+        if not close:
             continue
+        p = min(close, key=lambda c: c[0])[1]
+        taken.add(p.id)
         p.flux = float(posted["flux"])
         p.fluxerr = float(posted["fluxerr"])
         changed.add(p.obj_id)
@@ -1705,9 +1727,10 @@ async def add_external_photometry(
         False for broker ingestion so ingested photometry is not shared publicly.
     update_flux : bool
         With ``duplicates="update"``, a posted point whose object, instrument,
-        origin, mjd and filter match a stored point overwrites its flux and
-        error instead of being inserted beside it. For brokers that recompute
-        the flux of points they already sent.
+        origin, mjd and filter match a stored point, with a flux and error within
+        ``RESENT_FLUX_TOLERANCE`` of its error, overwrites them instead of being
+        inserted beside it. For brokers that recompute the flux of points they
+        already sent.
     """
     if duplicates not in ["error", "ignore", "update"]:
         raise ValueError(

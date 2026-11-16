@@ -1090,42 +1090,53 @@ def test_update_flux_overwrites_resent_points(
             "origin": ["reflux-test"] * n,
         }
 
-    first = [(5e5, 1e4), (6e5, 1e4), (None, 2e5)]
+    first = [(5e5, 1e4), (6e5, 1e4), (None, 2e5), (8e5, 1e4)]
+    second_copy = [(5e5 * (1 + 1e-6), 1e4)]
     resent = [
         (5e5 * (1 + 5e-7), 1e4 * (1 + 5e-7)),
         (6e5, 1e4),
         (None, 2e5 * (1 + 5e-7)),
+        (8e11, 1e10),
         (7e5, 1e4),
     ]
+
+    def same(p, flux, fluxerr):
+        if flux is None:
+            return (p.flux is None or np.isnan(p.flux)) and p.fluxerr == pytest.approx(
+                fluxerr, rel=1e-12
+            )
+        return p.flux == pytest.approx(flux, rel=1e-12) and p.fluxerr == pytest.approx(
+            fluxerr, rel=1e-12
+        )
 
     async def _run():
         async with baselayer_models.async_plain_session_factory() as s:
             u = await s.get(User, super_admin_user.id)
             await add_external_photometry(payload(first), u, s)
             u = await s.get(User, super_admin_user.id)
+            await add_external_photometry(payload(second_copy), u, s)
+            u = await s.get(User, super_admin_user.id)
             await add_external_photometry(payload(resent), u, s, update_flux=True)
 
             stored = (
                 await s.scalars(
-                    sa.select(Photometry)
-                    .where(Photometry.obj_id == source_id)
-                    .order_by(Photometry.mjd)
+                    sa.select(Photometry).where(Photometry.obj_id == source_id)
                 )
             ).all()
-            assert len(stored) == len(resent)
-            for p, (flux, fluxerr) in zip(stored, resent):
-                if flux is None:
-                    assert p.flux is None or np.isnan(p.flux)
-                else:
-                    assert p.flux == pytest.approx(flux, rel=1e-12)
-                assert p.fluxerr == pytest.approx(fluxerr, rel=1e-12)
+            by_epoch = [
+                [p for p in stored if p.mjd == 60000.0 + i] for i in range(len(resent))
+            ]
+            assert [len(points) for points in by_epoch] == [2, 1, 1, 2, 1]
+            for points, (flux, fluxerr) in zip(by_epoch, resent):
+                assert any(same(p, flux, fluxerr) for p in points)
+            assert any(same(p, 8e5, 1e4) for p in by_epoch[3])
 
             phot_stat = await s.scalar(
                 sa.select(PhotStat).where(PhotStat.obj_id == source_id)
             )
             fresh = PhotStat(obj_id=source_id)
             fresh.full_update(stored)
-            assert phot_stat.num_obs_global == fresh.num_obs_global == len(resent)
+            assert phot_stat.num_obs_global == fresh.num_obs_global == len(stored)
             assert phot_stat.peak_mag_global == pytest.approx(fresh.peak_mag_global)
 
     asyncio.run(_run())
