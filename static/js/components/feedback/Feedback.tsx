@@ -43,6 +43,7 @@ import {
   useGetFeedbackQuery,
   useReplyToFeedbackMutation,
   useUpdateFeedbackMutation,
+  statusOf,
   type Feedback,
   type FeedbackCategory,
 } from "../../ducks/feedback";
@@ -75,13 +76,6 @@ const STATUSES = {
 } as const;
 
 type Status = keyof typeof STATUSES;
-
-const statusOf = (message: Feedback): Status => {
-  if (message.resolved) return "resolved";
-  const replies = message.replies ?? [];
-  const last = replies[replies.length - 1];
-  return last && last.author.id !== message.author.id ? "answered" : "open";
-};
 
 const nameOf = (user: Feedback["author"]) =>
   getUserRealName(user.first_name, user.last_name) || user.username;

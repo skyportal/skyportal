@@ -1,9 +1,18 @@
 import { skyportalApi } from "../api/skyportalApi";
 import { invalidateOnMessage } from "../api/wsInvalidation";
 import type { components } from "../types/api";
+import { useHasPermission } from "./profile";
 
 export type Feedback = components["schemas"]["FeedbackResponse"];
 export type FeedbackCategory = Feedback["category"];
+export type FeedbackStatus = "open" | "answered" | "resolved";
+
+export const statusOf = (message: Feedback): FeedbackStatus => {
+  if (message.resolved) return "resolved";
+  const replies = message.replies ?? [];
+  const last = replies[replies.length - 1];
+  return last && last.author.id !== message.author.id ? "answered" : "open";
+};
 
 export const feedbackApi = skyportalApi.injectEndpoints({
   endpoints: (build) => ({
@@ -52,3 +61,11 @@ export const {
   useUpdateFeedbackMutation,
   useReplyToFeedbackMutation,
 } = feedbackApi;
+
+export const useOpenFeedbackCount = () => {
+  const isAdmin = useHasPermission("System admin");
+  const { data = [] } = feedbackApi.useGetFeedbackQuery(undefined, {
+    skip: !isAdmin,
+  });
+  return data.filter((message) => statusOf(message) === "open").length;
+};
