@@ -603,31 +603,18 @@ const SourceContent = ({ source }: SourceContentProps) => {
           order: 15,
         }}
       >
-        <Accordion
-          defaultExpanded
-          disableGutters
-          className={classes.flexColumn}
-        >
-          <AccordionSummary
-            expandIcon={<ExpandMoreIcon />}
-            aria-controls="notifications-content"
+        <Paper className={classes.flexColumn} sx={{ p: 2, gap: 1.5 }}>
+          <Typography
             id="notifications-header"
+            className={classes.accordionHeading}
           >
-            <Typography className={classes.accordionHeading}>
-              Source Notification
-            </Typography>
-          </AccordionSummary>
+            Source Notification
+          </Typography>
+          {!isReadOnly && <SourceNotification sourceId={source.id} />}
           {!isReadOnly && (
-            <AccordionDetails>
-              <SourceNotification sourceId={source.id} />
-            </AccordionDetails>
+            <Reminders resourceId={source.id} resourceType="source" />
           )}
-          {!isReadOnly && (
-            <AccordionDetails>
-              <Reminders resourceId={source.id} resourceType="source" />
-            </AccordionDetails>
-          )}
-        </Accordion>
+        </Paper>
       </Grid>
     </>
   );
@@ -1691,25 +1678,16 @@ const SourceContent = ({ source }: SourceContentProps) => {
             order: 16,
           }}
         >
-          <Accordion
-            defaultExpanded
-            disableGutters
-            className={classes.flexColumn}
-          >
-            <AccordionSummary
-              expandIcon={<ExpandMoreIcon />}
-              aria-controls="analysis-content"
+          <Paper className={classes.flexColumn} sx={{ p: 2, gap: 1.5 }}>
+            <Typography
               id="analysis-header"
+              className={classes.accordionHeading}
             >
-              <Typography className={classes.accordionHeading}>
-                External Analysis
-              </Typography>
-            </AccordionSummary>
-            <AccordionDetails>
-              <AnalysisList obj_id={source.id} />
-            </AccordionDetails>
+              External Analysis
+            </Typography>
+            <AnalysisList obj_id={source.id} />
             {!isReadOnly && (
-              <AccordionDetails>
+              <div>
                 <Button
                   secondary
                   size="small"
@@ -1733,9 +1711,9 @@ const SourceContent = ({ source }: SourceContentProps) => {
                     </div>
                   </DialogContent>
                 </Dialog>
-              </AccordionDetails>
+              </div>
             )}
-          </Accordion>
+          </Paper>
         </Grid>
         {downLg || !rightPanelVisible
           ? rightPanelContent(downLg, rightPanelVisible)
