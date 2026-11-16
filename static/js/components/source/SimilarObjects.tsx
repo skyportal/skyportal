@@ -19,7 +19,7 @@ import {
 } from "../../ducks/similarity";
 
 const plotStyle = {
-  width: "calc(100% - 6rem)",
+  width: "calc(100% - 7.5rem)",
   height: "12rem",
   minHeight: "12rem",
 };
@@ -53,6 +53,11 @@ const SimilarObjects = ({ objId }: { objId: string }) => {
     setOpenIds((ids) =>
       ids.includes(id) ? ids.filter((i) => i !== id) : [...ids, id],
     );
+  const plottableIds = data.neighbors
+    .filter((neighbor) => neighbor.in_skyportal)
+    .map((neighbor) => neighbor.obj_id);
+  const allOpen =
+    plottableIds.length > 0 && plottableIds.every((id) => openIds.includes(id));
 
   return (
     <TableContainer>
@@ -69,7 +74,25 @@ const SimilarObjects = ({ objId }: { objId: string }) => {
             <TableCell align="right">Similarity</TableCell>
             <TableCell>Class</TableCell>
             <TableCell align="right">z</TableCell>
-            <TableCell padding="checkbox" />
+            <TableCell padding="checkbox">
+              {plottableIds.length > 0 && (
+                <IconButton
+                  size="small"
+                  aria-label={
+                    allOpen ? "Hide all light curves" : "Show all light curves"
+                  }
+                  onClick={() => setOpenIds(allOpen ? [] : plottableIds)}
+                >
+                  <ExpandMoreIcon
+                    fontSize="small"
+                    sx={{
+                      transform: allOpen ? "rotate(180deg)" : "none",
+                      transition: "transform 0.2s",
+                    }}
+                  />
+                </IconButton>
+              )}
+            </TableCell>
           </TableRow>
         </TableHead>
         <TableBody>
