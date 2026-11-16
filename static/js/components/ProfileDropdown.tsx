@@ -10,6 +10,7 @@ import Popover from "@mui/material/Popover";
 import Typography from "@mui/material/Typography";
 import LogoutIcon from "@mui/icons-material/Logout";
 import PersonIcon from "@mui/icons-material/PersonOutlined";
+import FeedbackIcon from "@mui/icons-material/FeedbackOutlined";
 
 import { useGetProfileQuery } from "../ducks/profile";
 import Button from "./Button";
@@ -117,6 +118,16 @@ const ProfileDropdown = () => {
             >
               <PersonIcon fontSize="small" color="action" />
               Profile
+            </MenuItem>
+            <MenuItem
+              component={Link}
+              to="/feedback"
+              role="link"
+              onClick={handleClose}
+              sx={{ display: { md: "none" } }}
+            >
+              <FeedbackIcon fontSize="small" color="action" />
+              Feedback
             </MenuItem>
             <MenuItem component="a" href="/logout" data-testid="signOutButton">
               <LogoutIcon fontSize="small" color="action" />
