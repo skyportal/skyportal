@@ -600,58 +600,6 @@ const SourceContent = ({ source }: SourceContentProps) => {
       <Grid
         size={{ xs: 12, lg: 6 }}
         sx={{
-          order: 13,
-        }}
-      >
-        <Accordion
-          defaultExpanded
-          disableGutters
-          className={classes.flexColumn}
-        >
-          <AccordionSummary
-            expandIcon={<ExpandMoreIcon />}
-            aria-controls="analysis-content"
-            id="analysis-header"
-          >
-            <Typography className={classes.accordionHeading}>
-              External Analysis
-            </Typography>
-          </AccordionSummary>
-          <AccordionDetails>
-            <AnalysisList obj_id={source.id} />
-          </AccordionDetails>
-          {!isReadOnly && (
-            <AccordionDetails>
-              <Button
-                secondary
-                size="small"
-                onClick={() => setAnalysisDialogOpen(true)}
-              >
-                New analysis
-              </Button>
-              <Dialog
-                open={analysisDialogOpen}
-                onClose={() => setAnalysisDialogOpen(false)}
-                maxWidth="md"
-                fullWidth
-              >
-                <DialogTitle>New analysis</DialogTitle>
-                <DialogContent>
-                  <div style={{ paddingTop: 8 }}>
-                    <AnalysisForm
-                      obj_id={source.id}
-                      onStarted={() => setAnalysisDialogOpen(false)}
-                    />
-                  </div>
-                </DialogContent>
-              </Dialog>
-            </AccordionDetails>
-          )}
-        </Accordion>
-      </Grid>
-      <Grid
-        size={{ xs: 12, lg: 6 }}
-        sx={{
           order: 15,
         }}
       >
@@ -1732,6 +1680,58 @@ const SourceContent = ({ source }: SourceContentProps) => {
                 <AssignmentList assignments={source.assignments} />
               </div>
             </AccordionDetails>
+          </Accordion>
+        </Grid>
+        <Grid
+          size={12}
+          sx={{
+            order: 16,
+          }}
+        >
+          <Accordion
+            defaultExpanded
+            disableGutters
+            className={classes.flexColumn}
+          >
+            <AccordionSummary
+              expandIcon={<ExpandMoreIcon />}
+              aria-controls="analysis-content"
+              id="analysis-header"
+            >
+              <Typography className={classes.accordionHeading}>
+                External Analysis
+              </Typography>
+            </AccordionSummary>
+            <AccordionDetails>
+              <AnalysisList obj_id={source.id} />
+            </AccordionDetails>
+            {!isReadOnly && (
+              <AccordionDetails>
+                <Button
+                  secondary
+                  size="small"
+                  onClick={() => setAnalysisDialogOpen(true)}
+                >
+                  New analysis
+                </Button>
+                <Dialog
+                  open={analysisDialogOpen}
+                  onClose={() => setAnalysisDialogOpen(false)}
+                  maxWidth="md"
+                  fullWidth
+                >
+                  <DialogTitle>New analysis</DialogTitle>
+                  <DialogContent>
+                    <div style={{ paddingTop: 8 }}>
+                      <AnalysisForm
+                        obj_id={source.id}
+                        onStarted={() => setAnalysisDialogOpen(false)}
+                      />
+                    </div>
+                  </DialogContent>
+                </Dialog>
+              </AccordionDetails>
+            )}
           </Accordion>
         </Grid>
         {downLg || !rightPanelVisible
