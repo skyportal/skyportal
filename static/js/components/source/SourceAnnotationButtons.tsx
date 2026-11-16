@@ -12,6 +12,7 @@ import {
   useFetchVizierMutation,
   useFetchDatalabMutation,
   useFetchPS1Mutation,
+  useFetchSpherexMutation,
 } from "../../ducks/source";
 import type { Source } from "../../types";
 
@@ -26,6 +27,7 @@ const SourceAnnotationButtons = ({ source }: SourceAnnotationButtonsProps) => {
   const [fetchDatalab] = useFetchDatalabMutation();
   const [fetchPS1] = useFetchPS1Mutation();
   const [fetchAlma] = useFetchAlmaMutation();
+  const [fetchSpherex] = useFetchSpherexMutation();
 
   const [isSubmittingAnnotationGaia, setIsSubmittingAnnotationGaia] =
     useState<any>(null);
@@ -91,6 +93,14 @@ const SourceAnnotationButtons = ({ source }: SourceAnnotationButtonsProps) => {
     setIsSubmittingAnnotationAlma(id);
     await fetchAlma(id);
     setIsSubmittingAnnotationAlma(null);
+  };
+
+  const [isSubmittingAnnotationSpherex, setIsSubmittingAnnotationSpherex] =
+    useState<any>(null);
+  const handleAnnotationSpherex = async (id: string) => {
+    setIsSubmittingAnnotationSpherex(id);
+    await fetchSpherex(id);
+    setIsSubmittingAnnotationSpherex(null);
   };
 
   return (
@@ -236,6 +246,23 @@ const SourceAnnotationButtons = ({ source }: SourceAnnotationButtonsProps) => {
           data-testid={`almaRequest_${source.id}`}
         >
           ALMA
+        </Button>
+      )}
+      {isSubmittingAnnotationSpherex === source.id ? (
+        <div>
+          <CircularProgress />
+        </div>
+      ) : (
+        <Button
+          secondary
+          onClick={() => {
+            handleAnnotationSpherex(source.id);
+          }}
+          size="small"
+          type="submit"
+          data-testid={`spherexRequest_${source.id}`}
+        >
+          SPHEREx
         </Button>
       )}
       <SourceAnnotationButtonPlugins {...({ source } as any)} />

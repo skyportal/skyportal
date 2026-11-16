@@ -1,0 +1,354 @@
+[
+  {
+    "obs_collection": "spherex_dr1",
+    "energy_bandpassname": "SPHEREx-D1",
+    "mjd_day": 60790.0,
+    "n_images": 4,
+    "em_min": 7.455e-07,
+    "em_max": 1.1167e-06
+  },
+  {
+    "obs_collection": "spherex_dr1",
+    "energy_bandpassname": "SPHEREx-D1",
+    "mjd_day": 60804.0,
+    "n_images": 4,
+    "em_min": 7.455e-07,
+    "em_max": 1.1167e-06
+  },
+  {
+    "obs_collection": "spherex_dr1",
+    "energy_bandpassname": "SPHEREx-D1",
+    "mjd_day": 60996.0,
+    "n_images": 14,
+    "em_min": 7.455e-07,
+    "em_max": 1.1167e-06
+  },
+  {
+    "obs_collection": "spherex_dr1",
+    "energy_bandpassname": "SPHEREx-D1",
+    "mjd_day": 60998.0,
+    "n_images": 5,
+    "em_min": 7.455e-07,
+    "em_max": 1.1167e-06
+  },
+  {
+    "obs_collection": "spherex_dr1",
+    "energy_bandpassname": "SPHEREx-D2",
+    "mjd_day": 60792.0,
+    "n_images": 3,
+    "em_min": 1.1033e-06,
+    "em_max": 1.6499e-06
+  },
+  {
+    "obs_collection": "spherex_dr1",
+    "energy_bandpassname": "SPHEREx-D2",
+    "mjd_day": 60814.0,
+    "n_images": 2,
+    "em_min": 1.1033e-06,
+    "em_max": 1.6499e-06
+  },
+  {
+    "obs_collection": "spherex_dr1",
+    "energy_bandpassname": "SPHEREx-D2",
+    "mjd_day": 60997.0,
+    "n_images": 3,
+    "em_min": 1.1033e-06,
+    "em_max": 1.6499e-06
+  },
+  {
+    "obs_collection": "spherex_dr1",
+    "energy_bandpassname": "SPHEREx-D2",
+    "mjd_day": 60998.0,
+    "n_images": 7,
+    "em_min": 1.1033e-06,
+    "em_max": 1.6499e-06
+  },
+  {
+    "obs_collection": "spherex_dr1",
+    "energy_bandpassname": "SPHEREx-D2",
+    "mjd_day": 60999.0,
+    "n_images": 4,
+    "em_min": 1.1033e-06,
+    "em_max": 1.6499e-06
+  },
+  {
+    "obs_collection": "spherex_dr1",
+    "energy_bandpassname": "SPHEREx-D2",
+    "mjd_day": 61001.0,
+    "n_images": 4,
+    "em_min": 1.1033e-06,
+    "em_max": 1.6499e-06
+  },
+  {
+    "obs_collection": "spherex_dr1",
+    "energy_bandpassname": "SPHEREx-D2",
+    "mjd_day": 61169.0,
+    "n_images": 2,
+    "em_min": 1.1033e-06,
+    "em_max": 1.6499e-06
+  },
+  {
+    "obs_collection": "spherex_dr1",
+    "energy_bandpassname": "SPHEREx-D2",
+    "mjd_day": 61170.0,
+    "n_images": 6,
+    "em_min": 1.1033e-06,
+    "em_max": 1.6499e-06
+  },
+  {
+    "obs_collection": "spherex_dr1",
+    "energy_bandpassname": "SPHEREx-D2",
+    "mjd_day": 61171.0,
+    "n_images": 5,
+    "em_min": 1.1033e-06,
+    "em_max": 1.6499e-06
+  },
+  {
+    "obs_collection": "spherex_dr1",
+    "energy_bandpassname": "SPHEREx-D2",
+    "mjd_day": 61172.0,
+    "n_images": 3,
+    "em_min": 1.1033e-06,
+    "em_max": 1.6499e-06
+  },
+  {
+    "obs_collection": "spherex_dr1",
+    "energy_bandpassname": "SPHEREx-D3",
+    "mjd_day": 61003.0,
+    "n_images": 8,
+    "em_min": 1.6301e-06,
+    "em_max": 2.4346e-06
+  },
+  {
+    "obs_collection": "spherex_dr1",
+    "energy_bandpassname": "SPHEREx-D3",
+    "mjd_day": 61004.0,
+    "n_images": 6,
+    "em_min": 1.6301e-06,
+    "em_max": 2.4346e-06
+  },
+  {
+    "obs_collection": "spherex_dr1",
+    "energy_bandpassname": "SPHEREx-D3",
+    "mjd_day": 61005.0,
+    "n_images": 5,
+    "em_min": 1.6301e-06,
+    "em_max": 2.4346e-06
+  },
+  {
+    "obs_collection": "spherex_dr1",
+    "energy_bandpassname": "SPHEREx-D3",
+    "mjd_day": 61163.0,
+    "n_images": 2,
+    "em_min": 1.6301e-06,
+    "em_max": 2.4346e-06
+  },
+  {
+    "obs_collection": "spherex_dr1",
+    "energy_bandpassname": "SPHEREx-D3",
+    "mjd_day": 61166.0,
+    "n_images": 8,
+    "em_min": 1.6301e-06,
+    "em_max": 2.4346e-06
+  },
+  {
+    "obs_collection": "spherex_dr1",
+    "energy_bandpassname": "SPHEREx-D3",
+    "mjd_day": 61167.0,
+    "n_images": 3,
+    "em_min": 1.6301e-06,
+    "em_max": 2.4346e-06
+  },
+  {
+    "obs_collection": "spherex_dr1",
+    "energy_bandpassname": "SPHEREx-D3",
+    "mjd_day": 61168.0,
+    "n_images": 6,
+    "em_min": 1.6301e-06,
+    "em_max": 2.4346e-06
+  },
+  {
+    "obs_collection": "spherex_dr1",
+    "energy_bandpassname": "SPHEREx-D4",
+    "mjd_day": 60790.0,
+    "n_images": 4,
+    "em_min": 2.4027e-06,
+    "em_max": 3.8473e-06
+  },
+  {
+    "obs_collection": "spherex_dr1",
+    "energy_bandpassname": "SPHEREx-D4",
+    "mjd_day": 60804.0,
+    "n_images": 4,
+    "em_min": 2.4027e-06,
+    "em_max": 3.8473e-06
+  },
+  {
+    "obs_collection": "spherex_dr1",
+    "energy_bandpassname": "SPHEREx-D4",
+    "mjd_day": 60996.0,
+    "n_images": 14,
+    "em_min": 2.4027e-06,
+    "em_max": 3.8473e-06
+  },
+  {
+    "obs_collection": "spherex_dr1",
+    "energy_bandpassname": "SPHEREx-D4",
+    "mjd_day": 60998.0,
+    "n_images": 5,
+    "em_min": 2.4027e-06,
+    "em_max": 3.8473e-06
+  },
+  {
+    "obs_collection": "spherex_dr1",
+    "energy_bandpassname": "SPHEREx-D5",
+    "mjd_day": 60792.0,
+    "n_images": 3,
+    "em_min": 3.8113e-06,
+    "em_max": 4.43e-06
+  },
+  {
+    "obs_collection": "spherex_dr1",
+    "energy_bandpassname": "SPHEREx-D5",
+    "mjd_day": 60814.0,
+    "n_images": 2,
+    "em_min": 3.8113e-06,
+    "em_max": 4.43e-06
+  },
+  {
+    "obs_collection": "spherex_dr1",
+    "energy_bandpassname": "SPHEREx-D5",
+    "mjd_day": 60997.0,
+    "n_images": 3,
+    "em_min": 3.8113e-06,
+    "em_max": 4.43e-06
+  },
+  {
+    "obs_collection": "spherex_dr1",
+    "energy_bandpassname": "SPHEREx-D5",
+    "mjd_day": 60998.0,
+    "n_images": 7,
+    "em_min": 3.8113e-06,
+    "em_max": 4.43e-06
+  },
+  {
+    "obs_collection": "spherex_dr1",
+    "energy_bandpassname": "SPHEREx-D5",
+    "mjd_day": 60999.0,
+    "n_images": 4,
+    "em_min": 3.8113e-06,
+    "em_max": 4.43e-06
+  },
+  {
+    "obs_collection": "spherex_dr1",
+    "energy_bandpassname": "SPHEREx-D5",
+    "mjd_day": 61001.0,
+    "n_images": 4,
+    "em_min": 3.8113e-06,
+    "em_max": 4.43e-06
+  },
+  {
+    "obs_collection": "spherex_dr1",
+    "energy_bandpassname": "SPHEREx-D5",
+    "mjd_day": 61169.0,
+    "n_images": 2,
+    "em_min": 3.8113e-06,
+    "em_max": 4.43e-06
+  },
+  {
+    "obs_collection": "spherex_dr1",
+    "energy_bandpassname": "SPHEREx-D5",
+    "mjd_day": 61170.0,
+    "n_images": 6,
+    "em_min": 3.8113e-06,
+    "em_max": 4.43e-06
+  },
+  {
+    "obs_collection": "spherex_dr1",
+    "energy_bandpassname": "SPHEREx-D5",
+    "mjd_day": 61171.0,
+    "n_images": 5,
+    "em_min": 3.8113e-06,
+    "em_max": 4.43e-06
+  },
+  {
+    "obs_collection": "spherex_dr1",
+    "energy_bandpassname": "SPHEREx-D5",
+    "mjd_day": 61172.0,
+    "n_images": 3,
+    "em_min": 3.8113e-06,
+    "em_max": 4.43e-06
+  },
+  {
+    "obs_collection": "spherex_dr1",
+    "energy_bandpassname": "SPHEREx-D6",
+    "mjd_day": 61003.0,
+    "n_images": 8,
+    "em_min": 4.4115e-06,
+    "em_max": 5.0096e-06
+  },
+  {
+    "obs_collection": "spherex_dr1",
+    "energy_bandpassname": "SPHEREx-D6",
+    "mjd_day": 61004.0,
+    "n_images": 6,
+    "em_min": 4.4115e-06,
+    "em_max": 5.0096e-06
+  },
+  {
+    "obs_collection": "spherex_dr1",
+    "energy_bandpassname": "SPHEREx-D6",
+    "mjd_day": 61005.0,
+    "n_images": 5,
+    "em_min": 4.4115e-06,
+    "em_max": 5.0096e-06
+  },
+  {
+    "obs_collection": "spherex_dr1",
+    "energy_bandpassname": "SPHEREx-D6",
+    "mjd_day": 61163.0,
+    "n_images": 2,
+    "em_min": 4.4115e-06,
+    "em_max": 5.0096e-06
+  },
+  {
+    "obs_collection": "spherex_dr1",
+    "energy_bandpassname": "SPHEREx-D6",
+    "mjd_day": 61166.0,
+    "n_images": 8,
+    "em_min": 4.4115e-06,
+    "em_max": 5.0096e-06
+  },
+  {
+    "obs_collection": "spherex_dr1",
+    "energy_bandpassname": "SPHEREx-D6",
+    "mjd_day": 61167.0,
+    "n_images": 3,
+    "em_min": 4.4115e-06,
+    "em_max": 5.0096e-06
+  },
+  {
+    "obs_collection": "spherex_dr1",
+    "energy_bandpassname": "SPHEREx-D6",
+    "mjd_day": 61168.0,
+    "n_images": 6,
+    "em_min": 4.4115e-06,
+    "em_max": 5.0096e-06
+  },
+  {
+    "obs_collection": "spherex_qr3",
+    "energy_bandpassname": "SPHEREx-D1",
+    "mjd_day": 61186.0,
+    "n_images": 4,
+    "em_min": 7.455e-07,
+    "em_max": 1.1167e-06
+  },
+  {
+    "obs_collection": "spherex_qr3",
+    "energy_bandpassname": "SPHEREx-D4",
+    "mjd_day": 61186.0,
+    "n_images": 4,
+    "em_min": 2.4027e-06,
+    "em_max": 3.8473e-06
+  }
+]

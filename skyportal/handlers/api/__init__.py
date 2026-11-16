@@ -18,6 +18,7 @@ from .annotation_services import (
     GaiaQueryHandler,
     IRSAQueryWISEHandler,
     PS1QueryHandler,
+    SpherexQueryHandler,
     VizierQueryHandler,
 )
 from .assistant import AssistantConversationHandler, AssistantMessageHandler
