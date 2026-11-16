@@ -35,13 +35,15 @@ import TakeOverIcon from "@mui/icons-material/SwapHoriz";
 import { showNotification } from "baselayer/components/Notifications";
 import Button from "../Button";
 import UserAvatar, { getUserRealName } from "../user/UserAvatar";
+import NotificationToggle from "../deployment/NotificationToggle";
 import { useAppDispatch } from "../../types/hooks";
-import { useGetProfileQuery } from "../../ducks/profile";
+import { useGetProfileQuery, useHasPermission } from "../../ducks/profile";
 import {
   useAddFeedbackMutation,
   useGetFeedbackQuery,
   useReplyToFeedbackMutation,
   useUpdateFeedbackMutation,
+  statusOf,
   type Feedback,
   type FeedbackCategory,
 } from "../../ducks/feedback";
@@ -74,13 +76,6 @@ const STATUSES = {
 } as const;
 
 type Status = keyof typeof STATUSES;
-
-const statusOf = (message: Feedback): Status => {
-  if (message.resolved) return "resolved";
-  const replies = message.replies ?? [];
-  const last = replies[replies.length - 1];
-  return last && last.author.id !== message.author.id ? "answered" : "open";
-};
 
 const nameOf = (user: Feedback["author"]) =>
   getUserRealName(user.first_name, user.last_name) || user.username;
@@ -175,7 +170,7 @@ const TextSend = ({
   );
 };
 
-const FeedbackForm = ({ title }: { title: string }) => {
+const FeedbackForm = () => {
   const [category, setCategory] = useState<FeedbackCategory>("bug");
   const [addFeedback, { isLoading }] = useAddFeedbackMutation();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -184,8 +179,7 @@ const FeedbackForm = ({ title }: { title: string }) => {
   return (
     <Stack spacing={2}>
       <Typography variant="body2" color="text.secondary">
-        Found a bug, or want something to change? Leave a message to the admins
-        of {title}.
+        Found a bug, or want something to change? Leave a message to the admins.
       </Typography>
       <ToggleButtonGroup
         exclusive
@@ -475,21 +469,28 @@ const MessageList = ({
   );
 };
 
-const FeedbackTab = ({
-  title,
-  isAdmin,
-}: {
-  title: string;
-  isAdmin: boolean;
-}) => {
+const FeedbackPage = () => {
+  const isAdmin = useHasPermission("System admin");
   const { data: messages = [] } = useGetFeedbackQuery();
 
   return (
-    <Stack spacing={3}>
-      <FeedbackForm title={title} />
-      <MessageList messages={messages} isAdmin={isAdmin} />
+    <Stack spacing={2}>
+      <Paper variant="outlined" sx={{ p: { xs: 2, md: 3 }, borderRadius: 2 }}>
+        <Stack spacing={3}>
+          <Typography variant="h5" sx={{ fontWeight: 700 }}>
+            Feedback
+          </Typography>
+          <FeedbackForm />
+          <MessageList messages={messages} isAdmin={isAdmin} />
+        </Stack>
+      </Paper>
+      <NotificationToggle type="feedback" label="Feedback by email or Slack">
+        {isAdmin
+          ? "As an admin, you get an in-app notification for every new message."
+          : "You get an in-app notification when an admin replies to one of your messages."}
+      </NotificationToggle>
     </Stack>
   );
 };
 
-export default FeedbackTab;
+export default FeedbackPage;

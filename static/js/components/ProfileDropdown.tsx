@@ -10,13 +10,16 @@ import Popover from "@mui/material/Popover";
 import Typography from "@mui/material/Typography";
 import LogoutIcon from "@mui/icons-material/Logout";
 import PersonIcon from "@mui/icons-material/PersonOutlined";
+import FeedbackIcon from "@mui/icons-material/FeedbackOutlined";
 
+import { useOpenFeedbackCount } from "../ducks/feedback";
 import { useGetProfileQuery } from "../ducks/profile";
 import Button from "./Button";
 import UserAvatar from "./user/UserAvatar";
 
 const ProfileDropdown = () => {
   const { data: profile } = useGetProfileQuery();
+  const openFeedback = useOpenFeedbackCount();
   const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
 
   // In the header of every page: render nothing, not a spinner, while loading.
@@ -117,6 +120,16 @@ const ProfileDropdown = () => {
             >
               <PersonIcon fontSize="small" color="action" />
               Profile
+            </MenuItem>
+            <MenuItem
+              component={Link}
+              to="/feedback"
+              role="link"
+              onClick={handleClose}
+              sx={{ display: { md: "none" } }}
+            >
+              <FeedbackIcon fontSize="small" color="action" />
+              {openFeedback ? `Feedback (${openFeedback})` : "Feedback"}
             </MenuItem>
             <MenuItem component="a" href="/logout" data-testid="signOutButton">
               <LogoutIcon fontSize="small" color="action" />

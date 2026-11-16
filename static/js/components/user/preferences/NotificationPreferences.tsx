@@ -475,7 +475,7 @@ const NotificationPreferences = () => {
         <NotificationCard
           type="feedback"
           title="Feedback by email or Slack"
-          text="As an admin, you get an in-app notification for every new message. They are on the Deployments page."
+          text="As an admin, you get an in-app notification for every new message. They are on the Feedback page."
           channels={["email", "slack"]}
         />
       )}
