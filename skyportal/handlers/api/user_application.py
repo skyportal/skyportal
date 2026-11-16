@@ -182,9 +182,10 @@ class UserApplicationPatchBody(BaseModel):
         "belong to each of them. Defaults to none, which still lands the "
         "applicant in the sitewide public group.",
     )
-    role: Literal["Full user", "View only"] = Field(
+    role: Literal["Super admin", "Full user", "View only"] = Field(
         default="Full user",
-        description="The role the new user will have in the system.",
+        description="The role the new user will have in the system. "
+        "Super admin can only be granted by a system admin.",
     )
     declineReason: str | None = Field(
         default=None, description="Why the application was declined."
@@ -490,6 +491,9 @@ class UserApplicationHandler(BaseHandler):
                         "You may only grant streams you have yourself; "
                         f"no access to stream(s): {sorted(missing)}"
                     )
+
+            if body.role == "Super admin" and not self.current_user.is_system_admin:
+                return self.error("Only system admins can grant the Super admin role.")
 
             role = await session.scalar(
                 Role.select(self.current_user).where(Role.id == body.role)

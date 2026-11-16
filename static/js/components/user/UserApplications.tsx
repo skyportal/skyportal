@@ -26,6 +26,7 @@ import StyledDataGrid, { DataGridToolbar } from "../StyledDataGrid";
 import { capitalize, userLabel } from "../../utils/format";
 import { useGetConfigQuery } from "../../ducks/config";
 import { useGetGroupsQuery } from "../../ducks/groups";
+import { useHasPermission } from "../../ducks/profile";
 import { useGetStreamsQuery } from "../../ducks/streams";
 import {
   UserApplication,
@@ -37,7 +38,7 @@ import RemovableChip from "../RemovableChip";
 
 type Decision = "endorsed" | "declined";
 const TABS: UserApplication["status"][] = ["pending", "endorsed", "declined"];
-const ROLES = ["Full user", "View only"] as const;
+const ROLES = ["Super admin", "Full user", "View only"] as const;
 
 const applicantName = (application: UserApplication) =>
   `${application.first_name} ${application.last_name}`;
@@ -153,9 +154,13 @@ const DecisionDialog = ({
   const dispatch = useAppDispatch();
   const [decide] = useDecideUserApplicationMutation();
   const myStreams = useGetStreamsQuery().data ?? [];
+  const { publicGroupName } = (useGetConfigQuery().data as any) ?? {};
   const myGroups = (useGetGroupsQuery().data?.user ?? []).filter(
-    (group: any) => !group.single_user_group,
+    (group: any) => !group.single_user_group && group.name !== publicGroupName,
   );
+  const roles = useHasPermission("System admin")
+    ? ROLES
+    : ROLES.filter((option) => option !== "Super admin");
   const [streamIDs, setStreamIDs] = useState<number[]>([]);
   const [groupIDs, setGroupIDs] = useState<number[]>([]);
   const [role, setRole] = useState<(typeof ROLES)[number]>("Full user");
@@ -238,7 +243,7 @@ const DecisionDialog = ({
                   value={role}
                   onChange={(event) => setRole(event.target.value)}
                 >
-                  {ROLES.map((option) => (
+                  {roles.map((option) => (
                     <MenuItem key={option} value={option}>
                       {option}
                     </MenuItem>
@@ -319,6 +324,8 @@ const DecisionDialog = ({
               </FormControl>
               <DialogContentText variant="body2">
                 {`An invitation will be emailed to ${application.contact_email}. You can only grant streams you have yourself, and groups you belong to that those streams cover.`}
+                {publicGroupName &&
+                  ` They also join ${publicGroupName} by default.`}
               </DialogContentText>
             </>
           ) : (
