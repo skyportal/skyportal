@@ -638,9 +638,7 @@ const SourceContent = ({ source }: SourceContentProps) => {
         container
         size={{ xs: 12, lg: rightPanelVisible && !downLg ? 7 : 12 }}
         spacing={1.5}
-        style={{
-          display: downLg || !rightPanelVisible ? "flex" : "block",
-        }}
+        sx={{ alignContent: "flex-start" }}
       >
         <Grid
           size={12}
@@ -1612,7 +1610,7 @@ const SourceContent = ({ source }: SourceContentProps) => {
             order: { xs: 11, md: 12, lg: 10 },
           }}
         >
-          <Accordion>
+          <Accordion disableGutters className={classes.flexColumn}>
             <AccordionSummary
               expandIcon={<ExpandMoreIcon />}
               aria-controls="followup-content"
