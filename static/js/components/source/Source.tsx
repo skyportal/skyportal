@@ -1599,6 +1599,7 @@ const SourceContent = ({ source }: SourceContentProps) => {
                   followupRequests={source.followup_requests}
                   instrumentList={instrumentList}
                   instrumentFormParams={instrumentFormParams}
+                  showEmptyMessage={isReadOnly}
                 />
               </div>
             </AccordionDetails>
@@ -1639,6 +1640,7 @@ const SourceContent = ({ source }: SourceContentProps) => {
                   instrumentList={instrumentList}
                   instrumentFormParams={instrumentFormParams}
                   requestType="forced_photometry"
+                  showEmptyMessage={isReadOnly}
                 />
               </div>
             </AccordionDetails>
@@ -1675,7 +1677,10 @@ const SourceContent = ({ source }: SourceContentProps) => {
                     observingRunList={observingRunList}
                   />
                 )}
-                <AssignmentList assignments={source.assignments} />
+                <AssignmentList
+                  assignments={source.assignments}
+                  showEmptyMessage={isReadOnly}
+                />
               </div>
             </AccordionDetails>
           </Accordion>

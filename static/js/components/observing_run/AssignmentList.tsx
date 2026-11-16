@@ -27,9 +27,13 @@ const ASSIGNMENT_STATUSES = ["pending", "complete", "not observed"];
 
 interface AssignmentListProps {
   assignments: any[];
+  showEmptyMessage?: boolean;
 }
 
-const AssignmentList = ({ assignments }: AssignmentListProps) => {
+const AssignmentList = ({
+  assignments,
+  showEmptyMessage = true,
+}: AssignmentListProps) => {
   const dispatch = useAppDispatch();
   const [deleteAssignmentMutation] = useDeleteAssignmentMutation();
   const [editAssignment] = useEditAssignmentMutation();
@@ -83,11 +87,11 @@ const AssignmentList = ({ assignments }: AssignmentListProps) => {
   };
 
   if (assignments.length === 0) {
-    return (
+    return showEmptyMessage ? (
       <Typography variant="body2" sx={{ color: "text.secondary" }}>
         No assignments yet
       </Typography>
-    );
+    ) : null;
   }
 
   // `assignments` is frozen RTK Query data, so copy before sorting in place.
