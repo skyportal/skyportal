@@ -321,13 +321,11 @@ def build_photometry_groups(object_id, survey, data, instrument_id, programid2st
 
 async def _flip_stale_positive_points(session, pd):
     """Negate stored copies of pd's negative points that were saved with a positive flux."""
-    import sqlalchemy as sa
-
     from ..handlers.api.photometry import (
         find_duplicate_photometry,
+        full_update_phot_stats,
         standardize_photometry_data,
     )
-    from ..models import Photometry, PhotStat
 
     negative = [i for i, f in enumerate(pd["flux"]) if f is not None and f < 0]
     if not negative:
@@ -353,19 +351,7 @@ async def _flip_stale_positive_points(session, pd):
     for p in stale:
         p.flux = -p.flux
     await session.flush()
-
-    phot_stat = await session.scalar(
-        sa.select(PhotStat).where(PhotStat.obj_id == pd["obj_id"]).with_for_update()
-    )
-    if phot_stat is not None:
-        all_phot = (
-            await session.scalars(
-                sa.select(Photometry).where(Photometry.obj_id == pd["obj_id"])
-            )
-        ).all()
-        phot_stat.full_update(all_phot)
-        for phot in all_phot:
-            session.expunge(phot)
+    await full_update_phot_stats(session, [pd["obj_id"]])
 
 
 async def _ingest_object(
@@ -643,7 +629,11 @@ async def _ingest_object(
                 if mag_space:
                     await _flip_stale_positive_points(session, pd)
                 await add_external_photometry(
-                    pd, user, session, apply_default_share=False
+                    pd,
+                    user,
+                    session,
+                    apply_default_share=False,
+                    update_flux=not mag_space,
                 )
             except Exception as e:
                 log(f"Failed to add photometry for {object_id}: {e}")
