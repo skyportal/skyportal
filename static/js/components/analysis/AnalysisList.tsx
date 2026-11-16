@@ -37,9 +37,16 @@ import AnalysisCornerPlot from "./AnalysisCornerPlot";
 dayjs.extend(relativeTime);
 dayjs.extend(utc);
 
-const STATUS_COLORS: Record<string, "success" | "error"> = {
+const STATUS_COLORS: Record<
+  string,
+  "default" | "primary" | "warning" | "success" | "error"
+> = {
+  queued: "primary",
+  pending: "warning",
   completed: "success",
   failure: "error",
+  timed_out: "error",
+  cancelled: "default",
 };
 
 const AnalysisToolbar = () => <DataGridToolbar title="Analysis Requests" />;
@@ -164,7 +171,7 @@ const AnalysisList = ({
           <Chip
             label={row.status}
             size="small"
-            color={STATUS_COLORS[row.status] ?? "warning"}
+            color={STATUS_COLORS[row.status] ?? "default"}
             variant="outlined"
           />
           {row.status_message && (
