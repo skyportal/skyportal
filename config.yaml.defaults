@@ -1023,6 +1023,7 @@ zygote:
     - ngsf_analysis_service
     - spectral_cube_analysis_service
     - health_monitor
+    - rspack
 
 # Alert brokers (BOOM, Fink, Lasair, ...) are configured at runtime as
 # `Broker` database records (name + provider class + encrypted credentials), not
