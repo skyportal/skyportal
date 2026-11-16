@@ -30,6 +30,9 @@ import Menu from "@mui/material/Menu";
 import MenuItem from "@mui/material/MenuItem";
 import IconButton from "@mui/material/IconButton";
 import Paper from "@mui/material/Paper";
+import Dialog from "@mui/material/Dialog";
+import DialogContent from "@mui/material/DialogContent";
+import DialogTitle from "@mui/material/DialogTitle";
 import useMediaQuery from "@mui/material/useMediaQuery";
 import KeyboardArrowLeftIcon from "@mui/icons-material/KeyboardArrowLeft";
 import KeyboardArrowRightIcon from "@mui/icons-material/KeyboardArrowRight";
@@ -295,7 +298,7 @@ const SourceContent = ({ source }: SourceContentProps) => {
   const [showPhotometry, setShowPhotometry] = useState(false);
   const closePhotometryTable = useCallback(() => setShowPhotometry(false), []);
   const [rightPanelVisible, setRightPanelVisible] = useState(true);
-  const [showAnalysisForm, setShowAnalysisForm] = useState(false);
+  const [analysisDialogOpen, setAnalysisDialogOpen] = useState(false);
   const commentPanel = useCommentPanel();
   useCommentTarget(isReadOnly ? null : { type: "source", id: source.id });
   const [magsys, setMagsys] = useState("ab");
@@ -622,15 +625,26 @@ const SourceContent = ({ source }: SourceContentProps) => {
               <Button
                 secondary
                 size="small"
-                onClick={() => setShowAnalysisForm(!showAnalysisForm)}
+                onClick={() => setAnalysisDialogOpen(true)}
               >
-                {showAnalysisForm ? "Cancel" : "New analysis"}
+                New analysis
               </Button>
-              {showAnalysisForm && (
-                <div style={{ marginTop: "1rem" }}>
-                  <AnalysisForm obj_id={source.id} />
-                </div>
-              )}
+              <Dialog
+                open={analysisDialogOpen}
+                onClose={() => setAnalysisDialogOpen(false)}
+                maxWidth="md"
+                fullWidth
+              >
+                <DialogTitle>New analysis</DialogTitle>
+                <DialogContent>
+                  <div style={{ paddingTop: 8 }}>
+                    <AnalysisForm
+                      obj_id={source.id}
+                      onStarted={() => setAnalysisDialogOpen(false)}
+                    />
+                  </div>
+                </DialogContent>
+              </Dialog>
             </AccordionDetails>
           )}
         </Accordion>
