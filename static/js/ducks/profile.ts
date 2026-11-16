@@ -33,6 +33,7 @@ export interface Profile {
   roles: any[];
   preferences: Record<string, any>;
   tokens?: any[];
+  logins?: { id: number; provider: string }[];
   groupAdmissionRequests?: any[];
   is_anonymous?: boolean;
   isGroupAdmin?: boolean;
@@ -177,6 +178,13 @@ export const profileApi = skyportalApi.injectEndpoints({
       }),
       invalidatesTags: ["Profile"],
     }),
+    deleteLogin: build.mutation<unknown, number>({
+      query: (loginID) => ({
+        url: `api/internal/profile/logins/${loginID}`,
+        method: "DELETE",
+      }),
+      invalidatesTags: ["Profile"],
+    }),
   }),
 });
 
@@ -192,6 +200,7 @@ export const {
   useCreateTokenMutation,
   useUpdateTokenMutation,
   useDeleteTokenMutation,
+  useDeleteLoginMutation,
 } = profileApi;
 
 // True when the current request is served as the read-only anonymous account.
