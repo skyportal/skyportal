@@ -1,5 +1,5 @@
 import { Fragment, ReactNode, useState } from "react";
-import { useSearchParams } from "react-router-dom";
+import { Navigate, useSearchParams } from "react-router-dom";
 import dayjs from "dayjs";
 import relativeTime from "dayjs/plugin/relativeTime";
 import utc from "dayjs/plugin/utc";
@@ -38,7 +38,6 @@ import StorageIcon from "@mui/icons-material/StorageOutlined";
 import Inventory2Icon from "@mui/icons-material/Inventory2Outlined";
 import MemoryIcon from "@mui/icons-material/MemoryOutlined";
 import NotificationsActiveIcon from "@mui/icons-material/NotificationsActiveOutlined";
-import FeedbackIcon from "@mui/icons-material/FeedbackOutlined";
 import ManageAccountsIcon from "@mui/icons-material/ManageAccountsOutlined";
 import CheckCircleIcon from "@mui/icons-material/CheckCircleOutlineOutlined";
 import ErrorIcon from "@mui/icons-material/ErrorOutlineOutlined";
@@ -55,8 +54,6 @@ import {
   type GitLogEntry,
   type InstanceSystem,
 } from "../../ducks/deployments";
-import { useGetFeedbackQuery } from "../../ducks/feedback";
-import FeedbackTab from "./Feedback";
 import InstanceManagers from "./InstanceManagers";
 import NotificationToggle from "./NotificationToggle";
 
@@ -744,19 +741,19 @@ const InstanceDetails = ({ system }: { system: InstanceSystem }) => (
 
 const Deployments = () => {
   const { data, isLoading, isError } = useGetDeploymentsQuery();
-  const { data: feedback = [] } = useGetFeedbackQuery();
   const [searchParams, setSearchParams] = useSearchParams();
 
+  if (searchParams.get("tab") === "feedback")
+    return <Navigate to="/feedback" replace />;
   if (isLoading) return <Spinner />;
   if (isError || !data)
     return <Typography>Could not load the deployment information.</Typography>;
 
   const isAdmin = Boolean(data.system);
-  const tabs = ["history", "maintainers", "feedback", "notifications"];
+  const tabs = ["history", "maintainers", "notifications"];
   if (isAdmin) tabs.push("instance");
   const requested = searchParams.get("tab") ?? "";
   const tab = tabs.includes(requested) ? requested : "history";
-  const openFeedback = feedback.filter((message) => !message.resolved).length;
   const deployments = data.deployments ?? [];
   const deployedAt = utcDate(data.deployed_at);
   const startedAt = utcDate(data.started_at);
@@ -852,16 +849,6 @@ const Deployments = () => {
             label="Maintainers"
           />
           <Tab
-            value="feedback"
-            icon={<FeedbackIcon />}
-            iconPosition="start"
-            label={
-              isAdmin && openFeedback
-                ? `Feedback (${openFeedback})`
-                : "Feedback"
-            }
-          />
-          <Tab
             value="notifications"
             icon={<NotificationsActiveIcon />}
             iconPosition="start"
@@ -890,22 +877,10 @@ const Deployments = () => {
         <Box sx={{ p: { xs: 2, md: 3 } }}>
           {tab === "maintainers" ? (
             <InstanceManagers isAdmin={isAdmin} />
-          ) : tab === "feedback" ? (
-            <FeedbackTab title={data.title} isAdmin={isAdmin} />
           ) : tab === "notifications" ? (
-            <Stack spacing={1}>
-              <NotificationToggle type="deployments" label="Deployments">
-                Get notified each time a new version is deployed.
-              </NotificationToggle>
-              <NotificationToggle
-                type="feedback"
-                label="Feedback by email or Slack"
-              >
-                {isAdmin
-                  ? "As an admin, you get an in-app notification for every new message."
-                  : "You get an in-app notification when an admin replies to one of your messages."}
-              </NotificationToggle>
-            </Stack>
+            <NotificationToggle type="deployments" label="Deployments">
+              Get notified each time a new version is deployed.
+            </NotificationToggle>
           ) : tab === "instance" && data.system ? (
             <InstanceDetails system={data.system} />
           ) : deployments.length === 0 ? (

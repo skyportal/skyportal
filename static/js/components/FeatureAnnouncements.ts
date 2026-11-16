@@ -205,8 +205,7 @@ export const FEATURE_ANNOUNCEMENTS: FeatureAnnouncement[] = [
         title: "Deployments",
         content:
           "See which version of the app is running and what changed with each " +
-          "deployment. From its Feedback tab, report any issue or bug, or ask " +
-          "for new additions.",
+          "deployment.",
       },
     ],
   },

@@ -404,6 +404,8 @@ app:
       anonymous_ok: true
     - path: "/deployments"
       component: deployment/Deployments
+    - path: "/feedback"
+      component: feedback/Feedback
     - path: "/runs"
       component: observing_run/ObservingRunPage
     - path: "/run/:id"

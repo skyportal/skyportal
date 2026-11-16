@@ -179,8 +179,7 @@ class ErrorBoundary extends React.Component<
                 variant="contained"
                 startIcon={<FeedbackIcon />}
                 sx={{ ml: "auto" }}
-                href={`/deployments?${new URLSearchParams({
-                  tab: "feedback",
+                href={`/feedback?${new URLSearchParams({
                   text: this.errorReport(false),
                 })}`}
               >

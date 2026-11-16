@@ -1492,7 +1492,7 @@ def api(queue):
                                             "feedback_reply"
                                             if is_feedback_reply
                                             else "feedback",
-                                            "/deployments?tab=feedback",
+                                            "/feedback",
                                             content,
                                         )
                                     )
