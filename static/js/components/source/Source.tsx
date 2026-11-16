@@ -506,33 +506,6 @@ const SourceContent = ({ source }: SourceContentProps) => {
           </AccordionDetails>
         </Accordion>
       </Grid>
-      {hasSimilarityBroker && (
-        <Grid
-          size={{ xs: 12, lg: 6 }}
-          sx={{
-            order: { xs: 14, lg: 12 },
-          }}
-        >
-          <Accordion
-            defaultExpanded
-            disableGutters
-            className={classes.flexColumn}
-          >
-            <AccordionSummary
-              expandIcon={<ExpandMoreIcon />}
-              aria-controls="similar-objects-content"
-              id="similar-objects-header"
-            >
-              <Typography className={classes.accordionHeading}>
-                Similar Objects
-              </Typography>
-            </AccordionSummary>
-            <AccordionDetails>
-              <SimilarObjects objId={source.id} />
-            </AccordionDetails>
-          </Accordion>
-        </Grid>
-      )}
       <Grid
         size={{ xs: 12, lg: 6 }}
         sx={{
@@ -563,6 +536,33 @@ const SourceContent = ({ source }: SourceContentProps) => {
           </AccordionDetails>
         </Accordion>
       </Grid>
+      {hasSimilarityBroker && (
+        <Grid
+          size={{ xs: 12, lg: 6 }}
+          sx={{
+            order: { xs: 14, lg: 12 },
+          }}
+        >
+          <Accordion
+            defaultExpanded
+            disableGutters
+            className={classes.flexColumn}
+          >
+            <AccordionSummary
+              expandIcon={<ExpandMoreIcon />}
+              aria-controls="similar-objects-content"
+              id="similar-objects-header"
+            >
+              <Typography className={classes.accordionHeading}>
+                Similar Objects
+              </Typography>
+            </AccordionSummary>
+            <AccordionDetails>
+              <SimilarObjects objId={source.id} />
+            </AccordionDetails>
+          </Accordion>
+        </Grid>
+      )}
       <Grid
         size={{ xs: 12, lg: 6 }}
         sx={{
