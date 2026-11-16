@@ -1,8 +1,11 @@
 import datetime
 from typing import Annotated
 
+from astropy.time import Time
 from pydantic import Field
 from skyportal_py_models.similarity import (
+    MoreLikeThisPostBody,
+    MoreLikeThisResponse,
     SimilarityVettingGetQuery,
     SimilarityVettingResponse,
     SimilarSourcesGetQuery,
@@ -14,8 +17,10 @@ from baselayer.app.access import auth_or_token
 from ...models import Obj
 from ...utils.naive_datetime import utcnow_naive
 from ...utils.similarity import (
+    classified_as,
     find_neighbors,
     label_neighbors,
+    more_like_this,
     similarity_broker,
     vetting_queue,
 )
@@ -102,4 +107,62 @@ class SimilarityVettingHandler(BaseHandler):
             )
             return self.success(
                 data={"broker_id": broker.id, "checked": checked, "items": items}
+            )
+
+
+class MoreLikeThisHandler(BaseHandler):
+    @auth_or_token
+    async def post(self, *, body: MoreLikeThisPostBody = None) -> MoreLikeThisResponse:
+        """
+        ---
+        summary: Find objects like a set of sources
+        description: Objects near any of the seed sources in a broker's
+          embedding space, with a recent embedding and no human classification,
+          ranked by how many seeds they are near. Seeds are the given objects,
+          or every source a person gave one of the given classes, optionally
+          only those saved to the given groups. Seeds older than the broker's
+          embeddings have no neighbors.
+        tags:
+          - sources
+          - classifications
+        """
+        body = self.parse_body(MoreLikeThisPostBody)
+        if not body.objIds and not body.classifications:
+            return self.error("Provide objIds or classifications")
+        min_jd = Time(utcnow_naive()).jd - body.days
+        async with self.AsyncSession() as session:
+            user = session.user_or_token
+            broker = await similarity_broker(session, user, body.brokerId)
+            if broker is None:
+                return self.error("No active broker serves similarity search")
+            if body.objIds:
+                seed_ids = list(
+                    await session.scalars(
+                        Obj.select(user, columns=[Obj.id]).where(
+                            Obj.id.in_(body.objIds)
+                        )
+                    )
+                )
+            else:
+                seed_ids = await classified_as(
+                    session, user, body.classifications, body.groupIds
+                )
+            permissions = await alert_permissions_async(self.current_user, session)
+            searched, items = await more_like_this(
+                session,
+                user,
+                broker,
+                permissions,
+                seed_ids,
+                min_jd,
+                body.topK,
+                body.limit,
+            )
+            return self.success(
+                data={
+                    "broker_id": broker.id,
+                    "seeds": len(seed_ids),
+                    "seeds_searched": searched,
+                    "items": items,
+                }
             )
