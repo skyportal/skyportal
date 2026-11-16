@@ -319,15 +319,6 @@ const AnalysisList = ({
 
   return (
     <>
-      {isObj && analysesList.length > 0 && (
-        <Typography
-          variant="caption"
-          sx={{ display: "block", color: "text.secondary", mb: 1 }}
-        >
-          Completed light-curve fits are overlaid on this source&apos;s
-          photometry plot.
-        </Typography>
-      )}
       <StyledDataGrid
         autoHeight
         getRowHeight={() => "auto"}
