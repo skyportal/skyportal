@@ -160,7 +160,9 @@ const WeatherWidget = ({ classes }: WeatherWidgetProps) => {
     }
     return 0;
   });
-  const weatherPrefs = userPrefs?.telescopeID
+  const weatherPrefs = telescopeList.some(
+    (telescope: any) => telescope.id === Number(userPrefs?.telescopeID),
+  )
     ? userPrefs
     : { telescopeID: telescopeList[0]?.["id"] };
   const [anchorEl, setAnchorEl] = useState<any>(null);
