@@ -28,7 +28,7 @@ An Astronomical Data Platform
 
 ## Installation & Usage
 
-Please refer to the <a href="https://skyportal.io/docs">project documentation</a>.
+Please refer to the <a href="https://docs.skyportal.io">project documentation</a>.
 
 ## Citing SkyPortal
 

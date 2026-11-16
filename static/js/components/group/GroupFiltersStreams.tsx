@@ -219,7 +219,7 @@ const GroupFiltersStreams = ({
           )}
         </List>
       </Paper>
-      {currentUser.permissions.includes("System admin") && (
+      {canEdit && (
         <Button
           primary
           onClick={() => {

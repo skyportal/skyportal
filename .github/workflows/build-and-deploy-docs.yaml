@@ -14,6 +14,10 @@ concurrency:
 jobs:
   scope:
     uses: ./.github/workflows/ci_scope.yaml
+    # Repos whose default token is read-only (e.g. forks) only grant this if asked.
+    permissions:
+      contents: read
+      pull-requests: read
 
   build-and-deploy-docs:
     needs: scope
@@ -103,9 +107,7 @@ jobs:
           export NODE_PATH="$NPM_PACKAGES/lib/node_modules:$NODE_PATH"
 
       - name: Build docs
-        run: |
-          make docs
-          touch doc/_build/html/.nojekyll
+        run: make docs
 
       - name: Regenerate frontend types from OpenAPI spec and check for drift
         run: |
@@ -129,11 +131,22 @@ jobs:
             exit 1
           )
 
-      - name: Deploy docs
+      - name: Upload docs
         if: github.ref == 'refs/heads/main'
-        uses: JamesIves/github-pages-deploy-action@v4
+        uses: actions/upload-pages-artifact@v5
         with:
-          folder: doc/_build/html
-          repository-name: skyportal/docs
-          branch: gh-pages
-          token: ${{ secrets.DEPLOY_DOCS_TOKEN }}
+          path: doc/_build/html
+
+  deploy-docs:
+    needs: build-and-deploy-docs
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v5

@@ -306,7 +306,7 @@ export class RobustLatexToMongoConverter {
 
   _findMainOperator(expression) {
     const operators = [
-      { ops: ["**", "^"], precedence: 3 },
+      { ops: ["**", "^"], precedence: 3, rightAssoc: true },
       { ops: ["*", "/"], precedence: 2 },
       { ops: ["+", "-"], precedence: 1 },
     ];
@@ -346,14 +346,17 @@ export class RobustLatexToMongoConverter {
       }
 
       if (parenLevel === 0 && funcLevel === 0 && absLevel === 0) {
-        for (const { ops, precedence } of operators) {
+        for (const { ops, precedence, rightAssoc } of operators) {
+          const wins = rightAssoc
+            ? precedence <= bestPrec
+            : precedence < bestPrec;
           for (const op of ops) {
             if (op.length > 1) {
               const startIdx = i - op.length + 1;
               if (
                 startIdx >= 0 &&
                 expression.substring(startIdx, i + 1) === op &&
-                precedence <= bestPrec
+                wins
               ) {
                 const left = expression.substring(0, startIdx).trim();
                 const right = expression.substring(i + 1).trim();
@@ -362,7 +365,7 @@ export class RobustLatexToMongoConverter {
                   bestPrec = precedence;
                 }
               }
-            } else if (op === char && precedence <= bestPrec) {
+            } else if (op === char && wins) {
               if (
                 i > 0 &&
                 /[a-zA-Z]/.test(char) &&
@@ -371,10 +374,8 @@ export class RobustLatexToMongoConverter {
                 continue;
               }
 
-              if (
-                char === "-" &&
-                (i === 0 || /[+\-*/^(]/.test(expression[i - 1]))
-              ) {
+              const prev = expression.substring(0, i).trimEnd().slice(-1);
+              if (char === "-" && (!prev || /[+\-*/^(]/.test(prev))) {
                 continue;
               }
 

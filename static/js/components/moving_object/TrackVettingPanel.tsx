@@ -2,6 +2,7 @@ import { useMemo } from "react";
 
 import Alert from "@mui/material/Alert";
 import Box from "@mui/material/Box";
+import Button from "@mui/material/Button";
 import Chip from "@mui/material/Chip";
 import Paper from "@mui/material/Paper";
 import Typography from "@mui/material/Typography";
@@ -97,9 +98,13 @@ const OrbitElements = ({
 const CutoutStrip = ({
   detections,
   expectedRms,
+  excluded,
+  onToggle,
 }: {
   detections: MeasuredEpoch[];
   expectedRms: number | null;
+  excluded: string[];
+  onToggle: (candid: string) => void;
 }) => (
   <Box
     sx={{
@@ -110,7 +115,14 @@ const CutoutStrip = ({
     }}
   >
     {detections.map((d) => (
-      <Box key={d.candid} sx={{ textAlign: "center", flex: "0 0 auto" }}>
+      <Box
+        key={d.candid}
+        sx={{
+          textAlign: "center",
+          flex: "0 0 auto",
+          opacity: excluded.includes(d.candid) ? 0.35 : 1,
+        }}
+      >
         {d.png ? (
           <Box
             component="img"
@@ -166,6 +178,13 @@ const CutoutStrip = ({
             fwhm ×{d.fwhm_ratio.toFixed(2)}
           </Typography>
         )}
+        <Button
+          size="small"
+          onClick={() => onToggle(d.candid)}
+          sx={{ fontSize: "0.6rem", minWidth: 0, padding: "0 0.25rem" }}
+        >
+          {excluded.includes(d.candid) ? "Include" : "Exclude"}
+        </Button>
       </Box>
     ))}
   </Box>
@@ -176,6 +195,8 @@ interface TrackVettingPanelProps {
   measurement: TrackMeasurement;
   knownObject: KnownObjectVerdict | null | undefined;
   checkingKnown: boolean;
+  excluded: string[];
+  onToggleExcluded: (candid: string) => void;
 }
 
 /**
@@ -189,6 +210,8 @@ const TrackVettingPanel = ({
   measurement,
   knownObject,
   checkingKnown,
+  excluded,
+  onToggleExcluded,
 }: TrackVettingPanelProps) => {
   const theme = useTheme();
   const { detections, motion, position_angles: angles } = measurement;
@@ -292,10 +315,14 @@ const TrackVettingPanel = ({
           sx={{ fontSize: "0.75rem", fontWeight: 600, marginBottom: "0.25rem" }}
         >
           Difference cutouts, stretched to each epoch&apos;s own background
+          {excluded.length > 0 &&
+            `, ${excluded.length} excluded from the MPC submission`}
         </Typography>
         <CutoutStrip
           detections={detections}
           expectedRms={track.orbit?.expected_rms_arcsec ?? null}
+          excluded={excluded}
+          onToggle={onToggleExcluded}
         />
       </Paper>
 

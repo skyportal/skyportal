@@ -33,6 +33,12 @@ COLUMNS = ("trkSub", "mode", "stn", "obsTime", "ra", "dec", "astCat", "mag", "ba
 # astrometric error. Submit from the alert's own jd.
 MIN_JD_DECIMALS = 6
 
+SUBMISSION_TYPE_FIELDS = {
+    "regular": {},
+    "neo_candidate": {"ack": "NEO CANDIDATE", "obj_type": "NEO"},
+    "new_comet": {"ack": "NEW COMET"},
+}
+
 
 class NotSubmittable(Exception):
     """The track cannot be written as a submission, with the reason."""
@@ -119,14 +125,22 @@ def psv_submission(
     return "\n".join(lines) + "\n"
 
 
-def default_submitter(user):
-    """The name a user files under, as the MPC writes names: "Q. Ye"."""
+def service_submitters(sharing_service):
+    """The names a sharing service files under by default, in order."""
+    names = (sharing_service.mpc_altdata or {}).get("submitters") or ""
+    return [name.strip() for name in names.split(",") if name.strip()]
+
+
+def default_submitter(user, sharing_service=None):
+    """The service's first submitter, else the user's name as the MPC writes it: "Q. Ye"."""
+    if sharing_service is not None and (names := service_submitters(sharing_service)):
+        return names[0]
     if user.first_name and user.last_name:
         return f"{user.first_name[0]}. {user.last_name}"
     return user.username
 
 
-def track_psv(track, sharing_service, submitter):
+def track_psv(track, sharing_service, submitter, exclude_candids=()):
     """A broker's track as the PSV the sharing service files under ``submitter``."""
     header = sharing_service.mpc_altdata or {}
     missing = [field for field in MPC_HEADER_FIELDS if not header.get(field)]
@@ -134,8 +148,13 @@ def track_psv(track, sharing_service, submitter):
         raise NotSubmittable(
             f"sharing service {sharing_service.name} is missing MPC {', '.join(missing)}"
         )
+    excluded = {str(candid) for candid in exclude_candids}
     return psv_submission(
-        [{**d, "jd": d["obs_jd"]} for d in track["detections"]],
+        [
+            {**d, "jd": d["obs_jd"]}
+            for d in track["detections"]
+            if str(d.get("candid")) not in excluded
+        ],
         track["id"],
         observatory={"mpc_code": header["observatory_code"]},
         telescope={
@@ -167,7 +186,11 @@ def submit_to_mpc(submission_request, sharing_service, user, session):
     url = MPC_SUBMIT_URL + ("_test" if sharing_service.testing else "")
     response = requests.post(
         url,
-        data={"ack": payload["track_id"], "ac2": ack_email(user, sharing_service)},
+        data={
+            "ack": payload["track_id"],
+            "ac2": ack_email(user, sharing_service),
+            **SUBMISSION_TYPE_FIELDS[payload.get("submission_type", "regular")],
+        },
         files={"source": payload["psv"].encode()},
         timeout=120,
     )

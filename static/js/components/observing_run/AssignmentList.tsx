@@ -13,6 +13,7 @@ import { showNotification } from "baselayer/components/Notifications";
 import { useAppDispatch } from "../../types/hooks";
 import ConfirmDeletionDialog from "../ConfirmDeletionDialog";
 import ModifyAssignment from "./ModifyAssignment";
+import { ASSIGNMENT_PURPOSES } from "./AssignmentForm";
 import StyledDataGrid from "../StyledDataGrid";
 import {
   useDeleteAssignmentMutation,
@@ -150,6 +151,15 @@ const AssignmentList = ({ assignments }: AssignmentListProps) => {
       flex: 1,
       minWidth: 90,
       sortable: false,
+    },
+    {
+      field: "purpose",
+      headerName: "Purpose",
+      flex: 1,
+      minWidth: 120,
+      sortable: false,
+      type: "singleSelect",
+      valueOptions: ASSIGNMENT_PURPOSES,
     },
     {
       field: "status",

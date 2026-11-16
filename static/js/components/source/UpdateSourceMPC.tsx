@@ -44,7 +44,7 @@ const UpdateSourceMPC = ({ source }: UpdateSourceMPCProps) => {
       ).slice(0, 16),
       search_radius: 1,
       limiting_magnitude: 24,
-      obscode: "500",
+      obscode: "",
     },
   });
   const field = (
@@ -53,15 +53,20 @@ const UpdateSourceMPC = ({ source }: UpdateSourceMPCProps) => {
     const { ref, ...rest } = register(name, {
       valueAsNumber: name === "search_radius" || name === "limiting_magnitude",
     });
-    return { ...rest, inputRef: ref, size: "small" as const, required: true };
+    return {
+      ...rest,
+      inputRef: ref,
+      size: "small" as const,
+      required: name !== "obscode",
+    };
   };
 
   const onSubmit = async (formData: Record<string, any>) => {
-    const { error } = await addMPC({ id: source.id, formData });
+    const { data, error } = await addMPC({ id: source.id, formData });
     if (error) return;
     dispatch(
       showNotification(
-        "MPC query sent. The MPC name will appear once the MPC answers.",
+        `MPC query sent from observatory ${data?.obscode}. The MPC name will appear once the MPC answers.`,
       ),
     );
     setDialogOpen(false);
@@ -121,7 +126,7 @@ const UpdateSourceMPC = ({ source }: UpdateSourceMPCProps) => {
               <TextField
                 {...field("obscode")}
                 label="Observatory code"
-                helperText="500 is the geocenter"
+                helperText="Empty: telescope of the closest detection"
                 sx={{ gridColumn: "1 / -1" }}
               />
             </Box>

@@ -175,11 +175,15 @@ const FieldGrid = ({ properties }: any) => (
 interface AnalysisFormProps {
   obj_id: string;
   analysisResourceType?: string;
+  analysisTypes?: string[];
+  onStarted?: () => void;
 }
 
 const AnalysisForm = ({
   obj_id,
   analysisResourceType = "obj",
+  analysisTypes,
+  onStarted,
 }: AnalysisFormProps) => {
   const dispatch = useAppDispatch();
   const [startAnalysis] = useStartAnalysisMutation();
@@ -194,8 +198,17 @@ const AnalysisForm = ({
     () => (associatedGcnsData as any)?.gcns ?? [],
     [associatedGcnsData],
   );
-  const { data: analysisServiceList = [], isLoading: servicesLoading } =
+  const { data: allAnalysisServices = [], isLoading: servicesLoading } =
     useGetAnalysisServicesQuery();
+  const analysisServiceList = useMemo(
+    () =>
+      analysisTypes
+        ? allAnalysisServices.filter((s: any) =>
+            analysisTypes.includes(s.analysis_type),
+          )
+        : allAnalysisServices,
+    [allAnalysisServices, analysisTypes],
+  );
   const { data: groupsData, isLoading: groupsLoading } = useGetGroupsQuery();
   const userAccessibleGroups = groupsData?.userAccessible;
   const singleUserGroup = groupsData?.user?.find(
@@ -336,6 +349,7 @@ const AnalysisForm = ({
           `Analysis started with ${serviceLabel(selectedService) || "service"}.`,
         ),
       );
+      onStarted?.();
     } catch (error: any) {
       dispatch(
         showNotification(

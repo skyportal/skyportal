@@ -12,6 +12,7 @@ from skyportal_py_models._cyclic import (
     FacilityTransactionResponse,
 )
 from skyportal_py_models.allocations import AllocationResponse
+from skyportal_py_models.assignments import AssignmentPurpose
 from skyportal_py_models.groups import GroupResponse
 from skyportal_py_models.users import UserResponse
 
@@ -160,6 +161,9 @@ class AssignmentPostBody(BaseModel):
     comment: str | None = Field(
         default=None, description="An optional comment describing the request."
     )
+    purpose: AssignmentPurpose | None = Field(
+        default=None, description="Purpose of the assignment."
+    )
 
 
 class AssignmentPostResponse(BaseModel):
@@ -184,6 +188,9 @@ class AssignmentPutBody(BaseModel):
     status: str | None = Field(default=None, description="The status of the request.")
     comment: str | None = Field(
         default=None, description="An optional comment describing the request."
+    )
+    purpose: AssignmentPurpose | None = Field(
+        default=None, description="Purpose of the assignment."
     )
 
 

@@ -102,7 +102,7 @@ const SourceList = () => {
         <Alert severity="warning">
           <AlertTitle>The Sources table is currently empty</AlertTitle>
           For help with initializing the database, see the{" "}
-          <a href="https://skyportal.io/docs/setup.html">
+          <a href="https://docs.skyportal.io/setup.html">
             getting started documentation
           </a>
           . Or click the <b>+</b> icon in the upper right corner of the table to

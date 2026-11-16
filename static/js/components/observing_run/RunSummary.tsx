@@ -29,7 +29,9 @@ import { showNotification } from "baselayer/components/Notifications";
 import { useAppDispatch } from "../../types/hooks";
 import Button from "../Button";
 import StyledDataGrid, { DataGridToolbar } from "../StyledDataGrid";
-import AssignmentForm from "../observing_run/AssignmentForm";
+import AssignmentForm, {
+  ASSIGNMENT_PURPOSES,
+} from "../observing_run/AssignmentForm";
 import ThumbnailList from "../thumbnail/ThumbnailList";
 import ObservingRunTitle from "./ObservingRunTitle";
 import { ObservingRunStarList } from "../StarList";
@@ -331,6 +333,14 @@ const RunSummary = ({ route }: RunSummaryProps) => {
       },
     },
     {
+      field: "purpose",
+      headerName: "Purpose",
+      flex: 1,
+      minWidth: 120,
+      type: "singleSelect",
+      valueOptions: ASSIGNMENT_PURPOSES,
+    },
+    {
       field: "created_at",
       headerName: "Date Requested",
       flex: 1,
@@ -538,7 +548,13 @@ const RunSummary = ({ route }: RunSummaryProps) => {
         getRowHeight={() => "auto"}
         columnBufferPx={3000}
         slots={{ toolbar: DataGridToolbar }}
-        slotProps={{ toolbar: { title: "Targets", showQuickFilter: false } }}
+        slotProps={{
+          toolbar: {
+            title: "Targets",
+            showQuickFilter: false,
+            showFilter: true,
+          },
+        }}
         showToolbar
       />
       <Grid container spacing={2}>

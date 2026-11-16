@@ -42,7 +42,7 @@ export interface EndorsementPayload {
   status: "endorsed" | "declined";
   streamIDs?: number[] | undefined;
   groupIDs?: number[] | undefined;
-  role?: ("Full user" | "View only") | undefined;
+  role?: ("Super admin" | "Full user" | "View only") | undefined;
   declineReason?: string | undefined;
 }
 

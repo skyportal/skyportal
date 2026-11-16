@@ -11,9 +11,9 @@ from baselayer.log import make_log
 
 log = make_log("broker/save")
 
-# AB zeropoint per survey, matching the units points arrive in: flux in nJy is
-# scaled to Jy and takes 8.9, magnitudes are converted to uJy and take 23.9.
-ZP_PER_SURVEY = {"LSST": 8.9, "ZTF": 23.9, "WINTER": 8.9, "DECAM": 8.9, "ARGUS": 8.9}
+# AB zeropoint per survey: flux in nJy is scaled to Jy and takes 8.9, and
+# magnitudes are converted against the same zeropoint.
+ZP_PER_SURVEY = {"LSST": 8.9, "ZTF": 8.9, "WINTER": 8.9, "DECAM": 8.9, "ARGUS": 8.9}
 
 # Surveys whose filters are not named <survey><band>. Keys are normalized bands,
 # so any survey prefix is already stripped. An unmapped band raises rather than

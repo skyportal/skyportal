@@ -24,8 +24,8 @@ app:
       developed at Caltech, UC Berkeley, the University of Minnesota, and
       Université Paris-Saclay.
     homepage_url: https://skyportal.io
-    docs_url: https://skyportal.io/docs/
-    api_docs_url: https://skyportal.io/docs/api.html
+    docs_url: https://docs.skyportal.io/
+    api_docs_url: https://docs.skyportal.io/api.html
     repository_url: https://github.com/skyportal/skyportal
     funding: >-
       SkyPortal development is funded by the Moore Foundation, Heising Simons

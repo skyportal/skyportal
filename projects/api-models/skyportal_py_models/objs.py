@@ -62,10 +62,11 @@ class ObjMPCPostBody(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
-    obscode: str = Field(
-        default="500",
-        description="Minor planet center observatory code. "
-        "Defaults to 500, corresponds to geocentric.",
+    obscode: str | None = Field(
+        default=None,
+        description="Minor planet center observatory code. Defaults to the "
+        "code of the telescope behind the detection closest to the date, or "
+        "500 (geocentric) when it has none.",
     )
     date: str | None = Field(
         default=None,

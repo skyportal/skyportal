@@ -26265,6 +26265,11 @@ export interface components {
             status?: string;
             /** @description An optional comment describing the request. */
             comment?: string;
+            /**
+             * @description Purpose of the assignment.
+             * @enum {string|null}
+             */
+            purpose?: "classification" | "follow-up" | null;
         };
         SingleAssignmentSchema: {
             /** @enum {string} */
@@ -26884,6 +26889,8 @@ export interface components {
              * @enum {string}
              */
             priority: "1" | "2" | "3" | "4" | "5";
+            /** @description Purpose of the assignment [classification, follow-up]. */
+            purpose?: string | null;
             /** @description ID of the ObservingRun this target was assigned to. */
             run_id: number;
             /** @description Unique object identifier. */
@@ -26925,6 +26932,8 @@ export interface components {
              * @enum {string}
              */
             priority: "1" | "2" | "3" | "4" | "5";
+            /** @description Purpose of the assignment [classification, follow-up]. */
+            purpose?: string | null;
             /** @description ID of the ObservingRun this target was assigned to. */
             run_id: number;
         };
@@ -43171,6 +43180,13 @@ export interface components {
              * @default null
              */
             comment: string | null;
+            /**
+             * Purpose
+             * @description Purpose of the assignment.
+             * @default null
+             * @enum {string|null}
+             */
+            purpose: "classification" | "follow-up" | null;
         };
         /**
          * AssignmentPostResponse
@@ -43218,6 +43234,13 @@ export interface components {
              * @default null
              */
             comment: string | null;
+            /**
+             * Purpose
+             * @description Purpose of the assignment.
+             * @default null
+             * @enum {string|null}
+             */
+            purpose: "classification" | "follow-up" | null;
         };
         /**
          * BrokerFilterTestBody
@@ -45481,10 +45504,28 @@ export interface components {
             broker_id: number;
             /**
              * Submitter
-             * @description Name the submission is filed under, as the MPC writes it ("Q. Ye"). Defaults to the requester's.
+             * @description Name the submission is filed under, as the MPC writes it ("Q. Ye"). Defaults to the sharing service's first MPC submitter, else the requester's.
              * @default null
              */
             submitter: string | null;
+            /**
+             * Exclude Candids
+             * @description Detections the reviewer left out of the submission.
+             */
+            exclude_candids?: string[];
+            /**
+             * Psv
+             * @description The PSV as the reviewer edited it, sent instead of the generated one.
+             * @default null
+             */
+            psv: string | null;
+            /**
+             * Submission Type
+             * @description MPC channel the track goes to: the regular one, NEO candidates or new comets.
+             * @default regular
+             * @enum {string}
+             */
+            submission_type: "regular" | "neo_candidate" | "new_comet";
         };
         /**
          * MovingObjectTrackKnownPostBody
@@ -49343,10 +49384,10 @@ export interface components {
         ObjMPCPostBody: {
             /**
              * Obscode
-             * @description Minor planet center observatory code. Defaults to 500, corresponds to geocentric.
-             * @default 500
+             * @description Minor planet center observatory code. Defaults to the code of the telescope behind the detection closest to the date, or 500 (geocentric) when it has none.
+             * @default null
              */
-            obscode: string;
+            obscode: string | null;
             /**
              * Date
              * @description Time to check MPC for. Defaults to current time.
@@ -52523,11 +52564,11 @@ export interface components {
             groupIDs: number[] | null;
             /**
              * Role
-             * @description The role the new user will have in the system.
+             * @description The role the new user will have in the system. Super admin can only be granted by a system admin.
              * @default Full user
              * @enum {string}
              */
-            role: "Full user" | "View only";
+            role: "Super admin" | "Full user" | "View only";
             /**
              * Declinereason
              * @description Why the application was declined.

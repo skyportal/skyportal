@@ -103,7 +103,7 @@
 - diameter: 10.4
   elevation: 2275.0
   lat: 28.756611
-  lon: -17.8792
+  lon: -17.89189
   name: Gran Telescopio Canarias 10.4 m
   nickname: GTC
   skycam_link: null
@@ -614,7 +614,7 @@
   =id: WINTER
   robotic: true
   mpc_obscode: "675"
-- diameter: 0.3
+- diameter: 0.25
   elevation: 1320.0
   lat: 43.7520
   lon: 6.9235
@@ -624,7 +624,7 @@
   robotic: true
   mpc_obscode: "010"
   =id: TCA
-- diameter: 0.2
+- diameter: 0.18
   elevation: 991.0
   lat: -21.1988
   lon: 55.4102
@@ -634,7 +634,7 @@
   robotic: true
   mpc_obscode: "181"
   =id: TRE
-- diameter: 0.3
+- diameter: 0.25
   elevation: 2398.0
   lat: -29.2599
   lon: -70.7326

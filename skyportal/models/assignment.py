@@ -62,6 +62,11 @@ class ClassicalAssignment(Base):
         nullable=False,
         doc="Priority of the request (1 = lowest, 5 = highest).",
     )
+    purpose = sa.Column(
+        sa.String(),
+        nullable=True,
+        doc="Purpose of the assignment [classification, follow-up].",
+    )
     spectra = relationship(
         "Spectrum",
         back_populates="assignment",

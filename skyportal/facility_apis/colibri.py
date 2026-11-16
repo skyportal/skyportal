@@ -158,31 +158,7 @@ class COLIBRIAPI(FollowUpAPI):
             Database session for this transaction
         """
 
-        from ..models import FacilityTransaction, FollowupRequest
-
-        # Reload with the lazy chains this method walks eager-loaded, since
-        # async sessions raise on implicit lazy loads.
-        request = await session.scalar(
-            sa.select(FollowupRequest)
-            .where(FollowupRequest.id == request.id)
-            .options(selectinload(FollowupRequest.obj))
-        )
-
-        validate_request_to_colibri(request)
-        request.status = "submitted"
-
-        transaction = FacilityTransaction(
-            request=None,
-            response=None,
-            followup_request=request,
-            initiator_id=request.last_modified_by_id,
-        )
-
-        session.add(transaction)
-
-        push_followup_refresh(
-            request.obj.internal_key, request.last_modified_by_id, **kwargs
-        )
+        await COLIBRIAPI.submit(request, session, **kwargs)
 
     form_json_schema = {
         "type": "object",

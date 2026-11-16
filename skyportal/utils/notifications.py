@@ -314,7 +314,10 @@ def source_notification_content(target, target_type="classification"):
     else:
         raise ValueError(f"Unknown target type: {target_type}")
 
-    if len(target.obj.photstats) > 0:
+    if (
+        len(target.obj.photstats) > 0
+        and target.obj.photstats[0].first_detected_mjd is not None
+    ):
         first_detected_mjd = target.obj.photstats[0].first_detected_mjd
         first_detected = Time(first_detected_mjd, format="mjd").isot
 

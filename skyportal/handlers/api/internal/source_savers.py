@@ -39,6 +39,9 @@ class SourceSaverHandler(BaseHandler):
             # the broker ingestion user, which auto-saves in its own name
             Source.saved_by_id != 1,
             Source.saved_by_id.not_in(sa.select(User.id).where(User.is_bot)),
+            # Sharing with a group one is not in signs a row that the group may
+            # never save; only rows that are active or were unsaved were saves.
+            sa.or_(Source.active.is_(True), Source.unsaved_by_id.isnot(None)),
         )
 
         if top_savers_prefs["candidatesOnly"]:
