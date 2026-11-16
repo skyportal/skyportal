@@ -294,6 +294,7 @@ from skyportal.handlers.api.internal import (
     PlotHoursBelowAirmassHandler,
     PlotObjTelAirmassHandler,
     ProfileHandler,
+    ProfileLoginHandler,
     RecentGcnEventsHandler,
     RecentGcnExtractionsHandler,
     RecentSourcesHandler,
@@ -799,6 +800,7 @@ skyportal_handlers = [
     # Internal API endpoints
     (r"/api/internal/tokens(/[0-9A-Za-z-]+)?", TokenHandler),
     (r"/api/internal/profile(/[0-9]+)?", ProfileHandler),
+    (r"/api/internal/profile/logins/([0-9]+)", ProfileLoginHandler),
     (r"/api/internal/dbinfo", DBInfoHandler),
     (r"/api/internal/memory", MemoryHandler),
     (r"/api/internal/source_views(/.*)?", SourceViewsHandler),

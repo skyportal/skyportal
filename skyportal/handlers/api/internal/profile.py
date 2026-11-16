@@ -11,6 +11,7 @@ from sqlalchemy.orm import selectinload
 
 from baselayer.app.access import auth_or_token
 from baselayer.app.config import recursive_update
+from baselayer.app.psa import TornadoStorage
 
 from ....models import (
     Group,
@@ -133,6 +134,16 @@ class ProfileHandler(BaseHandler):
             user_info["permissions"] = user_permissions
             user_info["acls"] = user_acls
             user_info["tokens"] = user_tokens
+            if own_profile:
+                logins = await session.execute(
+                    sa.select(TornadoStorage.user.id, TornadoStorage.user.provider)
+                    .where(TornadoStorage.user.user_id == user.id)
+                    .order_by(TornadoStorage.user.id)
+                )
+                user_info["logins"] = [
+                    {"id": login_id, "provider": provider}
+                    for login_id, provider in logins
+                ]
             user_info["gravatar_url"] = user.gravatar_url or None
             user_info["preferences"] = user.preferences or {}
             user_info["groupAdmissionRequests"] = user.group_admission_requests
@@ -377,4 +388,44 @@ class ProfileHandler(BaseHandler):
                 self.push(action="skyportal/FETCH_SOURCE_COUNTS")
             if user_id != self.associated_user_object.id:
                 self.flow.push(user_id, "skyportal/FETCH_USER_PROFILE", {})
+            return self.success(action="skyportal/FETCH_USER_PROFILE")
+
+
+class ProfileLoginHandler(BaseHandler):
+    @auth_or_token
+    async def delete(self, login_id: int):
+        """
+        ---
+        description: Remove a login from your account. The last one cannot be removed.
+        responses:
+          200:
+            content:
+              application/json:
+                schema: Success
+          400:
+            content:
+              application/json:
+                schema: Error
+        """
+        Login = TornadoStorage.user
+        async with self.AsyncSession() as session:
+            user = await session.get(User, self.associated_user_object.id)
+            logins = (
+                await session.scalars(
+                    sa.select(Login).where(Login.user_id == user.id).order_by(Login.id)
+                )
+            ).all()
+            login = next((item for item in logins if item.id == int(login_id)), None)
+            if login is None:
+                return self.error(f"Cannot find login with ID {login_id}")
+            if len(logins) == 1:
+                return self.error("You cannot remove your only login.")
+
+            remaining = next(item for item in logins if item.id != login.id)
+            if user.oauth_uid == login.uid:
+                user.oauth_uid = None
+            if self.get_secure_cookie("user_oauth_uid") == login.uid.encode():
+                self.set_secure_cookie("user_oauth_uid", remaining.uid)
+            await session.execute(sa.delete(Login).where(Login.id == login.id))
+            await session.commit()
             return self.success(action="skyportal/FETCH_USER_PROFILE")

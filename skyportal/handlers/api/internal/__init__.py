@@ -17,7 +17,7 @@ from .plot import (
     PlotHoursBelowAirmassHandler,
     PlotObjTelAirmassHandler,
 )
-from .profile import ProfileHandler
+from .profile import ProfileHandler, ProfileLoginHandler
 from .recent_gcn_events import RecentGcnEventsHandler
 from .recent_gcn_extractions import RecentGcnExtractionsHandler
 from .recent_sources import RecentSourcesHandler
