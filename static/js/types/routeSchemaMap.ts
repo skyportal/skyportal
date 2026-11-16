@@ -108,6 +108,7 @@ export const ROUTE_SCHEMA_MAP = {
   "GET /api/sharing_service/{sharing_service_id}": { schema: "SharingService" as const, list: false },
   "GET /api/shifts": { schema: "Shift" as const, list: true },
   "GET /api/shifts/{shift_id}": { schema: "Shift" as const, list: false },
+  "GET /api/similarity/vetting": { schema: "SimilarityVettingResponse" as const, list: false },
   "GET /api/skymap_trigger/{allocation_id}": { schema: "PlannedObservation" as const, list: true },
   "GET /api/sources": { schema: "Obj" as const, list: true, wrapper: "sources" as const },
   "GET /api/sources/{obj_id}": { schema: "Obj" as const, list: false },

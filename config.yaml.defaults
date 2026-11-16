@@ -447,6 +447,8 @@ app:
       component: DBStats
     - path: "/source_statistics"
       component: SourceStatistics
+    - path: "/similarity"
+      component: similarity/SimilarityPage
     - path: "/gcn_events"
       component: gcn/GcnEvents
       anonymous_ok: true
@@ -569,6 +571,10 @@ app:
         - name: Source Statistics
           icon: ScatterPlot
           url: /source_statistics
+
+        - name: Similarity
+          icon: BubbleChart
+          url: /similarity
 
         - name: About
           icon: Info
