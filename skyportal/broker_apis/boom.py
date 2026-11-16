@@ -1250,6 +1250,7 @@ class BOOMBROKER(BrokerAPI):
         programids = _programids(kwargs, "ZTF")
         if programids is None:
             programids = ALL_ZTF_PROGRAMIDS
+        programids = [p for p in programids if p in ALL_ZTF_PROGRAMIDS]
         if not programids:
             return []
         try:
