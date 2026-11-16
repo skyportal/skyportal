@@ -295,6 +295,7 @@ const SourceContent = ({ source }: SourceContentProps) => {
   const [showPhotometry, setShowPhotometry] = useState(false);
   const closePhotometryTable = useCallback(() => setShowPhotometry(false), []);
   const [rightPanelVisible, setRightPanelVisible] = useState(true);
+  const [showAnalysisForm, setShowAnalysisForm] = useState(false);
   const commentPanel = useCommentPanel();
   useCommentTarget(isReadOnly ? null : { type: "source", id: source.id });
   const [magsys, setMagsys] = useState("ab");
@@ -618,7 +619,18 @@ const SourceContent = ({ source }: SourceContentProps) => {
           </AccordionDetails>
           {!isReadOnly && (
             <AccordionDetails>
-              <AnalysisForm obj_id={source.id} />
+              <Button
+                secondary
+                size="small"
+                onClick={() => setShowAnalysisForm(!showAnalysisForm)}
+              >
+                {showAnalysisForm ? "Cancel" : "New analysis"}
+              </Button>
+              {showAnalysisForm && (
+                <div style={{ marginTop: "1rem" }}>
+                  <AnalysisForm obj_id={source.id} />
+                </div>
+              )}
             </AccordionDetails>
           )}
         </Accordion>
