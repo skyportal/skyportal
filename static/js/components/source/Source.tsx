@@ -572,17 +572,14 @@ const SourceContent = ({ source }: SourceContentProps) => {
           order: { xs: 9, lg: 13 },
         }}
       >
-        <Accordion defaultExpanded disableGutters>
-          <AccordionSummary
-            expandIcon={<ExpandMoreIcon />}
-            aria-controls="hr-diagram-content"
+        <Paper className={classes.flexColumn} sx={{ p: 2, gap: 1.5 }}>
+          <Typography
             id="hr-diagram-header"
+            className={classes.accordionHeading}
           >
-            <Typography className={classes.accordionHeading}>
-              HR Diagram
-            </Typography>
-          </AccordionSummary>
-          <AccordionDetails data-testid={`hr_diagram_${source.id}`}>
+            HR Diagram
+          </Typography>
+          <div data-testid={`hr_diagram_${source.id}`}>
             {source.color_magnitude?.length ? (
               <Suspense fallback={<CircularProgress color="secondary" />}>
                 <VegaHR
@@ -592,10 +589,12 @@ const SourceContent = ({ source }: SourceContentProps) => {
                 />
               </Suspense>
             ) : (
-              "No color magnitude for this source"
+              <Typography variant="body2" sx={{ color: "text.secondary" }}>
+                No color magnitude for this source
+              </Typography>
             )}
-          </AccordionDetails>
-        </Accordion>
+          </div>
+        </Paper>
       </Grid>
       <Grid
         size={{ xs: 12, lg: 6 }}
