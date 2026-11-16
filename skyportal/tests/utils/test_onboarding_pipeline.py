@@ -575,3 +575,41 @@ def test_resolve_user_links_a_provider_verified_email(user):
         response={"email_verified": True},
     )
     assert resolved.id == user.id
+
+
+def test_create_user_links_a_new_login_to_the_signed_in_user(
+    invitations_enabled, user, user2
+):
+    user2.contact_email = f"other{uuid.uuid4().hex[:8]}@example.com"
+    DBSession().commit()
+
+    result = create_user(
+        FakeStrategy(),
+        details_for("ignored", email=user2.contact_email),
+        FakeBackend(name="orcid"),
+        f"sub-{uuid.uuid4().hex[:8]}",
+        user=user,
+        response={"email_verified": True},
+    )
+
+    assert result["is_new"] is False
+    assert result["user"].id == user.id
+
+
+def test_create_user_refuses_a_login_of_another_account(
+    invitations_enabled, user, user2
+):
+    strategy = FakeStrategy()
+    details = details_for(f"legacy{uuid.uuid4().hex[:8]}")
+    strategy.storage.user.social_auths[("google-oauth2", details["email"])] = (
+        FakeSocialAuth("google-oauth2", details["email"], user2)
+    )
+
+    with pytest.raises(Exception, match="already linked to another account"):
+        create_user(
+            strategy,
+            details,
+            FakeBackend(),
+            f"sub-{uuid.uuid4().hex[:8]}",
+            user=user,
+        )

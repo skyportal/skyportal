@@ -37,7 +37,7 @@ def _email_is_verified(backend, details, response):
     return backend_trusts_email(backend.name)
 
 
-def resolve_user(strategy, backend, uid, details, response=None):
+def resolve_user(strategy, backend, uid, details, response=None, match_email=True):
     """Find the account this sign-in belongs to, and the association it came
     through; (None, None) when there is no account to sign in to.
 
@@ -74,7 +74,7 @@ def resolve_user(strategy, backend, uid, details, response=None):
             legacy_user.oauth_uid = uid
             return legacy_user, None
 
-    if email and _email_is_verified(backend, details, response):
+    if match_email and email and _email_is_verified(backend, details, response):
         return session.scalar(sa.select(User).where(User.contact_email == email)), None
 
     return None, None
@@ -127,8 +127,19 @@ def create_user(strategy, details, backend, uid, user=None, *args, **kwargs):
 
     try:
         existing_user, existing_social = resolve_user(
-            strategy, backend, uid, details, kwargs.get("response")
+            strategy,
+            backend,
+            uid,
+            details,
+            kwargs.get("response"),
+            match_email=user is None,
         )
+        if user is not None:
+            if existing_user is not None and existing_user.id != user.id:
+                raise Exception(
+                    "Authentication Error: This login is already linked to another account."
+                )
+            return matched_user(user, existing_social)
 
         if cfg["invitations.enabled"]:
             if existing_user is None and invite_token is None:
@@ -176,9 +187,6 @@ def create_user(strategy, details, backend, uid, user=None, *args, **kwargs):
         elif not cfg["invitations.enabled"]:
             if existing_user is not None:
                 return matched_user(existing_user, existing_social)
-
-            if user is not None:  # Matching user already exists
-                return {"is_new": False, "user": user}
 
             # No matching user exists; create a new user
             fields = {
