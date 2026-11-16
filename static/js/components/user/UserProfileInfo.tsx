@@ -38,6 +38,7 @@ import Button from "../Button";
 import SearchableSelect from "../SearchableSelect";
 import Link from "@mui/material/Link";
 import { chips, field, memberSince } from "./ProfileFields";
+import ProfileLogins from "./ProfileLogins";
 
 const filter = createFilterOptions<any>();
 
@@ -395,16 +396,7 @@ const UserProfileInfo = () => {
                 </>,
                 chips(profile.acls),
               )}
-            {profile.oauth_uid &&
-              field(
-                <>
-                  Authentication email
-                  {helpIcon(
-                    "This is the email address used to log in. Unlike the contact_email shown to other users, this cannot be edited. If you wish to change this, please contact a system administrator.",
-                  )}
-                </>,
-                profile.oauth_uid,
-              )}
+            <ProfileLogins />
             {editing && (
               <Controller
                 name="is_bot"
