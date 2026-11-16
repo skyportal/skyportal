@@ -502,7 +502,9 @@ class ALMAQueryHandler(BaseHandler):
                 )
             else:
                 annotation.data = data
-                annotation.groups = groups
+                annotation.groups = list(
+                    {g.id: g for g in [*annotation.groups, *groups]}.values()
+                )
 
             try:
                 await session.commit()
@@ -555,6 +557,7 @@ class SpherexQueryHandler(BaseHandler):
             if groups is None:
                 return
 
+            await session.commit()
             try:
                 rows = await IOLoop.current().run_in_executor(
                     None, lambda: query_spherex_coverage(obj.ra, obj.dec)
@@ -592,7 +595,9 @@ class SpherexQueryHandler(BaseHandler):
                 )
             else:
                 annotation.data = data
-                annotation.groups = groups
+                annotation.groups = list(
+                    {g.id: g for g in [*annotation.groups, *groups]}.values()
+                )
 
             try:
                 await session.commit()
