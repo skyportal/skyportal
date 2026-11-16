@@ -1,6 +1,9 @@
 import { describe, it, expect } from "bun:test";
 
-import { buildMongoAggregationPipeline } from "./mongoPipelineBuilder.js";
+import {
+  buildMongoAggregationPipeline,
+  convertArithmeticExpression,
+} from "./mongoPipelineBuilder.js";
 
 const SUB_FIELD_OPTIONS = [
   { label: "cross_matches.NED.distance_kpc", type: "number" },
@@ -122,5 +125,28 @@ describe("buildMongoAggregationPipeline literal values", () => {
     expect(JSON.stringify(pipeline)).toContain(
       '"candidate.reliability":{"$gt":0.7}',
     );
+  });
+});
+
+describe("convertArithmeticExpression", () => {
+  it("associates subtraction and division to the left", () => {
+    expect(convertArithmeticExpression("x = 0 - a - 3*b")).toEqual({
+      $subtract: [{ $subtract: [0, "$a"] }, { $multiply: [3, "$b"] }],
+    });
+    expect(convertArithmeticExpression("x = a - b + c")).toEqual({
+      $add: [{ $subtract: ["$a", "$b"] }, "$c"],
+    });
+    expect(convertArithmeticExpression("x = a / b / c")).toEqual({
+      $divide: [{ $divide: ["$a", "$b"] }, "$c"],
+    });
+  });
+
+  it("keeps powers right-associative and unary minus attached", () => {
+    expect(convertArithmeticExpression("x = a^b^c")).toEqual({
+      $pow: ["$a", { $pow: ["$b", "$c"] }],
+    });
+    expect(convertArithmeticExpression("x = a - -2")).toEqual({
+      $subtract: ["$a", -2],
+    });
   });
 });
