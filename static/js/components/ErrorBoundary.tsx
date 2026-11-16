@@ -22,6 +22,18 @@ const LOG_ERROR = "skyportal/LOG_ERROR";
 const logError = (errorInfo: any) =>
   POST(`/api/internal/log`, LOG_ERROR, errorInfo);
 
+const CHUNK_RELOAD_KEY = "chunkLoadErrorReloadedAt";
+
+const canReloadForChunkError = (error: any) => {
+  if (error?.name !== "ChunkLoadError") return false;
+  try {
+    const lastReload = Number(sessionStorage.getItem(CHUNK_RELOAD_KEY));
+    return Date.now() - lastReload > 60000;
+  } catch {
+    return false;
+  }
+};
+
 interface ErrorBoundaryProps {
   dispatch: (action: any) => void;
   version?: string | null;
@@ -36,6 +48,7 @@ interface ErrorBoundaryState {
   stack: string | null;
   errorTime: string | null;
   displayStack: boolean;
+  reloading: boolean;
 }
 
 class ErrorBoundary extends React.Component<
@@ -55,15 +68,30 @@ class ErrorBoundary extends React.Component<
       stack: null,
       errorTime: null,
       displayStack: false,
+      reloading: false,
     };
   }
 
   static getDerivedStateFromError(error: any) {
     // Update state so the next render will show the fallback UI.
-    return { hasError: true, error, errorTime: dayjs.utc().format() };
+    return {
+      hasError: true,
+      error,
+      errorTime: dayjs.utc().format(),
+      reloading: canReloadForChunkError(error),
+    };
   }
 
   override componentDidCatch(error: any, errorInfo: any) {
+    if (this.state.reloading) {
+      try {
+        sessionStorage.setItem(CHUNK_RELOAD_KEY, String(Date.now()));
+        window.location.reload();
+        return;
+      } catch {
+        this.setState({ reloading: false });
+      }
+    }
     // You can also log the error to an error reporting service
     const { dispatch } = this.props;
     this.setState({
@@ -91,8 +119,9 @@ class ErrorBoundary extends React.Component<
   }
 
   override render() {
-    const { hasError, stack, displayStack } = this.state;
+    const { hasError, stack, displayStack, reloading } = this.state;
     const { isAnonymous, children, fallback } = this.props;
+    if (reloading) return null;
     if (hasError && fallback) return fallback;
     if (hasError) {
       return (
