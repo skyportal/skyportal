@@ -315,7 +315,9 @@ const AnalysisList = ({
         columns={columns}
         slots={{ toolbar: AnalysisToolbar }}
         showToolbar
-        hideFooter={analysesList.length <= 25}
+        initialState={{ pagination: { paginationModel: { pageSize: 5 } } }}
+        pageSizeOptions={[5, 10, 25]}
+        hideFooter={analysesList.length <= 5}
         sx={{
           "& .MuiDataGrid-cell": { display: "flex", alignItems: "center" },
         }}
