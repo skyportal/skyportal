@@ -12,6 +12,7 @@ import IconButton from "@mui/material/IconButton";
 import Link from "@mui/material/Link";
 import Tooltip from "@mui/material/Tooltip";
 import Typography from "@mui/material/Typography";
+import AddIcon from "@mui/icons-material/Add";
 import DeleteIcon from "@mui/icons-material/DeleteOutlineOutlined";
 import { showNotification } from "baselayer/components/Notifications";
 import dayjs from "dayjs";
@@ -49,16 +50,28 @@ const STATUS_COLORS: Record<
   cancelled: "default",
 };
 
-const AnalysisToolbar = () => <DataGridToolbar title="Analysis Requests" />;
+const AnalysisToolbar = ({ onAdd }: { onAdd?: () => void }) => (
+  <DataGridToolbar title="Analysis Requests">
+    {onAdd && (
+      <Tooltip title="New analysis">
+        <IconButton onClick={onAdd} data-testid="new-analysis-button">
+          <AddIcon />
+        </IconButton>
+      </Tooltip>
+    )}
+  </DataGridToolbar>
+);
 
 interface AnalysisListProps {
   obj_id: string;
   analysisResourceType?: string;
+  onAdd?: (() => void) | undefined;
 }
 
 const AnalysisList = ({
   obj_id,
   analysisResourceType = "obj",
+  onAdd,
 }: AnalysisListProps) => {
   const dispatch = useAppDispatch();
   const [cornerAnalysis, setCornerAnalysis] = useState<any>(null);
@@ -84,7 +97,7 @@ const AnalysisList = ({
   );
 
   if (isLoading) return <CircularProgress size={24} />;
-  if (analysesList.length === 0) {
+  if (analysesList.length === 0 && !onAdd) {
     return (
       <Typography variant="body2" sx={{ color: "text.secondary" }}>
         No analyses yet
@@ -306,7 +319,7 @@ const AnalysisList = ({
 
   return (
     <>
-      {isObj && (
+      {isObj && analysesList.length > 0 && (
         <Typography
           variant="caption"
           sx={{ display: "block", color: "text.secondary", mb: 1 }}
@@ -321,7 +334,9 @@ const AnalysisList = ({
         rows={analysesList}
         columns={columns}
         slots={{ toolbar: AnalysisToolbar }}
+        slotProps={{ toolbar: { onAdd } }}
         showToolbar
+        localeText={{ noRowsLabel: "No analyses yet" }}
         initialState={{ pagination: { paginationModel: { pageSize: 5 } } }}
         pageSizeOptions={[5, 10, 25]}
         hideFooter={analysesList.length <= 5}

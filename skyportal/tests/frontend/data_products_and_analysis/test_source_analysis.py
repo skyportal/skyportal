@@ -11,7 +11,7 @@ analysis_port = 6802
 
 
 def _open_analysis_form(page):
-    page.locator('//button[text()="New analysis"]').first.click()
+    page.locator('[data-testid="new-analysis-button"]').first.click()
 
 
 def _select_analysis_service(page, query):

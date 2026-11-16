@@ -1684,33 +1684,27 @@ const SourceContent = ({ source }: SourceContentProps) => {
             >
               External Analysis
             </Typography>
-            <AnalysisList obj_id={source.id} />
+            <AnalysisList
+              obj_id={source.id}
+              onAdd={isReadOnly ? undefined : () => setAnalysisDialogOpen(true)}
+            />
             {!isReadOnly && (
-              <div>
-                <Button
-                  secondary
-                  size="small"
-                  onClick={() => setAnalysisDialogOpen(true)}
-                >
-                  New analysis
-                </Button>
-                <Dialog
-                  open={analysisDialogOpen}
-                  onClose={() => setAnalysisDialogOpen(false)}
-                  maxWidth="md"
-                  fullWidth
-                >
-                  <DialogTitle>New analysis</DialogTitle>
-                  <DialogContent>
-                    <div style={{ paddingTop: 8 }}>
-                      <AnalysisForm
-                        obj_id={source.id}
-                        onStarted={() => setAnalysisDialogOpen(false)}
-                      />
-                    </div>
-                  </DialogContent>
-                </Dialog>
-              </div>
+              <Dialog
+                open={analysisDialogOpen}
+                onClose={() => setAnalysisDialogOpen(false)}
+                maxWidth="md"
+                fullWidth
+              >
+                <DialogTitle>New analysis</DialogTitle>
+                <DialogContent>
+                  <div style={{ paddingTop: 8 }}>
+                    <AnalysisForm
+                      obj_id={source.id}
+                      onStarted={() => setAnalysisDialogOpen(false)}
+                    />
+                  </div>
+                </DialogContent>
+              </Dialog>
             )}
           </Paper>
         </Grid>
