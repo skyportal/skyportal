@@ -198,7 +198,7 @@ const AirmassPlot = React.memo((props: AirmassPlotProps) => {
     const controller = new AbortController();
     fetch(dataUrl, { signal: controller.signal })
       .then((response) => response.json())
-      .then((json) => setData(json.data ?? []))
+      .then((json) => setData(Array.isArray(json.data) ? json.data : []))
       .catch(() => {});
     return () => controller.abort();
   }, [dataUrl]);
