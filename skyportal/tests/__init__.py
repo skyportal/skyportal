@@ -17,6 +17,21 @@ session.trust_env = (
 cfg = load_config(config_files=["test_config.yaml"])
 
 
+def tach_is_online():
+    try:
+        response = requests.post(
+            "https://heasarc.gsfc.nasa.gov/wsgi-scripts/tach/gcn_v2/tach.wsgi/graphql_fast",
+            json={
+                "query": '{ allEventDetails(date1:"2018-01-16" date2:"2018-01-16") { totalCount } }'
+            },
+            timeout=5,
+        )
+        response.raise_for_status()
+        return not response.json().get("errors")
+    except Exception:
+        return False
+
+
 def api(
     method, endpoint, data=None, params=None, host=None, token=None, raw_response=False
 ):
