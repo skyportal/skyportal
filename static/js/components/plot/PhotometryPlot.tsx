@@ -1049,15 +1049,13 @@ const PhotometryPlot = ({
     stats.mag.range = [stats.mag.max * 1.02, stats.mag.min * 0.98];
     stats.mjd.range = [
       t0 && displayXAxisSinceT0 ? t0 - 1 : stats.mjd.min - 1,
-      // don't pad past the present, or the time axis shows future MJD
-      Math.min(stats.mjd.max + 1, now),
+      // don't pad past the present unless a point is already past it
+      stats.mjd.max < now
+        ? Math.min(stats.mjd.max + 1, now)
+        : stats.mjd.max + 1,
     ];
     if (stats.days_ago) {
-      // clamp the recent edge at now (0); negative days-ago is the future
-      stats.days_ago.range = [
-        stats.days_ago.max + 1,
-        Math.max(stats.days_ago.min - 1, 0),
-      ];
+      stats.days_ago.range = stats.mjd.range.map((mjd: number) => now - mjd);
     } else if (displayXAxisInlog) {
       stats.sec_since_t0.range = [
         -daysToSec(1),
