@@ -283,6 +283,14 @@ body {
   color: #555;
 }
 
+.signIn .loginError span {
+  display: inline-block;
+  padding: 0.75em 1em;
+  border-radius: 3px;
+  color: #b71c1c;
+  background-color: #fdeded;
+}
+
 .signIn .loginButton {
   padding-top: 0;
 }
