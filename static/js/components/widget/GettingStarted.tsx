@@ -12,16 +12,20 @@ import ListItemText from "@mui/material/ListItemText";
 import Button from "@mui/material/Button";
 import IconButton from "@mui/material/IconButton";
 import Tooltip from "@mui/material/Tooltip";
+import Chip from "@mui/material/Chip";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import RadioButtonUncheckedIcon from "@mui/icons-material/RadioButtonUnchecked";
 import TourIcon from "@mui/icons-material/Tour";
 import CloseIcon from "@mui/icons-material/Close";
+import GroupAddIcon from "@mui/icons-material/GroupAdd";
 
+import { showNotification } from "baselayer/components/Notifications";
 import {
   useGetProfileQuery,
   useUpdateUserPreferencesMutation,
 } from "../../ducks/profile";
 import { useGetGroupsQuery } from "../../ducks/groups";
+import { useRequestGroupAdmissionMutation } from "../../ducks/groupAdmissionRequests";
 import { useGetFiltersQuery } from "../../ducks/filter";
 import { useFetchSourcesQuery } from "../../ducks/sources";
 import { useGetRecentGcnEventsQuery } from "../../ducks/recentGcnEvents";
@@ -47,6 +51,8 @@ const GettingStarted = (_props: { classes?: Record<string, string> }) => {
   });
   const { data: recentGcnEvents } = useGetRecentGcnEventsQuery();
   const [updatePreferences] = useUpdateUserPreferencesMutation();
+  const [requestGroupAdmission, { isLoading: isJoining }] =
+    useRequestGroupAdmissionMutation();
   const { options, styles } = useTourStyles();
   const { controls, on, Tour } = useJoyride({
     steps: TOUR_STEPS,
@@ -100,6 +106,34 @@ const GettingStarted = (_props: { classes?: Record<string, string> }) => {
   const firstGcnDateobs = (recentGcnEvents as any)?.[0]?.dateobs;
   // The filter tour runs on a filter page; use the user's first filter.
   const firstFilterId = ((filters as any[] | undefined) ?? [])[0]?.id;
+
+  // Open groups to encourage joining: auto-accept (one click admits you),
+  // visible, not already a member, and whose required streams the user has.
+  const isSysadmin = permissions.includes("System admin");
+  const memberGroupIds = new Set((groups?.user ?? []).map((g: any) => g.id));
+  const userStreamIds = new Set(
+    ((profile as any)?.streams ?? []).map((s: any) => s.id),
+  );
+  const openGroups = ((groups?.all as any[] | null) ?? [])
+    .filter(
+      (g) =>
+        g.auto_accept_requests &&
+        !g.private &&
+        !g.single_user_group &&
+        !memberGroupIds.has(g.id) &&
+        (isSysadmin ||
+          (g.streams ?? []).every((s: any) => userStreamIds.has(s.id))),
+    )
+    .slice(0, 5);
+
+  const handleJoinGroup = async (group: any) => {
+    const { error } = await requestGroupAdmission({
+      userID: (profile as any)?.id,
+      groupID: group.id,
+    });
+    if (error) return;
+    dispatch(showNotification(`Joined ${group.name}.`));
+  };
 
   // `tour` names a PAGE_TOURS entry launched as a how-to on the destination.
   const checklist = [
@@ -236,6 +270,33 @@ const GettingStarted = (_props: { classes?: Record<string, string> }) => {
       <Typography variant="body2" color="textSecondary" gutterBottom>
         Welcome to SkyPortal! Complete these steps to get going.
       </Typography>
+      {openGroups.length > 0 && (
+        <Box sx={{ mb: 1 }} data-testid="tour-getting-started-open-groups">
+          <Typography variant="subtitle2">Open groups to join</Typography>
+          <Typography variant="body2" color="textSecondary" gutterBottom>
+            These groups welcome new members — join to start sharing sources.
+          </Typography>
+          <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.75 }}>
+            {openGroups.map((group) => (
+              <Tooltip
+                key={group.id}
+                title={group.description || `Join ${group.name}`}
+              >
+                <Chip
+                  icon={<GroupAddIcon fontSize="small" />}
+                  label={group.name}
+                  size="small"
+                  variant="outlined"
+                  clickable
+                  disabled={isJoining}
+                  onClick={() => handleJoinGroup(group)}
+                  data-testid={`join-open-group-${group.id}`}
+                />
+              </Tooltip>
+            ))}
+          </Box>
+        </Box>
+      )}
       <List dense data-testid="tour-getting-started-checklist">
         {checklist
           .filter(
