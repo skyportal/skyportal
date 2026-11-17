@@ -72,6 +72,8 @@ def get_tach_event_id(dateobs, tags, aliases=None):
     response = requests.request("POST", url, json=payload, headers=headers, timeout=30)
     response.raise_for_status()
     data = response.json()
+    if (data.get("data") or {}).get("allEventDetails") is None:
+        raise requests.RequestException(f"TACH query failed: {data.get('errors')}")
     if data["data"]["allEventDetails"]["totalCount"] == 0:
         return None
 
