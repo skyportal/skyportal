@@ -34,6 +34,15 @@ const canReloadForChunkError = (error: any) => {
   }
 };
 
+const markChunkReload = () => {
+  try {
+    sessionStorage.setItem(CHUNK_RELOAD_KEY, String(Date.now()));
+    return true;
+  } catch {
+    return false;
+  }
+};
+
 interface ErrorBoundaryProps {
   dispatch: (action: any) => void;
   version?: string | null;
@@ -84,14 +93,26 @@ class ErrorBoundary extends React.Component<
 
   override componentDidCatch(error: any, errorInfo: any) {
     if (this.state.reloading) {
-      try {
-        sessionStorage.setItem(CHUNK_RELOAD_KEY, String(Date.now()));
-        window.location.reload();
-        return;
-      } catch {
-        this.setState({ reloading: false });
-      }
+      this.reloadIfChunkIsGone(error, errorInfo);
+      return;
     }
+    this.logCaughtError(error, errorInfo);
+  }
+
+  async reloadIfChunkIsGone(error: any, errorInfo: any) {
+    const response = await fetch(error.request, {
+      method: "HEAD",
+      cache: "no-store",
+    }).catch(() => null);
+    if (response?.status === 404 && markChunkReload()) {
+      window.location.reload();
+      return;
+    }
+    this.setState({ reloading: false });
+    this.logCaughtError(error, errorInfo);
+  }
+
+  logCaughtError(error: any, errorInfo: any) {
     // You can also log the error to an error reporting service
     const { dispatch } = this.props;
     this.setState({
