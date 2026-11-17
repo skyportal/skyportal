@@ -33,7 +33,10 @@ import { showNotification } from "baselayer/components/Notifications";
 import { useAppDispatch } from "../../types/hooks";
 import Button from "../Button";
 import SearchableSelect from "../SearchableSelect";
-import StyledDataGridBase, { DataGridToolbar } from "../StyledDataGrid";
+import StyledDataGridBase, {
+  DataGridToolbar,
+  FULL_PAGE_HEIGHT,
+} from "../StyledDataGrid";
 import TransferList from "../TransferList";
 import ConfirmDeletionDialog from "../ConfirmDeletionDialog";
 import {
@@ -685,13 +688,7 @@ const SharingServiceCoauthors = ({
 };
 
 const SharingServicesToolbar = ({ onCreate }: { onCreate?: () => void }) => (
-  <DataGridToolbar
-    title="Sharing Services"
-    showExpandAll
-    showColumns={false}
-    showQuickFilter={false}
-    showExport={false}
-  >
+  <DataGridToolbar title="Sharing Services" showExpandAll>
     {onCreate && (
       <IconButton onClick={onCreate}>
         <AddIcon />
@@ -1177,7 +1174,7 @@ const SharingServicesPage = () => {
   return (
     <div>
       <StyledDataGrid
-        autoHeight
+        height={FULL_PAGE_HEIGHT}
         rows={[...sharingServicesList].sort(byName)}
         columns={columns}
         getRowId={(row: any) => row.id}
