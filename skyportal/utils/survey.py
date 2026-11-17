@@ -23,15 +23,15 @@ def survey_from_instrument(name):
 
 def survey_from_object_id(object_id, surveys=None):
     """Survey an object id belongs to, from its shape ("ZTF18abcdefg" -> ZTF, a
-    raw numeric diaObjectId -> LSST), or ``None`` when it says nothing (or names
-    a survey outside ``surveys``).
+    raw numeric diaObjectId or a solar system "sso<ssObjectId>" -> LSST), or
+    ``None`` when it says nothing (or names a survey outside ``surveys``).
     """
     object_id = str(object_id or "").strip()
     if not object_id:
         return None
     survey = next(
         (s for s, regex in OBJECT_ID_PATTERNS.items() if re.match(regex, object_id)),
-        "LSST" if object_id.isdigit() else None,
+        "LSST" if re.match(r"(sso)?\d+$", object_id) else None,
     )
     if surveys is not None and survey not in surveys:
         return None
