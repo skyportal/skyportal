@@ -5,14 +5,18 @@ from datetime import datetime, timedelta
 
 import numpy as np
 import pytest
-import requests
 import sqlalchemy as sa
 from astropy.table import Table
 from astropy.time import Time
 
 from skyportal.handlers.api.gcn import _summary_context, add_default_gcn_tags
 from skyportal.models import DBSession, DefaultGcnTag, User
-from skyportal.tests import api, post_gcn_event_if_missing, retry_until
+from skyportal.tests import (
+    api,
+    post_gcn_event_if_missing,
+    retry_until,
+    tach_is_online,
+)
 from skyportal.tests.external.test_moving_objects import (
     add_telescope_and_instrument,
     remove_telescope_and_instrument,
@@ -20,16 +24,7 @@ from skyportal.tests.external.test_moving_objects import (
 from skyportal.utils.gcn import from_url
 from skyportal.utils.naive_datetime import utcnow_naive
 
-tach_isonline = False
-try:
-    response = requests.get(
-        "https://heasarc.gsfc.nasa.gov/wsgi-scripts/tach/gcn_v2/tach.wsgi/", timeout=5
-    )
-    response.raise_for_status()
-except Exception:
-    pass
-else:
-    tach_isonline = True
+tach_isonline = tach_is_online()
 
 
 @pytest.mark.flaky(reruns=2)

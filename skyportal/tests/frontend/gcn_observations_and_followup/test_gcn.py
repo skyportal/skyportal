@@ -5,13 +5,13 @@ import uuid
 import numpy as np
 import pandas as pd
 import pytest
-import requests
 from playwright.sync_api import expect
 
 from baselayer.app.config import load_config
 from skyportal.tests import (
     api,
     post_gcn_event_if_missing,
+    tach_is_online,
     wait_for_gcn_event,
     wait_for_localization,
 )
@@ -22,16 +22,7 @@ from skyportal.tests.external.test_moving_objects import (
 
 cfg = load_config()
 
-tach_isonline = False
-try:
-    response = requests.get(
-        "https://heasarc.gsfc.nasa.gov/wsgi-scripts/tach/gcn_v2/tach.wsgi/", timeout=5
-    )
-    response.raise_for_status()
-except Exception:
-    pass
-else:
-    tach_isonline = True
+tach_isonline = tach_is_online()
 
 
 @pytest.mark.flaky(reruns=3)
