@@ -522,8 +522,11 @@ def test_submit_annotations_sorting(
     expect(
         page.locator(f'//a[@data-testid="{public_candidate.id}"]').first
     ).to_be_visible()
-    open_candidate_annotations(page, public_candidate.id)
-    open_candidate_annotations(page, public_candidate2.id)
+    cards_open_on_annotations = page.locator(
+        '//button[@aria-pressed and normalize-space(.)="Annotations"]'
+    )
+    cards_open_on_annotations.click()
+    expect(cards_open_on_annotations).to_have_attribute("aria-pressed", "true")
 
     expect(
         page.locator(
@@ -542,8 +545,6 @@ def test_submit_annotations_sorting(
             f'//*[contains(@data-testid, "candidate-1")]//a[@data-testid="{public_candidate2.id}"]'
         ).first
     ).to_be_visible()
-    open_candidate_annotations(page, public_candidate.id)
-    open_candidate_annotations(page, public_candidate2.id)
 
     expect(
         page.locator(
