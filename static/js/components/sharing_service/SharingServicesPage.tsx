@@ -1000,6 +1000,15 @@ const SharingServicesPage = () => {
       flex: 0.7,
       minWidth: 120,
       sortable: false,
+      valueGetter: (_value: any, row: any) =>
+        [
+          row.enable_sharing_with_tns && "TNS",
+          row.enable_sharing_with_hermes && "Hermes",
+          row.enable_sharing_with_trove && "TROVE",
+          row.enable_sharing_with_mpc && "MPC",
+        ]
+          .filter(Boolean)
+          .join(", "),
       renderCell: ({ row }: any) => (
         <Box sx={chipListSx}>
           {row.enable_sharing_with_tns && (
@@ -1073,6 +1082,11 @@ const SharingServicesPage = () => {
       flex: 1.2,
       minWidth: 170,
       sortable: false,
+      valueGetter: (_value: any, row: any) =>
+        (row.groups || [])
+          .map((group: any) => allGroupsLookup[group.group_id]?.name)
+          .filter(Boolean)
+          .join(", "),
       renderCell: ({ row }: any) => (
         <SharingServiceGroups
           sharingService={row}
@@ -1088,6 +1102,12 @@ const SharingServicesPage = () => {
       flex: 1.4,
       minWidth: 190,
       sortable: false,
+      valueGetter: (_value: any, row: any) =>
+        (row.coauthors || [])
+          .map((coauthor: any) =>
+            userLabel(usersLookup[coauthor.user_id], false, true),
+          )
+          .join(", "),
       renderCell: ({ row }: any) => (
         <SharingServiceCoauthors
           sharingService={row}
