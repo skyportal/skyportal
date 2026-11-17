@@ -35,7 +35,6 @@ import TakeOverIcon from "@mui/icons-material/SwapHoriz";
 import { showNotification } from "baselayer/components/Notifications";
 import Button from "../Button";
 import UserAvatar, { getUserRealName } from "../user/UserAvatar";
-import NotificationToggle from "../deployment/NotificationToggle";
 import { useAppDispatch } from "../../types/hooks";
 import { useGetProfileQuery, useHasPermission } from "../../ducks/profile";
 import {
@@ -474,22 +473,15 @@ const FeedbackPage = () => {
   const { data: messages = [] } = useGetFeedbackQuery();
 
   return (
-    <Stack spacing={2}>
-      <Paper variant="outlined" sx={{ p: { xs: 2, md: 3 }, borderRadius: 2 }}>
-        <Stack spacing={3}>
-          <Typography variant="h5" sx={{ fontWeight: 700 }}>
-            Feedback
-          </Typography>
-          <FeedbackForm />
-          <MessageList messages={messages} isAdmin={isAdmin} />
-        </Stack>
-      </Paper>
-      <NotificationToggle type="feedback" label="Feedback by email or Slack">
-        {isAdmin
-          ? "As an admin, you get an in-app notification for every new message."
-          : "You get an in-app notification when an admin replies to one of your messages."}
-      </NotificationToggle>
-    </Stack>
+    <Paper variant="outlined" sx={{ p: { xs: 2, md: 3 }, borderRadius: 2 }}>
+      <Stack spacing={3}>
+        <Typography variant="h5" sx={{ fontWeight: 700 }}>
+          Feedback
+        </Typography>
+        <FeedbackForm />
+        <MessageList messages={messages} isAdmin={isAdmin} />
+      </Stack>
+    </Paper>
   );
 };
 
