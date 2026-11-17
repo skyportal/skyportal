@@ -471,14 +471,16 @@ const NotificationPreferences = () => {
           channels={[]}
         />
       )}
-      {isAdmin && (
-        <NotificationCard
-          type="feedback"
-          title="Feedback by email or Slack"
-          text="As an admin, you get an in-app notification for every new message. They are on the Feedback page."
-          channels={["email", "slack"]}
-        />
-      )}
+      <NotificationCard
+        type="feedback"
+        title="Feedback by email or Slack"
+        text={
+          isAdmin
+            ? "As an admin, you get an in-app notification for every new message. They are on the Feedback page."
+            : "You get an in-app notification when an admin replies to one of your messages."
+        }
+        channels={["email", "slack"]}
+      />
     </Box>
   );
 };
