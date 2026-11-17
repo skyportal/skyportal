@@ -1641,6 +1641,16 @@ const PhotometryPlot = ({
           ...BASE_LAYOUT,
           ...axisTheme,
         };
+        // Otherwise Plotly syncs an overlaid axis to the MJD ticks.
+        const dayTicks = {
+          tickmode: "auto",
+          tickformat: ",.0f",
+          tickformatstops: [
+            { dtickrange: [null, 0.1], value: ",.2f" },
+            { dtickrange: [0.1, 1], value: ",.1f" },
+            { dtickrange: [1, null], value: ",.0f" },
+          ],
+        };
         newLayouts.xaxis2 = photStats_value.days_ago
           ? {
               title: {
@@ -1651,13 +1661,7 @@ const PhotometryPlot = ({
               side: "bottom",
               showgrid: false,
               zeroline: false,
-              // Ticks land on fractional days, so let the spacing Plotly picked set the precision.
-              tickformat: ",.0f",
-              tickformatstops: [
-                { dtickrange: [null, 0.1], value: ",.2f" },
-                { dtickrange: [0.1, 1], value: ",.1f" },
-                { dtickrange: [1, null], value: ",.0f" },
-              ],
+              ...dayTicks,
               ...BASE_LAYOUT,
               ...axisTheme,
             }
@@ -1670,7 +1674,7 @@ const PhotometryPlot = ({
               side: "bottom",
               showgrid: false,
               zeroline: false,
-              tickformat: ",.0f",
+              ...dayTicks,
               ...BASE_LAYOUT,
               ...axisTheme,
             };
