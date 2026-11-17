@@ -1064,7 +1064,9 @@ const PhotometryPlot = ({
         stats.sec_since_t0.max + daysToSec(1),
       ];
     } else {
-      stats.sec_since_t0.range = [-1, stats.sec_since_t0.max + 1];
+      stats.sec_since_t0.range = stats.mjd.range.map(
+        (mjd: number) => mjd - t0!,
+      );
     }
     stats.flux.range = [stats.flux.min - 1, stats.flux.max + 1];
 
