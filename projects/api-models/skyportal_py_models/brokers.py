@@ -565,6 +565,10 @@ class BrokerAlertsGetQuery(BaseModel):
 
     objectId: str | None = Field(default=None, description="Survey object id.")
     candid: str | None = Field(default=None, description="Id of a single alert.")
+    designation: str | None = Field(
+        default=None,
+        description="Solar system object designation, as the survey writes it (e.g. 6993, 10P).",
+    )
     ra: float | None = Field(default=None, description="RA in degrees.")
     dec: float | None = Field(default=None, description="Declination in degrees.")
     radius: float | None = Field(default=None, description="Search radius.")

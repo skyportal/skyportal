@@ -904,12 +904,17 @@ class BOOMBROKER(BrokerAPI):
         ra, dec, radius = kwargs.get("ra"), kwargs.get("dec"), kwargs.get("radius")
         scope = {**_scope_filter(kwargs, survey), **_epoch_filter(kwargs)}
         candid = kwargs.get("candid")
+        designation = str(kwargs.get("designation") or "").strip()
 
-        if object_id or candid:
+        if object_id or candid or designation:
             if object_id:
                 match = {"objectId": _object_id_clause(object_id)}
-            else:
+            elif candid:
                 match = {"_id": int(candid) if str(candid).isdigit() else candid}
+            elif survey == "ZTF":
+                match = {"candidate.ssnamenr": designation}
+            else:
+                raise ValueError("Search by designation is only available for ZTF.")
             result = _request(
                 broker,
                 "POST",
@@ -945,7 +950,7 @@ class BOOMBROKER(BrokerAPI):
             if isinstance(result, list):
                 result = [_to_standard(survey, r) for r in result]
             return result
-        raise ValueError("Provide objectId, candid, or ra+dec+radius.")
+        raise ValueError("Provide objectId, candid, designation, or ra+dec+radius.")
 
     @staticmethod
     def get_alert(broker, alert_id, session, **kwargs):

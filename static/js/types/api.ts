@@ -2896,7 +2896,7 @@ export interface paths {
         };
         /**
          * Query broker alerts
-         * @description Search a broker's alerts by objectId, candid or ra/dec/radius. Records come back as the broker's provider returns them, and jd_start/jd_end apply only where the provider supports them.
+         * @description Search a broker's alerts by objectId, candid, solar system object designation or ra/dec/radius. Records come back as the broker's provider returns them, and jd_start/jd_end apply only where the provider supports them.
          */
         get: {
             parameters: {
@@ -2905,6 +2905,8 @@ export interface paths {
                     objectId?: string | null;
                     /** @description Id of a single alert. */
                     candid?: string | null;
+                    /** @description Solar system object designation, as the survey writes it (e.g. 6993, 10P). */
+                    designation?: string | null;
                     /** @description RA in degrees. */
                     ra?: number | null;
                     /** @description Declination in degrees. */
