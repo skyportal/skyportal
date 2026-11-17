@@ -33,7 +33,10 @@ import { showNotification } from "baselayer/components/Notifications";
 import { useAppDispatch } from "../../types/hooks";
 import Button from "../Button";
 import SearchableSelect from "../SearchableSelect";
-import StyledDataGridBase, { DataGridToolbar } from "../StyledDataGrid";
+import StyledDataGridBase, {
+  DataGridToolbar,
+  FULL_PAGE_HEIGHT,
+} from "../StyledDataGrid";
 import TransferList from "../TransferList";
 import ConfirmDeletionDialog from "../ConfirmDeletionDialog";
 import {
@@ -685,13 +688,7 @@ const SharingServiceCoauthors = ({
 };
 
 const SharingServicesToolbar = ({ onCreate }: { onCreate?: () => void }) => (
-  <DataGridToolbar
-    title="Sharing Services"
-    showExpandAll
-    showColumns={false}
-    showQuickFilter={false}
-    showExport={false}
-  >
+  <DataGridToolbar title="Sharing Services" showExpandAll>
     {onCreate && (
       <IconButton onClick={onCreate}>
         <AddIcon />
@@ -1003,6 +1000,15 @@ const SharingServicesPage = () => {
       flex: 0.7,
       minWidth: 120,
       sortable: false,
+      valueGetter: (_value: any, row: any) =>
+        [
+          row.enable_sharing_with_tns && "TNS",
+          row.enable_sharing_with_hermes && "Hermes",
+          row.enable_sharing_with_trove && "TROVE",
+          row.enable_sharing_with_mpc && "MPC",
+        ]
+          .filter(Boolean)
+          .join(", "),
       renderCell: ({ row }: any) => (
         <Box sx={chipListSx}>
           {row.enable_sharing_with_tns && (
@@ -1076,6 +1082,11 @@ const SharingServicesPage = () => {
       flex: 1.2,
       minWidth: 170,
       sortable: false,
+      valueGetter: (_value: any, row: any) =>
+        (row.groups || [])
+          .map((group: any) => allGroupsLookup[group.group_id]?.name)
+          .filter(Boolean)
+          .join(", "),
       renderCell: ({ row }: any) => (
         <SharingServiceGroups
           sharingService={row}
@@ -1091,6 +1102,12 @@ const SharingServicesPage = () => {
       flex: 1.4,
       minWidth: 190,
       sortable: false,
+      valueGetter: (_value: any, row: any) =>
+        (row.coauthors || [])
+          .map((coauthor: any) =>
+            userLabel(usersLookup[coauthor.user_id], false, true),
+          )
+          .join(", "),
       renderCell: ({ row }: any) => (
         <SharingServiceCoauthors
           sharingService={row}
@@ -1177,7 +1194,7 @@ const SharingServicesPage = () => {
   return (
     <div>
       <StyledDataGrid
-        autoHeight
+        height={FULL_PAGE_HEIGHT}
         rows={[...sharingServicesList].sort(byName)}
         columns={columns}
         getRowId={(row: any) => row.id}
