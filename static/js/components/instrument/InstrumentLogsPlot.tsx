@@ -155,7 +155,9 @@ const InstrumentLogsPlot = ({ instrument_logs }: InstrumentLogsPlotProps) => {
       xaxis2: {
         title: { text: "Days Ago" },
         range: stats
-          ? [stats.daysAgoMax - margin, stats.daysAgoMin + margin]
+          ? // mirror the MJD axis padding so the two axes stay aligned
+            // (days ago = now - mjd, so the sign flips)
+            [stats.daysAgoMax + margin, stats.daysAgoMin - margin]
           : [1, 0],
         overlaying: "x",
         side: "bottom",

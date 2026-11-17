@@ -1049,17 +1049,24 @@ const PhotometryPlot = ({
     stats.mag.range = [stats.mag.max * 1.02, stats.mag.min * 0.98];
     stats.mjd.range = [
       t0 && displayXAxisSinceT0 ? t0 - 1 : stats.mjd.min - 1,
-      stats.mjd.max + 1,
+      // don't pad past the present, or the time axis shows future MJD
+      Math.min(stats.mjd.max + 1, now),
     ];
     if (stats.days_ago) {
-      stats.days_ago.range = [stats.days_ago.max + 1, stats.days_ago.min - 1];
+      // clamp the recent edge at now (0); negative days-ago is the future
+      stats.days_ago.range = [
+        stats.days_ago.max + 1,
+        Math.max(stats.days_ago.min - 1, 0),
+      ];
     } else if (displayXAxisInlog) {
       stats.sec_since_t0.range = [
         -daysToSec(1),
         stats.sec_since_t0.max + daysToSec(1),
       ];
     } else {
-      stats.sec_since_t0.range = [-1, stats.sec_since_t0.max + 1];
+      stats.sec_since_t0.range = stats.mjd.range.map(
+        (mjd: number) => mjd - t0!,
+      );
     }
     stats.flux.range = [stats.flux.min - 1, stats.flux.max + 1];
 
@@ -1636,6 +1643,16 @@ const PhotometryPlot = ({
           ...BASE_LAYOUT,
           ...axisTheme,
         };
+        // Otherwise Plotly syncs an overlaid axis to the MJD ticks.
+        const dayTicks = {
+          tickmode: "auto",
+          tickformat: ",.0f",
+          tickformatstops: [
+            { dtickrange: [null, 0.1], value: ",.2f" },
+            { dtickrange: [0.1, 1], value: ",.1f" },
+            { dtickrange: [1, null], value: ",.0f" },
+          ],
+        };
         newLayouts.xaxis2 = photStats_value.days_ago
           ? {
               title: {
@@ -1646,13 +1663,7 @@ const PhotometryPlot = ({
               side: "bottom",
               showgrid: false,
               zeroline: false,
-              // Ticks land on fractional days, so let the spacing Plotly picked set the precision.
-              tickformat: ",.0f",
-              tickformatstops: [
-                { dtickrange: [null, 0.1], value: ",.2f" },
-                { dtickrange: [0.1, 1], value: ",.1f" },
-                { dtickrange: [1, null], value: ",.0f" },
-              ],
+              ...dayTicks,
               ...BASE_LAYOUT,
               ...axisTheme,
             }
@@ -1665,7 +1676,7 @@ const PhotometryPlot = ({
               side: "bottom",
               showgrid: false,
               zeroline: false,
-              tickformat: ",.0f",
+              ...dayTicks,
               ...BASE_LAYOUT,
               ...axisTheme,
             };
