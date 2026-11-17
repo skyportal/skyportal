@@ -180,8 +180,9 @@ def ingest_dataset(missions, dataset, skipped):
     return posted
 
 
-def poll_once(clients, skipped):
+def poll_once(skipped):
     session_context_id.set(uuid.uuid4().hex)
+    clients = {mission: MastMissions(mission=mission) for mission in ("jwst", "hst")}
     datasets = []
     for mission, recent_datasets, criteria in (
         ("jwst", recent_jwst_datasets, exp_types),
@@ -205,12 +206,11 @@ def poll_once(clients, skipped):
 
 @check_loaded(logger=log)
 def service(*args, **kwargs):
-    clients = {mission: MastMissions(mission=mission) for mission in ("jwst", "hst")}
     skipped = set()
     log(f"Retrieving JWST and HST spectra from MAST every {interval}s")
     while True:
         try:
-            poll_once(clients, skipped)
+            poll_once(skipped)
         except Exception as e:
             log(f"Error retrieving spectra from MAST: {e}")
         time.sleep(interval)
