@@ -681,6 +681,20 @@ class InstrumentHandler(BaseHandler):
                     "Setting the status requires Manage instruments", status=403
                 )
 
+            # `name` is globally unique; renaming onto an existing name would
+            # raise an uncaught IntegrityError at commit.
+            if "name" in data and data["name"] != instrument.name:
+                conflict = await session.scalar(
+                    sa.select(Instrument.id).where(
+                        Instrument.name == data["name"],
+                        Instrument.id != instrument_id,
+                    )
+                )
+                if conflict is not None:
+                    return self.error(
+                        f"Instrument with name {data['name']} already exists"
+                    )
+
             filters = data.get("filters", None)
             if filters is not None:
                 if not set(instrument.filters).issubset(set(filters)):
