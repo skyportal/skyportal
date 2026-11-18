@@ -40,6 +40,26 @@ class CandidateAssociatedObjResponse(BaseModel):
     super_obj_name: str | None = None
 
 
+class CandidateSuperObjResponse(BaseModel):
+    """A ``SuperObj`` the candidate belongs to."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    id: int
+    name: str | None = None
+    is_roid: bool | None = None
+
+
+class CandidateFoundByResponse(BaseModel):
+    """Credit to the broker filter that passed the candidate."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    broker: str
+    filter: str | None = None
+    url: str | None = None
+
+
 class CandidateResponse(BaseModel):
     """An object that passed a filter: the serialized ``Obj`` columns plus
     the scanning extras the candidate endpoints graft onto them."""
@@ -97,6 +117,10 @@ class CandidateResponse(BaseModel):
     classifications: list[ClassificationResponse] | None = None
     passing_group_ids: list[int] | None = None
     broker_id: int | None = None
+    found_by: list[CandidateFoundByResponse] | None = None
+    super_objs: list[CandidateSuperObjResponse] | None = None
+    comment_count: int | None = None
+    bot_comment_count: int | None = None
     filter_ids: list[int] | None = None
     passing_alerts: list[CandidatePassingAlertResponse] | None = None
     tags: list[ObjTagResponse] | None = None
@@ -821,6 +845,7 @@ __all__ = [
     "CandidateAssociatedObjResponse",
     "CandidateFilterGetQuery",
     "CandidateFilterPageResponse",
+    "CandidateFoundByResponse",
     "CandidateGetQuery",
     "CandidatePassingAlertResponse",
     "CandidatePost",
@@ -828,6 +853,7 @@ __all__ = [
     "CandidatePostResponse",
     "CandidateRecordResponse",
     "CandidateResponse",
+    "CandidateSuperObjResponse",
     "CandidatesPageResponse",
     "SAVED_STATUSES",
     "ScanReportGetQuery",
