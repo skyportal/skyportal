@@ -5,7 +5,7 @@ export interface UserEnumOptions {
   enumNames: string[];
 }
 
-const usersField = (title: string, userIds: number[], required = true) => ({
+const usersField = (title: string, userIds: number[]) => ({
   type: "array",
   title,
   items: {
@@ -13,7 +13,7 @@ const usersField = (title: string, userIds: number[], required = true) => ({
     enum: userIds,
   },
   uniqueItems: true,
-  ...(required && { minItems: 1 }),
+  minItems: 1,
 });
 
 const creditDependency = (
@@ -35,7 +35,7 @@ const creditDependency = (
     properties: {
       [mode]: { enum: ["External"] },
       [field]: { type: "string", title },
-      [contactField]: usersField(contactTitle, userIds, false),
+      [contactField]: usersField(contactTitle, userIds),
     },
     required: [mode, field, contactField],
   },
@@ -148,6 +148,33 @@ export const spectrumCreditsOrder = [
   "pi",
   "auto_report_to_tns",
 ];
+
+const creditFields: [string, string, string][] = [
+  ["observer_mode", "observed_by", "observer_point_of_contact"],
+  ["reducer_mode", "reduced_by", "reducer_point_of_contact"],
+  ["pi_mode", "pi", "pi_point_of_contact"],
+];
+
+export const spectrumCreditsErrors = (errors: any[], formData: any) => {
+  const modes = new Set<string>();
+  const users = new Set<string>();
+  const inactive = new Set<string>();
+  creditFields.forEach(([mode, field, contactField]) => {
+    modes.add(mode);
+    users.add(field);
+    if (formData?.[mode] !== "External") inactive.add(contactField);
+    if (formData?.[mode] === "Robotic") inactive.add(field);
+  });
+  return errors.filter((error) => {
+    const field = (error.property ?? "").replace(/^\./, "").split(".")[0];
+    return !(
+      error.name === "oneOf" ||
+      (modes.has(field) && error.name === "enum") ||
+      (users.has(field) && error.name === "type") ||
+      inactive.has(field)
+    );
+  });
+};
 
 export const spectrumCreditsPayload = (
   formData: any,

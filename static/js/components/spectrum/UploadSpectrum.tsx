@@ -40,6 +40,7 @@ import Paper from "../Paper";
 import Spinner from "../Spinner";
 import SearchableSelectWidget from "../SearchableSelectWidget";
 import {
+  spectrumCreditsErrors,
   spectrumCreditsOrder,
   spectrumCreditsPayload,
   spectrumCreditsSchema,
@@ -552,6 +553,9 @@ const UploadSpectrumForm = ({ route }: UploadSpectrumFormProps) => {
             uiSchema={uiSchema}
             validator={validator}
             onSubmit={parseAscii as any}
+            transformErrors={(errors) =>
+              spectrumCreditsErrors(errors, persistentFormData)
+            }
             formData={persistentFormData}
             onChange={
               (({ formData }: { formData: any }) => {

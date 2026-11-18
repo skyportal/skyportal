@@ -16,6 +16,7 @@ import { useGetUsersQuery } from "../../ducks/users";
 import { useGetInstrumentsQuery } from "../../ducks/instruments";
 import { compareUsersByLastName, userLabel } from "../../utils/format";
 import {
+  spectrumCreditsErrors,
   spectrumCreditsFormData,
   spectrumCreditsOrder,
   spectrumCreditsPayload,
@@ -94,6 +95,7 @@ const EditSpectrumCreditsForm = ({
           setFormData(changed)) as any
       }
       onSubmit={onSubmit as any}
+      transformErrors={(errors) => spectrumCreditsErrors(errors, currentData)}
       showErrorList={false}
       disabled={isLoading}
     >
