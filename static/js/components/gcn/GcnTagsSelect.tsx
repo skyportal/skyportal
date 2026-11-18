@@ -32,6 +32,7 @@ const GcnTagsSelect = ({
       initValue={selectedGcnTags}
       onChange={handleChange}
       options={gcnTags}
+      searchable
     />
   );
 };

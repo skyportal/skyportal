@@ -25,6 +25,7 @@ const LocalizationTagsSelect = ({
       initValue={selectedLocalizationTags}
       onChange={(e: any) => setSelectedLocalizationTags(e.target.value)}
       options={localizationTags}
+      searchable
     />
   );
 };

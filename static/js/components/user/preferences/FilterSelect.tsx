@@ -25,6 +25,7 @@ const FilterSelect = ({
       initValue={initValue}
       onChange={onFilterSelectChange}
       options={filtersEnums}
+      searchable
     />
   );
 };
