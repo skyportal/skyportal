@@ -83,6 +83,7 @@ class CandidateResponse(BaseModel):
     redshift: float | None = None
     redshift_error: float | None = None
     redshift_origin: str | None = None
+    redshift_type: Literal["spectroscopic", "photometric"] | None = None
     redshift_history: list[dict[str, Any]] | None = None
     host_id: int | None = None
     summary: str | None = None
@@ -260,6 +261,7 @@ class CandidatePost(BaseModel):
     redshift: float | None = None
     redshift_error: float | None = None
     redshift_origin: str | None = None
+    redshift_type: Literal["spectroscopic", "photometric"] | None = None
     host_id: int | None = None
     summary: str | None = None
     altdata: dict[str, Any] | None = None

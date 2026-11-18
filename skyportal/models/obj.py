@@ -209,6 +209,16 @@ class Obj(Base, conesearch_alchemy.Point):
     redshift = sa.Column(sa.Float, nullable=True, doc="Redshift.")
     redshift_error = sa.Column(sa.Float, nullable=True, doc="Redshift error.")
     redshift_origin = sa.Column(sa.String, nullable=True, doc="Redshift source.")
+    redshift_type = sa.Column(
+        sa.Enum(
+            "spectroscopic",
+            "photometric",
+            name="redshift_type",
+            validate_strings=True,
+        ),
+        nullable=True,
+        doc="Whether the redshift is spectroscopic or photometric.",
+    )
     redshift_history = sa.Column(
         JSONB,
         nullable=True,
