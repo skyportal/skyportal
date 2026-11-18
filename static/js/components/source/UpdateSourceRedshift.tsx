@@ -49,9 +49,11 @@ const useStyles = makeStyles()((theme) => ({
       borderColor: theme.palette.primary.main,
     },
   },
-  saveButton: {
-    textAlign: "center",
-    margin: "1rem",
+  actions: {
+    display: "flex",
+    justifyContent: "center",
+    gap: "1rem",
+    marginTop: "1.5rem",
   },
   editIcon: {
     height: "0.75rem",
@@ -219,7 +221,7 @@ const UpdateSourceRedshift = ({ source }: UpdateSourceRedshiftProps) => {
               </button>
             ))}
           </div>
-          <div className={classes.saveButton}>
+          <div className={classes.actions}>
             <Button
               secondary
               onClick={() => {
@@ -232,8 +234,6 @@ const UpdateSourceRedshift = ({ source }: UpdateSourceRedshiftProps) => {
             >
               Save
             </Button>
-          </div>
-          <div className={classes.saveButton}>
             <Tooltip title="Clear source redshift value (set to null)">
               <span>
                 <Button
