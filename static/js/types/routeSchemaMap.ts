@@ -105,6 +105,7 @@ export const ROUTE_SCHEMA_MAP = {
   "GET /api/sharing_service": { schema: "SharingService" as const, list: true },
   "GET /api/sharing_service/submission": { schema: "SharingServiceSubmission" as const, list: true, wrapper: "submissions" as const },
   "GET /api/sharing_service/submission/{sharing_service_submission_id}": { schema: "SharingServiceSubmission" as const, list: false },
+  "GET /api/sharing_service/tns_classifications": { schema: "TNSClassificationsResponse" as const, list: false },
   "GET /api/sharing_service/{sharing_service_id}": { schema: "SharingService" as const, list: false },
   "GET /api/shifts": { schema: "Shift" as const, list: true },
   "GET /api/shifts/{shift_id}": { schema: "Shift" as const, list: false },

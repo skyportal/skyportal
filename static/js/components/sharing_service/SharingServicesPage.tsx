@@ -714,6 +714,14 @@ const SharingServiceCoauthors = ({
 
 const SharingServicesToolbar = ({ onCreate }: { onCreate?: () => void }) => (
   <DataGridToolbar title="Sharing Services" showExpandAll>
+    <Button
+      component={Link}
+      to="/sharing_services/tns_classifications"
+      size="small"
+      variant="outlined"
+    >
+      TNS classifications
+    </Button>
     {onCreate && (
       <IconButton onClick={onCreate}>
         <AddIcon />

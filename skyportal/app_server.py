@@ -262,6 +262,7 @@ from skyportal.handlers.api import (
     TermsOfServiceHandler,
     ThumbnailHandler,
     ThumbnailPathHandler,
+    TNSClassificationsHandler,
     TopicFeedHandler,
     TopicHandler,
     TopicSourceHandler,
@@ -768,6 +769,7 @@ skyportal_handlers = [
         r"/api/sharing_service/submission(/[0-9]+)?",
         SharingServiceSubmissionHandler,
     ),
+    (r"/api/sharing_service/tns_classifications", TNSClassificationsHandler),
     (
         r"/api/sharing_service(/[0-9]+)/coauthor(/[0-9]+)?",
         SharingServiceCoauthorHandler,

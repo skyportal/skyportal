@@ -552,3 +552,76 @@ __all__ = [
     "SharingServiceSubmissionResponse",
     "SharingServiceSubmissionsPageResponse",
 ]
+
+
+class TNSClassificationsGetQuery(BaseModel):
+    """Query parameters for the TNS classifications overview."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    days: int = Field(
+        default=30,
+        ge=1,
+        le=365,
+        description="How many days back to look for reports and classifications",
+    )
+
+
+class TNSClassificationReportResponse(BaseModel):
+    """A classification report filed to TNS."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    id: int
+    created_at: datetime | None = None
+    obj_id: str
+    tns_name: str | None = None
+    sharing_service: str | None = None
+    user_id: int | None = None
+    auto_submission: bool = False
+    tns_status: str | None = None
+    tns_submission_id: int | None = None
+    classification: str | None = None
+    redshift: float | None = None
+    instrument: str | None = None
+    authors: str | None = None
+
+
+class TNSClassificationNotReportedResponse(BaseModel):
+    """A recent classification that is not on TNS yet, and why."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    obj_id: str
+    tns_name: str | None = None
+    tns_classification: str | None = None
+    classification_id: int
+    classification: str
+    classified_by: str | None = None
+    classified_at: datetime | None = None
+    redshift: float | None = None
+    spectrum_id: int | None = None
+    instrument: str | None = None
+    reason_code: Literal[
+        "queued",
+        "held",
+        "failed",
+        "no_tns_name",
+        "no_spectrum",
+        "no_tns_type",
+        "missing_credits",
+        "manual",
+    ]
+    reason: str
+    tns_send_after: datetime | None = None
+
+
+class TNSClassificationsResponse(BaseModel):
+    """Classification reports sent to TNS, and recent classifications not sent."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    reported: list[TNSClassificationReportResponse] = Field(default_factory=list)
+    not_reported: list[TNSClassificationNotReportedResponse] = Field(
+        default_factory=list
+    )

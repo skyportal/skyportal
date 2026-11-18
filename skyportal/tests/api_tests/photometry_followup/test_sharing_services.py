@@ -738,6 +738,32 @@ def test_a_human_classification_queues_a_tns_classification_report(
     assert submission["tns_status"] == "pending"
 
 
+def test_a_spectrum_not_opted_in_is_listed_as_needing_a_manual_report(
+    tns_classification_service,
+    public_source,
+    public_group,
+    public_taxonomy,
+    classification_token,
+    super_admin_token,
+):
+    _update_obj(public_source.id, {"tns_name": "2026abc"}, super_admin_token)
+    _update_spectra(public_source.id, {"auto_report_to_tns": False}, super_admin_token)
+    _classify(
+        public_source.id, public_taxonomy.id, public_group.id, classification_token
+    )
+
+    assert _submissions(tns_classification_service, super_admin_token) == []
+    status, data = api(
+        "GET", "sharing_service/tns_classifications", token=super_admin_token
+    )
+    assert status == 200
+    (row,) = [
+        r for r in data["data"]["not_reported"] if r["obj_id"] == public_source.id
+    ]
+    assert row["reason_code"] == "manual"
+    assert row["reason"] == "Manual report needed: spectrum not opted in"
+
+
 def test_an_ml_classification_queues_no_tns_report(
     tns_classification_service,
     public_source,
