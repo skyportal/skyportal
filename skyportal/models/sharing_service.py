@@ -227,6 +227,12 @@ class SharingServiceGroup(Base):
     auto_share_classifications_to_tns = sa.Column(
         sa.Boolean, nullable=False, server_default="false"
     )
+    auto_share_classifications_delay_hours = sa.Column(
+        sa.Integer,
+        nullable=False,
+        server_default="0",
+        doc="Hours an automatic classification report waits before it is sent.",
+    )
     auto_share_to_hermes = sa.Column(sa.Boolean, nullable=False, server_default="false")
     auto_share_to_mpc = sa.Column(sa.Boolean, nullable=False, server_default="false")
     auto_share_to_trove = sa.Column(sa.Boolean, nullable=False, server_default="false")
@@ -360,6 +366,12 @@ class SharingServiceSubmission(Base):
 
     tns_status = sa.Column(
         sa.String, nullable=True, doc="Status of the TNS submission."
+    )
+
+    tns_send_after = sa.Column(
+        sa.DateTime,
+        nullable=True,
+        doc="Earliest UTC time the TNS report may be sent.",
     )
 
     tns_submission_id = sa.Column(

@@ -34,7 +34,7 @@ import { useGetUsersQuery } from "../../ducks/users";
 
 const StyledDataGrid: any = StyledDataGridBase;
 
-const emptyCell = (
+export const emptyCell = (
   <Typography variant="body2" sx={{ color: "text.disabled" }}>
     &mdash;
   </Typography>
@@ -65,7 +65,7 @@ function getStatusVariant(status: string) {
   return { severity: null, Icon: null };
 }
 
-const renderStatus = (status: string) => {
+export const renderStatus = (status: string) => {
   if (!status) return emptyCell;
 
   const { severity, Icon } = getStatusVariant(status);

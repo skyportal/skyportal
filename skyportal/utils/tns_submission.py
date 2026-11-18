@@ -24,6 +24,7 @@ from skyportal.utils.tns import (
     SNCOSMO_TO_TNSFILTER,
     SURVEYS,
     TNS_URL,
+    auto_report_blocker,
     get_IAUname,
     get_internal_names,
     get_tns_headers,
@@ -559,6 +560,10 @@ def prepare_tns_classification_report(
             else f"{obj_id} has no spectrum, and TNS will not take a "
             "classification without one."
         )
+    if submission_request.auto_submission:
+        blocker = auto_report_blocker(spectrum)
+        if blocker is not None:
+            raise TNSWarning(f"Not reporting {obj_id} automatically to TNS: {blocker}.")
 
     external_observer = session.scalar(
         sa.select(SpectrumObserver.external_observer).where(

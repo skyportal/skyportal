@@ -288,6 +288,7 @@ def update_sharing_service_group(  # noqa: PLR0913 -- mirrors the endpoint's req
     owner: bool | None = None,
     auto_share_to_tns: bool | None = None,
     auto_share_classifications_to_tns: bool | None = None,
+    auto_share_classifications_delay_hours: int | None = None,
     auto_share_to_hermes: bool | None = None,
     auto_share_to_trove: bool | None = None,
     auto_sharing_allow_bots: bool | None = None,
@@ -310,6 +311,8 @@ def update_sharing_service_group(  # noqa: PLR0913 -- mirrors the endpoint's req
     auto_share_classifications_to_tns : bool, optional
         Whether new human classifications of the group's sources are reported
         to TNS automatically.
+    auto_share_classifications_delay_hours : int, optional
+        Hours an automatic classification report waits before it is sent.
     auto_sharing_allow_bots : bool, optional
         Whether bot users may act as auto-publishers. It cannot be turned
         off while a bot is still listed as an auto-publisher.
@@ -319,13 +322,17 @@ def update_sharing_service_group(  # noqa: PLR0913 -- mirrors the endpoint's req
     When the group already has access, at least one of the options must be
     given; otherwise omitted options default to false on the new access.
     """
-    payload: dict[str, bool] = {}
+    payload: dict[str, bool | int] = {}
     if owner is not None:
         payload["owner"] = owner
     if auto_share_to_tns is not None:
         payload["auto_share_to_tns"] = auto_share_to_tns
     if auto_share_classifications_to_tns is not None:
         payload["auto_share_classifications_to_tns"] = auto_share_classifications_to_tns
+    if auto_share_classifications_delay_hours is not None:
+        payload["auto_share_classifications_delay_hours"] = (
+            auto_share_classifications_delay_hours
+        )
     if auto_share_to_hermes is not None:
         payload["auto_share_to_hermes"] = auto_share_to_hermes
     if auto_share_to_trove is not None:

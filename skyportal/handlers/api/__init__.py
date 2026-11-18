@@ -238,6 +238,7 @@ from .sharing_service.sharing_service_group_auto_publisher import (
 from .sharing_service.sharing_service_submission import (
     SharingServiceSubmissionHandler,
 )
+from .sharing_service.tns_classifications import TNSClassificationsHandler
 from .shift import ShiftHandler, ShiftSummary, ShiftUserHandler
 from .similarity import (
     MoreLikeThisHandler,

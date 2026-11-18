@@ -1,3 +1,5 @@
+from datetime import timedelta
+
 import sqlalchemy as sa
 from sqlalchemy.orm import selectinload
 
@@ -31,10 +33,12 @@ from ..models import (
 )
 from ..utils.tns import (
     TNS_OTHER_INSTRUMENT_ID,
+    auto_report_blocker,
     tns_classification_id,
     tns_instrument_id,
 )
 from .asynchronous import run_async
+from .naive_datetime import utcnow_naive
 from .parse import get_list_typed, is_null
 
 log = make_log("publishable_access")
@@ -721,16 +725,17 @@ async def auto_classification_publishing_async(session, classification_id):
         stmt = stmt.where(SharingServiceGroup.auto_sharing_allow_bots.is_(True))
 
     result = await session.scalars(stmt)
-    sharing_service = next(
+    sharing_service_group = next(
         (
-            group.sharing_service
+            group
             for group in result.unique().all()
             if group.sharing_service.enable_sharing_with_tns
         ),
         None,
     )
-    if sharing_service is None:
+    if sharing_service_group is None:
         return
+    sharing_service = sharing_service_group.sharing_service
     error = await classification_report_error(session, obj)
     if error is not None:
         log(f"Not queuing a TNS classification report for {obj.id}: {error}")
@@ -790,6 +795,22 @@ async def auto_classification_publishing_async(session, classification_id):
     }
     if tns_classification_id(classification.classification) in reported_types:
         return
+    spectrum = await session.scalar(
+        Spectrum.select(author)
+        .options(
+            selectinload(Spectrum.pis),
+            selectinload(Spectrum.observers),
+            selectinload(Spectrum.reducers),
+            selectinload(Spectrum.instrument),
+        )
+        .where(Spectrum.obj_id == obj.id)
+        .order_by((Spectrum.type == "source").desc(), Spectrum.observed_at.desc())
+        .limit(1)
+    )
+    blocker = "no spectrum" if spectrum is None else auto_report_blocker(spectrum)
+    if blocker is not None:
+        log(f"Not queuing a TNS classification report for {obj.id}: {blocker}")
+        return
     session.add(
         SharingServiceSubmission(
             sharing_service_id=sharing_service.id,
@@ -799,6 +820,11 @@ async def auto_classification_publishing_async(session, classification_id):
             publish_to_tns=True,
             tns_report_type="classification_report",
             tns_report_classification_id=classification.id,
+            tns_report_spectrum_id=spectrum.id,
+            tns_send_after=utcnow_naive()
+            + timedelta(
+                hours=sharing_service_group.auto_share_classifications_delay_hours
+            ),
             tns_status="pending",
         )
     )

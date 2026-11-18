@@ -23792,6 +23792,51 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/sharing_service/tns_classifications": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List TNS classification reports and classifications not reported
+         * @description Classification reports sent to TNS in the last days, and the recent
+         *     human classifications of sources in groups that share with TNS that
+         *     are not on TNS yet, each with the reason.
+         */
+        get: {
+            parameters: {
+                query?: {
+                    /** @description How many days back to look for reports and classifications */
+                    days?: number;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Success"] & {
+                            data?: components["schemas"]["TNSClassificationsResponse"];
+                        };
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/sharing_service/{sharing_service_id}/coauthor/{user_id}": {
         parameters: {
             query?: never;
@@ -39477,6 +39522,8 @@ export interface components {
             owner?: boolean;
             auto_share_to_tns?: boolean;
             auto_share_classifications_to_tns?: boolean;
+            /** @description Hours an automatic classification report waits before it is sent. */
+            auto_share_classifications_delay_hours?: number;
             auto_share_to_hermes?: boolean;
             auto_share_to_mpc?: boolean;
             auto_share_to_trove?: boolean;
@@ -39547,6 +39594,8 @@ export interface components {
             owner?: boolean;
             auto_share_to_tns?: boolean;
             auto_share_classifications_to_tns?: boolean;
+            /** @description Hours an automatic classification report waits before it is sent. */
+            auto_share_classifications_delay_hours?: number;
             auto_share_to_hermes?: boolean;
             auto_share_to_mpc?: boolean;
             auto_share_to_trove?: boolean;
@@ -39636,6 +39685,11 @@ export interface components {
             tns_report_classification_id?: number | null;
             /** @description Status of the TNS submission. */
             tns_status?: string | null;
+            /**
+             * Format: date-time
+             * @description Earliest UTC time the TNS report may be sent.
+             */
+            tns_send_after?: string | null;
             /** @description ID of the submission returned by TNS. */
             tns_submission_id?: number | null;
             /** @description Serialized HTTP response from TNS. */
@@ -39733,6 +39787,11 @@ export interface components {
             tns_report_classification_id?: number | null;
             /** @description Status of the TNS submission. */
             tns_status?: string | null;
+            /**
+             * Format: date-time
+             * @description Earliest UTC time the TNS report may be sent.
+             */
+            tns_send_after?: string | null;
             /** @description ID of the submission returned by TNS. */
             tns_submission_id?: number | null;
             /** @description Serialized HTTP response from TNS. */
@@ -40309,6 +40368,8 @@ export interface components {
             label?: string | null;
             /** @description ID of the Instrument that acquired the Spectrum. */
             instrument_id: number;
+            /** @description Whether a classification resting on this spectrum may be reported to TNS automatically. */
+            auto_report_to_tns?: boolean;
             followup_request_id?: number | null;
             assignment_id?: number | null;
             /** @description Miscellaneous alternative metadata. */
@@ -40664,6 +40725,11 @@ export interface components {
              * @default null
              */
             external_observer: string | null;
+            /**
+             * @description Whether a classification resting on this spectrum may be reported to TNS automatically.
+             * @default false
+             */
+            auto_report_to_tns: boolean;
             /** @description ID of the Followup request that generated this spectrum, if any. */
             followup_request_id?: number;
             /** @description ID of the classical assignment that generated this spectrum, if any. */
@@ -40802,6 +40868,8 @@ export interface components {
             label?: string | null;
             /** @description ID of the Instrument that acquired the Spectrum. */
             instrument_id: number;
+            /** @description Whether a classification resting on this spectrum may be reported to TNS automatically. */
+            auto_report_to_tns?: boolean;
             followup_request_id?: number | null;
             assignment_id?: number | null;
             /** @description Miscellaneous alternative metadata. */
@@ -40955,6 +41023,8 @@ export interface components {
              * @default null
              */
             external_observer: string | null;
+            /** @description Whether a classification resting on this spectrum may be reported to TNS automatically. */
+            auto_report_to_tns?: boolean;
             /** @description Origin of the spectrum. */
             origin?: string;
             /**
@@ -50364,6 +50434,12 @@ export interface components {
              */
             external_observer: string | null;
             /**
+             * Auto Report To Tns
+             * @description Whether a classification resting on this spectrum may be reported to TNS automatically.
+             * @default null
+             */
+            auto_report_to_tns: boolean | null;
+            /**
              * Origin
              * @description Origin of the spectrum.
              * @default null
@@ -50564,6 +50640,12 @@ export interface components {
              * @default null
              */
             external_observer: string | null;
+            /**
+             * Auto Report To Tns
+             * @description Whether a classification resting on this spectrum may be reported to TNS automatically.
+             * @default null
+             */
+            auto_report_to_tns: boolean | null;
             /**
              * Followup Request Id
              * @description ID of the Followup request that generated this spectrum, if any.
@@ -52298,6 +52380,143 @@ export interface components {
             publish_to_trove: boolean | null;
         };
         /**
+         * TNSClassificationNotReportedResponse
+         * @description A recent classification that is not on TNS yet, and why.
+         */
+        TNSClassificationNotReportedResponse: {
+            /** Obj Id */
+            obj_id: string;
+            /**
+             * Tns Name
+             * @default null
+             */
+            tns_name: string | null;
+            /**
+             * Tns Classification
+             * @default null
+             */
+            tns_classification: string | null;
+            /** Classification Id */
+            classification_id: number;
+            /** Classification */
+            classification: string;
+            /**
+             * Classified By
+             * @default null
+             */
+            classified_by: string | null;
+            /**
+             * Classified At
+             * Format: date-time
+             * @default null
+             */
+            classified_at: string | null;
+            /**
+             * Redshift
+             * @default null
+             */
+            redshift: number | null;
+            /**
+             * Spectrum Id
+             * @default null
+             */
+            spectrum_id: number | null;
+            /**
+             * Instrument
+             * @default null
+             */
+            instrument: string | null;
+            /**
+             * Reason Code
+             * @enum {string}
+             */
+            reason_code: "queued" | "held" | "failed" | "no_tns_name" | "no_spectrum" | "no_tns_type" | "missing_credits" | "manual";
+            /** Reason */
+            reason: string;
+            /**
+             * Tns Send After
+             * Format: date-time
+             * @default null
+             */
+            tns_send_after: string | null;
+        };
+        /**
+         * TNSClassificationReportResponse
+         * @description A classification report filed to TNS.
+         */
+        TNSClassificationReportResponse: {
+            /** Id */
+            id: number;
+            /**
+             * Created At
+             * Format: date-time
+             * @default null
+             */
+            created_at: string | null;
+            /** Obj Id */
+            obj_id: string;
+            /**
+             * Tns Name
+             * @default null
+             */
+            tns_name: string | null;
+            /**
+             * Sharing Service
+             * @default null
+             */
+            sharing_service: string | null;
+            /**
+             * User Id
+             * @default null
+             */
+            user_id: number | null;
+            /**
+             * Auto Submission
+             * @default false
+             */
+            auto_submission: boolean;
+            /**
+             * Tns Status
+             * @default null
+             */
+            tns_status: string | null;
+            /**
+             * Tns Submission Id
+             * @default null
+             */
+            tns_submission_id: number | null;
+            /**
+             * Classification
+             * @default null
+             */
+            classification: string | null;
+            /**
+             * Redshift
+             * @default null
+             */
+            redshift: number | null;
+            /**
+             * Instrument
+             * @default null
+             */
+            instrument: string | null;
+            /**
+             * Authors
+             * @default null
+             */
+            authors: string | null;
+        };
+        /**
+         * TNSClassificationsResponse
+         * @description Classification reports sent to TNS, and recent classifications not sent.
+         */
+        TNSClassificationsResponse: {
+            /** Reported */
+            reported?: components["schemas"]["TNSClassificationReportResponse"][];
+            /** Not Reported */
+            not_reported?: components["schemas"]["TNSClassificationNotReportedResponse"][];
+        };
+        /**
          * SharingServiceCoauthorPostBody
          * @description Request body for adding a coauthor to an external sharing service.
          */
@@ -52354,6 +52573,12 @@ export interface components {
              * @default null
              */
             auto_share_classifications_to_tns: (boolean | string) | null;
+            /**
+             * Auto Share Classifications Delay Hours
+             * @description Hours an automatic classification report waits before it is sent
+             * @default null
+             */
+            auto_share_classifications_delay_hours: (number | string) | null;
             /**
              * Auto Share To Hermes
              * @description Whether to automatically publish to Hermes

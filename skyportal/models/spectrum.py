@@ -140,6 +140,15 @@ class Spectrum(Base):
         overlaps="observers, owner",
     )
 
+    auto_report_to_tns = sa.Column(
+        sa.Boolean,
+        nullable=False,
+        default=False,
+        server_default="false",
+        doc="Whether a classification resting on this spectrum may be reported "
+        "to TNS automatically.",
+    )
+
     followup_request_id = sa.Column(
         sa.ForeignKey("followuprequests.id", ondelete="SET NULL"),
         nullable=True,

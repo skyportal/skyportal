@@ -28,6 +28,7 @@ import FormLabel from "@mui/material/FormLabel";
 import FormControlLabel from "@mui/material/FormControlLabel";
 import Checkbox from "@mui/material/Checkbox";
 import FormControl from "@mui/material/FormControl";
+import TextField from "@mui/material/TextField";
 import { showNotification } from "baselayer/components/Notifications";
 
 import { useAppDispatch } from "../../types/hooks";
@@ -154,6 +155,9 @@ const SharingServiceGroup = ({
   );
   const [autoPublishTnsClassifications, setAutoPublishTnsClassifications] =
     useState(sharingServiceGroup.auto_share_classifications_to_tns);
+  const [classificationDelayHours, setClassificationDelayHours] = useState(
+    sharingServiceGroup.auto_share_classifications_delay_hours ?? 0,
+  );
   const [autoPublishHermes, setAutoPublishHermes] = useState(
     sharingServiceGroup.auto_share_to_hermes,
   );
@@ -180,6 +184,9 @@ const SharingServiceGroup = ({
     setAutoPublishTns(sharingServiceGroup.auto_share_to_tns);
     setAutoPublishTnsClassifications(
       sharingServiceGroup.auto_share_classifications_to_tns,
+    );
+    setClassificationDelayHours(
+      sharingServiceGroup.auto_share_classifications_delay_hours ?? 0,
     );
     setAutoPublishHermes(sharingServiceGroup.auto_share_to_hermes);
     setAutoPublishTrove(sharingServiceGroup.auto_share_to_trove);
@@ -230,6 +237,8 @@ const SharingServiceGroup = ({
       autoPublishTns !== sharingServiceGroup.auto_share_to_tns ||
       autoPublishTnsClassifications !==
         sharingServiceGroup.auto_share_classifications_to_tns ||
+      classificationDelayHours !==
+        (sharingServiceGroup.auto_share_classifications_delay_hours ?? 0) ||
       autoPublishHermes !== sharingServiceGroup.auto_share_to_hermes ||
       autoPublishTrove !== sharingServiceGroup.auto_share_to_trove ||
       autoPublishAllowBots !== sharingServiceGroup.auto_sharing_allow_bots
@@ -241,6 +250,7 @@ const SharingServiceGroup = ({
             owner,
             auto_share_to_tns: autoPublishTns,
             auto_share_classifications_to_tns: autoPublishTnsClassifications,
+            auto_share_classifications_delay_hours: classificationDelayHours,
             auto_share_to_hermes: autoPublishHermes,
             auto_share_to_trove: autoPublishTrove,
             auto_sharing_allow_bots: autoPublishAllowBots,
@@ -376,6 +386,21 @@ const SharingServiceGroup = ({
               />
             </Tooltip>
           </FormGroup>
+          {autoPublishTnsClassifications && (
+            <TextField
+              type="number"
+              size="small"
+              label="Wait before reporting classifications (hours)"
+              value={classificationDelayHours}
+              onChange={(e) =>
+                setClassificationDelayHours(
+                  Math.max(0, parseInt(e.target.value, 10) || 0),
+                )
+              }
+              slotProps={{ htmlInput: { min: 0 } }}
+              sx={{ mt: 1, mb: 2, width: 320 }}
+            />
+          )}
           {(autoPublishTns ||
             autoPublishTnsClassifications ||
             autoPublishHermes ||
@@ -689,6 +714,14 @@ const SharingServiceCoauthors = ({
 
 const SharingServicesToolbar = ({ onCreate }: { onCreate?: () => void }) => (
   <DataGridToolbar title="Sharing Services" showExpandAll>
+    <Button
+      component={Link}
+      to="/sharing_services/tns_classifications"
+      size="small"
+      variant="outlined"
+    >
+      TNS classifications
+    </Button>
     {onCreate && (
       <IconButton onClick={onCreate}>
         <AddIcon />

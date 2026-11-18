@@ -100,6 +100,16 @@ export const sharingServicesApi = skyportalApi.injectEndpoints({
       }),
       providesTags: ["SharingServiceSubmission"],
     }),
+    getTNSClassifications: build.query<
+      RouteData<"GET /api/sharing_service/tns_classifications">,
+      { days: number }
+    >({
+      query: (params) => ({
+        url: "api/sharing_service/tns_classifications",
+        params,
+      }),
+      providesTags: ["SharingServiceSubmission"],
+    }),
     addSharingService: build.mutation<unknown, any>({
       query: (data) => ({
         url: "api/sharing_service",
@@ -236,6 +246,7 @@ invalidateOnMessage("skyportal/REFRESH_SHARING_SERVICE_SUBMISSIONS", () => [
 export const {
   useGetSharingServicesQuery,
   useGetSharingServiceSubmissionsQuery,
+  useGetTNSClassificationsQuery,
   useAddSharingServiceMutation,
   useEditSharingServiceMutation,
   useDeleteSharingServiceMutation,

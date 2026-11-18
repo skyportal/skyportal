@@ -492,6 +492,8 @@ app:
       component: sharing_service/SharingServicesPage
     - path: "/sharing_service/:id/submissions"
       component: sharing_service/SharingServiceSubmissionsPage
+    - path: "/sharing_services/tns_classifications"
+      component: sharing_service/TNSClassificationsPage
     - path: "/moving_objects/obsplan"
       component: moving_object/MovingObjectObsPlanPage
 

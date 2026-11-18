@@ -347,6 +347,13 @@ def process_submission_requests():
                                         SharingServiceSubmission.created_at
                                         < utcnow_naive() - timedelta(minutes=1),
                                     ),
+                                    or_(
+                                        SharingServiceSubmission.tns_send_after.is_(
+                                            None
+                                        ),
+                                        SharingServiceSubmission.tns_send_after
+                                        < utcnow_naive(),
+                                    ),
                                 ),
                                 and_(
                                     SharingServiceSubmission.publish_to_hermes == True,

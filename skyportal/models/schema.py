@@ -1973,6 +1973,14 @@ class SpectrumAsciiFilePostJSON(SpectrumAsciiFileParseJSON):
         load_default=None,
     )
 
+    auto_report_to_tns = fields.Boolean(
+        required=False,
+        load_default=False,
+        metadata={
+            "description": "Whether a classification resting on this spectrum may be reported to TNS automatically."
+        },
+    )
+
     followup_request_id = fields.Integer(
         required=False,
         metadata={
@@ -2068,6 +2076,13 @@ class SpectrumPost(_Schema):
         metadata={"description": "Free text provided as an external observer"},
         required=False,
         load_default=None,
+    )
+
+    auto_report_to_tns = fields.Boolean(
+        required=False,
+        metadata={
+            "description": "Whether a classification resting on this spectrum may be reported to TNS automatically."
+        },
     )
 
     origin = fields.String(
