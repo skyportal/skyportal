@@ -540,10 +540,10 @@ const Candidate = ({
             maxHeight: "16rem",
           }}
         />
-        {trackId && (
+        {trackId && candidate.broker_id != null && (
           <TrackCandidateSummary
             trackId={trackId}
-            brokerId={candidate.broker_id ?? 1}
+            brokerId={candidate.broker_id}
             objId={candidate.id}
           />
         )}

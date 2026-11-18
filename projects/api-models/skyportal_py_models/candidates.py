@@ -96,6 +96,7 @@ class CandidateResponse(BaseModel):
     saved_groups: list[GroupResponse] | None = None
     classifications: list[ClassificationResponse] | None = None
     passing_group_ids: list[int] | None = None
+    broker_id: int | None = None
     filter_ids: list[int] | None = None
     passing_alerts: list[CandidatePassingAlertResponse] | None = None
     tags: list[ObjTagResponse] | None = None
