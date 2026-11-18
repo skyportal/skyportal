@@ -280,4 +280,19 @@ export const FEATURE_ANNOUNCEMENTS: FeatureAnnouncement[] = [
       },
     ],
   },
+  {
+    id: "feedback-header-button",
+    path: /./,
+    announcedAt: "2026-11-18",
+    steps: [
+      {
+        target: '[data-testid="feedbackButton"]',
+        title: "Feedback moved here",
+        content:
+          "Report a bug or ask for a new feature from this button, and " +
+          "follow the replies on its page.",
+        placement: "bottom",
+      },
+    ],
+  },
 ];
