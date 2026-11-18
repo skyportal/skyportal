@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 
 import Card from "@mui/material/Card";
 import CardContent from "@mui/material/CardContent";
@@ -116,6 +116,7 @@ interface BrokerAlertCardProps {
   // Card rendered alone on a full-width row: give the cutouts more room.
   expanded?: boolean;
   wideLightCurve?: boolean;
+  movingObject?: boolean;
 }
 
 const num = (v: number | undefined, d = 4) =>
@@ -131,6 +132,7 @@ const BrokerAlertCard = ({
   lazyHistory = false,
   expanded = false,
   wideLightCurve = false,
+  movingObject = false,
 }: BrokerAlertCardProps) => {
   const { classes, cx } = useStyles();
   // Newest alert first (highest jd), so the default selection is the latest.
@@ -143,6 +145,11 @@ const BrokerAlertCard = ({
     null,
   );
   const selected = sorted.find((a) => a.candid === candid) ?? sorted[0];
+  const candidates = useMemo(
+    () =>
+      movingObject ? alerts.map((a) => a.raw?.candidate ?? a.raw) : undefined,
+    [movingObject, alerts],
+  );
 
   // Full object (also used by the light curve; RTK dedupes the request). For
   // brokers whose alert rows omit ra/dec/candid (e.g. Lasair cone results), we
@@ -151,7 +158,7 @@ const BrokerAlertCard = ({
   const historyShown = historyRequested || !lazyHistory;
   const { data: alertData } = useGetBrokerObjectQuery(
     { brokerId, objectId },
-    { skip: !objectId || !historyShown },
+    { skip: !objectId || !historyShown || movingObject },
   );
   const cand = alertData?.candidate ?? {};
   const ra = selected?.ra ?? cand.ra;
@@ -163,7 +170,7 @@ const BrokerAlertCard = ({
 
   // Is this object already saved as a source? (drives the saved-groups chips.)
   const { data: source } = useGetSourceIfSavedQuery(objectId, {
-    skip: !objectId,
+    skip: !objectId || movingObject,
   });
   const savedGroups = (source as any)?.groups ?? [];
   const hasMetadataTable = brokerClassname === "BOOMBROKER";
@@ -282,6 +289,7 @@ const BrokerAlertCard = ({
                 brokerId={brokerId}
                 objectId={objectId}
                 jd={selected?.jd}
+                candidates={candidates}
               />
             ) : (
               <Button size="small" onClick={() => setHistoryRequested(true)}>
@@ -312,7 +320,7 @@ const BrokerAlertCard = ({
           </>
         )}
 
-        {!source && (
+        {!source && !movingObject && (
           <div className={classes.footer}>
             <BrokerSaveButton brokerId={brokerId} objectId={objectId} />
           </div>

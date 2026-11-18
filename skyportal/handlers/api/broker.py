@@ -507,9 +507,10 @@ class BrokerAlertsHandler(BaseHandler):
         """
         ---
         summary: Query broker alerts
-        description: Search a broker's alerts by objectId, candid or
-          ra/dec/radius. Records come back as the broker's provider returns
-          them, and jd_start/jd_end apply only where the provider supports them.
+        description: Search a broker's alerts by objectId, candid, solar system
+          object designation or ra/dec/radius. Records come back as the
+          broker's provider returns them, and jd_start/jd_end apply only where
+          the provider supports them.
         tags:
           - brokers
         responses:

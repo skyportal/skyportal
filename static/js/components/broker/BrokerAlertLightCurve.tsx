@@ -10,6 +10,7 @@ interface BrokerAlertLightCurveProps {
   objectId: string;
   // Epoch to mark with the vertical rule; defaults to the object's latest alert.
   jd?: number | undefined;
+  candidates?: any[] | undefined;
 }
 
 /**
@@ -20,13 +21,20 @@ const BrokerAlertLightCurve = ({
   brokerId,
   objectId,
   jd,
+  candidates,
 }: BrokerAlertLightCurveProps) => {
-  const { data, isFetching } = useGetBrokerObjectQuery({
-    brokerId,
-    objectId,
-  });
+  const { data, isFetching } = useGetBrokerObjectQuery(
+    { brokerId, objectId },
+    { skip: Boolean(candidates) },
+  );
 
   const { values, jd: latestJd } = useMemo(() => {
+    if (candidates) {
+      return {
+        values: candidates.map((c) => ({ ...c, origin: "alert" })),
+        jd: candidates[0]?.jd ?? null,
+      };
+    }
     if (!data) return { values: [] as any[], jd: null as number | null };
     // Mirror fritz's AlertPhotometryPlot: detections (prv_candidates) +
     // upper-limit non-detections + forced photometry (SNR-gated to limits).
@@ -56,7 +64,7 @@ const BrokerAlertLightCurve = ({
     const points = [...detections, ...nonDetections, ...fp];
     const refJd = data.candidate?.jd ?? detections[0]?.jd ?? null;
     return { values: points, jd: refJd };
-  }, [data]);
+  }, [data, candidates]);
 
   const markedJd = jd ?? latestJd;
 

@@ -71,6 +71,8 @@ const Broker = () => {
   const { data: brokers, isLoading: brokersLoading } = useGetBrokersQuery();
 
   const [objectId, setObjectId] = useState("");
+  const [designation, setDesignation] = useState("");
+  const [queriedDesignation, setQueriedDesignation] = useState("");
   const [ra, setRa] = useState("");
   const [dec, setDec] = useState("");
   const [radius, setRadius] = useState("");
@@ -86,7 +88,13 @@ const Broker = () => {
 
   const broker = brokers?.find((b) => b.id === brokerId);
   const surveys = broker?.surveys ?? [];
-  const searchSurvey = pickSurvey(survey, objectId, surveys);
+  const byId = objectId.trim() !== "";
+  const byDesignation = !byId && designation.trim() !== "";
+  const searchSurvey = byDesignation
+    ? "ZTF"
+    : pickSurvey(survey, objectId, surveys);
+  const designationSearch =
+    broker?.broker_classname === "BOOMBROKER" && surveys.includes("ZTF");
   const hasFilters = Boolean(broker && broker.filter_kind !== "none");
   const tabs = [
     {
@@ -109,6 +117,7 @@ const Broker = () => {
 
   const search = (params: {
     objectId: string;
+    designation?: string;
     survey: string;
     ra?: string;
     dec?: string;
@@ -117,10 +126,12 @@ const Broker = () => {
     setPage(1);
     setFilters([]);
     setQueriedSurvey(params.survey);
+    setQueriedDesignation(params.designation?.trim() ?? "");
     triggerAlerts({
       brokerId,
       params: {
         objectId: params.objectId || undefined,
+        designation: params.designation?.trim() || undefined,
         ra: params.ra ? ra_to_deg(params.ra) : undefined,
         dec: params.dec ? dec_to_deg(params.dec) : undefined,
         radius: params.radius || undefined,
@@ -137,18 +148,18 @@ const Broker = () => {
     autoSearched.current = true;
     const params = {
       objectId: searchParams.get("objectId") || "",
+      designation: searchParams.get("designation") || "",
       ra: searchParams.get("ra") || "",
       dec: searchParams.get("dec") || "",
       radius: searchParams.get("radius") || "",
     };
-    if (!params.objectId && !params.ra) return;
+    if (!params.objectId && !params.designation && !params.ra) return;
 
-    const uSurvey = pickSurvey(
-      searchParams.get("survey"),
-      params.objectId,
-      surveys,
-    );
+    const uSurvey = params.designation
+      ? "ZTF"
+      : pickSurvey(searchParams.get("survey"), params.objectId, surveys);
     setObjectId(params.objectId);
+    setDesignation(params.designation);
     setRa(params.ra);
     setDec(params.dec);
     setRadius(params.radius);
@@ -157,7 +168,7 @@ const Broker = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [broker]);
 
-  const coneDisabled = objectId.trim() !== "";
+  const coneDisabled = byId || byDesignation;
   const coneFields = [
     {
       label: "RA (deg)",
@@ -181,21 +192,26 @@ const Broker = () => {
       : null;
   const flatRows = useMemo(() => (rows ?? []).map((r) => flatten(r)), [rows]);
   const fields = useMemo(() => fieldsOf(flatRows), [flatRows]);
-  const kept = rows?.filter((_r, i) =>
-    matchesFilters(flatRows[i] ?? {}, filters),
+  const kept = useMemo(
+    () => rows?.filter((_r, i) => matchesFilters(flatRows[i] ?? {}, filters)),
+    [rows, flatRows, filters],
   );
 
-  const byObject = new Map<string, AlertOption[]>();
-  (kept ?? []).forEach((a: any) => {
-    const oid =
-      a?.objectId ??
-      a?.diaObjectId ??
-      a?.object_id ??
-      a?.object ??
-      a?.candidate?.objectId;
-    if (!oid) return;
-    byObject.set(oid, [...(byObject.get(oid) ?? []), toAlertOption(a)]);
-  });
+  const byObject = useMemo(() => {
+    const groups = new Map<string, AlertOption[]>();
+    (kept ?? []).forEach((a: any) => {
+      const oid =
+        queriedDesignation ||
+        (a?.objectId ??
+          a?.diaObjectId ??
+          a?.object_id ??
+          a?.object ??
+          a?.candidate?.objectId);
+      if (!oid) return;
+      groups.set(oid, [...(groups.get(oid) ?? []), toAlertOption(a)]);
+    });
+    return groups;
+  }, [kept, queriedDesignation]);
   const pageCount = Math.ceil(byObject.size / PAGE_SIZE);
   const current = Math.min(page, pageCount);
   const start = (current - 1) * PAGE_SIZE;
@@ -274,16 +290,35 @@ const Broker = () => {
                 value={objectId}
                 onChange={(e) => setObjectId(e.target.value)}
               />
+              {designationSearch && (
+                <Tooltip title={byId && "Disabled while an Object ID is set."}>
+                  <span>
+                    <TextField
+                      size="small"
+                      label="Designation"
+                      placeholder="e.g. 6993, 10P"
+                      value={designation}
+                      disabled={byId}
+                      onChange={(e) => setDesignation(e.target.value)}
+                    />
+                  </span>
+                </Tooltip>
+              )}
               {surveys.length > 1 && (
                 <Tooltip
                   placement="top"
-                  title="Selected automatically from the object ID format, override it if needed"
+                  title={
+                    byDesignation
+                      ? "Designations are searched in ZTF"
+                      : "Selected automatically from the object ID format, override it if needed"
+                  }
                 >
                   <TextField
                     select
                     size="small"
                     label="Survey"
                     value={searchSurvey}
+                    disabled={byDesignation}
                     onChange={(e) => setSurvey(e.target.value)}
                     sx={{ minWidth: 120 }}
                   >
@@ -300,7 +335,7 @@ const Broker = () => {
                   key={label}
                   title={
                     coneDisabled &&
-                    "Disabled while an Object ID is set: the search is done by object, not by position."
+                    "Disabled while an Object ID or designation is set: the search is done by object, not by position."
                   }
                 >
                   <span>
@@ -320,6 +355,7 @@ const Broker = () => {
                 onClick={() =>
                   search({
                     objectId,
+                    ...(byDesignation && { designation }),
                     survey: searchSurvey,
                     ...(!coneDisabled && { ra, dec, radius }),
                   })
@@ -388,6 +424,7 @@ const Broker = () => {
                           survey={queriedSurvey || searchSurvey}
                           alerts={alerts}
                           expanded={pageGroups.length === 1}
+                          movingObject={Boolean(queriedDesignation)}
                         />
                       ))}
                     </Box>
