@@ -174,6 +174,10 @@ const SharingServiceGroup = ({
 
   const groupName =
     groupsLookup[sharingServiceGroup.group_id]?.name || "loading...";
+  const canAutoPublish =
+    sharingService.enable_sharing_with_tns ||
+    sharingService.enable_sharing_with_hermes ||
+    sharingService.enable_sharing_with_trove;
   const ids = {
     sharing_service_id: sharingServiceGroup.sharing_service_id,
     group_id: sharingServiceGroup.group_id,
@@ -302,129 +306,135 @@ const SharingServiceGroup = ({
         />
       </Tooltip>
       <Dialog open={open} onClose={() => setOpen(false)} maxWidth="lg">
-        <DialogTitle>Set group parameters and auto publishers</DialogTitle>
+        <DialogTitle>
+          Set group parameters{canAutoPublish && " and auto publishers"}
+        </DialogTitle>
         <DialogContent>
           <InputLabel>Owner</InputLabel>
           <Switch
             checked={owner}
             onChange={(e) => setOwner(e.target.checked)}
           />
-          <FormLabel component="legend">Auto publish to</FormLabel>
-          <FormGroup row>
-            <Tooltip
-              title={
-                sharingService.enable_sharing_with_tns
-                  ? ""
-                  : "TNS publishing is disabled for this sharingService."
-              }
-            >
-              <FormControlLabel
-                control={
-                  <Checkbox
-                    checked={autoPublishTns}
-                    onChange={(e) => setAutoPublishTns(e.target.checked)}
-                  />
-                }
-                label="TNS"
-                disabled={!sharingService.enable_sharing_with_tns}
-              />
-            </Tooltip>
-            <Tooltip
-              title={
-                sharingService.enable_sharing_with_tns
-                  ? "Report a classification to TNS when one is added to a source of this group. Human classifications only; sources withheld from TNS are skipped."
-                  : "TNS publishing is disabled for this sharingService."
-              }
-            >
-              <FormControlLabel
-                control={
-                  <Checkbox
-                    checked={autoPublishTnsClassifications}
-                    onChange={(e) =>
-                      setAutoPublishTnsClassifications(e.target.checked)
-                    }
-                  />
-                }
-                label="TNS classifications"
-                disabled={!sharingService.enable_sharing_with_tns}
-              />
-            </Tooltip>
-            <Tooltip
-              title={
-                sharingService.enable_sharing_with_hermes
-                  ? ""
-                  : "Hermes publishing is disabled for this sharingService."
-              }
-            >
-              <FormControlLabel
-                control={
-                  <Checkbox
-                    checked={autoPublishHermes}
-                    onChange={(e) => setAutoPublishHermes(e.target.checked)}
-                  />
-                }
-                label="Hermes"
-                disabled={!sharingService.enable_sharing_with_hermes}
-              />
-            </Tooltip>
-            <Tooltip
-              title={
-                sharingService.enable_sharing_with_trove
-                  ? ""
-                  : "TROVE publishing is disabled for this sharingService."
-              }
-            >
-              <FormControlLabel
-                control={
-                  <Checkbox
-                    checked={autoPublishTrove}
-                    onChange={(e) => setAutoPublishTrove(e.target.checked)}
-                  />
-                }
-                label="TROVE"
-                disabled={!sharingService.enable_sharing_with_trove}
-              />
-            </Tooltip>
-          </FormGroup>
-          {autoPublishTnsClassifications && (
-            <TextField
-              type="number"
-              size="small"
-              label="Wait before reporting classifications (hours)"
-              value={classificationDelayHours}
-              onChange={(e) =>
-                setClassificationDelayHours(
-                  Math.max(0, parseInt(e.target.value, 10) || 0),
-                )
-              }
-              slotProps={{ htmlInput: { min: 0 } }}
-              sx={{ mt: 1, mb: 2, width: 320 }}
-            />
-          )}
-          {(autoPublishTns ||
-            autoPublishTnsClassifications ||
-            autoPublishHermes ||
-            autoPublishTrove) && (
+          {canAutoPublish && (
             <>
-              <InputLabel>Allow bots to auto publish</InputLabel>
-              <Switch
-                checked={autoPublishAllowBots}
-                onChange={(e) => setAutoPublishAllowBots(e.target.checked)}
-              />
+              <FormLabel component="legend">Auto publish to</FormLabel>
+              <FormGroup row>
+                <Tooltip
+                  title={
+                    sharingService.enable_sharing_with_tns
+                      ? ""
+                      : "TNS publishing is disabled for this sharingService."
+                  }
+                >
+                  <FormControlLabel
+                    control={
+                      <Checkbox
+                        checked={autoPublishTns}
+                        onChange={(e) => setAutoPublishTns(e.target.checked)}
+                      />
+                    }
+                    label="TNS"
+                    disabled={!sharingService.enable_sharing_with_tns}
+                  />
+                </Tooltip>
+                <Tooltip
+                  title={
+                    sharingService.enable_sharing_with_tns
+                      ? "Report a classification to TNS when one is added to a source of this group. Human classifications only; sources withheld from TNS are skipped."
+                      : "TNS publishing is disabled for this sharingService."
+                  }
+                >
+                  <FormControlLabel
+                    control={
+                      <Checkbox
+                        checked={autoPublishTnsClassifications}
+                        onChange={(e) =>
+                          setAutoPublishTnsClassifications(e.target.checked)
+                        }
+                      />
+                    }
+                    label="TNS classifications"
+                    disabled={!sharingService.enable_sharing_with_tns}
+                  />
+                </Tooltip>
+                <Tooltip
+                  title={
+                    sharingService.enable_sharing_with_hermes
+                      ? ""
+                      : "Hermes publishing is disabled for this sharingService."
+                  }
+                >
+                  <FormControlLabel
+                    control={
+                      <Checkbox
+                        checked={autoPublishHermes}
+                        onChange={(e) => setAutoPublishHermes(e.target.checked)}
+                      />
+                    }
+                    label="Hermes"
+                    disabled={!sharingService.enable_sharing_with_hermes}
+                  />
+                </Tooltip>
+                <Tooltip
+                  title={
+                    sharingService.enable_sharing_with_trove
+                      ? ""
+                      : "TROVE publishing is disabled for this sharingService."
+                  }
+                >
+                  <FormControlLabel
+                    control={
+                      <Checkbox
+                        checked={autoPublishTrove}
+                        onChange={(e) => setAutoPublishTrove(e.target.checked)}
+                      />
+                    }
+                    label="TROVE"
+                    disabled={!sharingService.enable_sharing_with_trove}
+                  />
+                </Tooltip>
+              </FormGroup>
+              {autoPublishTnsClassifications && (
+                <TextField
+                  type="number"
+                  size="small"
+                  label="Wait before reporting classifications (hours)"
+                  value={classificationDelayHours}
+                  onChange={(e) =>
+                    setClassificationDelayHours(
+                      Math.max(0, parseInt(e.target.value, 10) || 0),
+                    )
+                  }
+                  slotProps={{ htmlInput: { min: 0 } }}
+                  sx={{ mt: 1, mb: 2, width: 320 }}
+                />
+              )}
+              {(autoPublishTns ||
+                autoPublishTnsClassifications ||
+                autoPublishHermes ||
+                autoPublishTrove) && (
+                <>
+                  <InputLabel>Allow bots to auto publish</InputLabel>
+                  <Switch
+                    checked={autoPublishAllowBots}
+                    onChange={(e) => setAutoPublishAllowBots(e.target.checked)}
+                  />
+                </>
+              )}
+              {initialized && (
+                <Box sx={{ minWidth: "70vw", py: 1 }}>
+                  <Typography>Auto publishers</Typography>
+                  <TransferList
+                    left={left}
+                    right={right}
+                    setLeft={setLeft}
+                    setRight={setRight}
+                    leftLabel="Group Users"
+                    rightLabel="AutoPublishers"
+                  />
+                </Box>
+              )}
             </>
-          )}
-          {initialized && (
-            <Box sx={{ minWidth: "70vw", py: 1 }}>
-              <Typography>Auto publishers</Typography>
-              <TransferList
-                left={left}
-                right={right}
-                setLeft={setLeft}
-                setRight={setRight}
-                leftLabel="Group Users"
-                rightLabel="AutoPublishers"
-              />
-            </Box>
           )}
           <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1 }}>
             <Button primary onClick={updateGroup} disabled={updating}>
