@@ -14,6 +14,7 @@ const SearchableSelectWidget = ({
   multiple,
   label,
   hideLabel,
+  placeholder,
   required,
   disabled,
   readonly,
@@ -32,6 +33,7 @@ const SearchableSelectWidget = ({
       multiple={Boolean(multiple)}
       disableCloseOnSelect={Boolean(multiple)}
       autoHighlight
+      limitTags={5}
       options={enumOptions}
       value={selected}
       getOptionLabel={optionLabel}
@@ -45,6 +47,7 @@ const SearchableSelectWidget = ({
         )
       }
       {...(!hideLabel && { label })}
+      {...(placeholder && { placeholder })}
       textFieldProps={{ slotProps: { inputLabel: { required } } }}
       disabled={Boolean(disabled || readonly)}
       error={(rawErrors?.length ?? 0) > 0}

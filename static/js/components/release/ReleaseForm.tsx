@@ -12,6 +12,7 @@ import {
 } from "../../ducks/public_pages/public_release";
 import Button from "../Button";
 import { useGetStreamsQuery } from "../../ducks/streams";
+import SearchableSelectWidget from "../SearchableSelectWidget";
 
 interface ReleaseFormProps {
   release: any;
@@ -113,6 +114,7 @@ const ReleaseForm = ({
           },
         },
         group_ids: {
+          "ui:widget": SearchableSelectWidget,
           "ui:enumNames": groups.map((group: any) => group.name),
         },
         options: sourcePublishOptionsUiSchema(streams as any, groups as any),

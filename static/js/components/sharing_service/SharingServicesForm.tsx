@@ -36,6 +36,7 @@ import { CustomCheckboxWidgetMuiTheme } from "../CustomCheckboxWidget";
 import { userLabel } from "../../utils/format";
 import { useGetUsersQuery } from "../../ducks/users";
 import testingModeText from "./testingMode";
+import SearchableSelectWidget from "../SearchableSelectWidget";
 
 const Form = withTheme(CustomCheckboxWidgetMuiTheme as any);
 
@@ -393,6 +394,7 @@ const SharingServicesDialog = ({
 
   const uiSchema: any = {
     instrument_ids: {
+      "ui:widget": SearchableSelectWidget,
       "ui:enumNames": allowedInstruments.map(
         (instrument: any) =>
           `${
@@ -403,6 +405,7 @@ const SharingServicesDialog = ({
       ),
     },
     stream_ids: {
+      "ui:widget": SearchableSelectWidget,
       "ui:enumNames": streams.map((stream: any) => stream.name),
     },
     tns_report_type: {

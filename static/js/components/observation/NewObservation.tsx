@@ -6,6 +6,11 @@ import { useAppDispatch } from "../../types/hooks";
 import { useGetTelescopesQuery } from "../../ducks/telescopes";
 import { useUploadObservationsMutation } from "../../ducks/observations";
 import { useGetInstrumentsQuery } from "../../ducks/instruments";
+import SearchableSelectWidget from "../SearchableSelectWidget";
+
+const uiSchema = {
+  instrument_id: { "ui:widget": SearchableSelectWidget },
+};
 
 interface NewObservationProps {
   onClose?: (() => void) | null;
@@ -66,6 +71,7 @@ const NewObservation = ({ onClose = null }: NewObservationProps) => {
   return (
     <Form
       schema={observationFormSchema as any}
+      uiSchema={uiSchema}
       validator={validator}
       onSubmit={handleSubmit as any}
     />

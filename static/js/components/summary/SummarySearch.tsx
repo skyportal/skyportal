@@ -25,6 +25,7 @@ import { rehypeEmoji } from "../comment/rehypeEmoji";
 import { useFetchSummaryQueryMutation } from "../../ducks/summary";
 import { useGetTaxonomiesQuery } from "../../ducks/taxonomies";
 import { useGetConfigQuery } from "../../ducks/config";
+import SearchableSelectWidget from "../SearchableSelectWidget";
 
 const useStyles = makeStyles()((theme) => ({
   chip: {
@@ -182,6 +183,7 @@ const SummarySearch = () => {
     k: {
       "ui:widget": "updown",
     },
+    classificationTypes: { "ui:widget": SearchableSelectWidget },
   };
 
   const validate = (fd: any, errors: any) => {

@@ -11,6 +11,11 @@ import { useGetTelescopesQuery } from "../../ducks/telescopes";
 import { useRequestAPIObservationsMutation } from "../../ducks/observations";
 import { useGetAllocationsApiObsplanQuery } from "../../ducks/allocations";
 import { useGetInstrumentsQuery } from "../../ducks/instruments";
+import SearchableSelectWidget from "../SearchableSelectWidget";
+
+const uiSchema = {
+  allocation_id: { "ui:widget": SearchableSelectWidget },
+};
 
 dayjs.extend(utc);
 
@@ -139,6 +144,7 @@ const NewAPIObservation = ({ onClose = null }: NewAPIObservationProps) => {
   return (
     <Form
       schema={observationFormSchema as any}
+      uiSchema={uiSchema}
       validator={validator}
       onSubmit={handleSubmit as any}
       customValidate={validate}

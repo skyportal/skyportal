@@ -13,6 +13,7 @@ import { useAppDispatch } from "../../types/hooks";
 import { useSubmitShiftMutation } from "../../ducks/shifts";
 import { userLabel } from "../../utils/format";
 import { useGetUsersQuery } from "../../ducks/users";
+import SearchableSelectWidget from "../SearchableSelectWidget";
 
 dayjs.extend(utc);
 
@@ -215,6 +216,8 @@ const NewShift = ({ preSelectedRange, setPreSelectedRange }: NewShiftProps) => {
       "ui:widget": "radio",
       "ui:labels": ["Yes", "No"],
     },
+    group_id: { "ui:widget": SearchableSelectWidget },
+    shift_admins: { "ui:widget": SearchableSelectWidget },
   };
 
   const shiftFormSchema: any = {

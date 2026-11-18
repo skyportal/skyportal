@@ -34,6 +34,8 @@ import { showNotification } from "baselayer/components/Notifications";
 import { useAppDispatch } from "../../types/hooks";
 import Button from "../Button";
 import SearchableSelect from "../SearchableSelect";
+import SearchableSelectWidget from "../SearchableSelectWidget";
+import { useSelectSearch } from "../SelectSearch";
 import StyledDataGridBase, {
   DataGridToolbar,
   FULL_PAGE_HEIGHT,
@@ -469,6 +471,7 @@ const SharingServiceGroups = ({
   const dispatch = useAppDispatch();
   const [addSharingServiceGroup] = useAddSharingServiceGroupMutation();
   const [group, setGroup] = useState<any>(null);
+  const { searchHeader, matches, resetSearch } = useSelectSearch();
   const [owner, setOwner] = useState(false);
 
   const sharingServiceGroups = [...(sharingService.groups || [])].sort(
@@ -524,12 +527,19 @@ const SharingServiceGroups = ({
             label="Group"
             value={group || ""}
             onChange={(e) => setGroup(e.target.value)}
+            onClose={resetSearch}
           >
-            {groupOptions.map((groupOption: any) => (
-              <MenuItem key={groupOption.id} value={groupOption.id}>
-                {groupOption.name}
-              </MenuItem>
-            ))}
+            {searchHeader}
+            {groupOptions
+              .filter(
+                (groupOption: any) =>
+                  matches(groupOption.name) || groupOption.id === group,
+              )
+              .map((groupOption: any) => (
+                <MenuItem key={groupOption.id} value={groupOption.id}>
+                  {groupOption.name}
+                </MenuItem>
+              ))}
           </Select>
         </FormControl>
         <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
@@ -1363,14 +1373,17 @@ const SharingServicesPage = () => {
             }
             uiSchema={{
               owner_group_ids: {
+                "ui:widget": SearchableSelectWidget,
                 "ui:enumNames": groups.map((group: any) => group.name),
               },
               instrument_ids: {
+                "ui:widget": SearchableSelectWidget,
                 "ui:enumNames": allowedInstruments.map(
                   (instrument: any) => instrument.name,
                 ),
               },
               stream_ids: {
+                "ui:widget": SearchableSelectWidget,
                 "ui:enumNames": streams.map((stream: any) => stream.name),
               },
               trove_password: { "ui:widget": "password" },

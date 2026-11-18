@@ -11,6 +11,11 @@ import { useGetTelescopesQuery } from "../../ducks/telescopes";
 import { useLazyRequestAPIQueuedObservationsQuery } from "../../ducks/observations";
 import { useGetAllocationsApiObsplanQuery } from "../../ducks/allocations";
 import { useGetInstrumentsQuery } from "../../ducks/instruments";
+import SearchableSelectWidget from "../SearchableSelectWidget";
+
+const uiSchema = {
+  allocation_id: { "ui:widget": SearchableSelectWidget },
+};
 
 dayjs.extend(utc);
 
@@ -143,6 +148,7 @@ const NewAPIQueuedObservation = ({
   return (
     <Form
       schema={observationFormSchema as any}
+      uiSchema={uiSchema}
       validator={validator}
       onSubmit={handleSubmit as any}
       customValidate={validate as any}

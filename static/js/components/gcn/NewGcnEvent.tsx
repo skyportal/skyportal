@@ -6,6 +6,11 @@ import { showNotification } from "baselayer/components/Notifications";
 import { useAppDispatch } from "../../types/hooks";
 import { useSubmitGcnEventMutation } from "../../ducks/gcnEvent";
 import { useGetGcnTagsQuery } from "../../ducks/gcnTags";
+import SearchableSelectWidget from "../SearchableSelectWidget";
+
+const uiSchema = {
+  tags: { "ui:widget": SearchableSelectWidget },
+};
 
 interface NewGcnEventProps {
   handleClose?: (() => void) | null;
@@ -153,6 +158,7 @@ const NewGcnEvent = ({ handleClose = null }: NewGcnEventProps) => {
   return (
     <Form
       schema={gcnEventFormSchema as any}
+      uiSchema={uiSchema}
       validator={validator}
       onSubmit={handleSubmit as any}
       customValidate={validate}

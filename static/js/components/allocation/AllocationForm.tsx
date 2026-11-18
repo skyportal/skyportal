@@ -39,6 +39,13 @@ import {
 } from "../../ducks/instruments";
 import { useGetConfigQuery } from "../../ducks/config";
 import { useGetUsersQuery } from "../../ducks/users";
+import SearchableSelectWidget from "../SearchableSelectWidget";
+
+const uiSchema = {
+  group_id: { "ui:widget": SearchableSelectWidget },
+  allocation_admin_ids: { "ui:widget": SearchableSelectWidget },
+  instrument_id: { "ui:widget": SearchableSelectWidget },
+};
 
 dayjs.extend(utc);
 
@@ -461,6 +468,7 @@ const AllocationForm = ({
       />
       <Form
         schema={allocationFormSchema}
+        uiSchema={uiSchema}
         validator={validator}
         onSubmit={handleSubmit}
         {...({ customValidate: validate } as any)}

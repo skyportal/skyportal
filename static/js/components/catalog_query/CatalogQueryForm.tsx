@@ -21,6 +21,11 @@ import {
 import { useSubmitCatalogQueryMutation } from "../../ducks/catalog_query";
 import GroupShareSelect from "../group/GroupShareSelect";
 import { useGetInstrumentsQuery } from "../../ducks/instruments";
+import SearchableSelectWidget from "../SearchableSelectWidget";
+
+const uiSchema = {
+  allocation_id: { "ui:widget": SearchableSelectWidget },
+};
 
 dayjs.extend(relativeTime);
 dayjs.extend(utc);
@@ -269,6 +274,7 @@ const CatalogQueryForm = ({ gcnevent }: CatalogQueryFormProps) => {
         <div>
           <Form
             schema={CatalogQueryFormSchema as any}
+            uiSchema={uiSchema}
             validator={validator}
             onSubmit={handleSubmit as any}
             customValidate={validate as any}
