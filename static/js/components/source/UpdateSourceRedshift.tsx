@@ -153,9 +153,14 @@ const UpdateSourceRedshift = ({ source }: UpdateSourceRedshiftProps) => {
           setDialogOpen(true);
         }}
       />
-      <Dialog open={dialogOpen} onClose={() => setDialogOpen(false)}>
+      <Dialog
+        open={dialogOpen}
+        onClose={() => setDialogOpen(false)}
+        maxWidth="xs"
+        fullWidth
+      >
         <DialogTitle>Update Redshift</DialogTitle>
-        <DialogContent>
+        <DialogContent style={{ paddingTop: "0.75rem" }}>
           <div>
             {invalid && (
               <FormValidationError message="Please enter a valid float" />
@@ -163,6 +168,7 @@ const UpdateSourceRedshift = ({ source }: UpdateSourceRedshiftProps) => {
             <TextField
               data-testid="updateRedshiftTextfield"
               size="small"
+              fullWidth
               label="z"
               value={state["redshift"]}
               name="redshift"
@@ -175,6 +181,7 @@ const UpdateSourceRedshift = ({ source }: UpdateSourceRedshiftProps) => {
             <TextField
               data-testid="updateRedshiftErrorTextfield"
               size="small"
+              fullWidth
               label="z_err"
               value={state["redshift_error"]}
               name="redshift_error"
@@ -187,6 +194,7 @@ const UpdateSourceRedshift = ({ source }: UpdateSourceRedshiftProps) => {
             <TextField
               data-testid="updateRedshiftOriginTextfield"
               size="small"
+              fullWidth
               label="z_origin (optional)"
               value={state["redshift_origin"]}
               name="redshift_origin"
