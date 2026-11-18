@@ -61,13 +61,12 @@ import SourceAcknowledgment from "./SourceAcknowledgment";
 import SourceAlias from "./SourceAlias";
 import UpdateSourceGCNCrossmatch from "./UpdateSourceGCNCrossmatch";
 import UpdateSourceMPC from "./UpdateSourceMPC";
-import UpdateSourceRedshift from "./UpdateSourceRedshift";
 import UpdateSourceSummary from "./UpdateSourceSummary";
 import UpdateSourceT0 from "./UpdateSourceT0";
 import UpdateSourceTNS from "./UpdateSourceTNS";
 import StartBotSummary from "../StartBotSummary";
 import SourceGCNCrossmatchList from "./SourceGCNCrossmatchList";
-import SourceRedshiftHistory from "./SourceRedshiftHistory";
+import SourceRedshift from "./SourceRedshift";
 import SourceCandidatesHistory from "./SourceCandidatesHistory";
 import CommentPanel from "../comment/CommentPanel";
 import { INTERESTED_CHANNEL } from "../comment/channels";
@@ -229,11 +228,6 @@ export const useSourceStyles = makeStyles()((theme) => ({
     display: "flex",
     flexDirection: "row",
     alignItems: "center",
-  },
-  redshiftType: {
-    marginLeft: "0.4rem",
-    fontSize: "0.8rem",
-    color: theme.palette.text.secondary,
   },
   dmdlInfo: {
     alignSelf: "center",
@@ -689,26 +683,9 @@ const SourceContent = ({ source }: SourceContentProps) => {
               {/* Meaningless for a solar-system object. DM and luminosity
                   distance derive from it, so they drop out on their own. */}
               {!source.is_roid && (
-                <div>
+                <div style={{ marginRight: "0.5rem" }}>
                   <b>Redshift: &nbsp;</b>
-                  {source.redshift &&
-                    source.redshift.toFixed(getZRound(source.redshift_error))}
-                  {source.redshift_error && <b>&nbsp; &plusmn; &nbsp;</b>}
-                  {source.redshift_error &&
-                    source.redshift_error.toFixed(
-                      getZRound(source.redshift_error),
-                    )}
-                  {source.redshift != null && source.redshift_type && (
-                    <span className={classes.redshiftType}>
-                      {source.redshift_type === "photometric"
-                        ? "photo-z"
-                        : "spec-z"}
-                    </span>
-                  )}
-                  {!isReadOnly && <UpdateSourceRedshift source={source} />}
-                  <SourceRedshiftHistory
-                    redshiftHistory={source.redshift_history}
-                  />
+                  <SourceRedshift source={source} readOnly={isReadOnly} />
                 </div>
               )}
               <div className={classes.dmdlInfo}>
