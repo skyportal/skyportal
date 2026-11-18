@@ -205,7 +205,7 @@ def serialize_comment(comment):
 
 
 async def include_requested_obj_data(
-    obj_id, candidate, query, session, include_phot_annotations
+    obj_id, candidate, query, session, include_phot_annotations, annotations=None
 ):
     """Add object data to the candidate dictionary based on the query
     parameters. Async equivalent of the previous sync version — uses
@@ -222,6 +222,8 @@ async def include_requested_obj_data(
     session : ``sqlalchemy.ext.asyncio.AsyncSession``
     include_phot_annotations : bool
         Whether to include photometry annotations
+    annotations : list of `Annotation`, optional
+        The object's annotations, when already loaded for a whole page
 
     Returns
     -------
@@ -318,12 +320,11 @@ async def include_requested_obj_data(
             associated_objs, key=lambda x: x["separation"]
         )
 
-    candidate["annotations"] = sorted(
-        await fetch_obj_data(
+    if annotations is None:
+        annotations = await fetch_obj_data(
             Annotation, [selectinload(Annotation.groups)], obj_id, session
-        ),
-        key=lambda x: x.origin,
-    )
+        )
+    candidate["annotations"] = sorted(annotations, key=lambda x: x.origin)
     return candidate
 
 
@@ -1462,6 +1463,17 @@ class CandidateHandler(BaseHandler):
                 for classification in classifications_result.unique().all():
                     classifications_by_obj[classification.obj_id].append(classification)
 
+            annotations_by_obj = defaultdict(list)
+            if page_obj_ids:
+                annotations_result = await session.scalars(
+                    Annotation.select(
+                        session.user_or_token,
+                        options=[selectinload(Annotation.groups)],
+                    ).where(Annotation.obj_id.in_(page_obj_ids))
+                )
+                for annotation in annotations_result.unique().all():
+                    annotations_by_obj[annotation.obj_id].append(annotation)
+
             linked_by_obj = await linked_thumbnails(page_obj_ids, session)
             stack_of = query_results.pop("stacks", {})
 
@@ -1547,6 +1559,7 @@ class CandidateHandler(BaseHandler):
                         query,
                         session,
                         include_phot_annotations=False,
+                        annotations=annotations_by_obj[obj.id],
                     )
 
                     selected_groups_annotations = []
