@@ -44,7 +44,7 @@ const pickSurvey = (
     ? "ZTF"
     : /^[ACT]20\d{13}[pm]\d{6}$/.test(id)
       ? "DECAM"
-      : /^\d+$/.test(id)
+      : /^(sso)?\d+$/.test(id)
         ? "LSST"
         : ARGUS_OBJECT_ID.test(id)
           ? "ARGUS"

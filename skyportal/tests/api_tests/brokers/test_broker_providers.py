@@ -290,6 +290,13 @@ def test_boom_query_alerts_infers_survey_from_object_id(monkeypatch):
     }
 
 
+def test_boom_get_alert_infers_lsst_from_solar_system_object_id(monkeypatch):
+    calls = _capture_boom_request(monkeypatch)
+    broker = _MockBroker({"survey": "ZTF"})
+    BOOMBROKER.get_alert(broker, "sso21164706861823058", None, permissions=None)
+    assert calls[0]["json"]["catalog_name"] == "LSST_alerts"
+
+
 def test_save_as_source_infers_survey_from_object_id(monkeypatch):
     """Saving an LSST object through a broker whose altdata defaults to ZTF must
     ingest it as LSST, not as ZTF bands ('ztfz' is not a real filter)."""
