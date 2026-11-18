@@ -660,10 +660,12 @@ class TAROTAPI(FollowUpAPI):
             except Exception:
                 pass
 
+        missing_from_log = re.match(
+            r"rejected: (submitted|planified) but ", request.status
+        )
         if (
-            not request.status.startswith("rejected")
-            and observing_time < utcnow_naive()
-        ):
+            not request.status.startswith("rejected") or missing_from_log
+        ) and observing_time < utcnow_naive():
             # check if the scene has been observed
             url = f"{tarot_proxy_endpoint}/{specific_config['station_name'].lower()}/"
             headers = get_header(altdata)
@@ -691,7 +693,10 @@ class TAROTAPI(FollowUpAPI):
             if manager_scene_id in response_observation_text:
                 nb_observation = response_observation_text.count(manager_scene_id)
                 request.status = "complete"
-            elif observing_time + timedelta(hours=3) < utcnow_naive():
+            elif (
+                not missing_from_log
+                and observing_time + timedelta(hours=3) < utcnow_naive()
+            ):
                 previous_status = (
                     "planified"
                     if request.status.startswith("submitted: planified")
