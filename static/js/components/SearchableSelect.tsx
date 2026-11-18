@@ -87,6 +87,10 @@ const SearchableSelect = ({
           slotProps={{
             ...params.slotProps,
             ...(tfSlotProps as any),
+            inputLabel: {
+              ...params.slotProps.inputLabel,
+              ...((tfSlotProps as any)?.inputLabel ?? {}),
+            },
             input: {
               ...params.slotProps.input,
               ...((tfSlotProps as any)?.input ?? {}),
