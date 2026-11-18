@@ -1,9 +1,5 @@
 import { useGetGroupsQuery } from "../../../ducks/groups";
 import { useEffect, useState } from "react";
-import FormControl from "@mui/material/FormControl";
-import InputLabel from "@mui/material/InputLabel";
-import MenuItem from "@mui/material/MenuItem";
-import Select from "@mui/material/Select";
 import Typography from "@mui/material/Typography";
 
 import { useGetTelescopesQuery } from "../../../ducks/telescopes";
@@ -16,7 +12,7 @@ import {
   useGetInstrumentFormsQuery,
   useGetInstrumentsQuery,
 } from "../../../ducks/instruments";
-import { useSelectSearch } from "../../SelectSearch";
+import SearchableValueSelect from "../../SearchableValueSelect";
 
 const FollowupRequestPreferences = () => {
   const { data: telescopeList = [] } = useGetTelescopesQuery();
@@ -33,7 +29,6 @@ const FollowupRequestPreferences = () => {
   );
 
   const [updateUserPreferences] = useUpdateUserPreferencesMutation();
-  const allocationSearch = useSelectSearch();
 
   useEffect(() => {
     if (defaultAllocationId) {
@@ -110,35 +105,20 @@ const FollowupRequestPreferences = () => {
   }
 
   return (
-    <FormControl fullWidth>
-      <InputLabel id="allocationSelectLabel">Allocation</InputLabel>
-      <Select
-        inputProps={{ MenuProps: { disableScrollLock: true } }}
-        labelId="allocationSelectLabel"
-        label="Allocation"
-        value={selectedAllocationId}
-        onChange={handleChange}
-        name="followupRequestAllocationSelect"
-        onClose={allocationSearch.resetSearch}
-      >
-        {allocationSearch.searchHeader}
-        {allocationListApiClassnameOptions?.map(
-          (allocation: any) =>
-            (instLookUp[allocation.instrument_id]?.telescope_id ||
-              allocation.id === -1) &&
-            (allocationSearch.matches(allocationOptionLabel(allocation)) ||
-              allocation.id === selectedAllocationId) && (
-              <MenuItem
-                value={allocation.id}
-                key={allocation.id}
-                sx={{ whiteSpace: "break-spaces" }}
-              >
-                {allocationOptionLabel(allocation)}
-              </MenuItem>
-            ),
-        )}
-      </Select>
-    </FormControl>
+    <SearchableValueSelect
+      id="followupRequestAllocationSelect"
+      label="Allocation"
+      options={(allocationListApiClassnameOptions ?? []).filter(
+        (allocation: any) =>
+          instLookUp[allocation.instrument_id]?.telescope_id ||
+          allocation.id === -1,
+      )}
+      getOptionLabel={allocationOptionLabel}
+      value={selectedAllocationId}
+      onChange={(value) => handleChange({ target: { value } })}
+      disableClearable
+      fullWidth
+    />
   );
 };
 

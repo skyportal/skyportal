@@ -1,7 +1,4 @@
 import { useEffect, useState } from "react";
-import Select from "@mui/material/Select";
-import InputLabel from "@mui/material/InputLabel";
-import MenuItem from "@mui/material/MenuItem";
 import Box from "@mui/material/Box";
 import Button from "@mui/material/Button";
 import Typography from "@mui/material/Typography";
@@ -23,7 +20,7 @@ import {
 } from "../../../ducks/instruments";
 import { useGetGroupsQuery } from "../../../ducks/groups";
 import GroupShareSelect from "../../group/GroupShareSelect";
-import { useSelectSearch } from "../../SelectSearch";
+import SearchableValueSelect from "../../SearchableValueSelect";
 import { localeSafeFields } from "../../followup_request/LocaleSafeNumberField";
 
 const useStyles = makeStyles()(() => ({
@@ -98,7 +95,6 @@ const BoomFilterFollowupConfig = ({
   const [selectedAllocationId, setSelectedAllocationId] = useState<any>(null);
   const [selectedGroupIds, setSelectedGroupIds] = useState<any[]>([groupId]);
   const [busy, setBusy] = useState(false);
-  const allocationSearch = useSelectSearch();
 
   const filteredAllocations = allocationListApiClassname.filter(
     (allocation: any) =>
@@ -208,28 +204,15 @@ const BoomFilterFollowupConfig = ({
 
   return (
     <Box className={classes.container}>
-      <InputLabel id={`followup-alloc-${filterId}`}>Allocation</InputLabel>
-      <Select
-        inputProps={{ MenuProps: { disableScrollLock: true } }}
-        labelId={`followup-alloc-${filterId}`}
+      <SearchableValueSelect
+        id={`followup-alloc-${filterId}`}
+        label="Allocation"
+        options={filteredAllocations}
+        getOptionLabel={allocationOptionLabel}
         value={selectedAllocationId}
-        onChange={(e) => setSelectedAllocationId(e.target.value)}
-        onClose={allocationSearch.resetSearch}
+        onChange={setSelectedAllocationId}
         className={classes.Select}
-      >
-        {allocationSearch.searchHeader}
-        {filteredAllocations
-          .filter(
-            (allocation: any) =>
-              allocationSearch.matches(allocationOptionLabel(allocation)) ||
-              allocation.id === selectedAllocationId,
-          )
-          .map((allocation: any) => (
-            <MenuItem value={allocation.id} key={allocation.id}>
-              {allocationOptionLabel(allocation)}
-            </MenuItem>
-          ))}
-      </Select>
+      />
       <GroupShareSelect
         groupList={allGroups}
         setGroupIDs={setSelectedGroupIds}

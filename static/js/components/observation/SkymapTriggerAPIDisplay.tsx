@@ -9,7 +9,7 @@ import MenuItem from "@mui/material/MenuItem";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 import Button from "../Button";
-import { useSelectSearch } from "../SelectSearch";
+import SearchableValueSelect from "../SearchableValueSelect";
 
 import FindGcnEvents from "../gcn/FindGcnEvents";
 
@@ -48,7 +48,6 @@ const SkymapTriggerAPIDisplay = () => {
   const { classes } = useStyles();
 
   const [selectedAllocationId, setSelectedAllocationId] = useState<any>(null);
-  const allocationSearch = useSelectSearch();
   const [triggerList, setTriggerList] = useState<string[]>(["None"]);
   const [selectedTriggerName, setSelectedTriggerName] = useState("None");
 
@@ -166,33 +165,18 @@ const SkymapTriggerAPIDisplay = () => {
 
   return (
     <div className={classes.container}>
-      <InputLabel id="allocationSelectLabel">Allocation</InputLabel>
-      <Select
-        inputProps={{ MenuProps: { disableScrollLock: true } }}
-        labelId="allocationSelectLabel"
+      <SearchableValueSelect
+        id="allocationSelectLabel"
+        label="Allocation"
+        options={allocationListApiObsplan ?? []}
+        getOptionLabel={allocationOptionLabel}
         value={selectedAllocationId}
-        onChange={handleSelectedAllocationChange}
-        onClose={allocationSearch.resetSearch}
-        name="followupRequestAllocationSelect"
+        onChange={(value) =>
+          handleSelectedAllocationChange({ target: { value } })
+        }
+        disableClearable
         className={classes.select}
-      >
-        {allocationSearch.searchHeader}
-        {allocationListApiObsplan
-          ?.filter(
-            (allocation: any) =>
-              allocationSearch.matches(allocationOptionLabel(allocation)) ||
-              allocation.id === selectedAllocationId,
-          )
-          .map((allocation: any) => (
-            <MenuItem
-              value={allocation.id}
-              key={allocation.id}
-              className={classes.SelectItem}
-            >
-              {allocationOptionLabel(allocation)}
-            </MenuItem>
-          ))}
-      </Select>
+      />
       <div className={classes.selectItems}>
         <FindGcnEvents
           selectedGcnEventId={selectedGcnEventId}

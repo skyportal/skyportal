@@ -1,9 +1,6 @@
 import { useState } from "react";
 import Box from "@mui/material/Box";
 import CircularProgress from "@mui/material/CircularProgress";
-import InputLabel from "@mui/material/InputLabel";
-import MenuItem from "@mui/material/MenuItem";
-import Select from "@mui/material/Select";
 import Form from "@rjsf/mui";
 import validator from "@rjsf/validator-ajv8";
 
@@ -16,7 +13,7 @@ import {
   useGetInstrumentFormsQuery,
 } from "../../ducks/instruments";
 import GroupShareSelect from "../group/GroupShareSelect";
-import { useSelectSearch } from "../SelectSearch";
+import SearchableValueSelect from "../SearchableValueSelect";
 import { localeSafeFields } from "./LocaleSafeNumberField";
 import { allocationLabel } from "../../utils/format";
 
@@ -33,7 +30,6 @@ const NewDefaultFollowupRequest = () => {
     useSubmitDefaultFollowupRequestMutation();
   const [selectedAllocationId, setSelectedAllocationId] = useState<any>(null);
   const [selectedGroupIds, setSelectedGroupIds] = useState<any[] | null>(null);
-  const allocationSearch = useSelectSearch();
 
   const allocations = allocationListApiClassname.filter(
     (allocation: any) =>
@@ -81,40 +77,18 @@ const NewDefaultFollowupRequest = () => {
   return (
     <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
       <Box>
-        <InputLabel id="allocationSelectLabel">Allocation</InputLabel>
-        <Select
-          inputProps={{ MenuProps: { disableScrollLock: true } }}
-          labelId="allocationSelectLabel"
+        <SearchableValueSelect
+          id="followupRequestAllocationSelect"
+          label="Allocation"
+          options={allocations}
+          getOptionLabel={(option) =>
+            allocationLabel(option, instrumentList, telescopeList, allGroups)
+          }
           value={allocation.id}
-          onChange={(e) => setSelectedAllocationId(e.target.value)}
-          name="followupRequestAllocationSelect"
-          onClose={allocationSearch.resetSearch}
+          onChange={setSelectedAllocationId}
+          disableClearable
           fullWidth
-        >
-          {allocationSearch.searchHeader}
-          {allocations
-            .filter(
-              (option: any) =>
-                allocationSearch.matches(
-                  allocationLabel(
-                    option,
-                    instrumentList,
-                    telescopeList,
-                    allGroups,
-                  ),
-                ) || option.id === allocation.id,
-            )
-            .map((option: any) => (
-              <MenuItem value={option.id} key={option.id}>
-                {allocationLabel(
-                  option,
-                  instrumentList,
-                  telescopeList,
-                  allGroups,
-                )}
-              </MenuItem>
-            ))}
-        </Select>
+        />
       </Box>
       <GroupShareSelect
         groupList={allGroups}

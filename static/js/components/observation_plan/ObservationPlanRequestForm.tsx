@@ -48,7 +48,7 @@ import { useLazyGetPlanWithSameNameExistsQuery } from "../../ducks/observationPl
 import { useGetLocalizationQuery } from "../../ducks/localization";
 import { download } from "../../utils/download";
 import GroupShareSelect from "../group/GroupShareSelect";
-import { useSelectSearch } from "../SelectSearch";
+import SearchableValueSelect from "../SearchableValueSelect";
 const LocalizationPlot = lazy(() => import("../localization/LocalizationPlot"));
 
 dayjs.extend(relativeTime);
@@ -94,11 +94,6 @@ const FieldSelect = ({
     fields.push(Number(field.field_id));
   });
   fields.sort((a, b) => a - b);
-  const fieldSearch = useSelectSearch();
-
-  const handleSelectedFieldChange = (e: any) => {
-    setSelectedFields(e.target.value);
-  };
 
   const clearSelectedFields = () => {
     setSelectedFields([]);
@@ -110,31 +105,15 @@ const FieldSelect = ({
 
   return (
     <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-      <FormControl size="small" sx={{ flex: 1 }}>
-        <InputLabel id="fieldsToUseSelectLabel">Fields to use</InputLabel>
-        <Select
-          label="Fields to use"
-          inputProps={{ MenuProps: { disableScrollLock: true } }}
-          labelId="fieldsToUseSelectLabel"
-          name="fieldsToUseSelect"
-          multiple
-          value={selectedFields || []}
-          onChange={handleSelectedFieldChange}
-          onClose={fieldSearch.resetSearch}
-        >
-          {fieldSearch.searchHeader}
-          {fields
-            ?.filter(
-              (field) =>
-                fieldSearch.matches(field) || selectedFields?.includes(field),
-            )
-            .map((field) => (
-              <MenuItem value={field} key={field}>
-                {field}
-              </MenuItem>
-            ))}
-        </Select>
-      </FormControl>
+      <SearchableValueSelect
+        id="fieldsToUseSelect"
+        label="Fields to use"
+        multiple
+        options={fields}
+        value={selectedFields || []}
+        onChange={setSelectedFields}
+        sx={{ flex: 1 }}
+      />
       <Button
         id="clear-fieldsToUseSelect"
         size="small"
@@ -235,7 +214,6 @@ const ObservationPlanRequestForm = ({
   const allGroups = useGetGroupsQuery().data?.all ?? null;
   const [selectedAllocationId, setSelectedAllocationId] = useState<any>(null);
   const [selectedGroupIds, setSelectedGroupIds] = useState<any[]>([]);
-  const allocationSearch = useSelectSearch();
   const [selectedLocalizationId, setSelectedLocalizationId] =
     useState<any>(null);
 
@@ -721,32 +699,18 @@ const ObservationPlanRequestForm = ({
             setSelectedFields={setSelectedFields}
             skymapInstrument={skymapInstrument}
           />
-          <FormControl size="small" fullWidth>
-            <InputLabel id="allocationSelectLabel">Allocation</InputLabel>
-            <Select
-              label="Allocation"
-              inputProps={{ MenuProps: { disableScrollLock: true } }}
-              labelId="allocationSelectLabel"
-              value={selectedAllocationId}
-              onChange={handleSelectedAllocationChange}
-              onClose={allocationSearch.resetSearch}
-              name="followupRequestAllocationSelect"
-            >
-              {allocationSearch.searchHeader}
-              {filteredAllocationListApiObsplan
-                ?.filter(
-                  (allocation: any) =>
-                    allocationSearch.matches(
-                      allocationOptionLabel(allocation),
-                    ) || allocation.id === selectedAllocationId,
-                )
-                .map((allocation: any) => (
-                  <MenuItem value={allocation.id} key={allocation.id}>
-                    {allocationOptionLabel(allocation)}
-                  </MenuItem>
-                ))}
-            </Select>
-          </FormControl>
+          <SearchableValueSelect
+            id="allocationSelectLabel"
+            label="Allocation"
+            options={filteredAllocationListApiObsplan ?? []}
+            getOptionLabel={allocationOptionLabel}
+            value={selectedAllocationId}
+            onChange={(value) =>
+              handleSelectedAllocationChange({ target: { value } })
+            }
+            disableClearable
+            fullWidth
+          />
           <FormControl size="small" fullWidth>
             <InputLabel id="localizationSelectLabel">Localization</InputLabel>
             <Select

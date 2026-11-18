@@ -66,9 +66,7 @@ def select_followup_allocation(page, user, source, instrument_name, group):
     )
     submit_button = page.locator(submit_button_xpath).first
 
-    select_box = page.locator(
-        "//div[@id='mui-component-select-followupRequestAllocationSelect']"
-    ).first
+    select_box = page.locator("//*[@id='followupRequestAllocationSelect']").first
     select_box.click()
 
     allocation = page.locator(
@@ -405,9 +403,7 @@ def add_followup_request_using_frontend_and_verify_ATLAS(
     )
     submit_button = page.locator(submit_button_xpath).first
 
-    select_box = page.locator(
-        "//div[@id='mui-component-select-forcedPhotometryAllocationSelect']"
-    ).first
+    select_box = page.locator("//*[@id='forcedPhotometryAllocationSelect']").first
     allocation = page.locator(
         f'//li[contains(text(), "{instrument_name}")][contains(text(), "{public_group.name}")]'
     ).first
@@ -464,9 +460,7 @@ def add_followup_request_using_frontend_and_verify_PS1(
     )
     submit_button = page.locator(submit_button_xpath).first
 
-    select_box = page.locator(
-        "//div[@id='mui-component-select-forcedPhotometryAllocationSelect']"
-    ).first
+    select_box = page.locator("//*[@id='forcedPhotometryAllocationSelect']").first
     allocation = page.locator(
         f'//li[contains(text(), "{instrument_name}")][contains(text(), "{public_group.name}")]'
     ).first

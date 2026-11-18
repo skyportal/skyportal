@@ -9,7 +9,7 @@ import MenuItem from "@mui/material/MenuItem";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 import Button from "../Button";
-import { useSelectSearch } from "../SelectSearch";
+import SearchableValueSelect from "../SearchableValueSelect";
 
 import { useGetTelescopesQuery } from "../../ducks/telescopes";
 import {
@@ -42,7 +42,6 @@ const QueueAPIDisplay = () => {
   const { classes } = useStyles();
 
   const [selectedAllocationId, setSelectedAllocationId] = useState<any>(null);
-  const allocationSearch = useSelectSearch();
   const [queueList, setQueueList] = useState<string[]>(["None"]);
   const [selectedQueueName, setSelectedQueueName] = useState("None");
 
@@ -152,33 +151,18 @@ const QueueAPIDisplay = () => {
 
   return (
     <div className={classes.container}>
-      <InputLabel id="allocationSelectLabel">Allocation</InputLabel>
-      <Select
-        inputProps={{ MenuProps: { disableScrollLock: true } }}
-        labelId="allocationSelectLabel"
-        defaultValue={selectedAllocationId || ""}
-        onChange={handleSelectedAllocationChange}
-        onClose={allocationSearch.resetSearch}
-        name="followupRequestAllocationSelect"
+      <SearchableValueSelect
+        id="allocationSelectLabel"
+        label="Allocation"
+        options={allocationListApiObsplan ?? []}
+        getOptionLabel={allocationOptionLabel}
+        value={selectedAllocationId}
+        onChange={(value) =>
+          handleSelectedAllocationChange({ target: { value } })
+        }
+        disableClearable
         className={classes.select}
-      >
-        {allocationSearch.searchHeader}
-        {allocationListApiObsplan
-          ?.filter(
-            (allocation: any) =>
-              allocationSearch.matches(allocationOptionLabel(allocation)) ||
-              allocation.id === selectedAllocationId,
-          )
-          .map((allocation: any) => (
-            <MenuItem
-              value={allocation.id}
-              key={allocation.id}
-              className={classes.SelectItem}
-            >
-              {allocationOptionLabel(allocation)}
-            </MenuItem>
-          ))}
-      </Select>
+      />
       <InputLabel id="queueNameSelectLabel">Queue Name</InputLabel>
       <Select
         inputProps={{ MenuProps: { disableScrollLock: true } }}

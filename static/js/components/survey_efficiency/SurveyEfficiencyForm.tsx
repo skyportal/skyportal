@@ -21,7 +21,7 @@ import { useSubmitSurveyEfficiencyObservationPlanMutation } from "../../ducks/su
 import { useGetInstrumentsQuery } from "../../ducks/instruments";
 import { useGetAllocationsQuery } from "../../ducks/allocations";
 import GroupShareSelect from "../group/GroupShareSelect";
-import { useSelectSearch } from "../SelectSearch";
+import SearchableValueSelect from "../SearchableValueSelect";
 
 dayjs.extend(relativeTime);
 dayjs.extend(utc);
@@ -81,7 +81,6 @@ const SurveyEfficiencyForm = ({
 
   const allGroups = useGetGroupsQuery().data?.all ?? null;
   const [selectedInstrumentId, setSelectedInstrumentId] = useState<any>(null);
-  const instrumentSearch = useSelectSearch();
   const [selectedGroupIds, setSelectedGroupIds] = useState<any[]>([]);
   const [selectedLocalizationId, setSelectedLocalizationId] =
     useState<any>(null);
@@ -380,35 +379,19 @@ const SurveyEfficiencyForm = ({
         </Select>
       </div>
       <div>
-        <InputLabel id="instrumentSelectLabel">Instrument</InputLabel>
-        <Select
-          inputProps={{ MenuProps: { disableScrollLock: true } }}
-          labelId="instrumentSelectLabel"
-          value={selectedInstrumentId || ""}
-          onChange={handleSelectedInstrumentChange}
-          onClose={instrumentSearch.resetSearch}
-          className={(classes as any).instrumentSelect}
-        >
-          {instrumentSearch.searchHeader}
-          {instrumentsWithSensitivities
-            ?.filter(
-              (instrument: any) =>
-                instrumentSearch.matches(
-                  `${telLookUp[instrument.telescope_id]?.name} / ${instrument.name}`,
-                ) || instrument.id === selectedInstrumentId,
-            )
-            .map((instrument: any) => (
-              <MenuItem
-                value={instrument.id}
-                key={instrument.id}
-                className={(classes as any).instrumentSelectItem}
-              >
-                {`${telLookUp[instrument.telescope_id]?.name} / ${
-                  instrument.name
-                }`}
-              </MenuItem>
-            ))}
-        </Select>
+        <SearchableValueSelect
+          id="instrumentSelectLabel"
+          label="Instrument"
+          options={instrumentsWithSensitivities ?? []}
+          getOptionLabel={(instrument) =>
+            `${telLookUp[instrument.telescope_id]?.name} / ${instrument.name}`
+          }
+          value={selectedInstrumentId}
+          onChange={(value) =>
+            handleSelectedInstrumentChange({ target: { value } })
+          }
+          sx={{ minWidth: 300 }}
+        />
       </div>
       <GroupShareSelect
         groupList={allGroups}

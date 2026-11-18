@@ -3,13 +3,11 @@ import ButtonGroup from "@mui/material/ButtonGroup";
 import TextField from "@mui/material/TextField";
 import { makeStyles } from "tss-react/mui";
 import Typography from "@mui/material/Typography";
-import Select from "@mui/material/Select";
-import MenuItem from "@mui/material/MenuItem";
 import { Controller, useForm } from "react-hook-form";
 
 import Button from "../Button";
 import { useGetInstrumentsQuery } from "../../ducks/instruments";
-import { useSelectSearch } from "../SelectSearch";
+import SearchableValueSelect from "../SearchableValueSelect";
 
 const useStyles = makeStyles()((theme) => ({
   paperDiv: {
@@ -76,19 +74,6 @@ const useStyles = makeStyles()((theme) => ({
       marginRight: "1rem",
     },
   },
-  select: {
-    width: "40%",
-    height: "3rem",
-
-    display: "flex",
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "left",
-    gap: "0.25rem",
-  },
-  selectItem: {
-    whiteSpace: "break-spaces",
-  },
 }));
 
 interface ObservationFilterFormProps {
@@ -113,7 +98,6 @@ const ObservationFilterForm = ({
   });
 
   const { handleSubmit, control, reset, getValues } = useForm();
-  const instrumentSearch = useSelectSearch();
 
   const handleClickReset = () => {
     reset();
@@ -168,37 +152,15 @@ const ObservationFilterForm = ({
           <div className={(classes as any).selectItems}>
             <Controller
               render={({ field: { value } }) => (
-                <Select
-                  inputProps={{ MenuProps: { disableScrollLock: true } }}
-                  labelId="instrumentSelectLabel"
-                  value={value || ""}
-                  onChange={(event) => {
-                    reset({
-                      ...getValues(),
-                      instrumentName:
-                        event.target.value === -1 ? "" : event.target.value,
-                    });
-                  }}
-                  onClose={instrumentSearch.resetSearch}
-                  className={classes.select}
-                >
-                  {instrumentSearch.searchHeader}
-                  {sortedInstrumentList
-                    ?.filter(
-                      (instrument: any) =>
-                        instrumentSearch.matches(instrument.name) ||
-                        instrument.name === value,
-                    )
-                    .map((instrument: any) => (
-                      <MenuItem
-                        value={instrument.name}
-                        key={instrument.name}
-                        className={classes.selectItem}
-                      >
-                        {`${instrument.name}`}
-                      </MenuItem>
-                    ))}
-                </Select>
+                <SearchableValueSelect
+                  options={sortedInstrumentList ?? []}
+                  getOptionValue={(instrument) => instrument.name}
+                  value={value || null}
+                  onChange={(name) =>
+                    reset({ ...getValues(), instrumentName: name ?? "" })
+                  }
+                  sx={{ width: "40%" }}
+                />
               )}
               name="instrumentName"
               control={control}
