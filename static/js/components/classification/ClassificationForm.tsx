@@ -8,6 +8,7 @@ import InputLabel from "@mui/material/InputLabel";
 import { createFilterOptions } from "@mui/material/Autocomplete";
 import { makeStyles } from "tss-react/mui";
 import SearchableSelect from "../SearchableSelect";
+import { useSelectSearch } from "../SelectSearch";
 
 import Form from "@rjsf/mui";
 import validator from "@rjsf/validator-ajv8";
@@ -109,6 +110,7 @@ const CustomGroupsWidget = ({
 }: CustomGroupsWidgetProps) => {
   const { classes } = useStyles();
   const groups = useGetGroupsQuery().data?.userAccessible ?? [];
+  const { searchHeader, matches, resetSearch } = useSelectSearch();
 
   const groupIDToName: Record<string, any> = {};
   groups?.forEach((g) => {
@@ -137,6 +139,7 @@ const CustomGroupsWidget = ({
         onChange={(event) => {
           onChange(event.target.value);
         }}
+        onClose={resetSearch}
         input={<Input id="selectGroupsChip" />}
         labelId="classificationGroupSelectLabel"
         value={(value || "") as any}
@@ -158,16 +161,22 @@ const CustomGroupsWidget = ({
         fullWidth
         multiple
       >
+        {searchHeader}
         {(options.enumOptions?.length ?? 0) > 0 &&
-          options.enumOptions?.map((group: any) => (
-            <MenuItem
-              value={group.value}
-              key={group.value.toString()}
-              data-testid={`notificationGroupSelect_${group.value}`}
-            >
-              {group.label}
-            </MenuItem>
-          ))}
+          options.enumOptions
+            ?.filter(
+              (group: any) =>
+                matches(group.label) || value?.includes(group.value),
+            )
+            .map((group: any) => (
+              <MenuItem
+                value={group.value}
+                key={group.value.toString()}
+                data-testid={`notificationGroupSelect_${group.value}`}
+              >
+                {group.label}
+              </MenuItem>
+            ))}
       </Select>
     </>
   );

@@ -16,6 +16,7 @@ import { useAppDispatch } from "../../types/hooks";
 import Button from "../Button";
 import { useSubmitDefaultAnalysisMutation } from "../../ducks/default_analyses";
 import { useGetGroupsQuery } from "../../ducks/groups";
+import { useSelectSearch } from "../SelectSearch";
 
 const useStyles = makeStyles()(() => ({
   container: { width: "32rem", maxWidth: "100%" },
@@ -124,6 +125,8 @@ const NewDefaultAnalysis = ({
   const [groupIds, setGroupIds] = useState<number[]>(
     serviceGroups.map((g) => g.id),
   );
+  const triggerGroupSearch = useSelectSearch();
+  const shareGroupSearch = useSelectSearch();
   const [dailyLimit, setDailyLimit] = useState("10");
   const [paramsData, setParamsData] = useState<Record<string, any>>(() =>
     initialParamsData(serviceParams),
@@ -287,12 +290,19 @@ const NewDefaultAnalysis = ({
             label="Trigger group"
             value={triggerGroupId}
             onChange={(e) => setTriggerGroupId(e.target.value as number)}
+            onClose={triggerGroupSearch.resetSearch}
           >
-            {serviceGroups.map((g) => (
-              <MenuItem key={g.id} value={g.id}>
-                {g.name}
-              </MenuItem>
-            ))}
+            {triggerGroupSearch.searchHeader}
+            {serviceGroups
+              .filter(
+                (g) =>
+                  triggerGroupSearch.matches(g.name) || g.id === triggerGroupId,
+              )
+              .map((g) => (
+                <MenuItem key={g.id} value={g.id}>
+                  {g.name}
+                </MenuItem>
+              ))}
           </Select>
         </FormControl>
       )}
@@ -317,12 +327,19 @@ const NewDefaultAnalysis = ({
           multiple
           value={groupIds}
           onChange={(e) => setGroupIds(e.target.value as number[])}
+          onClose={shareGroupSearch.resetSearch}
         >
-          {serviceGroups.map((g) => (
-            <MenuItem key={g.id} value={g.id}>
-              {g.name}
-            </MenuItem>
-          ))}
+          {shareGroupSearch.searchHeader}
+          {serviceGroups
+            .filter(
+              (g) =>
+                shareGroupSearch.matches(g.name) || groupIds.includes(g.id),
+            )
+            .map((g) => (
+              <MenuItem key={g.id} value={g.id}>
+                {g.name}
+              </MenuItem>
+            ))}
         </Select>
       </FormControl>
 

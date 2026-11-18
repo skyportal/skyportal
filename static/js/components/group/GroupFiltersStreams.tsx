@@ -23,6 +23,7 @@ import Typography from "@mui/material/Typography";
 import { showNotification } from "baselayer/components/Notifications";
 
 import Button from "../Button";
+import { useSelectSearch } from "../SelectSearch";
 import ConfirmFilterDeletionDialog from "../filter/ConfirmFilterDeletionDialog";
 import NewFilterDialog from "../filter/NewFilterDialog";
 
@@ -51,6 +52,7 @@ const GroupFiltersStreams = ({
   const [filterStreamId, setFilterStreamId] = useState<number | null>(null);
   const [addStreamOpen, setAddStreamOpen] = useState(false);
   const [newStreamId, setNewStreamId] = useState<number | "">("");
+  const { searchHeader, matches, resetSearch } = useSelectSearch();
   const [editingFilterId, setEditingFilterId] = useState<number | null>(null);
   const [editNameInput, setEditNameInput] = useState("");
   const [filterToDelete, setFilterToDelete] = useState<any>(null);
@@ -248,9 +250,15 @@ const GroupFiltersStreams = ({
             label="Alert stream"
             value={newStreamId}
             onChange={(e) => setNewStreamId(Number(e.target.value))}
+            slotProps={{ select: { onClose: resetSearch } }}
           >
+            {searchHeader}
             {streams
-              .filter((stream: any) => !groupStreamIds.includes(stream.id))
+              .filter(
+                (stream: any) =>
+                  !groupStreamIds.includes(stream.id) &&
+                  (matches(stream.name) || stream.id === newStreamId),
+              )
               .map((stream: any) => (
                 <MenuItem value={stream.id} key={stream.id}>
                   {stream.name}

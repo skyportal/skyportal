@@ -10,6 +10,7 @@ import { useTheme } from "@mui/material/styles";
 
 import { Group } from "../../types";
 import RemovableChip from "../RemovableChip";
+import { useSelectSearch } from "../SelectSearch";
 
 const useStyles = makeStyles()(() => ({
   chips: {
@@ -39,6 +40,7 @@ const GroupsSelect = (props: GroupsSelectProps) => {
 
   const { classes } = useStyles();
   const theme = useTheme();
+  const { searchHeader, matches, resetSearch } = useSelectSearch();
   const groups = useGetGroupsQuery().data?.userAccessible ?? [];
 
   const ITEM_HEIGHT = 48;
@@ -68,6 +70,7 @@ const GroupsSelect = (props: GroupsSelectProps) => {
               onChange={(event) => {
                 setSelectedGroups(event.target.value);
               }}
+              onClose={resetSearch}
               input={<Input id="groups-select" />}
               renderValue={(selected: Group[]) => (
                 <div className={classes.chips}>
@@ -95,15 +98,22 @@ const GroupsSelect = (props: GroupsSelectProps) => {
               )}
               MenuProps={MenuProps}
             >
-              {groups?.map((group) => (
-                <MenuItem
-                  key={group.id}
-                  value={group as any}
-                  style={getStyles(group, selectedGroups, theme)}
-                >
-                  {group.name}
-                </MenuItem>
-              ))}
+              {searchHeader}
+              {groups
+                ?.filter(
+                  (group) =>
+                    matches(group.name) ||
+                    selectedGroups.some((g) => g.id === group.id),
+                )
+                .map((group) => (
+                  <MenuItem
+                    key={group.id}
+                    value={group as any}
+                    style={getStyles(group, selectedGroups, theme)}
+                  >
+                    {group.name}
+                  </MenuItem>
+                ))}
             </Select>
           </FormControl>
         </div>

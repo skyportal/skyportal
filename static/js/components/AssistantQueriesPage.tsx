@@ -21,6 +21,7 @@ import Typography from "@mui/material/Typography";
 import { useAppDispatch } from "../types/hooks";
 import { useGetGroupsQuery } from "../ducks/groups";
 import ConfirmDeletionDialog from "./ConfirmDeletionDialog";
+import { useSelectSearch } from "./SelectSearch";
 import StyledDataGrid, { DataGridToolbar } from "./StyledDataGrid";
 import {
   useCreateAssistantQueryMutation,
@@ -61,6 +62,7 @@ const AssistantQueriesPage = () => {
   const [openForm, setOpenForm] = useState(false);
   const [editId, setEditId] = useState<number | null>(null);
   const [form, setForm] = useState<any>(emptyForm);
+  const { searchHeader, matches, resetSearch } = useSelectSearch();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [queryToDelete, setQueryToDelete] = useState<number | null>(null);
 
@@ -275,12 +277,16 @@ const AssistantQueriesPage = () => {
               helperText={
                 editId != null ? "A query's group can't be changed." : undefined
               }
+              slotProps={{ select: { onClose: resetSearch } }}
             >
-              {userGroups.map((g: any) => (
-                <MenuItem key={g.id} value={g.id}>
-                  {g.name}
-                </MenuItem>
-              ))}
+              {searchHeader}
+              {userGroups
+                .filter((g: any) => matches(g.name) || g.id === form.group_id)
+                .map((g: any) => (
+                  <MenuItem key={g.id} value={g.id}>
+                    {g.name}
+                  </MenuItem>
+                ))}
             </TextField>
             <TextField
               label="Triggered by analysis service (name contains)"

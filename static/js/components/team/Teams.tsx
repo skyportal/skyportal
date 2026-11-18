@@ -35,6 +35,7 @@ import {
 } from "../../ducks/teams";
 import type { Team } from "../../ducks/teams";
 import RemovableChip from "../RemovableChip";
+import { useSelectSearch } from "../SelectSearch";
 
 const useStyles = makeStyles()((theme) => ({
   container: {
@@ -88,6 +89,7 @@ const emptyForm = {
 const TeamForm = ({ team, onDone }: { team?: Team; onDone?: () => void }) => {
   const { classes } = useStyles();
   const { data: groupsData } = useGetGroupsQuery();
+  const { searchHeader, matches, resetSearch } = useSelectSearch();
   const [addTeam] = useAddTeamMutation();
   const [updateTeam] = useUpdateTeamMutation();
 
@@ -233,6 +235,7 @@ const TeamForm = ({ team, onDone }: { team?: Team; onDone?: () => void }) => {
             multiple
             value={form.group_ids}
             onChange={handleChange}
+            onClose={resetSearch}
             input={<Input id="selectGroupsChip" />}
             renderValue={(selected: any) => (
               <div className={classes.chips}>
@@ -253,11 +256,17 @@ const TeamForm = ({ team, onDone }: { team?: Team; onDone?: () => void }) => {
               </div>
             )}
           >
-            {accessibleGroups.map((group: any) => (
-              <MenuItem key={group.id} value={group.id}>
-                {group.name}
-              </MenuItem>
-            ))}
+            {searchHeader}
+            {accessibleGroups
+              .filter(
+                (group: any) =>
+                  matches(group.name) || form.group_ids.includes(group.id),
+              )
+              .map((group: any) => (
+                <MenuItem key={group.id} value={group.id}>
+                  {group.name}
+                </MenuItem>
+              ))}
           </Select>
         </FormControl>
       </Box>

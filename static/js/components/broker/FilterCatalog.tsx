@@ -28,7 +28,46 @@ import { useGetGroupsQuery } from "../../ducks/groups";
 import { useGetStreamsQuery } from "../../ducks/streams";
 import { useAppDispatch } from "../../types/hooks";
 import StyledDataGrid from "../StyledDataGrid";
+import { useSelectSearch } from "../SelectSearch";
 import ConfirmFilterDeletionDialog from "../filter/ConfirmFilterDeletionDialog";
+
+const CatalogFieldSelect = ({
+  label,
+  value,
+  options,
+  onChange,
+  withNone,
+}: {
+  label: string;
+  value: any;
+  options: { id: any; name: string }[];
+  onChange: (value: any) => void;
+  withNone: boolean;
+}) => {
+  const { searchHeader, matches, resetSearch } = useSelectSearch();
+  return (
+    <TextField
+      select
+      size="small"
+      label={label}
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      sx={{ minWidth: 160 }}
+      slotProps={{ select: { onClose: resetSearch } }}
+    >
+      {searchHeader}
+      <MenuItem value="">{`All ${label.toLowerCase()}s`}</MenuItem>
+      {options
+        .filter((o) => matches(o.name) || o.id === value)
+        .map((o) => (
+          <MenuItem key={o.id} value={o.id}>
+            {o.name}
+          </MenuItem>
+        ))}
+      {withNone && <MenuItem value="none">No broker</MenuItem>}
+    </TextField>
+  );
+};
 
 const FilterCatalog = ({ brokerId }: { brokerId?: number }) => {
   const [page, setPage] = useState(0);
@@ -247,25 +286,16 @@ const FilterCatalog = ({ brokerId }: { brokerId?: number }) => {
                 { key: "brokerID" as const, label: "Broker", options: brokers },
               ]),
         ].map(({ key, label, options }) => (
-          <TextField
+          <CatalogFieldSelect
             key={key}
-            select
-            size="small"
             label={label}
             value={query[key]}
-            onChange={(e) =>
-              updateQuery({ [key]: e.target.value } as FilterCatalogQuery)
+            options={options}
+            onChange={(value) =>
+              updateQuery({ [key]: value } as FilterCatalogQuery)
             }
-            sx={{ minWidth: 160 }}
-          >
-            <MenuItem value="">{`All ${label.toLowerCase()}s`}</MenuItem>
-            {options.map((o) => (
-              <MenuItem key={o.id} value={o.id}>
-                {o.name}
-              </MenuItem>
-            ))}
-            {key === "brokerID" && <MenuItem value="none">No broker</MenuItem>}
-          </TextField>
+            withNone={key === "brokerID"}
+          />
         ))}
         <Typography variant="body2" color="text.secondary">
           {`${total} filter${total === 1 ? "" : "s"}`}

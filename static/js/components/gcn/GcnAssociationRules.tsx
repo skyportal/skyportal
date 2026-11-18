@@ -14,6 +14,7 @@ import TextField from "@mui/material/TextField";
 import Typography from "@mui/material/Typography";
 
 import Button from "../Button";
+import { useSelectSearch } from "../SelectSearch";
 import StyledDataGrid, { DataGridToolbar } from "../StyledDataGrid";
 import GcnTagsSelect from "./GcnTagsSelect";
 import { useGetGroupsQuery } from "../../ducks/groups";
@@ -115,6 +116,7 @@ const GcnAssociationRules = () => {
   const [days, setDays] = useState("");
   const [minConsistency, setMinConsistency] = useState("0.5");
   const [groupId, setGroupId] = useState<number | "">("");
+  const { searchHeader, matches, resetSearch } = useSelectSearch();
   const [showErrors, setShowErrors] = useState(false);
   const [open, setOpen] = useState(false);
 
@@ -268,12 +270,18 @@ const GcnAssociationRules = () => {
               onChange={(event) => setGroupId(Number(event.target.value))}
               error={showErrors && !groupId}
               helperText={showErrors && !groupId ? "Pick a group" : " "}
+              slotProps={{ select: { onClose: resetSearch } }}
             >
-              {groups.map((group: any) => (
-                <MenuItem key={group.id} value={group.id}>
-                  {group.name}
-                </MenuItem>
-              ))}
+              {searchHeader}
+              {groups
+                .filter(
+                  (group: any) => matches(group.name) || group.id === groupId,
+                )
+                .map((group: any) => (
+                  <MenuItem key={group.id} value={group.id}>
+                    {group.name}
+                  </MenuItem>
+                ))}
             </TextField>
             <TextField
               label="Within (days)"

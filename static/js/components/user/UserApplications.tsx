@@ -35,6 +35,7 @@ import {
   useGetUserApplicationsQuery,
 } from "../../ducks/userApplications";
 import RemovableChip from "../RemovableChip";
+import { useSelectSearch } from "../SelectSearch";
 
 type Decision = "endorsed" | "declined";
 const TABS: UserApplication["status"][] = ["pending", "endorsed", "declined"];
@@ -163,6 +164,8 @@ const DecisionDialog = ({
     : ROLES.filter((option) => option !== "Super admin");
   const [streamIDs, setStreamIDs] = useState<number[]>([]);
   const [groupIDs, setGroupIDs] = useState<number[]>([]);
+  const streamSearch = useSelectSearch();
+  const groupSearch = useSelectSearch();
   const [role, setRole] = useState<(typeof ROLES)[number]>("Full user");
   const [reason, setReason] = useState("");
 
@@ -260,6 +263,7 @@ const DecisionDialog = ({
                   onChange={(event) =>
                     chooseStreams(event.target.value as number[])
                   }
+                  onClose={streamSearch.resetSearch}
                   renderValue={(selected) => (
                     <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.5 }}>
                       {myStreams
@@ -279,11 +283,18 @@ const DecisionDialog = ({
                     </Box>
                   )}
                 >
-                  {myStreams.map((stream: any) => (
-                    <MenuItem key={stream.id} value={stream.id}>
-                      {stream.name}
-                    </MenuItem>
-                  ))}
+                  {streamSearch.searchHeader}
+                  {myStreams
+                    .filter(
+                      (stream: any) =>
+                        streamSearch.matches(stream.name) ||
+                        streamIDs.includes(stream.id),
+                    )
+                    .map((stream: any) => (
+                      <MenuItem key={stream.id} value={stream.id}>
+                        {stream.name}
+                      </MenuItem>
+                    ))}
                 </Select>
               </FormControl>
               <FormControl fullWidth>
@@ -296,6 +307,7 @@ const DecisionDialog = ({
                   onChange={(event) =>
                     setGroupIDs(event.target.value as number[])
                   }
+                  onClose={groupSearch.resetSearch}
                   renderValue={(selected) => (
                     <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.5 }}>
                       {myGroups
@@ -315,11 +327,18 @@ const DecisionDialog = ({
                     </Box>
                   )}
                 >
-                  {availableGroups.map((group: any) => (
-                    <MenuItem key={group.id} value={group.id}>
-                      {group.name}
-                    </MenuItem>
-                  ))}
+                  {groupSearch.searchHeader}
+                  {availableGroups
+                    .filter(
+                      (group: any) =>
+                        groupSearch.matches(group.name) ||
+                        groupIDs.includes(group.id),
+                    )
+                    .map((group: any) => (
+                      <MenuItem key={group.id} value={group.id}>
+                        {group.name}
+                      </MenuItem>
+                    ))}
                 </Select>
               </FormControl>
               <DialogContentText variant="body2">

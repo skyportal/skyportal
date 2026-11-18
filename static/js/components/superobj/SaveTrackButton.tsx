@@ -14,6 +14,7 @@ import { showNotification } from "baselayer/components/Notifications";
 import { useAppDispatch } from "../../types/hooks";
 import { useSaveSourceMutation } from "../../ducks/source";
 import type { SuperObjEpoch } from "../../ducks/superObjs";
+import { useSelectSearch } from "../SelectSearch";
 
 interface GroupOption {
   id: number;
@@ -48,6 +49,7 @@ const SaveTrackButton = ({
   const [saveSource] = useSaveSourceMutation();
   const [open, setOpen] = useState(false);
   const [groupId, setGroupId] = useState<number | "">("");
+  const { searchHeader, matches, resetSearch } = useSelectSearch();
   const [saving, setSaving] = useState(false);
 
   const save = async () => {
@@ -116,15 +118,22 @@ const SaveTrackButton = ({
             displayEmpty
             value={groupId}
             onChange={(e) => setGroupId(Number(e.target.value))}
+            onClose={resetSearch}
           >
+            {searchHeader}
             <MenuItem value="" disabled>
               Select a group
             </MenuItem>
-            {userGroups.map((group) => (
-              <MenuItem key={group.id} value={group.id}>
-                {group.nickname || group.name}
-              </MenuItem>
-            ))}
+            {userGroups
+              .filter(
+                (group) =>
+                  matches(group.nickname || group.name) || group.id === groupId,
+              )
+              .map((group) => (
+                <MenuItem key={group.id} value={group.id}>
+                  {group.nickname || group.name}
+                </MenuItem>
+              ))}
           </Select>
         </DialogContent>
         <DialogActions>

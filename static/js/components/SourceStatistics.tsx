@@ -11,6 +11,7 @@ import FormControlLabel from "@mui/material/FormControlLabel";
 import Switch from "@mui/material/Switch";
 import Slider from "@mui/material/Slider";
 import Button from "./Button";
+import { useSelectSearch } from "./SelectSearch";
 import Tab from "@mui/material/Tab";
 import Tabs from "@mui/material/Tabs";
 import ToggleButton from "@mui/material/ToggleButton";
@@ -401,6 +402,7 @@ const SourceStatistics = () => {
     "classification" | "group" | "objects"
   >("classification");
   const [selectGroupId, setSelectGroupId] = useState<number | "">("");
+  const groupSearch = useSelectSearch();
   const [objIds, setObjIds] = useState<string[]>([]);
   const { data: groupsData } = useGetGroupsQuery();
   const [xField, setXField] = useState("rise_rate");
@@ -685,12 +687,19 @@ const SourceStatistics = () => {
                 label="Group"
                 value={selectGroupId}
                 onChange={(e) => setSelectGroupId(e.target.value as number)}
+                onClose={groupSearch.resetSearch}
               >
-                {(groupsData?.userAccessible || []).map((g) => (
-                  <MenuItem key={g.id} value={g.id}>
-                    {g.name}
-                  </MenuItem>
-                ))}
+                {groupSearch.searchHeader}
+                {(groupsData?.userAccessible || [])
+                  .filter(
+                    (g) =>
+                      groupSearch.matches(g.name) || g.id === selectGroupId,
+                  )
+                  .map((g) => (
+                    <MenuItem key={g.id} value={g.id}>
+                      {g.name}
+                    </MenuItem>
+                  ))}
               </Select>
             </FormControl>
           )}

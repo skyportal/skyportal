@@ -13,6 +13,7 @@ import { makeStyles } from "tss-react/mui";
 import { showNotification } from "baselayer/components/Notifications";
 import { useAppDispatch } from "../types/hooks";
 import Button from "./Button";
+import { useSelectSearch } from "./SelectSearch";
 import StyledDataGrid from "./StyledDataGrid";
 import {
   DataAccessRequest,
@@ -32,6 +33,39 @@ const useStyles = makeStyles()((theme) => ({
 }));
 
 const PRIVATE_GROUP = "private";
+
+const ShareGroupSelect = ({
+  request,
+  value,
+  onChange,
+}: {
+  request: DataAccessRequest;
+  value: string;
+  onChange: (value: string) => void;
+}) => {
+  const { searchHeader, matches, resetSearch } = useSelectSearch();
+  return (
+    <Select
+      size="small"
+      value={value}
+      onChange={(event) => onChange(String(event.target.value))}
+      onClose={resetSearch}
+      data-testid={`shareGroupSelect${request.id}`}
+    >
+      {searchHeader}
+      <MenuItem value={PRIVATE_GROUP}>
+        {`Only ${request.requester.username}`}
+      </MenuItem>
+      {request.shareable_groups
+        .filter((group) => matches(group.name) || String(group.id) === value)
+        .map((group) => (
+          <MenuItem key={group.id} value={String(group.id)}>
+            {group.name}
+          </MenuItem>
+        ))}
+    </Select>
+  );
+};
 
 const describe = (request: DataAccessRequest) =>
   request.data_type === "photometry"
@@ -204,26 +238,13 @@ const DataAccessRequestsPage = () => {
     if (request.status !== "pending") return null;
     return (
       <div className={classes.actions}>
-        <Select
-          size="small"
+        <ShareGroupSelect
+          request={request}
           value={targetGroups[request.id] ?? PRIVATE_GROUP}
-          onChange={(event) =>
-            setTargetGroups({
-              ...targetGroups,
-              [request.id]: String(event.target.value),
-            })
+          onChange={(value) =>
+            setTargetGroups({ ...targetGroups, [request.id]: value })
           }
-          data-testid={`shareGroupSelect${request.id}`}
-        >
-          <MenuItem value={PRIVATE_GROUP}>
-            {`Only ${request.requester.username}`}
-          </MenuItem>
-          {request.shareable_groups.map((group) => (
-            <MenuItem key={group.id} value={String(group.id)}>
-              {group.name}
-            </MenuItem>
-          ))}
-        </Select>
+        />
         <Button
           primary
           size="small"

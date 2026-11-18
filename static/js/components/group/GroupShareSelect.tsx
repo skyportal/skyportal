@@ -8,6 +8,7 @@ import Box from "@mui/material/Box";
 
 import { Group } from "../../types";
 import RemovableChip from "../RemovableChip";
+import { useSelectSearch } from "../SelectSearch";
 
 const getStyles = (groupID: number, groupIDs: number[] = [], theme: any) => ({
   fontWeight:
@@ -30,6 +31,7 @@ const GroupShareSelect = ({
   maxGroups = 2,
 }: GroupShareSelectProps) => {
   const theme = useTheme();
+  const { searchHeader, matches, resetSearch } = useSelectSearch();
   const groupIDToName: Record<number, string> = {};
   groupList?.forEach(
     (group) => (groupIDToName[group.id] = group.nickname || group.name),
@@ -45,6 +47,7 @@ const GroupShareSelect = ({
         multiple
         value={groupIDs as any}
         onChange={(e) => setGroupIDs(e.target.value)}
+        onClose={resetSearch}
         label="Share Data With"
         renderValue={(selected: number[]) => {
           if (selected.length <= maxGroups) {
@@ -66,15 +69,20 @@ const GroupShareSelect = ({
           return <Chip size="small" label={`${selected.length} groups`} />;
         }}
       >
-        {groupList?.map((group) => (
-          <MenuItem
-            key={group.id}
-            value={group.id}
-            style={getStyles(group.id, groupIDs, theme)}
-          >
-            <div data-testid={`group_${group.id}`}>{group.name}</div>
-          </MenuItem>
-        ))}
+        {searchHeader}
+        {groupList
+          ?.filter(
+            (group) => matches(group.name) || groupIDs?.includes(group.id),
+          )
+          .map((group) => (
+            <MenuItem
+              key={group.id}
+              value={group.id}
+              style={getStyles(group.id, groupIDs, theme)}
+            >
+              <div data-testid={`group_${group.id}`}>{group.name}</div>
+            </MenuItem>
+          ))}
       </Select>
     </FormControl>
   );

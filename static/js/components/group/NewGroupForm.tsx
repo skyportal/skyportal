@@ -15,9 +15,11 @@ import { useAddNewGroupMutation } from "../../ducks/groups";
 import { useGetUsersQuery } from "../../ducks/users";
 import Button from "../Button";
 import RemovableChip from "../RemovableChip";
+import { useSelectSearch } from "../SelectSearch";
 
 const NewGroupForm = ({ onCreated }: { onCreated?: () => void }) => {
   const theme = useTheme();
+  const { searchHeader, matches, resetSearch } = useSelectSearch();
   const [addNewGroup] = useAddNewGroupMutation();
   const { data: usersData } = useGetUsersQuery();
   const allUsers = usersData?.users ?? [];
@@ -111,6 +113,7 @@ const NewGroupForm = ({ onCreated }: { onCreated?: () => void }) => {
               name="group_admins"
               multiple
               onChange={handleChange}
+              onClose={resetSearch}
               renderValue={(selected: any) => (
                 <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.5 }}>
                   {selected.map((value: number) => (
@@ -132,19 +135,27 @@ const NewGroupForm = ({ onCreated }: { onCreated?: () => void }) => {
               )}
               value={formState.group_admins}
             >
-              {allUsers.map((user: any) => (
-                <MenuItem
-                  key={user.id}
-                  value={user.id}
-                  sx={{
-                    fontWeight: formState.group_admins.includes(user.id)
-                      ? theme.typography.fontWeightMedium
-                      : theme.typography.fontWeightRegular,
-                  }}
-                >
-                  {user.username}
-                </MenuItem>
-              ))}
+              {searchHeader}
+              {allUsers
+                .filter(
+                  (user: any) =>
+                    matches(
+                      `${user.username} ${user.first_name ?? ""} ${user.last_name ?? ""}`,
+                    ) || formState.group_admins.includes(user.id),
+                )
+                .map((user: any) => (
+                  <MenuItem
+                    key={user.id}
+                    value={user.id}
+                    sx={{
+                      fontWeight: formState.group_admins.includes(user.id)
+                        ? theme.typography.fontWeightMedium
+                        : theme.typography.fontWeightRegular,
+                    }}
+                  >
+                    {user.username}
+                  </MenuItem>
+                ))}
             </Select>
           </FormControl>
         </Box>

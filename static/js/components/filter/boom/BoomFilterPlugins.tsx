@@ -42,6 +42,7 @@ import { useGetGroupsQuery } from "../../../ducks/groups";
 import { useGetGroupQuery } from "../../../ducks/group";
 import { useDeleteDefaultFollowupRequestMutation } from "../../../ducks/default_followup_requests";
 import { useGetProfileQuery } from "../../../ducks/profile";
+import { useSelectSearch } from "../../SelectSearch";
 
 const builderSx = {
   "& > .MuiBox-root": {
@@ -145,6 +146,8 @@ const BoomFilterPlugins = () => {
   const [tab, setTab] = useState(0);
   const [busy, setBusy] = useState<string | null>(null);
   const [pendingFid, setPendingFid] = useState<string | null>(null);
+  const ignoreGroupSearch = useSelectSearch();
+  const saverSearch = useSelectSearch();
 
   const altdata = filter_v.altdata ?? {};
   const isAdmin = (profile?.permissions ?? []).includes("System admin");
@@ -459,6 +462,7 @@ const BoomFilterPlugins = () => {
               slotProps={{
                 select: {
                   multiple: true,
+                  onClose: ignoreGroupSearch.resetSearch,
                   renderValue: (ids: any) =>
                     ids
                       .map(
@@ -469,11 +473,12 @@ const BoomFilterPlugins = () => {
                 },
               }}
             >
+              {ignoreGroupSearch.searchHeader}
               {allGroups
                 .filter(
                   (g: any) =>
-                    !g.single_user_group ||
-                    autoSaveIgnoreGroupIds.includes(g.id),
+                    autoSaveIgnoreGroupIds.includes(g.id) ||
+                    (!g.single_user_group && ignoreGroupSearch.matches(g.name)),
                 )
                 .map((g: any) => (
                   <MenuItem key={g.id} value={g.id}>
@@ -507,15 +512,23 @@ const BoomFilterPlugins = () => {
               onChange={(e) =>
                 updateFlags({ autoSaveSaverId: e.target.value || null })
               }
+              slotProps={{ select: { onClose: saverSearch.resetSearch } }}
             >
+              {saverSearch.searchHeader}
               <MenuItem value="">
                 <em>Bot (default)</em>
               </MenuItem>
-              {((filterGroup as any)?.users ?? []).map((u: any) => (
-                <MenuItem key={u.id} value={u.id}>
-                  {u.username}
-                </MenuItem>
-              ))}
+              {((filterGroup as any)?.users ?? [])
+                .filter(
+                  (u: any) =>
+                    saverSearch.matches(u.username) ||
+                    u.id === altdata.autoSaveSaverId,
+                )
+                .map((u: any) => (
+                  <MenuItem key={u.id} value={u.id}>
+                    {u.username}
+                  </MenuItem>
+                ))}
             </TextField>
             <TextField
               size="small"
