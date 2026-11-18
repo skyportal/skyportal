@@ -47,6 +47,14 @@ export const userLabel = (
   )}${usernameLabel}${emailLabel}${affiliationsLabel}`;
 };
 
+const userSortKey = ({ username, first_name, last_name, is_bot }) =>
+  !is_bot && first_name && last_name ? `${last_name} ${first_name}` : username;
+
+export const compareUsersByLastName = (a, b) =>
+  userSortKey(a).localeCompare(userSortKey(b), undefined, {
+    sensitivity: "base",
+  });
+
 /**
  * Return a label for an instrument formatted as "Telescope / Instrument".
  *
