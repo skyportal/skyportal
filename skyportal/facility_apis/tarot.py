@@ -694,10 +694,10 @@ class TAROTAPI(FollowUpAPI):
             elif observing_time + timedelta(hours=3) < utcnow_naive():
                 previous_status = (
                     "planified"
-                    if request.status.startswith("planified")
+                    if request.status.startswith("submitted: planified")
                     else "submitted"
                 )
-                request.status = f"rejected: {previous_status} but observation failed due to a TAROT error"
+                request.status = f"rejected: {previous_status} but not found in the TAROT observation log"
 
         await session.commit()
 
