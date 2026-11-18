@@ -36440,6 +36440,11 @@ export interface components {
             redshift_error?: number | null;
             /** @description Redshift source. */
             redshift_origin?: string | null;
+            /**
+             * @description Whether the redshift is spectroscopic or photometric.
+             * @enum {string|null}
+             */
+            redshift_type?: "spectroscopic" | "photometric" | null;
             /** @description Record of who set which redshift values and when. */
             redshift_history?: {
                 [key: string]: unknown;
@@ -36726,6 +36731,11 @@ export interface components {
             redshift_error?: number | null;
             /** @description Redshift source. */
             redshift_origin?: string | null;
+            /**
+             * @description Whether the redshift is spectroscopic or photometric.
+             * @enum {string|null}
+             */
+            redshift_type?: "spectroscopic" | "photometric" | null;
             /** @description Record of who set which redshift values and when. */
             redshift_history?: {
                 [key: string]: unknown;
@@ -36842,6 +36852,11 @@ export interface components {
             redshift_error?: number | null;
             /** @description Redshift source. */
             redshift_origin?: string | null;
+            /**
+             * @description Whether the redshift is spectroscopic or photometric.
+             * @enum {string|null}
+             */
+            redshift_type?: "spectroscopic" | "photometric" | null;
             /** @description The ID of the Galaxy to which this Obj is associated. */
             host_id?: number | null;
             /** @description Summary of the obj. */
@@ -43878,6 +43893,13 @@ export interface components {
              */
             redshift_origin: string | null;
             /**
+             * Redshift Type
+             * @description Whether the redshift is spectroscopic or photometric.
+             * @default null
+             * @enum {string|null}
+             */
+            redshift_type: "spectroscopic" | "photometric" | null;
+            /**
              * Redshift History
              * @description Record of who set which redshift values and when.
              * @default null
@@ -49847,6 +49869,13 @@ export interface components {
              */
             redshift_origin: string | null;
             /**
+             * Redshift Type
+             * @description Whether the redshift is spectroscopic or photometric.
+             * @default null
+             * @enum {string|null}
+             */
+            redshift_type: "spectroscopic" | "photometric" | null;
+            /**
              * Redshift History
              * @description Record of who set which redshift values and when.
              * @default null
@@ -50059,6 +50088,13 @@ export interface components {
              * @default null
              */
             redshift_origin: string | null;
+            /**
+             * Redshift Type
+             * @description Whether the redshift is spectroscopic or photometric.
+             * @default null
+             * @enum {string|null}
+             */
+            redshift_type: "spectroscopic" | "photometric" | null;
             /**
              * Redshift History
              * @description Record of who set which redshift values and when.

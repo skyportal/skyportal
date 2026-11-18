@@ -1779,6 +1779,8 @@ class SourceHandler(BaseHandler):
         body = self.parse_body(SourcePatchBody)
         data = body.model_dump(exclude_unset=True)
         data["id"] = obj_id
+        if "redshift" in data:
+            data.setdefault("redshift_type", None)
 
         async with self.AsyncSession() as session:
             source = await session.scalar(sa.select(Obj).where(Obj.id == obj_id))

@@ -225,6 +225,7 @@ class SourceResponse(BaseModel):
     redshift: float | None = None
     redshift_error: float | None = None
     redshift_origin: str | None = None
+    redshift_type: Literal["spectroscopic", "photometric"] | None = None
     redshift_history: list[dict[str, Any]] | None = None
     host_id: int | None = None
     summary: str | None = None
@@ -448,6 +449,7 @@ class SourcePost(BaseModel):
     redshift: float | None = None
     redshift_error: float | None = None
     redshift_origin: str | None = None
+    redshift_type: Literal["spectroscopic", "photometric"] | None = None
     host_id: int | None = None
     summary: str | None = None
     summary_history: list[dict[str, Any]] | None = None

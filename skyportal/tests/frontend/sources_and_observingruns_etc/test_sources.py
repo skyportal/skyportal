@@ -511,33 +511,29 @@ def test_update_redshift_and_history(page, user, public_source):
     page.goto(f"/become_user/{user.id}")
     page.goto(f"/source/{public_source.id}")
     expect(page.locator(f'//h6[text()="{public_source.id}"]').first).to_be_visible()
-    page.locator("//*[@data-testid='updateRedshiftIconButton']").first.click()
+    page.locator("//*[@data-testid='redshiftChip']").first.click()
     page.locator("//div[@data-testid='updateRedshiftTextfield']//input").first.fill(
         "0.9999"
     )
     page.locator(
         "//div[@data-testid='updateRedshiftErrorTextfield']//input"
     ).first.fill("0.0001")
+    page.locator("//button[@data-testid='redshiftType_spectroscopic']").first.click()
     page.locator("//button[@data-testid='updateRedshiftSubmitButton']").first.click()
     expect(
         page.locator("//*[text()='Source redshift successfully updated.']").first
     ).to_be_visible()
-    page.keyboard.press("Escape")  # Close dialog
     expect(page.locator("//*[contains(., '0.9999')]").first).to_be_visible()
     expect(page.locator("//*[contains(., '0.0001')]").first).to_be_visible()
 
-    page.locator("//*[@data-testid='redshiftHistoryIconButton']").first.click()
+    page.locator("//*[@data-testid='redshiftChip']").first.click()
+    history = "//*[@data-testid='redshiftHistory']"
     expect(
-        page.locator("//*[@role='columnheader' and @data-field='set_by_user_id']").first
+        page.locator(f"{history}//*[text()='0.9999 ± 0.0001']").first
     ).to_be_visible()
+    expect(page.locator(f"{history}//*[text()='spec-z']").first).to_be_visible()
     expect(
-        page.locator("//div[@role='gridcell' and text()='0.9999']").first
-    ).to_be_visible()
-    expect(
-        page.locator("//div[@role='gridcell' and text()='0.0001']").first
-    ).to_be_visible()
-    expect(
-        page.locator(f"//div[@role='gridcell']//*[text()='{user.username}']").first
+        page.locator(f"{history}//*[text()='{user.username}']").first
     ).to_be_visible()
 
 
@@ -546,26 +542,23 @@ def test_update_redshift_and_history_without_error(page, user, public_source):
     page.goto(f"/become_user/{user.id}")
     page.goto(f"/source/{public_source.id}")
     expect(page.locator(f'//h6[text()="{public_source.id}"]').first).to_be_visible()
-    page.locator("//*[@data-testid='updateRedshiftIconButton']").first.click()
+    page.locator("//*[@data-testid='redshiftChip']").first.click()
     page.locator("//div[@data-testid='updateRedshiftTextfield']//input").first.fill(
         "0.9998"
     )
+    page.locator("//button[@data-testid='redshiftType_photometric']").first.click()
     page.locator("//button[@data-testid='updateRedshiftSubmitButton']").first.click()
     expect(
         page.locator("//*[text()='Source redshift successfully updated.']").first
     ).to_be_visible()
-    page.keyboard.press("Escape")  # Close dialog
     expect(page.locator("//*[contains(., '0.9998')]").first).to_be_visible()
 
-    page.locator("//*[@data-testid='redshiftHistoryIconButton']").first.click()
+    page.locator("//*[@data-testid='redshiftChip']").first.click()
+    history = "//*[@data-testid='redshiftHistory']"
+    expect(page.locator(f"{history}//*[text()='0.9998']").first).to_be_visible()
+    expect(page.locator(f"{history}//*[text()='photo-z']").first).to_be_visible()
     expect(
-        page.locator("//*[@role='columnheader' and @data-field='set_by_user_id']").first
-    ).to_be_visible()
-    expect(
-        page.locator("//div[@role='gridcell' and text()='0.9998']").first
-    ).to_be_visible()
-    expect(
-        page.locator(f"//div[@role='gridcell']//*[text()='{user.username}']").first
+        page.locator(f"{history}//*[text()='{user.username}']").first
     ).to_be_visible()
 
 

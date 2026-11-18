@@ -119,6 +119,9 @@ def update_redshift_history_if_relevant(request_data, obj, user):
         if isinstance(origin, str) and origin.strip():
             history_params["origin"] = origin
 
+        if request_data.get("redshift_type"):
+            history_params["type"] = request_data["redshift_type"]
+
         redshift_history.append(history_params)
         obj.redshift_history = redshift_history
 

@@ -113,6 +113,9 @@ class ObjBody(BaseModel):
     redshift: float | None = Field(None, description="Redshift.")
     redshift_error: float | None = Field(None, description="Redshift error.")
     redshift_origin: str | None = Field(None, description="Redshift source.")
+    redshift_type: Literal["spectroscopic", "photometric"] | None = Field(
+        None, description="Whether the redshift is spectroscopic or photometric."
+    )
     redshift_history: Any = Field(
         None, description="Record of who set which redshift values and when."
     )
