@@ -3,7 +3,7 @@ import uuid
 import pytest
 import sqlalchemy as sa
 
-from skyportal.models import DBSession, SharingServiceSubmission
+from skyportal.models import DBSession, SharingServiceSubmission, Spectrum
 from skyportal.tests import api
 from skyportal.tests.fixtures import InstrumentFactory
 
@@ -631,8 +631,18 @@ def _post_tns_sharing_service(group_id, instrument_id, token):
     return data["data"]["id"]
 
 
+def _update_spectra(obj_id, data, token):
+    for spectrum_id in DBSession().scalars(
+        sa.select(Spectrum.id).where(Spectrum.obj_id == obj_id)
+    ):
+        status, _ = api("PUT", f"spectrum/{spectrum_id}", data=data, token=token)
+        assert status == 200
+
+
 @pytest.fixture()
-def tns_classification_service(public_group, super_admin_token, user, alfosc):
+def tns_classification_service(
+    public_group, public_source, super_admin_token, user, alfosc
+):
     """A TNS sharing service whose group reports `user`'s classifications."""
     sharing_service_id = _post_tns_sharing_service(
         public_group.id, alfosc.id, super_admin_token
@@ -658,6 +668,16 @@ def tns_classification_service(public_group, super_admin_token, user, alfosc):
         token=super_admin_token,
     )
     assert status == 200
+    _update_spectra(
+        public_source.id,
+        {
+            "pi": [user.id],
+            "observed_by": [user.id],
+            "reduced_by": [user.id],
+            "auto_report_to_tns": True,
+        },
+        super_admin_token,
+    )
     yield sharing_service_id
     api("DELETE", f"sharing_service/{sharing_service_id}", token=super_admin_token)
 

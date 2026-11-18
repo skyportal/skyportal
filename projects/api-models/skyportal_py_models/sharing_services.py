@@ -71,6 +71,7 @@ class SharingServiceGroupResponse(BaseModel):
     owner: bool | None = None
     auto_share_to_tns: bool | None = None
     auto_share_classifications_to_tns: bool | None = None
+    auto_share_classifications_delay_hours: int | None = None
     auto_share_to_hermes: bool | None = None
     auto_share_to_trove: bool | None = None
     auto_sharing_allow_bots: bool | None = None
@@ -148,6 +149,7 @@ class SharingServiceSubmissionResponse(BaseModel):
     tns_report_spectrum_id: int | None = None
     tns_report_classification_id: int | None = None
     tns_status: str | None = None
+    tns_send_after: datetime | None = None
     tns_submission_id: int | None = None
     tns_payload: dict[str, Any] | None = None
     tns_response: dict[str, Any] | None = None
@@ -364,6 +366,10 @@ class SharingServiceGroupPutBody(BaseModel):
         default=None,
         description="Whether to automatically report classifications of this "
         "group's sources to TNS",
+    )
+    auto_share_classifications_delay_hours: int | str | None = Field(
+        default=None,
+        description="Hours an automatic classification report waits before it is sent",
     )
     auto_share_to_hermes: bool | str | None = Field(
         default=None, description="Whether to automatically publish to Hermes"

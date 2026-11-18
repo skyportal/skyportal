@@ -355,6 +355,11 @@ const UploadSpectrumForm = ({ route }: UploadSpectrumFormProps) => {
         title: "User label",
         default: "",
       },
+      auto_report_to_tns: {
+        type: "boolean",
+        title: "Report its classification to TNS automatically",
+        default: false,
+      },
     },
     required: [
       "file",
@@ -380,8 +385,10 @@ const UploadSpectrumForm = ({ route }: UploadSpectrumFormProps) => {
                   enum: userEnumOptions?.enum,
                 },
                 uniqueItems: true,
+                minItems: 1,
               },
             },
+            required: ["pi_mode", "pi"],
           },
           {
             properties: {
@@ -421,8 +428,10 @@ const UploadSpectrumForm = ({ route }: UploadSpectrumFormProps) => {
                   enum: userEnumOptions?.enum,
                 },
                 uniqueItems: true,
+                minItems: 1,
               },
             },
+            required: ["reducer_mode", "reduced_by"],
           },
           {
             properties: {
@@ -466,8 +475,10 @@ const UploadSpectrumForm = ({ route }: UploadSpectrumFormProps) => {
                   enum: userEnumOptions?.enum,
                 },
                 uniqueItems: true,
+                minItems: 1,
               },
             },
+            required: ["observer_mode", "observed_by"],
           },
           {
             properties: {
@@ -567,6 +578,7 @@ const UploadSpectrumForm = ({ route }: UploadSpectrumFormProps) => {
       "pi_mode",
       "pi_point_of_contact",
       "pi",
+      "auto_report_to_tns",
       "wave_column",
       "flux_column",
       "has_fluxerr",
@@ -656,6 +668,7 @@ const UploadSpectrumForm = ({ route }: UploadSpectrumFormProps) => {
           ? persistentFormData.pi
           : null,
       group_ids: persistentFormData.group_ids,
+      auto_report_to_tns: Boolean(persistentFormData.auto_report_to_tns),
     };
     try {
       await uploadASCIISpectrum(payload).unwrap();
@@ -674,6 +687,8 @@ const UploadSpectrumForm = ({ route }: UploadSpectrumFormProps) => {
         fluxerr_column: undefined,
         observed_by: undefined,
         reduced_by: undefined,
+        pi: undefined,
+        auto_report_to_tns: false,
       });
       setFormKey(Date.now());
     } catch {

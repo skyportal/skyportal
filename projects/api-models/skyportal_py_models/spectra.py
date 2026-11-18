@@ -59,6 +59,7 @@ class _SpectrumBaseResponse(BaseModel):
     external_pi: str | None = None
     external_reducer: str | None = None
     external_observer: str | None = None
+    auto_report_to_tns: bool | None = None
     comments: list[CommentDetailResponse] = Field(default_factory=list)
     annotations: list[AnnotationDetailResponse] = Field(default_factory=list)
 
@@ -106,6 +107,7 @@ class ParsedSpectrumResponse(BaseModel):
     original_file_string: str | None = None
     original_file_filename: str | None = None
     owner_id: int | None = None
+    auto_report_to_tns: bool | None = None
 
 
 class SourceSpectraResponse(BaseModel):
@@ -175,6 +177,7 @@ class SpectrumPost(BaseModel):
     external_reducer: str | None = None
     observed_by: list[int] | None = None
     external_observer: str | None = None
+    auto_report_to_tns: bool | None = None
 
 
 class SpectrumUpdate(BaseModel):
@@ -202,6 +205,7 @@ class SpectrumUpdate(BaseModel):
     external_reducer: str | None = None
     observed_by: list[int] | None = None
     external_observer: str | None = None
+    auto_report_to_tns: bool | None = None
 
 
 class SpectrumAsciiParse(BaseModel):
@@ -237,6 +241,7 @@ class SpectrumAsciiPost(BaseModel):
     external_reducer: str | None = None
     observed_by: list[int] | None = None
     external_observer: str | None = None
+    auto_report_to_tns: bool | None = None
     followup_request_id: int | None = None
     assignment_id: int | None = None
 
@@ -295,6 +300,10 @@ class SpectrumPostBody(BaseModel):
     )
     external_observer: str | None = Field(
         default=None, description="Free text provided as an external observer"
+    )
+    auto_report_to_tns: bool | None = Field(
+        default=None,
+        description="Whether a classification resting on this spectrum may be reported to TNS automatically.",
     )
     origin: str | None = Field(default=None, description="Origin of the spectrum.")
     type: str | None = Field(
@@ -416,6 +425,10 @@ class SpectrumASCIIPostBody(SpectrumASCIIParseBody):
     )
     external_observer: str | None = Field(
         default=None, description="Free text provided as an external observer"
+    )
+    auto_report_to_tns: bool | None = Field(
+        default=None,
+        description="Whether a classification resting on this spectrum may be reported to TNS automatically.",
     )
     followup_request_id: int | None = Field(
         default=None,

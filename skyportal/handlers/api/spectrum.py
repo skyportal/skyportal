@@ -1256,6 +1256,7 @@ class SpectrumASCIIFileHandler(BaseHandler, ASCIIHandler):
 
             spec.original_file_filename = Path(filename).name
             spec.groups = groups
+            spec.auto_report_to_tns = json.pop("auto_report_to_tns", False)
 
             existing = await find_identical_spectrum(session, spec)
             if existing is not None:

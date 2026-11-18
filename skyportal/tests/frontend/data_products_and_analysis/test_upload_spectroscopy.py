@@ -42,6 +42,13 @@ def test_upload_spectroscopy(
         f'//li[contains(text(), "{ALLOWED_SPECTRUM_TYPES[-1]}")]'
     ).first.click()
 
+    for field in ("observed_by", "reduced_by", "pi"):
+        page.locator(f'//*[@id="root_{field}"]').first.click()
+        page.locator(
+            f'//li[contains(., "({super_admin_user.username})")]'
+        ).first.click()
+        page.keyboard.press("Escape")
+
     user_defined_label = str(uuid.uuid4())
     page.locator('//*[@id="root_user_label"]').first.fill(user_defined_label)
 
