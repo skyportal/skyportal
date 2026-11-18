@@ -749,6 +749,11 @@ const SharingServicesPage = () => {
   const groupsLookup = lookupById(groups);
   const allGroupsLookup = lookupById(groupsData?.all ?? []);
   const usersLookup = lookupById(useGetUsersQuery().data?.users ?? []);
+  const mpcOnly =
+    enablePublishToMPC &&
+    !enablePublishToTNS &&
+    !enablePublishToHermes &&
+    !enablePublishToTrove;
 
   const submitSharingService = async () => {
     const isEdit = Boolean(sharingServiceToManage?.id);
@@ -777,10 +782,8 @@ const SharingServicesPage = () => {
     const data = {
       name,
       tns_bot_name,
-      acknowledgments,
       owner_group_ids,
-      instrument_ids,
-      stream_ids,
+      ...(!mpcOnly && { acknowledgments, instrument_ids, stream_ids }),
       testing,
       photometry_options: {
         first_and_last_detections,
@@ -865,36 +868,38 @@ const SharingServicesPage = () => {
             default: [],
           },
         }),
-        acknowledgments: {
-          type: "string",
-          title: "Acknowledgments",
-          default: "on behalf of ...",
-          description:
-            "Added at the end of the author list, e.g. 'First Last (Affiliation(s)) ...'",
-        },
-        instrument_ids: {
-          type: "array",
-          title: "Instruments to restrict photometry to",
-          items: {
-            type: "integer",
-            enum: allowedInstruments.map((instrument: any) => instrument.id),
+        ...(!mpcOnly && {
+          acknowledgments: {
+            type: "string",
+            title: "Acknowledgments",
+            default: "on behalf of ...",
+            description:
+              "Added at the end of the author list, e.g. 'First Last (Affiliation(s)) ...'",
           },
-          uniqueItems: true,
-          default:
-            sharingServiceToManage?.instruments?.map((i: any) => i.id) || [],
-        },
-        ...(streams.length > 0 && {
-          stream_ids: {
+          instrument_ids: {
             type: "array",
-            title: "Streams to restrict photometry to (optional)",
+            title: "Instruments to restrict photometry to",
             items: {
               type: "integer",
-              enum: streams.map((stream: any) => stream.id),
+              enum: allowedInstruments.map((instrument: any) => instrument.id),
             },
             uniqueItems: true,
             default:
-              sharingServiceToManage?.streams?.map((s: any) => s.id) || [],
+              sharingServiceToManage?.instruments?.map((i: any) => i.id) || [],
           },
+          ...(streams.length > 0 && {
+            stream_ids: {
+              type: "array",
+              title: "Streams to restrict photometry to (optional)",
+              items: {
+                type: "integer",
+                enum: streams.map((stream: any) => stream.id),
+              },
+              uniqueItems: true,
+              default:
+                sharingServiceToManage?.streams?.map((s: any) => s.id) || [],
+            },
+          }),
         }),
         testing: {
           type: "boolean",
@@ -903,13 +908,15 @@ const SharingServicesPage = () => {
           description:
             "If enabled, nothing is published: TNS payloads are only stored, Hermes, TROVE and the MPC get their test endpoints.",
         },
-        first_and_last_detections: {
-          type: "boolean",
-          title: "Mandatory first and last detection",
-          default: true,
-          description:
-            "If enabled, the sharing service will only publish objects with both a first and last detection (i.e., at least two detections).",
-        },
+        ...(!mpcOnly && {
+          first_and_last_detections: {
+            type: "boolean",
+            title: "Mandatory first and last detection",
+            default: true,
+            description:
+              "If enabled, the sharing service will only publish objects with both a first and last detection (i.e., at least two detections).",
+          },
+        }),
         ...(enableTNS && {
           tns_bot_name: { type: "string", title: "TNS Bot Name" },
           tns_bot_id: { type: "number", title: "TNS Bot ID" },
@@ -947,9 +954,9 @@ const SharingServicesPage = () => {
       },
       required: [
         "name",
-        "acknowledgments",
-        "instrument_ids",
-        "first_and_last_detections",
+        ...(mpcOnly
+          ? []
+          : ["acknowledgments", "instrument_ids", "first_and_last_detections"]),
         ...(isCreation ? ["owner_group_ids"] : []),
         ...(enableTNS
           ? ["tns_bot_name", "tns_bot_id", "tns_source_group_id"]
