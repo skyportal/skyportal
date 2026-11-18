@@ -8,6 +8,7 @@ import SaveIcon from "@mui/icons-material/Save";
 import ClearIcon from "@mui/icons-material/Clear";
 import Tooltip from "@mui/material/Tooltip";
 import TextField from "@mui/material/TextField";
+import { alpha } from "@mui/material/styles";
 
 import { showNotification } from "baselayer/components/Notifications";
 import { useAppDispatch } from "../../types/hooks";
@@ -15,7 +16,39 @@ import Button from "../Button";
 import FormValidationError from "../FormValidationError";
 import { useUpdateSourceMutation } from "../../ducks/source";
 
-const useStyles = makeStyles()(() => ({
+const REDSHIFT_TYPES = [
+  { value: "spectroscopic", label: "Spectroscopic" },
+  { value: "photometric", label: "Photometric" },
+];
+
+const useStyles = makeStyles()((theme) => ({
+  typeChoice: {
+    display: "flex",
+    gap: "0.5rem",
+  },
+  typeOption: {
+    flex: 1,
+    padding: "0.45rem 0.75rem",
+    border: `1px solid ${theme.palette.divider}`,
+    borderRadius: 6,
+    background: "transparent",
+    color: theme.palette.text.secondary,
+    font: "inherit",
+    fontSize: "0.875rem",
+    cursor: "pointer",
+    "&:hover": {
+      borderColor: theme.palette.text.secondary,
+    },
+  },
+  typeSelected: {
+    borderColor: theme.palette.primary.main,
+    background: alpha(theme.palette.primary.main, 0.08),
+    color: theme.palette.primary.main,
+    fontWeight: 600,
+    "&:hover": {
+      borderColor: theme.palette.primary.main,
+    },
+  },
   saveButton: {
     textAlign: "center",
     margin: "1rem",
@@ -32,12 +65,13 @@ interface UpdateSourceRedshiftProps {
     redshift?: number | null;
     redshift_error?: number | null;
     redshift_origin?: string | null;
+    redshift_type?: string | null;
     [key: string]: any;
   };
 }
 
 const UpdateSourceRedshift = ({ source }: UpdateSourceRedshiftProps) => {
-  const { classes } = useStyles();
+  const { classes, cx } = useStyles();
   const dispatch = useAppDispatch();
   const [updateSource] = useUpdateSourceMutation();
   const [state, setState] = useState<Record<string, any>>({
@@ -46,6 +80,7 @@ const UpdateSourceRedshift = ({ source }: UpdateSourceRedshiftProps) => {
     redshift_origin: source.redshift_origin
       ? String(source.redshift_origin)
       : "",
+    redshift_type: source.redshift_type ?? "",
   });
 
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -65,6 +100,7 @@ const UpdateSourceRedshift = ({ source }: UpdateSourceRedshiftProps) => {
       redshift_origin: source.redshift_origin
         ? String(source.redshift_origin)
         : "",
+      redshift_type: source.redshift_type ?? "",
     });
   }, [source, dialogOpen]);
 
@@ -90,6 +126,9 @@ const UpdateSourceRedshift = ({ source }: UpdateSourceRedshiftProps) => {
       : null;
     newState["redshift_origin"] = subState.redshift_origin
       ? subState.redshift_origin
+      : null;
+    newState["redshift_type"] = subState.redshift_type
+      ? subState.redshift_type
       : null;
     try {
       await updateSource({
@@ -155,6 +194,23 @@ const UpdateSourceRedshift = ({ source }: UpdateSourceRedshiftProps) => {
               variant="outlined"
             />
           </div>
+          <p />
+          <div className={classes.typeChoice}>
+            {REDSHIFT_TYPES.map(({ value, label }) => (
+              <button
+                key={value}
+                type="button"
+                data-testid={`redshiftType_${value}`}
+                className={cx(
+                  classes.typeOption,
+                  state["redshift_type"] === value && classes.typeSelected,
+                )}
+                onClick={() => setState({ ...state, redshift_type: value })}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
           <div className={classes.saveButton}>
             <Button
               secondary
@@ -164,7 +220,7 @@ const UpdateSourceRedshift = ({ source }: UpdateSourceRedshiftProps) => {
               endIcon={<SaveIcon />}
               size="large"
               data-testid="updateRedshiftSubmitButton"
-              disabled={isSubmitting || invalid}
+              disabled={isSubmitting || invalid || !state["redshift_type"]}
             >
               Save
             </Button>
@@ -179,6 +235,7 @@ const UpdateSourceRedshift = ({ source }: UpdateSourceRedshiftProps) => {
                       redshift: null,
                       redshift_error: null,
                       redshift_origin: null,
+                      redshift_type: null,
                     });
                   }}
                   endIcon={<ClearIcon />}

@@ -16,6 +16,7 @@ interface RedshiftHistoryItem {
   value?: number | null;
   uncertainty?: number | null;
   origin?: string | null;
+  type?: string | null;
 }
 
 interface SourceRedshiftHistoryProps {
@@ -75,6 +76,7 @@ const SourceRedshiftHistory = ({
               { field: "value", headerName: "Value", flex: 1 },
               { field: "uncertainty", headerName: "Uncertainty", flex: 1 },
               { field: "origin", headerName: "Origin", flex: 1 },
+              { field: "type", headerName: "Type", flex: 1 },
             ]}
             initialState={{
               sorting: { sortModel: [{ field: "set_at_utc", sort: "desc" }] },

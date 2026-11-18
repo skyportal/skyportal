@@ -518,6 +518,7 @@ def test_update_redshift_and_history(page, user, public_source):
     page.locator(
         "//div[@data-testid='updateRedshiftErrorTextfield']//input"
     ).first.fill("0.0001")
+    page.locator("//button[@data-testid='redshiftType_spectroscopic']").first.click()
     page.locator("//button[@data-testid='updateRedshiftSubmitButton']").first.click()
     expect(
         page.locator("//*[text()='Source redshift successfully updated.']").first
@@ -550,6 +551,7 @@ def test_update_redshift_and_history_without_error(page, user, public_source):
     page.locator("//div[@data-testid='updateRedshiftTextfield']//input").first.fill(
         "0.9998"
     )
+    page.locator("//button[@data-testid='redshiftType_photometric']").first.click()
     page.locator("//button[@data-testid='updateRedshiftSubmitButton']").first.click()
     expect(
         page.locator("//*[text()='Source redshift successfully updated.']").first

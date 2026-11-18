@@ -230,6 +230,11 @@ export const useSourceStyles = makeStyles()((theme) => ({
     flexDirection: "row",
     alignItems: "center",
   },
+  redshiftType: {
+    marginLeft: "0.4rem",
+    fontSize: "0.8rem",
+    color: theme.palette.text.secondary,
+  },
   dmdlInfo: {
     alignSelf: "center",
     "&>div": {
@@ -693,6 +698,13 @@ const SourceContent = ({ source }: SourceContentProps) => {
                     source.redshift_error.toFixed(
                       getZRound(source.redshift_error),
                     )}
+                  {source.redshift != null && source.redshift_type && (
+                    <span className={classes.redshiftType}>
+                      {source.redshift_type === "photometric"
+                        ? "photo-z"
+                        : "spec-z"}
+                    </span>
+                  )}
                   {!isReadOnly && <UpdateSourceRedshift source={source} />}
                   <SourceRedshiftHistory
                     redshiftHistory={source.redshift_history}
