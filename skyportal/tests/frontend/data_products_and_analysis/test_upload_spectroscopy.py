@@ -9,7 +9,7 @@ from skyportal.enum_types import ALLOWED_SPECTRUM_TYPES
 
 @pytest.mark.flaky(reruns=3)
 def test_upload_spectroscopy(
-    page, sedm, super_admin_user, public_source, super_admin_token
+    page, sedm, super_admin_user, user, public_source, super_admin_token
 ):
     page.goto(f"/become_user/{super_admin_user.id}")
     page.goto(f"/upload_spectrum/{public_source.id}")
@@ -44,9 +44,7 @@ def test_upload_spectroscopy(
 
     for field in ("observed_by", "reduced_by", "pi"):
         page.locator(f'//*[@id="root_{field}"]').first.click()
-        page.locator(
-            f'//li[contains(., "({super_admin_user.username})")]'
-        ).first.click()
+        page.locator(f'//li[contains(., "({user.username})")]').first.click()
         page.keyboard.press("Escape")
 
     user_defined_label = str(uuid.uuid4())
