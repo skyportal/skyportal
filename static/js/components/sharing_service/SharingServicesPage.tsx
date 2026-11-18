@@ -310,10 +310,14 @@ const SharingServiceGroup = ({
           Set group parameters{canAutoPublish && " and auto publishers"}
         </DialogTitle>
         <DialogContent>
-          <InputLabel>Owner</InputLabel>
-          <Switch
-            checked={owner}
-            onChange={(e) => setOwner(e.target.checked)}
+          <FormControlLabel
+            control={
+              <Switch
+                checked={owner}
+                onChange={(e) => setOwner(e.target.checked)}
+              />
+            }
+            label="Owner"
           />
           {canAutoPublish && (
             <>
@@ -413,13 +417,17 @@ const SharingServiceGroup = ({
                 autoPublishTnsClassifications ||
                 autoPublishHermes ||
                 autoPublishTrove) && (
-                <>
-                  <InputLabel>Allow bots to auto publish</InputLabel>
-                  <Switch
-                    checked={autoPublishAllowBots}
-                    onChange={(e) => setAutoPublishAllowBots(e.target.checked)}
-                  />
-                </>
+                <FormControlLabel
+                  control={
+                    <Switch
+                      checked={autoPublishAllowBots}
+                      onChange={(e) =>
+                        setAutoPublishAllowBots(e.target.checked)
+                      }
+                    />
+                  }
+                  label="Allow bots to auto publish"
+                />
               )}
               {initialized && (
                 <Box sx={{ minWidth: "70vw", py: 1 }}>
@@ -436,7 +444,7 @@ const SharingServiceGroup = ({
               )}
             </>
           )}
-          <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1 }}>
+          <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1, mt: 2 }}>
             <Button primary onClick={updateGroup} disabled={updating}>
               Save
             </Button>
