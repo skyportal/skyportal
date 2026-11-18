@@ -2,9 +2,7 @@ import { ReactNode, useState } from "react";
 import { Link } from "react-router-dom";
 import Box from "@mui/material/Box";
 import Chip from "@mui/material/Chip";
-import MenuItem from "@mui/material/MenuItem";
 import Paper from "@mui/material/Paper";
-import Select from "@mui/material/Select";
 import Tab from "@mui/material/Tab";
 import Tabs from "@mui/material/Tabs";
 import Typography from "@mui/material/Typography";
@@ -13,7 +11,7 @@ import { makeStyles } from "tss-react/mui";
 import { showNotification } from "baselayer/components/Notifications";
 import { useAppDispatch } from "../types/hooks";
 import Button from "./Button";
-import { useSelectSearch } from "./SelectSearch";
+import SearchableValueSelect from "./SearchableValueSelect";
 import StyledDataGrid from "./StyledDataGrid";
 import {
   DataAccessRequest,
@@ -42,30 +40,23 @@ const ShareGroupSelect = ({
   request: DataAccessRequest;
   value: string;
   onChange: (value: string) => void;
-}) => {
-  const { searchHeader, matches, resetSearch } = useSelectSearch();
-  return (
-    <Select
-      size="small"
-      value={value}
-      onChange={(event) => onChange(String(event.target.value))}
-      onClose={resetSearch}
-      data-testid={`shareGroupSelect${request.id}`}
-    >
-      {searchHeader}
-      <MenuItem value={PRIVATE_GROUP}>
-        {`Only ${request.requester.username}`}
-      </MenuItem>
-      {request.shareable_groups
-        .filter((group) => matches(group.name) || String(group.id) === value)
-        .map((group) => (
-          <MenuItem key={group.id} value={String(group.id)}>
-            {group.name}
-          </MenuItem>
-        ))}
-    </Select>
-  );
-};
+}) => (
+  <SearchableValueSelect
+    size="small"
+    options={[
+      { id: PRIVATE_GROUP, name: `Only ${request.requester.username}` },
+      ...request.shareable_groups.map((group) => ({
+        id: String(group.id),
+        name: group.name,
+      })),
+    ]}
+    value={value}
+    onChange={(newValue: string | null) => onChange(newValue ?? PRIVATE_GROUP)}
+    disableClearable
+    textFieldProps={{ "data-testid": `shareGroupSelect${request.id}` } as any}
+    sx={{ minWidth: 200 }}
+  />
+);
 
 const describe = (request: DataAccessRequest) =>
   request.data_type === "photometry"

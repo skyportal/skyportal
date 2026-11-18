@@ -13,7 +13,6 @@ import DialogContent from "@mui/material/DialogContent";
 import DialogTitle from "@mui/material/DialogTitle";
 import FormControlLabel from "@mui/material/FormControlLabel";
 import IconButton from "@mui/material/IconButton";
-import MenuItem from "@mui/material/MenuItem";
 import Stack from "@mui/material/Stack";
 import TextField from "@mui/material/TextField";
 import Typography from "@mui/material/Typography";
@@ -21,7 +20,7 @@ import Typography from "@mui/material/Typography";
 import { useAppDispatch } from "../types/hooks";
 import { useGetGroupsQuery } from "../ducks/groups";
 import ConfirmDeletionDialog from "./ConfirmDeletionDialog";
-import { useSelectSearch } from "./SelectSearch";
+import SearchableValueSelect from "./SearchableValueSelect";
 import StyledDataGrid, { DataGridToolbar } from "./StyledDataGrid";
 import {
   useCreateAssistantQueryMutation,
@@ -62,7 +61,6 @@ const AssistantQueriesPage = () => {
   const [openForm, setOpenForm] = useState(false);
   const [editId, setEditId] = useState<number | null>(null);
   const [form, setForm] = useState<any>(emptyForm);
-  const { searchHeader, matches, resetSearch } = useSelectSearch();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [queryToDelete, setQueryToDelete] = useState<number | null>(null);
 
@@ -267,27 +265,17 @@ const AssistantQueriesPage = () => {
                 setForm({ ...form, description: e.target.value })
               }
             />
-            <TextField
-              select
+            <SearchableValueSelect
               label="Group"
-              value={form.group_id}
-              onChange={(e) => setForm({ ...form, group_id: e.target.value })}
+              options={userGroups}
+              value={form.group_id === "" ? null : form.group_id}
+              onChange={(id) => setForm({ ...form, group_id: id ?? "" })}
               required
               disabled={editId != null}
-              helperText={
-                editId != null ? "A query's group can't be changed." : undefined
-              }
-              slotProps={{ select: { onClose: resetSearch } }}
-            >
-              {searchHeader}
-              {userGroups
-                .filter((g: any) => matches(g.name) || g.id === form.group_id)
-                .map((g: any) => (
-                  <MenuItem key={g.id} value={g.id}>
-                    {g.name}
-                  </MenuItem>
-                ))}
-            </TextField>
+              {...(editId != null && {
+                helperText: "A query's group can't be changed.",
+              })}
+            />
             <TextField
               label="Triggered by analysis service (name contains)"
               value={form.analysis_service_match}

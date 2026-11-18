@@ -34,8 +34,7 @@ import {
   useDeleteUserApplicationMutation,
   useGetUserApplicationsQuery,
 } from "../../ducks/userApplications";
-import RemovableChip from "../RemovableChip";
-import { useSelectSearch } from "../SelectSearch";
+import SearchableValueSelect from "../SearchableValueSelect";
 
 type Decision = "endorsed" | "declined";
 const TABS: UserApplication["status"][] = ["pending", "endorsed", "declined"];
@@ -164,8 +163,6 @@ const DecisionDialog = ({
     : ROLES.filter((option) => option !== "Super admin");
   const [streamIDs, setStreamIDs] = useState<number[]>([]);
   const [groupIDs, setGroupIDs] = useState<number[]>([]);
-  const streamSearch = useSelectSearch();
-  const groupSearch = useSelectSearch();
   const [role, setRole] = useState<(typeof ROLES)[number]>("Full user");
   const [reason, setReason] = useState("");
 
@@ -253,94 +250,24 @@ const DecisionDialog = ({
                   ))}
                 </Select>
               </FormControl>
-              <FormControl fullWidth>
-                <InputLabel id="endorseStreamsLabel">Streams</InputLabel>
-                <Select
-                  multiple
-                  labelId="endorseStreamsLabel"
-                  label="Streams"
-                  value={streamIDs}
-                  onChange={(event) =>
-                    chooseStreams(event.target.value as number[])
-                  }
-                  onClose={streamSearch.resetSearch}
-                  renderValue={(selected) => (
-                    <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.5 }}>
-                      {myStreams
-                        .filter((stream: any) => selected.includes(stream.id))
-                        .map((stream: any) => (
-                          <RemovableChip
-                            key={stream.id}
-                            size="small"
-                            label={stream.name}
-                            onDelete={() =>
-                              chooseStreams(
-                                selected.filter((id) => id !== stream.id),
-                              )
-                            }
-                          />
-                        ))}
-                    </Box>
-                  )}
-                >
-                  {streamSearch.searchHeader}
-                  {myStreams
-                    .filter(
-                      (stream: any) =>
-                        streamSearch.matches(stream.name) ||
-                        streamIDs.includes(stream.id),
-                    )
-                    .map((stream: any) => (
-                      <MenuItem key={stream.id} value={stream.id}>
-                        {stream.name}
-                      </MenuItem>
-                    ))}
-                </Select>
-              </FormControl>
-              <FormControl fullWidth>
-                <InputLabel id="endorseGroupsLabel">Groups</InputLabel>
-                <Select
-                  multiple
-                  labelId="endorseGroupsLabel"
-                  label="Groups"
-                  value={groupIDs}
-                  onChange={(event) =>
-                    setGroupIDs(event.target.value as number[])
-                  }
-                  onClose={groupSearch.resetSearch}
-                  renderValue={(selected) => (
-                    <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.5 }}>
-                      {myGroups
-                        .filter((group: any) => selected.includes(group.id))
-                        .map((group: any) => (
-                          <RemovableChip
-                            key={group.id}
-                            size="small"
-                            label={group.name}
-                            onDelete={() =>
-                              setGroupIDs(
-                                selected.filter((id) => id !== group.id),
-                              )
-                            }
-                          />
-                        ))}
-                    </Box>
-                  )}
-                >
-                  {groupSearch.searchHeader}
-                  {availableGroups
-                    .filter(
-                      (group: any) =>
-                        groupSearch.matches(group.name) ||
-                        groupIDs.includes(group.id),
-                    )
-                    .map((group: any) => (
-                      <MenuItem key={group.id} value={group.id}>
-                        {group.name}
-                      </MenuItem>
-                    ))}
-                </Select>
-              </FormControl>
+              <SearchableValueSelect
+                id="endorseStreams"
+                label="Streams"
+                multiple
+                options={myStreams}
+                value={streamIDs}
+                onChange={chooseStreams}
+                fullWidth
+              />
+              <SearchableValueSelect
+                id="endorseGroups"
+                label="Groups"
+                multiple
+                options={availableGroups}
+                value={groupIDs}
+                onChange={setGroupIDs}
+                fullWidth
+              />
               <DialogContentText variant="body2">
                 {`An invitation will be emailed to ${application.contact_email}. You can only grant streams you have yourself, and groups you belong to that those streams cover.`}
                 {publicGroupName &&

@@ -1,26 +1,18 @@
 import React, { useState } from "react";
 
 import Box from "@mui/material/Box";
-import Select from "@mui/material/Select";
-import MenuItem from "@mui/material/MenuItem";
-import FormControl from "@mui/material/FormControl";
 import FormControlLabel from "@mui/material/FormControlLabel";
 import Checkbox from "@mui/material/Checkbox";
-import InputLabel from "@mui/material/InputLabel";
 import TextField from "@mui/material/TextField";
 import Typography from "@mui/material/Typography";
-import { useTheme } from "@mui/material/styles";
 
 import { useAddNewGroupMutation } from "../../ducks/groups";
 import { useGetUsersQuery } from "../../ducks/users";
 import Button from "../Button";
-import RemovableChip from "../RemovableChip";
-import { useSelectSearch } from "../SelectSearch";
+import SearchableValueSelect from "../SearchableValueSelect";
 import { compareUsersByLastName, userLabel } from "../../utils/format";
 
 const NewGroupForm = ({ onCreated }: { onCreated?: () => void }) => {
-  const theme = useTheme();
-  const { searchHeader, matches, resetSearch } = useSelectSearch();
   const [addNewGroup] = useAddNewGroupMutation();
   const { data: usersData } = useGetUsersQuery();
   const allUsers = [...(usersData?.users ?? [])].sort(compareUsersByLastName);
@@ -37,11 +29,6 @@ const NewGroupForm = ({ onCreated }: { onCreated?: () => void }) => {
     description: "",
     group_admins: [],
     auto_accept_requests: false,
-  });
-
-  const userIDToName: Record<number, string> = {};
-  allUsers?.forEach((u: any) => {
-    userIDToName[u.id] = userLabel(u);
   });
 
   const handleSubmit = async (event: React.FormEvent) => {
@@ -105,59 +92,18 @@ const NewGroupForm = ({ onCreated }: { onCreated?: () => void }) => {
           />
         </Box>
         <Box>
-          <FormControl fullWidth>
-            <InputLabel id="select-admins-label">Group Admins</InputLabel>
-            <Select
-              labelId="select-admins-label"
-              label="Group Admins"
-              id="groupAdminsSelect"
-              name="group_admins"
-              multiple
-              onChange={handleChange}
-              onClose={resetSearch}
-              renderValue={(selected: any) => (
-                <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.5 }}>
-                  {selected.map((value: number) => (
-                    <RemovableChip
-                      key={value}
-                      label={userIDToName[value]}
-                      sx={{ margin: "0.1rem" }}
-                      onDelete={() =>
-                        setState({
-                          ...formState,
-                          group_admins: selected.filter(
-                            (id: number) => id !== value,
-                          ),
-                        })
-                      }
-                    />
-                  ))}
-                </Box>
-              )}
-              value={formState.group_admins}
-            >
-              {searchHeader}
-              {allUsers
-                .filter(
-                  (user: any) =>
-                    matches(userLabel(user, true)) ||
-                    formState.group_admins.includes(user.id),
-                )
-                .map((user: any) => (
-                  <MenuItem
-                    key={user.id}
-                    value={user.id}
-                    sx={{
-                      fontWeight: formState.group_admins.includes(user.id)
-                        ? theme.typography.fontWeightMedium
-                        : theme.typography.fontWeightRegular,
-                    }}
-                  >
-                    {userLabel(user, true)}
-                  </MenuItem>
-                ))}
-            </Select>
-          </FormControl>
+          <SearchableValueSelect
+            id="groupAdminsSelect"
+            label="Group Admins"
+            multiple
+            options={allUsers}
+            value={formState.group_admins}
+            onChange={(ids: number[]) =>
+              setState({ ...formState, group_admins: ids })
+            }
+            getOptionLabel={(user: any) => userLabel(user, true)}
+            fullWidth
+          />
         </Box>
         <Box>
           <FormControlLabel

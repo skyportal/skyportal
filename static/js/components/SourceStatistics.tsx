@@ -11,7 +11,7 @@ import FormControlLabel from "@mui/material/FormControlLabel";
 import Switch from "@mui/material/Switch";
 import Slider from "@mui/material/Slider";
 import Button from "./Button";
-import { useSelectSearch } from "./SelectSearch";
+import SearchableValueSelect from "./SearchableValueSelect";
 import Tab from "@mui/material/Tab";
 import Tabs from "@mui/material/Tabs";
 import ToggleButton from "@mui/material/ToggleButton";
@@ -402,7 +402,6 @@ const SourceStatistics = () => {
     "classification" | "group" | "objects"
   >("classification");
   const [selectGroupId, setSelectGroupId] = useState<number | "">("");
-  const groupSearch = useSelectSearch();
   const [objIds, setObjIds] = useState<string[]>([]);
   const { data: groupsData } = useGetGroupsQuery();
   const [xField, setXField] = useState("rise_rate");
@@ -681,27 +680,13 @@ const SourceStatistics = () => {
             </Box>
           )}
           {sourceMode === "group" && (
-            <FormControl sx={{ flex: "1 1 18rem", maxWidth: "32rem" }}>
-              <InputLabel>Group</InputLabel>
-              <Select
-                label="Group"
-                value={selectGroupId}
-                onChange={(e) => setSelectGroupId(e.target.value as number)}
-                onClose={groupSearch.resetSearch}
-              >
-                {groupSearch.searchHeader}
-                {(groupsData?.userAccessible || [])
-                  .filter(
-                    (g) =>
-                      groupSearch.matches(g.name) || g.id === selectGroupId,
-                  )
-                  .map((g) => (
-                    <MenuItem key={g.id} value={g.id}>
-                      {g.name}
-                    </MenuItem>
-                  ))}
-              </Select>
-            </FormControl>
+            <SearchableValueSelect
+              label="Group"
+              options={groupsData?.userAccessible || []}
+              value={selectGroupId === "" ? null : selectGroupId}
+              onChange={(id: number | null) => setSelectGroupId(id ?? "")}
+              sx={{ flex: "1 1 18rem", maxWidth: "32rem" }}
+            />
           )}
           {sourceMode === "objects" && (
             <SourceIdAutocomplete

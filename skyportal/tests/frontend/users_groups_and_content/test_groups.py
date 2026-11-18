@@ -33,7 +33,7 @@ def test_add_new_group(page, super_admin_user, user, super_admin_token):
     page.get_by_test_id("tour-groups-new").click()
     page.locator('//input[@name="name"]').first.fill(test_proj_name)
     page.locator('//input[@name="description"]').first.fill(group_description)
-    page.locator('//div[@id="groupAdminsSelect"]').first.click()
+    page.locator('//*[@id="groupAdminsSelect"]').first.click()
     page.locator(f'//li[contains(text(),"{user.username}")]').first.click()
     # close the (multiple) admins select so its menu overlay stops covering the
     # Create Group button
@@ -183,9 +183,7 @@ def test_add_stream_add_delete_filter_group(
 
     # Add stream
     page.locator('//button[contains(.,"Add stream")]').first.click()
-    page.locator(
-        '//div[@aria-labelledby="alert-stream-select-required-label"]'
-    ).first.click()
+    page.locator('//*[@id="alert-stream-select-required"]').first.click()
     page.locator(f'//li[contains(.,"{public_stream2.name}")]').first.click()
     page.locator('//button[@data-testid="add-stream-dialog-submit"]').first.click()
 
@@ -217,9 +215,7 @@ def test_cannot_add_stream_group_users_cant_access(
 
     # Cannot add stream that group members don't have access to
     page.locator('//button[contains(.,"Add stream")]').first.click()
-    page.locator(
-        '//*[@aria-labelledby="alert-stream-select-required-label"]'
-    ).first.click()
+    page.locator('//*[@id="alert-stream-select-required"]').first.click()
     page.locator(f'//li[contains(.,"{public_stream2.name}")]').first.click()
     page.locator('//button[@data-testid="add-stream-dialog-submit"]').first.click()
     expect(
@@ -238,7 +234,7 @@ def test_add_new_group_with_auto_accept(
     page.get_by_test_id("tour-groups-new").click()
     page.locator('//input[@name="name"]').first.fill(test_proj_name)
     page.locator('//*[@data-testid="autoAcceptRequestsCheckbox"]').first.click()
-    page.locator('//div[@id="groupAdminsSelect"]').first.click()
+    page.locator('//*[@id="groupAdminsSelect"]').first.click()
     page.locator(f'//li[contains(text(),"{user.username}")]').first.click()
     page.keyboard.press("Escape")
     page.locator('//button[contains(.,"Create Group")]').first.click()

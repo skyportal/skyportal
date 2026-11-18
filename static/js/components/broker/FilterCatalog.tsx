@@ -28,46 +28,8 @@ import { useGetGroupsQuery } from "../../ducks/groups";
 import { useGetStreamsQuery } from "../../ducks/streams";
 import { useAppDispatch } from "../../types/hooks";
 import StyledDataGrid from "../StyledDataGrid";
-import { useSelectSearch } from "../SelectSearch";
+import SearchableValueSelect from "../SearchableValueSelect";
 import ConfirmFilterDeletionDialog from "../filter/ConfirmFilterDeletionDialog";
-
-const CatalogFieldSelect = ({
-  label,
-  value,
-  options,
-  onChange,
-  withNone,
-}: {
-  label: string;
-  value: any;
-  options: { id: any; name: string }[];
-  onChange: (value: any) => void;
-  withNone: boolean;
-}) => {
-  const { searchHeader, matches, resetSearch } = useSelectSearch();
-  return (
-    <TextField
-      select
-      size="small"
-      label={label}
-      value={value}
-      onChange={(e) => onChange(e.target.value)}
-      sx={{ minWidth: 160 }}
-      slotProps={{ select: { onClose: resetSearch } }}
-    >
-      {searchHeader}
-      <MenuItem value="">{`All ${label.toLowerCase()}s`}</MenuItem>
-      {options
-        .filter((o) => matches(o.name) || o.id === value)
-        .map((o) => (
-          <MenuItem key={o.id} value={o.id}>
-            {o.name}
-          </MenuItem>
-        ))}
-      {withNone && <MenuItem value="none">No broker</MenuItem>}
-    </TextField>
-  );
-};
 
 const FilterCatalog = ({ brokerId }: { brokerId?: number }) => {
   const [page, setPage] = useState(0);
@@ -286,15 +248,23 @@ const FilterCatalog = ({ brokerId }: { brokerId?: number }) => {
                 { key: "brokerID" as const, label: "Broker", options: brokers },
               ]),
         ].map(({ key, label, options }) => (
-          <CatalogFieldSelect
+          <SearchableValueSelect
             key={key}
+            size="small"
             label={label}
+            options={[
+              { id: "", name: `All ${label.toLowerCase()}s` },
+              ...options,
+              ...(key === "brokerID"
+                ? [{ id: "none", name: "No broker" }]
+                : []),
+            ]}
             value={query[key]}
-            options={options}
             onChange={(value) =>
-              updateQuery({ [key]: value } as FilterCatalogQuery)
+              updateQuery({ [key]: value ?? "" } as FilterCatalogQuery)
             }
-            withNone={key === "brokerID"}
+            disableClearable
+            sx={{ minWidth: 160 }}
           />
         ))}
         <Typography variant="body2" color="text.secondary">

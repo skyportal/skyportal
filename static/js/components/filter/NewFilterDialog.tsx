@@ -14,7 +14,7 @@ import { useGetBrokersQuery } from "../../ducks/brokers";
 import { useAddGroupFilterMutation } from "../../ducks/filter";
 import { useGetGroupsQuery } from "../../ducks/groups";
 import { useGetStreamsQuery } from "../../ducks/streams";
-import { useSelectSearch } from "../SelectSearch";
+import SearchableValueSelect from "../SearchableValueSelect";
 
 interface NewFilterDialogProps {
   open: boolean;
@@ -41,8 +41,6 @@ const NewFilterDialog = ({
   const [selectedGroup, setSelectedGroup] = useState<number | "">("");
   const [selectedStream, setSelectedStream] = useState<number | "">("");
   const [selectedBroker, setSelectedBroker] = useState<number | "">("");
-  const groupSearch = useSelectSearch();
-  const streamSearch = useSelectSearch();
   const group = groupId ?? selectedGroup;
   const stream = streamId ?? selectedStream;
   const broker = brokerId ?? selectedBroker;
@@ -80,42 +78,22 @@ const NewFilterDialog = ({
               value={name}
               onChange={(e) => setName(e.target.value)}
             />
-            <TextField
-              select
+            <SearchableValueSelect
               size="small"
               label="Group"
-              value={group}
+              options={groups?.userAccessible || []}
+              value={group === "" ? null : group}
               disabled={groupId !== undefined}
-              onChange={(e) => setSelectedGroup(Number(e.target.value))}
-              slotProps={{ select: { onClose: groupSearch.resetSearch } }}
-            >
-              {groupSearch.searchHeader}
-              {(groups?.userAccessible || [])
-                .filter((g) => groupSearch.matches(g.name) || g.id === group)
-                .map((g) => (
-                  <MenuItem key={g.id} value={g.id}>
-                    {g.name}
-                  </MenuItem>
-                ))}
-            </TextField>
-            <TextField
-              select
+              onChange={(id: number | null) => setSelectedGroup(id ?? "")}
+            />
+            <SearchableValueSelect
               size="small"
               label="Stream"
-              value={stream}
+              options={(streams as { id: number; name: string }[]) || []}
+              value={stream === "" ? null : stream}
               disabled={streamId !== undefined}
-              onChange={(e) => setSelectedStream(Number(e.target.value))}
-              slotProps={{ select: { onClose: streamSearch.resetSearch } }}
-            >
-              {streamSearch.searchHeader}
-              {((streams as { id: number; name: string }[]) || [])
-                .filter((s) => streamSearch.matches(s.name) || s.id === stream)
-                .map((s) => (
-                  <MenuItem key={s.id} value={s.id}>
-                    {s.name}
-                  </MenuItem>
-                ))}
-            </TextField>
+              onChange={(id: number | null) => setSelectedStream(id ?? "")}
+            />
             {filterBrokers.length > 0 && (
               <TextField
                 select
