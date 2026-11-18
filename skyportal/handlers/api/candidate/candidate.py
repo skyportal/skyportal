@@ -1496,9 +1496,15 @@ class CandidateHandler(BaseHandler):
                         if filter_id in group_id_by_filter_id
                     ]
                     obj.found_by = []
+                    obj.broker_id = None
                     for filter_id in filter_ids_by_obj.get(obj.id, []):
                         f = filters_by_id.get(filter_id)
                         broker = f and brokers_by_id.get(f.broker_id)
+                        if broker and (
+                            obj.broker_id is None
+                            or hasattr(broker.broker_class, "get_track")
+                        ):
+                            obj.broker_id = broker.id
                         credit = broker and broker.broker_class.found_by(
                             broker, f, obj.id
                         )
