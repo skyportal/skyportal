@@ -254,6 +254,13 @@ const TrackVettingPanel = ({
   return (
     <Box sx={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
       <Box sx={{ display: "flex", gap: "0.4rem", flexWrap: "wrap" }}>
+        {track.designation && (
+          <Chip
+            size="small"
+            color="error"
+            label={`known: ${track.designation}`}
+          />
+        )}
         <Chip size="small" label={`${measurement.n_detections} detections`} />
         <Chip
           size="small"
