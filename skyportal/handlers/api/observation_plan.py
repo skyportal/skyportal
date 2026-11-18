@@ -662,6 +662,7 @@ async def post_observation_plans(
                 f"Payload failed to validate: {e}"
             )
 
+        normalize_plan_dates(data["payload"])
         stamp_localization_name(
             data,
             await session.scalar(
@@ -704,6 +705,13 @@ def stamp_localization_name(data, localization_name):
     """
     if localization_name:
         data["payload"] = {**data["payload"], "localization_name": localization_name}
+
+
+def normalize_plan_dates(payload):
+    for key in ("start_date", "end_date"):
+        value = payload.get(key)
+        if isinstance(value, str) and "T" in value:
+            payload[key] = Time(value.strip(), format="isot", scale="utc").iso
 
 
 def post_observation_plan(
@@ -777,6 +785,7 @@ def post_observation_plan(
     except jsonschema.exceptions.ValidationError as e:
         raise jsonschema.exceptions.ValidationError(f"Payload failed to validate: {e}")
 
+    normalize_plan_dates(data["payload"])
     stamp_localization_name(
         data,
         session.scalar(
@@ -872,6 +881,7 @@ async def post_observation_plan_async(
     except jsonschema.exceptions.ValidationError as e:
         raise jsonschema.exceptions.ValidationError(f"Payload failed to validate: {e}")
 
+    normalize_plan_dates(data["payload"])
     stamp_localization_name(
         data,
         await session.scalar(
