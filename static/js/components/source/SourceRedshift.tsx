@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import Chip from "@mui/material/Chip";
 import Popover from "@mui/material/Popover";
 import TextField from "@mui/material/TextField";
+import Tooltip from "@mui/material/Tooltip";
 import { alpha } from "@mui/material/styles";
 import { makeStyles } from "tss-react/mui";
 
@@ -269,15 +270,19 @@ const SourceRedshift = ({ source, readOnly = false }: SourceRedshiftProps) => {
               </div>
               <div className={classes.actions}>
                 {hasRedshift && (
-                  <Button
-                    secondary
-                    size="small"
-                    onClick={clear}
-                    disabled={isSubmitting}
-                    data-testid="nullifyRedshiftButton"
-                  >
-                    Clear
-                  </Button>
+                  <Tooltip title="Remove the redshift from this source">
+                    <span>
+                      <Button
+                        secondary
+                        size="small"
+                        onClick={clear}
+                        disabled={isSubmitting}
+                        data-testid="nullifyRedshiftButton"
+                      >
+                        Clear
+                      </Button>
+                    </span>
+                  </Tooltip>
                 )}
                 <Button
                   primary
