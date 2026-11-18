@@ -4,6 +4,7 @@ import useTabParam from "../../hooks/useTabParam";
 
 import AddIcon from "@mui/icons-material/Add";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
+import Alert from "@mui/material/Alert";
 import Box from "@mui/material/Box";
 import Button from "@mui/material/Button";
 import IconButton from "@mui/material/IconButton";
@@ -250,10 +251,10 @@ const Broker = () => {
 
           {activeTab === 0 && (
             <>
-              {error && (
-                <Typography color="error" gutterBottom>
+              {error && !isFetching && (
+                <Alert severity="error" sx={{ mb: 2 }}>
                   {(error as any)?.data?.message || "Failed to query broker."}
-                </Typography>
+                </Alert>
               )}
 
               {rows && rows.length > 0 && (
@@ -265,6 +266,7 @@ const Broker = () => {
               )}
 
               {data !== undefined &&
+                !error &&
                 (byObject.size > 0 ? (
                   <>
                     <Typography variant="subtitle2" gutterBottom>
@@ -308,6 +310,13 @@ const Broker = () => {
                       />
                     )}
                   </>
+                ) : kept?.length === 0 ? (
+                  <Typography
+                    color="text.secondary"
+                    sx={{ py: 4, textAlign: "center" }}
+                  >
+                    No alerts found.
+                  </Typography>
                 ) : (
                   <Paper
                     variant="outlined"

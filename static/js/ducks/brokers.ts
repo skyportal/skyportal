@@ -128,6 +128,7 @@ export const brokersApi = skyportalApi.injectEndpoints({
         url: `api/brokers/${brokerId}/alerts${buildQuery(params)}`,
         responseHandler: parseKeepingIds,
       }),
+      extraOptions: { suppressErrorNotification: true },
     }),
     // The object, not one alert: its brightest alert joined to the detection
     // and non-detection history the broker holds.
