@@ -40,6 +40,7 @@ class ThumbnailResponse(BaseModel):
     public_url: str | None = None
     origin: str | None = None
     survey: str | None = None
+    observed_at: datetime | None = None
     is_grayscale: bool | None = None
 
 
