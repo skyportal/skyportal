@@ -112,11 +112,18 @@ async def create_sharing_service(
     instruments = await process_instrument_ids_async(
         session, session.user_or_token, instrument_ids
     )
-    if not instruments:
+    mpc_only = (
+        sharing_service.enable_sharing_with_mpc
+        and sharing_service.enable_sharing_with_tns is False
+        and not sharing_service.enable_sharing_with_hermes
+        and not sharing_service.enable_sharing_with_trove
+    )
+    if not instruments and not mpc_only:
         raise ValueError("At least one instrument must be specified for sharing")
     streams = await process_stream_ids_async(session, session.user_or_token, stream_ids)
 
-    sharing_service.instruments = instruments
+    if instruments:
+        sharing_service.instruments = instruments
     if streams:
         sharing_service.streams = streams
 
