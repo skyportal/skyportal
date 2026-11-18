@@ -125,7 +125,11 @@ const TrackCandidateSummary = ({
         <Chip size="small" label={`${track.arc_days.toFixed(1)} d arc`} />
       )}
       {track.designation && (
-        <Chip size="small" color="info" label={`known: ${track.designation}`} />
+        <Chip
+          size="small"
+          color="error"
+          label={`known: ${track.designation}`}
+        />
       )}
       {track.kind && <Chip size="small" label={track.kind} />}
       {track.orbit && (
