@@ -18,7 +18,7 @@ import StyledDataGridBase, {
   FULL_PAGE_HEIGHT_WITH_TABS,
 } from "../StyledDataGrid";
 import SharingServicesDialog from "./SharingServicesForm";
-import { renderStatus } from "./SharingServiceSubmissionsPage";
+import { emptyCell, renderStatus } from "./SharingServiceSubmissionsPage";
 import { useGetTNSClassificationsQuery } from "../../ducks/sharingServices";
 import { useGetUsersQuery } from "../../ducks/users";
 import { userLabel } from "../../utils/format";
@@ -41,12 +41,6 @@ const REASON_SEVERITY: Record<string, string | null> = {
 };
 
 const REPORTABLE = ["failed", "missing_credits", "manual"];
-
-const emptyCell = (
-  <Typography variant="body2" sx={{ color: "text.disabled" }}>
-    &mdash;
-  </Typography>
-);
 
 const localTime = (date: string) =>
   dayjs.utc(date).local().format("YYYY-MM-DD HH:mm");

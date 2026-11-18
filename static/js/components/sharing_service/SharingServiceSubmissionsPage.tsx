@@ -34,7 +34,7 @@ import { useGetUsersQuery } from "../../ducks/users";
 
 const StyledDataGrid: any = StyledDataGridBase;
 
-const emptyCell = (
+export const emptyCell = (
   <Typography variant="body2" sx={{ color: "text.disabled" }}>
     &mdash;
   </Typography>
