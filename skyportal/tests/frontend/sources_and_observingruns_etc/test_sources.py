@@ -441,7 +441,7 @@ def test_source_notification(page, user, public_group, public_source):
     page.goto(f"/source/{public_source.id}")
     expect(page.locator(f'//h6[text()="{public_source.id}"]').first).to_be_visible()
 
-    page.locator("//div[@id='selectGroups']").first.click()
+    page.locator("//*[@id='selectGroups']").first.click()
     page.locator(f'//div[@data-testid="group_{public_group.id}"]').first.click()
     page.keyboard.press("Escape")
     page.locator("//label[@data-testid='soft']").first.click()

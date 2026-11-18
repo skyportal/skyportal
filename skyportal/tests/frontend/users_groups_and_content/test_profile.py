@@ -181,7 +181,7 @@ def add_classification_shortcut(page, user, public_group, taxonomy_token):
     time.sleep(2)  # let the profile load and the taxonomies hydrate
     open_preferences_panel(page, "sources")
 
-    page.locator('//div[@id="classifications-select"]').first.click()
+    page.locator('//*[@id="classifications-select"]').first.click()
     page.locator('//li[@data-value="AGN"]').first.click()
     expect(page.locator('//span[contains(text(), "AGN")]').first).to_be_visible()
     page.locator('//li[@data-value="AM CVn"]').first.click()
@@ -265,9 +265,7 @@ def test_set_automatically_visible_photometry(page, user, upload_data_token):
     page.goto("/profile")
     open_preferences_panel(page, "plotting")
 
-    page.locator(
-        '//div[@id="filterSelectAutomaticallyVisiblePhotometry"]'
-    ).first.click()
+    page.locator('//*[@id="filterSelectAutomaticallyVisiblePhotometry"]').first.click()
     page.locator('//li[@data-value="2massh"]').first.click()
     page.keyboard.press("Escape")
 
@@ -285,7 +283,7 @@ def test_photometry_buttons_form(page, user, upload_data_token):
     page.goto("/profile")
     open_preferences_panel(page, "plotting")
 
-    page.locator('//div[@id="filterSelectPhotometryButtonsForm"]').first.click()
+    page.locator('//*[@id="filterSelectPhotometryButtonsForm"]').first.click()
     page.locator('//li[@data-value="2massh"]').first.click()
     page.keyboard.press("Escape")
 
@@ -322,7 +320,7 @@ def test_photometry_buttons_form_keeps_input_when_save_fails(page, user):
     page.route("**/api/internal/profile", fail_save)
     # The page is shared by the whole session, so later tests must save normally
     try:
-        page.locator('//div[@id="filterSelectPhotometryButtonsForm"]').first.click()
+        page.locator('//*[@id="filterSelectPhotometryButtonsForm"]').first.click()
         page.locator('//li[@data-value="2massh"]').first.click()
         page.keyboard.press("Escape")
 

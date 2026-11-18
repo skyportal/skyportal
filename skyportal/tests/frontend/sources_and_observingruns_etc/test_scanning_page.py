@@ -42,7 +42,7 @@ def open_scan_filters(page):
 
 
 def toggle_classifications(page, *names):
-    page.locator("//div[@id='classifications-select']").first.click()
+    page.locator("//*[@id='classifications-select']").first.click()
     for name in names:
         option = page.locator(f"//li[@data-value='{name}']").first
         selected = option.get_attribute("aria-selected") == "true"
@@ -661,14 +661,12 @@ def test_candidate_classifications_filter_searchable(
     page.goto(f"/become_user/{user.id}")
     page.goto("/candidates")
     open_scan_filters(page)
-    page.locator("//div[@id='classifications-select']").first.click()
+    page.locator("//*[@id='classifications-select']").first.click()
     # Both options present before searching.
     expect(page.locator("//li[@data-value='Algol']").first).to_be_visible()
     expect(page.locator("//li[@data-value='AGN']").first).to_be_visible()
     # Typing in the search box filters the option list.
-    page.locator('//input[@data-testid="classifications-select-search"]').first.fill(
-        "algol"
-    )
+    page.locator('//input[@id="classifications-select"]').first.fill("algol")
     expect(page.locator("//li[@data-value='Algol']").first).to_be_visible()
     expect(page.locator("//li[@data-value='AGN']").first).to_be_hidden()
 

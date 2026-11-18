@@ -23,7 +23,7 @@ def test_upload_photometry_csv(
     page.keyboard.press("Escape")
 
     # group select
-    page.locator('//div[@id="selectGroups"]').first.click()
+    page.locator('//*[@id="selectGroups"]').first.click()
     page.locator(f'//li[@data-value="{public_group.id}"]').first.click()
     page.keyboard.press("Escape")
 
@@ -58,7 +58,7 @@ def test_upload_photometry_csv_multiple_groups(
     page.locator(f'//li[@data-value="{inst_id}"]').first.click()
     page.keyboard.press("Escape")
 
-    page.locator('//div[@id="selectGroups"]').first.click()
+    page.locator('//*[@id="selectGroups"]').first.click()
     page.locator(f'//li[@data-value="{public_group.id}"]').first.click()
     page.locator(f'//li[@data-value="{public_group2.id}"]').first.click()
     page.keyboard.press("Escape")
@@ -90,7 +90,7 @@ def test_upload_photometry_csv_with_altdata(
     page.locator(f'//li[@data-value="{inst_id}"]').first.click()
     page.keyboard.press("Escape")
 
-    page.locator('//div[@id="selectGroups"]').first.click()
+    page.locator('//*[@id="selectGroups"]').first.click()
     page.locator(f'//li[@data-value="{public_group.id}"]').first.click()
     page.keyboard.press("Escape")
 
@@ -144,7 +144,7 @@ def test_upload_photometry_csv_form_validation(
     page.locator(f'//li[@data-value="{inst_id}"]').first.click()
     page.keyboard.press("Escape")
 
-    page.locator('//div[@id="selectGroups"]').first.click()
+    page.locator('//*[@id="selectGroups"]').first.click()
     page.locator(f'//li[@data-value="{public_group.id}"]').first.click()
     page.keyboard.press("Escape")
 

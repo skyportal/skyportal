@@ -19,8 +19,6 @@ import DialogTitle from "@mui/material/DialogTitle";
 import Chip from "@mui/material/Chip";
 import Switch from "@mui/material/Switch";
 import Typography from "@mui/material/Typography";
-import Select from "@mui/material/Select";
-import MenuItem from "@mui/material/MenuItem";
 import Box from "@mui/material/Box";
 import InfoIcon from "@mui/icons-material/InfoOutlined";
 import FormGroup from "@mui/material/FormGroup";
@@ -35,7 +33,7 @@ import { useAppDispatch } from "../../types/hooks";
 import Button from "../Button";
 import SearchableSelect from "../SearchableSelect";
 import SearchableSelectWidget from "../SearchableSelectWidget";
-import { useSelectSearch } from "../SelectSearch";
+import SearchableValueSelect from "../SearchableValueSelect";
 import StyledDataGridBase, {
   DataGridToolbar,
   FULL_PAGE_HEIGHT,
@@ -471,7 +469,6 @@ const SharingServiceGroups = ({
   const dispatch = useAppDispatch();
   const [addSharingServiceGroup] = useAddSharingServiceGroupMutation();
   const [group, setGroup] = useState<any>(null);
-  const { searchHeader, matches, resetSearch } = useSelectSearch();
   const [owner, setOwner] = useState(false);
 
   const sharingServiceGroups = [...(sharingService.groups || [])].sort(
@@ -521,27 +518,13 @@ const SharingServiceGroups = ({
         />
       ))}
       <AddChip title="Add Group" onAdd={handleAdd} disabled={!group}>
-        <FormControl sx={{ mt: "0.4rem", minWidth: "20vw" }}>
-          <InputLabel>Group</InputLabel>
-          <Select
-            label="Group"
-            value={group || ""}
-            onChange={(e) => setGroup(e.target.value)}
-            onClose={resetSearch}
-          >
-            {searchHeader}
-            {groupOptions
-              .filter(
-                (groupOption: any) =>
-                  matches(groupOption.name) || groupOption.id === group,
-              )
-              .map((groupOption: any) => (
-                <MenuItem key={groupOption.id} value={groupOption.id}>
-                  {groupOption.name}
-                </MenuItem>
-              ))}
-          </Select>
-        </FormControl>
+        <SearchableValueSelect
+          label="Group"
+          options={groupOptions}
+          value={group}
+          onChange={setGroup}
+          sx={{ mt: "0.4rem", minWidth: "20vw" }}
+        />
         <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
           <InputLabel>Owner</InputLabel>
           <Switch
