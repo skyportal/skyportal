@@ -16,13 +16,14 @@ import { useGetUsersQuery } from "../../ducks/users";
 import Button from "../Button";
 import RemovableChip from "../RemovableChip";
 import { useSelectSearch } from "../SelectSearch";
+import { compareUsersByLastName, userLabel } from "../../utils/format";
 
 const NewGroupForm = ({ onCreated }: { onCreated?: () => void }) => {
   const theme = useTheme();
   const { searchHeader, matches, resetSearch } = useSelectSearch();
   const [addNewGroup] = useAddNewGroupMutation();
   const { data: usersData } = useGetUsersQuery();
-  const allUsers = usersData?.users ?? [];
+  const allUsers = [...(usersData?.users ?? [])].sort(compareUsersByLastName);
 
   const [formState, setState] = useState<{
     name: string;
@@ -40,7 +41,7 @@ const NewGroupForm = ({ onCreated }: { onCreated?: () => void }) => {
 
   const userIDToName: Record<number, string> = {};
   allUsers?.forEach((u: any) => {
-    userIDToName[u.id] = u.username;
+    userIDToName[u.id] = userLabel(u);
   });
 
   const handleSubmit = async (event: React.FormEvent) => {
@@ -139,9 +140,8 @@ const NewGroupForm = ({ onCreated }: { onCreated?: () => void }) => {
               {allUsers
                 .filter(
                   (user: any) =>
-                    matches(
-                      `${user.username} ${user.first_name ?? ""} ${user.last_name ?? ""}`,
-                    ) || formState.group_admins.includes(user.id),
+                    matches(userLabel(user, true)) ||
+                    formState.group_admins.includes(user.id),
                 )
                 .map((user: any) => (
                   <MenuItem
@@ -153,7 +153,7 @@ const NewGroupForm = ({ onCreated }: { onCreated?: () => void }) => {
                         : theme.typography.fontWeightRegular,
                     }}
                   >
-                    {user.username}
+                    {userLabel(user, true)}
                   </MenuItem>
                 ))}
             </Select>
