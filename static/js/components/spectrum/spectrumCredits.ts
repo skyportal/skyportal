@@ -178,3 +178,47 @@ export const spectrumCreditsPayload = (
   external_pi: formData?.pi_mode === "External" ? formData.pi : null,
   auto_report_to_tns: Boolean(formData.auto_report_to_tns),
 });
+
+const creditFormData = (
+  mode: string,
+  field: string,
+  contactField: string,
+  users: any[] | undefined,
+  external: string | null | undefined,
+) => {
+  const ids = (users ?? []).map((user: any) => user.id);
+  return external
+    ? { [mode]: "External", [field]: external, [contactField]: ids }
+    : { [mode]: "User", [field]: ids };
+};
+
+export const spectrumCreditsFormData = (
+  spectrum: any,
+  roboticObserver: string,
+) => ({
+  ...(spectrum.external_observer &&
+  spectrum.external_observer === roboticObserver
+    ? { observer_mode: "Robotic" }
+    : creditFormData(
+        "observer_mode",
+        "observed_by",
+        "observer_point_of_contact",
+        spectrum.observers,
+        spectrum.external_observer,
+      )),
+  ...creditFormData(
+    "reducer_mode",
+    "reduced_by",
+    "reducer_point_of_contact",
+    spectrum.reducers,
+    spectrum.external_reducer,
+  ),
+  ...creditFormData(
+    "pi_mode",
+    "pi",
+    "pi_point_of_contact",
+    spectrum.pis,
+    spectrum.external_pi,
+  ),
+  auto_report_to_tns: Boolean(spectrum.auto_report_to_tns),
+});

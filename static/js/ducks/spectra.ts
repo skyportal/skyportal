@@ -117,6 +117,17 @@ export const spectraApi = skyportalApi.injectEndpoints({
       }),
       invalidatesTags: ["Spectra"],
     }),
+    updateSpectrum: build.mutation<
+      unknown,
+      { id: number | string; [key: string]: any }
+    >({
+      query: ({ id, ...data }) => ({
+        url: `/api/spectra/${id}`,
+        method: "PUT",
+        body: data,
+      }),
+      invalidatesTags: ["Spectra"],
+    }),
     uploadASCIISpectrum: build.mutation<unknown, any>({
       query: (data) => ({
         url: "/api/spectrum/ascii",
@@ -154,6 +165,7 @@ export const {
   useParseASCIISpectrumMutation,
   useAddSyntheticPhotometryMutation,
   useDeleteSpectrumMutation,
+  useUpdateSpectrumMutation,
   useUploadASCIISpectrumMutation,
   useDeleteSpectrumAnnotationMutation,
 } = spectraApi;
