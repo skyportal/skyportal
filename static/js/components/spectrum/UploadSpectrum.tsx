@@ -41,7 +41,7 @@ import Spinner from "../Spinner";
 import SearchableSelectWidget from "../SearchableSelectWidget";
 import { useGetInstrumentsQuery } from "../../ducks/instruments";
 import { useGetConfigQuery } from "../../ducks/config";
-import { useIsReadOnly } from "../../ducks/profile";
+import { useGetProfileQuery, useIsReadOnly } from "../../ducks/profile";
 
 dayjs.extend(utc);
 
@@ -92,6 +92,7 @@ const UploadSpectrumForm = ({ route }: UploadSpectrumFormProps) => {
   const [uploadASCIISpectrum] = useUploadASCIISpectrumMutation();
   const { data: usersData } = useGetUsersQuery();
   const users = usersData?.users;
+  const { data: profile } = useGetProfileQuery();
   const { data: instrumentList = [] } = useGetInstrumentsQuery();
   const { data: telescopes = [] } = useGetTelescopesQuery();
   const { data: source } = useGetSourceQuery(route.id);
@@ -249,6 +250,9 @@ const UploadSpectrumForm = ({ route }: UploadSpectrumFormProps) => {
   const instruments = instrumentList.filter((i: any) =>
     i.type.includes("spec"),
   );
+  const roboticObserver =
+    instruments.find((i: any) => i.id === persistentFormData?.instrument_id)
+      ?.default_observer || "Robotic";
   const userSelect = {
     "ui:widget": SearchableSelectWidget,
     "ui:enumNames": userEnumOptions.enumNames,
@@ -324,7 +328,10 @@ const UploadSpectrumForm = ({ route }: UploadSpectrumFormProps) => {
         type: "string",
         default: "User",
         title: "Observer type",
-        enum: ["User", "External"],
+        enum: ["User", "External", "Robotic"],
+        ...(persistentFormData?.observer_mode === "Robotic" && {
+          description: `Credited as ${roboticObserver}`,
+        }),
       },
       reducer_mode: {
         type: "string",
@@ -509,6 +516,14 @@ const UploadSpectrumForm = ({ route }: UploadSpectrumFormProps) => {
               "observer_point_of_contact",
             ],
           },
+          {
+            properties: {
+              observer_mode: {
+                enum: ["Robotic"],
+              },
+            },
+            required: ["observer_mode"],
+          },
         ],
       },
       has_fluxerr: {
@@ -625,20 +640,23 @@ const UploadSpectrumForm = ({ route }: UploadSpectrumFormProps) => {
         .utc()
         .format(),
       filename,
-      // The observed_by list of users is either the actual users
-      // who are observers, or users to be listed as points of
-      // contact
-      observed_by:
-        persistentFormData?.observer_mode === "User"
-          ? persistentFormData.observed_by
-          : persistentFormData.observer_point_of_contact,
-      // If providing external observers as free text, the text
-      // will be in the 'observed_by' field and the associated
-      // users will be in 'observer_point_of_contact'
-      external_observer:
-        persistentFormData?.observer_mode === "External"
-          ? persistentFormData.observed_by
-          : null,
+      ...{
+        User: {
+          observed_by: persistentFormData.observed_by,
+          external_observer: null,
+        },
+        External: {
+          observed_by: persistentFormData.observer_point_of_contact,
+          external_observer: persistentFormData.observed_by,
+        },
+        Robotic: {
+          observed_by: [profile?.id],
+          external_observer: roboticObserver,
+        },
+      }[
+        (persistentFormData?.observer_mode ?? "User") as
+          "User" | "External" | "Robotic"
+      ],
       // The reduced_by list of users is either the actual users
       // who are reducers, or users to be listed as points of
       // contact
