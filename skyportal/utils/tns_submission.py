@@ -589,7 +589,7 @@ def prepare_tns_classification_report(
         spectrum=spectrum,
         stored_spectrum_name=stored_name or "",
         sharing_service=sharing_service,
-        redshift=obj.redshift,
+        redshift=None if obj.redshift_type == "photometric" else obj.redshift,
         remarks=remarks,
         external_observer=external_observer,
         external_reducer=external_reducer,
