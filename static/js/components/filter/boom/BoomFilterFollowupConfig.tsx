@@ -23,6 +23,7 @@ import {
 } from "../../../ducks/instruments";
 import { useGetGroupsQuery } from "../../../ducks/groups";
 import GroupShareSelect from "../../group/GroupShareSelect";
+import { useSelectSearch } from "../../SelectSearch";
 import { localeSafeFields } from "../../followup_request/LocaleSafeNumberField";
 
 const useStyles = makeStyles()(() => ({
@@ -97,6 +98,7 @@ const BoomFilterFollowupConfig = ({
   const [selectedAllocationId, setSelectedAllocationId] = useState<any>(null);
   const [selectedGroupIds, setSelectedGroupIds] = useState<any[]>([groupId]);
   const [busy, setBusy] = useState(false);
+  const allocationSearch = useSelectSearch();
 
   const filteredAllocations = allocationListApiClassname.filter(
     (allocation: any) =>
@@ -183,6 +185,13 @@ const BoomFilterFollowupConfig = ({
     }
   };
 
+  const allocationOptionLabel = (allocation: any) =>
+    `${
+      telLookUp[instLookUp[allocation.instrument_id].telescope_id].name
+    } / ${instLookUp[allocation.instrument_id].name} - ${
+      groupLookUp[allocation.group_id]?.name
+    } (PI ${allocation.pi})`;
+
   const handleRemove = async () => {
     setBusy(true);
     try {
@@ -205,17 +214,21 @@ const BoomFilterFollowupConfig = ({
         labelId={`followup-alloc-${filterId}`}
         value={selectedAllocationId}
         onChange={(e) => setSelectedAllocationId(e.target.value)}
+        onClose={allocationSearch.resetSearch}
         className={classes.Select}
       >
-        {filteredAllocations.map((allocation: any) => (
-          <MenuItem value={allocation.id} key={allocation.id}>
-            {`${
-              telLookUp[instLookUp[allocation.instrument_id].telescope_id].name
-            } / ${instLookUp[allocation.instrument_id].name} - ${
-              groupLookUp[allocation.group_id]?.name
-            } (PI ${allocation.pi})`}
-          </MenuItem>
-        ))}
+        {allocationSearch.searchHeader}
+        {filteredAllocations
+          .filter(
+            (allocation: any) =>
+              allocationSearch.matches(allocationOptionLabel(allocation)) ||
+              allocation.id === selectedAllocationId,
+          )
+          .map((allocation: any) => (
+            <MenuItem value={allocation.id} key={allocation.id}>
+              {allocationOptionLabel(allocation)}
+            </MenuItem>
+          ))}
       </Select>
       <GroupShareSelect
         groupList={allGroups}

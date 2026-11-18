@@ -25,6 +25,7 @@ import { useGetAllocationsApiClassnameQuery } from "../../ducks/allocations";
 import { useSubmitFollowupRequestMutation } from "../../ducks/source";
 import GroupShareSelect from "../group/GroupShareSelect";
 import Button from "../Button";
+import { useSelectSearch } from "../SelectSearch";
 import {
   isSomeActiveRangeOrNoRange,
   rangeIsActive,
@@ -119,6 +120,7 @@ const FollowupRequestForm = ({
   const [selectedGroupIds, setSelectedGroupIds] = useState<any[] | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [requestToConfirm, setRequestToConfirm] = useState<any>(null);
+  const allocationSearch = useSelectSearch();
 
   const isForcedPhotometry = requestType === "forced_photometry";
   const schemaKey = isForcedPhotometry
@@ -258,35 +260,49 @@ const FollowupRequestForm = ({
               ? "forcedPhotometryAllocationSelect"
               : "followupRequestAllocationSelect"
           }
+          onClose={allocationSearch.resetSearch}
           fullWidth
         >
-          {allocations.map((option) => (
-            <MenuItem
-              value={option.id}
-              key={option.id}
-              sx={{ whiteSpace: "break-spaces" }}
-            >
-              {allocationLabel(
-                option,
-                instrumentList,
-                telescopeList,
-                allGroups,
-              )}
-              {!isSomeActiveRangeOrNoRange(option.validity_ranges) && (
-                <Tooltip
-                  title="This allocation is currently inactive. You can still submit requests for valid future dates."
-                  arrow
-                >
-                  <Typography
-                    component="span"
-                    sx={{ fontStyle: "italic", color: "grey" }}
+          {allocationSearch.searchHeader}
+          {allocations
+            .filter(
+              (option) =>
+                allocationSearch.matches(
+                  allocationLabel(
+                    option,
+                    instrumentList,
+                    telescopeList,
+                    allGroups,
+                  ),
+                ) || option.id === allocation.id,
+            )
+            .map((option) => (
+              <MenuItem
+                value={option.id}
+                key={option.id}
+                sx={{ whiteSpace: "break-spaces" }}
+              >
+                {allocationLabel(
+                  option,
+                  instrumentList,
+                  telescopeList,
+                  allGroups,
+                )}
+                {!isSomeActiveRangeOrNoRange(option.validity_ranges) && (
+                  <Tooltip
+                    title="This allocation is currently inactive. You can still submit requests for valid future dates."
+                    arrow
                   >
-                    {" (inactive)"}
-                  </Typography>
-                </Tooltip>
-              )}
-            </MenuItem>
-          ))}
+                    <Typography
+                      component="span"
+                      sx={{ fontStyle: "italic", color: "grey" }}
+                    >
+                      {" (inactive)"}
+                    </Typography>
+                  </Tooltip>
+                )}
+              </MenuItem>
+            ))}
         </Select>
       </Box>
       <Box

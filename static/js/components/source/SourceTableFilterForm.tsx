@@ -26,6 +26,7 @@ import {
   useGetSpatialCatalogQuery,
 } from "../../ducks/spatialCatalogs";
 import RemovableChip from "../RemovableChip";
+import { useSelectSearch } from "../SelectSearch";
 
 const useStyles = makeStyles()((theme) => ({
   paperDiv: {
@@ -182,6 +183,10 @@ const SourceTableFilterForm = ({
   );
 
   const { handleSubmit, control, reset, getValues } = useForm();
+  const classificationSearch = useSelectSearch();
+  const nonClassificationSearch = useSelectSearch();
+  const spatialCatalogSearch = useSelectSearch();
+  const spatialCatalogEntrySearch = useSelectSearch();
 
   const handleClickReset = () => {
     reset();
@@ -517,21 +522,29 @@ const SourceTableFilterForm = ({
                     ))}
                   </div>
                 )}
+                onClose={classificationSearch.resetSearch}
                 MenuProps={MenuProps}
               >
-                {classifications.map((classification) => (
-                  <MenuItem
-                    key={classification}
-                    value={classification}
-                    style={getMultiselectStyles(
-                      classification,
-                      selectedClassifications,
-                      theme,
-                    )}
-                  >
-                    {classification}
-                  </MenuItem>
-                ))}
+                {classificationSearch.searchHeader}
+                {classifications
+                  .filter(
+                    (classification) =>
+                      classificationSearch.matches(classification) ||
+                      selectedClassifications.includes(classification),
+                  )
+                  .map((classification) => (
+                    <MenuItem
+                      key={classification}
+                      value={classification}
+                      style={getMultiselectStyles(
+                        classification,
+                        selectedClassifications,
+                        theme,
+                      )}
+                    >
+                      {classification}
+                    </MenuItem>
+                  ))}
               </Select>
             )}
             name="classifications"
@@ -599,21 +612,29 @@ const SourceTableFilterForm = ({
                     ))}
                   </div>
                 )}
+                onClose={nonClassificationSearch.resetSearch}
                 MenuProps={MenuProps}
               >
-                {classifications.map((classification) => (
-                  <MenuItem
-                    key={classification}
-                    value={classification}
-                    style={getMultiselectStyles(
-                      classification,
-                      selectedNonClassifications,
-                      theme,
-                    )}
-                  >
-                    {classification}
-                  </MenuItem>
-                ))}
+                {nonClassificationSearch.searchHeader}
+                {classifications
+                  .filter(
+                    (classification) =>
+                      nonClassificationSearch.matches(classification) ||
+                      selectedNonClassifications.includes(classification),
+                  )
+                  .map((classification) => (
+                    <MenuItem
+                      key={classification}
+                      value={classification}
+                      style={getMultiselectStyles(
+                        classification,
+                        selectedNonClassifications,
+                        theme,
+                      )}
+                    >
+                      {classification}
+                    </MenuItem>
+                  ))}
               </Select>
             )}
             name="nonclassifications"
@@ -1242,17 +1263,25 @@ const SourceTableFilterForm = ({
                         });
                         setSelectedSpatialCatalogId(event.target.value);
                       }}
+                      onClose={spatialCatalogSearch.resetSearch}
                       className={classes.select}
                     >
-                      {spatialCatalogsSelect?.map((cat: any) => (
-                        <MenuItem
-                          value={cat.id}
-                          key={cat.id}
-                          className={classes.selectItem}
-                        >
-                          {`${cat.catalog_name}`}
-                        </MenuItem>
-                      ))}
+                      {spatialCatalogSearch.searchHeader}
+                      {spatialCatalogsSelect
+                        ?.filter(
+                          (cat: any) =>
+                            spatialCatalogSearch.matches(cat.catalog_name) ||
+                            cat.id === value,
+                        )
+                        .map((cat: any) => (
+                          <MenuItem
+                            value={cat.id}
+                            key={cat.id}
+                            className={classes.selectItem}
+                          >
+                            {`${cat.catalog_name}`}
+                          </MenuItem>
+                        ))}
                     </Select>
                   )}
                   name="spatialcatalogid"
@@ -1268,11 +1297,19 @@ const SourceTableFilterForm = ({
                       onChange={(event) => {
                         onChange(event.target.value);
                       }}
+                      onClose={spatialCatalogEntrySearch.resetSearch}
                       className={classes.select}
                       disabled={!selectedSpatialCatalogId}
                     >
-                      {spatialCatalog?.entries?.map(
-                        (spatialCatalogEntry: any) => (
+                      {spatialCatalogEntrySearch.searchHeader}
+                      {spatialCatalog?.entries
+                        ?.filter(
+                          (spatialCatalogEntry: any) =>
+                            spatialCatalogEntrySearch.matches(
+                              spatialCatalogEntry.entry_name,
+                            ) || spatialCatalogEntry.id === value,
+                        )
+                        .map((spatialCatalogEntry: any) => (
                           <MenuItem
                             value={spatialCatalogEntry.id}
                             key={spatialCatalogEntry.id}
@@ -1280,8 +1317,7 @@ const SourceTableFilterForm = ({
                           >
                             {`${spatialCatalogEntry.entry_name}`}
                           </MenuItem>
-                        ),
-                      )}
+                        ))}
                     </Select>
                   )}
                   name="spatialcatalogentryid"

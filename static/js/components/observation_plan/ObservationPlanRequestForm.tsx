@@ -48,6 +48,7 @@ import { useLazyGetPlanWithSameNameExistsQuery } from "../../ducks/observationPl
 import { useGetLocalizationQuery } from "../../ducks/localization";
 import { download } from "../../utils/download";
 import GroupShareSelect from "../group/GroupShareSelect";
+import { useSelectSearch } from "../SelectSearch";
 const LocalizationPlot = lazy(() => import("../localization/LocalizationPlot"));
 
 dayjs.extend(relativeTime);
@@ -93,6 +94,7 @@ const FieldSelect = ({
     fields.push(Number(field.field_id));
   });
   fields.sort((a, b) => a - b);
+  const fieldSearch = useSelectSearch();
 
   const handleSelectedFieldChange = (e: any) => {
     setSelectedFields(e.target.value);
@@ -118,12 +120,19 @@ const FieldSelect = ({
           multiple
           value={selectedFields || []}
           onChange={handleSelectedFieldChange}
+          onClose={fieldSearch.resetSearch}
         >
-          {fields?.map((field) => (
-            <MenuItem value={field} key={field}>
-              {field}
-            </MenuItem>
-          ))}
+          {fieldSearch.searchHeader}
+          {fields
+            ?.filter(
+              (field) =>
+                fieldSearch.matches(field) || selectedFields?.includes(field),
+            )
+            .map((field) => (
+              <MenuItem value={field} key={field}>
+                {field}
+              </MenuItem>
+            ))}
         </Select>
       </FormControl>
       <Button
@@ -226,6 +235,7 @@ const ObservationPlanRequestForm = ({
   const allGroups = useGetGroupsQuery().data?.all ?? null;
   const [selectedAllocationId, setSelectedAllocationId] = useState<any>(null);
   const [selectedGroupIds, setSelectedGroupIds] = useState<any[]>([]);
+  const allocationSearch = useSelectSearch();
   const [selectedLocalizationId, setSelectedLocalizationId] =
     useState<any>(null);
 
@@ -369,6 +379,13 @@ const ObservationPlanRequestForm = ({
   ]);
 
   // filter out the allocations that dont have "observaton_plan" in the types
+  const allocationOptionLabel = (allocation: any) =>
+    `${
+      telLookUp[instLookUp[allocation.instrument_id]?.telescope_id]?.name
+    } / ${instLookUp[allocation.instrument_id]?.name} - ${
+      groupLookUp[allocation.group_id]?.name
+    } (PI ${allocation.pi})`;
+
   const filteredAllocationListApiObsplan = allocationListApiObsplan.filter(
     (allocation: any) => allocation.types.includes("observation_plan"),
   );
@@ -712,19 +729,22 @@ const ObservationPlanRequestForm = ({
               labelId="allocationSelectLabel"
               value={selectedAllocationId}
               onChange={handleSelectedAllocationChange}
+              onClose={allocationSearch.resetSearch}
               name="followupRequestAllocationSelect"
             >
-              {filteredAllocationListApiObsplan?.map((allocation: any) => (
-                <MenuItem value={allocation.id} key={allocation.id}>
-                  {`${
-                    telLookUp[
-                      instLookUp[allocation.instrument_id]?.telescope_id
-                    ]?.name
-                  } / ${instLookUp[allocation.instrument_id]?.name} - ${
-                    groupLookUp[allocation.group_id]?.name
-                  } (PI ${allocation.pi})`}
-                </MenuItem>
-              ))}
+              {allocationSearch.searchHeader}
+              {filteredAllocationListApiObsplan
+                ?.filter(
+                  (allocation: any) =>
+                    allocationSearch.matches(
+                      allocationOptionLabel(allocation),
+                    ) || allocation.id === selectedAllocationId,
+                )
+                .map((allocation: any) => (
+                  <MenuItem value={allocation.id} key={allocation.id}>
+                    {allocationOptionLabel(allocation)}
+                  </MenuItem>
+                ))}
             </Select>
           </FormControl>
           <FormControl size="small" fullWidth>

@@ -9,6 +9,7 @@ import { Controller, useForm } from "react-hook-form";
 
 import Button from "../Button";
 import { useGetInstrumentsQuery } from "../../ducks/instruments";
+import { useSelectSearch } from "../SelectSearch";
 
 const useStyles = makeStyles()((theme) => ({
   paperDiv: {
@@ -112,6 +113,7 @@ const ObservationFilterForm = ({
   });
 
   const { handleSubmit, control, reset, getValues } = useForm();
+  const instrumentSearch = useSelectSearch();
 
   const handleClickReset = () => {
     reset();
@@ -177,17 +179,25 @@ const ObservationFilterForm = ({
                         event.target.value === -1 ? "" : event.target.value,
                     });
                   }}
+                  onClose={instrumentSearch.resetSearch}
                   className={classes.select}
                 >
-                  {sortedInstrumentList?.map((instrument: any) => (
-                    <MenuItem
-                      value={instrument.name}
-                      key={instrument.name}
-                      className={classes.selectItem}
-                    >
-                      {`${instrument.name}`}
-                    </MenuItem>
-                  ))}
+                  {instrumentSearch.searchHeader}
+                  {sortedInstrumentList
+                    ?.filter(
+                      (instrument: any) =>
+                        instrumentSearch.matches(instrument.name) ||
+                        instrument.name === value,
+                    )
+                    .map((instrument: any) => (
+                      <MenuItem
+                        value={instrument.name}
+                        key={instrument.name}
+                        className={classes.selectItem}
+                      >
+                        {`${instrument.name}`}
+                      </MenuItem>
+                    ))}
                 </Select>
               )}
               name="instrumentName"

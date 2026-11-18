@@ -28,6 +28,7 @@ import NewPhotometryForm from "./NewPhotometry";
 
 import GroupShareSelect from "../group/GroupShareSelect";
 import FormValidationError from "../FormValidationError";
+import { useSelectSearch } from "../SelectSearch";
 import {
   useGetSourceQuery,
   useUploadPhotometryMutation,
@@ -93,6 +94,7 @@ const UploadPhotometryForm = () => {
   const formState = getValues();
 
   const [selectedGroupIds, setSelectedGroupIds] = useState<number[]>([]);
+  const instrumentSearch = useSelectSearch();
   // Preselect the source's groups (so uploaded photometry defaults to the same
   // sharing as the source), plus the sitewide public group when the instance
   // defaults uploads to public. Runs once, after the source/groups load, and
@@ -533,27 +535,36 @@ const UploadPhotometryForm = () => {
                               label="Instrument"
                               value={value}
                               onChange={onChange}
+                              onClose={instrumentSearch.resetSearch}
                             >
+                              {instrumentSearch.searchHeader}
                               <MenuItem value="multiple" key={0}>
                                 Use instrument_id column (for one or more
                                 instruments)
                               </MenuItem>
-                              {sortedInstrumentList.map((instrument) => (
-                                <MenuItem
-                                  value={instrument.id}
-                                  key={instrument.id}
-                                >
-                                  <Tooltip
-                                    title={`Filters: ${instrument.filters.join(
-                                      ", ",
-                                    )}`}
+                              {sortedInstrumentList
+                                .filter(
+                                  (instrument) =>
+                                    instrumentSearch.matches(
+                                      `${instrument.name} (ID: ${instrument.id})`,
+                                    ) || instrument.id === value,
+                                )
+                                .map((instrument) => (
+                                  <MenuItem
+                                    value={instrument.id}
+                                    key={instrument.id}
                                   >
-                                    <span>
-                                      {`${instrument.name} (ID: ${instrument.id})`}
-                                    </span>
-                                  </Tooltip>
-                                </MenuItem>
-                              ))}
+                                    <Tooltip
+                                      title={`Filters: ${instrument.filters.join(
+                                        ", ",
+                                      )}`}
+                                    >
+                                      <span>
+                                        {`${instrument.name} (ID: ${instrument.id})`}
+                                      </span>
+                                    </Tooltip>
+                                  </MenuItem>
+                                ))}
                             </Select>
                           )}
                         />

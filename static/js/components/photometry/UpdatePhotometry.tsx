@@ -14,6 +14,7 @@ import Button from "../Button";
 import FormValidationError from "../FormValidationError";
 import { useUpdatePhotometryMutation } from "../../ducks/photometry";
 import { useGetInstrumentsQuery } from "../../ducks/instruments";
+import { useSelectSearch } from "../SelectSearch";
 
 const useStyles = makeStyles()(() => ({
   SelectItem: {
@@ -56,6 +57,7 @@ const UpdatePhotometry = ({ phot, magsys }: UpdatePhotometryProps) => {
   const { data: instrumentList = [] } = useGetInstrumentsQuery() as {
     data: any[];
   };
+  const instrumentSearch = useSelectSearch();
 
   const [state, setState] = useState<any>({
     mjd: phot.mjd,
@@ -350,17 +352,29 @@ const UpdatePhotometry = ({ phot, magsys }: UpdatePhotometryProps) => {
               name="instrument_id"
               data-testid="instrumentSelect"
               fullWidth
-              slotProps={{ select: { MenuProps: { disableScrollLock: true } } }}
+              slotProps={{
+                select: {
+                  MenuProps: { disableScrollLock: true },
+                  onClose: instrumentSearch.resetSearch,
+                },
+              }}
             >
-              {instrumentList?.map((instrument: any) => (
-                <MenuItem
-                  value={instrument.id}
-                  key={instrument.id}
-                  className={classes.SelectItem}
-                >
-                  {instrument.name}
-                </MenuItem>
-              ))}
+              {instrumentSearch.searchHeader}
+              {instrumentList
+                ?.filter(
+                  (instrument: any) =>
+                    instrumentSearch.matches(instrument.name) ||
+                    instrument.id === state.instrument_id,
+                )
+                .map((instrument: any) => (
+                  <MenuItem
+                    value={instrument.id}
+                    key={instrument.id}
+                    className={classes.SelectItem}
+                  >
+                    {instrument.name}
+                  </MenuItem>
+                ))}
             </TextField>
           </div>
           <p />

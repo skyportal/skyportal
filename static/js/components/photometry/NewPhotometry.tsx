@@ -15,6 +15,7 @@ import validator from "@rjsf/validator-ajv8";
 import { useAppDispatch } from "../../types/hooks";
 import { useSubmitPhotometryMutation } from "../../ducks/photometry";
 import { useGetInstrumentsQuery } from "../../ducks/instruments";
+import { useSelectSearch } from "../SelectSearch";
 
 const dateType = (date: any) => {
   let type = "unknown";
@@ -61,6 +62,7 @@ const NewPhotometryForm = ({ obj_id }: NewPhotometryFormProps) => {
   const [selectedInstrumentId, setSelectedInstrumentId] = useState<any>(null);
   const [extinctionCorrected, setExtinctionCorrected] = useState(false);
   const groups = useGetGroupsQuery().data?.userAccessible ?? [];
+  const instrumentSearch = useSelectSearch();
 
   const [selectedFormData, setSelectedFormData] = useState<any>({
     obsdate: "",
@@ -429,17 +431,25 @@ const NewPhotometryForm = ({ obj_id }: NewPhotometryFormProps) => {
               id="instrumentSelectLabel"
               value={selectedInstrumentId}
               onChange={handleSelectedInstrumentChange}
+              onClose={instrumentSearch.resetSearch}
               name="instrumentSelect"
             >
-              {sortedInstrumentList?.map((instrument) => (
-                <MenuItem
-                  value={instrument.id}
-                  key={instrument.id}
-                  disabled={!instrument.filters?.length}
-                >
-                  {instrument.name}
-                </MenuItem>
-              ))}
+              {instrumentSearch.searchHeader}
+              {sortedInstrumentList
+                ?.filter(
+                  (instrument) =>
+                    instrumentSearch.matches(instrument.name) ||
+                    instrument.id === selectedInstrumentId,
+                )
+                .map((instrument) => (
+                  <MenuItem
+                    value={instrument.id}
+                    key={instrument.id}
+                    disabled={!instrument.filters?.length}
+                  >
+                    {instrument.name}
+                  </MenuItem>
+                ))}
             </Select>
           </div>
           <div>

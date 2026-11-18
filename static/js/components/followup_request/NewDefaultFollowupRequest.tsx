@@ -16,6 +16,7 @@ import {
   useGetInstrumentFormsQuery,
 } from "../../ducks/instruments";
 import GroupShareSelect from "../group/GroupShareSelect";
+import { useSelectSearch } from "../SelectSearch";
 import { localeSafeFields } from "./LocaleSafeNumberField";
 import { allocationLabel } from "../../utils/format";
 
@@ -32,6 +33,7 @@ const NewDefaultFollowupRequest = () => {
     useSubmitDefaultFollowupRequestMutation();
   const [selectedAllocationId, setSelectedAllocationId] = useState<any>(null);
   const [selectedGroupIds, setSelectedGroupIds] = useState<any[] | null>(null);
+  const allocationSearch = useSelectSearch();
 
   const allocations = allocationListApiClassname.filter(
     (allocation: any) =>
@@ -86,18 +88,32 @@ const NewDefaultFollowupRequest = () => {
           value={allocation.id}
           onChange={(e) => setSelectedAllocationId(e.target.value)}
           name="followupRequestAllocationSelect"
+          onClose={allocationSearch.resetSearch}
           fullWidth
         >
-          {allocations.map((option: any) => (
-            <MenuItem value={option.id} key={option.id}>
-              {allocationLabel(
-                option,
-                instrumentList,
-                telescopeList,
-                allGroups,
-              )}
-            </MenuItem>
-          ))}
+          {allocationSearch.searchHeader}
+          {allocations
+            .filter(
+              (option: any) =>
+                allocationSearch.matches(
+                  allocationLabel(
+                    option,
+                    instrumentList,
+                    telescopeList,
+                    allGroups,
+                  ),
+                ) || option.id === allocation.id,
+            )
+            .map((option: any) => (
+              <MenuItem value={option.id} key={option.id}>
+                {allocationLabel(
+                  option,
+                  instrumentList,
+                  telescopeList,
+                  allGroups,
+                )}
+              </MenuItem>
+            ))}
         </Select>
       </Box>
       <GroupShareSelect

@@ -9,6 +9,7 @@ import MenuItem from "@mui/material/MenuItem";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 import Button from "../Button";
+import { useSelectSearch } from "../SelectSearch";
 
 import { useGetTelescopesQuery } from "../../ducks/telescopes";
 import {
@@ -41,6 +42,7 @@ const QueueAPIDisplay = () => {
   const { classes } = useStyles();
 
   const [selectedAllocationId, setSelectedAllocationId] = useState<any>(null);
+  const allocationSearch = useSelectSearch();
   const [queueList, setQueueList] = useState<string[]>(["None"]);
   const [selectedQueueName, setSelectedQueueName] = useState("None");
 
@@ -141,6 +143,13 @@ const QueueAPIDisplay = () => {
     setSelectedQueueName(e.target.value);
   };
 
+  const allocationOptionLabel = (allocation: any) =>
+    `${
+      telLookUp[instLookUp[allocation.instrument_id].telescope_id].name
+    } / ${instLookUp[allocation.instrument_id].name} - ${
+      groupLookUp[allocation.group_id].name
+    } (PI ${allocation.pi})`;
+
   return (
     <div className={classes.container}>
       <InputLabel id="allocationSelectLabel">Allocation</InputLabel>
@@ -149,22 +158,26 @@ const QueueAPIDisplay = () => {
         labelId="allocationSelectLabel"
         defaultValue={selectedAllocationId || ""}
         onChange={handleSelectedAllocationChange}
+        onClose={allocationSearch.resetSearch}
         name="followupRequestAllocationSelect"
         className={classes.select}
       >
-        {allocationListApiObsplan?.map((allocation: any) => (
-          <MenuItem
-            value={allocation.id}
-            key={allocation.id}
-            className={classes.SelectItem}
-          >
-            {`${
-              telLookUp[instLookUp[allocation.instrument_id].telescope_id].name
-            } / ${instLookUp[allocation.instrument_id].name} - ${
-              groupLookUp[allocation.group_id].name
-            } (PI ${allocation.pi})`}
-          </MenuItem>
-        ))}
+        {allocationSearch.searchHeader}
+        {allocationListApiObsplan
+          ?.filter(
+            (allocation: any) =>
+              allocationSearch.matches(allocationOptionLabel(allocation)) ||
+              allocation.id === selectedAllocationId,
+          )
+          .map((allocation: any) => (
+            <MenuItem
+              value={allocation.id}
+              key={allocation.id}
+              className={classes.SelectItem}
+            >
+              {allocationOptionLabel(allocation)}
+            </MenuItem>
+          ))}
       </Select>
       <InputLabel id="queueNameSelectLabel">Queue Name</InputLabel>
       <Select

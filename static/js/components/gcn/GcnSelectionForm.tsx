@@ -23,6 +23,8 @@ import utc from "dayjs/plugin/utc";
 
 import { showNotification } from "baselayer/components/Notifications";
 import Button from "../Button";
+import SearchableSelectWidget from "../SearchableSelectWidget";
+import { useSelectSearch } from "../SelectSearch";
 import Spinner from "../Spinner";
 import { DownloadProgressDialog } from "../ProgressIndicators";
 import AddCatalogQueryPage from "../catalog_query/AddCatalogQueryPage";
@@ -421,6 +423,7 @@ const GcnSelectionForm = ({ dateobs }: GcnSelectionFormProps) => {
 
   const [selectedFields, setSelectedFields] = useState<number[]>([]);
   const [selectedInstrumentId, setSelectedInstrumentId] = useState<any>(null);
+  const instrumentSearch = useSelectSearch();
   const [selectedLocalizationId, setSelectedLocalizationId] =
     useState<any>(null);
   const [plotLayers, setPlotLayers] = useState<PlotLayers>({
@@ -674,7 +677,10 @@ const GcnSelectionForm = ({ dateobs }: GcnSelectionFormProps) => {
   };
 
   const uiSchema = {
-    group_ids: { "ui:enumNames": groups.map((group) => group.name) },
+    group_ids: {
+      "ui:widget": SearchableSelectWidget,
+      "ui:enumNames": groups.map((group) => group.name),
+    },
     "ui:grid": [
       { __section: "Time range" },
       { startDate: 6, endDate: 6 },
@@ -847,9 +853,17 @@ const GcnSelectionForm = ({ dateobs }: GcnSelectionFormProps) => {
                 labelId="instrumentSelectLabel"
                 value={selectedInstrumentId || ""}
                 onChange={(e) => setSelectedInstrumentId(e.target.value)}
+                onClose={instrumentSearch.resetSearch}
               >
+                {instrumentSearch.searchHeader}
                 {[...instrumentList]
                   .sort((a, b) => a.name.localeCompare(b.name))
+                  .filter(
+                    (instrument) =>
+                      instrumentSearch.matches(
+                        `${telLookUp[instrument.telescope_id]?.name} / ${instrument.name}`,
+                      ) || instrument.id === selectedInstrumentId,
+                  )
                   .map((instrument) => (
                     <MenuItem value={instrument.id} key={instrument.id}>
                       {`${telLookUp[instrument.telescope_id]?.name} / ${instrument.name}`}

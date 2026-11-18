@@ -16,6 +16,7 @@ import {
   useGetInstrumentFormsQuery,
   useGetInstrumentsQuery,
 } from "../../../ducks/instruments";
+import { useSelectSearch } from "../../SelectSearch";
 
 const FollowupRequestPreferences = () => {
   const { data: telescopeList = [] } = useGetTelescopesQuery();
@@ -32,6 +33,7 @@ const FollowupRequestPreferences = () => {
   );
 
   const [updateUserPreferences] = useUpdateUserPreferencesMutation();
+  const allocationSearch = useSelectSearch();
 
   useEffect(() => {
     if (defaultAllocationId) {
@@ -90,6 +92,15 @@ const FollowupRequestPreferences = () => {
     instLookUp[instrumentObj.id] = instrumentObj;
   });
 
+  const allocationOptionLabel = (allocation: any) =>
+    allocation.id === -1
+      ? allocation.name
+      : `${
+          telLookUp[instLookUp[allocation.instrument_id]?.telescope_id]?.name
+        } / ${instLookUp[allocation.instrument_id]?.name} - ${
+          groupLookUp[allocation.group_id]?.name
+        } (PI ${allocation.pi})`;
+
   if (Object.keys(instLookUp).length === 0) {
     return (
       <Typography variant="body2" color="textSecondary">
@@ -108,25 +119,21 @@ const FollowupRequestPreferences = () => {
         value={selectedAllocationId}
         onChange={handleChange}
         name="followupRequestAllocationSelect"
+        onClose={allocationSearch.resetSearch}
       >
+        {allocationSearch.searchHeader}
         {allocationListApiClassnameOptions?.map(
           (allocation: any) =>
             (instLookUp[allocation.instrument_id]?.telescope_id ||
-              allocation.id === -1) && (
+              allocation.id === -1) &&
+            (allocationSearch.matches(allocationOptionLabel(allocation)) ||
+              allocation.id === selectedAllocationId) && (
               <MenuItem
                 value={allocation.id}
                 key={allocation.id}
                 sx={{ whiteSpace: "break-spaces" }}
               >
-                {allocation.id === -1
-                  ? allocation.name
-                  : `${
-                      telLookUp[
-                        instLookUp[allocation.instrument_id]?.telescope_id
-                      ]?.name
-                    } / ${instLookUp[allocation.instrument_id]?.name} - ${
-                      groupLookUp[allocation.group_id]?.name
-                    } (PI ${allocation.pi})`}
+                {allocationOptionLabel(allocation)}
               </MenuItem>
             ),
         )}

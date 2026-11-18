@@ -28,6 +28,7 @@ import {
   useGetInstrumentObsplanFormsQuery,
 } from "../../ducks/instruments";
 import GroupShareSelect from "../group/GroupShareSelect";
+import { useSelectSearch } from "../SelectSearch";
 
 const conversions: Record<string, any> = {
   FAR: {
@@ -78,6 +79,7 @@ const NewDefaultObservationPlan = ({
   const allGroups = useGetGroupsQuery().data?.all ?? null;
   const [selectedAllocationId, setSelectedAllocationId] = useState<any>(null);
   const [selectedGroupIds, setSelectedGroupIds] = useState<any[]>([]);
+  const allocationSearch = useSelectSearch();
 
   const { data: instrumentList = [] } = useGetInstrumentsQuery();
   const { data: instrumentObsplanFormParams = {} } =
@@ -189,6 +191,13 @@ const NewDefaultObservationPlan = ({
     }
   });
 
+  const allocationOptionLabel = (allocation: any) =>
+    `${
+      telLookUp[instLookUp[allocation.instrument_id].telescope_id].name
+    } / ${instLookUp[allocation.instrument_id].name} - ${
+      groupLookUp[allocation.group_id].name
+    } (PI ${allocation.pi})`;
+
   return (
     <Box sx={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
       <FormControl fullWidth>
@@ -197,18 +206,21 @@ const NewDefaultObservationPlan = ({
           label="Allocation"
           value={selectedAllocationId}
           onChange={(e) => setSelectedAllocationId(e.target.value)}
+          onClose={allocationSearch.resetSearch}
           name="followupRequestAllocationSelect"
         >
-          {allocationListApiObsplan?.map((allocation: any) => (
-            <MenuItem value={allocation.id} key={allocation.id}>
-              {`${
-                telLookUp[instLookUp[allocation.instrument_id].telescope_id]
-                  .name
-              } / ${instLookUp[allocation.instrument_id].name} - ${
-                groupLookUp[allocation.group_id].name
-              } (PI ${allocation.pi})`}
-            </MenuItem>
-          ))}
+          {allocationSearch.searchHeader}
+          {allocationListApiObsplan
+            ?.filter(
+              (allocation: any) =>
+                allocationSearch.matches(allocationOptionLabel(allocation)) ||
+                allocation.id === selectedAllocationId,
+            )
+            .map((allocation: any) => (
+              <MenuItem value={allocation.id} key={allocation.id}>
+                {allocationOptionLabel(allocation)}
+              </MenuItem>
+            ))}
         </Select>
       </FormControl>
       <div>
