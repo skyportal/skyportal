@@ -1,7 +1,7 @@
 """Redshift type
 
 Revision ID: 02d239a276d5
-Revises: b4d2e8f1c7a3
+Revises: 3843619c7b1a
 Create Date: 2026-11-18 00:00:00.000000
 
 """
@@ -11,7 +11,7 @@ import sqlalchemy as sa
 from alembic import op
 
 revision = "02d239a276d5"
-down_revision = "b4d2e8f1c7a3"
+down_revision = "3843619c7b1a"
 branch_labels = None
 depends_on = None
 
