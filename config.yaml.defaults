@@ -251,6 +251,9 @@ app:
   # TTT API endpoint
   ttt_endpoint: https://dto.ttt.lightbridges.es/api
 
+  # ATCA rapid response (NAPA over-ride) service
+  atca_endpoint: https://www.narrabri.atnf.csiro.au/cgi-bin/obstools/rapid_response/rapid_response_service.py
+
   ztf:
     protocol: https
     host: kowalski.caltech.edu

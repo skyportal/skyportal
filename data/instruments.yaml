@@ -1396,6 +1396,7 @@
       "radio-93GHz",
       "radio-95GHz",
     ]
+  api_classname: ATCAAPI
 - name: FRAM-CTA-N
   type: imager
   band: optical
