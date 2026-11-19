@@ -534,10 +534,10 @@ const Candidate = ({
         <VegaPhotometry
           sourceId={lead.id}
           style={{
-            width: "68%",
+            width: "92%",
             height: "100%",
-            minHeight: "16rem",
-            maxHeight: "16rem",
+            minHeight: "19.5rem",
+            maxHeight: "19.5rem",
           }}
         />
         {trackId && candidate.broker_id != null && (

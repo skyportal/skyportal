@@ -247,12 +247,12 @@ const spec = (
   }
   if (hasStyle) {
     if (style.width || style.maxWidth || style.minWidth) {
-      specJSON.layer[0].width = "container";
+      specJSON.width = "container";
     }
     if (style.height || style.maxHeight || style.minHeight) {
-      specJSON.layer[0].height = "container";
+      specJSON.height = "container";
     }
-    specJSON.layer[0].autosize = {
+    specJSON.autosize = {
       type: "fit",
       contains: "padding",
     };

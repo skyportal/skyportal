@@ -19,9 +19,9 @@ import {
 } from "../../ducks/similarity";
 
 const plotStyle = {
-  width: "calc(100% - 7.5rem)",
-  height: "12rem",
-  minHeight: "12rem",
+  width: "100%",
+  height: "15.5rem",
+  minHeight: "15.5rem",
 };
 
 const NeighborClass = ({ neighbor }: { neighbor: SimilarSource }) => {
