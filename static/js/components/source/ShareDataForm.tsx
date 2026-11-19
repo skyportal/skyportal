@@ -29,6 +29,7 @@ import CommentThread from "../comment/CommentThread";
 import AnnotationsTable from "./AnnotationsTable";
 import SyntheticPhotometryForm from "../photometry/SyntheticPhotometryForm";
 import SpectraPlot from "../plot/SpectraPlot";
+import EditSpectrumCredits from "../spectrum/EditSpectrumCredits";
 import withRouter from "../withRouter";
 import { getSpectrumFilename } from "./spectrumFilename";
 import { download } from "../../utils/download";
@@ -41,6 +42,7 @@ import {
 } from "../../ducks/spectra";
 import { useShareDataMutation } from "../../ducks/source";
 import { useGetGroupsQuery } from "../../ducks/groups";
+import { useGetProfileQuery } from "../../ducks/profile";
 
 const PhotometryGridToolbar = () => <DataGridToolbar title="Photometry" />;
 
@@ -230,6 +232,10 @@ const ShareDataForm = ({ route }: ShareDataFormProps) => {
   const groups = useGetGroupsQuery().data?.all ?? null;
   const { data: photometry } = useFetchSourcePhotometryQuery({ id: route.id });
   const { data: spectra } = useFetchSourceSpectraQuery({ id: route.id });
+  const { data: profile } = useGetProfileQuery();
+  const canEditCredits = (spectrum: any) =>
+    spectrum.owner_id === profile?.id ||
+    Boolean(profile?.permissions?.includes("System admin"));
 
   const {
     handleSubmit,
@@ -383,6 +389,17 @@ const ShareDataForm = ({ route }: ShareDataFormProps) => {
       filterable: false,
       renderCell: ({ row }: any) =>
         row.external_observer || renderUsers(row.observers),
+    },
+    {
+      field: "edit_credits",
+      headerName: "Credits",
+      flex: 1,
+      minWidth: 120,
+      sortable: false,
+      filterable: false,
+      renderCell: ({ row }: any) =>
+        !row.__detail &&
+        canEditCredits(row) && <EditSpectrumCredits spectrum={row} />,
     },
     {
       field: "reducer_contact",
