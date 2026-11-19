@@ -809,6 +809,10 @@ class DatalabQueryHandler(BaseHandler):
                 annotations.append(annotation)
 
             if len(annotations) == 0:
+                if catalog.startswith("desi_"):
+                    return self.error(
+                        f"No {catalog.replace('_', ' ').upper()} spec_z within {radius_arcsec:g}″"
+                    )
                 return self.error("No photo z's available.")
 
             session.add_all(annotations)
