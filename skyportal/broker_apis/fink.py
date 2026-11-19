@@ -20,6 +20,7 @@ FINK_REST_URL = {
 }
 FINK_TIMEOUT = 60  # seconds
 BACKFILL_LIMIT = 1000
+ROUTING_RESCAN_INTERVAL = 60  # seconds
 
 
 def _filter_topic(filter_row):
@@ -28,6 +29,10 @@ def _filter_topic(filter_row):
     fink = altdata.get("fink") if isinstance(altdata, dict) else None
     topic = fink.get("topic") if isinstance(fink, dict) else None
     return topic or None
+
+
+def _kafka_topic(tag, survey):
+    return f"fink_{tag}_{survey.lower()}"
 
 
 async def _run_backfill(broker, filter_row, limit, stop=None, on_progress=None):
@@ -67,13 +72,13 @@ async def _run_backfill(broker, filter_row, limit, stop=None, on_progress=None):
     )
     survey = _fink_survey(broker)
     ingested = failed = 0
-    async with async_plain_session_factory() as session:
-        user = await session.scalar(sa.select(User).where(User.id == 1))
-        for oid, rs in by_obj.items():
-            if stop is not None and stop.is_set():
-                break
-            data = _normalize_fink_lsst(oid, rs)
-            try:
+    for oid, rs in by_obj.items():
+        if stop is not None and stop.is_set():
+            break
+        data = _normalize_fink_lsst(oid, rs)
+        try:
+            async with async_plain_session_factory() as session:
+                user = await session.scalar(sa.select(User).where(User.id == 1))
                 await save_object_as_candidate(
                     data,
                     survey,
@@ -82,12 +87,12 @@ async def _run_backfill(broker, filter_row, limit, stop=None, on_progress=None):
                     [filter_row.id],
                     passing_alert_id=(data.get("candidate") or {}).get("candid"),
                 )
-                ingested += 1
-            except Exception as e:
-                log(f"Fink backfill could not ingest {oid}: {e}")
-                failed += 1
-            if on_progress is not None:
-                on_progress(ingested, failed, len(by_obj))
+            ingested += 1
+        except Exception as e:
+            log(f"Fink backfill could not ingest {oid}: {e}")
+            failed += 1
+        if on_progress is not None:
+            on_progress(ingested, failed, len(by_obj))
     log(
         f"Fink backfill (broker {broker.id}, filter {filter_row.id}): "
         f"{ingested} ingested, {failed} failed, {len(by_obj)} found"
@@ -502,6 +507,7 @@ class FINKBROKER(BrokerAPI):
         (Fink topics are the science filters). Alerts from an unmapped topic fall
         back to the broker-wide ``altdata['filter_ids']``."""
         import asyncio
+        import time
 
         import sqlalchemy as sa
         from confluent_kafka import Consumer
@@ -518,32 +524,34 @@ class FINKBROKER(BrokerAPI):
         # Optional per-topic routing: {topic: [filter_id, ...]}. Alerts from a
         # mapped topic become Candidates under those Filters; unmapped topics fall
         # back to the broker-wide filter_ids.
-        topic_filter_ids = {
+        configured_routing = {
             str(k): list(v) for k, v in (fink.get("topic_filter_ids") or {}).items()
         }
+
         # Attached SP Filters carry their chosen Fink tag in
         # ``Filter.altdata['fink']['topic']``; merge each into the routing map so
         # admins don't have to maintain ``topic_filter_ids`` by hand.
-        async with async_plain_session_factory() as session:
-            rows = (
-                await session.scalars(
-                    sa.select(Filter).where(Filter.broker_id == broker.id)
-                )
-            ).all()
-        for f in rows:
-            ad = f.altdata if isinstance(f.altdata, dict) else {}
-            fink_cfg = ad.get("fink") if isinstance(ad, dict) else None
-            topic = fink_cfg.get("topic") if isinstance(fink_cfg, dict) else None
-            if not topic:
-                continue
-            ids = topic_filter_ids.setdefault(str(topic), [])
-            if f.id not in ids:
-                ids.append(f.id)
+        async def load_routing():
+            routing = {k: list(v) for k, v in configured_routing.items()}
+            async with async_plain_session_factory() as session:
+                rows = (
+                    await session.scalars(
+                        sa.select(Filter).where(Filter.broker_id == broker.id)
+                    )
+                ).all()
+            for f in rows:
+                tag = _filter_topic(f)
+                if not tag:
+                    continue
+                ids = routing.setdefault(_kafka_topic(tag, survey), [])
+                if f.id not in ids:
+                    ids.append(f.id)
+            # Subscribe to the explicit topics plus any keyed in the routing map.
+            topics = list(dict.fromkeys((fink.get("topics") or []) + list(routing)))
+            return routing, topics
+
+        topic_filter_ids, topics = await load_routing()
         maxtimeout = float(fink.get("maxtimeout", 5))
-        # Subscribe to the explicit topics plus any keyed in the routing map.
-        topics = list(
-            dict.fromkeys((fink.get("topics") or []) + list(topic_filter_ids))
-        )
 
         servers = fink.get("servers")
         if not servers:
@@ -574,8 +582,25 @@ class FINKBROKER(BrokerAPI):
         log(f"Fink ingestion (broker {broker.id}): subscribed to {topics}")
 
         count = 0
+        rescanned = time.monotonic()
         try:
             while not (stop is not None and stop.is_set()):
+                if time.monotonic() - rescanned >= ROUTING_RESCAN_INTERVAL:
+                    rescanned = time.monotonic()
+                    try:
+                        topic_filter_ids, new_topics = await load_routing()
+                    except Exception as e:
+                        log(f"Fink ingestion (broker {broker.id}): {e}")
+                        new_topics = topics
+                    if new_topics != topics:
+                        topics = new_topics
+                        if topics:
+                            consumer.subscribe(topics)
+                        else:
+                            consumer.unsubscribe()
+                        log(
+                            f"Fink ingestion (broker {broker.id}): subscribed to {topics}"
+                        )
                 msg = await asyncio.to_thread(consumer.poll, maxtimeout)
                 if msg is None or msg.error():
                     continue

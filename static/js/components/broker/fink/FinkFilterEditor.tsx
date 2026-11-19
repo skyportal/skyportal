@@ -90,8 +90,8 @@ const FinkFilterEditor = ({ broker, filterId }: FinkFilterEditorProps) => {
                     (topicsError as any)?.data?.message ??
                     (topicsError as any)?.error ??
                     "unknown error"
-                  }. You can still type a topic name.`
-                : "Pick a tag published by Fink, or type a topic name."
+                  }. You can still type a tag name.`
+                : "Pick a tag published by Fink, or type a tag name."
             }
           />
         )}
