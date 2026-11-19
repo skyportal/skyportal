@@ -462,6 +462,13 @@ interface CandidateProps {
   hosts: Record<string, BrokerHost> | null | undefined;
 }
 
+const photometryPlotStyle = {
+  width: "92%",
+  height: "100%",
+  minHeight: "19.5rem",
+  maxHeight: "19.5rem",
+};
+
 const Candidate = ({
   stack,
   filterGroups,
@@ -533,12 +540,7 @@ const Candidate = ({
       <Box sx={{ gridArea: "photometry" }}>
         <VegaPhotometry
           sourceId={lead.id}
-          style={{
-            width: "92%",
-            height: "100%",
-            minHeight: "19.5rem",
-            maxHeight: "19.5rem",
-          }}
+          style={photometryPlotStyle}
           defaultShowUpperLimits={false}
           renderer="canvas"
         />
