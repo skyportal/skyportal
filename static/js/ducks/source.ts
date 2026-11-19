@@ -682,6 +682,15 @@ export const sourceApi = skyportalApi.injectEndpoints({
       }),
       invalidatesTags: (_result, _error, id) => sourceTag(id),
     }),
+    getMPCObscode: build.query<
+      { obscode: string },
+      { id: number | string; date: string }
+    >({
+      query: ({ id, date }) => ({
+        url: `api/sources/${id}/mpc`,
+        params: { date },
+      }),
+    }),
     addMPC: build.mutation<
       any,
       { id: number | string; formData: Record<string, any> }
@@ -840,6 +849,7 @@ export const {
   useAddTNSMutation,
   useAddHostMutation,
   useRemoveHostMutation,
+  useGetMPCObscodeQuery,
   useAddMPCMutation,
   useAddGCNCrossmatchMutation,
   useStartAnalysisMutation,
