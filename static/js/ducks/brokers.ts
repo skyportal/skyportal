@@ -237,6 +237,11 @@ export const brokersApi = skyportalApi.injectEndpoints({
       }),
       invalidatesTags: ["Broker"],
     }),
+    // Topics (Fink tags, Lasair stream names, ...) the current user can route to.
+    // Served by providers implementing ``available_topics``.
+    getBrokerAvailableTopics: build.query<{ topics: string[] }, number>({
+      query: (brokerId) => `api/brokers/${brokerId}/credentials/topics`,
+    }),
     // Registered provider classes + their config form schemas / capabilities.
     getBrokerAPIs: build.query<Record<string, BrokerAPIInfo>, void>({
       query: () => "api/internal/broker_apis",
@@ -355,6 +360,7 @@ export const {
   useGetFilterCatalogQuery,
   useAttachFilterToBrokerMutation,
   useSaveBrokerFilterMutation,
+  useGetBrokerAvailableTopicsQuery,
   useGetBrokerAPIsQuery,
   useCreateBrokerMutation,
   useUpdateBrokerMutation,

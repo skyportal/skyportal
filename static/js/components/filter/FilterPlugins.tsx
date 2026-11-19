@@ -9,6 +9,7 @@ import Typography from "@mui/material/Typography";
 import { setBrokerFilterTarget } from "../../ducks/brokerFilterTarget";
 import { useGetBrokersQuery } from "../../ducks/brokers";
 import { useGetFilterQuery } from "../../ducks/filter";
+import FinkFilterEditor from "../broker/fink/FinkFilterEditor";
 import LasairFilterEditor from "../broker/lasair/LasairFilterEditor";
 import BoomFilterPlugins from "./boom/BoomFilterPlugins";
 import GcnCrossmatchPlugin from "./GcnCrossmatchPlugin";
@@ -21,12 +22,20 @@ const FilterPlugins = () => {
 
   const brokerId = filter?.broker_id;
   const broker = brokers?.find((b) => b.id === brokerId);
+  const classname = broker?.broker_classname;
 
-  if (brokerId && broker?.broker_classname !== "LASAIRBROKER") {
+  if (brokerId && classname !== "LASAIRBROKER" && classname !== "FINKBROKER") {
     // Set synchronously, before BoomFilterPlugins' mount effects read it.
     setBrokerFilterTarget(brokerId);
     return <BoomFilterPlugins />;
   }
+
+  const renderEditor = () => {
+    if (!broker) return null;
+    if (classname === "FINKBROKER")
+      return <FinkFilterEditor broker={broker} filterId={filter.id} />;
+    return <LasairFilterEditor broker={broker} filterId={filter.id} />;
+  };
 
   return (
     <>
@@ -40,7 +49,7 @@ const FilterPlugins = () => {
       </Tabs>
       <Box sx={{ display: tab === 0 ? "block" : "none" }}>
         {broker ? (
-          <LasairFilterEditor broker={broker} filterId={filter.id} />
+          renderEditor()
         ) : (
           <Typography variant="body2" color="text.secondary" sx={{ mt: 2 }}>
             This filter is not attached to a broker. To attach it, go to a
