@@ -5,6 +5,7 @@ import DialogContent from "@mui/material/DialogContent";
 import DialogTitle from "@mui/material/DialogTitle";
 import Box from "@mui/material/Box";
 import Divider from "@mui/material/Divider";
+import IconButton from "@mui/material/IconButton";
 import Tooltip from "@mui/material/Tooltip";
 import Form from "@rjsf/mui";
 import validator from "@rjsf/validator-ajv8";
@@ -42,9 +43,6 @@ const comparators: Record<string, string> = {
 };
 
 const useStyles = makeStyles()(() => ({
-  editIcon: {
-    cursor: "pointer",
-  },
   cuts: {
     display: "flex",
     flexDirection: "column",
@@ -163,14 +161,17 @@ const UpdateSourceGCNCrossmatch = ({
   return (
     <>
       <Tooltip title="Query GCN event crossmatch">
-        <EditIcon
-          data-testid="updateMPCIconButton"
-          fontSize="small"
-          className={classes.editIcon}
-          onClick={() => {
-            setDialogOpen(true);
+        <IconButton
+          data-testid="updateGCNCrossmatchIconButton"
+          onClick={() => setDialogOpen(true)}
+          sx={{
+            p: "1px",
+            color: "text.secondary",
+            "&:hover": { color: "primary.main" },
           }}
-        />
+        >
+          <EditIcon sx={{ fontSize: "0.75rem" }} />
+        </IconButton>
       </Tooltip>
       <Dialog open={dialogOpen} onClose={() => setDialogOpen(false)}>
         <DialogTitle>Query GCN Event Crossmatch</DialogTitle>

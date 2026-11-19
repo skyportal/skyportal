@@ -12,6 +12,7 @@ import React, {
 import { Link } from "react-router-dom";
 
 import { makeStyles } from "tss-react/mui";
+import Box from "@mui/material/Box";
 import Grid from "@mui/material/Grid";
 import Tooltip from "@mui/material/Tooltip";
 import Checkbox from "@mui/material/Checkbox";
@@ -794,11 +795,7 @@ const SourceContent = ({ source }: SourceContentProps) => {
                   <UpdateSourceMPC source={source} />
                 )}
               </div>
-              <div
-                className={classes.rowInfo}
-                onMouseEnter={() => handleHover("gcn")}
-                onMouseLeave={() => handleStopHover("gcn")}
-              >
+              <Box className={classes.rowInfo} sx={{ position: "relative" }}>
                 <b>GCN Crossmatches: &nbsp;</b>
                 {source.gcn_crossmatch?.length > 0 && (
                   <SourceGCNCrossmatchList
@@ -806,10 +803,26 @@ const SourceContent = ({ source }: SourceContentProps) => {
                     source={source}
                   />
                 )}
-                {!isReadOnly && hovering === "gcn" && (
-                  <UpdateSourceGCNCrossmatch source={source} />
+                {!isReadOnly && (
+                  <Box
+                    component="span"
+                    sx={{
+                      position: "absolute",
+                      left: "100%",
+                      top: "50%",
+                      transform: "translateY(-50%)",
+                      ml: "-1px",
+                      display: "flex",
+                      opacity: 0,
+                      transition: "opacity 0.15s",
+                      "*:hover > &, *:focus-within > &": { opacity: 1 },
+                      "@media (hover: none)": { opacity: 1 },
+                    }}
+                  >
+                    <UpdateSourceGCNCrossmatch source={source} />
+                  </Box>
                 )}
-              </div>
+              </Box>
               <div className={classes.rowInfo}>
                 <SourceAlias source={source} />
               </div>
