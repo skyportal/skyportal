@@ -48,6 +48,7 @@ import { useLazyGetPlanWithSameNameExistsQuery } from "../../ducks/observationPl
 import { useGetLocalizationQuery } from "../../ducks/localization";
 import { download } from "../../utils/download";
 import GroupShareSelect from "../group/GroupShareSelect";
+import SearchableValueSelect from "../SearchableValueSelect";
 const LocalizationPlot = lazy(() => import("../localization/LocalizationPlot"));
 
 dayjs.extend(relativeTime);
@@ -94,10 +95,6 @@ const FieldSelect = ({
   });
   fields.sort((a, b) => a - b);
 
-  const handleSelectedFieldChange = (e: any) => {
-    setSelectedFields(e.target.value);
-  };
-
   const clearSelectedFields = () => {
     setSelectedFields([]);
   };
@@ -108,24 +105,15 @@ const FieldSelect = ({
 
   return (
     <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-      <FormControl size="small" sx={{ flex: 1 }}>
-        <InputLabel id="fieldsToUseSelectLabel">Fields to use</InputLabel>
-        <Select
-          label="Fields to use"
-          inputProps={{ MenuProps: { disableScrollLock: true } }}
-          labelId="fieldsToUseSelectLabel"
-          name="fieldsToUseSelect"
-          multiple
-          value={selectedFields || []}
-          onChange={handleSelectedFieldChange}
-        >
-          {fields?.map((field) => (
-            <MenuItem value={field} key={field}>
-              {field}
-            </MenuItem>
-          ))}
-        </Select>
-      </FormControl>
+      <SearchableValueSelect
+        id="fieldsToUseSelect"
+        label="Fields to use"
+        multiple
+        options={fields}
+        value={selectedFields || []}
+        onChange={setSelectedFields}
+        sx={{ flex: 1 }}
+      />
       <Button
         id="clear-fieldsToUseSelect"
         size="small"
@@ -369,6 +357,13 @@ const ObservationPlanRequestForm = ({
   ]);
 
   // filter out the allocations that dont have "observaton_plan" in the types
+  const allocationOptionLabel = (allocation: any) =>
+    `${
+      telLookUp[instLookUp[allocation.instrument_id]?.telescope_id]?.name
+    } / ${instLookUp[allocation.instrument_id]?.name} - ${
+      groupLookUp[allocation.group_id]?.name
+    } (PI ${allocation.pi})`;
+
   const filteredAllocationListApiObsplan = allocationListApiObsplan.filter(
     (allocation: any) => allocation.types.includes("observation_plan"),
   );
@@ -704,29 +699,18 @@ const ObservationPlanRequestForm = ({
             setSelectedFields={setSelectedFields}
             skymapInstrument={skymapInstrument}
           />
-          <FormControl size="small" fullWidth>
-            <InputLabel id="allocationSelectLabel">Allocation</InputLabel>
-            <Select
-              label="Allocation"
-              inputProps={{ MenuProps: { disableScrollLock: true } }}
-              labelId="allocationSelectLabel"
-              value={selectedAllocationId}
-              onChange={handleSelectedAllocationChange}
-              name="followupRequestAllocationSelect"
-            >
-              {filteredAllocationListApiObsplan?.map((allocation: any) => (
-                <MenuItem value={allocation.id} key={allocation.id}>
-                  {`${
-                    telLookUp[
-                      instLookUp[allocation.instrument_id]?.telescope_id
-                    ]?.name
-                  } / ${instLookUp[allocation.instrument_id]?.name} - ${
-                    groupLookUp[allocation.group_id]?.name
-                  } (PI ${allocation.pi})`}
-                </MenuItem>
-              ))}
-            </Select>
-          </FormControl>
+          <SearchableValueSelect
+            id="allocationSelectLabel"
+            label="Allocation"
+            options={filteredAllocationListApiObsplan ?? []}
+            getOptionLabel={allocationOptionLabel}
+            value={selectedAllocationId}
+            onChange={(value) =>
+              handleSelectedAllocationChange({ target: { value } })
+            }
+            disableClearable
+            fullWidth
+          />
           <FormControl size="small" fullWidth>
             <InputLabel id="localizationSelectLabel">Localization</InputLabel>
             <Select

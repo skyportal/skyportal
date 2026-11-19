@@ -13,13 +13,8 @@ import IconButton from "@mui/material/IconButton";
 import Tooltip from "@mui/material/Tooltip";
 import DeleteIcon from "@mui/icons-material/Delete";
 import EditIcon from "@mui/icons-material/Edit";
-import FormControl from "@mui/material/FormControl";
 import Grid from "@mui/material/Grid";
-import Input from "@mui/material/Input";
-import InputLabel from "@mui/material/InputLabel";
-import MenuItem from "@mui/material/MenuItem";
 import Paper from "@mui/material/Paper";
-import Select from "@mui/material/Select";
 import TextField from "@mui/material/TextField";
 import Typography from "@mui/material/Typography";
 import { makeStyles } from "tss-react/mui";
@@ -34,7 +29,7 @@ import {
   useUpdateTeamMutation,
 } from "../../ducks/teams";
 import type { Team } from "../../ducks/teams";
-import RemovableChip from "../RemovableChip";
+import SearchableValueSelect from "../SearchableValueSelect";
 
 const useStyles = makeStyles()((theme) => ({
   container: {
@@ -92,10 +87,6 @@ const TeamForm = ({ team, onDone }: { team?: Team; onDone?: () => void }) => {
   const [updateTeam] = useUpdateTeamMutation();
 
   const accessibleGroups = groupsData?.userAccessible ?? [];
-  const groupIDToName: Record<number, string> = {};
-  accessibleGroups.forEach((g: any) => {
-    groupIDToName[g.id] = g.name;
-  });
 
   const [form, setForm] = useState({
     ...emptyForm,
@@ -224,42 +215,17 @@ const TeamForm = ({ team, onDone }: { team?: Team; onDone?: () => void }) => {
         />
       </Box>
       <Box>
-        <FormControl className={classes.formControl}>
-          <InputLabel id="select-groups-label">Groups</InputLabel>
-          <Select
-            labelId="select-groups-label"
-            id="teamGroupsSelect"
-            name="group_ids"
-            multiple
-            value={form.group_ids}
-            onChange={handleChange}
-            input={<Input id="selectGroupsChip" />}
-            renderValue={(selected: any) => (
-              <div className={classes.chips}>
-                {selected.map((value: number) => (
-                  <RemovableChip
-                    key={value}
-                    label={groupIDToName[value]}
-                    onDelete={() =>
-                      setForm((prev) => ({
-                        ...prev,
-                        group_ids: prev.group_ids.filter(
-                          (id: number) => id !== value,
-                        ),
-                      }))
-                    }
-                  />
-                ))}
-              </div>
-            )}
-          >
-            {accessibleGroups.map((group: any) => (
-              <MenuItem key={group.id} value={group.id}>
-                {group.name}
-              </MenuItem>
-            ))}
-          </Select>
-        </FormControl>
+        <SearchableValueSelect
+          id="teamGroupsSelect"
+          label="Groups"
+          multiple
+          options={accessibleGroups}
+          value={form.group_ids}
+          onChange={(ids: number[]) =>
+            setForm((prev) => ({ ...prev, group_ids: ids }))
+          }
+          className={classes.formControl}
+        />
       </Box>
       <Box sx={{ display: "flex", gap: "0.5rem", mt: 1 }}>
         <Button primary type="submit">

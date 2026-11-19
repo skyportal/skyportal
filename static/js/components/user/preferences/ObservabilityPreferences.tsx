@@ -57,6 +57,7 @@ const ObservabilityPreferences = () => {
       )}
       onChange={handleChange}
       options={telescopeNameList}
+      searchable
     />
   );
 };

@@ -12,6 +12,7 @@ import { useAppDispatch } from "../../../types/hooks";
 import { useGetGroupsQuery } from "../../../ducks/groups";
 import { useGetGcnEventsQuery } from "../../../ducks/gcnEvents";
 import { useGenerateScanReportMutation } from "../../../ducks/candidate/scan_reports";
+import SearchableSelectWidget from "../../SearchableSelectWidget";
 
 const dateRange = (title: string, start: string, end: string): RJSFSchema => ({
   title,
@@ -113,9 +114,11 @@ const GenerateReportForm = ({
           }}
           uiSchema={{
             group_ids: {
+              "ui:widget": SearchableSelectWidget,
               "ui:enumNames": groups.map((group) => group.name),
             },
             gcn_event_dateobs: {
+              "ui:widget": SearchableSelectWidget,
               "ui:enumNames": [
                 "All events",
                 ...gcnEvents.map((e) =>

@@ -5,8 +5,6 @@ import Dialog from "@mui/material/Dialog";
 import DialogActions from "@mui/material/DialogActions";
 import DialogContent from "@mui/material/DialogContent";
 import DialogTitle from "@mui/material/DialogTitle";
-import MenuItem from "@mui/material/MenuItem";
-import Select from "@mui/material/Select";
 import Typography from "@mui/material/Typography";
 
 import { showNotification } from "baselayer/components/Notifications";
@@ -14,6 +12,7 @@ import { showNotification } from "baselayer/components/Notifications";
 import { useAppDispatch } from "../../types/hooks";
 import { useSaveSourceMutation } from "../../ducks/source";
 import type { SuperObjEpoch } from "../../ducks/superObjs";
+import SearchableValueSelect from "../SearchableValueSelect";
 
 interface GroupOption {
   id: number;
@@ -110,22 +109,15 @@ const SaveTrackButton = ({
             the group reports to the Minor Planet Center, the track is submitted
             once rather than once per detection.
           </Typography>
-          <Select
+          <SearchableValueSelect
             fullWidth
             size="small"
-            displayEmpty
-            value={groupId}
-            onChange={(e) => setGroupId(Number(e.target.value))}
-          >
-            <MenuItem value="" disabled>
-              Select a group
-            </MenuItem>
-            {userGroups.map((group) => (
-              <MenuItem key={group.id} value={group.id}>
-                {group.nickname || group.name}
-              </MenuItem>
-            ))}
-          </Select>
+            placeholder="Select a group"
+            options={userGroups}
+            getOptionLabel={(group: any) => group.nickname || group.name}
+            value={groupId === "" ? null : groupId}
+            onChange={(id: number | null) => setGroupId(id ?? "")}
+          />
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setOpen(false)}>Cancel</Button>

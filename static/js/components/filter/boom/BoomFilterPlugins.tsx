@@ -3,7 +3,6 @@ import FormControlLabel from "@mui/material/FormControlLabel";
 import Switch from "@mui/material/Switch";
 import Tab from "@mui/material/Tab";
 import Tabs from "@mui/material/Tabs";
-import MenuItem from "@mui/material/MenuItem";
 import Paper from "@mui/material/Paper";
 import TextField from "@mui/material/TextField";
 import Box from "@mui/material/Box";
@@ -42,6 +41,7 @@ import { useGetGroupsQuery } from "../../../ducks/groups";
 import { useGetGroupQuery } from "../../../ducks/group";
 import { useDeleteDefaultFollowupRequestMutation } from "../../../ducks/default_followup_requests";
 import { useGetProfileQuery } from "../../../ducks/profile";
+import SearchableValueSelect from "../../SearchableValueSelect";
 
 const builderSx = {
   "& > .MuiBox-root": {
@@ -448,39 +448,20 @@ const BoomFilterPlugins = () => {
         </Section>
         {autoSaveOn && (
           <Section title="Auto-save options" nested grid>
-            <TextField
-              select
+            <SearchableValueSelect
               size="small"
               label="Skip if already in"
+              multiple
+              limitTags={2}
+              options={allGroups.filter(
+                (g: any) =>
+                  !g.single_user_group || autoSaveIgnoreGroupIds.includes(g.id),
+              )}
               value={autoSaveIgnoreGroupIds}
-              onChange={(e) =>
-                updateFlags({ autoSaveIgnoreGroupIds: e.target.value })
+              onChange={(ids: number[]) =>
+                updateFlags({ autoSaveIgnoreGroupIds: ids })
               }
-              slotProps={{
-                select: {
-                  multiple: true,
-                  renderValue: (ids: any) =>
-                    ids
-                      .map(
-                        (id: number) =>
-                          allGroups.find((g: any) => g.id === id)?.name ?? id,
-                      )
-                      .join(", "),
-                },
-              }}
-            >
-              {allGroups
-                .filter(
-                  (g: any) =>
-                    !g.single_user_group ||
-                    autoSaveIgnoreGroupIds.includes(g.id),
-                )
-                .map((g: any) => (
-                  <MenuItem key={g.id} value={g.id}>
-                    {g.name}
-                  </MenuItem>
-                ))}
-            </TextField>
+            />
             <Tooltip title="Default 2″; 0 = exact match only">
               <TextField
                 size="small"
@@ -499,24 +480,21 @@ const BoomFilterPlugins = () => {
                 }
               />
             </Tooltip>
-            <TextField
-              select
+            <SearchableValueSelect
               size="small"
               label="Save as"
-              value={altdata.autoSaveSaverId ?? ""}
-              onChange={(e) =>
-                updateFlags({ autoSaveSaverId: e.target.value || null })
+              options={[
+                { id: "", username: "Bot (default)" },
+                ...((filterGroup as any)?.users ?? []),
+              ]}
+              getOptionLabel={(u: any) => u.username}
+              renderOptionContent={(u: any) =>
+                u.id === "" ? <em>{u.username}</em> : u.username
               }
-            >
-              <MenuItem value="">
-                <em>Bot (default)</em>
-              </MenuItem>
-              {((filterGroup as any)?.users ?? []).map((u: any) => (
-                <MenuItem key={u.id} value={u.id}>
-                  {u.username}
-                </MenuItem>
-              ))}
-            </TextField>
+              value={altdata.autoSaveSaverId ?? ""}
+              onChange={(id) => updateFlags({ autoSaveSaverId: id || null })}
+              disableClearable
+            />
             <TextField
               size="small"
               label="Save comment"

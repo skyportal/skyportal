@@ -8,6 +8,7 @@ import {
   CROSSMATCH_ORIGIN,
   buildAnnotationFilters,
 } from "./gcnSourcesAnnotationFilters";
+import SearchableSelectWidget from "../SearchableSelectWidget";
 
 /** The source query's own parameters.
  *
@@ -125,7 +126,10 @@ const sourcesFormSchema = (
 });
 
 const uiSchema = (groups: any[]) => ({
-  group_ids: { "ui:enumNames": groups.map((group) => group.name) },
+  group_ids: {
+    "ui:widget": SearchableSelectWidget,
+    "ui:enumNames": groups.map((group) => group.name),
+  },
   "ui:grid": [
     { startDate: 6, endDate: 6 },
     { localizationCumprob: 4, numberDetections: 4, group_ids: 4 },

@@ -107,9 +107,9 @@ def test_shift(
     # add button disabled because no user selected yet
     expect(page.locator(add_members_button_xpath).first).to_be_disabled()
 
-    select_members = '//*[@aria-labelledby="select-members-label"]'
+    select_members = '//input[@id="select-members"]'
     page.locator(select_members).first.click()
-    page.locator(f'//li[@id="select-members"]/*[@id="{user.id}"]').first.click()
+    page.locator(f'//li[@data-value="{user.id}"]').first.click()
     page.keyboard.press("Escape")  # close the multi-select so buttons are clickable
 
     # remove button disabled because no added user selected yet
@@ -121,10 +121,8 @@ def test_shift(
     ).to_be_visible()
 
     page.locator(select_members).first.click()
-    page.locator(f'//li[@id="select-members"]/*[@id="{user.id}"]').first.click()
-    page.locator(
-        f'//li[@id="select-members"]/*[@id="{view_only_user.id}"]'
-    ).first.click()
+    page.locator(f'//li[@data-value="{user.id}"]').first.click()
+    page.locator(f'//li[@data-value="{view_only_user.id}"]').first.click()
     page.keyboard.press("Escape")
 
     page.locator(add_members_button_xpath).first.click()
@@ -138,9 +136,7 @@ def test_shift(
     ).to_be_visible()
 
     page.locator(select_members).first.click()
-    page.locator(
-        f'//li[@id="select-members"]/*[@id="{view_only_user.id}"]'
-    ).first.click()
+    page.locator(f'//li[@data-value="{view_only_user.id}"]').first.click()
     page.keyboard.press("Escape")
 
     expect(page.locator(add_members_button_xpath).first).to_be_disabled()

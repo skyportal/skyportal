@@ -7,11 +7,7 @@ import {
   useUpdateShiftUserMutation,
 } from "../../ducks/shifts";
 import Tooltip from "@mui/material/Tooltip";
-import FormControl from "@mui/material/FormControl";
-import InputLabel from "@mui/material/InputLabel";
-import Select from "@mui/material/Select";
-import Box from "@mui/material/Box";
-import MenuItem from "@mui/material/MenuItem";
+import Chip from "@mui/material/Chip";
 import Checkbox from "@mui/material/Checkbox";
 import ListItemIcon from "@mui/material/ListItemIcon";
 import Remove from "@mui/icons-material/Remove";
@@ -20,7 +16,7 @@ import ListItemText from "@mui/material/ListItemText";
 import { showNotification } from "baselayer/components/Notifications";
 import { userLabel } from "../../utils/format";
 import Button from "../Button";
-import RemovableChip from "../RemovableChip";
+import SearchableValueSelect from "../SearchableValueSelect";
 
 // Returns users in the shift group and that are either in the shift or have not expired
 const getShiftGroupUsersFiltered = (shift: any) => {
@@ -205,61 +201,47 @@ function ShiftUsersSelect({
         gap: "0.5rem",
       }}
     >
-      <FormControl sx={{ width: "60%" }}>
-        <InputLabel id={`select-${usersType}-label`}>
-          Select {usersType} to manage
-        </InputLabel>
-        <Select
-          labelId={`select-${usersType}-label`}
-          label={`Select ${usersType} to manage`}
-          multiple
-          value={selectedIds}
-          onChange={(e) => setSelectedIds(e.target.value as any)}
-          renderValue={(userIdsToManage: any) => (
-            <Box>
-              {userIdsToManage.map((userId: any) => (
-                <RemovableChip
-                  key={userId}
-                  id={userId}
-                  onDelete={() =>
-                    setSelectedIds(
-                      userIdsToManage.filter((id: any) => id !== userId),
-                    )
-                  }
-                  label={userLabel(
-                    users.find((u: any) => u.id === userId),
-                    true,
-                    true,
-                  )}
-                  sx={{
-                    backgroundColor: userInShift(userId, usersType === "admins")
-                      ? "#f6b4b4"
-                      : "#a5d6a7",
-                  }}
-                />
-              ))}
-            </Box>
-          )}
-          MenuProps={{ slotProps: { paper: { style: { maxHeight: "25vh" } } } }}
-        >
-          {users.map((user: any) => (
-            <MenuItem id={`select-${usersType}`} key={user.id} value={user.id}>
-              <Checkbox checked={selectedIds.includes(user.id)} />
-              <ListItemIcon>
-                {userInShift(user.id, usersType === "admins") ? (
-                  <Remove style={{ color: "red" }} />
-                ) : (
-                  <Add style={{ color: "green" }} />
-                )}
-              </ListItemIcon>
-              <ListItemText
-                id={user.id}
-                primary={userLabel(user, true, true)}
+      <SearchableValueSelect
+        id={`select-${usersType}`}
+        label={`Select ${usersType} to manage`}
+        multiple
+        options={users}
+        value={selectedIds}
+        onChange={setSelectedIds}
+        getOptionLabel={(user: any) => userLabel(user, true, true)}
+        renderValue={(selected: any[], getItemProps: any) =>
+          selected.map((user: any, index: number) => {
+            const { key, ...itemProps } = getItemProps({ index });
+            return (
+              <Chip
+                key={key}
+                {...itemProps}
+                size="small"
+                label={userLabel(user, true, true)}
+                sx={{
+                  backgroundColor: userInShift(user.id, usersType === "admins")
+                    ? "#f6b4b4"
+                    : "#a5d6a7",
+                }}
               />
-            </MenuItem>
-          ))}
-        </Select>
-      </FormControl>
+            );
+          })
+        }
+        renderOptionContent={(user: any) => (
+          <>
+            <Checkbox checked={selectedIds.includes(user.id)} />
+            <ListItemIcon>
+              {userInShift(user.id, usersType === "admins") ? (
+                <Remove style={{ color: "red" }} />
+              ) : (
+                <Add style={{ color: "green" }} />
+              )}
+            </ListItemIcon>
+            <ListItemText id={user.id} primary={userLabel(user, true, true)} />
+          </>
+        )}
+        sx={{ width: "60%" }}
+      />
       {manageUsersButton(selectedIds, usersType === "admins", true)}
       {manageUsersButton(selectedIds, usersType === "admins", false)}
     </div>

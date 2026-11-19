@@ -1,13 +1,9 @@
 import { useGetGroupsQuery } from "../../ducks/groups";
 import { useState } from "react";
 import TextField from "@mui/material/TextField";
-import MenuItem from "@mui/material/MenuItem";
-import Select from "@mui/material/Select";
-import Input from "@mui/material/Input";
-import InputLabel from "@mui/material/InputLabel";
 import { createFilterOptions } from "@mui/material/Autocomplete";
-import { makeStyles } from "tss-react/mui";
 import SearchableSelect from "../SearchableSelect";
+import SearchableValueSelect from "../SearchableValueSelect";
 
 import Form from "@rjsf/mui";
 import validator from "@rjsf/validator-ajv8";
@@ -15,17 +11,6 @@ import validator from "@rjsf/validator-ajv8";
 import { showNotification } from "baselayer/components/Notifications";
 import { useAppDispatch } from "../../types/hooks";
 import { useAddClassificationMutation } from "../../ducks/source";
-import RemovableChip from "../RemovableChip";
-
-const useStyles = makeStyles()(() => ({
-  chips: {
-    display: "flex",
-    flexWrap: "wrap",
-  },
-  chip: {
-    margin: 2,
-  },
-}));
 
 // For each node in the hierarchy tree, add its full path from root
 // to the nodePaths list
@@ -106,72 +91,22 @@ const CustomGroupsWidget = ({
   value,
   onChange,
   options,
-}: CustomGroupsWidgetProps) => {
-  const { classes } = useStyles();
-  const groups = useGetGroupsQuery().data?.userAccessible ?? [];
-
-  const groupIDToName: Record<string, any> = {};
-  groups?.forEach((g) => {
-    groupIDToName[g.id] = g.name;
-  });
-
-  const ITEM_HEIGHT = 48;
-  const MenuProps = {
-    slotProps: {
-      paper: {
-        style: {
-          maxHeight: ITEM_HEIGHT * 4.5,
-          width: 250,
-        },
-      },
-    },
-  };
-  return (
-    <>
-      <InputLabel id="classificationGroupSelectLabel">
-        Choose Group (public if not specified)
-      </InputLabel>
-      <Select
-        id="groupSelect"
-        inputProps={{ MenuProps: { disableScrollLock: true } }}
-        onChange={(event) => {
-          onChange(event.target.value);
-        }}
-        input={<Input id="selectGroupsChip" />}
-        labelId="classificationGroupSelectLabel"
-        value={(value || "") as any}
-        renderValue={(selected: any) => (
-          <div className={classes.chips}>
-            {selected?.map((group: any) => (
-              <RemovableChip
-                key={group}
-                label={groupIDToName[group]}
-                className={classes.chip}
-                onDelete={() =>
-                  onChange(selected.filter((g: any) => g !== group))
-                }
-              />
-            ))}
-          </div>
-        )}
-        MenuProps={MenuProps}
-        fullWidth
-        multiple
-      >
-        {(options.enumOptions?.length ?? 0) > 0 &&
-          options.enumOptions?.map((group: any) => (
-            <MenuItem
-              value={group.value}
-              key={group.value.toString()}
-              data-testid={`notificationGroupSelect_${group.value}`}
-            >
-              {group.label}
-            </MenuItem>
-          ))}
-      </Select>
-    </>
-  );
-};
+}: CustomGroupsWidgetProps) => (
+  <SearchableValueSelect
+    id="groupSelect"
+    label="Choose Group (public if not specified)"
+    multiple
+    options={options.enumOptions ?? []}
+    value={value ?? []}
+    onChange={onChange}
+    renderOptionContent={(group: any) => (
+      <span data-testid={`notificationGroupSelect_${group.value}`}>
+        {group.label}
+      </span>
+    )}
+    fullWidth
+  />
+);
 
 interface CustomClassificationWidgetProps {
   value?: string;

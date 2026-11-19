@@ -26,6 +26,7 @@ const GcnNoticeTypesSelect = ({
       initValue={selectedGcnNoticeTypes}
       onChange={(e: any) => setSelectedGcnNoticeTypes(e.target.value)}
       options={gcn_notice_types}
+      searchable
     />
   );
 };

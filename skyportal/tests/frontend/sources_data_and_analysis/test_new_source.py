@@ -20,7 +20,7 @@ def test_new_source(page, user, super_admin_token, view_only_token, public_group
     new_source_button.click()
 
     source_name = uuid.uuid4().hex
-    page.locator("//div[@id='selectGroups']").first.click()
+    page.locator("//*[@id='selectGroups']").first.click()
     group_option = page.locator(f'//div[@data-testid="group_{public_group.id}"]').first
     group_option.click()
 

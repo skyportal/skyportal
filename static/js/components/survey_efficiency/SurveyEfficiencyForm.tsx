@@ -21,6 +21,7 @@ import { useSubmitSurveyEfficiencyObservationPlanMutation } from "../../ducks/su
 import { useGetInstrumentsQuery } from "../../ducks/instruments";
 import { useGetAllocationsQuery } from "../../ducks/allocations";
 import GroupShareSelect from "../group/GroupShareSelect";
+import SearchableValueSelect from "../SearchableValueSelect";
 
 dayjs.extend(relativeTime);
 dayjs.extend(utc);
@@ -378,26 +379,19 @@ const SurveyEfficiencyForm = ({
         </Select>
       </div>
       <div>
-        <InputLabel id="instrumentSelectLabel">Instrument</InputLabel>
-        <Select
-          inputProps={{ MenuProps: { disableScrollLock: true } }}
-          labelId="instrumentSelectLabel"
-          value={selectedInstrumentId || ""}
-          onChange={handleSelectedInstrumentChange}
-          className={(classes as any).instrumentSelect}
-        >
-          {instrumentsWithSensitivities?.map((instrument: any) => (
-            <MenuItem
-              value={instrument.id}
-              key={instrument.id}
-              className={(classes as any).instrumentSelectItem}
-            >
-              {`${telLookUp[instrument.telescope_id]?.name} / ${
-                instrument.name
-              }`}
-            </MenuItem>
-          ))}
-        </Select>
+        <SearchableValueSelect
+          id="instrumentSelectLabel"
+          label="Instrument"
+          options={instrumentsWithSensitivities ?? []}
+          getOptionLabel={(instrument) =>
+            `${telLookUp[instrument.telescope_id]?.name} / ${instrument.name}`
+          }
+          value={selectedInstrumentId}
+          onChange={(value) =>
+            handleSelectedInstrumentChange({ target: { value } })
+          }
+          sx={{ minWidth: 300 }}
+        />
       </div>
       <GroupShareSelect
         groupList={allGroups}

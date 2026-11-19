@@ -84,6 +84,7 @@ import { SsoPoint } from "./ssoTransforms";
 import ScatterPlotIcon from "@mui/icons-material/ScatterPlot";
 import CornerPlot from "./CornerPlot";
 import RemovableChip from "../RemovableChip";
+import SearchableSelectWidget from "../SearchableSelectWidget";
 
 const BAND_GROUP_ORDER = ["u", "g", "r", "i", "z", "y", "other"];
 
@@ -358,6 +359,7 @@ const PeriodAnnotationDialog = ({
             schema={schema}
             uiSchema={{
               groupIDs: {
+                "ui:widget": SearchableSelectWidget,
                 "ui:enumNames": groups?.map((group: any) => group.name),
               },
             }}

@@ -11,6 +11,7 @@ import FormControlLabel from "@mui/material/FormControlLabel";
 import Switch from "@mui/material/Switch";
 import Slider from "@mui/material/Slider";
 import Button from "./Button";
+import SearchableValueSelect from "./SearchableValueSelect";
 import Tab from "@mui/material/Tab";
 import Tabs from "@mui/material/Tabs";
 import ToggleButton from "@mui/material/ToggleButton";
@@ -679,20 +680,13 @@ const SourceStatistics = () => {
             </Box>
           )}
           {sourceMode === "group" && (
-            <FormControl sx={{ flex: "1 1 18rem", maxWidth: "32rem" }}>
-              <InputLabel>Group</InputLabel>
-              <Select
-                label="Group"
-                value={selectGroupId}
-                onChange={(e) => setSelectGroupId(e.target.value as number)}
-              >
-                {(groupsData?.userAccessible || []).map((g) => (
-                  <MenuItem key={g.id} value={g.id}>
-                    {g.name}
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
+            <SearchableValueSelect
+              label="Group"
+              options={groupsData?.userAccessible || []}
+              value={selectGroupId === "" ? null : selectGroupId}
+              onChange={(id: number | null) => setSelectGroupId(id ?? "")}
+              sx={{ flex: "1 1 18rem", maxWidth: "32rem" }}
+            />
           )}
           {sourceMode === "objects" && (
             <SourceIdAutocomplete

@@ -1,7 +1,4 @@
 import { useEffect, useState } from "react";
-import Select from "@mui/material/Select";
-import InputLabel from "@mui/material/InputLabel";
-import MenuItem from "@mui/material/MenuItem";
 import Box from "@mui/material/Box";
 import Button from "@mui/material/Button";
 import Typography from "@mui/material/Typography";
@@ -23,6 +20,7 @@ import {
 } from "../../../ducks/instruments";
 import { useGetGroupsQuery } from "../../../ducks/groups";
 import GroupShareSelect from "../../group/GroupShareSelect";
+import SearchableValueSelect from "../../SearchableValueSelect";
 import { localeSafeFields } from "../../followup_request/LocaleSafeNumberField";
 
 const useStyles = makeStyles()(() => ({
@@ -183,6 +181,13 @@ const BoomFilterFollowupConfig = ({
     }
   };
 
+  const allocationOptionLabel = (allocation: any) =>
+    `${
+      telLookUp[instLookUp[allocation.instrument_id].telescope_id].name
+    } / ${instLookUp[allocation.instrument_id].name} - ${
+      groupLookUp[allocation.group_id]?.name
+    } (PI ${allocation.pi})`;
+
   const handleRemove = async () => {
     setBusy(true);
     try {
@@ -199,24 +204,15 @@ const BoomFilterFollowupConfig = ({
 
   return (
     <Box className={classes.container}>
-      <InputLabel id={`followup-alloc-${filterId}`}>Allocation</InputLabel>
-      <Select
-        inputProps={{ MenuProps: { disableScrollLock: true } }}
-        labelId={`followup-alloc-${filterId}`}
+      <SearchableValueSelect
+        id={`followup-alloc-${filterId}`}
+        label="Allocation"
+        options={filteredAllocations}
+        getOptionLabel={allocationOptionLabel}
         value={selectedAllocationId}
-        onChange={(e) => setSelectedAllocationId(e.target.value)}
+        onChange={setSelectedAllocationId}
         className={classes.Select}
-      >
-        {filteredAllocations.map((allocation: any) => (
-          <MenuItem value={allocation.id} key={allocation.id}>
-            {`${
-              telLookUp[instLookUp[allocation.instrument_id].telescope_id].name
-            } / ${instLookUp[allocation.instrument_id].name} - ${
-              groupLookUp[allocation.group_id]?.name
-            } (PI ${allocation.pi})`}
-          </MenuItem>
-        ))}
-      </Select>
+      />
       <GroupShareSelect
         groupList={allGroups}
         setGroupIDs={setSelectedGroupIds}

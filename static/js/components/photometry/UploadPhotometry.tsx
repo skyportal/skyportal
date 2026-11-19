@@ -3,9 +3,6 @@ import { useEffect, useMemo, useRef, useState } from "react";
 
 import { Link, useParams } from "react-router-dom";
 import TextareaAutosize from "@mui/material/TextareaAutosize";
-import Select from "@mui/material/Select";
-import MenuItem from "@mui/material/MenuItem";
-import InputLabel from "@mui/material/InputLabel";
 import FormControl from "@mui/material/FormControl";
 import Card from "@mui/material/Card";
 import CardContent from "@mui/material/CardContent";
@@ -28,6 +25,7 @@ import NewPhotometryForm from "./NewPhotometry";
 
 import GroupShareSelect from "../group/GroupShareSelect";
 import FormValidationError from "../FormValidationError";
+import SearchableValueSelect from "../SearchableValueSelect";
 import {
   useGetSourceQuery,
   useUploadPhotometryMutation,
@@ -518,46 +516,44 @@ const UploadPhotometryForm = () => {
                       >
                         <FormValidationError message="Select an instrument" />
                       </div>
-                      <FormControl className={classes.formControl}>
-                        <InputLabel id="instrumentSelectLabel">
-                          Instrument
-                        </InputLabel>
-                        <Controller
-                          name="instrumentID"
-                          rules={{ required: true }}
-                          control={control}
-                          defaultValue=""
-                          render={({ field: { onChange, value } }) => (
-                            <Select
-                              labelId="instrumentSelectLabel"
-                              label="Instrument"
-                              value={value}
-                              onChange={onChange}
-                            >
-                              <MenuItem value="multiple" key={0}>
-                                Use instrument_id column (for one or more
-                                instruments)
-                              </MenuItem>
-                              {sortedInstrumentList.map((instrument) => (
-                                <MenuItem
-                                  value={instrument.id}
-                                  key={instrument.id}
+                      <Controller
+                        name="instrumentID"
+                        rules={{ required: true }}
+                        control={control}
+                        defaultValue=""
+                        render={({ field: { onChange, value } }) => (
+                          <SearchableValueSelect
+                            id="instrumentSelectLabel"
+                            label="Instrument"
+                            className={classes.formControl}
+                            options={[
+                              {
+                                id: "multiple",
+                                label:
+                                  "Use instrument_id column (for one or more instruments)",
+                              },
+                              ...sortedInstrumentList.map((instrument) => ({
+                                id: instrument.id,
+                                label: `${instrument.name} (ID: ${instrument.id})`,
+                                filters: instrument.filters,
+                              })),
+                            ]}
+                            value={value === "" ? null : value}
+                            onChange={(newValue) => onChange(newValue ?? "")}
+                            renderOptionContent={(option) =>
+                              option.filters ? (
+                                <Tooltip
+                                  title={`Filters: ${option.filters.join(", ")}`}
                                 >
-                                  <Tooltip
-                                    title={`Filters: ${instrument.filters.join(
-                                      ", ",
-                                    )}`}
-                                  >
-                                    <span>
-                                      {`${instrument.name} (ID: ${instrument.id})`}
-                                    </span>
-                                  </Tooltip>
-                                </MenuItem>
-                              ))}
-                            </Select>
-                          )}
-                        />
-                      </FormControl>
+                                  <span>{option.label}</span>
+                                </Tooltip>
+                              ) : (
+                                option.label
+                              )
+                            }
+                          />
+                        )}
+                      />
                     </Box>
                   </Box>
                   <Box

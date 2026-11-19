@@ -24,6 +24,7 @@ const OriginSelect = ({
           initValue={initValue}
           onChange={onOriginSelectChange}
           options={originsList}
+          searchable
         />
       )}
     </>

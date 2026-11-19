@@ -9,6 +9,7 @@ import MenuItem from "@mui/material/MenuItem";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 import Button from "../Button";
+import SearchableValueSelect from "../SearchableValueSelect";
 
 import { useGetTelescopesQuery } from "../../ducks/telescopes";
 import {
@@ -141,31 +142,27 @@ const QueueAPIDisplay = () => {
     setSelectedQueueName(e.target.value);
   };
 
+  const allocationOptionLabel = (allocation: any) =>
+    `${
+      telLookUp[instLookUp[allocation.instrument_id].telescope_id].name
+    } / ${instLookUp[allocation.instrument_id].name} - ${
+      groupLookUp[allocation.group_id].name
+    } (PI ${allocation.pi})`;
+
   return (
     <div className={classes.container}>
-      <InputLabel id="allocationSelectLabel">Allocation</InputLabel>
-      <Select
-        inputProps={{ MenuProps: { disableScrollLock: true } }}
-        labelId="allocationSelectLabel"
-        defaultValue={selectedAllocationId || ""}
-        onChange={handleSelectedAllocationChange}
-        name="followupRequestAllocationSelect"
+      <SearchableValueSelect
+        id="allocationSelectLabel"
+        label="Allocation"
+        options={allocationListApiObsplan ?? []}
+        getOptionLabel={allocationOptionLabel}
+        value={selectedAllocationId}
+        onChange={(value) =>
+          handleSelectedAllocationChange({ target: { value } })
+        }
+        disableClearable
         className={classes.select}
-      >
-        {allocationListApiObsplan?.map((allocation: any) => (
-          <MenuItem
-            value={allocation.id}
-            key={allocation.id}
-            className={classes.SelectItem}
-          >
-            {`${
-              telLookUp[instLookUp[allocation.instrument_id].telescope_id].name
-            } / ${instLookUp[allocation.instrument_id].name} - ${
-              groupLookUp[allocation.group_id].name
-            } (PI ${allocation.pi})`}
-          </MenuItem>
-        ))}
-      </Select>
+      />
       <InputLabel id="queueNameSelectLabel">Queue Name</InputLabel>
       <Select
         inputProps={{ MenuProps: { disableScrollLock: true } }}

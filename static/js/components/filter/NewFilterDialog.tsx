@@ -14,6 +14,7 @@ import { useGetBrokersQuery } from "../../ducks/brokers";
 import { useAddGroupFilterMutation } from "../../ducks/filter";
 import { useGetGroupsQuery } from "../../ducks/groups";
 import { useGetStreamsQuery } from "../../ducks/streams";
+import SearchableValueSelect from "../SearchableValueSelect";
 
 interface NewFilterDialogProps {
   open: boolean;
@@ -77,34 +78,22 @@ const NewFilterDialog = ({
               value={name}
               onChange={(e) => setName(e.target.value)}
             />
-            <TextField
-              select
+            <SearchableValueSelect
               size="small"
               label="Group"
-              value={group}
+              options={groups?.userAccessible || []}
+              value={group === "" ? null : group}
               disabled={groupId !== undefined}
-              onChange={(e) => setSelectedGroup(Number(e.target.value))}
-            >
-              {(groups?.userAccessible || []).map((g) => (
-                <MenuItem key={g.id} value={g.id}>
-                  {g.name}
-                </MenuItem>
-              ))}
-            </TextField>
-            <TextField
-              select
+              onChange={(id: number | null) => setSelectedGroup(id ?? "")}
+            />
+            <SearchableValueSelect
               size="small"
               label="Stream"
-              value={stream}
+              options={(streams as { id: number; name: string }[]) || []}
+              value={stream === "" ? null : stream}
               disabled={streamId !== undefined}
-              onChange={(e) => setSelectedStream(Number(e.target.value))}
-            >
-              {((streams as { id: number; name: string }[]) || []).map((s) => (
-                <MenuItem key={s.id} value={s.id}>
-                  {s.name}
-                </MenuItem>
-              ))}
-            </TextField>
+              onChange={(id: number | null) => setSelectedStream(id ?? "")}
+            />
             {filterBrokers.length > 0 && (
               <TextField
                 select

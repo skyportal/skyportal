@@ -19,8 +19,6 @@ import DialogTitle from "@mui/material/DialogTitle";
 import Chip from "@mui/material/Chip";
 import Switch from "@mui/material/Switch";
 import Typography from "@mui/material/Typography";
-import Select from "@mui/material/Select";
-import MenuItem from "@mui/material/MenuItem";
 import Box from "@mui/material/Box";
 import InfoIcon from "@mui/icons-material/InfoOutlined";
 import FormGroup from "@mui/material/FormGroup";
@@ -34,6 +32,8 @@ import { showNotification } from "baselayer/components/Notifications";
 import { useAppDispatch } from "../../types/hooks";
 import Button from "../Button";
 import SearchableSelect from "../SearchableSelect";
+import SearchableSelectWidget from "../SearchableSelectWidget";
+import SearchableValueSelect from "../SearchableValueSelect";
 import StyledDataGridBase, {
   DataGridToolbar,
   FULL_PAGE_HEIGHT,
@@ -536,20 +536,13 @@ const SharingServiceGroups = ({
         />
       ))}
       <AddChip title="Add Group" onAdd={handleAdd} disabled={!group}>
-        <FormControl sx={{ mt: "0.4rem", minWidth: "20vw" }}>
-          <InputLabel>Group</InputLabel>
-          <Select
-            label="Group"
-            value={group || ""}
-            onChange={(e) => setGroup(e.target.value)}
-          >
-            {groupOptions.map((groupOption: any) => (
-              <MenuItem key={groupOption.id} value={groupOption.id}>
-                {groupOption.name}
-              </MenuItem>
-            ))}
-          </Select>
-        </FormControl>
+        <SearchableValueSelect
+          label="Group"
+          options={groupOptions}
+          value={group}
+          onChange={setGroup}
+          sx={{ mt: "0.4rem", minWidth: "20vw" }}
+        />
         <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
           <InputLabel>Owner</InputLabel>
           <Switch
@@ -1381,14 +1374,17 @@ const SharingServicesPage = () => {
             }
             uiSchema={{
               owner_group_ids: {
+                "ui:widget": SearchableSelectWidget,
                 "ui:enumNames": groups.map((group: any) => group.name),
               },
               instrument_ids: {
+                "ui:widget": SearchableSelectWidget,
                 "ui:enumNames": allowedInstruments.map(
                   (instrument: any) => instrument.name,
                 ),
               },
               stream_ids: {
+                "ui:widget": SearchableSelectWidget,
                 "ui:enumNames": streams.map((stream: any) => stream.name),
               },
               trove_password: { "ui:widget": "password" },

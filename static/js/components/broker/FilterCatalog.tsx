@@ -28,6 +28,7 @@ import { useGetGroupsQuery } from "../../ducks/groups";
 import { useGetStreamsQuery } from "../../ducks/streams";
 import { useAppDispatch } from "../../types/hooks";
 import StyledDataGrid from "../StyledDataGrid";
+import SearchableValueSelect from "../SearchableValueSelect";
 import ConfirmFilterDeletionDialog from "../filter/ConfirmFilterDeletionDialog";
 
 const FilterCatalog = ({ brokerId }: { brokerId?: number }) => {
@@ -247,25 +248,24 @@ const FilterCatalog = ({ brokerId }: { brokerId?: number }) => {
                 { key: "brokerID" as const, label: "Broker", options: brokers },
               ]),
         ].map(({ key, label, options }) => (
-          <TextField
+          <SearchableValueSelect
             key={key}
-            select
             size="small"
             label={label}
+            options={[
+              { id: "", name: `All ${label.toLowerCase()}s` },
+              ...options,
+              ...(key === "brokerID"
+                ? [{ id: "none", name: "No broker" }]
+                : []),
+            ]}
             value={query[key]}
-            onChange={(e) =>
-              updateQuery({ [key]: e.target.value } as FilterCatalogQuery)
+            onChange={(value) =>
+              updateQuery({ [key]: value ?? "" } as FilterCatalogQuery)
             }
+            disableClearable
             sx={{ minWidth: 160 }}
-          >
-            <MenuItem value="">{`All ${label.toLowerCase()}s`}</MenuItem>
-            {options.map((o) => (
-              <MenuItem key={o.id} value={o.id}>
-                {o.name}
-              </MenuItem>
-            ))}
-            {key === "brokerID" && <MenuItem value="none">No broker</MenuItem>}
-          </TextField>
+          />
         ))}
         <Typography variant="body2" color="text.secondary">
           {`${total} filter${total === 1 ? "" : "s"}`}

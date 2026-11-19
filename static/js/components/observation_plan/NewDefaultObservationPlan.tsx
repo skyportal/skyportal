@@ -2,15 +2,11 @@ import { useGetGroupsQuery } from "../../ducks/groups";
 import { useEffect, useState } from "react";
 import { useAppDispatch } from "../../types/hooks";
 import { useGetTelescopesQuery } from "../../ducks/telescopes";
-import Select from "@mui/material/Select";
-import InputLabel from "@mui/material/InputLabel";
-import MenuItem from "@mui/material/MenuItem";
 import Typography from "@mui/material/Typography";
 import Form from "@rjsf/mui";
 import validator from "@rjsf/validator-ajv8";
 import CircularProgress from "@mui/material/CircularProgress";
 import Divider from "@mui/material/Divider";
-import FormControl from "@mui/material/FormControl";
 import Box from "@mui/material/Box";
 
 import { showNotification } from "baselayer/components/Notifications";
@@ -28,6 +24,7 @@ import {
   useGetInstrumentObsplanFormsQuery,
 } from "../../ducks/instruments";
 import GroupShareSelect from "../group/GroupShareSelect";
+import SearchableValueSelect from "../SearchableValueSelect";
 
 const conversions: Record<string, any> = {
   FAR: {
@@ -189,28 +186,25 @@ const NewDefaultObservationPlan = ({
     }
   });
 
+  const allocationOptionLabel = (allocation: any) =>
+    `${
+      telLookUp[instLookUp[allocation.instrument_id].telescope_id].name
+    } / ${instLookUp[allocation.instrument_id].name} - ${
+      groupLookUp[allocation.group_id].name
+    } (PI ${allocation.pi})`;
+
   return (
     <Box sx={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
-      <FormControl fullWidth>
-        <InputLabel>Allocation</InputLabel>
-        <Select
-          label="Allocation"
-          value={selectedAllocationId}
-          onChange={(e) => setSelectedAllocationId(e.target.value)}
-          name="followupRequestAllocationSelect"
-        >
-          {allocationListApiObsplan?.map((allocation: any) => (
-            <MenuItem value={allocation.id} key={allocation.id}>
-              {`${
-                telLookUp[instLookUp[allocation.instrument_id].telescope_id]
-                  .name
-              } / ${instLookUp[allocation.instrument_id].name} - ${
-                groupLookUp[allocation.group_id].name
-              } (PI ${allocation.pi})`}
-            </MenuItem>
-          ))}
-        </Select>
-      </FormControl>
+      <SearchableValueSelect
+        id="followupRequestAllocationSelect"
+        label="Allocation"
+        options={allocationListApiObsplan ?? []}
+        getOptionLabel={allocationOptionLabel}
+        value={selectedAllocationId}
+        onChange={setSelectedAllocationId}
+        disableClearable
+        fullWidth
+      />
       <div>
         <GroupShareSelect
           groupList={allGroups}

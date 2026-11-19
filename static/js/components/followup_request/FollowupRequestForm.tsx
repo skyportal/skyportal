@@ -6,9 +6,6 @@ import Dialog from "@mui/material/Dialog";
 import DialogActions from "@mui/material/DialogActions";
 import DialogContent from "@mui/material/DialogContent";
 import DialogTitle from "@mui/material/DialogTitle";
-import InputLabel from "@mui/material/InputLabel";
-import MenuItem from "@mui/material/MenuItem";
-import Select from "@mui/material/Select";
 import Tooltip from "@mui/material/Tooltip";
 import Typography from "@mui/material/Typography";
 import HelpOutlineIcon from "@mui/icons-material/HelpOutlineOutlined";
@@ -25,6 +22,7 @@ import { useGetAllocationsApiClassnameQuery } from "../../ducks/allocations";
 import { useSubmitFollowupRequestMutation } from "../../ducks/source";
 import GroupShareSelect from "../group/GroupShareSelect";
 import Button from "../Button";
+import SearchableValueSelect from "../SearchableValueSelect";
 import {
   isSomeActiveRangeOrNoRange,
   rangeIsActive,
@@ -244,28 +242,24 @@ const FollowupRequestForm = ({
   return (
     <Box sx={{ display: "flex", flexDirection: "column", gap: 1, mb: 2 }}>
       <Box>
-        <InputLabel id="allocationSelectLabel">Allocation</InputLabel>
-        <Select
-          inputProps={{ MenuProps: { disableScrollLock: true } }}
-          labelId="allocationSelectLabel"
-          value={allocation.id}
-          onChange={(e) => {
-            setSelectedAllocationId(e.target.value);
-            setSelectedGroupIds(null);
-          }}
-          name={
+        <SearchableValueSelect
+          id={
             isForcedPhotometry
               ? "forcedPhotometryAllocationSelect"
               : "followupRequestAllocationSelect"
           }
-          fullWidth
-        >
-          {allocations.map((option) => (
-            <MenuItem
-              value={option.id}
-              key={option.id}
-              sx={{ whiteSpace: "break-spaces" }}
-            >
+          label="Allocation"
+          options={allocations}
+          getOptionLabel={(option) =>
+            allocationLabel(option, instrumentList, telescopeList, allGroups)
+          }
+          value={allocation.id}
+          onChange={(value) => {
+            setSelectedAllocationId(value);
+            setSelectedGroupIds(null);
+          }}
+          renderOptionContent={(option) => (
+            <>
               {allocationLabel(
                 option,
                 instrumentList,
@@ -285,9 +279,11 @@ const FollowupRequestForm = ({
                   </Typography>
                 </Tooltip>
               )}
-            </MenuItem>
-          ))}
-        </Select>
+            </>
+          )}
+          disableClearable
+          fullWidth
+        />
       </Box>
       <Box
         sx={{

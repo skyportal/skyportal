@@ -8,6 +8,11 @@ import { showNotification } from "baselayer/components/Notifications";
 import { useModifyObservingRunMutation } from "../../ducks/observingRun";
 import { useGetObservingRunsQuery } from "../../ducks/observingRuns";
 import { useAppDispatch } from "../../types/hooks";
+import SearchableSelectWidget from "../SearchableSelectWidget";
+
+const uiSchema = {
+  group_id: { "ui:widget": SearchableSelectWidget },
+};
 
 interface ModifyObservingRunProps {
   run_id?: number | null;
@@ -89,6 +94,7 @@ const ModifyObservingRun = ({
     <Form
       key={run_id}
       schema={observingRunFormSchema as any}
+      uiSchema={uiSchema}
       formData={formData}
       validator={validator}
       onSubmit={handleSubmit as any}

@@ -15,7 +15,6 @@ import List from "@mui/material/List";
 import ListItem from "@mui/material/ListItem";
 import ListItemButton from "@mui/material/ListItemButton";
 import ListItemText from "@mui/material/ListItemText";
-import MenuItem from "@mui/material/MenuItem";
 import Paper from "@mui/material/Paper";
 import TextField from "@mui/material/TextField";
 import Tooltip from "@mui/material/Tooltip";
@@ -23,6 +22,7 @@ import Typography from "@mui/material/Typography";
 import { showNotification } from "baselayer/components/Notifications";
 
 import Button from "../Button";
+import SearchableValueSelect from "../SearchableValueSelect";
 import ConfirmFilterDeletionDialog from "../filter/ConfirmFilterDeletionDialog";
 import NewFilterDialog from "../filter/NewFilterDialog";
 
@@ -240,23 +240,17 @@ const GroupFiltersStreams = ({
       >
         <DialogTitle>Add stream to group</DialogTitle>
         <DialogContent dividers>
-          <TextField
-            select
+          <SearchableValueSelect
             fullWidth
             size="small"
             id="alert-stream-select-required"
             label="Alert stream"
-            value={newStreamId}
-            onChange={(e) => setNewStreamId(Number(e.target.value))}
-          >
-            {streams
-              .filter((stream: any) => !groupStreamIds.includes(stream.id))
-              .map((stream: any) => (
-                <MenuItem value={stream.id} key={stream.id}>
-                  {stream.name}
-                </MenuItem>
-              ))}
-          </TextField>
+            options={streams.filter(
+              (stream: any) => !groupStreamIds.includes(stream.id),
+            )}
+            value={newStreamId === "" ? null : newStreamId}
+            onChange={(id: number | null) => setNewStreamId(id ?? "")}
+          />
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setAddStreamOpen(false)}>Cancel</Button>

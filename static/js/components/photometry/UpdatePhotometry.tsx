@@ -14,6 +14,7 @@ import Button from "../Button";
 import FormValidationError from "../FormValidationError";
 import { useUpdatePhotometryMutation } from "../../ducks/photometry";
 import { useGetInstrumentsQuery } from "../../ducks/instruments";
+import SearchableValueSelect from "../SearchableValueSelect";
 
 const useStyles = makeStyles()(() => ({
   SelectItem: {
@@ -341,27 +342,18 @@ const UpdatePhotometry = ({ phot, magsys }: UpdatePhotometryProps) => {
           </div>
           <p />
           <div className={classes.formField}>
-            <TextField
-              select
+            <SearchableValueSelect
               size="small"
               label="Instrument"
-              value={state.instrument_id ?? ""}
-              onChange={handleChange}
-              name="instrument_id"
-              data-testid="instrumentSelect"
+              options={instrumentList ?? []}
+              value={state.instrument_id ?? null}
+              onChange={(value) =>
+                handleChange({ target: { name: "instrument_id", value } })
+              }
+              textFieldProps={{ "data-testid": "instrumentSelect" } as any}
+              disableClearable
               fullWidth
-              slotProps={{ select: { MenuProps: { disableScrollLock: true } } }}
-            >
-              {instrumentList?.map((instrument: any) => (
-                <MenuItem
-                  value={instrument.id}
-                  key={instrument.id}
-                  className={classes.SelectItem}
-                >
-                  {instrument.name}
-                </MenuItem>
-              ))}
-            </TextField>
+            />
           </div>
           <p />
           <div>

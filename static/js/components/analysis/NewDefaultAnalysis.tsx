@@ -16,6 +16,7 @@ import { useAppDispatch } from "../../types/hooks";
 import Button from "../Button";
 import { useSubmitDefaultAnalysisMutation } from "../../ducks/default_analyses";
 import { useGetGroupsQuery } from "../../ducks/groups";
+import SearchableValueSelect from "../SearchableValueSelect";
 
 const useStyles = makeStyles()(() => ({
   container: { width: "32rem", maxWidth: "100%" },
@@ -280,21 +281,13 @@ const NewDefaultAnalysis = ({
           />
         </>
       ) : (
-        <FormControl className={classes.field}>
-          <InputLabel id="trigger-group-label">Trigger group</InputLabel>
-          <Select
-            labelId="trigger-group-label"
-            label="Trigger group"
-            value={triggerGroupId}
-            onChange={(e) => setTriggerGroupId(e.target.value as number)}
-          >
-            {serviceGroups.map((g) => (
-              <MenuItem key={g.id} value={g.id}>
-                {g.name}
-              </MenuItem>
-            ))}
-          </Select>
-        </FormControl>
+        <SearchableValueSelect
+          className={classes.field}
+          label="Trigger group"
+          options={serviceGroups}
+          value={triggerGroupId === "" ? null : triggerGroupId}
+          onChange={(id: number | null) => setTriggerGroupId(id ?? "")}
+        />
       )}
 
       <TextField
@@ -307,24 +300,14 @@ const NewDefaultAnalysis = ({
         helperText="Max auto-runs per day; leave blank for the default (10)."
       />
 
-      <FormControl className={classes.field}>
-        <InputLabel id="share-groups-label">
-          Share results with groups
-        </InputLabel>
-        <Select
-          labelId="share-groups-label"
-          label="Share results with groups"
-          multiple
-          value={groupIds}
-          onChange={(e) => setGroupIds(e.target.value as number[])}
-        >
-          {serviceGroups.map((g) => (
-            <MenuItem key={g.id} value={g.id}>
-              {g.name}
-            </MenuItem>
-          ))}
-        </Select>
-      </FormControl>
+      <SearchableValueSelect
+        className={classes.field}
+        label="Share results with groups"
+        multiple
+        options={serviceGroups}
+        value={groupIds}
+        onChange={setGroupIds}
+      />
 
       {serviceParams.length > 0 && (
         <>

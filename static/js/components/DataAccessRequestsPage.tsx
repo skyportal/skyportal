@@ -2,9 +2,7 @@ import { ReactNode, useState } from "react";
 import { Link } from "react-router-dom";
 import Box from "@mui/material/Box";
 import Chip from "@mui/material/Chip";
-import MenuItem from "@mui/material/MenuItem";
 import Paper from "@mui/material/Paper";
-import Select from "@mui/material/Select";
 import Tab from "@mui/material/Tab";
 import Tabs from "@mui/material/Tabs";
 import Typography from "@mui/material/Typography";
@@ -13,6 +11,7 @@ import { makeStyles } from "tss-react/mui";
 import { showNotification } from "baselayer/components/Notifications";
 import { useAppDispatch } from "../types/hooks";
 import Button from "./Button";
+import SearchableValueSelect from "./SearchableValueSelect";
 import StyledDataGrid from "./StyledDataGrid";
 import {
   DataAccessRequest,
@@ -32,6 +31,32 @@ const useStyles = makeStyles()((theme) => ({
 }));
 
 const PRIVATE_GROUP = "private";
+
+const ShareGroupSelect = ({
+  request,
+  value,
+  onChange,
+}: {
+  request: DataAccessRequest;
+  value: string;
+  onChange: (value: string) => void;
+}) => (
+  <SearchableValueSelect
+    size="small"
+    options={[
+      { id: PRIVATE_GROUP, name: `Only ${request.requester.username}` },
+      ...request.shareable_groups.map((group) => ({
+        id: String(group.id),
+        name: group.name,
+      })),
+    ]}
+    value={value}
+    onChange={(newValue: string | null) => onChange(newValue ?? PRIVATE_GROUP)}
+    disableClearable
+    textFieldProps={{ "data-testid": `shareGroupSelect${request.id}` } as any}
+    sx={{ minWidth: 200 }}
+  />
+);
 
 const describe = (request: DataAccessRequest) =>
   request.data_type === "photometry"
@@ -204,26 +229,13 @@ const DataAccessRequestsPage = () => {
     if (request.status !== "pending") return null;
     return (
       <div className={classes.actions}>
-        <Select
-          size="small"
+        <ShareGroupSelect
+          request={request}
           value={targetGroups[request.id] ?? PRIVATE_GROUP}
-          onChange={(event) =>
-            setTargetGroups({
-              ...targetGroups,
-              [request.id]: String(event.target.value),
-            })
+          onChange={(value) =>
+            setTargetGroups({ ...targetGroups, [request.id]: value })
           }
-          data-testid={`shareGroupSelect${request.id}`}
-        >
-          <MenuItem value={PRIVATE_GROUP}>
-            {`Only ${request.requester.username}`}
-          </MenuItem>
-          {request.shareable_groups.map((group) => (
-            <MenuItem key={group.id} value={String(group.id)}>
-              {group.name}
-            </MenuItem>
-          ))}
-        </Select>
+        />
         <Button
           primary
           size="small"

@@ -7,14 +7,11 @@ import TableHead from "@mui/material/TableHead";
 import TableRow from "@mui/material/TableRow";
 import TextField from "@mui/material/TextField";
 import Typography from "@mui/material/Typography";
-import FormControl from "@mui/material/FormControl";
-import InputLabel from "@mui/material/InputLabel";
-import Select from "@mui/material/Select";
-import MenuItem from "@mui/material/MenuItem";
 import Box from "@mui/material/Box";
 import CircularProgress from "@mui/material/CircularProgress";
 
 import Button from "../Button";
+import SearchableValueSelect from "../SearchableValueSelect";
 import ClassificationSelect from "../classification/ClassificationSelect";
 import { useGetGroupsQuery } from "../../ducks/groups";
 import { useMoreLikeThisMutation } from "../../ducks/similarity";
@@ -45,21 +42,18 @@ const MoreLikeThis = () => {
             setSelectedClassifications={setClassifications}
           />
         </Box>
-        <FormControl size="small" sx={{ width: "14rem" }}>
-          <InputLabel>Group</InputLabel>
-          <Select
-            label="Group"
-            value={groupId}
-            onChange={(e) => setGroupId(e.target.value as number | "")}
-          >
-            <MenuItem value="">All</MenuItem>
-            {(groupsData?.userAccessible || []).map((g) => (
-              <MenuItem key={g.id} value={g.id}>
-                {g.name}
-              </MenuItem>
-            ))}
-          </Select>
-        </FormControl>
+        <SearchableValueSelect
+          size="small"
+          label="Group"
+          options={[
+            { id: "", name: "All" },
+            ...(groupsData?.userAccessible || []),
+          ]}
+          value={groupId}
+          onChange={(id: number | "" | null) => setGroupId(id ?? "")}
+          disableClearable
+          sx={{ width: "14rem" }}
+        />
         <TextField
           size="small"
           type="number"

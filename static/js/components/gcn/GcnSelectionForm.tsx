@@ -23,6 +23,8 @@ import utc from "dayjs/plugin/utc";
 
 import { showNotification } from "baselayer/components/Notifications";
 import Button from "../Button";
+import SearchableSelectWidget from "../SearchableSelectWidget";
+import SearchableValueSelect from "../SearchableValueSelect";
 import Spinner from "../Spinner";
 import { DownloadProgressDialog } from "../ProgressIndicators";
 import AddCatalogQueryPage from "../catalog_query/AddCatalogQueryPage";
@@ -674,7 +676,10 @@ const GcnSelectionForm = ({ dateobs }: GcnSelectionFormProps) => {
   };
 
   const uiSchema = {
-    group_ids: { "ui:enumNames": groups.map((group) => group.name) },
+    group_ids: {
+      "ui:widget": SearchableSelectWidget,
+      "ui:enumNames": groups.map((group) => group.name),
+    },
     "ui:grid": [
       { __section: "Time range" },
       { startDate: 6, endDate: 6 },
@@ -839,24 +844,20 @@ const GcnSelectionForm = ({ dateobs }: GcnSelectionFormProps) => {
 
         {tabIndex === 4 && (
           <>
-            <FormControl size="small" fullWidth sx={selectSx}>
-              <InputLabel id="instrumentSelectLabel">Instrument</InputLabel>
-              <Select
-                label="Instrument"
-                inputProps={{ MenuProps: { disableScrollLock: true } }}
-                labelId="instrumentSelectLabel"
-                value={selectedInstrumentId || ""}
-                onChange={(e) => setSelectedInstrumentId(e.target.value)}
-              >
-                {[...instrumentList]
-                  .sort((a, b) => a.name.localeCompare(b.name))
-                  .map((instrument) => (
-                    <MenuItem value={instrument.id} key={instrument.id}>
-                      {`${telLookUp[instrument.telescope_id]?.name} / ${instrument.name}`}
-                    </MenuItem>
-                  ))}
-              </Select>
-            </FormControl>
+            <SearchableValueSelect
+              id="instrumentSelectLabel"
+              label="Instrument"
+              fullWidth
+              sx={selectSx}
+              options={[...instrumentList].sort((a, b) =>
+                a.name.localeCompare(b.name),
+              )}
+              getOptionLabel={(instrument) =>
+                `${telLookUp[instrument.telescope_id]?.name} / ${instrument.name}`
+              }
+              value={selectedInstrumentId}
+              onChange={setSelectedInstrumentId}
+            />
             <Box
               data-testid="gcnsource-selection-form"
               sx={{ mt: "0.8rem", maxWidth: "87vw" }}

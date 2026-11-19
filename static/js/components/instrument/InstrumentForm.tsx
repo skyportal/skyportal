@@ -15,6 +15,7 @@ import {
 import { useGetFollowupApisQuery } from "../../ducks/followupApis";
 import { useGetEnumTypesQuery } from "../../ducks/enum_types";
 import ZtfQuadrantsField from "./ZtfQuadrantsField";
+import SearchableSelectWidget from "../SearchableSelectWidget";
 
 interface InstrumentFormProps {
   onClose: () => void;
@@ -366,10 +367,14 @@ const InstrumentForm = ({
     tns_classification_authors: {
       "ui:emptyValue": "",
     },
+    telescope_id: { "ui:widget": SearchableSelectWidget },
+    filters: { "ui:widget": SearchableSelectWidget },
     api_classname: {
+      "ui:widget": SearchableSelectWidget,
       "ui:placeholder": "Choose an option",
     },
     api_classname_obsplan: {
+      "ui:widget": SearchableSelectWidget,
       "ui:placeholder": "Choose an option",
     },
     field_fov_type: {

@@ -4,10 +4,8 @@ import ButtonGroup from "@mui/material/ButtonGroup";
 import Checkbox from "@mui/material/Checkbox";
 import FormControlLabel from "@mui/material/FormControlLabel";
 import TextField from "@mui/material/TextField";
-import { useTheme } from "@mui/material/styles";
 import { makeStyles } from "tss-react/mui";
 import Typography from "@mui/material/Typography";
-import Input from "@mui/material/Input";
 import Select from "@mui/material/Select";
 import MenuItem from "@mui/material/MenuItem";
 import { Controller, useForm } from "react-hook-form";
@@ -25,7 +23,7 @@ import {
   useGetSpatialCatalogsQuery,
   useGetSpatialCatalogQuery,
 } from "../../ducks/spatialCatalogs";
-import RemovableChip from "../RemovableChip";
+import SearchableValueSelect from "../SearchableValueSelect";
 
 const useStyles = makeStyles()((theme) => ({
   paperDiv: {
@@ -108,17 +106,6 @@ const useStyles = makeStyles()((theme) => ({
   },
 }));
 
-const getMultiselectStyles = (
-  value: any,
-  selectedValues: any[],
-  theme: any,
-) => ({
-  fontWeight:
-    selectedValues.indexOf(value) === -1
-      ? theme.typography.fontWeightRegular
-      : theme.typography.fontWeightMedium,
-});
-
 interface SourceTableFilterFormProps {
   handleFilterSubmit: (...args: any[]) => void;
   spatialCatalogQuery?: boolean;
@@ -130,18 +117,6 @@ const SourceTableFilterForm = ({
 }: SourceTableFilterFormProps) => {
   const { classes }: { classes: any } = useStyles();
   const dispatch = useAppDispatch();
-  const theme = useTheme();
-
-  const ITEM_HEIGHT = 48;
-  const MenuProps = {
-    slotProps: {
-      paper: {
-        style: {
-          maxHeight: ITEM_HEIGHT * 4.5,
-        },
-      },
-    },
-  };
 
   // Get unique classification names, in alphabetical order
   const { data: taxonomyList } = useGetTaxonomiesQuery();
@@ -154,13 +129,6 @@ const SourceTableFilterForm = ({
     classifications = classifications.concat(currentClasses);
   });
   classifications = Array.from(new Set(classifications)).sort();
-
-  const [selectedClassifications, setSelectedClassifications] = useState<any[]>(
-    [],
-  );
-  const [selectedNonClassifications, setSelectedNonClassifications] = useState<
-    any[]
-  >([]);
 
   const [byMe, setByMe] = useState(false);
   const handleChange = (event: any) => {
@@ -484,55 +452,19 @@ const SourceTableFilterForm = ({
           </Typography>
           <Controller
             render={({ field: { onChange, value } }) => (
-              <Select
-                labelId="classifications-select-label"
-                data-testid="classifications-select"
-                multiple
-                value={value}
-                onChange={(event) => {
-                  setSelectedClassifications(event.target.value as any);
-                  onChange(event.target.value);
-                }}
-                input={
-                  <Input
-                    className={classes.multiSelect}
-                    id="classifications-select"
-                  />
+              <SearchableValueSelect
+                id="classifications-select"
+                textFieldProps={
+                  { "data-testid": "classifications-select" } as any
                 }
-                renderValue={(selected: any) => (
-                  <div className={classes.chips}>
-                    {selected.map((classification: any) => (
-                      <RemovableChip
-                        key={classification}
-                        label={classification}
-                        className={classes.chip}
-                        onDelete={() => {
-                          const newValue = selected.filter(
-                            (c: any) => c !== classification,
-                          );
-                          setSelectedClassifications(newValue);
-                          onChange(newValue);
-                        }}
-                      />
-                    ))}
-                  </div>
-                )}
-                MenuProps={MenuProps}
-              >
-                {classifications.map((classification) => (
-                  <MenuItem
-                    key={classification}
-                    value={classification}
-                    style={getMultiselectStyles(
-                      classification,
-                      selectedClassifications,
-                      theme,
-                    )}
-                  >
-                    {classification}
-                  </MenuItem>
-                ))}
-              </Select>
+                multiple
+                options={classifications}
+                value={value}
+                onChange={onChange}
+                className={classes.multiSelect}
+                sx={{ "& .MuiTextField-root": { width: "100%" } }}
+                fullWidth
+              />
             )}
             name="classifications"
             control={control}
@@ -566,55 +498,19 @@ const SourceTableFilterForm = ({
           </Typography>
           <Controller
             render={({ field: { onChange, value } }) => (
-              <Select
-                labelId="classifications-select-label"
-                data-testid="classifications-select"
-                multiple
-                value={value}
-                onChange={(event) => {
-                  setSelectedNonClassifications(event.target.value as any);
-                  onChange(event.target.value);
-                }}
-                input={
-                  <Input
-                    className={classes.multiSelect}
-                    id="classifications-select"
-                  />
+              <SearchableValueSelect
+                id="classifications-select"
+                textFieldProps={
+                  { "data-testid": "classifications-select" } as any
                 }
-                renderValue={(selected: any) => (
-                  <div className={classes.chips}>
-                    {selected.map((classification: any) => (
-                      <RemovableChip
-                        key={classification}
-                        label={classification}
-                        className={classes.chip}
-                        onDelete={() => {
-                          const newValue = selected.filter(
-                            (c: any) => c !== classification,
-                          );
-                          setSelectedNonClassifications(newValue);
-                          onChange(newValue);
-                        }}
-                      />
-                    ))}
-                  </div>
-                )}
-                MenuProps={MenuProps}
-              >
-                {classifications.map((classification) => (
-                  <MenuItem
-                    key={classification}
-                    value={classification}
-                    style={getMultiselectStyles(
-                      classification,
-                      selectedNonClassifications,
-                      theme,
-                    )}
-                  >
-                    {classification}
-                  </MenuItem>
-                ))}
-              </Select>
+                multiple
+                options={classifications}
+                value={value}
+                onChange={onChange}
+                className={classes.multiSelect}
+                sx={{ "& .MuiTextField-root": { width: "100%" } }}
+                fullWidth
+              />
             )}
             name="nonclassifications"
             control={control}
@@ -1230,30 +1126,19 @@ const SourceTableFilterForm = ({
               <div className={classes.selectItems}>
                 <Controller
                   render={({ field: { value } }) => (
-                    <Select
-                      inputProps={{ MenuProps: { disableScrollLock: true } }}
-                      labelId="spatialCatalogSelectLabel"
-                      value={value || ""}
-                      onChange={(event) => {
+                    <SearchableValueSelect
+                      options={spatialCatalogsSelect ?? []}
+                      getOptionLabel={(cat) => `${cat.catalog_name}`}
+                      value={value || null}
+                      onChange={(catalogId) => {
                         reset({
                           ...getValues(),
-                          spatialcatalogid:
-                            event.target.value === -1 ? "" : event.target.value,
+                          spatialcatalogid: catalogId ?? "",
                         });
-                        setSelectedSpatialCatalogId(event.target.value);
+                        setSelectedSpatialCatalogId(catalogId);
                       }}
                       className={classes.select}
-                    >
-                      {spatialCatalogsSelect?.map((cat: any) => (
-                        <MenuItem
-                          value={cat.id}
-                          key={cat.id}
-                          className={classes.selectItem}
-                        >
-                          {`${cat.catalog_name}`}
-                        </MenuItem>
-                      ))}
-                    </Select>
+                    />
                   )}
                   name="spatialcatalogid"
                   control={control}
@@ -1261,28 +1146,14 @@ const SourceTableFilterForm = ({
                 />
                 <Controller
                   render={({ field: { onChange, value } }) => (
-                    <Select
-                      inputProps={{ MenuProps: { disableScrollLock: true } }}
-                      labelId="spatialCatalogEntrySelectLabel"
-                      value={value || ""}
-                      onChange={(event) => {
-                        onChange(event.target.value);
-                      }}
+                    <SearchableValueSelect
+                      options={spatialCatalog?.entries ?? []}
+                      getOptionLabel={(entry) => `${entry.entry_name}`}
+                      value={value || null}
+                      onChange={(entryId) => onChange(entryId ?? "")}
                       className={classes.select}
                       disabled={!selectedSpatialCatalogId}
-                    >
-                      {spatialCatalog?.entries?.map(
-                        (spatialCatalogEntry: any) => (
-                          <MenuItem
-                            value={spatialCatalogEntry.id}
-                            key={spatialCatalogEntry.id}
-                            className={classes.selectItem}
-                          >
-                            {`${spatialCatalogEntry.entry_name}`}
-                          </MenuItem>
-                        ),
-                      )}
-                    </Select>
+                    />
                   )}
                   name="spatialcatalogentryid"
                   control={control}

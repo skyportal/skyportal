@@ -4,6 +4,7 @@ import Form from "@rjsf/mui";
 import validator from "@rjsf/validator-ajv8";
 
 import { useGetStreamsQuery } from "../../../ducks/streams";
+import SearchableSelectWidget from "../../SearchableSelectWidget";
 
 interface IsElements {
   summary?: boolean;
@@ -80,8 +81,14 @@ export const sourcePublishOptionsUiSchema = (
   streams: { id: number; name: string }[],
   groups: { id: number; name: string }[],
 ) => ({
-  streams: { "ui:enumNames": (streams || []).map((stream) => stream.name) },
-  groups: { "ui:enumNames": (groups || []).map((group) => group.name) },
+  streams: {
+    "ui:widget": SearchableSelectWidget,
+    "ui:enumNames": (streams || []).map((stream) => stream.name),
+  },
+  groups: {
+    "ui:widget": SearchableSelectWidget,
+    "ui:enumNames": (groups || []).map((group) => group.name),
+  },
 });
 
 const useStyles = makeStyles()(() => ({

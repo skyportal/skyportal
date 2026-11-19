@@ -8,6 +8,11 @@ import { showNotification } from "baselayer/components/Notifications";
 import { useAppDispatch } from "../../types/hooks";
 import { useAddSyntheticPhotometryMutation } from "../../ducks/spectra";
 import { useGetEnumTypesQuery } from "../../ducks/enum_types";
+import SearchableSelectWidget from "../SearchableSelectWidget";
+
+const uiSchema = {
+  filters: { "ui:widget": SearchableSelectWidget },
+};
 
 const useStyles = makeStyles()(() => ({
   chips: {
@@ -82,6 +87,7 @@ const SyntheticPhotometryForm = ({
       <div>
         <Form
           schema={formSchema as any}
+          uiSchema={uiSchema}
           validator={validator}
           onSubmit={handleSubmit as any}
           disabled={submissionRequestInProcess}

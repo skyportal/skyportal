@@ -1,9 +1,6 @@
 import { useState } from "react";
 import Box from "@mui/material/Box";
 import CircularProgress from "@mui/material/CircularProgress";
-import InputLabel from "@mui/material/InputLabel";
-import MenuItem from "@mui/material/MenuItem";
-import Select from "@mui/material/Select";
 import Form from "@rjsf/mui";
 import validator from "@rjsf/validator-ajv8";
 
@@ -16,6 +13,7 @@ import {
   useGetInstrumentFormsQuery,
 } from "../../ducks/instruments";
 import GroupShareSelect from "../group/GroupShareSelect";
+import SearchableValueSelect from "../SearchableValueSelect";
 import { localeSafeFields } from "./LocaleSafeNumberField";
 import { allocationLabel } from "../../utils/format";
 
@@ -79,26 +77,18 @@ const NewDefaultFollowupRequest = () => {
   return (
     <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
       <Box>
-        <InputLabel id="allocationSelectLabel">Allocation</InputLabel>
-        <Select
-          inputProps={{ MenuProps: { disableScrollLock: true } }}
-          labelId="allocationSelectLabel"
+        <SearchableValueSelect
+          id="followupRequestAllocationSelect"
+          label="Allocation"
+          options={allocations}
+          getOptionLabel={(option) =>
+            allocationLabel(option, instrumentList, telescopeList, allGroups)
+          }
           value={allocation.id}
-          onChange={(e) => setSelectedAllocationId(e.target.value)}
-          name="followupRequestAllocationSelect"
+          onChange={setSelectedAllocationId}
+          disableClearable
           fullWidth
-        >
-          {allocations.map((option: any) => (
-            <MenuItem value={option.id} key={option.id}>
-              {allocationLabel(
-                option,
-                instrumentList,
-                telescopeList,
-                allGroups,
-              )}
-            </MenuItem>
-          ))}
-        </Select>
+        />
       </Box>
       <GroupShareSelect
         groupList={allGroups}

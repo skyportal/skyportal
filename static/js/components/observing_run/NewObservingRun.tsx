@@ -12,6 +12,12 @@ import Paper from "../Paper";
 import { useSubmitObservingRunMutation } from "../../ducks/observingRun";
 import { useGetTelescopesQuery } from "../../ducks/telescopes";
 import { useGetInstrumentsQuery } from "../../ducks/instruments";
+import SearchableSelectWidget from "../SearchableSelectWidget";
+
+const uiSchema = {
+  instrument_id: { "ui:widget": SearchableSelectWidget },
+  group_id: { "ui:widget": SearchableSelectWidget },
+};
 
 dayjs.extend(utc);
 
@@ -91,6 +97,7 @@ const NewObservingRun = () => {
       <Typography variant="h6">Add a New Observing Run</Typography>
       <Form
         schema={observingRunFormSchema as any}
+        uiSchema={uiSchema}
         validator={validator}
         onSubmit={handleSubmit as any}
       />

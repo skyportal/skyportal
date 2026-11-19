@@ -1,8 +1,5 @@
 import { useGetGroupsQuery } from "../../ducks/groups";
 import { useEffect, useState } from "react";
-import Select from "@mui/material/Select";
-import InputLabel from "@mui/material/InputLabel";
-import MenuItem from "@mui/material/MenuItem";
 import Switch from "@mui/material/Switch";
 import FormControlLabel from "@mui/material/FormControlLabel";
 import Tooltip from "@mui/material/Tooltip";
@@ -15,6 +12,7 @@ import validator from "@rjsf/validator-ajv8";
 import { useAppDispatch } from "../../types/hooks";
 import { useSubmitPhotometryMutation } from "../../ducks/photometry";
 import { useGetInstrumentsQuery } from "../../ducks/instruments";
+import SearchableValueSelect from "../SearchableValueSelect";
 
 const dateType = (date: any) => {
   let type = "unknown";
@@ -423,24 +421,19 @@ const NewPhotometryForm = ({ obj_id }: NewPhotometryFormProps) => {
       {sortedInstrumentList?.length > 0 && groups?.length > 0 ? (
         <div>
           <div>
-            <InputLabel id="instrumentSelectLabel">Instrument</InputLabel>
-            <Select
-              inputProps={{ MenuProps: { disableScrollLock: true } }}
+            <SearchableValueSelect
               id="instrumentSelectLabel"
+              label="Instrument"
+              options={sortedInstrumentList ?? []}
               value={selectedInstrumentId}
-              onChange={handleSelectedInstrumentChange}
-              name="instrumentSelect"
-            >
-              {sortedInstrumentList?.map((instrument) => (
-                <MenuItem
-                  value={instrument.id}
-                  key={instrument.id}
-                  disabled={!instrument.filters?.length}
-                >
-                  {instrument.name}
-                </MenuItem>
-              ))}
-            </Select>
+              onChange={(value) =>
+                handleSelectedInstrumentChange({ target: { value } })
+              }
+              getOptionDisabled={(instrument: any) =>
+                !instrument.filters?.length
+              }
+              sx={{ minWidth: 240 }}
+            />
           </div>
           <div>
             <Tooltip title="Enable if the magnitude is already corrected for Milky Way (Galactic) extinction; SkyPortal re-reddens it on upload (SFD dust map + G23 law) so storage stays observed.">

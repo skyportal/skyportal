@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 import Box from "@mui/material/Box";
 import CircularProgress from "@mui/material/CircularProgress";
-import MenuItem from "@mui/material/MenuItem";
 import TextField from "@mui/material/TextField";
 import Typography from "@mui/material/Typography";
 import dayjs from "dayjs";
@@ -13,6 +12,7 @@ import { useGetAllocationsApiClassnameQuery } from "../../ducks/allocations";
 import { useGetGroupsQuery } from "../../ducks/groups";
 import Button from "../Button";
 import Paper from "../Paper";
+import SearchableValueSelect from "../SearchableValueSelect";
 import InstrumentLogsPlot from "./InstrumentLogsPlot";
 
 dayjs.extend(utc);
@@ -41,6 +41,10 @@ const InstrumentLogs = ({ instrumentId, logExists }: InstrumentLogsProps) => {
   const [end, setEnd] = useState(dayjs.utc().format(INPUT_FORMAT));
   const [pickedAllocationId, setPickedAllocationId] = useState<number>();
   const allocationId = pickedAllocationId ?? allocations[0]?.id;
+  const allocationOptionLabel = (allocation: any) =>
+    `${
+      groups.find((g) => g.id === allocation.group_id)?.name ?? "Allocation"
+    } (PI ${allocation.pi})`;
 
   const invalidRange = !start || !end || start >= end;
   const params = { startDate: toParam(start), endDate: toParam(end) };
@@ -95,23 +99,15 @@ const InstrumentLogs = ({ instrumentId, logExists }: InstrumentLogsProps) => {
               ml: { md: "auto" },
             }}
           >
-            <TextField
-              select
-              size="small"
+            <SearchableValueSelect
               label="Allocation"
+              options={allocations}
+              getOptionLabel={allocationOptionLabel}
               value={allocationId}
-              onChange={(e) => setPickedAllocationId(Number(e.target.value))}
+              onChange={(value) => setPickedAllocationId(Number(value))}
+              disableClearable
               sx={{ minWidth: 220 }}
-            >
-              {allocations.map((allocation: any) => (
-                <MenuItem key={allocation.id} value={allocation.id}>
-                  {`${
-                    groups.find((g) => g.id === allocation.group_id)?.name ??
-                    "Allocation"
-                  } (PI ${allocation.pi})`}
-                </MenuItem>
-              ))}
-            </TextField>
+            />
             <Button
               secondary
               onClick={() => retrieveLogs(allocationId)}
