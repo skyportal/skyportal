@@ -164,13 +164,8 @@ const UpdateSourceGCNCrossmatch = ({
         <IconButton
           data-testid="updateGCNCrossmatchIconButton"
           onClick={() => setDialogOpen(true)}
-          sx={{
-            p: "1px",
-            color: "text.secondary",
-            "&:hover": { color: "primary.main" },
-          }}
         >
-          <EditIcon sx={{ fontSize: "0.75rem" }} />
+          <EditIcon />
         </IconButton>
       </Tooltip>
       <Dialog open={dialogOpen} onClose={() => setDialogOpen(false)}>

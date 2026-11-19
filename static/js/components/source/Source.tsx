@@ -13,6 +13,7 @@ import { Link } from "react-router-dom";
 
 import { makeStyles } from "tss-react/mui";
 import Box from "@mui/material/Box";
+import Chip from "@mui/material/Chip";
 import Grid from "@mui/material/Grid";
 import Tooltip from "@mui/material/Tooltip";
 import Checkbox from "@mui/material/Checkbox";
@@ -245,6 +246,32 @@ export const useSourceStyles = makeStyles()((theme) => ({
   },
 }));
 
+const HoverAction = ({ children }: { children: React.ReactNode }) => (
+  <Box
+    component="span"
+    sx={{
+      position: "absolute",
+      left: "100%",
+      top: "50%",
+      transform: "translateY(-50%)",
+      ml: "-1px",
+      display: "flex",
+      opacity: 0,
+      transition: "opacity 0.15s",
+      "*:hover > &, *:focus-within > &": { opacity: 1 },
+      "@media (hover: none)": { opacity: 1 },
+      "& .MuiIconButton-root": {
+        p: "1px",
+        color: "text.secondary",
+        "&:hover": { color: "primary.main" },
+      },
+      "& .MuiSvgIcon-root": { fontSize: "0.75rem" },
+    }}
+  >
+    {children}
+  </Box>
+);
+
 interface SourceContentProps {
   source: any;
 }
@@ -308,8 +335,6 @@ const SourceContent = ({ source }: SourceContentProps) => {
   const downSm = useMediaQuery((theme: any) => theme.breakpoints.down("sm"));
   const downMd = useMediaQuery((theme: any) => theme.breakpoints.down("md"));
   const downLg = useMediaQuery((theme: any) => theme.breakpoints.down("lg"));
-
-  const [hovering, setHovering] = useState<any>(null);
 
   const alertBroker = brokers.find(
     (b) =>
@@ -390,19 +415,6 @@ const SourceContent = ({ source }: SourceContentProps) => {
 
   const removeHost = () => {
     removeHostMutation(source.id);
-  };
-
-  const handleHover = (type: any) => {
-    if (hovering !== type) {
-      setHovering(type);
-    }
-  };
-
-  const handleStopHover = (type: any) => {
-    // here we only trigger if we stopped hovering the currently hovered item
-    if (hovering === type) {
-      setHovering(null);
-    }
   };
 
   const rightPanelContent = (
@@ -784,17 +796,17 @@ const SourceContent = ({ source }: SourceContentProps) => {
                   <UpdateSourceTNS sourceId={source.id} />
                 )}
               </div>
-              <div
-                className={classes.rowInfo}
-                onMouseEnter={() => handleHover("mpc")}
-                onMouseLeave={() => handleStopHover("mpc")}
-              >
+              <Box className={classes.rowInfo} sx={{ position: "relative" }}>
                 <b>MPC Name: &nbsp;</b>
-                <div key="mpc_name"> {source.mpc_name} </div>
-                {!isReadOnly && hovering === "mpc" && (
-                  <UpdateSourceMPC source={source} />
+                {source.mpc_name && (
+                  <Chip size="small" label={source.mpc_name} />
                 )}
-              </div>
+                {!isReadOnly && (
+                  <HoverAction>
+                    <UpdateSourceMPC source={source} />
+                  </HoverAction>
+                )}
+              </Box>
               <Box className={classes.rowInfo} sx={{ position: "relative" }}>
                 <b>GCN Crossmatches: &nbsp;</b>
                 {source.gcn_crossmatch?.length > 0 && (
@@ -804,23 +816,9 @@ const SourceContent = ({ source }: SourceContentProps) => {
                   />
                 )}
                 {!isReadOnly && (
-                  <Box
-                    component="span"
-                    sx={{
-                      position: "absolute",
-                      left: "100%",
-                      top: "50%",
-                      transform: "translateY(-50%)",
-                      ml: "-1px",
-                      display: "flex",
-                      opacity: 0,
-                      transition: "opacity 0.15s",
-                      "*:hover > &, *:focus-within > &": { opacity: 1 },
-                      "@media (hover: none)": { opacity: 1 },
-                    }}
-                  >
+                  <HoverAction>
                     <UpdateSourceGCNCrossmatch source={source} />
-                  </Box>
+                  </HoverAction>
                 )}
               </Box>
               <div className={classes.rowInfo}>
