@@ -50,7 +50,7 @@ interface VegaPhotometryMemoProps {
   wavelengths: string[];
   period?: number | null;
   style?: React.CSSProperties;
-  renderer?: "svg" | "canvas";
+  renderer?: "svg" | "canvas" | undefined;
 }
 
 const VegaPhotometryMemo = React.memo(
