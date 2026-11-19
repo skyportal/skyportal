@@ -50,6 +50,7 @@ DESI_ORIGIN_PREFIX = "desi_"
 # (e.g. "imager"/"imaging spectrograph" doesn't capture LCO's per-camera split),
 # so the API class itself is the reliable signal for these.
 _API_CLASSNAME_TYPE = {
+    "ATCAAPI": "photometry",
     "ATLASAPI": "photometry",
     "PS1API": "photometry",
     "ZTFAPI": "photometry",
