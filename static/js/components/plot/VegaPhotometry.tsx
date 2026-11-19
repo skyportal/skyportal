@@ -50,11 +50,19 @@ interface VegaPhotometryMemoProps {
   wavelengths: string[];
   period?: number | null;
   style?: React.CSSProperties;
+  renderer?: "svg" | "canvas";
 }
 
 const VegaPhotometryMemo = React.memo(
   (props: VegaPhotometryMemoProps) => {
-    const { values, filters, wavelengths, period = null, style = {} } = props;
+    const {
+      values,
+      filters,
+      wavelengths,
+      period = null,
+      style = {},
+      renderer,
+    } = props;
 
     const colorScale = {
       domain: filters,
@@ -74,7 +82,9 @@ const VegaPhotometryMemo = React.memo(
     const plot = period ? (
       <VegaFoldedPlot {...({ values: plotValues, colorScale, style } as any)} />
     ) : (
-      <VegaPlot {...({ values: plotValues, colorScale, style } as any)} />
+      <VegaPlot
+        {...({ values: plotValues, colorScale, style, renderer } as any)}
+      />
     );
     return (
       <Suspense fallback={<PlotSkeleton style={style} />}>{plot}</Suspense>
@@ -107,6 +117,7 @@ interface VegaPhotometryProps {
   style?: React.CSSProperties;
   controls?: boolean;
   defaultShowUpperLimits?: boolean;
+  renderer?: "svg" | "canvas";
 }
 
 const VegaPhotometry = (props: VegaPhotometryProps) => {
@@ -117,6 +128,7 @@ const VegaPhotometry = (props: VegaPhotometryProps) => {
     style = {},
     controls = true,
     defaultShowUpperLimits = true,
+    renderer,
   } = props;
   const { data: photometry, isLoading } =
     useGetSourcePhotometryMinimalQuery(sourceId);
@@ -228,6 +240,7 @@ const VegaPhotometry = (props: VegaPhotometryProps) => {
         wavelengths={wavelengths}
         period={period}
         style={style}
+        renderer={renderer}
       />
       {/* the left margin is to align the toggle with the y-axis of the plot */}
       <div
