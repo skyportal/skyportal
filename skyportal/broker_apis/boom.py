@@ -834,6 +834,18 @@ class BOOMBROKER(BrokerAPI):
                 "title": "Surveys",
                 "description": "Empty serves ZTF, LSST and DECam.",
             },
+            "filter_modules_mongodb_uri": {
+                "type": "string",
+                "title": "Filter modules MongoDB URI",
+                "description": (
+                    "MongoDB holding the filter builder's saved blocks and "
+                    "variables. Empty uses the boom.filter_modules config."
+                ),
+            },
+            "filter_modules_database": {
+                "type": "string",
+                "title": "Filter modules database",
+            },
             # Declared so the SASL password is rendered as one and, more to the
             # point, stripped from the broker a reader is served: what is not in
             # this schema is not in secret_config_fields either.
@@ -880,6 +892,7 @@ class BOOMBROKER(BrokerAPI):
 
     ui_json_schema = {
         "password": {"ui:widget": "password"},
+        "filter_modules_mongodb_uri": {"ui:widget": "password"},
         "kafka": {"password": {"ui:widget": "password"}},
     }
 
