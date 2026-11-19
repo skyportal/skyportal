@@ -539,6 +539,7 @@ const Candidate = ({
             minHeight: "19.5rem",
             maxHeight: "19.5rem",
           }}
+          defaultShowUpperLimits={false}
         />
         {trackId && candidate.broker_id != null && (
           <TrackCandidateSummary
