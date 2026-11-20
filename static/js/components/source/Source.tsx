@@ -775,8 +775,10 @@ const SourceContent = ({ source }: SourceContentProps) => {
                   <b>TNS: &nbsp;</b>
                 </Tooltip>
                 {source.tns_name && (
-                  <a
-                    key={source.tns_name}
+                  <Chip
+                    size="small"
+                    label={source.tns_name}
+                    component="a"
                     href={`https://www.wis-tns.org/object/${
                       source.tns_name.trim().includes(" ")
                         ? source.tns_name.split(" ")[1]
@@ -784,9 +786,8 @@ const SourceContent = ({ source }: SourceContentProps) => {
                     }`}
                     target="_blank"
                     rel="noopener noreferrer"
-                  >
-                    {`${source.tns_name}`}
-                  </a>
+                    clickable
+                  />
                 )}
                 {source.tns_info && (
                   <DisplayTNSInfo
