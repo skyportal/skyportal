@@ -320,8 +320,8 @@ const AladinGlobe = ({
     if (!options.localization) return;
     const [center, region50, region90] = skymap.features ?? [];
     contour.addFootprints([
-      ...featurePolygons(region90, { color: "black", lineWidth: 2 }),
-      ...featurePolygons(region50, { color: "grey", lineWidth: 2 }),
+      ...featurePolygons(region90, { color: "white", lineWidth: 2 }),
+      ...featurePolygons(region50, { color: "#ffd54f", lineWidth: 2 }),
     ]);
     const coords = center?.geometry?.coordinates;
     if (coords) {
@@ -403,12 +403,15 @@ const AladinGlobe = ({
 
   useEffect(() => {
     const center = skymap.features?.[0]?.geometry?.coordinates;
-    const points = JSON.parse(sourcePositions);
-    if (!ready || !center || !points.length) return;
+    const points = [
+      ...JSON.parse(sourcePositions),
+      ...ringsOf(skymap.features?.[2]).flat(),
+    ];
+    if (!ready || !fitSources || !center || !points.length) return;
     const { ra, dec, fov } = viewAround(center, points, fovForContour(skymap));
     aladinRef.current?.gotoRaDec(ra, dec);
     aladinRef.current?.setFoV(fov);
-  }, [ready, skymap, sourcePositions]);
+  }, [ready, fitSources, skymap, sourcePositions]);
 
   useEffect(() => {
     if (!ready) return;
