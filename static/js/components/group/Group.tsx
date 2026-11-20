@@ -9,6 +9,7 @@ import Tab from "@mui/material/Tab";
 import IconButton from "@mui/material/IconButton";
 import Tooltip from "@mui/material/Tooltip";
 import DeleteIcon from "@mui/icons-material/Delete";
+import LogoutIcon from "@mui/icons-material/Logout";
 
 import ConfirmDeletionDialog from "../ConfirmDeletionDialog";
 import Spinner from "../Spinner";
@@ -23,18 +24,24 @@ import GroupSettingsForm from "./GroupSettingsForm";
 
 import { useGetProfileQuery } from "../../ducks/profile";
 import { useGetGroupQuery } from "../../ducks/group";
-import { useDeleteGroupMutation } from "../../ducks/groups";
+import {
+  useDeleteGroupMutation,
+  useDeleteGroupUserMutation,
+} from "../../ducks/groups";
 import { useGetStreamsQuery } from "../../ducks/streams";
 
 const Group = () => {
   const [deleteGroup, { isLoading: isDeleting, isSuccess: isDeleted }] =
     useDeleteGroupMutation();
+  const [deleteGroupUser, { isLoading: isLeaving, isSuccess: hasLeft }] =
+    useDeleteGroupUserMutation();
   const navigate = useNavigate();
   const { id } = useParams();
   const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
+  const [confirmLeaveOpen, setConfirmLeaveOpen] = useState(false);
 
   const { data: group, error: groupError } = useGetGroupQuery(id as string, {
-    skip: !id || isDeleting || isDeleted,
+    skip: !id || isDeleting || isDeleted || isLeaving || hasLeft,
   });
   const { data: currentUser } = useGetProfileQuery();
   const { error: streamsError } = useGetStreamsQuery();
@@ -59,6 +66,21 @@ const Group = () => {
 
   const handleDeleteGroup = async () => {
     const { error } = await deleteGroup(groupID);
+    if (!error) navigate("/groups");
+  };
+
+  const groupUsers: any[] = group["users"] ?? [];
+  const membership = groupUsers.find((u) => u.id === currentUser.id);
+  const canLeave = membership != null && !group["single_user_group"];
+  const isLastAdmin =
+    membership?.admin && groupUsers.filter((u) => u.admin).length === 1;
+
+  const handleLeaveGroup = async () => {
+    setConfirmLeaveOpen(false);
+    const { error } = await deleteGroupUser({
+      userID: currentUser.id,
+      group_id: groupID,
+    });
     if (!error) navigate("/groups");
   };
 
@@ -94,19 +116,44 @@ const Group = () => {
             </Typography>
           )}
         </Box>
-        {canManage && (
+        {(canManage || canLeave) && (
           <Box sx={{ display: "flex", gap: 0.5, mr: 1 }}>
-            <GroupAddMembers groupID={groupID} />
-            <GroupSettingsForm group={group} />
-            <Tooltip title="Delete group">
-              <IconButton
-                color="error"
-                onClick={() => setConfirmDeleteOpen(true)}
-                data-testid="deleteGroupButton"
+            {canManage && (
+              <>
+                <GroupAddMembers groupID={groupID} />
+                <GroupSettingsForm group={group} />
+              </>
+            )}
+            {canLeave && (
+              <Tooltip
+                title={
+                  isLastAdmin
+                    ? "Make another member admin before leaving"
+                    : "Leave group"
+                }
               >
-                <DeleteIcon />
-              </IconButton>
-            </Tooltip>
+                <span>
+                  <IconButton
+                    onClick={() => setConfirmLeaveOpen(true)}
+                    disabled={isLastAdmin}
+                    data-testid="leaveGroupButton"
+                  >
+                    <LogoutIcon />
+                  </IconButton>
+                </span>
+              </Tooltip>
+            )}
+            {canManage && (
+              <Tooltip title="Delete group">
+                <IconButton
+                  color="error"
+                  onClick={() => setConfirmDeleteOpen(true)}
+                  data-testid="deleteGroupButton"
+                >
+                  <DeleteIcon />
+                </IconButton>
+              </Tooltip>
+            )}
           </Box>
         )}
       </Box>
@@ -157,6 +204,14 @@ const Group = () => {
             </Typography>
           </>
         }
+      />
+      <ConfirmDeletionDialog
+        deleteFunction={handleLeaveGroup}
+        dialogOpen={confirmLeaveOpen}
+        closeDialog={() => setConfirmLeaveOpen(false)}
+        resourceName="membership"
+        title="Leave group?"
+        message="You will lose access to this group's sources and filters."
       />
     </Box>
   );
