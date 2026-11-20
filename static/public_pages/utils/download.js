@@ -37,6 +37,7 @@ function downloadPhotometryToCsv(data, filename) {
     "mag",
     "magerr",
     "filter",
+    "magsys",
     "limiting_mag",
     "instrument_id",
     "instrument_name",
@@ -51,6 +52,10 @@ function downloadPhotometryToCsv(data, filename) {
     ...photometry.map((element) =>
       headers
         .map((header) => {
+          if (header === "magsys") {
+            // Published snapshots may predate this field, but use AB magnitudes.
+            return element.magsys ?? "ab";
+          }
           if (isFloat(element[header])) {
             return element[header].toFixed(header === "mjd" ? 8 : 2);
           }

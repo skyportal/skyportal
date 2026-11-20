@@ -1,3 +1,4 @@
+import csv
 import os
 import uuid
 from datetime import datetime
@@ -77,6 +78,29 @@ def test_public_source_page(page, user, public_source, public_group):
     page.goto(f"/source/{public_source.id}")
     expect(page.locator(f'//h6[text()="{public_source.id}"]').first).to_be_visible()
     expect(page.locator(f'//span[text()="{public_group.name}"]').first).to_be_visible()
+
+
+def test_public_source_photometry_csv_uses_ab_magnitudes(
+    page, manage_sources_token, public_source, tmp_path
+):
+    status, data = api(
+        "POST",
+        f"public_pages/source/{public_source.id}",
+        data={"options": {"include_photometry": True}},
+        token=manage_sources_token,
+    )
+    assert status == 200, data
+
+    page.goto(f"/public/sources/{public_source.id}")
+    with page.expect_download() as download:
+        page.locator(".photometryCard").get_by_role("button", name="Download").click()
+    csv_path = tmp_path / "photometry.csv"
+    download.value.save_as(csv_path)
+
+    with csv_path.open(newline="") as csv_file:
+        rows = list(csv.DictReader(csv_file))
+    assert rows
+    assert {row["magsys"] for row in rows} == {"ab"}
 
 
 @pytest.mark.flaky(reruns=2)
