@@ -134,6 +134,7 @@ const Group = () => {
               >
                 <span>
                   <IconButton
+                    color="warning"
                     onClick={() => setConfirmLeaveOpen(true)}
                     disabled={isLastAdmin}
                     data-testid="leaveGroupButton"
