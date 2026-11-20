@@ -147,19 +147,17 @@ const CrossmatchItem = ({
   const sourcesForPlot =
     source?.ra != null && source?.dec != null
       ? {
-          geojson: {
-            type: "FeatureCollection",
-            features: [
-              {
-                type: "Feature",
-                geometry: {
-                  type: "Point",
-                  coordinates: [source.ra, source.dec],
-                },
-                properties: { name: source.id },
+          type: "FeatureCollection",
+          features: [
+            {
+              type: "Feature",
+              geometry: {
+                type: "Point",
+                coordinates: [source.ra, source.dec],
               },
-            ],
-          },
+              properties: { name: source.id },
+            },
+          ],
         }
       : null;
 
@@ -182,6 +180,7 @@ const CrossmatchItem = ({
         anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
         transformOrigin={{ vertical: "top", horizontal: "center" }}
         onClose={() => setAnchorEl(null)}
+        transitionDuration={0}
         slotProps={
           {
             paper: {
