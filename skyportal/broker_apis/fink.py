@@ -59,24 +59,38 @@ async def _run_backfill(broker, filter_row, limit, stop=None, on_progress=None):
         "api/v1/tags",
         {"tag": topic, "n": limit, "output-format": "json"},
     )
-    # One row per diaSource; group by diaObjectId so the LSST normalizer can
-    # reshape each object's rows into the standard alert shape.
-    by_obj: dict = {}
+    # /api/v1/tags returns only the alerts that triggered the tag; the full
+    # detection history for each object lives at /api/v1/sources. Collect the
+    # unique diaObjectIds here and fetch each one's full LC below.
+    oids = []
+    seen = set()
     for r in rows or []:
         oid = r.get("r:diaObjectId")
-        if oid is not None:
-            by_obj.setdefault(str(oid), []).append(r)
+        if oid is not None and str(oid) not in seen:
+            seen.add(str(oid))
+            oids.append(str(oid))
     log(
         f"Fink backfill (broker {broker.id}, filter {filter_row.id}): "
-        f"{len(by_obj)} objects to ingest"
+        f"{len(oids)} objects to ingest"
     )
     survey = _fink_survey(broker)
     ingested = failed = 0
-    for oid, rs in by_obj.items():
+    for oid in oids:
         if stop is not None and stop.is_set():
             break
-        data = _normalize_fink_lsst(oid, rs)
         try:
+            # Full detection history via /api/v1/sources
+            full_rows = await asyncio.to_thread(
+                _fink_post,
+                broker,
+                "api/v1/sources",
+                {"diaObjectId": oid, "output-format": "json"},
+            )
+            data = _normalize_fink_lsst(oid, full_rows or [])
+            if not (data.get("candidate") or {}).get("ra"):
+                failed += 1
+                log(f"Fink backfill: no sources for {oid}, skipping")
+                continue
             async with async_plain_session_factory() as session:
                 user = await session.scalar(sa.select(User).where(User.id == 1))
                 await save_object_as_candidate(
@@ -92,12 +106,12 @@ async def _run_backfill(broker, filter_row, limit, stop=None, on_progress=None):
             log(f"Fink backfill could not ingest {oid}: {e}")
             failed += 1
         if on_progress is not None:
-            on_progress(ingested, failed, len(by_obj))
+            on_progress(ingested, failed, len(oids))
     log(
         f"Fink backfill (broker {broker.id}, filter {filter_row.id}): "
-        f"{ingested} ingested, {failed} failed, {len(by_obj)} found"
+        f"{ingested} ingested, {failed} failed, {len(oids)} found"
     )
-    return ingested, failed, len(by_obj)
+    return ingested, failed, len(oids)
 
 
 def _decode_fink_message(msg):
