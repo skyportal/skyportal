@@ -771,7 +771,7 @@ const SourceContent = ({ source }: SourceContentProps) => {
               }}
             >
               <div className={classes.rowInfo} data-testid="tour-source-tns">
-                <Tooltip title="Name of this source on the Transient Name Server">
+                <Tooltip title="Transient reported at this position, from the Transient Name Server">
                   <b>TNS: &nbsp;</b>
                 </Tooltip>
                 {source.tns_name && (
