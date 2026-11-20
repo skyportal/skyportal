@@ -1,0 +1,6 @@
+# Changesets
+
+One Markdown file per pull request that users can notice, describing the
+change. Knope turns them into the changelog and the release pull request, and
+deletes them when the release is prepared. See "Changesets" in
+doc/contributing.md for the format, or run `knope document-change`.
