@@ -1,5 +1,6 @@
 import { useState } from "react";
 
+import ManageSearchIcon from "@mui/icons-material/ManageSearch";
 import Dialog from "@mui/material/Dialog";
 import DialogActions from "@mui/material/DialogActions";
 import DialogContent from "@mui/material/DialogContent";
@@ -40,7 +41,8 @@ const UpdateSourceTNS = ({ sourceId }: { sourceId: string }) => {
           size="small"
           onClick={() => setDialogOpen(true)}
           data-testid="updateTNSIconButton"
-          sx={{ py: 0 }}
+          endIcon={<ManageSearchIcon />}
+          sx={{ py: 0, px: 1, "& .MuiButton-endIcon": { ml: 0.5 } }}
         >
           Search
         </Button>

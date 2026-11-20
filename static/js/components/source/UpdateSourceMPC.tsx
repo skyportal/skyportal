@@ -29,9 +29,10 @@ interface UpdateSourceMPCProps {
     first_detected?: string;
     [key: string]: any;
   };
+  button?: boolean;
 }
 
-const UpdateSourceMPC = ({ source }: UpdateSourceMPCProps) => {
+const UpdateSourceMPC = ({ source, button = false }: UpdateSourceMPCProps) => {
   const dispatch = useAppDispatch();
   const [addMPC] = useAddMPCMutation();
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -96,13 +97,27 @@ const UpdateSourceMPC = ({ source }: UpdateSourceMPCProps) => {
   return (
     <>
       <Tooltip title="Search the Minor Planet Center for a known solar system object at this position">
-        <IconButton
-          size="small"
-          data-testid="updateMPCIconButton"
-          onClick={() => setDialogOpen(true)}
-        >
-          <TravelExploreIcon fontSize="small" />
-        </IconButton>
+        {button ? (
+          <Button
+            variant="outlined"
+            color="primary"
+            size="small"
+            data-testid="updateMPCIconButton"
+            onClick={() => setDialogOpen(true)}
+            endIcon={<TravelExploreIcon />}
+            sx={{ py: 0, px: 1, "& .MuiButton-endIcon": { ml: 0.5 } }}
+          >
+            Search
+          </Button>
+        ) : (
+          <IconButton
+            size="small"
+            data-testid="updateMPCIconButton"
+            onClick={() => setDialogOpen(true)}
+          >
+            <TravelExploreIcon fontSize="small" />
+          </IconButton>
+        )}
       </Tooltip>
       <Dialog
         open={dialogOpen}

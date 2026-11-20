@@ -771,7 +771,9 @@ const SourceContent = ({ source }: SourceContentProps) => {
               }}
             >
               <div className={classes.rowInfo} data-testid="tour-source-tns">
-                <b>TNS Name: &nbsp;</b>
+                <Tooltip title="Name of this source on the Transient Name Server">
+                  <b>TNS: &nbsp;</b>
+                </Tooltip>
                 {source.tns_name && (
                   <a
                     key={source.tns_name}
@@ -797,15 +799,20 @@ const SourceContent = ({ source }: SourceContentProps) => {
                 )}
               </div>
               <Box className={classes.rowInfo} sx={{ position: "relative" }}>
-                <b>MPC Name: &nbsp;</b>
+                <Tooltip title="Known solar system object at this position, from the Minor Planet Center">
+                  <b>MPC: &nbsp;</b>
+                </Tooltip>
                 {source.mpc_name && (
                   <Chip size="small" label={source.mpc_name} />
                 )}
-                {!isReadOnly && (
-                  <HoverAction>
-                    <UpdateSourceMPC source={source} />
-                  </HoverAction>
-                )}
+                {!isReadOnly &&
+                  (source.mpc_name ? (
+                    <HoverAction>
+                      <UpdateSourceMPC source={source} />
+                    </HoverAction>
+                  ) : (
+                    <UpdateSourceMPC source={source} button />
+                  ))}
               </Box>
               <Box className={classes.rowInfo} sx={{ position: "relative" }}>
                 <b>GCN Crossmatches: &nbsp;</b>
