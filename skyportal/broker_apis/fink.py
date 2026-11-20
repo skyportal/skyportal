@@ -6,6 +6,8 @@ from .interface import BrokerAPI
 
 log = make_log("broker/fink")
 
+_TAGS_URL = "https://api.lsst.fink-portal.org/api/v1/tags"
+
 # Fink ZTF alerts use fid (1/2/3); LSST alerts carry a string band already.
 _FID_TO_BAND = {1: "g", 2: "r", 3: "i"}
 
@@ -17,6 +19,85 @@ FINK_REST_URL = {
     "LSST": "https://api.lsst.fink-portal.org",
 }
 FINK_TIMEOUT = 60  # seconds
+BACKFILL_LIMIT = 1000
+ROUTING_RESCAN_INTERVAL = 60  # seconds
+
+
+def _filter_topic(filter_row):
+    """The Fink tag a SP Filter is subscribed to, or None."""
+    altdata = filter_row.altdata if isinstance(filter_row.altdata, dict) else {}
+    fink = altdata.get("fink") if isinstance(altdata, dict) else None
+    topic = fink.get("topic") if isinstance(fink, dict) else None
+    return topic or None
+
+
+def _kafka_topic(tag, survey):
+    return f"fink_{tag}_{survey.lower()}"
+
+
+async def _run_backfill(broker, filter_row, limit, stop=None, on_progress=None):
+    """Ingest Fink's stored matches for one filter's tag. Returns
+    ``(ingested, failed, found)``."""
+    import asyncio
+
+    import sqlalchemy as sa
+
+    from baselayer.app.models import async_plain_session_factory
+
+    from ..models import User
+    from ._save import save_object_as_candidate
+
+    topic = _filter_topic(filter_row)
+    if topic is None:
+        raise ValueError(
+            f"Filter {filter_row.id} has no saved Fink tag to backfill from. "
+            "Open it in the filter builder, pick a tag, then try again."
+        )
+    rows = await asyncio.to_thread(
+        _fink_post,
+        broker,
+        "api/v1/tags",
+        {"tag": topic, "n": limit, "output-format": "json"},
+    )
+    # One row per diaSource; group by diaObjectId so the LSST normalizer can
+    # reshape each object's rows into the standard alert shape.
+    by_obj: dict = {}
+    for r in rows or []:
+        oid = r.get("r:diaObjectId")
+        if oid is not None:
+            by_obj.setdefault(str(oid), []).append(r)
+    log(
+        f"Fink backfill (broker {broker.id}, filter {filter_row.id}): "
+        f"{len(by_obj)} objects to ingest"
+    )
+    survey = _fink_survey(broker)
+    ingested = failed = 0
+    for oid, rs in by_obj.items():
+        if stop is not None and stop.is_set():
+            break
+        data = _normalize_fink_lsst(oid, rs)
+        try:
+            async with async_plain_session_factory() as session:
+                user = await session.scalar(sa.select(User).where(User.id == 1))
+                await save_object_as_candidate(
+                    data,
+                    survey,
+                    session,
+                    user,
+                    [filter_row.id],
+                    passing_alert_id=(data.get("candidate") or {}).get("candid"),
+                )
+            ingested += 1
+        except Exception as e:
+            log(f"Fink backfill could not ingest {oid}: {e}")
+            failed += 1
+        if on_progress is not None:
+            on_progress(ingested, failed, len(by_obj))
+    log(
+        f"Fink backfill (broker {broker.id}, filter {filter_row.id}): "
+        f"{ingested} ingested, {failed} failed, {len(by_obj)} found"
+    )
+    return ingested, failed, len(by_obj)
 
 
 def _decode_fink_message(msg):
@@ -141,6 +222,42 @@ class FINKBROKER(BrokerAPI):
 
     surveys = ["ZTF", "LSST"]
 
+    filter_kind = "tags"
+    supports_backfill = True
+
+    @staticmethod
+    def backfill_query(filter_row):
+        """What a backfill of this filter will run (the chosen Fink tag), or None."""
+        topic = _filter_topic(filter_row)
+        return {"topic": topic} if topic else None
+
+    @classmethod
+    def configured_surveys(cls, altdata):
+        # Fink deploys one instance per survey (ZTF/LSST), so a Broker row serves
+        # whichever its ``survey`` picks; default stays ZTF for back-compat.
+        altdata = altdata or {}
+        return [(altdata.get("survey") or "ZTF").upper()]
+
+    @staticmethod
+    def available_topics(broker, credentials=None):
+        """Fink community tags for this broker, as the list of tag names the
+        filter editor offers. Only LSST has ``/api/v1/tags``; ZTF returns ``[]``.
+
+        Only tags with ``API support`` true are usable as filter topics.
+        """
+        if _fink_survey(broker) != "LSST":
+            return []
+        response = requests.get(_TAGS_URL, timeout=FINK_TIMEOUT)
+        response.raise_for_status()
+        data = response.json()
+        if not isinstance(data, dict):
+            return []
+        return sorted(
+            name
+            for name, meta in data.items()
+            if isinstance(meta, dict) and meta.get("API support")
+        )
+
     form_json_schema_config = {
         "type": "object",
         "required": ["fink"],
@@ -256,13 +373,39 @@ class FINKBROKER(BrokerAPI):
         )
 
     @staticmethod
+    def test_filter(broker, session, **kwargs):
+        """Preview alerts tagged with the chosen Fink filter via /api/v1/tags."""
+        topic = (kwargs.get("topic") or "").strip()
+        if not topic:
+            raise ValueError("A Fink preview requires 'topic'.")
+        limit = int(kwargs.get("limit") or kwargs.get("n") or 20)
+        rows = _fink_post(
+            broker,
+            "api/v1/tags",
+            {"tag": topic, "n": limit, "output-format": "json"},
+            kwargs,
+        )
+        # Trim Fink's wide row to just what the preview grid shows.
+        keep = (
+            "r:diaObjectId",
+            "r:diaSourceId",
+            "r:ra",
+            "r:dec",
+            "r:band",
+            "r:psfFlux",
+            "r:psfFluxErr",
+            "r:midpointMjdTai",
+        )
+        return [{k: r.get(k) for k in keep} for r in (rows or [])]
+
+    @staticmethod
     def get_cutouts(broker, alert_id, session, **kwargs):
-        """Fetch science/template/difference stamps for an object. Fink returns
-        rendered PNGs, so return them as data: URLs (the frontend uses them
-        directly rather than decoding FITS). ``alert_id`` is the objectId."""
+        """Fetch science/template/difference stamps as data: URLs for direct
+        display. ``alert_id`` is the ZTF objectId or the LSST diaSourceId."""
         import base64
 
         base = _fink_base(broker, kwargs).rstrip("/")
+        id_key = "diaSourceId" if _fink_survey(broker, kwargs) == "LSST" else "objectId"
         out = {}
         for kind, field in (
             ("Science", "cutoutScience"),
@@ -272,7 +415,7 @@ class FINKBROKER(BrokerAPI):
             try:
                 response = requests.post(
                     f"{base}/api/v1/cutouts",
-                    json={"objectId": alert_id, "kind": kind},
+                    json={id_key: str(alert_id), "kind": kind},
                     timeout=FINK_TIMEOUT,
                 )
                 response.raise_for_status()
@@ -341,6 +484,18 @@ class FINKBROKER(BrokerAPI):
         return data, cand.get("candid")
 
     @staticmethod
+    async def run_backfill(broker, filter_row, token=None, stop=None, **kwargs):
+        """Pull Fink's stored matches for this filter's tag and ingest each as a
+        Candidate. Independent of the Kafka stream — moves no consumer offset."""
+        return await _run_backfill(
+            broker,
+            filter_row,
+            limit=int(kwargs.get("limit") or BACKFILL_LIMIT),
+            stop=stop,
+            on_progress=kwargs.get("on_progress"),
+        )
+
+    @staticmethod
     async def run_ingestion(broker, stop=None, max_messages=None, **kwargs):
         """Consume Fink's science-topic Kafka livestream and register each alert
         as a Candidate. Uses confluent_kafka + fastavro directly (Fink ships the
@@ -352,13 +507,14 @@ class FINKBROKER(BrokerAPI):
         (Fink topics are the science filters). Alerts from an unmapped topic fall
         back to the broker-wide ``altdata['filter_ids']``."""
         import asyncio
+        import time
 
         import sqlalchemy as sa
         from confluent_kafka import Consumer
 
         from baselayer.app.models import async_plain_session_factory
 
-        from ..models import User
+        from ..models import Filter, User
         from ._save import save_object_as_candidate
 
         altdata = broker.altdata or {}
@@ -368,12 +524,34 @@ class FINKBROKER(BrokerAPI):
         # Optional per-topic routing: {topic: [filter_id, ...]}. Alerts from a
         # mapped topic become Candidates under those Filters; unmapped topics fall
         # back to the broker-wide filter_ids.
-        topic_filter_ids = fink.get("topic_filter_ids") or {}
+        configured_routing = {
+            str(k): list(v) for k, v in (fink.get("topic_filter_ids") or {}).items()
+        }
+
+        # Attached SP Filters carry their chosen Fink tag in
+        # ``Filter.altdata['fink']['topic']``; merge each into the routing map so
+        # admins don't have to maintain ``topic_filter_ids`` by hand.
+        async def load_routing():
+            routing = {k: list(v) for k, v in configured_routing.items()}
+            async with async_plain_session_factory() as session:
+                rows = (
+                    await session.scalars(
+                        sa.select(Filter).where(Filter.broker_id == broker.id)
+                    )
+                ).all()
+            for f in rows:
+                tag = _filter_topic(f)
+                if not tag:
+                    continue
+                ids = routing.setdefault(_kafka_topic(tag, survey), [])
+                if f.id not in ids:
+                    ids.append(f.id)
+            # Subscribe to the explicit topics plus any keyed in the routing map.
+            topics = list(dict.fromkeys((fink.get("topics") or []) + list(routing)))
+            return routing, topics
+
+        topic_filter_ids, topics = await load_routing()
         maxtimeout = float(fink.get("maxtimeout", 5))
-        # Subscribe to the explicit topics plus any keyed in the routing map.
-        topics = list(
-            dict.fromkeys((fink.get("topics") or []) + list(topic_filter_ids))
-        )
 
         servers = fink.get("servers")
         if not servers:
@@ -404,8 +582,25 @@ class FINKBROKER(BrokerAPI):
         log(f"Fink ingestion (broker {broker.id}): subscribed to {topics}")
 
         count = 0
+        rescanned = time.monotonic()
         try:
             while not (stop is not None and stop.is_set()):
+                if time.monotonic() - rescanned >= ROUTING_RESCAN_INTERVAL:
+                    rescanned = time.monotonic()
+                    try:
+                        topic_filter_ids, new_topics = await load_routing()
+                    except Exception as e:
+                        log(f"Fink ingestion (broker {broker.id}): {e}")
+                        new_topics = topics
+                    if new_topics != topics:
+                        topics = new_topics
+                        if topics:
+                            consumer.subscribe(topics)
+                        else:
+                            consumer.unsubscribe()
+                        log(
+                            f"Fink ingestion (broker {broker.id}): subscribed to {topics}"
+                        )
                 msg = await asyncio.to_thread(consumer.poll, maxtimeout)
                 if msg is None or msg.error():
                     continue

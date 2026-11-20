@@ -1079,7 +1079,7 @@ class BrokerFilterTestHandler(BaseHandler):
                     f"Broker {broker.name} does not support filter preview."
                 )
             # A windowless preview is rejected upstream as an opaque 400.
-            if broker.broker_class.filter_kind != "query" and (
+            if broker.broker_class.filter_kind not in ("query", "tags") and (
                 params.get("start_jd") is None or params.get("end_jd") is None
             ):
                 return self.error("A filter preview needs both start_jd and end_jd.")
@@ -1579,6 +1579,32 @@ class BrokerFiltersHandler(BaseHandler):
                 return self.error(f"No broker with id {broker_id}")
             if not broker.active:
                 return self.error(f"Broker {broker.name} is not active")
+            # Tag-kind brokers (e.g. Fink): the "filter" is a single broker-side
+            # tag/topic the SP Filter subscribes to, stored on the Filter itself
+            # with no broker-side filter object to create.
+            if broker.broker_class.filter_kind == "tags":
+                f = session.scalars(
+                    Filter.select(self.current_user, mode="update").where(
+                        Filter.id == int(filter_id)
+                    )
+                ).first()
+                if f is None:
+                    return self.error(f"Cannot find a filter with ID: {filter_id}.")
+                query = body.query or {}
+                topic = (query.get("topic") or "").strip()
+                if not topic:
+                    return self.error("A tag filter requires 'topic'.")
+                f.broker_id = broker.id
+                if "autosave" in body.model_fields_set:
+                    f.autosave = bool(body.autosave)
+                ad = dict(f.altdata) if isinstance(f.altdata, dict) else {}
+                ad["fink"] = {"topic": topic}
+                f.altdata = ad
+                flag_modified(f, "altdata")
+                session.commit()
+                return self.success(
+                    data={"id": f.id, "altdata": f.altdata, "autosave": f.autosave}
+                )
             # Query-kind brokers (e.g. Lasair): the "filter" is a saved SQL query
             # (selected/tables/conditions) stored on the skyportal Filter itself,
             # with no broker-side filter object to create.
