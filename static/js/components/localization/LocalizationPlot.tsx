@@ -58,6 +58,7 @@ const toCatalogSources = (geojson: any) =>
     A.source(normRa(d.geometry.coordinates[0]), d.geometry.coordinates[1], {
       name: d.properties?.name,
       url: d.properties?.url,
+      color: d.properties?.color,
     }),
   );
 
@@ -231,7 +232,7 @@ const AladinGlobe = ({
           sources: catalog({
             name: "sources",
             shape: "circle",
-            color: "red",
+            color: (source: any) => source.data?.color ?? "red",
             sourceSize: 8,
             onClick: "showPopup",
           }),

@@ -61,6 +61,7 @@ import FilterCandidateList from "./FilterCandidateList";
 import ScanningPageCandidateAnnotations from "./ScanningPageCandidateAnnotations";
 import AddClassificationsScanningPage from "./AddClassificationsScanningPage";
 import CandidatePlugins from "./CandidatePlugins";
+import CandidatesSkymap from "./CandidatesSkymap";
 import GenerateReportForm from "./scan_reports/GenerateReportForm";
 
 const TrackScanner = lazy(() => import("../superobj/TrackScanner"));
@@ -841,6 +842,14 @@ const CandidateList = () => {
                 </Button>
               </Box>
             </Paper>
+            {searchParams["localizationDateobs"] &&
+              searchParams["localizationName"] && (
+                <CandidatesSkymap
+                  dateobs={searchParams["localizationDateobs"]}
+                  localizationName={searchParams["localizationName"]}
+                  candidates={candidates}
+                />
+              )}
             {isFetching ? (
               <Spinner />
             ) : (
