@@ -968,7 +968,7 @@ def test_candidate_lightcurve_renders(
     search_candidates(page)
     expect(page.locator(f'//a[@data-testid="{candidate_id}"]').first).to_be_visible()
 
-    # Vega renders the lightcurve into a .vega-embed svg; it never appears if Vega
+    # Vega renders the lightcurve into a .vega-embed canvas; it stays blank if Vega
     # throws on the frozen photometry data.
     expect_vega_plot(page.locator(".vega-embed").first)
     assert not any("not extensible" in err for err in page_errors), page_errors

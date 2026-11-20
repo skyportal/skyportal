@@ -247,12 +247,12 @@ const spec = (
   }
   if (hasStyle) {
     if (style.width || style.maxWidth || style.minWidth) {
-      specJSON.layer[0].width = "container";
+      specJSON.width = "container";
     }
     if (style.height || style.maxHeight || style.minHeight) {
-      specJSON.layer[0].height = "container";
+      specJSON.height = "container";
     }
-    specJSON.layer[0].autosize = {
+    specJSON.autosize = {
       type: "fit",
       contains: "padding",
     };
@@ -268,10 +268,17 @@ interface VegaPlotProps {
   };
   values?: any[] | null;
   style?: Record<string, any>;
+  renderer?: "svg" | "canvas";
 }
 
 const VegaPlot = React.memo((props: VegaPlotProps) => {
-  const { dataUrl = null, colorScale, values = null, style = {} } = props;
+  const {
+    dataUrl = null,
+    colorScale,
+    values = null,
+    style = {},
+    renderer,
+  } = props;
   const hasStyle = Object.keys(style).length > 0;
   const theme = useTheme() as any;
   const containerRef = useRef<any>(null);
@@ -308,6 +315,7 @@ const VegaPlot = React.memo((props: VegaPlotProps) => {
         ),
         {
           actions: false,
+          renderer,
         },
       );
 
@@ -343,6 +351,7 @@ const VegaPlot = React.memo((props: VegaPlotProps) => {
     values,
     hasStyle,
     style,
+    renderer,
     theme.plotFontSizes.titleFontSize,
     theme.plotFontSizes.labelFontSize,
   ]);

@@ -50,11 +50,19 @@ interface VegaPhotometryMemoProps {
   wavelengths: string[];
   period?: number | null;
   style?: React.CSSProperties;
+  renderer?: "svg" | "canvas" | undefined;
 }
 
 const VegaPhotometryMemo = React.memo(
   (props: VegaPhotometryMemoProps) => {
-    const { values, filters, wavelengths, period = null, style = {} } = props;
+    const {
+      values,
+      filters,
+      wavelengths,
+      period = null,
+      style = {},
+      renderer,
+    } = props;
 
     const colorScale = {
       domain: filters,
@@ -74,7 +82,9 @@ const VegaPhotometryMemo = React.memo(
     const plot = period ? (
       <VegaFoldedPlot {...({ values: plotValues, colorScale, style } as any)} />
     ) : (
-      <VegaPlot {...({ values: plotValues, colorScale, style } as any)} />
+      <VegaPlot
+        {...({ values: plotValues, colorScale, style, renderer } as any)}
+      />
     );
     return (
       <Suspense fallback={<PlotSkeleton style={style} />}>{plot}</Suspense>
@@ -106,6 +116,8 @@ interface VegaPhotometryProps {
   folded?: boolean;
   style?: React.CSSProperties;
   controls?: boolean;
+  defaultShowUpperLimits?: boolean;
+  renderer?: "svg" | "canvas";
 }
 
 const VegaPhotometry = (props: VegaPhotometryProps) => {
@@ -115,6 +127,8 @@ const VegaPhotometry = (props: VegaPhotometryProps) => {
     folded = false,
     style = {},
     controls = true,
+    defaultShowUpperLimits = true,
+    renderer,
   } = props;
   const { data: photometry, isLoading } =
     useGetSourcePhotometryMinimalQuery(sourceId);
@@ -122,7 +136,9 @@ const VegaPhotometry = (props: VegaPhotometryProps) => {
   const [filters, setFilters] = useState<string[] | null>(null);
   const [wavelengths, setWavelengths] = useState<string[] | null>(null);
   const [period, setPeriod] = useState<number | null>(null);
-  const [showUpperLimits, setShowUpperLimits] = useState(true);
+  const [showUpperLimits, setShowUpperLimits] = useState(
+    defaultShowUpperLimits,
+  );
   const [showForcedPhotometry, setShowForcedPhotometry] = useState(true);
   const [hasForcedPhotometry, setHasForcedPhotometry] = useState(false);
   const [showMatches, setShowMatches] = useState(true);
@@ -131,10 +147,7 @@ const VegaPhotometry = (props: VegaPhotometryProps) => {
     if (photometry == null) {
       return null;
     }
-    return photometry.map(asDetectionOrLimit).filter((datum: any) => {
-      if (!showUpperLimits && datum.mag === null) {
-        return false;
-      }
+    const shown = photometry.map(asDetectionOrLimit).filter((datum: any) => {
       if (!showForcedPhotometry && ["fp", "alert_fp"].includes(datum.origin)) {
         return false;
       }
@@ -143,6 +156,26 @@ const VegaPhotometry = (props: VegaPhotometryProps) => {
       }
       return true;
     });
+    if (showUpperLimits) {
+      return shown;
+    }
+    const firstDetectionMjd = shown.reduce(
+      (first: number, datum: any) =>
+        datum.mag !== null ? Math.min(first, Number(datum.mjd)) : first,
+      Infinity,
+    );
+    const lastLimitBefore = shown.reduce(
+      (last: any, datum: any) =>
+        datum.mag === null &&
+        Number(datum.mjd) < firstDetectionMjd &&
+        (last === null || Number(datum.mjd) > Number(last.mjd))
+          ? datum
+          : last,
+      null,
+    );
+    return shown.filter(
+      (datum: any) => datum.mag !== null || datum === lastLimitBefore,
+    );
   }, [
     showUpperLimits,
     showForcedPhotometry,
@@ -207,6 +240,7 @@ const VegaPhotometry = (props: VegaPhotometryProps) => {
         wavelengths={wavelengths}
         period={period}
         style={style}
+        renderer={renderer}
       />
       {/* the left margin is to align the toggle with the y-axis of the plot */}
       <div
