@@ -662,11 +662,20 @@ async def get_source(
         # keep/reject control off this list, so filtering rejections out removed
         # the only way to revisit one -- a mis-click could not be undone.
         gcn_event_obj_result = await session.scalars(
-            GcnEventObj.select(user).where(GcnEventObj.obj_id == obj_id)
+            GcnEventObj.select(user)
+            .options(selectinload(GcnEventObj.localization))
+            .where(GcnEventObj.obj_id == obj_id)
         )
-        crossmatch_dateobs = list({row.dateobs for row in gcn_event_obj_result.all()})
+        matched_localizations = {
+            row.dateobs: row.localization.localization_name
+            if row.localization
+            else None
+            for row in gcn_event_obj_result.all()
+        }
         gcn_crossmatch_result = await session.scalars(
-            GcnEvent.select(user).where(GcnEvent.dateobs.in_(crossmatch_dateobs))
+            GcnEvent.select(user).where(
+                GcnEvent.dateobs.in_(list(matched_localizations))
+            )
         )
         source_info["gcn_crossmatch"] = gcn_crossmatch_result.unique().all()
 
@@ -675,6 +684,7 @@ async def get_source(
             {
                 **gcn.to_dict(),
                 "dateobs_mjd": Time(gcn.dateobs).mjd,
+                "matched_localization_name": matched_localizations.get(gcn.dateobs),
             }
             for gcn in source_info["gcn_crossmatch"]
         ]

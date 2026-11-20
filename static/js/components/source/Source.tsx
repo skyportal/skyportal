@@ -823,6 +823,12 @@ const SourceContent = ({ source }: SourceContentProps) => {
                   <SourceGCNCrossmatchList
                     gcn_crossmatches={gcn_crossmatches}
                     source={source}
+                    matchedLocalizations={Object.fromEntries(
+                      (source.gcn_crossmatch || []).map((gcn: any) => [
+                        gcn.dateobs.replace(" ", "T"),
+                        gcn.matched_localization_name,
+                      ]),
+                    )}
                   />
                 )}
                 {!isReadOnly && (
