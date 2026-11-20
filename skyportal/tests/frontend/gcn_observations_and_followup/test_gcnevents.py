@@ -309,7 +309,7 @@ def test_confirm_reject_source_in_gcn(
     # The source page should render the resulting GCN crossmatch.
     page.goto(f"/become_user/{super_admin_user.id}")
     page.goto(f"/source/{obj_id}")
-    expect(page.locator('//*[contains(., "GCN Crossmatches:")]').first).to_be_visible()
+    expect(page.locator('//*[contains(., "GCN:")]').first).to_be_visible()
     expect(page.locator(f'//*[contains(., "{dateobs}")]').first).to_be_visible()
 
     # Choosing a verdict must not write it: the buttons select, SAVE commits.

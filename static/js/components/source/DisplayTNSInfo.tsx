@@ -23,6 +23,7 @@ const DisplayTNSInfo = ({
       <IconButton
         data-testid="showTNSInfoIcon"
         size="small"
+        sx={{ p: 0, ml: 0.5 }}
         onClick={() => {
           setDialogOpen(true);
         }}

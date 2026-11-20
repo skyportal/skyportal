@@ -17492,7 +17492,44 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get?: never;
+        /**
+         * Get an object's default MPC observatory code
+         * @description Observatory code used when an MPC query does not give one: the code
+         *     of the telescope that took the detection closest to the date, or the
+         *     geocentric code when that telescope has none.
+         */
+        get: {
+            parameters: {
+                query?: {
+                    /** @description UTC date of the MPC query. Defaults to now. */
+                    date?: string | null;
+                };
+                header?: never;
+                path: {
+                    obj_id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Success"];
+                    };
+                };
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
         put?: never;
         /**
          * Crossmatch an object with MPC

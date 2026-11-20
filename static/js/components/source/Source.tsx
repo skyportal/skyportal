@@ -12,6 +12,8 @@ import React, {
 import { Link } from "react-router-dom";
 
 import { makeStyles } from "tss-react/mui";
+import Box from "@mui/material/Box";
+import Chip from "@mui/material/Chip";
 import Grid from "@mui/material/Grid";
 import Tooltip from "@mui/material/Tooltip";
 import Checkbox from "@mui/material/Checkbox";
@@ -244,6 +246,32 @@ export const useSourceStyles = makeStyles()((theme) => ({
   },
 }));
 
+const HoverAction = ({ children }: { children: React.ReactNode }) => (
+  <Box
+    component="span"
+    sx={{
+      position: "absolute",
+      left: "100%",
+      top: "50%",
+      transform: "translateY(-50%)",
+      ml: "-1px",
+      display: "flex",
+      opacity: 0,
+      transition: "opacity 0.15s",
+      "*:hover > &, *:focus-within > &": { opacity: 1 },
+      "@media (hover: none)": { opacity: 1 },
+      "& .MuiIconButton-root": {
+        p: "1px",
+        color: "text.secondary",
+        "&:hover": { color: "primary.main" },
+      },
+      "& .MuiSvgIcon-root": { fontSize: "0.75rem" },
+    }}
+  >
+    {children}
+  </Box>
+);
+
 interface SourceContentProps {
   source: any;
 }
@@ -307,8 +335,6 @@ const SourceContent = ({ source }: SourceContentProps) => {
   const downSm = useMediaQuery((theme: any) => theme.breakpoints.down("sm"));
   const downMd = useMediaQuery((theme: any) => theme.breakpoints.down("md"));
   const downLg = useMediaQuery((theme: any) => theme.breakpoints.down("lg"));
-
-  const [hovering, setHovering] = useState<any>(null);
 
   const alertBroker = brokers.find(
     (b) =>
@@ -389,19 +415,6 @@ const SourceContent = ({ source }: SourceContentProps) => {
 
   const removeHost = () => {
     removeHostMutation(source.id);
-  };
-
-  const handleHover = (type: any) => {
-    if (hovering !== type) {
-      setHovering(type);
-    }
-  };
-
-  const handleStopHover = (type: any) => {
-    // here we only trigger if we stopped hovering the currently hovered item
-    if (hovering === type) {
-      setHovering(null);
-    }
   };
 
   const rightPanelContent = (
@@ -758,10 +771,14 @@ const SourceContent = ({ source }: SourceContentProps) => {
               }}
             >
               <div className={classes.rowInfo} data-testid="tour-source-tns">
-                <b>TNS Name: &nbsp;</b>
+                <Tooltip title="Transient reported at this position, from the Transient Name Server">
+                  <b>TNS: &nbsp;</b>
+                </Tooltip>
                 {source.tns_name && (
-                  <a
-                    key={source.tns_name}
+                  <Chip
+                    size="small"
+                    label={source.tns_name}
+                    component="a"
                     href={`https://www.wis-tns.org/object/${
                       source.tns_name.trim().includes(" ")
                         ? source.tns_name.split(" ")[1]
@@ -769,9 +786,8 @@ const SourceContent = ({ source }: SourceContentProps) => {
                     }`}
                     target="_blank"
                     rel="noopener noreferrer"
-                  >
-                    {`${source.tns_name}`}
-                  </a>
+                    clickable
+                  />
                 )}
                 {source.tns_info && (
                   <DisplayTNSInfo
@@ -783,33 +799,38 @@ const SourceContent = ({ source }: SourceContentProps) => {
                   <UpdateSourceTNS sourceId={source.id} />
                 )}
               </div>
-              <div
-                className={classes.rowInfo}
-                onMouseEnter={() => handleHover("mpc")}
-                onMouseLeave={() => handleStopHover("mpc")}
-              >
-                <b>MPC Name: &nbsp;</b>
-                <div key="mpc_name"> {source.mpc_name} </div>
-                {!isReadOnly && hovering === "mpc" && (
-                  <UpdateSourceMPC source={source} />
+              <Box className={classes.rowInfo} sx={{ position: "relative" }}>
+                <Tooltip title="Known solar system object at this position, from the Minor Planet Center">
+                  <b>MPC: &nbsp;</b>
+                </Tooltip>
+                {source.mpc_name && (
+                  <Chip size="small" label={source.mpc_name} />
                 )}
-              </div>
-              <div
-                className={classes.rowInfo}
-                onMouseEnter={() => handleHover("gcn")}
-                onMouseLeave={() => handleStopHover("gcn")}
-              >
-                <b>GCN Crossmatches: &nbsp;</b>
+                {!isReadOnly &&
+                  (source.mpc_name ? (
+                    <HoverAction>
+                      <UpdateSourceMPC source={source} />
+                    </HoverAction>
+                  ) : (
+                    <UpdateSourceMPC source={source} button />
+                  ))}
+              </Box>
+              <Box className={classes.rowInfo} sx={{ position: "relative" }}>
+                <Tooltip title="GCN events whose localization contains this source">
+                  <b>GCN: &nbsp;</b>
+                </Tooltip>
                 {source.gcn_crossmatch?.length > 0 && (
                   <SourceGCNCrossmatchList
                     gcn_crossmatches={gcn_crossmatches}
                     source={source}
                   />
                 )}
-                {!isReadOnly && hovering === "gcn" && (
-                  <UpdateSourceGCNCrossmatch source={source} />
+                {!isReadOnly && (
+                  <HoverAction>
+                    <UpdateSourceGCNCrossmatch source={source} />
+                  </HoverAction>
                 )}
-              </div>
+              </Box>
               <div className={classes.rowInfo}>
                 <SourceAlias source={source} />
               </div>
