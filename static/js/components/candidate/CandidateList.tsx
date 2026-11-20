@@ -45,6 +45,7 @@ import ThumbnailList from "../thumbnail/ThumbnailList";
 import EditSourceGroups from "../source/EditSourceGroups";
 import SavedGroupChips from "../group/SavedGroupChips";
 import UpdateSourceMPC from "../source/UpdateSourceMPC";
+import SourceGCNCrossmatchList from "../source/SourceGCNCrossmatchList";
 import DisplayPhotStats from "../source/DisplayPhotStats";
 import ObjectTags from "../ObjectTags";
 import RejectButton from "../RejectButton";
@@ -379,6 +380,20 @@ const CandidateInfo = ({
           </a>
         </InfoRow>
       ))}
+      {candidate.gcn_matches?.length > 0 && (
+        <InfoRow label="GCN:">
+          <SourceGCNCrossmatchList
+            gcn_crossmatches={candidate.gcn_matches.map((m: any) => m.dateobs)}
+            source={candidate}
+            matchedLocalizations={Object.fromEntries(
+              candidate.gcn_matches.map((m: any) => [
+                m.dateobs.replace(" ", "T"),
+                m.localization_name,
+              ]),
+            )}
+          />
+        </InfoRow>
+      )}
       {candidate.last_detected_at && (
         <InfoRow label="Last detected:">
           <span>
