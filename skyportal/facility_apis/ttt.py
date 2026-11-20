@@ -54,14 +54,12 @@ def validate_request_to_ttt(request, proposal_id):
         raise ValueError("station_name must be TTT-80 or TTT-200")
 
     if request.payload["station_name"] == "TTT-80":
-        camera_model = "QHY411M"
+        camera_model = "FERVOR-M"
     elif request.payload["station_name"] == "TTT-200":
         if "camera_model" not in request.payload:
             raise ValueError("camera_model is required when using TTT-200")
-        if request.payload["camera_model"] not in ["iKon936", "QHY600M Pro"]:
-            raise ValueError(
-                "camera_model must be 'iKon936' or 'QHY600M Pro' for TTT-200"
-            )
+        if request.payload["camera_model"] not in ["COLORS", "FERVOR-M"]:
+            raise ValueError("camera_model must be 'COLORS' or 'FERVOR-M' for TTT-200")
         camera_model = request.payload["camera_model"]
 
     if any(
@@ -365,8 +363,8 @@ class TTTAPI(FollowUpAPI):
                             "camera_model": {
                                 "type": "string",
                                 "title": "Camera",
-                                "enum": ["iKon936", "QHY600M Pro"],
-                                "default": "QHY600M Pro",
+                                "enum": ["COLORS", "FERVOR-M"],
+                                "default": "FERVOR-M",
                             },
                             "observation_choices": {
                                 "type": "array",
