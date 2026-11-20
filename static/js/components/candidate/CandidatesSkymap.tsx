@@ -76,6 +76,7 @@ const CandidatesSkymap = ({
           height={520}
           width={520}
           projection="orthographic"
+          fitSources
         />
       </Box>
       <Box sx={{ display: "flex", flexDirection: "column", gap: 0.5 }}>

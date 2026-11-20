@@ -201,6 +201,7 @@ const CrossmatchItem = ({
               height={INSET_PX}
               width={INSET_PX}
               projection="orthographic"
+              fitSources
             />
           </div>
         ) : (

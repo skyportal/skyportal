@@ -104,6 +104,25 @@ const fovForContour = (contour: any) => {
   return Math.min(180, Math.max(2, 1.6 * size));
 };
 
+const viewAround = (
+  [ra0, dec0]: [number, number],
+  points: [number, number][],
+  minFov: number,
+) => {
+  const xs = [0, ...points.map(([ra]) => ((ra - ra0 + 540) % 360) - 180)];
+  const ys = [dec0, ...points.map(([, dec]) => dec)];
+  const dec = (Math.max(...ys) + Math.min(...ys)) / 2;
+  const cosDec = Math.cos((dec * Math.PI) / 180);
+  return {
+    ra: normRa(ra0 + (Math.max(...xs) + Math.min(...xs)) / 2),
+    dec,
+    fov: Math.min(
+      180,
+      Math.max(minFov, 1.3 * Math.max(span(xs) * cosDec, span(ys))),
+    ),
+  };
+};
+
 interface LocalizationPlotProps {
   localization?: any;
   sources?: any;
@@ -130,6 +149,7 @@ interface LocalizationPlotProps {
   selectedObservations?: number[];
   setSelectedObservations?: (observations: number[]) => void;
   projection?: string | undefined;
+  fitSources?: boolean;
 }
 
 const AladinGlobe = ({
@@ -147,8 +167,14 @@ const AladinGlobe = ({
   selectedObservations = [],
   setSelectedObservations = () => {},
   projection = "orthographic",
+  fitSources = false,
 }: LocalizationPlotProps) => {
   const skymap = localization.contour;
+  const sourcePositions = fitSources
+    ? JSON.stringify(
+        (sources?.features ?? []).map((f: any) => f.geometry.coordinates),
+      )
+    : "[]";
   const containerRef = useRef<HTMLDivElement | null>(null);
   const aladinRef = useRef<any>(null);
   const layers = useRef<any>({});
@@ -374,6 +400,15 @@ const AladinGlobe = ({
       layers.current.sources.addSources(toCatalogSources(sources));
     }
   }, [ready, sources, options.sources]);
+
+  useEffect(() => {
+    const center = skymap.features?.[0]?.geometry?.coordinates;
+    const points = JSON.parse(sourcePositions);
+    if (!ready || !center || !points.length) return;
+    const { ra, dec, fov } = viewAround(center, points, fovForContour(skymap));
+    aladinRef.current?.gotoRaDec(ra, dec);
+    aladinRef.current?.setFoV(fov);
+  }, [ready, skymap, sourcePositions]);
 
   useEffect(() => {
     if (!ready) return;
