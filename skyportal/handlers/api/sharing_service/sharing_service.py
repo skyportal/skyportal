@@ -164,8 +164,8 @@ async def update_sharing_service(
         The ID of the SharingService to update
     instrument_ids : list of int
         List of instrument IDs that can be used for publishing
-    stream_ids : list of int
-        List of stream IDs that can be used for publishing
+    stream_ids : list of int or None
+        List of stream IDs that can be used for publishing, None to keep the current ones
     session : `baselayer.app.models.AsyncSession`
         Async database session
 
@@ -250,9 +250,11 @@ async def update_sharing_service(
     if instruments:
         sharing_service.instruments = instruments
 
-    sharing_service.streams = (
-        await process_stream_ids_async(session, session.user_or_token, stream_ids) or []
-    )
+    if stream_ids is not None:
+        sharing_service.streams = (
+            await process_stream_ids_async(session, session.user_or_token, stream_ids)
+            or []
+        )
 
     validate_tns_fields(sharing_service)
     validate_mpc_fields(sharing_service)
@@ -293,7 +295,7 @@ class SharingServiceHandler(BaseHandler):
             owner_group_ids = list(set(owner_group_ids))
 
         instrument_ids = data.pop("instrument_ids", [])
-        stream_ids = data.pop("stream_ids", [])
+        stream_ids = data.pop("stream_ids", None)
 
         async with self.AsyncSession() as session:
             # Check for duplicates if we're creating a new sharing service
