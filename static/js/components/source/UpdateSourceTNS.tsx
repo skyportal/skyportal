@@ -41,10 +41,9 @@ const UpdateSourceTNS = ({ sourceId }: { sourceId: string }) => {
           size="small"
           onClick={() => setDialogOpen(true)}
           data-testid="updateTNSIconButton"
-          endIcon={<ManageSearchIcon />}
-          sx={{ py: 0, px: 1, "& .MuiButton-endIcon": { ml: 0.5 } }}
+          sx={{ py: 0, px: 0.5, minWidth: 0 }}
         >
-          Search
+          <ManageSearchIcon fontSize="small" />
         </Button>
       </Tooltip>
       <Dialog

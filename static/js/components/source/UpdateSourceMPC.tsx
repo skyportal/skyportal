@@ -104,10 +104,9 @@ const UpdateSourceMPC = ({ source, button = false }: UpdateSourceMPCProps) => {
             size="small"
             data-testid="updateMPCIconButton"
             onClick={() => setDialogOpen(true)}
-            endIcon={<TravelExploreIcon />}
-            sx={{ py: 0, px: 1, "& .MuiButton-endIcon": { ml: 0.5 } }}
+            sx={{ py: 0, px: 0.5, minWidth: 0 }}
           >
-            Search
+            <TravelExploreIcon fontSize="small" />
           </Button>
         ) : (
           <IconButton
