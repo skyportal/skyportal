@@ -1,3 +1,4 @@
+import json
 import uuid
 
 import pytest
@@ -762,6 +763,39 @@ def test_a_spectrum_not_opted_in_is_listed_as_needing_a_manual_report(
     ]
     assert row["reason_code"] == "manual"
     assert row["reason"] == "Manual report needed: spectrum not opted in"
+
+
+def test_a_sent_tns_classification_report_is_listed_as_reported(
+    tns_classification_service,
+    public_source,
+    public_group,
+    public_taxonomy,
+    classification_token,
+    super_admin_token,
+):
+    _update_obj(public_source.id, {"tns_name": "2026abc"}, super_admin_token)
+    _classify(
+        public_source.id, public_taxonomy.id, public_group.id, classification_token
+    )
+    (sent,) = _submissions(tns_classification_service, super_admin_token)
+    report = {"classifier": "A. Classifier", "objtypeid": 3, "redshift": 0.05}
+    DBSession().execute(
+        sa.update(SharingServiceSubmission)
+        .where(SharingServiceSubmission.id == sent["id"])
+        .values(
+            tns_status="complete",
+            tns_payload=json.dumps({"classification_report": {"0": report}}),
+        )
+    )
+    DBSession().commit()
+
+    status, data = api(
+        "GET", "sharing_service/tns_classifications", token=super_admin_token
+    )
+    assert status == 200
+    (row,) = [r for r in data["data"]["reported"] if r["id"] == sent["id"]]
+    assert row["redshift"] == 0.05
+    assert row["authors"] == "A. Classifier"
 
 
 def test_an_ml_classification_queues_no_tns_report(
