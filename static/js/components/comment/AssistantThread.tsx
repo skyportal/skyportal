@@ -86,7 +86,7 @@ const ModelBar = ({ usage }: { usage: AssistantUsage }) => {
   const level = left <= 10 ? "error" : left <= 25 ? "warning" : "success";
   const resets = usage.resets
     ? new Date(`${usage.resets}T00:00:00Z`).toLocaleDateString(undefined, {
-        month: "short",
+        month: "long",
         day: "numeric",
         timeZone: "UTC",
       })
@@ -144,12 +144,10 @@ const ModelBar = ({ usage }: { usage: AssistantUsage }) => {
                 fontSize: "0.75rem",
               }}
             >
-              {usage.model} has ${usage.limit} a month shared by everyone, and $
-              {usage.spent} of it is used ({100 - left}%), estimated from the
-              tokens of each answer.{" "}
+              {100 - left}% of this month’s budget used.{" "}
               {usage.fallback
-                ? `When it runs out, the assistant answers with ${usage.fallback} until ${resets}.`
-                : `When it runs out, the assistant stops answering until ${resets}.`}
+                ? `If it runs out, the assistant answers with ${usage.fallback} until ${resets}.`
+                : `If it runs out, the assistant stops answering until ${resets}.`}
             </Box>
           </Popover>
         </>
