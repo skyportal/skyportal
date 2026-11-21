@@ -401,7 +401,10 @@ def test_without_a_broker_the_gaia_tap_is_used():
 
 def test_gaia_outage_is_not_cached():
     ra, dec = _fresh_position()
-    with patch.object(offset.gaia, "query", return_value=None) as tap:
+    with (
+        patch.object(offset.gaia, "query", return_value=None) as tap,
+        patch.object(offset, "get_astrometry_backup_from_ztf", return_value=None),
+    ):
         first = _offset_stars(ra, dec, broker=None)
         _offset_stars(ra, dec, broker=None, obstime="2026-10-06T00:00:00")
 
