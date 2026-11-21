@@ -74,7 +74,12 @@ MAX_CONTEXT = int(CONFIG.get("max_context_messages", 40))
 RESULT_BUDGET = int(CONFIG.get("result_budget", 20000))
 TIMEOUT = float(CONFIG.get("request_timeout", 300))
 STALL_TIMEOUT = float(CONFIG.get("stall_timeout", 45))
-MAIN = {"base_url": BASE_URL, "model": MODEL, "api_key": API_KEY}
+MAIN = {
+    "base_url": BASE_URL,
+    "model": MODEL,
+    "api_key": API_KEY,
+    "temperature": CONFIG.get("temperature", 0),
+}
 FALLBACK = CONFIG.get("fallback") or {}
 FALLBACK_PERIOD = float(CONFIG.get("fallback_period", 300))
 SWITCH_ERRORS = (
@@ -177,7 +182,13 @@ def stream_round(endpoint, messages, tools, budget):
     headers = {"Content-Type": "application/json"}
     if endpoint.get("api_key"):
         headers["Authorization"] = f"Bearer {endpoint['api_key']}"
-    payload = chat_payload(endpoint.get("model") or "", messages, tools, THINKING)
+    payload = chat_payload(
+        endpoint.get("model") or "",
+        messages,
+        tools,
+        THINKING,
+        endpoint.get("temperature", 0),
+    )
     payload["stream"] = True
     deadline = time.monotonic() + budget
 

@@ -325,7 +325,7 @@ def offered_tools(tools, context_type=None):
     ]
 
 
-def chat_payload(model, messages, tools, thinking=False):
+def chat_payload(model, messages, tools, thinking=False, temperature=0):
     """The body of a chat-completions request.
 
     Here rather than in the service because the service calls init_db at
@@ -336,7 +336,9 @@ def chat_payload(model, messages, tools, thinking=False):
     for an answer with no tools left to call, and a server that rejects an
     empty array turns that into a 400 the user reads as "something went wrong".
     """
-    payload = {"model": model, "messages": messages, "temperature": 0}
+    payload = {"model": model, "messages": messages}
+    if temperature is not None:
+        payload["temperature"] = temperature
     if tools:
         payload["tools"] = tools
     if not thinking:

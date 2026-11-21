@@ -745,6 +745,8 @@ app:
     # Let a reasoning model think before it answers. It roughly doubles how long
     # a question takes, for an answer that is quoting tool results either way.
     thinking: false
+    # Empty: not sent, for models that reject it.
+    temperature: 0
     # Budget for a whole question, across all its round-trips.
     answer_timeout: 180
     # Characters of one tool result the model sees. A result larger than this is
