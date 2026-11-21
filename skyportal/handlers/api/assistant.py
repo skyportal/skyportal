@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta
+from datetime import datetime
 
 import sqlalchemy as sa
 from pydantic import BaseModel, ConfigDict, Field
@@ -294,9 +294,5 @@ class AssistantUsageHandler(BaseHandler):
                 "spent": round(spent, 2),
                 "limit": limit,
                 "left": max(0, round(100 * (1 - spent / limit))),
-                "resets": (start + timedelta(days=32))
-                .replace(day=1)
-                .date()
-                .isoformat(),
             }
         return self.success(data=data)

@@ -32,7 +32,6 @@ export interface AssistantUsage {
   spent?: number;
   limit?: number;
   left?: number;
-  resets?: string;
 }
 
 export interface AssistantQuestion {

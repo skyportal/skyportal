@@ -84,13 +84,6 @@ const ModelBar = ({ usage }: { usage: AssistantUsage }) => {
   const [anchor, setAnchor] = useState<HTMLElement | null>(null);
   const left = usage.left ?? 100;
   const level = left <= 10 ? "error" : left <= 25 ? "warning" : "success";
-  const resets = usage.resets
-    ? new Date(`${usage.resets}T00:00:00Z`).toLocaleDateString(undefined, {
-        month: "long",
-        day: "numeric",
-        timeZone: "UTC",
-      })
-    : "";
   return (
     <Box
       sx={{
@@ -139,37 +132,40 @@ const ModelBar = ({ usage }: { usage: AssistantUsage }) => {
           >
             <Box
               sx={{
+                display: "flex",
+                flexDirection: "column",
+                gap: "0.4rem",
                 padding: "0.6rem 0.8rem",
-                maxWidth: "17rem",
                 fontSize: "0.75rem",
               }}
             >
-              {100 - left}% of this month’s budget used.{" "}
-              {usage.fallback
-                ? `If it runs out, the assistant answers with ${usage.fallback} until ${resets}.`
-                : `If it runs out, the assistant stops answering until ${resets}.`}
+              <span>{100 - left}% of this month’s budget used.</span>
+              {usage.fallback && (
+                <Box
+                  component="span"
+                  sx={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: "0.3rem",
+                  }}
+                >
+                  Next model if down or out of budget:
+                  <Box
+                    component="span"
+                    sx={{
+                      ...pillSx,
+                      color: FALLBACK_COLOR,
+                      backgroundColor: alpha(FALLBACK_COLOR, 0.12),
+                    }}
+                  >
+                    {usage.fallback}
+                  </Box>
+                </Box>
+              )}
             </Box>
           </Popover>
         </>
       ) : null}
-      {usage.fallback && (
-        <Box
-          component="span"
-          sx={{ display: "inline-flex", alignItems: "center", gap: "0.3rem" }}
-        >
-          Next model if down or out of budget:
-          <Box
-            component="span"
-            sx={{
-              ...pillSx,
-              color: FALLBACK_COLOR,
-              backgroundColor: alpha(FALLBACK_COLOR, 0.12),
-            }}
-          >
-            {usage.fallback}
-          </Box>
-        </Box>
-      )}
     </Box>
   );
 };
