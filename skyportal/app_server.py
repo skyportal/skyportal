@@ -29,6 +29,7 @@ from skyportal.handlers.api import (
     AssistantMessageHandler,
     AssistantQueryHandler,
     AssistantQuerySubscriptionHandler,
+    AssistantUsageHandler,
     BrokerAlertsHandler,
     BrokerAPIsHandler,
     BrokerConeSearchHandler,
@@ -753,6 +754,7 @@ skyportal_handlers = [
     (r"/api/config", ConfigHandler),
     (r"/api/assistant/conversations", AssistantConversationHandler),
     (r"/api/assistant/messages", AssistantMessageHandler),
+    (r"/api/assistant/usage", AssistantUsageHandler),
     (r"/api/assistant_queries(/[0-9]+)?", AssistantQueryHandler),
     (
         r"/api/assistant_queries/([0-9]+)/subscription",

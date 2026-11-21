@@ -19,6 +19,7 @@ from skyportal.models import (
     AnalysisService,
     AssistantMessage,
     AssistantQuery,
+    AssistantUsage,
     Comment,
     DBSession,
     Filter,
@@ -85,6 +86,7 @@ if isinstance(FALLBACKS, dict):
     FALLBACKS = [FALLBACKS]
 ENDPOINTS = [MAIN] + [endpoint for endpoint in FALLBACKS if endpoint.get("base_url")]
 FALLBACK_PERIOD = float(CONFIG.get("fallback_period", 300))
+PRICES = CONFIG.get("prices") or {}
 SWITCH_ERRORS = (
     requests.exceptions.Timeout,
     requests.exceptions.ConnectionError,
@@ -184,14 +186,25 @@ def stream_round(endpoint, messages, tools, budget):
     headers = {"Content-Type": "application/json"}
     if endpoint.get("api_key"):
         headers["Authorization"] = f"Bearer {endpoint['api_key']}"
+    model = endpoint.get("model") or ""
+    if messages and messages[0].get("role") == "system":
+        messages = [
+            {
+                **messages[0],
+                "content": f"{messages[0]['content']}\n\nYou run on the model {model}.",
+            },
+            *messages[1:],
+        ]
     payload = chat_payload(
-        endpoint.get("model") or "",
+        model,
         messages,
         tools,
         THINKING,
         endpoint.get("temperature", 0),
     )
     payload["stream"] = True
+    if model in PRICES:
+        payload["stream_options"] = {"include_usage": True}
     deadline = time.monotonic() + budget
 
     with requests.post(
@@ -213,7 +226,7 @@ def stream_round(endpoint, messages, tools, budget):
                 f"payload={len(json.dumps(messages)) + len(json.dumps(tools))} chars)"
             )
         response.raise_for_status()
-        deltas = []
+        deltas, usage = [], None
         for line in response.iter_lines():
             if time.monotonic() > deadline:
                 raise requests.exceptions.Timeout(
@@ -224,10 +237,33 @@ def stream_round(endpoint, messages, tools, budget):
             data = line[len(b"data:") :].strip()
             if data == b"[DONE]":
                 break
-            choices = json.loads(data).get("choices") or []
+            chunk = json.loads(data)
+            usage = chunk.get("usage") or usage
+            choices = chunk.get("choices") or []
             if choices:
                 deltas.append(choices[0].get("delta") or {})
-    return merge_deltas(deltas)
+    if usage and model in PRICES:
+        record_usage(model, usage)
+    return {**merge_deltas(deltas), "model": model}
+
+
+def record_usage(model, usage):
+    price = PRICES[model]
+    prompt = usage.get("prompt_tokens") or 0
+    completion = usage.get("completion_tokens") or 0
+    with DBSession() as session:
+        session.add(
+            AssistantUsage(
+                model=model,
+                prompt_tokens=prompt,
+                completion_tokens=completion,
+                cost=(
+                    prompt * price.get("input", 0) + completion * price.get("output", 0)
+                )
+                / 1e6,
+            )
+        )
+        session.commit()
 
 
 def chat(messages, tools, timeout=None):
@@ -266,11 +302,11 @@ def remaining(deadline, floor=5.0):
 
 
 def answer(conversation, context_type, context_id, user, token):
-    """The answer, the tools it took to get there, and any filter it built."""
+    """The answer, the tools it took, any filter it built and the model that wrote it."""
     tools = list_tools(token, context_type)
     offered = {tool["function"]["name"] for tool in tools}
     messages = build_messages(conversation, MAX_CONTEXT, context_type, context_id, user)
-    trace = []
+    trace, model = [], None
 
     deadline = time.monotonic() + ANSWER_TIMEOUT
     # One round-trip can ask for several tools at once, so count the calls
@@ -281,9 +317,11 @@ def answer(conversation, context_type, context_id, user, token):
             log("out of time before the model finished; answering from what it has")
             break
         message = chat(messages, tools, timeout=left)
+        model = message.pop("model", None) or model
         calls = message.get("tool_calls") or []
         if not calls:
-            return (message.get("content") or "").strip(), trace, proposal(trace)
+            text = (message.get("content") or "").strip()
+            return text, trace, proposal(trace), model
         messages.append(message)
         calls_made += len(calls)
         for call in calls:
@@ -312,11 +350,12 @@ def answer(conversation, context_type, context_id, user, token):
         }
     )
     if (left := remaining(deadline)) is None:
-        return OUT_OF_TIME, trace, proposal(trace)
+        return OUT_OF_TIME, trace, proposal(trace), model
     # No tools on the last word, or the model asks for another instead of
     # answering and the reply comes back empty.
-    text = (chat(messages, [], timeout=left).get("content") or "").strip()
-    return text, trace, proposal(trace)
+    last = chat(messages, [], timeout=left)
+    text = (last.get("content") or "").strip()
+    return text, trace, proposal(trace), last.get("model") or model
 
 
 def answer_from_facts(obj_id, analysis_id, token):
@@ -367,7 +406,7 @@ def answer_from_facts(obj_id, analysis_id, token):
     reading = chat([{"role": "user", "content": prompt}], [], timeout=ANSWER_TIMEOUT)
     notify = "yes" if flare_notifies(flare) else "no"
     text = f"{(reading.get('content') or '').strip()}\n\n{listed}\n\nNOTIFY: {notify}"
-    return text.strip(), trace, None
+    return text.strip(), trace, None, reading.get("model")
 
 
 def service_token(session, user_id):
@@ -653,7 +692,7 @@ def respond(message_id):
             analysis_id = triggering_analysis(session, message, user)
 
         # Answering takes minutes, so no connection is held while it runs.
-        trace, built = [], None
+        trace, built, model = [], None, None
         failed = False
         try:
             reply = None
@@ -663,7 +702,7 @@ def respond(message_id):
                 reply = answer(
                     conversation, context_type, context_id, profile, token_id
                 )
-            text, trace, built = reply
+            text, trace, built, model = reply
             failed = text == OUT_OF_TIME
         except Exception as exc:
             failed = True
@@ -700,6 +739,7 @@ def respond(message_id):
                         system=True,
                         tool_calls=trace or None,
                         proposal=built,
+                        model=model,
                     )
                 )
                 if notify and not failed:

@@ -759,6 +759,12 @@ app:
     # Tried in order, each with base_url, model, api_key and temperature.
     fallback: []
     fallback_period: 300
+    # Monthly USD budget shown under the chat, estimated from prices (USD per million tokens).
+    monthly_limit:
+    prices:
+      claude-sonnet-5-5:
+        input: 2
+        output: 10
     # Master switch for autonomous triage: on completion
     analysis_triage:
       enabled: false
