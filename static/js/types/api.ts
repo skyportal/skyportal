@@ -9766,7 +9766,7 @@ export interface paths {
         };
         /**
          * Update phot stats for a source
-         * @description <b>Permission(s) required:</b> <em>system admin (or System admin)</em><br><br>create or update the PhotStat associated with the obj_id.
+         * @description <b>Permission(s) required:</b> <em>System admin (or System admin)</em><br><br>create or update the PhotStat associated with the obj_id.
          */
         put: {
             parameters: {
@@ -9800,7 +9800,7 @@ export interface paths {
         };
         /**
          * Create new phot stats for a source
-         * @description <b>Permission(s) required:</b> <em>system admin (or System admin)</em><br><br>create a new PhotStat to be associated with the obj_id.
+         * @description <b>Permission(s) required:</b> <em>System admin (or System admin)</em><br><br>create a new PhotStat to be associated with the obj_id.
          */
         post: {
             parameters: {
@@ -9834,7 +9834,7 @@ export interface paths {
         };
         /**
          * Delete phot stats of a source
-         * @description <b>Permission(s) required:</b> <em>system admin (or System admin)</em><br><br>delete the PhotStat associated with the obj_id.
+         * @description <b>Permission(s) required:</b> <em>System admin (or System admin)</em><br><br>delete the PhotStat associated with the obj_id.
          */
         delete: {
             parameters: {

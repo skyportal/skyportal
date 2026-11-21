@@ -112,7 +112,7 @@ class PhotStatHandler(BaseHandler):
 
         return self.success(data=phot_stat)
 
-    @permissions(["system admin"])
+    @permissions(["System admin"])
     async def post(self, obj_id: ObjId = None):
         """
         ---
@@ -159,7 +159,7 @@ class PhotStatHandler(BaseHandler):
 
         return self.success()
 
-    @permissions(["system admin"])
+    @permissions(["System admin"])
     async def put(self, obj_id: ObjId = None):
         """
         ---
@@ -203,7 +203,7 @@ class PhotStatHandler(BaseHandler):
 
         return self.success()
 
-    @permissions(["system admin"])
+    @permissions(["System admin"])
     async def delete(self, obj_id: ObjId = None):
         """
         ---
