@@ -239,7 +239,7 @@ const AladinGlobe = ({
           fields: overlay("fields", "blue"),
           observations: overlay("observations", "blue"),
           galacticPlane: overlay("galactic plane", "magenta"),
-          // Before setReady: show()/hide() on a MOC not yet registered throws in the WASM core.
+          // Aladin adds the MOC asynchronously; show()/hide() before that throws.
           sunExclusion: A.MOCFromCone(
             { ...sunPosition(new Date()), radius: 50 },
             {
@@ -247,6 +247,9 @@ const AladinGlobe = ({
               color: "yellow",
               fill: true,
               opacity: 0.15,
+            },
+            () => {
+              if (!cancelled) setReady(true);
             },
           ),
           markers: catalog({
@@ -292,7 +295,6 @@ const AladinGlobe = ({
         aladin.on("objectClicked", (obj: any) => {
           if (obj?.data?.url) window.open(obj.data.url, "_blank", "noopener");
         });
-        setReady(true);
       })
       .catch(() => {});
     return () => {
