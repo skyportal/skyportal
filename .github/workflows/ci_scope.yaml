@@ -57,7 +57,7 @@ jobs:
               "api_and_utils_pt4",
               "api_and_utils_pt5",
           ]
-          FRONTEND_SUBSETS = [f"frontend_pt{i}" for i in range(1, 8)]
+          FRONTEND_SUBSETS = [f"frontend_pt{i}" for i in range(1, 7)]
 
           FRONTEND = [
               "static/**",
