@@ -539,7 +539,7 @@ class ObjFactory(factory.alchemy.SQLAlchemyModelFactory):
         # Save the generated instruments so they can be cleaned up later
         obj.instruments = instruments
         filters = ["ztfg", "ztfr", "ztfi"]
-        comment_author = UserFactory()
+        author = UserFactory()
         for instrument, filter in islice(zip(cycle(instruments), cycle(filters)), 10):
             np.random.seed()
             phot1 = PhotometryFactory(
@@ -562,15 +562,17 @@ class ObjFactory(factory.alchemy.SQLAlchemyModelFactory):
                 )
             )
             DBSession().add(
-                CommentFactory(
-                    obj_id=obj.id, groups=passed_groups, author=comment_author
-                )
+                CommentFactory(obj_id=obj.id, groups=passed_groups, author=author)
             )
         DBSession().add(ThumbnailFactory(obj_id=obj.id, type="new"))
         DBSession().add(ThumbnailFactory(obj_id=obj.id, type="ps1"))
         DBSession().add(
             SpectrumFactory(
-                obj_id=obj.id, instrument=instruments[0], groups=passed_groups
+                obj_id=obj.id,
+                instrument=instruments[0],
+                groups=passed_groups,
+                reducers=[author],
+                observers=[author],
             )
         )
         DBSession().commit()
