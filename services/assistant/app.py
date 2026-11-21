@@ -80,14 +80,17 @@ MAIN = {
     "api_key": API_KEY,
     "temperature": CONFIG.get("temperature", 0),
 }
-FALLBACK = CONFIG.get("fallback") or {}
+FALLBACKS = CONFIG.get("fallback") or []
+if isinstance(FALLBACKS, dict):
+    FALLBACKS = [FALLBACKS]
+ENDPOINTS = [MAIN] + [endpoint for endpoint in FALLBACKS if endpoint.get("base_url")]
 FALLBACK_PERIOD = float(CONFIG.get("fallback_period", 300))
 SWITCH_ERRORS = (
     requests.exceptions.Timeout,
     requests.exceptions.ConnectionError,
     requests.exceptions.ChunkedEncodingError,
 )
-_main_skipped_until = 0.0
+_skipped_until = [0.0] * len(ENDPOINTS)
 OUT_OF_TIME = (
     "I ran out of time working that out. Please ask again, or narrow the question."
 )
@@ -170,11 +173,10 @@ def call_tool(token, name, arguments, offered, context_id=None):
 
 def endpoints():
     """Where to send one round, in the order to try them."""
-    if not FALLBACK.get("base_url"):
-        return [MAIN, MAIN]
-    if time.monotonic() < _main_skipped_until:
-        return [FALLBACK, MAIN]
-    return [MAIN, FALLBACK]
+    if len(ENDPOINTS) == 1:
+        return [0, 0]
+    now = time.monotonic()
+    return sorted(range(len(ENDPOINTS)), key=lambda i: now < _skipped_until[i])
 
 
 def stream_round(endpoint, messages, tools, budget):
@@ -229,25 +231,30 @@ def stream_round(endpoint, messages, tools, budget):
 
 
 def chat(messages, tools, timeout=None):
-    """One chat-completions round, moved to the other endpoint if the first fails."""
-    global _main_skipped_until
+    """One chat-completions round, moved to the next endpoint if one fails."""
     deadline = time.monotonic() + (timeout or TIMEOUT)
 
     last: Exception | None = None
-    for endpoint in endpoints():
+    for index in endpoints():
+        endpoint = ENDPOINTS[index]
         if (left := remaining(deadline, floor=1.0)) is None:
             break
         try:
             return stream_round(endpoint, messages, tools, left)
         except requests.exceptions.HTTPError as exc:
-            if exc.response.status_code < 500 and exc.response.status_code != 429:
+            status = exc.response.status_code
+            if (
+                status < 500
+                and status != 429
+                and "credit balance" not in exc.response.text
+            ):
                 raise
             last = exc
         except SWITCH_ERRORS as exc:
             last = exc
         log(f"model at {endpoint['base_url']} failed: {last}")
-        if endpoint is MAIN and FALLBACK.get("base_url"):
-            _main_skipped_until = time.monotonic() + FALLBACK_PERIOD
+        if len(ENDPOINTS) > 1:
+            _skipped_until[index] = time.monotonic() + FALLBACK_PERIOD
 
     raise last if last is not None else RuntimeError("no attempt was made")
 
