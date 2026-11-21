@@ -554,7 +554,7 @@ def test_source_notifications_unauthorized(
         token=source_notification_user_token,
     )
     assert status == 403
-    assert "Forbidden" in data["message"]
+    assert "Missing permission: Upload data" in data["message"]
 
 
 def test_token_user_source_summary(
