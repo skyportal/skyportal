@@ -24,6 +24,7 @@ from skyportal.models import (
     AssistantMessage,
     AssistantQuery,
     AssistantQuerySubscription,
+    AssistantUsage,
     Broker,
     BrokerCredential,
     Candidate,
@@ -6086,6 +6087,26 @@ def public_assistant_message(user):
     row = (
         DBSession()
         .execute(sa.select(AssistantMessage).filter(AssistantMessage.id == message_id))
+        .scalars()
+        .first()
+    )
+    if row is not None:
+        DBSession().delete(row)
+        DBSession().commit()
+
+
+@pytest.fixture()
+def assistant_usage():
+    usage = AssistantUsage(
+        model="claude-sonnet-5-5", prompt_tokens=100, completion_tokens=10, cost=0.0003
+    )
+    DBSession.add(usage)
+    DBSession.commit()
+    usage_id = usage.id
+    yield usage
+    row = (
+        DBSession()
+        .execute(sa.select(AssistantUsage).filter(AssistantUsage.id == usage_id))
         .scalars()
         .first()
     )

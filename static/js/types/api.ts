@@ -22553,6 +22553,44 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/assistant/usage": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read the assistant's models and monthly budget
+         * @description The main model, the next one when it is down or out of budget, and how much of the monthly budget is left.
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Success"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/assistant_queries/{query_id}": {
         parameters: {
             query?: never;
@@ -26449,6 +26487,8 @@ export interface components {
             proposal?: {
                 [key: string]: unknown;
             } | null;
+            /** @description Model that wrote the answer, if any. */
+            model?: string | null;
             /** @description Unique object identifier. */
             id?: number;
         };
@@ -26491,6 +26531,8 @@ export interface components {
             proposal?: {
                 [key: string]: unknown;
             } | null;
+            /** @description Model that wrote the answer, if any. */
+            model?: string | null;
         };
         SingleAssistantMessageNoID: {
             /** @enum {string} */
@@ -26631,6 +26673,52 @@ export interface components {
             status: "success";
             message?: string;
             data?: components["schemas"]["AssistantQuerySubscriptionNoID"][];
+        };
+        AssistantUsage: {
+            /** @description Model that answered. */
+            model: string;
+            /** @description Tokens sent. */
+            prompt_tokens: number;
+            /** @description Tokens the model generated. */
+            completion_tokens: number;
+            /** @description Estimated cost in USD. */
+            cost: number;
+            /** @description Unique object identifier. */
+            id?: number;
+        };
+        SingleAssistantUsage: {
+            /** @enum {string} */
+            status: "success";
+            message?: string;
+            data?: components["schemas"]["AssistantUsage"];
+        };
+        ArrayOfAssistantUsages: {
+            /** @enum {string} */
+            status: "success";
+            message?: string;
+            data?: components["schemas"]["AssistantUsage"][];
+        };
+        AssistantUsageNoID: {
+            /** @description Model that answered. */
+            model: string;
+            /** @description Tokens sent. */
+            prompt_tokens: number;
+            /** @description Tokens the model generated. */
+            completion_tokens: number;
+            /** @description Estimated cost in USD. */
+            cost: number;
+        };
+        SingleAssistantUsageNoID: {
+            /** @enum {string} */
+            status: "success";
+            message?: string;
+            data?: components["schemas"]["AssistantUsageNoID"];
+        };
+        ArrayOfAssistantUsageNoIDs: {
+            /** @enum {string} */
+            status: "success";
+            message?: string;
+            data?: components["schemas"]["AssistantUsageNoID"][];
         };
         Association: {
             /** @description Unique object identifier. */

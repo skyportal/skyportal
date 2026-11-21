@@ -4,15 +4,19 @@ import SendIcon from "@mui/icons-material/Send";
 import SmartToyIcon from "@mui/icons-material/SmartToy";
 import Box from "@mui/material/Box";
 import IconButton from "@mui/material/IconButton";
+import Popover from "@mui/material/Popover";
 import TextField from "@mui/material/TextField";
+import Tooltip from "@mui/material/Tooltip";
 import { alpha, useTheme } from "@mui/material/styles";
 
 import ReactMarkdown from "react-markdown";
 
 import type { CommentTarget } from "../../contexts/CommentPanelContext";
 import {
+  AssistantUsage,
   useAskAssistantMutation,
   useGetAssistantConversationQuery,
+  useGetAssistantUsageQuery,
 } from "../../ducks/assistant";
 import AssistantFilterProposal from "./AssistantFilterProposal";
 import AssistantToolTrace from "./AssistantToolTrace";
@@ -39,6 +43,133 @@ const asideSx = {
   color: "text.secondary",
 } as const;
 
+const MAIN_COLOR = "#6f58b8";
+const FALLBACK_COLOR = "#ab873f";
+
+const pillSx = {
+  fontSize: "0.7rem",
+  fontWeight: 600,
+  lineHeight: 1.6,
+  borderRadius: "4px",
+  padding: "0 0.4rem",
+  whiteSpace: "nowrap",
+} as const;
+
+interface ModelDotProps {
+  model: string;
+  main: string | null | undefined;
+}
+
+const ModelDot = ({ model, main }: ModelDotProps) => (
+  <Tooltip
+    title={model === main ? model : `${model} (fallback)`}
+    placement="top"
+    enterDelay={0}
+    disableInteractive
+  >
+    <Box
+      component="span"
+      sx={{
+        display: "inline-block",
+        width: "0.4rem",
+        height: "0.4rem",
+        borderRadius: "50%",
+        backgroundColor: model === main ? MAIN_COLOR : FALLBACK_COLOR,
+      }}
+    />
+  </Tooltip>
+);
+
+const ModelBar = ({ usage }: { usage: AssistantUsage }) => {
+  const [anchor, setAnchor] = useState<HTMLElement | null>(null);
+  const left = usage.left ?? 100;
+  const level = left <= 10 ? "error" : left <= 25 ? "warning" : "success";
+  return (
+    <Box
+      sx={{
+        display: "flex",
+        flexWrap: "wrap",
+        alignItems: "center",
+        gap: "0.4rem",
+        padding: "0 0.75rem 0.6rem",
+        fontSize: "0.7rem",
+        color: "text.secondary",
+      }}
+    >
+      <Box
+        component="span"
+        sx={{
+          ...pillSx,
+          color: MAIN_COLOR,
+          backgroundColor: alpha(MAIN_COLOR, 0.12),
+        }}
+      >
+        {usage.model}
+      </Box>
+      {usage.limit ? (
+        <>
+          <Box
+            component="button"
+            type="button"
+            onClick={(event) => setAnchor(event.currentTarget)}
+            sx={{
+              ...pillSx,
+              border: 0,
+              cursor: "pointer",
+              color: `${level}.main`,
+              backgroundColor: (theme) =>
+                alpha(theme.palette[level].main, 0.12),
+            }}
+          >
+            {left}% of this month’s budget left
+          </Box>
+          <Popover
+            open={Boolean(anchor)}
+            anchorEl={anchor}
+            onClose={() => setAnchor(null)}
+            anchorOrigin={{ vertical: "top", horizontal: "left" }}
+            transformOrigin={{ vertical: "bottom", horizontal: "left" }}
+          >
+            <Box
+              sx={{
+                display: "flex",
+                flexDirection: "column",
+                gap: "0.4rem",
+                padding: "0.6rem 0.8rem",
+                fontSize: "0.75rem",
+              }}
+            >
+              <span>{100 - left}% of this month’s budget used.</span>
+              {usage.fallback && (
+                <Box
+                  component="span"
+                  sx={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: "0.3rem",
+                  }}
+                >
+                  Next model if down or out of budget:
+                  <Box
+                    component="span"
+                    sx={{
+                      ...pillSx,
+                      color: FALLBACK_COLOR,
+                      backgroundColor: alpha(FALLBACK_COLOR, 0.12),
+                    }}
+                  >
+                    {usage.fallback}
+                  </Box>
+                </Box>
+              )}
+            </Box>
+          </Popover>
+        </>
+      ) : null}
+    </Box>
+  );
+};
+
 interface AssistantThreadProps {
   channel: string;
   target: CommentTarget | null;
@@ -47,6 +178,7 @@ interface AssistantThreadProps {
 const AssistantThread = ({ channel, target }: AssistantThreadProps) => {
   const theme = useTheme();
   const { data: messages = [] } = useGetAssistantConversationQuery(channel);
+  const { data: usage } = useGetAssistantUsageQuery();
   const [askAssistant] = useAskAssistantMutation();
   const [question, setQuestion] = useState("");
   const listRef = useRef<HTMLDivElement | null>(null);
@@ -133,6 +265,9 @@ const AssistantThread = ({ channel, target }: AssistantThreadProps) => {
               >
                 <SmartToyIcon sx={{ fontSize: "0.9rem" }} />
                 Assistant
+                {message.model && (
+                  <ModelDot model={message.model} main={usage?.model} />
+                )}
               </Box>
             )}
             <Box
@@ -209,6 +344,7 @@ const AssistantThread = ({ channel, target }: AssistantThreadProps) => {
           <SendIcon fontSize="small" />
         </IconButton>
       </Box>
+      {usage?.model && <ModelBar usage={usage} />}
     </Box>
   );
 };

@@ -1,4 +1,9 @@
-__all__ = ["AssistantMessage", "AssistantQuery", "AssistantQuerySubscription"]
+__all__ = [
+    "AssistantMessage",
+    "AssistantQuery",
+    "AssistantQuerySubscription",
+    "AssistantUsage",
+]
 
 import sqlalchemy as sa
 from sqlalchemy.dialects.postgresql import JSONB
@@ -8,6 +13,7 @@ from baselayer.app.models import (
     AccessibleIfRelatedRowsAreAccessible,
     AccessibleIfUserMatches,
     Base,
+    restricted,
 )
 
 from .group import accessible_by_group_members
@@ -77,6 +83,23 @@ class AssistantMessage(Base):
         doc="A filter pipeline the assistant arrived at, with whatever preview "
         "it ran, so the page can offer it for saving. Read out of tool_calls.",
     )
+
+    model = sa.Column(
+        sa.String, nullable=True, doc="Model that wrote the answer, if any."
+    )
+
+
+class AssistantUsage(Base):
+    """Tokens and estimated cost of one call to a priced model."""
+
+    create = read = update = delete = restricted
+
+    model = sa.Column(sa.String, nullable=False, doc="Model that answered.")
+    prompt_tokens = sa.Column(sa.Integer, nullable=False, doc="Tokens sent.")
+    completion_tokens = sa.Column(
+        sa.Integer, nullable=False, doc="Tokens the model generated."
+    )
+    cost = sa.Column(sa.Float, nullable=False, doc="Estimated cost in USD.")
 
 
 class AssistantQuery(Base):

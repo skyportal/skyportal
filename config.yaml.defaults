@@ -745,6 +745,8 @@ app:
     # Let a reasoning model think before it answers. It roughly doubles how long
     # a question takes, for an answer that is quoting tool results either way.
     thinking: false
+    # Empty: not sent, for models that reject it.
+    temperature: 0
     # Budget for a whole question, across all its round-trips.
     answer_timeout: 180
     # Characters of one tool result the model sees. A result larger than this is
@@ -754,11 +756,15 @@ app:
     max_context_messages: 40
     request_timeout: 300
     stall_timeout: 45
-    fallback:
-      base_url:
-      model: ""
-      api_key: ""
+    # Tried in order, each with base_url, model, api_key and temperature.
+    fallback: []
     fallback_period: 300
+    # Monthly USD budget shown under the chat, estimated from prices (USD per million tokens).
+    monthly_limit:
+    prices:
+      claude-sonnet-5-5:
+        input: 2
+        output: 10
     # Master switch for autonomous triage: on completion
     analysis_triage:
       enabled: false
