@@ -43,6 +43,7 @@ from ....models import (
     Comment,
     Filter,
     FollowupRequest,
+    GcnEventObj,
     Group,
     Listing,
     Localization,
@@ -369,6 +370,31 @@ async def attach_comment_counts(candidates, session):
         candidate["bot_comment_count"] = bots
 
 
+async def attach_gcn_matches(candidates, session):
+    if not candidates:
+        return
+    result = await session.scalars(
+        GcnEventObj.select(session.user_or_token)
+        .options(selectinload(GcnEventObj.localization))
+        .where(GcnEventObj.obj_id.in_([c["id"] for c in candidates]))
+        .where(GcnEventObj.status != "rejected")
+        .order_by(GcnEventObj.dateobs.desc())
+    )
+    matches_by_obj = {}
+    for row in result.all():
+        matches_by_obj.setdefault(row.obj_id, []).append(
+            {
+                "dateobs": row.dateobs,
+                "status": row.status,
+                "localization_name": row.localization.localization_name
+                if row.localization
+                else None,
+            }
+        )
+    for candidate in candidates:
+        candidate["gcn_matches"] = matches_by_obj.get(candidate["id"], [])
+
+
 def add_computed_fields(candidate_info, obj):
     if obj.photstats and obj.photstats[-1].last_detected_mjd is not None:
         candidate_info["last_detected_at"] = Time(
@@ -682,6 +708,7 @@ class CandidateHandler(BaseHandler):
                 add_computed_fields(candidate_info, c)
                 await attach_tags([candidate_info], session)
                 await attach_comment_counts([candidate_info], session)
+                await attach_gcn_matches([candidate_info], session)
                 candidate_info = recursive_to_dict(candidate_info)
 
                 query_size = sizeof(candidate_info)
@@ -1578,6 +1605,7 @@ class CandidateHandler(BaseHandler):
 
             await attach_tags(candidate_list, session)
             await attach_comment_counts(candidate_list, session)
+            await attach_gcn_matches(candidate_list, session)
 
             query_results["candidates"] = candidate_list
             query_results = recursive_to_dict(query_results)

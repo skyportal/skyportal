@@ -30380,6 +30380,8 @@ export interface components {
             readonly obj?: components["schemas"]["Obj"];
             /** @description The GcnEvent this association belongs to. */
             readonly gcnevent?: components["schemas"]["GcnEvent"];
+            /** @description The Localization the Obj was matched in. */
+            readonly localization?: components["schemas"]["Localization"];
             /** @description The User who created this GcnEventObj. */
             readonly confirmer?: components["schemas"]["User"];
             /** @description ID of the Obj. */
@@ -30389,6 +30391,8 @@ export interface components {
              * @description UTC event timestamp
              */
             dateobs: string;
+            /** @description ID of the Localization the Obj was matched in. */
+            localization_id?: number | null;
             /**
              * @description Standing of this obj against the event: 'pending' (proposed, awaiting review), 'confirmed', 'ambiguous' (reviewed, undecided) or 'rejected'.
              * @enum {string}
@@ -30420,6 +30424,8 @@ export interface components {
             readonly obj?: components["schemas"]["Obj"];
             /** @description The GcnEvent this association belongs to. */
             readonly gcnevent?: components["schemas"]["GcnEvent"];
+            /** @description The Localization the Obj was matched in. */
+            readonly localization?: components["schemas"]["Localization"];
             /** @description The User who created this GcnEventObj. */
             readonly confirmer?: components["schemas"]["User"];
             /** @description ID of the Obj. */
@@ -30429,6 +30435,8 @@ export interface components {
              * @description UTC event timestamp
              */
             dateobs: string;
+            /** @description ID of the Localization the Obj was matched in. */
+            localization_id?: number | null;
             /**
              * @description Standing of this obj against the event: 'pending' (proposed, awaiting review), 'confirmed', 'ambiguous' (reviewed, undecided) or 'rejected'.
              * @enum {string}

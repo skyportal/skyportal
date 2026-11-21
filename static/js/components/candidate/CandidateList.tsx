@@ -45,6 +45,7 @@ import ThumbnailList from "../thumbnail/ThumbnailList";
 import EditSourceGroups from "../source/EditSourceGroups";
 import SavedGroupChips from "../group/SavedGroupChips";
 import UpdateSourceMPC from "../source/UpdateSourceMPC";
+import SourceGCNCrossmatchList from "../source/SourceGCNCrossmatchList";
 import DisplayPhotStats from "../source/DisplayPhotStats";
 import ObjectTags from "../ObjectTags";
 import RejectButton from "../RejectButton";
@@ -60,6 +61,7 @@ import FilterCandidateList from "./FilterCandidateList";
 import ScanningPageCandidateAnnotations from "./ScanningPageCandidateAnnotations";
 import AddClassificationsScanningPage from "./AddClassificationsScanningPage";
 import CandidatePlugins from "./CandidatePlugins";
+import CandidatesSkymap from "./CandidatesSkymap";
 import GenerateReportForm from "./scan_reports/GenerateReportForm";
 
 const TrackScanner = lazy(() => import("../superobj/TrackScanner"));
@@ -379,6 +381,20 @@ const CandidateInfo = ({
           </a>
         </InfoRow>
       ))}
+      {candidate.gcn_matches?.length > 0 && (
+        <InfoRow label="GCN:">
+          <SourceGCNCrossmatchList
+            gcn_crossmatches={candidate.gcn_matches.map((m: any) => m.dateobs)}
+            source={candidate}
+            matchedLocalizations={Object.fromEntries(
+              candidate.gcn_matches.map((m: any) => [
+                m.dateobs.replace(" ", "T"),
+                m.localization_name,
+              ]),
+            )}
+          />
+        </InfoRow>
+      )}
       {candidate.last_detected_at && (
         <InfoRow label="Last detected:">
           <span>
@@ -826,6 +842,14 @@ const CandidateList = () => {
                 </Button>
               </Box>
             </Paper>
+            {searchParams["localizationDateobs"] &&
+              searchParams["localizationName"] && (
+                <CandidatesSkymap
+                  dateobs={searchParams["localizationDateobs"]}
+                  localizationName={searchParams["localizationName"]}
+                  candidates={candidates}
+                />
+              )}
             {isFetching ? (
               <Spinner />
             ) : (

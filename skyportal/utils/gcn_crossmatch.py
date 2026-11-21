@@ -981,7 +981,7 @@ async def process_event_filter(
                 ),
             )
             proposed = await propose_association(
-                session, user_id, object_id, event_dateobs
+                session, user_id, object_id, event_dateobs, localization.id
             )
             await session.commit()
             if raised and not archival and (proposed or already_raised is None):
@@ -1899,7 +1899,9 @@ def cone_match_stage(ra, dec, radius_deg):
     }
 
 
-async def propose_association(session, user_id, obj_id, event_dateobs):
+async def propose_association(
+    session, user_id, obj_id, event_dateobs, localization_id=None
+):
     """Record the match as awaiting review: status stays 'pending' until a human
     confirms or rejects it. confirmer_id is NOT NULL, so it records the service
     user that proposed the row, not a verdict. Never overwrites an existing one.
@@ -1915,6 +1917,7 @@ async def propose_association(session, user_id, obj_id, event_dateobs):
             GcnEventObj(
                 obj_id=obj_id,
                 dateobs=event_dateobs,
+                localization_id=localization_id,
                 status="pending",
                 confirmer_id=user_id,
             )

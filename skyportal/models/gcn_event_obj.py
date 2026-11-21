@@ -54,6 +54,18 @@ class GcnEventObj(Base):
         doc="The GcnEvent this association belongs to.",
     )
 
+    localization_id = sa.Column(
+        sa.ForeignKey("localizations.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+        doc="ID of the Localization the Obj was matched in.",
+    )
+
+    localization = relationship(
+        "Localization",
+        doc="The Localization the Obj was matched in.",
+    )
+
     status = sa.Column(
         gcn_event_obj_statuses,
         nullable=False,

@@ -102,20 +102,23 @@ const localizationForSource = (
 const CrossmatchItem = ({
   source,
   dateobs,
+  matchedLocalizationName,
   startDate,
   endDate,
 }: {
   source: SourceForCrossmatch;
   dateobs: string;
+  matchedLocalizationName?: string | null | undefined;
   startDate: string;
   endDate: string;
 }) => {
   const { classes } = useStyles();
   const dateobsT = dateobs.replace(" ", "T");
   const { data: gcnEvent } = useGetGcnEventQuery(dateobsT, {
-    skip: !dateobs,
+    skip: !dateobs || !!matchedLocalizationName,
   });
-  const localizationName = localizationForSource(gcnEvent, source);
+  const localizationName =
+    matchedLocalizationName ?? localizationForSource(gcnEvent, source);
 
   // Hover inset: the skymap with the object marked. The localization (with its
   // contour) is only fetched while hovering. Keep the popover open while the
@@ -144,19 +147,17 @@ const CrossmatchItem = ({
   const sourcesForPlot =
     source?.ra != null && source?.dec != null
       ? {
-          geojson: {
-            type: "FeatureCollection",
-            features: [
-              {
-                type: "Feature",
-                geometry: {
-                  type: "Point",
-                  coordinates: [source.ra, source.dec],
-                },
-                properties: { name: source.id },
+          type: "FeatureCollection",
+          features: [
+            {
+              type: "Feature",
+              geometry: {
+                type: "Point",
+                coordinates: [source.ra, source.dec],
               },
-            ],
-          },
+              properties: { name: source.id },
+            },
+          ],
         }
       : null;
 
@@ -179,6 +180,7 @@ const CrossmatchItem = ({
         anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
         transformOrigin={{ vertical: "top", horizontal: "center" }}
         onClose={() => setAnchorEl(null)}
+        transitionDuration={0}
         slotProps={
           {
             paper: {
@@ -199,6 +201,7 @@ const CrossmatchItem = ({
               height={INSET_PX}
               width={INSET_PX}
               projection="orthographic"
+              fitSources
             />
           </div>
         ) : (
@@ -231,14 +234,18 @@ const CrossmatchItem = ({
 interface SourceGCNCrossmatchListProps {
   gcn_crossmatches: string[];
   source: SourceForCrossmatch;
+  matchedLocalizations?: Record<string, string | null | undefined>;
 }
 
 const SourceGCNCrossmatchList = ({
   gcn_crossmatches,
   source,
+  matchedLocalizations = {},
 }: SourceGCNCrossmatchListProps) => {
   const { classes } = useStyles();
   const [dialogOpen, setDialogOpen] = useState(false);
+  const matchedLocalization = (dateobs: string) =>
+    matchedLocalizations[dateobs.replace(" ", "T")];
 
   // Vetting window: default to the source's detection window when available.
   let firstDet: any = source?.photstats?.[0]?.first_detected_mjd;
@@ -264,6 +271,7 @@ const SourceGCNCrossmatchList = ({
           <CrossmatchItem
             source={source}
             dateobs={gcn_crossmatches[0]!}
+            matchedLocalizationName={matchedLocalization(gcn_crossmatches[0]!)}
             startDate={startDate}
             endDate={endDate}
           />
@@ -284,6 +292,7 @@ const SourceGCNCrossmatchList = ({
                 key={dateobs}
                 source={source}
                 dateobs={dateobs}
+                matchedLocalizationName={matchedLocalization(dateobs)}
                 startDate={startDate}
                 endDate={endDate}
               />
@@ -298,6 +307,7 @@ const SourceGCNCrossmatchList = ({
     <CrossmatchItem
       source={source}
       dateobs={gcn_crossmatches[0]!}
+      matchedLocalizationName={matchedLocalization(gcn_crossmatches[0]!)}
       startDate={startDate}
       endDate={endDate}
     />
