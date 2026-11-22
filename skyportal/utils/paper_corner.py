@@ -91,7 +91,8 @@ class ADSClient:
                 "sort": "date desc,bibcode desc",
                 "start": offset,
             },
-            timeout=20,
+            # A full page with abstracts can take longer than a small search.
+            timeout=(5, 60),
         )
         quota = response.headers.get("X-RateLimit-Remaining", "")
         if quota.isdecimal():

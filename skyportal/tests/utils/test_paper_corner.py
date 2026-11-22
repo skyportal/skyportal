@@ -150,3 +150,17 @@ def test_ads_errors_are_distinct_from_empty_results(monkeypatch):
     assert ads.search(["SN2023ixf"]) == {"SN2023ixf": []}
     with pytest.raises(requests.HTTPError):
         ads.search(["SN2023ixf"])
+
+
+def test_ads_read_timeout_consumes_one_request_without_retrying(monkeypatch):
+    get = Mock(side_effect=requests.ReadTimeout)
+    monkeypatch.setattr(requests, "get", get)
+    ads = ADSClient("token", 2)
+
+    with pytest.raises(requests.ReadTimeout):
+        ads.search(["SN2023ixf", "AT2025abc"])
+
+    get.assert_called_once()
+    assert get.call_args.kwargs["timeout"] == (5, 60)
+    assert get.call_args.kwargs["params"]["rows"] == 500
+    assert ads.remaining == 1
