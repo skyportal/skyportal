@@ -22,6 +22,7 @@ import Accordion from "@mui/material/Accordion";
 import AccordionSummary from "@mui/material/AccordionSummary";
 import AccordionDetails from "@mui/material/AccordionDetails";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
+import HelpOutlineIcon from "@mui/icons-material/HelpOutlineOutlined";
 import Typography from "@mui/material/Typography";
 import { log10, abs, ceil } from "mathjs";
 
@@ -816,8 +817,16 @@ const SourceContent = ({ source }: SourceContentProps) => {
                   ))}
               </Box>
               <Box className={classes.rowInfo} sx={{ position: "relative" }}>
-                <Tooltip title="Associated by the GCN crossmatch or by hand, not just inside the localization">
-                  <b>GCN matches: &nbsp;</b>
+                <b>GCN matches:</b>
+                <Tooltip title="Events this object was matched to by the GCN crossmatch or by hand">
+                  <HelpOutlineIcon
+                    sx={{
+                      fontSize: "1rem",
+                      color: "text.secondary",
+                      cursor: "help",
+                      mx: 0.5,
+                    }}
+                  />
                 </Tooltip>
                 {source.gcn_crossmatch?.length > 0 && (
                   <SourceGCNCrossmatchList

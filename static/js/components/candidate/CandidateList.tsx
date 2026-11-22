@@ -17,6 +17,7 @@ import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import ArrowDownward from "@mui/icons-material/ArrowDownward";
 import ArrowForwardIcon from "@mui/icons-material/ArrowForward";
 import ArrowUpward from "@mui/icons-material/ArrowUpward";
+import HelpOutlineIcon from "@mui/icons-material/HelpOutlineOutlined";
 import OpenInNewIcon from "@mui/icons-material/OpenInNew";
 import SortIcon from "@mui/icons-material/Sort";
 import { Link } from "react-router-dom";
@@ -122,17 +123,13 @@ const InfoRow = ({
       gap: 0.5,
     }}
   >
-    {tooltip ? (
+    <b>{label}</b>
+    {tooltip && (
       <Tooltip title={tooltip}>
-        <Box
-          component="b"
-          sx={{ cursor: "help", textDecoration: "underline dotted" }}
-        >
-          {label}
-        </Box>
+        <HelpOutlineIcon
+          sx={{ fontSize: "1rem", color: "text.secondary", cursor: "help" }}
+        />
       </Tooltip>
-    ) : (
-      <b>{label}</b>
     )}
     {children}
   </Box>
@@ -397,7 +394,7 @@ const CandidateInfo = ({
       {candidate.gcn_matches?.length > 0 && (
         <InfoRow
           label="GCN matches:"
-          tooltip="Associated by the GCN crossmatch or by hand, not just inside the localization"
+          tooltip="Events this object was matched to by the GCN crossmatch or by hand"
         >
           <SourceGCNCrossmatchList
             gcn_crossmatches={candidate.gcn_matches.map((m: any) => m.dateobs)}
