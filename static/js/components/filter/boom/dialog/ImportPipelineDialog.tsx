@@ -55,8 +55,8 @@ const ImportPipelineDialog = ({
       <DialogContent>
         <DialogContentText>
           Paste a MongoDB aggregation pipeline. It becomes blocks when the
-          builder can show it, and stays read-only otherwise. Nothing is saved
-          until you click Save.
+          builder can show it, and opens in the MongoDB editor otherwise.
+          Nothing is saved until you click Save.
         </DialogContentText>
         <TextField
           autoFocus
