@@ -11,6 +11,7 @@ import {
 } from "../ducks/profile";
 
 const SEEN_PREF = "featureAnnouncementsSeen";
+const MAX_AGE_MS = 60 * 24 * 60 * 60 * 1000;
 
 // App-level provider, mounted once inside the router: it runs the first
 // announcement this user hasn't seen yet on the page they just opened.
@@ -40,8 +41,10 @@ const FeatureAnnouncementProvider = () => {
     const permissions: string[] = profile.permissions ?? [];
     const seen = profile.preferences?.[SEEN_PREF] ?? {};
     const createdAt = profile.created_at ? new Date(profile.created_at) : null;
+    const oldest = new Date(Date.now() - MAX_AGE_MS);
     const pending = FEATURE_ANNOUNCEMENTS.find(
       (announcement) =>
+        new Date(announcement.announcedAt) > oldest &&
         !seen[announcement.id] &&
         !done.current.has(announcement.id) &&
         !unavailable.current.has(`${announcement.id}@${location.pathname}`) &&
