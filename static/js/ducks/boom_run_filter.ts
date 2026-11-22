@@ -20,8 +20,6 @@ export interface RunBoomFilterArg {
   // with `unsorted`, the first `limit` matches in no order; else a count
   unsorted?: boolean;
   limit?: number;
-  sort_by?: string;
-  sort_order?: string;
   // A GCN event's dateobs confines the preview to that event's credible
   // region, the same region the crossmatch service searches. Without it the
   // filter's cuts run against the whole stream, which is not what the filter
