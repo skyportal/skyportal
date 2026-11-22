@@ -766,18 +766,12 @@ async def process_event_filter(
         jd_end = event_jd - float(conf(config, "delta_t_before"))
         jd_start = jd_end - float(conf(config, "archival_days"))
     else:
-        # Lower bound: resume from the newest alert already seen, or from the
-        # previous successful search less an overlap, because brokers make alerts
-        # queryable some time after the alert's own JD.
         jd_start = event_jd - float(conf(config, "delta_t_before"))
+        overlap = float(conf(config, "requery_overlap_days"))
         if state.last_alert_jd is not None:
-            jd_start = max(jd_start, state.last_alert_jd)
+            jd_start = max(jd_start, state.last_alert_jd - overlap)
         if state.status == "done" and state.last_queried is not None:
-            jd_start = max(
-                jd_start,
-                float(Time(state.last_queried).jd)
-                - float(conf(config, "requery_overlap_days")),
-            )
+            jd_start = max(jd_start, float(Time(state.last_queried).jd) - overlap)
         jd_end = event_jd + float(conf(config, "delta_t_after"))
         # The history cuts cap the epoch of anything that can match: a first
         # detection no later than the trigger plus one window, and an alert no
