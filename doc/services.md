@@ -67,7 +67,7 @@ worth listing are those that poll for something you do not use.
 | `ep_service`                       | Ingests candidates from the proprietary Einstein Probe feed                             | Idles without `einstein_probe.enabled`            |
 | `scout_service`                    | Consumes the JPL Scout NEO ToO Kafka stream                                             | Idles without `scout.*`                           |
 | `neofixer_service`                 | Polls NEOFixer target lists and annotates solar system objects                          | Idles without `neofixer.enabled`                  |
-| `paper_corner`                     | Refreshes ADS paper matches for a list of public sources                              | No ADS token or sources configured               |
+| `paper_corner`                     | Refreshes ADS paper matches for a list of public sources                                | No ADS token or sources configured                |
 | `tess_sector`                      | Loads TESS sector footprints and annotates coverage                                     | Idles without `tess.enabled`                      |
 | `mast_retrieval`                   | Adds new JWST and HST spectra from MAST to the saved sources they target                | Idles without `mast.enabled`                      |
 | `broker_ingest`                    | Runs the ingestion loop of each active broker, see [broker ingestion](broker_ingestion) | Idles without `brokers.ingest_enabled`            |
