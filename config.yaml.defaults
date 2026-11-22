@@ -1057,8 +1057,10 @@ zygote:
 paper_corner:
   ads_token:
   refresh_interval_seconds: 3600
-  # Maximum ADS lookups per refresh. The default allows up to 2,400 per day.
-  batch_size: 100
+  # Eligible TNS sources considered per refresh, grouped into ADS searches.
+  batch_size: 1000
+  # Includes pagination requests. The default allows up to 2,400 per day.
+  max_requests_per_refresh: 100
 
 # Alert brokers (BOOM, Fink, Lasair, ...) are configured at runtime as
 # `Broker` database records (name + provider class + encrypted credentials), not

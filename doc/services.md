@@ -94,8 +94,10 @@ app:
 ```
 
 The service checks ADS titles and abstracts for TNS designations, including both
-the AT and SN forms when applicable. It checks up to 100 sources per hour by
-default, prioritizes recently saved sources, and waits at least seven days
-between checks of each designation. Entries appear as the service works through
-the catalog. The Front Page shows five papers, and each eligible source has a
-Papers section with its cached matches.
+the AT and SN forms when applicable. Each search combines up to 20 designations
+and fetches additional pages as needed. By default, a refresh runs hourly,
+considers up to 1,000 sources, and makes at most 100 requests including pagination.
+ADS quota headers can stop a refresh sooner. Recently saved sources get priority,
+and each designation is rechecked after at least seven days. The Front Page
+shows five papers, and each eligible source has a Papers section with its cached
+matches.

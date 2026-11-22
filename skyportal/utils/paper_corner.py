@@ -3,6 +3,9 @@ import re
 import requests
 
 ADS_SEARCH = "https://api.adsabs.harvard.edu/v1/search/query"
+ADS_DESIGNATIONS_PER_QUERY = 20
+ADS_PAGE_SIZE = 500
+ADS_MATCHES_PER_SOURCE = 30
 ARXIV_ID = re.compile(r"arxiv:((?:\d{4}\.\d{4,5}|[a-z.-]+/\d{7}))(?:v\d+)?", re.I)
 
 
@@ -10,10 +13,8 @@ def paper_corner_enabled(cfg):
     return bool(cfg.get("paper_corner.ads_token"))
 
 
-def search_ads(designation, token):
+def designation_patterns(designation):
     words = re.findall(r"[^\W_]+", designation)
-    if not words:
-        return []
     phrases = [designation]
     names = [words]
     if tns := re.fullmatch(r"(AT|SN)[\s-]*(\d{4}[a-z]+)", designation, re.I):
@@ -22,79 +23,133 @@ def search_ads(designation, token):
         names = [[prefix, stem], ["SN" if prefix.upper() == "AT" else "AT", stem]]
     for name in names:
         phrases.extend((" ".join(name), "".join(name)))
-    phrases = dict.fromkeys(phrases)
-    quoted = [phrase.replace("\\", "\\\\").replace('"', '\\"') for phrase in phrases]
-    query = " OR ".join(f'abs:"{phrase}"' for phrase in quoted)
-    response = requests.get(
-        ADS_SEARCH,
-        headers={"Authorization": f"Bearer {token}"},
-        params={
-            "q": f"({query}) AND database:astronomy",
-            "fl": "bibcode,alternate_bibcode,doi,identifier,title,first_author,pubdate,abstract",
-            "rows": 30,
-            "sort": "date desc",
-        },
-        timeout=20,
-    )
-    response.raise_for_status()
-    # Transient names are commonly written with or without spaces or hyphens.
     patterns = []
     for name in names:
         parts = r"[\s-]*".join(map(re.escape, name))
         patterns.append(
             (" ".join(name), re.compile(rf"(?<![^\W_]){parts}(?![^\W_])", re.I))
         )
-    matches = []
-    for record in response.json()["response"]["docs"]:
-        titles = record.get("title") or []
-        if not titles:
-            continue
-        fields = [*titles, record.get("abstract") or ""]
-        designations = [
-            label
-            for label, pattern in patterns
-            if any(pattern.search(field) for field in fields)
-        ]
-        if not designations:
-            continue
-        bibcode = record["bibcode"]
-        arxiv_id = next(
-            (
-                match[1]
-                for value in record.get("identifier", [])
-                if (match := ARXIV_ID.fullmatch(value))
-            ),
-            None,
+    return phrases, patterns
+
+
+def paper_metadata(record):
+    bibcode = record["bibcode"]
+    arxiv_id = next(
+        (
+            match[1]
+            for value in record.get("identifier", [])
+            if (match := ARXIV_ID.fullmatch(value))
+        ),
+        None,
+    )
+    keys = [f"ads:{value}" for value in [bibcode, *record.get("alternate_bibcode", [])]]
+    keys.extend(f"doi:{value.lower()}" for value in record.get("doi", []))
+    if arxiv_id:
+        keys.append(f"arxiv:{arxiv_id.lower()}")
+    date = record.get("pubdate") or None
+    if date:
+        date = date.removesuffix("-00").removesuffix("-00")
+    # The identifier encodes the first submission month even if ADS has
+    # replaced the preprint record with the journal version.
+    if arxiv_id:
+        year_month = arxiv_id.rsplit("/", 1)[-1][:4]
+        year = int(year_month[:2])
+        month = f"{(1900 if year >= 91 else 2000) + year:04d}-{year_month[2:4]}"
+        if date is None or month < date[:7] or date == month[:4]:
+            date = month
+    return {
+        "bibcode": bibcode,
+        "keys": keys,
+        "arxiv_id": arxiv_id,
+        "title": record["title"][0],
+        "first_author": record.get("first_author"),
+        "date": date,
+    }
+
+
+class ADSRequestLimit(Exception):
+    pass
+
+
+class ADSClient:
+    def __init__(self, token, max_requests):
+        self.token = token
+        self.remaining = max_requests
+        self.resume_at = 0
+
+    def _page(self, query, offset):
+        if self.remaining <= 0:
+            raise ADSRequestLimit
+        self.remaining -= 1
+        response = requests.get(
+            ADS_SEARCH,
+            headers={"Authorization": f"Bearer {self.token}"},
+            params={
+                "q": query,
+                "fl": "bibcode,alternate_bibcode,doi,identifier,title,first_author,pubdate,abstract",
+                "rows": ADS_PAGE_SIZE,
+                "sort": "date desc,bibcode desc",
+                "start": offset,
+            },
+            timeout=20,
         )
-        keys = [
-            f"ads:{value}" for value in [bibcode, *record.get("alternate_bibcode", [])]
+        quota = response.headers.get("X-RateLimit-Remaining", "")
+        if quota.isdecimal():
+            self.remaining = min(self.remaining, int(quota))
+        if quota == "0" or response.status_code == 429:
+            self.remaining = 0
+            reset = response.headers.get("X-RateLimit-Reset", "")
+            if reset.isdecimal():
+                self.resume_at = int(reset)
+        if response.status_code == 429:
+            raise ADSRequestLimit
+        response.raise_for_status()
+        return response.json()["response"]
+
+    def search(self, designations):
+        matches = {designation: [] for designation in designations}
+        if not matches:
+            return matches
+
+        phrases = {}
+        patterns = {}
+        for designation in matches:
+            variants, patterns[designation] = designation_patterns(designation)
+            phrases.update(dict.fromkeys(variants))
+        quoted = [
+            phrase.replace("\\", "\\\\").replace('"', '\\"') for phrase in phrases
         ]
-        keys.extend(f"doi:{value.lower()}" for value in record.get("doi", []))
-        if arxiv_id:
-            keys.append(f"arxiv:{arxiv_id.lower()}")
-        date = record.get("pubdate") or None
-        if date:
-            date = date.removesuffix("-00").removesuffix("-00")
-        # The identifier encodes the first submission month even if ADS has
-        # replaced the preprint record with the journal version.
-        if arxiv_id:
-            year_month = arxiv_id.rsplit("/", 1)[-1][:4]
-            year = int(year_month[:2])
-            month = f"{(1900 if year >= 91 else 2000) + year:04d}-{year_month[2:4]}"
-            if date is None or month < date[:7] or date == month[:4]:
-                date = month
-        matches.append(
-            {
-                "bibcode": bibcode,
-                "keys": keys,
-                "arxiv_id": arxiv_id,
-                "title": titles[0],
-                "first_author": record.get("first_author"),
-                "date": date,
-                "designations": designations,
-            }
-        )
-    return matches
+        query = " OR ".join(f'abs:"{phrase}"' for phrase in quoted)
+        query = f"({query}) AND database:astronomy"
+
+        offset = 0
+        seen = set()
+        while patterns:
+            page = self._page(query, offset)
+            docs = page["docs"]
+            for record in docs:
+                if not record.get("title") or record["bibcode"] in seen:
+                    continue
+                seen.add(record["bibcode"])
+                fields = [*record["title"], record.get("abstract") or ""]
+                for designation, aliases in list(patterns.items()):
+                    labels = [
+                        label
+                        for label, pattern in aliases
+                        if any(pattern.search(field) for field in fields)
+                    ]
+                    if labels:
+                        matches[designation].append(
+                            {**paper_metadata(record), "designations": labels}
+                        )
+                        if len(matches[designation]) == ADS_MATCHES_PER_SOURCE:
+                            del patterns[designation]
+            offset += len(docs)
+            if offset >= page["numFound"]:
+                break
+            if not docs:
+                raise ValueError("ADS returned an incomplete search page")
+        return matches
 
 
 def collect_papers(matches, limit):
