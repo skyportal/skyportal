@@ -27,7 +27,7 @@ from astroplan import (
     Observer,
     is_event_observable,
 )
-from astropy.coordinates import EarthLocation
+from astropy.coordinates import Angle, EarthLocation
 from astropy.time import Time
 from dateutil.parser import isoparse
 from marshmallow import Schema
@@ -63,12 +63,14 @@ from baselayer.log import make_log
 from ...models import (
     Allocation,
     Annotation,
+    Broker,
     Candidate,
     ClassicalAssignment,
     Classification,
     Comment,
     DBSession,
     FacilityTransaction,
+    Filter,
     FollowupRequest,
     Galaxy,
     GcnEvent,
@@ -87,6 +89,7 @@ from ...models import (
     SourceNotification,
     SourceView,
     Spectrum,
+    Stream,
     Telescope,
     Thumbnail,
     Token,
@@ -121,6 +124,7 @@ from ...utils.scout_ephemeris import (
 )
 from ...utils.scout_ingest import ANNOTATION_ORIGIN as SCOUT_ANNOTATION_ORIGIN
 from ...utils.sizeof import SIZE_WARNING_THRESHOLD, sizeof
+from ...utils.survey import instrument_name, survey_from_object_id
 from ...utils.thumbnail import latest_thumbnails
 from ..base import BaseHandler
 from .broker import get_gaia_broker
@@ -216,6 +220,91 @@ async def check_if_obj_has_photometry(obj_id, user, session):
         phot_series = None
 
     return phot is not None or phot_series is not None
+
+
+async def _get_vla_rubin_alert(obj, user, session):
+    if (
+        obj.ra is None
+        or obj.dec is None
+        or not (0 <= obj.ra <= 360 and -46 < obj.dec <= 90)
+        or (
+            (obj.origin or "").upper() != "LSST"
+            and survey_from_object_id(obj.id) != "LSST"
+        )
+    ):
+        return None
+
+    candid = Photometry.altdata["candid"].astext
+    # Older Lasair light curves can carry an epoch-derived placeholder ID.
+    valid_candid = sa.and_(
+        candid.op("~")(r"^[1-9][0-9]{0,18}$"),
+        candid
+        != sa.cast(
+            sa.cast(sa.func.round(Photometry.mjd * 1_000_000), sa.BigInteger),
+            sa.String,
+        ),
+    )
+    # Use the earliest available Rubin detection for the date, even when a
+    # later detection is the first one with a stored native alert ID.
+    result = await session.execute(
+        Photometry.select(
+            user,
+            columns=[
+                sa.func.min(Photometry.mjd).over(),
+                sa.case((valid_candid, candid)),
+            ],
+        )
+        .join(Instrument, Photometry.instrument_id == Instrument.id)
+        .where(
+            Photometry.obj_id == obj.id,
+            Instrument.name == instrument_name("LSST"),
+            Photometry.origin != "fp",
+            Photometry.flux > -float("inf"),
+            Photometry.flux < float("inf"),
+            Photometry.mjd > -float("inf"),
+            Photometry.mjd < float("inf"),
+        )
+        .order_by(valid_candid.desc().nulls_last(), Photometry.mjd, Photometry.id)
+        .limit(1)
+    )
+    detection = result.one_or_none()
+    if detection is None:
+        return None
+    first_mjd, alert_id = detection
+
+    if alert_id is None:
+        # Older ingest paths retained the ID on the passing candidate only.
+        alert_id = await session.scalar(
+            Candidate.select(user, columns=[Candidate.passing_alert_id])
+            .join(Filter, Candidate.filter_id == Filter.id)
+            .join(Stream, Filter.stream_id == Stream.id)
+            .join(Broker, Filter.broker_id == Broker.id)
+            .where(
+                Candidate.obj_id == obj.id,
+                Candidate.passing_alert_id > 0,
+                Stream.altdata["collection"].astext == "LSST_alerts",
+                Broker.broker_classname.in_(
+                    ["BABAMULBROKER", "BOOMBROKER", "FINKBROKER"]
+                ),
+            )
+            .order_by(Candidate.passed_at, Candidate.id)
+            .limit(1)
+        )
+    if alert_id is None:
+        return None
+
+    # Round before wrapping so a coordinate near 360 degrees starts at 00h.
+    ra = Angle((round(obj.ra * 240, 1) % 86400) / 3600, unit=u.hourangle)
+    return {
+        "id": str(alert_id),
+        "ra": ra.to_string(sep=":", precision=1, pad=True),
+        "dec": Angle(obj.dec, unit=u.deg).to_string(
+            sep=":", precision=1, pad=True, alwayssign=True
+        ),
+        "first_alert_date": Time(first_mjd, format="mjd").to_value(
+            "iso", subfmt="date"
+        ),
+    }
 
 
 async def get_source(
@@ -774,6 +863,9 @@ async def get_source(
             key=lambda x: x["passed_at"],
             reverse=True,
         )
+        vla_rubin_alert = await _get_vla_rubin_alert(s, user, session)
+        if vla_rubin_alert is not None:
+            source_info["vla_rubin_alert"] = vla_rubin_alert
 
     if include_associated_objs:
         from ...models import SuperObj  # local import to avoid cycles
