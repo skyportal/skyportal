@@ -516,6 +516,28 @@ def describes_later_alert(payload, existing):
     return later > earlier
 
 
+async def already_matched(session, user_id, obj_id, filter_id, event_key, event_jd, jd):
+    raised = await session.scalar(
+        sa.select(Candidate.id)
+        .where(
+            Candidate.obj_id == obj_id,
+            Candidate.filter_id == filter_id,
+            Candidate.uploader_id == user_id,
+            Candidate.passed_at == Time(jd, format="jd").datetime,
+        )
+        .limit(1)
+    )
+    if raised is None:
+        return False
+    data = await session.scalar(
+        sa.select(Annotation.data).where(
+            Annotation.obj_id == obj_id, Annotation.origin == ANNOTATION_ORIGIN
+        )
+    )
+    delta_t = ((data or {}).get(event_key) or {}).get("delta_t")
+    return delta_t is not None and delta_t >= round(jd - event_jd, 4)
+
+
 async def annotate_match(
     session, user, obj_id, event_key, event_dateobs, group_ids, data
 ):
@@ -941,6 +963,16 @@ async def process_event_filter(
         alert = keep[index]
         object_id = alert_object_id(alert)
         try:
+            if not archival and await already_matched(
+                session,
+                user_id,
+                object_id,
+                filter_id,
+                event_key,
+                event_jd,
+                alert_jd(alert),
+            ):
+                continue
             already_raised = await session.scalar(
                 sa.select(Candidate.id)
                 .where(
