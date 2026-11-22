@@ -24,6 +24,8 @@ def upgrade():
             sa.ForeignKey("objs.id", ondelete="CASCADE"),
             primary_key=True,
         ),
+        sa.Column("tns_name", sa.String(), nullable=False),
+        sa.Column("checked_at", sa.DateTime(timezone=True), nullable=False),
         sa.Column("matches", JSONB(), nullable=False),
     )
 

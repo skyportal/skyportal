@@ -67,7 +67,7 @@ worth listing are those that poll for something you do not use.
 | `ep_service`                       | Ingests candidates from the proprietary Einstein Probe feed                             | Idles without `einstein_probe.enabled`            |
 | `scout_service`                    | Consumes the JPL Scout NEO ToO Kafka stream                                             | Idles without `scout.*`                           |
 | `neofixer_service`                 | Polls NEOFixer target lists and annotates solar system objects                          | Idles without `neofixer.enabled`                  |
-| `paper_corner`                     | Refreshes ADS paper matches for a list of public sources                                | No ADS token or sources configured                |
+| `paper_corner`                     | Refreshes ADS paper matches for sources ingested from TNS                               | No ADS token configured                           |
 | `tess_sector`                      | Loads TESS sector footprints and annotates coverage                                     | Idles without `tess.enabled`                      |
 | `mast_retrieval`                   | Adds new JWST and HST spectra from MAST to the saved sources they target                | Idles without `mast.enabled`                      |
 | `broker_ingest`                    | Runs the ingestion loop of each active broker, see [broker ingestion](broker_ingestion) | Idles without `brokers.ingest_enabled`            |
@@ -82,22 +82,20 @@ worth listing are those that poll for something you do not use.
 
 ## Paper Corner
 
-Set `paper_corner.ads_token` in the deployment's private config and list the public
-designations ADS may receive for each SkyPortal source. Each source must also be
-actively saved to the deployment's public group.
+Set `paper_corner.ads_token` in the deployment's private config. Paper Corner
+automatically includes sources ingested from the Transient Name Server (TNS)
+that are actively saved to the deployment's public group.
 
 ```yaml
-paper_corner:
-  sources:
-    EXAMPLE-SOURCE-ID: ["SN 2023ixf"]
-
 app:
   homepage_widgets:
     PaperCorner:
       show: true
 ```
 
-The refresh service searches ADS titles and abstracts every 12 hours by default.
-The Front Page shows five papers across the configured sources. Each configured
-source also has a Papers section. Both views use cached results and show ADS and
-arXiv links when available.
+The service checks ADS titles and abstracts for TNS designations, including both
+the AT and SN forms when applicable. It checks up to 100 sources per hour by
+default, prioritizes recently saved sources, and waits at least seven days
+between checks of each designation. Entries appear as the service works through
+the catalog. The Front Page shows five papers, and each eligible source has a
+Papers section with its cached matches.

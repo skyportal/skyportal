@@ -7,16 +7,22 @@ ARXIV_ID = re.compile(r"arxiv:((?:\d{4}\.\d{4,5}|[a-z.-]+/\d{7}))(?:v\d+)?", re.
 
 
 def paper_corner_enabled(cfg):
-    return bool(cfg.get("paper_corner.ads_token") and cfg.get("paper_corner.sources"))
+    return bool(cfg.get("paper_corner.ads_token"))
 
 
 def search_ads(designation, token):
     words = re.findall(r"[^\W_]+", designation)
     if not words:
         return []
+    phrases = [designation]
+    names = [words]
     if tns := re.fullmatch(r"(AT|SN)[\s-]*(\d{4}[a-z]+)", designation, re.I):
-        words = list(tns.groups())
-    phrases = dict.fromkeys((designation, " ".join(words), "".join(words)))
+        prefix, stem = tns.groups()
+        # TNS may reclassify an AT as an SN after papers have used its AT name.
+        names = [[prefix, stem], ["SN" if prefix.upper() == "AT" else "AT", stem]]
+    for name in names:
+        phrases.extend((" ".join(name), "".join(name)))
+    phrases = dict.fromkeys(phrases)
     quoted = [phrase.replace("\\", "\\\\").replace('"', '\\"') for phrase in phrases]
     query = " OR ".join(f'abs:"{phrase}"' for phrase in quoted)
     response = requests.get(
@@ -32,13 +38,24 @@ def search_ads(designation, token):
     )
     response.raise_for_status()
     # Transient names are commonly written with or without spaces or hyphens.
-    name = r"[\s-]*".join(map(re.escape, words))
-    pattern = re.compile(rf"(?<![^\W_]){name}(?![^\W_])", re.I)
+    patterns = []
+    for name in names:
+        parts = r"[\s-]*".join(map(re.escape, name))
+        patterns.append(
+            (" ".join(name), re.compile(rf"(?<![^\W_]){parts}(?![^\W_])", re.I))
+        )
     matches = []
     for record in response.json()["response"]["docs"]:
         titles = record.get("title") or []
-        text = [*titles, record.get("abstract") or ""]
-        if not titles or not any(pattern.search(value) for value in text):
+        if not titles:
+            continue
+        fields = [*titles, record.get("abstract") or ""]
+        designations = [
+            label
+            for label, pattern in patterns
+            if any(pattern.search(field) for field in fields)
+        ]
+        if not designations:
             continue
         bibcode = record["bibcode"]
         arxiv_id = next(
@@ -74,7 +91,7 @@ def search_ads(designation, token):
                 "title": titles[0],
                 "first_author": record.get("first_author"),
                 "date": date,
-                "designation": designation,
+                "designations": designations,
             }
         )
     return matches
@@ -89,7 +106,7 @@ def collect_papers(matches, limit):
             group = groups.get(key)
             if group is not None:
                 merged.update(group)
-        merged[obj_id, match["bibcode"], match["designation"]] = match
+        merged[obj_id, match["bibcode"]] = match
         for record in merged.values():
             for key in record["keys"]:
                 groups[key] = merged
@@ -108,8 +125,8 @@ def collect_papers(matches, limit):
                 (value for value in dates if value.startswith(date + "-")), default=date
             )
         sources = {}
-        for obj_id, _, designation in group:
-            sources.setdefault(obj_id, set()).add(designation)
+        for (obj_id, _), record in group.items():
+            sources.setdefault(obj_id, set()).update(record["designations"])
         papers.append(
             {
                 "bibcode": preferred["bibcode"],

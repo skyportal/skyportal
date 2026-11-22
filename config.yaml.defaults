@@ -1056,10 +1056,9 @@ zygote:
 
 paper_corner:
   ads_token:
-  refresh_interval_seconds: 43200
-  # Map SkyPortal object IDs to lists of public TNS names and survey aliases.
-  # The service queries these names only for active sources in the public group.
-  sources: {}
+  refresh_interval_seconds: 3600
+  # Maximum ADS lookups per refresh. The default allows up to 2,400 per day.
+  batch_size: 100
 
 # Alert brokers (BOOM, Fink, Lasair, ...) are configured at runtime as
 # `Broker` database records (name + provider class + encrypted credentials), not

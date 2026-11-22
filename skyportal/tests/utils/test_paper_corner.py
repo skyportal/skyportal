@@ -19,6 +19,7 @@ def test_ads_checks_exact_designation_and_accepts_tns_name_spacing(monkeypatch):
         monkeypatch,
         [
             {"bibcode": "exact", "title": ["Light curves"], "abstract": "SN 2023ixf."},
+            {"bibcode": "prior", "title": ["AT 2023ixf: First impressions"]},
             {"bibcode": "prefix", "title": ["SN 2023ixff"]},
             {"bibcode": "suffix", "title": ["XSN2023ixf"]},
         ],
@@ -26,9 +27,12 @@ def test_ads_checks_exact_designation_and_accepts_tns_name_spacing(monkeypatch):
 
     results = search_ads("SN2023ixf", "token")
 
-    assert [result["bibcode"] for result in results] == ["exact"]
+    assert [result["bibcode"] for result in results] == ["exact", "prior"]
     assert 'abs:"SN 2023ixf"' in get.call_args.kwargs["params"]["q"]
-    assert results[0]["designation"] == "SN2023ixf"
+    assert [result["designations"] for result in results] == [
+        ["SN 2023ixf"],
+        ["AT 2023ixf"],
+    ]
 
 
 def test_deduplication_preserves_first_date_and_all_matches(monkeypatch):
@@ -70,7 +74,7 @@ def test_deduplication_preserves_first_date_and_all_matches(monkeypatch):
         "title": journal["title"][0],
         "date": "2025-08-21",
         "sources": [
-            {"id": "a", "designations": ["AT2025abc"]},
+            {"id": "a", "designations": ["AT 2025abc"]},
             {"id": "b", "designations": ["ZTF25aabcxyz"]},
         ],
     }
