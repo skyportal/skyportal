@@ -688,6 +688,12 @@ const QUERY_COMPARISONS = new Set([
   "$mod",
 ]);
 
+const isSingleLiteral = (value) =>
+  Array.isArray(value) &&
+  value.length === 1 &&
+  (value[0] === null ||
+    ["boolean", "number", "string"].includes(typeof value[0]));
+
 const conditionAtoms = (target, condition, defs, onComputed) => {
   const ops =
     isPlainObject(condition) &&
@@ -707,6 +713,11 @@ const conditionAtoms = (target, condition, defs, onComputed) => {
       if (op === "$options") return null;
       let v = value;
       if (op === "$exists") v = Boolean(value);
+      if (op === "$in" && isSingleLiteral(value)) {
+        return onComputed
+          ? onComputed("$eq", value[0])
+          : { f: target, op: "$eq", v: value[0] };
+      }
       if (op === "$in" || op === "$nin") v = sortByKey(value);
       if (op === "$regex") {
         v = { pattern: String(value), options: condition.$options ?? "" };

@@ -777,6 +777,9 @@ class Decompiler {
       if (!QUERY_OPERATORS.has(op)) {
         throw new Unsupported(`query operator ${op}`);
       }
+      if (op === "$in" && value.length === 1 && typeof value[0] === "boolean") {
+        return [this.condition(field, "$eq", value[0])];
+      }
       return [this.condition(field, op, value)];
     });
   }
