@@ -115,12 +115,27 @@ async def _recipients(session, query):
     return combine_recipients(subscriber_ids, group_member_ids, notify_member_ids)
 
 
-async def enqueue_query_run(session, analysis, query) -> int | None:
-    """Create a skybot run for one triggered query; returns the message id (the
-    caller posts it to the assistant service), or None if the run is skipped.
+def same_run_groups(queries):
+    """Queries one run can answer: same owner, prompt, context and service."""
+    runs = {}
+    for query in queries:
+        key = (
+            query.owner_id,
+            query.prompt,
+            query.context_type or "source",
+            query.analysis_service_match,
+        )
+        runs.setdefault(key, []).append(query)
+    return list(runs.values())
 
-    Skipped when skybot is absent, and when it or the query's owner, whose
-    access the run reads with, is not a member of the query's group. A
+
+async def enqueue_query_run(session, analysis, queries) -> int | None:
+    """Create one skybot run for triggered queries from ``same_run_groups``;
+    returns the message id (the caller posts it to the assistant service), or None
+    if every query is skipped.
+
+    A query is skipped when skybot is absent, and when it or the query's owner,
+    whose access the run reads with, is not a member of the query's group. A
     classification is readable only by the groups the source is saved to, so a
     run outside them reads an empty list and says the analysis does not exist
     -- on the page where everyone else can see it. Saying nothing is the better
@@ -131,46 +146,58 @@ async def enqueue_query_run(session, analysis, query) -> int | None:
     )
     if skybot is None:
         log(
-            f"no bot user named {SKYBOT_USERNAME!r}; skipping query {query.id} "
-            f"for {analysis.obj_id}"
+            f"no bot user named {SKYBOT_USERNAME!r}; skipping queries "
+            f"{[query.id for query in queries]} for {analysis.obj_id}"
         )
         return None
-    reads_the_group = await session.scalar(
-        sa.select(GroupUser.id).where(
-            GroupUser.group_id == query.group_id,
-            GroupUser.user_id == skybot.id,
+    runnable = []
+    for query in queries:
+        reads_the_group = await session.scalar(
+            sa.select(GroupUser.id).where(
+                GroupUser.group_id == query.group_id,
+                GroupUser.user_id == skybot.id,
+            )
         )
-    )
-    if reads_the_group is None:
-        log(
-            f"{SKYBOT_USERNAME!r} is not a member of group {query.group_id}, so it "
-            f"cannot read what it would be asked about; skipping query {query.id} "
-            f"for {analysis.obj_id}"
+        if reads_the_group is None:
+            log(
+                f"{SKYBOT_USERNAME!r} is not a member of group {query.group_id}, "
+                f"so it cannot read what it would be asked about; skipping query "
+                f"{query.id} for {analysis.obj_id}"
+            )
+            continue
+        owner_in_group = await session.scalar(
+            sa.select(GroupUser.id).where(
+                GroupUser.group_id == query.group_id,
+                GroupUser.user_id == query.owner_id,
+            )
         )
+        if owner_in_group is None:
+            log(
+                f"the owner of query {query.id} is not a member of group "
+                f"{query.group_id}; skipping it for {analysis.obj_id}"
+            )
+            continue
+        runnable.append(query)
+    if not runnable:
         return None
-    owner_in_group = await session.scalar(
-        sa.select(GroupUser.id).where(
-            GroupUser.group_id == query.group_id,
-            GroupUser.user_id == query.owner_id,
-        )
-    )
-    if owner_in_group is None:
-        log(
-            f"the owner of query {query.id} is not a member of group "
-            f"{query.group_id}; skipping it for {analysis.obj_id}"
-        )
-        return None
+    live = [query for query in runnable if not query.dry_run]
     notify = None
-    if not query.dry_run:
-        users = await _recipients(session, query)
+    if live:
+        users = set()
+        for query in live:
+            users |= set(await _recipients(session, query))
         # comment_groups carries where skybot posts the full triage as a bot
         # comment; it runs even with no subscribers, so the group still sees it.
-        notify = {"users": users, "comment_groups": [query.group_id]}
+        notify = {
+            "users": sorted(users),
+            "comment_groups": sorted({query.group_id for query in live}),
+        }
+    first = runnable[0]
     message = AssistantMessage(
         user_id=skybot.id,
-        text=query.prompt + NOTIFY_SUFFIX,
-        channel=f"query:{query.id}:{analysis.obj_id}",
-        context_type=query.context_type or "source",
+        text=first.prompt + NOTIFY_SUFFIX,
+        channel=f"query:{first.id}:{analysis.obj_id}",
+        context_type=first.context_type or "source",
         context_id=analysis.obj_id,
         notify=notify,
     )

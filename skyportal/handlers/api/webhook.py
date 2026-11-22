@@ -152,14 +152,17 @@ class AnalysisWebhookHandler(BaseHandler):
                 from ...utils.assistant_triage import (
                     enqueue_query_run,
                     matching_queries,
+                    same_run_groups,
                     triage_enabled,
                 )
 
                 if triage_enabled(cfg):
-                    for query in await matching_queries(session, analysis):
+                    for queries in same_run_groups(
+                        await matching_queries(session, analysis)
+                    ):
                         try:
                             message_id = await enqueue_query_run(
-                                session, analysis, query
+                                session, analysis, queries
                             )
                             if message_id is not None:
                                 await IOLoop.current().run_in_executor(
@@ -168,7 +171,8 @@ class AnalysisWebhookHandler(BaseHandler):
                                 )
                         except Exception as e:
                             log(
-                                f"Could not enqueue assistant query {query.id} for "
+                                f"Could not enqueue assistant queries "
+                                f"{[query.id for query in queries]} for "
                                 f"{analysis.obj_id}: {e}"
                             )
 
