@@ -93,7 +93,6 @@ import Reminders from "../Reminders";
 import QuickSaveButtons from "./QuickSaveSource";
 import SourceSkeleton from "./SourceSkeleton";
 import Button from "../Button";
-import VlaFollowupButton from "./VlaFollowupButton";
 
 import ObjectTags from "../ObjectTags";
 import { useFetchSourceSpectraQuery } from "../../ducks/spectra";
@@ -1590,14 +1589,12 @@ const SourceContent = ({ source }: SourceContentProps) => {
                 className={classes.flexColumn}
                 style={{ overflow: "hidden" }}
               >
-                {source.vla_rubin_alert && (
-                  <VlaFollowupButton alert={source.vla_rubin_alert} />
-                )}
                 {!isReadOnly && (
                   <FollowupRequestForm
                     obj_id={source.id}
                     instrumentList={instrumentList}
                     instrumentFormParams={instrumentFormParams}
+                    vlaRubinAlert={source.vla_rubin_alert}
                     {...({ action: "createNew" } as any)}
                   />
                 )}

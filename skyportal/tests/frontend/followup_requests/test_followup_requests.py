@@ -1,6 +1,7 @@
 import glob
 import os
 import uuid
+from urllib.parse import parse_qs, urlparse
 
 import pandas as pd
 import pytest
@@ -75,6 +76,65 @@ def select_followup_allocation(page, user, source, instrument_name, group):
     allocation.click()
 
     return submit_button
+
+
+def test_select_vla_rubin_followup(
+    page, request, super_admin_user, public_source, super_admin_token, public_group
+):
+    _, instrument_id, _, instrument_name = add_telescope_and_instrument(
+        "SEDMv2", super_admin_token
+    )
+    add_allocation(
+        instrument_id,
+        public_group.id,
+        super_admin_token,
+        _altdata='{"access_token": "testtoken"}',
+    )
+    alert = {
+        "id": "170059317401616524",
+        "ra": "12:34:56.7",
+        "dec": "+20:30:40.5",
+        "first_alert_date": "2026-11-21",
+    }
+
+    def add_rubin_alert(route):
+        response = route.fetch()
+        data = response.json()
+        data["data"]["vla_rubin_alert"] = alert
+        route.fulfill(response=response, json=data)
+
+    source_route = f"**/api/sources/{public_source.id}?*"
+    page.route(source_route, add_rubin_alert)
+    request.addfinalizer(lambda: page.unroute(source_route, add_rubin_alert))
+    page.goto(f"/become_user/{super_admin_user.id}")
+    page.goto(f"/source/{public_source.id}")
+
+    selector = page.locator("#followupRequestAllocationSelect")
+    native_form = page.get_by_test_id("followup-request-form")
+    vla_link = page.get_by_role("link", name="Request VLA follow-up")
+    expect(native_form).to_be_visible()
+    expect(vla_link).to_have_count(0)
+
+    selector.click()
+    page.get_by_role("option", name="VLA", exact=True).click()
+    expect(selector).to_have_value("VLA")
+    expect(native_form).to_have_count(0)
+    expect(vla_link).to_be_visible()
+    expect(vla_link).to_have_attribute("target", "_blank")
+    url = urlparse(vla_link.get_attribute("href"))
+    assert url.netloc == "docs.google.com"
+    assert parse_qs(url.query) == {
+        "usp": ["pp_url"],
+        "entry.1703452690": [alert["id"]],
+        "entry.634862218": [alert["ra"]],
+        "entry.97408733": [alert["dec"]],
+        "entry.812198857": [alert["first_alert_date"]],
+    }
+
+    selector.click()
+    page.get_by_role("option").filter(has_text=instrument_name).first.click()
+    expect(native_form).to_be_visible()
+    expect(vla_link).to_have_count(0)
 
 
 def add_followup_request_using_frontend_and_verify_SEDMv2(

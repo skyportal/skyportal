@@ -3,16 +3,14 @@ import Button from "../Button";
 const formUrl =
   "https://docs.google.com/forms/d/e/1FAIpQLSdte3UOfF3NWaY-iMJlmumV0hDox5kpcgRxuHbHATgf64zk0w/viewform";
 
-interface VlaFollowupButtonProps {
-  alert: {
-    id: string;
-    ra: string;
-    dec: string;
-    first_alert_date: string;
-  };
+export interface VlaRubinAlert {
+  id: string;
+  ra: string;
+  dec: string;
+  first_alert_date: string;
 }
 
-const VlaFollowupButton = ({ alert }: VlaFollowupButtonProps) => {
+const VlaFollowupButton = ({ alert }: { alert: VlaRubinAlert }) => {
   const params = new URLSearchParams({
     usp: "pp_url",
     "entry.1703452690": alert.id,
