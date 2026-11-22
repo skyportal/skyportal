@@ -15,11 +15,6 @@ const KINDS = [
   },
 ];
 
-export const newVariableNames = (newVariables: any): string[] =>
-  KINDS.flatMap(({ kind }) =>
-    (newVariables?.[kind] ?? []).map((v: any) => v.name),
-  );
-
 const usePipelineConversion = (streamName?: string) => {
   const builder = useFilterBuilder();
   const [postElement] = usePostFilterElementMutation();

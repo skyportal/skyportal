@@ -32,11 +32,8 @@ import { VersionSelect } from "./FilterVersionLabel";
 import { shortFid } from "./filterVersions";
 import PipelineViewer from "./dialog/PipelineViewer";
 import MongoPipelineEditor from "./MongoPipelineEditor";
-import PipelineComparison from "./dialog/PipelineComparison";
 import { isRawMongoPipeline } from "./pipelineFormat";
-import usePipelineConversion, {
-  newVariableNames,
-} from "./usePipelineConversion";
+import usePipelineConversion from "./usePipelineConversion";
 import { filterBuilderStyles } from "../../../styles/componentStyles";
 import { showNotification } from "baselayer/components/Notifications";
 
@@ -152,11 +149,9 @@ const FilterBuilderContent = ({
     else if (shownFid === null) setShownFid(lastActiveFid);
   }
   const displayedFid: string | undefined = shownFid ?? filter?.active_fid;
-  const [conversionError, setConversionError] = useState<string | null>(null);
   const failedConversion = useRef<string | null>(null);
-  const { conversion, convert, adopt, saveNewVariables, clearConversion } =
+  const { convert, adopt, saveNewVariables, clearConversion } =
     usePipelineConversion(filter_v?.stream?.name);
-  const streamSurvey = filter_v?.stream?.name?.split(" ")[0];
   const handleStageToggle = useCallback((index: number) => {
     setExpandedStages((prev) => {
       const next = new Set(prev);
@@ -368,10 +363,8 @@ const FilterBuilderContent = ({
     const result = convert(rawPipeline);
     if (!result.filters) {
       failedConversion.current = key;
-      setConversionError(result.error);
       return;
     }
-    setConversionError(null);
     setHasBeenModified(true);
     setLocalFilterData(result.filters);
     setFilters?.(result.filters);
@@ -412,7 +405,6 @@ const FilterBuilderContent = ({
     setPendingShowFid(null);
     setHasBeenModified(false);
     clearConversion();
-    setConversionError(null);
     setShownFid(fid === filter?.active_fid ? null : fid);
   };
 
@@ -533,7 +525,7 @@ const FilterBuilderContent = ({
     const result = rawPipeline ? convert(rawPipeline) : null;
     if (result && !result.filters) {
       stayInMongo(
-        `This pipeline can't be shown as blocks (${result.error}). Clear it to start over in the filter UI.`,
+        "This pipeline can't be shown as blocks. Clear it to start over in the filter UI.",
       );
       return;
     }
@@ -550,31 +542,27 @@ const FilterBuilderContent = ({
 
   const handleImportPipeline = (pipeline: any[]) => {
     const result = convert(pipeline);
+    const tree = result.filters;
     setNoBlockTree(false);
-    if (result.filters) {
-      setConversionError(null);
-      setProjectionFields?.(result.projectionFields);
-      handleFilterUpdate(result.filters);
+    setProjectionFields?.(tree ? result.projectionFields : []);
+    if (tree) {
       adopt(pipeline, result);
-      dispatch(
-        showNotification(
-          "Pipeline converted to blocks that behave the same. Click Save to keep it as a new version.",
-        ),
-      );
-      return;
+    } else {
+      clearConversion();
+      setEditorMode("mongo");
+      blocksStash.current = null;
+      mongoTextInvalid.current = false;
     }
-    clearConversion();
-    setConversionError(result.error);
-    setProjectionFields?.([]);
-    setEditorMode("mongo");
-    blocksStash.current = null;
-    mongoTextInvalid.current = false;
-    handleFilterUpdate(pipeline);
+    handleFilterUpdate(tree ?? pipeline);
     dispatch(
-      showNotification(
-        `This pipeline can't be shown as blocks (${result.error}), so it opens in the MongoDB editor. Click Save to keep it as a new version.`,
-        "warning",
-      ),
+      tree
+        ? showNotification(
+            "Pipeline converted to blocks. Click Save to keep it as a new version.",
+          )
+        : showNotification(
+            "This pipeline can't be shown as blocks, so it opens in the MongoDB editor. Click Save to keep it as a new version.",
+            "warning",
+          ),
     );
   };
 
@@ -837,8 +825,6 @@ const FilterBuilderContent = ({
                   can&apos;t show as blocks. Switch to MongoDB to edit it.
                 </>
               )}
-              {conversionError &&
-                ` It can't be converted to blocks: ${conversionError}.`}
             </Alert>
             <PipelineViewer
               pipeline={rawPipeline}
@@ -853,43 +839,21 @@ const FilterBuilderContent = ({
             />
           </>
         ) : filtersToRender && filtersToRender.length > 0 ? (
-          <>
-            {conversion && (
-              <Alert severity="info" sx={{ mb: 2 }}>
-                Converted from a MongoDB pipeline: these blocks pass the same
-                alerts with the same annotations. Saving stores them as a new
-                version
-                {newVariableNames(conversion.newVariables).length > 0
-                  ? ` and adds these variables to the shared list: ${newVariableNames(
-                      conversion.newVariables,
-                    ).join(", ")}.`
-                  : "."}
-                <Box sx={{ mt: 1 }}>
-                  <PipelineComparison
-                    original={conversion.original}
-                    converted={generateMongoQuery}
-                    survey={streamSurvey}
-                    filterId={filter_v?.id}
-                  />
-                </Box>
-              </Alert>
-            )}
-            {filtersToRender.map((block: any, index: number) => {
-              return (
-                <BlockComponent
-                  key={block.id || index}
-                  block={block}
-                  parentBlockId={null}
-                  isRoot={index === 0}
-                  sentencePrefix="Keep alerts that"
-                  fieldOptionsList={fieldOptions}
-                  stickyBlockId={getMostNestedNonCollapsedBlock.blockId}
-                  localFilters={filtersToRender}
-                  setLocalFilters={handleFilterUpdate}
-                />
-              );
-            })}
-          </>
+          filtersToRender.map((block: any, index: number) => {
+            return (
+              <BlockComponent
+                key={block.id || index}
+                block={block}
+                parentBlockId={null}
+                isRoot={index === 0}
+                sentencePrefix="Keep alerts that"
+                fieldOptionsList={fieldOptions}
+                stickyBlockId={getMostNestedNonCollapsedBlock.blockId}
+                localFilters={filtersToRender}
+                setLocalFilters={handleFilterUpdate}
+              />
+            );
+          })
         ) : (
           <Typography variant="body2" color="text.secondary">
             No filter blocks to display. Add conditions to get started.
