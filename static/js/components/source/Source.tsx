@@ -1594,6 +1594,7 @@ const SourceContent = ({ source }: SourceContentProps) => {
                     obj_id={source.id}
                     instrumentList={instrumentList}
                     instrumentFormParams={instrumentFormParams}
+                    vlaRubinAlert={source.vla_rubin_alert}
                     {...({ action: "createNew" } as any)}
                   />
                 )}

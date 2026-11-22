@@ -169,6 +169,9 @@ class FollowUpAPI(_Base):
     # for examples.
     form_json_schema = None
 
+    # A form completed on the facility's website instead of through submit().
+    external_followup_form = None
+
     # jsonschema outlining the schema of the frontend form for forced photometry.
     # See https://github.com/rjsf-team/react-jsonschema-form
     # for examples.
