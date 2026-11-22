@@ -150,6 +150,7 @@ const FilterBuilderContent = ({
   }
   const displayedFid: string | undefined = shownFid ?? filter?.active_fid;
   const failedConversion = useRef<string | null>(null);
+  const converted = useRef<any>(null);
   const [conversionError, setConversionError] = useState<string | null>(null);
   const { convert, adopt, saveNewVariables, clearConversion } =
     usePipelineConversion(filter_v?.stream?.name);
@@ -367,6 +368,7 @@ const FilterBuilderContent = ({
       setConversionError(result.error);
       return;
     }
+    converted.current = result;
     setHasBeenModified(true);
     setLocalFilterData(result.filters);
     setFilters?.(result.filters);
@@ -406,6 +408,7 @@ const FilterBuilderContent = ({
   const openVersion = (fid: string) => {
     setPendingShowFid(null);
     setHasBeenModified(false);
+    converted.current = null;
     clearConversion();
     setConversionError(null);
     setShownFid(fid === filter?.active_fid ? null : fid);
@@ -413,7 +416,10 @@ const FilterBuilderContent = ({
 
   const requestOpenVersion = (fid: string) => {
     if (fid === displayedFid) return;
-    if (hasBeenModified) setPendingShowFid(fid);
+    const untouched =
+      converted.current?.filters === localFilterData &&
+      converted.current?.projectionFields === projectionFields;
+    if (hasBeenModified && !untouched) setPendingShowFid(fid);
     else openVersion(fid);
   };
 
