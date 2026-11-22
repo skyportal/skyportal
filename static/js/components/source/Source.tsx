@@ -816,8 +816,8 @@ const SourceContent = ({ source }: SourceContentProps) => {
                   ))}
               </Box>
               <Box className={classes.rowInfo} sx={{ position: "relative" }}>
-                <Tooltip title="GCN events whose localization contains this source">
-                  <b>GCN: &nbsp;</b>
+                <Tooltip title="Associated by the GCN crossmatch or by hand, not just inside the localization">
+                  <b>GCN matches: &nbsp;</b>
                 </Tooltip>
                 {source.gcn_crossmatch?.length > 0 && (
                   <SourceGCNCrossmatchList

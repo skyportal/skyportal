@@ -107,9 +107,11 @@ const stackShadow = (theme: Theme, size: number) =>
 
 const InfoRow = ({
   label,
+  tooltip,
   children,
 }: {
   label: string;
+  tooltip?: string;
   children: ReactNode;
 }) => (
   <Box
@@ -120,7 +122,18 @@ const InfoRow = ({
       gap: 0.5,
     }}
   >
-    <b>{label}</b>
+    {tooltip ? (
+      <Tooltip title={tooltip}>
+        <Box
+          component="b"
+          sx={{ cursor: "help", textDecoration: "underline dotted" }}
+        >
+          {label}
+        </Box>
+      </Tooltip>
+    ) : (
+      <b>{label}</b>
+    )}
     {children}
   </Box>
 );
@@ -382,7 +395,10 @@ const CandidateInfo = ({
         </InfoRow>
       ))}
       {candidate.gcn_matches?.length > 0 && (
-        <InfoRow label="GCN:">
+        <InfoRow
+          label="GCN matches:"
+          tooltip="Associated by the GCN crossmatch or by hand, not just inside the localization"
+        >
           <SourceGCNCrossmatchList
             gcn_crossmatches={candidate.gcn_matches.map((m: any) => m.dateobs)}
             source={candidate}

@@ -12,6 +12,7 @@ import MenuItem from "@mui/material/MenuItem";
 import Paper from "@mui/material/Paper";
 import TextField from "@mui/material/TextField";
 import Tooltip from "@mui/material/Tooltip";
+import Typography from "@mui/material/Typography";
 import ExpandLessIcon from "@mui/icons-material/ExpandLess";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import RestartAltIcon from "@mui/icons-material/RestartAlt";
@@ -631,6 +632,10 @@ const FilterCandidateList = ({
                 />
                 {gcnEvent && (
                   <>
+                    <Typography variant="caption" color="text.secondary">
+                      Keeps every candidate inside the localization,
+                      crossmatched or not.
+                    </Typography>
                     <Box sx={twoColumns}>
                       <FormTextField
                         select
