@@ -22,7 +22,7 @@ jobs:
 
   test-models:
     needs: scope
-    if: ${{ github.event.pull_request.draft == false && needs.scope.outputs.backend == 'true' }}
+    if: ${{ github.event.pull_request.draft == false && needs.scope.outputs.models == 'true' }}
     runs-on: ubuntu-latest
     timeout-minutes: 120
 
