@@ -8,6 +8,11 @@ from playwright.sync_api import expect
 from baselayer.app.config import load_config
 from skyportal.models import DBSession
 from skyportal.tests import api, expect_vega_plot
+from skyportal.tests.test_util import (
+    PLAYWRIGHT_BASE_URL,
+    PLAYWRIGHT_DEFAULT_TIMEOUT_MS,
+    playwright_login,
+)
 
 cfg = load_config()
 
@@ -293,17 +298,31 @@ def test_feature_announcement_shown_once(page, user, public_source):
     DBSession().add(user)
     DBSession().commit()
 
-    page.goto(f"/become_user/{user.id}")
-    page.goto(f"/source/{public_source.id}")
-    announcement = page.locator('//*[text()="Comments are now a chat"]').first
-    expect(announcement).to_be_visible()
-    page.locator('//button[text()="Got it"]').first.click()
-    expect(announcement).to_be_hidden()
+    # Own context: the frozen clock would otherwise stay on the shared page.
+    context = page.context.browser.new_context(
+        base_url=PLAYWRIGHT_BASE_URL, viewport={"width": 1920, "height": 1200}
+    )
+    context.set_default_timeout(PLAYWRIGHT_DEFAULT_TIMEOUT_MS)
+    try:
+        own_page = context.new_page()
+        # Late enough for the earlier site-wide announcements to have expired.
+        own_page.clock.set_fixed_time(datetime(2026, 12, 10))
+        playwright_login(own_page)
+        own_page.goto(f"/become_user/{user.id}")
+        own_page.goto(f"/source/{public_source.id}")
+        announcement = own_page.locator('//*[text()="Several quick saves"]').first
+        expect(announcement).to_be_visible()
+        own_page.locator('//button[text()="Got it"]').first.click()
+        expect(announcement).to_be_hidden()
 
-    page.reload()
-    expect(page.locator('//div[@data-testid="source-chat"]').first).to_be_visible()
-    page.wait_for_timeout(2000)
-    expect(announcement).to_be_hidden()
+        own_page.reload()
+        expect(
+            own_page.locator('//div[@data-testid="source-chat"]').first
+        ).to_be_visible()
+        own_page.wait_for_timeout(2000)
+        expect(announcement).to_be_hidden()
+    finally:
+        context.close()
 
 
 def test_view_only_user_cannot_comment(page, view_only_user, public_source):
