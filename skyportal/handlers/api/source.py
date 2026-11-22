@@ -295,15 +295,15 @@ async def _get_vla_rubin_alert(obj, user, session):
 
     # Round before wrapping so a coordinate near 360 degrees starts at 00h.
     ra = Angle((round(obj.ra * 240, 1) % 86400) / 3600, unit=u.hourangle)
+    first_alert = Time(first_mjd, format="mjd")
     return {
         "id": str(alert_id),
         "ra": ra.to_string(sep=":", precision=1, pad=True),
         "dec": Angle(obj.dec, unit=u.deg).to_string(
             sep=":", precision=1, pad=True, alwayssign=True
         ),
-        "first_alert_date": Time(first_mjd, format="mjd").to_value(
-            "iso", subfmt="date"
-        ),
+        "first_alert_date": first_alert.to_value("iso", subfmt="date"),
+        "first_alert_at": f"{first_alert.isot}Z",
     }
 
 
