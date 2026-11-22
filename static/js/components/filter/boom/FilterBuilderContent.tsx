@@ -150,6 +150,7 @@ const FilterBuilderContent = ({
   }
   const displayedFid: string | undefined = shownFid ?? filter?.active_fid;
   const failedConversion = useRef<string | null>(null);
+  const [conversionError, setConversionError] = useState<string | null>(null);
   const { convert, adopt, saveNewVariables, clearConversion } =
     usePipelineConversion(filter_v?.stream?.name);
   const handleStageToggle = useCallback((index: number) => {
@@ -363,6 +364,7 @@ const FilterBuilderContent = ({
     const result = convert(rawPipeline);
     if (!result.filters) {
       failedConversion.current = key;
+      setConversionError(result.error);
       return;
     }
     setHasBeenModified(true);
@@ -405,6 +407,7 @@ const FilterBuilderContent = ({
     setPendingShowFid(null);
     setHasBeenModified(false);
     clearConversion();
+    setConversionError(null);
     setShownFid(fid === filter?.active_fid ? null : fid);
   };
 
@@ -525,7 +528,7 @@ const FilterBuilderContent = ({
     const result = rawPipeline ? convert(rawPipeline) : null;
     if (result && !result.filters) {
       stayInMongo(
-        "This pipeline can't be shown as blocks. Clear it to start over in the filter UI.",
+        `This pipeline can't be shown as blocks (${result.error}). Clear it to start over in the filter UI.`,
       );
       return;
     }
@@ -544,6 +547,7 @@ const FilterBuilderContent = ({
     const result = convert(pipeline);
     const tree = result.filters;
     setNoBlockTree(false);
+    setConversionError(null);
     setProjectionFields?.(tree ? result.projectionFields : []);
     if (tree) {
       adopt(pipeline, result);
@@ -560,7 +564,7 @@ const FilterBuilderContent = ({
             "Pipeline converted to blocks. Click Save to keep it as a new version.",
           )
         : showNotification(
-            "This pipeline can't be shown as blocks, so it opens in the MongoDB editor. Click Save to keep it as a new version.",
+            `This pipeline can't be shown as blocks (${result.error}), so it opens in the MongoDB editor. Click Save to keep it as a new version.`,
             "warning",
           ),
     );
@@ -825,6 +829,8 @@ const FilterBuilderContent = ({
                   can&apos;t show as blocks. Switch to MongoDB to edit it.
                 </>
               )}
+              {conversionError &&
+                ` It can't be converted to blocks: ${conversionError}.`}
             </Alert>
             <PipelineViewer
               pipeline={rawPipeline}
