@@ -11,6 +11,7 @@ from .log import LogHandler
 from .memory import MemoryHandler
 from .notifications import BulkNotificationHandler, NotificationHandler
 from .notifications_test import NotificationTestHandler
+from .paper_corner import PaperCornerHandler
 from .plot import (
     FilterWavelengthHandler,
     PlotAssignmentAirmassHandler,

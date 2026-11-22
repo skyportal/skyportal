@@ -67,6 +67,7 @@ worth listing are those that poll for something you do not use.
 | `ep_service`                       | Ingests candidates from the proprietary Einstein Probe feed                             | Idles without `einstein_probe.enabled`            |
 | `scout_service`                    | Consumes the JPL Scout NEO ToO Kafka stream                                             | Idles without `scout.*`                           |
 | `neofixer_service`                 | Polls NEOFixer target lists and annotates solar system objects                          | Idles without `neofixer.enabled`                  |
+| `paper_corner`                     | Refreshes ADS paper matches for a list of public sources                              | No ADS token or sources configured               |
 | `tess_sector`                      | Loads TESS sector footprints and annotates coverage                                     | Idles without `tess.enabled`                      |
 | `mast_retrieval`                   | Adds new JWST and HST spectra from MAST to the saved sources they target                | Idles without `mast.enabled`                      |
 | `broker_ingest`                    | Runs the ingestion loop of each active broker, see [broker ingestion](broker_ingestion) | Idles without `brokers.ingest_enabled`            |
@@ -78,3 +79,25 @@ worth listing are those that poll for something you do not use.
 | `sn_analysis_service`              | [Analysis](analysis) backend: supernova light curve fitting                             | No `AnalysisService` record points at it          |
 | `ngsf_analysis_service`            | [Analysis](analysis) backend: NGSF spectral fitting                                     | No `AnalysisService` record points at it          |
 | `spectral_cube_analysis_service`   | [Analysis](analysis) backend: spectral cube extraction                                  | No `AnalysisService` record points at it          |
+
+## Paper Corner
+
+Set `paper_corner.ads_token` in the deployment's private config and list the public
+designations ADS may receive for each SkyPortal source. Each source must also be
+actively saved to the deployment's public group.
+
+```yaml
+paper_corner:
+  sources:
+    EXAMPLE-SOURCE-ID: ["SN 2023ixf"]
+
+app:
+  homepage_widgets:
+    PaperCorner:
+      show: true
+```
+
+The refresh service searches ADS titles and abstracts every 12 hours by default.
+The Front Page shows five papers across the configured sources. Each configured
+source also has a Papers section. Both views use cached results and show ADS and
+arXiv links when available.
