@@ -25,6 +25,7 @@ from skyportal.models import (
     Filter,
     GroupUser,
     ObjAnalysis,
+    Stream,
     Token,
     User,
     UserNotification,
@@ -301,11 +302,13 @@ def remaining(deadline, floor=5.0):
     return left if left >= floor else None
 
 
-def answer(conversation, context_type, context_id, user, token):
+def answer(conversation, context_type, context_id, user, token, detail=None):
     """The answer, the tools it took, any filter it built and the model that wrote it."""
     tools = list_tools(token, context_type)
     offered = {tool["function"]["name"] for tool in tools}
-    messages = build_messages(conversation, MAX_CONTEXT, context_type, context_id, user)
+    messages = build_messages(
+        conversation, MAX_CONTEXT, context_type, context_id, user, detail
+    )
     trace, model = [], None
 
     deadline = time.monotonic() + ANSWER_TIMEOUT
@@ -469,6 +472,26 @@ def triggering_analysis(session, message, user):
         )
         .order_by(ObjAnalysis.id.desc())
         .limit(1)
+    )
+
+
+def filter_survey_note(session, context_id):
+    """The prompt line naming the survey a filter's alerts and schema come from."""
+    _, _, filter_id = (context_id or "").partition("/")
+    if not filter_id.isdigit():
+        return None
+    stream = session.scalar(
+        sa.select(Stream)
+        .join(Filter, Filter.stream_id == Stream.id)
+        .where(Filter.id == int(filter_id))
+    )
+    collection = (stream.altdata or {}).get("collection") if stream else None
+    if not collection:
+        return None
+    survey = str(collection).split("_")[0].upper()
+    return (
+        f"The filter runs on the {stream.name} stream, so its alerts and alert "
+        f"schema are survey {survey}."
     )
 
 
@@ -688,6 +711,11 @@ def respond(message_id):
                 session, requester_id, context_id
             ):
                 context_type = context_id = None
+            detail = (
+                filter_survey_note(session, context_id)
+                if context_type == "filter"
+                else None
+            )
             token_id = service_token(session, requester_id).id
             analysis_id = triggering_analysis(session, message, user)
 
@@ -700,7 +728,7 @@ def respond(message_id):
                 reply = answer_from_facts(context_id, analysis_id, token_id)
             if reply is None:
                 reply = answer(
-                    conversation, context_type, context_id, profile, token_id
+                    conversation, context_type, context_id, profile, token_id, detail
                 )
             text, trace, built, model = reply
             failed = text == OUT_OF_TIME

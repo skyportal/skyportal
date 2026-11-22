@@ -86,19 +86,26 @@ def now_line():
     )
 
 
-def system_prompt(context_type=None, context_id=None, user=None):
+def system_prompt(context_type=None, context_id=None, user=None, detail=None):
     lines = [SYSTEM_PROMPT, now_line()]
     person = describe_user(user)
     if person:
         lines.append(f"The person asking is {person}, from their SkyPortal profile.")
     context = describe_context(context_type, context_id)
     if context:
-        lines.append(f"They are looking at {context}.")
+        lines.append(
+            f"They are looking at {context}." + (f" {detail}" if detail else "")
+        )
     return "\n\n".join(lines)
 
 
 def build_messages(
-    messages, max_messages, context_type=None, context_id=None, user=None
+    messages,
+    max_messages,
+    context_type=None,
+    context_id=None,
+    user=None,
+    detail=None,
 ):
     turns = [
         {
@@ -112,7 +119,10 @@ def build_messages(
     while turns and turns[-1]["role"] == "assistant":
         turns.pop()
     return [
-        {"role": "system", "content": system_prompt(context_type, context_id, user)},
+        {
+            "role": "system",
+            "content": system_prompt(context_type, context_id, user, detail),
+        },
         *turns,
     ]
 
