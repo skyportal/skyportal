@@ -56,21 +56,6 @@ const EDITOR_MODES = [
   { value: "mongo", label: "MongoDB" },
 ] as const;
 
-const SERVER_PROJECTION = ["candid", "candidate", "coordinates", "objectId"];
-
-// Ignores the terminal $project that the server or the builder appends.
-const blocksOf = (pipeline: any) => {
-  if (!Array.isArray(pipeline)) return null;
-  const last = pipeline[pipeline.length - 1]?.$project;
-  const added =
-    pipeline.length > 1 &&
-    last &&
-    ((Object.keys(last).sort().join() === SERVER_PROJECTION.join() &&
-      Object.values(last).every((value) => value === 1)) ||
-      isBuilderProjection(last, pipeline.slice(0, -1)));
-  return decompilePipeline(added ? pipeline.slice(0, -1) : pipeline);
-};
-
 // Helper function to recursively collect all block IDs (excluding root blocks)
 const collectAllBlockIds = (blocks: any, isRoot = true): any[] => {
   const blockIds: any[] = [];
@@ -272,16 +257,6 @@ const FilterBuilderContent = ({
       if (activeVersion && activeVersion.pipeline) {
         try {
           const pipelineData = JSON.parse(activeVersion.pipeline);
-          const tree = blocksOf(pipelineData);
-          if (tree) {
-            setNoBlockTree(false);
-            setEditorMode("blocks");
-            setLoadedFid(displayedFid);
-            setLocalFilterData(tree);
-            setFilters?.(tree);
-            setProjectionFields?.([]);
-            return;
-          }
           // Reached only when no block tree was stored for the active version,
           // which is a different situation from a filter imported as a raw
           // pipeline even though both end up read-only.
