@@ -237,6 +237,17 @@ export const brokersApi = skyportalApi.injectEndpoints({
       }),
       invalidatesTags: ["Broker"],
     }),
+    postBrokerFilterVersion: build.mutation<
+      { id: number },
+      { brokerId: number; filterId: number; altdata: any[]; filters?: any }
+    >({
+      query: ({ brokerId, filterId, ...body }) => ({
+        url: `api/brokers/${brokerId}/filters/${filterId}`,
+        method: "POST",
+        body,
+      }),
+      invalidatesTags: ["Broker"],
+    }),
     // Topics (Fink tags, Lasair stream names, ...) the current user can route to.
     // Served by providers implementing ``available_topics``.
     getBrokerAvailableTopics: build.query<{ topics: string[] }, number>({
@@ -360,6 +371,7 @@ export const {
   useGetFilterCatalogQuery,
   useAttachFilterToBrokerMutation,
   useSaveBrokerFilterMutation,
+  usePostBrokerFilterVersionMutation,
   useGetBrokerAvailableTopicsQuery,
   useGetBrokerAPIsQuery,
   useCreateBrokerMutation,
