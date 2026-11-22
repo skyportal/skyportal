@@ -32,7 +32,6 @@ import { allocationLabel } from "../../utils/format";
 import VlaFollowupButton, { type VlaRubinAlert } from "./VlaFollowupButton";
 
 const DAY_MS = 24 * 3600 * 1000;
-const vlaOption = { id: "vla-rubin", label: "VLA" };
 
 const utcString = (date: string | number) =>
   new Date(date).toISOString().replace("T", " ").slice(0, 19);
@@ -126,23 +125,31 @@ const FollowupRequestForm = ({
   const schemaKey = isForcedPhotometry
     ? "formSchemaForcedPhotometry"
     : "formSchema";
+  const canRequestVla = requestType === "triggered" && vlaRubinAlert != null;
 
   const allocations = useMemo<any[]>(
     () =>
-      allocationListApiClassname.filter(
-        (allocation: any) =>
-          instrumentFormParams[allocation.instrument_id]?.[schemaKey] != null &&
-          allocation.types.includes(requestType),
-      ),
-    [allocationListApiClassname, instrumentFormParams, schemaKey, requestType],
+      allocationListApiClassname.filter((allocation) => {
+        const params = instrumentFormParams[allocation.instrument_id];
+        return (
+          allocation.types?.includes(requestType) &&
+          (params?.[schemaKey] != null ||
+            (canRequestVla &&
+              params?.externalFollowupForm?.type === "vla_rubin"))
+        );
+      }),
+    [
+      allocationListApiClassname,
+      instrumentFormParams,
+      requestType,
+      schemaKey,
+      canRequestVla,
+    ],
   );
   const allocation =
     allocations.find(({ id }) => id === selectedAllocationId) ?? allocations[0];
-  const canRequestVla = requestType === "triggered" && vlaRubinAlert != null;
-  const vlaSelected =
-    canRequestVla && (selectedAllocationId === vlaOption.id || !allocation);
 
-  if (!allocation && !canRequestVla) {
+  if (!allocation) {
     return (
       <Typography variant="body2" sx={{ color: "text.secondary" }}>
         {isForcedPhotometry
@@ -151,17 +158,13 @@ const FollowupRequestForm = ({
       </Typography>
     );
   }
-  if (
-    !vlaSelected &&
-    (!allGroups.length || !telescopeList.length || !instrumentList.length)
-  ) {
+  if (!allGroups.length || !telescopeList.length || !instrumentList.length) {
     return <CircularProgress color="secondary" />;
   }
 
+  const instrumentParams = instrumentFormParams[allocation.instrument_id];
   const getRequestOptionLabel = (option: any) =>
-    option === vlaOption
-      ? vlaOption.label
-      : allocationLabel(option, instrumentList, telescopeList, allGroups);
+    allocationLabel(option, instrumentList, telescopeList, allGroups);
 
   const requestSelect = (
     <SearchableValueSelect
@@ -170,10 +173,10 @@ const FollowupRequestForm = ({
           ? "forcedPhotometryAllocationSelect"
           : "followupRequestAllocationSelect"
       }
-      label={canRequestVla ? "Instrument or allocation" : "Allocation"}
-      options={canRequestVla ? [...allocations, vlaOption] : allocations}
+      label="Allocation"
+      options={allocations}
       getOptionLabel={getRequestOptionLabel}
-      value={vlaSelected ? vlaOption.id : allocation.id}
+      value={allocation.id}
       onChange={(value) => {
         setSelectedAllocationId(value);
         setSelectedGroupIds(null);
@@ -181,20 +184,23 @@ const FollowupRequestForm = ({
       renderOptionContent={(option) => (
         <>
           {getRequestOptionLabel(option)}
-          {option !== vlaOption &&
-            !isSomeActiveRangeOrNoRange(option.validity_ranges) && (
-              <Tooltip
-                title="This allocation is currently inactive. You can still submit requests for valid future dates."
-                arrow
+          {!isSomeActiveRangeOrNoRange(option.validity_ranges) && (
+            <Tooltip
+              title={
+                instrumentFormParams[option.instrument_id]?.externalFollowupForm
+                  ? "This allocation is currently inactive."
+                  : "This allocation is currently inactive. You can still submit requests for valid future dates."
+              }
+              arrow
+            >
+              <Typography
+                component="span"
+                sx={{ fontStyle: "italic", color: "grey" }}
               >
-                <Typography
-                  component="span"
-                  sx={{ fontStyle: "italic", color: "grey" }}
-                >
-                  {" (inactive)"}
-                </Typography>
-              </Tooltip>
-            )}
+                {" (inactive)"}
+              </Typography>
+            </Tooltip>
+          )}
         </>
       )}
       disableClearable
@@ -202,11 +208,18 @@ const FollowupRequestForm = ({
     />
   );
 
-  if (vlaSelected) {
+  const externalForm = instrumentParams.externalFollowupForm;
+  if (canRequestVla && externalForm?.type === "vla_rubin") {
     return (
       <Box sx={{ display: "flex", flexDirection: "column", gap: 1, mb: 2 }}>
         {requestSelect}
-        <VlaFollowupButton alert={vlaRubinAlert} />
+        {isSomeActiveRangeOrNoRange(allocation.validity_ranges) ? (
+          <VlaFollowupButton alert={vlaRubinAlert} formUrl={externalForm.url} />
+        ) : (
+          <Typography variant="body2" color="text.secondary">
+            This allocation is currently inactive.
+          </Typography>
+        )}
       </Box>
     );
   }
@@ -216,7 +229,7 @@ const FollowupRequestForm = ({
     uiSchema,
     methodsImplemented,
     [schemaKey]: baseSchema,
-  } = instrumentFormParams[allocation.instrument_id];
+  } = instrumentParams;
 
   const submitFollowupRequest = async (formData: any) => {
     setIsSubmitting(true);

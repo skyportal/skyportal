@@ -1,8 +1,5 @@
 import Button from "../Button";
 
-const formUrl =
-  "https://docs.google.com/forms/d/e/1FAIpQLSdte3UOfF3NWaY-iMJlmumV0hDox5kpcgRxuHbHATgf64zk0w/viewform";
-
 export interface VlaRubinAlert {
   id: string;
   ra: string;
@@ -10,7 +7,13 @@ export interface VlaRubinAlert {
   first_alert_date: string;
 }
 
-const VlaFollowupButton = ({ alert }: { alert: VlaRubinAlert }) => {
+const VlaFollowupButton = ({
+  alert,
+  formUrl,
+}: {
+  alert: VlaRubinAlert;
+  formUrl: string;
+}) => {
   const params = new URLSearchParams({
     usp: "pp_url",
     "entry.1703452690": alert.id,

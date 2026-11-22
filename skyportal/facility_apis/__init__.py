@@ -41,6 +41,7 @@ _APIS = {
     "NGPSAPI": "ngps",
     "WENDELSTEINAPI": "wendelstein",
     "ATCAAPI": "atca",
+    "VLAAPI": "vla",
 }
 
 # Listeners, listed in implementation order, to keep matching enum in db stable

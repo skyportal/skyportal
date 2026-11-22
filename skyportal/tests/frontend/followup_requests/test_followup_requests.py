@@ -90,6 +90,7 @@ def test_select_vla_rubin_followup(
         super_admin_token,
         _altdata='{"access_token": "testtoken"}',
     )
+    _, vla_id, _, vla_name = add_telescope_and_instrument("VLA", super_admin_token)
     alert = {
         "id": "170059317401616524",
         "ra": "12:34:56.7",
@@ -112,12 +113,22 @@ def test_select_vla_rubin_followup(
     selector = page.locator("#followupRequestAllocationSelect")
     native_form = page.get_by_test_id("followup-request-form")
     vla_link = page.get_by_role("link", name="Request VLA follow-up")
+    native_option = page.get_by_role("option").filter(has_text=instrument_name)
+
+    selector.click()
+    vla_option = page.get_by_role("option").filter(has_text=vla_name)
+    expect(vla_option).to_have_count(0)
+    native_option.click()
     expect(native_form).to_be_visible()
     expect(vla_link).to_have_count(0)
 
+    add_allocation(vla_id, public_group.id, super_admin_token, types=["triggered"])
+    page.reload()
     selector.click()
-    page.get_by_role("option", name="VLA", exact=True).click()
-    expect(selector).to_have_value("VLA")
+    vla_label = vla_option.inner_text()
+    assert vla_option.get_attribute("data-value").isdigit()
+    vla_option.click()
+    expect(selector).to_have_value(vla_label)
     expect(native_form).to_have_count(0)
     expect(vla_link).to_be_visible()
     expect(vla_link).to_have_attribute("target", "_blank")
@@ -132,7 +143,7 @@ def test_select_vla_rubin_followup(
     }
 
     selector.click()
-    page.get_by_role("option").filter(has_text=instrument_name).first.click()
+    native_option.click()
     expect(native_form).to_be_visible()
     expect(vla_link).to_have_count(0)
 
