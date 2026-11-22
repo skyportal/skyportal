@@ -293,9 +293,11 @@ def test_feature_announcement_shown_once(page, user, public_source):
     DBSession().add(user)
     DBSession().commit()
 
+    # Late enough for the earlier site-wide announcements to have expired.
+    page.clock.set_fixed_time(datetime(2026, 12, 10))
     page.goto(f"/become_user/{user.id}")
     page.goto(f"/source/{public_source.id}")
-    announcement = page.locator('//*[text()="Comments are now a chat"]').first
+    announcement = page.locator('//*[text()="Several quick saves"]').first
     expect(announcement).to_be_visible()
     page.locator('//button[text()="Got it"]').first.click()
     expect(announcement).to_be_hidden()
