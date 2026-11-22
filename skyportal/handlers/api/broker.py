@@ -1275,7 +1275,9 @@ def _validate_version(broker_id, filter_id, fid):
         except Exception as e:
             log(f"Validation of filter {filter_id} version {fid}: {e}")
             verdict = {"fid": fid, "passed": False, "message": f"Error: {e}"}
-        session.refresh(f)
+        f = session.get(Filter, filter_id, populate_existing=True)
+        if f is None:
+            return
         _store_version_validation(f.altdata, verdict)
         _apply_pending_switch(broker, session, f, fid, bool(verdict.get("passed")))
         flag_modified(f, "altdata")
