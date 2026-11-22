@@ -956,19 +956,20 @@ def api(queue):
                         )
 
                         users = []
-                        group_admins_gu = session.scalars(
-                            sa.select(GroupUser).where(
-                                GroupUser.group_id == target_data["group_id"],
-                                GroupUser.admin.is_(True),
-                            )
-                        ).all()
-                        for gu in group_admins_gu:
-                            group_admin = session.scalars(
-                                sa.select(User).where(User.id == gu.user_id)
-                            ).first()
+                        if target_data["status"] == "pending":
+                            group_admins_gu = session.scalars(
+                                sa.select(GroupUser).where(
+                                    GroupUser.group_id == target_data["group_id"],
+                                    GroupUser.admin.is_(True),
+                                )
+                            ).all()
+                            for gu in group_admins_gu:
+                                group_admin = session.scalars(
+                                    sa.select(User).where(User.id == gu.user_id)
+                                ).first()
 
-                            if group_admin is not None:
-                                users.append(group_admin)
+                                if group_admin is not None:
+                                    users.append(group_admin)
                     else:
                         if is_classification:
                             users = session.scalars(
