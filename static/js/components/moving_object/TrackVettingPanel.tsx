@@ -2,10 +2,13 @@ import { useMemo } from "react";
 
 import Alert from "@mui/material/Alert";
 import Box from "@mui/material/Box";
-import Button from "@mui/material/Button";
 import Chip from "@mui/material/Chip";
+import IconButton from "@mui/material/IconButton";
 import Paper from "@mui/material/Paper";
+import Tooltip from "@mui/material/Tooltip";
 import Typography from "@mui/material/Typography";
+import CloseIcon from "@mui/icons-material/Close";
+import UndoIcon from "@mui/icons-material/Undo";
 import { useTheme } from "@mui/material/styles";
 
 import {
@@ -114,79 +117,112 @@ const CutoutStrip = ({
       paddingBottom: "0.25rem",
     }}
   >
-    {detections.map((d) => (
-      <Box
-        key={d.candid}
-        sx={{
-          textAlign: "center",
-          flex: "0 0 auto",
-          opacity: excluded.includes(d.candid) ? 0.35 : 1,
-        }}
-      >
-        {d.png ? (
-          <Box
-            component="img"
-            src={`data:image/png;base64,${d.png}`}
-            alt={`epoch ${d.jd}`}
-            sx={{ width: "5rem", height: "5rem", display: "block" }}
-          />
-        ) : (
+    {detections.map((d) => {
+      const isExcluded = excluded.includes(d.candid);
+      return (
+        <Box key={d.candid} sx={{ textAlign: "center", flex: "0 0 auto" }}>
           <Box
             sx={{
-              width: "5rem",
-              height: "5rem",
-              display: "grid",
-              placeItems: "center",
-              fontSize: "0.6rem",
-              opacity: 0.5,
-              border: "1px dashed",
+              position: "relative",
+              "&:hover .toggle-excluded": { opacity: 1 },
             }}
           >
-            no image
+            <Box sx={{ opacity: isExcluded ? 0.35 : 1 }}>
+              {d.png ? (
+                <Box
+                  component="img"
+                  src={`data:image/png;base64,${d.png}`}
+                  alt={`epoch ${d.jd}`}
+                  sx={{ width: "5rem", height: "5rem", display: "block" }}
+                />
+              ) : (
+                <Box
+                  sx={{
+                    width: "5rem",
+                    height: "5rem",
+                    display: "grid",
+                    placeItems: "center",
+                    fontSize: "0.6rem",
+                    opacity: 0.5,
+                    border: "1px dashed",
+                  }}
+                >
+                  no image
+                </Box>
+              )}
+            </Box>
+            <Tooltip
+              title={
+                isExcluded
+                  ? "Include in the MPC submission"
+                  : "Exclude from the MPC submission"
+              }
+            >
+              <IconButton
+                className="toggle-excluded"
+                size="small"
+                aria-label={isExcluded ? "Include" : "Exclude"}
+                onClick={() => onToggle(d.candid)}
+                sx={{
+                  position: "absolute",
+                  top: 2,
+                  right: 2,
+                  padding: "2px",
+                  color: "common.white",
+                  bgcolor: isExcluded ? "primary.main" : "rgba(0, 0, 0, 0.6)",
+                  opacity: isExcluded ? 1 : 0,
+                  transition: "opacity 0.15s",
+                  "&:hover": {
+                    bgcolor: isExcluded ? "primary.dark" : "error.main",
+                  },
+                }}
+              >
+                {isExcluded ? (
+                  <UndoIcon sx={{ fontSize: "0.9rem" }} />
+                ) : (
+                  <CloseIcon sx={{ fontSize: "0.9rem" }} />
+                )}
+              </IconButton>
+            </Tooltip>
           </Box>
-        )}
-        <Typography
-          sx={{ fontSize: "0.65rem", color: BAND_COLOR[d.band ?? ""] }}
-        >
-          {d.band} {d.snr.toFixed(1)}σ
-        </Typography>
-        {d.centroid_offset_px > 1 && (
-          <Typography sx={{ fontSize: "0.6rem", color: "warning.main" }}>
-            off {d.centroid_offset_px.toFixed(0)}px
-          </Typography>
-        )}
-        {d.residual_ra != null && d.residual_dec != null && (
-          <Typography
-            title="Observed minus computed RA, Dec (arcsec)"
-            sx={{
-              fontSize: "0.6rem",
-              color:
-                expectedRms != null &&
-                Math.hypot(d.residual_ra, d.residual_dec) > 3 * expectedRms
-                  ? "warning.main"
-                  : "text.secondary",
-            }}
-          >
-            {signed(d.residual_ra)} {signed(d.residual_dec)}
-          </Typography>
-        )}
-        {d.fwhm_ratio != null && (
-          <Typography
-            title="FWHM over the PSF of the exposure"
-            sx={{ fontSize: "0.6rem", color: "text.secondary" }}
-          >
-            fwhm ×{d.fwhm_ratio.toFixed(2)}
-          </Typography>
-        )}
-        <Button
-          size="small"
-          onClick={() => onToggle(d.candid)}
-          sx={{ fontSize: "0.6rem", minWidth: 0, padding: "0 0.25rem" }}
-        >
-          {excluded.includes(d.candid) ? "Include" : "Exclude"}
-        </Button>
-      </Box>
-    ))}
+          <Box sx={{ opacity: isExcluded ? 0.35 : 1 }}>
+            <Typography
+              sx={{ fontSize: "0.65rem", color: BAND_COLOR[d.band ?? ""] }}
+            >
+              {d.band} {d.snr.toFixed(1)}σ
+            </Typography>
+            {d.centroid_offset_px > 1 && (
+              <Typography sx={{ fontSize: "0.6rem", color: "warning.main" }}>
+                off {d.centroid_offset_px.toFixed(0)}px
+              </Typography>
+            )}
+            {d.residual_ra != null && d.residual_dec != null && (
+              <Typography
+                title="Observed minus computed RA, Dec (arcsec)"
+                sx={{
+                  fontSize: "0.6rem",
+                  color:
+                    expectedRms != null &&
+                    Math.hypot(d.residual_ra, d.residual_dec) > 3 * expectedRms
+                      ? "warning.main"
+                      : "text.secondary",
+                }}
+              >
+                {signed(d.residual_ra)} {signed(d.residual_dec)}
+              </Typography>
+            )}
+            {d.fwhm_ratio != null && (
+              <Typography
+                title="FWHM over the PSF of the exposure"
+                sx={{ fontSize: "0.6rem", color: "text.secondary" }}
+              >
+                fwhm ×{d.fwhm_ratio.toFixed(2)}
+              </Typography>
+            )}
+          </Box>
+        </Box>
+      );
+    })}
   </Box>
 );
 
