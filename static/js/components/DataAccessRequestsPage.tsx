@@ -294,7 +294,7 @@ const DataAccessRequestsPage = () => {
             direction="outgoing"
             counterparty={{ field: "owner", headerName: "Owner" }}
             renderActions={outgoingActions}
-            emptyMessage="You have not asked anyone for data. Unshared data on a source is listed on its page."
+            emptyMessage="You have not asked anyone for data. Restricted data on a source is listed on its page."
           />
         )}
       </Paper>

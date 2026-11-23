@@ -30,6 +30,14 @@ import CircularProgress from "@mui/material/CircularProgress";
 import AddIcon from "@mui/icons-material/Add";
 import Menu from "@mui/material/Menu";
 import Divider from "@mui/material/Divider";
+import ListItemIcon from "@mui/material/ListItemIcon";
+import SearchIcon from "@mui/icons-material/Search";
+import ImageOutlinedIcon from "@mui/icons-material/ImageOutlined";
+import PictureAsPdfOutlinedIcon from "@mui/icons-material/PictureAsPdfOutlined";
+import ShowChartOutlinedIcon from "@mui/icons-material/ShowChartOutlined";
+import FormatListBulletedOutlinedIcon from "@mui/icons-material/FormatListBulletedOutlined";
+import SendOutlinedIcon from "@mui/icons-material/SendOutlined";
+import PublicOutlinedIcon from "@mui/icons-material/PublicOutlined";
 import MenuItem from "@mui/material/MenuItem";
 import IconButton from "@mui/material/IconButton";
 import Paper from "@mui/material/Paper";
@@ -973,42 +981,53 @@ const SourceContent = ({ source }: SourceContentProps) => {
               }}
             >
               {alertBroker ? (
-                <Link
-                  to={`/brokers/${alertBroker.id}?${new URLSearchParams({
-                    objectId: source.id,
-                    ...(source.ra != null && source.dec != null
-                      ? {
-                          ra: String(source.ra),
-                          dec: String(source.dec),
-                          radius: "3",
-                        }
-                      : {}),
-                  })}`}
-                  target="_blank"
+                <Tooltip
+                  title={`Alerts for this object in ${alertBroker.name}`}
                 >
-                  <Button secondary size="small">
-                    Search alerts
-                  </Button>
-                </Link>
+                  <Link
+                    to={`/brokers/${alertBroker.id}?${new URLSearchParams({
+                      objectId: source.id,
+                      ...(source.ra != null && source.dec != null
+                        ? {
+                            ra: String(source.ra),
+                            dec: String(source.dec),
+                            radius: "3",
+                          }
+                        : {}),
+                    })}`}
+                    target="_blank"
+                  >
+                    <Button secondary size="small" endIcon={<SearchIcon />}>
+                      Search alerts
+                    </Button>
+                  </Link>
+                </Tooltip>
               ) : (
                 <Tooltip title="No broker is set as the default for alert search">
                   <span>
-                    <Button secondary size="small" disabled>
+                    <Button
+                      secondary
+                      size="small"
+                      disabled
+                      endIcon={<SearchIcon />}
+                    >
                       Search alerts
                     </Button>
                   </span>
                 </Tooltip>
               )}
-              <Button
-                secondary
-                size="small"
-                endIcon={<ExpandMoreIcon />}
-                aria-haspopup="true"
-                aria-expanded={Boolean(anchorElObserving)}
-                onClick={(e: any) => setAnchorElObserving(e.currentTarget)}
-              >
-                Observing
-              </Button>
+              <Tooltip title="Finding chart, observability and starlist">
+                <Button
+                  secondary
+                  size="small"
+                  endIcon={<ExpandMoreIcon />}
+                  aria-haspopup="true"
+                  aria-expanded={Boolean(anchorElObserving)}
+                  onClick={(e: any) => setAnchorElObserving(e.currentTarget)}
+                >
+                  Observing
+                </Button>
+              </Tooltip>
               <Menu
                 transitionDuration={50}
                 anchorEl={anchorElObserving}
@@ -1022,6 +1041,9 @@ const SourceContent = ({ source }: SourceContentProps) => {
                   target="_blank"
                   onClick={() => setAnchorElObserving(null)}
                 >
+                  <ListItemIcon>
+                    <ImageOutlinedIcon fontSize="small" />
+                  </ListItemIcon>
                   Finding chart
                 </MenuItem>
                 <MenuItem
@@ -1030,6 +1052,9 @@ const SourceContent = ({ source }: SourceContentProps) => {
                   download="finder-chart"
                   onClick={() => setAnchorElObserving(null)}
                 >
+                  <ListItemIcon>
+                    <PictureAsPdfOutlinedIcon fontSize="small" />
+                  </ListItemIcon>
                   Finding chart PDF
                 </MenuItem>
                 <Divider />
@@ -1039,6 +1064,9 @@ const SourceContent = ({ source }: SourceContentProps) => {
                   target="_blank"
                   onClick={() => setAnchorElObserving(null)}
                 >
+                  <ListItemIcon>
+                    <ShowChartOutlinedIcon fontSize="small" />
+                  </ListItemIcon>
                   Observability
                 </MenuItem>
                 <MenuItem
@@ -1048,6 +1076,9 @@ const SourceContent = ({ source }: SourceContentProps) => {
                   data-testid={`observabilityChartRequest_${source.id}`}
                   onClick={() => setAnchorElObserving(null)}
                 >
+                  <ListItemIcon>
+                    <PictureAsPdfOutlinedIcon fontSize="small" />
+                  </ListItemIcon>
                   Observability PDF
                 </MenuItem>
                 <Divider />
@@ -1057,21 +1088,26 @@ const SourceContent = ({ source }: SourceContentProps) => {
                     setAnchorElObserving(null);
                   }}
                 >
+                  <ListItemIcon>
+                    <FormatListBulletedOutlinedIcon fontSize="small" />
+                  </ListItemIcon>
                   {showStarList ? "Hide starlist" : "Show starlist"}
                 </MenuItem>
               </Menu>
               {!isReadOnly && (
                 <>
-                  <Button
-                    secondary
-                    size="small"
-                    endIcon={<ExpandMoreIcon />}
-                    aria-haspopup="true"
-                    aria-expanded={Boolean(anchorElShare)}
-                    onClick={(e: any) => setAnchorElShare(e.currentTarget)}
-                  >
-                    Share
-                  </Button>
+                  <Tooltip title="Send to a service or make public">
+                    <Button
+                      secondary
+                      size="small"
+                      endIcon={<ExpandMoreIcon />}
+                      aria-haspopup="true"
+                      aria-expanded={Boolean(anchorElShare)}
+                      onClick={(e: any) => setAnchorElShare(e.currentTarget)}
+                    >
+                      Share
+                    </Button>
+                  </Tooltip>
                   <Menu
                     transitionDuration={50}
                     anchorEl={anchorElShare}
@@ -1085,6 +1121,9 @@ const SourceContent = ({ source }: SourceContentProps) => {
                         setAnchorElShare(null);
                       }}
                     >
+                      <ListItemIcon>
+                        <SendOutlinedIcon fontSize="small" />
+                      </ListItemIcon>
                       Send to
                     </MenuItem>
                     <MenuItem
@@ -1093,6 +1132,9 @@ const SourceContent = ({ source }: SourceContentProps) => {
                         setAnchorElShare(null);
                       }}
                     >
+                      <ListItemIcon>
+                        <PublicOutlinedIcon fontSize="small" />
+                      </ListItemIcon>
                       Public access
                     </MenuItem>
                   </Menu>
