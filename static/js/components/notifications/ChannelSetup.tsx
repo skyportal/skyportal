@@ -32,7 +32,7 @@ const TEXTS: Record<
   },
   phone: {
     title: "Add a phone number",
-    text: "Used for SMS, WhatsApp and phone calls. Include the country code.",
+    text: "Used for SMS and phone calls. Include the country code.",
     label: "Phone number",
     placeholder: "+1 555 123 4567",
   },

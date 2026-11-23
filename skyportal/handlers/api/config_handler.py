@@ -125,6 +125,11 @@ class ConfigHandler(BaseHandler):
         return self.success(
             data={
                 "slackPreamble": cfg["slack.expected_url_preamble"],
+                "notificationChannels": [
+                    "email",
+                    "slack",
+                    *(["sms", "phone"] if cfg["twilio.from_number"] else []),
+                ],
                 "invitationsEnabled": cfg["invitations.enabled"],
                 "invitationsDaysUntilExpiry": cfg["invitations.days_until_expiry"],
                 "userApplicationsEnabled": user_applications_enabled(),

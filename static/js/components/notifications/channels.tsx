@@ -4,7 +4,6 @@ import CallIcon from "@mui/icons-material/CallOutlined";
 import EmailIcon from "@mui/icons-material/EmailOutlined";
 import SmsIcon from "@mui/icons-material/SmsOutlined";
 import TagIcon from "@mui/icons-material/Tag";
-import WhatsAppIcon from "@mui/icons-material/WhatsApp";
 
 import type { useGetProfileQuery } from "../../ducks/profile";
 
@@ -12,7 +11,7 @@ export type Profile = NonNullable<
   ReturnType<typeof useGetProfileQuery>["data"]
 >;
 
-export type ChannelKey = "email" | "slack" | "sms" | "phone" | "whatsapp";
+export type ChannelKey = "email" | "slack" | "sms" | "phone";
 export type SetupKind = "email" | "slack" | "phone";
 
 export interface Channel {
@@ -49,13 +48,6 @@ export const CHANNELS: Channel[] = [
     key: "phone",
     label: "Phone call",
     icon: <CallIcon fontSize="small" />,
-    setup: "phone",
-    scheduled: true,
-  },
-  {
-    key: "whatsapp",
-    label: "WhatsApp",
-    icon: <WhatsAppIcon fontSize="small" />,
     setup: "phone",
     scheduled: true,
   },
