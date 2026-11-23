@@ -397,7 +397,7 @@ def test_super_user_can_delete_unowned_comment(
 def test_show_starlist(page, user, public_source):
     page.goto(f"/become_user/{user.id}")
     page.goto(f"/source/{public_source.id}")
-    page.locator('//button[text()="Show Starlist"]').first.click()
+    page.locator('//button[text()="Show starlist"]').first.click()
     expect(page.locator("//pre[text()[contains(., '_k1')]]").first).to_be_visible()
 
 
@@ -448,7 +448,7 @@ def test_centroid_plot(
 def test_dropdown_facility_change(page, user, public_source):
     page.goto(f"/become_user/{user.id}")
     page.goto(f"/source/{public_source.id}")
-    page.locator('//*[text()="Show Starlist"]').first.click()
+    page.locator('//*[text()="Show starlist"]').first.click()
     expect(page.locator("//pre[text()[contains(., 'raoffset')]]").first).to_be_visible()
     page.locator('//*[@id="mui-component-select-StarListSelectElement"]').first.click()
     page.locator('//li[@data-value="P200"]').first.click()

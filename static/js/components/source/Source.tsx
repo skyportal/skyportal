@@ -13,6 +13,7 @@ import { Link } from "react-router-dom";
 
 import { makeStyles } from "tss-react/mui";
 import Box from "@mui/material/Box";
+import { alpha } from "@mui/material/styles";
 import Chip from "@mui/material/Chip";
 import Grid from "@mui/material/Grid";
 import Tooltip from "@mui/material/Tooltip";
@@ -936,7 +937,41 @@ const SourceContent = ({ source }: SourceContentProps) => {
             currentUser?.preferences?.["showSimilarSources"] === true ? (
               <SimilarSources source={source} k={3} />
             ) : null}
-            <div className={classes.infoLine} style={{ marginTop: "0.25rem" }}>
+            <Box
+              sx={(theme) => {
+                const { success, text } = theme.palette;
+                return {
+                  flexBasis: "100%",
+                  display: "flex",
+                  flexWrap: "wrap",
+                  alignItems: "center",
+                  gap: 0.75,
+                  mt: 0.75,
+                  "& .MuiButton-root": {
+                    textTransform: "none",
+                    fontWeight: 500,
+                    fontSize: "0.85rem",
+                    borderRadius: "8px",
+                    px: 1.5,
+                    boxShadow: "none",
+                  },
+                  "& .MuiButton-endIcon": { ml: 0.25, mr: -0.5 },
+                  "& .MuiButton-colorGrey:not(.Mui-disabled)": {
+                    bgcolor: alpha(text.primary, 0.06),
+                    color: "text.primary",
+                    "&:hover": { bgcolor: alpha(text.primary, 0.11) },
+                  },
+                  "& .MuiButton-colorSuccess:not(.Mui-disabled)": {
+                    bgcolor: alpha(success.main, 0.16),
+                    color:
+                      theme.palette.mode === "dark"
+                        ? success.light
+                        : success.dark,
+                    "&:hover": { bgcolor: alpha(success.main, 0.24) },
+                  },
+                };
+              }}
+            >
               {alertBroker ? (
                 <Link
                   to={`/brokers/${alertBroker.id}?${new URLSearchParams({
@@ -972,8 +1007,9 @@ const SourceContent = ({ source }: SourceContentProps) => {
                   onClick={(e: any) => setAnchorElFindingChart(e.currentTarget)}
                   secondary
                   size="small"
+                  endIcon={<ExpandMoreIcon />}
                 >
-                  Finding Chart
+                  Finding chart
                 </Button>
                 <Menu
                   transitionDuration={50}
@@ -1014,7 +1050,7 @@ const SourceContent = ({ source }: SourceContentProps) => {
                   size="small"
                   onClick={() => setShowStarList(!showStarList)}
                 >
-                  {showStarList ? "Hide Starlist" : "Show Starlist"}
+                  {showStarList ? "Hide starlist" : "Show starlist"}
                 </Button>
               </div>
               <div>
@@ -1027,6 +1063,7 @@ const SourceContent = ({ source }: SourceContentProps) => {
                   }
                   secondary
                   size="small"
+                  endIcon={<ExpandMoreIcon />}
                 >
                   Observability
                 </Button>
@@ -1105,7 +1142,7 @@ const SourceContent = ({ source }: SourceContentProps) => {
                 />
               )}
               {!isReadOnly && <RequestDataAccess sourceID={source.id} />}
-            </div>
+            </Box>
             {showStarList && <StarList sourceId={source.id} />}
             {/* checking if the id exists is a way to know if the user profile is loaded or not */}
             {currentUser?.id &&

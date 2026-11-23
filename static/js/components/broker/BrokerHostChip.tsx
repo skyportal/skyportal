@@ -101,11 +101,11 @@ export const HostChip = ({
         sx={
           host.primary
             ? (theme) => {
-                const { main, dark, light } = theme.palette.primary;
+                const { main, dark, light } = theme.palette.success;
                 return {
-                  bgcolor: alpha(main, 0.2),
+                  bgcolor: alpha(main, 0.16),
                   color: theme.palette.mode === "dark" ? light : dark,
-                  "&:hover": { bgcolor: alpha(main, 0.28) },
+                  "&:hover": { bgcolor: alpha(main, 0.24) },
                   "& .MuiChip-deleteIcon": {
                     color: alpha(main, 0.45),
                     "&:hover": { color: main },
