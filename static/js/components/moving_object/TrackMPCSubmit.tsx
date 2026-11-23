@@ -7,9 +7,11 @@ import Dialog from "@mui/material/Dialog";
 import DialogActions from "@mui/material/DialogActions";
 import DialogContent from "@mui/material/DialogContent";
 import DialogTitle from "@mui/material/DialogTitle";
+import MuiLink from "@mui/material/Link";
 import MenuItem from "@mui/material/MenuItem";
 import TextField from "@mui/material/TextField";
 import Typography from "@mui/material/Typography";
+import { Link } from "react-router-dom";
 import { showNotification } from "baselayer/components/Notifications";
 import { useAppDispatch } from "../../types/hooks";
 import { useGetSharingServicesQuery } from "../../ducks/sharingServices";
@@ -55,10 +57,10 @@ const TrackMPCSubmit = ({
   const [submissionType, setSubmissionType] =
     useState<SubmissionType>("regular");
 
-  const { data: services = [] } = useGetSharingServicesQuery(undefined, {
-    skip: !open,
-  });
+  const { data: services = [], isLoading: servicesLoading } =
+    useGetSharingServicesQuery(undefined, { skip: !open });
   const mpcServices = services.filter((s) => s.enable_sharing_with_mpc);
+  const canSubmit = !servicesLoading && mpcServices.length > 0;
   const onlyServiceId = mpcServices.length === 1 ? mpcServices[0]?.id : null;
 
   const {
@@ -143,108 +145,121 @@ const TrackMPCSubmit = ({
               {s.mpc_submission_id ? ` (${s.mpc_submission_id})` : ""}
             </Typography>
           ))}
-          {mpcServices.length === 0 ? (
+          {servicesLoading && <CircularProgress size="1.5rem" />}
+          {!servicesLoading && mpcServices.length === 0 && (
             <Alert severity="info">
-              None of your sharing services submits to the MPC.
+              None of your sharing services submits to the MPC. Set one up on
+              the{" "}
+              <MuiLink component={Link} to="/sharing_services">
+                sharing services page
+              </MuiLink>
+              .
             </Alert>
-          ) : (
-            <TextField
-              select
-              size="small"
-              label="Sharing service"
-              value={serviceId}
-              onChange={(e) => setServiceId(Number(e.target.value))}
-              sx={{ mt: "0.5rem" }}
-            >
-              {mpcServices.map((s) => (
-                <MenuItem key={s.id} value={s.id}>
-                  {s.name}
-                  {s.testing ? " (testing)" : ""}
-                </MenuItem>
-              ))}
-            </TextField>
           )}
-          <Autocomplete
-            freeSolo
-            size="small"
-            options={preview?.submitters ?? []}
-            inputValue={draft ?? ""}
-            onInputChange={(_e, value) => setDraft(value)}
-            onChange={(_e, value) => setSubmitter(value ?? "")}
-            renderInput={(params) => (
+          {canSubmit && (
+            <>
               <TextField
-                {...params}
-                label="Submitter"
-                onBlur={() => setSubmitter(draft ?? "")}
+                select
+                size="small"
+                label="Sharing service"
+                value={serviceId}
+                onChange={(e) => setServiceId(Number(e.target.value))}
+                sx={{ mt: "0.5rem" }}
+              >
+                {mpcServices.map((s) => (
+                  <MenuItem key={s.id} value={s.id}>
+                    {s.name}
+                    {s.testing ? " (testing)" : ""}
+                  </MenuItem>
+                ))}
+              </TextField>
+              <Autocomplete
+                freeSolo
+                size="small"
+                options={preview?.submitters ?? []}
+                inputValue={draft ?? ""}
+                onInputChange={(_e, value) => setDraft(value)}
+                onChange={(_e, value) => setSubmitter(value ?? "")}
+                renderInput={(params) => (
+                  <TextField
+                    {...params}
+                    label="Submitter"
+                    onBlur={() => setSubmitter(draft ?? "")}
+                  />
+                )}
               />
-            )}
-          />
-          <TextField
-            select
-            size="small"
-            label="Type"
-            value={submissionType}
-            onChange={(e) =>
-              setSubmissionType(e.target.value as SubmissionType)
-            }
-          >
-            {SUBMISSION_TYPES.map((t) => (
-              <MenuItem key={t.value} value={t.value}>
-                {t.label}
-              </MenuItem>
-            ))}
-          </TextField>
-          {error && serviceId !== "" && (
-            <Alert severity="error">{errorMessage(error)}</Alert>
-          )}
-          {(preview?.members_withheld ?? 0) > 0 && (
-            <Alert severity="warning">
-              {preview?.members_withheld} detections you cannot see are left
-              out.
-            </Alert>
-          )}
-          {preview?.psv && (
-            <TextField
-              multiline
-              fullWidth
-              label={edited ? "PSV (edited)" : "PSV"}
-              value={psv}
-              onChange={(e) => setPsv(e.target.value)}
-              slotProps={{
-                htmlInput: {
-                  spellCheck: false,
-                  style: {
-                    fontFamily: "monospace",
-                    fontSize: "0.7rem",
-                    whiteSpace: "pre",
-                    overflowX: "auto",
-                  },
-                },
-              }}
-            />
+              <TextField
+                select
+                size="small"
+                label="Type"
+                value={submissionType}
+                onChange={(e) =>
+                  setSubmissionType(e.target.value as SubmissionType)
+                }
+              >
+                {SUBMISSION_TYPES.map((t) => (
+                  <MenuItem key={t.value} value={t.value}>
+                    {t.label}
+                  </MenuItem>
+                ))}
+              </TextField>
+              {error && serviceId !== "" && (
+                <Alert severity="error">{errorMessage(error)}</Alert>
+              )}
+              {(preview?.members_withheld ?? 0) > 0 && (
+                <Alert severity="warning">
+                  {preview?.members_withheld} detections you cannot see are left
+                  out.
+                </Alert>
+              )}
+              {preview?.psv && (
+                <TextField
+                  multiline
+                  fullWidth
+                  label={edited ? "PSV (edited)" : "PSV"}
+                  value={psv}
+                  onChange={(e) => setPsv(e.target.value)}
+                  slotProps={{
+                    htmlInput: {
+                      spellCheck: false,
+                      style: {
+                        fontFamily: "monospace",
+                        fontSize: "0.7rem",
+                        whiteSpace: "pre",
+                        overflowX: "auto",
+                      },
+                    },
+                  }}
+                />
+              )}
+            </>
           )}
         </DialogContent>
         <DialogActions>
-          {edited && (
+          {canSubmit && edited && (
             <Button onClick={() => setPsv(preview?.psv ?? "")}>Reset</Button>
           )}
-          <Button onClick={download} disabled={!psv}>
-            Download
-          </Button>
+          {canSubmit && (
+            <Button onClick={download} disabled={!psv}>
+              Download
+            </Button>
+          )}
           <Button onClick={() => setOpen(false)}>Cancel</Button>
-          <Button
-            variant="contained"
-            onClick={onSubmit}
-            disabled={
-              !psv.trim() || isFetching || submitting || Boolean(active)
-            }
-          >
-            {submitting ? (
-              <CircularProgress size="0.9rem" />
-            ) : (
-              `Submit as ${draft ?? ""}`
-            )}
-          </Button>
+          {canSubmit && (
+            <Button
+              variant="contained"
+              onClick={onSubmit}
+              disabled={
+                !psv.trim() || isFetching || submitting || Boolean(active)
+              }
+            >
+              {submitting ? (
+                <CircularProgress size="0.9rem" />
+              ) : (
+                `Submit as ${draft ?? ""}`
+              )}
+            </Button>
+          )}
         </DialogActions>
       </Dialog>
     </>
