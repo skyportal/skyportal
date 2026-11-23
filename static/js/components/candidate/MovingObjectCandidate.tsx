@@ -60,7 +60,6 @@ const MovingObjectCandidate = ({
     list.filter((g) => !savedGroupIds.includes(g.id));
   const unsavedUserGroups = unsaved(groups?.userAccessible ?? []);
   const track = candidate.broker_id != null ? trackId : null;
-  const isTrack = track !== null;
   const name =
     track ?? candidate.alias?.[0] ?? candidate.mpc_name ?? candidate.id;
   const lastDetected = candidate.last_detected_at
@@ -81,7 +80,7 @@ const MovingObjectCandidate = ({
         alignItems: "start",
         gridTemplateColumns: {
           xs: "100%",
-          md: isTrack ? "18rem 1fr" : "18rem 1fr 1fr",
+          md: track ? "18rem 1fr" : "18rem 1fr 1fr",
         },
       }}
     >
@@ -119,7 +118,7 @@ const MovingObjectCandidate = ({
           >
             {name}
           </MuiLink>
-          {isTrack && (
+          {track && (
             <Typography variant="body2" color="text.secondary">
               {candidate.id}
             </Typography>
@@ -171,7 +170,7 @@ const MovingObjectCandidate = ({
           </Box>
         )}
       </Box>
-      {!isTrack && (
+      {!track && (
         <VegaPhotometry
           sourceId={candidate.id}
           style={{ width: "100%", height: "14rem" }}
