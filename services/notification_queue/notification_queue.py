@@ -99,6 +99,7 @@ request_session.trust_env = (
 account_sid = cfg["twilio.sms_account_sid"]
 auth_token = cfg["twilio.sms_auth_token"]
 from_number = cfg["twilio.from_number"]
+alphanumeric_sender_id = cfg["twilio.alphanumeric_sender_id"]
 client = None
 if account_sid and auth_token and from_number:
     client = TwilioClient(account_sid, auth_token)
@@ -438,10 +439,13 @@ def send_sms_notification(target):
 
     if sending:
         try:
+            to = target["user"]["contact_phone"].e164
             client.messages.create(
                 body=f"{cfg['app.title']} - {plain_text(target)}",
-                from_=from_number,
-                to=target["user"]["contact_phone"].e164,
+                from_=alphanumeric_sender_id
+                if alphanumeric_sender_id and not to.startswith("+1")
+                else from_number,
+                to=to,
             )
             log(
                 f"Sent SMS notification to user {target['user']['id']} at phone number: {target['user']['contact_phone'].e164}, body: {target['text']}, resource_type: {resource_type}"
