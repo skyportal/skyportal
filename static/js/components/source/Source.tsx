@@ -13,7 +13,7 @@ import { Link } from "react-router-dom";
 
 import { makeStyles } from "tss-react/mui";
 import Box from "@mui/material/Box";
-import { alpha } from "@mui/material/styles";
+import { alpha, lighten } from "@mui/material/styles";
 import Chip from "@mui/material/Chip";
 import Grid from "@mui/material/Grid";
 import Tooltip from "@mui/material/Tooltip";
@@ -939,7 +939,7 @@ const SourceContent = ({ source }: SourceContentProps) => {
             ) : null}
             <Box
               sx={(theme) => {
-                const { success, text } = theme.palette;
+                const { primary, text } = theme.palette;
                 return {
                   flexBasis: "100%",
                   display: "flex",
@@ -961,13 +961,13 @@ const SourceContent = ({ source }: SourceContentProps) => {
                     color: "text.primary",
                     "&:hover": { bgcolor: alpha(text.primary, 0.11) },
                   },
-                  "& .MuiButton-colorSuccess:not(.Mui-disabled)": {
-                    bgcolor: alpha(success.main, 0.16),
+                  "& [data-testid=interested-button].MuiButton-colorSuccess": {
+                    bgcolor: alpha(primary.main, 0.14),
                     color:
                       theme.palette.mode === "dark"
-                        ? success.light
-                        : success.dark,
-                    "&:hover": { bgcolor: alpha(success.main, 0.24) },
+                        ? lighten(primary.main, 0.5)
+                        : primary.dark,
+                    "&:hover": { bgcolor: alpha(primary.main, 0.22) },
                   },
                 };
               }}
