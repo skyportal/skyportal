@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
+import ArrowUpwardIcon from "@mui/icons-material/ArrowUpward";
 import AttachFileIcon from "@mui/icons-material/AttachFile";
 import CheckIcon from "@mui/icons-material/Check";
 import GroupIcon from "@mui/icons-material/Group";
-import SendIcon from "@mui/icons-material/Send";
+import Box from "@mui/material/Box";
 import Checkbox from "@mui/material/Checkbox";
 import IconButton from "@mui/material/IconButton";
 import ListItemText from "@mui/material/ListItemText";
@@ -12,8 +13,8 @@ import Menu from "@mui/material/Menu";
 import MenuItem from "@mui/material/MenuItem";
 import TextField from "@mui/material/TextField";
 import Tooltip from "@mui/material/Tooltip";
-import { makeStyles } from "tss-react/mui";
 import Typography from "@mui/material/Typography";
+import { alpha } from "@mui/material/styles";
 
 import { useGetConfigQuery } from "../../ducks/config";
 import { useGetGroupsQuery } from "../../ducks/groups";
@@ -26,50 +27,18 @@ import InstrumentTrie from "../../instrumentTrie";
 import { useGetInstrumentsQuery } from "../../ducks/instruments";
 import { useGetUsersQuery } from "../../ducks/users";
 
-const useStyles = makeStyles()((theme) => ({
-  commentEntry: {
-    position: "relative",
-  },
-  composer: {
-    display: "flex",
-    alignItems: "flex-end",
-    gap: "0.25rem",
-    padding: theme.spacing(1, 1, 1.5),
-  },
-  composerInline: {
-    padding: 0,
-  },
-  suggestionsPopup: {
-    position: "absolute",
-    bottom: "100%",
-    left: 0,
-    right: 0,
-    zIndex: 1,
-    backgroundColor: theme.palette.background.paper,
-    borderTop: `1px solid ${theme.palette.divider}`,
-  },
-  groupMenu: {
-    maxHeight: "20rem",
-    width: "18rem",
-  },
-  groupFilter: {
-    position: "sticky",
-    top: 0,
-    zIndex: 2,
-    padding: theme.spacing(0.5, 1, 1),
-    backgroundColor: theme.palette.background.paper,
-  },
-  menuSection: {
-    lineHeight: "2rem",
-    top: "3.25rem",
-  },
-  extras: {
-    display: "flex",
-    flexWrap: "wrap",
-    alignItems: "center",
-    padding: theme.spacing(0, 1),
-  },
-}));
+const suggestionListSx = { overflowY: "auto", maxHeight: "10rem" } as const;
+
+const suggestionButtonSx = {
+  justifyContent: "flex-start",
+  width: "100%",
+  textTransform: "none",
+  fontWeight: 400,
+  borderRadius: "8px",
+  color: "text.primary",
+} as const;
+
+const menuSectionSx = { lineHeight: "2rem", top: "3.25rem" } as const;
 
 interface CommentComposerProps {
   addComment?: ((...a: any[]) => void) | null;
@@ -92,7 +61,6 @@ const CommentForm = ({
   textOnly = false,
   streamAccess = false,
 }: CommentComposerProps) => {
-  const { classes: styles, cx } = useStyles();
   // Only usernames are needed, for the @-mention trie.
   const users = useGetUsersQuery({ slim: true }).data ?? { users: [] };
   const { data: groupsData } = useGetGroupsQuery();
@@ -330,19 +298,34 @@ const CommentForm = ({
   };
 
   const suggestions = (
-    <div
-      className={addComment ? styles.suggestionsPopup : undefined}
-      style={{ display: autosuggestVisible ? "block" : "none" }}
+    <Box
+      sx={[
+        {
+          display: autosuggestVisible ? "block" : "none",
+          padding: "0.25rem",
+          "& li": { listStyle: "none" },
+        },
+        Boolean(addComment) &&
+          ((theme) => ({
+            position: "absolute",
+            bottom: "100%",
+            left: "0.75rem",
+            right: "0.75rem",
+            zIndex: 1,
+            borderRadius: "12px",
+            border: `1px solid ${theme.palette.divider}`,
+            backgroundColor: theme.palette.background.paper,
+            boxShadow: theme.shadows[4],
+          })),
+      ]}
     >
-      <div
-        style={{ paddingLeft: "2rem", overflowY: "auto", maxHeight: "10rem" }}
-      >
+      <Box sx={suggestionListSx}>
         {Object.entries(usernamePrefixMatches).map(
           ([username, { firstName, lastName }]: [string, any], ix) => (
             <li key={username}>
               <Button
                 onClick={() => handleClickSuggestedUsername(username)}
-                style={{ textTransform: "none" }}
+                sx={suggestionButtonSx}
                 ref={ix === 0 ? autoSuggestRootItem : null}
                 onKeyDown={(event: any) => {
                   if (event.key === "ArrowDown") {
@@ -360,16 +343,14 @@ const CommentForm = ({
             </li>
           ),
         )}
-      </div>
-      <div
-        style={{ paddingLeft: "2rem", overflowY: "auto", maxHeight: "10rem" }}
-      >
+      </Box>
+      <Box sx={suggestionListSx}>
         {Object.entries(instrumentPrefixMatches).map(
           ([instrument, { telescope }]: [string, any], ix) => (
             <li key={instrument}>
               <Button
                 onClick={() => handleClickSuggestedInstrument(instrument)}
-                style={{ textTransform: "none" }}
+                sx={suggestionButtonSx}
                 ref={ix === 0 ? autoSuggestRootItem : null}
                 onKeyDown={(event: any) => {
                   if (event.key === "ArrowDown") {
@@ -387,21 +368,32 @@ const CommentForm = ({
             </li>
           ),
         )}
-      </div>
-    </div>
+      </Box>
+    </Box>
   );
 
   const editingPublic = showPublic && selectedStreams.length > 0;
+  const textError = !editingPublic && !!errors["text"];
+  const extrasSx = {
+    display: "flex",
+    flexWrap: "wrap",
+    alignItems: "center",
+    padding: isEdit ? "0 0 0.25rem" : "0 1.5rem 0.25rem",
+  } as const;
 
   return (
-    <form
-      className={styles.commentEntry}
+    <Box
+      component="form"
       onSubmit={handleSubmit(onSubmit)}
       data-testid="comment-form"
+      sx={{
+        position: "relative",
+        padding: isEdit ? 0 : "0.5rem 0.75rem 0.75rem",
+      }}
     >
       {suggestions}
       {(fileName || attachmentName) && (
-        <div className={styles.extras}>
+        <Box sx={extrasSx}>
           {fileName ? (
             <Typography variant="caption">{fileName}</Typography>
           ) : (
@@ -412,10 +404,10 @@ const CommentForm = ({
               </Typography>
             )
           )}
-        </div>
+        </Box>
       )}
       {selectedStreams.length > 0 && (
-        <div className={styles.extras}>
+        <Box sx={extrasSx}>
           <SegmentedControl
             size="small"
             value={editingPublic ? "public" : "private"}
@@ -425,9 +417,26 @@ const CommentForm = ({
             ]}
             onChange={(version) => setShowPublic(version === "public")}
           />
-        </div>
+        </Box>
       )}
-      <div className={cx(styles.composer, isEdit && styles.composerInline)}>
+      <Box
+        sx={(theme) => ({
+          display: "flex",
+          alignItems: "flex-end",
+          gap: "0.25rem",
+          padding: "0.375rem 0.375rem 0.375rem 0.875rem",
+          borderRadius: "1.25rem",
+          border: `1px solid ${
+            textError ? theme.palette.error.main : theme.palette.divider
+          }`,
+          backgroundColor: theme.palette.background.paper,
+          transition: "border-color 150ms, box-shadow 150ms",
+          "&:focus-within": {
+            borderColor: theme.palette.primary.main,
+            boxShadow: `0 0 0 3px ${alpha(theme.palette.primary.main, 0.15)}`,
+          },
+        })}
+      >
         <Controller
           render={() => (
             <TextField
@@ -447,13 +456,18 @@ const CommentForm = ({
                     : placeholder
               }
               name="text"
-              error={!editingPublic && !!errors["text"]}
-              size="small"
+              error={textError}
+              variant="standard"
               fullWidth
               multiline
-              maxRows={4}
+              maxRows={6}
               inputRef={textAreaRef}
               onKeyDown={handleComposerKeyDown}
+              slotProps={{ input: { disableUnderline: true } }}
+              sx={{
+                alignSelf: "center",
+                "& .MuiInputBase-root": { fontSize: "0.875rem" },
+              }}
             />
           )}
           name="text"
@@ -463,7 +477,11 @@ const CommentForm = ({
         {!textOnly && (
           <>
             <Tooltip title="Attachment">
-              <IconButton component="label" size="small">
+              <IconButton
+                component="label"
+                size="small"
+                sx={{ color: "text.secondary" }}
+              >
                 <AttachFileIcon fontSize="small" />
                 <input
                   hidden
@@ -489,11 +507,12 @@ const CommentForm = ({
             >
               <IconButton
                 size="small"
-                color={
-                  selectedGroups.length || selectedStreams.length
-                    ? "primary"
-                    : "default"
-                }
+                sx={{
+                  color:
+                    selectedGroups.length || selectedStreams.length
+                      ? "primary.main"
+                      : "text.secondary",
+                }}
                 onClick={(event) => setGroupAnchor(event.currentTarget)}
                 data-testid="customizeGroupsButton"
               >
@@ -506,9 +525,21 @@ const CommentForm = ({
           anchorEl={groupAnchor}
           open={Boolean(groupAnchor)}
           onClose={() => setGroupAnchor(null)}
-          slotProps={{ paper: { className: styles.groupMenu } }}
+          slotProps={{
+            paper: {
+              sx: { maxHeight: "20rem", width: "18rem", borderRadius: "12px" },
+            },
+          }}
         >
-          <div className={styles.groupFilter}>
+          <Box
+            sx={{
+              position: "sticky",
+              top: 0,
+              zIndex: 2,
+              padding: "0.25rem 0.5rem 0.5rem",
+              backgroundColor: "background.paper",
+            }}
+          >
             <TextField
               autoFocus
               fullWidth
@@ -518,11 +549,9 @@ const CommentForm = ({
               onChange={(event) => setGroupFilter(event.target.value)}
               onKeyDown={(event) => event.stopPropagation()}
             />
-          </div>
+          </Box>
           {streams.length > 0 && (
-            <ListSubheader className={styles.menuSection}>
-              Streams
-            </ListSubheader>
+            <ListSubheader sx={menuSectionSx}>Streams</ListSubheader>
           )}
           {streams
             .filter((stream: any) =>
@@ -549,7 +578,7 @@ const CommentForm = ({
               </MenuItem>
             ))}
           {streams.length > 0 && (
-            <ListSubheader className={styles.menuSection}>Groups</ListSubheader>
+            <ListSubheader sx={menuSectionSx}>Groups</ListSubheader>
           )}
           {groups
             .map((group, idx) => ({ group, idx }))
@@ -571,22 +600,33 @@ const CommentForm = ({
         </Menu>
         <IconButton
           type="submit"
-          color="primary"
           size="small"
           disabled={isAdd && !textValue.trim()}
           name={isEdit ? "editCommentSubmitButton" : "submitCommentButton"}
           data-testid={
             isEdit ? "editCommentSubmitButton" : "submitCommentButton"
           }
+          sx={(theme) => ({
+            flexShrink: 0,
+            width: 32,
+            height: 32,
+            color: theme.palette.primary.contrastText,
+            backgroundColor: theme.palette.primary.main,
+            "&:hover": { backgroundColor: theme.palette.primary.dark },
+            "&.Mui-disabled": {
+              color: theme.palette.text.disabled,
+              backgroundColor: alpha(theme.palette.text.primary, 0.08),
+            },
+          })}
         >
           {isEdit ? (
-            <CheckIcon fontSize="small" />
+            <CheckIcon sx={{ fontSize: "1.1rem" }} />
           ) : (
-            <SendIcon fontSize="small" />
+            <ArrowUpwardIcon sx={{ fontSize: "1.1rem" }} />
           )}
         </IconButton>
-      </div>
-    </form>
+      </Box>
+    </Box>
   );
 };
 
