@@ -19,7 +19,7 @@ def _names(schema):
 def test_the_enrichment_fields_are_added():
     schema = supplement_schema({"fields": [{"name": "candidate"}]})
     assert "cross_matches" in _names(schema)
-    assert "villar_fit" in _names(schema)
+    assert "sso_history" in _names(schema)
     # and the packet's own fields survive
     assert "candidate" in _names(schema)
 
@@ -34,25 +34,14 @@ def test_every_group_is_a_usable_avro_field():
         assert field.get("type"), f"{field['name']} has no type"
 
 
-def test_the_villar_fit_is_offered_per_parameter_and_band():
-    # Seven parameters in each of two bands, plus reduced_chi2 and
-    # peak_flux. Counted against production by the BOOM side.
-    villar = next(f for f in supplemental_fields() if f["name"] == "villar_fit")
-    record = next(t for t in villar["type"] if isinstance(t, dict))
-    leaves = {f["name"] for f in record["fields"]}
-    assert len(leaves) == 16
-    assert {"reduced_chi2", "peak_flux"} <= leaves
-    assert {"tau_rise_ZTF_r", "tau_rise_ZTF_g"} <= leaves
-
-
 def test_a_field_the_broker_declares_is_left_alone():
     # The point of the stopgap: once BOOM advertises these, it contributes
     # nothing and can be deleted without a flag day.
-    declared = {"fields": [{"name": "villar_fit", "type": "broker's own"}]}
+    declared = {"fields": [{"name": "sso_history", "type": "broker's own"}]}
     schema = supplement_schema(declared)
-    villar = [f for f in schema["fields"] if f["name"] == "villar_fit"]
-    assert len(villar) == 1
-    assert villar[0]["type"] == "broker's own"
+    history = [f for f in schema["fields"] if f["name"] == "sso_history"]
+    assert len(history) == 1
+    assert history[0]["type"] == "broker's own"
 
 
 def test_applying_it_twice_changes_nothing():
@@ -99,7 +88,7 @@ def test_the_provider_serves_the_supplemented_schema(monkeypatch):
     )
     names = [f["name"] for f in data["schema"]["fields"]]
     assert "candidate" in names
-    assert "villar_fit" in names
+    assert "sso_history" in names
     assert "cross_matches" in names
 
 
@@ -116,8 +105,7 @@ def test_the_fields_survive_flattening_into_dotted_paths():
         }
     )
     paths = dict(_flatten_avro(schema))
-    assert paths.get("villar_fit.reduced_chi2") == "double?"
-    assert "villar_fit.tau_rise_ZTF_r" in paths
+    assert paths.get("sso_history[].jd") == "double"
     assert any(p.startswith("cross_matches[]") for p in paths)
 
 
@@ -126,17 +114,16 @@ def test_nan_possible_rides_along_on_the_field():
     # separates "this alert had no fit" from "this alert failed the cut".
     # Avro permits unknown attributes, so it travels as one rather than being
     # lost in prose the builder never renders.
-    villar = next(f for f in supplemental_fields() if f["name"] == "villar_fit")
-    record = next(t for t in villar["type"] if isinstance(t, dict))
-    assert all(f.get("nan_possible") for f in record["fields"])
+    from skyportal.handlers.mcp import NAN_NOTE, _flatten_avro
 
-    # ... and a parser that does not know the attribute still walks the field.
-    from skyportal.handlers.mcp import _flatten_avro
-
-    schema = supplement_schema(
-        {"type": "record", "name": "alert", "fields": [{"name": "c", "type": "string"}]}
-    )
-    assert dict(_flatten_avro(schema))["villar_fit.reduced_chi2"] == "double?"
+    notes = {}
+    schema = {
+        "type": "record",
+        "name": "alert",
+        "fields": [{"name": "fit", "type": ["null", "double"], "nan_possible": True}],
+    }
+    assert dict(_flatten_avro(schema, notes=notes))["fit"] == "double?"
+    assert NAN_NOTE in notes["fit"]
 
 
 def test_a_note_says_which_way_a_rise_rate_points():
@@ -257,7 +244,7 @@ def test_a_note_reaches_the_model_through_the_flattener():
         {"type": "record", "name": "alert", "fields": [{"name": "c", "type": "string"}]}
     )
     _flatten_avro(schema, notes=notes)
-    assert "NaN" in notes["villar_fit.reduced_chi2"]
+    assert "solar-system object" in notes["sso_history"]
 
 
 def test_a_rise_and_a_decline_do_not_share_a_sign():
