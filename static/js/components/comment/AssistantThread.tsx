@@ -288,11 +288,9 @@ const AssistantThread = ({ channel, target }: AssistantThreadProps) => {
             {message.system && (
               <AssistantToolTrace calls={message.tool_calls ?? []} />
             )}
-            {message.system &&
-              message.proposal &&
-              target?.type === "filter" && (
-                <AssistantFilterProposal proposal={message.proposal} />
-              )}
+            {message.system && message.proposal && (
+              <AssistantFilterProposal proposal={message.proposal} />
+            )}
           </Fragment>
         ))}
         {!answered && (
