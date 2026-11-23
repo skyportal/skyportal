@@ -129,6 +129,7 @@ import {
 } from "../../ducks/brokers";
 import SourceHost from "./SourceHost";
 import FieldLabel from "./FieldLabel";
+import softButtonsSx from "../softButtons";
 
 const VegaHR = React.lazy(() => import("../plot/VegaHR"));
 
@@ -911,28 +912,15 @@ const SourceContent = ({ source }: SourceContentProps) => {
             ) : null}
             <Box
               sx={(theme) => {
-                const { success, text } = theme.palette;
+                const { success } = theme.palette;
                 return {
+                  ...softButtonsSx(theme),
                   flexBasis: "100%",
                   display: "flex",
                   flexWrap: "wrap",
                   alignItems: "center",
                   gap: 0.75,
                   mt: 0.75,
-                  "& .MuiButton-root": {
-                    textTransform: "none",
-                    fontWeight: 500,
-                    fontSize: "0.85rem",
-                    borderRadius: "8px",
-                    px: 1.5,
-                    boxShadow: "none",
-                  },
-                  "& .MuiButton-endIcon": { ml: 0.25, mr: -0.5 },
-                  "& .MuiButton-colorGrey:not(.Mui-disabled)": {
-                    bgcolor: alpha(text.primary, 0.06),
-                    color: "text.primary",
-                    "&:hover": { bgcolor: alpha(text.primary, 0.11) },
-                  },
                   "& [data-testid=interested-button].MuiButton-colorSuccess": {
                     bgcolor: alpha(success.main, 0.16),
                     color:
@@ -1211,57 +1199,34 @@ const SourceContent = ({ source }: SourceContentProps) => {
                   </div>
                 </Paper>
               )}
-            <div
-              className={classes.flexRow}
-              style={{
-                justifyContent: "flex-start",
+            <Box
+              sx={(theme) => ({
+                ...softButtonsSx(theme),
+                display: "flex",
+                flexWrap: "wrap",
                 alignItems: "center",
-                flexFlow: "wrap",
-                gap: "0.5rem",
-                padding: "0.25rem 0",
-              }}
+                gap: 0.75,
+                py: 0.5,
+              })}
             >
-              <div
-                className={classes.flexRow}
-                style={{
-                  alignItems: "center",
-                  flexFlow: "wrap",
-                  gap: "0.25rem",
-                  width: "auto",
-                }}
-              >
-                <SavedGroupChips groups={source.groups ?? []} max={5} />
-              </div>
-              <div
-                className={classes.flexRow}
-                style={{
-                  alignItems: "center",
-                  flexFlow: "wrap",
-                  gap: "0.5rem",
-                  flex: "1 1 auto",
-                  width: "auto",
-                }}
-              >
-                {!isReadOnly && (
-                  <EditSourceGroups
-                    source={{
-                      id: source.id,
-                      currentGroupIds: source.groups?.map((g: any) => g.id),
-                    }}
-                    groups={groups}
-                  />
-                )}
-                {!isReadOnly && (
-                  <QuickSaveButtons
-                    sourceId={source.id}
-                    alreadySavedGroups={source.groups?.map((g: any) => g.id)}
-                  />
-                )}
-                <div style={{ marginLeft: "auto" }}>
-                  <SourceSaveHistory groups={source.groups} />
-                </div>
-              </div>
-            </div>
+              <SavedGroupChips groups={source.groups ?? []} max={5} />
+              {!isReadOnly && (
+                <EditSourceGroups
+                  source={{
+                    id: source.id,
+                    currentGroupIds: source.groups?.map((g: any) => g.id),
+                  }}
+                  groups={groups}
+                />
+              )}
+              {!isReadOnly && (
+                <QuickSaveButtons
+                  sourceId={source.id}
+                  alreadySavedGroups={source.groups?.map((g: any) => g.id)}
+                />
+              )}
+              <SourceSaveHistory groups={source.groups} />
+            </Box>
             <ThumbnailList
               ra={source.ra}
               dec={source.dec}

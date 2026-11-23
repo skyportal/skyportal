@@ -1,7 +1,9 @@
 import { useState } from "react";
 
+import Box from "@mui/material/Box";
 import CircularProgress from "@mui/material/CircularProgress";
 import Button from "../Button";
+import softButtonsSx from "../softButtons";
 
 import SourceAnnotationButtonPlugins from "./SourceAnnotationButtonPlugins";
 
@@ -104,13 +106,13 @@ const SourceAnnotationButtons = ({ source }: SourceAnnotationButtonsProps) => {
   };
 
   return (
-    <div
-      style={{
+    <Box
+      sx={(theme) => ({
+        ...softButtonsSx(theme),
         display: "flex",
         flexWrap: "wrap",
-        flexDirection: "row",
-        gap: "0.5rem",
-      }}
+        gap: 0.75,
+      })}
     >
       {isSubmittingAnnotationGaia === source.id ? (
         <div>
@@ -266,7 +268,7 @@ const SourceAnnotationButtons = ({ source }: SourceAnnotationButtonsProps) => {
         </Button>
       )}
       <SourceAnnotationButtonPlugins {...({ source } as any)} />
-    </div>
+    </Box>
   );
 };
 
