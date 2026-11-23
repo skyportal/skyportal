@@ -81,6 +81,7 @@ from skyportal.utils.notifications import (
     wants_in_app,
 )
 from skyportal.utils.parse import mentioned_usernames
+from skyportal.utils.telegram import telegram_api, telegram_enabled
 
 env, cfg = load_env()
 log = make_log("notification_queue")
@@ -171,6 +172,13 @@ def user_preferences(target, notification_setting, resource_type):
             .get("url", "")
             .startswith(cfg["slack.expected_url_preamble"])
         ):
+            return
+
+    if notification_setting == "telegram":
+        integration = target["user"]["preferences"].get("telegram_integration") or {}
+        if not telegram_enabled() or not integration.get("active"):
+            return
+        if not integration.get("chat_id"):
             return
 
     prefs = (target["user"]["preferences"] or {}).get("notifications")
@@ -504,6 +512,25 @@ def send_phone_notification(target):
             log(f"Error sending phone call notification: {e}")
 
 
+def send_telegram_notification(target):
+    resource_type = notification_resource_type(target)
+    if not user_preferences(target, "telegram", resource_type):
+        return
+    chat_id = target["user"]["preferences"]["telegram_integration"]["chat_id"]
+    try:
+        telegram_api(
+            "sendMessage",
+            chat_id=chat_id,
+            text=f"{plain_text(target)}\n\n{get_app_base_url()}{target['url']}",
+            link_preview_options={"is_disabled": True},
+        )
+        log(
+            f"Sent Telegram notification to user {target['user']['id']}, body: {target['text']}, resource_type: {resource_type}"
+        )
+    except Exception as e:
+        log(f"Error sending Telegram notification: {e}")
+
+
 def push_frontend_notification(target):
     if "user_id" in target:
         user_id = target["user_id"]
@@ -599,6 +626,7 @@ def service(queue):
             push_frontend_notification,
             send_phone_notification,
             send_sms_notification,
+            send_telegram_notification,
             send_email_notification,
             send_slack_notification,
         ):

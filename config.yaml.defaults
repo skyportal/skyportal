@@ -1032,6 +1032,7 @@ services:
     # - slack
     # - sn_analysis_service
     # - spectral_cube_analysis_service
+    # - telegram
     # - thumbnail_queue
     # - tns_retrieval_queue
 
@@ -1256,6 +1257,10 @@ image_grayscale_params:
 slack:
   microservice_port: 64100
   expected_url_preamble: "https://hooks.slack.com/"
+
+telegram:
+  # From @BotFather. Each instance needs its own bot.
+  bot_token:
 
 spectrum_types:
   types:
