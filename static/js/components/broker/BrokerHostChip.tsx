@@ -45,6 +45,9 @@ const formatSeparation = (
 export interface HostSummary {
   name: string;
   tag?: string | undefined;
+  heading?: string | undefined;
+  primary?: boolean | undefined;
+  extraRows?: [string, string][] | undefined;
   z?: number | null | undefined;
   zErr?: number | null | undefined;
   sepArcsec?: number | null | undefined;
@@ -65,6 +68,7 @@ const detailRows = (host: HostSummary): [string, string][] => {
     ],
     ["Separation", formatSeparation(host.sepArcsec, host.sepKpc)],
     ["d_DLR", host.dDlr != null ? host.dDlr.toFixed(2) : null],
+    ...(host.extraRows ?? []),
   ];
   return rows.filter((row): row is [string, string] => row[1] != null);
 };
@@ -77,6 +81,7 @@ export const HostChip = ({
   onDelete?: (() => void) | undefined;
 }) => {
   const [anchor, setAnchor] = useState<HTMLElement | null>(null);
+  const heading = host.heading ?? host.tag;
   const meta = [
     host.z != null ? `z ${host.z.toFixed(zDigits(host.zErr))}` : null,
     host.sepArcsec != null ? `${host.sepArcsec.toFixed(1)}″` : null,
@@ -89,10 +94,10 @@ export const HostChip = ({
     <>
       <Chip
         size="small"
-        variant="outlined"
+        variant={host.primary ? "filled" : "outlined"}
         onClick={(e) => setAnchor(e.currentTarget)}
         onDelete={onDelete}
-        sx={{ bgcolor: "background.paper" }}
+        sx={host.primary ? {} : { bgcolor: "background.paper" }}
         label={
           <Box
             component="span"
@@ -137,7 +142,7 @@ export const HostChip = ({
         transformOrigin={{ vertical: -6, horizontal: "left" }}
       >
         <Box sx={{ p: 1.5, minWidth: 200, fontSize: "0.85rem" }}>
-          {host.tag && (
+          {heading && (
             <Box
               sx={{
                 fontSize: "0.65rem",
@@ -147,7 +152,7 @@ export const HostChip = ({
                 color: "text.secondary",
               }}
             >
-              {host.tag}
+              {heading}
             </Box>
           )}
           <Box sx={{ fontWeight: 600, fontSize: "0.95rem", mb: 1 }}>
