@@ -1,13 +1,19 @@
 import { useState } from "react";
 
 import Alert from "@mui/material/Alert";
+import Box from "@mui/material/Box";
 import Button from "@mui/material/Button";
-import Paper from "@mui/material/Paper";
 import Typography from "@mui/material/Typography";
 
 import { useCommentPanel } from "../../../contexts/CommentPanelContext";
 import { AssistantProposal } from "../../../ducks/assistant";
 import { useSaveBrokerFilterMutation } from "../../../ducks/brokers";
+import {
+  cardNoteSx,
+  cardSx,
+  cardTitleSx,
+  pillButtonSx,
+} from "../../comment/assistantStyles";
 import { asRootBlocks } from "./lasairTree";
 
 interface LasairFilterProposalProps {
@@ -37,36 +43,38 @@ const LasairFilterProposal = ({ proposal }: LasairFilterProposalProps) => {
   };
 
   return (
-    <Paper
-      variant="outlined"
-      sx={{ marginRight: "1rem", marginBottom: "0.5rem", padding: "0.5rem" }}
-    >
-      <Typography sx={{ fontSize: "0.75rem", fontWeight: 600 }}>
-        Proposed filter
-      </Typography>
-      <Typography sx={{ fontSize: "0.7rem", opacity: 0.7 }}>
-        {count === null
-          ? "Previewed on Lasair."
-          : `Matched ${count.toLocaleString()} objects on Lasair.`}
-      </Typography>
+    <Box sx={cardSx}>
+      <Box>
+        <Typography sx={cardTitleSx}>Proposed filter</Typography>
+        <Typography sx={cardNoteSx}>
+          {count === null
+            ? "Previewed on Lasair."
+            : `Matched ${count.toLocaleString()} objects on Lasair.`}
+        </Typography>
+      </Box>
       {error && (
         <Alert
           severity="error"
-          sx={{ fontSize: "0.7rem", marginTop: "0.25rem" }}
+          sx={{ alignSelf: "stretch", fontSize: "0.75rem" }}
         >
           {error}
         </Alert>
       )}
       {applied ? (
-        <Typography sx={{ fontSize: "0.7rem", opacity: 0.7 }}>
-          Applied to the builder.
-        </Typography>
+        <Typography sx={cardNoteSx}>Applied to the builder.</Typography>
       ) : (
-        <Button size="small" onClick={apply} disabled={isLoading}>
+        <Button
+          size="small"
+          variant="contained"
+          disableElevation
+          onClick={apply}
+          disabled={isLoading}
+          sx={pillButtonSx}
+        >
           Apply to the builder
         </Button>
       )}
-    </Paper>
+    </Box>
   );
 };
 

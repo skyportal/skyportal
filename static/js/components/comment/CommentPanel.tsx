@@ -8,10 +8,10 @@ import {
   useState,
 } from "react";
 import AddIcon from "@mui/icons-material/Add";
+import AutoAwesomeIcon from "@mui/icons-material/AutoAwesome";
 import ChatIcon from "@mui/icons-material/Chat";
 import CloseIcon from "@mui/icons-material/Close";
 import PictureInPictureAltIcon from "@mui/icons-material/PictureInPictureAlt";
-import SmartToyIcon from "@mui/icons-material/SmartToy";
 import VerticalSplitIcon from "@mui/icons-material/VerticalSplit";
 import Box from "@mui/material/Box";
 import CircularProgress from "@mui/material/CircularProgress";
@@ -24,6 +24,8 @@ import TextField from "@mui/material/TextField";
 import Tooltip from "@mui/material/Tooltip";
 import Typography from "@mui/material/Typography";
 import useMediaQuery from "@mui/material/useMediaQuery";
+import type { Theme } from "@mui/material/styles";
+import { alpha } from "@mui/material/styles";
 import { skipToken } from "@reduxjs/toolkit/query";
 import dayjs from "dayjs";
 
@@ -52,6 +54,59 @@ const centeredSx = {
   alignItems: "center",
   justifyContent: "center",
 } as const;
+
+const spaceTabsSx = (theme: Theme) => ({
+  minHeight: 0,
+  padding: "3px",
+  borderRadius: "999px",
+  backgroundColor: alpha(theme.palette.text.primary, 0.06),
+  "& .MuiTabs-indicator": { display: "none" },
+  "& .MuiTab-root": {
+    minHeight: 0,
+    minWidth: 0,
+    padding: "0.25rem 0.85rem",
+    borderRadius: "999px",
+    fontSize: "0.8rem",
+    fontWeight: 600,
+    textTransform: "none",
+    color: theme.palette.text.secondary,
+  },
+  "& .MuiTab-root.Mui-selected": {
+    color: theme.palette.text.primary,
+    backgroundColor: theme.palette.background.paper,
+    boxShadow: "0 1px 3px rgba(0, 0, 0, 0.15)",
+  },
+});
+
+const channelTabsSx = (theme: Theme) => {
+  const dark = theme.palette.mode === "dark";
+  return {
+    minHeight: 0,
+    minWidth: 0,
+    "& .MuiTabs-indicator": { display: "none" },
+    "& .MuiTabs-list": { gap: "0.25rem" },
+    "& .MuiTab-root": {
+      minHeight: 28,
+      minWidth: 0,
+      padding: "0 0.75rem",
+      borderRadius: "999px",
+      fontSize: "0.8rem",
+      fontWeight: 500,
+      textTransform: "none",
+      color: theme.palette.text.secondary,
+      transition: "background-color 150ms, color 150ms",
+      "&:hover": {
+        color: theme.palette.text.primary,
+        backgroundColor: alpha(theme.palette.text.primary, 0.06),
+      },
+    },
+    "& .MuiTab-root.Mui-selected": {
+      fontWeight: 600,
+      color: dark ? theme.palette.text.primary : theme.palette.primary.main,
+      backgroundColor: alpha(theme.palette.primary.main, dark ? 0.3 : 0.12),
+    },
+  };
+};
 
 const FAB_SIZE = 48;
 const PANEL_WIDTH = 416;
@@ -352,6 +407,8 @@ const CommentPanel = ({ inline = false }: CommentPanelProps) => {
               right: panelRight,
               bottom: panelBottom,
               zIndex: theme.zIndex.drawer,
+              borderRadius: "16px",
+              border: `1px solid ${theme.palette.divider}`,
               width: "26rem",
               maxWidth: "calc(100vw - 3rem)",
               height: "70vh",
@@ -363,6 +420,7 @@ const CommentPanel = ({ inline = false }: CommentPanelProps) => {
                 height: "100%",
                 maxHeight: "100%",
                 borderRadius: 0,
+                border: 0,
               },
             }),
       })}
@@ -372,43 +430,20 @@ const CommentPanel = ({ inline = false }: CommentPanelProps) => {
           sx={{
             display: "flex",
             alignItems: "center",
-            padding: bothSpaces ? "0 0.5rem 0 0" : "0.5rem 0.5rem 0 1rem",
+            padding: "0.625rem 0.5rem 0.25rem 0.875rem",
           }}
         >
           {bothSpaces ? (
             <Tabs
               value={activeSpace}
               onChange={(_, value) => setSpace(value)}
-              sx={{
-                minHeight: "auto",
-                "& .MuiTab-root": {
-                  minHeight: "auto",
-                  minWidth: "auto",
-                  padding: "0.375rem 0.5rem",
-                  fontSize: "0.8rem",
-                  textTransform: "none",
-                },
-              }}
+              sx={spaceTabsSx}
             >
-              <Tab
-                value="comments"
-                icon={<ChatIcon fontSize="small" />}
-                iconPosition="start"
-                label="Comments"
-              />
-              <Tab
-                value="assistant"
-                icon={<SmartToyIcon fontSize="small" />}
-                iconPosition="start"
-                label="Assistant"
-              />
+              <Tab disableRipple value="comments" label="Comments" />
+              <Tab disableRipple value="assistant" label="Assistant" />
             </Tabs>
           ) : (
-            <Typography
-              variant="h6"
-              noWrap
-              sx={{ lineHeight: "1em", fontWeight: 900 }}
-            >
+            <Typography noWrap sx={{ fontSize: "1rem", fontWeight: 600 }}>
               Assistant
             </Typography>
           )}
@@ -424,6 +459,8 @@ const CommentPanel = ({ inline = false }: CommentPanelProps) => {
         sx={{
           display: "flex",
           alignItems: "center",
+          gap: "0.25rem",
+          padding: "0.5rem 0.25rem 0.5rem 0.75rem",
           borderBottom: 1,
           borderColor: "divider",
         }}
@@ -433,6 +470,7 @@ const CommentPanel = ({ inline = false }: CommentPanelProps) => {
           onChange={(_, value) => selectChannel(value)}
           variant="scrollable"
           scrollButtons="auto"
+          sx={channelTabsSx}
         >
           {channels.map((name) => {
             const label =
@@ -560,8 +598,7 @@ const CommentPanel = ({ inline = false }: CommentPanelProps) => {
               <Box
                 sx={{
                   ...centeredSx,
-                  fontSize: "0.75rem",
-                  fontStyle: "italic",
+                  fontSize: "0.8rem",
                   color: "text.secondary",
                 }}
               >
@@ -649,7 +686,7 @@ const CommentPanel = ({ inline = false }: CommentPanelProps) => {
                     clipPath: "polygon(0 0, 0 110%, 110% 0)",
                   }}
                 />
-                <SmartToyIcon
+                <AutoAwesomeIcon
                   sx={{
                     position: "absolute",
                     top: 3,
@@ -671,7 +708,7 @@ const CommentPanel = ({ inline = false }: CommentPanelProps) => {
                 />
               </Box>
             ) : showAssistant ? (
-              <SmartToyIcon />
+              <AutoAwesomeIcon />
             ) : (
               <ChatIcon />
             )}

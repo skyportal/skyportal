@@ -2,14 +2,12 @@ import { type ReactNode, useState } from "react";
 import { useParams } from "react-router-dom";
 
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
-import Accordion from "@mui/material/Accordion";
-import AccordionDetails from "@mui/material/AccordionDetails";
-import AccordionSummary from "@mui/material/AccordionSummary";
 import Alert from "@mui/material/Alert";
 import Box from "@mui/material/Box";
 import Button from "@mui/material/Button";
-import Paper from "@mui/material/Paper";
+import Collapse from "@mui/material/Collapse";
 import Typography from "@mui/material/Typography";
+import { alpha } from "@mui/material/styles";
 
 import { useCommentPanel } from "../../contexts/CommentPanelContext";
 import { AssistantProposal } from "../../ducks/assistant";
@@ -20,6 +18,13 @@ import {
 import { decompilePipeline } from "../../utils/mongoPipelineDecompiler";
 import LasairFilterProposal from "../broker/lasair/LasairFilterProposal";
 import NewFilterDialog from "../filter/NewFilterDialog";
+import {
+  cardNoteSx,
+  cardSx,
+  cardTitleSx,
+  linkButtonSx,
+  pillButtonSx,
+} from "./assistantStyles";
 
 const matchCount = (summary: string) => {
   try {
@@ -42,7 +47,7 @@ const versionOf = (pipeline: any[]): { altdata: any[]; filters?: any } => {
 };
 
 const ReadOnlyNote = () => (
-  <Typography sx={{ fontSize: "0.7rem", opacity: 0.7 }}>
+  <Typography sx={cardNoteSx}>
     Uses more than the builder can show, so it saves read-only.
   </Typography>
 );
@@ -55,57 +60,52 @@ const ProposalCard = ({
   proposal,
   children,
 }: AssistantFilterProposalProps & { children: ReactNode }) => {
+  const [showPipeline, setShowPipeline] = useState(false);
   const count = matchCount(proposal.preview?.summary ?? "");
   return (
-    <Paper
-      variant="outlined"
-      sx={{ marginRight: "1rem", marginBottom: "0.5rem", padding: "0.5rem" }}
-    >
-      <Typography sx={{ fontSize: "0.75rem", fontWeight: 600 }}>
-        Proposed filter
-      </Typography>
-      <Typography sx={{ fontSize: "0.7rem", opacity: 0.7 }}>
-        {count === null
-          ? "Previewed on the broker."
-          : `Matched ${count.toLocaleString()} alerts in the previewed window.`}
-      </Typography>
-
-      <Accordion
-        disableGutters
-        elevation={0}
-        sx={{
-          backgroundColor: "transparent",
-          "&::before": { display: "none" },
-        }}
+    <Box sx={cardSx}>
+      <Box>
+        <Typography sx={cardTitleSx}>Proposed filter</Typography>
+        <Typography sx={cardNoteSx}>
+          {count === null
+            ? "Previewed on the broker."
+            : `Matched ${count.toLocaleString()} alerts in the previewed window.`}
+        </Typography>
+      </Box>
+      <Box
+        component="button"
+        type="button"
+        aria-expanded={showPipeline}
+        onClick={() => setShowPipeline(!showPipeline)}
+        sx={linkButtonSx}
       >
-        <AccordionSummary
-          expandIcon={<ExpandMoreIcon sx={{ fontSize: "1rem" }} />}
+        Pipeline
+        <ExpandMoreIcon
           sx={{
-            minHeight: 0,
-            padding: 0,
-            "& .MuiAccordionSummary-content": { margin: 0 },
+            fontSize: "1rem",
+            transition: "transform 150ms",
+            transform: showPipeline ? "rotate(180deg)" : "none",
           }}
+        />
+      </Box>
+      <Collapse in={showPipeline} unmountOnExit sx={{ alignSelf: "stretch" }}>
+        <Box
+          component="pre"
+          sx={(theme) => ({
+            margin: 0,
+            padding: "0.5rem 0.65rem",
+            maxHeight: "12rem",
+            overflow: "auto",
+            fontSize: "0.7rem",
+            borderRadius: "8px",
+            backgroundColor: alpha(theme.palette.text.primary, 0.05),
+          })}
         >
-          <Typography sx={{ fontSize: "0.7rem", opacity: 0.6 }}>
-            Pipeline
-          </Typography>
-        </AccordionSummary>
-        <AccordionDetails sx={{ padding: 0 }}>
-          <Box
-            component="pre"
-            sx={{
-              fontSize: "0.65rem",
-              maxHeight: "12rem",
-              overflow: "auto",
-              margin: 0,
-            }}
-          >
-            {JSON.stringify(proposal.pipeline, null, 2)}
-          </Box>
-        </AccordionDetails>
-      </Accordion>
+          {JSON.stringify(proposal.pipeline, null, 2)}
+        </Box>
+      </Collapse>
       {children}
-    </Paper>
+    </Box>
   );
 };
 
@@ -138,20 +138,27 @@ const PipelineFilterProposal = ({ proposal }: AssistantFilterProposalProps) => {
       {error && (
         <Alert
           severity="error"
-          sx={{ fontSize: "0.7rem", marginTop: "0.25rem" }}
+          sx={{ alignSelf: "stretch", fontSize: "0.75rem" }}
         >
           {error}
         </Alert>
       )}
 
       {alreadySaved || saved ? (
-        <Typography sx={{ fontSize: "0.7rem", opacity: 0.7 }}>
+        <Typography sx={cardNoteSx}>
           Saved as a new version. Validate and activate it below.
         </Typography>
       ) : (
         <>
           {!version.filters && <ReadOnlyNote />}
-          <Button size="small" onClick={handleSave} disabled={isLoading}>
+          <Button
+            size="small"
+            variant="contained"
+            disableElevation
+            onClick={handleSave}
+            disabled={isLoading}
+            sx={pillButtonSx}
+          >
             Save as a new version
           </Button>
         </>
@@ -170,7 +177,13 @@ const NewFilterProposal = ({
   return (
     <ProposalCard proposal={proposal}>
       {!version.filters && <ReadOnlyNote />}
-      <Button size="small" onClick={() => setOpen(true)}>
+      <Button
+        size="small"
+        variant="contained"
+        disableElevation
+        onClick={() => setOpen(true)}
+        sx={pillButtonSx}
+      >
         Create filter
       </Button>
       <NewFilterDialog
