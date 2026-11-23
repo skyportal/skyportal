@@ -337,6 +337,7 @@ async def ingest_sso_alert(
     passing_alert_id=None,
     annotations_by_filter_id=None,
     fetch_history=None,
+    cutouts=None,
 ):
     """Ingest one alert as a detection of a known solar-system object.
 
@@ -367,6 +368,9 @@ async def ingest_sso_alert(
         once, the first time a body is seen, to backfill its full light curve
         from the broker (each detection lands under a different position-keyed
         object id, so the history has to be gathered by designation).
+    cutouts : dict, optional
+        The alert's ``{cutoutScience, cutoutTemplate, cutoutDifference}``,
+        stored as the object's thumbnails so they show its latest detection.
 
     Returns
     -------
@@ -592,6 +596,21 @@ async def ingest_sso_alert(
             if photometry_group_ids:
                 pd["group_ids"] = sorted(photometry_group_ids)
             await add_external_photometry(pd, user, session, apply_default_share=False)
+
+    if cutouts and detection and is_on_target(detection):
+        from ..broker_apis._thumbnails import add_thumbnails
+
+        try:
+            await add_thumbnails(
+                obj_id,
+                cutouts,
+                survey,
+                session,
+                user_id=user.id,
+                jd=detection.get("jd", cand.get("jd")),
+            )
+        except Exception as e:
+            log(f"Failed to add thumbnails for {obj_id}: {e}")
 
     await _link_designation(session, obj_id, designation)
     await session.commit()

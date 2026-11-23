@@ -1506,6 +1506,7 @@ class BOOMBROKER(BrokerAPI):
                                 fetch_history=lambda s, d: asyncio.to_thread(
                                     _fetch_sso_history, broker, s, d
                                 ),
+                                cutouts=cutouts,
                             )
                         elif sidereal_ids:
                             await save_object_as_candidate(
