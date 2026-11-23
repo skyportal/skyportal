@@ -132,6 +132,19 @@ const formatNumber = (n) => {
   return text;
 };
 
+const OPERATOR_WORDS = { "+": "plus", "-": "minus", "*": "times", "/": "over" };
+
+const nameFromFormula = (formula) =>
+  (formula.match(/[A-Za-z_][\w.]*|\d+(?:\.\d+)?|[-+*/]/g) || [])
+    .map(
+      (token) =>
+        OPERATOR_WORDS[token] ??
+        (/^\d/.test(token) ? token.replace(".", "_") : token.split(".").pop()),
+    )
+    .join("_")
+    .slice(0, 40)
+    .replace(/_+$/, "");
+
 const sanitize = (name) => {
   const cleaned = String(name || "")
     .replace(/[^a-zA-Z0-9_]/g, "_")
@@ -343,7 +356,11 @@ class Decompiler {
     const reused = this.catalogMatch("variable", expr);
     if (reused) return reused;
     const variable = `${this.printArithmetic(expr, null, true)}`;
-    const name = this.uniqueName(hint);
+    const name = this.uniqueName(
+      /^value(_|$)|_value$/.test(sanitize(hint))
+        ? nameFromFormula(variable)
+        : hint,
+    );
     this.created.variables.push({
       name,
       variable: `${name} = ${variable}`,
