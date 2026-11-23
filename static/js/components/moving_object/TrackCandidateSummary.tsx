@@ -26,6 +26,7 @@ interface TrackCandidateSummaryProps {
   brokerId: number;
   objId: string;
   survey?: string;
+  showId?: boolean;
 }
 
 /**
@@ -40,6 +41,7 @@ const TrackCandidateSummary = ({
   brokerId,
   objId,
   survey = "ZTF",
+  showId = true,
 }: TrackCandidateSummaryProps) => {
   const { data: track } = useGetMovingObjectTrackQuery({
     trackId,
@@ -118,7 +120,7 @@ const TrackCandidateSummary = ({
         alignItems: "center",
       }}
     >
-      <Chip size="small" label={track.id} />
+      {showId && <Chip size="small" label={track.id} />}
       <Chip size="small" label={`${track.n_detections ?? "?"} det`} />
       <Chip size="small" label={`${track.n_nights ?? "?"} nights`} />
       {track.arc_days != null && (
