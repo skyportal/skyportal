@@ -130,10 +130,6 @@ import {
 import SourceHost from "./SourceHost";
 import FieldLabel from "./FieldLabel";
 
-// The legacy <font> element isn't in React's JSX intrinsic types; alias it
-// through `any` so the existing markup keeps rendering unchanged.
-const Font: any = "font";
-
 const VegaHR = React.lazy(() => import("../plot/VegaHR"));
 
 const CentroidPlot = React.lazy(
@@ -163,10 +159,6 @@ export const useSourceStyles = makeStyles()((theme) => ({
   noSpace: { padding: 0, margin: 0 },
   // `inherit`, not a fixed colour: these sit on menu paper, which is dark in
   // dark mode.
-  noWrapMargin: {
-    marginRight: "0.5rem",
-    textWrap: "nowrap",
-  },
   flexRow: {
     display: "flex",
     flexDirection: "row",
@@ -220,15 +212,21 @@ export const useSourceStyles = makeStyles()((theme) => ({
     alignItems: "center",
     gap: "0.25rem",
   },
-  sourceInfo: {
-    display: "flex",
-    flexFlow: "row wrap",
-    alignItems: "center",
-  },
   rowInfo: {
     display: "flex",
     flexDirection: "row",
     alignItems: "center",
+  },
+  linkedObjs: {
+    flexBasis: "100%",
+    display: "flex",
+    alignItems: "baseline",
+  },
+  linkedObjList: {
+    display: "flex",
+    flexWrap: "wrap",
+    alignItems: "center",
+    gap: "0.25rem 0.5rem",
   },
   dmdlInfo: {
     alignSelf: "center",
@@ -835,46 +833,40 @@ const SourceContent = ({ source }: SourceContentProps) => {
               isReadOnly={isReadOnly}
             />
             {sourceDuplicatesWithoutAssociatedObjs.length > 0 && (
-              <div className={classes.sourceInfo}>
-                <b className={classes.noWrapMargin}>
-                  <Font color="#457b9d">Possible duplicate of:</Font>
-                </b>
-                <div
-                  className={classes.flexRow}
-                  style={{
-                    width: "auto",
-                    alignItems: "center",
-                    flexFlow: "wrap",
-                    columnGap: "0.25rem",
-                  }}
-                >
+              <Box className={classes.linkedObjs}>
+                <FieldLabel>Possible duplicate of</FieldLabel>
+                <Box className={classes.linkedObjList}>
                   {sourceDuplicatesWithoutAssociatedObjs.map(
                     (duplicate: any) => (
-                      <div key={duplicate.obj_id}>
+                      <Box
+                        key={duplicate.obj_id}
+                        sx={{ display: "inline-flex", alignItems: "center" }}
+                      >
                         <Tooltip
-                          title={`${duplicate.separation.toFixed(2)} arcsec`}
+                          title={`${duplicate.separation.toFixed(2)}″ away`}
                         >
-                          <Link
+                          <Chip
+                            size="small"
+                            variant="outlined"
+                            clickable
+                            component={Link}
                             to={`/source/${duplicate.obj_id}`}
-                            role="link"
-                            key={duplicate.obj_id}
-                            className={classes.noSpace}
-                          >
-                            <Button size="small" className={classes.noSpace}>
-                              {duplicate.obj_id}
-                            </Button>
-                          </Link>
+                            label={duplicate.obj_id}
+                          />
                         </Tooltip>
                         {!isReadOnly && (
                           <>
-                            <IconButton
-                              size="small"
-                              name={`copySourceButton${duplicate.obj_id}`}
-                              onClick={() => setCopyPhotometryDialogOpen(true)}
-                              className={classes.noSpace}
-                            >
-                              <AddIcon style={{ fontSize: "1rem" }} />
-                            </IconButton>
+                            <Tooltip title="Copy its photometry here">
+                              <IconButton
+                                size="small"
+                                name={`copySourceButton${duplicate.obj_id}`}
+                                onClick={() =>
+                                  setCopyPhotometryDialogOpen(true)
+                                }
+                              >
+                                <AddIcon sx={{ fontSize: "1rem" }} />
+                              </IconButton>
+                            </Tooltip>
                             <CopyPhotometryDialog
                               source={source}
                               duplicate={duplicate}
@@ -885,46 +877,33 @@ const SourceContent = ({ source }: SourceContentProps) => {
                             />
                           </>
                         )}
-                      </div>
+                      </Box>
                     ),
                   )}
-                </div>
-              </div>
+                </Box>
+              </Box>
             )}
             {source?.associated_objs?.length > 0 && (
-              <div className={classes.sourceInfo}>
-                <b className={classes.noWrapMargin}>
-                  <Font color="#457b9d">Associated with:</Font>
-                </b>
-                <div
-                  className={classes.flexRow}
-                  style={{
-                    width: "auto",
-                    alignItems: "center",
-                    flexFlow: "wrap",
-                    columnGap: "0.25rem",
-                  }}
-                >
+              <Box className={classes.linkedObjs}>
+                <FieldLabel>Associated with</FieldLabel>
+                <Box className={classes.linkedObjList}>
                   {source.associated_objs.map((associatedObj: any) => (
-                    <div key={associatedObj.obj_id}>
-                      <Tooltip
-                        title={`${associatedObj.separation.toFixed(2)} arcsec`}
-                      >
-                        <Link
-                          to={`/source/${associatedObj.obj_id}`}
-                          role="link"
-                          key={associatedObj.obj_id}
-                          className={classes.noSpace}
-                        >
-                          <Button size="small" className={classes.noSpace}>
-                            {associatedObj.obj_id}
-                          </Button>
-                        </Link>
-                      </Tooltip>
-                    </div>
+                    <Tooltip
+                      key={associatedObj.obj_id}
+                      title={`${associatedObj.separation.toFixed(2)}″ away`}
+                    >
+                      <Chip
+                        size="small"
+                        variant="outlined"
+                        clickable
+                        component={Link}
+                        to={`/source/${associatedObj.obj_id}`}
+                        label={associatedObj.obj_id}
+                      />
+                    </Tooltip>
                   ))}
-                </div>
-              </div>
+                </Box>
+              </Box>
             )}
             {source.summary_history?.length > 0 &&
             currentUser?.preferences?.["showSimilarSources"] === true ? (
