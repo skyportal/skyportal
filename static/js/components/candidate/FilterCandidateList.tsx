@@ -51,6 +51,7 @@ import {
   twoColumns,
   useScanGroups,
 } from "./scanFormFields";
+import type { ScanView } from "./scanFormFields";
 
 dayjs.extend(utc);
 
@@ -153,12 +154,14 @@ interface FilterCandidateListProps {
   setFilterGroups: (groups: Group[]) => void;
   numPerPage: number;
   setSearchParams: (params: Record<string, any>) => void;
+  setScanView: (view: ScanView) => void;
 }
 
 const FilterCandidateList = ({
   setFilterGroups,
   numPerPage,
   setSearchParams,
+  setScanView,
 }: FilterCandidateListProps) => {
   const dispatch = useAppDispatch();
   const { data: allFilters = [], isLoading: filtersLoading } =
@@ -234,6 +237,7 @@ const FilterCandidateList = ({
 
   const resetForm = () => {
     reset(formValues(selectedScanningProfile));
+    setScanView(selectedScanningProfile?.scanView ?? "objects");
     setGcnEvent(null);
     selectGroups(selectedScanningProfile?.groupIDs || []);
   };

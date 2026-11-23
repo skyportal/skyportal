@@ -63,6 +63,8 @@ import CandidatePlugins from "./CandidatePlugins";
 import CandidatesSkymap from "./CandidatesSkymap";
 import MovingObjectCandidate from "./MovingObjectCandidate";
 import GenerateReportForm from "./scan_reports/GenerateReportForm";
+import { scanViewOptions } from "./scanFormFields";
+import type { ScanView } from "./scanFormFields";
 
 const CommentThread = lazy(() => import("../comment/CommentThread"));
 
@@ -597,11 +599,9 @@ const Candidate = ({
   );
 };
 
-type ScanMode = "objects" | "moving";
-
 const CandidateList = () => {
   const dispatch = useAppDispatch();
-  const [scanMode, setScanMode] = useState<ScanMode>("objects");
+  const [scanMode, setScanMode] = useState<ScanView>("objects");
   const [filterGroups, setFilterGroups] = useState<Group[]>([]);
   const [reportDialogOpen, setReportDialogOpen] = useState(false);
   const [searchParams, setSearchParams] = useState<Record<string, any> | null>(
@@ -661,7 +661,8 @@ const CandidateList = () => {
       results.scrollIntoView();
   }, [searchParams]);
 
-  const changeScanMode = (mode: ScanMode) => {
+  const changeScanMode = (mode: ScanView) => {
+    if (mode === scanMode) return;
     setScanMode(mode);
     if (searchParams)
       setSearchParams({ ...searchParams, pageNumber: 1, queryID: undefined });
@@ -731,6 +732,7 @@ const CandidateList = () => {
           setFilterGroups={setFilterGroups}
           numPerPage={numPerPage}
           setSearchParams={setSearchParams}
+          setScanView={changeScanMode}
         />
         {searchParams ? (
           <Box ref={resultsRef} sx={{ mt: 1.5, scrollMarginTop: appBarHeight }}>
@@ -767,10 +769,7 @@ const CandidateList = () => {
                   size="small"
                   value={scanMode}
                   onChange={changeScanMode}
-                  options={[
-                    { value: "objects", label: "All candidates" },
-                    { value: "moving", label: "Moving objects" },
-                  ]}
+                  options={scanViewOptions}
                 />
               </Box>
               <Box
