@@ -20,7 +20,7 @@ import {
 } from "../../ducks/assistant";
 import AssistantFilterProposal from "./AssistantFilterProposal";
 import AssistantToolTrace from "./AssistantToolTrace";
-import { markdownSx } from "./assistantStyles";
+import { bubbleSx, composerSx, markdownSx, sendButtonSx } from "./chatStyles";
 
 const MAIN_COLOR = "#6f58b8";
 const FALLBACK_COLOR = "#ab873f";
@@ -325,14 +325,9 @@ const AssistantThread = ({ channel, target }: AssistantThreadProps) => {
               key={message.id}
               sx={(t) => ({
                 ...markdownSx(t),
+                ...bubbleSx(t, true, "right"),
                 alignSelf: "flex-end",
                 maxWidth: "85%",
-                padding: "0.5rem 0.875rem",
-                borderRadius: "18px 18px 4px 18px",
-                backgroundColor: alpha(
-                  t.palette.primary.main,
-                  t.palette.mode === "dark" ? 0.3 : 0.12,
-                ),
               })}
             >
               <ReactMarkdown remarkPlugins={[remarkGfm]}>
@@ -365,23 +360,7 @@ const AssistantThread = ({ channel, target }: AssistantThreadProps) => {
         )}
       </Box>
       <Box sx={{ padding: "0.5rem 0.75rem 0.75rem" }}>
-        <Box
-          sx={{
-            display: "flex",
-            alignItems: "flex-end",
-            gap: "0.5rem",
-            padding: "0.375rem 0.375rem 0.375rem 0.875rem",
-            borderRadius: "1.25rem",
-            border: 1,
-            borderColor: "divider",
-            backgroundColor: "background.paper",
-            transition: "border-color 150ms, box-shadow 150ms",
-            "&:focus-within": {
-              borderColor: "primary.main",
-              boxShadow: `0 0 0 3px ${alpha(theme.palette.primary.main, 0.15)}`,
-            },
-          }}
-        >
+        <Box sx={(t) => composerSx(t)}>
           <InputBase
             value={question}
             onChange={(event) => setQuestion(event.target.value)}
@@ -398,18 +377,7 @@ const AssistantThread = ({ channel, target }: AssistantThreadProps) => {
             size="small"
             disabled={!question.trim()}
             onClick={() => ask()}
-            sx={{
-              flexShrink: 0,
-              width: 32,
-              height: 32,
-              color: "primary.contrastText",
-              backgroundColor: "primary.main",
-              "&:hover": { backgroundColor: "primary.dark" },
-              "&.Mui-disabled": {
-                color: "text.disabled",
-                backgroundColor: alpha(theme.palette.text.primary, 0.08),
-              },
-            }}
+            sx={sendButtonSx}
           >
             <ArrowUpwardIcon sx={{ fontSize: "1.1rem" }} />
           </IconButton>

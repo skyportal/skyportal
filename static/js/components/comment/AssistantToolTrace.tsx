@@ -5,7 +5,7 @@ import Box from "@mui/material/Box";
 import Collapse from "@mui/material/Collapse";
 
 import { AssistantToolCall } from "../../ducks/assistant";
-import { chevronSx, linkButtonSx } from "./assistantStyles";
+import { chevronSx, linkButtonSx } from "./chatStyles";
 
 // The arguments worth showing in the one-line summary of a call. A pipeline is
 // the whole point of the call it appears in, and is shown in the proposal.

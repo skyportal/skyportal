@@ -44,6 +44,7 @@ import {
 } from "../../ducks/source";
 import ConfirmDeletionDialog from "../ConfirmDeletionDialog";
 import { INTERESTED_CHANNEL, MAIN_CHANNEL } from "./channels";
+import { pillTabsSx } from "./chatStyles";
 
 const CommentThread = lazy(() => import("./CommentThread"));
 const AssistantThread = lazy(() => import("./AssistantThread"));
@@ -77,36 +78,6 @@ const spaceTabsSx = (theme: Theme) => ({
     boxShadow: "0 1px 3px rgba(0, 0, 0, 0.15)",
   },
 });
-
-const channelTabsSx = (theme: Theme) => {
-  const dark = theme.palette.mode === "dark";
-  return {
-    minHeight: 0,
-    minWidth: 0,
-    "& .MuiTabs-indicator": { display: "none" },
-    "& .MuiTabs-list": { gap: "0.25rem" },
-    "& .MuiTab-root": {
-      minHeight: 28,
-      minWidth: 0,
-      padding: "0 0.75rem",
-      borderRadius: "999px",
-      fontSize: "0.8rem",
-      fontWeight: 500,
-      textTransform: "none",
-      color: theme.palette.text.secondary,
-      transition: "background-color 150ms, color 150ms",
-      "&:hover": {
-        color: theme.palette.text.primary,
-        backgroundColor: alpha(theme.palette.text.primary, 0.06),
-      },
-    },
-    "& .MuiTab-root.Mui-selected": {
-      fontWeight: 600,
-      color: dark ? theme.palette.text.primary : theme.palette.primary.main,
-      backgroundColor: alpha(theme.palette.primary.main, dark ? 0.3 : 0.12),
-    },
-  };
-};
 
 const FAB_SIZE = 48;
 const PANEL_WIDTH = 416;
@@ -470,7 +441,7 @@ const CommentPanel = ({ inline = false }: CommentPanelProps) => {
           onChange={(_, value) => selectChannel(value)}
           variant="scrollable"
           scrollButtons="auto"
-          sx={channelTabsSx}
+          sx={pillTabsSx}
         >
           {channels.map((name) => {
             const label =

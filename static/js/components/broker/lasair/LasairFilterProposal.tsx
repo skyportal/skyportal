@@ -13,7 +13,7 @@ import {
   cardSx,
   cardTitleSx,
   pillButtonSx,
-} from "../../comment/assistantStyles";
+} from "../../comment/chatStyles";
 import { asRootBlocks } from "./lasairTree";
 
 interface LasairFilterProposalProps {

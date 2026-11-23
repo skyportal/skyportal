@@ -25,7 +25,7 @@ import {
   chevronSx,
   linkButtonSx,
   pillButtonSx,
-} from "./assistantStyles";
+} from "./chatStyles";
 
 const matchCount = (summary: string) => {
   try {

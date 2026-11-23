@@ -9,7 +9,6 @@ import IconButton from "@mui/material/IconButton";
 import Link from "@mui/material/Link";
 import Tooltip from "@mui/material/Tooltip";
 import Typography from "@mui/material/Typography";
-import { alpha } from "@mui/material/styles";
 import CloseIcon from "@mui/icons-material/Close";
 import EditIcon from "@mui/icons-material/Edit";
 import GroupIcon from "@mui/icons-material/Group";
@@ -42,6 +41,7 @@ import { useGetStreamsQuery } from "../../ducks/streams";
 import UserAvatar from "../user/UserAvatar";
 
 import CommentAttachmentPreview from "./CommentAttachmentPreview";
+import { bubbleSx } from "./chatStyles";
 import CommentForm from "./CommentForm";
 import { rehypeEmoji } from "./rehypeEmoji";
 
@@ -379,16 +379,7 @@ const Comment = ({
               "& p": { margin: 0 },
               "& p + p": { marginTop: "0.4em" },
               "& pre": { whiteSpace: "pre-wrap" },
-              ...(!bot && {
-                padding: "0.375rem 0.75rem",
-                borderRadius: "4px 14px 14px 14px",
-                backgroundColor: mine
-                  ? alpha(
-                      theme.palette.primary.main,
-                      theme.palette.mode === "dark" ? 0.3 : 0.12,
-                    )
-                  : alpha(theme.palette.text.primary, 0.06),
-              }),
+              ...(!bot && bubbleSx(theme, mine)),
             })}
           >
             <ReactMarkdown

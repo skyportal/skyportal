@@ -14,13 +14,13 @@ import MenuItem from "@mui/material/MenuItem";
 import TextField from "@mui/material/TextField";
 import Tooltip from "@mui/material/Tooltip";
 import Typography from "@mui/material/Typography";
-import { alpha } from "@mui/material/styles";
 
 import { useGetConfigQuery } from "../../ducks/config";
 import { useGetGroupsQuery } from "../../ducks/groups";
 import { useGetProfileQuery } from "../../ducks/profile";
 import Button from "../Button";
 import SegmentedControl from "../SegmentedControl";
+import { composerSx, sendButtonSx } from "./chatStyles";
 
 import UsernameTrie from "../../usernameTrie";
 import InstrumentTrie from "../../instrumentTrie";
@@ -419,24 +419,7 @@ const CommentForm = ({
           />
         </Box>
       )}
-      <Box
-        sx={(theme) => ({
-          display: "flex",
-          alignItems: "flex-end",
-          gap: "0.25rem",
-          padding: "0.375rem 0.375rem 0.375rem 0.875rem",
-          borderRadius: "1.25rem",
-          border: `1px solid ${
-            textError ? theme.palette.error.main : theme.palette.divider
-          }`,
-          backgroundColor: theme.palette.background.paper,
-          transition: "border-color 150ms, box-shadow 150ms",
-          "&:focus-within": {
-            borderColor: theme.palette.primary.main,
-            boxShadow: `0 0 0 3px ${alpha(theme.palette.primary.main, 0.15)}`,
-          },
-        })}
-      >
+      <Box sx={(theme) => composerSx(theme, textError)}>
         <Controller
           render={() => (
             <TextField
@@ -606,18 +589,7 @@ const CommentForm = ({
           data-testid={
             isEdit ? "editCommentSubmitButton" : "submitCommentButton"
           }
-          sx={(theme) => ({
-            flexShrink: 0,
-            width: 32,
-            height: 32,
-            color: theme.palette.primary.contrastText,
-            backgroundColor: theme.palette.primary.main,
-            "&:hover": { backgroundColor: theme.palette.primary.dark },
-            "&.Mui-disabled": {
-              color: theme.palette.text.disabled,
-              backgroundColor: alpha(theme.palette.text.primary, 0.08),
-            },
-          })}
+          sx={sendButtonSx}
         >
           {isEdit ? (
             <CheckIcon sx={{ fontSize: "1.1rem" }} />

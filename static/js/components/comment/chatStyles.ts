@@ -95,3 +95,84 @@ export const chevronSx = (open: boolean) => ({
   transition: "transform 150ms",
   transform: open ? "rotate(180deg)" : "none",
 });
+
+export const bubbleSx = (
+  theme: Theme,
+  mine: boolean,
+  side: "left" | "right" = "left",
+) => ({
+  padding: "0.375rem 0.75rem",
+  borderRadius: side === "left" ? "4px 16px 16px 16px" : "16px 4px 16px 16px",
+  fontSize: "0.875rem",
+  lineHeight: 1.5,
+  overflowWrap: "anywhere",
+  backgroundColor: mine
+    ? alpha(
+        theme.palette.primary.main,
+        theme.palette.mode === "dark" ? 0.3 : 0.12,
+      )
+    : alpha(theme.palette.text.primary, 0.06),
+  "& p": { margin: 0 },
+  "& p + p": { marginTop: "0.4em" },
+  "& pre": { whiteSpace: "pre-wrap" },
+});
+
+export const composerSx = (theme: Theme, error = false) => ({
+  display: "flex",
+  alignItems: "flex-end",
+  gap: "0.25rem",
+  padding: "0.375rem 0.375rem 0.375rem 0.875rem",
+  borderRadius: "1.25rem",
+  border: `1px solid ${
+    error ? theme.palette.error.main : theme.palette.divider
+  }`,
+  backgroundColor: theme.palette.background.paper,
+  transition: "border-color 150ms, box-shadow 150ms",
+  "&:focus-within": {
+    borderColor: theme.palette.primary.main,
+    boxShadow: `0 0 0 3px ${alpha(theme.palette.primary.main, 0.15)}`,
+  },
+});
+
+export const sendButtonSx = (theme: Theme) => ({
+  flexShrink: 0,
+  width: 32,
+  height: 32,
+  color: theme.palette.primary.contrastText,
+  backgroundColor: theme.palette.primary.main,
+  "&:hover": { backgroundColor: theme.palette.primary.dark },
+  "&.Mui-disabled": {
+    color: theme.palette.text.disabled,
+    backgroundColor: alpha(theme.palette.text.primary, 0.08),
+  },
+});
+
+export const pillTabsSx = (theme: Theme) => {
+  const dark = theme.palette.mode === "dark";
+  return {
+    minHeight: 0,
+    minWidth: 0,
+    "& .MuiTabs-indicator": { display: "none" },
+    "& .MuiTabs-list": { gap: "0.25rem" },
+    "& .MuiTab-root": {
+      minHeight: 28,
+      minWidth: 0,
+      padding: "0 0.75rem",
+      borderRadius: "999px",
+      fontSize: "0.8rem",
+      fontWeight: 500,
+      textTransform: "none",
+      color: theme.palette.text.secondary,
+      transition: "background-color 150ms, color 150ms",
+      "&:hover": {
+        color: theme.palette.text.primary,
+        backgroundColor: alpha(theme.palette.text.primary, 0.06),
+      },
+    },
+    "& .MuiTab-root.Mui-selected": {
+      fontWeight: 600,
+      color: dark ? theme.palette.text.primary : theme.palette.primary.main,
+      backgroundColor: alpha(theme.palette.primary.main, dark ? 0.3 : 0.12),
+    },
+  };
+};
