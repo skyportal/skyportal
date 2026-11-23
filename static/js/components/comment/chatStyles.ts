@@ -176,3 +176,12 @@ export const pillTabsSx = (theme: Theme) => {
     },
   };
 };
+
+export const searchFieldSx = (theme: Theme) => ({
+  "& .MuiOutlinedInput-root": {
+    borderRadius: "999px",
+    fontSize: "0.875rem",
+    backgroundColor: alpha(theme.palette.text.primary, 0.05),
+  },
+  "& .MuiOutlinedInput-notchedOutline": { borderColor: "transparent" },
+});
