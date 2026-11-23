@@ -46,6 +46,7 @@ export const UnifiedBuilderProvider = ({
   const [customListVariables, setCustomListVariables] = useState<any[]>([]);
   const [customSwitchCases, setCustomSwitchCases] = useState<any[]>([]);
   const [catalogLoaded, setCatalogLoaded] = useState(false);
+  const [catalogNames, setCatalogNames] = useState<string[]>([]);
 
   // Local filters updater function reference (for FilterBuilderContent)
   const [localFiltersUpdater, setLocalFiltersUpdater] = useState<any>(null);
@@ -96,6 +97,13 @@ export const UnifiedBuilderProvider = ({
           );
         };
 
+        setCatalogNames(
+          [
+            variables.data.variables,
+            listVariables.data.listVariables,
+            switchCases.data.switchCases,
+          ].flatMap((items: any) => (items || []).map((v: any) => v.name)),
+        );
         setCustomBlocks(filterByStream(blocks.data.blocks));
         setCustomVariables(filterByStream(variables.data.variables));
         setCustomListVariables(
@@ -194,6 +202,7 @@ export const UnifiedBuilderProvider = ({
     customSwitchCases,
     setCustomSwitchCases,
     catalogLoaded,
+    catalogNames,
 
     // Local filters updater (for filter mode)
     localFiltersUpdater,

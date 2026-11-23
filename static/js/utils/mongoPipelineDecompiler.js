@@ -188,6 +188,7 @@ class Decompiler {
     );
     this.taken = new Set([
       ...this.catalogNames,
+      ...context.reservedNames,
       ...context.fieldOptions.flatMap((f) => [f.value, f.label]),
     ]);
   }
@@ -942,6 +943,7 @@ const withDefaults = (context) => ({
   customListVariables: context.customListVariables ?? [],
   customSwitchCases: context.customSwitchCases ?? [],
   streams: context.streams ?? [],
+  reservedNames: context.reservedNames ?? [],
 });
 
 export const liftPipeline = (pipeline, context = {}) => {

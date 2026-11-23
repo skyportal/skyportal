@@ -29,6 +29,7 @@ const usePipelineConversion = (streamName?: string) => {
         customVariables: builder.customVariables,
         customListVariables: builder.customListVariables,
         customSwitchCases: builder.customSwitchCases,
+        reservedNames: builder.catalogNames,
         streams: token ? [token] : [],
       });
     },
@@ -39,6 +40,7 @@ const usePipelineConversion = (streamName?: string) => {
       builder.customVariables,
       builder.customListVariables,
       builder.customSwitchCases,
+      builder.catalogNames,
     ],
   );
 
