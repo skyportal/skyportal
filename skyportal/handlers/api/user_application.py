@@ -29,6 +29,7 @@ from ...models import (
 from ...utils.app import get_app_base_url
 from ...utils.email import button, send_email
 from ...utils.naive_datetime import utcnow_naive
+from ...utils.notifications import wants_in_app
 from ...utils.user_applications import (
     ADMIN_ACL,
     deciding_acls,
@@ -49,6 +50,11 @@ SUBMITTED_MESSAGE = (
 )
 
 DISABLED_MESSAGE = "Account applications are not enabled in this deployment."
+
+
+def application_prefs(user):
+    notifications = (user.preferences or {}).get("notifications") or {}
+    return notifications.get("user_application") or {}
 
 
 def notify_deciders(session, application, endorser):
@@ -74,11 +80,15 @@ def notify_deciders(session, application, endorser):
         recipients = session.scalars(sa.select(User).where(holds_admin_acl)).all()
         notification = "has applied for an account"
         email = "has applied for an account."
+    recipients = [
+        r for r in recipients if application_prefs(r).get("active") is not False
+    ]
     if not recipients:
         return []
 
     url = "/user_applications"
-    for recipient in recipients:
+    in_app = [r for r in recipients if wants_in_app(r.preferences, "user_application")]
+    for recipient in in_app:
         session.add(
             UserNotification(
                 user_id=recipient.id,
@@ -89,11 +99,16 @@ def notify_deciders(session, application, endorser):
                 url=url,
             )
         )
-    recipient_ids = [recipient.id for recipient in recipients]
+    recipient_ids = [recipient.id for recipient in in_app]
     if cfg.get("user_applications.disable_emailing", False):
         return recipient_ids
 
-    addresses = [r.contact_email for r in recipients if r.contact_email]
+    addresses = [
+        r.contact_email
+        for r in recipients
+        if r.contact_email
+        and (application_prefs(r).get("email") or {}).get("active") is not False
+    ]
     if addresses:
         # The applicant is unauthenticated, so their words never reach the email as markup.
         applicant = html.escape(
