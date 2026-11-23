@@ -1265,6 +1265,7 @@ def api(queue):
                                                 target_content,
                                             )
                                         )
+                                        break
 
                                 elif is_gcn_match:
                                     match_prefs = pref["gcn_matches"]
