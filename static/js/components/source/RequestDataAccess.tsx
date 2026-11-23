@@ -10,6 +10,7 @@ import Tooltip from "@mui/material/Tooltip";
 import Typography from "@mui/material/Typography";
 import { makeStyles } from "tss-react/mui";
 
+import LockOutlinedIcon from "@mui/icons-material/LockOutlined";
 import Button from "../Button";
 import {
   PhotometryAvailability,
@@ -132,8 +133,9 @@ const RequestDataAccess = ({ sourceID }: RequestDataAccessProps) => {
             size="small"
             onClick={() => setOpen(true)}
             data-testid="request-data-access-button"
+            endIcon={<LockOutlinedIcon />}
           >
-            {`Unshared data (${count})`}
+            {`Restricted data (${count})`}
           </Button>
         </span>
       </Tooltip>
@@ -144,7 +146,7 @@ const RequestDataAccess = ({ sourceID }: RequestDataAccessProps) => {
         fullWidth
         data-testid="data-availability-dialog"
       >
-        <DialogTitle>Unshared data on {sourceID}</DialogTitle>
+        <DialogTitle>Restricted data on {sourceID}</DialogTitle>
         <DialogContent>
           <Typography variant="body2" color="textSecondary">
             These datasets exist on this source but have not been shared with

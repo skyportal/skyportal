@@ -13,6 +13,7 @@ import { Link } from "react-router-dom";
 
 import { makeStyles } from "tss-react/mui";
 import Box from "@mui/material/Box";
+import { alpha } from "@mui/material/styles";
 import Chip from "@mui/material/Chip";
 import Grid from "@mui/material/Grid";
 import Tooltip from "@mui/material/Tooltip";
@@ -24,12 +25,19 @@ import AccordionDetails from "@mui/material/AccordionDetails";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import HelpOutlineIcon from "@mui/icons-material/HelpOutlineOutlined";
 import Typography from "@mui/material/Typography";
-import { log10, abs, ceil } from "mathjs";
 
 import CircularProgress from "@mui/material/CircularProgress";
 import AddIcon from "@mui/icons-material/Add";
-import RemoveIcon from "@mui/icons-material/Remove";
 import Menu from "@mui/material/Menu";
+import Divider from "@mui/material/Divider";
+import ListItemIcon from "@mui/material/ListItemIcon";
+import SearchIcon from "@mui/icons-material/Search";
+import ImageOutlinedIcon from "@mui/icons-material/ImageOutlined";
+import PictureAsPdfOutlinedIcon from "@mui/icons-material/PictureAsPdfOutlined";
+import ShowChartOutlinedIcon from "@mui/icons-material/ShowChartOutlined";
+import FormatListBulletedOutlinedIcon from "@mui/icons-material/FormatListBulletedOutlined";
+import SendOutlinedIcon from "@mui/icons-material/SendOutlined";
+import PublicOutlinedIcon from "@mui/icons-material/PublicOutlined";
 import MenuItem from "@mui/material/MenuItem";
 import IconButton from "@mui/material/IconButton";
 import Paper from "@mui/material/Paper";
@@ -101,8 +109,6 @@ import {
   useGetSourceQuery,
   useGetAssociatedGcnsQuery,
   useGetSourcePositionQuery,
-  useAddHostMutation,
-  useRemoveHostMutation,
   useAddSourceViewMutation,
   useUpdateSourceMutation,
 } from "../../ducks/source";
@@ -122,7 +128,7 @@ import {
   useGetBrokerHostsQuery,
   useGetBrokersQuery,
 } from "../../ducks/brokers";
-import BrokerHostChip from "../broker/BrokerHostChip";
+import SourceHost from "./SourceHost";
 
 // The legacy <font> element isn't in React's JSX intrinsic types; alias it
 // through `any` so the existing markup keeps rendering unchanged.
@@ -157,7 +163,6 @@ export const useSourceStyles = makeStyles()((theme) => ({
   noSpace: { padding: 0, margin: 0 },
   // `inherit`, not a fixed colour: these sit on menu paper, which is dark in
   // dark mode.
-  dropdownText: { textDecoration: "none", color: "inherit" },
   noWrapMargin: {
     marginRight: "0.5rem",
     textWrap: "nowrap",
@@ -294,8 +299,6 @@ const SourceContent = ({ source }: SourceContentProps) => {
   const unsharedSpectraCount = dataAvailability?.spectra?.length ?? 0;
   const { data: associatedGcnsData } = useGetAssociatedGcnsQuery(source.id);
   const associatedGCNs = associatedGcnsData?.["gcns"];
-  const [addHost] = useAddHostMutation();
-  const [removeHostMutation] = useRemoveHostMutation();
   const [updateSource] = useUpdateSourceMutation();
 
   const { data: brokers = [] } = useGetBrokersQuery();
@@ -317,10 +320,10 @@ const SourceContent = ({ source }: SourceContentProps) => {
 
   // Needed for buttons that open popover menus, indicates where the popover should be anchored
   // (where it will appear on the screen)
-  const [anchorElFindingChart, setAnchorElFindingChart] = useState<any>(null);
-  const [anchorElObservability, setAnchorElObservability] = useState<any>(null);
-  const openFindingChart = Boolean(anchorElFindingChart);
-  const openObservability = Boolean(anchorElObservability);
+  const [anchorElObserving, setAnchorElObserving] =
+    useState<HTMLElement | null>(null);
+  const [anchorElShare, setAnchorElShare] = useState<HTMLElement | null>(null);
+  const [publishDialogOpen, setPublishDialogOpen] = useState(false);
 
   const [showStarList, setShowStarList] = useState(false);
   const [showPhotometry, setShowPhotometry] = useState(false);
@@ -341,6 +344,7 @@ const SourceContent = ({ source }: SourceContentProps) => {
     (b) =>
       b.active && b.capabilities?.["query_alerts"] && b.default_alert_search,
   );
+  const hostBroker = brokers.find((b) => b.active && b.default_crossmatch);
   const hasSimilarityBroker = brokers.some(
     (b) => b.active && b.capabilities?.["similar_objects"],
   );
@@ -406,17 +410,6 @@ const SourceContent = ({ source }: SourceContentProps) => {
     () => ({ ...source, adjusted_position: adjustedPosition }),
     [source, adjustedPosition],
   );
-
-  const getZRound = (redshift_error: any) =>
-    redshift_error ? ceil(abs(log10(redshift_error))) : 4;
-
-  const setHost = (galaxyName: any) => {
-    addHost({ id: source.id, formData: { galaxyName } });
-  };
-
-  const removeHost = () => {
-    removeHostMutation(source.id);
-  };
 
   const rightPanelContent = (
     downLarge: boolean,
@@ -850,85 +843,12 @@ const SourceContent = ({ source }: SourceContentProps) => {
                 <SourceAlias source={source} />
               </div>
             </div>
-            {source.host && (
-              <div className={classes.infoLine}>
-                <div className={classes.sourceInfo}>
-                  <b className={classes.noWrapMargin}>
-                    {`Host galaxy: ${source.host.name}`}
-                  </b>
-                  <b className={classes.noWrapMargin}>
-                    {`Offset: ${source.host_offset.toFixed(3)} [arcsec]`}
-                  </b>
-                  {source.host_distance != null && (
-                    <b className={classes.noWrapMargin}>
-                      {`Distance: ${source.host_distance.toFixed(1)} [kpc]`}
-                    </b>
-                  )}
-                  {source.host.redshift != null && (
-                    <b className={classes.noWrapMargin}>
-                      {`z: ${source.host.redshift.toFixed(
-                        getZRound(source.host.redshift_error),
-                      )}`}
-                    </b>
-                  )}
-                  {!isReadOnly && (
-                    <IconButton
-                      size="small"
-                      name="removeHostGalaxyButton"
-                      onClick={() => removeHost()}
-                      className={classes.noSpace}
-                    >
-                      <RemoveIcon style={{ fontSize: "1rem" }} />
-                    </IconButton>
-                  )}
-                </div>
-              </div>
-            )}
-            {brokerHosts && (
-              <div className={classes.infoLine}>
-                <div className={classes.sourceInfo}>
-                  <b className={classes.noWrapMargin}>Host:</b>
-                  <BrokerHostChip host={brokerHosts[source.id]} />
-                </div>
-              </div>
-            )}
-            {!isReadOnly &&
-              source?.galaxies?.length > 0 &&
-              !(
-                source.galaxies?.length === 1 &&
-                source.host?.name &&
-                (source?.galaxies || []).includes(source.host?.name)
-              ) && (
-                <div className={classes.sourceInfo}>
-                  <b className={classes.noWrapMargin}>
-                    <Font color="#457b9d">Possible host galaxies:</Font>
-                  </b>
-                  <div
-                    className={classes.flexRow}
-                    style={{
-                      width: "auto",
-                      alignItems: "center",
-                      flexFlow: "wrap",
-                      columnGap: "0.25rem",
-                    }}
-                  >
-                    {source.galaxies.map(
-                      (galaxyName: any) =>
-                        galaxyName !== source.host?.name && (
-                          <div key={galaxyName}>
-                            <Button
-                              size="small"
-                              className={classes.noSpace}
-                              onClick={() => setHost(galaxyName)}
-                            >
-                              {galaxyName}
-                            </Button>
-                          </div>
-                        ),
-                    )}
-                  </div>
-                </div>
-              )}
+            <SourceHost
+              source={source}
+              brokerHosts={brokerHosts}
+              brokerName={hostBroker?.name}
+              isReadOnly={isReadOnly}
+            />
             {sourceDuplicatesWithoutAssociatedObjs.length > 0 && (
               <div className={classes.sourceInfo}>
                 <b className={classes.noWrapMargin}>
@@ -1025,147 +945,214 @@ const SourceContent = ({ source }: SourceContentProps) => {
             currentUser?.preferences?.["showSimilarSources"] === true ? (
               <SimilarSources source={source} k={3} />
             ) : null}
-            <div className={classes.infoLine} style={{ marginTop: "0.25rem" }}>
+            <Box
+              sx={(theme) => {
+                const { success, text } = theme.palette;
+                return {
+                  flexBasis: "100%",
+                  display: "flex",
+                  flexWrap: "wrap",
+                  alignItems: "center",
+                  gap: 0.75,
+                  mt: 0.75,
+                  "& .MuiButton-root": {
+                    textTransform: "none",
+                    fontWeight: 500,
+                    fontSize: "0.85rem",
+                    borderRadius: "8px",
+                    px: 1.5,
+                    boxShadow: "none",
+                  },
+                  "& .MuiButton-endIcon": { ml: 0.25, mr: -0.5 },
+                  "& .MuiButton-colorGrey:not(.Mui-disabled)": {
+                    bgcolor: alpha(text.primary, 0.06),
+                    color: "text.primary",
+                    "&:hover": { bgcolor: alpha(text.primary, 0.11) },
+                  },
+                  "& [data-testid=interested-button].MuiButton-colorSuccess": {
+                    bgcolor: alpha(success.main, 0.16),
+                    color:
+                      theme.palette.mode === "dark"
+                        ? success.light
+                        : success.dark,
+                    "&:hover": { bgcolor: alpha(success.main, 0.24) },
+                  },
+                };
+              }}
+            >
               {alertBroker ? (
-                <Link
-                  to={`/brokers/${alertBroker.id}?${new URLSearchParams({
-                    objectId: source.id,
-                    ...(source.ra != null && source.dec != null
-                      ? {
-                          ra: String(source.ra),
-                          dec: String(source.dec),
-                          radius: "3",
-                        }
-                      : {}),
-                  })}`}
-                  target="_blank"
+                <Tooltip
+                  title={`Alerts for this object in ${alertBroker.name}`}
                 >
-                  <Button primary size="small">
-                    Search alerts
-                  </Button>
-                </Link>
+                  <Link
+                    to={`/brokers/${alertBroker.id}?${new URLSearchParams({
+                      objectId: source.id,
+                      ...(source.ra != null && source.dec != null
+                        ? {
+                            ra: String(source.ra),
+                            dec: String(source.dec),
+                            radius: "3",
+                          }
+                        : {}),
+                    })}`}
+                    target="_blank"
+                  >
+                    <Button secondary size="small" endIcon={<SearchIcon />}>
+                      Search alerts
+                    </Button>
+                  </Link>
+                </Tooltip>
               ) : (
                 <Tooltip title="No broker is set as the default for alert search">
                   <span>
-                    <Button primary size="small" disabled>
+                    <Button
+                      secondary
+                      size="small"
+                      disabled
+                      endIcon={<SearchIcon />}
+                    >
                       Search alerts
                     </Button>
                   </span>
                 </Tooltip>
               )}
-              <div>
+              <Tooltip title="Finding chart, observability and starlist">
                 <Button
-                  aria-controls={openFindingChart ? "basic-menu" : undefined}
+                  secondary
+                  size="small"
+                  endIcon={<ExpandMoreIcon />}
                   aria-haspopup="true"
-                  aria-expanded={openFindingChart ? "true" : undefined}
-                  onClick={(e: any) => setAnchorElFindingChart(e.currentTarget)}
-                  secondary
-                  size="small"
+                  aria-expanded={Boolean(anchorElObserving)}
+                  onClick={(e: any) => setAnchorElObserving(e.currentTarget)}
                 >
-                  Finding Chart
+                  Observing
                 </Button>
-                <Menu
-                  transitionDuration={50}
-                  id="finding-chart-menu"
-                  anchorEl={anchorElFindingChart}
-                  open={openFindingChart}
-                  onClose={() => setAnchorElFindingChart(null)}
-                  slotProps={{
-                    list: {
-                      "aria-labelledby": "basic-button",
-                    },
-                  }}
+              </Tooltip>
+              <Menu
+                transitionDuration={50}
+                anchorEl={anchorElObserving}
+                open={Boolean(anchorElObserving)}
+                onClose={() => setAnchorElObserving(null)}
+                slotProps={{ list: { dense: true } }}
+              >
+                <MenuItem
+                  component={Link}
+                  to={`/source/${source.id}/finder`}
+                  target="_blank"
+                  onClick={() => setAnchorElObserving(null)}
                 >
-                  <MenuItem
-                    component="a"
-                    href={`/api/sources/${source.id}/finder`}
-                    download="finder-chart"
-                    className={classes.dropdownText}
-                    onClick={() => setAnchorElFindingChart(null)}
-                  >
-                    PDF
-                  </MenuItem>
-                  <MenuItem onClick={() => setAnchorElFindingChart(null)}>
-                    <Link
-                      to={`/source/${source.id}/finder`}
-                      role="link"
-                      className={classes.dropdownText}
-                      target="_blank"
-                    >
-                      Interactive
-                    </Link>
-                  </MenuItem>
-                </Menu>
-              </div>
-              <div>
-                <Button
-                  secondary
-                  size="small"
-                  onClick={() => setShowStarList(!showStarList)}
+                  <ListItemIcon>
+                    <ImageOutlinedIcon fontSize="small" />
+                  </ListItemIcon>
+                  Finding chart
+                </MenuItem>
+                <MenuItem
+                  component="a"
+                  href={`/api/sources/${source.id}/finder`}
+                  download="finder-chart"
+                  onClick={() => setAnchorElObserving(null)}
                 >
-                  {showStarList ? "Hide Starlist" : "Show Starlist"}
-                </Button>
-              </div>
-              <div>
-                <Button
-                  aria-controls={openObservability ? "basic-menu" : undefined}
-                  aria-haspopup="true"
-                  aria-expanded={openObservability ? "true" : undefined}
-                  onClick={(e: any) =>
-                    setAnchorElObservability(e.currentTarget)
-                  }
-                  secondary
-                  size="small"
+                  <ListItemIcon>
+                    <PictureAsPdfOutlinedIcon fontSize="small" />
+                  </ListItemIcon>
+                  Finding chart PDF
+                </MenuItem>
+                <Divider />
+                <MenuItem
+                  component={Link}
+                  to={`/observability/${source.id}`}
+                  target="_blank"
+                  onClick={() => setAnchorElObserving(null)}
                 >
+                  <ListItemIcon>
+                    <ShowChartOutlinedIcon fontSize="small" />
+                  </ListItemIcon>
                   Observability
-                </Button>
-                <Menu
-                  transitionDuration={50}
-                  id="observability-chart-menu"
-                  anchorEl={anchorElObservability}
-                  open={openObservability}
-                  onClose={() => setAnchorElObservability(null)}
-                  slotProps={{
-                    list: {
-                      "aria-labelledby": "basic-button",
-                    },
+                </MenuItem>
+                <MenuItem
+                  component="a"
+                  href={`/api/sources/${source.id}/observability`}
+                  download={`observabilityChartRequest-${source.id}`}
+                  data-testid={`observabilityChartRequest_${source.id}`}
+                  onClick={() => setAnchorElObserving(null)}
+                >
+                  <ListItemIcon>
+                    <PictureAsPdfOutlinedIcon fontSize="small" />
+                  </ListItemIcon>
+                  Observability PDF
+                </MenuItem>
+                <Divider />
+                <MenuItem
+                  onClick={() => {
+                    setShowStarList(!showStarList);
+                    setAnchorElObserving(null);
                   }}
                 >
-                  <MenuItem
-                    component="a"
-                    href={`/api/sources/${source.id}/observability`}
-                    download={`observabilityChartRequest-${source.id}`}
-                    data-testid={`observabilityChartRequest_${source.id}`}
-                    className={classes.dropdownText}
-                    onClick={() => setAnchorElObservability(null)}
-                  >
-                    PDF
-                  </MenuItem>
-                  <MenuItem onClick={() => setAnchorElObservability(null)}>
-                    <Link
-                      to={`/observability/${source.id}`}
-                      role="link"
-                      className={classes.dropdownText}
-                      target="_blank"
-                    >
-                      Interactive
-                    </Link>
-                  </MenuItem>
-                </Menu>
-              </div>
+                  <ListItemIcon>
+                    <FormatListBulletedOutlinedIcon fontSize="small" />
+                  </ListItemIcon>
+                  {showStarList ? "Hide starlist" : "Show starlist"}
+                </MenuItem>
+              </Menu>
               {!isReadOnly && (
                 <>
-                  <Button
-                    onClick={() => setSendToDialogOpen(true)}
-                    secondary
-                    size="small"
+                  <Tooltip title="Send to a service or make public">
+                    <Button
+                      secondary
+                      size="small"
+                      endIcon={<ExpandMoreIcon />}
+                      aria-haspopup="true"
+                      aria-expanded={Boolean(anchorElShare)}
+                      onClick={(e: any) => setAnchorElShare(e.currentTarget)}
+                    >
+                      Share
+                    </Button>
+                  </Tooltip>
+                  <Menu
+                    transitionDuration={50}
+                    anchorEl={anchorElShare}
+                    open={Boolean(anchorElShare)}
+                    onClose={() => setAnchorElShare(null)}
+                    slotProps={{ list: { dense: true } }}
                   >
-                    Send to
-                  </Button>
+                    <MenuItem
+                      onClick={() => {
+                        setSendToDialogOpen(true);
+                        setAnchorElShare(null);
+                      }}
+                    >
+                      <ListItemIcon>
+                        <SendOutlinedIcon fontSize="small" />
+                      </ListItemIcon>
+                      Send to
+                    </MenuItem>
+                    <MenuItem
+                      onClick={() => {
+                        setPublishDialogOpen(true);
+                        setAnchorElShare(null);
+                      }}
+                    >
+                      <ListItemIcon>
+                        <PublicOutlinedIcon fontSize="small" />
+                      </ListItemIcon>
+                      Public access
+                    </MenuItem>
+                  </Menu>
                   <SharingServicesDialog
                     obj_id={source.id}
                     dialogOpen={sendToDialogOpen}
                     setDialogOpen={setSendToDialogOpen}
+                  />
+                  <SourcePublish
+                    sourceId={source.id}
+                    isElements={{
+                      summary: source.summary_history?.length > 0,
+                      photometry: source.photometry_exists,
+                      spectroscopy: source.spectrum_exists,
+                      classifications: source.classifications?.length > 0,
+                    }}
+                    open={publishDialogOpen}
+                    onClose={() => setPublishDialogOpen(false)}
                   />
                 </>
               )}
@@ -1177,24 +1164,13 @@ const SourceContent = ({ source }: SourceContentProps) => {
                 />
               )}
               {!isReadOnly && (
-                <SourcePublish
-                  sourceId={source.id}
-                  isElements={{
-                    summary: source.summary_history?.length > 0,
-                    photometry: source.photometry_exists,
-                    spectroscopy: source.spectrum_exists,
-                    classifications: source.classifications?.length > 0,
-                  }}
-                />
-              )}
-              {!isReadOnly && (
                 <SourceInterests
                   sourceID={source.id}
                   onDiscuss={() => commentPanel.openChannel(INTERESTED_CHANNEL)}
                 />
               )}
               {!isReadOnly && <RequestDataAccess sourceID={source.id} />}
-            </div>
+            </Box>
             {showStarList && <StarList sourceId={source.id} />}
             {/* checking if the id exists is a way to know if the user profile is loaded or not */}
             {currentUser?.id &&

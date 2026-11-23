@@ -93,7 +93,11 @@ const SourceInterests = ({ sourceID, onDiscuss }: SourceInterestsProps) => {
   return (
     <>
       <Tooltip
-        title={interests.map((interest) => interest.user.username).join(", ")}
+        title={
+          interests.length > 0
+            ? interests.map((interest) => interest.user.username).join(", ")
+            : "Let others know you are interested"
+        }
       >
         <span>
           <Button
