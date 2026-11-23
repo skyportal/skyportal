@@ -8,6 +8,7 @@ import Paper from "@mui/material/Paper";
 import Tooltip from "@mui/material/Tooltip";
 import Typography from "@mui/material/Typography";
 import CloseIcon from "@mui/icons-material/Close";
+import HelpOutlineIcon from "@mui/icons-material/HelpOutlineOutlined";
 import UndoIcon from "@mui/icons-material/Undo";
 import { useTheme } from "@mui/material/styles";
 
@@ -151,39 +152,31 @@ const CutoutStrip = ({
                 </Box>
               )}
             </Box>
-            <Tooltip
-              title={
-                isExcluded
-                  ? "Include in the MPC submission"
-                  : "Exclude from the MPC submission"
-              }
+            <IconButton
+              className="toggle-excluded"
+              size="small"
+              aria-label={isExcluded ? "Include" : "Exclude"}
+              onClick={() => onToggle(d.candid)}
+              sx={{
+                position: "absolute",
+                top: 2,
+                right: 2,
+                padding: "4px",
+                color: "common.white",
+                bgcolor: isExcluded ? "primary.main" : "rgba(0, 0, 0, 0.6)",
+                opacity: isExcluded ? 1 : 0,
+                transition: "opacity 0.15s",
+                "&:hover": {
+                  bgcolor: isExcluded ? "primary.dark" : "error.main",
+                },
+              }}
             >
-              <IconButton
-                className="toggle-excluded"
-                size="small"
-                aria-label={isExcluded ? "Include" : "Exclude"}
-                onClick={() => onToggle(d.candid)}
-                sx={{
-                  position: "absolute",
-                  top: 2,
-                  right: 2,
-                  padding: "2px",
-                  color: "common.white",
-                  bgcolor: isExcluded ? "primary.main" : "rgba(0, 0, 0, 0.6)",
-                  opacity: isExcluded ? 1 : 0,
-                  transition: "opacity 0.15s",
-                  "&:hover": {
-                    bgcolor: isExcluded ? "primary.dark" : "error.main",
-                  },
-                }}
-              >
-                {isExcluded ? (
-                  <UndoIcon sx={{ fontSize: "0.9rem" }} />
-                ) : (
-                  <CloseIcon sx={{ fontSize: "0.9rem" }} />
-                )}
-              </IconButton>
-            </Tooltip>
+              {isExcluded ? (
+                <UndoIcon sx={{ fontSize: "1.4rem" }} />
+              ) : (
+                <CloseIcon sx={{ fontSize: "1.4rem" }} />
+              )}
+            </IconButton>
           </Box>
           <Box sx={{ opacity: isExcluded ? 0.35 : 1 }}>
             <Typography
@@ -360,6 +353,17 @@ const TrackVettingPanel = ({
           Difference cutouts, stretched to each epoch&apos;s own background
           {excluded.length > 0 &&
             `, ${excluded.length} excluded from the MPC submission`}
+          <Tooltip title="Click the cross on a cutout to leave that detection out of the MPC submission">
+            <HelpOutlineIcon
+              sx={{
+                fontSize: "0.9rem",
+                marginLeft: "0.3rem",
+                verticalAlign: "middle",
+                color: "text.secondary",
+                cursor: "help",
+              }}
+            />
+          </Tooltip>
         </Typography>
         <CutoutStrip
           detections={detections}
