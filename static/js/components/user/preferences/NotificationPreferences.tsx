@@ -18,6 +18,7 @@ import { useGetFiltersQuery } from "../../../ducks/filter";
 import { useGetGroupsQuery } from "../../../ducks/groups";
 import { useNotificationTarget } from "../../notifications/target";
 import { useGetAllocationsApiClassnameQuery } from "../../../ducks/allocations";
+import { useGetConfigQuery } from "../../../ducks/config";
 
 interface Option {
   id: number;
@@ -444,6 +445,10 @@ const NotificationPreferences = () => {
   // cards that user can actually receive.
   const { profile } = useNotificationTarget();
   const isAdmin = profile?.permissions?.includes("System admin") === true;
+  const { userApplicationsEnabled } = (useGetConfigQuery().data as any) ?? {};
+  const decidesApplications =
+    userApplicationsEnabled === true &&
+    profile?.permissions?.includes("Manage users") === true;
   return (
     <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
       <DeliveryChannels />
@@ -469,6 +474,16 @@ const NotificationPreferences = () => {
               : "When someone asks for data held by a group you administer. Owners are always told when their data is asked for."
           }
           channels={[]}
+        />
+      )}
+      {decidesApplications && (
+        <NotificationCard
+          type="user_application"
+          title="Account applications"
+          text="When someone applies for an account. They are on the Account applications page."
+          defaultActive
+          defaultChannels={["email"]}
+          channels={["email"]}
         />
       )}
       <NotificationCard
