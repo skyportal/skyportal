@@ -24,11 +24,9 @@ import AccordionDetails from "@mui/material/AccordionDetails";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import HelpOutlineIcon from "@mui/icons-material/HelpOutlineOutlined";
 import Typography from "@mui/material/Typography";
-import { log10, abs, ceil } from "mathjs";
 
 import CircularProgress from "@mui/material/CircularProgress";
 import AddIcon from "@mui/icons-material/Add";
-import RemoveIcon from "@mui/icons-material/Remove";
 import Menu from "@mui/material/Menu";
 import MenuItem from "@mui/material/MenuItem";
 import IconButton from "@mui/material/IconButton";
@@ -101,8 +99,6 @@ import {
   useGetSourceQuery,
   useGetAssociatedGcnsQuery,
   useGetSourcePositionQuery,
-  useAddHostMutation,
-  useRemoveHostMutation,
   useAddSourceViewMutation,
   useUpdateSourceMutation,
 } from "../../ducks/source";
@@ -122,7 +118,7 @@ import {
   useGetBrokerHostsQuery,
   useGetBrokersQuery,
 } from "../../ducks/brokers";
-import BrokerHostChip from "../broker/BrokerHostChip";
+import SourceHost from "./SourceHost";
 
 // The legacy <font> element isn't in React's JSX intrinsic types; alias it
 // through `any` so the existing markup keeps rendering unchanged.
@@ -294,8 +290,6 @@ const SourceContent = ({ source }: SourceContentProps) => {
   const unsharedSpectraCount = dataAvailability?.spectra?.length ?? 0;
   const { data: associatedGcnsData } = useGetAssociatedGcnsQuery(source.id);
   const associatedGCNs = associatedGcnsData?.["gcns"];
-  const [addHost] = useAddHostMutation();
-  const [removeHostMutation] = useRemoveHostMutation();
   const [updateSource] = useUpdateSourceMutation();
 
   const { data: brokers = [] } = useGetBrokersQuery();
@@ -341,6 +335,7 @@ const SourceContent = ({ source }: SourceContentProps) => {
     (b) =>
       b.active && b.capabilities?.["query_alerts"] && b.default_alert_search,
   );
+  const hostBroker = brokers.find((b) => b.active && b.default_crossmatch);
   const hasSimilarityBroker = brokers.some(
     (b) => b.active && b.capabilities?.["similar_objects"],
   );
@@ -406,17 +401,6 @@ const SourceContent = ({ source }: SourceContentProps) => {
     () => ({ ...source, adjusted_position: adjustedPosition }),
     [source, adjustedPosition],
   );
-
-  const getZRound = (redshift_error: any) =>
-    redshift_error ? ceil(abs(log10(redshift_error))) : 4;
-
-  const setHost = (galaxyName: any) => {
-    addHost({ id: source.id, formData: { galaxyName } });
-  };
-
-  const removeHost = () => {
-    removeHostMutation(source.id);
-  };
 
   const rightPanelContent = (
     downLarge: boolean,
@@ -850,85 +834,12 @@ const SourceContent = ({ source }: SourceContentProps) => {
                 <SourceAlias source={source} />
               </div>
             </div>
-            {source.host && (
-              <div className={classes.infoLine}>
-                <div className={classes.sourceInfo}>
-                  <b className={classes.noWrapMargin}>
-                    {`Host galaxy: ${source.host.name}`}
-                  </b>
-                  <b className={classes.noWrapMargin}>
-                    {`Offset: ${source.host_offset.toFixed(3)} [arcsec]`}
-                  </b>
-                  {source.host_distance != null && (
-                    <b className={classes.noWrapMargin}>
-                      {`Distance: ${source.host_distance.toFixed(1)} [kpc]`}
-                    </b>
-                  )}
-                  {source.host.redshift != null && (
-                    <b className={classes.noWrapMargin}>
-                      {`z: ${source.host.redshift.toFixed(
-                        getZRound(source.host.redshift_error),
-                      )}`}
-                    </b>
-                  )}
-                  {!isReadOnly && (
-                    <IconButton
-                      size="small"
-                      name="removeHostGalaxyButton"
-                      onClick={() => removeHost()}
-                      className={classes.noSpace}
-                    >
-                      <RemoveIcon style={{ fontSize: "1rem" }} />
-                    </IconButton>
-                  )}
-                </div>
-              </div>
-            )}
-            {brokerHosts && (
-              <div className={classes.infoLine}>
-                <div className={classes.sourceInfo}>
-                  <b className={classes.noWrapMargin}>Host:</b>
-                  <BrokerHostChip host={brokerHosts[source.id]} />
-                </div>
-              </div>
-            )}
-            {!isReadOnly &&
-              source?.galaxies?.length > 0 &&
-              !(
-                source.galaxies?.length === 1 &&
-                source.host?.name &&
-                (source?.galaxies || []).includes(source.host?.name)
-              ) && (
-                <div className={classes.sourceInfo}>
-                  <b className={classes.noWrapMargin}>
-                    <Font color="#457b9d">Possible host galaxies:</Font>
-                  </b>
-                  <div
-                    className={classes.flexRow}
-                    style={{
-                      width: "auto",
-                      alignItems: "center",
-                      flexFlow: "wrap",
-                      columnGap: "0.25rem",
-                    }}
-                  >
-                    {source.galaxies.map(
-                      (galaxyName: any) =>
-                        galaxyName !== source.host?.name && (
-                          <div key={galaxyName}>
-                            <Button
-                              size="small"
-                              className={classes.noSpace}
-                              onClick={() => setHost(galaxyName)}
-                            >
-                              {galaxyName}
-                            </Button>
-                          </div>
-                        ),
-                    )}
-                  </div>
-                </div>
-              )}
+            <SourceHost
+              source={source}
+              brokerHosts={brokerHosts}
+              brokerName={hostBroker?.name}
+              isReadOnly={isReadOnly}
+            />
             {sourceDuplicatesWithoutAssociatedObjs.length > 0 && (
               <div className={classes.sourceInfo}>
                 <b className={classes.noWrapMargin}>
