@@ -761,7 +761,7 @@ const CandidateList = () => {
                 <Typography variant="h6">
                   {isFetching
                     ? "Searching..."
-                    : `Found ${totalMatches} ${scanMode === "moving" ? "moving objects" : "candidates"}.`}
+                    : `Found ${totalMatches} ${scanMode === "moving" ? "moving object" : "candidate"}${totalMatches === 1 ? "" : "s"}.`}
                 </Typography>
                 <SegmentedControl
                   size="small"
