@@ -857,6 +857,10 @@ class ZTFAPI(FollowUpAPI):
                 "type": "string",
                 "title": "Access Token (from Kowalski)",
             },
+            "too_notification_emails": {
+                "type": "string",
+                "title": "Emails notified of each ToO queue (comma-separated)",
+            },
         },
     }
 
