@@ -22,13 +22,8 @@ def test_add_delete_tag(page, public_source, super_admin_token, super_admin_user
     page.locator('//button[@data-testid="add-tag-button"]').first.click()
     expect(page.locator('//div[@data-testid="add-tag-dialog"]').first).to_be_visible()
 
-    page.locator('//div[@data-testid="tag-select"]').first.click()
-    expect(
-        page.locator('//div[contains(@class, "MuiAutocomplete-popper")]').first
-    ).to_be_visible()
-    page.locator(
-        f'//li//span[contains(@class, "MuiChip-label") and contains(text(), "{tag_name}")]'
-    ).first.click()
+    page.locator('//input[@data-testid="tag-search-input"]').first.fill(tag_name)
+    page.locator(f'//*[@data-testid="tag-option-{tag_name}"]').first.click()
 
     page.locator('//button[@data-testid="save-tag-button"]').first.click()
     expect(
@@ -87,5 +82,5 @@ def test_permission_for_tag_creation(page, user, public_source):
     page.locator('//button[@data-testid="add-tag-button"]').first.click()
     expect(page.locator('//div[@data-testid="add-tag-dialog"]').first).to_be_visible()
 
-    expect(page.locator('//div[contains(@class, "createTagSection")]')).to_have_count(0)
+    expect(page.locator('//*[@data-testid="create-tag-section"]')).to_have_count(0)
     page.locator('//button[contains(text(), "Cancel")]').first.click()
