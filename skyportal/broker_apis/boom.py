@@ -207,7 +207,7 @@ def _programids(kwargs, survey):
     return list(permissions.get(survey) or [])
 
 
-NO_PROGRAMID_SURVEYS = {"LSST", "DECAM", "ARGUS"}
+NO_PROGRAMID_SURVEYS = {"LSST", "DECAM", "ARGUS", "ASKAP"}
 ALL_ZTF_PROGRAMIDS = [1, 2, 3]
 DENY_ALL = {"_id": {"$in": []}}
 
@@ -317,8 +317,7 @@ def _passing_alerts(broker, survey, results):
         return {}
     by_candid = {}
     for alert in alerts if isinstance(alerts, list) else []:
-        if survey == "DECAM":
-            alert = _decam_to_standard(alert)
+        alert = _to_standard(survey, alert)
         candid = str(alert.get("_id"))
         alert["_id"] = candid
         if isinstance(alert.get("candidate"), dict):
@@ -376,8 +375,36 @@ def _argus_to_standard(record):
     return record
 
 
-_TO_STANDARD = {"DECAM": _decam_to_standard, "ARGUS": _argus_to_standard}
-_MAG_FIELD = {"DECAM": "candidate.magap", "ARGUS": "candidate.psfMagnitudeDif"}
+def _askap_to_standard(record):
+    """VAST peak flux (mJy) as nJy ``psfFlux`` and its AB mag as ``magpsf``."""
+    if not isinstance(record, dict):
+        return record
+    points = [record.get("candidate") or {}]
+    for key in ("prv_candidates", "fp_hists"):
+        points += record.get(key) or []
+    for p in points:
+        if p.get("frequency") is not None:
+            p.setdefault("band", f"askap-{p['frequency']:.0f}MHz")
+        flux, flux_err = p.get("flux_peak"), p.get("flux_peak_err")
+        if flux is None or flux_err is None:
+            continue
+        p["psfFlux"], p["psfFluxErr"] = flux * 1e6, flux_err * 1e6
+        if flux > 0:
+            p.setdefault("magpsf", _AB_NJY_ZEROPOINT - 2.5 * math.log10(flux * 1e6))
+            p.setdefault("sigmapsf", 1.0857 * flux_err / flux)
+    return record
+
+
+_TO_STANDARD = {
+    "DECAM": _decam_to_standard,
+    "ARGUS": _argus_to_standard,
+    "ASKAP": _askap_to_standard,
+}
+_BRIGHTEST_FIRST = {
+    "DECAM": {"candidate.magap": 1},
+    "ARGUS": {"candidate.psfMagnitudeDif": 1},
+    "ASKAP": {"candidate.flux_peak": -1},
+}
 
 
 def _to_standard(survey, record):
@@ -789,7 +816,7 @@ class BOOMBROKER(BrokerAPI):
 
     parallel_ingestion = True  # shared Kafka consumer group
 
-    surveys = ["ZTF", "LSST", "DECAM", "ARGUS"]
+    surveys = ["ZTF", "LSST", "DECAM", "ARGUS", "ASKAP"]
     filter_kind = "pipeline"
     # cone_search returns BOOM's reference catalogs (Gaia/PS1/AllWISE, ...).
     cross_match_catalogs = True
@@ -978,7 +1005,7 @@ class BOOMBROKER(BrokerAPI):
                     **_scope_filter(kwargs, survey),
                 }
             },
-            {"$sort": {_MAG_FIELD.get(survey, "candidate.magpsf"): 1}},
+            {"$sort": _BRIGHTEST_FIRST.get(survey, {"candidate.magpsf": 1})},
             {"$group": {"_id": "$objectId", "data": {"$first": "$$ROOT"}}},
             {"$replaceRoot": {"newRoot": "$data"}},
             {

@@ -44,7 +44,8 @@ const COLUMNS = (survey: string): Column[] => {
   const isLSST = survey === "LSST";
   const isDECAM = survey === "DECAM";
   const isARGUS = survey === "ARGUS";
-  const hasProgramid = !isLSST && !isDECAM && !isARGUS;
+  const isASKAP = survey === "ASKAP";
+  const hasProgramid = !isLSST && !isDECAM && !isARGUS && !isASKAP;
   const [magLabel, magErrLabel] = MAG_LABELS[survey] ?? ["magpsf", "sigmapsf"];
   const signField = isARGUS ? "isFluxPositive" : "isdiffpos";
   const realBogusField = hasProgramid
@@ -61,17 +62,32 @@ const COLUMNS = (survey: string): Column[] => {
     },
     { label: "JD", value: ({ alert }) => alert.jd, format: num(5) },
     { label: "band", value: ({ raw }) => raw?.candidate?.band, format: str },
-    {
-      label: magLabel,
-      value: ({ alert }) => alert.magpsf,
-      format: num(3),
-    },
-    {
-      label: magErrLabel,
-      value: ({ raw }) => raw?.candidate?.sigmapsf,
-      format: num(3),
-    },
-    ...(isDECAM
+    ...(isASKAP
+      ? [
+          {
+            label: "flux_peak (mJy)",
+            value: ({ raw }: Row) => raw?.candidate?.flux_peak,
+            format: num(3),
+          },
+          {
+            label: "flux_peak_err",
+            value: ({ raw }: Row) => raw?.candidate?.flux_peak_err,
+            format: num(3),
+          },
+        ]
+      : [
+          {
+            label: magLabel,
+            value: ({ alert }: Row) => alert.magpsf,
+            format: num(3),
+          },
+          {
+            label: magErrLabel,
+            value: ({ raw }: Row) => raw?.candidate?.sigmapsf,
+            format: num(3),
+          },
+        ]),
+    ...(isDECAM || isASKAP
       ? []
       : [
           {
@@ -80,11 +96,15 @@ const COLUMNS = (survey: string): Column[] => {
             format: str,
           },
         ]),
-    {
-      label: realBogusField,
-      value: ({ raw }) => raw?.candidate?.[realBogusField],
-      format: num(5),
-    },
+    ...(isASKAP
+      ? []
+      : [
+          {
+            label: realBogusField,
+            value: ({ raw }: Row) => raw?.candidate?.[realBogusField],
+            format: num(5),
+          },
+        ]),
     {
       label: "snr",
       value: ({ raw }) =>

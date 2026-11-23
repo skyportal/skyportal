@@ -13,7 +13,14 @@ log = make_log("broker/save")
 
 # AB zeropoint per survey: flux in nJy is scaled to Jy and takes 8.9, and
 # magnitudes are converted against the same zeropoint.
-ZP_PER_SURVEY = {"LSST": 8.9, "ZTF": 8.9, "WINTER": 8.9, "DECAM": 8.9, "ARGUS": 8.9}
+ZP_PER_SURVEY = {
+    "LSST": 8.9,
+    "ZTF": 8.9,
+    "WINTER": 8.9,
+    "DECAM": 8.9,
+    "ARGUS": 8.9,
+    "ASKAP": 8.9,
+}
 
 # Surveys whose filters are not named <survey><band>. Keys are normalized bands,
 # so any survey prefix is already stripped. An unmapped band raises rather than
@@ -28,6 +35,7 @@ BAND_TO_FILTER_PER_SURVEY = {
         "z": "desz",
         "y": "desy",
     },
+    "ASKAP": {"askap-943mhz": "askap-943MHz"},
 }
 
 # A "detection" must clear this S/N unless a Filter's criteria override it. Broker

@@ -42,6 +42,7 @@ const guessSurvey = (objectId: string) => {
   if (/^[ACT]20\d{13}[pm]\d{6}$/.test(id)) return "DECAM";
   if (/^(sso)?\d+$/.test(id)) return "LSST";
   if (ARGUS_OBJECT_ID.test(id)) return "ARGUS";
+  if (/^ASKAP-\d+$/.test(id)) return "ASKAP";
   return undefined;
 };
 
