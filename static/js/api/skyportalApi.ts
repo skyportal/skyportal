@@ -60,11 +60,32 @@ const rawBaseQuery = fetchBaseQuery({
   credentials: "same-origin",
 });
 
+function errorMessage(error: FetchBaseQueryError): string {
+  const message = (error.data as ApiEnvelope | undefined)?.message;
+  if (message) {
+    return message;
+  }
+  const status =
+    error.status === "PARSING_ERROR" ? error.originalStatus : error.status;
+  if (status === "FETCH_ERROR") {
+    return "Could not reach the server. Check your connection and try again.";
+  }
+  if (status === "TIMEOUT_ERROR" || status === 504) {
+    return "The server took too long to respond. Try again.";
+  }
+  if (status === 502 || status === 503) {
+    return "The server is temporarily unavailable. Try again in a moment.";
+  }
+  if (typeof status === "number" && status >= 400) {
+    return `Request failed (HTTP ${status})`;
+  }
+  return "Unexpected response from the server. Try reloading the page.";
+}
+
 /**
  * Wraps `fetchBaseQuery` to (a) unwrap the SkyPortal `{status,data}` envelope
  * and (b) treat `status: "error"` (returned with HTTP 200) as an error. On any
- * error it dispatches the same `showNotification(...)` the old `API.ts` did, so
- * user-facing error behaviour is unchanged.
+ * error it dispatches an error notification.
  */
 const skyportalBaseQuery: BaseQueryFn<
   string | FetchArgs,
@@ -82,10 +103,7 @@ const skyportalBaseQuery: BaseQueryFn<
 
   if (result.error) {
     if (!quiet) {
-      const message =
-        (result.error.data as ApiEnvelope | undefined)?.message ??
-        `Request failed (${result.error.status})`;
-      api.dispatch(showNotification(`${message}`, "error"));
+      api.dispatch(showNotification(errorMessage(result.error), "error"));
     }
     return result;
   }
