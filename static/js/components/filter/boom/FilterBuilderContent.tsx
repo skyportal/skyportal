@@ -534,7 +534,7 @@ const FilterBuilderContent = ({
     const result = rawPipeline ? convert(rawPipeline) : null;
     if (result && !result.filters) {
       stayInMongo(
-        `This pipeline can't be shown as blocks (${result.error}). Clear it to start over in the filter UI.`,
+        `Staying in MongoDB: the blocks can't show this pipeline because ${result.error}.`,
       );
       return;
     }
@@ -566,11 +566,9 @@ const FilterBuilderContent = ({
     handleFilterUpdate(tree ?? pipeline);
     dispatch(
       tree
-        ? showNotification(
-            "Pipeline converted to blocks. Click Save to keep it as a new version.",
-          )
+        ? showNotification("Pipeline imported as blocks.")
         : showNotification(
-            `This pipeline can't be shown as blocks (${result.error}), so it opens in the MongoDB editor. Click Save to keep it as a new version.`,
+            `Pipeline imported in the MongoDB editor: the blocks can't show it because ${result.error}.`,
             "warning",
           ),
     );
@@ -806,12 +804,14 @@ const FilterBuilderContent = ({
           </Alert>
         ) : rawPipeline ? (
           <>
-            <Alert severity="info" sx={{ mb: 2 }}>
+            <Alert severity="warning" sx={{ mb: 2 }}>
               {noBlockTree ? (
                 <>
-                  This version was saved without the block builder&apos;s
-                  representation of it, so only the pipeline it produced can be
-                  shown here. Switch to MongoDB to edit it.
+                  This version was saved without blocks
+                  {conversionError
+                    ? ` and the blocks can't show it because ${conversionError}`
+                    : ""}
+                  . Switch to MongoDB to edit it.
                   {lastEditableVersion && (
                     <>
                       {` Version ${shortFid(lastEditableVersion.fid)} is the most recent one that can still be edited as blocks: `}
@@ -831,12 +831,11 @@ const FilterBuilderContent = ({
                 </>
               ) : (
                 <>
-                  This filter is a raw MongoDB pipeline that the block builder
-                  can&apos;t show as blocks. Switch to MongoDB to edit it.
+                  The blocks can&apos;t show this pipeline
+                  {conversionError ? ` because ${conversionError}` : ""}. Switch
+                  to MongoDB to edit it.
                 </>
               )}
-              {conversionError &&
-                ` It can't be converted to blocks: ${conversionError}.`}
             </Alert>
             <PipelineViewer
               pipeline={rawPipeline}
