@@ -758,6 +758,29 @@ async def auto_classification_publishing_async(session, classification_id):
         (s for s in existing if s.tns_status == "pending" and s.auto_submission),
         None,
     )
+    reported_ids = [s.tns_report_classification_id for s in existing]
+    reported = {
+        row.id: row
+        for row in await session.execute(
+            sa.select(Classification.id, Classification.classification, User.is_bot)
+            .join(User, User.id == Classification.author_id)
+            .where(Classification.id.in_(reported_ids))
+        )
+    }
+    tns_type = tns_classification_id(classification.classification)
+    if author.is_bot:
+        for submission in existing:
+            reported_classification = reported.get(
+                submission.tns_report_classification_id
+            )
+            if reported_classification is None or reported_classification.is_bot:
+                continue
+            if (
+                submission is not pending
+                or tns_classification_id(reported_classification.classification)
+                == tns_type
+            ):
+                return
     if pending is not None:
         # Repoint rather than skip: MultipleClassificationsForm posts a
         # parent class before its child, and the child is the one to report.
@@ -782,18 +805,9 @@ async def auto_classification_publishing_async(session, classification_id):
             return
     # A sent report blocks another of the same TNS type. One with no pinned
     # classification reported whichever was newest, so it blocks any.
-    reported_ids = [s.tns_report_classification_id for s in existing]
     if None in reported_ids:
         return
-    reported_types = {
-        tns_classification_id(reported)
-        for reported in await session.scalars(
-            sa.select(Classification.classification).where(
-                Classification.id.in_(reported_ids)
-            )
-        )
-    }
-    if tns_classification_id(classification.classification) in reported_types:
+    if tns_type in {tns_classification_id(r.classification) for r in reported.values()}:
         return
     spectrum = await session.scalar(
         Spectrum.select(author)
