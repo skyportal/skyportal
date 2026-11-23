@@ -948,6 +948,13 @@ const buildListDependencies = (
           normalizedValue;
         if (mapExpr) {
           collectDollarRefs(mapExpr).forEach((varName) => {
+            if (
+              fieldOptions.some(
+                (f) => f.value === varName || f.label === varName,
+              )
+            ) {
+              deps.add(varName);
+            }
             if (customVariables.some((v) => v.name === varName)) {
               deps.add(varName);
             }
@@ -989,6 +996,11 @@ const buildListDependencies = (
 
         // Also scan for direct MongoDB expression references
         collectDollarRefs(condition.value).forEach((varName) => {
+          if (
+            fieldOptions.some((f) => f.value === varName || f.label === varName)
+          ) {
+            deps.add(varName);
+          }
           if (customVariables.some((v) => v.name === varName)) {
             deps.add(varName);
           }
