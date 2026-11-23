@@ -1134,7 +1134,6 @@ const SourceContent = ({ source }: SourceContentProps) => {
                     pl: 1.5,
                     pr: 0.5,
                     borderRadius: "8px",
-                    borderLeft: `3px solid ${alpha(theme.palette.primary.main, 0.5)}`,
                     bgcolor: alpha(theme.palette.text.primary, 0.035),
                   })}
                 >
