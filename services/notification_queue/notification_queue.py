@@ -1101,7 +1101,9 @@ def api(queue):
                                     f"{event_tag} from extraction {target_id}"
                                 )
 
-                    users = [user for user in users if user.is_active()]
+                    users = [
+                        user for user in users if user.is_active() and not user.is_bot
+                    ]
                     failure_count = 0
                     nb_users = len(users)
                     for user in users:
