@@ -903,6 +903,16 @@ class CandidateHandler(BaseHandler):
             q = sa.select(Obj.id).join(
                 candidate_subquery, Obj.id == candidate_subquery.c.obj_id
             )
+            if query.movingObjects:
+                linked_track = (
+                    sa.select(Annotation.id)
+                    .where(
+                        Annotation.obj_id == Obj.id,
+                        Annotation.data.has_key("track_id"),
+                    )
+                    .exists()
+                )
+                q = q.where(sa.or_(Obj.is_roid.is_(True), linked_track))
             accessible_ids = await accessible_group_ids_async(
                 session.user_or_token, session
             )

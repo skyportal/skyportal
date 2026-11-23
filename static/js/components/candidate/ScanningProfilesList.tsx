@@ -23,7 +23,7 @@ import {
   useIsReadOnly,
 } from "../../ducks/profile";
 import CandidatesPreferencesForm from "./CandidatesPreferencesForm";
-import { savedStatusSelectOptions } from "./scanFormFields";
+import { savedStatusSelectOptions, scanViewOptions } from "./scanFormFields";
 
 const ScanningProfilesToolbar = ({
   onAdd,
@@ -134,6 +134,14 @@ const ScanningProfilesList = ({
       headerName: "Time range",
       width: 100,
       renderCell: ({ value }) => (value ? `${value}h` : ""),
+    },
+    {
+      field: "scanView",
+      headerName: "Opens on",
+      width: 130,
+      renderCell: ({ value }) =>
+        scanViewOptions.find((option) => option.value === (value ?? "objects"))
+          ?.label,
     },
     {
       field: "groupIDs",

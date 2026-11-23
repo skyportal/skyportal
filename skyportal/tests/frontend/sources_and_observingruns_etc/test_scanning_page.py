@@ -293,9 +293,7 @@ def test_candidate_saved_status_filtering(
     page.locator("//li[@data-value='notSavedToAnyAccessible']").first.click()
     search_candidates(page)
 
-    expect(
-        page.locator('//*[contains(., "Found 1 candidates.")]').first
-    ).to_be_visible()
+    expect(page.locator('//*[contains(., "Found 1 candidate.")]').first).to_be_visible()
 
     open_scan_filters(page)
     page.locator("//*[@data-testid='savedStatusSelect']").first.click()

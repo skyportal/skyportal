@@ -3584,6 +3584,8 @@ export interface paths {
                     crossmatchOrigin?: string;
                     /** @description Comma-separated string of JSON objects representing annotation filters. Filter objects are expected to have keys { origin, key, value } for non-numeric value types, or { origin, key, min, max } for numeric values. */
                     annotationFilterList?: string | null;
+                    /** @description If true, return only moving objects: known solar system bodies and linked tracks. */
+                    movingObjects?: boolean | null;
                     /** @description Boolean indicating whether to include associated photometry. Defaults to false. */
                     includePhotometry?: boolean;
                     /** @description Boolean indicating whether to include associated spectra. Defaults to false. */
