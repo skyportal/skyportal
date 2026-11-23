@@ -157,8 +157,6 @@ export const useSourceStyles = makeStyles()((theme) => ({
     padding: 0,
     margin: 0,
   },
-  // `inherit`, not a fixed colour: these sit on menu paper, which is dark in
-  // dark mode.
   flexRow: {
     display: "flex",
     flexDirection: "row",
