@@ -6,6 +6,7 @@ import Plotly from "plotly.js-basic-dist";
 import createPlotlyComponent from "react-plotly.js/factory";
 
 import { makeStyles } from "tss-react/mui";
+import Box from "@mui/material/Box";
 import Slider from "@mui/material/Slider";
 import Select from "@mui/material/Select";
 import MenuItem from "@mui/material/MenuItem";
@@ -2786,23 +2787,25 @@ const PhotometryPlot = ({
                 </div>
               </Tooltip>
             </div>
-            <div
-              style={{ display: "flex", gap: "0.25rem", alignItems: "center" }}
-            >
-              <Typography id="photometry-negative-flux" noWrap>
-                Show negative flux
-              </Typography>
-              <Tooltip title="Flux view only. Plots the measured flux with its uncertainty, so a source fainter than the reference keeps its negative value instead of becoming an upper limit. A log flux axis cannot show it.">
-                <div className={classes.switchContainer}>
-                  <Switch
-                    checked={showNegativeFlux}
-                    onChange={() => setShowNegativeFlux(!showNegativeFlux)}
-                    slotProps={{ input: { "aria-label": "controlled" } }}
-                    size="small"
-                  />
-                </div>
-              </Tooltip>
-            </div>
+            {tabToPlotType(tabIndex) === "flux" && (
+              <Box
+                sx={{ display: "flex", gap: "0.25rem", alignItems: "center" }}
+              >
+                <Typography id="photometry-negative-flux" noWrap>
+                  Show negative flux
+                </Typography>
+                <Tooltip title="Plots the measured flux with its uncertainty, so a source fainter than the reference keeps its negative value instead of becoming an upper limit. A log flux axis cannot show it.">
+                  <div className={classes.switchContainer}>
+                    <Switch
+                      checked={showNegativeFlux}
+                      onChange={() => setShowNegativeFlux(!showNegativeFlux)}
+                      slotProps={{ input: { "aria-label": "controlled" } }}
+                      size="small"
+                    />
+                  </div>
+                </Tooltip>
+              </Box>
+            )}
           </div>
           <div className={classes.gridItem}>
             {t0 && (
