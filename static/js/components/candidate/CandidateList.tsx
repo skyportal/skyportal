@@ -637,7 +637,7 @@ const CandidateList = () => {
     [candidates],
   );
   const { data: hosts } = useGetBrokerHostsQuery(candidateIds, {
-    skip: candidateIds.length === 0,
+    skip: candidateIds.length === 0 || scanMode === "moving",
   });
 
   useEffect(() => {
