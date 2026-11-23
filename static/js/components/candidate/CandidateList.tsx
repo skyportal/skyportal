@@ -127,7 +127,7 @@ const InfoRow = ({
     {tooltip && (
       <Tooltip title={tooltip}>
         <HelpOutlineIcon
-          sx={{ fontSize: "1rem", color: "text.secondary", cursor: "help" }}
+          sx={{ fontSize: "0.8rem", color: "text.secondary", cursor: "help" }}
         />
       </Tooltip>
     )}

@@ -821,7 +821,7 @@ const SourceContent = ({ source }: SourceContentProps) => {
                 <Tooltip title="Events this object was matched to by the GCN crossmatch or by hand">
                   <HelpOutlineIcon
                     sx={{
-                      fontSize: "1rem",
+                      fontSize: "0.8rem",
                       color: "text.secondary",
                       cursor: "help",
                       mx: 0.5,
