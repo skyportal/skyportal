@@ -21,15 +21,19 @@ const groupOf = (path: string) =>
     : "alert";
 
 const Highlight = ({ text, query }: { text: string; query: string }) => {
-  const at = query ? text.toLowerCase().indexOf(query) : -1;
-  if (at < 0) return <>{text}</>;
+  const pattern = [...query.replaceAll("[]", "")]
+    .map((c) => c.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"))
+    .join("(?:\\[\\])?");
+  const match = pattern ? new RegExp(pattern, "i").exec(text) : null;
+  if (!match) return <>{text}</>;
+  const end = match.index + match[0].length;
   return (
     <>
-      {text.slice(0, at)}
+      {text.slice(0, match.index)}
       <Box component="mark" sx={{ bgcolor: "warning.light", px: 0 }}>
-        {text.slice(at, at + query.length)}
+        {text.slice(match.index, end)}
       </Box>
-      {text.slice(at + query.length)}
+      {text.slice(end)}
     </>
   );
 };
@@ -77,6 +81,7 @@ const BrokerSchema = ({
   const survey = searchParams.get("survey") || surveys[0] || "";
   const search = searchParams.get("search") ?? "";
   const query = search.trim().toLowerCase();
+  const pathQuery = query.replaceAll("[]", "");
   const target = decodeURIComponent(location.hash.slice(1));
   const [open, setOpen] = useState<Record<string, boolean>>({});
 
@@ -99,7 +104,7 @@ const BrokerSchema = ({
       const note = (owner && notes[owner]) || "";
       if (
         query &&
-        !field.path.toLowerCase().includes(query) &&
+        !field.path.toLowerCase().replaceAll("[]", "").includes(pathQuery) &&
         !note.toLowerCase().includes(query)
       ) {
         return;
@@ -108,7 +113,7 @@ const BrokerSchema = ({
       byGroup.set(group, [...(byGroup.get(group) ?? []), field]);
     });
     return [...byGroup];
-  }, [fields, notes, query]);
+  }, [fields, notes, query, pathQuery]);
 
   const shown = groups.reduce((n, [, rows]) => n + rows.length, 0);
 
