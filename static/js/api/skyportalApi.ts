@@ -94,12 +94,19 @@ const skyportalBaseQuery: BaseQueryFn<
   object,
   SkyportalMeta
 > = async (args, api, extraOptions) => {
-  const result = await rawBaseQuery(args, api, extraOptions);
+  const isGet =
+    typeof args === "string" || (args.method ?? "GET").toUpperCase() === "GET";
+  let result = await rawBaseQuery(args, api, extraOptions);
+  if (result.error?.status === "FETCH_ERROR" && isGet && !api.signal.aborted) {
+    await new Promise((resolve) => setTimeout(resolve, 1000));
+    result = await rawBaseQuery(args, api, extraOptions);
+  }
 
   // Endpoints that expect misses (e.g. "is this object already a source?") can
   // opt out of the automatic error notification.
-  const quiet = (extraOptions as { suppressErrorNotification?: boolean })
-    ?.suppressErrorNotification;
+  const quiet =
+    (extraOptions as { suppressErrorNotification?: boolean })
+      ?.suppressErrorNotification || api.signal.aborted;
 
   if (result.error) {
     if (!quiet) {
