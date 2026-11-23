@@ -2786,23 +2786,29 @@ const PhotometryPlot = ({
                 </div>
               </Tooltip>
             </div>
-            <div
-              style={{ display: "flex", gap: "0.25rem", alignItems: "center" }}
-            >
-              <Typography id="photometry-negative-flux" noWrap>
-                Show negative flux
-              </Typography>
-              <Tooltip title="Flux view only. Plots the measured flux with its uncertainty, so a source fainter than the reference keeps its negative value instead of becoming an upper limit. A log flux axis cannot show it.">
-                <div className={classes.switchContainer}>
-                  <Switch
-                    checked={showNegativeFlux}
-                    onChange={() => setShowNegativeFlux(!showNegativeFlux)}
-                    slotProps={{ input: { "aria-label": "controlled" } }}
-                    size="small"
-                  />
-                </div>
-              </Tooltip>
-            </div>
+            {tabToPlotType(tabIndex) === "flux" && (
+              <div
+                style={{
+                  display: "flex",
+                  gap: "0.25rem",
+                  alignItems: "center",
+                }}
+              >
+                <Typography id="photometry-negative-flux" noWrap>
+                  Show negative flux
+                </Typography>
+                <Tooltip title="Flux view only. Plots the measured flux with its uncertainty, so a source fainter than the reference keeps its negative value instead of becoming an upper limit. A log flux axis cannot show it.">
+                  <div className={classes.switchContainer}>
+                    <Switch
+                      checked={showNegativeFlux}
+                      onChange={() => setShowNegativeFlux(!showNegativeFlux)}
+                      slotProps={{ input: { "aria-label": "controlled" } }}
+                      size="small"
+                    />
+                  </div>
+                </Tooltip>
+              </div>
+            )}
           </div>
           <div className={classes.gridItem}>
             {t0 && (
