@@ -22,6 +22,7 @@ import {
   cardNoteSx,
   cardSx,
   cardTitleSx,
+  chevronSx,
   linkButtonSx,
   pillButtonSx,
 } from "./assistantStyles";
@@ -80,13 +81,7 @@ const ProposalCard = ({
         sx={linkButtonSx}
       >
         Pipeline
-        <ExpandMoreIcon
-          sx={{
-            fontSize: "1rem",
-            transition: "transform 150ms",
-            transform: showPipeline ? "rotate(180deg)" : "none",
-          }}
-        />
+        <ExpandMoreIcon sx={chevronSx(showPipeline)} />
       </Box>
       <Collapse in={showPipeline} unmountOnExit sx={{ alignSelf: "stretch" }}>
         <Box

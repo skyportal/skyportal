@@ -5,7 +5,7 @@ import Box from "@mui/material/Box";
 import Collapse from "@mui/material/Collapse";
 
 import { AssistantToolCall } from "../../ducks/assistant";
-import { linkButtonSx } from "./assistantStyles";
+import { chevronSx, linkButtonSx } from "./assistantStyles";
 
 // The arguments worth showing in the one-line summary of a call. A pipeline is
 // the whole point of the call it appears in, and is shown in the proposal.
@@ -45,13 +45,7 @@ const AssistantToolTrace = ({ calls }: AssistantToolTraceProps) => {
             </Box>
           )}
         </span>
-        <ExpandMoreIcon
-          sx={{
-            fontSize: "1rem",
-            transition: "transform 150ms",
-            transform: open ? "rotate(180deg)" : "none",
-          }}
-        />
+        <ExpandMoreIcon sx={chevronSx(open)} />
       </Box>
       <Collapse in={open} unmountOnExit>
         <Box

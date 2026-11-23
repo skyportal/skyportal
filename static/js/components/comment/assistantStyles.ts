@@ -89,3 +89,9 @@ export const linkButtonSx = (theme: Theme) => ({
   cursor: "pointer",
   "&:hover": { color: theme.palette.text.primary },
 });
+
+export const chevronSx = (open: boolean) => ({
+  fontSize: "1rem",
+  transition: "transform 150ms",
+  transform: open ? "rotate(180deg)" : "none",
+});
