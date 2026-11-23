@@ -3,6 +3,7 @@ import Link from "@mui/material/Link";
 import Box from "@mui/material/Box";
 import Chip from "@mui/material/Chip";
 import Popover from "@mui/material/Popover";
+import { alpha } from "@mui/material/styles";
 import type { BrokerHost } from "../../ducks/brokers";
 
 export const zDigits = (zErr: number | null | undefined) =>
@@ -97,7 +98,22 @@ export const HostChip = ({
         variant={host.primary ? "filled" : "outlined"}
         onClick={(e) => setAnchor(e.currentTarget)}
         onDelete={onDelete}
-        sx={host.primary ? {} : { bgcolor: "background.paper" }}
+        sx={
+          host.primary
+            ? (theme) => {
+                const { main, dark, light } = theme.palette.primary;
+                return {
+                  bgcolor: alpha(main, 0.2),
+                  color: theme.palette.mode === "dark" ? light : dark,
+                  "&:hover": { bgcolor: alpha(main, 0.28) },
+                  "& .MuiChip-deleteIcon": {
+                    color: alpha(main, 0.45),
+                    "&:hover": { color: main },
+                  },
+                };
+              }
+            : { bgcolor: "background.paper" }
+        }
         label={
           <Box
             component="span"
