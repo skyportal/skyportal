@@ -157,7 +157,6 @@ export const useSourceStyles = makeStyles()((theme) => ({
     padding: 0,
     margin: 0,
   },
-  noSpace: { padding: 0, margin: 0 },
   // `inherit`, not a fixed colour: these sit on menu paper, which is dark in
   // dark mode.
   flexRow: {
@@ -1127,77 +1126,90 @@ const SourceContent = ({ source }: SourceContentProps) => {
             {/* checking if the id exists is a way to know if the user profile is loaded or not */}
             {currentUser?.id &&
               !currentUser?.preferences?.["hideSourceSummary"] && (
-                <Paper
-                  className={classes.flexColumn}
-                  style={{
-                    marginTop: "0.5rem",
-                    padding: noSummary
-                      ? "0.5rem 0 0.5rem 0.5rem"
-                      : "0.25rem 0.25rem 0 0.25rem",
-                  }}
-                  variant={(noSummary ? "contained" : "outlined") as any}
-                  elevation={noSummary ? 1 : 0}
+                <Box
+                  sx={(theme) => ({
+                    display: "flex",
+                    alignItems: "flex-start",
+                    gap: 1,
+                    mt: 0.75,
+                    py: 1,
+                    pl: 1.5,
+                    pr: 0.5,
+                    borderRadius: "8px",
+                    borderLeft: `3px solid ${alpha(theme.palette.primary.main, 0.5)}`,
+                    bgcolor: alpha(theme.palette.text.primary, 0.035),
+                  })}
                 >
-                  <ShowSummaries
-                    summaries={source.summary_history || []}
-                    showAISummaries={
-                      (currentUser?.preferences?.["showAISourceSummary"] ||
-                        false) as any
-                    }
-                  />
-                  <div
-                    className={classes.flexRow}
-                    style={{
-                      justifyContent: noSummary ? "space-between" : "flex-end",
-                      alignItems: "center",
-                      maxHeight: "1rem",
-                      width: "100%",
-                    }}
-                  >
-                    {noSummary ? (
-                      <p
-                        className={classes.noSpace}
-                        style={{
-                          fontSize: "0.75rem",
-                          color: "grey",
-                          marginRight: "0.25rem",
-                        }}
-                      >
-                        {`No${noHumanSummary ? " (human) " : " "}summary yet.`}
-                      </p>
-                    ) : null}
-                    <div
-                      className={classes.flexRow}
-                      style={{
-                        alignItems: "center",
-                        width: "auto",
-                        marginTop: noSummary ? "0.25rem" : 0,
+                  <Box sx={{ flex: 1, minWidth: 0 }}>
+                    <Box
+                      sx={{
+                        fontSize: "0.65rem",
+                        fontWeight: 600,
+                        letterSpacing: "0.06em",
+                        textTransform: "uppercase",
+                        color: "text.secondary",
+                        mb: 0.25,
                       }}
                     >
-                      {!isReadOnly && (
-                        <UpdateSourceSummary
-                          source={source}
+                      Summary
+                    </Box>
+                    {noSummary ? (
+                      <Box
+                        sx={{
+                          fontSize: "0.85rem",
+                          fontStyle: "italic",
+                          color: "text.secondary",
+                        }}
+                      >
+                        {`No${noHumanSummary ? " human" : ""} summary yet`}
+                      </Box>
+                    ) : (
+                      <Box
+                        sx={{
+                          "& p": { fontSize: "0.9rem", lineHeight: 1.5 },
+                          "& > div > div": { p: 0 },
+                        }}
+                      >
+                        <ShowSummaries
+                          summaries={source.summary_history || []}
                           showAISummaries={
                             (currentUser?.preferences?.[
                               "showAISourceSummary"
                             ] || false) as any
                           }
                         />
+                      </Box>
+                    )}
+                  </Box>
+                  <Box
+                    sx={{
+                      display: "flex",
+                      alignItems: "center",
+                      flexShrink: 0,
+                    }}
+                  >
+                    {!isReadOnly && (
+                      <UpdateSourceSummary
+                        source={source}
+                        showAISummaries={
+                          (currentUser?.preferences?.["showAISourceSummary"] ||
+                            false) as any
+                        }
+                      />
+                    )}
+                    {!isReadOnly &&
+                      (source.comments?.length > 0 ||
+                        source.classifications?.length > 0) && (
+                        <StartBotSummary obj_id={source.id} />
                       )}
-                      {!isReadOnly &&
-                        (source.comments?.length > 0 ||
-                          source.classifications?.length > 0) && (
-                          <StartBotSummary obj_id={source.id} />
-                        )}
-                      {source.summary_history?.length > 0 && (
-                        <ShowSummaryHistory
-                          summaries={source.summary_history}
-                          obj_id={source.id}
-                        />
-                      )}
-                    </div>
-                  </div>
-                </Paper>
+                    {source.summary_history?.length > 0 && (
+                      <ShowSummaryHistory
+                        summaries={source.summary_history}
+                        obj_id={source.id}
+                      />
+                    )}
+                  </Box>
+                </Box>
               )}
             <Box
               sx={(theme) => ({
