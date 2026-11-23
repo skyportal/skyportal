@@ -29,6 +29,7 @@ import Typography from "@mui/material/Typography";
 import CircularProgress from "@mui/material/CircularProgress";
 import AddIcon from "@mui/icons-material/Add";
 import Menu from "@mui/material/Menu";
+import Divider from "@mui/material/Divider";
 import MenuItem from "@mui/material/MenuItem";
 import IconButton from "@mui/material/IconButton";
 import Paper from "@mui/material/Paper";
@@ -154,7 +155,6 @@ export const useSourceStyles = makeStyles()((theme) => ({
   noSpace: { padding: 0, margin: 0 },
   // `inherit`, not a fixed colour: these sit on menu paper, which is dark in
   // dark mode.
-  dropdownText: { textDecoration: "none", color: "inherit" },
   noWrapMargin: {
     marginRight: "0.5rem",
     textWrap: "nowrap",
@@ -312,10 +312,10 @@ const SourceContent = ({ source }: SourceContentProps) => {
 
   // Needed for buttons that open popover menus, indicates where the popover should be anchored
   // (where it will appear on the screen)
-  const [anchorElFindingChart, setAnchorElFindingChart] = useState<any>(null);
-  const [anchorElObservability, setAnchorElObservability] = useState<any>(null);
-  const openFindingChart = Boolean(anchorElFindingChart);
-  const openObservability = Boolean(anchorElObservability);
+  const [anchorElObserving, setAnchorElObserving] =
+    useState<HTMLElement | null>(null);
+  const [anchorElShare, setAnchorElShare] = useState<HTMLElement | null>(null);
+  const [publishDialogOpen, setPublishDialogOpen] = useState(false);
 
   const [showStarList, setShowStarList] = useState(false);
   const [showPhotometry, setShowPhotometry] = useState(false);
@@ -986,134 +986,131 @@ const SourceContent = ({ source }: SourceContentProps) => {
                   })}`}
                   target="_blank"
                 >
-                  <Button primary size="small">
+                  <Button secondary size="small">
                     Search alerts
                   </Button>
                 </Link>
               ) : (
                 <Tooltip title="No broker is set as the default for alert search">
                   <span>
-                    <Button primary size="small" disabled>
+                    <Button secondary size="small" disabled>
                       Search alerts
                     </Button>
                   </span>
                 </Tooltip>
               )}
-              <div>
-                <Button
-                  aria-controls={openFindingChart ? "basic-menu" : undefined}
-                  aria-haspopup="true"
-                  aria-expanded={openFindingChart ? "true" : undefined}
-                  onClick={(e: any) => setAnchorElFindingChart(e.currentTarget)}
-                  secondary
-                  size="small"
-                  endIcon={<ExpandMoreIcon />}
+              <Button
+                secondary
+                size="small"
+                endIcon={<ExpandMoreIcon />}
+                aria-haspopup="true"
+                aria-expanded={Boolean(anchorElObserving)}
+                onClick={(e: any) => setAnchorElObserving(e.currentTarget)}
+              >
+                Observing
+              </Button>
+              <Menu
+                transitionDuration={50}
+                anchorEl={anchorElObserving}
+                open={Boolean(anchorElObserving)}
+                onClose={() => setAnchorElObserving(null)}
+                slotProps={{ list: { dense: true } }}
+              >
+                <MenuItem
+                  component={Link}
+                  to={`/source/${source.id}/finder`}
+                  target="_blank"
+                  onClick={() => setAnchorElObserving(null)}
                 >
                   Finding chart
-                </Button>
-                <Menu
-                  transitionDuration={50}
-                  id="finding-chart-menu"
-                  anchorEl={anchorElFindingChart}
-                  open={openFindingChart}
-                  onClose={() => setAnchorElFindingChart(null)}
-                  slotProps={{
-                    list: {
-                      "aria-labelledby": "basic-button",
-                    },
-                  }}
+                </MenuItem>
+                <MenuItem
+                  component="a"
+                  href={`/api/sources/${source.id}/finder`}
+                  download="finder-chart"
+                  onClick={() => setAnchorElObserving(null)}
                 >
-                  <MenuItem
-                    component="a"
-                    href={`/api/sources/${source.id}/finder`}
-                    download="finder-chart"
-                    className={classes.dropdownText}
-                    onClick={() => setAnchorElFindingChart(null)}
-                  >
-                    PDF
-                  </MenuItem>
-                  <MenuItem onClick={() => setAnchorElFindingChart(null)}>
-                    <Link
-                      to={`/source/${source.id}/finder`}
-                      role="link"
-                      className={classes.dropdownText}
-                      target="_blank"
-                    >
-                      Interactive
-                    </Link>
-                  </MenuItem>
-                </Menu>
-              </div>
-              <div>
-                <Button
-                  secondary
-                  size="small"
-                  onClick={() => setShowStarList(!showStarList)}
-                >
-                  {showStarList ? "Hide starlist" : "Show starlist"}
-                </Button>
-              </div>
-              <div>
-                <Button
-                  aria-controls={openObservability ? "basic-menu" : undefined}
-                  aria-haspopup="true"
-                  aria-expanded={openObservability ? "true" : undefined}
-                  onClick={(e: any) =>
-                    setAnchorElObservability(e.currentTarget)
-                  }
-                  secondary
-                  size="small"
-                  endIcon={<ExpandMoreIcon />}
+                  Finding chart PDF
+                </MenuItem>
+                <Divider />
+                <MenuItem
+                  component={Link}
+                  to={`/observability/${source.id}`}
+                  target="_blank"
+                  onClick={() => setAnchorElObserving(null)}
                 >
                   Observability
-                </Button>
-                <Menu
-                  transitionDuration={50}
-                  id="observability-chart-menu"
-                  anchorEl={anchorElObservability}
-                  open={openObservability}
-                  onClose={() => setAnchorElObservability(null)}
-                  slotProps={{
-                    list: {
-                      "aria-labelledby": "basic-button",
-                    },
+                </MenuItem>
+                <MenuItem
+                  component="a"
+                  href={`/api/sources/${source.id}/observability`}
+                  download={`observabilityChartRequest-${source.id}`}
+                  data-testid={`observabilityChartRequest_${source.id}`}
+                  onClick={() => setAnchorElObserving(null)}
+                >
+                  Observability PDF
+                </MenuItem>
+                <Divider />
+                <MenuItem
+                  onClick={() => {
+                    setShowStarList(!showStarList);
+                    setAnchorElObserving(null);
                   }}
                 >
-                  <MenuItem
-                    component="a"
-                    href={`/api/sources/${source.id}/observability`}
-                    download={`observabilityChartRequest-${source.id}`}
-                    data-testid={`observabilityChartRequest_${source.id}`}
-                    className={classes.dropdownText}
-                    onClick={() => setAnchorElObservability(null)}
-                  >
-                    PDF
-                  </MenuItem>
-                  <MenuItem onClick={() => setAnchorElObservability(null)}>
-                    <Link
-                      to={`/observability/${source.id}`}
-                      role="link"
-                      className={classes.dropdownText}
-                      target="_blank"
-                    >
-                      Interactive
-                    </Link>
-                  </MenuItem>
-                </Menu>
-              </div>
+                  {showStarList ? "Hide starlist" : "Show starlist"}
+                </MenuItem>
+              </Menu>
               {!isReadOnly && (
                 <>
                   <Button
-                    onClick={() => setSendToDialogOpen(true)}
                     secondary
                     size="small"
+                    endIcon={<ExpandMoreIcon />}
+                    aria-haspopup="true"
+                    aria-expanded={Boolean(anchorElShare)}
+                    onClick={(e: any) => setAnchorElShare(e.currentTarget)}
                   >
-                    Send to
+                    Share
                   </Button>
+                  <Menu
+                    transitionDuration={50}
+                    anchorEl={anchorElShare}
+                    open={Boolean(anchorElShare)}
+                    onClose={() => setAnchorElShare(null)}
+                    slotProps={{ list: { dense: true } }}
+                  >
+                    <MenuItem
+                      onClick={() => {
+                        setSendToDialogOpen(true);
+                        setAnchorElShare(null);
+                      }}
+                    >
+                      Send to
+                    </MenuItem>
+                    <MenuItem
+                      onClick={() => {
+                        setPublishDialogOpen(true);
+                        setAnchorElShare(null);
+                      }}
+                    >
+                      Public access
+                    </MenuItem>
+                  </Menu>
                   <SharingServicesDialog
                     obj_id={source.id}
                     dialogOpen={sendToDialogOpen}
                     setDialogOpen={setSendToDialogOpen}
+                  />
+                  <SourcePublish
+                    sourceId={source.id}
+                    isElements={{
+                      summary: source.summary_history?.length > 0,
+                      photometry: source.photometry_exists,
+                      spectroscopy: source.spectrum_exists,
+                      classifications: source.classifications?.length > 0,
+                    }}
+                    open={publishDialogOpen}
+                    onClose={() => setPublishDialogOpen(false)}
                   />
                 </>
               )}
@@ -1122,17 +1119,6 @@ const SourceContent = ({ source }: SourceContentProps) => {
                   summaries={source.summary_history || []}
                   obj_id={source.id}
                   button
-                />
-              )}
-              {!isReadOnly && (
-                <SourcePublish
-                  sourceId={source.id}
-                  isElements={{
-                    summary: source.summary_history?.length > 0,
-                    photometry: source.photometry_exists,
-                    spectroscopy: source.spectrum_exists,
-                    classifications: source.classifications?.length > 0,
-                  }}
                 />
               )}
               {!isReadOnly && (
