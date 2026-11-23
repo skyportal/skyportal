@@ -1171,7 +1171,9 @@ def _note_owner(path, notes):
     "prefix of the field you are reading: the note on "
     "`properties.photstats.r.rising` governs `...rising.rate` under it. Before "
     "cutting on a field, read its note and the notes on its prefixes; the cut "
-    "that looks obvious is the one a note usually contradicts.",
+    "that looks obvious is the one a note usually contradicts. `page` is the "
+    "page where a person can browse and search every field: link it when they "
+    "ask for the full list.",
     {
         "broker_id": _prop("integer", "Broker ID."),
         "survey": _prop("string", "Survey whose alerts the filter runs on, e.g. ZTF."),
@@ -1207,8 +1209,12 @@ async def get_alert_schema(handler, args):
 
     limit = args.get("limit") or 200
     shown = paths[:limit]
+    page_query = {"tab": "schema", "survey": args["survey"]}
+    if args.get("search"):
+        page_query["search"] = args["search"]
     return {
         "survey": args["survey"],
+        "page": f"/brokers/{broker_id}?{urlencode(page_query)}",
         "matched": len(paths),
         "truncated": len(paths) > limit,
         "fields": dict(shown),

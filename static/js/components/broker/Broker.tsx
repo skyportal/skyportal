@@ -28,6 +28,7 @@ import BrokerAlertSearch, {
   searchSurvey,
 } from "./BrokerAlertSearch";
 import BrokerCredentialsForm from "./BrokerCredentialsForm";
+import BrokerSchema from "./BrokerSchema";
 import FilterCatalog from "./FilterCatalog";
 import { AlertFilter, fieldsOf, flatten, matchesFilters } from "./alertFields";
 import NewFilterDialog from "../filter/NewFilterDialog";
@@ -53,7 +54,12 @@ const Broker = () => {
   const [queriedDesignation, setQueriedDesignation] = useState("");
   const [queriedSurvey, setQueriedSurvey] = useState("");
   const [page, setPage] = useState(1);
-  const [tab, setTab] = useTabParam(["alerts", "filters", "credentials"]);
+  const [tab, setTab] = useTabParam([
+    "alerts",
+    "filters",
+    "schema",
+    "credentials",
+  ]);
   const [newFilterOpen, setNewFilterOpen] = useState(false);
   const [filters, setFilters] = useState<AlertFilter[]>([]);
 
@@ -77,6 +83,12 @@ const Broker = () => {
       disabledReason: hasFilters
         ? ""
         : `${broker?.name} does not support filters.`,
+    },
+    {
+      label: "Schema",
+      disabledReason: broker?.capabilities?.["filter_modules"]
+        ? ""
+        : `${broker?.name} does not publish an alert schema.`,
     },
     { label: "Credentials", disabledReason: "" },
   ];
@@ -236,13 +248,16 @@ const Broker = () => {
           )}
 
           {activeTab === 1 && <FilterCatalog brokerId={brokerId} />}
+          {activeTab === 2 && (
+            <BrokerSchema brokerId={brokerId} surveys={surveys} />
+          )}
 
           <NewFilterDialog
             open={newFilterOpen}
             onClose={() => setNewFilterOpen(false)}
             brokerId={brokerId}
           />
-          {activeTab === 2 && (
+          {activeTab === 3 && (
             <BrokerCredentialsForm
               brokerId={brokerId}
               brokerClassname={broker.broker_classname}
