@@ -23,7 +23,6 @@ import Accordion from "@mui/material/Accordion";
 import AccordionSummary from "@mui/material/AccordionSummary";
 import AccordionDetails from "@mui/material/AccordionDetails";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
-import HelpOutlineIcon from "@mui/icons-material/HelpOutlineOutlined";
 import Typography from "@mui/material/Typography";
 
 import CircularProgress from "@mui/material/CircularProgress";
@@ -129,6 +128,7 @@ import {
   useGetBrokersQuery,
 } from "../../ducks/brokers";
 import SourceHost from "./SourceHost";
+import FieldLabel from "./FieldLabel";
 
 // The legacy <font> element isn't in React's JSX intrinsic types; alias it
 // through `any` so the existing markup keeps rendering unchanged.
@@ -143,7 +143,7 @@ const CentroidPlot = React.lazy(
 export const useSourceStyles = makeStyles()((theme) => ({
   header: {
     display: "flex",
-    justifyContent: "space-between",
+    flexWrap: "wrap",
     alignItems: "center",
     columnGap: "0.25rem",
     marginBottom: "0.25rem",
@@ -224,13 +224,6 @@ export const useSourceStyles = makeStyles()((theme) => ({
     display: "flex",
     flexFlow: "row wrap",
     alignItems: "center",
-  },
-  infoLine: {
-    // Get its own line
-    flexBasis: "100%",
-    display: "flex",
-    flexFlow: "row wrap",
-    gap: "0.5rem",
   },
   rowInfo: {
     display: "flex",
@@ -649,6 +642,11 @@ const SourceContent = ({ source }: SourceContentProps) => {
                     candidates={source?.candidates || []}
                   />
                 </div>
+                {!isReadOnly && (
+                  <Box sx={{ ml: 1 }}>
+                    <ObjectTags source={source} />
+                  </Box>
+                )}
               </div>
               {!downLg && (
                 <div className={classes.container}>
@@ -666,19 +664,16 @@ const SourceContent = ({ source }: SourceContentProps) => {
                 </div>
               )}
             </div>
-            <div style={{ marginBottom: "0.25rem" }}>
-              <ShowClassification
-                classifications={source.classifications}
-                taxonomyList={taxonomyList}
-                shortened
-              />
-            </div>
-            {!isReadOnly && (
-              <div style={{ marginBottom: "0.25rem" }}>
-                <ObjectTags source={source} />
-              </div>
+            {source.classifications?.length > 0 && (
+              <Box sx={{ mb: 0.5 }}>
+                <ShowClassification
+                  classifications={source.classifications}
+                  taxonomyList={taxonomyList}
+                  shortened
+                />
+              </Box>
             )}
-            <SourceCoordinates classes={classes} source={sourceWithPosition} />
+            <SourceCoordinates source={sourceWithPosition} />
             <div
               className={classes.flexRow}
               style={{
@@ -691,35 +686,72 @@ const SourceContent = ({ source }: SourceContentProps) => {
                   distance derive from it, so they drop out on their own. */}
               {!source.is_roid && (
                 <div style={{ marginRight: "0.5rem" }}>
-                  <b>Redshift: &nbsp;</b>
+                  <FieldLabel>Redshift</FieldLabel>
                   <SourceRedshift source={source} readOnly={isReadOnly} />
                 </div>
               )}
               <div className={classes.dmdlInfo}>
                 {source.dm && (
                   <div>
-                    <b>DM: &nbsp;</b>
-                    {source.dm.toFixed(3)}
-                    &nbsp; mag
+                    <FieldLabel>DM</FieldLabel>
+                    {source.dm.toFixed(3)} mag
                   </div>
                 )}
                 {source.luminosity_distance && (
                   <div>
-                    <b>
+                    <FieldLabel>
                       <i>D</i>
-                      <sub>L</sub>: &nbsp;
-                    </b>
-                    {source.luminosity_distance.toFixed(2)}
-                    &nbsp; Mpc
+                      <sub>L</sub>
+                    </FieldLabel>
+                    {source.luminosity_distance.toFixed(2)} Mpc
                   </div>
                 )}
                 <div>
-                  <b>T0: &nbsp;</b>
+                  <FieldLabel>T0</FieldLabel>
                   {source.t0}
                   {!isReadOnly && <UpdateSourceT0 source={source} />}
                 </div>
+              </div>
+            </div>
+            <div
+              className={classes.flexRow}
+              style={{
+                justifyContent: "flex-start",
+                alignItems: "center",
+                flexFlow: "wrap",
+                columnGap: "1rem",
+              }}
+            >
+              <div className={classes.rowInfo} data-testid="tour-source-tns">
+                <Tooltip title="Transient reported at this position, from the Transient Name Server">
+                  <FieldLabel>TNS</FieldLabel>
+                </Tooltip>
+                {source.tns_name && (
+                  <Chip
+                    size="small"
+                    label={source.tns_name}
+                    component="a"
+                    href={`https://www.wis-tns.org/object/${
+                      source.tns_name.trim().includes(" ")
+                        ? source.tns_name.split(" ")[1]
+                        : source.tns_name
+                    }`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    clickable
+                  />
+                )}
+                {source.tns_info && (
+                  <DisplayTNSInfo
+                    tns_info={source.tns_info}
+                    display_header={false}
+                  />
+                )}
+                {!source.tns_name && !isReadOnly && (
+                  <UpdateSourceTNS sourceId={source.id} />
+                )}
                 {!isReadOnly && (
-                  <div>
+                  <Box sx={{ ml: 1 }}>
                     <Tooltip
                       title={`Never send this source to TNS, automatically or manually.${
                         source.withhold_from_tns_set_at
@@ -751,51 +783,12 @@ const SourceContent = ({ source }: SourceContentProps) => {
                         slotProps={{ typography: { variant: "body2" } }}
                       />
                     </Tooltip>
-                  </div>
-                )}
-              </div>
-            </div>
-            <div
-              className={classes.flexRow}
-              style={{
-                justifyContent: "flex-start",
-                alignItems: "center",
-                flexFlow: "wrap",
-                columnGap: "1rem",
-              }}
-            >
-              <div className={classes.rowInfo} data-testid="tour-source-tns">
-                <Tooltip title="Transient reported at this position, from the Transient Name Server">
-                  <b>TNS: &nbsp;</b>
-                </Tooltip>
-                {source.tns_name && (
-                  <Chip
-                    size="small"
-                    label={source.tns_name}
-                    component="a"
-                    href={`https://www.wis-tns.org/object/${
-                      source.tns_name.trim().includes(" ")
-                        ? source.tns_name.split(" ")[1]
-                        : source.tns_name
-                    }`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    clickable
-                  />
-                )}
-                {source.tns_info && (
-                  <DisplayTNSInfo
-                    tns_info={source.tns_info}
-                    display_header={false}
-                  />
-                )}
-                {!source.tns_name && !isReadOnly && (
-                  <UpdateSourceTNS sourceId={source.id} />
+                  </Box>
                 )}
               </div>
               <Box className={classes.rowInfo} sx={{ position: "relative" }}>
                 <Tooltip title="Known solar system object at this position, from the Minor Planet Center">
-                  <b>MPC: &nbsp;</b>
+                  <FieldLabel>MPC</FieldLabel>
                 </Tooltip>
                 {source.mpc_name && (
                   <Chip size="small" label={source.mpc_name} />
@@ -810,16 +803,8 @@ const SourceContent = ({ source }: SourceContentProps) => {
                   ))}
               </Box>
               <Box className={classes.rowInfo} sx={{ position: "relative" }}>
-                <b>GCN matches:</b>
                 <Tooltip title="Events this object was matched to by the GCN crossmatch or by hand">
-                  <HelpOutlineIcon
-                    sx={{
-                      fontSize: "0.8rem",
-                      color: "text.secondary",
-                      cursor: "help",
-                      mx: 0.5,
-                    }}
-                  />
+                  <FieldLabel>GCN matches</FieldLabel>
                 </Tooltip>
                 {source.gcn_crossmatch?.length > 0 && (
                   <SourceGCNCrossmatchList

@@ -15,6 +15,7 @@ import { useAppDispatch } from "../../types/hooks";
 import Button from "../Button";
 import FormValidationError from "../FormValidationError";
 import { useUpdateSourceMutation } from "../../ducks/source";
+import FieldLabel from "./FieldLabel";
 
 const useStyles = makeStyles()(() => ({
   container: {
@@ -109,7 +110,7 @@ const SourceAlias = ({ source }: SourceAliasProps) => {
   return (
     <>
       <div className={classes.container}>
-        <b>Aliases:</b>
+        <FieldLabel>Aliases</FieldLabel>
         {aliases.length === 0 && <span className={classes.none}>none</span>}
         {aliases.map((a, idx) => (
           <Chip
