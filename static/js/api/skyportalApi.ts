@@ -82,10 +82,13 @@ function errorMessage(error: FetchBaseQueryError): string {
   return "Unexpected response from the server. Try reloading the page.";
 }
 
+const lastErrorShown = new Map<string, number>();
+
 /**
  * Wraps `fetchBaseQuery` to (a) unwrap the SkyPortal `{status,data}` envelope
  * and (b) treat `status: "error"` (returned with HTTP 200) as an error. On any
- * error it dispatches an error notification.
+ * error it dispatches an error notification, once per message when several
+ * requests fail together.
  */
 const skyportalBaseQuery: BaseQueryFn<
   string | FetchArgs,
@@ -108,9 +111,18 @@ const skyportalBaseQuery: BaseQueryFn<
     (extraOptions as { suppressErrorNotification?: boolean })
       ?.suppressErrorNotification || api.signal.aborted;
 
+  const notify = (message: string) => {
+    const now = Date.now();
+    if (now - (lastErrorShown.get(message) ?? 0) < 3000) {
+      return;
+    }
+    lastErrorShown.set(message, now);
+    api.dispatch(showNotification(message, "error"));
+  };
+
   if (result.error) {
     if (!quiet) {
-      api.dispatch(showNotification(errorMessage(result.error), "error"));
+      notify(errorMessage(result.error));
     }
     return result;
   }
@@ -119,7 +131,7 @@ const skyportalBaseQuery: BaseQueryFn<
   if (envelope?.status !== "success") {
     const message = envelope?.message ?? "Unknown API error";
     if (!quiet) {
-      api.dispatch(showNotification(`${message}`, "error"));
+      notify(`${message}`);
     }
     return {
       error: {
