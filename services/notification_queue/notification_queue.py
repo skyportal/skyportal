@@ -393,6 +393,18 @@ def send_email_notification(target):
         log(f"Error sending email notification: {e}")
 
 
+def plain_text(target):
+    resource_type = notification_resource_type(target)
+    content = target.get("content")
+    if content and resource_type in DISCUSSION_TYPES:
+        return discussion_notification_text(content, str, bold="")
+    if content and resource_type == "feedback":
+        return feedback_notification_text(content, str, bold="")
+    if content and resource_type == "group_admission_request":
+        return group_admission_request_notification_text(content, str, bold="")
+    return target["text"].replace("*", "")
+
+
 def send_sms_notification(target):
     resource_type = notification_resource_type(target)
     prefs = user_preferences(target, "sms", resource_type)
@@ -427,7 +439,7 @@ def send_sms_notification(target):
     if sending:
         try:
             client.messages.create(
-                body=f"{cfg['app.title']} - {target['text']}",
+                body=f"{cfg['app.title']} - {plain_text(target)}",
                 from_=from_number,
                 to=target["user"]["contact_phone"].e164,
             )
@@ -519,7 +531,7 @@ def send_whatsapp_notification(target):
     if sending:
         try:
             client.messages.create(
-                body=f"{cfg['app.title']} - {target['text']}",
+                body=f"{cfg['app.title']} - {plain_text(target)}",
                 from_="whatsapp:" + str(from_number),
                 to="whatsapp:" + str(target["user"]["contact_phone"].e164),
             )
