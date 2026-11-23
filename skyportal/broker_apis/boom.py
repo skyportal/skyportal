@@ -1682,9 +1682,8 @@ class BOOMBROKER(BrokerAPI):
         survey = kwargs.get("survey")
         if survey is None and kwargs.get("selectedCollection"):
             survey = str(kwargs["selectedCollection"]).split("_")[0]
-        survey = survey or _survey(kwargs)
 
-        programids = _programids(kwargs, survey)
+        stream_altdata = None
         if kwargs.get("filter_id") is not None:
             import sqlalchemy as sa
             from sqlalchemy.orm import joinedload
@@ -1697,12 +1696,19 @@ class BOOMBROKER(BrokerAPI):
                 .where(Filter.id == int(kwargs["filter_id"]))
             )
             if f is not None and f.stream and isinstance(f.stream.altdata, dict):
-                selector = f.stream.altdata.get("selector") or []
-                programids = (
-                    list(selector)
-                    if programids is None
-                    else sorted(set(selector) & set(programids))
-                )
+                stream_altdata = f.stream.altdata
+        if survey is None and stream_altdata and stream_altdata.get("collection"):
+            survey = str(stream_altdata["collection"]).split("_")[0].upper()
+        survey = survey or _survey(kwargs)
+
+        programids = _programids(kwargs, survey)
+        if stream_altdata is not None:
+            selector = stream_altdata.get("selector") or []
+            programids = (
+                list(selector)
+                if programids is None
+                else sorted(set(selector) & set(programids))
+            )
 
         if programids is None:
             # BOOM rejects an empty permissions map, so an unrestricted user
