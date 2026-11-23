@@ -4,6 +4,7 @@ import remarkGfm from "remark-gfm";
 import { isMobile } from "react-device-detect";
 import { Link as RouterLink } from "react-router-dom";
 
+import Box from "@mui/material/Box";
 import IconButton from "@mui/material/IconButton";
 import Link from "@mui/material/Link";
 import Tooltip from "@mui/material/Tooltip";
@@ -11,7 +12,6 @@ import Typography from "@mui/material/Typography";
 import CloseIcon from "@mui/icons-material/Close";
 import EditIcon from "@mui/icons-material/Edit";
 import GroupIcon from "@mui/icons-material/Group";
-import SmartToyIcon from "@mui/icons-material/SmartToy";
 
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
@@ -36,18 +36,20 @@ import {
   useDeleteCommentOnEarthquakeMutation,
 } from "../../ducks/earthquake";
 import { useGetConfigQuery } from "../../ducks/config";
+import { useGetProfileQuery } from "../../ducks/profile";
 import { useGetStreamsQuery } from "../../ducks/streams";
 import UserAvatar from "../user/UserAvatar";
 
 import CommentAttachmentPreview from "./CommentAttachmentPreview";
+import { bubbleSx } from "./chatStyles";
 import CommentForm from "./CommentForm";
 import { rehypeEmoji } from "./rehypeEmoji";
 
 dayjs.extend(relativeTime);
 dayjs.extend(utc);
 
-const actionButtonStyle = {
-  padding: "0.125rem",
+const actionButtonSx = {
+  padding: "0.2rem",
   color: "text.secondary",
 };
 
@@ -79,7 +81,6 @@ interface CommentProps {
   objID?: string | null;
   gcnEventID?: number | null;
   earthquakeID?: string | null;
-  styles?: Record<string, any>;
   id?: any;
   author?: Record<string, any>;
   created_at?: string | null;
@@ -101,7 +102,6 @@ const Comment = ({
   objID = null,
   gcnEventID = null,
   earthquakeID = null,
-  styles = {},
   id = null,
   author = {},
   created_at = null,
@@ -122,6 +122,8 @@ const Comment = ({
     skip: !stream_ids?.length && !hidden_stream_ids?.length,
   });
   const config = useGetConfigQuery().data as any;
+  const myId = useGetProfileQuery().data?.id;
+  const mine = author["id"] != null && author["id"] === myId;
   const { data: spectra } = useFetchSourceSpectraQuery(
     { id: objID as string },
     { skip: !objID || !spectrum_id },
@@ -240,14 +242,9 @@ const Comment = ({
       : null,
   ].filter(Boolean) as string[];
 
-  const commentMessageStyle =
-    resourceType === "shift"
-      ? styles["commentMessageShift"]
-      : styles["commentMessage"];
-
   const avatar = (
     <UserAvatar
-      size={compact ? 18 : 24}
+      size={compact ? 18 : 28}
       userId={author["id"]}
       firstName={author["first_name"]}
       lastName={author["last_name"]}
@@ -259,71 +256,78 @@ const Comment = ({
 
   return (
     <>
-      {!compact && <div className={styles["commentUserAvatar"]}>{avatar}</div>}
-      <div className={styles["commentContent"]}>
-        <div className={styles["commentHeader"]}>
-          <div className={styles["commentHeaderContent"]}>
-            {compact && (
-              <span className={styles["commentUserAvatarInline"]}>
-                {avatar}
-              </span>
+      {!compact && (
+        <Box sx={{ flexShrink: 0, paddingTop: "0.125rem" }}>{avatar}</Box>
+      )}
+      <Box
+        sx={{
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "flex-start",
+          gap: "0.2rem",
+          flex: 1,
+          minWidth: 0,
+        }}
+      >
+        <Box
+          sx={{
+            display: "flex",
+            alignItems: "center",
+            gap: "0.4rem",
+            alignSelf: "stretch",
+            minHeight: "1.5rem",
+          }}
+        >
+          {compact && avatar}
+          <Box
+            component="span"
+            sx={{
+              fontSize: "0.8rem",
+              fontWeight: 600,
+              whiteSpace: "nowrap",
+              color: bot ? "text.secondary" : "text.primary",
+            }}
+          >
+            {bot ? (
+              `Bot message (${author["username"]})`
+            ) : author["id"] ? (
+              <Link
+                component={RouterLink}
+                to={`/user/${author["id"]}`}
+                underline="hover"
+                sx={{ color: "inherit" }}
+              >
+                {author["username"]}
+              </Link>
+            ) : (
+              author["username"]
             )}
-            <span className={styles["commentUser"]}>
-              <span className={styles["commentUserName"]}>
-                {bot ? (
-                  <>
-                    <SmartToyIcon fontSize="inherit" />
-                    Bot message ({author["username"]})
-                  </>
-                ) : author["id"] ? (
-                  <Link
-                    component={RouterLink}
-                    to={`/user/${author["id"]}`}
-                    sx={{
-                      color: "inherit",
-                      "&:hover": {
-                        color: (theme) =>
-                          theme.palette.mode === "dark"
-                            ? theme.palette.primary.main
-                            : theme.palette.primary.dark,
-                      },
-                    }}
-                  >
-                    {author["username"]}
-                  </Link>
-                ) : (
-                  author["username"]
-                )}
-              </span>
-            </span>
-            <span className={styles["commentTime"]}>
-              {dayjs().to(dayjs.utc(`${created_at}Z`))}
-            </span>
-            {visibility.length > 0 && (
-              <span className={styles["commentUserGroup"]}>
-                <Tooltip
-                  title={visibility.map((line) => (
-                    <div key={line}>{line}</div>
-                  ))}
-                >
-                  <GroupIcon fontSize="small" viewBox="0 -2 24 24" />
-                </Tooltip>
-              </span>
-            )}
-            {versionSwitch && (
-              <span className={styles["commentVersionSwitch"]}>
-                {versionSwitch}
-              </span>
-            )}
-          </div>
-          <div
-            style={{
+          </Box>
+          <Box
+            component="span"
+            sx={{
+              fontSize: "0.75rem",
+              color: "text.secondary",
+              whiteSpace: "nowrap",
+            }}
+          >
+            {dayjs().to(dayjs.utc(`${created_at}Z`))}
+          </Box>
+          {visibility.length > 0 && (
+            <Tooltip
+              title={visibility.map((line) => (
+                <div key={line}>{line}</div>
+              ))}
+            >
+              <GroupIcon sx={{ fontSize: "1rem", color: "text.secondary" }} />
+            </Tooltip>
+          )}
+          {versionSwitch}
+          <Box
+            sx={{
               display: "flex",
-              flexDirection: "row",
-              justifyContent: "flex-end",
-              alignItems: "center",
-              gap: "0.25rem",
-              width: compact ? "auto" : "30%",
+              gap: "0.125rem",
+              marginLeft: "auto",
               visibility: showActions ? "visible" : "hidden",
             }}
           >
@@ -332,7 +336,7 @@ const Comment = ({
                 size="small"
                 name={`editCommentButton${id}`}
                 onClick={() => setEditing(true)}
-                sx={actionButtonStyle}
+                sx={actionButtonSx}
               >
                 <EditIcon fontSize="inherit" />
               </IconButton>
@@ -342,16 +346,15 @@ const Comment = ({
                 size="small"
                 name={`deleteCommentButton${id}`}
                 onClick={deleteComment}
-                className="commentDelete"
-                sx={actionButtonStyle}
+                sx={{ ...actionButtonSx, "&:hover": { color: "error.main" } }}
               >
                 <CloseIcon fontSize="inherit" />
               </IconButton>
             </Tooltip>
-          </div>
-        </div>
+          </Box>
+        </Box>
         {editing ? (
-          <>
+          <Box sx={{ alignSelf: "stretch" }}>
             <CommentForm
               editComment={editComment}
               commentText={text ?? ""}
@@ -361,23 +364,33 @@ const Comment = ({
             <Typography variant="caption" color="text.secondary">
               Enter to save, Escape to cancel
             </Typography>
-          </>
+          </Box>
         ) : (
-          <div
-            className={styles["wrap"]}
+          <Box
             {...({
               name: `commentDiv${(spectrum_id ? "Spectrum" : "Source") + id}`,
             } as any)}
+            sx={(theme) => ({
+              maxWidth: "min(100%, 40rem)",
+              fontSize: bot ? "0.8rem" : "0.875rem",
+              lineHeight: 1.5,
+              overflowWrap: "anywhere",
+              color: bot ? "text.secondary" : "text.primary",
+              "& p": { margin: 0 },
+              "& p + p": { marginTop: "0.4em" },
+              "& pre": { whiteSpace: "pre-wrap" },
+              ...(!bot && bubbleSx(theme, mine)),
+            })}
           >
             <ReactMarkdown
-              className={commentMessageStyle}
+              className="commentMessage"
               remarkPlugins={[[remarkGfm, { singleTilde: false }]]}
               rehypePlugins={[rehypeEmoji]}
               components={{ a: markdownLink }}
             >
               {renderCommentText()}
             </ReactMarkdown>
-          </div>
+          </Box>
         )}
         <span>
           {attachment_name &&
@@ -414,7 +427,7 @@ const Comment = ({
             />
           )}
         </span>
-      </div>
+      </Box>
     </>
   );
 };
