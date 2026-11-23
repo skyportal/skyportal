@@ -81,6 +81,7 @@ from skyportal.utils.notifications import (
     wants_in_app,
 )
 from skyportal.utils.parse import mentioned_usernames
+from skyportal.utils.telegram import telegram_api, telegram_enabled
 
 env, cfg = load_env()
 log = make_log("notification_queue")
@@ -99,6 +100,7 @@ request_session.trust_env = (
 account_sid = cfg["twilio.sms_account_sid"]
 auth_token = cfg["twilio.sms_auth_token"]
 from_number = cfg["twilio.from_number"]
+alphanumeric_sender_id = cfg["twilio.alphanumeric_sender_id"]
 client = None
 if account_sid and auth_token and from_number:
     client = TwilioClient(account_sid, auth_token)
@@ -170,6 +172,13 @@ def user_preferences(target, notification_setting, resource_type):
             .get("url", "")
             .startswith(cfg["slack.expected_url_preamble"])
         ):
+            return
+
+    if notification_setting == "telegram":
+        integration = target["user"]["preferences"].get("telegram_integration") or {}
+        if not telegram_enabled() or not integration.get("active"):
+            return
+        if not integration.get("chat_id"):
             return
 
     prefs = (target["user"]["preferences"] or {}).get("notifications")
@@ -393,6 +402,20 @@ def send_email_notification(target):
         log(f"Error sending email notification: {e}")
 
 
+def plain_text(target):
+    resource_type = notification_resource_type(target)
+    content = target.get("content")
+    if content and resource_type in DISCUSSION_TYPES:
+        return discussion_notification_text(content, str, bold="", sep=":\n")
+    if content and resource_type == "feedback":
+        return feedback_notification_text(content, str, bold="", sep=":\n")
+    if content and resource_type == "group_admission_request":
+        return group_admission_request_notification_text(
+            content, str, bold="", sep=":\n"
+        )
+    return target["text"].replace("*", "")
+
+
 def send_sms_notification(target):
     resource_type = notification_resource_type(target)
     prefs = user_preferences(target, "sms", resource_type)
@@ -426,10 +449,14 @@ def send_sms_notification(target):
 
     if sending:
         try:
+            to = target["user"]["contact_phone"].e164
+            named = alphanumeric_sender_id and not to.startswith("+1")
             client.messages.create(
-                body=f"{cfg['app.title']} - {target['text']}",
-                from_=from_number,
-                to=target["user"]["contact_phone"].e164,
+                body=plain_text(target)
+                if named
+                else f"{cfg['app.title']} - {plain_text(target)}",
+                from_=alphanumeric_sender_id if named else from_number,
+                to=to,
             )
             log(
                 f"Sent SMS notification to user {target['user']['id']} at phone number: {target['user']['contact_phone'].e164}, body: {target['text']}, resource_type: {resource_type}"
@@ -483,6 +510,25 @@ def send_phone_notification(target):
             )
         except Exception as e:
             log(f"Error sending phone call notification: {e}")
+
+
+def send_telegram_notification(target):
+    resource_type = notification_resource_type(target)
+    if not user_preferences(target, "telegram", resource_type):
+        return
+    chat_id = target["user"]["preferences"]["telegram_integration"]["chat_id"]
+    try:
+        telegram_api(
+            "sendMessage",
+            chat_id=chat_id,
+            text=f"{plain_text(target)}\n\n{get_app_base_url()}{target['url']}",
+            link_preview_options={"is_disabled": True},
+        )
+        log(
+            f"Sent Telegram notification to user {target['user']['id']}, body: {target['text']}, resource_type: {resource_type}"
+        )
+    except Exception as e:
+        log(f"Error sending Telegram notification: {e}")
 
 
 def push_frontend_notification(target):
@@ -580,6 +626,7 @@ def service(queue):
             push_frontend_notification,
             send_phone_notification,
             send_sms_notification,
+            send_telegram_notification,
             send_email_notification,
             send_slack_notification,
         ):

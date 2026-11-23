@@ -328,6 +328,7 @@ class ProfileHandler(BaseHandler):
             for k, v in preferences.items():
                 if isinstance(v, dict):
                     preferences[k] = {key: val for key, val in v.items() if val != ""}
+            telegram = preferences.pop("telegram_integration", None)
             deployments = preferences.get("notifications", {}).get("deployments", {})
             if deployments.get("active") is True and "in_app" not in deployments:
                 deployments["in_app"] = {"active": True}
@@ -364,6 +365,8 @@ class ProfileHandler(BaseHandler):
                         "gcn_events", {}
                     )["properties"] = gcn_event_properties
                 user_prefs = recursive_update(user_prefs, preferences)
+            if (telegram or {}).get("active") is False:
+                user_prefs.pop("telegram_integration", None)
             user.preferences = user_prefs
 
             try:
