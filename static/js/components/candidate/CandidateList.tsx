@@ -700,14 +700,6 @@ const CandidateList = () => {
         <Typography variant="h5" sx={{ fontWeight: "bold" }}>
           Scan candidates
         </Typography>
-        <SegmentedControl
-          value={scanMode}
-          onChange={changeScanMode}
-          options={[
-            { value: "objects", label: "Sources" },
-            { value: "moving", label: "Moving objects" },
-          ]}
-        />
         <Box sx={{ ml: "auto", display: "flex", gap: 1 }}>
           <Tooltip title="Generate a report of saved candidates">
             <Button
@@ -758,11 +750,29 @@ const CandidateList = () => {
                 gap: 1,
               }}
             >
-              <Typography variant="h6">
-                {isFetching
-                  ? "Searching..."
-                  : `Found ${totalMatches} candidates.`}
-              </Typography>
+              <Box
+                sx={{
+                  display: "flex",
+                  flexWrap: "wrap",
+                  alignItems: "center",
+                  gap: 2,
+                }}
+              >
+                <Typography variant="h6">
+                  {isFetching
+                    ? "Searching..."
+                    : `Found ${totalMatches} ${scanMode === "moving" ? "moving objects" : "candidates"}.`}
+                </Typography>
+                <SegmentedControl
+                  size="small"
+                  value={scanMode}
+                  onChange={changeScanMode}
+                  options={[
+                    { value: "objects", label: "All candidates" },
+                    { value: "moving", label: "Moving objects" },
+                  ]}
+                />
+              </Box>
               <Box
                 sx={{
                   display: "flex",
