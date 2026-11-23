@@ -147,14 +147,14 @@ const TrackMPCSubmit = ({
           ))}
           {servicesLoading && <CircularProgress size="1.5rem" />}
           {!servicesLoading && mpcServices.length === 0 && (
-            <Alert severity="info">
+            <Typography>
               None of your sharing services submits to the MPC. Set one up on
               the{" "}
               <MuiLink component={Link} to="/sharing_services">
                 sharing services page
               </MuiLink>
               .
-            </Alert>
+            </Typography>
           )}
           {canSubmit && (
             <>
