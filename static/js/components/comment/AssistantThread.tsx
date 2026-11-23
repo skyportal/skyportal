@@ -1,15 +1,15 @@
-import { Fragment, KeyboardEvent, useEffect, useRef, useState } from "react";
+import { KeyboardEvent, useEffect, useRef, useState } from "react";
 
-import SendIcon from "@mui/icons-material/Send";
-import SmartToyIcon from "@mui/icons-material/SmartToy";
+import ArrowUpwardIcon from "@mui/icons-material/ArrowUpward";
 import Box from "@mui/material/Box";
 import IconButton from "@mui/material/IconButton";
+import InputBase from "@mui/material/InputBase";
 import Popover from "@mui/material/Popover";
-import TextField from "@mui/material/TextField";
 import Tooltip from "@mui/material/Tooltip";
 import { alpha, useTheme } from "@mui/material/styles";
 
 import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 
 import type { CommentTarget } from "../../contexts/CommentPanelContext";
 import {
@@ -20,28 +20,7 @@ import {
 } from "../../ducks/assistant";
 import AssistantFilterProposal from "./AssistantFilterProposal";
 import AssistantToolTrace from "./AssistantToolTrace";
-
-const messageSx = {
-  fontSize: "90%",
-  borderRadius: "1rem",
-  padding: "0.3125rem 0.75rem",
-  marginBottom: "0.5rem",
-  wordWrap: "break-word",
-  "& > p": { margin: 0 },
-  "& p + p": { marginTop: "0.4em" },
-} as const;
-
-const asideSx = {
-  display: "flex",
-  alignItems: "center",
-  justifyContent: "center",
-  gap: "0.4rem",
-  padding: "0.5rem",
-  textAlign: "center",
-  fontSize: "0.75rem",
-  fontStyle: "italic",
-  color: "text.secondary",
-} as const;
+import { bubbleSx, composerSx, markdownSx, sendButtonSx } from "./chatStyles";
 
 const MAIN_COLOR = "#6f58b8";
 const FALLBACK_COLOR = "#ab873f";
@@ -49,11 +28,28 @@ const FALLBACK_COLOR = "#ab873f";
 const pillSx = {
   fontSize: "0.7rem",
   fontWeight: 600,
-  lineHeight: 1.6,
-  borderRadius: "4px",
-  padding: "0 0.4rem",
+  lineHeight: 1.7,
+  borderRadius: "999px",
+  padding: "0 0.5rem",
   whiteSpace: "nowrap",
 } as const;
+
+const labelSx = {
+  display: "flex",
+  alignItems: "center",
+  gap: "0.35rem",
+  marginBottom: "0.3rem",
+  fontSize: "0.75rem",
+  fontWeight: 600,
+  color: "text.secondary",
+} as const;
+
+const SUGGESTIONS: Record<CommentTarget["type"] | "none", string[]> = {
+  source: ["Summarize this source", "Describe its light curve"],
+  filter: ["Explain this filter", "How many alerts pass it?"],
+  gcn_event: ["Summarize this event", "Best candidates so far"],
+  none: ["What can you do?", "My latest saved sources"],
+};
 
 interface ModelDotProps {
   model: string;
@@ -90,10 +86,9 @@ const ModelBar = ({ usage }: { usage: AssistantUsage }) => {
         display: "flex",
         flexWrap: "wrap",
         alignItems: "center",
+        justifyContent: "center",
         gap: "0.4rem",
-        padding: "0 0.75rem 0.6rem",
-        fontSize: "0.7rem",
-        color: "text.secondary",
+        paddingTop: "0.5rem",
       }}
     >
       <Box
@@ -127,8 +122,9 @@ const ModelBar = ({ usage }: { usage: AssistantUsage }) => {
             open={Boolean(anchor)}
             anchorEl={anchor}
             onClose={() => setAnchor(null)}
-            anchorOrigin={{ vertical: "top", horizontal: "left" }}
-            transformOrigin={{ vertical: "bottom", horizontal: "left" }}
+            anchorOrigin={{ vertical: "top", horizontal: "center" }}
+            transformOrigin={{ vertical: "bottom", horizontal: "center" }}
+            slotProps={{ paper: { sx: { borderRadius: "10px" } } }}
           >
             <Box
               sx={{
@@ -191,8 +187,8 @@ const AssistantThread = ({ channel, target }: AssistantThreadProps) => {
     }
   }, [channel, messages.length]);
 
-  const ask = () => {
-    const text = question.trim();
+  const ask = (prompt?: string) => {
+    const text = (prompt ?? question).trim();
     if (!text) return;
     setQuestion("");
     askAssistant({
@@ -219,6 +215,14 @@ const AssistantThread = ({ channel, target }: AssistantThreadProps) => {
     }
   };
 
+  const targetLabel = !target
+    ? null
+    : target.type === "source"
+      ? target.id
+      : target.type === "filter"
+        ? "this filter"
+        : "this GCN event";
+
   return (
     <Box
       sx={{
@@ -231,118 +235,155 @@ const AssistantThread = ({ channel, target }: AssistantThreadProps) => {
       <Box
         ref={listRef}
         sx={{
+          display: "flex",
+          flexDirection: "column",
+          gap: "1.25rem",
           flexGrow: 1,
           minHeight: 0,
           overflowY: "auto",
-          padding: "0.5rem 0.5rem 0",
+          padding: "1rem 1rem 0.5rem",
         }}
       >
         {messages.length === 0 && (
-          <Box sx={asideSx}>
-            {target
-              ? `Ask anything. The assistant knows you are on ${
-                  target.type === "source"
-                    ? target.id
-                    : target.type === "filter"
-                      ? "this filter"
-                      : "this GCN event"
-                }.`
-              : "Ask anything."}
+          <Box
+            sx={{
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: "0.5rem",
+              flexGrow: 1,
+              textAlign: "center",
+            }}
+          >
+            <Box sx={{ fontSize: "1.15rem", fontWeight: 600 }}>
+              How can I help?
+            </Box>
+            {targetLabel && (
+              <Box sx={{ fontSize: "0.8rem", color: "text.secondary" }}>
+                I can see you are on {targetLabel}.
+              </Box>
+            )}
+            <Box
+              sx={{
+                display: "flex",
+                flexWrap: "wrap",
+                justifyContent: "center",
+                gap: "0.4rem",
+                marginTop: "0.75rem",
+              }}
+            >
+              {SUGGESTIONS[target?.type ?? "none"].map((suggestion) => (
+                <Box
+                  key={suggestion}
+                  component="button"
+                  type="button"
+                  onClick={() => ask(suggestion)}
+                  sx={{
+                    padding: "0.35rem 0.8rem",
+                    borderRadius: "999px",
+                    border: 1,
+                    borderColor: "divider",
+                    backgroundColor: "transparent",
+                    font: "inherit",
+                    fontSize: "0.8rem",
+                    color: "text.primary",
+                    cursor: "pointer",
+                    transition: "background-color 150ms",
+                    "&:hover": {
+                      backgroundColor: alpha(theme.palette.text.primary, 0.05),
+                    },
+                  }}
+                >
+                  {suggestion}
+                </Box>
+              ))}
+            </Box>
           </Box>
         )}
-        {messages.map((message) => (
-          <Fragment key={message.id}>
-            {message.system && (
-              <Box
-                sx={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "0.25rem",
-                  fontSize: "0.7rem",
-                  marginLeft: "0.75rem",
-                  color: alpha(theme.palette.text.primary, 0.3),
-                }}
-              >
-                <SmartToyIcon sx={{ fontSize: "0.9rem" }} />
+        {messages.map((message) =>
+          message.system ? (
+            <Box key={message.id}>
+              <Box sx={labelSx}>
                 Assistant
                 {message.model && (
                   <ModelDot model={message.model} main={usage?.model} />
                 )}
               </Box>
-            )}
-            <Box
-              sx={{
-                ...messageSx,
-                ...(message.system
-                  ? { marginRight: "1rem" }
-                  : {
-                      width: "fit-content",
-                      maxWidth: "85%",
-                      marginLeft: "auto",
-                      backgroundColor: alpha(theme.palette.text.primary, 0.05),
-                    }),
-              }}
-            >
-              <ReactMarkdown>{message.text}</ReactMarkdown>
-            </Box>
-            {message.system && (
               <AssistantToolTrace calls={message.tool_calls ?? []} />
-            )}
-            {message.system && message.proposal && (
-              <AssistantFilterProposal proposal={message.proposal} />
-            )}
-          </Fragment>
-        ))}
-        {!answered && (
-          <Box sx={asideSx}>
+              <Box sx={markdownSx}>
+                <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                  {message.text}
+                </ReactMarkdown>
+              </Box>
+              {message.proposal && (
+                <AssistantFilterProposal proposal={message.proposal} />
+              )}
+            </Box>
+          ) : (
             <Box
-              component="img"
-              src={`/static/images/skyportal_logo${
-                theme.palette.mode === "dark" ? "_dark" : ""
-              }.png`}
-              alt=""
+              key={message.id}
+              sx={(t) => ({
+                ...markdownSx(t),
+                ...bubbleSx(t, true, "right"),
+                alignSelf: "flex-end",
+                maxWidth: "85%",
+              })}
+            >
+              <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                {message.text}
+              </ReactMarkdown>
+            </Box>
+          ),
+        )}
+        {!answered && (
+          <Box>
+            <Box sx={labelSx}>Assistant</Box>
+            <Box
               sx={{
-                width: "0.9rem",
-                height: "0.9rem",
-                animation: "assistant-spin 1.2s linear infinite",
-                "@keyframes assistant-spin": {
-                  to: { transform: "rotate(360deg)" },
+                width: "fit-content",
+                fontSize: "0.875rem",
+                color: "transparent",
+                backgroundImage: `linear-gradient(90deg, ${theme.palette.text.secondary} 35%, ${theme.palette.text.primary} 50%, ${theme.palette.text.secondary} 65%)`,
+                backgroundSize: "300% 100%",
+                backgroundClip: "text",
+                animation: "assistant-shimmer 1.8s linear infinite",
+                "@keyframes assistant-shimmer": {
+                  from: { backgroundPosition: "100% 0" },
+                  to: { backgroundPosition: "0 0" },
                 },
               }}
-            />
-            Thinking...
+            >
+              Thinking…
+            </Box>
           </Box>
         )}
       </Box>
-      <Box
-        sx={{
-          display: "flex",
-          alignItems: "flex-end",
-          gap: "0.25rem",
-          padding: theme.spacing(1, 1, 1.5),
-        }}
-      >
-        <TextField
-          value={question}
-          onChange={(event) => setQuestion(event.target.value)}
-          onKeyDown={onKeyDown}
-          placeholder="Ask the assistant"
-          name="question"
-          size="small"
-          fullWidth
-          multiline
-          maxRows={4}
-        />
-        <IconButton
-          color="primary"
-          size="small"
-          disabled={!question.trim()}
-          onClick={ask}
-        >
-          <SendIcon fontSize="small" />
-        </IconButton>
+      <Box sx={{ padding: "0.5rem 0.75rem 0.75rem" }}>
+        <Box sx={(t) => composerSx(t)}>
+          <InputBase
+            value={question}
+            onChange={(event) => setQuestion(event.target.value)}
+            onKeyDown={onKeyDown}
+            placeholder="Ask anything"
+            name="question"
+            fullWidth
+            multiline
+            maxRows={6}
+            sx={{ fontSize: "0.875rem", paddingY: "0.3rem" }}
+          />
+          <IconButton
+            aria-label="Send"
+            size="small"
+            disabled={!question.trim()}
+            onClick={() => ask()}
+            sx={sendButtonSx}
+          >
+            <ArrowUpwardIcon sx={{ fontSize: "1.1rem" }} />
+          </IconButton>
+        </Box>
+        {usage?.model && <ModelBar usage={usage} />}
       </Box>
-      {usage?.model && <ModelBar usage={usage} />}
     </Box>
   );
 };
