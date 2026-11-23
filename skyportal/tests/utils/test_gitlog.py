@@ -66,3 +66,38 @@ def test_load_gitlog_sorts_by_time_not_by_string(tmp_path):
     )
     entries = gitlog.load_gitlog(str(tmp_path / "gitlog*.json"))
     assert [e["sha"] for e in entries] == ["bbbbbbb", "aaaaaaa"]
+
+
+def test_normalize_pr_url():
+    canonical = "https://github.com/skyportal/skyportal/pull/1234"
+    for url in [
+        canonical,
+        "http://github.com/SkyPortal/skyportal/pull/1234",
+        "github.com/skyportal/skyportal/pull/01234/files",
+        " https://www.github.com/skyportal/skyportal/pull/1234#discussion_r1 ",
+        "https://github.com/skyportal/skyportal/pull/1234?w=1",
+    ]:
+        assert gitlog.normalize_pr_url(url) == canonical
+    for url in [
+        "https://github.com/skyportal/skyportal/issues/1234",
+        "https://gitlab.com/skyportal/skyportal/pull/1234",
+        "https://github.com/skyportal/skyportal/pull/1234x",
+        "1234",
+    ]:
+        assert gitlog.normalize_pr_url(url) is None
+
+
+def test_deployed_pr_urls_and_tracked_bases():
+    entries = gitlog.parse_gitlog(
+        {
+            "pr_url_base": "https://github.com/Fritz-Marshal/fritz/pull",
+            "commit_url_base": "https://github.com/Fritz-Marshal/fritz/commit",
+            "log": log,
+        }
+    )
+    assert gitlog.deployed_pr_urls(entries) == {
+        "https://github.com/fritz-marshal/fritz/pull/1040"
+    }
+    assert gitlog.tracked_pr_url_bases(gitlog.deployed_pr_urls(entries)) == {
+        "https://github.com/fritz-marshal/fritz/pull/"
+    }

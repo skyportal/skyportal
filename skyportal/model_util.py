@@ -1,5 +1,6 @@
 import threading
 import time
+from datetime import UTC, datetime
 
 import sqlalchemy as sa
 
@@ -10,8 +11,17 @@ from baselayer.log import make_log
 from skyportal import __version__
 from skyportal.enum_types import sqla_enum_types
 from skyportal.facility_apis import LISTENERS
-from skyportal.models import ACL, DBSession, Deployment, Group, Role, Token, User
-from skyportal.utils.gitlog import load_gitlog
+from skyportal.models import (
+    ACL,
+    DBSession,
+    Deployment,
+    Feedback,
+    Group,
+    Role,
+    Token,
+    User,
+)
+from skyportal.utils.gitlog import deployed_pr_urls, load_gitlog
 from skyportal.utils.notifications import post_notification
 
 log = make_log("model_util")
@@ -271,18 +281,47 @@ def record_deployment():
         session.commit()
         deployment_id = deployment.id
 
+        # a failure here must not lose the deployment record
+        try:
+            feedback_ids = resolve_deployed_feedback(session, gitlog)
+            session.commit()
+        except Exception as e:
+            session.rollback()
+            feedback_ids = []
+            log(f"Could not resolve the deployed feedback: {e}")
+
     log(f"Recorded deployment of SkyPortal {__version__}")
     threading.Thread(
-        target=notify_deployment, args=(deployment_id,), daemon=True
+        target=notify_deployment, args=(deployment_id, feedback_ids), daemon=True
     ).start()
 
 
-def notify_deployment(deployment_id, attempts=10, delay=30):
+def resolve_deployed_feedback(session, gitlog):
+    """Resolve the feedback whose linked pull requests are now all deployed; return their IDs."""
+    deployed = deployed_pr_urls(gitlog)
+    messages = session.scalars(
+        sa.select(Feedback).where(
+            Feedback.deployed_at.is_(None), sa.func.cardinality(Feedback.pr_urls) > 0
+        )
+    ).all()
+    now = datetime.now(UTC).replace(tzinfo=None)
+    resolved = []
+    for message in messages:
+        if set(message.pr_urls) <= deployed:
+            message.resolved = True
+            message.deployed_at = now
+            resolved.append(message.id)
+    return resolved
+
+
+def notify_deployment(deployment_id, feedback_ids=(), attempts=10, delay=30):
+    pending = [{"target_class_name": "Deployment", "target_id": deployment_id}] + [
+        {"target_class_name": "Feedback", "target_id": id, "deployed": True}
+        for id in feedback_ids
+    ]
     for _ in range(attempts):
-        if post_notification(
-            {"target_class_name": "Deployment", "target_id": deployment_id},
-            timeout=30,
-        ):
+        pending = [body for body in pending if not post_notification(body, timeout=30)]
+        if not pending:
             return
         time.sleep(delay)
 

@@ -21543,8 +21543,8 @@ export interface paths {
         options?: never;
         head?: never;
         /**
-         * Mark a message left to the admins as handled, reopen it, or assign it
-         * @description <b>Permission(s) required:</b> <em>System admin (or System admin)</em><br><br>
+         * Mark a message left to the admins as handled, reopen it, assign it, or link its fixes
+         * @description <b>Permission(s) required:</b> <em>System admin (or System admin)</em><br><br>Once all the linked pull requests are deployed, the message is resolved and its author notified.
          */
         patch: {
             parameters: {
@@ -29246,6 +29246,13 @@ export interface components {
             text: string;
             /** @description Whether an admin has handled the message */
             resolved?: boolean;
+            /** @description URLs of the pull requests fixing the message */
+            pr_urls?: string[];
+            /**
+             * Format: date-time
+             * @description When all the linked pull requests were first deployed and the author notified
+             */
+            deployed_at?: string | null;
             /** @description ID of the admin working on the message */
             assignee_id?: number | null;
             /** @description Unique object identifier. */
@@ -29277,6 +29284,13 @@ export interface components {
             text: string;
             /** @description Whether an admin has handled the message */
             resolved?: boolean;
+            /** @description URLs of the pull requests fixing the message */
+            pr_urls?: string[];
+            /**
+             * Format: date-time
+             * @description When all the linked pull requests were first deployed and the author notified
+             */
+            deployed_at?: string | null;
             /** @description ID of the admin working on the message */
             assignee_id?: number | null;
         };
@@ -51332,6 +51346,16 @@ export interface components {
             gravatar_url: string | null;
         };
         /**
+         * FeedbackPullRequestResponse
+         * @description A pull request linked to a message, and whether this instance runs it.
+         */
+        FeedbackPullRequestResponse: {
+            /** Url */
+            url: string;
+            /** Deployed */
+            deployed: boolean;
+        };
+        /**
          * FeedbackReplyResponse
          * @description A reply to a message, from an admin or its author.
          */
@@ -51373,6 +51397,14 @@ export interface components {
             assignee: components["schemas"]["FeedbackAuthorResponse"];
             /** Replies */
             replies?: components["schemas"]["FeedbackReplyResponse"][];
+            /** Pull Requests */
+            pull_requests?: components["schemas"]["FeedbackPullRequestResponse"][];
+            /**
+             * Deployed At
+             * Format: date-time
+             * @default null
+             */
+            deployed_at: string | null;
         };
         /**
          * FeedbackListResponse
@@ -51415,6 +51447,12 @@ export interface components {
              * @default null
              */
             assignee_id: number | null;
+            /**
+             * Pr Urls
+             * @description GitHub pull requests fixing it; the author is notified once all are deployed
+             * @default null
+             */
+            pr_urls: string[] | null;
         };
         /**
          * FeedbackReplyPostBody

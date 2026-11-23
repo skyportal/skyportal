@@ -346,7 +346,9 @@ def send_email_notification(target):
             subject = f"{cfg['app.title']} - New deployment"
 
         elif resource_type == "feedback":
-            if target["notification_type"] != "feedback_reply":
+            if target["notification_type"] == "feedback_deployed":
+                subject = f"{cfg['app.title']} - Your feedback was addressed"
+            elif target["notification_type"] != "feedback_reply":
                 subject = f"{cfg['app.title']} - New feedback"
             elif (target.get("content") or {}).get("by_author"):
                 subject = f"{cfg['app.title']} - New reply to a feedback"
@@ -645,6 +647,8 @@ def api(queue):
             is_deployment = target_class_name == "Deployment"
             is_feedback = target_class_name == "Feedback"
             is_feedback_reply = target_class_name == "FeedbackReply"
+            # its linked pull requests are deployed: tell the author, not the admins
+            is_feedback_deployed = is_feedback and bool(data.get("deployed"))
             is_discussion_message = target_class_name == "DiscussionMessage"
 
             with DBSession() as session:
@@ -823,10 +827,14 @@ def api(queue):
                             .to_dict()
                         )
                     elif is_feedback:
-                        users = system_admins(session)
                         target_class = Feedback
                         feedback = session.scalar(
                             sa.select(Feedback).where(Feedback.id == target_id)
+                        )
+                        users = (
+                            [feedback.author]
+                            if is_feedback_deployed
+                            else system_admins(session)
                         )
                         target_data = {
                             **feedback.to_dict(),
@@ -1421,7 +1429,10 @@ def api(queue):
                                         )
                                     )
                                 elif is_feedback or is_feedback_reply:
-                                    if user.id == target_data["author_id"]:
+                                    if (
+                                        user.id == target_data["author_id"]
+                                        and not is_feedback_deployed
+                                    ):
                                         continue
                                     label = FEEDBACK_CATEGORIES.get(
                                         target_data["category"], "message"
@@ -1436,6 +1447,7 @@ def api(queue):
                                         "by_author": target_data.get(
                                             "by_author", False
                                         ),
+                                        "deployed": is_feedback_deployed,
                                     }
                                     queue.append(
                                         user_notification_target(
@@ -1446,6 +1458,8 @@ def api(queue):
                                             ),
                                             "feedback_reply"
                                             if is_feedback_reply
+                                            else "feedback_deployed"
+                                            if is_feedback_deployed
                                             else "feedback",
                                             "/feedback",
                                             content,

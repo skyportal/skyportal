@@ -9,6 +9,7 @@ from sqlalchemy.orm import selectinload
 from baselayer.app.access import auth_or_token, permissions
 
 from ...models import Feedback, FeedbackReply, User
+from ...utils.gitlog import normalize_pr_url, running_pr_urls, tracked_pr_url_bases
 from ..base import BaseHandler
 
 
@@ -22,7 +23,7 @@ def user_dict(author):
     }
 
 
-def message_dict(message):
+def message_dict(message, deployed):
     return {
         "id": message.id,
         "category": message.category,
@@ -31,6 +32,10 @@ def message_dict(message):
         "created_at": message.created_at,
         "author": user_dict(message.author),
         "assignee": message.assignee and user_dict(message.assignee),
+        "pull_requests": [
+            {"url": url, "deployed": url in deployed} for url in message.pr_urls
+        ],
+        "deployed_at": message.deployed_at,
         "replies": [
             {
                 "id": reply.id,
@@ -61,11 +66,14 @@ class FeedbackHandler(BaseHandler):
                     selectinload(Feedback.assignee),
                     selectinload(Feedback.replies).selectinload(FeedbackReply.author),
                 ],
-            ).order_by(Feedback.created_at.desc())
+            ).order_by(Feedback.created_at.desc(), Feedback.id.desc())
             if feedback_id is not None:
                 stmt = stmt.where(Feedback.id == feedback_id)
             messages = await session.scalars(stmt)
-            return self.success(data={"messages": [message_dict(m) for m in messages]})
+            deployed = running_pr_urls()
+            return self.success(
+                data={"messages": [message_dict(m, deployed) for m in messages]}
+            )
 
     @auth_or_token
     async def post(self, *, body: FeedbackPostBody = None):
@@ -90,7 +98,8 @@ class FeedbackHandler(BaseHandler):
     async def patch(self, feedback_id: int, *, body: FeedbackPatchBody = None):
         """
         ---
-        summary: Mark a message left to the admins as handled, reopen it, or assign it
+        summary: Mark a message left to the admins as handled, reopen it, assign it, or link its fixes
+        description: Once all the linked pull requests are deployed, the message is resolved and its author notified.
         tags:
           - system info
         """
@@ -111,6 +120,30 @@ class FeedbackHandler(BaseHandler):
                 ):
                     return self.error("Invalid assignee ID")
                 message.assignee_id = body.assignee_id
+            if body.pr_urls is not None:
+                bases = tracked_pr_url_bases(running_pr_urls())
+                if body.pr_urls and not bases:
+                    return self.error(
+                        "This instance has no git history, so pull requests cannot be tracked"
+                    )
+                pr_urls = []
+                for url in body.pr_urls:
+                    normalized = normalize_pr_url(url)
+                    if normalized is None:
+                        return self.error(f"Not a GitHub pull request URL: {url}")
+                    if not normalized.startswith(tuple(bases)):
+                        repos = sorted(
+                            base.removeprefix("https://github.com/").removesuffix(
+                                "/pull/"
+                            )
+                            for base in bases
+                        )
+                        return self.error(
+                            f"Only pull requests of {', '.join(repos)} can be tracked"
+                        )
+                    if normalized not in pr_urls:
+                        pr_urls.append(normalized)
+                message.pr_urls = pr_urls
             await session.commit()
             self.push_all(action="skyportal/REFRESH_FEEDBACK")
             return self.success()

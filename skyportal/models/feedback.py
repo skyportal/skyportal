@@ -37,6 +37,18 @@ class Feedback(Base):
         server_default="false",
         doc="Whether an admin has handled the message",
     )
+    pr_urls = sa.Column(
+        sa.ARRAY(sa.String),
+        nullable=False,
+        default=list,
+        server_default="{}",
+        doc="URLs of the pull requests fixing the message",
+    )
+    deployed_at = sa.Column(
+        sa.DateTime,
+        nullable=True,
+        doc="When all the linked pull requests were first deployed and the author notified",
+    )
     assignee_id = sa.Column(
         sa.ForeignKey("users.id", ondelete="SET NULL"),
         nullable=True,
