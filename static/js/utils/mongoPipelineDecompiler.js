@@ -598,7 +598,9 @@ class Decompiler {
     if (VARIADIC[op] && Array.isArray(arg) && arg.length >= 2) {
       return call(VARIADIC[op], arg);
     }
-    if (REDUCERS[op] && !Array.isArray(arg)) return call(REDUCERS[op], [arg]);
+    if (REDUCERS[op] && (!Array.isArray(arg) || arg.length === 1)) {
+      return call(REDUCERS[op], [unwrapSingle(arg)]);
+    }
     if (!array && op) {
       const list = this.liftList(expr, "value");
       if (list) return list.name;
@@ -738,6 +740,12 @@ class Decompiler {
         [left, right] = [right, left];
         operator = FLIPPED[op];
       }
+      const isElement = (e) =>
+        !!array && typeof e === "string" && e.startsWith(`$$${array.as}.`);
+      if (op !== "$in" && isElement(right) && !isElement(left)) {
+        [left, right] = [right, left];
+        operator = FLIPPED[operator];
+      }
       if (operator === "$ne" && opOf(left) === "$type" && right === "missing") {
         const target = this.operand(left.$type, array, hint);
         if (target.schema || target.ref?._meta?.isSchemaField) {
@@ -763,7 +771,7 @@ class Decompiler {
       if (isLiteral(right)) return this.condition(subject.ref, operator, right);
       if (op === "$in")
         throw new Unsupported("it uses $in with a computed list");
-      const bound = this.operand(right, array, `${hint}_bound`);
+      const bound = this.operandRef(right, array, `${hint}_bound`);
       return this.condition(subject.ref, operator, bound.ref);
     }
     if (op === "$isNumber") {
@@ -791,7 +799,13 @@ class Decompiler {
   }
 
   liftFieldQuery(field, condition) {
-    return operatorsOf(condition).flatMap(([op, value]) => {
+    return operatorsOf(condition).flatMap(([op, raw]) => {
+      const value =
+        (op === "$in" || op === "$nin") &&
+        field._meta?.type === "boolean" &&
+        Array.isArray(raw)
+          ? [...new Set(raw.filter((x) => typeof x === "boolean"))]
+          : raw;
       if (op === "$not") {
         return [this.block("And", this.liftFieldQuery(field, value), true)];
       }
@@ -991,8 +1005,13 @@ export const liftPipeline = (pipeline, context = {}) => {
 export const decompileFilterPipeline = (pipeline, context = {}) => {
   try {
     const lifted = liftPipeline(pipeline, context);
-    const expected = JSON.stringify(describePipeline(pipeline));
-    const actual = JSON.stringify(describePipeline(lifted.pipeline));
+    const options = {
+      booleanFields: (context.fieldOptions ?? [])
+        .filter((f) => f.type === "boolean")
+        .map((f) => f.value ?? f.label),
+    };
+    const expected = JSON.stringify(describePipeline(pipeline, options));
+    const actual = JSON.stringify(describePipeline(lifted.pipeline, options));
     if (expected !== actual) {
       return {
         error: "the closest blocks would not pass exactly the same alerts",

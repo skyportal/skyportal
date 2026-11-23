@@ -383,6 +383,8 @@ const BOOLEAN_OPS = new Set([
   "$regexMatch",
 ]);
 
+const REDUCER_OPS = new Set(["$min", "$max", "$sum", "$avg"]);
+
 const NUMERIC_OPS = new Set([
   "$add",
   "$subtract",
@@ -616,13 +618,17 @@ export const normalizeExpr = (expr, defs) => {
   }
 
   if (UNARY.has(op) && Array.isArray(arg) && arg.length === 1) [arg] = arg;
+  if (REDUCER_OPS.has(op) && Array.isArray(arg) && arg.length === 1)
+    [arg] = arg;
   if (op === "$round" && !Array.isArray(arg)) arg = [arg, 0];
   if (op === "$round" && Array.isArray(arg) && arg.length === 1)
     arg = [arg[0], 0];
 
   if (SHAPE_ONLY.has(op)) arg = unwrapPartial(arg, () => true);
   let normalized = normalizeExpr(arg, defs);
-  if (ARRAY_CONSUMERS.has(op)) normalized = stripEmptyFallback(normalized);
+  if (ARRAY_CONSUMERS.has(op) || REDUCER_OPS.has(op)) {
+    normalized = stripEmptyFallback(normalized);
+  }
 
   if (op === "$not") {
     return negate(normalized);
@@ -694,6 +700,8 @@ const QUERY_COMPARISONS = new Set([
   "$mod",
 ]);
 
+let booleanFields = new Set();
+
 const isSingleLiteral = (value) =>
   Array.isArray(value) &&
   value.length === 1 &&
@@ -718,10 +726,17 @@ const conditionAtoms = (target, condition, defs, onComputed) => {
       if (op === "$options") return null;
       let v = value;
       if (op === "$exists") v = Boolean(value);
-      if (op === "$in" && isSingleLiteral(value)) {
+      if (
+        (op === "$in" || op === "$nin") &&
+        booleanFields.has(target) &&
+        Array.isArray(value)
+      ) {
+        v = [...new Set(value.filter((x) => typeof x === "boolean"))];
+      }
+      if (op === "$in" && isSingleLiteral(v)) {
         return onComputed
-          ? onComputed("$eq", value[0])
-          : { f: target, op: "$eq", v: value[0] };
+          ? onComputed("$eq", v[0])
+          : { f: target, op: "$eq", v: v[0] };
       }
       if (op === "$in" || op === "$nin") v = sortByKey(value);
       if (op === "$regex") {
@@ -796,7 +811,8 @@ const canonical = (formula) => {
   return formula;
 };
 
-export const describePipeline = (pipeline) => {
+export const describePipeline = (pipeline, options = {}) => {
+  booleanFields = new Set(options.booleanFields ?? []);
   const { where, defs, annotations } = readPipeline(pipeline);
   const condition = canonical({
     and: where.map((q) => normalizeQuery(q, defs)),
