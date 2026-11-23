@@ -42,6 +42,7 @@ import {
   useUpdateBoomGroupFilterMutation,
 } from "../../../ducks/boom_filter";
 import { useFilterSchema } from "../../../ducks/boom_filter_modules";
+import { brokerFilterTargetId } from "../../../ducks/brokerFilterTarget";
 
 interface FilterBuilderContentProps {
   onToggleAnnotationBuilder?: (...a: any[]) => void;
@@ -613,6 +614,16 @@ const FilterBuilderContent = ({
       >
         <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
           <Typography variant="h6">Filter Builder</Typography>
+          {resolvedSurvey && brokerFilterTargetId() && (
+            <Link
+              href={`/brokers/${brokerFilterTargetId()}?tab=schema&survey=${resolvedSurvey}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              variant="body2"
+            >
+              Alert schema
+            </Link>
+          )}
           {filter && (
             <SegmentedControl
               value={editorMode}

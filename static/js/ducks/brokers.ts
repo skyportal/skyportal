@@ -187,6 +187,14 @@ export const brokersApi = skyportalApi.injectEndpoints({
         body: { group_ids: groupIds },
       }),
     }),
+    getBrokerAlertSchema: build.query<
+      any,
+      { brokerId: number; survey: string }
+    >({
+      query: ({ brokerId, survey }) =>
+        `api/brokers/${brokerId}/filter_modules?survey=${survey}&elements=schema`,
+      transformResponse: (response: any) => response?.schema ?? null,
+    }),
     // Filters this broker manages (skyportal Filter rows with broker altdata).
     getBrokerFilters: build.query<BrokerFilter[], number>({
       query: (brokerId) => `api/brokers/${brokerId}/filters`,
@@ -356,6 +364,7 @@ export const {
   useGetSourceIfSavedQuery,
   useSaveBrokerObjectAsSourceMutation,
   useLazyTestBrokerFilterQuery,
+  useGetBrokerAlertSchemaQuery,
   useGetBrokerFiltersQuery,
   useGetFilterCatalogQuery,
   useAttachFilterToBrokerMutation,
