@@ -60,11 +60,35 @@ const rawBaseQuery = fetchBaseQuery({
   credentials: "same-origin",
 });
 
+function errorMessage(error: FetchBaseQueryError): string {
+  const message = (error.data as ApiEnvelope | undefined)?.message;
+  if (message) {
+    return message;
+  }
+  const status =
+    error.status === "PARSING_ERROR" ? error.originalStatus : error.status;
+  if (status === "FETCH_ERROR") {
+    return "Could not reach the server. Check your connection and try again.";
+  }
+  if (status === "TIMEOUT_ERROR" || status === 504) {
+    return "The server took too long to respond. Try again.";
+  }
+  if (status === 502 || status === 503) {
+    return "The server is temporarily unavailable. Try again in a moment.";
+  }
+  if (typeof status === "number" && status >= 400) {
+    return `Request failed (HTTP ${status})`;
+  }
+  return "Unexpected response from the server. Try reloading the page.";
+}
+
+const lastErrorShown = new Map<string, number>();
+
 /**
  * Wraps `fetchBaseQuery` to (a) unwrap the SkyPortal `{status,data}` envelope
  * and (b) treat `status: "error"` (returned with HTTP 200) as an error. On any
- * error it dispatches the same `showNotification(...)` the old `API.ts` did, so
- * user-facing error behaviour is unchanged.
+ * error it dispatches an error notification, once per message when several
+ * requests fail together.
  */
 const skyportalBaseQuery: BaseQueryFn<
   string | FetchArgs,
@@ -73,19 +97,32 @@ const skyportalBaseQuery: BaseQueryFn<
   object,
   SkyportalMeta
 > = async (args, api, extraOptions) => {
-  const result = await rawBaseQuery(args, api, extraOptions);
+  const isGet =
+    typeof args === "string" || (args.method ?? "GET").toUpperCase() === "GET";
+  let result = await rawBaseQuery(args, api, extraOptions);
+  if (result.error?.status === "FETCH_ERROR" && isGet && !api.signal.aborted) {
+    await new Promise((resolve) => setTimeout(resolve, 1000));
+    result = await rawBaseQuery(args, api, extraOptions);
+  }
 
   // Endpoints that expect misses (e.g. "is this object already a source?") can
   // opt out of the automatic error notification.
-  const quiet = (extraOptions as { suppressErrorNotification?: boolean })
-    ?.suppressErrorNotification;
+  const quiet =
+    (extraOptions as { suppressErrorNotification?: boolean })
+      ?.suppressErrorNotification || api.signal.aborted;
+
+  const notify = (message: string) => {
+    const now = Date.now();
+    if (now - (lastErrorShown.get(message) ?? 0) < 3000) {
+      return;
+    }
+    lastErrorShown.set(message, now);
+    api.dispatch(showNotification(message, "error"));
+  };
 
   if (result.error) {
     if (!quiet) {
-      const message =
-        (result.error.data as ApiEnvelope | undefined)?.message ??
-        `Request failed (${result.error.status})`;
-      api.dispatch(showNotification(`${message}`, "error"));
+      notify(errorMessage(result.error));
     }
     return result;
   }
@@ -94,7 +131,7 @@ const skyportalBaseQuery: BaseQueryFn<
   if (envelope?.status !== "success") {
     const message = envelope?.message ?? "Unknown API error";
     if (!quiet) {
-      api.dispatch(showNotification(`${message}`, "error"));
+      notify(`${message}`);
     }
     return {
       error: {

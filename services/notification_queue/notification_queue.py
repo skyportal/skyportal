@@ -154,7 +154,7 @@ def user_preferences(target, notification_setting, resource_type):
     if "preferences" not in target["user"]:
         return
 
-    if notification_setting in ["sms", "phone", "whatsapp"]:
+    if notification_setting in ["sms", "phone"]:
         if client is None:
             return
         if not target["user"]["contact_phone"]:
@@ -202,7 +202,7 @@ def user_preferences(target, notification_setting, resource_type):
                 return
             if not prefs[resource_type][notification_setting].get("active", False):
                 return
-        elif notification_setting in ["sms", "phone", "whatsapp"]:
+        elif notification_setting in ["sms", "phone"]:
             if not prefs.get(resource_type, {}).get(notification_setting):
                 return
 
@@ -485,51 +485,6 @@ def send_phone_notification(target):
             log(f"Error sending phone call notification: {e}")
 
 
-def send_whatsapp_notification(target):
-    resource_type = notification_resource_type(target)
-    prefs = user_preferences(target, "whatsapp", resource_type)
-    if not prefs:
-        return
-
-    sending = not (
-        prefs[resource_type]["whatsapp"].get("on_shift")
-        or prefs[resource_type]["whatsapp"].get("time_slot")
-    )
-    if prefs[resource_type]["whatsapp"].get("on_shift", False):
-        current_shift = (
-            Shift.query.join(ShiftUser)
-            .filter(ShiftUser.user_id == target["user"]["id"])
-            .filter(Shift.start_date <= arrow.utcnow().datetime)
-            .filter(Shift.end_date >= arrow.utcnow().datetime)
-            .first()
-        )
-        if current_shift is not None:
-            sending = True
-
-    timeslot = prefs[resource_type]["whatsapp"].get("time_slot", [])
-    if len(timeslot) > 0:
-        current_time = arrow.utcnow().datetime
-        if timeslot[0] < timeslot[1]:
-            if current_time.hour >= timeslot[0] and current_time.hour <= timeslot[1]:
-                sending = True
-        else:
-            if current_time.hour <= timeslot[1] or current_time.hour >= timeslot[0]:
-                sending = True
-
-    if sending:
-        try:
-            client.messages.create(
-                body=f"{cfg['app.title']} - {target['text']}",
-                from_="whatsapp:" + str(from_number),
-                to="whatsapp:" + str(target["user"]["contact_phone"].e164),
-            )
-            log(
-                f"Sent WhatsApp notification to user {target['user']['id']} at phone number: {target['user']['contact_phone'].e164}, body: {target['text']}, resource_type: {resource_type}"
-            )
-        except Exception as e:
-            log(f"Error sending WhatsApp notification: {e}")
-
-
 def push_frontend_notification(target):
     if "user_id" in target:
         user_id = target["user_id"]
@@ -625,7 +580,6 @@ def service(queue):
             push_frontend_notification,
             send_phone_notification,
             send_sms_notification,
-            send_whatsapp_notification,
             send_email_notification,
             send_slack_notification,
         ):

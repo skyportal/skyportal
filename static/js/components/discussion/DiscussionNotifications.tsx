@@ -14,7 +14,7 @@ import {
   useUpdateDiscussionMembershipMutation,
 } from "../../ducks/discussions";
 
-const CHANNELS: ChannelKey[] = ["email", "slack", "sms", "whatsapp"];
+const CHANNELS: ChannelKey[] = ["email", "slack", "sms"];
 
 interface DiscussionNotificationsProps {
   onOpen: (id: number) => void;
