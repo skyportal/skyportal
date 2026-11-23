@@ -23,7 +23,7 @@ const lookup = (node, segment) => {
     if (node.base) return lookup(node.base, segment);
     return null;
   }
-  throw new Unsupported("path into a computed value");
+  throw new Unsupported("it reads a field inside a computed value");
 };
 
 const keptPaths = (node, prefix = "") =>
@@ -56,7 +56,7 @@ const resolvePath = (env, path) => {
   if (node.origPath && !node.base) {
     return { $$partial: { path: node.origPath, keep: keptPaths(node) } };
   }
-  throw new Unsupported(`whole-object reference to ${path}`);
+  throw new Unsupported(`it uses the whole ${path} object`);
 };
 
 const nodeAt = (env, path) => {
@@ -90,7 +90,7 @@ const setPath = (root, path, value) => {
       child = obj(new Map(child.fields), child.base, child.origPath);
       node.fields.set(segment, child);
     } else {
-      throw new Unsupported(`field ${path} set inside a computed value`);
+      throw new Unsupported(`it sets ${path} inside a computed value`);
     }
     node = child;
   });
@@ -103,12 +103,12 @@ const removePath = (root, path) => {
   for (const segment of segments.slice(0, -1)) {
     const child = node.fields.get(segment);
     if (!child || child.kind !== "obj") {
-      throw new Unsupported(`cannot remove nested field ${path}`);
+      throw new Unsupported(`it removes the nested field ${path}`);
     }
     node = child;
   }
   const last = segments[segments.length - 1];
-  if (node.base) throw new Unsupported(`cannot remove inherited field ${path}`);
+  if (node.base) throw new Unsupported(`it removes the field ${path}`);
   node.fields.delete(last);
 };
 
@@ -130,9 +130,10 @@ const resolveExpr = (expr, ctx, scope) => {
       const [name, ...rest] = expr.slice(2).split(".");
       if (PASSTHROUGH_VARIABLES.has(name) && rest.length === 0) return expr;
       if (SYSTEM_VARIABLES.has(name)) {
-        throw new Unsupported(`system variable $$${name}`);
+        throw new Unsupported(`it uses $$${name}`);
       }
-      if (!(name in scope)) throw new Unsupported(`unbound variable $$${name}`);
+      if (!(name in scope))
+        throw new Unsupported(`it uses the undefined variable $$${name}`);
       const bound = scope[name];
       if (bound.inline !== undefined) return pathInto(bound.inline, rest);
       return [`$$${bound.name}`, ...rest].join(".");
@@ -188,7 +189,8 @@ const resolveExpr = (expr, ctx, scope) => {
     }
     return { [op]: resolveExpr(arg, ctx, scope) };
   }
-  if (keys.some(isOperator)) throw new Unsupported("malformed expression");
+  if (keys.some(isOperator))
+    throw new Unsupported("it has an invalid expression");
   return Object.fromEntries(
     keys.map((key) => [key, resolveExpr(expr[key], ctx, scope)]),
   );
@@ -197,17 +199,17 @@ const resolveExpr = (expr, ctx, scope) => {
 const QUERY_LOGIC = new Set(["$and", "$or", "$nor"]);
 
 const resolveQuery = (query, ctx) => {
-  if (!isPlainObject(query)) throw new Unsupported("malformed $match");
+  if (!isPlainObject(query)) throw new Unsupported("it has an invalid $match");
   const clauses = Object.entries(query).flatMap(([key, value]) => {
     if (QUERY_LOGIC.has(key)) {
       if (!Array.isArray(value) || value.length === 0) {
-        throw new Unsupported(`empty ${key}`);
+        throw new Unsupported(`it has an empty ${key}`);
       }
       return [{ [key]: value.map((q) => resolveQuery(q, ctx)) }];
     }
     if (key === "$expr") return [{ $expr: resolveExpr(value, ctx, {}) }];
     if (key === "$comment") return [];
-    if (isOperator(key)) throw new Unsupported(`query operator ${key}`);
+    if (isOperator(key)) throw new Unsupported(`it uses ${key}`);
     const target = resolvePath(ctx.env, key);
     if (typeof target === "string") return [{ [target.slice(1)]: value }];
     return [{ $$on: [target, value] }];
@@ -246,7 +248,7 @@ const projectInto = (target, spec, prefix, ctx) => {
         setPath(target, path, node);
       }
     } else if (isExclusion(value)) {
-      throw new Unsupported("exclusion mixed with inclusion");
+      throw new Unsupported("a $project both keeps and removes fields");
     } else if (
       isPlainObject(value) &&
       Object.keys(value).length > 0 &&
@@ -282,16 +284,16 @@ const projectStage = (spec, ctx) => {
   if (nonId.length > 0 && nonId.every(([, value]) => isExclusion(value))) {
     const next = cloneTree(ctx.env);
     nonId.forEach(([key]) => removePath(next, key));
-    if (isExclusion(spec._id)) throw new Unsupported("_id excluded");
+    if (isExclusion(spec._id)) throw new Unsupported("it removes _id");
     return next;
   }
   const next = obj();
   if (spec._id === undefined || isInclusion(spec._id)) {
     setPath(next, "_id", nodeAt(ctx.env, "_id"));
   } else if (isExclusion(spec._id)) {
-    throw new Unsupported("_id excluded");
+    throw new Unsupported("it removes _id");
   } else {
-    throw new Unsupported("_id redefined");
+    throw new Unsupported("it changes _id");
   }
   projectInto(next, spec, "", ctx);
   return next;
@@ -309,13 +311,13 @@ const addFieldsStage = (spec, ctx) => {
 
 export const readPipeline = (pipeline) => {
   if (!Array.isArray(pipeline) || pipeline.length === 0) {
-    throw new Unsupported("not a pipeline");
+    throw new Unsupported("it is not a list of stages");
   }
   const ctx = { env: obj(new Map(), orig("")), defs: [], depth: 0 };
   const where = [];
   pipeline.forEach((stage) => {
     if (!isPlainObject(stage) || Object.keys(stage).length !== 1) {
-      throw new Unsupported("malformed stage");
+      throw new Unsupported("it has an invalid stage");
     }
     const [name] = Object.keys(stage);
     const spec = stage[name];
@@ -331,23 +333,24 @@ export const readPipeline = (pipeline) => {
       [].concat(spec).forEach((path) => removePath(next, path));
       ctx.env = next;
     } else {
-      throw new Unsupported(`stage ${name}`);
+      throw new Unsupported(`it uses the ${name} stage`);
     }
   });
 
   const objectId = nodeAt(ctx.env, "objectId");
   const id = nodeAt(ctx.env, "_id");
   if (objectId?.kind !== "orig" || objectId.path !== "objectId") {
-    throw new Unsupported("objectId not passed through");
+    throw new Unsupported("it drops objectId");
   }
   if (id?.kind !== "orig" || id.path !== "_id") {
-    throw new Unsupported("_id not passed through");
+    throw new Unsupported("it drops _id");
   }
 
   const annotations = {};
   const collect = (node, path) => {
     if (node.kind === "obj") {
-      if (node.base) throw new Unsupported("annotations merged with input");
+      if (node.base)
+        throw new Unsupported("it merges new annotations into existing ones");
       node.fields.forEach((child, key) => collect(child, join(path, key)));
     } else if (node.kind === "orig") {
       annotations[path] = `$${node.path}`;
@@ -518,7 +521,9 @@ const coveredBy = (path, keep) =>
 const unwrapPartial = (expr, allowed) => {
   if (isPlainObject(expr) && expr.$$partial) {
     if (!allowed(expr.$$partial.keep)) {
-      throw new Unsupported("partially projected array read beyond its fields");
+      throw new Unsupported(
+        "it reads array fields that an earlier $project removed",
+      );
     }
     return `$${expr.$$partial.path}`;
   }
@@ -546,7 +551,8 @@ export const normalizeExpr = (expr, defs) => {
     }
     return cache.get(expr.$$def);
   }
-  if (expr.$$partial) throw new Unsupported("partially projected value");
+  if (expr.$$partial)
+    throw new Unsupported("it reads a value that an earlier $project cut down");
 
   const keys = Object.keys(expr);
   if (keys.length !== 1 || !isOperator(keys[0])) {
@@ -708,8 +714,7 @@ const conditionAtoms = (target, condition, defs, onComputed) => {
           not: { and: conditionAtoms(target, value, defs, onComputed) },
         };
       }
-      if (!QUERY_COMPARISONS.has(op))
-        throw new Unsupported(`query operator ${op}`);
+      if (!QUERY_COMPARISONS.has(op)) throw new Unsupported(`it uses ${op}`);
       if (op === "$options") return null;
       let v = value;
       if (op === "$exists") v = Boolean(value);

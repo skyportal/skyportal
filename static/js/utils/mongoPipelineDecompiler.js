@@ -120,7 +120,8 @@ const IDENTIFIER = /^[a-zA-Z_][a-zA-Z0-9_]*$/;
 const FIELD_PATH = /^[a-zA-Z0-9_][a-zA-Z0-9_.]*$/;
 
 const formatNumber = (n) => {
-  if (!Number.isFinite(n)) throw new Unsupported("non-finite number");
+  if (!Number.isFinite(n))
+    throw new Unsupported("it has a number that is not finite");
   let text = String(n);
   if (/e/i.test(text)) {
     text = n.toLocaleString("en-US", {
@@ -128,7 +129,8 @@ const formatNumber = (n) => {
       maximumFractionDigits: 20,
     });
   }
-  if (parseFloat(text) !== n) throw new Unsupported(`number ${n}`);
+  if (parseFloat(text) !== n)
+    throw new Unsupported(`blocks cannot store the number ${n} exactly`);
   return text;
 };
 
@@ -415,7 +417,7 @@ class Decompiler {
     if (op === "$switch" || op === "$cond") return this.liftSwitch(expr, hint);
     if (isBooleanExpr(expr)) {
       if (!BOOLEAN_NODES.has(op)) {
-        throw new Unsupported(`it uses ${op}, which blocks cannot express`);
+        throw new Unsupported(`it uses ${op}`);
       }
       return this.addSwitch(
         hint,
@@ -432,9 +434,7 @@ class Decompiler {
     ) {
       return this.addArithmetic(hint, expr);
     }
-    throw new Unsupported(
-      `it uses ${op || typeof expr}, which blocks cannot express`,
-    );
+    throw new Unsupported(`it uses ${op || `a ${typeof expr} value`}`);
   }
 
   arrayInput(input, hint) {
@@ -445,7 +445,7 @@ class Decompiler {
     }
     const inner = this.liftValue(source, `${hint}_items`);
     if (inner.kind !== "listVariable") {
-      throw new Unsupported("list over a computed value");
+      throw new Unsupported("it builds a list from a computed value");
     }
     return inner.name;
   }
@@ -467,7 +467,8 @@ class Decompiler {
     }
     if (op === "$filter") {
       const { input, as, cond, limit } = expr.$filter;
-      if (limit !== undefined) throw new Unsupported("$filter with a limit");
+      if (limit !== undefined)
+        throw new Unsupported("it uses $filter with a limit");
       const field = this.arrayInput(input, hint);
       const value = this.liftBooleanBlock(cond, { field, as }, hint);
       return this.addList(hint, expr, { field, operator: "$filter", value });
@@ -512,10 +513,10 @@ class Decompiler {
     if (Array.isArray(expr)) return expr.map((e) => this.renameElement(e, as));
     if (!isPlainObject(expr)) return expr;
     if (isDef(expr) || expr.$$partial) {
-      throw new Unsupported("computed value inside a list mapping");
+      throw new Unsupported("it computes a value inside a list mapping");
     }
     if (opOf(expr) === "$map" || opOf(expr) === "$filter") {
-      throw new Unsupported("nested list operation");
+      throw new Unsupported("it nests list operations");
     }
     return Object.fromEntries(
       Object.entries(expr).map(([k, v]) => [k, this.renameElement(v, as)]),
@@ -553,7 +554,7 @@ class Decompiler {
     if (typeof expr === "number" || typeof expr === "boolean") return expr;
     if (typeof expr === "string" && !expr.startsWith("$")) {
       if (!Number.isNaN(Number(expr)) || this.taken.has(expr)) {
-        throw new Unsupported(`switch value ${expr}`);
+        throw new Unsupported("a switch returns a value blocks cannot store");
       }
       return expr;
     }
@@ -572,7 +573,7 @@ class Decompiler {
       if (isFieldRef(expr) && FIELD_PATH.test(expr.slice(1))) {
         return expr.slice(1);
       }
-      throw new Unsupported(`reference ${expr} in arithmetic`);
+      throw new Unsupported(`a formula uses ${expr}`);
     }
     if (isDef(expr)) {
       const variable = this.liftValue(expr);
@@ -585,7 +586,7 @@ class Decompiler {
     const arg = op ? expr[op] : undefined;
     if (INFIX[op] && Array.isArray(arg) && arg.length >= 2) {
       if (op !== "$add" && op !== "$multiply" && arg.length !== 2) {
-        throw new Unsupported(`${op} with ${arg.length} operands`);
+        throw new Unsupported(`it uses ${op} with ${arg.length} values`);
       }
       return wrap(
         arg.map((a) => this.printArithmetic(a, array)).join(INFIX[op]),
@@ -606,7 +607,9 @@ class Decompiler {
       }
     }
     throw new Unsupported(
-      `it computes with ${op || "a value"}, which blocks cannot express`,
+      op
+        ? `it uses ${op}`
+        : `it computes with ${JSON.stringify(expr).slice(0, 40)}`,
     );
   }
 
@@ -635,14 +638,16 @@ class Decompiler {
     const [base, path] = expr.$__get;
     const variable = this.liftValue(base, hint);
     if (variable.kind === "variable") {
-      throw new Unsupported("path into a computed number");
+      throw new Unsupported("it reads a field inside a computed number");
     }
     return `${variable.name}.${path}`;
   }
 
   addArithmeticInArray(expr, array, hint) {
     if (!isNumericExpr(expr) && !isDef(expr)) {
-      throw new Unsupported("non-numeric value inside a list condition");
+      throw new Unsupported(
+        "a list condition compares a value that is not a number",
+      );
     }
     const target = JSON.stringify(normalizeExpr(this.namedForm(expr), []));
     const reused = this.context.customVariables.find((v) => {
@@ -754,9 +759,10 @@ class Decompiler {
         }
       }
       const subject = this.operand(left, array, `${hint}_value`);
-      if (!subject.ref) throw new Unsupported("comparison of two literals");
+      if (!subject.ref) throw new Unsupported("it compares two fixed values");
       if (isLiteral(right)) return this.condition(subject.ref, operator, right);
-      if (op === "$in") throw new Unsupported("$in against a computed list");
+      if (op === "$in")
+        throw new Unsupported("it uses $in with a computed list");
       const bound = this.operand(right, array, `${hint}_bound`);
       return this.condition(subject.ref, operator, bound.ref);
     }
@@ -766,7 +772,7 @@ class Decompiler {
     }
     const variable = this.liftValue(expr, hint);
     if (variable.kind === "variable") {
-      throw new Unsupported("numeric value used as a condition");
+      throw new Unsupported("it uses a number as a condition");
     }
     return this.condition(this.ref(variable.name, variable.kind), "$eq", true);
   }
@@ -793,7 +799,7 @@ class Decompiler {
         return [this.block("And", [this.condition(field, "$in", value)], true)];
       }
       if (!QUERY_OPERATORS.has(op)) {
-        throw new Unsupported(`query operator ${op}`);
+        throw new Unsupported(`it uses ${op}`);
       }
       if (op === "$in" && value.length === 1 && typeof value[0] === "boolean") {
         return [this.condition(field, "$eq", value[0])];
@@ -813,7 +819,7 @@ class Decompiler {
       ops.length !== 1 ||
       ops[0][0] !== "$exists"
     ) {
-      throw new Unsupported("condition on part of a list variable");
+      throw new Unsupported("it tests part of a list variable");
     }
     const field = this.ref(variable.name, "listVariable");
     return ops[0][1]
@@ -832,13 +838,13 @@ class Decompiler {
         return [this.block("And", this.liftComputedQuery(target, value), true)];
       }
       if (!QUERY_OPERATORS.has(op)) {
-        throw new Unsupported(`query operator ${op}`);
+        throw new Unsupported(`it uses ${op}`);
       }
       if (variable.kind !== "variable") {
         return [this.condition(field, op, value)];
       }
       if (typeof value !== "number" || op === "$in" || op === "$exists") {
-        throw new Unsupported("query on a computed number");
+        throw new Unsupported("it queries a computed number");
       }
       if (op === "$lt" || op === "$lte") {
         return [
@@ -907,7 +913,7 @@ class Decompiler {
     }
     const variable = this.liftValue(expr, "condition");
     if (variable.kind === "variable") {
-      throw new Unsupported("numeric value used as a condition");
+      throw new Unsupported("it uses a number as a condition");
     }
     return [
       this.condition(this.ref(variable.name, variable.kind), "$eq", true),
@@ -915,7 +921,7 @@ class Decompiler {
   }
 
   liftAnnotation(path, expr) {
-    if (path.includes(".")) throw new Unsupported("nested annotation");
+    if (path.includes(".")) throw new Unsupported("it has a nested annotation");
     let type = "include";
     let source = expr;
     let roundDecimals = 4;
@@ -924,7 +930,8 @@ class Decompiler {
       const [value, places = 0] = Array.isArray(definition.$round)
         ? definition.$round
         : [definition.$round];
-      if (!Number.isInteger(places)) throw new Unsupported("rounding places");
+      if (!Number.isInteger(places))
+        throw new Unsupported("it rounds to a computed number of places");
       type = "round";
       source = value;
       roundDecimals = places;
