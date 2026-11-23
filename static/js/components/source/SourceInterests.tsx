@@ -13,7 +13,6 @@ import Typography from "@mui/material/Typography";
 import { makeStyles } from "tss-react/mui";
 
 import Button from "../Button";
-import PanToolOutlinedIcon from "@mui/icons-material/PanToolOutlined";
 import CollaborationEntry from "./CollaborationEntry";
 import { useGetProfileQuery } from "../../ducks/profile";
 import {
@@ -107,7 +106,6 @@ const SourceInterests = ({ sourceID, onDiscuss }: SourceInterestsProps) => {
             size="small"
             onClick={() => setOpen(true)}
             data-testid="interested-button"
-            endIcon={<PanToolOutlinedIcon />}
           >
             {interests.some((interest) => interest.user.id === profile?.id)
               ? "Interested"
