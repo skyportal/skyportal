@@ -1,6 +1,7 @@
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 import { makeStyles } from "tss-react/mui";
+import { alpha } from "@mui/material/styles";
 
 import { useFetchSourcePhotometryQuery } from "../../ducks/photometry";
 import { dec_to_dms, ra_to_hours } from "../../units";
@@ -9,26 +10,31 @@ dayjs.extend(utc);
 
 const useStyles = makeStyles()((theme) => ({
   SurveyLinkList: {
-    display: "inline-block",
+    display: "flex",
+    flexWrap: "wrap",
+    gap: "0.4rem",
   },
   SurveyLink: {
-    backgroundColor: theme.palette.primary.main,
-    padding: "2px 15px",
-    margin: "3px",
     display: "inline-block",
-    color: theme.palette.secondary.main,
-    borderRadius: "5px",
+    padding: "3px 12px",
+    borderRadius: "8px",
+    backgroundColor: alpha(theme.palette.text.primary, 0.06),
+    color: theme.palette.text.primary,
+    fontSize: "0.85rem",
+    fontWeight: 500,
+    textDecoration: "none",
+    "&:hover": {
+      backgroundColor: alpha(theme.palette.text.primary, 0.11),
+    },
   },
   submitButton: {
     border: "none",
-    backgroundColor: theme.palette.primary.main,
+    background: "none",
     cursor: "pointer",
     padding: 0,
     margin: 0,
-    fontWeight: "bold",
-    color: theme.palette.secondary.main,
-    textDecoration: "none",
-    borderRadius: "5px",
+    font: "inherit",
+    color: "inherit",
   },
 }));
 
@@ -41,7 +47,7 @@ const SurveyLink = ({ name, url = null }: SurveyLinkProps) => {
   const { classes: styles } = useStyles();
   return (
     <a href={url || undefined} target="_blank" rel="noreferrer">
-      <div className={styles.SurveyLink}>{name}</div>
+      <span className={styles.SurveyLink}>{name}</span>
     </a>
   );
 };
