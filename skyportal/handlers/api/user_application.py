@@ -77,7 +77,9 @@ def notify_deciders(session, application, endorser):
             .where(UserRole.user_id == User.id, RoleACL.acl_id == ADMIN_ACL)
             .exists(),
         )
-        recipients = session.scalars(sa.select(User).where(holds_admin_acl)).all()
+        recipients = session.scalars(
+            sa.select(User).where(holds_admin_acl, User.is_bot.is_not(True))
+        ).all()
         notification = "has applied for an account"
         email = "has applied for an account."
     recipients = [
