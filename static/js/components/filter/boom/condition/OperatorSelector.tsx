@@ -48,7 +48,10 @@ const AutocompleteOperators = ({
   mongoOperatorLabels_ = {},
 }: AutocompleteOperatorsProps) => {
   // Prepare options with label
-  const options = (operators || []).map((op: any) => ({
+  const listed = operators || [];
+  const options = (
+    value && !listed.includes(value) ? [...listed, value] : listed
+  ).map((op: any) => ({
     value: op,
     label: mongoOperatorLabels_[op] || op,
     group: "Operators",

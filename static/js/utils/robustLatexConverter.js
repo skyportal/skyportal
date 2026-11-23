@@ -1,3 +1,40 @@
+const UNARY_FUNCTIONS = {
+  abs: "$abs",
+  sqrt: "$sqrt",
+  sin: "$sin",
+  cos: "$cos",
+  tan: "$tan",
+  asin: "$asin",
+  acos: "$acos",
+  atan: "$atan",
+  log: "$log",
+  log10: "$log10",
+  ln: "$ln",
+  exp: "$exp",
+  floor: "$floor",
+  ceil: "$ceil",
+  radians: "$degreesToRadians",
+  degrees: "$radiansToDegrees",
+  toString: "$toString",
+  first: "$first",
+  last: "$last",
+};
+
+const VARIADIC_FUNCTIONS = [
+  "min",
+  "max",
+  "sum",
+  "avg",
+  "atan2",
+  "round",
+  "ifNull",
+  "at",
+];
+
+const FUNCTION_CALL_SUFFIX = new RegExp(
+  `\\b(${[...Object.keys(UNARY_FUNCTIONS), ...VARIADIC_FUNCTIONS].join("|")})$`,
+);
+
 export class RobustLatexToMongoConverter {
   constructor() {
     // Updated pattern to allow fields starting with numbers (e.g., "10days", "10magpsf")
@@ -175,8 +212,7 @@ export class RobustLatexToMongoConverter {
       return `$${expression}`;
     }
 
-    const functionNames = ["abs", "sqrt", "sin", "cos", "tan", "log", "ln"];
-    for (const funcName of functionNames) {
+    for (const funcName of Object.keys(UNARY_FUNCTIONS)) {
       if (expression.startsWith(`${funcName}(`)) {
         const innerContent = this._extractFunctionArgument(
           expression,
@@ -184,7 +220,7 @@ export class RobustLatexToMongoConverter {
         );
         if (innerContent !== null) {
           return {
-            [`$${funcName}`]: this._parseWithExpressionTree(
+            [UNARY_FUNCTIONS[funcName]]: this._parseWithExpressionTree(
               innerContent,
               depth + 1,
               isInArrayFilter,
@@ -323,7 +359,7 @@ export class RobustLatexToMongoConverter {
       if (char === ")") {
         parenLevel++;
         const beforeParen = expression.substring(0, i);
-        if (/\b(sqrt|sin|cos|tan|log|ln)$/.test(beforeParen)) {
+        if (FUNCTION_CALL_SUFFIX.test(beforeParen)) {
           funcLevel++;
         }
       }
@@ -375,7 +411,7 @@ export class RobustLatexToMongoConverter {
               }
 
               const prev = expression.substring(0, i).trimEnd().slice(-1);
-              if (char === "-" && (!prev || /[+\-*/^(]/.test(prev))) {
+              if (char === "-" && (!prev || /[+\-*/^(,]/.test(prev))) {
                 continue;
               }
 
@@ -399,21 +435,20 @@ export class RobustLatexToMongoConverter {
     const trimmed = value.trim();
 
     // Multi-argument aggregate functions: min(...), max(...), sum(...), avg(...)
-    const aggregateFuncMatch = trimmed.match(/^(min|max|sum|avg)\((.+)\)$/);
-    if (aggregateFuncMatch) {
+    const aggregateFuncMatch = trimmed.match(
+      /^(min|max|sum|avg|atan2|round|ifNull|at)\((.+)\)$/,
+    );
+    if (
+      aggregateFuncMatch &&
+      this._extractFunctionArgument(trimmed, aggregateFuncMatch[1]) !== null
+    ) {
       const [, funcName, argsString] = aggregateFuncMatch;
       const args = this._parseCommaSeparatedArgs(
         argsString,
         depth,
         isInArrayFilter,
       );
-      const operatorMap = {
-        min: "$min",
-        max: "$max",
-        sum: "$sum",
-        avg: "$avg",
-      };
-      return { [operatorMap[funcName]]: args };
+      return { [funcName === "at" ? "$arrayElemAt" : `$${funcName}`]: args };
     }
 
     // abs(expression)
@@ -547,17 +582,8 @@ export class RobustLatexToMongoConverter {
       if (
         !this.numberPattern.test(field) &&
         ![
-          "sqrt",
-          "sin",
-          "cos",
-          "tan",
-          "log",
-          "ln",
-          "abs",
-          "min",
-          "max",
-          "sum",
-          "avg",
+          ...Object.keys(UNARY_FUNCTIONS),
+          ...VARIADIC_FUNCTIONS,
           "left",
           "right",
           "frac",
