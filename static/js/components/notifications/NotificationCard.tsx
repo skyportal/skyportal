@@ -12,6 +12,7 @@ import ToggleRow from "./ToggleRow";
 import ChannelSetup from "./ChannelSetup";
 import { CHANNELS, ChannelKey, SetupKind, isSetUp } from "./channels";
 import { useNotificationTarget } from "./target";
+import { useGetConfigQuery } from "../../ducks/config";
 
 const Pill = ({
   icon,
@@ -83,6 +84,8 @@ export const ChannelPills = ({
   defaultChannels?: ChannelKey[];
 }) => {
   const { profile, updateUserPreferences } = useNotificationTarget();
+  const available = useGetConfigQuery().data?.["notificationChannels"] as
+    ChannelKey[] | undefined;
   const [setup, setSetup] = useState<{
     kind: SetupKind;
     key: ChannelKey;
@@ -92,7 +95,11 @@ export const ChannelPills = ({
   const prefs = profile.preferences["notifications"]?.[type] ?? {};
   const update = (values: Record<string, unknown>) =>
     updateUserPreferences({ notifications: { [type]: values } });
-  const shown = CHANNELS.filter((channel) => channels.includes(channel.key));
+  const shown = CHANNELS.filter(
+    (channel) =>
+      channels.includes(channel.key) &&
+      (available?.includes(channel.key) ?? true),
+  );
   const scheduled = shown.filter(
     (channel) => channel.scheduled && prefs[channel.key]?.active === true,
   );
