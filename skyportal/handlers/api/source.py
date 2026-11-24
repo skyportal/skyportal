@@ -274,11 +274,12 @@ async def _get_vla_rubin_alert(obj, user, session):
 
     if alert_id is None:
         # Older ingest paths retained the ID on the passing candidate only.
+        alert_filter = sa.orm.aliased(Filter)
         alert_id = await session.scalar(
             Candidate.select(user, columns=[Candidate.passing_alert_id])
-            .join(Filter, Candidate.filter_id == Filter.id)
-            .join(Stream, Filter.stream_id == Stream.id)
-            .join(Broker, Filter.broker_id == Broker.id)
+            .join(alert_filter, Candidate.filter_id == alert_filter.id)
+            .join(Stream, alert_filter.stream_id == Stream.id)
+            .join(Broker, alert_filter.broker_id == Broker.id)
             .where(
                 Candidate.obj_id == obj.id,
                 Candidate.passing_alert_id > 0,
