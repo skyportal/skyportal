@@ -123,26 +123,28 @@ const GcnEventRow = ({
         "& + &": { borderTop: 1, borderColor: "divider" },
       }}
     >
-      <Link
-        component={RouterLink}
-        to={`/gcn_events/${gcnEvent.dateobs}`}
-        sx={{ fontVariantNumeric: "tabular-nums" }}
-      >
-        {dateobs.format("YYMMDD HH:mm:ss")}
-      </Link>
-      <Tooltip
-        title={aliases.length > 1 ? aliases.join(", ") : ""}
-        placement="bottom-start"
-      >
-        <Typography
-          variant="caption"
-          noWrap
-          component="div"
-          sx={{ color: "text.disabled" }}
+      <Box sx={{ display: "flex", alignItems: "baseline", gap: 1.5 }}>
+        <Link
+          component={RouterLink}
+          to={`/gcn_events/${gcnEvent.dateobs}`}
+          sx={{ fontVariantNumeric: "tabular-nums", whiteSpace: "nowrap" }}
         >
-          {[aliases[0], dateobs.fromNow()].filter(Boolean).join(" · ")}
-        </Typography>
-      </Tooltip>
+          {dateobs.format("YYMMDD HH:mm:ss")}
+        </Link>
+        <Tooltip
+          title={aliases.length > 1 ? aliases.join(", ") : ""}
+          placement="bottom-end"
+        >
+          <Typography
+            variant="caption"
+            color="text.secondary"
+            noWrap
+            sx={{ ml: "auto", minWidth: 0 }}
+          >
+            {[aliases[0], dateobs.fromNow()].filter(Boolean).join(" · ")}
+          </Typography>
+        </Tooltip>
+      </Box>
       <Box
         sx={{
           display: "flex",
