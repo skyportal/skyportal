@@ -13,13 +13,14 @@ import { Link } from "react-router-dom";
 
 import { makeStyles } from "tss-react/mui";
 import Box from "@mui/material/Box";
-import { alpha, darken } from "@mui/material/styles";
+import { alpha, type Theme } from "@mui/material/styles";
 import { deepPurple, teal } from "@mui/material/colors";
 import SendOutlinedIcon from "@mui/icons-material/SendOutlined";
 import Chip from "@mui/material/Chip";
 import Grid from "@mui/material/Grid";
 import Tooltip from "@mui/material/Tooltip";
 import DoNotDisturbOnOutlinedIcon from "@mui/icons-material/DoNotDisturbOnOutlined";
+import CloseIcon from "@mui/icons-material/Close";
 import Accordion from "@mui/material/Accordion";
 import AccordionSummary from "@mui/material/AccordionSummary";
 import AccordionDetails from "@mui/material/AccordionDetails";
@@ -771,70 +772,57 @@ const SourceContent = ({ source }: SourceContentProps) => {
                 {!source.tns_name && !isReadOnly && (
                   <UpdateSourceTNS sourceId={source.id} />
                 )}
-                {source.withhold_from_tns && (
+                {(!source.tns_name || source.withhold_from_tns) && (
                   <Tooltip
-                    title={`Never sent to TNS, automatically or manually.${
-                      source.withhold_from_tns_set_at
-                        ? ` Set by ${
-                            source.withhold_from_tns_set_by?.username ??
-                            "a deleted user"
-                          } on ${source.withhold_from_tns_set_at.slice(0, 10)}.`
-                        : ""
-                    }`}
+                    title={
+                      source.withhold_from_tns
+                        ? `Never sent to TNS, automatically or manually.${
+                            source.withhold_from_tns_set_at
+                              ? ` Set by ${
+                                  source.withhold_from_tns_set_by?.username ??
+                                  "a deleted user"
+                                } on ${source.withhold_from_tns_set_at.slice(0, 10)}.`
+                              : ""
+                          }`
+                        : "Never send to TNS, automatically or manually"
+                    }
                   >
-                    <Chip
-                      size="small"
-                      variant="outlined"
-                      color="warning"
-                      label="Withheld"
-                      sx={(theme) => ({
-                        ml: 0.5,
-                        color:
-                          theme.palette.mode === "dark"
-                            ? theme.palette.warning.light
-                            : darken(theme.palette.warning.main, 0.4),
-                        "& .MuiChip-deleteIcon": { color: "inherit" },
-                      })}
-                      onDelete={
-                        isReadOnly
-                          ? undefined
-                          : () =>
-                              updateSource({
-                                id: source.id,
-                                payload: { withhold_from_tns: false },
-                              })
-                      }
-                    />
-                  </Tooltip>
-                )}
-                {!isReadOnly &&
-                  !source.tns_name &&
-                  !source.withhold_from_tns && (
-                    <Tooltip title="Never send to TNS, automatically or manually">
+                    <span>
                       <Button
                         variant="outlined"
+                        color={source.withhold_from_tns ? "error" : "primary"}
                         size="small"
                         data-testid="withhold-from-tns-button"
+                        aria-pressed={Boolean(source.withhold_from_tns)}
+                        disabled={isReadOnly}
                         onClick={() =>
                           updateSource({
                             id: source.id,
-                            payload: { withhold_from_tns: true },
+                            payload: {
+                              withhold_from_tns: !source.withhold_from_tns,
+                            },
                           })
                         }
-                        sx={{
+                        sx={(theme: Theme) => ({
                           py: 0,
                           px: 0.75,
                           minWidth: 0,
                           height: 22,
                           ml: 0.5,
-                          color: "text.secondary",
-                          borderColor: "divider",
-                        }}
+                          ...(source.withhold_from_tns && {
+                            bgcolor: alpha(theme.palette.error.main, 0.1),
+                          }),
+                        })}
                       >
-                        <DoNotDisturbOnOutlinedIcon fontSize="small" />
+                        {source.withhold_from_tns ? (
+                          <CloseIcon fontSize="small" />
+                        ) : (
+                          <DoNotDisturbOnOutlinedIcon fontSize="small" />
+                        )}
                       </Button>
-                    </Tooltip>
-                  )}
+                    </span>
+                  </Tooltip>
+                )}
               </Box>
               <Box className={classes.rowInfo} sx={{ position: "relative" }}>
                 <Tooltip title="Known solar system object at this position, from the Minor Planet Center">
