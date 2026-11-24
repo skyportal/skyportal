@@ -209,6 +209,12 @@ export const useSourceStyles = makeStyles()((theme) => ({
     alignItems: "center",
     gap: "0.25rem",
   },
+  fieldRow: {
+    display: "flex",
+    flexWrap: "wrap",
+    alignItems: "center",
+    columnGap: "1rem",
+  },
   rowInfo: {
     display: "flex",
     flexDirection: "row",
@@ -387,12 +393,13 @@ const SourceContent = ({ source }: SourceContentProps) => {
     currentUser?.id && !currentUser?.preferences?.["hideSourceSummary"];
   const showAISummaries = (currentUser?.preferences?.["showAISourceSummary"] ||
     false) as any;
-  const summaryActions = (
+  const summaryActions = (chip = false) => (
     <>
       {!isReadOnly && (
         <UpdateSourceSummary
           source={source}
           showAISummaries={showAISummaries}
+          chip={chip}
         />
       )}
       {!isReadOnly &&
@@ -664,8 +671,16 @@ const SourceContent = ({ source }: SourceContentProps) => {
                   />
                 </div>
                 {!isReadOnly && (
-                  <Box sx={{ ml: 1 }}>
+                  <Box
+                    sx={{
+                      ml: 1,
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 0.75,
+                    }}
+                  >
                     <ObjectTags source={source} />
+                    {showSummary && noSummary && summaryActions(true)}
                   </Box>
                 )}
               </div>
@@ -726,15 +741,7 @@ const SourceContent = ({ source }: SourceContentProps) => {
                 </div>
               </div>
             </div>
-            <div
-              className={classes.flexRow}
-              style={{
-                justifyContent: "flex-start",
-                alignItems: "center",
-                flexFlow: "wrap",
-                columnGap: "1rem",
-              }}
-            >
+            <div className={classes.fieldRow}>
               <Box
                 className={classes.rowInfo}
                 sx={{ position: "relative" }}
@@ -764,9 +771,7 @@ const SourceContent = ({ source }: SourceContentProps) => {
                     display_header={false}
                   />
                 )}
-                {!source.tns_name && !isReadOnly && (
-                  <UpdateSourceTNS sourceId={source.id} />
-                )}
+                {!isReadOnly && <UpdateSourceTNS sourceId={source.id} />}
                 {source.withhold_from_tns && (
                   <Tooltip
                     title={`Never sent to TNS, automatically or manually.${
@@ -829,15 +834,13 @@ const SourceContent = ({ source }: SourceContentProps) => {
                 {source.mpc_name && (
                   <Chip size="small" label={source.mpc_name} />
                 )}
-                {!isReadOnly &&
-                  (source.mpc_name ? (
-                    <HoverAction>
-                      <UpdateSourceMPC source={source} />
-                    </HoverAction>
-                  ) : (
-                    <UpdateSourceMPC source={source} button />
-                  ))}
+                {!isReadOnly && <UpdateSourceMPC source={source} />}
               </Box>
+            </div>
+            <div className={classes.fieldRow}>
+              <div className={classes.rowInfo}>
+                <SourceAlias source={source} />
+              </div>
               <Box className={classes.rowInfo} sx={{ position: "relative" }}>
                 <Tooltip title="Events this object was matched to by the GCN crossmatch or by hand">
                   <FieldLabel>GCN matches</FieldLabel>
@@ -860,15 +863,6 @@ const SourceContent = ({ source }: SourceContentProps) => {
                   </HoverAction>
                 )}
               </Box>
-              <div className={classes.rowInfo}>
-                <SourceAlias source={source} />
-              </div>
-              {showSummary && noSummary && !isReadOnly && (
-                <div className={classes.rowInfo}>
-                  <FieldLabel>Summary</FieldLabel>
-                  {summaryActions}
-                </div>
-              )}
             </div>
             <SourceHost
               source={source}
@@ -1207,7 +1201,7 @@ const SourceContent = ({ source }: SourceContentProps) => {
                     flexShrink: 0,
                   }}
                 >
-                  {summaryActions}
+                  {summaryActions()}
                 </Box>
               </Box>
             )}
@@ -1219,6 +1213,7 @@ const SourceContent = ({ source }: SourceContentProps) => {
                 alignItems: "center",
                 gap: 0.75,
                 py: 0.5,
+                mt: 1,
               })}
             >
               <SavedGroupChips groups={source.groups ?? []} max={5} />
