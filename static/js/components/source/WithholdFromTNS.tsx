@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
-import CloseIcon from "@mui/icons-material/Close";
-import DoNotDisturbOnOutlinedIcon from "@mui/icons-material/DoNotDisturbOnOutlined";
+import CancelScheduleSendIcon from "@mui/icons-material/CancelScheduleSend";
+import CancelScheduleSendOutlinedIcon from "@mui/icons-material/CancelScheduleSendOutlined";
 import IconButton from "@mui/material/IconButton";
 import Tooltip from "@mui/material/Tooltip";
 
@@ -39,17 +39,17 @@ const WithholdFromTNS = ({
 
   const setBy =
     withheld && source.withhold_from_tns && source.withhold_from_tns_set_at
-      ? ` Set by ${
+      ? `, set by ${
           source.withhold_from_tns_set_by?.username ?? "a deleted user"
-        } on ${source.withhold_from_tns_set_at.slice(0, 10)}.`
+        } on ${source.withhold_from_tns_set_at.slice(0, 10)}`
       : "";
 
   return (
     <Tooltip
       title={
         withheld
-          ? `Never sent to TNS, automatically or manually.${setBy}`
-          : "Never send to TNS, automatically or manually"
+          ? `Blocked from TNS${setBy}. Click to allow sending it again.`
+          : "Can be sent to TNS. Click to block it from TNS, automatically or manually."
       }
     >
       <span>
@@ -59,12 +59,17 @@ const WithholdFromTNS = ({
           aria-pressed={withheld}
           disabled={readOnly}
           onClick={toggle}
-          sx={{ p: "2px", color: withheld ? "error.main" : "primary.main" }}
+          sx={{
+            p: 0,
+            ml: 0.5,
+            color: withheld ? "error.main" : "text.disabled",
+            "&:hover": { color: "error.main" },
+          }}
         >
           {withheld ? (
-            <CloseIcon fontSize="small" />
+            <CancelScheduleSendIcon fontSize="small" />
           ) : (
-            <DoNotDisturbOnOutlinedIcon fontSize="small" />
+            <CancelScheduleSendOutlinedIcon fontSize="small" />
           )}
         </IconButton>
       </span>
