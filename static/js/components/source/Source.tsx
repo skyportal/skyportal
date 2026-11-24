@@ -13,14 +13,12 @@ import { Link } from "react-router-dom";
 
 import { makeStyles } from "tss-react/mui";
 import Box from "@mui/material/Box";
-import { alpha, type Theme } from "@mui/material/styles";
+import { alpha } from "@mui/material/styles";
 import { deepPurple, teal } from "@mui/material/colors";
 import SendOutlinedIcon from "@mui/icons-material/SendOutlined";
 import Chip from "@mui/material/Chip";
 import Grid from "@mui/material/Grid";
 import Tooltip from "@mui/material/Tooltip";
-import DoNotDisturbOnOutlinedIcon from "@mui/icons-material/DoNotDisturbOnOutlined";
-import CloseIcon from "@mui/icons-material/Close";
 import Accordion from "@mui/material/Accordion";
 import AccordionSummary from "@mui/material/AccordionSummary";
 import AccordionDetails from "@mui/material/AccordionDetails";
@@ -74,6 +72,7 @@ import UpdateSourceMPC from "./UpdateSourceMPC";
 import UpdateSourceSummary from "./UpdateSourceSummary";
 import UpdateSourceT0 from "./UpdateSourceT0";
 import UpdateSourceTNS from "./UpdateSourceTNS";
+import WithholdFromTNS from "./WithholdFromTNS";
 import StartBotSummary from "../StartBotSummary";
 import SourceGCNCrossmatchList from "./SourceGCNCrossmatchList";
 import SourceRedshift from "./SourceRedshift";
@@ -109,7 +108,6 @@ import {
   useGetAssociatedGcnsQuery,
   useGetSourcePositionQuery,
   useAddSourceViewMutation,
-  useUpdateSourceMutation,
 } from "../../ducks/source";
 
 import PhotometryPlot from "../plot/PhotometryPlot";
@@ -309,7 +307,6 @@ const SourceContent = ({ source }: SourceContentProps) => {
   const unsharedSpectraCount = dataAvailability?.spectra?.length ?? 0;
   const { data: associatedGcnsData } = useGetAssociatedGcnsQuery(source.id);
   const associatedGCNs = associatedGcnsData?.["gcns"];
-  const [updateSource] = useUpdateSourceMutation();
 
   const { data: brokers = [] } = useGetBrokersQuery();
   const { data: brokerHosts } = useGetBrokerHostsQuery([source.id], {
@@ -773,55 +770,7 @@ const SourceContent = ({ source }: SourceContentProps) => {
                   <UpdateSourceTNS sourceId={source.id} />
                 )}
                 {(!source.tns_name || source.withhold_from_tns) && (
-                  <Tooltip
-                    title={
-                      source.withhold_from_tns
-                        ? `Never sent to TNS, automatically or manually.${
-                            source.withhold_from_tns_set_at
-                              ? ` Set by ${
-                                  source.withhold_from_tns_set_by?.username ??
-                                  "a deleted user"
-                                } on ${source.withhold_from_tns_set_at.slice(0, 10)}.`
-                              : ""
-                          }`
-                        : "Never send to TNS, automatically or manually"
-                    }
-                  >
-                    <span>
-                      <Button
-                        variant="outlined"
-                        color={source.withhold_from_tns ? "error" : "primary"}
-                        size="small"
-                        data-testid="withhold-from-tns-button"
-                        aria-pressed={Boolean(source.withhold_from_tns)}
-                        disabled={isReadOnly}
-                        onClick={() =>
-                          updateSource({
-                            id: source.id,
-                            payload: {
-                              withhold_from_tns: !source.withhold_from_tns,
-                            },
-                          })
-                        }
-                        sx={(theme: Theme) => ({
-                          py: 0,
-                          px: 0.75,
-                          minWidth: 0,
-                          height: 22,
-                          ml: 0.5,
-                          ...(source.withhold_from_tns && {
-                            bgcolor: alpha(theme.palette.error.main, 0.1),
-                          }),
-                        })}
-                      >
-                        {source.withhold_from_tns ? (
-                          <CloseIcon fontSize="small" />
-                        ) : (
-                          <DoNotDisturbOnOutlinedIcon fontSize="small" />
-                        )}
-                      </Button>
-                    </span>
-                  </Tooltip>
+                  <WithholdFromTNS source={source} readOnly={isReadOnly} />
                 )}
               </Box>
               <Box className={classes.rowInfo} sx={{ position: "relative" }}>
