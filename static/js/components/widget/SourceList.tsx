@@ -223,7 +223,6 @@ export const SourceRow = ({
           )}
           <Typography
             variant="caption"
-            color="text.secondary"
             sx={{
               display: "flex",
               columnGap: 1.25,
@@ -231,8 +230,17 @@ export const SourceRow = ({
               whiteSpace: "nowrap",
             }}
           >
-            <span>{`α ${ra_to_hours(source.ra)}`}</span>
-            <span>{`δ ${dec_to_dms(source.dec)}`}</span>
+            {[
+              ["α", ra_to_hours(source.ra)],
+              ["δ", dec_to_dms(source.dec)],
+            ].map(([label, value]) => (
+              <span key={label}>
+                <Box component="span" sx={{ color: "text.disabled", mr: 0.5 }}>
+                  {label}
+                </Box>
+                {value}
+              </span>
+            ))}
           </Typography>
         </Box>
         {groups.length > 0 && (
