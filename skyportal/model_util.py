@@ -178,6 +178,17 @@ def provision_token():
         first_name="provisioned",
         last_name="admin",
     )
+    if not (admin.preferences or {}).get("notifications"):
+        off = {"active": False, "in_app": {"active": False}, "email": {"active": False}}
+        admin.preferences = {
+            **(admin.preferences or {}),
+            "notifications": dict.fromkeys(
+                ["user_application", "group_admission_request", "data_access_request"],
+                off,
+            ),
+        }
+        DBSession().add(admin)
+        DBSession().commit()
     token_name = "Initial admin token"
 
     token = (
