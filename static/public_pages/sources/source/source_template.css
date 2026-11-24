@@ -112,15 +112,24 @@ header {
       }
     }
 
-    .coordinates .fieldLabel {
-      color: rgba(0, 0, 0, 0.38);
-      font-weight: normal;
-      margin-right: 0.25rem;
+    .coordinates {
+      .sexagesimal {
+        font-weight: 500;
+      }
+      .fieldLabel {
+        color: rgba(0, 0, 0, 0.38);
+        font-weight: normal;
+        margin-right: 0.25rem;
+      }
     }
 
     .summary {
       align-self: flex-start;
-      max-width: 60rem;
+      max-width: 50%;
+      box-sizing: border-box;
+      @media screen and (max-width: 900px) {
+        max-width: none;
+      }
       background-color: rgba(0, 0, 0, 0.04);
       border-radius: 8px;
       padding: 0.5rem 0.75rem;
