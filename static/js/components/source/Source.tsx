@@ -35,8 +35,6 @@ import ImageOutlinedIcon from "@mui/icons-material/ImageOutlined";
 import PictureAsPdfOutlinedIcon from "@mui/icons-material/PictureAsPdfOutlined";
 import ShowChartOutlinedIcon from "@mui/icons-material/ShowChartOutlined";
 import FormatListBulletedOutlinedIcon from "@mui/icons-material/FormatListBulletedOutlined";
-import SendOutlinedIcon from "@mui/icons-material/SendOutlined";
-import PublicOutlinedIcon from "@mui/icons-material/PublicOutlined";
 import MenuItem from "@mui/material/MenuItem";
 import IconButton from "@mui/material/IconButton";
 import Paper from "@mui/material/Paper";
@@ -311,8 +309,6 @@ const SourceContent = ({ source }: SourceContentProps) => {
   // (where it will appear on the screen)
   const [anchorElObserving, setAnchorElObserving] =
     useState<HTMLElement | null>(null);
-  const [anchorElShare, setAnchorElShare] = useState<HTMLElement | null>(null);
-  const [publishDialogOpen, setPublishDialogOpen] = useState(false);
 
   const [showStarList, setShowStarList] = useState(false);
   const [showPhotometry, setShowPhotometry] = useState(false);
@@ -1016,6 +1012,35 @@ const SourceContent = ({ source }: SourceContentProps) => {
                   {showStarList ? "Hide starlist" : "Show starlist"}
                 </MenuItem>
               </Menu>
+              {!isReadOnly && (
+                <>
+                  <Tooltip title="Send to TNS, Hermes or TROVE, or make a public page">
+                    <Button
+                      secondary
+                      size="small"
+                      onClick={() => setSendToDialogOpen(true)}
+                    >
+                      Send to
+                    </Button>
+                  </Tooltip>
+                  <SharingServicesDialog
+                    obj_id={source.id}
+                    dialogOpen={sendToDialogOpen}
+                    setDialogOpen={setSendToDialogOpen}
+                    publicPage={
+                      <SourcePublish
+                        sourceId={source.id}
+                        isElements={{
+                          summary: source.summary_history?.length > 0,
+                          photometry: source.photometry_exists,
+                          spectroscopy: source.spectrum_exists,
+                          classifications: source.classifications?.length > 0,
+                        }}
+                      />
+                    }
+                  />
+                </>
+              )}
               {alertBroker ? (
                 <Tooltip
                   title={`Alerts for this object in ${alertBroker.name}`}
@@ -1051,68 +1076,6 @@ const SourceContent = ({ source }: SourceContentProps) => {
                     </Button>
                   </span>
                 </Tooltip>
-              )}
-              {!isReadOnly && (
-                <>
-                  <Tooltip title="Send to a service or make public">
-                    <Button
-                      secondary
-                      size="small"
-                      endIcon={<ExpandMoreIcon />}
-                      aria-haspopup="true"
-                      aria-expanded={Boolean(anchorElShare)}
-                      onClick={(e: any) => setAnchorElShare(e.currentTarget)}
-                    >
-                      Share
-                    </Button>
-                  </Tooltip>
-                  <Menu
-                    transitionDuration={50}
-                    anchorEl={anchorElShare}
-                    open={Boolean(anchorElShare)}
-                    onClose={() => setAnchorElShare(null)}
-                    slotProps={{ list: { dense: true } }}
-                  >
-                    <MenuItem
-                      onClick={() => {
-                        setSendToDialogOpen(true);
-                        setAnchorElShare(null);
-                      }}
-                    >
-                      <ListItemIcon>
-                        <SendOutlinedIcon fontSize="small" />
-                      </ListItemIcon>
-                      Send to
-                    </MenuItem>
-                    <MenuItem
-                      onClick={() => {
-                        setPublishDialogOpen(true);
-                        setAnchorElShare(null);
-                      }}
-                    >
-                      <ListItemIcon>
-                        <PublicOutlinedIcon fontSize="small" />
-                      </ListItemIcon>
-                      Public access
-                    </MenuItem>
-                  </Menu>
-                  <SharingServicesDialog
-                    obj_id={source.id}
-                    dialogOpen={sendToDialogOpen}
-                    setDialogOpen={setSendToDialogOpen}
-                  />
-                  <SourcePublish
-                    sourceId={source.id}
-                    isElements={{
-                      summary: source.summary_history?.length > 0,
-                      photometry: source.photometry_exists,
-                      spectroscopy: source.spectrum_exists,
-                      classifications: source.classifications?.length > 0,
-                    }}
-                    open={publishDialogOpen}
-                    onClose={() => setPublishDialogOpen(false)}
-                  />
-                </>
               )}
               {currentUser?.preferences?.["hideSourceSummary"] === true && (
                 <ShowSummaryHistory

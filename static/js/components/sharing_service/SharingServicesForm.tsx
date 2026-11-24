@@ -1,5 +1,5 @@
 import { useGetProfileQuery } from "../../ducks/profile";
-import { useEffect, useState } from "react";
+import { type ReactNode, useEffect, useState } from "react";
 import validator from "@rjsf/validator-ajv8";
 import { withTheme } from "@rjsf/core";
 
@@ -12,6 +12,8 @@ import Tooltip from "@mui/material/Tooltip";
 import Box from "@mui/material/Box";
 import Chip from "@mui/material/Chip";
 import Dialog from "@mui/material/Dialog";
+import Tabs from "@mui/material/Tabs";
+import Tab from "@mui/material/Tab";
 import DialogTitle from "@mui/material/DialogTitle";
 import DialogContent from "@mui/material/DialogContent";
 import FormControl from "@mui/material/FormControl";
@@ -44,14 +46,17 @@ interface SharingServicesDialogProps {
   obj_id: string;
   dialogOpen: boolean;
   setDialogOpen: (...a: any[]) => void;
+  publicPage?: ReactNode;
 }
 
 const SharingServicesDialog = ({
   obj_id,
   dialogOpen,
   setDialogOpen,
+  publicPage,
 }: SharingServicesDialogProps) => {
   const dispatch = useAppDispatch();
+  const [tab, setTab] = useState(0);
   const [addSharingServiceSubmission] =
     useAddSharingServiceSubmissionMutation();
   // Skipped until the dialog opens: the response is the whole user table.
@@ -487,132 +492,156 @@ const SharingServicesDialog = ({
   };
 
   return (
-    <Dialog open={dialogOpen} onClose={() => setDialogOpen(false)}>
-      <DialogTitle>
-        <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-          Send to
-          <Tooltip
-            title={
-              isNoAffiliation && (
-                <h3>
-                  Warning: You have no affiliation(s), you should set your
-                  affiliation(s) in your profile before submitting to TNS
-                </h3>
-              )
-            }
-          >
-            <div>
-              <Chip
-                label="TNS"
-                clickable
-                onClick={() => setSendToTNS(!sendToTNS)}
-                color={sendToTNS ? "primary" : "default"}
-                variant={sendToTNS ? "filled" : "outlined"}
-                disabled={
-                  isNoAffiliation ||
-                  !selectedSharingService?.enable_sharing_with_tns
-                }
-              />
-            </div>
-          </Tooltip>
-          <Tooltip
-            title={
-              <h3>
-                HERMES is a Message Exchange Service for Multi-Messenger
-                Astronomy. Click{" "}
-                <a
-                  href="https://hermes.lco.global/about"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  here
-                </a>{" "}
-                for more information.
-              </h3>
-            }
-          >
-            <Chip
-              label="Hermes"
-              clickable
-              onClick={() => setSendToHermes(!sendToHermes)}
-              color={sendToHermes ? "primary" : "default"}
-              variant={sendToHermes ? "filled" : "outlined"}
-              disabled={!selectedSharingService?.enable_sharing_with_hermes}
-            />
-          </Tooltip>
-          <Tooltip
-            title={
-              <h3>
-                TROVE is a Treasure Trove of Optical Variables and Explosive
-                transients. Click{" "}
-                <a
-                  href="https://datatrove.as.arizona.edu"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  here
-                </a>{" "}
-                for more information.
-              </h3>
-            }
-          >
-            <Chip
-              label="TROVE"
-              clickable
-              onClick={() => setSendToTrove(!sendToTrove)}
-              color={sendToTrove ? "primary" : "default"}
-              variant={sendToTrove ? "filled" : "outlined"}
-              disabled={!selectedSharingService?.enable_sharing_with_trove}
-            />
-          </Tooltip>
-        </Box>
-      </DialogTitle>
-      <DialogContent>
-        <FormControl
-          sx={{ mt: 1 }}
-          fullWidth
-          required
-          error={!sharingServicesList?.length && !loading}
+    <Dialog
+      open={dialogOpen}
+      onClose={() => setDialogOpen(false)}
+      slotProps={{ transition: { onExited: () => setTab(0) } }}
+    >
+      {publicPage && (
+        <Tabs
+          value={tab}
+          onChange={(_, value) => setTab(value)}
+          sx={{ px: 3, borderBottom: 1, borderColor: "divider" }}
         >
-          <InputLabel id="sharingServiceSelectLabel">
-            Sharing Service
-          </InputLabel>
-          <Select
-            inputProps={{ MenuProps: { disableScrollLock: true } }}
-            labelId="sharingServiceSelectLabel"
-            label="Sharing Service"
-            value={selectedSharingServiceId || ""}
-            onChange={(e) => setSelectedSharingServiceId(e.target.value)}
-          >
-            {sharingServicesList?.map((sharingService: any) => (
-              <MenuItem value={sharingService.id} key={sharingService.id}>
-                <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
-                  {sharingService.testing === true && (
-                    <Tooltip
-                      title={
-                        <Box sx={{ fontSize: "0.8rem", fontWeight: 500 }}>
-                          Testing mode:
-                          {testingModeText(sharingService).map((line) => (
-                            <div key={line}>- {line}</div>
-                          ))}
-                        </Box>
-                      }
-                      placement="right"
+          <Tab label="Services" />
+          <Tab label="Public page" />
+        </Tabs>
+      )}
+      {publicPage && tab === 1 ? (
+        publicPage
+      ) : (
+        <>
+          <DialogTitle>
+            <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+              Send to
+              <Tooltip
+                title={
+                  isNoAffiliation && (
+                    <h3>
+                      Warning: You have no affiliation(s), you should set your
+                      affiliation(s) in your profile before submitting to TNS
+                    </h3>
+                  )
+                }
+              >
+                <div>
+                  <Chip
+                    label="TNS"
+                    clickable
+                    onClick={() => setSendToTNS(!sendToTNS)}
+                    color={sendToTNS ? "primary" : "default"}
+                    variant={sendToTNS ? "filled" : "outlined"}
+                    disabled={
+                      isNoAffiliation ||
+                      !selectedSharingService?.enable_sharing_with_tns
+                    }
+                  />
+                </div>
+              </Tooltip>
+              <Tooltip
+                title={
+                  <h3>
+                    HERMES is a Message Exchange Service for Multi-Messenger
+                    Astronomy. Click{" "}
+                    <a
+                      href="https://hermes.lco.global/about"
+                      target="_blank"
+                      rel="noopener noreferrer"
                     >
-                      <BugReportIcon sx={{ color: "orange" }} />
-                    </Tooltip>
-                  )}
-                  <Typography variant="body1">{sharingService.name}</Typography>
-                </Box>
-              </MenuItem>
-            ))}
-          </Select>
-          {!sharingServicesList?.length && !loading && (
-            <FormHelperText>No sharing service available.</FormHelperText>
-          )}
-        </FormControl>
-        {sharingServiceForm()}
-      </DialogContent>
+                      here
+                    </a>{" "}
+                    for more information.
+                  </h3>
+                }
+              >
+                <Chip
+                  label="Hermes"
+                  clickable
+                  onClick={() => setSendToHermes(!sendToHermes)}
+                  color={sendToHermes ? "primary" : "default"}
+                  variant={sendToHermes ? "filled" : "outlined"}
+                  disabled={!selectedSharingService?.enable_sharing_with_hermes}
+                />
+              </Tooltip>
+              <Tooltip
+                title={
+                  <h3>
+                    TROVE is a Treasure Trove of Optical Variables and Explosive
+                    transients. Click{" "}
+                    <a
+                      href="https://datatrove.as.arizona.edu"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      here
+                    </a>{" "}
+                    for more information.
+                  </h3>
+                }
+              >
+                <Chip
+                  label="TROVE"
+                  clickable
+                  onClick={() => setSendToTrove(!sendToTrove)}
+                  color={sendToTrove ? "primary" : "default"}
+                  variant={sendToTrove ? "filled" : "outlined"}
+                  disabled={!selectedSharingService?.enable_sharing_with_trove}
+                />
+              </Tooltip>
+            </Box>
+          </DialogTitle>
+          <DialogContent>
+            <FormControl
+              sx={{ mt: 1 }}
+              fullWidth
+              required
+              error={!sharingServicesList?.length && !loading}
+            >
+              <InputLabel id="sharingServiceSelectLabel">
+                Sharing Service
+              </InputLabel>
+              <Select
+                inputProps={{ MenuProps: { disableScrollLock: true } }}
+                labelId="sharingServiceSelectLabel"
+                label="Sharing Service"
+                value={selectedSharingServiceId || ""}
+                onChange={(e) => setSelectedSharingServiceId(e.target.value)}
+              >
+                {sharingServicesList?.map((sharingService: any) => (
+                  <MenuItem value={sharingService.id} key={sharingService.id}>
+                    <Box
+                      sx={{ display: "flex", alignItems: "center", gap: 0.5 }}
+                    >
+                      {sharingService.testing === true && (
+                        <Tooltip
+                          title={
+                            <Box sx={{ fontSize: "0.8rem", fontWeight: 500 }}>
+                              Testing mode:
+                              {testingModeText(sharingService).map((line) => (
+                                <div key={line}>- {line}</div>
+                              ))}
+                            </Box>
+                          }
+                          placement="right"
+                        >
+                          <BugReportIcon sx={{ color: "orange" }} />
+                        </Tooltip>
+                      )}
+                      <Typography variant="body1">
+                        {sharingService.name}
+                      </Typography>
+                    </Box>
+                  </MenuItem>
+                ))}
+              </Select>
+              {!sharingServicesList?.length && !loading && (
+                <FormHelperText>No sharing service available.</FormHelperText>
+              )}
+            </FormControl>
+            {sharingServiceForm()}
+          </DialogContent>
+        </>
+      )}
     </Dialog>
   );
 };
