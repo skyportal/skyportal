@@ -124,11 +124,10 @@ header {
     }
 
     .summary {
-      align-self: flex-start;
-      max-width: 50%;
+      width: 50%;
       box-sizing: border-box;
-      @media screen and (max-width: 900px) {
-        max-width: none;
+      @media screen and (max-width: 600px) {
+        width: auto;
       }
       background-color: rgba(0, 0, 0, 0.04);
       border-radius: 8px;
