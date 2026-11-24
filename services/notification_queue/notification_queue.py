@@ -155,6 +155,7 @@ def user_preferences(target, notification_setting, resource_type):
 
     if "preferences" not in target["user"]:
         return
+    preferences = target["user"]["preferences"] or {}
 
     if notification_setting in ["sms", "phone"]:
         if client is None:
@@ -163,25 +164,25 @@ def user_preferences(target, notification_setting, resource_type):
             return
 
     if notification_setting == "slack":
-        if not target["user"]["preferences"].get("slack_integration"):
+        if not preferences.get("slack_integration"):
             return
-        if not target["user"]["preferences"]["slack_integration"].get("active"):
+        if not preferences["slack_integration"].get("active"):
             return
         if (
-            not target["user"]["preferences"]["slack_integration"]
+            not preferences["slack_integration"]
             .get("url", "")
             .startswith(cfg["slack.expected_url_preamble"])
         ):
             return
 
     if notification_setting == "telegram":
-        integration = target["user"]["preferences"].get("telegram_integration") or {}
+        integration = preferences.get("telegram_integration") or {}
         if not telegram_enabled() or not integration.get("active"):
             return
         if not integration.get("chat_id"):
             return
 
-    prefs = (target["user"]["preferences"] or {}).get("notifications")
+    prefs = preferences.get("notifications")
     if resource_type == "group_admission_request":
         channel = ((prefs or {}).get(resource_type) or {}).get(notification_setting)
         if (channel or {}).get("active", notification_setting == "email") is not True:
