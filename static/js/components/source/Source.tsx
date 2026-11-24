@@ -213,12 +213,24 @@ export const useSourceStyles = makeStyles()((theme) => ({
     display: "flex",
     flexDirection: "row",
     alignItems: "center",
+    minHeight: theme.spacing(4),
+  },
+  lineRow: {
+    display: "flex",
+    flexWrap: "wrap",
+    alignItems: "center",
+    columnGap: "0.5rem",
+    "& > div": {
+      display: "flex",
+      alignItems: "center",
+      minHeight: theme.spacing(4),
+    },
   },
   linkedObjs: {
     flexBasis: "100%",
     display: "flex",
-    alignItems: "baseline",
-    marginTop: theme.spacing(0.75),
+    alignItems: "center",
+    minHeight: theme.spacing(4),
   },
   linkedObjList: {
     display: "flex",
@@ -227,10 +239,12 @@ export const useSourceStyles = makeStyles()((theme) => ({
     gap: "0.25rem 0.5rem",
   },
   dmdlInfo: {
-    alignSelf: "center",
-    "&>div": {
-      display: "inline",
-      padding: "0.25rem 0.5rem 0.25rem 0",
+    flexWrap: "wrap",
+    columnGap: "0.5rem",
+    "& > div": {
+      display: "flex",
+      alignItems: "center",
+      minHeight: theme.spacing(4),
     },
   },
   sourceCandidates: {
@@ -668,18 +682,11 @@ const SourceContent = ({ source }: SourceContentProps) => {
               </Box>
             )}
             <SourceCoordinates source={sourceWithPosition} />
-            <div
-              className={classes.flexRow}
-              style={{
-                flexBasis: "100%",
-                flexFlow: "wrap",
-                alignItems: "baseline",
-              }}
-            >
+            <div className={classes.lineRow}>
               {/* Meaningless for a solar-system object. DM and luminosity
                   distance derive from it, so they drop out on their own. */}
               {!source.is_roid && (
-                <div style={{ marginRight: "0.5rem" }}>
+                <div>
                   <FieldLabel>Redshift</FieldLabel>
                   <SourceRedshift source={source} readOnly={isReadOnly} />
                 </div>
@@ -714,7 +721,6 @@ const SourceContent = ({ source }: SourceContentProps) => {
                 alignItems: "center",
                 flexFlow: "wrap",
                 columnGap: "1rem",
-                rowGap: "0.375rem",
               }}
             >
               <Box
