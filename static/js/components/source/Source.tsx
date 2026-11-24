@@ -219,6 +219,7 @@ export const useSourceStyles = makeStyles()((theme) => ({
     flexDirection: "row",
     alignItems: "center",
     minHeight: theme.spacing(4),
+    "& > .MuiChip-root + *": { marginLeft: theme.spacing(0.5) },
   },
   lineRow: {
     display: "flex",
@@ -742,7 +743,6 @@ const SourceContent = ({ source }: SourceContentProps) => {
                     target="_blank"
                     rel="noopener noreferrer"
                     clickable
-                    sx={{ mr: 0.5 }}
                   />
                 )}
                 {source.tns_info && (
@@ -763,7 +763,7 @@ const SourceContent = ({ source }: SourceContentProps) => {
                   <FieldLabel>MPC</FieldLabel>
                 </Tooltip>
                 {source.mpc_name && (
-                  <Chip size="small" label={source.mpc_name} sx={{ mr: 0.5 }} />
+                  <Chip size="small" label={source.mpc_name} />
                 )}
                 {!isReadOnly && <UpdateSourceMPC source={source} />}
               </Box>
