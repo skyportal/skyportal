@@ -29408,6 +29408,10 @@ export interface components {
             broker_id?: number | null;
             /** @description Whether objects passing this filter are auto-saved as Sources to the Filter's Group. */
             autosave?: boolean;
+            /** @description Whether the scanning page opens on the moving objects view for this filter. */
+            moving_objects?: boolean;
+            /** @description False once the filter was deactivated. */
+            active?: boolean;
             /** Format: date-time */
             created_at?: string;
             /** Format: date-time */
