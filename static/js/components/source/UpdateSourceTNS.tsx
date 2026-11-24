@@ -1,39 +1,85 @@
 import { useState } from "react";
 
 import ManageSearchIcon from "@mui/icons-material/ManageSearch";
+import Box from "@mui/material/Box";
+import CircularProgress from "@mui/material/CircularProgress";
 import Dialog from "@mui/material/Dialog";
 import DialogActions from "@mui/material/DialogActions";
 import DialogContent from "@mui/material/DialogContent";
 import DialogTitle from "@mui/material/DialogTitle";
 import TextField from "@mui/material/TextField";
 import Tooltip from "@mui/material/Tooltip";
+import Typography from "@mui/material/Typography";
 
-import { showNotification } from "baselayer/components/Notifications";
-import { useAppDispatch } from "../../types/hooks";
 import { useAddTNSMutation } from "../../ducks/source";
 import Button from "../Button";
 
-const UpdateSourceTNS = ({ sourceId }: { sourceId: string }) => {
-  const dispatch = useAppDispatch();
+interface TNSRequest {
+  status: "pending" | "processing" | "found" | "not_found" | "error";
+  radius: number;
+  error?: string | null;
+  modified: string;
+}
+
+interface UpdateSourceTNSProps {
+  sourceId: string;
+  tnsRequest?: TNSRequest | null;
+}
+
+const UpdateSourceTNS = ({ sourceId, tnsRequest }: UpdateSourceTNSProps) => {
   const [addTNS, { isLoading }] = useAddTNSMutation();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [radius, setRadius] = useState("2");
 
   const search = async () => {
-    try {
-      await addTNS({
-        id: sourceId,
-        formData: { radius: Number(radius) },
-      }).unwrap();
-      dispatch(showNotification("Successfully queried TNS"));
-      setDialogOpen(false);
-    } catch {
-      dispatch(showNotification("Failed to query TNS", "error"));
-    }
+    const result = await addTNS({
+      id: sourceId,
+      formData: { radius: Number(radius) },
+    });
+    if (!("error" in result)) setDialogOpen(false);
   };
 
+  if (tnsRequest?.status === "pending" || tnsRequest?.status === "processing") {
+    return (
+      <Tooltip
+        title={`Looking for a TNS object within ${tnsRequest.radius}″`}
+        placement="bottom-start"
+      >
+        <Box
+          sx={{ display: "flex", alignItems: "center", gap: 0.75 }}
+          data-testid="tnsSearchInProgress"
+        >
+          <CircularProgress size={14} thickness={5} disableShrink />
+          <Typography variant="body2" color="text.secondary">
+            Searching…
+          </Typography>
+        </Box>
+      </Tooltip>
+    );
+  }
+
   return (
-    <>
+    <Box sx={{ display: "flex", alignItems: "center", gap: 0.75 }}>
+      {tnsRequest?.status === "not_found" && (
+        <Tooltip
+          title={`No TNS object within ${tnsRequest.radius}″, searched on ${tnsRequest.modified.slice(0, 10)}`}
+          placement="bottom-start"
+        >
+          <Typography variant="body2" color="text.secondary">
+            Not found
+          </Typography>
+        </Tooltip>
+      )}
+      {tnsRequest?.status === "error" && (
+        <Tooltip
+          title={tnsRequest.error || "Unknown error"}
+          placement="bottom-start"
+        >
+          <Typography variant="body2" color="error">
+            Search failed
+          </Typography>
+        </Tooltip>
+      )}
       <Tooltip title="Look for this source on TNS">
         <Button
           variant="outlined"
@@ -76,7 +122,7 @@ const UpdateSourceTNS = ({ sourceId }: { sourceId: string }) => {
           </Button>
         </DialogActions>
       </Dialog>
-    </>
+    </Box>
   );
 };
 
