@@ -7,7 +7,7 @@ import { useAppDispatch } from "../../types/hooks";
 import Button from "../Button";
 import { useUpdateSourceMutation } from "../../ducks/source";
 import type { Source } from "../../types";
-import EditPopover, { EditPopoverActions } from "./EditPopover";
+import EditPopover, { EditPopoverActions, emptyChipSx } from "./EditPopover";
 
 interface UpdateSourceT0Props {
   source: Source;
@@ -43,6 +43,7 @@ const UpdateSourceT0 = ({ source, readOnly = false }: UpdateSourceT0Props) => {
         size="small"
         data-testid="t0Chip"
         variant={hasT0 ? "filled" : "outlined"}
+        sx={hasT0 ? undefined : emptyChipSx}
         label={hasT0 ? String(Number(Number(source.t0).toFixed(5))) : "None"}
         onClick={
           readOnly

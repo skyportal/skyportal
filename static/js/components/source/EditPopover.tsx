@@ -39,6 +39,8 @@ const EditPopover = ({
   </Popover>
 );
 
+export const emptyChipSx = { borderStyle: "dashed", color: "text.secondary" };
+
 export const EditPopoverActions = ({ children }: { children: ReactNode }) => (
   <Box
     sx={{

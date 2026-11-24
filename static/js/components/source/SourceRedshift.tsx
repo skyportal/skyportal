@@ -11,7 +11,7 @@ import { useAppDispatch } from "../../types/hooks";
 import Button from "../Button";
 import { useUpdateSourceMutation } from "../../ducks/source";
 import { useGetUsersQuery } from "../../ducks/users";
-import EditPopover, { EditPopoverActions } from "./EditPopover";
+import EditPopover, { EditPopoverActions, emptyChipSx } from "./EditPopover";
 
 const REDSHIFT_TYPES = [
   { value: "spectroscopic", label: "Spectroscopic" },
@@ -143,7 +143,9 @@ const SourceRedshift = ({ source, readOnly = false }: SourceRedshiftProps) => {
   const invalid = !zValue || isNaN(Number(zValue));
 
   if (readOnly && !hasRedshift && !history.length) {
-    return <Chip size="small" variant="outlined" label="None" />;
+    return (
+      <Chip size="small" variant="outlined" label="None" sx={emptyChipSx} />
+    );
   }
 
   const open = (e: React.MouseEvent<HTMLElement>) => {
@@ -189,6 +191,7 @@ const SourceRedshift = ({ source, readOnly = false }: SourceRedshiftProps) => {
         size="small"
         data-testid="redshiftChip"
         variant={hasRedshift ? "filled" : "outlined"}
+        sx={hasRedshift ? undefined : emptyChipSx}
         label={
           hasRedshift
             ? [formatZ(source.redshift!, source.redshift_error), typeLabel]
