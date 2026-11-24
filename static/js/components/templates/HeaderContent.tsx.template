@@ -11,6 +11,7 @@ import Tooltip from "@mui/material/Tooltip";
 import useMediaQuery from "@mui/material/useMediaQuery";
 
 import FeedbackButton from "../feedback/FeedbackButton";
+import { HEADER_ICON_SX } from "../HeaderPanel";
 import ProfileDropdown from "../ProfileDropdown";
 import Logo from "../Logo";
 import Notifications from "../Notifications";
@@ -20,6 +21,17 @@ import { useAppDispatch } from "../../types/hooks";
 
 import QuickSearchBar from "../QuickSearchBar";
 import {alpha} from "@mui/material/styles";
+
+const MOBILE_ONLY_ICON_SX = { ...HEADER_ICON_SX, display: { xs: "inline-flex", md: "none" } };
+const DESKTOP_ONLY_ICON_SX = { ...HEADER_ICON_SX, display: { xs: "none", md: "inline-flex" } };
+const ICON_GROUP_SX = {
+  display: "inline-flex",
+  alignItems: "center",
+  gap: "2px",
+  p: "3px",
+  borderRadius: "999px",
+  bgcolor: "rgba(255, 255, 255, 0.07)",
+};
 
 const useStyles = makeStyles()((theme) => ({
   topBannerContent: {
@@ -179,31 +191,27 @@ const HeaderContent = () => {
         <Box sx={{"{{ display: { xs: 'none', md: 'block' } }}"}}>
           <QuickSearchBar />
         </Box>
-        <Box sx={{"{{ display: { xs: 'block', md: 'none' } }}"}}>
+        <TeamSwitcher />
+        <Box sx={ICON_GROUP_SX}>
           <IconButton
             onClick={() => setOpenSearch(!openSearch)}
-            size="large"
-            style={{"{{padding: 0, margin: 0}}"}}
+            sx={MOBILE_ONLY_ICON_SX}
           >
-            <SearchIcon fontSize="large" style={{"{{color: '#457b9d'}}"}}/>
+            <SearchIcon fontSize="inherit" />
           </IconButton>
-        </Box>
-        <Box sx={{"{{ display: { xs: 'none', md: 'block' } }}"}}>
           <Tooltip title="Refresh basic data">
             <IconButton
               onClick={() => handleRefresh()}
               data-testid="refreshButton"
-              size="large"
-              style={{"{{padding: 0, margin: 0}}"}}
+              sx={DESKTOP_ONLY_ICON_SX}
               disabled={refreshing}
             >
-              <RefreshIcon fontSize="large" style={{"{{color: refreshing ? 'grey' : '#457b9d'}}"}}/>
+              <RefreshIcon fontSize="inherit" />
             </IconButton>
           </Tooltip>
+          <FeedbackButton />
+          <Notifications />
         </Box>
-        <FeedbackButton />
-        <TeamSwitcher />
-        <Notifications />
         <ProfileDropdown />
       </div>
       <Box
