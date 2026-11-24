@@ -1,20 +1,19 @@
-import { ReactNode, useState } from "react";
+import { Fragment, ReactNode, useState } from "react";
 import { Link } from "react-router-dom";
 
 import Box from "@mui/material/Box";
-import Chip from "@mui/material/Chip";
 import MuiLink from "@mui/material/Link";
 import Skeleton from "@mui/material/Skeleton";
 import Typography from "@mui/material/Typography";
+import { alpha, lighten } from "@mui/material/styles";
 import ImageNotSupportedOutlined from "@mui/icons-material/ImageNotSupportedOutlined";
 
 import DynamicTagDisplay from "./DynamicTagDisplay";
-import ExpandableCell from "../ExpandableCell";
 import { isPlaceholder } from "../thumbnail/ThumbnailList";
 import { dec_to_dms, ra_to_hours } from "../../units";
 import { useGetProfileQuery } from "../../ducks/profile";
 
-const STAMP_SIZE = "4.75rem";
+const STAMP_SIZE = "4rem";
 
 const latestClassification = (source: any) => {
   const classifications = source.classifications ?? [];
@@ -121,6 +120,16 @@ interface SourceRowProps {
   showGroups?: boolean;
 }
 
+const pillSx = {
+  px: 0.75,
+  py: 0.125,
+  borderRadius: 1,
+  fontSize: "0.72rem",
+  fontWeight: 600,
+  lineHeight: 1.5,
+  whiteSpace: "nowrap",
+} as const;
+
 export const SourceRow = ({
   source,
   testId,
@@ -130,6 +139,7 @@ export const SourceRow = ({
 }: SourceRowProps) => {
   const classification = latestClassification(source);
   const tnsName = displayTNS && source.tns_name?.length > 0 && source.tns_name;
+  const groups: any[] = (showGroups && source.groups) || [];
 
   return (
     <Box
@@ -137,11 +147,8 @@ export const SourceRow = ({
       sx={{
         display: "flex",
         gap: 1.5,
-        p: 1,
-        mx: -1,
-        borderRadius: 2,
-        transition: "background-color 0.15s",
-        "&:hover": { bgcolor: "action.hover" },
+        py: 1.25,
+        "& + &": { borderTop: 1, borderColor: "divider" },
       }}
     >
       <SourceStamp source={source} />
@@ -151,10 +158,10 @@ export const SourceRow = ({
           minWidth: 0,
           display: "flex",
           flexDirection: "column",
-          gap: 0.25,
+          gap: 0.5,
         }}
       >
-        <Box sx={{ display: "flex", alignItems: "baseline", gap: 1 }}>
+        <Box sx={{ display: "flex", alignItems: "center", gap: 0.75 }}>
           <MuiLink
             component={Link}
             to={`/source/${source.obj_id}`}
@@ -163,6 +170,22 @@ export const SourceRow = ({
           >
             <span>{source.obj_id}</span>
           </MuiLink>
+          {tnsName && (
+            <MuiLink
+              href={tnsUrl(tnsName)}
+              target="_blank"
+              rel="noreferrer"
+              underline="none"
+              sx={{
+                ...pillSx,
+                ...(tnsName.includes("SN")
+                  ? { bgcolor: "primary.main", color: "primary.contrastText" }
+                  : { bgcolor: "action.selected", color: "text.primary" }),
+              }}
+            >
+              {tnsName}
+            </MuiLink>
+          )}
           <Typography
             component="span"
             variant="caption"
@@ -172,62 +195,66 @@ export const SourceRow = ({
             {meta}
           </Typography>
         </Box>
-        {(classification || tnsName) && (
-          <Box
-            sx={{
-              display: "flex",
-              alignItems: "center",
-              gap: 0.75,
-              minWidth: 0,
-            }}
-          >
-            {classification && (
-              <Typography variant="body2" noWrap sx={{ fontWeight: 500 }}>
-                {classification}
-              </Typography>
-            )}
-            {tnsName && (
-              <Chip
-                label={tnsName}
-                size="small"
-                color={tnsName.includes("SN") ? "primary" : "default"}
-                onClick={() => window.open(tnsUrl(tnsName), "_blank")}
-                sx={{ height: 20, fontSize: "0.7rem", fontWeight: 600 }}
-              />
-            )}
-          </Box>
-        )}
-        <Typography
-          variant="caption"
-          color="text.secondary"
+        <Box
           sx={{
             display: "flex",
-            columnGap: 1.5,
+            alignItems: "center",
             flexWrap: "wrap",
-            fontVariantNumeric: "tabular-nums",
+            columnGap: 1.25,
+            rowGap: 0.5,
           }}
         >
-          <span>{`α ${ra_to_hours(source.ra)}`}</span>
-          <span>{`δ ${dec_to_dms(source.dec)}`}</span>
-        </Typography>
-        {showGroups && source.groups?.length > 0 && (
-          <Box sx={{ mt: 0.25 }}>
-            <ExpandableCell
-              maxVisible={2}
-              items={source.groups.map((group: any) => (
-                <Chip
-                  key={group.id}
-                  label={group.name}
-                  size="small"
-                  variant="outlined"
+          {classification && (
+            <Box
+              component="span"
+              sx={(theme) => ({
+                ...pillSx,
+                color:
+                  theme.palette.mode === "dark"
+                    ? lighten(theme.palette.primary.main, 0.5)
+                    : theme.palette.primary.main,
+                bgcolor: alpha(theme.palette.primary.main, 0.12),
+              })}
+            >
+              {classification}
+            </Box>
+          )}
+          <Typography
+            variant="caption"
+            color="text.secondary"
+            sx={{
+              display: "flex",
+              columnGap: 1.25,
+              fontVariantNumeric: "tabular-nums",
+              whiteSpace: "nowrap",
+            }}
+          >
+            <span>{`α ${ra_to_hours(source.ra)}`}</span>
+            <span>{`δ ${dec_to_dms(source.dec)}`}</span>
+          </Typography>
+        </Box>
+        {groups.length > 0 && (
+          <Typography
+            variant="caption"
+            color="text.secondary"
+            noWrap
+            title={groups.map((group) => group.name).join(", ")}
+          >
+            {groups.map((group, index) => (
+              <Fragment key={group.id}>
+                {index > 0 && ", "}
+                <MuiLink
                   component={Link}
                   to={`/group/${group.id}`}
-                  clickable
-                  sx={{ height: 20, maxWidth: "10rem", fontSize: "0.7rem" }}
-                />
-              ))}
-            />
-          </Box>
+                  color="inherit"
+                  underline="hover"
+                  sx={{ fontWeight: 400 }}
+                >
+                  {group.name}
+                </MuiLink>
+              </Fragment>
+            ))}
+          </Typography>
         )}
         <DynamicTagDisplay source={source} />
       </Box>

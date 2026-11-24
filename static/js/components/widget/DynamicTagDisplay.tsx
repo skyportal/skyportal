@@ -163,7 +163,6 @@ const DynamicTagDisplay = ({ source }: DynamicTagDisplayProps) => {
         flexWrap: "wrap",
         gap: 0.5,
         width: "100%",
-        mt: 0.5,
       }}
     >
       <Box
