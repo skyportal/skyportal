@@ -23,13 +23,9 @@ interface SourceCoordinatesProps {
     };
     ebv?: number;
   };
-  downMd?: boolean;
 }
 
-const SourceCoordinates = ({
-  source,
-  downMd = false,
-}: SourceCoordinatesProps) => {
+const SourceCoordinates = ({ source }: SourceCoordinatesProps) => {
   const ra = source?.adjusted_position?.ra || source.ra;
   const dec = source?.adjusted_position?.dec || source.dec;
   const gal_lon = source?.adjusted_position?.gal_lon || source.gal_lon;
@@ -66,10 +62,7 @@ const SourceCoordinates = ({
           "@media (hover: none)": { "& .edit-position": { opacity: 1 } },
         }}
       >
-        <Box
-          component="span"
-          sx={{ fontWeight: 600, fontSize: downMd ? "1rem" : "1.1rem" }}
-        >
+        <Box component="span" sx={{ fontWeight: 500 }}>
           {`${ra_to_hours(ra, ":")} ${dec_to_dms(dec, ":")}`}
         </Box>
         <span>
