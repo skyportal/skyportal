@@ -13,6 +13,7 @@ from baselayer.app.json_util import to_json
 from baselayer.app.models import Base, CustomUserAccessControl, UserAccessControl
 
 from ...utils.cache import Cache, cache_folder, dict_to_bytes
+from ...utils.thumbnail import is_placeholder
 from ..group import GroupUser
 from ..source import Source
 
@@ -171,6 +172,8 @@ class PublicSourcePage(Base):
         # retain only the last thumbnail of each type
         thumbnails_filtered = []
         for index, thumbnail in enumerate(public_data.get("thumbnails", [])):
+            if is_placeholder(thumbnail.get("public_url")):
+                continue
             if (
                 index + 1 >= len(public_data["thumbnails"])
                 or thumbnail["type"] != public_data["thumbnails"][index + 1]["type"]
