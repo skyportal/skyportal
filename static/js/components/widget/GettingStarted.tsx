@@ -2,8 +2,8 @@ import { useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useJoyride, EVENTS } from "react-joyride";
 
-import Paper from "@mui/material/Paper";
 import Box from "@mui/material/Box";
+import LinearProgress from "@mui/material/LinearProgress";
 import Typography from "@mui/material/Typography";
 import List from "@mui/material/List";
 import ListItemButton from "@mui/material/ListItemButton";
@@ -17,7 +17,6 @@ import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import RadioButtonUncheckedIcon from "@mui/icons-material/RadioButtonUnchecked";
 import TourIcon from "@mui/icons-material/Tour";
 import CloseIcon from "@mui/icons-material/Close";
-import GroupAddIcon from "@mui/icons-material/GroupAdd";
 
 import { showNotification } from "baselayer/components/Notifications";
 import {
@@ -34,11 +33,12 @@ import store from "../../store";
 import { setSidebar } from "../../ducks/sidebar";
 import { TOUR_STEPS } from "./GettingStartedTour";
 import { useTourStyles } from "../tourStyles";
+import WidgetCard from "./WidgetCard";
 
 // Onboarding checklist + guided tour, rendered as a Home Page widget until
 // dismissed (persisted in `preferences.onboardingDismissed`). Each step
 // auto-detects completion from the user's profile, groups, filters and sources.
-const GettingStarted = (_props: { classes?: Record<string, string> }) => {
+const GettingStarted = () => {
   const navigate = useNavigate();
   const dispatch = useAppDispatch();
   const { data: profile } = useGetProfileQuery();
@@ -243,38 +243,57 @@ const GettingStarted = (_props: { classes?: Record<string, string> }) => {
     },
   ];
 
+  const visibleChecklist = checklist.filter(
+    (item) => !(item as any).acl || permissions.includes((item as any).acl),
+  );
+  const tracked = visibleChecklist.filter((item) => !(item as any).explore);
+  const doneCount = tracked.filter((item) => (item as any).done).length;
+
   return (
-    <Paper
-      data-testid="tour-getting-started"
-      sx={{ p: 1.5, height: "100%", overflow: "auto" }}
+    <WidgetCard
+      testId="tour-getting-started"
+      title="Getting started"
+      actions={
+        <>
+          <Button
+            size="small"
+            data-testid="tour-start"
+            onClick={() => controls.start()}
+            sx={{ textTransform: "none", fontWeight: 600 }}
+          >
+            Take the tour
+          </Button>
+          <Tooltip title="Dismiss">
+            <IconButton
+              size="small"
+              data-testid="tour-dismiss"
+              onClick={() => updatePreferences({ onboardingDismissed: true })}
+            >
+              <CloseIcon fontSize="small" />
+            </IconButton>
+          </Tooltip>
+        </>
+      }
     >
       {Tour}
-      <Box
-        sx={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-        }}
-      >
-        <Typography variant="h6">Getting started</Typography>
-        <Tooltip title="Dismiss">
-          <IconButton
-            size="small"
-            data-testid="tour-dismiss"
-            onClick={() => updatePreferences({ onboardingDismissed: true })}
-          >
-            <CloseIcon fontSize="small" />
-          </IconButton>
-        </Tooltip>
+      <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, mb: 1.5 }}>
+        <LinearProgress
+          variant="determinate"
+          value={tracked.length ? (100 * doneCount) / tracked.length : 0}
+          sx={{ flex: 1, height: 6, borderRadius: 3 }}
+        />
+        <Typography
+          variant="caption"
+          color="text.secondary"
+          sx={{ whiteSpace: "nowrap" }}
+        >
+          {doneCount} of {tracked.length} done
+        </Typography>
       </Box>
-      <Typography variant="body2" color="textSecondary" gutterBottom>
-        Welcome to SkyPortal! Complete these steps to get going.
-      </Typography>
       {openGroups.length > 0 && (
-        <Box sx={{ mb: 1 }} data-testid="tour-getting-started-open-groups">
-          <Typography variant="subtitle2">Open groups to join</Typography>
-          <Typography variant="body2" color="textSecondary" gutterBottom>
-            These groups welcome new members — join to start sharing sources.
+        <Box sx={{ mb: 1.5 }} data-testid="tour-getting-started-open-groups">
+          <Typography variant="subtitle2" sx={{ mb: 0.75 }}>
+            Open groups to join
           </Typography>
           <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.75 }}>
             {openGroups.map((group) => (
@@ -283,7 +302,6 @@ const GettingStarted = (_props: { classes?: Record<string, string> }) => {
                 title={group.description || `Join ${group.name}`}
               >
                 <Chip
-                  icon={<GroupAddIcon fontSize="small" />}
                   label={group.name}
                   size="small"
                   variant="outlined"
@@ -297,46 +315,48 @@ const GettingStarted = (_props: { classes?: Record<string, string> }) => {
           </Box>
         </Box>
       )}
-      <List dense data-testid="tour-getting-started-checklist">
-        {checklist
-          .filter(
-            (item) =>
-              !(item as any).acl || permissions.includes((item as any).acl),
-          )
-          .map((item) => (
-            <ListItemButton
-              key={item.label}
-              alignItems="flex-start"
-              sx={{ px: 0.75, borderRadius: 1 }}
-              onClick={() =>
-                navigate(
-                  item.to,
-                  item.tour ? { state: { tour: item.tour } } : {},
-                )
-              }
-            >
-              <ListItemIcon sx={{ minWidth: 28 }}>
-                {(item as any).explore ? (
-                  <TourIcon color="action" fontSize="small" />
-                ) : (item as any).done ? (
-                  <CheckCircleIcon color="success" fontSize="small" />
-                ) : (
-                  <RadioButtonUncheckedIcon color="disabled" fontSize="small" />
-                )}
-              </ListItemIcon>
-              <ListItemText primary={item.label} secondary={item.help} />
-            </ListItemButton>
-          ))}
-      </List>
-      <Button
-        size="small"
-        variant="outlined"
-        data-testid="tour-start"
-        onClick={() => controls.start()}
+      <List
+        dense
+        disablePadding
+        data-testid="tour-getting-started-checklist"
+        sx={{ mx: -1 }}
       >
-        Take the tour
-      </Button>
-    </Paper>
+        {visibleChecklist.map((item) => (
+          <ListItemButton
+            key={item.label}
+            alignItems="flex-start"
+            sx={{ px: 1, borderRadius: 2 }}
+            onClick={() =>
+              navigate(item.to, item.tour ? { state: { tour: item.tour } } : {})
+            }
+          >
+            <ListItemIcon sx={{ minWidth: 30, mt: 0.5 }}>
+              {(item as any).explore ? (
+                <TourIcon color="action" fontSize="small" />
+              ) : (item as any).done ? (
+                <CheckCircleIcon color="success" fontSize="small" />
+              ) : (
+                <RadioButtonUncheckedIcon color="disabled" fontSize="small" />
+              )}
+            </ListItemIcon>
+            <ListItemText
+              primary={item.label}
+              secondary={item.help}
+              slotProps={{
+                primary: {
+                  sx: {
+                    fontWeight: 500,
+                    color: (item as any).done
+                      ? "text.secondary"
+                      : "text.primary",
+                  },
+                },
+              }}
+            />
+          </ListItemButton>
+        ))}
+      </List>
+    </WidgetCard>
   );
 };
 

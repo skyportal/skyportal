@@ -1,197 +1,171 @@
-import { useEffect, useRef, useState } from "react";
+import { ReactNode, useEffect, useRef, useState } from "react";
 
-import { makeStyles } from "tss-react/mui";
-import Paper from "@mui/material/Paper";
+import Box from "@mui/material/Box";
+import ButtonBase from "@mui/material/ButtonBase";
+import Menu from "@mui/material/Menu";
+import MenuItem from "@mui/material/MenuItem";
 import Typography from "@mui/material/Typography";
-import DragHandleIcon from "@mui/icons-material/DragHandle";
-import CardActions from "@mui/material/CardActions";
+import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 import relativeTime from "dayjs/plugin/relativeTime";
-import MenuItem from "@mui/material/MenuItem";
-import Menu from "@mui/material/Menu";
-import IconButton from "@mui/material/IconButton";
-import MoreVertIcon from "@mui/icons-material/MoreVert";
-import Button from "../Button";
 
+import Button from "../Button";
 import {
   useGetProfileQuery,
   useUpdateUserPreferencesMutation,
 } from "../../ducks/profile";
 import { useGetWeatherQuery } from "../../ducks/weather";
 import { useGetTelescopesQuery } from "../../ducks/telescopes";
+import WidgetCard, { WidgetEmpty } from "./WidgetCard";
 import WidgetLoading from "./WidgetLoading";
 
 dayjs.extend(relativeTime);
 dayjs.extend(utc);
 
-const useStyles = makeStyles()(() => ({
-  weatherInfo: {
-    display: "flex",
-    flexDirection: "row",
-    height: "60%",
-    overflow: "hidden",
-    overflowY: "scroll",
-  },
-  weatherBar: {
-    display: "flex",
-    flexDirection: "column",
-    height: "calc(100% - 1.25rem)",
-    justifyContent: "space-around",
-  },
-  weatherLinks: {
-    padding: 0,
-  },
-  media: {
-    height: "4rem",
-    width: "4rem",
-  },
-  selector: {
-    position: "relative",
-    left: "0.75rem",
-    "& button": {
-      padding: 0,
-    },
-  },
-  description: {
-    position: "relative",
-    left: "0.5rem",
-  },
-}));
+const Stat = ({ label, value }: { label: string; value: ReactNode }) => (
+  <Box sx={{ minWidth: 0 }}>
+    <Typography variant="caption" color="text.secondary" component="div">
+      {label}
+    </Typography>
+    <Typography variant="body2" noWrap sx={{ fontWeight: 500 }}>
+      {value}
+    </Typography>
+  </Box>
+);
 
 interface WeatherViewProps {
   weather?: any;
 }
 
 const WeatherView = ({ weather = {} }: WeatherViewProps) => {
-  const { classes: styles } = useStyles();
-  const url = `/static/images/weather/${weather?.weather?.current?.weather[0].icon}.png`;
-  let sunrise = dayjs.unix(weather?.weather?.current.sunrise);
-  let sunset = dayjs.unix(weather?.weather?.current.sunset);
+  const current = weather?.weather?.current;
+  if (!current) {
+    return <WidgetEmpty>No weather information available.</WidgetEmpty>;
+  }
 
   const now = dayjs();
+  let sunrise = dayjs.unix(current.sunrise);
+  let sunset = dayjs.unix(current.sunset);
   sunrise = now.diff(sunrise, "hour") >= 12 ? sunrise.add(1, "day") : sunrise;
   sunset = now.diff(sunset, "hour") >= 12 ? sunset.add(1, "day") : sunset;
-  const description = weather?.weather?.current.weather[0].description || "N/A";
+  const sunEvents = [
+    { label: "Sunrise", time: sunrise },
+    { label: "Sunset", time: sunset },
+  ].sort((a, b) => a.time.valueOf() - b.time.valueOf());
+  const description = current.weather?.[0]?.description ?? "";
 
   return (
-    <>
-      <div className={styles.weatherBar}>
-        <div className={styles.weatherInfo}>
-          {weather.weather ? (
-            <>
-              <div>
-                <img
-                  src={url}
-                  className={styles.media}
-                  alt={description}
-                  loading="lazy"
-                />
-              </div>
-              <div className={styles.description}>
-                <Typography variant="body2" color="textSecondary" component="p">
-                  It&nbsp;is&nbsp;
-                  {(weather?.weather?.current.temp - 273.15).toFixed(1)}&deg;C
-                  with&nbsp;
-                  {weather?.weather?.current.humidity}% humidity &amp;&nbsp;
-                  {weather?.weather?.current.weather[0].description}.&nbsp;
-                  {sunrise.isBefore(sunset) && (
-                    <span>
-                      Sunrise {dayjs().to(sunrise)}, sunset {dayjs().to(sunset)}
-                      .
-                    </span>
-                  )}
-                  {!sunrise.isBefore(sunset) && (
-                    <span>
-                      Sunset {dayjs().to(sunset)}, sunrise&nbsp;
-                      {dayjs().to(sunrise)}
-                    </span>
-                  )}
-                </Typography>
-              </div>
-            </>
-          ) : (
-            <Typography variant="body2" color="textSecondary">
-              No weather information available
-            </Typography>
+    <Box
+      sx={{
+        display: "flex",
+        flexDirection: "column",
+        gap: 1.5,
+        height: "100%",
+      }}
+    >
+      <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
+        <Box
+          component="img"
+          src={`/static/images/weather/${current.weather?.[0]?.icon}.png`}
+          alt={description}
+          loading="lazy"
+          sx={{ width: "3.5rem", height: "3.5rem", flexShrink: 0 }}
+        />
+        <Box sx={{ minWidth: 0 }}>
+          <Typography
+            sx={{
+              fontSize: "1.75rem",
+              fontWeight: 700,
+              lineHeight: 1.1,
+              letterSpacing: "-0.01em",
+            }}
+          >
+            {(current.temp - 273.15).toFixed(1)}&deg;C
+          </Typography>
+          <Typography
+            variant="body2"
+            color="text.secondary"
+            sx={{ "&::first-letter": { textTransform: "uppercase" } }}
+          >
+            {description}
+          </Typography>
+        </Box>
+      </Box>
+      <Box
+        sx={{
+          display: "grid",
+          gridTemplateColumns: "repeat(auto-fill, minmax(6.5rem, 1fr))",
+          gap: 1,
+        }}
+      >
+        <Stat label="Humidity" value={`${current.humidity}%`} />
+        {sunEvents.map(({ label, time }) => (
+          <Stat key={label} label={label} value={now.to(time)} />
+        ))}
+      </Box>
+      {(weather.weather_link || weather.skycam_link) && (
+        <Box sx={{ display: "flex", gap: 1, mt: "auto" }}>
+          {weather.weather_link && (
+            <Button
+              secondary
+              size="small"
+              href={weather.weather_link}
+              target="_blank"
+              rel="noreferrer"
+            >
+              Forecast
+            </Button>
           )}
-        </div>
-        <CardActions className={styles.weatherLinks}>
-          {weather?.weather_link && (
-            <a href={weather.weather_link} rel="noreferrer" target="_blank">
-              <Button secondary size="small">
-                Forecast
-              </Button>
-            </a>
+          {weather.skycam_link && (
+            <Button
+              secondary
+              size="small"
+              href={weather.skycam_link}
+              target="_blank"
+              rel="noreferrer"
+            >
+              Webcam
+            </Button>
           )}
-          {weather?.skycam_link && (
-            <a href={weather.skycam_link} rel="noreferrer" target="_blank">
-              <Button secondary size="small">
-                Webcam
-              </Button>
-            </a>
-          )}
-        </CardActions>
-      </div>
-    </>
+        </Box>
+      )}
+    </Box>
   );
 };
 
-interface WeatherWidgetProps {
-  classes: Record<string, string>;
-}
-
-const WeatherWidget = ({ classes }: WeatherWidgetProps) => {
-  const { classes: styles } = useStyles();
-
+const WeatherWidget = () => {
   const { data: profile } = useGetProfileQuery();
   const [updateUserPreferences] = useUpdateUserPreferencesMutation();
   const userPrefs = (profile?.preferences as any)?.weather;
   const { data: telescopeListData = [], isLoading: telescopesLoading } =
     useGetTelescopesQuery();
-  const telescopeList = [...telescopeListData].sort((a: any, b: any) => {
-    const nameA = a.name.toUpperCase();
-    const nameB = b.name.toUpperCase();
-    if (nameA < nameB) {
-      return -1;
-    }
-    if (nameA > nameB) {
-      return 1;
-    }
-    return 0;
-  });
-  const weatherPrefs = telescopeList.some(
-    (telescope: any) => telescope.id === Number(userPrefs?.telescopeID),
-  )
-    ? userPrefs
-    : { telescopeID: telescopeList[0]?.["id"] };
-  const [anchorEl, setAnchorEl] = useState<any>(null);
+  const telescopeList = [...telescopeListData].sort((a: any, b: any) =>
+    a.name.toUpperCase().localeCompare(b.name.toUpperCase()),
+  );
+  const selected =
+    telescopeList.find(
+      (telescope: any) => telescope.id === Number(userPrefs?.telescopeID),
+    ) ?? telescopeList[0];
+  const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
 
   const {
     data: weather,
     isLoading: weatherLoading,
     error: weatherError,
     refetch: refetchWeather,
-  } = useGetWeatherQuery(weatherPrefs?.telescopeID ?? null, {
-    skip: !weatherPrefs?.telescopeID,
-  });
+  } = useGetWeatherQuery(selected?.id ?? null, { skip: !selected?.id });
 
-  // One refetch per staleness, else this effect loops when the server
-  // can't freshen the data.
+  // One refetch per staleness, else this loops when the server can't refresh.
   const staleRefetched = useRef(false);
 
   useEffect(() => {
     if (!telescopeList?.length || !weather) return;
 
-    const isStale = (utcTime: any) => {
-      if (!utcTime) return true;
-      return dayjs().diff(`${utcTime}Z`, "hour") > 1;
-    };
-
-    // Check if the weather data is stale (older than 1 hour)
-    const isWeatherStale = weather?.["weather_retrieved_at"]
-      ? isStale(weather?.["weather_retrieved_at"])
-      : isStale(weather?.["weather_fetch_at"]);
+    const retrievedAt =
+      weather?.["weather_retrieved_at"] ?? weather?.["weather_fetch_at"];
+    const isWeatherStale =
+      !retrievedAt || dayjs().diff(`${retrievedAt}Z`, "hour") > 1;
 
     if (isWeatherStale && !staleRefetched.current) {
       staleRefetched.current = true;
@@ -201,80 +175,87 @@ const WeatherWidget = ({ classes }: WeatherWidgetProps) => {
     }
   }, [weather, telescopeList, refetchWeather]);
 
-  const handleMenuItemClick = (_event: any, telescopeID: any) => {
-    const prefs = {
-      weather: { telescopeID },
-    };
-    updateUserPreferences(prefs);
+  const selectTelescope = (telescopeID: number) => {
+    updateUserPreferences({ weather: { telescopeID } });
     setAnchorEl(null);
   };
 
+  const name = weather?.["telescope_name"] ?? selected?.name ?? "Weather";
+  const title = (
+    <Typography
+      variant="h6"
+      noWrap
+      sx={{ fontSize: "1rem", fontWeight: 600, lineHeight: 1.4 }}
+    >
+      {name}
+    </Typography>
+  );
+
   return (
-    <Paper elevation={1} className={classes["widgetPaperFillSpace"]}>
-      <div className={classes["widgetPaperDiv"]}>
-        <div>
-          <Typography
-            variant="h6"
-            sx={{
-              display: "inline",
-            }}
-          >
-            {weather?.["telescope_name"]}
-          </Typography>
-          <DragHandleIcon className={`${classes["widgetIcon"]} dragHandle`} />
-          {telescopeList?.length > 1 && (
-            <div className={`${classes["widgetIcon"]} ${styles.selector}`}>
-              <IconButton
-                aria-controls="tel-list"
-                data-testid="tel-list-button"
-                aria-haspopup="true"
-                onClick={(event) => setAnchorEl(event.currentTarget)}
-                size="large"
-              >
-                <MoreVertIcon />
-              </IconButton>
-              <Menu
-                id="tel-list"
-                data-testid="tel-list"
-                anchorEl={anchorEl}
-                keepMounted
-                open={Boolean(anchorEl)}
-                onClose={() => setAnchorEl(null)}
-              >
-                {telescopeList?.map((telescope: any) => (
-                  <MenuItem
-                    data-testid={telescope.name}
-                    id={telescope.name}
-                    key={telescope.id}
-                    value={telescope.id}
-                    onClick={(event) =>
-                      handleMenuItemClick(event, telescope.id)
-                    }
-                    selected={telescope.id === weatherPrefs.telescopeID}
-                  >
-                    {telescope.name}
-                  </MenuItem>
-                ))}
-              </Menu>
-            </div>
-          )}
-        </div>
-        {telescopesLoading || weatherLoading ? (
-          <WidgetLoading />
-        ) : !telescopeList?.length ? (
-          <Typography variant="body2" color="textSecondary">
-            No telescopes available to retrieve weather data.
-          </Typography>
-        ) : weatherError ? (
-          <Typography variant="body2" color="textSecondary">
-            {(weatherError as any)?.data?.message ??
-              "Error loading weather data."}
-          </Typography>
+    <WidgetCard
+      heading={
+        telescopeList.length > 1 ? (
+          <>
+            <ButtonBase
+              data-testid="tel-list-button"
+              aria-controls="tel-list"
+              aria-haspopup="true"
+              onClick={(event) => setAnchorEl(event.currentTarget)}
+              sx={{
+                minWidth: 0,
+                gap: 0.25,
+                px: 0.75,
+                mx: -0.75,
+                borderRadius: 1.5,
+                "&:hover": { bgcolor: "action.hover" },
+              }}
+            >
+              {title}
+              <ExpandMoreIcon
+                fontSize="small"
+                sx={{ color: "text.secondary" }}
+              />
+            </ButtonBase>
+            <Menu
+              id="tel-list"
+              data-testid="tel-list"
+              anchorEl={anchorEl}
+              open={Boolean(anchorEl)}
+              onClose={() => setAnchorEl(null)}
+              slotProps={{ paper: { sx: { maxHeight: "20rem" } } }}
+            >
+              {telescopeList.map((telescope: any) => (
+                <MenuItem
+                  dense
+                  data-testid={telescope.name}
+                  id={telescope.name}
+                  key={telescope.id}
+                  onClick={() => selectTelescope(telescope.id)}
+                  selected={telescope.id === selected?.id}
+                >
+                  {telescope.name}
+                </MenuItem>
+              ))}
+            </Menu>
+          </>
         ) : (
-          <WeatherView weather={weather} />
-        )}
-      </div>
-    </Paper>
+          title
+        )
+      }
+    >
+      {telescopesLoading || weatherLoading ? (
+        <WidgetLoading />
+      ) : !telescopeList.length ? (
+        <WidgetEmpty>No telescopes available.</WidgetEmpty>
+      ) : weatherError ? (
+        <WidgetEmpty>
+          {(weatherError as any)?.data?.message ??
+            "Error loading weather data."}
+        </WidgetEmpty>
+      ) : (
+        <WeatherView weather={weather} />
+      )}
+    </WidgetCard>
   );
 };
 

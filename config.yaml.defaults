@@ -907,7 +907,7 @@ app:
     # Use linkToGroupSources: true in props to link to the group sources page instead.
     GroupList:
       props:
-        title: My Groups
+        title: My groups
       resizeable: true
       minW: 1.5
       layouts:

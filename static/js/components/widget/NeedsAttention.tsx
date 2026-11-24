@@ -6,55 +6,17 @@
  * away: an object you have scheduled that another group has scheduled too,
  * which is worth reconciling before the night rather than after it.
  */
-import { Link } from "react-router-dom";
+import { Link as RouterLink } from "react-router-dom";
 
-import Chip from "@mui/material/Chip";
-import Paper from "@mui/material/Paper";
+import Box from "@mui/material/Box";
+import Link from "@mui/material/Link";
 import Typography from "@mui/material/Typography";
-import DragHandleIcon from "@mui/icons-material/DragHandle";
-import { makeStyles } from "tss-react/mui";
 
 import { useGetDuplicateSchedulingQuery } from "../../ducks/duplicateScheduling";
+import WidgetCard, { WidgetEmpty } from "./WidgetCard";
 import WidgetLoading from "./WidgetLoading";
 
-const useStyles = makeStyles()((theme) => ({
-  header: {},
-  listContainer: {
-    height: "calc(100% - 2.5rem)",
-    overflowY: "auto",
-  },
-  list: {
-    display: "block",
-    listStyleType: "none",
-    paddingLeft: 0,
-    marginTop: 0,
-  },
-  item: {
-    padding: "0.4rem 0",
-    borderBottom: `1px solid ${theme.palette.divider}`,
-    fontSize: "0.9rem",
-  },
-  quiet: {
-    color: theme.palette.text.secondary,
-    fontSize: "0.9rem",
-    paddingTop: "0.5rem",
-  },
-  label: {
-    marginRight: "0.4rem",
-  },
-}));
-
-interface NeedsAttentionProps {
-  classes: {
-    widgetPaperDiv: string;
-    widgetIcon: string;
-    widgetPaperFillSpace: string;
-  };
-}
-
-const NeedsAttention = ({ classes }: NeedsAttentionProps) => {
-  const { classes: styles } = useStyles();
-
+const NeedsAttention = () => {
   // No websocket for this one: a clash is created by a group you are not in,
   // and REFRESH_FOLLOWUP_REQUESTS only reaches whoever made the request.
   // Broadcasting it to everyone would have every client refetch on every
@@ -68,43 +30,52 @@ const NeedsAttention = ({ classes }: NeedsAttentionProps) => {
   const clashes = collisions ?? [];
 
   return (
-    <Paper elevation={1} className={classes.widgetPaperFillSpace}>
-      <div className={classes.widgetPaperDiv}>
-        <div className={styles.header}>
-          <Typography variant="h6" sx={{ display: "inline" }}>
-            Needs your attention
-          </Typography>
-          <DragHandleIcon className={`${classes.widgetIcon} dragHandle`} />
-        </div>
-
-        <div className={styles.listContainer}>
-          {isLoading ? (
-            <WidgetLoading />
-          ) : clashes.length === 0 ? (
-            <div className={styles.quiet}>Nothing waiting on you.</div>
-          ) : (
-            <ul className={styles.list}>
-              {clashes.map((clash: any) => (
-                <li
-                  key={`clash-${clash.obj_id}-${clash.group_name}-${clash.instrument_name}`}
-                  className={styles.item}
-                >
-                  <Chip
-                    size="small"
-                    color="warning"
-                    label="Also scheduled"
-                    className={styles.label}
-                  />
-                  <Link to={`/source/${clash.obj_id}`}>{clash.obj_id}</Link> is
-                  also scheduled by {clash.group_name} on{" "}
-                  {clash.instrument_name}
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
-      </div>
-    </Paper>
+    <WidgetCard title="Needs your attention">
+      {isLoading ? (
+        <WidgetLoading />
+      ) : clashes.length === 0 ? (
+        <WidgetEmpty>Nothing waiting on you.</WidgetEmpty>
+      ) : (
+        clashes.map((clash: any) => (
+          <Box
+            key={`clash-${clash.obj_id}-${clash.group_name}-${clash.instrument_name}`}
+            sx={{
+              display: "flex",
+              alignItems: "center",
+              gap: 1.5,
+              py: 1,
+              px: 1,
+              mx: -1,
+              borderRadius: 2,
+              "&:hover": { bgcolor: "action.hover" },
+            }}
+          >
+            <Box
+              sx={{
+                width: 8,
+                height: 8,
+                borderRadius: "50%",
+                flexShrink: 0,
+                bgcolor: "warning.main",
+              }}
+            />
+            <Box sx={{ minWidth: 0 }}>
+              <Link
+                component={RouterLink}
+                to={`/source/${clash.obj_id}`}
+                variant="body2"
+                sx={{ fontWeight: 600 }}
+              >
+                {clash.obj_id}
+              </Link>
+              <Typography variant="body2" color="text.secondary">
+                Also scheduled by {clash.group_name} on {clash.instrument_name}
+              </Typography>
+            </Box>
+          </Box>
+        ))
+      )}
+    </WidgetCard>
   );
 };
 

@@ -1,12 +1,12 @@
 import { lazy, Suspense, useState } from "react";
 import { makeStyles } from "tss-react/mui";
-import Paper from "@mui/material/Paper";
-import CircularProgress from "@mui/material/CircularProgress";
 import { Tooltip, IconButton } from "@mui/material";
 import HelpOutlineOutlinedIcon from "@mui/icons-material/HelpOutlineOutlined";
 import ReplayIcon from "@mui/icons-material/Replay";
 
 import { useGetTelescopesQuery } from "../../ducks/telescopes";
+import WidgetCard from "./WidgetCard";
+import WidgetLoading from "./WidgetLoading";
 
 const TelescopeMap = lazy(() => import("../telescope/TelescopeMap"));
 
@@ -17,14 +17,6 @@ const useStyles = makeStyles()((_theme) => ({
     height: "100%",
     minHeight: 0,
     overflow: "hidden",
-  },
-  overlayButtons: {
-    position: "absolute",
-    bottom: "0.3rem",
-    right: "0.3rem",
-    display: "flex",
-    alignItems: "center",
-    gap: "0.2rem",
   },
   tooltip: {
     maxWidth: "60rem",
@@ -89,42 +81,38 @@ const TelescopeToolTip = ({ classes }: TelescopeToolTipProps) => (
     placement="bottom-end"
     classes={{ tooltip: classes["tooltip"] ?? "" }}
   >
-    <HelpOutlineOutlinedIcon color="action" />
+    <IconButton size="small" aria-label="Legend">
+      <HelpOutlineOutlinedIcon color="action" fontSize="small" />
+    </IconButton>
   </Tooltip>
 );
 
-interface TelescopeMapWidgetProps {
-  classes: Record<string, string>;
-}
-
-const TelescopeMapWidget = ({
-  classes: parentClasses,
-}: TelescopeMapWidgetProps) => {
+const TelescopeMapWidget = () => {
   const { classes } = useStyles();
   const { data: telescopeList = [] } = useGetTelescopesQuery();
   const [mapKey, setMapKey] = useState(0);
 
   return (
-    <Suspense fallback={<CircularProgress color="secondary" />}>
-      <Paper elevation={1} className={parentClasses["widgetPaperFillSpace"]}>
-        <div className={parentClasses["widgetPaperDiv"]}>
-          <div className={classes.mapContainer}>
-            <TelescopeMap key={mapKey} telescopes={telescopeList} />
-            <div className={classes.overlayButtons}>
-              <Tooltip title="Reset view" placement="top">
-                <IconButton
-                  size="small"
-                  onClick={() => setMapKey((k) => k + 1)}
-                >
-                  <ReplayIcon color="action" fontSize="small" />
-                </IconButton>
-              </Tooltip>
-              <TelescopeToolTip classes={classes} />
-            </div>
-          </div>
-        </div>
-      </Paper>
-    </Suspense>
+    <WidgetCard
+      title="Telescopes"
+      actions={
+        <>
+          <Tooltip title="Reset view">
+            <IconButton size="small" onClick={() => setMapKey((k) => k + 1)}>
+              <ReplayIcon color="action" fontSize="small" />
+            </IconButton>
+          </Tooltip>
+          <TelescopeToolTip classes={classes} />
+        </>
+      }
+      bodySx={{ p: 0, overflow: "hidden" }}
+    >
+      <div className={classes.mapContainer}>
+        <Suspense fallback={<WidgetLoading />}>
+          <TelescopeMap key={mapKey} telescopes={telescopeList} />
+        </Suspense>
+      </div>
+    </WidgetCard>
   );
 };
 

@@ -1,14 +1,9 @@
 import { ReactNode, useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import Box from "@mui/material/Box";
-import Paper from "@mui/material/Paper";
-import List from "@mui/material/List";
-import ListItemButton from "@mui/material/ListItemButton";
-import ListItemText from "@mui/material/ListItemText";
-import Typography from "@mui/material/Typography";
+import MuiLink from "@mui/material/Link";
 import Tooltip from "@mui/material/Tooltip";
 import CircularProgress from "@mui/material/CircularProgress";
-import DragHandleIcon from "@mui/icons-material/DragHandle";
 import CloseIcon from "@mui/icons-material/Close";
 import IconButton from "@mui/material/IconButton";
 import TextField from "@mui/material/TextField";
@@ -30,6 +25,7 @@ import StyledDataGrid, {
   FULL_PAGE_HEIGHT,
 } from "../StyledDataGrid";
 import { Group } from "../../types";
+import WidgetCard from "../widget/WidgetCard";
 
 const GroupListToolbar = ({ title, children }: any) => (
   <DataGridToolbar title={title} showExport={false} showColumns={false}>
@@ -76,33 +72,31 @@ const GroupList = ({
 
   if (variant === "widget") {
     return (
-      <Paper sx={{ height: "100%" }}>
-        <Box
-          sx={{
-            p: 2,
-            height: "100%",
-            display: "flex",
-            flexDirection: "column",
-          }}
-        >
-          <Box>
-            <DragHandleIcon
-              className="dragHandle"
-              sx={{ float: "right", color: "gray", m: 0.5, cursor: "pointer" }}
-            />
-            <Typography variant="h6">{title}</Typography>
-          </Box>
-          <List component="nav" sx={{ flex: 1, overflowY: "auto" }}>
-            {multiUserGroups.map((group) => (
-              <Link to={getLink(group)} key={group.id}>
-                <ListItemButton data-testid={`${title}-${group.name}`}>
-                  <ListItemText primary={group.name} />
-                </ListItemButton>
-              </Link>
-            ))}
-          </List>
+      <WidgetCard title={title}>
+        <Box component="nav" sx={{ display: "flex", flexDirection: "column" }}>
+          {multiUserGroups.map((group) => (
+            <MuiLink
+              component={Link}
+              to={getLink(group)}
+              key={group.id}
+              data-testid={`${title}-${group.name}`}
+              variant="body2"
+              color="inherit"
+              noWrap
+              sx={{
+                py: 0.75,
+                px: 1,
+                mx: -1,
+                borderRadius: 2,
+                fontWeight: 500,
+                "&:hover": { bgcolor: "action.hover" },
+              }}
+            >
+              {group.name}
+            </MuiLink>
+          ))}
         </Box>
-      </Paper>
+      </WidgetCard>
     );
   }
 

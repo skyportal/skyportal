@@ -1,15 +1,12 @@
-import { Link } from "react-router-dom";
+import { Link as RouterLink } from "react-router-dom";
 
-import Paper from "@mui/material/Paper";
+import Box from "@mui/material/Box";
+import Link from "@mui/material/Link";
+import Tooltip from "@mui/material/Tooltip";
 import Typography from "@mui/material/Typography";
-import DragHandleIcon from "@mui/icons-material/DragHandle";
-import HelpIcon from "@mui/icons-material/Help";
-import { makeStyles } from "tss-react/mui";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 import relativeTime from "dayjs/plugin/relativeTime";
-import Tooltip from "@mui/material/Tooltip";
-import Button from "../Button";
 
 import {
   useGetProfileQuery,
@@ -20,88 +17,14 @@ import {
   useGetRecentGcnExtractionsQuery,
   RecentGcnExtraction,
 } from "../../ducks/recentGcnExtractions";
-import WidgetPrefsDialog from "./WidgetPrefsDialog";
 import GcnTags from "../gcn/GcnTags";
 import GcnEventAllocationTriggers from "../gcn/GcnEventAllocationTriggers";
+import WidgetCard, { WidgetEmpty } from "./WidgetCard";
+import WidgetPrefsDialog from "./WidgetPrefsDialog";
 import WidgetLoading from "./WidgetLoading";
 
 dayjs.extend(relativeTime);
 dayjs.extend(utc);
-
-const useStyles = makeStyles()((theme) => ({
-  header: {},
-  icon: {
-    height: "1rem",
-  },
-  eventListContainer: {
-    height: "calc(100% - 2.5rem)",
-    overflowY: "auto",
-  },
-  eventList: {
-    display: "block",
-    alignItems: "center",
-    listStyleType: "none",
-    paddingLeft: 0,
-    marginTop: 0,
-  },
-  eventContainer: {
-    display: "flex",
-    flexDirection: "row",
-    alignItems: "center",
-  },
-  eventName: {
-    display: "flex",
-    flexDirection: "column",
-    // justify to the left
-    justifyContent: "flex-start",
-    // align to the left
-    alignItems: "flex-start",
-    "& > *": {
-      whiteSpace: "nowrap",
-      height: "1rem",
-      lineHeight: "1rem",
-    },
-  },
-  extractionList: {
-    listStyleType: "none",
-    margin: "0 0 0 1.5rem",
-    padding: 0,
-  },
-  extractionRow: {
-    display: "flex",
-    flexDirection: "row",
-    alignItems: "baseline",
-    gap: "0.4rem",
-    flexWrap: "wrap",
-    fontSize: "0.75rem",
-    color: theme.palette.grey[700],
-  },
-  extractionCircular: {
-    color: theme.palette.primary.main,
-    whiteSpace: "nowrap",
-  },
-  eventDateobs: {
-    margin: 0,
-    padding: 0,
-    fontSize: "0.85rem",
-    color: theme.palette.primary.main,
-  },
-  eventTimeAgo: {
-    margin: 0,
-    padding: 0,
-    fontSize: "0.75rem",
-    color: theme.palette.grey[600],
-  },
-  eventTags: {
-    marginLeft: "0.5rem",
-  },
-  eventListDivider: {
-    width: "100%",
-    height: "1px",
-    background: theme.palette.grey[300],
-    margin: "0.5rem 0",
-  },
-}));
 
 const defaultPrefs = {
   maxNumEvents: "5",
@@ -157,127 +80,163 @@ const summarizeExtraction = (extraction: RecentGcnExtraction): string => {
   return parts.length > 0 ? parts.join(" \u00b7 ") : "no measurements";
 };
 
-interface RecentGcnEventsProps {
-  classes: {
-    widgetPaperDiv: string;
-    widgetIcon: string;
-    widgetPaperFillSpace: string;
-  };
-}
+const ExtractionLine = ({
+  extraction,
+}: {
+  extraction: RecentGcnExtraction;
+}) => (
+  <Typography
+    component="li"
+    variant="caption"
+    color="text.secondary"
+    sx={{ display: "flex", gap: 0.75, alignItems: "baseline" }}
+  >
+    {extraction.circular_id && (
+      <Link
+        href={`https://gcn.nasa.gov/circulars/${extraction.circular_id}`}
+        target="_blank"
+        rel="noreferrer"
+        sx={{ whiteSpace: "nowrap", fontWeight: 600 }}
+      >
+        GCN {extraction.circular_id}
+      </Link>
+    )}
+    <span>{summarizeExtraction(extraction)}</span>
+  </Typography>
+);
 
-const RecentGcnEvents = ({ classes }: RecentGcnEventsProps) => {
-  const { classes: styles } = useStyles();
+const GcnEventRow = ({
+  gcnEvent,
+  extractions,
+}: {
+  gcnEvent: any;
+  extractions: RecentGcnExtraction[];
+}) => {
+  const aliases: string[] = gcnEvent.aliases ?? [];
+  const dateobs = dayjs.utc(gcnEvent.dateobs);
 
+  return (
+    <Box
+      component="li"
+      sx={{
+        py: 1.25,
+        "& + &": { borderTop: 1, borderColor: "divider" },
+      }}
+    >
+      <Box
+        sx={{
+          display: "flex",
+          flexWrap: "wrap",
+          alignItems: "flex-start",
+          columnGap: 1.5,
+          rowGap: 0.75,
+        }}
+      >
+        <Box sx={{ minWidth: 0 }}>
+          <Link
+            component={RouterLink}
+            to={`/gcn_events/${gcnEvent.dateobs}`}
+            sx={{ fontVariantNumeric: "tabular-nums" }}
+          >
+            {dateobs.format("YYMMDD HH:mm:ss")}
+          </Link>
+          <Tooltip
+            title={aliases.length > 1 ? aliases.join(", ") : ""}
+            placement="bottom-start"
+          >
+            <Typography
+              variant="caption"
+              color="text.secondary"
+              noWrap
+              component="div"
+              sx={{ maxWidth: "16rem" }}
+            >
+              {[aliases[0], dateobs.fromNow()].filter(Boolean).join(" · ")}
+            </Typography>
+          </Tooltip>
+        </Box>
+        <Box
+          sx={{
+            flex: 1,
+            display: "flex",
+            flexWrap: "wrap",
+            justifyContent: "flex-end",
+            alignItems: "center",
+            gap: 0.5,
+          }}
+        >
+          <GcnTags gcnEvent={gcnEvent} addTags={false} />
+          <GcnEventAllocationTriggers gcnEvent={gcnEvent} />
+        </Box>
+      </Box>
+      {extractions.length > 0 && (
+        <Box
+          component="ul"
+          sx={{
+            listStyle: "none",
+            m: 0,
+            mt: 0.75,
+            pl: 1.25,
+            borderLeft: 2,
+            borderColor: "divider",
+            display: "flex",
+            flexDirection: "column",
+            gap: 0.25,
+          }}
+        >
+          {extractions.map((extraction) => (
+            <ExtractionLine key={extraction.id} extraction={extraction} />
+          ))}
+        </Box>
+      )}
+    </Box>
+  );
+};
+
+const RecentGcnEvents = () => {
   const { data: gcnEvents, isLoading } = useGetRecentGcnEventsQuery();
   const { data: extractions } = useGetRecentGcnExtractionsQuery();
-
-  // Extractions describe an event, so they are shown under the event they
-  // belong to rather than as a second, separately ordered list.
-  const extractionsByEvent = new Map<string, RecentGcnExtraction[]>();
-  (extractions ?? []).forEach((extraction) => {
-    const key = extraction.dateobs;
-    extractionsByEvent.set(key, [
-      ...(extractionsByEvent.get(key) ?? []),
-      extraction,
-    ]);
-  });
   const { data: profile } = useGetProfileQuery();
   const [updateUserPreferences] = useUpdateUserPreferencesMutation();
   const recentEventsPrefs: any =
     (profile?.preferences as any)?.recentGcnEvents || defaultPrefs;
 
+  const extractionsByEvent = new Map<string, RecentGcnExtraction[]>();
+  (extractions ?? []).forEach((extraction) => {
+    extractionsByEvent.set(extraction.dateobs, [
+      ...(extractionsByEvent.get(extraction.dateobs) ?? []),
+      extraction,
+    ]);
+  });
+
   return (
-    <Paper elevation={1} className={classes.widgetPaperFillSpace}>
-      <div className={classes.widgetPaperDiv}>
-        <div className={styles.header}>
-          <Typography
-            variant="h6"
-            sx={{
-              display: "inline",
-            }}
-          >
-            Recent GCN Events
-          </Typography>
-          <DragHandleIcon className={`${classes.widgetIcon} dragHandle`} />
-          <div className={classes.widgetIcon}>
-            <WidgetPrefsDialog
-              // Only expose num events
-              initialValues={{
-                maxNumEvents: recentEventsPrefs.maxNumEvents,
-              }}
-              stateBranchName="recentGcnEvents"
-              title="Recent Events Preferences"
-              onSubmit={updateUserPreferences}
+    <WidgetCard
+      title="Recent GCN events"
+      actions={
+        <WidgetPrefsDialog
+          initialValues={{ maxNumEvents: recentEventsPrefs.maxNumEvents }}
+          stateBranchName="recentGcnEvents"
+          title="Recent GCN events"
+          onSubmit={updateUserPreferences}
+        />
+      }
+    >
+      {isLoading ? (
+        <WidgetLoading />
+      ) : !gcnEvents?.length ? (
+        <WidgetEmpty>No recent events.</WidgetEmpty>
+      ) : (
+        <Box component="ul" sx={{ listStyle: "none", m: 0, p: 0 }}>
+          {gcnEvents.map((gcnEvent: any) => (
+            <GcnEventRow
+              key={gcnEvent.dateobs}
+              gcnEvent={gcnEvent}
+              extractions={extractionsByEvent.get(gcnEvent.dateobs) ?? []}
             />
-          </div>
-        </div>
-        {isLoading && <WidgetLoading />}
-        <div className={styles.eventListContainer}>
-          <ul className={styles.eventList}>
-            {gcnEvents?.map((gcnEvent: any) => (
-              <li key={gcnEvent.dateobs}>
-                <div className={styles.eventContainer}>
-                  <Link to={`/gcn_events/${gcnEvent.dateobs}`}>
-                    <Button className={styles.eventName}>
-                      <div className={styles.eventDateobs}>
-                        {dayjs(gcnEvent.dateobs).format("YYMMDD HH:mm:ss")}
-                      </div>
-                      <div className={styles.eventTimeAgo}>
-                        ({dayjs().to(dayjs.utc(`${gcnEvent.dateobs}Z`))})
-                      </div>
-                    </Button>
-                  </Link>
-                  <Tooltip
-                    title={
-                      <>
-                        <b>This event has the following aliases:</b>
-                        <ul>
-                          {gcnEvent.aliases?.map((alias: string) => (
-                            <li key={alias}>{alias}</li>
-                          ))}
-                        </ul>
-                      </>
-                    }
-                  >
-                    <HelpIcon color="disabled" className={styles.icon} />
-                  </Tooltip>
-                  <div>
-                    <GcnTags gcnEvent={gcnEvent} addTags={false} />
-                    <GcnEventAllocationTriggers gcnEvent={gcnEvent} />
-                  </div>
-                </div>
-                {(extractionsByEvent.get(gcnEvent.dateobs) ?? []).length >
-                  0 && (
-                  <ul className={styles.extractionList}>
-                    {(extractionsByEvent.get(gcnEvent.dateobs) ?? []).map(
-                      (extraction) => (
-                        <li
-                          key={extraction.id}
-                          className={styles.extractionRow}
-                        >
-                          {extraction.circular_id && (
-                            <a
-                              href={`https://gcn.nasa.gov/circulars/${extraction.circular_id}`}
-                              target="_blank"
-                              rel="noreferrer"
-                              className={styles.extractionCircular}
-                            >
-                              GCN {extraction.circular_id}
-                            </a>
-                          )}
-                          <span>{summarizeExtraction(extraction)}</span>
-                        </li>
-                      ),
-                    )}
-                  </ul>
-                )}
-                <div className={styles.eventListDivider} />
-              </li>
-            ))}
-          </ul>
-        </div>
-      </div>
-    </Paper>
+          ))}
+        </Box>
+      )}
+    </WidgetCard>
   );
 };
 
