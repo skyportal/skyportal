@@ -23,7 +23,6 @@ import Accordion from "@mui/material/Accordion";
 import AccordionSummary from "@mui/material/AccordionSummary";
 import AccordionDetails from "@mui/material/AccordionDetails";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
-import HelpOutlineIcon from "@mui/icons-material/HelpOutlineOutlined";
 import Typography from "@mui/material/Typography";
 
 import CircularProgress from "@mui/material/CircularProgress";
@@ -129,10 +128,8 @@ import {
   useGetBrokersQuery,
 } from "../../ducks/brokers";
 import SourceHost from "./SourceHost";
-
-// The legacy <font> element isn't in React's JSX intrinsic types; alias it
-// through `any` so the existing markup keeps rendering unchanged.
-const Font: any = "font";
+import FieldLabel from "./FieldLabel";
+import softButtonsSx from "../softButtons";
 
 const VegaHR = React.lazy(() => import("../plot/VegaHR"));
 
@@ -143,7 +140,7 @@ const CentroidPlot = React.lazy(
 export const useSourceStyles = makeStyles()((theme) => ({
   header: {
     display: "flex",
-    justifyContent: "space-between",
+    flexWrap: "wrap",
     alignItems: "center",
     columnGap: "0.25rem",
     marginBottom: "0.25rem",
@@ -159,13 +156,6 @@ export const useSourceStyles = makeStyles()((theme) => ({
     display: "inline-block",
     padding: 0,
     margin: 0,
-  },
-  noSpace: { padding: 0, margin: 0 },
-  // `inherit`, not a fixed colour: these sit on menu paper, which is dark in
-  // dark mode.
-  noWrapMargin: {
-    marginRight: "0.5rem",
-    textWrap: "nowrap",
   },
   flexRow: {
     display: "flex",
@@ -220,22 +210,21 @@ export const useSourceStyles = makeStyles()((theme) => ({
     alignItems: "center",
     gap: "0.25rem",
   },
-  sourceInfo: {
-    display: "flex",
-    flexFlow: "row wrap",
-    alignItems: "center",
-  },
-  infoLine: {
-    // Get its own line
-    flexBasis: "100%",
-    display: "flex",
-    flexFlow: "row wrap",
-    gap: "0.5rem",
-  },
   rowInfo: {
     display: "flex",
     flexDirection: "row",
     alignItems: "center",
+  },
+  linkedObjs: {
+    flexBasis: "100%",
+    display: "flex",
+    alignItems: "baseline",
+  },
+  linkedObjList: {
+    display: "flex",
+    flexWrap: "wrap",
+    alignItems: "center",
+    gap: "0.25rem 0.5rem",
   },
   dmdlInfo: {
     alignSelf: "center",
@@ -649,6 +638,11 @@ const SourceContent = ({ source }: SourceContentProps) => {
                     candidates={source?.candidates || []}
                   />
                 </div>
+                {!isReadOnly && (
+                  <Box sx={{ ml: 1 }}>
+                    <ObjectTags source={source} />
+                  </Box>
+                )}
               </div>
               {!downLg && (
                 <div className={classes.container}>
@@ -666,19 +660,16 @@ const SourceContent = ({ source }: SourceContentProps) => {
                 </div>
               )}
             </div>
-            <div style={{ marginBottom: "0.25rem" }}>
-              <ShowClassification
-                classifications={source.classifications}
-                taxonomyList={taxonomyList}
-                shortened
-              />
-            </div>
-            {!isReadOnly && (
-              <div style={{ marginBottom: "0.25rem" }}>
-                <ObjectTags source={source} />
-              </div>
+            {source.classifications?.length > 0 && (
+              <Box sx={{ mb: 0.5 }}>
+                <ShowClassification
+                  classifications={source.classifications}
+                  taxonomyList={taxonomyList}
+                  shortened
+                />
+              </Box>
             )}
-            <SourceCoordinates classes={classes} source={sourceWithPosition} />
+            <SourceCoordinates source={sourceWithPosition} />
             <div
               className={classes.flexRow}
               style={{
@@ -691,35 +682,72 @@ const SourceContent = ({ source }: SourceContentProps) => {
                   distance derive from it, so they drop out on their own. */}
               {!source.is_roid && (
                 <div style={{ marginRight: "0.5rem" }}>
-                  <b>Redshift: &nbsp;</b>
+                  <FieldLabel>Redshift</FieldLabel>
                   <SourceRedshift source={source} readOnly={isReadOnly} />
                 </div>
               )}
               <div className={classes.dmdlInfo}>
                 {source.dm && (
                   <div>
-                    <b>DM: &nbsp;</b>
-                    {source.dm.toFixed(3)}
-                    &nbsp; mag
+                    <FieldLabel>DM</FieldLabel>
+                    {source.dm.toFixed(3)} mag
                   </div>
                 )}
                 {source.luminosity_distance && (
                   <div>
-                    <b>
+                    <FieldLabel>
                       <i>D</i>
-                      <sub>L</sub>: &nbsp;
-                    </b>
-                    {source.luminosity_distance.toFixed(2)}
-                    &nbsp; Mpc
+                      <sub>L</sub>
+                    </FieldLabel>
+                    {source.luminosity_distance.toFixed(2)} Mpc
                   </div>
                 )}
                 <div>
-                  <b>T0: &nbsp;</b>
+                  <FieldLabel>T0</FieldLabel>
                   {source.t0}
                   {!isReadOnly && <UpdateSourceT0 source={source} />}
                 </div>
+              </div>
+            </div>
+            <div
+              className={classes.flexRow}
+              style={{
+                justifyContent: "flex-start",
+                alignItems: "center",
+                flexFlow: "wrap",
+                columnGap: "1rem",
+              }}
+            >
+              <div className={classes.rowInfo} data-testid="tour-source-tns">
+                <Tooltip title="Transient reported at this position, from the Transient Name Server">
+                  <FieldLabel>TNS</FieldLabel>
+                </Tooltip>
+                {source.tns_name && (
+                  <Chip
+                    size="small"
+                    label={source.tns_name}
+                    component="a"
+                    href={`https://www.wis-tns.org/object/${
+                      source.tns_name.trim().includes(" ")
+                        ? source.tns_name.split(" ")[1]
+                        : source.tns_name
+                    }`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    clickable
+                  />
+                )}
+                {source.tns_info && (
+                  <DisplayTNSInfo
+                    tns_info={source.tns_info}
+                    display_header={false}
+                  />
+                )}
+                {!source.tns_name && !isReadOnly && (
+                  <UpdateSourceTNS sourceId={source.id} />
+                )}
                 {!isReadOnly && (
-                  <div>
+                  <Box sx={{ ml: 1 }}>
                     <Tooltip
                       title={`Never send this source to TNS, automatically or manually.${
                         source.withhold_from_tns_set_at
@@ -751,51 +779,12 @@ const SourceContent = ({ source }: SourceContentProps) => {
                         slotProps={{ typography: { variant: "body2" } }}
                       />
                     </Tooltip>
-                  </div>
-                )}
-              </div>
-            </div>
-            <div
-              className={classes.flexRow}
-              style={{
-                justifyContent: "flex-start",
-                alignItems: "center",
-                flexFlow: "wrap",
-                columnGap: "1rem",
-              }}
-            >
-              <div className={classes.rowInfo} data-testid="tour-source-tns">
-                <Tooltip title="Transient reported at this position, from the Transient Name Server">
-                  <b>TNS: &nbsp;</b>
-                </Tooltip>
-                {source.tns_name && (
-                  <Chip
-                    size="small"
-                    label={source.tns_name}
-                    component="a"
-                    href={`https://www.wis-tns.org/object/${
-                      source.tns_name.trim().includes(" ")
-                        ? source.tns_name.split(" ")[1]
-                        : source.tns_name
-                    }`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    clickable
-                  />
-                )}
-                {source.tns_info && (
-                  <DisplayTNSInfo
-                    tns_info={source.tns_info}
-                    display_header={false}
-                  />
-                )}
-                {!source.tns_name && !isReadOnly && (
-                  <UpdateSourceTNS sourceId={source.id} />
+                  </Box>
                 )}
               </div>
               <Box className={classes.rowInfo} sx={{ position: "relative" }}>
                 <Tooltip title="Known solar system object at this position, from the Minor Planet Center">
-                  <b>MPC: &nbsp;</b>
+                  <FieldLabel>MPC</FieldLabel>
                 </Tooltip>
                 {source.mpc_name && (
                   <Chip size="small" label={source.mpc_name} />
@@ -810,16 +799,8 @@ const SourceContent = ({ source }: SourceContentProps) => {
                   ))}
               </Box>
               <Box className={classes.rowInfo} sx={{ position: "relative" }}>
-                <b>GCN matches:</b>
                 <Tooltip title="Events this object was matched to by the GCN crossmatch or by hand">
-                  <HelpOutlineIcon
-                    sx={{
-                      fontSize: "0.8rem",
-                      color: "text.secondary",
-                      cursor: "help",
-                      mx: 0.5,
-                    }}
-                  />
+                  <FieldLabel>GCN matches</FieldLabel>
                 </Tooltip>
                 {source.gcn_crossmatch?.length > 0 && (
                   <SourceGCNCrossmatchList
@@ -850,46 +831,40 @@ const SourceContent = ({ source }: SourceContentProps) => {
               isReadOnly={isReadOnly}
             />
             {sourceDuplicatesWithoutAssociatedObjs.length > 0 && (
-              <div className={classes.sourceInfo}>
-                <b className={classes.noWrapMargin}>
-                  <Font color="#457b9d">Possible duplicate of:</Font>
-                </b>
-                <div
-                  className={classes.flexRow}
-                  style={{
-                    width: "auto",
-                    alignItems: "center",
-                    flexFlow: "wrap",
-                    columnGap: "0.25rem",
-                  }}
-                >
+              <Box className={classes.linkedObjs}>
+                <FieldLabel>Possible duplicate of</FieldLabel>
+                <Box className={classes.linkedObjList}>
                   {sourceDuplicatesWithoutAssociatedObjs.map(
                     (duplicate: any) => (
-                      <div key={duplicate.obj_id}>
+                      <Box
+                        key={duplicate.obj_id}
+                        sx={{ display: "inline-flex", alignItems: "center" }}
+                      >
                         <Tooltip
-                          title={`${duplicate.separation.toFixed(2)} arcsec`}
+                          title={`${duplicate.separation.toFixed(2)}″ away`}
                         >
-                          <Link
+                          <Chip
+                            size="small"
+                            variant="outlined"
+                            clickable
+                            component={Link}
                             to={`/source/${duplicate.obj_id}`}
-                            role="link"
-                            key={duplicate.obj_id}
-                            className={classes.noSpace}
-                          >
-                            <Button size="small" className={classes.noSpace}>
-                              {duplicate.obj_id}
-                            </Button>
-                          </Link>
+                            label={duplicate.obj_id}
+                          />
                         </Tooltip>
                         {!isReadOnly && (
                           <>
-                            <IconButton
-                              size="small"
-                              name={`copySourceButton${duplicate.obj_id}`}
-                              onClick={() => setCopyPhotometryDialogOpen(true)}
-                              className={classes.noSpace}
-                            >
-                              <AddIcon style={{ fontSize: "1rem" }} />
-                            </IconButton>
+                            <Tooltip title="Copy its photometry here">
+                              <IconButton
+                                size="small"
+                                name={`copySourceButton${duplicate.obj_id}`}
+                                onClick={() =>
+                                  setCopyPhotometryDialogOpen(true)
+                                }
+                              >
+                                <AddIcon sx={{ fontSize: "1rem" }} />
+                              </IconButton>
+                            </Tooltip>
                             <CopyPhotometryDialog
                               source={source}
                               duplicate={duplicate}
@@ -900,46 +875,33 @@ const SourceContent = ({ source }: SourceContentProps) => {
                             />
                           </>
                         )}
-                      </div>
+                      </Box>
                     ),
                   )}
-                </div>
-              </div>
+                </Box>
+              </Box>
             )}
             {source?.associated_objs?.length > 0 && (
-              <div className={classes.sourceInfo}>
-                <b className={classes.noWrapMargin}>
-                  <Font color="#457b9d">Associated with:</Font>
-                </b>
-                <div
-                  className={classes.flexRow}
-                  style={{
-                    width: "auto",
-                    alignItems: "center",
-                    flexFlow: "wrap",
-                    columnGap: "0.25rem",
-                  }}
-                >
+              <Box className={classes.linkedObjs}>
+                <FieldLabel>Associated with</FieldLabel>
+                <Box className={classes.linkedObjList}>
                   {source.associated_objs.map((associatedObj: any) => (
-                    <div key={associatedObj.obj_id}>
-                      <Tooltip
-                        title={`${associatedObj.separation.toFixed(2)} arcsec`}
-                      >
-                        <Link
-                          to={`/source/${associatedObj.obj_id}`}
-                          role="link"
-                          key={associatedObj.obj_id}
-                          className={classes.noSpace}
-                        >
-                          <Button size="small" className={classes.noSpace}>
-                            {associatedObj.obj_id}
-                          </Button>
-                        </Link>
-                      </Tooltip>
-                    </div>
+                    <Tooltip
+                      key={associatedObj.obj_id}
+                      title={`${associatedObj.separation.toFixed(2)}″ away`}
+                    >
+                      <Chip
+                        size="small"
+                        variant="outlined"
+                        clickable
+                        component={Link}
+                        to={`/source/${associatedObj.obj_id}`}
+                        label={associatedObj.obj_id}
+                      />
+                    </Tooltip>
                   ))}
-                </div>
-              </div>
+                </Box>
+              </Box>
             )}
             {source.summary_history?.length > 0 &&
             currentUser?.preferences?.["showSimilarSources"] === true ? (
@@ -947,28 +909,15 @@ const SourceContent = ({ source }: SourceContentProps) => {
             ) : null}
             <Box
               sx={(theme) => {
-                const { success, text } = theme.palette;
+                const { success } = theme.palette;
                 return {
+                  ...softButtonsSx(theme),
                   flexBasis: "100%",
                   display: "flex",
                   flexWrap: "wrap",
                   alignItems: "center",
                   gap: 0.75,
                   mt: 0.75,
-                  "& .MuiButton-root": {
-                    textTransform: "none",
-                    fontWeight: 500,
-                    fontSize: "0.85rem",
-                    borderRadius: "8px",
-                    px: 1.5,
-                    boxShadow: "none",
-                  },
-                  "& .MuiButton-endIcon": { ml: 0.25, mr: -0.5 },
-                  "& .MuiButton-colorGrey:not(.Mui-disabled)": {
-                    bgcolor: alpha(text.primary, 0.06),
-                    color: "text.primary",
-                    "&:hover": { bgcolor: alpha(text.primary, 0.11) },
-                  },
                   "& [data-testid=interested-button].MuiButton-colorSuccess": {
                     bgcolor: alpha(success.main, 0.16),
                     color:
@@ -1175,129 +1124,118 @@ const SourceContent = ({ source }: SourceContentProps) => {
             {/* checking if the id exists is a way to know if the user profile is loaded or not */}
             {currentUser?.id &&
               !currentUser?.preferences?.["hideSourceSummary"] && (
-                <Paper
-                  className={classes.flexColumn}
-                  style={{
-                    marginTop: "0.5rem",
-                    padding: noSummary
-                      ? "0.5rem 0 0.5rem 0.5rem"
-                      : "0.25rem 0.25rem 0 0.25rem",
-                  }}
-                  variant={(noSummary ? "contained" : "outlined") as any}
-                  elevation={noSummary ? 1 : 0}
+                <Box
+                  sx={(theme) => ({
+                    display: "flex",
+                    alignItems: "flex-start",
+                    gap: 1,
+                    mt: 0.75,
+                    py: 1,
+                    pl: 1.5,
+                    pr: 0.5,
+                    borderRadius: "8px",
+                    bgcolor: alpha(theme.palette.text.primary, 0.035),
+                  })}
                 >
-                  <ShowSummaries
-                    summaries={source.summary_history || []}
-                    showAISummaries={
-                      (currentUser?.preferences?.["showAISourceSummary"] ||
-                        false) as any
-                    }
-                  />
-                  <div
-                    className={classes.flexRow}
-                    style={{
-                      justifyContent: noSummary ? "space-between" : "flex-end",
-                      alignItems: "center",
-                      maxHeight: "1rem",
-                      width: "100%",
-                    }}
-                  >
-                    {noSummary ? (
-                      <p
-                        className={classes.noSpace}
-                        style={{
-                          fontSize: "0.75rem",
-                          color: "grey",
-                          marginRight: "0.25rem",
-                        }}
-                      >
-                        {`No${noHumanSummary ? " (human) " : " "}summary yet.`}
-                      </p>
-                    ) : null}
-                    <div
-                      className={classes.flexRow}
-                      style={{
-                        alignItems: "center",
-                        width: "auto",
-                        marginTop: noSummary ? "0.25rem" : 0,
+                  <Box sx={{ flex: 1, minWidth: 0 }}>
+                    <Box
+                      sx={{
+                        fontSize: "0.65rem",
+                        fontWeight: 600,
+                        letterSpacing: "0.06em",
+                        textTransform: "uppercase",
+                        color: "text.secondary",
+                        mb: 0.25,
                       }}
                     >
-                      {!isReadOnly && (
-                        <UpdateSourceSummary
-                          source={source}
+                      Summary
+                    </Box>
+                    {noSummary ? (
+                      <Box
+                        sx={{
+                          fontSize: "0.85rem",
+                          fontStyle: "italic",
+                          color: "text.secondary",
+                        }}
+                      >
+                        {`No${noHumanSummary ? " human" : ""} summary yet`}
+                      </Box>
+                    ) : (
+                      <Box
+                        sx={{
+                          "& p": { fontSize: "0.9rem", lineHeight: 1.5 },
+                          "& > div > div": { p: 0 },
+                        }}
+                      >
+                        <ShowSummaries
+                          summaries={source.summary_history || []}
                           showAISummaries={
                             (currentUser?.preferences?.[
                               "showAISourceSummary"
                             ] || false) as any
                           }
                         />
-                      )}
-                      {!isReadOnly &&
-                        (source.comments?.length > 0 ||
-                          source.classifications?.length > 0) && (
-                          <StartBotSummary obj_id={source.id} />
-                        )}
-                      {source.summary_history?.length > 0 && (
-                        <ShowSummaryHistory
-                          summaries={source.summary_history}
-                          obj_id={source.id}
-                        />
-                      )}
-                    </div>
-                  </div>
-                </Paper>
-              )}
-            <div
-              className={classes.flexRow}
-              style={{
-                justifyContent: "flex-start",
-                alignItems: "center",
-                flexFlow: "wrap",
-                gap: "0.5rem",
-                padding: "0.25rem 0",
-              }}
-            >
-              <div
-                className={classes.flexRow}
-                style={{
-                  alignItems: "center",
-                  flexFlow: "wrap",
-                  gap: "0.25rem",
-                  width: "auto",
-                }}
-              >
-                <SavedGroupChips groups={source.groups ?? []} max={5} />
-              </div>
-              <div
-                className={classes.flexRow}
-                style={{
-                  alignItems: "center",
-                  flexFlow: "wrap",
-                  gap: "0.5rem",
-                  flex: "1 1 auto",
-                  width: "auto",
-                }}
-              >
-                {!isReadOnly && (
-                  <EditSourceGroups
-                    source={{
-                      id: source.id,
-                      currentGroupIds: source.groups?.map((g: any) => g.id),
+                      </Box>
+                    )}
+                  </Box>
+                  <Box
+                    sx={{
+                      display: "flex",
+                      alignItems: "center",
+                      flexShrink: 0,
                     }}
-                    groups={groups}
-                  />
-                )}
-                {!isReadOnly && (
-                  <QuickSaveButtons
-                    sourceId={source.id}
-                    alreadySavedGroups={source.groups?.map((g: any) => g.id)}
-                  />
-                )}
-                <div style={{ marginLeft: "auto" }}>
-                  <SourceSaveHistory groups={source.groups} />
-                </div>
-              </div>
-            </div>
+                  >
+                    {!isReadOnly && (
+                      <UpdateSourceSummary
+                        source={source}
+                        showAISummaries={
+                          (currentUser?.preferences?.["showAISourceSummary"] ||
+                            false) as any
+                        }
+                      />
+                    )}
+                    {!isReadOnly &&
+                      (source.comments?.length > 0 ||
+                        source.classifications?.length > 0) && (
+                        <StartBotSummary obj_id={source.id} />
+                      )}
+                    {source.summary_history?.length > 0 && (
+                      <ShowSummaryHistory
+                        summaries={source.summary_history}
+                        obj_id={source.id}
+                      />
+                    )}
+                  </Box>
+                </Box>
+              )}
+            <Box
+              sx={(theme) => ({
+                ...softButtonsSx(theme),
+                display: "flex",
+                flexWrap: "wrap",
+                alignItems: "center",
+                gap: 0.75,
+                py: 0.5,
+              })}
+            >
+              <SavedGroupChips groups={source.groups ?? []} max={5} />
+              {!isReadOnly && (
+                <EditSourceGroups
+                  source={{
+                    id: source.id,
+                    currentGroupIds: source.groups?.map((g: any) => g.id),
+                  }}
+                  groups={groups}
+                />
+              )}
+              {!isReadOnly && (
+                <QuickSaveButtons
+                  sourceId={source.id}
+                  alreadySavedGroups={source.groups?.map((g: any) => g.id)}
+                />
+              )}
+              <SourceSaveHistory groups={source.groups} />
+            </Box>
             <ThumbnailList
               ra={source.ra}
               dec={source.dec}

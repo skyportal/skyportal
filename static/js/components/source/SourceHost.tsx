@@ -8,6 +8,7 @@ import {
   hostUrl,
   type HostSummary,
 } from "../broker/BrokerHostChip";
+import FieldLabel from "./FieldLabel";
 import { useAddHostMutation, useRemoveHostMutation } from "../../ducks/source";
 import type { BrokerHost } from "../../ducks/brokers";
 
@@ -86,7 +87,7 @@ const SourceHost = ({
         gap: 1,
       }}
     >
-      <b>Host:</b>
+      <FieldLabel>Host</FieldLabel>
       <Box
         sx={{
           display: "flex",

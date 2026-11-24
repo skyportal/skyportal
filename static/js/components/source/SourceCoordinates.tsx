@@ -1,14 +1,11 @@
+import Box from "@mui/material/Box";
 import Tooltip from "@mui/material/Tooltip";
 import UpdateSourceCoordinates from "./UpdateSourceCoordinates";
+import FieldLabel from "./FieldLabel";
 import { dec_to_dms, ra_to_hours } from "../../units";
 import { Source } from "../../types";
 
 interface SourceCoordinatesProps {
-  classes: {
-    infoLine?: string;
-    sourceInfo?: string;
-    [key: string]: any;
-  };
   source: Source & {
     adjusted_position?: {
       ra?: number;
@@ -24,7 +21,6 @@ interface SourceCoordinatesProps {
 }
 
 const SourceCoordinates = ({
-  classes,
   source,
   downMd = false,
 }: SourceCoordinatesProps) => {
@@ -43,40 +39,46 @@ const SourceCoordinates = ({
 
   return (
     <Tooltip title={title} placement="top">
-      <div
-        className={classes.infoLine}
-        style={{
-          gap: 0,
-          columnGap: "0.5rem",
+      <Box
+        sx={{
+          display: "flex",
+          flexWrap: "wrap",
+          alignItems: "center",
+          columnGap: 1.5,
+          rowGap: 0.25,
+          mb: 0.25,
+          fontVariantNumeric: "tabular-nums",
         }}
       >
-        <div className={classes.sourceInfo}>
-          <span
-            style={{
-              fontWeight: "bold",
-              fontSize: downMd ? "1rem" : "110%",
-            }}
-          >
-            {`${ra_to_hours(ra, ":")} ${dec_to_dms(dec, ":")}`}
-          </span>
-        </div>
-        <div className={classes.sourceInfo}>
-          (&alpha;,&delta;= {ra.toFixed(6)}, &nbsp;
-          {dec.toFixed(6)})
-        </div>
-        <div className={classes.sourceInfo}>
-          (<i>l</i>,<i>b</i>={gal_lon?.toFixed(6)}, &nbsp;
-          {gal_lat?.toFixed(6)})
-        </div>
-        {ebv && (
-          <div className={classes.sourceInfo}>{`E(B-V): ${ebv.toFixed(
-            2,
-          )}`}</div>
-        )}
-        <div className={classes.sourceInfo}>
+        <Box
+          component="span"
+          sx={{ fontWeight: 600, fontSize: downMd ? "1rem" : "1.1rem" }}
+        >
+          {`${ra_to_hours(ra, ":")} ${dec_to_dms(dec, ":")}`}
+        </Box>
+        <span>
+          <FieldLabel>&alpha;, &delta;</FieldLabel>
+          {ra.toFixed(6)}, {dec.toFixed(6)}
+        </span>
+        <span>
+          <FieldLabel>
+            <i>l</i>, <i>b</i>
+          </FieldLabel>
+          {gal_lon?.toFixed(6)}, {gal_lat?.toFixed(6)}
+        </span>
+        <Box
+          component="span"
+          sx={{ display: "inline-flex", alignItems: "center" }}
+        >
+          {ebv != null && (
+            <>
+              <FieldLabel>E(B-V)</FieldLabel>
+              {ebv.toFixed(2)}
+            </>
+          )}
           <UpdateSourceCoordinates source={source} />
-        </div>
-      </div>
+        </Box>
+      </Box>
     </Tooltip>
   );
 };

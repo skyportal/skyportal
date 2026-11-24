@@ -1,24 +1,20 @@
 import { useGetProfileQuery } from "../ducks/profile";
 import { useState } from "react";
-import AddIcon from "@mui/icons-material/Add";
 import EditIcon from "@mui/icons-material/Edit";
 import CancelIcon from "@mui/icons-material/Cancel";
+import Box from "@mui/material/Box";
 import Chip from "@mui/material/Chip";
 import Dialog from "@mui/material/Dialog";
 import DialogContent from "@mui/material/DialogContent";
 import DialogTitle from "@mui/material/DialogTitle";
 import DialogActions from "@mui/material/DialogActions";
-import Divider from "@mui/material/Divider";
-import { makeStyles } from "tss-react/mui";
 import CircularProgress from "@mui/material/CircularProgress";
-import IconButton from "@mui/material/IconButton";
 import TextField from "@mui/material/TextField";
 import Tooltip from "@mui/material/Tooltip";
 import Typography from "@mui/material/Typography";
-import SearchableSelect from "./SearchableSelect";
-import { Controller, useForm } from "react-hook-form";
 import { showNotification } from "baselayer/components/Notifications";
 import Button from "./Button";
+import softButtonsSx from "./softButtons";
 import GroupShareSelect from "./group/GroupShareSelect";
 import EditTagGroups from "./EditTagGroups";
 import { useAppDispatch } from "../types/hooks";
@@ -30,46 +26,7 @@ import {
 } from "../ducks/objectTags";
 import { useGetGroupsQuery } from "../ducks/groups";
 
-const useStyles = makeStyles()((theme) => ({
-  root: {
-    margin: "0",
-    padding: "0",
-    display: "flex",
-    flexDirection: "row",
-    alignItems: "center",
-  },
-  chips: {
-    padding: "0",
-    margin: "0",
-    "& > div": {
-      marginTop: 0,
-      marginBottom: 0,
-      marginLeft: "0.05rem",
-      marginRight: "0.05rem",
-    },
-  },
-  addButton: {
-    height: "0.75rem",
-    cursor: "pointer",
-  },
-  loadingIcon: {
-    marginLeft: theme.spacing(1),
-    fontSize: "0.875rem",
-  },
-  divider: {
-    marginTop: theme.spacing(3),
-    marginBottom: theme.spacing(2),
-  },
-  newTagField: {
-    width: "100%",
-  },
-  colorPicker: {
-    display: "flex",
-    alignItems: "center",
-    gap: theme.spacing(2),
-    marginBottom: theme.spacing(2),
-  },
-}));
+const DEFAULT_TAG_COLOR = "#dddfe2";
 
 export const getContrastColor = (hexColor: string) => {
   if (!hexColor || hexColor.length !== 7) return "#000000";
@@ -87,13 +44,13 @@ interface ObjectTagsProps {
 }
 
 const ObjectTags = ({ source }: ObjectTagsProps) => {
-  const { classes: styles } = useStyles() as { classes: any };
   const dispatch = useAppDispatch();
   const [open, setOpen] = useState(false);
   const [selectedTag, setSelectedTag] = useState<any>(null);
   const [isAddingTag, setIsAddingTag] = useState(false);
   const [newTagName, setNewTagName] = useState("");
-  const [newTagColor, setNewTagColor] = useState("#dddfe2");
+  const [newTagColor, setNewTagColor] = useState(DEFAULT_TAG_COLOR);
+  const [tagFilter, setTagFilter] = useState("");
   const [isCreatingTag, setIsCreatingTag] = useState(false);
   const [tagError, setTagError] = useState("");
   const [selectedGroupIds, setSelectedGroupIds] = useState<any[]>([]);
@@ -109,22 +66,19 @@ const ObjectTags = ({ source }: ObjectTagsProps) => {
     currentUser?.permissions?.includes("System admin") ||
     currentUser?.permissions?.includes("Manage sources");
 
-  const { control, setValue, getValues } = useForm();
-
   const handleOpenDialog = () => {
     setOpen(true);
     setNewTagName("");
     setSelectedTag(null);
-    setValue("tag", null);
-    setNewTagColor("#dddfe2");
+    setTagFilter("");
+    setNewTagColor(DEFAULT_TAG_COLOR);
   };
 
   const handleCloseDialog = () => {
     setOpen(false);
     setSelectedTag(null);
-    setValue("tag", null);
     setNewTagName("");
-    setNewTagColor("#dddfe2");
+    setNewTagColor(DEFAULT_TAG_COLOR);
     setSelectedGroupIds([]);
   };
 
@@ -162,12 +116,9 @@ const ObjectTags = ({ source }: ObjectTagsProps) => {
         color: newTagColor,
       }).unwrap();
       dispatch(showNotification("Tag created successfully"));
-      if (created) {
-        setSelectedTag(created);
-        setValue("tag", created);
-      }
+      if (created) setSelectedTag(created);
       setNewTagName("");
-      setNewTagColor("#dddfe2");
+      setNewTagColor(DEFAULT_TAG_COLOR);
     } catch (error: any) {
       const errorMsg = error?.message || "Failed to create tag";
       setTagError(errorMsg);
@@ -178,15 +129,12 @@ const ObjectTags = ({ source }: ObjectTagsProps) => {
   };
 
   const handleAddTag = async () => {
-    const formValues = getValues();
-    const tagToAdd = formValues["tag"];
-
     setIsAddingTag(true);
 
     try {
       await addObjectTag({
         obj_id: source.id,
-        objtagoption_id: tagToAdd.id,
+        objtagoption_id: selectedTag.id,
         group_ids: selectedGroupIds,
       }).unwrap();
       dispatch(showNotification("Tag added successfully"));
@@ -214,71 +162,78 @@ const ObjectTags = ({ source }: ObjectTagsProps) => {
     );
     return {
       ...tag,
-      color: tagOption?.color || "#dddfe2",
+      color: tagOption?.color || DEFAULT_TAG_COLOR,
       groups: tag.groups || [],
     };
   });
 
-  return (
-    <div className={styles.root}>
-      <div className={styles.chips}>
-        {sourceTagsWithColors.map((tag: any) => {
-          // Meta-object provenance: a tag aggregated from a linked source keeps
-          // its own obj_id. Surface where it came from, and don't offer to edit
-          // it from this page (writes stay per-source).
-          const fromLinkedObj = tag.obj_id && tag.obj_id !== source.id;
-          const editable = availableGroups.length > 0;
-          const chip = (
-            <Chip
-              key={tag.id}
-              className={styles.chip}
-              label={fromLinkedObj ? `${tag.name} (${tag.obj_id})` : tag.name}
-              size="small"
-              deleteIcon={
-                fromLinkedObj ? undefined : editable ? (
-                  <Tooltip title="Edit tag">
-                    <EditIcon />
-                  </Tooltip>
-                ) : (
-                  <Tooltip title="Remove tag">
-                    <CancelIcon />
-                  </Tooltip>
-                )
-              }
-              onDelete={
-                fromLinkedObj
-                  ? undefined
-                  : editable
-                    ? () => handleOpenEditDialog(tag)
-                    : () => removeTag(tag)
-              }
-              data-testid={`tag-chip-${tag.id}`}
-              style={{
-                backgroundColor: tag.color,
-                color: getContrastColor(tag.color),
-              }}
-            />
-          );
-          return fromLinkedObj ? (
-            <Tooltip key={tag.id} title={`From linked source ${tag.obj_id}`}>
-              {chip}
-            </Tooltip>
-          ) : (
-            chip
-          );
-        })}
-      </div>
+  const query = tagFilter.trim().toLowerCase();
+  const shownTags = query
+    ? availableTags.filter((tag: any) => tag.name.toLowerCase().includes(query))
+    : availableTags;
 
-      <Tooltip title="Add Tag">
-        <IconButton
-          size="small"
-          className={styles.addButton}
-          onClick={handleOpenDialog}
-          data-testid="add-tag-button"
-        >
-          <AddIcon fontSize="small" />
-        </IconButton>
-      </Tooltip>
+  return (
+    <Box
+      sx={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 0.5 }}
+    >
+      {sourceTagsWithColors.map((tag: any) => {
+        // Meta-object provenance: a tag aggregated from a linked source keeps
+        // its own obj_id. Surface where it came from, and don't offer to edit
+        // it from this page (writes stay per-source).
+        const fromLinkedObj = tag.obj_id && tag.obj_id !== source.id;
+        const editable = availableGroups.length > 0;
+        const chip = (
+          <Chip
+            key={tag.id}
+            label={fromLinkedObj ? `${tag.name} (${tag.obj_id})` : tag.name}
+            size="small"
+            deleteIcon={
+              fromLinkedObj ? undefined : editable ? (
+                <Tooltip title="Edit tag">
+                  <EditIcon />
+                </Tooltip>
+              ) : (
+                <Tooltip title="Remove tag">
+                  <CancelIcon />
+                </Tooltip>
+              )
+            }
+            onDelete={
+              fromLinkedObj
+                ? undefined
+                : editable
+                  ? () => handleOpenEditDialog(tag)
+                  : () => removeTag(tag)
+            }
+            data-testid={`tag-chip-${tag.id}`}
+            style={{
+              backgroundColor: tag.color,
+              color: getContrastColor(tag.color),
+            }}
+          />
+        );
+        return fromLinkedObj ? (
+          <Tooltip key={tag.id} title={`From linked source ${tag.obj_id}`}>
+            {chip}
+          </Tooltip>
+        ) : (
+          chip
+        );
+      })}
+
+      <Chip
+        size="small"
+        variant="outlined"
+        component="button"
+        label="Add tag"
+        onClick={handleOpenDialog}
+        data-testid="add-tag-button"
+        sx={{
+          borderStyle: "dashed",
+          color: "text.secondary",
+          "&:hover": { borderColor: "primary.main", color: "primary.main" },
+        }}
+      />
 
       <Dialog
         open={open}
@@ -286,104 +241,147 @@ const ObjectTags = ({ source }: ObjectTagsProps) => {
         maxWidth="xs"
         fullWidth
         data-testid="add-tag-dialog"
+        slotProps={{
+          paper: {
+            sx: (theme) => ({ borderRadius: "12px", ...softButtonsSx(theme) }),
+          },
+        }}
       >
-        <DialogTitle>Add Tag to {source.id}</DialogTitle>
-        <DialogContent style={{ marginTop: "0.5rem", overflow: "visible" }}>
+        <DialogTitle sx={{ pb: 0 }}>
+          Add a tag
+          <Typography variant="body2" color="text.secondary">
+            {source.id}
+          </Typography>
+        </DialogTitle>
+        <DialogContent
+          sx={{
+            display: "flex",
+            flexDirection: "column",
+            gap: 2,
+            pt: "1rem !important",
+          }}
+        >
           {availableTags.length > 0 ? (
-            <Controller
-              name="tag"
-              control={control}
-              render={({ field: { onChange, value } }) => {
-                return (
-                  <SearchableSelect
-                    id="tagSelect"
-                    label="Select Tag"
-                    options={availableTags}
-                    getOptionLabel={(option: any) => option.name}
-                    value={value}
-                    onChange={(_, data) => {
-                      onChange(data);
-                      setSelectedTag(data);
-                    }}
-                    renderOption={(props, option: any) => (
-                      <li {...props}>
-                        <Chip
-                          label={option.name}
-                          size="small"
-                          style={{
-                            backgroundColor: option.color || "#dddfe2",
-                            color: getContrastColor(option.color || "#dddfe2"),
-                            marginRight: 8,
-                          }}
-                        />
-                      </li>
-                    )}
-                    filterSelectedOptions
-                    data-testid="tag-select"
-                    textFieldProps={{
-                      className: styles.autocomplete,
-                      "data-testid": "tag-autocomplete-input",
-                    }}
-                  />
-                );
-              }}
-            />
+            <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
+              <TextField
+                size="small"
+                fullWidth
+                placeholder="Search tags"
+                value={tagFilter}
+                onChange={(e) => setTagFilter(e.target.value)}
+                slotProps={{
+                  htmlInput: { "data-testid": "tag-search-input" },
+                }}
+              />
+              <Box
+                data-testid="tag-select"
+                sx={{
+                  display: "flex",
+                  flexWrap: "wrap",
+                  gap: 0.75,
+                  maxHeight: 180,
+                  overflowY: "auto",
+                  p: 0.5,
+                }}
+              >
+                {shownTags.map((tag: any) => {
+                  const color = tag.color || DEFAULT_TAG_COLOR;
+                  return (
+                    <Chip
+                      key={tag.id}
+                      size="small"
+                      label={tag.name}
+                      onClick={() => setSelectedTag(tag)}
+                      data-testid={`tag-option-${tag.name}`}
+                      sx={{
+                        bgcolor: color,
+                        color: getContrastColor(color),
+                        outline:
+                          selectedTag?.id === tag.id ? "2px solid" : "none",
+                        outlineColor: "primary.main",
+                        outlineOffset: "2px",
+                        "&:hover, &:focus-visible": {
+                          bgcolor: color,
+                          filter: "brightness(0.92)",
+                        },
+                      }}
+                    />
+                  );
+                })}
+                {shownTags.length === 0 && (
+                  <Typography variant="body2" color="text.secondary">
+                    No matching tag
+                  </Typography>
+                )}
+              </Box>
+            </Box>
           ) : (
-            <Typography variant="body2" color="textSecondary">
-              No (more) available tags to add to this source.
+            <Typography variant="body2" color="text.secondary">
+              No more tags to add to this source.
             </Typography>
           )}
 
           {availableTags.length > 0 &&
             (availableGroups.length > 0 ? (
-              <>
+              <Box>
                 <GroupShareSelect
                   groupList={availableGroups}
                   groupIDs={selectedGroupIds}
                   setGroupIDs={setSelectedGroupIds}
                 />
                 {selectedGroupIds.length === 0 && (
-                  <Typography
-                    variant="caption"
-                    color="textSecondary"
-                    style={{ marginTop: "0.25rem", display: "block" }}
-                  >
-                    No group selected — will default to the sitewide group.
+                  <Typography variant="caption" color="text.secondary">
+                    Defaults to the sitewide group
                   </Typography>
                 )}
-              </>
+              </Box>
             ) : (
-              <Typography
-                variant="body2"
-                color="error"
-                style={{ marginTop: "1rem" }}
-              >
-                No groups available. Please ensure you have access to at least
-                one group.
+              <Typography variant="body2" color="error">
+                You have no group to share this tag with.
               </Typography>
             ))}
 
           {permission && (
-            <>
-              <Divider className={styles.divider} />
-
-              <div className={styles.createTagSection}>
-                <Typography variant="subtitle1" gutterBottom>
-                  Create New Tag
-                </Typography>
-
+            <Box
+              data-testid="create-tag-section"
+              sx={{
+                display: "flex",
+                flexDirection: "column",
+                gap: 1,
+                pt: 2,
+                borderTop: 1,
+                borderColor: "divider",
+              }}
+            >
+              <Typography variant="subtitle2">New tag</Typography>
+              <Box sx={{ display: "flex", alignItems: "flex-start", gap: 1 }}>
+                <Tooltip title="Color">
+                  <Box
+                    component="input"
+                    type="color"
+                    value={newTagColor}
+                    onChange={(e: any) => setNewTagColor(e.target.value)}
+                    sx={{
+                      width: 40,
+                      height: 40,
+                      flexShrink: 0,
+                      p: 0.5,
+                      border: 1,
+                      borderColor: "divider",
+                      borderRadius: "8px",
+                      bgcolor: "transparent",
+                      cursor: "pointer",
+                    }}
+                  />
+                </Tooltip>
                 <TextField
-                  label="New Tag Name"
+                  size="small"
+                  fullWidth
+                  placeholder="Name"
                   value={newTagName}
                   onChange={handleNewTagNameChange}
-                  variant="outlined"
-                  size="small"
-                  className={styles.newTagField}
                   error={!!tagError}
-                  helperText={
-                    tagError ||
-                    "Only letters and numbers, no spaces or special characters"
-                  }
+                  helperText={tagError || "Letters and numbers only"}
                   disabled={isCreatingTag}
                   slotProps={{
                     htmlInput: {
@@ -391,54 +389,28 @@ const ObjectTags = ({ source }: ObjectTagsProps) => {
                     },
                   }}
                 />
-                <div className={styles.colorPicker}>
-                  <Typography variant="body2">Color:</Typography>
-                  <input
-                    type="color"
-                    value={newTagColor}
-                    onChange={(e) => setNewTagColor(e.target.value)}
-                    style={{
-                      width: 40,
-                      height: 40,
-                      border: "none",
-                      borderRadius: "4px",
-                      cursor: "pointer",
-                    }}
-                  />
-                  <Typography variant="body2">{newTagColor}</Typography>
-                </div>
                 <Button
-                  color="primary"
+                  secondary
                   onClick={handleCreateTag}
                   disabled={!newTagName || isCreatingTag}
                   data-testid="create-tag-button"
+                  sx={{ height: 40, flexShrink: 0 }}
                 >
-                  {isCreatingTag ? "Creating..." : "Create Tag"}
-                  {isCreatingTag && (
-                    <CircularProgress
-                      size={16}
-                      className={styles.loadingIcon}
-                    />
-                  )}
+                  {isCreatingTag ? <CircularProgress size={16} /> : "Create"}
                 </Button>
-              </div>
-            </>
+              </Box>
+            </Box>
           )}
         </DialogContent>
-        <DialogActions>
-          <Button onClick={handleCloseDialog} color="secondary">
-            Cancel
-          </Button>
+        <DialogActions sx={{ px: 3, pb: 2 }}>
+          <Button onClick={handleCloseDialog}>Cancel</Button>
           <Button
+            primary
             onClick={handleAddTag}
-            color="primary"
             disabled={!selectedTag || isAddingTag}
             data-testid="save-tag-button"
           >
-            {isAddingTag ? "Saving..." : "Save"}
-            {isAddingTag && (
-              <CircularProgress size={16} className={styles.loadingIcon} />
-            )}
+            {isAddingTag ? "Adding..." : "Add tag"}
           </Button>
         </DialogActions>
       </Dialog>
@@ -450,7 +422,7 @@ const ObjectTags = ({ source }: ObjectTagsProps) => {
         open={editDialogOpen}
         onClose={handleCloseEditDialog}
       />
-    </div>
+    </Box>
   );
 };
 

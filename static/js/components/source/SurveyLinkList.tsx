@@ -1,6 +1,7 @@
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 import { makeStyles } from "tss-react/mui";
+import { alpha } from "@mui/material/styles";
 
 import { useFetchSourcePhotometryQuery } from "../../ducks/photometry";
 import { dec_to_dms, ra_to_hours } from "../../units";
@@ -9,26 +10,31 @@ dayjs.extend(utc);
 
 const useStyles = makeStyles()((theme) => ({
   SurveyLinkList: {
-    display: "inline-block",
+    display: "flex",
+    flexWrap: "wrap",
+    gap: "0.4rem",
   },
   SurveyLink: {
-    backgroundColor: theme.palette.primary.main,
-    padding: "2px 15px",
-    margin: "3px",
     display: "inline-block",
-    color: theme.palette.secondary.main,
-    borderRadius: "5px",
+    padding: "3px 12px",
+    borderRadius: "8px",
+    backgroundColor: alpha(theme.palette.text.primary, 0.06),
+    color: theme.palette.text.primary,
+    fontSize: "0.85rem",
+    fontWeight: 500,
+    textDecoration: "none",
+    "&:hover": {
+      backgroundColor: alpha(theme.palette.text.primary, 0.11),
+    },
   },
   submitButton: {
     border: "none",
-    backgroundColor: theme.palette.primary.main,
+    background: "none",
     cursor: "pointer",
     padding: 0,
     margin: 0,
-    fontWeight: "bold",
-    color: theme.palette.secondary.main,
-    textDecoration: "none",
-    borderRadius: "5px",
+    font: "inherit",
+    color: "inherit",
   },
 }));
 
@@ -41,7 +47,7 @@ const SurveyLink = ({ name, url = null }: SurveyLinkProps) => {
   const { classes: styles } = useStyles();
   return (
     <a href={url || undefined} target="_blank" rel="noreferrer">
-      <div className={styles.SurveyLink}>{name}</div>
+      <span className={styles.SurveyLink}>{name}</span>
     </a>
   );
 };
@@ -146,21 +152,7 @@ const SurveyLinkList = ({ ra, dec, id }: SurveyLinkListProps) => {
       />
       <SurveyLink
         name="CFHT"
-        url={`http://www.cadc-ccda.hia-iha.nrc-cnrc.gc.ca/cadcbin/megapipe/imc.pl?lang=en&object=&size=256&ra=${ra}&dec=${dec}`}
-      />
-      <SurveyLinkForm
-        name="CRTS"
-        url="http://nunuku.caltech.edu/cgi-bin/getcssconedb_release_img.cgi"
-        formData={{
-          RA: `${ra}`,
-          Dec: `${dec}`,
-          Rad: "0.5",
-          IMG: "nun",
-          DB: "photcat",
-          OUT: "csv",
-          SHORT: "short",
-          PLOT: "plot",
-        }}
+        url={`https://www.cadc-ccda.hia-iha.nrc-cnrc.gc.ca/en/search/?Observation.collection=CFHT&Plane.position.bounds@Shape1Resolver.value=ALL&Plane.position.bounds=${ra}%20${dec}#resultTableTab`}
       />
       <SurveyLink
         name="DECam"
@@ -179,7 +171,7 @@ const SurveyLinkList = ({ ra, dec, id }: SurveyLinkListProps) => {
       />
       <SurveyLinkForm
         name="FIRST"
-        url="https://third.ucllnl.org/cgi-bin/firstcutout"
+        url="https://sundog.stsci.edu/cgi-bin/firstcutout"
         formData={{
           RA: `${ra_to_hours(ra, " ")} ${dec_to_dms(dec, " ")}`,
           Equinox: "J2000",
@@ -187,8 +179,8 @@ const SurveyLinkList = ({ ra, dec, id }: SurveyLinkListProps) => {
         }}
       />
       <SurveyLink
-        name="Gaia DR2"
-        url={`http://vizier.u-strasbg.fr/viz-bin/VizieR?-source=I/345/gaia2&-out.add=_r&-out.add=2C_DEJ&-sort=_r&-to=&-out.max=20&-meta.ucd=2&-meta.foot=1&-c=${ra_hrs}+${dec_hrs}&-c.rs=10`}
+        name="Gaia DR3"
+        url={`https://vizier.cds.unistra.fr/viz-bin/VizieR?-source=I/355/gaiadr3&-out.add=_r&-out.add=2C_DEJ&-sort=_r&-to=&-out.max=20&-meta.ucd=2&-meta.foot=1&-c=${ra_hrs}+${dec_hrs}&-c.rs=10`}
       />
       <SurveyLink
         name="Galex"
@@ -242,15 +234,11 @@ const SurveyLinkList = ({ ra, dec, id }: SurveyLinkListProps) => {
       />
       <SurveyLink
         name="SIMBAD"
-        url={`http://simbad.u-strasbg.fr/simbad/sim-coo?protocol=html&NbIdent=us=30&Radius.unit=arcsec&CooFrame=FK5&CooEpoch=2000&CooEqui=2000&Coord=${ra}d+${dec}d`}
+        url={`https://simbad.cds.unistra.fr/simbad/sim-coo?protocol=html&NbIdent=us=30&Radius.unit=arcsec&CooFrame=FK5&CooEpoch=2000&CooEqui=2000&Coord=${ra}d+${dec}d`}
       />
       <SurveyLink
         name="SPHEREx"
         url={`https://irsa.ipac.caltech.edu/SIA?COLLECTION=spherex_dr1&COLLECTION=spherex_dr1_deep&COLLECTION=spherex_qr3&COLLECTION=spherex_qr3_deep&POS=circle+${ra}+${dec}+0.0003&RESPONSEFORMAT=HTML`}
-      />
-      <SurveyLink
-        name="Subaru"
-        url={`http://smoka.nao.ac.jp/search?RadorRec=radius&longitudeC=${ra}&latitudeC=${dec}&instruments=SUP&instruments=FCS&instruments=HDS&instruments=OHS&instruments=IRC&instruments=CIA&instruments=COM&instruments=CAC&instruments=MIR&instruments=MCS&instruments=K3D&instruments=HIC&instruments=FMS&obs_mod=IMAG&obs_mod=SPEC&data_typ=OBJECT&dispcol=FRAMEID&dispcol=DATE_OBS&dispcol=&dispcol=FILTER&dispcol=WVLEN&dispcol=UT_START&dispcol=EXPTIME&radius=10&action=Search`}
       />
       <SurveyLink
         name="TNS"
@@ -258,7 +246,7 @@ const SurveyLinkList = ({ ra, dec, id }: SurveyLinkListProps) => {
       />
       <SurveyLink
         name="VizieR"
-        url={`http://vizier.u-strasbg.fr/viz-bin/VizieR?-source=&-out.add=_r&-out.add=2C_DEJ&-sort=_r&-to=&-out.max=20&-meta.ucd=2&-meta.foot=1&-c=${ra_hrs}+${dec_hrs}&-c.rs=10`}
+        url={`https://vizier.cds.unistra.fr/viz-bin/VizieR?-source=&-out.add=_r&-out.add=2C_DEJ&-sort=_r&-to=&-out.max=20&-meta.ucd=2&-meta.foot=1&-c=${ra_hrs}+${dec_hrs}&-c.rs=10`}
       />
       <SurveyLink
         name="VLT"
@@ -266,11 +254,11 @@ const SurveyLinkList = ({ ra, dec, id }: SurveyLinkListProps) => {
       />
       <SurveyLink
         name="WISE"
-        url={`http://irsa.ipac.caltech.edu/applications/wise/#id=Hydra_wise_wise_1&RequestClass=ServerRequest&DoSearch=true&intersect=CENTER&subsize=0.16666666800000002&mcenter=all&schema=allsky-4band&dpLevel=3a&band=1,2,3,4&UserTargetWorldPt=${ra};${dec};EQ_J2000&SimpleTargetPanel.field.resolvedBy=nedthensimbad&preliminary_data=no&coaddId=&projectId=wise&searchName=wise_1&shortDesc=Position&isBookmarkAble=true&isDrillDownRoot=true&isSearchResult=true`}
+        url={`https://irsa.ipac.caltech.edu/ibe/search/wise/allwise/p3am_cdd?POS=${ra},${dec}&ct=html`}
       />
       <SurveyLink
         name="ZTF"
-        url={`https://irsa.ipac.caltech.edu/applications/ztf/#id=Hydra_ztf_ztf_image_pos&RequestClass=ServerRequest&DoSearch=true&intersect=CENTER&subsize=0.13888889000000001&mcenter=all&dpLevel=sci,ref,diff&UserTargetWorldPt=${ra};${dec};EQ_J2000&SimpleTargetPanel.field.resolvedBy=nedthensimbad&ztfField=&ccdId=&projectId=ztf&searchName=ztf_image_pos&shortDesc=Search%20by%20Position&isBookmarkAble=true&isDrillDownRoot=true&isSearchResult=true`}
+        url={`https://irsa.ipac.caltech.edu/ibe/search/ztf/products/sci?POS=${ra},${dec}&ct=html&columns=obsdate,filtercode,field,ccdid,qid,maglimit`}
       />
     </div>
   );
