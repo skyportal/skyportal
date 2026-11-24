@@ -191,8 +191,12 @@ export const SourceRow = ({
           <Typography
             component="span"
             variant="caption"
-            color="text.secondary"
-            sx={{ ml: "auto", flexShrink: 0, whiteSpace: "nowrap" }}
+            sx={(theme) => ({
+              ml: "auto",
+              flexShrink: 0,
+              whiteSpace: "nowrap",
+              color: alpha(theme.palette.text.primary, 0.5),
+            })}
           >
             {meta}
           </Typography>
