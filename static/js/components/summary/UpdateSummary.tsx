@@ -6,6 +6,7 @@ import Tooltip from "@mui/material/Tooltip";
 
 import Button from "../Button";
 import EditDialog from "../source/EditDialog";
+import { latestSummary } from "./ShowSummaries";
 
 interface UpdateSummaryProps {
   summary?: string | null | undefined;
@@ -28,11 +29,7 @@ const UpdateSummary = ({
   const [saving, setSaving] = useState(false);
 
   const open = () => {
-    setText(
-      summaryHistory?.find(
-        (s) => s.summary && (showAISummaries || s.is_bot === false),
-      )?.summary ?? "",
-    );
+    setText(latestSummary(summaryHistory, showAISummaries) ?? "");
     setDialogOpen(true);
   };
 

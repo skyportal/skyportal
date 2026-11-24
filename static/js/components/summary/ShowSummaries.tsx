@@ -40,6 +40,16 @@ interface Summary {
   is_bot?: boolean;
 }
 
+export const latestSummary = (
+  summaries: Summary[] | null | undefined,
+  showAISummaries = true,
+) => {
+  const latest = (summaries ?? []).find(
+    (summary) => showAISummaries || summary?.is_bot === false,
+  )?.summary;
+  return latest?.trim() ? latest : null;
+};
+
 interface ShowSummariesProps {
   summaries?: Summary[];
   showAISummaries?: boolean;
@@ -50,24 +60,6 @@ const ShowSummaries = ({
   showAISummaries = true,
 }: ShowSummariesProps) => {
   const { classes: styles } = useStyles();
-  const renderCommentText = () => {
-    let filteredSummaries = [...(summaries || [])].filter(
-      (summary) =>
-        summary?.summary &&
-        summary?.summary !== null &&
-        summary?.summary.trim() !== "",
-    );
-    if (showAISummaries === false) {
-      filteredSummaries = filteredSummaries.filter(
-        (summary) => summary?.is_bot === false,
-      );
-    }
-    if (filteredSummaries?.length > 0) {
-      return filteredSummaries[0]?.summary ?? null;
-    }
-    return null;
-  };
-
   return (
     <div className={(styles as any).compactContainer}>
       <Tooltip title="Latest Summary" placement="right-start">
@@ -76,7 +68,7 @@ const ShowSummaries = ({
             rehypePlugins={[rehypeEmoji]}
             className={styles.compactText}
           >
-            {renderCommentText()}
+            {latestSummary(summaries, showAISummaries)}
           </ReactMarkdown>
         </div>
       </Tooltip>

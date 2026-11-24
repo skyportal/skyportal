@@ -51,7 +51,7 @@ import CopyPhotometryDialog from "./CopyPhotometryDialog";
 import ClassificationList from "../classification/ClassificationList";
 import ClassificationForm from "../classification/ClassificationForm";
 import ShowClassification from "../classification/ShowClassification";
-import ShowSummaries from "../summary/ShowSummaries";
+import ShowSummaries, { latestSummary } from "../summary/ShowSummaries";
 import SurveyLinkList from "./SurveyLinkList";
 import StarList from "../StarList";
 import FollowupRequestForm from "../followup_request/FollowupRequestForm";
@@ -379,18 +379,11 @@ const SourceContent = ({ source }: SourceContentProps) => {
     });
   }
 
-  const noSummary =
-    source.summary_history?.length < 1 ||
-    !source.summary_history ||
-    source.summary_history.filter(
-      (summary: any) =>
-        summary.summary !== null && summary.summary.trim() !== "",
-    )?.length < 1;
-
   const showSummary =
     currentUser?.id && !currentUser?.preferences?.["hideSourceSummary"];
   const showAISummaries = (currentUser?.preferences?.["showAISourceSummary"] ||
     false) as any;
+  const noSummary = !latestSummary(source.summary_history, showAISummaries);
   const summaryActions = (chip = false) => (
     <>
       {!isReadOnly && (
