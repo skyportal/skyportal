@@ -41,7 +41,7 @@ const UpdateSourceTNS = ({ sourceId }: { sourceId: string }) => {
           size="small"
           onClick={() => setDialogOpen(true)}
           data-testid="updateTNSIconButton"
-          sx={{ py: 0, px: 0.75, minWidth: 0, height: 24 }}
+          sx={{ py: 0, px: 0.75, minWidth: 0, height: 22 }}
         >
           <ManageSearchIcon fontSize="small" />
         </Button>

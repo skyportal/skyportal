@@ -742,11 +742,7 @@ const SourceContent = ({ source }: SourceContentProps) => {
               </div>
             </div>
             <div className={classes.fieldRow}>
-              <Box
-                className={classes.rowInfo}
-                sx={{ position: "relative" }}
-                data-testid="tour-source-tns"
-              >
+              <Box className={classes.rowInfo} data-testid="tour-source-tns">
                 <Tooltip title="Transient reported at this position, from the Transient Name Server">
                   <FieldLabel>TNS</FieldLabel>
                 </Tooltip>
@@ -763,6 +759,7 @@ const SourceContent = ({ source }: SourceContentProps) => {
                     target="_blank"
                     rel="noopener noreferrer"
                     clickable
+                    sx={{ mr: 0.5 }}
                   />
                 )}
                 {source.tns_info && (
@@ -771,7 +768,9 @@ const SourceContent = ({ source }: SourceContentProps) => {
                     display_header={false}
                   />
                 )}
-                {!isReadOnly && <UpdateSourceTNS sourceId={source.id} />}
+                {!source.tns_name && !isReadOnly && (
+                  <UpdateSourceTNS sourceId={source.id} />
+                )}
                 {source.withhold_from_tns && (
                   <Tooltip
                     title={`Never sent to TNS, automatically or manually.${
@@ -808,10 +807,12 @@ const SourceContent = ({ source }: SourceContentProps) => {
                     />
                   </Tooltip>
                 )}
-                {!isReadOnly && !source.withhold_from_tns && (
-                  <HoverAction>
+                {!isReadOnly &&
+                  !source.tns_name &&
+                  !source.withhold_from_tns && (
                     <Tooltip title="Never send to TNS, automatically or manually">
-                      <IconButton
+                      <Button
+                        variant="outlined"
                         size="small"
                         data-testid="withhold-from-tns-button"
                         onClick={() =>
@@ -820,27 +821,30 @@ const SourceContent = ({ source }: SourceContentProps) => {
                             payload: { withhold_from_tns: true },
                           })
                         }
+                        sx={{
+                          py: 0,
+                          px: 0.75,
+                          minWidth: 0,
+                          height: 22,
+                          ml: 0.5,
+                          color: "text.secondary",
+                          borderColor: "divider",
+                        }}
                       >
-                        <DoNotDisturbOnOutlinedIcon />
-                      </IconButton>
+                        <DoNotDisturbOnOutlinedIcon fontSize="small" />
+                      </Button>
                     </Tooltip>
-                  </HoverAction>
-                )}
+                  )}
               </Box>
               <Box className={classes.rowInfo} sx={{ position: "relative" }}>
                 <Tooltip title="Known solar system object at this position, from the Minor Planet Center">
                   <FieldLabel>MPC</FieldLabel>
                 </Tooltip>
                 {source.mpc_name && (
-                  <Chip size="small" label={source.mpc_name} />
+                  <Chip size="small" label={source.mpc_name} sx={{ mr: 0.5 }} />
                 )}
                 {!isReadOnly && <UpdateSourceMPC source={source} />}
               </Box>
-            </div>
-            <div className={classes.fieldRow}>
-              <div className={classes.rowInfo}>
-                <SourceAlias source={source} />
-              </div>
               <Box className={classes.rowInfo} sx={{ position: "relative" }}>
                 <Tooltip title="Events this object was matched to by the GCN crossmatch or by hand">
                   <FieldLabel>GCN matches</FieldLabel>
@@ -863,6 +867,11 @@ const SourceContent = ({ source }: SourceContentProps) => {
                   </HoverAction>
                 )}
               </Box>
+            </div>
+            <div className={classes.fieldRow}>
+              <div className={classes.rowInfo}>
+                <SourceAlias source={source} />
+              </div>
             </div>
             <SourceHost
               source={source}

@@ -101,7 +101,7 @@ const UpdateSourceMPC = ({ source }: UpdateSourceMPCProps) => {
           size="small"
           data-testid="updateMPCIconButton"
           onClick={() => setDialogOpen(true)}
-          sx={{ py: 0, px: 0.75, minWidth: 0, height: 24 }}
+          sx={{ py: 0, px: 0.75, minWidth: 0, height: 22 }}
         >
           <TravelExploreIcon fontSize="small" />
         </Button>
