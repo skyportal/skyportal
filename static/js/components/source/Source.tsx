@@ -909,7 +909,9 @@ const SourceContent = ({ source }: SourceContentProps) => {
             ) : null}
             <Box
               sx={(theme) => {
-                const { success } = theme.palette;
+                const { success, primary, secondary } = theme.palette;
+                const blue =
+                  theme.palette.mode === "dark" ? secondary.main : primary.main;
                 return {
                   ...softButtonsSx(theme),
                   flexBasis: "100%",
@@ -926,50 +928,21 @@ const SourceContent = ({ source }: SourceContentProps) => {
                         : success.dark,
                     "&:hover": { bgcolor: alpha(success.main, 0.24) },
                   },
+                  "& [data-testid=observing-button]": {
+                    bgcolor: alpha(blue, 0.14),
+                    color: blue,
+                    "&:hover": { bgcolor: alpha(blue, 0.22) },
+                  },
                 };
               }}
             >
-              {alertBroker ? (
-                <Tooltip
-                  title={`Alerts for this object in ${alertBroker.name}`}
-                >
-                  <Link
-                    to={`/brokers/${alertBroker.id}?${new URLSearchParams({
-                      objectId: source.id,
-                      ...(source.ra != null && source.dec != null
-                        ? {
-                            ra: String(source.ra),
-                            dec: String(source.dec),
-                            radius: "3",
-                          }
-                        : {}),
-                    })}`}
-                    target="_blank"
-                  >
-                    <Button secondary size="small" endIcon={<SearchIcon />}>
-                      Search alerts
-                    </Button>
-                  </Link>
-                </Tooltip>
-              ) : (
-                <Tooltip title="No broker is set as the default for alert search">
-                  <span>
-                    <Button
-                      secondary
-                      size="small"
-                      disabled
-                      endIcon={<SearchIcon />}
-                    >
-                      Search alerts
-                    </Button>
-                  </span>
-                </Tooltip>
-              )}
               <Tooltip title="Finding chart, observability and starlist">
                 <Button
                   secondary
+                  color="primary"
                   size="small"
                   endIcon={<ExpandMoreIcon />}
+                  data-testid="observing-button"
                   aria-haspopup="true"
                   aria-expanded={Boolean(anchorElObserving)}
                   onClick={(e: any) => setAnchorElObserving(e.currentTarget)}
@@ -1043,6 +1016,42 @@ const SourceContent = ({ source }: SourceContentProps) => {
                   {showStarList ? "Hide starlist" : "Show starlist"}
                 </MenuItem>
               </Menu>
+              {alertBroker ? (
+                <Tooltip
+                  title={`Alerts for this object in ${alertBroker.name}`}
+                >
+                  <Link
+                    to={`/brokers/${alertBroker.id}?${new URLSearchParams({
+                      objectId: source.id,
+                      ...(source.ra != null && source.dec != null
+                        ? {
+                            ra: String(source.ra),
+                            dec: String(source.dec),
+                            radius: "3",
+                          }
+                        : {}),
+                    })}`}
+                    target="_blank"
+                  >
+                    <Button secondary size="small" endIcon={<SearchIcon />}>
+                      Search alerts
+                    </Button>
+                  </Link>
+                </Tooltip>
+              ) : (
+                <Tooltip title="No broker is set as the default for alert search">
+                  <span>
+                    <Button
+                      secondary
+                      size="small"
+                      disabled
+                      endIcon={<SearchIcon />}
+                    >
+                      Search alerts
+                    </Button>
+                  </span>
+                </Tooltip>
+              )}
               {!isReadOnly && (
                 <>
                   <Tooltip title="Send to a service or make public">
