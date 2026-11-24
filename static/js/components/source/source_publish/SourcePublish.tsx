@@ -1,6 +1,5 @@
 import { useGetProfileQuery } from "../../../ducks/profile";
 import { useState } from "react";
-import { makeStyles } from "tss-react/mui";
 import Tooltip from "@mui/material/Tooltip";
 import DialogContent from "@mui/material/DialogContent";
 import Box from "@mui/material/Box";
@@ -13,23 +12,17 @@ import SourcePublishOptions from "./SourcePublishOptions";
 import SourcePublishHistory from "./SourcePublishHistory";
 import SourcePublishRelease from "./SourcePublishRelease";
 
-const useStyles = makeStyles()(() => ({
-  expandButton: {
-    backgroundColor: "#80808017",
-    width: "100%",
-    display: "flex",
-    justifyContent: "space-between",
-    color: "gray",
-    fontSize: "1rem",
-    borderBottom: "2px solid #e0e0e0",
-    borderRadius: "0",
-    marginBottom: "0.5rem",
-  },
-  versionHistoryTitle: {
-    marginBottom: "0.5rem",
-    fontSize: "1.15rem",
-  },
-}));
+const expandButtonSx = {
+  bgcolor: "#80808017",
+  width: "100%",
+  display: "flex",
+  justifyContent: "space-between",
+  color: "gray",
+  fontSize: "1rem",
+  borderBottom: "2px solid #e0e0e0",
+  borderRadius: 0,
+  mb: 1,
+};
 
 interface SourcePublishProps {
   sourceId: string;
@@ -42,7 +35,6 @@ interface SourcePublishProps {
 }
 
 const SourcePublish = ({ sourceId, isElements }: SourcePublishProps) => {
-  const { classes: styles } = useStyles();
   const [generatePublicSourcePage] = useGeneratePublicSourcePageMutation();
   const { data: currentUser } = useGetProfileQuery();
   const manageSourcesAccess =
@@ -101,13 +93,7 @@ const SourcePublish = ({ sourceId, isElements }: SourcePublishProps) => {
         The data you selected will be available to everyone on the internet. Are
         you sure you want to do this ?
       </Box>
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "center",
-          margin: "1.5rem 0",
-        }}
-      >
+      <Box sx={{ display: "flex", justifyContent: "center", my: 3 }}>
         <Tooltip
           title={
             manageSourcesAccess
@@ -119,10 +105,7 @@ const SourcePublish = ({ sourceId, isElements }: SourcePublishProps) => {
             <Button
               variant="contained"
               onClick={publish}
-              style={{
-                backgroundColor: publishButton.color,
-                color: "white",
-              }}
+              sx={{ bgcolor: publishButton.color, color: "white" }}
               disabled={
                 !manageSourcesAccess || publishButton.text !== "Publish"
               }
@@ -135,10 +118,10 @@ const SourcePublish = ({ sourceId, isElements }: SourcePublishProps) => {
             </Button>
           </div>
         </Tooltip>
-      </div>
+      </Box>
       <div>
         <Button
-          className={styles.expandButton}
+          sx={expandButtonSx}
           size="small"
           variant="text"
           onClick={() => setSourcePublishReleaseOpen(!sourcePublishReleaseOpen)}
@@ -157,7 +140,7 @@ const SourcePublish = ({ sourceId, isElements }: SourcePublishProps) => {
       {displayOptions && (
         <div>
           <Button
-            className={styles.expandButton}
+            sx={expandButtonSx}
             size="small"
             variant="text"
             onClick={() =>
@@ -178,7 +161,7 @@ const SourcePublish = ({ sourceId, isElements }: SourcePublishProps) => {
       )}
       <div>
         <Button
-          className={styles.expandButton}
+          sx={expandButtonSx}
           size="small"
           variant="text"
           onClick={() => setSourcePublishHistoryOpen(!sourcePublishHistoryOpen)}
