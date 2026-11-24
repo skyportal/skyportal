@@ -85,6 +85,7 @@ const SourceHost = ({
         display: "flex",
         alignItems: "baseline",
         gap: 1,
+        mt: 0.75,
       }}
     >
       <FieldLabel>Host</FieldLabel>

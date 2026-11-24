@@ -217,6 +217,7 @@ export const useSourceStyles = makeStyles()((theme) => ({
     flexBasis: "100%",
     display: "flex",
     alignItems: "baseline",
+    marginTop: theme.spacing(0.75),
   },
   linkedObjList: {
     display: "flex",
@@ -712,6 +713,7 @@ const SourceContent = ({ source }: SourceContentProps) => {
                 alignItems: "center",
                 flexFlow: "wrap",
                 columnGap: "1rem",
+                rowGap: "0.375rem",
               }}
             >
               <div className={classes.rowInfo} data-testid="tour-source-tns">
