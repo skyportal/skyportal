@@ -578,14 +578,21 @@ def user_notification_target(session, user, text, notification_type, url, conten
     return {**notification.to_dict(), **target}
 
 
-def system_admins(session):
+def feedback_admins(session):
     admin_ids = sa.union(
         sa.select(UserACL.user_id).where(UserACL.acl_id == "System admin"),
         sa.select(UserRole.user_id)
         .join(RoleACL, RoleACL.role_id == UserRole.role_id)
         .where(RoleACL.acl_id == "System admin"),
     )
-    return session.scalars(sa.select(User).where(User.id.in_(admin_ids))).all()
+    return session.scalars(
+        sa.select(User).where(
+            User.id.in_(admin_ids),
+            User.preferences["notifications"]["feedback"]["active"]
+            .astext.cast(sa.Boolean)
+            .is_(True),
+        )
+    ).all()
 
 
 def users_on_shift(session):
@@ -881,7 +888,7 @@ def api(queue):
                         users = (
                             [feedback.author]
                             if is_feedback_deployed
-                            else system_admins(session)
+                            else feedback_admins(session)
                         )
                         target_data = {
                             **feedback.to_dict(),
@@ -896,7 +903,7 @@ def api(queue):
                         )
                         by_author = reply.author_id == reply.feedback.author_id
                         users = (
-                            system_admins(session)
+                            feedback_admins(session)
                             if by_author
                             else [reply.feedback.author]
                         )
