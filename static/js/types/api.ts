@@ -38777,6 +38777,8 @@ export interface components {
         PublicSourcePage: {
             /** @description The release associated with this source page */
             readonly release?: components["schemas"]["PublicRelease"];
+            /** @description The User who published the page */
+            readonly created_by?: components["schemas"]["User"];
             id?: number;
             /** @description ID of the source */
             source_id: string;
@@ -38792,6 +38794,8 @@ export interface components {
             is_visible?: boolean;
             /** @description ID of the public release associated with this source page */
             release_id?: number | null;
+            /** @description ID of the User who published the page */
+            created_by_id?: number | null;
         };
         SinglePublicSourcePage: {
             /** @enum {string} */
@@ -38808,6 +38812,8 @@ export interface components {
         PublicSourcePageNoID: {
             /** @description The release associated with this source page */
             readonly release?: components["schemas"]["PublicRelease"];
+            /** @description The User who published the page */
+            readonly created_by?: components["schemas"]["User"];
             /** @description ID of the source */
             source_id: string;
             /** @description Source data accessible on the page */
@@ -38822,6 +38828,8 @@ export interface components {
             is_visible?: boolean;
             /** @description ID of the public release associated with this source page */
             release_id?: number | null;
+            /** @description ID of the User who published the page */
+            created_by_id?: number | null;
         };
         SinglePublicSourcePageNoID: {
             /** @enum {string} */

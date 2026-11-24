@@ -84,6 +84,15 @@ class PublicSourcePage(Base):
         doc="The release associated with this source page",
     )
 
+    created_by_id = sa.Column(
+        sa.ForeignKey("users.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+        doc="ID of the User who published the page",
+    )
+
+    created_by = relationship("User", doc="The User who published the page")
+
     def to_dict(self):
         """Convert the page to a dictionary with
         the options to be displayed and the creation date in ISO format."""
@@ -93,6 +102,16 @@ class PublicSourcePage(Base):
             "release_link_name": self.release.link_name if self.release else None,
             "is_visible": self.is_visible,
             "created_at": self.created_at,
+            "created_by": (
+                {
+                    "id": self.created_by.id,
+                    "username": self.created_by.username,
+                    "first_name": self.created_by.first_name,
+                    "last_name": self.created_by.last_name,
+                }
+                if self.created_by
+                else None
+            ),
             "hash": self.hash,
             "options": {
                 "photometry": self.option_state("photometry"),
