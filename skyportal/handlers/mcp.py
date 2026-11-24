@@ -1200,12 +1200,12 @@ async def get_alert_schema(handler, args):
 
     notes = {}
     paths = _flatten_avro(schema, notes=notes)
-    search = (args.get("search") or "").lower()
-    prefix = args.get("prefix") or ""
+    search = (args.get("search") or "").lower().replace("[]", "")
+    prefix = (args.get("prefix") or "").replace("[]", "")
     if search:
-        paths = [(p, t) for p, t in paths if search in p.lower()]
+        paths = [(p, t) for p, t in paths if search in p.lower().replace("[]", "")]
     if prefix:
-        paths = [(p, t) for p, t in paths if p == prefix or p.startswith(prefix)]
+        paths = [(p, t) for p, t in paths if p.replace("[]", "").startswith(prefix)]
 
     limit = args.get("limit") or 200
     shown = paths[:limit]
