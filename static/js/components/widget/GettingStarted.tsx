@@ -10,6 +10,9 @@ import ListItemButton from "@mui/material/ListItemButton";
 import ListItemIcon from "@mui/material/ListItemIcon";
 import ListItemText from "@mui/material/ListItemText";
 import Button from "@mui/material/Button";
+import Dialog from "@mui/material/Dialog";
+import DialogContent from "@mui/material/DialogContent";
+import DialogTitle from "@mui/material/DialogTitle";
 import IconButton from "@mui/material/IconButton";
 import Tooltip from "@mui/material/Tooltip";
 import Chip from "@mui/material/Chip";
@@ -35,27 +38,15 @@ import { TOUR_STEPS } from "./GettingStartedTour";
 import { useTourStyles } from "../tourStyles";
 import WidgetCard from "./WidgetCard";
 
-// Onboarding checklist + guided tour, rendered as a Home Page widget until
-// dismissed (persisted in `preferences.onboardingDismissed`). Each step
-// auto-detects completion from the user's profile, groups, filters and sources.
-const GettingStarted = () => {
-  const navigate = useNavigate();
+const MENU_TOUR_STEPS = TOUR_STEPS.filter(
+  (step) => !String(step.target).includes("tour-getting-started"),
+);
+
+const useOnboardingTour = (steps: typeof TOUR_STEPS) => {
   const dispatch = useAppDispatch();
-  const { data: profile } = useGetProfileQuery();
-  const { data: groups } = useGetGroupsQuery();
-  const { data: filters } = useGetFiltersQuery();
-  // Only need whether this user has saved any source; keep the page tiny.
-  const { data: sources } = useFetchSourcesQuery({
-    numPerPage: 1,
-    savedByCurrentUser: true,
-  });
-  const { data: recentGcnEvents } = useGetRecentGcnEventsQuery();
-  const [updatePreferences] = useUpdateUserPreferencesMutation();
-  const [requestGroupAdmission, { isLoading: isJoining }] =
-    useRequestGroupAdmissionMutation();
   const { options, styles } = useTourStyles();
   const { controls, on, Tour } = useJoyride({
-    steps: TOUR_STEPS,
+    steps,
     continuous: true,
     // Scroll each target into view, including the first step.
     scrollToFirstStep: true,
@@ -80,6 +71,23 @@ const GettingStarted = () => {
       offEnd();
     };
   }, [on, dispatch]);
+
+  return { startTour: () => controls.start(), Tour };
+};
+
+const useOnboarding = () => {
+  const dispatch = useAppDispatch();
+  const { data: profile } = useGetProfileQuery();
+  const { data: groups } = useGetGroupsQuery();
+  const { data: filters } = useGetFiltersQuery();
+  // Only need whether this user has saved any source; keep the page tiny.
+  const { data: sources } = useFetchSourcesQuery({
+    numPerPage: 1,
+    savedByCurrentUser: true,
+  });
+  const { data: recentGcnEvents } = useGetRecentGcnEventsQuery();
+  const [requestGroupAdmission, { isLoading: isJoining }] =
+    useRequestGroupAdmissionMutation();
 
   const profileDone =
     Boolean(profile?.first_name) && (profile?.affiliations?.length ?? 0) > 0;
@@ -249,47 +257,53 @@ const GettingStarted = () => {
   const tracked = visibleChecklist.filter((item) => !(item as any).explore);
   const doneCount = tracked.filter((item) => (item as any).done).length;
 
+  return {
+    checklist: visibleChecklist,
+    doneCount,
+    total: tracked.length,
+    openGroups,
+    handleJoinGroup,
+    isJoining,
+  };
+};
+
+interface OnboardingChecklistProps {
+  onboarding: ReturnType<typeof useOnboarding>;
+  onNavigate?: () => void;
+}
+
+const OnboardingChecklist = ({
+  onboarding,
+  onNavigate,
+}: OnboardingChecklistProps) => {
+  const navigate = useNavigate();
+  const {
+    checklist,
+    doneCount,
+    total,
+    openGroups,
+    handleJoinGroup,
+    isJoining,
+  } = onboarding;
+
   return (
-    <WidgetCard
-      testId="tour-getting-started"
-      title="Getting started"
-      actions={
-        <>
-          <Button
-            size="small"
-            data-testid="tour-start"
-            onClick={() => controls.start()}
-            sx={{ textTransform: "none", fontWeight: 600 }}
+    <>
+      {doneCount < total && (
+        <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, mb: 1.5 }}>
+          <LinearProgress
+            variant="determinate"
+            value={(100 * doneCount) / total}
+            sx={{ flex: 1, height: 6, borderRadius: 3 }}
+          />
+          <Typography
+            variant="caption"
+            color="text.secondary"
+            sx={{ whiteSpace: "nowrap" }}
           >
-            Take the tour
-          </Button>
-          <Tooltip title="Dismiss">
-            <IconButton
-              size="small"
-              data-testid="tour-dismiss"
-              onClick={() => updatePreferences({ onboardingDismissed: true })}
-            >
-              <CloseIcon fontSize="small" />
-            </IconButton>
-          </Tooltip>
-        </>
-      }
-    >
-      {Tour}
-      <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, mb: 1.5 }}>
-        <LinearProgress
-          variant="determinate"
-          value={tracked.length ? (100 * doneCount) / tracked.length : 0}
-          sx={{ flex: 1, height: 6, borderRadius: 3 }}
-        />
-        <Typography
-          variant="caption"
-          color="text.secondary"
-          sx={{ whiteSpace: "nowrap" }}
-        >
-          {doneCount} of {tracked.length} done
-        </Typography>
-      </Box>
+            {doneCount} of {total} done
+          </Typography>
+        </Box>
+      )}
       {openGroups.length > 0 && (
         <Box sx={{ mb: 1.5 }} data-testid="tour-getting-started-open-groups">
           <Typography variant="subtitle2" sx={{ mb: 0.75 }}>
@@ -321,14 +335,18 @@ const GettingStarted = () => {
         data-testid="tour-getting-started-checklist"
         sx={{ mx: -1 }}
       >
-        {visibleChecklist.map((item) => (
+        {checklist.map((item) => (
           <ListItemButton
             key={item.label}
             alignItems="flex-start"
             sx={{ px: 1, borderRadius: 2 }}
-            onClick={() =>
-              navigate(item.to, item.tour ? { state: { tour: item.tour } } : {})
-            }
+            onClick={() => {
+              onNavigate?.();
+              navigate(
+                item.to,
+                item.tour ? { state: { tour: item.tour } } : {},
+              );
+            }}
           >
             <ListItemIcon sx={{ minWidth: 30, mt: 0.5 }}>
               {(item as any).explore ? (
@@ -356,7 +374,98 @@ const GettingStarted = () => {
           </ListItemButton>
         ))}
       </List>
+    </>
+  );
+};
+
+const GettingStarted = () => {
+  const onboarding = useOnboarding();
+  const { startTour, Tour } = useOnboardingTour(TOUR_STEPS);
+  const [updatePreferences] = useUpdateUserPreferencesMutation();
+  const complete = onboarding.doneCount === onboarding.total;
+
+  useEffect(() => {
+    if (complete) updatePreferences({ onboardingDismissed: true });
+  }, [complete, updatePreferences]);
+
+  return (
+    <WidgetCard
+      testId="tour-getting-started"
+      title="Getting started"
+      actions={
+        <>
+          <Button
+            size="small"
+            data-testid="tour-start"
+            onClick={startTour}
+            sx={{ textTransform: "none", fontWeight: 600 }}
+          >
+            Take the tour
+          </Button>
+          <Tooltip title="Dismiss">
+            <IconButton
+              size="small"
+              data-testid="tour-dismiss"
+              onClick={() => updatePreferences({ onboardingDismissed: true })}
+            >
+              <CloseIcon fontSize="small" />
+            </IconButton>
+          </Tooltip>
+        </>
+      }
+    >
+      {Tour}
+      <OnboardingChecklist onboarding={onboarding} />
     </WidgetCard>
+  );
+};
+
+const GettingStartedDialogBody = ({
+  onNavigate,
+}: {
+  onNavigate: () => void;
+}) => (
+  <OnboardingChecklist onboarding={useOnboarding()} onNavigate={onNavigate} />
+);
+
+export const GettingStartedDialog = ({
+  open,
+  onClose,
+}: {
+  open: boolean;
+  onClose: () => void;
+}) => {
+  const { startTour, Tour } = useOnboardingTour(MENU_TOUR_STEPS);
+
+  return (
+    <>
+      {Tour}
+      <Dialog open={open} onClose={onClose} fullWidth maxWidth="sm">
+        <DialogTitle
+          sx={{ display: "flex", alignItems: "center", gap: 1, pr: 1.5 }}
+        >
+          <Box component="span" sx={{ flex: 1 }}>
+            Getting started
+          </Box>
+          <Button
+            size="small"
+            onClick={() => {
+              onClose();
+              startTour();
+            }}
+            sx={{ textTransform: "none", fontWeight: 600 }}
+          >
+            Take the tour
+          </Button>
+          <IconButton size="small" aria-label="Close" onClick={onClose}>
+            <CloseIcon fontSize="small" />
+          </IconButton>
+        </DialogTitle>
+        <DialogContent>
+          {open && <GettingStartedDialogBody onNavigate={onClose} />}
+        </DialogContent>
+      </Dialog>
+    </>
   );
 };
 
