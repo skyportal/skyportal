@@ -1,8 +1,6 @@
 import { ChangeEvent, useState } from "react";
 import ChatIcon from "@mui/icons-material/Chat";
 import LinkIcon from "@mui/icons-material/Link";
-import PanToolIcon from "@mui/icons-material/PanTool";
-import PanToolOutlinedIcon from "@mui/icons-material/PanToolOutlined";
 import Dialog from "@mui/material/Dialog";
 import DialogContent from "@mui/material/DialogContent";
 import DialogTitle from "@mui/material/DialogTitle";
@@ -108,13 +106,6 @@ const SourceInterests = ({ sourceID, onDiscuss }: SourceInterestsProps) => {
             size="small"
             onClick={() => setOpen(true)}
             data-testid="interested-button"
-            endIcon={
-              interests.some((interest) => interest.user.id === profile?.id) ? (
-                <PanToolIcon />
-              ) : (
-                <PanToolOutlinedIcon />
-              )
-            }
           >
             Interested
             {interests.length > 0 && ` (${interests.length})`}
