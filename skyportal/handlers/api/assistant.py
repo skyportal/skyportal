@@ -1,3 +1,5 @@
+from datetime import datetime
+
 import sqlalchemy as sa
 from pydantic import BaseModel, ConfigDict, Field
 from tornado.ioloop import IOLoop
@@ -5,7 +7,7 @@ from tornado.ioloop import IOLoop
 from baselayer.app.access import auth_or_token
 from baselayer.app.env import load_env
 
-from ...models import AssistantMessage
+from ...models import AssistantMessage, AssistantUsage
 from ...utils.assistant import CONTEXT_DESCRIPTIONS, is_enabled, post_to_assistant
 from ..base import BaseHandler
 
@@ -249,3 +251,48 @@ class AssistantConversationHandler(BaseHandler):
                 return self.error("Invalid channel")
             await session.commit()
             return self.success()
+
+
+class AssistantUsageHandler(BaseHandler):
+    @auth_or_token
+    async def get(self):
+        """
+        ---
+        summary: Read the assistant's models and monthly budget
+        description: The main model, the next one when it is down or out of
+          budget, and how much of the monthly budget is left.
+        tags:
+          - assistant
+        responses:
+          200:
+            content:
+              application/json:
+                schema: Success
+        """
+        options = cfg["app.assistant"] or {}
+        fallbacks = options.get("fallback") or []
+        if isinstance(fallbacks, dict):
+            fallbacks = [fallbacks]
+        data = {
+            "model": options.get("model") or None,
+            "fallback": next(
+                (f.get("model") for f in fallbacks if f.get("base_url")), None
+            ),
+        }
+        limit = options.get("monthly_limit")
+        if limit:
+            start = datetime.utcnow().replace(
+                day=1, hour=0, minute=0, second=0, microsecond=0
+            )
+            async with self.AsyncSession() as session:
+                spent = await session.scalar(
+                    sa.select(
+                        sa.func.coalesce(sa.func.sum(AssistantUsage.cost), 0.0)
+                    ).where(AssistantUsage.created_at >= start)
+                )
+            data |= {
+                "spent": round(spent, 2),
+                "limit": limit,
+                "left": max(0, round(100 * (1 - spent / limit))),
+            }
+        return self.success(data=data)

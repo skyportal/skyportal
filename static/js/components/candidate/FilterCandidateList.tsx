@@ -8,15 +8,21 @@ import Box from "@mui/material/Box";
 import Checkbox from "@mui/material/Checkbox";
 import Collapse from "@mui/material/Collapse";
 import FormControlLabel from "@mui/material/FormControlLabel";
+import IconButton from "@mui/material/IconButton";
 import MenuItem from "@mui/material/MenuItem";
 import Paper from "@mui/material/Paper";
 import TextField from "@mui/material/TextField";
 import Tooltip from "@mui/material/Tooltip";
+import Typography from "@mui/material/Typography";
 import ExpandLessIcon from "@mui/icons-material/ExpandLess";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
+import CloseIcon from "@mui/icons-material/Close";
 import RestartAltIcon from "@mui/icons-material/RestartAlt";
 import SearchIcon from "@mui/icons-material/Search";
+import StarIcon from "@mui/icons-material/Star";
 import { DateTimePicker } from "@mui/x-date-pickers/DateTimePicker";
+
+import { showNotification } from "baselayer/components/Notifications";
 
 import { pickParams } from "../../API";
 import { useAppDispatch } from "../../types/hooks";
@@ -26,6 +32,7 @@ import {
   useAnnotationsInfoForGroups,
 } from "../../ducks/candidate/candidates";
 import { useGetFiltersQuery } from "../../ducks/filter";
+import { useLazyGetGcnEventQuery } from "../../ducks/gcnEvent";
 import { useGetGcnEventsQuery } from "../../ducks/gcnEvents";
 import { useGetGroupsQuery } from "../../ducks/groups";
 import { useGetProfileQuery } from "../../ducks/profile";
@@ -33,6 +40,8 @@ import Button from "../Button";
 import FormValidationError from "../FormValidationError";
 import SearchableSelect from "../SearchableSelect";
 import ClassificationSelect from "../classification/ClassificationSelect";
+import { useFavoriteLocalizations } from "../gcn/favoriteLocalizations";
+import type { FavoriteLocalization } from "../gcn/favoriteLocalizations";
 import CandidatesPreferences from "./CandidatesPreferences";
 import { filterAnnotationOrigins } from "./annotationSortOptions";
 import {
@@ -50,6 +59,7 @@ import {
   twoColumns,
   useScanGroups,
 } from "./scanFormFields";
+import type { ScanView } from "./scanFormFields";
 
 dayjs.extend(utc);
 
@@ -152,12 +162,14 @@ interface FilterCandidateListProps {
   setFilterGroups: (groups: Group[]) => void;
   numPerPage: number;
   setSearchParams: (params: Record<string, any>) => void;
+  setScanView: (view: ScanView) => void;
 }
 
 const FilterCandidateList = ({
   setFilterGroups,
   numPerPage,
   setSearchParams,
+  setScanView,
 }: FilterCandidateListProps) => {
   const dispatch = useAppDispatch();
   const { data: allFilters = [], isLoading: filtersLoading } =
@@ -184,6 +196,15 @@ const FilterCandidateList = ({
   const { data: gcnEvents } = useGetGcnEventsQuery(gcnEventsParams) as {
     data: any;
   };
+  // An event loaded from a favorite is often not among the searched ones.
+  const gcnEventOptions =
+    gcnEvent &&
+    !(gcnEvents?.events || []).some((e: any) => e.id === gcnEvent.id)
+      ? [gcnEvent, ...(gcnEvents?.events || [])]
+      : gcnEvents?.events || [];
+  const [fetchGcnEvent] = useLazyGetGcnEventQuery();
+  const { favorites: favoriteLocalizations, removeFavorite } =
+    useFavoriteLocalizations();
 
   const {
     handleSubmit,
@@ -233,6 +254,7 @@ const FilterCandidateList = ({
 
   const resetForm = () => {
     reset(formValues(selectedScanningProfile));
+    setScanView(selectedScanningProfile?.scanView ?? "objects");
     setGcnEvent(null);
     selectGroups(selectedScanningProfile?.groupIDs || []);
   };
@@ -265,6 +287,27 @@ const FilterCandidateList = ({
       numberDetections: 1,
       localizationCumprob: 0.95,
     });
+  };
+
+  const selectFavoriteLocalization = async (favorite: FavoriteLocalization) => {
+    try {
+      const event: any = await fetchGcnEvent(favorite.dateobs, true).unwrap();
+      if (!event?.localizations?.some((l: any) => l.id === favorite.id)) {
+        dispatch(
+          showNotification(
+            `Skymap ${favorite.localization_name} no longer exists`,
+            "warning",
+          ),
+        );
+        removeFavorite(favorite.id);
+        return;
+      }
+      selectGcnEvent(event);
+      resetFields({ localizationid: favorite.id });
+    } catch (error: any) {
+      // the baseQuery shows the error; a 404 means the event was deleted
+      if (error?.status === 404) removeFavorite(favorite.id);
+    }
   };
 
   const validateDates = () => {
@@ -611,10 +654,78 @@ const FilterCandidateList = ({
             </Box>
             <Box sx={column}>
               <Section title="GCN event">
+                {favoriteLocalizations.length > 0 && (
+                  <SearchableSelect
+                    id="favorite-localizations"
+                    label="Favorite skymap"
+                    options={favoriteLocalizations}
+                    getOptionLabel={(option: FavoriteLocalization) =>
+                      `${option.dateobs} · ${option.localization_name}`
+                    }
+                    value={
+                      (gcnEvent &&
+                        favoriteLocalizations.find(
+                          (f) => f.id === values.localizationid,
+                        )) ||
+                      null
+                    }
+                    isOptionEqualToValue={(o: any, v: any) => o.id === v.id}
+                    onChange={(_event, favorite: any) =>
+                      favorite
+                        ? selectFavoriteLocalization(favorite)
+                        : selectGcnEvent(null)
+                    }
+                    renderOption={(
+                      { key, ...props }: any,
+                      option: FavoriteLocalization,
+                    ) => (
+                      <Box component="li" key={key} {...props} sx={{ gap: 1 }}>
+                        <Box
+                          component="span"
+                          sx={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: 1,
+                            minWidth: 0,
+                            wordBreak: "break-all",
+                          }}
+                        >
+                          <StarIcon fontSize="small" color="warning" />
+                          <span>
+                            {option.dateobs}
+                            <Box
+                              component="span"
+                              sx={{
+                                display: "block",
+                                typography: "caption",
+                                color: "text.secondary",
+                              }}
+                            >
+                              {option.localization_name}
+                            </Box>
+                          </span>
+                        </Box>
+                        <Tooltip title="Remove from favorites">
+                          <IconButton
+                            size="small"
+                            sx={{ ml: "auto" }}
+                            aria-label="Remove from favorites"
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              removeFavorite(option.id);
+                            }}
+                          >
+                            <CloseIcon fontSize="small" />
+                          </IconButton>
+                        </Tooltip>
+                      </Box>
+                    )}
+                  />
+                )}
                 <SearchableSelect
                   id="gcn-event-filtering"
                   label="Dateobs/Name"
-                  options={gcnEvents?.events || []}
+                  options={gcnEventOptions}
                   getOptionLabel={(option: any) =>
                     `${option?.dateobs}${option?.aliases?.length > 0 ? ` (${option.aliases})` : ""}`
                   }
@@ -631,6 +742,10 @@ const FilterCandidateList = ({
                 />
                 {gcnEvent && (
                   <>
+                    <Typography variant="caption" color="text.secondary">
+                      Keeps every candidate inside the localization,
+                      crossmatched or not.
+                    </Typography>
                     <Box sx={twoColumns}>
                       <FormTextField
                         select

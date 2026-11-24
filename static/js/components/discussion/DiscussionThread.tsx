@@ -32,6 +32,7 @@ import { alpha, useTheme } from "@mui/material/styles";
 
 import ConfirmDeletionDialog from "../ConfirmDeletionDialog";
 import CommentForm from "../comment/CommentForm";
+import { bubbleSx } from "../comment/chatStyles";
 import { highlightMentions, markdownLink } from "../comment/Comment";
 import { rehypeEmoji } from "../comment/rehypeEmoji";
 import UserAvatar from "../user/UserAvatar";
@@ -274,7 +275,10 @@ const DiscussionThread = ({ discussion, onBack }: DiscussionThreadProps) => {
             />
           ) : (
             <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
-              <Typography variant="h6" noWrap sx={{ lineHeight: 1.3 }}>
+              <Typography
+                noWrap
+                sx={{ fontSize: "1rem", fontWeight: 600, lineHeight: 1.4 }}
+              >
                 {title}
               </Typography>
               {!discussion.is_direct && (
@@ -291,7 +295,7 @@ const DiscussionThread = ({ discussion, onBack }: DiscussionThreadProps) => {
               )}
             </Box>
           )}
-          <Typography variant="body2" color="textSecondary" noWrap>
+          <Typography color="textSecondary" noWrap sx={{ fontSize: "0.8rem" }}>
             {subtitle}
           </Typography>
         </Box>
@@ -320,7 +324,12 @@ const DiscussionThread = ({ discussion, onBack }: DiscussionThreadProps) => {
       <Box
         ref={listRef}
         onScroll={onScroll}
-        sx={{ flexGrow: 1, minHeight: 0, overflowY: "auto", padding: "1rem" }}
+        sx={{
+          flexGrow: 1,
+          minHeight: 0,
+          overflowY: "auto",
+          padding: "1rem 1.25rem",
+        }}
       >
         {isFetchingNextPage && (
           <Box sx={{ display: "flex", justifyContent: "center" }}>
@@ -331,7 +340,7 @@ const DiscussionThread = ({ discussion, onBack }: DiscussionThreadProps) => {
           <Typography
             variant="body2"
             color="textSecondary"
-            sx={{ textAlign: "center", fontStyle: "italic", marginTop: 4 }}
+            sx={{ textAlign: "center", marginTop: 4 }}
           >
             No message yet. Say hello!
           </Typography>
@@ -353,7 +362,13 @@ const DiscussionThread = ({ discussion, onBack }: DiscussionThreadProps) => {
                   variant="caption"
                   color="textSecondary"
                   component="div"
-                  sx={{ textAlign: "center", margin: "1rem 0 0.5rem" }}
+                  sx={{
+                    width: "fit-content",
+                    margin: "1rem auto 0.5rem",
+                    padding: "0.125rem 0.625rem",
+                    borderRadius: "999px",
+                    backgroundColor: alpha(theme.palette.text.primary, 0.06),
+                  }}
                 >
                   {dayLabel(message.created_at)}
                 </Typography>
@@ -434,20 +449,7 @@ const DiscussionThread = ({ discussion, onBack }: DiscussionThreadProps) => {
                         flexDirection: mine ? "row-reverse" : "row",
                       }}
                     >
-                      <Box
-                        sx={{
-                          borderRadius: "1rem",
-                          padding: "0.375rem 0.875rem",
-                          fontSize: "0.9rem",
-                          overflowWrap: "anywhere",
-                          backgroundColor: mine
-                            ? alpha(theme.palette.primary.main, 0.15)
-                            : alpha(theme.palette.text.primary, 0.06),
-                          "& p": { margin: 0 },
-                          "& p + p": { marginTop: "0.4em" },
-                          "& pre": { whiteSpace: "pre-wrap" },
-                        }}
-                      >
+                      <Box sx={bubbleSx(theme, mine, mine ? "right" : "left")}>
                         <ReactMarkdown
                           remarkPlugins={[[remarkGfm, { singleTilde: false }]]}
                           rehypePlugins={[rehypeEmoji]}

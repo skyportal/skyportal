@@ -26,4 +26,5 @@ from .source_counts import SourceCountHandler
 from .source_savers import SourceSaverHandler
 from .source_views import SourceViewsHandler
 from .standards import StandardsHandler
+from .telegram import TelegramLinkHandler
 from .token import TokenHandler

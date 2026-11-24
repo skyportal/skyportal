@@ -3,6 +3,7 @@ import { ReactNode, useState } from "react";
 import CallIcon from "@mui/icons-material/CallOutlined";
 import EmailIcon from "@mui/icons-material/EmailOutlined";
 import TagIcon from "@mui/icons-material/Tag";
+import TelegramIcon from "@mui/icons-material/Telegram";
 import Avatar from "@mui/material/Avatar";
 import Box from "@mui/material/Box";
 import Typography from "@mui/material/Typography";
@@ -11,6 +12,7 @@ import Button from "../Button";
 import ChannelSetup from "./ChannelSetup";
 import { SetupKind, isSetUp } from "./channels";
 import { useNotificationTarget } from "./target";
+import { useGetConfigQuery } from "../../ducks/config";
 
 const Destination = ({
   icon,
@@ -52,9 +54,12 @@ const Destination = ({
 const DeliveryChannels = () => {
   const { profile, updateUserPreferences } = useNotificationTarget();
   const [editing, setEditing] = useState<SetupKind | null>(null);
+  const available = useGetConfigQuery().data?.["notificationChannels"] as
+    string[] | undefined;
   if (!profile) return null;
 
   const slackReady = isSetUp(profile, "slack");
+  const telegramReady = isSetUp(profile, "telegram");
   const edit = (kind: SetupKind, ready: boolean, testId: string) => (
     <Button
       secondary
@@ -62,7 +67,11 @@ const DeliveryChannels = () => {
       onClick={() => setEditing(editing === kind ? null : kind)}
       data-testid={testId}
     >
-      {ready ? "Change" : kind === "slack" ? "Connect" : "Add"}
+      {ready
+        ? "Change"
+        : kind === "email" || kind === "phone"
+          ? "Add"
+          : "Connect"}
     </Button>
   );
 
@@ -131,6 +140,39 @@ const DeliveryChannels = () => {
       {editing === "slack" && (
         <ChannelSetup
           kind="slack"
+          onDone={() => setEditing(null)}
+          onCancel={() => setEditing(null)}
+        />
+      )}
+      {available?.includes("telegram") && (
+        <Destination
+          icon={<TelegramIcon fontSize="small" />}
+          title="Telegram"
+          value={telegramReady ? "Connected" : "Not connected"}
+          ready={telegramReady}
+          actions={
+            telegramReady ? (
+              <Button
+                secondary
+                size="small"
+                data-testid="telegram_disconnect_button"
+                onClick={() =>
+                  updateUserPreferences({
+                    telegram_integration: { active: false },
+                  })
+                }
+              >
+                Disconnect
+              </Button>
+            ) : (
+              edit("telegram", false, "telegram_connect_button")
+            )
+          }
+        />
+      )}
+      {editing === "telegram" && (
+        <ChannelSetup
+          kind="telegram"
           onDone={() => setEditing(null)}
           onCancel={() => setEditing(null)}
         />

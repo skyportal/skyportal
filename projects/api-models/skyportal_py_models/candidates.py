@@ -60,6 +60,16 @@ class CandidateFoundByResponse(BaseModel):
     url: str | None = None
 
 
+class CandidateGcnMatchResponse(BaseModel):
+    """A GCN event the candidate was matched to (a ``GcnEventObj``)."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    dateobs: datetime
+    status: Literal["pending", "confirmed", "ambiguous", "rejected"]
+    localization_name: str | None = None
+
+
 class CandidateResponse(BaseModel):
     """An object that passed a filter: the serialized ``Obj`` columns plus
     the scanning extras the candidate endpoints graft onto them."""
@@ -132,6 +142,7 @@ class CandidateResponse(BaseModel):
     followup_requests: list[dict[str, Any]] | None = None
     associated_objs: list[CandidateAssociatedObjResponse] | None = None
     stack_id: str | None = None
+    gcn_matches: list[CandidateGcnMatchResponse] | None = None
     last_detected_at: datetime | None = None
     gal_lon: float | None = None
     gal_lat: float | None = None
@@ -483,6 +494,13 @@ class CandidateGetQuery(BaseModel):
             "Comma-separated string of JSON objects representing annotation filters. "
             "Filter objects are expected to have keys { origin, key, value } for "
             "non-numeric value types, or { origin, key, min, max } for numeric values."
+        ),
+    )
+    movingObjects: bool | None = Field(
+        default=None,
+        description=(
+            "If true, return only moving objects: known solar system bodies and "
+            "linked tracks."
         ),
     )
     includePhotometry: bool = Field(
@@ -848,6 +866,7 @@ __all__ = [
     "CandidateFilterGetQuery",
     "CandidateFilterPageResponse",
     "CandidateFoundByResponse",
+    "CandidateGcnMatchResponse",
     "CandidateGetQuery",
     "CandidatePassingAlertResponse",
     "CandidatePost",

@@ -10,6 +10,7 @@ interface ConfirmDeletionDialogProps {
   dialogOpen: boolean;
   closeDialog: (...args: any[]) => void;
   resourceName: string;
+  title?: string;
   message?: ReactNode;
 }
 
@@ -18,10 +19,11 @@ const ConfirmDeletionDialog = ({
   dialogOpen,
   closeDialog,
   resourceName,
+  title,
   message,
 }: ConfirmDeletionDialogProps) => (
   <Dialog sx={{ "z-index": 99999 }} open={dialogOpen} onClose={closeDialog}>
-    <DialogTitle>Delete {resourceName}?</DialogTitle>
+    <DialogTitle>{title ?? `Delete ${resourceName}?`}</DialogTitle>
     <DialogContent>
       {message ?? `Are you sure you want to delete this/these ${resourceName}?`}
     </DialogContent>

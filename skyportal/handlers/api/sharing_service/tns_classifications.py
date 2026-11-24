@@ -1,3 +1,4 @@
+import json
 from datetime import timedelta
 
 import sqlalchemy as sa
@@ -27,9 +28,10 @@ from ...base import BaseHandler
 
 def _report(submission):
     """The classification report a submission sent, or an empty dict."""
-    return ((submission.tns_payload or {}).get("classification_report") or {}).get(
-        "0"
-    ) or {}
+    payload = submission.tns_payload
+    if isinstance(payload, str):
+        payload = json.loads(payload)
+    return ((payload or {}).get("classification_report") or {}).get("0") or {}
 
 
 def _is_queued(submission):

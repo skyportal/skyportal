@@ -34,7 +34,7 @@ def test_invite_new_user_forbidden(view_only_token, public_stream, public_group)
     )
 
     assert status == 403
-    assert "Forbidden" in data["message"]
+    assert "Missing permission: Manage users" in data["message"]
 
 
 def test_get_invitations(

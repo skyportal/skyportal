@@ -1171,7 +1171,9 @@ def _note_owner(path, notes):
     "prefix of the field you are reading: the note on "
     "`properties.photstats.r.rising` governs `...rising.rate` under it. Before "
     "cutting on a field, read its note and the notes on its prefixes; the cut "
-    "that looks obvious is the one a note usually contradicts.",
+    "that looks obvious is the one a note usually contradicts. `page` is the "
+    "page where a person can browse and search every field: link it when they "
+    "ask for the full list.",
     {
         "broker_id": _prop("integer", "Broker ID."),
         "survey": _prop("string", "Survey whose alerts the filter runs on, e.g. ZTF."),
@@ -1198,17 +1200,21 @@ async def get_alert_schema(handler, args):
 
     notes = {}
     paths = _flatten_avro(schema, notes=notes)
-    search = (args.get("search") or "").lower()
-    prefix = args.get("prefix") or ""
+    search = (args.get("search") or "").lower().replace("[]", "")
+    prefix = (args.get("prefix") or "").replace("[]", "")
     if search:
-        paths = [(p, t) for p, t in paths if search in p.lower()]
+        paths = [(p, t) for p, t in paths if search in p.lower().replace("[]", "")]
     if prefix:
-        paths = [(p, t) for p, t in paths if p == prefix or p.startswith(prefix)]
+        paths = [(p, t) for p, t in paths if p.replace("[]", "").startswith(prefix)]
 
     limit = args.get("limit") or 200
     shown = paths[:limit]
+    page_query = {"tab": "schema", "survey": args["survey"]}
+    if args.get("search"):
+        page_query["search"] = args["search"]
     return {
         "survey": args["survey"],
+        "page": f"/brokers/{broker_id}?{urlencode(page_query)}",
         "matched": len(paths),
         "truncated": len(paths) > limit,
         "fields": dict(shown),
@@ -1688,7 +1694,9 @@ async def convert_time(handler, args):
     "Preview which alerts a pipeline passes, without saving anything. The way "
     "to check a filter before activating it: a pipeline that returns nothing "
     "here will pass nothing in production. Returns a count on its own, which "
-    "is what to tune a threshold against; pass sort_by to get the alerts "
+    "is what to tune a threshold against; a count of 0 comes with "
+    "window_has_alerts, false when the stream has no alerts at all in the "
+    "window, which no cut explains. Pass sort_by to get the alerts "
     "themselves. A pipeline broker needs both start_jd and end_jd. Pass dateobs "
     "to bound the search by a GCN event's credible region, as the crossmatch "
     "service does; a counterpart filter previewed without it runs against the "
@@ -1748,6 +1756,30 @@ async def run_broker_filter(handler, args):
     result = await handler.api(
         "POST", f"/api/brokers/{broker_id}/filter/test", body=args
     )
+    if (
+        isinstance(result, dict)
+        and result.get("count") == 0
+        and not args.get("sort_by")
+    ):
+        try:
+            probe = await handler.api(
+                "POST",
+                f"/api/brokers/{broker_id}/filter/test",
+                body={
+                    **args,
+                    "pipeline": [{"$match": {}}],
+                    "unsorted": True,
+                    "limit": 1,
+                },
+            )
+            result = {
+                **result,
+                "window_has_alerts": bool(
+                    isinstance(probe, dict) and probe.get("results")
+                ),
+            }
+        except APIError:
+            pass
     return _with_window(result, args.get("start_jd"), args.get("end_jd"))
 
 

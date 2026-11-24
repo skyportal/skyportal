@@ -180,7 +180,7 @@ const fetchCutout = async (
   ) {
     return { unavailable: true };
   }
-  if (!response.ok) return { message: "Currently Unavailable" };
+  if (!response.ok) return { message: "Unavailable" };
   const blob = await response.blob();
   // Legacy Survey answers outside its footprint with a small grey placeholder.
   if (name === "ls" && blob.size < 1500) return { unavailable: true };
@@ -204,7 +204,7 @@ const useFetchedCutouts = (thumbnails: any[]) => {
     (JSON.parse(requests) as [string, string, string][]).forEach(
       ([key, name, src]) => {
         fetchCutout(src, name, controller.signal)
-          .catch((): FetchedCutout => ({ message: "Currently Unavailable" }))
+          .catch((): FetchedCutout => ({ message: "Unavailable" }))
           .then((result) => {
             if (controller.signal.aborted) {
               if (result.url) URL.revokeObjectURL(result.url);

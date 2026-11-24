@@ -17,11 +17,16 @@ because the JD day turns over at noon UTC. When a value came from a circular or 
 record, quote the text it came from so a reader can check it. Be brief: this is a \
 chat message, not a report.
 
-You can write a broker filter only from that filter's own page, where the tools \
-for it are in front of you. Asked to build one anywhere else, say that a filter \
-is built from the filter page and offer to work out the cuts meanwhile; do not \
-ask for an endpoint or a payload to call on your own, and do not present a \
-pipeline you had no way to preview as though it were ready to save.
+You can change a broker filter only from that filter's own page, where the tools \
+for it are in front of you. Asked for a new filter anywhere else, build its \
+pipeline and preview it with run_broker_filter: the last pipeline you previewed \
+is offered under your answer with a button that creates the filter, where the \
+person picks its name, group and stream. A new Lasair filter is still made from \
+its own page. Prefer a single $match of field comparisons ($eq, $ne, $gt, $gte, \
+$lt, $lte, $in, $exists) joined by $and and $or: that is what opens as blocks in \
+the filter builder, anything else saves as a read-only pipeline. Do not ask for \
+an endpoint or a payload to call on your own, and do not present a pipeline you \
+had no way to preview as though it were ready to save.
 
 A Lasair filter (its broker's filter_kind is query) is SQL over Lasair's \
 tables, not a pipeline: take its columns from get_alert_schema, preview it with \
@@ -86,19 +91,26 @@ def now_line():
     )
 
 
-def system_prompt(context_type=None, context_id=None, user=None):
+def system_prompt(context_type=None, context_id=None, user=None, detail=None):
     lines = [SYSTEM_PROMPT, now_line()]
     person = describe_user(user)
     if person:
         lines.append(f"The person asking is {person}, from their SkyPortal profile.")
     context = describe_context(context_type, context_id)
     if context:
-        lines.append(f"They are looking at {context}.")
+        lines.append(
+            f"They are looking at {context}." + (f" {detail}" if detail else "")
+        )
     return "\n\n".join(lines)
 
 
 def build_messages(
-    messages, max_messages, context_type=None, context_id=None, user=None
+    messages,
+    max_messages,
+    context_type=None,
+    context_id=None,
+    user=None,
+    detail=None,
 ):
     turns = [
         {
@@ -112,7 +124,10 @@ def build_messages(
     while turns and turns[-1]["role"] == "assistant":
         turns.pop()
     return [
-        {"role": "system", "content": system_prompt(context_type, context_id, user)},
+        {
+            "role": "system",
+            "content": system_prompt(context_type, context_id, user, detail),
+        },
         *turns,
     ]
 
@@ -261,7 +276,7 @@ def proposal(trace):
     that it matches anything, and offering one without it invites saving a
     filter that passes nothing.
     """
-    pipeline = preview = target = lasair = None
+    pipeline = preview = target = lasair = broker_id = None
     for call in trace:
         if not call["ok"]:
             continue
@@ -275,6 +290,7 @@ def proposal(trace):
             }
         elif call["name"] == "run_broker_filter" and arguments.get("pipeline"):
             pipeline = arguments["pipeline"]
+            broker_id = arguments.get("broker_id")
             preview = {
                 "summary": call["summary"],
                 "start_jd": arguments.get("start_jd"),
@@ -291,7 +307,12 @@ def proposal(trace):
         return {"lasair": lasair, "target": target}
     if pipeline is None or preview is None:
         return None
-    return {"pipeline": pipeline, "preview": preview, "target": target}
+    return {
+        "pipeline": pipeline,
+        "preview": preview,
+        "target": target,
+        "broker_id": broker_id,
+    }
 
 
 FILTER_WRITE_TOOLS = frozenset(
@@ -325,7 +346,7 @@ def offered_tools(tools, context_type=None):
     ]
 
 
-def chat_payload(model, messages, tools, thinking=False):
+def chat_payload(model, messages, tools, thinking=False, temperature=0):
     """The body of a chat-completions request.
 
     Here rather than in the service because the service calls init_db at
@@ -336,7 +357,9 @@ def chat_payload(model, messages, tools, thinking=False):
     for an answer with no tools left to call, and a server that rejects an
     empty array turns that into a 400 the user reads as "something went wrong".
     """
-    payload = {"model": model, "messages": messages, "temperature": 0}
+    payload = {"model": model, "messages": messages}
+    if temperature is not None:
+        payload["temperature"] = temperature
     if tools:
         payload["tools"] = tools
     if not thinking:

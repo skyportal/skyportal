@@ -1,16 +1,15 @@
-import { useState } from "react";
+import { type ReactNode, useState } from "react";
 import { useParams } from "react-router-dom";
 
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
-import Accordion from "@mui/material/Accordion";
-import AccordionDetails from "@mui/material/AccordionDetails";
-import AccordionSummary from "@mui/material/AccordionSummary";
 import Alert from "@mui/material/Alert";
 import Box from "@mui/material/Box";
 import Button from "@mui/material/Button";
-import Paper from "@mui/material/Paper";
+import Collapse from "@mui/material/Collapse";
 import Typography from "@mui/material/Typography";
+import { alpha } from "@mui/material/styles";
 
+import { useCommentPanel } from "../../contexts/CommentPanelContext";
 import { AssistantProposal } from "../../ducks/assistant";
 import {
   useBoomFilterVersion,
@@ -18,6 +17,15 @@ import {
 } from "../../ducks/boom_filter";
 import { decompilePipeline } from "../../utils/mongoPipelineDecompiler";
 import LasairFilterProposal from "../broker/lasair/LasairFilterProposal";
+import NewFilterDialog from "../filter/NewFilterDialog";
+import {
+  cardNoteSx,
+  cardSx,
+  cardTitleSx,
+  chevronSx,
+  linkButtonSx,
+  pillButtonSx,
+} from "./chatStyles";
 
 const matchCount = (summary: string) => {
   try {
@@ -28,9 +36,73 @@ const matchCount = (summary: string) => {
   }
 };
 
+// A tree is stored only when it compiles back to this exact pipeline, so the
+// builder can never show something the broker would not run. Without one the
+// version loads read-only, as an imported pipeline does.
+const versionOf = (pipeline: any[]): { altdata: any[]; filters?: any } => {
+  const tree = decompilePipeline(pipeline);
+  return {
+    altdata: pipeline,
+    ...(tree ? { filters: { filters: tree, projectionFields: [] } } : {}),
+  };
+};
+
+const ReadOnlyNote = () => (
+  <Typography sx={cardNoteSx}>
+    Uses more than the builder can show, so it saves read-only.
+  </Typography>
+);
+
 interface AssistantFilterProposalProps {
   proposal: AssistantProposal;
 }
+
+const ProposalCard = ({
+  proposal,
+  children,
+}: AssistantFilterProposalProps & { children: ReactNode }) => {
+  const [showPipeline, setShowPipeline] = useState(false);
+  const count = matchCount(proposal.preview?.summary ?? "");
+  return (
+    <Box sx={cardSx}>
+      <Box>
+        <Typography sx={cardTitleSx}>Proposed filter</Typography>
+        <Typography sx={cardNoteSx}>
+          {count === null
+            ? "Previewed on the broker."
+            : `Matched ${count.toLocaleString()} alerts in the previewed window.`}
+        </Typography>
+      </Box>
+      <Box
+        component="button"
+        type="button"
+        aria-expanded={showPipeline}
+        onClick={() => setShowPipeline(!showPipeline)}
+        sx={linkButtonSx}
+      >
+        Pipeline
+        <ExpandMoreIcon sx={chevronSx(showPipeline)} />
+      </Box>
+      <Collapse in={showPipeline} unmountOnExit sx={{ alignSelf: "stretch" }}>
+        <Box
+          component="pre"
+          sx={(theme) => ({
+            margin: 0,
+            padding: "0.5rem 0.65rem",
+            maxHeight: "12rem",
+            overflow: "auto",
+            fontSize: "0.7rem",
+            borderRadius: "8px",
+            backgroundColor: alpha(theme.palette.text.primary, 0.05),
+          })}
+        >
+          {JSON.stringify(proposal.pipeline, null, 2)}
+        </Box>
+      </Collapse>
+      {children}
+    </Box>
+  );
+};
 
 // A pipeline the assistant built and previewed, offered for saving. Saving goes
 // through the same endpoint the builder's own Save does, so the new version is
@@ -43,20 +115,12 @@ const PipelineFilterProposal = ({ proposal }: AssistantFilterProposalProps) => {
   const [error, setError] = useState<string | null>(null);
 
   const alreadySaved = proposal.target != null;
-  const count = matchCount(proposal.preview?.summary ?? "");
-  // A tree is stored only when it compiles back to this exact pipeline, so the
-  // builder can never show something the broker would not run. Without one the
-  // version loads read-only, as an imported pipeline does.
-  const tree = decompilePipeline(proposal.pipeline);
+  const version = versionOf(proposal.pipeline);
 
   const handleSave = async () => {
     setError(null);
     try {
-      await saveFilter({
-        filter_id: fid,
-        altdata: proposal.pipeline,
-        ...(tree ? { filters: { filters: tree, projectionFields: [] } } : {}),
-      }).unwrap();
+      await saveFilter({ filter_id: fid, ...version }).unwrap();
       setSaved(true);
       refetch();
     } catch (e: any) {
@@ -65,90 +129,85 @@ const PipelineFilterProposal = ({ proposal }: AssistantFilterProposalProps) => {
   };
 
   return (
-    <Paper
-      variant="outlined"
-      sx={{ marginRight: "1rem", marginBottom: "0.5rem", padding: "0.5rem" }}
-    >
-      <Typography sx={{ fontSize: "0.75rem", fontWeight: 600 }}>
-        Proposed filter
-      </Typography>
-      <Typography sx={{ fontSize: "0.7rem", opacity: 0.7 }}>
-        {count === null
-          ? "Previewed on the broker."
-          : `Matched ${count.toLocaleString()} alerts in the previewed window.`}
-      </Typography>
-
-      <Accordion
-        disableGutters
-        elevation={0}
-        sx={{
-          backgroundColor: "transparent",
-          "&::before": { display: "none" },
-        }}
-      >
-        <AccordionSummary
-          expandIcon={<ExpandMoreIcon sx={{ fontSize: "1rem" }} />}
-          sx={{
-            minHeight: 0,
-            padding: 0,
-            "& .MuiAccordionSummary-content": { margin: 0 },
-          }}
-        >
-          <Typography sx={{ fontSize: "0.7rem", opacity: 0.6 }}>
-            Pipeline
-          </Typography>
-        </AccordionSummary>
-        <AccordionDetails sx={{ padding: 0 }}>
-          <Box
-            component="pre"
-            sx={{
-              fontSize: "0.65rem",
-              maxHeight: "12rem",
-              overflow: "auto",
-              margin: 0,
-            }}
-          >
-            {JSON.stringify(proposal.pipeline, null, 2)}
-          </Box>
-        </AccordionDetails>
-      </Accordion>
-
+    <ProposalCard proposal={proposal}>
       {error && (
         <Alert
           severity="error"
-          sx={{ fontSize: "0.7rem", marginTop: "0.25rem" }}
+          sx={{ alignSelf: "stretch", fontSize: "0.75rem" }}
         >
           {error}
         </Alert>
       )}
 
       {alreadySaved || saved ? (
-        <Typography sx={{ fontSize: "0.7rem", opacity: 0.7 }}>
+        <Typography sx={cardNoteSx}>
           Saved as a new version. Validate and activate it below.
         </Typography>
-      ) : tree ? (
-        <Button size="small" onClick={handleSave} disabled={isLoading}>
-          Save as a new version
-        </Button>
       ) : (
         <>
-          <Typography sx={{ fontSize: "0.7rem", opacity: 0.7 }}>
-            Uses more than the builder can show, so it saves read-only.
-          </Typography>
-          <Button size="small" onClick={handleSave} disabled={isLoading}>
+          {!version.filters && <ReadOnlyNote />}
+          <Button
+            size="small"
+            variant="contained"
+            disableElevation
+            onClick={handleSave}
+            disabled={isLoading}
+            sx={pillButtonSx}
+          >
             Save as a new version
           </Button>
         </>
       )}
-    </Paper>
+    </ProposalCard>
   );
 };
 
-const AssistantFilterProposal = ({ proposal }: AssistantFilterProposalProps) =>
-  proposal.lasair ? (
-    <LasairFilterProposal proposal={proposal} />
-  ) : (
-    <PipelineFilterProposal proposal={proposal} />
+const NewFilterProposal = ({
+  proposal,
+  brokerId,
+}: AssistantFilterProposalProps & { brokerId: number }) => {
+  const [open, setOpen] = useState(false);
+  const version = versionOf(proposal.pipeline);
+
+  return (
+    <ProposalCard proposal={proposal}>
+      {!version.filters && <ReadOnlyNote />}
+      <Button
+        size="small"
+        variant="contained"
+        disableElevation
+        onClick={() => setOpen(true)}
+        sx={pillButtonSx}
+      >
+        Create filter
+      </Button>
+      <NewFilterDialog
+        open={open}
+        onClose={() => setOpen(false)}
+        brokerId={brokerId}
+        version={version}
+      />
+    </ProposalCard>
   );
+};
+
+const AssistantFilterProposal = ({
+  proposal,
+}: AssistantFilterProposalProps) => {
+  const { target } = useCommentPanel();
+  if (target?.type === "filter") {
+    return proposal.lasair ? (
+      <LasairFilterProposal proposal={proposal} />
+    ) : (
+      <PipelineFilterProposal proposal={proposal} />
+    );
+  }
+  if (proposal.lasair || proposal.target || proposal.broker_id == null) {
+    return null;
+  }
+  return (
+    <NewFilterProposal proposal={proposal} brokerId={proposal.broker_id} />
+  );
+};
 
 export default AssistantFilterProposal;

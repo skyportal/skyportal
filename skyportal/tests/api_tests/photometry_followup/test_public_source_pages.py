@@ -10,7 +10,7 @@ def test_create_page(view_only_token, manage_sources_token, public_source):
         data={},
         token=view_only_token,
     )
-    assert_api_fail(status, data, 403, "HTTP 403: Forbidden")
+    assert_api_fail(status, data, 403, "Missing permission: Manage sources")
 
     status, data = api(
         "POST",
@@ -279,7 +279,7 @@ def test_delete_page(view_only_token, manage_sources_token, public_source):
     status, data = api(
         "DELETE", f"public_pages/source/{public_source_page_id}", token=view_only_token
     )
-    assert_api_fail(status, data, 403, "HTTP 403: Forbidden")
+    assert_api_fail(status, data, 403, "Missing permission: Manage sources")
 
     status, data = api(
         "DELETE",

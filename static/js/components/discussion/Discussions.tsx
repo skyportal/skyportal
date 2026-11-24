@@ -21,8 +21,10 @@ import TextField from "@mui/material/TextField";
 import Tooltip from "@mui/material/Tooltip";
 import Typography from "@mui/material/Typography";
 import useMediaQuery from "@mui/material/useMediaQuery";
+import { alpha } from "@mui/material/styles";
 
 import CommentThreadView from "../comment/CommentThread";
+import { pillTabsSx, searchFieldSx } from "../comment/chatStyles";
 import CommentThreadAvatar, { RESOURCES } from "./CommentThreadAvatar";
 import DiscussionAvatar from "./DiscussionAvatar";
 import DiscussionThread from "./DiscussionThread";
@@ -143,25 +145,20 @@ const CommentThreadPane = ({
           <MuiLink
             component={Link}
             to={thread.url}
-            variant="h6"
             noWrap
+            underline="hover"
             sx={{
               display: "inline-block",
               maxWidth: "100%",
               verticalAlign: "top",
-              lineHeight: 1.3,
-              fontWeight: 500,
-              "&:hover": {
-                color: (theme) =>
-                  theme.palette.mode === "dark"
-                    ? theme.palette.primary.main
-                    : theme.palette.primary.dark,
-              },
+              fontSize: "1rem",
+              fontWeight: 600,
+              lineHeight: 1.4,
             }}
           >
             {thread.label}
           </MuiLink>
-          <Typography variant="body2" color="textSecondary" noWrap>
+          <Typography color="textSecondary" noWrap sx={{ fontSize: "0.8rem" }}>
             {RESOURCES[thread.resource_type].name} comments
             {thread.channel && `, conversation "${thread.channel}"`}
           </Typography>
@@ -359,6 +356,7 @@ const Discussions = () => {
           placeholder="Search"
           value={search}
           onChange={(event) => setSearch(event.target.value)}
+          sx={searchFieldSx}
           slotProps={{
             input: {
               startAdornment: (
@@ -370,21 +368,25 @@ const Discussions = () => {
           }}
         />
       </Box>
-      <Tabs
-        value={filter}
-        onChange={(_, value) => setFilter(value)}
-        variant="fullWidth"
-        sx={{ borderBottom: 1, borderColor: "divider", minHeight: 40 }}
+      <Box
+        sx={{
+          padding: "0.625rem 0.75rem",
+          borderBottom: 1,
+          borderColor: "divider",
+        }}
       >
-        {Object.entries(FILTERS).map(([value, label]) => (
-          <Tab
-            key={value}
-            value={value}
-            label={label}
-            sx={{ minHeight: 40, minWidth: 0, paddingX: 1 }}
-          />
-        ))}
-      </Tabs>
+        <Tabs
+          value={filter}
+          onChange={(_, value) => setFilter(value)}
+          variant="scrollable"
+          scrollButtons={false}
+          sx={pillTabsSx}
+        >
+          {Object.entries(FILTERS).map(([value, label]) => (
+            <Tab key={value} value={value} label={label} />
+          ))}
+        </Tabs>
+      </Box>
       <List sx={{ flexGrow: 1, minHeight: 0, overflowY: "auto", padding: 0.5 }}>
         {!loading && entries.length === 0 && (
           <Typography
@@ -402,7 +404,17 @@ const Discussions = () => {
             key={entry.key}
             selected={entry.key === selected}
             onClick={() => open(entry)}
-            sx={{ borderRadius: 2, gap: 1.5, alignItems: "center" }}
+            sx={(theme) => ({
+              gap: 1.5,
+              alignItems: "center",
+              borderRadius: "12px",
+              "&.Mui-selected, &.Mui-selected:hover": {
+                backgroundColor: alpha(
+                  theme.palette.primary.main,
+                  theme.palette.mode === "dark" ? 0.3 : 0.12,
+                ),
+              },
+            })}
           >
             {entry.discussion ? (
               <DiscussionAvatar
@@ -424,7 +436,8 @@ const Discussions = () => {
                   noWrap
                   sx={{
                     flexGrow: 1,
-                    fontWeight: entry.unread && !entry.muted ? 700 : 500,
+                    fontSize: "0.9rem",
+                    fontWeight: entry.unread && !entry.muted ? 700 : 600,
                   }}
                 >
                   {entry.title}
@@ -439,10 +452,9 @@ const Discussions = () => {
               </Box>
               <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
                 <Typography
-                  variant="body2"
                   color="textSecondary"
                   noWrap
-                  sx={{ flexGrow: 1 }}
+                  sx={{ flexGrow: 1, fontSize: "0.8rem" }}
                 >
                   {entry.snippet}
                 </Typography>

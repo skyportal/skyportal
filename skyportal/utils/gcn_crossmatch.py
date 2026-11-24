@@ -516,6 +516,28 @@ def describes_later_alert(payload, existing):
     return later > earlier
 
 
+async def already_matched(session, user_id, obj_id, filter_id, event_key, event_jd, jd):
+    raised = await session.scalar(
+        sa.select(Candidate.id)
+        .where(
+            Candidate.obj_id == obj_id,
+            Candidate.filter_id == filter_id,
+            Candidate.uploader_id == user_id,
+            Candidate.passed_at == Time(jd, format="jd").datetime,
+        )
+        .limit(1)
+    )
+    if raised is None:
+        return False
+    data = await session.scalar(
+        sa.select(Annotation.data).where(
+            Annotation.obj_id == obj_id, Annotation.origin == ANNOTATION_ORIGIN
+        )
+    )
+    delta_t = ((data or {}).get(event_key) or {}).get("delta_t")
+    return delta_t is not None and delta_t >= round(jd - event_jd, 4)
+
+
 async def annotate_match(
     session, user, obj_id, event_key, event_dateobs, group_ids, data
 ):
@@ -744,18 +766,12 @@ async def process_event_filter(
         jd_end = event_jd - float(conf(config, "delta_t_before"))
         jd_start = jd_end - float(conf(config, "archival_days"))
     else:
-        # Lower bound: resume from the newest alert already seen, or from the
-        # previous successful search less an overlap, because brokers make alerts
-        # queryable some time after the alert's own JD.
         jd_start = event_jd - float(conf(config, "delta_t_before"))
+        overlap = float(conf(config, "requery_overlap_days"))
         if state.last_alert_jd is not None:
-            jd_start = max(jd_start, state.last_alert_jd)
+            jd_start = max(jd_start, state.last_alert_jd - overlap)
         if state.status == "done" and state.last_queried is not None:
-            jd_start = max(
-                jd_start,
-                float(Time(state.last_queried).jd)
-                - float(conf(config, "requery_overlap_days")),
-            )
+            jd_start = max(jd_start, float(Time(state.last_queried).jd) - overlap)
         jd_end = event_jd + float(conf(config, "delta_t_after"))
         # The history cuts cap the epoch of anything that can match: a first
         # detection no later than the trigger plus one window, and an alert no
@@ -941,6 +957,16 @@ async def process_event_filter(
         alert = keep[index]
         object_id = alert_object_id(alert)
         try:
+            if not archival and await already_matched(
+                session,
+                user_id,
+                object_id,
+                filter_id,
+                event_key,
+                event_jd,
+                alert_jd(alert),
+            ):
+                continue
             already_raised = await session.scalar(
                 sa.select(Candidate.id)
                 .where(
@@ -981,7 +1007,7 @@ async def process_event_filter(
                 ),
             )
             proposed = await propose_association(
-                session, user_id, object_id, event_dateobs
+                session, user_id, object_id, event_dateobs, localization.id
             )
             await session.commit()
             if raised and not archival and (proposed or already_raised is None):
@@ -1899,7 +1925,9 @@ def cone_match_stage(ra, dec, radius_deg):
     }
 
 
-async def propose_association(session, user_id, obj_id, event_dateobs):
+async def propose_association(
+    session, user_id, obj_id, event_dateobs, localization_id=None
+):
     """Record the match as awaiting review: status stays 'pending' until a human
     confirms or rejects it. confirmer_id is NOT NULL, so it records the service
     user that proposed the row, not a verdict. Never overwrites an existing one.
@@ -1915,6 +1943,7 @@ async def propose_association(session, user_id, obj_id, event_dateobs):
             GcnEventObj(
                 obj_id=obj_id,
                 dateobs=event_dateobs,
+                localization_id=localization_id,
                 status="pending",
                 confirmer_id=user_id,
             )

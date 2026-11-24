@@ -12,6 +12,7 @@ export interface AssistantProposal {
   pipeline: any[];
   preview: { summary: string; start_jd: number | null; end_jd: number | null };
   target: { broker_id: number; filter_id: number } | null;
+  broker_id?: number | null;
   lasair?: { broker_id: number; tree: any; count: number | null };
 }
 
@@ -23,6 +24,15 @@ export interface AssistantMessage {
   created_at: string;
   tool_calls?: AssistantToolCall[] | null;
   proposal?: AssistantProposal | null;
+  model?: string | null;
+}
+
+export interface AssistantUsage {
+  model: string | null;
+  fallback: string | null;
+  spent?: number;
+  limit?: number;
+  left?: number;
 }
 
 export interface AssistantQuestion {
@@ -44,6 +54,10 @@ export const assistantApi = skyportalApi.injectEndpoints({
     getAssistantConversation: build.query<AssistantMessage[], string>({
       query: (channel) =>
         `api/assistant/messages?channel=${encodeURIComponent(channel)}`,
+      providesTags: ["Assistant"],
+    }),
+    getAssistantUsage: build.query<AssistantUsage, void>({
+      query: () => "api/assistant/usage",
       providesTags: ["Assistant"],
     }),
     askAssistant: build.mutation<{ id: number }, AssistantQuestion>({
@@ -80,6 +94,7 @@ invalidateOnMessage("skyportal/REFRESH_ASSISTANT", () => ["Assistant"]);
 export const {
   useGetAssistantConversationsQuery,
   useGetAssistantConversationQuery,
+  useGetAssistantUsageQuery,
   useAskAssistantMutation,
   useRenameAssistantConversationMutation,
   useDeleteAssistantConversationMutation,

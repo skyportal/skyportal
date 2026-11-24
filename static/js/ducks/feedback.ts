@@ -30,7 +30,12 @@ export const feedbackApi = skyportalApi.injectEndpoints({
     }),
     updateFeedback: build.mutation<
       unknown,
-      { id: number; resolved?: boolean; assignee_id?: number | null }
+      {
+        id: number;
+        resolved?: boolean;
+        assignee_id?: number | null;
+        pr_urls?: string[];
+      }
     >({
       query: ({ id, ...body }) => ({
         url: `api/feedback/${id}`,

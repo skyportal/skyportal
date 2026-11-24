@@ -276,6 +276,7 @@ class GcnEventObjHandler(BaseHandler):
                         )
                     source_in_gcn.status = status
                     source_in_gcn.confirmer_id = self.associated_user_object.id
+                    source_in_gcn.localization_id = localization.id
                     if explanation is not None:
                         source_in_gcn.explanation = explanation
                     if notes is not None:
@@ -287,6 +288,7 @@ class GcnEventObjHandler(BaseHandler):
                     source_in_gcn = GcnEventObj(
                         obj_id=source_id,
                         dateobs=dateobs,
+                        localization_id=localization.id,
                         status=status,
                         confirmer_id=self.associated_user_object.id,
                     )

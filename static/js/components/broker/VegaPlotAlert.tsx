@@ -3,7 +3,7 @@ import embedVega from "../plot/vegaEmbed";
 
 // Consistent color palette for photometric bands across surveys
 const BAND_COLOR_SCALE = {
-  domain: ["u", "g", "r", "i", "z", "y", "beta", "rho"],
+  domain: ["u", "g", "r", "i", "z", "y", "beta", "rho", "askap-943MHz"],
   range: [
     "#7B2D8B",
     "#28a745",
@@ -13,6 +13,7 @@ const BAND_COLOR_SCALE = {
     "#8B4513",
     "#4B9CD3",
     "#D71F26",
+    "#00897B",
   ],
 };
 

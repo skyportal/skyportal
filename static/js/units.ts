@@ -50,9 +50,10 @@ const dec_to_deg = (v: string): number =>
   v.includes(":") ? dms_to_dec(v) : parseFloat(v);
 
 const ra_to_hours = (ra: number, sep: string | null = null): string => {
-  const ra_h = numeral(Math.floor(ra / 15)).format("00");
-  const ra_m = numeral(Math.floor((ra % 15) * 4)).format("00");
-  const ra_s = numeral((((ra % 15) * 4) % 1) * 60).format("00.00");
+  const total = Math.round(ra * 24000) % 8640000;
+  const ra_h = numeral(Math.floor(total / 360000)).format("00");
+  const ra_m = numeral(Math.floor((total % 360000) / 6000)).format("00");
+  const ra_s = numeral((total % 6000) / 100).format("00.00");
   if (!(sep == null)) {
     return `${ra_h}${sep}${ra_m}${sep}${ra_s}`;
   }
@@ -64,13 +65,10 @@ const dec_to_dms = (
   sep: string | null = null,
   signed = true,
 ): string => {
-  const dec = Math.abs(deci);
-  const deg = Math.floor(dec);
-  const deg_padded = numeral(deg).format("00");
-  const min = Math.floor((dec - deg) * 60);
-  const min_padded = numeral(min).format("00");
-  const sec = (dec - deg - min / 60) * 3600;
-  const secstr = numeral(sec).format("00.00");
+  const total = Math.round(Math.abs(deci) * 360000);
+  const deg_padded = numeral(Math.floor(total / 360000)).format("00");
+  const min_padded = numeral(Math.floor((total % 360000) / 6000)).format("00");
+  const secstr = numeral((total % 6000) / 100).format("00.00");
   let sign = "+";
 
   // this is for the case where the '+' sign needs to be omitted

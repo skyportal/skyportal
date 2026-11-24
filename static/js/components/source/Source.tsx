@@ -13,6 +13,7 @@ import { Link } from "react-router-dom";
 
 import { makeStyles } from "tss-react/mui";
 import Box from "@mui/material/Box";
+import { alpha } from "@mui/material/styles";
 import Chip from "@mui/material/Chip";
 import Grid from "@mui/material/Grid";
 import Tooltip from "@mui/material/Tooltip";
@@ -23,12 +24,19 @@ import AccordionSummary from "@mui/material/AccordionSummary";
 import AccordionDetails from "@mui/material/AccordionDetails";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import Typography from "@mui/material/Typography";
-import { log10, abs, ceil } from "mathjs";
 
 import CircularProgress from "@mui/material/CircularProgress";
 import AddIcon from "@mui/icons-material/Add";
-import RemoveIcon from "@mui/icons-material/Remove";
 import Menu from "@mui/material/Menu";
+import Divider from "@mui/material/Divider";
+import ListItemIcon from "@mui/material/ListItemIcon";
+import SearchIcon from "@mui/icons-material/Search";
+import ImageOutlinedIcon from "@mui/icons-material/ImageOutlined";
+import PictureAsPdfOutlinedIcon from "@mui/icons-material/PictureAsPdfOutlined";
+import ShowChartOutlinedIcon from "@mui/icons-material/ShowChartOutlined";
+import FormatListBulletedOutlinedIcon from "@mui/icons-material/FormatListBulletedOutlined";
+import SendOutlinedIcon from "@mui/icons-material/SendOutlined";
+import PublicOutlinedIcon from "@mui/icons-material/PublicOutlined";
 import MenuItem from "@mui/material/MenuItem";
 import IconButton from "@mui/material/IconButton";
 import Paper from "@mui/material/Paper";
@@ -100,8 +108,6 @@ import {
   useGetSourceQuery,
   useGetAssociatedGcnsQuery,
   useGetSourcePositionQuery,
-  useAddHostMutation,
-  useRemoveHostMutation,
   useAddSourceViewMutation,
   useUpdateSourceMutation,
 } from "../../ducks/source";
@@ -121,11 +127,9 @@ import {
   useGetBrokerHostsQuery,
   useGetBrokersQuery,
 } from "../../ducks/brokers";
-import BrokerHostChip from "../broker/BrokerHostChip";
-
-// The legacy <font> element isn't in React's JSX intrinsic types; alias it
-// through `any` so the existing markup keeps rendering unchanged.
-const Font: any = "font";
+import SourceHost from "./SourceHost";
+import FieldLabel from "./FieldLabel";
+import softButtonsSx from "../softButtons";
 
 const VegaHR = React.lazy(() => import("../plot/VegaHR"));
 
@@ -136,7 +140,7 @@ const CentroidPlot = React.lazy(
 export const useSourceStyles = makeStyles()((theme) => ({
   header: {
     display: "flex",
-    justifyContent: "space-between",
+    flexWrap: "wrap",
     alignItems: "center",
     columnGap: "0.25rem",
     marginBottom: "0.25rem",
@@ -152,14 +156,6 @@ export const useSourceStyles = makeStyles()((theme) => ({
     display: "inline-block",
     padding: 0,
     margin: 0,
-  },
-  noSpace: { padding: 0, margin: 0 },
-  // `inherit`, not a fixed colour: these sit on menu paper, which is dark in
-  // dark mode.
-  dropdownText: { textDecoration: "none", color: "inherit" },
-  noWrapMargin: {
-    marginRight: "0.5rem",
-    textWrap: "nowrap",
   },
   flexRow: {
     display: "flex",
@@ -214,22 +210,21 @@ export const useSourceStyles = makeStyles()((theme) => ({
     alignItems: "center",
     gap: "0.25rem",
   },
-  sourceInfo: {
-    display: "flex",
-    flexFlow: "row wrap",
-    alignItems: "center",
-  },
-  infoLine: {
-    // Get its own line
-    flexBasis: "100%",
-    display: "flex",
-    flexFlow: "row wrap",
-    gap: "0.5rem",
-  },
   rowInfo: {
     display: "flex",
     flexDirection: "row",
     alignItems: "center",
+  },
+  linkedObjs: {
+    flexBasis: "100%",
+    display: "flex",
+    alignItems: "baseline",
+  },
+  linkedObjList: {
+    display: "flex",
+    flexWrap: "wrap",
+    alignItems: "center",
+    gap: "0.25rem 0.5rem",
   },
   dmdlInfo: {
     alignSelf: "center",
@@ -293,8 +288,6 @@ const SourceContent = ({ source }: SourceContentProps) => {
   const unsharedSpectraCount = dataAvailability?.spectra?.length ?? 0;
   const { data: associatedGcnsData } = useGetAssociatedGcnsQuery(source.id);
   const associatedGCNs = associatedGcnsData?.["gcns"];
-  const [addHost] = useAddHostMutation();
-  const [removeHostMutation] = useRemoveHostMutation();
   const [updateSource] = useUpdateSourceMutation();
 
   const { data: brokers = [] } = useGetBrokersQuery();
@@ -316,10 +309,10 @@ const SourceContent = ({ source }: SourceContentProps) => {
 
   // Needed for buttons that open popover menus, indicates where the popover should be anchored
   // (where it will appear on the screen)
-  const [anchorElFindingChart, setAnchorElFindingChart] = useState<any>(null);
-  const [anchorElObservability, setAnchorElObservability] = useState<any>(null);
-  const openFindingChart = Boolean(anchorElFindingChart);
-  const openObservability = Boolean(anchorElObservability);
+  const [anchorElObserving, setAnchorElObserving] =
+    useState<HTMLElement | null>(null);
+  const [anchorElShare, setAnchorElShare] = useState<HTMLElement | null>(null);
+  const [publishDialogOpen, setPublishDialogOpen] = useState(false);
 
   const [showStarList, setShowStarList] = useState(false);
   const [showPhotometry, setShowPhotometry] = useState(false);
@@ -340,6 +333,7 @@ const SourceContent = ({ source }: SourceContentProps) => {
     (b) =>
       b.active && b.capabilities?.["query_alerts"] && b.default_alert_search,
   );
+  const hostBroker = brokers.find((b) => b.active && b.default_crossmatch);
   const hasSimilarityBroker = brokers.some(
     (b) => b.active && b.capabilities?.["similar_objects"],
   );
@@ -405,17 +399,6 @@ const SourceContent = ({ source }: SourceContentProps) => {
     () => ({ ...source, adjusted_position: adjustedPosition }),
     [source, adjustedPosition],
   );
-
-  const getZRound = (redshift_error: any) =>
-    redshift_error ? ceil(abs(log10(redshift_error))) : 4;
-
-  const setHost = (galaxyName: any) => {
-    addHost({ id: source.id, formData: { galaxyName } });
-  };
-
-  const removeHost = () => {
-    removeHostMutation(source.id);
-  };
 
   const rightPanelContent = (
     downLarge: boolean,
@@ -655,6 +638,11 @@ const SourceContent = ({ source }: SourceContentProps) => {
                     candidates={source?.candidates || []}
                   />
                 </div>
+                {!isReadOnly && (
+                  <Box sx={{ ml: 1 }}>
+                    <ObjectTags source={source} />
+                  </Box>
+                )}
               </div>
               {!downLg && (
                 <div className={classes.container}>
@@ -672,19 +660,16 @@ const SourceContent = ({ source }: SourceContentProps) => {
                 </div>
               )}
             </div>
-            <div style={{ marginBottom: "0.25rem" }}>
-              <ShowClassification
-                classifications={source.classifications}
-                taxonomyList={taxonomyList}
-                shortened
-              />
-            </div>
-            {!isReadOnly && (
-              <div style={{ marginBottom: "0.25rem" }}>
-                <ObjectTags source={source} />
-              </div>
+            {source.classifications?.length > 0 && (
+              <Box sx={{ mb: 0.5 }}>
+                <ShowClassification
+                  classifications={source.classifications}
+                  taxonomyList={taxonomyList}
+                  shortened
+                />
+              </Box>
             )}
-            <SourceCoordinates classes={classes} source={sourceWithPosition} />
+            <SourceCoordinates source={sourceWithPosition} />
             <div
               className={classes.flexRow}
               style={{
@@ -697,35 +682,72 @@ const SourceContent = ({ source }: SourceContentProps) => {
                   distance derive from it, so they drop out on their own. */}
               {!source.is_roid && (
                 <div style={{ marginRight: "0.5rem" }}>
-                  <b>Redshift: &nbsp;</b>
+                  <FieldLabel>Redshift</FieldLabel>
                   <SourceRedshift source={source} readOnly={isReadOnly} />
                 </div>
               )}
               <div className={classes.dmdlInfo}>
                 {source.dm && (
                   <div>
-                    <b>DM: &nbsp;</b>
-                    {source.dm.toFixed(3)}
-                    &nbsp; mag
+                    <FieldLabel>DM</FieldLabel>
+                    {source.dm.toFixed(3)} mag
                   </div>
                 )}
                 {source.luminosity_distance && (
                   <div>
-                    <b>
+                    <FieldLabel>
                       <i>D</i>
-                      <sub>L</sub>: &nbsp;
-                    </b>
-                    {source.luminosity_distance.toFixed(2)}
-                    &nbsp; Mpc
+                      <sub>L</sub>
+                    </FieldLabel>
+                    {source.luminosity_distance.toFixed(2)} Mpc
                   </div>
                 )}
                 <div>
-                  <b>T0: &nbsp;</b>
+                  <FieldLabel>T0</FieldLabel>
                   {source.t0}
                   {!isReadOnly && <UpdateSourceT0 source={source} />}
                 </div>
+              </div>
+            </div>
+            <div
+              className={classes.flexRow}
+              style={{
+                justifyContent: "flex-start",
+                alignItems: "center",
+                flexFlow: "wrap",
+                columnGap: "1rem",
+              }}
+            >
+              <div className={classes.rowInfo} data-testid="tour-source-tns">
+                <Tooltip title="Transient reported at this position, from the Transient Name Server">
+                  <FieldLabel>TNS</FieldLabel>
+                </Tooltip>
+                {source.tns_name && (
+                  <Chip
+                    size="small"
+                    label={source.tns_name}
+                    component="a"
+                    href={`https://www.wis-tns.org/object/${
+                      source.tns_name.trim().includes(" ")
+                        ? source.tns_name.split(" ")[1]
+                        : source.tns_name
+                    }`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    clickable
+                  />
+                )}
+                {source.tns_info && (
+                  <DisplayTNSInfo
+                    tns_info={source.tns_info}
+                    display_header={false}
+                  />
+                )}
+                {!source.tns_name && !isReadOnly && (
+                  <UpdateSourceTNS sourceId={source.id} />
+                )}
                 {!isReadOnly && (
-                  <div>
+                  <Box sx={{ ml: 1 }}>
                     <Tooltip
                       title={`Never send this source to TNS, automatically or manually.${
                         source.withhold_from_tns_set_at
@@ -757,51 +779,12 @@ const SourceContent = ({ source }: SourceContentProps) => {
                         slotProps={{ typography: { variant: "body2" } }}
                       />
                     </Tooltip>
-                  </div>
-                )}
-              </div>
-            </div>
-            <div
-              className={classes.flexRow}
-              style={{
-                justifyContent: "flex-start",
-                alignItems: "center",
-                flexFlow: "wrap",
-                columnGap: "1rem",
-              }}
-            >
-              <div className={classes.rowInfo} data-testid="tour-source-tns">
-                <Tooltip title="Transient reported at this position, from the Transient Name Server">
-                  <b>TNS: &nbsp;</b>
-                </Tooltip>
-                {source.tns_name && (
-                  <Chip
-                    size="small"
-                    label={source.tns_name}
-                    component="a"
-                    href={`https://www.wis-tns.org/object/${
-                      source.tns_name.trim().includes(" ")
-                        ? source.tns_name.split(" ")[1]
-                        : source.tns_name
-                    }`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    clickable
-                  />
-                )}
-                {source.tns_info && (
-                  <DisplayTNSInfo
-                    tns_info={source.tns_info}
-                    display_header={false}
-                  />
-                )}
-                {!source.tns_name && !isReadOnly && (
-                  <UpdateSourceTNS sourceId={source.id} />
+                  </Box>
                 )}
               </div>
               <Box className={classes.rowInfo} sx={{ position: "relative" }}>
                 <Tooltip title="Known solar system object at this position, from the Minor Planet Center">
-                  <b>MPC: &nbsp;</b>
+                  <FieldLabel>MPC</FieldLabel>
                 </Tooltip>
                 {source.mpc_name && (
                   <Chip size="small" label={source.mpc_name} />
@@ -816,13 +799,19 @@ const SourceContent = ({ source }: SourceContentProps) => {
                   ))}
               </Box>
               <Box className={classes.rowInfo} sx={{ position: "relative" }}>
-                <Tooltip title="GCN events whose localization contains this source">
-                  <b>GCN: &nbsp;</b>
+                <Tooltip title="Events this object was matched to by the GCN crossmatch or by hand">
+                  <FieldLabel>GCN matches</FieldLabel>
                 </Tooltip>
                 {source.gcn_crossmatch?.length > 0 && (
                   <SourceGCNCrossmatchList
                     gcn_crossmatches={gcn_crossmatches}
                     source={source}
+                    matchedLocalizations={Object.fromEntries(
+                      (source.gcn_crossmatch || []).map((gcn: any) => [
+                        gcn.dateobs.replace(" ", "T"),
+                        gcn.matched_localization_name,
+                      ]),
+                    )}
                   />
                 )}
                 {!isReadOnly && (
@@ -835,126 +824,47 @@ const SourceContent = ({ source }: SourceContentProps) => {
                 <SourceAlias source={source} />
               </div>
             </div>
-            {source.host && (
-              <div className={classes.infoLine}>
-                <div className={classes.sourceInfo}>
-                  <b className={classes.noWrapMargin}>
-                    {`Host galaxy: ${source.host.name}`}
-                  </b>
-                  <b className={classes.noWrapMargin}>
-                    {`Offset: ${source.host_offset.toFixed(3)} [arcsec]`}
-                  </b>
-                  {source.host_distance != null && (
-                    <b className={classes.noWrapMargin}>
-                      {`Distance: ${source.host_distance.toFixed(1)} [kpc]`}
-                    </b>
-                  )}
-                  {source.host.redshift != null && (
-                    <b className={classes.noWrapMargin}>
-                      {`z: ${source.host.redshift.toFixed(
-                        getZRound(source.host.redshift_error),
-                      )}`}
-                    </b>
-                  )}
-                  {!isReadOnly && (
-                    <IconButton
-                      size="small"
-                      name="removeHostGalaxyButton"
-                      onClick={() => removeHost()}
-                      className={classes.noSpace}
-                    >
-                      <RemoveIcon style={{ fontSize: "1rem" }} />
-                    </IconButton>
-                  )}
-                </div>
-              </div>
-            )}
-            {brokerHosts && (
-              <div className={classes.infoLine}>
-                <div className={classes.sourceInfo}>
-                  <b className={classes.noWrapMargin}>Host:</b>
-                  <BrokerHostChip host={brokerHosts[source.id]} />
-                </div>
-              </div>
-            )}
-            {!isReadOnly &&
-              source?.galaxies?.length > 0 &&
-              !(
-                source.galaxies?.length === 1 &&
-                source.host?.name &&
-                (source?.galaxies || []).includes(source.host?.name)
-              ) && (
-                <div className={classes.sourceInfo}>
-                  <b className={classes.noWrapMargin}>
-                    <Font color="#457b9d">Possible host galaxies:</Font>
-                  </b>
-                  <div
-                    className={classes.flexRow}
-                    style={{
-                      width: "auto",
-                      alignItems: "center",
-                      flexFlow: "wrap",
-                      columnGap: "0.25rem",
-                    }}
-                  >
-                    {source.galaxies.map(
-                      (galaxyName: any) =>
-                        galaxyName !== source.host?.name && (
-                          <div key={galaxyName}>
-                            <Button
-                              size="small"
-                              className={classes.noSpace}
-                              onClick={() => setHost(galaxyName)}
-                            >
-                              {galaxyName}
-                            </Button>
-                          </div>
-                        ),
-                    )}
-                  </div>
-                </div>
-              )}
+            <SourceHost
+              source={source}
+              brokerHosts={brokerHosts}
+              brokerName={hostBroker?.name}
+              isReadOnly={isReadOnly}
+            />
             {sourceDuplicatesWithoutAssociatedObjs.length > 0 && (
-              <div className={classes.sourceInfo}>
-                <b className={classes.noWrapMargin}>
-                  <Font color="#457b9d">Possible duplicate of:</Font>
-                </b>
-                <div
-                  className={classes.flexRow}
-                  style={{
-                    width: "auto",
-                    alignItems: "center",
-                    flexFlow: "wrap",
-                    columnGap: "0.25rem",
-                  }}
-                >
+              <Box className={classes.linkedObjs}>
+                <FieldLabel>Possible duplicate of</FieldLabel>
+                <Box className={classes.linkedObjList}>
                   {sourceDuplicatesWithoutAssociatedObjs.map(
                     (duplicate: any) => (
-                      <div key={duplicate.obj_id}>
+                      <Box
+                        key={duplicate.obj_id}
+                        sx={{ display: "inline-flex", alignItems: "center" }}
+                      >
                         <Tooltip
-                          title={`${duplicate.separation.toFixed(2)} arcsec`}
+                          title={`${duplicate.separation.toFixed(2)}″ away`}
                         >
-                          <Link
+                          <Chip
+                            size="small"
+                            variant="outlined"
+                            clickable
+                            component={Link}
                             to={`/source/${duplicate.obj_id}`}
-                            role="link"
-                            key={duplicate.obj_id}
-                            className={classes.noSpace}
-                          >
-                            <Button size="small" className={classes.noSpace}>
-                              {duplicate.obj_id}
-                            </Button>
-                          </Link>
+                            label={duplicate.obj_id}
+                          />
                         </Tooltip>
                         {!isReadOnly && (
                           <>
-                            <IconButton
-                              size="small"
-                              name={`copySourceButton${duplicate.obj_id}`}
-                              onClick={() => setCopyPhotometryDialogOpen(true)}
-                              className={classes.noSpace}
-                            >
-                              <AddIcon style={{ fontSize: "1rem" }} />
-                            </IconButton>
+                            <Tooltip title="Copy its photometry here">
+                              <IconButton
+                                size="small"
+                                name={`copySourceButton${duplicate.obj_id}`}
+                                onClick={() =>
+                                  setCopyPhotometryDialogOpen(true)
+                                }
+                              >
+                                <AddIcon sx={{ fontSize: "1rem" }} />
+                              </IconButton>
+                            </Tooltip>
                             <CopyPhotometryDialog
                               source={source}
                               duplicate={duplicate}
@@ -965,192 +875,233 @@ const SourceContent = ({ source }: SourceContentProps) => {
                             />
                           </>
                         )}
-                      </div>
+                      </Box>
                     ),
                   )}
-                </div>
-              </div>
+                </Box>
+              </Box>
             )}
             {source?.associated_objs?.length > 0 && (
-              <div className={classes.sourceInfo}>
-                <b className={classes.noWrapMargin}>
-                  <Font color="#457b9d">Associated with:</Font>
-                </b>
-                <div
-                  className={classes.flexRow}
-                  style={{
-                    width: "auto",
-                    alignItems: "center",
-                    flexFlow: "wrap",
-                    columnGap: "0.25rem",
-                  }}
-                >
+              <Box className={classes.linkedObjs}>
+                <FieldLabel>Associated with</FieldLabel>
+                <Box className={classes.linkedObjList}>
                   {source.associated_objs.map((associatedObj: any) => (
-                    <div key={associatedObj.obj_id}>
-                      <Tooltip
-                        title={`${associatedObj.separation.toFixed(2)} arcsec`}
-                      >
-                        <Link
-                          to={`/source/${associatedObj.obj_id}`}
-                          role="link"
-                          key={associatedObj.obj_id}
-                          className={classes.noSpace}
-                        >
-                          <Button size="small" className={classes.noSpace}>
-                            {associatedObj.obj_id}
-                          </Button>
-                        </Link>
-                      </Tooltip>
-                    </div>
+                    <Tooltip
+                      key={associatedObj.obj_id}
+                      title={`${associatedObj.separation.toFixed(2)}″ away`}
+                    >
+                      <Chip
+                        size="small"
+                        variant="outlined"
+                        clickable
+                        component={Link}
+                        to={`/source/${associatedObj.obj_id}`}
+                        label={associatedObj.obj_id}
+                      />
+                    </Tooltip>
                   ))}
-                </div>
-              </div>
+                </Box>
+              </Box>
             )}
             {source.summary_history?.length > 0 &&
             currentUser?.preferences?.["showSimilarSources"] === true ? (
               <SimilarSources source={source} k={3} />
             ) : null}
-            <div className={classes.infoLine} style={{ marginTop: "0.25rem" }}>
+            <Box
+              sx={(theme) => {
+                const { success } = theme.palette;
+                return {
+                  ...softButtonsSx(theme),
+                  flexBasis: "100%",
+                  display: "flex",
+                  flexWrap: "wrap",
+                  alignItems: "center",
+                  gap: 0.75,
+                  mt: 0.75,
+                  "& [data-testid=interested-button].MuiButton-colorSuccess": {
+                    bgcolor: alpha(success.main, 0.16),
+                    color:
+                      theme.palette.mode === "dark"
+                        ? success.light
+                        : success.dark,
+                    "&:hover": { bgcolor: alpha(success.main, 0.24) },
+                  },
+                };
+              }}
+            >
               {alertBroker ? (
-                <Link
-                  to={`/brokers/${alertBroker.id}?${new URLSearchParams({
-                    objectId: source.id,
-                    ...(source.ra != null && source.dec != null
-                      ? {
-                          ra: String(source.ra),
-                          dec: String(source.dec),
-                          radius: "3",
-                        }
-                      : {}),
-                  })}`}
-                  target="_blank"
+                <Tooltip
+                  title={`Alerts for this object in ${alertBroker.name}`}
                 >
-                  <Button primary size="small">
-                    Search alerts
-                  </Button>
-                </Link>
+                  <Link
+                    to={`/brokers/${alertBroker.id}?${new URLSearchParams({
+                      objectId: source.id,
+                      ...(source.ra != null && source.dec != null
+                        ? {
+                            ra: String(source.ra),
+                            dec: String(source.dec),
+                            radius: "3",
+                          }
+                        : {}),
+                    })}`}
+                    target="_blank"
+                  >
+                    <Button secondary size="small" endIcon={<SearchIcon />}>
+                      Search alerts
+                    </Button>
+                  </Link>
+                </Tooltip>
               ) : (
                 <Tooltip title="No broker is set as the default for alert search">
                   <span>
-                    <Button primary size="small" disabled>
+                    <Button
+                      secondary
+                      size="small"
+                      disabled
+                      endIcon={<SearchIcon />}
+                    >
                       Search alerts
                     </Button>
                   </span>
                 </Tooltip>
               )}
-              <div>
+              <Tooltip title="Finding chart, observability and starlist">
                 <Button
-                  aria-controls={openFindingChart ? "basic-menu" : undefined}
+                  secondary
+                  size="small"
+                  endIcon={<ExpandMoreIcon />}
                   aria-haspopup="true"
-                  aria-expanded={openFindingChart ? "true" : undefined}
-                  onClick={(e: any) => setAnchorElFindingChart(e.currentTarget)}
-                  secondary
-                  size="small"
+                  aria-expanded={Boolean(anchorElObserving)}
+                  onClick={(e: any) => setAnchorElObserving(e.currentTarget)}
                 >
-                  Finding Chart
+                  Observing
                 </Button>
-                <Menu
-                  transitionDuration={50}
-                  id="finding-chart-menu"
-                  anchorEl={anchorElFindingChart}
-                  open={openFindingChart}
-                  onClose={() => setAnchorElFindingChart(null)}
-                  slotProps={{
-                    list: {
-                      "aria-labelledby": "basic-button",
-                    },
-                  }}
+              </Tooltip>
+              <Menu
+                transitionDuration={50}
+                anchorEl={anchorElObserving}
+                open={Boolean(anchorElObserving)}
+                onClose={() => setAnchorElObserving(null)}
+                slotProps={{ list: { dense: true } }}
+              >
+                <MenuItem
+                  component={Link}
+                  to={`/source/${source.id}/finder`}
+                  target="_blank"
+                  onClick={() => setAnchorElObserving(null)}
                 >
-                  <MenuItem
-                    component="a"
-                    href={`/api/sources/${source.id}/finder`}
-                    download="finder-chart"
-                    className={classes.dropdownText}
-                    onClick={() => setAnchorElFindingChart(null)}
-                  >
-                    PDF
-                  </MenuItem>
-                  <MenuItem onClick={() => setAnchorElFindingChart(null)}>
-                    <Link
-                      to={`/source/${source.id}/finder`}
-                      role="link"
-                      className={classes.dropdownText}
-                      target="_blank"
-                    >
-                      Interactive
-                    </Link>
-                  </MenuItem>
-                </Menu>
-              </div>
-              <div>
-                <Button
-                  secondary
-                  size="small"
-                  onClick={() => setShowStarList(!showStarList)}
+                  <ListItemIcon>
+                    <ImageOutlinedIcon fontSize="small" />
+                  </ListItemIcon>
+                  Finding chart
+                </MenuItem>
+                <MenuItem
+                  component="a"
+                  href={`/api/sources/${source.id}/finder`}
+                  download="finder-chart"
+                  onClick={() => setAnchorElObserving(null)}
                 >
-                  {showStarList ? "Hide Starlist" : "Show Starlist"}
-                </Button>
-              </div>
-              <div>
-                <Button
-                  aria-controls={openObservability ? "basic-menu" : undefined}
-                  aria-haspopup="true"
-                  aria-expanded={openObservability ? "true" : undefined}
-                  onClick={(e: any) =>
-                    setAnchorElObservability(e.currentTarget)
-                  }
-                  secondary
-                  size="small"
+                  <ListItemIcon>
+                    <PictureAsPdfOutlinedIcon fontSize="small" />
+                  </ListItemIcon>
+                  Finding chart PDF
+                </MenuItem>
+                <Divider />
+                <MenuItem
+                  component={Link}
+                  to={`/observability/${source.id}`}
+                  target="_blank"
+                  onClick={() => setAnchorElObserving(null)}
                 >
+                  <ListItemIcon>
+                    <ShowChartOutlinedIcon fontSize="small" />
+                  </ListItemIcon>
                   Observability
-                </Button>
-                <Menu
-                  transitionDuration={50}
-                  id="observability-chart-menu"
-                  anchorEl={anchorElObservability}
-                  open={openObservability}
-                  onClose={() => setAnchorElObservability(null)}
-                  slotProps={{
-                    list: {
-                      "aria-labelledby": "basic-button",
-                    },
+                </MenuItem>
+                <MenuItem
+                  component="a"
+                  href={`/api/sources/${source.id}/observability`}
+                  download={`observabilityChartRequest-${source.id}`}
+                  data-testid={`observabilityChartRequest_${source.id}`}
+                  onClick={() => setAnchorElObserving(null)}
+                >
+                  <ListItemIcon>
+                    <PictureAsPdfOutlinedIcon fontSize="small" />
+                  </ListItemIcon>
+                  Observability PDF
+                </MenuItem>
+                <Divider />
+                <MenuItem
+                  onClick={() => {
+                    setShowStarList(!showStarList);
+                    setAnchorElObserving(null);
                   }}
                 >
-                  <MenuItem
-                    component="a"
-                    href={`/api/sources/${source.id}/observability`}
-                    download={`observabilityChartRequest-${source.id}`}
-                    data-testid={`observabilityChartRequest_${source.id}`}
-                    className={classes.dropdownText}
-                    onClick={() => setAnchorElObservability(null)}
-                  >
-                    PDF
-                  </MenuItem>
-                  <MenuItem onClick={() => setAnchorElObservability(null)}>
-                    <Link
-                      to={`/observability/${source.id}`}
-                      role="link"
-                      className={classes.dropdownText}
-                      target="_blank"
-                    >
-                      Interactive
-                    </Link>
-                  </MenuItem>
-                </Menu>
-              </div>
+                  <ListItemIcon>
+                    <FormatListBulletedOutlinedIcon fontSize="small" />
+                  </ListItemIcon>
+                  {showStarList ? "Hide starlist" : "Show starlist"}
+                </MenuItem>
+              </Menu>
               {!isReadOnly && (
                 <>
-                  <Button
-                    onClick={() => setSendToDialogOpen(true)}
-                    secondary
-                    size="small"
+                  <Tooltip title="Send to a service or make public">
+                    <Button
+                      secondary
+                      size="small"
+                      endIcon={<ExpandMoreIcon />}
+                      aria-haspopup="true"
+                      aria-expanded={Boolean(anchorElShare)}
+                      onClick={(e: any) => setAnchorElShare(e.currentTarget)}
+                    >
+                      Share
+                    </Button>
+                  </Tooltip>
+                  <Menu
+                    transitionDuration={50}
+                    anchorEl={anchorElShare}
+                    open={Boolean(anchorElShare)}
+                    onClose={() => setAnchorElShare(null)}
+                    slotProps={{ list: { dense: true } }}
                   >
-                    Send to
-                  </Button>
+                    <MenuItem
+                      onClick={() => {
+                        setSendToDialogOpen(true);
+                        setAnchorElShare(null);
+                      }}
+                    >
+                      <ListItemIcon>
+                        <SendOutlinedIcon fontSize="small" />
+                      </ListItemIcon>
+                      Send to
+                    </MenuItem>
+                    <MenuItem
+                      onClick={() => {
+                        setPublishDialogOpen(true);
+                        setAnchorElShare(null);
+                      }}
+                    >
+                      <ListItemIcon>
+                        <PublicOutlinedIcon fontSize="small" />
+                      </ListItemIcon>
+                      Public access
+                    </MenuItem>
+                  </Menu>
                   <SharingServicesDialog
                     obj_id={source.id}
                     dialogOpen={sendToDialogOpen}
                     setDialogOpen={setSendToDialogOpen}
+                  />
+                  <SourcePublish
+                    sourceId={source.id}
+                    isElements={{
+                      summary: source.summary_history?.length > 0,
+                      photometry: source.photometry_exists,
+                      spectroscopy: source.spectrum_exists,
+                      classifications: source.classifications?.length > 0,
+                    }}
+                    open={publishDialogOpen}
+                    onClose={() => setPublishDialogOpen(false)}
                   />
                 </>
               )}
@@ -1162,151 +1113,129 @@ const SourceContent = ({ source }: SourceContentProps) => {
                 />
               )}
               {!isReadOnly && (
-                <SourcePublish
-                  sourceId={source.id}
-                  isElements={{
-                    summary: source.summary_history?.length > 0,
-                    photometry: source.photometry_exists,
-                    spectroscopy: source.spectrum_exists,
-                    classifications: source.classifications?.length > 0,
-                  }}
-                />
-              )}
-              {!isReadOnly && (
                 <SourceInterests
                   sourceID={source.id}
                   onDiscuss={() => commentPanel.openChannel(INTERESTED_CHANNEL)}
                 />
               )}
               {!isReadOnly && <RequestDataAccess sourceID={source.id} />}
-            </div>
+            </Box>
             {showStarList && <StarList sourceId={source.id} />}
             {/* checking if the id exists is a way to know if the user profile is loaded or not */}
             {currentUser?.id &&
               !currentUser?.preferences?.["hideSourceSummary"] && (
-                <Paper
-                  className={classes.flexColumn}
-                  style={{
-                    marginTop: "0.5rem",
-                    padding: noSummary
-                      ? "0.5rem 0 0.5rem 0.5rem"
-                      : "0.25rem 0.25rem 0 0.25rem",
-                  }}
-                  variant={(noSummary ? "contained" : "outlined") as any}
-                  elevation={noSummary ? 1 : 0}
+                <Box
+                  sx={(theme) => ({
+                    display: "flex",
+                    alignItems: "flex-start",
+                    gap: 1,
+                    mt: 0.75,
+                    py: 1,
+                    pl: 1.5,
+                    pr: 0.5,
+                    borderRadius: "8px",
+                    bgcolor: alpha(theme.palette.text.primary, 0.035),
+                  })}
                 >
-                  <ShowSummaries
-                    summaries={source.summary_history || []}
-                    showAISummaries={
-                      (currentUser?.preferences?.["showAISourceSummary"] ||
-                        false) as any
-                    }
-                  />
-                  <div
-                    className={classes.flexRow}
-                    style={{
-                      justifyContent: noSummary ? "space-between" : "flex-end",
-                      alignItems: "center",
-                      maxHeight: "1rem",
-                      width: "100%",
-                    }}
-                  >
-                    {noSummary ? (
-                      <p
-                        className={classes.noSpace}
-                        style={{
-                          fontSize: "0.75rem",
-                          color: "grey",
-                          marginRight: "0.25rem",
-                        }}
-                      >
-                        {`No${noHumanSummary ? " (human) " : " "}summary yet.`}
-                      </p>
-                    ) : null}
-                    <div
-                      className={classes.flexRow}
-                      style={{
-                        alignItems: "center",
-                        width: "auto",
-                        marginTop: noSummary ? "0.25rem" : 0,
+                  <Box sx={{ flex: 1, minWidth: 0 }}>
+                    <Box
+                      sx={{
+                        fontSize: "0.65rem",
+                        fontWeight: 600,
+                        letterSpacing: "0.06em",
+                        textTransform: "uppercase",
+                        color: "text.secondary",
+                        mb: 0.25,
                       }}
                     >
-                      {!isReadOnly && (
-                        <UpdateSourceSummary
-                          source={source}
+                      Summary
+                    </Box>
+                    {noSummary ? (
+                      <Box
+                        sx={{
+                          fontSize: "0.85rem",
+                          fontStyle: "italic",
+                          color: "text.secondary",
+                        }}
+                      >
+                        {`No${noHumanSummary ? " human" : ""} summary yet`}
+                      </Box>
+                    ) : (
+                      <Box
+                        sx={{
+                          "& p": { fontSize: "0.9rem", lineHeight: 1.5 },
+                          "& > div > div": { p: 0 },
+                        }}
+                      >
+                        <ShowSummaries
+                          summaries={source.summary_history || []}
                           showAISummaries={
                             (currentUser?.preferences?.[
                               "showAISourceSummary"
                             ] || false) as any
                           }
                         />
-                      )}
-                      {!isReadOnly &&
-                        (source.comments?.length > 0 ||
-                          source.classifications?.length > 0) && (
-                          <StartBotSummary obj_id={source.id} />
-                        )}
-                      {source.summary_history?.length > 0 && (
-                        <ShowSummaryHistory
-                          summaries={source.summary_history}
-                          obj_id={source.id}
-                        />
-                      )}
-                    </div>
-                  </div>
-                </Paper>
-              )}
-            <div
-              className={classes.flexRow}
-              style={{
-                justifyContent: "flex-start",
-                alignItems: "center",
-                flexFlow: "wrap",
-                gap: "0.5rem",
-                padding: "0.25rem 0",
-              }}
-            >
-              <div
-                className={classes.flexRow}
-                style={{
-                  alignItems: "center",
-                  flexFlow: "wrap",
-                  gap: "0.25rem",
-                  width: "auto",
-                }}
-              >
-                <SavedGroupChips groups={source.groups ?? []} max={5} />
-              </div>
-              <div
-                className={classes.flexRow}
-                style={{
-                  alignItems: "center",
-                  flexFlow: "wrap",
-                  gap: "0.5rem",
-                  flex: "1 1 auto",
-                  width: "auto",
-                }}
-              >
-                {!isReadOnly && (
-                  <EditSourceGroups
-                    source={{
-                      id: source.id,
-                      currentGroupIds: source.groups?.map((g: any) => g.id),
+                      </Box>
+                    )}
+                  </Box>
+                  <Box
+                    sx={{
+                      display: "flex",
+                      alignItems: "center",
+                      flexShrink: 0,
                     }}
-                    groups={groups}
-                  />
-                )}
-                {!isReadOnly && (
-                  <QuickSaveButtons
-                    sourceId={source.id}
-                    alreadySavedGroups={source.groups?.map((g: any) => g.id)}
-                  />
-                )}
-                <div style={{ marginLeft: "auto" }}>
-                  <SourceSaveHistory groups={source.groups} />
-                </div>
-              </div>
-            </div>
+                  >
+                    {!isReadOnly && (
+                      <UpdateSourceSummary
+                        source={source}
+                        showAISummaries={
+                          (currentUser?.preferences?.["showAISourceSummary"] ||
+                            false) as any
+                        }
+                      />
+                    )}
+                    {!isReadOnly &&
+                      (source.comments?.length > 0 ||
+                        source.classifications?.length > 0) && (
+                        <StartBotSummary obj_id={source.id} />
+                      )}
+                    {source.summary_history?.length > 0 && (
+                      <ShowSummaryHistory
+                        summaries={source.summary_history}
+                        obj_id={source.id}
+                      />
+                    )}
+                  </Box>
+                </Box>
+              )}
+            <Box
+              sx={(theme) => ({
+                ...softButtonsSx(theme),
+                display: "flex",
+                flexWrap: "wrap",
+                alignItems: "center",
+                gap: 0.75,
+                py: 0.5,
+              })}
+            >
+              <SavedGroupChips groups={source.groups ?? []} max={5} />
+              {!isReadOnly && (
+                <EditSourceGroups
+                  source={{
+                    id: source.id,
+                    currentGroupIds: source.groups?.map((g: any) => g.id),
+                  }}
+                  groups={groups}
+                />
+              )}
+              {!isReadOnly && (
+                <QuickSaveButtons
+                  sourceId={source.id}
+                  alreadySavedGroups={source.groups?.map((g: any) => g.id)}
+                />
+              )}
+              <SourceSaveHistory groups={source.groups} />
+            </Box>
             <ThumbnailList
               ra={source.ra}
               dec={source.dec}
@@ -1588,6 +1517,7 @@ const SourceContent = ({ source }: SourceContentProps) => {
                     obj_id={source.id}
                     instrumentList={instrumentList}
                     instrumentFormParams={instrumentFormParams}
+                    vlaRubinAlert={source.vla_rubin_alert}
                     {...({ action: "createNew" } as any)}
                   />
                 )}

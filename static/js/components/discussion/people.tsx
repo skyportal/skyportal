@@ -11,6 +11,7 @@ import Typography from "@mui/material/Typography";
 import UserAvatar, { getUserRealName } from "../user/UserAvatar";
 import { useGetProfileQuery } from "../../ducks/profile";
 import { useGetUsersQuery } from "../../ducks/users";
+import { searchFieldSx } from "../comment/chatStyles";
 
 export interface Person {
   id: number;
@@ -60,9 +61,9 @@ export const SearchField = ({
     placeholder={placeholder}
     value={value}
     onChange={(event) => onChange(event.target.value)}
+    sx={searchFieldSx}
     slotProps={{
       input: {
-        sx: { borderRadius: 3, backgroundColor: "background.paper" },
         startAdornment: (
           <InputAdornment position="start">
             <SearchIcon />

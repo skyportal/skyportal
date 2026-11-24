@@ -69,6 +69,7 @@ const ALERT_COLLECTIONS: Record<string, string> = {
   LSST: "LSST_alerts",
   DECAM: "DECAM_alerts",
   ARGUS: "ARGUS_alerts",
+  ASKAP: "ASKAP_alerts",
 };
 
 const useStyles = makeStyles()((_theme) => ({

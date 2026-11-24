@@ -58,6 +58,7 @@ const toCatalogSources = (geojson: any) =>
     A.source(normRa(d.geometry.coordinates[0]), d.geometry.coordinates[1], {
       name: d.properties?.name,
       url: d.properties?.url,
+      color: d.properties?.color,
     }),
   );
 
@@ -103,6 +104,25 @@ const fovForContour = (contour: any) => {
   return Math.min(180, Math.max(2, 1.6 * size));
 };
 
+const viewAround = (
+  [ra0, dec0]: [number, number],
+  points: [number, number][],
+  minFov: number,
+) => {
+  const xs = [0, ...points.map(([ra]) => ((ra - ra0 + 540) % 360) - 180)];
+  const ys = [dec0, ...points.map(([, dec]) => dec)];
+  const dec = (Math.max(...ys) + Math.min(...ys)) / 2;
+  const cosDec = Math.cos((dec * Math.PI) / 180);
+  return {
+    ra: normRa(ra0 + (Math.max(...xs) + Math.min(...xs)) / 2),
+    dec,
+    fov: Math.min(
+      180,
+      Math.max(minFov, 1.3 * Math.max(span(xs) * cosDec, span(ys))),
+    ),
+  };
+};
+
 interface LocalizationPlotProps {
   localization?: any;
   sources?: any;
@@ -129,6 +149,7 @@ interface LocalizationPlotProps {
   selectedObservations?: number[];
   setSelectedObservations?: (observations: number[]) => void;
   projection?: string | undefined;
+  fitSources?: boolean;
 }
 
 const AladinGlobe = ({
@@ -146,8 +167,14 @@ const AladinGlobe = ({
   selectedObservations = [],
   setSelectedObservations = () => {},
   projection = "orthographic",
+  fitSources = false,
 }: LocalizationPlotProps) => {
   const skymap = localization.contour;
+  const sourcePositions = fitSources
+    ? JSON.stringify(
+        (sources?.features ?? []).map((f: any) => f.geometry.coordinates),
+      )
+    : "[]";
   const containerRef = useRef<HTMLDivElement | null>(null);
   const aladinRef = useRef<any>(null);
   const layers = useRef<any>({});
@@ -212,7 +239,7 @@ const AladinGlobe = ({
           fields: overlay("fields", "blue"),
           observations: overlay("observations", "blue"),
           galacticPlane: overlay("galactic plane", "magenta"),
-          // Before setReady: show()/hide() on a MOC not yet registered throws in the WASM core.
+          // Aladin adds the MOC asynchronously; show()/hide() before that throws.
           sunExclusion: A.MOCFromCone(
             { ...sunPosition(new Date()), radius: 50 },
             {
@@ -220,6 +247,9 @@ const AladinGlobe = ({
               color: "yellow",
               fill: true,
               opacity: 0.15,
+            },
+            () => {
+              if (!cancelled) setReady(true);
             },
           ),
           markers: catalog({
@@ -231,7 +261,7 @@ const AladinGlobe = ({
           sources: catalog({
             name: "sources",
             shape: "circle",
-            color: "red",
+            color: (source: any) => source.data?.color ?? "red",
             sourceSize: 8,
             onClick: "showPopup",
           }),
@@ -265,7 +295,6 @@ const AladinGlobe = ({
         aladin.on("objectClicked", (obj: any) => {
           if (obj?.data?.url) window.open(obj.data.url, "_blank", "noopener");
         });
-        setReady(true);
       })
       .catch(() => {});
     return () => {
@@ -293,8 +322,8 @@ const AladinGlobe = ({
     if (!options.localization) return;
     const [center, region50, region90] = skymap.features ?? [];
     contour.addFootprints([
-      ...featurePolygons(region90, { color: "black", lineWidth: 2 }),
-      ...featurePolygons(region50, { color: "grey", lineWidth: 2 }),
+      ...featurePolygons(region90, { color: "white", lineWidth: 2 }),
+      ...featurePolygons(region50, { color: "#ffd54f", lineWidth: 2 }),
     ]);
     const coords = center?.geometry?.coordinates;
     if (coords) {
@@ -373,6 +402,18 @@ const AladinGlobe = ({
       layers.current.sources.addSources(toCatalogSources(sources));
     }
   }, [ready, sources, options.sources]);
+
+  useEffect(() => {
+    const center = skymap.features?.[0]?.geometry?.coordinates;
+    const points = [
+      ...JSON.parse(sourcePositions),
+      ...ringsOf(skymap.features?.[2]).flat(),
+    ];
+    if (!ready || !fitSources || !center || !points.length) return;
+    const { ra, dec, fov } = viewAround(center, points, fovForContour(skymap));
+    aladinRef.current?.gotoRaDec(ra, dec);
+    aladinRef.current?.setFoV(fov);
+  }, [ready, fitSources, skymap, sourcePositions]);
 
   useEffect(() => {
     if (!ready) return;

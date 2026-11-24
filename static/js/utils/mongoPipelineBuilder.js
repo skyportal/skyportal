@@ -948,6 +948,13 @@ const buildListDependencies = (
           normalizedValue;
         if (mapExpr) {
           collectDollarRefs(mapExpr).forEach((varName) => {
+            if (
+              fieldOptions.some(
+                (f) => f.value === varName || f.label === varName,
+              )
+            ) {
+              deps.add(varName);
+            }
             if (customVariables.some((v) => v.name === varName)) {
               deps.add(varName);
             }
@@ -989,6 +996,11 @@ const buildListDependencies = (
 
         // Also scan for direct MongoDB expression references
         collectDollarRefs(condition.value).forEach((varName) => {
+          if (
+            fieldOptions.some((f) => f.value === varName || f.label === varName)
+          ) {
+            deps.add(varName);
+          }
           if (customVariables.some((v) => v.name === varName)) {
             deps.add(varName);
           }
@@ -1413,13 +1425,12 @@ const buildInitialProjectStage = (
   const project = { objectId: 1, "candidate.jd": 1 };
 
   // Add base fields only - computed variables will be added in separate $addFields stages
-  // Filter out redundant parent paths when children are projected (e.g., exclude "prv_candidates" if "prv_candidates.isdiffpos" is projected)
+  // Drop child paths whose parent is projected: the parent already carries them (e.g., exclude "prv_candidates.isdiffpos" if "prv_candidates" is projected)
   const baseFieldsArray = Array.from(dependencyGraph.usedFields.baseFields);
   const fieldsToProject = baseFieldsArray.filter((field) => {
-    // Check if any other field is a child of this field
-    // If this field has children being projected, exclude this parent path
+    // Exclude this path if its parent is also being projected
     return !baseFieldsArray.some((otherField) => {
-      return otherField !== field && otherField.startsWith(`${field}.`);
+      return otherField !== field && field.startsWith(`${otherField}.`);
     });
   });
 
@@ -1469,19 +1480,19 @@ const buildInitialProjectStage = (
   // Note: Level 0 list variables and switch cases are now added via $addFields
   // in buildVariableStagesByLevel to ensure proper stage separation
 
-  // Final pass: Remove parent paths if any of their children are in the project
+  // Final pass: Remove child paths whose parent is in the project
   // This handles cases where dependencies might conflict with already projected fields
   const allProjectedFields = Object.keys(project);
   const filteredProject = {};
 
   allProjectedFields.forEach((field) => {
-    // Check if any other projected field is a child of this field
-    const hasChildProjected = allProjectedFields.some((otherField) => {
-      return otherField !== field && otherField.startsWith(`${field}.`);
+    // Check if any other projected field is a parent of this field
+    const hasParentProjected = allProjectedFields.some((otherField) => {
+      return otherField !== field && field.startsWith(`${otherField}.`);
     });
 
-    // Only add this field if it doesn't have children being projected
-    if (!hasChildProjected) {
+    // Only add this field if its parent is not being projected
+    if (!hasParentProjected) {
       filteredProject[field] = project[field];
     }
   });
@@ -2545,7 +2556,12 @@ const convertSwitchExpression = (
   const branches = [];
 
   switchValue.cases.forEach((caseItem, index) => {
-    if (caseItem.block && caseItem.then) {
+    if (
+      caseItem.block &&
+      caseItem.then !== undefined &&
+      caseItem.then !== null &&
+      caseItem.then !== ""
+    ) {
       let condition = convertBlockToMongoExpr(
         caseItem.block,
         null, // dependencyGraph not available in switch expression context
@@ -2891,18 +2907,13 @@ const convertBlockToMongoExpr = (
   // Handle blocks with isTrue === false (inverted logic)
   // For custom blocks defined as variables (usage.count >= 2), this is already handled above
   if (block.isTrue === false) {
-    // For custom blocks, only apply $nor if NOT defined as a variable (used < 2 times)
-    if (block.customBlockName) {
-      const usage = dependencyGraph?.customBlockUsage?.get(
-        block.customBlockName,
-      );
-      if (!usage || usage.count < 2) {
-        // Wrap the result in $nor to invert the logic
-        return { $nor: [result] };
-      }
-    } else {
-      // For non-custom blocks, always apply $nor to invert the logic
-      return { $nor: [result] };
+    const usage = block.customBlockName
+      ? dependencyGraph?.customBlockUsage?.get(block.customBlockName)
+      : null;
+    if (!usage || usage.count < 2) {
+      return expressionContext || arrayField
+        ? { $not: [unwrapExprForAggregation(result)] }
+        : { $nor: [result] };
     }
   }
 
@@ -2977,7 +2988,7 @@ const convertConditionToMongoExpr = (
             subFieldOptions,
             condition,
             dependencyGraph,
-            expressionContext,
+            expressionContext || !!arrayField,
           );
         }
         break;
@@ -3000,7 +3011,7 @@ const convertConditionToMongoExpr = (
             switchVar,
             operator,
             value,
-            expressionContext,
+            expressionContext || !!arrayField,
           );
         }
         break;
@@ -3039,7 +3050,7 @@ const convertConditionToMongoExpr = (
           switchVar,
           operator,
           value,
-          expressionContext,
+          expressionContext || !!arrayField,
         );
       }
     }
@@ -3059,7 +3070,7 @@ const convertConditionToMongoExpr = (
           subFieldOptions,
           condition,
           dependencyGraph,
-          expressionContext,
+          expressionContext || !!arrayField,
         );
       }
     }
@@ -3110,7 +3121,7 @@ const convertConditionToMongoExpr = (
       null,
       condition,
       dependencyGraph,
-      expressionContext,
+      expressionContext || !!arrayField,
     );
   }
 
@@ -3153,7 +3164,7 @@ const convertConditionToMongoExpr = (
       switchVar,
       operator,
       value,
-      expressionContext,
+      expressionContext || !!arrayField,
     );
   }
 

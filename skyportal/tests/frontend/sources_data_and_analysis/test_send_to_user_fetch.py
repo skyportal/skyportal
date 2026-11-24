@@ -24,8 +24,8 @@ def test_a_source_page_never_fetches_the_full_user_list(
 
     # The button existing means the sharing dialog is mounted -- the point at
     # which it used to fetch every user.
-    send_to = page.locator('//button[normalize-space(text())="Send to"]').first
-    expect(send_to).to_be_visible()
+    share = page.locator('//button[normalize-space(text())="Share"]').first
+    expect(share).to_be_visible()
 
     for url in user_list_requests(requested):
         assert "slim=true" in url, f"source page fetched the full user list: {url}"
@@ -40,8 +40,8 @@ def test_the_sharing_dialog_fetches_users_only_when_opened(
 
     page.goto(f"/become_user/{super_admin_user.id}")
     page.goto(f"/source/{public_source.id}")
-    send_to = page.locator('//button[normalize-space(text())="Send to"]').first
-    expect(send_to).to_be_visible()
+    share = page.locator('//button[normalize-space(text())="Share"]').first
+    expect(share).to_be_visible()
 
     assert [u for u in user_list_requests(requested) if "slim=true" not in u] == [], (
         "the full user list was fetched before the dialog was opened"
@@ -56,4 +56,5 @@ def test_the_sharing_dialog_fetches_users_only_when_opened(
         ),
         timeout=30000,
     ):
-        send_to.click()
+        share.click()
+        page.get_by_role("menuitem", name="Send to").click()

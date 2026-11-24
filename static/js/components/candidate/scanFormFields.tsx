@@ -19,6 +19,13 @@ import FormValidationError from "../FormValidationError";
 import SearchableSelect from "../SearchableSelect";
 import type { SearchableSelectProps } from "../SearchableSelect";
 
+export type ScanView = "objects" | "moving";
+
+export const scanViewOptions: { value: ScanView; label: string }[] = [
+  { value: "objects", label: "All candidates" },
+  { value: "moving", label: "Moving objects" },
+];
+
 export const savedStatusSelectOptions = [
   { value: "all", label: "regardless of saved status" },
   { value: "savedToAllSelected", label: "saved to all selected groups" },

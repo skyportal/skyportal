@@ -27,6 +27,7 @@ import {
   gcnNumberFields,
   savedStatusSelectOptions,
   scanFilters,
+  scanViewOptions,
   sortingOrderLabels,
   twoColumns,
   useScanGroups,
@@ -50,6 +51,7 @@ const profileValues = (profile: any) => ({
   savedStatus: profile?.savedStatus ?? "all",
   savedGroupIDs: profile?.savedGroupIDs ?? [],
   rejectedStatus: profile?.rejectedStatus ?? "show",
+  scanView: profile?.scanView ?? "objects",
   redshiftMinimum: profile?.redshiftMinimum ?? "",
   redshiftMaximum: profile?.redshiftMaximum ?? "",
   ...Object.fromEntries(
@@ -134,6 +136,7 @@ const CandidatesPreferencesForm = ({
       savedStatus: formData.savedStatus,
       ...(showSavedGroups && savedGroupIDs.length > 0 ? { savedGroupIDs } : {}),
       rejectedStatus: formData.rejectedStatus,
+      ...(formData.scanView === "moving" ? { scanView: "moving" } : {}),
       default: editingProfile ? editingProfile.default : true,
     };
     optionalFields.forEach((key) => {
@@ -194,6 +197,20 @@ const CandidatesPreferencesForm = ({
             slotProps={{ htmlInput: { step: 1, min: 1 } }}
             sx={{ width: 150 }}
           />
+          <FormTextField
+            select
+            name="scanView"
+            control={control}
+            label="Opens on"
+            data-testid="profileScanView"
+            sx={{ width: 180 }}
+          >
+            {scanViewOptions.map((option) => (
+              <MenuItem key={option.value} value={option.value}>
+                {option.label}
+              </MenuItem>
+            ))}
+          </FormTextField>
         </Box>
         <Box
           sx={{ display: "flex", flexWrap: "wrap", columnGap: 3, rowGap: 1.5 }}

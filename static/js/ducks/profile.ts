@@ -178,6 +178,9 @@ export const profileApi = skyportalApi.injectEndpoints({
       }),
       invalidatesTags: ["Profile"],
     }),
+    createTelegramLink: build.mutation<{ url: string }, void>({
+      query: () => ({ url: "api/internal/telegram_link", method: "POST" }),
+    }),
     deleteLogin: build.mutation<unknown, number>({
       query: (loginID) => ({
         url: `api/internal/profile/logins/${loginID}`,
@@ -200,6 +203,7 @@ export const {
   useCreateTokenMutation,
   useUpdateTokenMutation,
   useDeleteTokenMutation,
+  useCreateTelegramLinkMutation,
   useDeleteLoginMutation,
 } = profileApi;
 

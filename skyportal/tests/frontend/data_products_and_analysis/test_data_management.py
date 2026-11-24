@@ -40,8 +40,4 @@ def test_delete_spectrum(page, public_source):
     page.locator(delete_button_xpath).first.click()
     page.locator("//*[@data-testid='confirmDeletetionButton']").first.click()
 
-    expect(
-        page.locator(
-            '//*[@data-testid="spectrum-table"]//div[@data-rowindex="1"]'
-        ).first
-    ).to_be_hidden()
+    expect(page.locator(delete_button_xpath)).to_have_count(0)

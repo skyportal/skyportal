@@ -29,6 +29,7 @@ from skyportal.handlers.api import (
     AssistantMessageHandler,
     AssistantQueryHandler,
     AssistantQuerySubscriptionHandler,
+    AssistantUsageHandler,
     BrokerAlertsHandler,
     BrokerAPIsHandler,
     BrokerConeSearchHandler,
@@ -304,6 +305,7 @@ from skyportal.handlers.api.internal import (
     SourceSaverHandler,
     SourceViewsHandler,
     StandardsHandler,
+    TelegramLinkHandler,
     TokenHandler,
 )
 from skyportal.handlers.mcp import MCPHandler
@@ -753,6 +755,7 @@ skyportal_handlers = [
     (r"/api/config", ConfigHandler),
     (r"/api/assistant/conversations", AssistantConversationHandler),
     (r"/api/assistant/messages", AssistantMessageHandler),
+    (r"/api/assistant/usage", AssistantUsageHandler),
     (r"/api/assistant_queries(/[0-9]+)?", AssistantQueryHandler),
     (
         r"/api/assistant_queries/([0-9]+)/subscription",
@@ -835,6 +838,7 @@ skyportal_handlers = [
     (r"/api/internal/notifications(/[0-9]+)?", NotificationHandler),
     (r"/api/internal/notifications/all", BulkNotificationHandler),
     (r"/api/internal/notifications_test(/[0-9]+)?", NotificationTestHandler),
+    (r"/api/internal/telegram_link", TelegramLinkHandler),
     (r"/api/internal/survey_thumbnail", SurveyThumbnailHandler),
     (r"/api/internal/recent_gcn_events", RecentGcnEventsHandler),
     (r"/api/internal/recent_gcn_extractions", RecentGcnExtractionsHandler),

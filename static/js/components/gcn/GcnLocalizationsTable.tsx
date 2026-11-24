@@ -6,6 +6,8 @@ import Link from "@mui/material/Link";
 import Tooltip from "@mui/material/Tooltip";
 import Typography from "@mui/material/Typography";
 import DeleteIcon from "@mui/icons-material/DeleteOutlineOutlined";
+import StarIcon from "@mui/icons-material/Star";
+import StarBorderIcon from "@mui/icons-material/StarBorder";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 
@@ -16,6 +18,7 @@ import StyledDataGrid, { DataGridToolbar } from "../StyledDataGrid";
 import ConfirmDeletionDialog from "../ConfirmDeletionDialog";
 import { dec_to_dms, ra_to_hours } from "../../units";
 import { useDeleteLocalizationMutation } from "../../ducks/localization";
+import { useFavoriteLocalizations } from "./favoriteLocalizations";
 
 dayjs.extend(utc);
 
@@ -28,12 +31,14 @@ const GcnLocalizationsTable = ({
 }: GcnLocalizationsTableProps) => {
   const dispatch = useAppDispatch();
   const [deleteLocalizationMutation] = useDeleteLocalizationMutation();
+  const { isFavorite, toggleFavorite, removeFavorite } =
+    useFavoriteLocalizations();
 
   const [dialogOpen, setDialogOpen] = useState(false);
   const [localizationToDelete, setLocalizationToDelete] = useState<any>(null);
-  const openDialog = (dateobs: any, name: any) => {
+  const openDialog = (id: number, dateobs: any, name: any) => {
     setDialogOpen(true);
-    setLocalizationToDelete({ dateobs, name });
+    setLocalizationToDelete({ id, dateobs, name });
   };
   const closeDialog = () => {
     setDialogOpen(false);
@@ -47,6 +52,8 @@ const GcnLocalizationsTable = ({
         localization_name: localizationToDelete.name,
       }).unwrap();
       dispatch(showNotification("Localization deleted"));
+      if (isFavorite(localizationToDelete.id))
+        removeFavorite(localizationToDelete.id);
       closeDialog();
     } catch {
       // error notification handled by the baseQuery
@@ -154,13 +161,38 @@ const GcnLocalizationsTable = ({
     );
   };
 
+  const renderFavorite = ({ row }: any) => {
+    const favorite = isFavorite(row.id);
+    return (
+      <Tooltip
+        title={
+          favorite
+            ? "Remove from favorite skymaps"
+            : "Add to favorite skymaps (selectable when scanning)"
+        }
+      >
+        <IconButton
+          size="small"
+          data-testid={`favorite_localization_${row.id}`}
+          onClick={() => toggleFavorite(row)}
+        >
+          {favorite ? (
+            <StarIcon fontSize="small" color="warning" />
+          ) : (
+            <StarBorderIcon fontSize="small" />
+          )}
+        </IconButton>
+      </Tooltip>
+    );
+  };
+
   const renderDelete = ({ row }: any) => (
     <Tooltip title="Delete localization">
       <IconButton
         id="delete_button"
         size="small"
         color="error"
-        onClick={() => openDialog(row.dateobs, row.localization_name)}
+        onClick={() => openDialog(row.id, row.dateobs, row.localization_name)}
       >
         <DeleteIcon fontSize="small" />
       </IconButton>
@@ -168,6 +200,13 @@ const GcnLocalizationsTable = ({
   );
 
   const columns: any[] = [
+    {
+      field: "favorite",
+      headerName: "",
+      width: 50,
+      sortable: false,
+      renderCell: renderFavorite,
+    },
     {
       field: "created_at",
       headerName: "Created at",

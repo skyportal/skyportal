@@ -14,9 +14,9 @@ on:
       frontend:
         description: "Frontend code changed (typecheck, frontend tests)"
         value: ${{ jobs.scope.outputs.frontend }}
-      backend:
-        description: "Backend code changed (API/external tests, model tests)"
-        value: ${{ jobs.scope.outputs.backend }}
+      models:
+        description: "Models or their test setup changed (model tests)"
+        value: ${{ jobs.scope.outputs.models }}
       docs:
         description: "API handlers or doc/ changed (docs build)"
         value: ${{ jobs.scope.outputs.docs }}
@@ -34,7 +34,7 @@ jobs:
       pull-requests: read
     outputs:
       frontend: ${{ steps.scope.outputs.frontend }}
-      backend: ${{ steps.scope.outputs.backend }}
+      models: ${{ steps.scope.outputs.models }}
       docs: ${{ steps.scope.outputs.docs }}
       test_subsets: ${{ steps.scope.outputs.test_subsets }}
     steps:
@@ -56,9 +56,8 @@ jobs:
               "api_and_utils_pt3",
               "api_and_utils_pt4",
               "api_and_utils_pt5",
-              "external",
           ]
-          FRONTEND_SUBSETS = [f"frontend_pt{i}" for i in range(1, 8)]
+          FRONTEND_SUBSETS = [f"frontend_pt{i}" for i in range(1, 7)]
 
           FRONTEND = [
               "static/**",
@@ -98,6 +97,21 @@ jobs:
               "RELEASE.txt",
               ".git-blame-ignore-revs",
               ".cursorrules",
+          ]
+          MODELS = [
+              "skyportal/models/**",
+              "skyportal/enum_types.py",
+              "skyportal/model_util.py",
+              "skyportal/tests/models/**",
+              "skyportal/tests/conftest.py",
+              "skyportal/tests/fixtures.py",
+              "skyportal/tests/test_util.py",
+              "baselayer",
+              "pyproject.toml",
+              "uv.lock",
+              "config.yaml.defaults",
+              "test_config.yaml",
+              "Makefile",
           ]
 
           def matches(path, patterns):
@@ -148,6 +162,9 @@ jobs:
           subsets = (API_SUBSETS if backend else []) + (
               FRONTEND_SUBSETS if frontend or backend else []
           )
+          if backend and (not pr or "run-all-tests" in labels):
+              subsets.append("external")
+          models = everything or any(matches(f, MODELS) for f in files)
           docs = (
               everything
               or "api" in labels
@@ -159,7 +176,7 @@ jobs:
 
           for key, value in [
               ("frontend", frontend),
-              ("backend", backend),
+              ("models", models),
               ("docs", docs),
           ]:
               print(f"{key}={str(value).lower()}")

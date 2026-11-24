@@ -215,6 +215,7 @@ def _normalize_fink_lsst(object_id, rows):
         prv.append(
             {
                 "jd": (mjd + 2400000.5) if mjd is not None else None,
+                "candid": r.get("r:diaSourceId"),
                 "psfFlux": r.get("r:psfFlux"),
                 "psfFluxErr": r.get("r:psfFluxErr"),
                 "band": r.get("r:band"),
@@ -473,6 +474,7 @@ class FINKBROKER(BrokerAPI):
             prv = [
                 {
                     "jd": (mjd + 2400000.5) if mjd is not None else None,
+                    "candid": src.get("diaSourceId"),
                     "band": src.get("band"),
                     "psfFlux": src.get("psfFlux"),  # nJy; shared save scales to Jy
                     "psfFluxErr": src.get("psfFluxErr"),

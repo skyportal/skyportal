@@ -36,10 +36,13 @@ export const Header = ({
       {icon}
     </Avatar>
     <Box sx={{ minWidth: 0 }}>
-      <Typography variant="h6" noWrap sx={{ lineHeight: 1.3 }}>
+      <Typography
+        noWrap
+        sx={{ fontSize: "1rem", fontWeight: 600, lineHeight: 1.4 }}
+      >
         {title}
       </Typography>
-      <Typography variant="body2" color="textSecondary" noWrap>
+      <Typography color="textSecondary" noWrap sx={{ fontSize: "0.8rem" }}>
         {subtitle}
       </Typography>
     </Box>

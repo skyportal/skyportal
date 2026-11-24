@@ -4,11 +4,9 @@ import type { Theme } from "@mui/material/styles";
 import Box from "@mui/material/Box";
 import Chip from "@mui/material/Chip";
 import CircularProgress from "@mui/material/CircularProgress";
-import FormControlLabel from "@mui/material/FormControlLabel";
 import IconButton from "@mui/material/IconButton";
 import MuiLink from "@mui/material/Link";
 import Paper from "@mui/material/Paper";
-import Switch from "@mui/material/Switch";
 import Tab from "@mui/material/Tab";
 import Tabs from "@mui/material/Tabs";
 import Tooltip from "@mui/material/Tooltip";
@@ -17,6 +15,7 @@ import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import ArrowDownward from "@mui/icons-material/ArrowDownward";
 import ArrowForwardIcon from "@mui/icons-material/ArrowForward";
 import ArrowUpward from "@mui/icons-material/ArrowUpward";
+import HelpOutlineIcon from "@mui/icons-material/HelpOutlineOutlined";
 import OpenInNewIcon from "@mui/icons-material/OpenInNew";
 import SortIcon from "@mui/icons-material/Sort";
 import { Link } from "react-router-dom";
@@ -45,6 +44,7 @@ import ThumbnailList from "../thumbnail/ThumbnailList";
 import EditSourceGroups from "../source/EditSourceGroups";
 import SavedGroupChips from "../group/SavedGroupChips";
 import UpdateSourceMPC from "../source/UpdateSourceMPC";
+import SourceGCNCrossmatchList from "../source/SourceGCNCrossmatchList";
 import DisplayPhotStats from "../source/DisplayPhotStats";
 import ObjectTags from "../ObjectTags";
 import RejectButton from "../RejectButton";
@@ -60,9 +60,12 @@ import FilterCandidateList from "./FilterCandidateList";
 import ScanningPageCandidateAnnotations from "./ScanningPageCandidateAnnotations";
 import AddClassificationsScanningPage from "./AddClassificationsScanningPage";
 import CandidatePlugins from "./CandidatePlugins";
+import CandidatesSkymap from "./CandidatesSkymap";
+import MovingObjectCandidate from "./MovingObjectCandidate";
 import GenerateReportForm from "./scan_reports/GenerateReportForm";
+import { scanViewOptions } from "./scanFormFields";
+import type { ScanView } from "./scanFormFields";
 
-const TrackScanner = lazy(() => import("../superobj/TrackScanner"));
 const CommentThread = lazy(() => import("../comment/CommentThread"));
 
 const numPerPage = 50;
@@ -105,9 +108,11 @@ const stackShadow = (theme: Theme, size: number) =>
 
 const InfoRow = ({
   label,
+  tooltip,
   children,
 }: {
   label: string;
+  tooltip?: string;
   children: ReactNode;
 }) => (
   <Box
@@ -119,6 +124,13 @@ const InfoRow = ({
     }}
   >
     <b>{label}</b>
+    {tooltip && (
+      <Tooltip title={tooltip}>
+        <HelpOutlineIcon
+          sx={{ fontSize: "0.8rem", color: "text.secondary", cursor: "help" }}
+        />
+      </Tooltip>
+    )}
     {children}
   </Box>
 );
@@ -379,6 +391,23 @@ const CandidateInfo = ({
           </a>
         </InfoRow>
       ))}
+      {candidate.gcn_matches?.length > 0 && (
+        <InfoRow
+          label="GCN matches:"
+          tooltip="Events this object was matched to by the GCN crossmatch or by hand"
+        >
+          <SourceGCNCrossmatchList
+            gcn_crossmatches={candidate.gcn_matches.map((m: any) => m.dateobs)}
+            source={candidate}
+            matchedLocalizations={Object.fromEntries(
+              candidate.gcn_matches.map((m: any) => [
+                m.dateobs.replace(" ", "T"),
+                m.localization_name,
+              ]),
+            )}
+          />
+        </InfoRow>
+      )}
       {candidate.last_detected_at && (
         <InfoRow label="Last detected:">
           <span>
@@ -570,12 +599,9 @@ const Candidate = ({
   );
 };
 
-type ScanMode = "objects" | "tracks";
-
 const CandidateList = () => {
   const dispatch = useAppDispatch();
-  const [scanMode, setScanMode] = useState<ScanMode>("objects");
-  const [onlyMultiEpoch, setOnlyMultiEpoch] = useState(true);
+  const [scanMode, setScanMode] = useState<ScanView>("objects");
   const [filterGroups, setFilterGroups] = useState<Group[]>([]);
   const [reportDialogOpen, setReportDialogOpen] = useState(false);
   const [searchParams, setSearchParams] = useState<Record<string, any> | null>(
@@ -592,9 +618,12 @@ const CandidateList = () => {
   );
   const [updateUserPreferences] = useUpdateUserPreferencesMutation();
 
-  const { data, isFetching } = useGetCandidatesQuery(searchParams ?? {}, {
-    skip: searchParams === null,
-  });
+  const { data, isFetching } = useGetCandidatesQuery(
+    scanMode === "moving"
+      ? { ...searchParams, movingObjects: true }
+      : (searchParams ?? {}),
+    { skip: searchParams === null },
+  );
   const {
     candidates = [],
     pageNumber = 1,
@@ -608,7 +637,7 @@ const CandidateList = () => {
     [candidates],
   );
   const { data: hosts } = useGetBrokerHostsQuery(candidateIds, {
-    skip: candidateIds.length === 0,
+    skip: candidateIds.length === 0 || scanMode === "moving",
   });
 
   useEffect(() => {
@@ -631,6 +660,13 @@ const CandidateList = () => {
     if (results && results.getBoundingClientRect().top < 0)
       results.scrollIntoView();
   }, [searchParams]);
+
+  const changeScanMode = (mode: ScanView) => {
+    if (mode === scanMode) return;
+    setScanMode(mode);
+    if (searchParams)
+      setSearchParams({ ...searchParams, pageNumber: 1, queryID: undefined });
+  };
 
   const goToPage = (page: number) => {
     dispatch(showNotification("Loading more candidates..."));
@@ -665,29 +701,6 @@ const CandidateList = () => {
         <Typography variant="h5" sx={{ fontWeight: "bold" }}>
           Scan candidates
         </Typography>
-        <SegmentedControl
-          value={scanMode}
-          onChange={setScanMode}
-          options={[
-            { value: "objects", label: "Sources" },
-            { value: "tracks", label: "Moving object tracks" },
-          ]}
-        />
-        {scanMode === "tracks" && (
-          <FormControlLabel
-            label="Multi-epoch only"
-            control={
-              <Switch
-                size="small"
-                checked={onlyMultiEpoch}
-                onChange={(e) => setOnlyMultiEpoch(e.target.checked)}
-              />
-            }
-            slotProps={{
-              typography: { variant: "body2", color: "text.secondary" },
-            }}
-          />
-        )}
         <Box sx={{ ml: "auto", display: "flex", gap: 1 }}>
           <Tooltip title="Generate a report of saved candidates">
             <Button
@@ -714,22 +727,12 @@ const CandidateList = () => {
           setDialogOpen={setReportDialogOpen}
         />
       </Box>
-      {scanMode === "tracks" && (
-        <Suspense fallback={<Spinner />}>
-          <TrackScanner
-            onlyMultiEpoch={onlyMultiEpoch}
-            setOnlyMultiEpoch={setOnlyMultiEpoch}
-          />
-        </Suspense>
-      )}
-      <Box
-        data-testid="tour-candidates-filter"
-        sx={{ display: scanMode === "tracks" ? "none" : undefined }}
-      >
+      <Box data-testid="tour-candidates-filter">
         <FilterCandidateList
           setFilterGroups={setFilterGroups}
           numPerPage={numPerPage}
           setSearchParams={setSearchParams}
+          setScanView={changeScanMode}
         />
         {searchParams ? (
           <Box ref={resultsRef} sx={{ mt: 1.5, scrollMarginTop: appBarHeight }}>
@@ -749,11 +752,26 @@ const CandidateList = () => {
                 gap: 1,
               }}
             >
-              <Typography variant="h6">
-                {isFetching
-                  ? "Searching..."
-                  : `Found ${totalMatches} candidates.`}
-              </Typography>
+              <Box
+                sx={{
+                  display: "flex",
+                  flexWrap: "wrap",
+                  alignItems: "center",
+                  gap: 2,
+                }}
+              >
+                <Typography variant="h6">
+                  {isFetching
+                    ? "Searching..."
+                    : `Found ${totalMatches} ${scanMode === "moving" ? "moving object" : "candidate"}${totalMatches === 1 ? "" : "s"}.`}
+                </Typography>
+                <SegmentedControl
+                  size="small"
+                  value={scanMode}
+                  onChange={changeScanMode}
+                  options={scanViewOptions}
+                />
+              </Box>
               <Box
                 sx={{
                   display: "flex",
@@ -762,26 +780,28 @@ const CandidateList = () => {
                   gap: 1,
                 }}
               >
-                <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                  <Typography variant="body2" color="text.secondary">
-                    Cards open on
-                  </Typography>
-                  <Tooltip title="Comments only when the candidate has some">
-                    <Box sx={{ display: "flex" }}>
-                      <SegmentedControl
-                        size="small"
-                        value={preferences?.scanningFirstTab ?? "comments"}
-                        onChange={(value) =>
-                          updateUserPreferences({ scanningFirstTab: value })
-                        }
-                        options={[
-                          { value: "annotations", label: "Annotations" },
-                          { value: "comments", label: "Comments" },
-                        ]}
-                      />
-                    </Box>
-                  </Tooltip>
-                </Box>
+                {scanMode === "objects" && (
+                  <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                    <Typography variant="body2" color="text.secondary">
+                      Cards open on
+                    </Typography>
+                    <Tooltip title="Comments only when the candidate has some">
+                      <Box sx={{ display: "flex" }}>
+                        <SegmentedControl
+                          size="small"
+                          value={preferences?.scanningFirstTab ?? "comments"}
+                          onChange={(value) =>
+                            updateUserPreferences({ scanningFirstTab: value })
+                          }
+                          options={[
+                            { value: "annotations", label: "Annotations" },
+                            { value: "comments", label: "Comments" },
+                          ]}
+                        />
+                      </Box>
+                    </Tooltip>
+                  </Box>
+                )}
                 <Tooltip title="Sort on Selected Annotation">
                   <span>
                     <IconButton
@@ -826,8 +846,37 @@ const CandidateList = () => {
                 </Button>
               </Box>
             </Paper>
+            {searchParams["localizationDateobs"] &&
+              searchParams["localizationName"] && (
+                <CandidatesSkymap
+                  dateobs={searchParams["localizationDateobs"]}
+                  localizationName={searchParams["localizationName"]}
+                  candidates={candidates}
+                />
+              )}
             {isFetching ? (
               <Spinner />
+            ) : scanMode === "moving" ? (
+              <ViewportList items={candidates}>
+                {(candidate: any, index: number) => (
+                  <ErrorBoundary
+                    key={candidate.id}
+                    fallback={
+                      <Typography color="error" sx={{ mb: 2 }}>
+                        Could not display {candidate.id}.
+                      </Typography>
+                    }
+                  >
+                    <MovingObjectCandidate
+                      candidate={candidate}
+                      trackId={trackIdFor(candidate)}
+                      filterGroups={filterGroups}
+                      index={(pageNumber - 1) * numPerPage + index + 1}
+                      totalMatches={totalMatches}
+                    />
+                  </ErrorBoundary>
+                )}
+              </ViewportList>
             ) : (
               <ViewportList items={stacks}>
                 {(stack: any[], index: number) => (
