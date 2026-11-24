@@ -868,6 +868,13 @@ const SourceContent = ({ source }: SourceContentProps) => {
                         component={Link}
                         to={`/source/${associatedObj.obj_id}`}
                         label={associatedObj.obj_id}
+                        sx={{
+                          fontWeight: 600,
+                          color: (theme) =>
+                            theme.palette.mode === "dark"
+                              ? theme.palette.secondary.main
+                              : theme.palette.primary.main,
+                        }}
                       />
                     </Tooltip>
                   ))}
