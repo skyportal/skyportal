@@ -123,51 +123,37 @@ const GcnEventRow = ({
         "& + &": { borderTop: 1, borderColor: "divider" },
       }}
     >
+      <Link
+        component={RouterLink}
+        to={`/gcn_events/${gcnEvent.dateobs}`}
+        sx={{ fontVariantNumeric: "tabular-nums" }}
+      >
+        {dateobs.format("YYMMDD HH:mm:ss")}
+      </Link>
+      <Tooltip
+        title={aliases.length > 1 ? aliases.join(", ") : ""}
+        placement="bottom-start"
+      >
+        <Typography
+          variant="caption"
+          noWrap
+          component="div"
+          sx={{ color: "text.disabled" }}
+        >
+          {[aliases[0], dateobs.fromNow()].filter(Boolean).join(" · ")}
+        </Typography>
+      </Tooltip>
       <Box
         sx={{
           display: "flex",
           flexWrap: "wrap",
-          alignItems: "flex-start",
-          columnGap: 1.5,
-          rowGap: 0.75,
+          alignItems: "center",
+          gap: 0.5,
+          mt: 0.75,
         }}
       >
-        <Box sx={{ minWidth: 0 }}>
-          <Link
-            component={RouterLink}
-            to={`/gcn_events/${gcnEvent.dateobs}`}
-            sx={{ fontVariantNumeric: "tabular-nums" }}
-          >
-            {dateobs.format("YYMMDD HH:mm:ss")}
-          </Link>
-          <Tooltip
-            title={aliases.length > 1 ? aliases.join(", ") : ""}
-            placement="bottom-start"
-          >
-            <Typography
-              variant="caption"
-              color="text.secondary"
-              noWrap
-              component="div"
-              sx={{ maxWidth: "16rem" }}
-            >
-              {[aliases[0], dateobs.fromNow()].filter(Boolean).join(" · ")}
-            </Typography>
-          </Tooltip>
-        </Box>
-        <Box
-          sx={{
-            flex: 1,
-            display: "flex",
-            flexWrap: "wrap",
-            justifyContent: "flex-end",
-            alignItems: "center",
-            gap: 0.5,
-          }}
-        >
-          <GcnTags gcnEvent={gcnEvent} addTags={false} />
-          <GcnEventAllocationTriggers gcnEvent={gcnEvent} />
-        </Box>
+        <GcnTags gcnEvent={gcnEvent} addTags={false} />
+        <GcnEventAllocationTriggers gcnEvent={gcnEvent} />
       </Box>
       {extractions.length > 0 && (
         <Box
