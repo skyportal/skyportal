@@ -37,34 +37,51 @@ function handleClassificationTag(classificationId) {
   }
 }
 
-// Disable loader when image is loaded
-function disableLoader(image) {
-  image
-    .closest('div[class="imageAndTitle"]')
-    .getElementsByClassName("loader")[0].style.display = "none";
+const FETCHED_CUTOUT_TYPES = ["sdss", "ls"];
+const CUTOUT_TIMEOUT_MS = 15000;
+
+function showCutout(cutout, src) {
+  const image = cutout.querySelector(".cutoutImage");
+  image.onload = () => cutout.classList.add("loaded");
+  image.onerror = () => cutout.classList.add("unavailable");
+  image.src = src;
 }
 
-function handleImageLoad(image) {
-  image.onload = null;
-  disableLoader(image);
-  if (image.getAttribute("data-thumbnail-type") !== "sdss") {
-    image.parentElement.getElementsByClassName("crosshair")[0].style.display =
-      "block";
+async function fetchCutout(cutout, src, type) {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), CUTOUT_TIMEOUT_MS);
+  try {
+    const response = await fetch(src, { signal: controller.signal });
+    const blob = response.ok ? await response.blob() : null;
+    // Legacy Survey answers outside its footprint with a small grey placeholder.
+    if (!blob || (type === "ls" && blob.size < 1500)) {
+      cutout.remove();
+    } else {
+      showCutout(cutout, URL.createObjectURL(blob));
+    }
+  } catch {
+    cutout.remove();
+  } finally {
+    clearTimeout(timeout);
   }
 }
 
-function handleImageError(image) {
-  image.onload = null;
-  image.onerror = null;
-  disableLoader(image);
-  if (image.getAttribute("data-thumbnail-public-url") !== "#") {
-    const imgName =
-      image.getAttribute("data-thumbnail-type") === "ls"
-        ? "outside_survey.png"
-        : "currently_unavailable.png";
-    image.src = `/static/images/${imgName}`;
-  }
-}
+document.addEventListener("DOMContentLoaded", () => {
+  document.querySelectorAll(".sexagesimal").forEach((element) => {
+    element.textContent = radec_hhmmss(
+      Number(element.dataset.ra),
+      Number(element.dataset.dec),
+    );
+  });
+  document.querySelectorAll(".cutout").forEach((cutout) => {
+    const { type, src } = cutout.dataset;
+    if (FETCHED_CUTOUT_TYPES.includes(type)) {
+      fetchCutout(cutout, src, type);
+    } else {
+      showCutout(cutout, src);
+    }
+  });
+});
 
 const ra_to_hours = (ra, sep = null) => {
   const ra_h = String(Math.floor(ra / 15)).padStart(2, "0");

@@ -4,7 +4,7 @@
     <meta charset="utf-8" />
     <meta name="robots" content="noindex" />
     <meta name="viewport" content="width=device-width,initial-scale=1" />
-    <title>SkyPortal</title>
+    <title>{{ source_id }} | SkyPortal</title>
     <link rel="icon" type="image/png" href="/favicon.png" />
     <link
       href="https://fonts.googleapis.com/css?family=Roboto:300,400,500,700&display=swap"
@@ -22,11 +22,6 @@
       type="text/css"
       href="/static/public_pages/sources/source/source_template.css"
     />
-    <!-- JS for source page -->
-    <script type="module">
-      let subtitle_date = document.getElementById('subtitle_date')
-      subtitle_date.innerHTML = "<b>" + radec_hhmmss(`{{ data['ra'] | e }}`,`{{ data['dec'] | e }}`) + "</b>" + subtitle_date.innerHTML
-    </script>
     <!-- Load Marked and DOMPurify and render summary as markdown if available -->
     {% if data.get('summary') %}
       <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
@@ -80,11 +75,13 @@
       </div>
     </header>
     <!--Page content-->
-    <div class="sourceTemplate">
-      <div class="card resumeCard">
+    <main class="sourceTemplate">
+      <section class="card resumeCard">
         <div class="titleAndDate">
           <h1>{{ source_id }}</h1>
-          <span class="date">{{ created_at.strftime('%m/%d/%Y %H:%M:%S') | e }} UTC</span>
+          <span class="date">
+            Published {{ created_at.strftime('%Y-%m-%d %H:%M') | e }} UTC
+          </span>
         </div>
         {% if classifications %}
         <div class="classificationsTag">
@@ -99,92 +96,81 @@
           {% endfor %}
         </div>
         {% endif %}
-        <div class="subtitle">
-          <div id="subtitle_date" class="subtitleText">
+        <div class="fields coordinates">
+          <span
+            class="sexagesimal"
+            data-ra="{{ data['ra'] | e }}"
+            data-dec="{{ data['dec'] | e }}"
+          ></span>
+          <span>
+            <span class="fieldLabel">&alpha;, &delta;</span>
+            {{ data['ra'] | e }}, {{ data['dec'] | e }}
+          </span>
+          <span>
+            <span class="fieldLabel"><i>l</i>, <i>b</i></span>
+            {{ data['gal_lon'] | e }}, {{ data['gal_lat'] | e }}
+          </span>
+          {% if data.get('ebv') is not none %}
+            <span><span class="fieldLabel">E(B-V)</span>{{ data['ebv'] | e }}</span>
+          {% endif %}
+        </div>
+        <div class="fields">
+          <span>
+            <span class="fieldLabel">Redshift</span>{{ data['redshift_display'] | e }}
+          </span>
+          {% if data.get('dm') %}
+            <span><span class="fieldLabel">DM</span>{{ data['dm'] | e }} mag</span>
+          {% endif %}
+          {% if data.get('dl') %}
             <span>
-              (&alpha;,&delta;={{ data['ra'] | e }}, &nbsp{{ data['dec'] | e }})
+              <span class="fieldLabel"><i>D</i><sub>L</sub></span>{{ data['dl'] | e }} Mpc
             </span>
-            <span>
-              (<i>l</i>,<i>b</i>={{ data['gal_lon'] | e }}, &nbsp;{{ data['gal_lat'] | e }})
-            </span>
-            {% if data.get('ebv') %}
-              <span> E(B-V): {{ data['ebv'] | e }} </span>
-            {% endif %}
-          </div>
-          <div class="subtitleText">
-            <span>
-              <b>Redshift:</b> {{ data['redshift_display'] | e }}
-            </span>
-            {% if data.get('dm') %}
-              <span><b>DM:</b> {{ data['dm'] | e }} mag </span>
-            {% endif %}
-            {% if data.get('dl') %}
-              <span><b><i>D</i><sub>L</sub>:</b> {{ data['dl'] | e }} Mpc </span>
-            {% endif %}
-            {% if data.get('t0') %}
-              <span><b>T0:</b> {{ data['t0'] | e }} mjd </span>
-            {% endif %}
-          </div>
-          {% if data.get('summary') %}
+          {% endif %}
+          {% if data.get('t0') %}
+            <span><span class="fieldLabel">T0</span>{{ data['t0'] | e }} MJD</span>
+          {% endif %}
+        </div>
+        {% if data.get('summary') %}
+          <div class="summary">
+            <div class="summaryLabel">Summary</div>
             <div id="summary" style="display: none;">
               {{ data['summary'] | tojson }}
             </div>
-            <div id="markdown-summary"></div>
-          {% endif %}
-        </div>
-        <div class="images">
+            <div id="markdown-summary" class="markdownSummary"></div>
+          </div>
+        {% endif %}
+        {% if data.get('thumbnails') %}
+        <div class="cutouts">
           {% for thumbnail in data.get('thumbnails') %}
-          <div class="imageAndTitle">
-            <div class="title">
-              {% if thumbnail.get('link') %}
-                <a
-                  href="{{ thumbnail['link'] | e }}"
-                  target="_blank"
-                  rel="noreferrer"
-                >
-                  {{ thumbnail['header'] | e }}
-                </a>
-              {% else %}
-                {{ thumbnail['header'] | e }}
-              {% endif %}
-            </div>
-            <div class="image">
-              {% if thumbnail.get('link') %}
-              <a
-                href="{{ thumbnail['link'] | e }}"
-                target="_blank"
-                rel="noreferrer"
-              >
-              {% endif %}
-                <img
-                  src="{{ thumbnail['public_url'] | e }}"
-                  alt="{{ thumbnail['alt'] | e }}"
-                  title="{{ thumbnail['alt'] | e }}"
-                  loading="lazy"
-                  onload="handleImageLoad(this)"
-                  onerror="handleImageError(this)"
-                  data-thumbnail-type="{{ thumbnail.get('type') | e }}"
-                  data-thumbnail-public-url="{{ thumbnail.get('public_url') | e }}"
-                />
+          <a
+            class="cutout"
+            {% if thumbnail.get('link') %}
+              href="{{ thumbnail['link'] | e }}"
+              target="_blank"
+              rel="noreferrer"
+            {% endif %}
+            title="{{ thumbnail['alt'] | e }}"
+            data-type="{{ thumbnail.get('type') | e }}"
+            data-src="{{ thumbnail.get('public_url') | e }}"
+          >
+            <div class="cutoutTitle">{{ thumbnail['header'] | e }}</div>
+            <div class="cutoutFrame">
+              <img class="cutoutImage" alt="{{ thumbnail['alt'] | e }}" />
+              {% if thumbnail.get('type') != 'sdss' %}
                 <img
                   class="crosshair"
                   src="/static/images/crosshairs.png"
-                  alt="crosshair"
-                  style="display: none"
+                  alt=""
                 />
-              {% if thumbnail.get('link') %}
-              </a>
               {% endif %}
             </div>
-            <div class="loader">
-              <span></span>
-            </div>
-          </div>
+          </a>
           {% endfor %}
         </div>
-      </div>
+        {% endif %}
+      </section>
       <!-- Photometry -->
-      <div class="card plotCard photometryCard">
+      <section class="card plotCard photometryCard">
         <div class="titleAndDownload">
           <h2>Photometry</h2>
           {% if photometry %}
@@ -193,7 +179,7 @@
                       type="button"
                       onclick='downloadPhotometryToCsv(`{{ photometry | tojson }}`, `{{ source_id | e }}`)'
               >
-                DOWNLOAD
+                Download
               </button>
             </div>
           {% endif %}
@@ -247,16 +233,16 @@
             });
           </script>
         {% else %}
-          <h2 class="noDataMessage">No photometry available</h2>
+          <p class="noDataMessage">No photometry available</p>
         {% endif %}
-      </div>
+      </section>
       <!-- Spectroscopy -->
-      <div class="card plotCard spectroscopyCard">
+      <section class="card plotCard spectroscopyCard">
         <div class="titleAndDownload">
           <h2>Spectroscopy</h2>
           {% if spectroscopy %}
             <div class="download dropdown">
-              <button onclick='this.nextElementSibling.classList.toggle("show")' class="dropdownBtn" type="button">DOWNLOAD ▼</button>
+              <button onclick='this.nextElementSibling.classList.toggle("show")' class="dropdownBtn" type="button">Download ▾</button>
               <div class="dropdownContent">
                 {% for spec in spectroscopy %}
                   {# Keep the original_file_string pop before the plot display to avoid JSON.parse error #}
@@ -281,18 +267,18 @@
             </script>
           </div>
         {% else %}
-          <h2 class="noDataMessage">No spectroscopy available</h2>
+          <p class="noDataMessage">No spectroscopy available</p>
         {% endif %}
-      </div>
+      </section>
       <!-- Classifications -->
-      <div class="card classificationsCard">
+      <section class="card classificationsCard">
         <h2>Classifications</h2>
         {% if classifications %}
         <div class="classifications">
           {% for classification in classifications %}
           <div
             id="{{ classification.classification | e }}"
-            class="classification boxShadow"
+            class="classification"
           >
             <div class="author">{{ classification.format_author | e }}</div>
             <div class="nameAndProbability">
@@ -308,9 +294,9 @@
           {% endfor %}
         </div>
         {% else %}
-        <h2 class="noDataMessage">No classifications available</h2>
+        <p class="noDataMessage">No classifications available</p>
         {% endif %}
-      </div>
-    </div>
+      </section>
+    </main>
   </body>
 </html>

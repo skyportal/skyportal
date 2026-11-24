@@ -7,128 +7,246 @@ header {
   }
   .release {
     color: white;
-    font-weight: bold;
+    font-weight: 500;
   }
 }
 
 .sourceTemplate {
-  position: relative;
+  --primary: #457b9d;
+  --text-secondary: rgba(0, 0, 0, 0.6);
+  --divider: rgba(0, 0, 0, 0.12);
+  --soft: rgba(0, 0, 0, 0.06);
+  --soft-hover: rgba(0, 0, 0, 0.11);
+
   display: flex;
   flex-direction: column;
+  gap: 0.75rem;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0.75rem 1rem 1.5rem;
+  box-sizing: border-box;
+  @media screen and (max-width: 600px) {
+    padding: 0.5rem;
+  }
+
+  .card {
+    margin: 0;
+    border: 0;
+    padding: 0.75rem 1rem;
+  }
+
+  h1 {
+    font-weight: 900;
+    line-height: 1.2;
+    overflow-wrap: anywhere;
+  }
+
+  h2 {
+    font-size: 1.1rem;
+    font-weight: 500;
+    line-height: 1.5;
+    margin: 0;
+  }
+
+  button {
+    text-transform: none;
+    font-weight: 500;
+    font-size: 0.85rem;
+    letter-spacing: normal;
+    border-radius: 8px;
+    padding: 4px 12px;
+    background-color: var(--soft);
+    &:hover {
+      background-color: var(--soft-hover);
+    }
+  }
+
+  .noDataMessage {
+    color: var(--text-secondary);
+    text-align: center;
+    margin: 1.5rem 0 0.75rem;
+  }
 
   .resumeCard {
-    padding: 0.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+
     .titleAndDate {
       display: flex;
+      flex-wrap: wrap;
       justify-content: space-between;
-      margin-bottom: 0.5rem;
+      align-items: baseline;
+      gap: 0.25rem 1rem;
       .date {
-        @media screen and (max-width: 600px) {
-          font-size: 0.55rem;
-        }
-        text-align: right;
-        font-weight: bold;
-        font-size: 0.9rem;
-        color: gray;
+        color: var(--text-secondary);
+        font-size: 0.85rem;
+        white-space: nowrap;
       }
     }
 
     .classificationsTag {
       display: flex;
-      gap: 0.5rem;
-      margin-bottom: 0.5rem;
+      flex-wrap: wrap;
+      gap: 0.4rem;
       .classificationTag {
-        padding: 0.1rem 0.5rem;
-        background-color: #e0e0e0;
-        border-radius: 1rem;
-        font-weight: bold;
-        font-size: inherit;
-        line-height: 1.2rem;
-        @media screen and (max-width: 450px) {
-          font-size: 0.7rem;
-          line-height: 0.7rem;
-        }
+        height: 24px;
+        padding: 0 10px;
+        border-radius: 12px;
+        font-size: 0.8125rem;
+        line-height: 24px;
       }
     }
 
-    .subtitle {
-      .subtitleText {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 0 0.8rem;
-        margin-bottom: 0.5rem;
-      }
-    }
-
-    .images {
-      margin-top: 1rem;
+    .fields {
       display: flex;
       flex-wrap: wrap;
-      gap: 0.5rem 0.5rem;
+      align-items: baseline;
+      gap: 0.15rem 0.75rem;
+      font-variant-numeric: tabular-nums;
+      .fieldLabel {
+        color: var(--text-secondary);
+        font-weight: 500;
+        margin-right: 0.375rem;
+        white-space: nowrap;
+      }
+    }
 
-      .imageAndTitle {
-        border: 1px solid rgba(0, 0, 0, 0.12);
+    .coordinates .sexagesimal {
+      font-weight: 600;
+      font-size: 1.1rem;
+      @media screen and (max-width: 600px) {
+        font-size: 1rem;
+      }
+    }
+
+    .summary {
+      background-color: rgba(0, 0, 0, 0.04);
+      border-radius: 8px;
+      padding: 0.5rem 0.75rem;
+      font-size: 0.9rem;
+      .summaryLabel {
+        color: var(--text-secondary);
+        font-size: 0.7rem;
+        font-weight: 500;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+      .markdownSummary > :first-child {
+        margin-top: 0.25rem;
+      }
+      .markdownSummary > :last-child {
+        margin-bottom: 0;
+      }
+    }
+
+    .cutouts {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(9rem, 13rem));
+      gap: 0.5rem;
+      margin-top: 0.4rem;
+      &:empty {
+        display: none;
+      }
+      @media screen and (max-width: 450px) {
+        grid-template-columns: repeat(2, 1fr);
+      }
+    }
+
+    .cutout {
+      display: block;
+      border: 1px solid var(--divider);
+      border-radius: 4px;
+      overflow: hidden;
+      transition: background-color 0.2s;
+      &[href]:hover {
+        background-color: rgba(0, 0, 0, 0.04);
+      }
+
+      .cutoutTitle {
+        padding: 0.4rem 0.6rem;
+        font-size: 0.875rem;
+        font-weight: bold;
+        color: gray;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+
+      .cutoutFrame {
         position: relative;
-        border-radius: 4px;
-        max-height: 31rem;
-        max-width: 13rem;
-        width: 31%;
-        @media screen and (max-width: 450px) {
-          width: 48%;
+        aspect-ratio: 1 / 1;
+        background-color: rgba(0, 0, 0, 0.11);
+        animation: pulse 2s ease-in-out 0.5s infinite;
+
+        img {
+          position: absolute;
+          inset: 0;
+          width: 100%;
+          height: 100%;
+          object-fit: cover;
         }
-
-        .title {
-          letter-spacing: 0.009em;
-          font-size: 0.8rem;
-          font-weight: bold;
-          margin: 0.5rem;
-          color: gray;
-          @media screen and (max-width: 600px) {
-            font-size: 0.55rem;
-          }
+        .cutoutImage {
+          opacity: 0;
         }
+        .crosshair {
+          display: none;
+        }
+      }
 
-        .image {
-          position: relative;
+      &.loaded .cutoutFrame {
+        animation: none;
+        background-color: transparent;
+        .cutoutImage {
+          opacity: 1;
+        }
+        .crosshair {
+          display: block;
+        }
+      }
 
-          img {
-            width: 100%;
-            height: 100%;
-          }
-
-          .crosshair {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-          }
+      &.unavailable .cutoutFrame {
+        animation: none;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background-color: rgba(0, 0, 0, 0.04);
+        img {
+          display: none;
+        }
+        &::after {
+          content: "Unavailable";
+          color: var(--text-secondary);
+          font-size: 0.85rem;
         }
       }
     }
   }
+
   .plotCard {
-    padding: 1rem 0;
-    h2 {
-      margin-left: 1rem;
-    }
-    .download {
-      margin-right: 1rem;
-    }
+    padding: 0.75rem 0;
     .titleAndDownload {
       display: flex;
       justify-content: space-between;
       align-items: center;
+      padding: 0 1rem;
     }
     .plot {
-      height: 75vh;
-      margin: 1rem 0;
+      height: 60vh;
+      min-height: 22rem;
+      margin: 0.5rem 1rem;
+      border-radius: 8px;
+      overflow: hidden;
     }
     .plotOptions {
-      padding: 0.5rem 4rem;
+      padding: 0 1rem;
       display: flex;
-      gap: 1.5rem;
-      flex-direction: column;
+      flex-wrap: wrap;
+      gap: 0.5rem 1.5rem;
+      font-size: 0.9rem;
+      &:empty {
+        display: none;
+      }
       .switchContainer {
         gap: 0.5rem;
         display: flex;
@@ -140,87 +258,116 @@ header {
       .switch {
         position: relative;
         display: inline-block;
-        width: 40px;
+        width: 34px;
         height: 20px;
       }
-
       .switch input {
         opacity: 0;
         width: 0;
         height: 0;
       }
-
       .slider {
         position: absolute;
         cursor: pointer;
-        top: 0;
+        top: 3px;
         left: 0;
         right: 0;
-        bottom: 0;
-        background-color: #ccc;
-        transition: 0.4s;
-        border-radius: 34px;
+        bottom: 3px;
+        background-color: rgba(0, 0, 0, 0.38);
+        transition: 0.2s;
+        border-radius: 7px;
       }
-
       .slider::before {
         position: absolute;
         content: "";
-        height: 14px;
-        width: 14px;
-        left: 3px;
-        bottom: 3px;
+        height: 20px;
+        width: 20px;
+        left: 0;
+        top: -3px;
         background-color: white;
-        transition: 0.4s;
+        transition: 0.2s;
         border-radius: 50%;
+        box-shadow:
+          0 2px 1px -1px rgba(0, 0, 0, 0.2),
+          0 1px 1px 0 rgba(0, 0, 0, 0.14),
+          0 1px 3px 0 rgba(0, 0, 0, 0.12);
       }
-
       input:checked + .slider {
-        background-color: #2196f3;
+        background-color: rgba(69, 123, 157, 0.5);
       }
-
       input:checked + .slider::before {
-        transform: translateX(20px);
+        transform: translateX(14px);
+        background-color: var(--primary);
+      }
+    }
+    .dropdown .dropdownContent {
+      background-color: white;
+      border-radius: 8px;
+      overflow: auto;
+      margin-top: 0.25rem;
+      button {
+        display: block;
+        border-radius: 0;
+        text-align: left;
+        background-color: transparent;
+        &:hover {
+          background-color: var(--soft);
+        }
       }
     }
   }
+
   .classificationsCard {
+    h2 {
+      margin-bottom: 0.5rem;
+    }
     .classifications {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 1rem;
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(14rem, 1fr));
+      gap: 0.5rem;
       .classification {
-        padding: 0.5rem 2rem 0.5rem 0.5rem;
-        border: 1px solid grey;
-        border-radius: 4px;
+        padding: 0.5rem 0.75rem;
+        border: 1px solid var(--divider);
+        border-radius: 8px;
         &.active {
           animation: backgroundFade 3s forwards;
         }
         .author {
-          font-size: 0.9rem;
+          color: var(--text-secondary);
+          font-size: 0.8rem;
         }
         .nameAndProbability {
-          margin: 0.2rem 0;
+          margin: 0.15rem 0;
           display: flex;
-          align-items: center;
-          flex-wrap: nowrap;
-          column-gap: 0.3rem;
+          align-items: baseline;
+          flex-wrap: wrap;
+          column-gap: 0.4rem;
           .name {
-            font-size: 1.2rem;
+            font-size: 1.05rem;
             font-weight: bold;
-            @media screen and (max-width: 450px) {
-              font-size: 1rem;
-              line-height: 1rem;
-            }
           }
-
           .probability {
-            font-size: 0.9rem;
+            color: var(--text-secondary);
+            font-size: 0.85rem;
           }
         }
         .taxname {
-          font-size: 0.9rem;
+          color: var(--text-secondary);
+          font-size: 0.8rem;
         }
       }
     }
+  }
+}
+
+@keyframes pulse {
+  0% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.4;
+  }
+  100% {
+    opacity: 1;
   }
 }
