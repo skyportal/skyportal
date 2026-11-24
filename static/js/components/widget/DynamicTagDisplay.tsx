@@ -166,9 +166,10 @@ const DynamicTagDisplay = ({ source }: DynamicTagDisplayProps) => {
         mt: 0.5,
       }}
     >
-      <span
+      <Box
+        component="span"
         ref={measureRef}
-        style={{ visibility: "hidden", position: "absolute" }}
+        sx={{ visibility: "hidden", position: "absolute" }}
       />
 
       {visibleTagsWithColors.map((tag) => (
@@ -188,24 +189,20 @@ const DynamicTagDisplay = ({ source }: DynamicTagDisplayProps) => {
       {hasMoreTags && (
         <Tooltip
           title={
-            <div>
-              <strong>Additional tags:</strong>
-              <br />
-              {hiddenTagsWithColors.map((tag, index) => (
-                <span key={tag.id}>
-                  <Chip
-                    label={tag.name}
-                    size="small"
-                    style={{
-                      backgroundColor: tag.color,
-                      color: getContrastColor(tag.color),
-                      margin: "2px",
-                    }}
-                  />
-                  {index < hiddenTagsWithColors.length - 1 ? " " : ""}
-                </span>
+            <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.5, py: 0.5 }}>
+              {hiddenTagsWithColors.map((tag) => (
+                <Chip
+                  key={tag.id}
+                  label={tag.name}
+                  size="small"
+                  sx={{
+                    ...tagChipSx,
+                    backgroundColor: tag.color,
+                    color: getContrastColor(tag.color),
+                  }}
+                />
               ))}
-            </div>
+            </Box>
           }
         >
           <Chip

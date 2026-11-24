@@ -50,11 +50,9 @@ export const WidgetEmpty = ({ children }: { children: ReactNode }) => (
 interface WidgetCardProps {
   title?: ReactNode;
   heading?: ReactNode;
-  subtitle?: ReactNode;
   actions?: ReactNode;
   teamScoped?: boolean;
   children?: ReactNode;
-  id?: string;
   testId?: string;
   bodySx?: SxProps<Theme>;
 }
@@ -62,18 +60,15 @@ interface WidgetCardProps {
 const WidgetCard = ({
   title,
   heading,
-  subtitle,
   actions,
   teamScoped = false,
   children,
-  id,
   testId,
   bodySx = {},
 }: WidgetCardProps) => {
   const floatingHeader = !title && !heading;
   return (
     <Paper
-      id={id}
       data-testid={testId}
       elevation={0}
       sx={(theme) => ({
@@ -132,11 +127,6 @@ const WidgetCard = ({
                 {title}
               </Typography>
             ))}
-          {subtitle && (
-            <Typography variant="caption" color="text.secondary" noWrap>
-              {subtitle}
-            </Typography>
-          )}
           {teamScoped && <TeamBadge />}
         </Box>
         {actions && (
