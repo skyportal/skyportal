@@ -1,5 +1,6 @@
 import { useState } from "react";
 
+import ErrorIcon from "@mui/icons-material/ErrorOutlineOutlined";
 import ManageSearchIcon from "@mui/icons-material/ManageSearch";
 import Box from "@mui/material/Box";
 import CircularProgress from "@mui/material/CircularProgress";
@@ -72,12 +73,14 @@ const UpdateSourceTNS = ({ sourceId, tnsRequest }: UpdateSourceTNSProps) => {
       )}
       {tnsRequest?.status === "error" && (
         <Tooltip
-          title={tnsRequest.error || "Unknown error"}
+          title={`TNS search failed: ${tnsRequest.error || "unknown error"}`}
           placement="bottom-start"
         >
-          <Typography variant="body2" color="error">
-            Search failed
-          </Typography>
+          <ErrorIcon
+            color="error"
+            fontSize="small"
+            data-testid="tnsSearchFailed"
+          />
         </Tooltip>
       )}
       <Tooltip title="Look for this source on TNS">
