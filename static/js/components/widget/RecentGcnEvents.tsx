@@ -4,6 +4,7 @@ import Box from "@mui/material/Box";
 import Link from "@mui/material/Link";
 import Tooltip from "@mui/material/Tooltip";
 import Typography from "@mui/material/Typography";
+import { alpha } from "@mui/material/styles";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 import relativeTime from "dayjs/plugin/relativeTime";
@@ -131,19 +132,36 @@ const GcnEventRow = ({
         >
           {dateobs.format("YYMMDD HH:mm:ss")}
         </Link>
-        <Tooltip
-          title={aliases.length > 1 ? aliases.join(", ") : ""}
-          placement="bottom-end"
+        <Typography
+          variant="caption"
+          sx={(theme) => ({
+            ml: "auto",
+            minWidth: 0,
+            display: "flex",
+            gap: 0.5,
+            color: alpha(theme.palette.text.primary, 0.5),
+          })}
         >
-          <Typography
-            variant="caption"
-            color="text.secondary"
-            noWrap
-            sx={{ ml: "auto", minWidth: 0 }}
-          >
-            {[aliases[0], dateobs.fromNow()].filter(Boolean).join(" · ")}
-          </Typography>
-        </Tooltip>
+          {aliases.length > 0 && (
+            <Tooltip title={aliases.join(", ")} placement="bottom-end">
+              <Box
+                component="span"
+                sx={{
+                  minWidth: 0,
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                  whiteSpace: "nowrap",
+                }}
+              >
+                {aliases.join(", ")}
+              </Box>
+            </Tooltip>
+          )}
+          <Box component="span" sx={{ flexShrink: 0, whiteSpace: "nowrap" }}>
+            {aliases.length > 0 && "· "}
+            {dateobs.fromNow()}
+          </Box>
+        </Typography>
       </Box>
       <Box
         sx={{
