@@ -662,16 +662,8 @@ const SourceContent = ({ source }: SourceContentProps) => {
                   />
                 </div>
                 {!isReadOnly && (
-                  <Box
-                    sx={{
-                      ml: 1,
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 0.75,
-                    }}
-                  >
+                  <Box sx={{ ml: 1 }}>
                     <ObjectTags source={source} />
-                    {showSummary && noSummary && summaryActions(true)}
                   </Box>
                 )}
               </div>
@@ -1094,6 +1086,18 @@ const SourceContent = ({ source }: SourceContentProps) => {
             </Box>
             {showStarList && <StarList sourceId={source.id} />}
             {/* checking if the id exists is a way to know if the user profile is loaded or not */}
+            {showSummary && noSummary && !isReadOnly && (
+              <Box
+                sx={{
+                  mt: 0.75,
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 0.5,
+                }}
+              >
+                {summaryActions(true)}
+              </Box>
+            )}
             {showSummary && !noSummary && (
               <Box
                 sx={(theme) => ({
