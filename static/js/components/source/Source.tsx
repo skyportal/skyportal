@@ -383,17 +383,30 @@ const SourceContent = ({ source }: SourceContentProps) => {
         summary.summary !== null && summary.summary.trim() !== "",
     )?.length < 1;
 
-  const noHumanSummary =
-    source.summary_history?.length < 1 ||
-    !source.summary_history ||
-    source.summary_history[0].summary === null ||
-    source.summary_history[0].summary === "" ||
-    source.summary_history.filter(
-      (summary: any) =>
-        summary.summary !== null &&
-        summary.summary.trim() !== "" &&
-        summary.is_bot === false,
-    )?.length < 1;
+  const showSummary =
+    currentUser?.id && !currentUser?.preferences?.["hideSourceSummary"];
+  const showAISummaries = (currentUser?.preferences?.["showAISourceSummary"] ||
+    false) as any;
+  const summaryActions = (
+    <>
+      {!isReadOnly && (
+        <UpdateSourceSummary
+          source={source}
+          showAISummaries={showAISummaries}
+        />
+      )}
+      {!isReadOnly &&
+        (source.comments?.length > 0 || source.classifications?.length > 0) && (
+          <StartBotSummary obj_id={source.id} />
+        )}
+      {source.summary_history?.length > 0 && (
+        <ShowSummaryHistory
+          summaries={source.summary_history}
+          obj_id={source.id}
+        />
+      )}
+    </>
+  );
 
   // associatedGCNs is an array of dateobs
   // source.gcn_crossmatch is an array of objects with dateobs
@@ -851,6 +864,12 @@ const SourceContent = ({ source }: SourceContentProps) => {
               <div className={classes.rowInfo}>
                 <SourceAlias source={source} />
               </div>
+              {showSummary && noSummary && !isReadOnly && (
+                <div className={classes.rowInfo}>
+                  <FieldLabel>Summary</FieldLabel>
+                  {summaryActions}
+                </div>
+              )}
             </div>
             <SourceHost
               source={source}
@@ -1143,92 +1162,56 @@ const SourceContent = ({ source }: SourceContentProps) => {
             </Box>
             {showStarList && <StarList sourceId={source.id} />}
             {/* checking if the id exists is a way to know if the user profile is loaded or not */}
-            {currentUser?.id &&
-              !currentUser?.preferences?.["hideSourceSummary"] && (
-                <Box
-                  sx={(theme) => ({
-                    display: "flex",
-                    alignItems: "flex-start",
-                    gap: 1,
-                    mt: 0.75,
-                    py: 1,
-                    pl: 1.5,
-                    pr: 0.5,
-                    borderRadius: "8px",
-                    bgcolor: alpha(theme.palette.text.primary, 0.035),
-                  })}
-                >
-                  <Box sx={{ flex: 1, minWidth: 0 }}>
-                    <Box
-                      sx={{
-                        fontSize: "0.65rem",
-                        fontWeight: 600,
-                        letterSpacing: "0.06em",
-                        textTransform: "uppercase",
-                        color: "text.secondary",
-                        mb: 0.25,
-                      }}
-                    >
-                      Summary
-                    </Box>
-                    {noSummary ? (
-                      <Box
-                        sx={{
-                          fontSize: "0.85rem",
-                          fontStyle: "italic",
-                          color: "text.secondary",
-                        }}
-                      >
-                        {`No${noHumanSummary ? " human" : ""} summary yet`}
-                      </Box>
-                    ) : (
-                      <Box
-                        sx={{
-                          "& p": { fontSize: "0.9rem", lineHeight: 1.5 },
-                          "& > div > div": { p: 0 },
-                        }}
-                      >
-                        <ShowSummaries
-                          summaries={source.summary_history || []}
-                          showAISummaries={
-                            (currentUser?.preferences?.[
-                              "showAISourceSummary"
-                            ] || false) as any
-                          }
-                        />
-                      </Box>
-                    )}
+            {showSummary && !noSummary && (
+              <Box
+                sx={(theme) => ({
+                  display: "flex",
+                  alignItems: "flex-start",
+                  gap: 1,
+                  mt: 0.75,
+                  py: 1,
+                  pl: 1.5,
+                  pr: 0.5,
+                  borderRadius: "8px",
+                  bgcolor: alpha(theme.palette.text.primary, 0.035),
+                })}
+              >
+                <Box sx={{ flex: 1, minWidth: 0 }}>
+                  <Box
+                    sx={{
+                      fontSize: "0.65rem",
+                      fontWeight: 600,
+                      letterSpacing: "0.06em",
+                      textTransform: "uppercase",
+                      color: "text.secondary",
+                      mb: 0.25,
+                    }}
+                  >
+                    Summary
                   </Box>
                   <Box
                     sx={{
-                      display: "flex",
-                      alignItems: "center",
-                      flexShrink: 0,
+                      "& p": { fontSize: "0.9rem", lineHeight: 1.5 },
+                      "& > div > div": { p: 0 },
                     }}
                   >
-                    {!isReadOnly && (
-                      <UpdateSourceSummary
-                        source={source}
-                        showAISummaries={
-                          (currentUser?.preferences?.["showAISourceSummary"] ||
-                            false) as any
-                        }
-                      />
-                    )}
-                    {!isReadOnly &&
-                      (source.comments?.length > 0 ||
-                        source.classifications?.length > 0) && (
-                        <StartBotSummary obj_id={source.id} />
-                      )}
-                    {source.summary_history?.length > 0 && (
-                      <ShowSummaryHistory
-                        summaries={source.summary_history}
-                        obj_id={source.id}
-                      />
-                    )}
+                    <ShowSummaries
+                      summaries={source.summary_history || []}
+                      showAISummaries={showAISummaries}
+                    />
                   </Box>
                 </Box>
-              )}
+                <Box
+                  sx={{
+                    display: "flex",
+                    alignItems: "center",
+                    flexShrink: 0,
+                  }}
+                >
+                  {summaryActions}
+                </Box>
+              </Box>
+            )}
             <Box
               sx={(theme) => ({
                 ...softButtonsSx(theme),
