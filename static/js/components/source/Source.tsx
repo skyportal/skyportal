@@ -13,14 +13,13 @@ import { Link } from "react-router-dom";
 
 import { makeStyles } from "tss-react/mui";
 import Box from "@mui/material/Box";
-import { alpha } from "@mui/material/styles";
+import { alpha, darken } from "@mui/material/styles";
 import { deepPurple, teal } from "@mui/material/colors";
 import SendOutlinedIcon from "@mui/icons-material/SendOutlined";
 import Chip from "@mui/material/Chip";
 import Grid from "@mui/material/Grid";
 import Tooltip from "@mui/material/Tooltip";
-import Checkbox from "@mui/material/Checkbox";
-import FormControlLabel from "@mui/material/FormControlLabel";
+import DoNotDisturbOnOutlinedIcon from "@mui/icons-material/DoNotDisturbOnOutlined";
 import Accordion from "@mui/material/Accordion";
 import AccordionSummary from "@mui/material/AccordionSummary";
 import AccordionDetails from "@mui/material/AccordionDetails";
@@ -718,7 +717,11 @@ const SourceContent = ({ source }: SourceContentProps) => {
                 rowGap: "0.375rem",
               }}
             >
-              <div className={classes.rowInfo} data-testid="tour-source-tns">
+              <Box
+                className={classes.rowInfo}
+                sx={{ position: "relative" }}
+                data-testid="tour-source-tns"
+              >
                 <Tooltip title="Transient reported at this position, from the Transient Name Server">
                   <FieldLabel>TNS</FieldLabel>
                 </Tooltip>
@@ -746,42 +749,61 @@ const SourceContent = ({ source }: SourceContentProps) => {
                 {!source.tns_name && !isReadOnly && (
                   <UpdateSourceTNS sourceId={source.id} />
                 )}
-                {!isReadOnly && (
-                  <Box sx={{ ml: 1 }}>
-                    <Tooltip
-                      title={`Never send this source to TNS, automatically or manually.${
-                        source.withhold_from_tns_set_at
-                          ? ` Last changed by ${
-                              source.withhold_from_tns_set_by?.username ??
-                              "a deleted user"
-                            } on ${source.withhold_from_tns_set_at.slice(0, 10)}.`
-                          : ""
-                      }`}
-                    >
-                      <FormControlLabel
-                        sx={{ m: 0 }}
-                        control={
-                          <Checkbox
-                            size="small"
-                            sx={{ p: 0, mr: 0.5 }}
-                            checked={Boolean(source.withhold_from_tns)}
-                            onChange={(event) =>
+                {source.withhold_from_tns && (
+                  <Tooltip
+                    title={`Never sent to TNS, automatically or manually.${
+                      source.withhold_from_tns_set_at
+                        ? ` Set by ${
+                            source.withhold_from_tns_set_by?.username ??
+                            "a deleted user"
+                          } on ${source.withhold_from_tns_set_at.slice(0, 10)}.`
+                        : ""
+                    }`}
+                  >
+                    <Chip
+                      size="small"
+                      variant="outlined"
+                      color="warning"
+                      label="Withheld"
+                      sx={(theme) => ({
+                        ml: 0.5,
+                        color:
+                          theme.palette.mode === "dark"
+                            ? theme.palette.warning.light
+                            : darken(theme.palette.warning.main, 0.4),
+                        "& .MuiChip-deleteIcon": { color: "inherit" },
+                      })}
+                      onDelete={
+                        isReadOnly
+                          ? undefined
+                          : () =>
                               updateSource({
                                 id: source.id,
-                                payload: {
-                                  withhold_from_tns: event.target.checked,
-                                },
+                                payload: { withhold_from_tns: false },
                               })
-                            }
-                          />
-                        }
-                        label="Don't report to TNS"
-                        slotProps={{ typography: { variant: "body2" } }}
-                      />
-                    </Tooltip>
-                  </Box>
+                      }
+                    />
+                  </Tooltip>
                 )}
-              </div>
+                {!isReadOnly && !source.withhold_from_tns && (
+                  <HoverAction>
+                    <Tooltip title="Never send to TNS, automatically or manually">
+                      <IconButton
+                        size="small"
+                        data-testid="withhold-from-tns-button"
+                        onClick={() =>
+                          updateSource({
+                            id: source.id,
+                            payload: { withhold_from_tns: true },
+                          })
+                        }
+                      >
+                        <DoNotDisturbOnOutlinedIcon />
+                      </IconButton>
+                    </Tooltip>
+                  </HoverAction>
+                )}
+              </Box>
               <Box className={classes.rowInfo} sx={{ position: "relative" }}>
                 <Tooltip title="Known solar system object at this position, from the Minor Planet Center">
                   <FieldLabel>MPC</FieldLabel>
