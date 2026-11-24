@@ -43733,6 +43733,12 @@ export interface components {
              */
             autoFollowup: boolean | null;
             /**
+             * Movingobjects
+             * @description Whether the scanning page opens on the moving objects view for this filter.
+             * @default null
+             */
+            movingObjects: boolean | null;
+            /**
              * Autosaveignoregroupids
              * @description Groups whose members are not auto-saved (e.g. junk).
              * @default null

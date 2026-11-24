@@ -489,6 +489,11 @@ class BrokerFiltersPatchBody(BaseModel):
     autoFollowup: bool | None = Field(
         default=None, description="Whether to auto-trigger followup on filter passage."
     )
+    movingObjects: bool | None = Field(
+        default=None,
+        description="Whether the scanning page opens on the moving objects view "
+        "for this filter.",
+    )
     autoSaveIgnoreGroupIds: list[int] | None = Field(
         default=None,
         description="Groups whose members are not auto-saved (e.g. junk).",
