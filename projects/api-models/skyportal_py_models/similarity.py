@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import Literal
+
 from pydantic import BaseModel, ConfigDict, Field
 
 
@@ -57,6 +59,14 @@ class SimilarSourcesResponse(BaseModel):
     obj_id: str
     broker_id: int
     neighbors: list[SimilarSourceResponse] = Field(default_factory=list)
+    no_neighbors_reason: Literal["survey", "no_embedding"] | None = Field(
+        default=None,
+        description="Why there are no neighbors: the object's survey has no "
+        "embeddings, or the broker stores no embedding for it.",
+    )
+    surveys: list[str] = Field(
+        default_factory=list, description="Surveys whose objects can be searched."
+    )
 
 
 class SimilarityVettingGetQuery(BaseModel):

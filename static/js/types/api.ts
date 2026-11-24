@@ -46490,6 +46490,16 @@ export interface components {
             broker_id: number;
             /** Neighbors */
             neighbors?: components["schemas"]["SimilarSourceResponse"][];
+            /**
+             * No Neighbors Reason
+             * @description Why there are no neighbors: the object's survey has no embeddings, or the broker stores no embedding for it.
+             */
+            no_neighbors_reason?: ("survey" | "no_embedding") | null;
+            /**
+             * Surveys
+             * @description Surveys whose objects can be searched.
+             */
+            surveys?: string[];
         };
         /**
          * SimilarityVettingItem

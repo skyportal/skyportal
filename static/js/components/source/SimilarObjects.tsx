@@ -46,8 +46,18 @@ const SimilarObjects = ({ objId }: { objId: string }) => {
 
   if (isLoading) return <CircularProgress color="secondary" size={24} />;
   if (error) return <Typography variant="body2">Search failed</Typography>;
-  if (!data?.neighbors?.length)
-    return <Typography variant="body2">No neighbors</Typography>;
+  if (!data?.neighbors?.length) {
+    const messages: Record<string, string> = {
+      survey: `Not searched: similarity search covers ${(data?.surveys ?? []).join(", ")} objects only.`,
+      no_embedding: "Not searched: no embedding is stored for this object.",
+    };
+    const message = messages[data?.no_neighbors_reason ?? ""];
+    return (
+      <Typography variant="body2" color="text.secondary">
+        {message ?? "No similar objects found."}
+      </Typography>
+    );
+  }
 
   const toggle = (id: string) =>
     setOpenIds((ids) =>
