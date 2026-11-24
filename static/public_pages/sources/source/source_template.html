@@ -86,13 +86,9 @@
         {% if classifications %}
         <div class="classificationsTag">
           {% for classification in classifications %}
-          <button
-            type="button"
-            class="classificationTag"
-            onclick='handleClassificationTag(`{{classification.classification}}`)'
-          >
+          <span class="classificationTag">
             {{ "ML: " if classification.ml }} {{ classification.classification | e }}
-          </button>
+          </span>
           {% endfor %}
         </div>
         {% endif %}
@@ -126,10 +122,12 @@
               <span class="fieldLabel"><i>D</i><sub>L</sub></span>{{ data['dl'] | e }} Mpc
             </span>
           {% endif %}
-          {% if data.get('t0') %}
-            <span><span class="fieldLabel">T0</span>{{ data['t0'] | e }} MJD</span>
-          {% endif %}
         </div>
+        {% if data.get('t0') %}
+          <div class="fields">
+            <span><span class="fieldLabel">T0</span>{{ data['t0'] | e }} MJD</span>
+          </div>
+        {% endif %}
         {% if data.get('summary') %}
           <div class="summary">
             <div class="summaryLabel">Summary</div>
@@ -276,10 +274,7 @@
         {% if classifications %}
         <div class="classifications">
           {% for classification in classifications %}
-          <div
-            id="{{ classification.classification | e }}"
-            class="classification"
-          >
+          <div class="classification">
             <div class="author">{{ classification.format_author | e }}</div>
             <div class="nameAndProbability">
               <p class="name">

@@ -21,22 +21,6 @@ window.addEventListener("resize", () => {
   }
 });
 
-// Add animation on the classification select by the classification tag
-function handleClassificationTag(classificationId) {
-  const element = document.getElementById(classificationId);
-  element.scrollIntoView({
-    behavior: "smooth",
-    block: "center",
-    inline: "center",
-  });
-  if (!element.classList.contains("active")) {
-    element.classList.add("active");
-    setTimeout(() => {
-      element.classList.remove("active");
-    }, 3000);
-  }
-}
-
 const FETCHED_CUTOUT_TYPES = ["sdss", "ls"];
 const CUTOUT_TIMEOUT_MS = 15000;
 
