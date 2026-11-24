@@ -1,9 +1,15 @@
+import { ReactNode } from "react";
 import Box from "@mui/material/Box";
 import Tooltip from "@mui/material/Tooltip";
 import UpdateSourceCoordinates from "./UpdateSourceCoordinates";
-import FieldLabel from "./FieldLabel";
 import { dec_to_dms, ra_to_hours } from "../../units";
 import { Source } from "../../types";
+
+const CoordLabel = ({ children }: { children: ReactNode }) => (
+  <Box component="span" sx={{ color: "text.disabled", mr: 0.5 }}>
+    {children}
+  </Box>
+);
 
 interface SourceCoordinatesProps {
   source: Source & {
@@ -67,13 +73,13 @@ const SourceCoordinates = ({
           {`${ra_to_hours(ra, ":")} ${dec_to_dms(dec, ":")}`}
         </Box>
         <span>
-          <FieldLabel>&alpha;, &delta;</FieldLabel>
+          <CoordLabel>&alpha;, &delta;</CoordLabel>
           {ra.toFixed(6)}, {dec.toFixed(6)}
         </span>
         <span>
-          <FieldLabel>
+          <CoordLabel>
             <i>l</i>, <i>b</i>
-          </FieldLabel>
+          </CoordLabel>
           {gal_lon?.toFixed(6)}, {gal_lat?.toFixed(6)}
         </span>
         <Box
@@ -82,7 +88,7 @@ const SourceCoordinates = ({
         >
           {ebv != null && (
             <>
-              <FieldLabel>E(B-V)</FieldLabel>
+              <CoordLabel>E(B-V)</CoordLabel>
               {ebv.toFixed(2)}
             </>
           )}
