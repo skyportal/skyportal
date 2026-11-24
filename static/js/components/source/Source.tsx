@@ -14,6 +14,8 @@ import { Link } from "react-router-dom";
 import { makeStyles } from "tss-react/mui";
 import Box from "@mui/material/Box";
 import { alpha } from "@mui/material/styles";
+import { deepPurple, teal } from "@mui/material/colors";
+import SendOutlinedIcon from "@mui/icons-material/SendOutlined";
 import Chip from "@mui/material/Chip";
 import Grid from "@mui/material/Grid";
 import Tooltip from "@mui/material/Tooltip";
@@ -908,8 +910,12 @@ const SourceContent = ({ source }: SourceContentProps) => {
             <Box
               sx={(theme) => {
                 const { success, primary, secondary } = theme.palette;
-                const blue =
-                  theme.palette.mode === "dark" ? secondary.main : primary.main;
+                const dark = theme.palette.mode === "dark";
+                const tint = (color: string) => ({
+                  bgcolor: alpha(color, 0.14),
+                  color,
+                  "&:hover": { bgcolor: alpha(color, 0.22) },
+                });
                 return {
                   ...softButtonsSx(theme),
                   flexBasis: "100%",
@@ -926,11 +932,15 @@ const SourceContent = ({ source }: SourceContentProps) => {
                         : success.dark,
                     "&:hover": { bgcolor: alpha(success.main, 0.24) },
                   },
-                  "& [data-testid=observing-button]": {
-                    bgcolor: alpha(blue, 0.14),
-                    color: blue,
-                    "&:hover": { bgcolor: alpha(blue, 0.22) },
-                  },
+                  "& [data-testid=observing-button]": tint(
+                    dark ? secondary.main : primary.main,
+                  ),
+                  "& [data-testid=send-to-button]": tint(
+                    dark ? deepPurple[200] : deepPurple[500],
+                  ),
+                  "& [data-testid=search-alerts-button]": tint(
+                    dark ? teal[200] : teal[700],
+                  ),
                 };
               }}
             >
@@ -1019,7 +1029,10 @@ const SourceContent = ({ source }: SourceContentProps) => {
                   <Tooltip title="Send to TNS, Hermes or TROVE, or make a public page">
                     <Button
                       secondary
+                      color="primary"
                       size="small"
+                      endIcon={<SendOutlinedIcon />}
+                      data-testid="send-to-button"
                       onClick={() => setSendToDialogOpen(true)}
                     >
                       Send to
@@ -1060,7 +1073,13 @@ const SourceContent = ({ source }: SourceContentProps) => {
                     })}`}
                     target="_blank"
                   >
-                    <Button secondary size="small" endIcon={<SearchIcon />}>
+                    <Button
+                      secondary
+                      color="primary"
+                      size="small"
+                      endIcon={<SearchIcon />}
+                      data-testid="search-alerts-button"
+                    >
                       Search alerts
                     </Button>
                   </Link>
