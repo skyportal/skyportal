@@ -207,7 +207,7 @@ const HomePage = () => {
         layouts={currentLayouts}
         breakpoints={{ '{' + app.homepage_grid.breakpoints|tojson + '}' }}
         cols={gridCols}
-        margin={[16, 16]}
+        margin={[10, 10]}
         onLayoutChange={layoutChangeHandler}
         {% raw %}dragConfig={{ handle: ".dragHandle", cancel: "a, button, input, .MuiButtonBase-root" }}{% endraw %}
         rowHeight={gridRowHeight}
