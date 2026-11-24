@@ -5,7 +5,7 @@ import TextField from "@mui/material/TextField";
 import Tooltip from "@mui/material/Tooltip";
 
 import Button from "../Button";
-import EditPopover, { EditPopoverActions } from "../source/EditPopover";
+import EditDialog from "../source/EditDialog";
 
 interface UpdateSummaryProps {
   summary?: string | null | undefined;
@@ -23,17 +23,17 @@ const UpdateSummary = ({
   chip = false,
   onSave,
 }: UpdateSummaryProps) => {
-  const [anchor, setAnchor] = useState<HTMLElement | null>(null);
+  const [dialogOpen, setDialogOpen] = useState(false);
   const [text, setText] = useState("");
   const [saving, setSaving] = useState(false);
 
-  const open = (e: React.MouseEvent<HTMLElement | SVGSVGElement>) => {
+  const open = () => {
     setText(
       summaryHistory?.find(
         (s) => s.summary && (showAISummaries || s.is_bot === false),
       )?.summary ?? "",
     );
-    setAnchor(e.currentTarget as HTMLElement);
+    setDialogOpen(true);
   };
 
   const save = async (value: string | null) => {
@@ -43,7 +43,7 @@ const UpdateSummary = ({
       () => false,
     );
     setSaving(false);
-    if (saved) setAnchor(null);
+    if (saved) setDialogOpen(false);
   };
 
   return (
@@ -70,11 +70,27 @@ const UpdateSummary = ({
           />
         </Tooltip>
       )}
-      <EditPopover
-        anchor={anchor}
-        onClose={() => setAnchor(null)}
+      <EditDialog
+        open={dialogOpen}
+        onClose={() => setDialogOpen(false)}
         title="Summary"
-        width="32rem"
+        maxWidth="sm"
+        leftAction={
+          summary && (
+            <Button secondary disabled={saving} onClick={() => save(null)}>
+              Clear
+            </Button>
+          )
+        }
+        actions={
+          <Button
+            primary
+            disabled={saving || !text.trim()}
+            onClick={() => save(text)}
+          >
+            Save
+          </Button>
+        }
       >
         <TextField
           size="small"
@@ -86,31 +102,7 @@ const UpdateSummary = ({
           autoFocus
           onChange={(e) => setText(e.target.value)}
         />
-        <EditPopoverActions>
-          {summary && (
-            <Tooltip title="Remove the summary">
-              <span>
-                <Button
-                  secondary
-                  size="small"
-                  disabled={saving}
-                  onClick={() => save(null)}
-                >
-                  Clear
-                </Button>
-              </span>
-            </Tooltip>
-          )}
-          <Button
-            primary
-            size="small"
-            disabled={saving || !text.trim()}
-            onClick={() => save(text)}
-          >
-            Save
-          </Button>
-        </EditPopoverActions>
-      </EditPopover>
+      </EditDialog>
     </>
   );
 };

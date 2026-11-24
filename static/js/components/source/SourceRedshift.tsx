@@ -11,7 +11,7 @@ import { useAppDispatch } from "../../types/hooks";
 import Button from "../Button";
 import { useUpdateSourceMutation } from "../../ducks/source";
 import { useGetUsersQuery } from "../../ducks/users";
-import EditPopover, { EditPopoverActions, emptyChipSx } from "./EditPopover";
+import EditDialog, { emptyChipSx } from "./EditDialog";
 
 const REDSHIFT_TYPES = [
   { value: "spectroscopic", label: "Spectroscopic" },
@@ -131,11 +131,11 @@ const SourceRedshift = ({ source, readOnly = false }: SourceRedshiftProps) => {
   const { classes, cx } = useStyles();
   const dispatch = useAppDispatch();
   const [updateSource] = useUpdateSourceMutation();
-  const [anchor, setAnchor] = useState<HTMLElement | null>(null);
+  const [open, setOpen] = useState(false);
   const [state, setState] = useState(formState(source));
   const [isSubmitting, setIsSubmitting] = useState(false);
   const allUsers =
-    useGetUsersQuery({ slim: true }, { skip: !anchor }).data?.users ?? [];
+    useGetUsersQuery({ slim: true }, { skip: !open }).data?.users ?? [];
 
   const history = [...(source.redshift_history ?? [])].reverse();
   const hasRedshift = source.redshift != null;
@@ -148,9 +148,9 @@ const SourceRedshift = ({ source, readOnly = false }: SourceRedshiftProps) => {
     );
   }
 
-  const open = (e: React.MouseEvent<HTMLElement>) => {
+  const openEditor = () => {
     setState(formState(source));
-    setAnchor(e.currentTarget);
+    setOpen(true);
   };
 
   const submit = async (payload: Record<string, any>) => {
@@ -159,7 +159,7 @@ const SourceRedshift = ({ source, readOnly = false }: SourceRedshiftProps) => {
     setIsSubmitting(false);
     if ("error" in result) return;
     dispatch(showNotification("Source redshift successfully updated."));
-    setAnchor(null);
+    setOpen(false);
   };
 
   const save = () =>
@@ -199,12 +199,41 @@ const SourceRedshift = ({ source, readOnly = false }: SourceRedshiftProps) => {
                 .join(" · ")
             : "None"
         }
-        onClick={open}
+        onClick={openEditor}
       />
-      <EditPopover
-        anchor={anchor}
-        onClose={() => setAnchor(null)}
+      <EditDialog
+        open={open}
+        onClose={() => setOpen(false)}
         title="Redshift"
+        leftAction={
+          !readOnly &&
+          hasRedshift && (
+            <Tooltip title="Remove the redshift from this source">
+              <span>
+                <Button
+                  secondary
+                  onClick={clear}
+                  disabled={isSubmitting}
+                  data-testid="nullifyRedshiftButton"
+                >
+                  Clear
+                </Button>
+              </span>
+            </Tooltip>
+          )
+        }
+        actions={
+          !readOnly && (
+            <Button
+              primary
+              onClick={save}
+              disabled={isSubmitting || invalid || !state.redshift_type}
+              data-testid="updateRedshiftSubmitButton"
+            >
+              Save
+            </Button>
+          )
+        }
       >
         {!readOnly && (
           <>
@@ -253,32 +282,6 @@ const SourceRedshift = ({ source, readOnly = false }: SourceRedshiftProps) => {
                 </button>
               ))}
             </div>
-            <EditPopoverActions>
-              {hasRedshift && (
-                <Tooltip title="Remove the redshift from this source">
-                  <span>
-                    <Button
-                      secondary
-                      size="small"
-                      onClick={clear}
-                      disabled={isSubmitting}
-                      data-testid="nullifyRedshiftButton"
-                    >
-                      Clear
-                    </Button>
-                  </span>
-                </Tooltip>
-              )}
-              <Button
-                primary
-                size="small"
-                onClick={save}
-                disabled={isSubmitting || invalid || !state.redshift_type}
-                data-testid="updateRedshiftSubmitButton"
-              >
-                Save
-              </Button>
-            </EditPopoverActions>
           </>
         )}
         {history.length > 0 && (
@@ -317,7 +320,7 @@ const SourceRedshift = ({ source, readOnly = false }: SourceRedshiftProps) => {
             ))}
           </div>
         )}
-      </EditPopover>
+      </EditDialog>
     </>
   );
 };

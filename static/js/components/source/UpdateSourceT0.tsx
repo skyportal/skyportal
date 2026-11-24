@@ -7,7 +7,7 @@ import { useAppDispatch } from "../../types/hooks";
 import Button from "../Button";
 import { useUpdateSourceMutation } from "../../ducks/source";
 import type { Source } from "../../types";
-import EditPopover, { EditPopoverActions, emptyChipSx } from "./EditPopover";
+import EditDialog, { emptyChipSx } from "./EditDialog";
 
 interface UpdateSourceT0Props {
   source: Source;
@@ -17,7 +17,7 @@ interface UpdateSourceT0Props {
 const UpdateSourceT0 = ({ source, readOnly = false }: UpdateSourceT0Props) => {
   const dispatch = useAppDispatch();
   const [updateSource] = useUpdateSourceMutation();
-  const [anchor, setAnchor] = useState<HTMLElement | null>(null);
+  const [open, setOpen] = useState(false);
   const [t0, setT0] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -34,7 +34,7 @@ const UpdateSourceT0 = ({ source, readOnly = false }: UpdateSourceT0Props) => {
     setIsSubmitting(false);
     if ("error" in result) return;
     dispatch(showNotification("Source t0 successfully updated."));
-    setAnchor(null);
+    setOpen(false);
   };
 
   return (
@@ -48,13 +48,40 @@ const UpdateSourceT0 = ({ source, readOnly = false }: UpdateSourceT0Props) => {
         onClick={
           readOnly
             ? undefined
-            : (e) => {
+            : () => {
                 setT0(hasT0 ? String(source.t0) : "");
-                setAnchor(e.currentTarget);
+                setOpen(true);
               }
         }
       />
-      <EditPopover anchor={anchor} onClose={() => setAnchor(null)} title="T0">
+      <EditDialog
+        open={open}
+        onClose={() => setOpen(false)}
+        title="T0"
+        description="Reference time of the transient, such as the explosion or the first detection"
+        leftAction={
+          hasT0 && (
+            <Button
+              secondary
+              onClick={() => submit(null)}
+              disabled={isSubmitting}
+              data-testid="nullifyT0Button"
+            >
+              Clear
+            </Button>
+          )
+        }
+        actions={
+          <Button
+            primary
+            onClick={() => submit(t0)}
+            disabled={isSubmitting || invalid}
+            data-testid="updateT0SubmitButton"
+          >
+            Save
+          </Button>
+        }
+      >
         <TextField
           data-testid="updateT0Textfield"
           size="small"
@@ -65,39 +92,17 @@ const UpdateSourceT0 = ({ source, readOnly = false }: UpdateSourceT0Props) => {
           autoFocus
           fullWidth
         />
-        <EditPopoverActions>
-          {firstDetectedMjd != null && (
-            <Button
-              size="small"
-              sx={{ mr: "auto" }}
-              onClick={() => setT0(String(firstDetectedMjd))}
-              data-testid="t0FirstDetectionButton"
-            >
-              Use first detection
-            </Button>
-          )}
-          {hasT0 && (
-            <Button
-              secondary
-              size="small"
-              onClick={() => submit(null)}
-              disabled={isSubmitting}
-              data-testid="nullifyT0Button"
-            >
-              Clear
-            </Button>
-          )}
+        {firstDetectedMjd != null && (
           <Button
-            primary
             size="small"
-            onClick={() => submit(t0)}
-            disabled={isSubmitting || invalid}
-            data-testid="updateT0SubmitButton"
+            sx={{ alignSelf: "flex-start", mt: -1 }}
+            onClick={() => setT0(String(firstDetectedMjd))}
+            data-testid="t0FirstDetectionButton"
           >
-            Save
+            Use first detection
           </Button>
-        </EditPopoverActions>
-      </EditPopover>
+        )}
+      </EditDialog>
     </>
   );
 };

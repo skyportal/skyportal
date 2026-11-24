@@ -11,7 +11,7 @@ import { useAppDispatch } from "../../types/hooks";
 import Button from "../Button";
 import { useUpdateSourceMutation } from "../../ducks/source";
 import FieldLabel from "./FieldLabel";
-import EditPopover, { EditPopoverActions } from "./EditPopover";
+import EditDialog from "./EditDialog";
 
 interface SourceAliasProps {
   source: {
@@ -23,7 +23,7 @@ interface SourceAliasProps {
 const SourceAlias = ({ source }: SourceAliasProps) => {
   const dispatch = useAppDispatch();
   const [updateSource] = useUpdateSourceMutation();
-  const [anchor, setAnchor] = useState<HTMLElement | null>(null);
+  const [open, setOpen] = useState(false);
   const [alias, setAlias] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -47,7 +47,7 @@ const SourceAlias = ({ source }: SourceAliasProps) => {
     if (
       await save([...aliases, newAlias], "Source alias successfully updated.")
     ) {
-      setAnchor(null);
+      setOpen(false);
     }
   };
 
@@ -86,9 +86,9 @@ const SourceAlias = ({ source }: SourceAliasProps) => {
           <IconButton
             data-testid="updateAliasIconButton"
             size="small"
-            onClick={(e) => {
+            onClick={() => {
               setAlias("");
-              setAnchor(e.currentTarget);
+              setOpen(true);
             }}
             sx={{
               opacity: 0.5,
@@ -100,10 +100,20 @@ const SourceAlias = ({ source }: SourceAliasProps) => {
           </IconButton>
         </Tooltip>
       </Box>
-      <EditPopover
-        anchor={anchor}
-        onClose={() => setAnchor(null)}
+      <EditDialog
+        open={open}
+        onClose={() => setOpen(false)}
         title="Add alias"
+        actions={
+          <Button
+            primary
+            onClick={add}
+            disabled={isSubmitting || !newAlias || duplicate}
+            data-testid="addAliasSubmitButton"
+          >
+            Add
+          </Button>
+        }
       >
         <TextField
           data-testid="addAliasTextfield"
@@ -116,18 +126,7 @@ const SourceAlias = ({ source }: SourceAliasProps) => {
           autoFocus
           fullWidth
         />
-        <EditPopoverActions>
-          <Button
-            primary
-            size="small"
-            onClick={add}
-            disabled={isSubmitting || !newAlias || duplicate}
-            data-testid="addAliasSubmitButton"
-          >
-            Save
-          </Button>
-        </EditPopoverActions>
-      </EditPopover>
+      </EditDialog>
     </>
   );
 };

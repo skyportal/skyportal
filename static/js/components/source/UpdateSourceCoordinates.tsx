@@ -9,7 +9,7 @@ import { showNotification } from "baselayer/components/Notifications";
 import { useAppDispatch } from "../../types/hooks";
 import Button from "../Button";
 import { useUpdateSourceMutation } from "../../ducks/source";
-import EditPopover, { EditPopoverActions } from "./EditPopover";
+import EditDialog from "./EditDialog";
 
 interface UpdateSourceCoordinatesProps {
   source: {
@@ -22,7 +22,7 @@ interface UpdateSourceCoordinatesProps {
 const UpdateSourceCoordinates = ({ source }: UpdateSourceCoordinatesProps) => {
   const dispatch = useAppDispatch();
   const [updateSource] = useUpdateSourceMutation();
-  const [anchor, setAnchor] = useState<HTMLElement | null>(null);
+  const [open, setOpen] = useState(false);
   const [ra, setRa] = useState("");
   const [dec, setDec] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -39,7 +39,7 @@ const UpdateSourceCoordinates = ({ source }: UpdateSourceCoordinatesProps) => {
     setIsSubmitting(false);
     if ("error" in result) return;
     dispatch(showNotification("Source location successfully updated."));
-    setAnchor(null);
+    setOpen(false);
   };
 
   return (
@@ -48,19 +48,29 @@ const UpdateSourceCoordinates = ({ source }: UpdateSourceCoordinatesProps) => {
         <IconButton
           size="small"
           data-testid="updateCoordinatesIconButton"
-          onClick={(e) => {
+          onClick={() => {
             setRa(source.ra != null ? String(source.ra) : "");
             setDec(source.dec != null ? String(source.dec) : "");
-            setAnchor(e.currentTarget);
+            setOpen(true);
           }}
         >
           <EditIcon />
         </IconButton>
       </Tooltip>
-      <EditPopover
-        anchor={anchor}
-        onClose={() => setAnchor(null)}
+      <EditDialog
+        open={open}
+        onClose={() => setOpen(false)}
         title="Position"
+        actions={
+          <Button
+            primary
+            onClick={submit}
+            disabled={isSubmitting || badRa || badDec}
+            data-testid="updateCoordinatesSubmitButton"
+          >
+            Save
+          </Button>
+        }
       >
         <Box sx={{ display: "flex", gap: 1 }}>
           <TextField
@@ -83,18 +93,7 @@ const UpdateSourceCoordinates = ({ source }: UpdateSourceCoordinatesProps) => {
             fullWidth
           />
         </Box>
-        <EditPopoverActions>
-          <Button
-            primary
-            size="small"
-            onClick={submit}
-            disabled={isSubmitting || badRa || badDec}
-            data-testid="updateCoordinatesSubmitButton"
-          >
-            Save
-          </Button>
-        </EditPopoverActions>
-      </EditPopover>
+      </EditDialog>
     </>
   );
 };
