@@ -50,9 +50,13 @@ const useOnboardingTour = (steps: typeof TOUR_STEPS) => {
     continuous: true,
     // Scroll each target into view, including the first step.
     scrollToFirstStep: true,
-    options,
+    options: {
+      ...options,
+      buttons: ["back", "close", "skip", "primary"],
+      closeButtonAction: "skip",
+    },
     styles,
-    locale: { last: "Got it" },
+    locale: { last: "Got it", skip: "End tour" },
   });
 
   // Sidebar-targeted steps need the drawer mounted; on mobile it's a closed
