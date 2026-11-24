@@ -1,7 +1,8 @@
-import { Fragment, ReactNode, useState } from "react";
+import { ReactNode, useState } from "react";
 import { Link } from "react-router-dom";
 
 import Box from "@mui/material/Box";
+import Chip from "@mui/material/Chip";
 import MuiLink from "@mui/material/Link";
 import Skeleton from "@mui/material/Skeleton";
 import Typography from "@mui/material/Typography";
@@ -9,6 +10,7 @@ import { alpha, lighten } from "@mui/material/styles";
 import ImageNotSupportedOutlined from "@mui/icons-material/ImageNotSupportedOutlined";
 
 import DynamicTagDisplay from "./DynamicTagDisplay";
+import ExpandableCell from "../ExpandableCell";
 import { isPlaceholder } from "../thumbnail/ThumbnailList";
 import { dec_to_dms, ra_to_hours } from "../../units";
 import { useGetProfileQuery } from "../../ducks/profile";
@@ -234,27 +236,21 @@ export const SourceRow = ({
           </Typography>
         </Box>
         {groups.length > 0 && (
-          <Typography
-            variant="caption"
-            color="text.secondary"
-            noWrap
-            title={groups.map((group) => group.name).join(", ")}
-          >
-            {groups.map((group, index) => (
-              <Fragment key={group.id}>
-                {index > 0 && ", "}
-                <MuiLink
-                  component={Link}
-                  to={`/group/${group.id}`}
-                  color="inherit"
-                  underline="hover"
-                  sx={{ fontWeight: 400 }}
-                >
-                  {group.name}
-                </MuiLink>
-              </Fragment>
+          <ExpandableCell
+            maxVisible={2}
+            items={groups.map((group) => (
+              <Chip
+                key={group.id}
+                label={group.name}
+                size="small"
+                variant="outlined"
+                component={Link}
+                to={`/group/${group.id}`}
+                clickable
+                sx={{ height: 20, maxWidth: "10rem", fontSize: "0.7rem" }}
+              />
             ))}
-          </Typography>
+          />
         )}
         <DynamicTagDisplay source={source} />
       </Box>
