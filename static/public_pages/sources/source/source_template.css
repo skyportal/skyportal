@@ -112,14 +112,6 @@ header {
       }
     }
 
-    .coordinates .sexagesimal {
-      font-weight: 600;
-      font-size: 1.1rem;
-      @media screen and (max-width: 600px) {
-        font-size: 1rem;
-      }
-    }
-
     .coordinates .fieldLabel {
       color: rgba(0, 0, 0, 0.38);
       font-weight: normal;
