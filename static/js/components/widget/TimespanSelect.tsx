@@ -5,6 +5,7 @@ import MenuItem from "@mui/material/MenuItem";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 
 import Button from "../Button";
+import { muted } from "./WidgetCard";
 
 const TIMESPANS = [
   { label: "Day", sinceDaysAgo: "1" },
@@ -39,7 +40,7 @@ const TimespanSelect = ({
           textTransform: "none",
           fontWeight: 500,
           color: "text.secondary",
-          bgcolor: "action.hover",
+          bgcolor: muted(0.06),
           borderRadius: 2,
           minWidth: 0,
           py: 0.125,

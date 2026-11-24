@@ -10,6 +10,7 @@ import { alpha, lighten } from "@mui/material/styles";
 import ImageNotSupportedOutlined from "@mui/icons-material/ImageNotSupportedOutlined";
 
 import DynamicTagDisplay from "./DynamicTagDisplay";
+import { muted } from "./WidgetCard";
 import ExpandableCell from "../ExpandableCell";
 import { isPlaceholder } from "../thumbnail/ThumbnailList";
 import { dec_to_dms, ra_to_hours } from "../../units";
@@ -56,7 +57,7 @@ const SourceStamp = ({ source }: { source: any }) => {
         height: STAMP_SIZE,
         borderRadius: 2,
         overflow: "hidden",
-        bgcolor: "action.hover",
+        bgcolor: muted(0.06),
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
@@ -88,7 +89,10 @@ const SourceStamp = ({ source }: { source: any }) => {
           )}
         </>
       ) : (
-        <ImageNotSupportedOutlined color="disabled" fontSize="small" />
+        <ImageNotSupportedOutlined
+          fontSize="small"
+          sx={{ color: muted(0.3) }}
+        />
       )}
     </Box>
   );
@@ -182,7 +186,7 @@ export const SourceRow = ({
                 ...pillSx,
                 ...(tnsName.includes("SN")
                   ? { bgcolor: "primary.main", color: "primary.contrastText" }
-                  : { bgcolor: "action.selected", color: "text.primary" }),
+                  : { bgcolor: muted(0.08), color: "text.primary" }),
               }}
             >
               {tnsName}
@@ -191,12 +195,12 @@ export const SourceRow = ({
           <Typography
             component="span"
             variant="caption"
-            sx={(theme) => ({
+            sx={{
               ml: "auto",
               flexShrink: 0,
               whiteSpace: "nowrap",
-              color: alpha(theme.palette.text.primary, 0.5),
-            })}
+              color: muted(0.5),
+            }}
           >
             {meta}
           </Typography>
@@ -239,7 +243,7 @@ export const SourceRow = ({
               ["δ", dec_to_dms(source.dec)],
             ].map(([label, value]) => (
               <span key={label}>
-                <Box component="span" sx={{ color: "text.disabled", mr: 0.5 }}>
+                <Box component="span" sx={{ color: muted(0.4), mr: 0.5 }}>
                   {label}
                 </Box>
                 {value}

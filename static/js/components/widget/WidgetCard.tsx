@@ -3,9 +3,12 @@ import { ReactNode } from "react";
 import Box from "@mui/material/Box";
 import Paper from "@mui/material/Paper";
 import Typography from "@mui/material/Typography";
-import { SxProps, Theme } from "@mui/material/styles";
+import { alpha, SxProps, Theme } from "@mui/material/styles";
 
 import { useActiveTeam } from "../../ducks/teams";
+
+export const muted = (opacity: number) => (theme: Theme) =>
+  alpha(theme.palette.text.primary, opacity);
 
 export const TeamBadge = () => {
   const { activeTeam } = useActiveTeam();

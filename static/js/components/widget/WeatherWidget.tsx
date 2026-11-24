@@ -17,7 +17,7 @@ import {
 } from "../../ducks/profile";
 import { useGetWeatherQuery } from "../../ducks/weather";
 import { useGetTelescopesQuery } from "../../ducks/telescopes";
-import WidgetCard, { WidgetEmpty } from "./WidgetCard";
+import WidgetCard, { WidgetEmpty, muted } from "./WidgetCard";
 import WidgetLoading from "./WidgetLoading";
 
 dayjs.extend(relativeTime);
@@ -207,7 +207,7 @@ const WeatherWidget = () => {
                 px: 0.75,
                 mx: -0.75,
                 borderRadius: 1.5,
-                "&:hover": { bgcolor: "action.hover" },
+                "&:hover": { bgcolor: muted(0.05) },
               }}
             >
               {title}

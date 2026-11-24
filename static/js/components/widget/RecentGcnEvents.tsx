@@ -5,7 +5,6 @@ import Box from "@mui/material/Box";
 import Link from "@mui/material/Link";
 import Tooltip from "@mui/material/Tooltip";
 import Typography from "@mui/material/Typography";
-import { alpha } from "@mui/material/styles";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 import relativeTime from "dayjs/plugin/relativeTime";
@@ -21,7 +20,7 @@ import {
 } from "../../ducks/recentGcnExtractions";
 import GcnTags from "../gcn/GcnTags";
 import GcnEventAllocationTriggers from "../gcn/GcnEventAllocationTriggers";
-import WidgetCard, { WidgetEmpty } from "./WidgetCard";
+import WidgetCard, { WidgetEmpty, muted } from "./WidgetCard";
 import WidgetPrefsDialog from "./WidgetPrefsDialog";
 import WidgetLoading from "./WidgetLoading";
 
@@ -136,13 +135,13 @@ const GcnEventRow = ({
         </Link>
         <Typography
           variant="caption"
-          sx={(theme) => ({
+          sx={{
             ml: "auto",
             minWidth: 0,
             display: "flex",
             gap: 0.5,
-            color: alpha(theme.palette.text.primary, 0.5),
-          })}
+            color: muted(0.5),
+          }}
         >
           {aliases.length > 0 && (
             <Tooltip

@@ -36,7 +36,7 @@ import store from "../../store";
 import { setSidebar } from "../../ducks/sidebar";
 import { TOUR_STEPS } from "./GettingStartedTour";
 import { useTourStyles } from "../tourStyles";
-import WidgetCard from "./WidgetCard";
+import WidgetCard, { muted } from "./WidgetCard";
 
 const MENU_TOUR_STEPS = TOUR_STEPS.filter(
   (step) => !String(step.target).includes("tour-getting-started"),
@@ -354,11 +354,14 @@ const OnboardingChecklist = ({
           >
             <ListItemIcon sx={{ minWidth: 30, mt: 0.5 }}>
               {(item as any).explore ? (
-                <TourIcon color="action" fontSize="small" />
+                <TourIcon fontSize="small" sx={{ color: muted(0.54) }} />
               ) : (item as any).done ? (
                 <CheckCircleIcon color="success" fontSize="small" />
               ) : (
-                <RadioButtonUncheckedIcon color="disabled" fontSize="small" />
+                <RadioButtonUncheckedIcon
+                  fontSize="small"
+                  sx={{ color: muted(0.3) }}
+                />
               )}
             </ListItemIcon>
             <ListItemText

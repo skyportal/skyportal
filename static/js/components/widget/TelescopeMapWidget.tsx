@@ -43,12 +43,15 @@ const TelescopeMapWidget = () => {
         <>
           <Tooltip title="Reset view">
             <IconButton size="small" onClick={() => setMapKey((k) => k + 1)}>
-              <ReplayIcon color="action" fontSize="small" />
+              <ReplayIcon fontSize="small" sx={{ color: "text.secondary" }} />
             </IconButton>
           </Tooltip>
           <Tooltip title={<Legend />} placement="bottom-end">
             <IconButton size="small" aria-label="Legend">
-              <HelpOutlineOutlinedIcon color="action" fontSize="small" />
+              <HelpOutlineOutlinedIcon
+                fontSize="small"
+                sx={{ color: "text.secondary" }}
+              />
             </IconButton>
           </Tooltip>
         </>

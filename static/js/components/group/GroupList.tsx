@@ -25,7 +25,7 @@ import StyledDataGrid, {
   FULL_PAGE_HEIGHT,
 } from "../StyledDataGrid";
 import { Group } from "../../types";
-import WidgetCard from "../widget/WidgetCard";
+import WidgetCard, { muted } from "../widget/WidgetCard";
 
 const GroupListToolbar = ({ title, children }: any) => (
   <DataGridToolbar title={title} showExport={false} showColumns={false}>
@@ -89,7 +89,7 @@ const GroupList = ({
                 mx: -1,
                 borderRadius: 2,
                 fontWeight: 500,
-                "&:hover": { bgcolor: "action.hover" },
+                "&:hover": { bgcolor: muted(0.05) },
               }}
             >
               {group.name}

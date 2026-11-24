@@ -15,7 +15,7 @@ import {
 } from "../../ducks/profile";
 import { useGetTopSaversQuery } from "../../ducks/topSavers";
 import { useActiveTeam } from "../../ducks/teams";
-import WidgetCard, { WidgetEmpty } from "./WidgetCard";
+import WidgetCard, { WidgetEmpty, muted } from "./WidgetCard";
 import WidgetPrefsDialog from "./WidgetPrefsDialog";
 import WidgetLoading from "./WidgetLoading";
 import TimespanSelect from "./TimespanSelect";
@@ -86,7 +86,7 @@ const TopSaversList = ({ savers }: { savers: any[] }) => {
           input: {
             startAdornment: (
               <InputAdornment position="start">
-                <SearchIcon fontSize="small" />
+                <SearchIcon fontSize="small" sx={{ color: muted(0.5) }} />
               </InputAdornment>
             ),
             sx: { borderRadius: 2 },
@@ -105,7 +105,7 @@ const TopSaversList = ({ savers }: { savers: any[] }) => {
             px: 1,
             mx: -1,
             borderRadius: 2,
-            "&:hover": { bgcolor: "action.hover" },
+            "&:hover": { bgcolor: muted(0.05) },
           }}
         >
           <RankBadge rank={saver.rank} />

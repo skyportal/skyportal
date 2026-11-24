@@ -18,7 +18,7 @@ import {
 } from "../../ducks/profile";
 import { useGetNewsFeedQuery } from "../../ducks/newsFeed";
 import { useActiveTeam } from "../../ducks/teams";
-import WidgetCard, { WidgetEmpty } from "./WidgetCard";
+import WidgetCard, { WidgetEmpty, muted } from "./WidgetCard";
 import WidgetPrefsDialog from "./WidgetPrefsDialog";
 import WidgetLoading from "./WidgetLoading";
 
@@ -78,7 +78,7 @@ const NewsFeedItem = ({ item }: { item: any }) => {
         mx: -1,
         borderRadius: 2,
         transition: "background-color 0.15s",
-        "&:hover": { bgcolor: "action.hover" },
+        "&:hover": { bgcolor: muted(0.05) },
       }}
     >
       <Box sx={{ flexShrink: 0, pt: 0.25 }}>{avatar}</Box>

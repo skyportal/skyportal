@@ -13,7 +13,7 @@ import Link from "@mui/material/Link";
 import Typography from "@mui/material/Typography";
 
 import { useGetDuplicateSchedulingQuery } from "../../ducks/duplicateScheduling";
-import WidgetCard, { WidgetEmpty } from "./WidgetCard";
+import WidgetCard, { WidgetEmpty, muted } from "./WidgetCard";
 import WidgetLoading from "./WidgetLoading";
 
 const NeedsAttention = () => {
@@ -47,7 +47,7 @@ const NeedsAttention = () => {
               px: 1,
               mx: -1,
               borderRadius: 2,
-              "&:hover": { bgcolor: "action.hover" },
+              "&:hover": { bgcolor: muted(0.05) },
             }}
           >
             <Box
