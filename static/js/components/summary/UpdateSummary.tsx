@@ -1,19 +1,18 @@
 import { useState } from "react";
 import EditIcon from "@mui/icons-material/Edit";
-import Box from "@mui/material/Box";
-import Button from "@mui/material/Button";
-import Dialog from "@mui/material/Dialog";
-import DialogActions from "@mui/material/DialogActions";
-import DialogContent from "@mui/material/DialogContent";
-import DialogTitle from "@mui/material/DialogTitle";
+import Chip from "@mui/material/Chip";
 import TextField from "@mui/material/TextField";
 import Tooltip from "@mui/material/Tooltip";
+
+import Button from "../Button";
+import EditPopover, { EditPopoverActions } from "../source/EditPopover";
 
 interface UpdateSummaryProps {
   summary?: string | null | undefined;
   summaryHistory?:
     { summary?: string | null; is_bot?: boolean }[] | null | undefined;
   showAISummaries?: boolean;
+  chip?: boolean;
   onSave: (summary: string | null) => Promise<unknown>;
 }
 
@@ -21,81 +20,97 @@ const UpdateSummary = ({
   summary,
   summaryHistory,
   showAISummaries = true,
+  chip = false,
   onSave,
 }: UpdateSummaryProps) => {
-  const [dialogOpen, setDialogOpen] = useState(false);
+  const [anchor, setAnchor] = useState<HTMLElement | null>(null);
   const [text, setText] = useState("");
   const [saving, setSaving] = useState(false);
 
+  const open = (e: React.MouseEvent<HTMLElement | SVGSVGElement>) => {
+    setText(
+      summaryHistory?.find(
+        (s) => s.summary && (showAISummaries || s.is_bot === false),
+      )?.summary ?? "",
+    );
+    setAnchor(e.currentTarget as HTMLElement);
+  };
+
   const save = async (value: string | null) => {
     setSaving(true);
-    try {
-      await onSave(value);
-      setDialogOpen(false);
-    } catch {
-      // error notification handled by the baseQuery
-    }
+    const saved = await onSave(value).then(
+      () => true,
+      () => false,
+    );
     setSaving(false);
+    if (saved) setAnchor(null);
   };
 
   return (
     <>
-      <Tooltip title="Update Summary">
-        <EditIcon
-          fontSize="small"
-          sx={{ height: "1rem", cursor: "pointer" }}
-          onClick={() => {
-            setText(
-              summaryHistory?.find(
-                (s) => s.summary && (showAISummaries || s.is_bot === false),
-              )?.summary ?? "",
-            );
-            setDialogOpen(true);
+      {chip ? (
+        <Chip
+          size="small"
+          variant="outlined"
+          label="Add summary"
+          onClick={open}
+          data-testid="add-summary-button"
+          sx={{
+            borderStyle: "dashed",
+            color: "text.secondary",
+            "&:hover": { borderColor: "primary.main", color: "primary.main" },
           }}
         />
-      </Tooltip>
-      <Dialog
-        open={dialogOpen}
-        fullWidth
-        maxWidth="lg"
-        onClose={() => setDialogOpen(false)}
-      >
-        <DialogTitle>Update Summary</DialogTitle>
-        <DialogContent dividers>
-          <TextField
-            size="small"
-            label="Summary"
-            value={text}
-            minRows={2}
-            fullWidth
-            multiline
-            error={!text.trim()}
-            helperText={!text.trim() && "Please enter a valid summary"}
-            onChange={(e) => setText(e.target.value)}
+      ) : (
+        <Tooltip title="Update Summary">
+          <EditIcon
+            fontSize="small"
+            sx={{ height: "1rem", cursor: "pointer" }}
+            onClick={open}
           />
-        </DialogContent>
-        <DialogActions>
-          <Tooltip title="Clear the summary (set to null)">
-            <Box component="span" sx={{ mr: "auto" }}>
-              <Button
-                color="error"
-                disabled={saving || !summary}
-                onClick={() => save(null)}
-              >
-                Clear
-              </Button>
-            </Box>
-          </Tooltip>
-          <Button onClick={() => setDialogOpen(false)}>Cancel</Button>
+        </Tooltip>
+      )}
+      <EditPopover
+        anchor={anchor}
+        onClose={() => setAnchor(null)}
+        title="Summary"
+        width="32rem"
+      >
+        <TextField
+          size="small"
+          value={text}
+          minRows={4}
+          maxRows={14}
+          fullWidth
+          multiline
+          autoFocus
+          onChange={(e) => setText(e.target.value)}
+        />
+        <EditPopoverActions>
+          {summary && (
+            <Tooltip title="Remove the summary">
+              <span>
+                <Button
+                  secondary
+                  size="small"
+                  disabled={saving}
+                  onClick={() => save(null)}
+                >
+                  Clear
+                </Button>
+              </span>
+            </Tooltip>
+          )}
           <Button
-            variant="contained"
+            primary
+            size="small"
             disabled={saving || !text.trim()}
             onClick={() => save(text)}
           >
             Save
           </Button>
-        </DialogActions>
-      </Dialog>
+        </EditPopoverActions>
+      </EditPopover>
     </>
   );
 };

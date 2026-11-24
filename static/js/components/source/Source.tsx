@@ -722,8 +722,7 @@ const SourceContent = ({ source }: SourceContentProps) => {
                 )}
                 <div>
                   <FieldLabel>T0</FieldLabel>
-                  {source.t0}
-                  {!isReadOnly && <UpdateSourceT0 source={source} />}
+                  <UpdateSourceT0 source={source} readOnly={isReadOnly} />
                 </div>
               </div>
             </div>

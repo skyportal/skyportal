@@ -48,6 +48,16 @@ const SourceCoordinates = ({
           rowGap: 0.25,
           mb: 0.25,
           fontVariantNumeric: "tabular-nums",
+          "& .edit-position": {
+            opacity: 0,
+            transition: "opacity 0.15s",
+            "& .MuiIconButton-root": { p: "1px", color: "text.secondary" },
+            "& .MuiSvgIcon-root": { fontSize: "0.75rem" },
+          },
+          "&:hover .edit-position, &:focus-within .edit-position": {
+            opacity: 1,
+          },
+          "@media (hover: none)": { "& .edit-position": { opacity: 1 } },
         }}
       >
         <Box
@@ -76,7 +86,9 @@ const SourceCoordinates = ({
               {ebv.toFixed(2)}
             </>
           )}
-          <UpdateSourceCoordinates source={source} />
+          <span className="edit-position">
+            <UpdateSourceCoordinates source={source} />
+          </span>
         </Box>
       </Box>
     </Tooltip>

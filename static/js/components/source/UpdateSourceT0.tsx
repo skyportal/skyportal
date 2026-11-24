@@ -1,147 +1,102 @@
-import { useEffect, useState } from "react";
-import EditIcon from "@mui/icons-material/Edit";
-import Dialog from "@mui/material/Dialog";
-import DialogContent from "@mui/material/DialogContent";
-import DialogTitle from "@mui/material/DialogTitle";
-import { makeStyles } from "tss-react/mui";
-import SaveIcon from "@mui/icons-material/Save";
-import ClearIcon from "@mui/icons-material/Clear";
-import Tooltip from "@mui/material/Tooltip";
+import { useState } from "react";
+import Chip from "@mui/material/Chip";
 import TextField from "@mui/material/TextField";
 
 import { showNotification } from "baselayer/components/Notifications";
 import { useAppDispatch } from "../../types/hooks";
 import Button from "../Button";
-import FormValidationError from "../FormValidationError";
 import { useUpdateSourceMutation } from "../../ducks/source";
 import type { Source } from "../../types";
-
-const useStyles = makeStyles()(() => ({
-  formInput: {
-    marginTop: "0.5rem",
-  },
-  saveButton: {
-    textAlign: "center",
-    margin: "1rem",
-  },
-  editIcon: {
-    height: "0.75rem",
-    cursor: "pointer",
-  },
-}));
+import EditPopover, { EditPopoverActions } from "./EditPopover";
 
 interface UpdateSourceT0Props {
   source: Source;
+  readOnly?: boolean;
 }
 
-const UpdateSourceT0 = ({ source }: UpdateSourceT0Props) => {
-  const { classes } = useStyles();
+const UpdateSourceT0 = ({ source, readOnly = false }: UpdateSourceT0Props) => {
   const dispatch = useAppDispatch();
   const [updateSource] = useUpdateSourceMutation();
-  const [t0, setT0] = useState(source.t0 ? String(source.t0) : "");
-
-  const [dialogOpen, setDialogOpen] = useState(false);
+  const [anchor, setAnchor] = useState<HTMLElement | null>(null);
+  const [t0, setT0] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  const hasT0 = source.t0 != null;
   const firstDetectedMjd = source.photstats?.[0]?.first_detected_mjd ?? null;
+  const invalid = !t0.trim() || isNaN(Number(t0));
 
-  useEffect(() => {
-    setT0(source.t0 ? String(source.t0) : "");
-  }, [source]);
-
-  const handleSubmit = async (clear: boolean) => {
+  const submit = async (value: string | null) => {
     setIsSubmitting(true);
-    try {
-      await updateSource({
-        id: source.id,
-        payload: { t0: clear ? null : t0 },
-      }).unwrap();
-      dispatch(showNotification("Source t0 successfully updated."));
-      setDialogOpen(false);
-    } catch {
-      // error notification handled by the baseQuery
-    }
+    const result = await updateSource({
+      id: source.id,
+      payload: { t0: value },
+    });
     setIsSubmitting(false);
+    if ("error" in result) return;
+    dispatch(showNotification("Source t0 successfully updated."));
+    setAnchor(null);
   };
 
   return (
     <>
-      <EditIcon
-        data-testid="updateT0IconButton"
-        fontSize="small"
-        className={classes.editIcon}
-        onClick={() => {
-          setDialogOpen(true);
-        }}
-      />
-      <Dialog open={dialogOpen} onClose={() => setDialogOpen(false)}>
-        <DialogTitle>Update T0</DialogTitle>
-        <DialogContent>
-          <div>
-            {(!t0.trim() || isNaN(t0 as any)) && (
-              <FormValidationError message="Please enter a valid float" />
-            )}
-            <TextField
-              className={classes.formInput}
-              data-testid="updateT0Textfield"
-              size="small"
-              label="Reference time (mjd)"
-              value={t0}
-              name="t0"
-              onChange={(event) => setT0(event.target.value)}
-              variant="outlined"
-            />
-          </div>
-          <div className={classes.saveButton}>
-            <Tooltip
-              title={
-                firstDetectedMjd == null
-                  ? "No detection statistics available for this source"
-                  : "Fill in the first detection MJD"
+      <Chip
+        size="small"
+        data-testid="t0Chip"
+        variant={hasT0 ? "filled" : "outlined"}
+        label={hasT0 ? String(Number(Number(source.t0).toFixed(5))) : "None"}
+        onClick={
+          readOnly
+            ? undefined
+            : (e) => {
+                setT0(hasT0 ? String(source.t0) : "");
+                setAnchor(e.currentTarget);
               }
+        }
+      />
+      <EditPopover anchor={anchor} onClose={() => setAnchor(null)} title="T0">
+        <TextField
+          data-testid="updateT0Textfield"
+          size="small"
+          label="MJD"
+          value={t0}
+          onChange={(event) => setT0(event.target.value)}
+          error={Boolean(t0.trim()) && invalid}
+          autoFocus
+          fullWidth
+        />
+        <EditPopoverActions>
+          {firstDetectedMjd != null && (
+            <Button
+              size="small"
+              sx={{ mr: "auto" }}
+              onClick={() => setT0(String(firstDetectedMjd))}
+              data-testid="t0FirstDetectionButton"
             >
-              <span>
-                <Button
-                  secondary
-                  onClick={() => setT0(String(firstDetectedMjd))}
-                  data-testid="t0FirstDetectionButton"
-                  disabled={firstDetectedMjd == null}
-                >
-                  Use first detection
-                </Button>
-              </span>
-            </Tooltip>
-          </div>
-          <div className={classes.saveButton}>
+              Use first detection
+            </Button>
+          )}
+          {hasT0 && (
             <Button
               secondary
-              onClick={() => handleSubmit(false)}
-              endIcon={<SaveIcon />}
-              size="large"
-              data-testid="updateT0SubmitButton"
-              disabled={isSubmitting || !t0.trim() || isNaN(t0 as any)}
+              size="small"
+              onClick={() => submit(null)}
+              disabled={isSubmitting}
+              data-testid="nullifyT0Button"
             >
-              Save
+              Clear
             </Button>
-          </div>
-          <div className={classes.saveButton}>
-            <Tooltip title="Clear source t0 value (set to null)">
-              <span>
-                <Button
-                  primary
-                  onClick={() => handleSubmit(true)}
-                  endIcon={<ClearIcon />}
-                  size="large"
-                  data-testid="nullifyT0Button"
-                  disabled={isSubmitting || source.t0 === null}
-                >
-                  Clear
-                </Button>
-              </span>
-            </Tooltip>
-          </div>
-        </DialogContent>
-      </Dialog>
+          )}
+          <Button
+            primary
+            size="small"
+            onClick={() => submit(t0)}
+            disabled={isSubmitting || invalid}
+            data-testid="updateT0SubmitButton"
+          >
+            Save
+          </Button>
+        </EditPopoverActions>
+      </EditPopover>
     </>
   );
 };

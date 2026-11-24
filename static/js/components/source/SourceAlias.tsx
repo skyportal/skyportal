@@ -1,48 +1,17 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import AddIcon from "@mui/icons-material/Add";
-import IconButton from "@mui/material/IconButton";
-import Dialog from "@mui/material/Dialog";
-import DialogContent from "@mui/material/DialogContent";
-import DialogTitle from "@mui/material/DialogTitle";
+import Box from "@mui/material/Box";
 import Chip from "@mui/material/Chip";
-import Tooltip from "@mui/material/Tooltip";
-import { makeStyles } from "tss-react/mui";
-import SaveIcon from "@mui/icons-material/Save";
+import IconButton from "@mui/material/IconButton";
 import TextField from "@mui/material/TextField";
+import Tooltip from "@mui/material/Tooltip";
 
 import { showNotification } from "baselayer/components/Notifications";
 import { useAppDispatch } from "../../types/hooks";
 import Button from "../Button";
-import FormValidationError from "../FormValidationError";
 import { useUpdateSourceMutation } from "../../ducks/source";
 import FieldLabel from "./FieldLabel";
-
-const useStyles = makeStyles()(() => ({
-  container: {
-    display: "flex",
-    flexWrap: "wrap",
-    alignItems: "center",
-    gap: "0.4rem",
-  },
-  chip: {
-    maxWidth: "100%",
-  },
-  none: {
-    fontStyle: "italic",
-    opacity: 0.6,
-  },
-  addButton: {
-    opacity: 0.5,
-    transition: "opacity 0.2s",
-    "&:hover": {
-      opacity: 1,
-    },
-  },
-  saveButton: {
-    textAlign: "center",
-    margin: "1rem",
-  },
-}));
+import EditPopover, { EditPopoverActions } from "./EditPopover";
 
 interface SourceAliasProps {
   source: {
@@ -52,120 +21,113 @@ interface SourceAliasProps {
 }
 
 const SourceAlias = ({ source }: SourceAliasProps) => {
-  const { classes } = useStyles();
   const dispatch = useAppDispatch();
   const [updateSource] = useUpdateSourceMutation();
-  const [alias, setAlias] = useState<string | null>(null);
-
-  const [dialogOpen, setDialogOpen] = useState(false);
+  const [anchor, setAnchor] = useState<HTMLElement | null>(null);
+  const [alias, setAlias] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [invalid, setInvalid] = useState(true);
-
-  useEffect(() => {
-    // Invalid when empty or a duplicate of an existing alias.
-    setInvalid(!alias || !!source?.alias?.includes(alias));
-  }, [source, setInvalid, alias]);
-
-  const handleChange = (e: any) => {
-    setAlias(e.target.value);
-  };
-
-  const handleSubmit = async () => {
-    setIsSubmitting(true);
-    const newAliasList = [...(source.alias || []), alias];
-    try {
-      await updateSource({
-        id: source.id,
-        payload: { alias: newAliasList },
-      }).unwrap();
-      dispatch(showNotification("Source alias successfully updated."));
-      setDialogOpen(false);
-      setAlias(null);
-    } catch {
-      // error notification handled by the baseQuery
-    }
-    setIsSubmitting(false);
-  };
-
-  const handleDelete = async (aliasToDelete: string) => {
-    setIsSubmitting(true);
-    const newAliasList = (source.alias || []).filter(
-      (a) => a !== aliasToDelete,
-    );
-
-    try {
-      await updateSource({
-        id: source.id,
-        payload: { alias: newAliasList },
-      }).unwrap();
-      dispatch(showNotification("Source alias removed successfully."));
-    } catch {
-      // error notification handled by the baseQuery
-    }
-    setIsSubmitting(false);
-  };
 
   const aliases = source.alias || [];
+  const newAlias = alias.trim();
+  const duplicate = aliases.includes(newAlias);
+
+  const save = async (aliasList: string[], message: string) => {
+    setIsSubmitting(true);
+    const result = await updateSource({
+      id: source.id,
+      payload: { alias: aliasList },
+    });
+    setIsSubmitting(false);
+    if ("error" in result) return false;
+    dispatch(showNotification(message));
+    return true;
+  };
+
+  const add = async () => {
+    if (
+      await save([...aliases, newAlias], "Source alias successfully updated.")
+    ) {
+      setAnchor(null);
+    }
+  };
 
   return (
     <>
-      <div className={classes.container}>
+      <Box
+        sx={{
+          display: "flex",
+          flexWrap: "wrap",
+          alignItems: "center",
+          gap: 0.75,
+        }}
+      >
         <FieldLabel>Aliases</FieldLabel>
-        {aliases.length === 0 && <span className={classes.none}>none</span>}
+        {aliases.length === 0 && (
+          <Box component="span" sx={{ fontStyle: "italic", opacity: 0.6 }}>
+            none
+          </Box>
+        )}
         {aliases.map((a, idx) => (
           <Chip
             key={`${a}-${idx}`}
-            className={classes.chip}
             label={a}
             size="small"
             variant="outlined"
-            onDelete={() => handleDelete(a)}
+            sx={{ maxWidth: "100%" }}
+            onDelete={() =>
+              save(
+                aliases.filter((other) => other !== a),
+                "Source alias removed successfully.",
+              )
+            }
           />
         ))}
         <Tooltip title="Add alias">
           <IconButton
             data-testid="updateAliasIconButton"
-            onClick={() => setDialogOpen(true)}
             size="small"
-            className={classes.addButton}
+            onClick={(e) => {
+              setAlias("");
+              setAnchor(e.currentTarget);
+            }}
+            sx={{
+              opacity: 0.5,
+              transition: "opacity 0.2s",
+              "&:hover": { opacity: 1 },
+            }}
           >
             <AddIcon fontSize="small" />
           </IconButton>
         </Tooltip>
-      </div>
-      <Dialog open={dialogOpen} onClose={() => setDialogOpen(false)}>
-        <DialogTitle>Add Alias</DialogTitle>
-        <DialogContent>
-          <div>
-            {invalid && (
-              <FormValidationError message="Please enter a new alias" />
-            )}
-            <TextField
-              data-testid="addAliasTextfield"
-              size="small"
-              label="alias"
-              name="alias"
-              onChange={handleChange}
-              type="string"
-              variant="outlined"
-            />
-          </div>
-          <div className={classes.saveButton}>
-            <Button
-              secondary
-              onClick={() => {
-                handleSubmit();
-              }}
-              endIcon={<SaveIcon />}
-              size="large"
-              data-testid="addAliasSubmitButton"
-              disabled={isSubmitting || invalid}
-            >
-              Save
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
+      </Box>
+      <EditPopover
+        anchor={anchor}
+        onClose={() => setAnchor(null)}
+        title="Add alias"
+      >
+        <TextField
+          data-testid="addAliasTextfield"
+          size="small"
+          label="Alias"
+          value={alias}
+          onChange={(e) => setAlias(e.target.value)}
+          error={duplicate}
+          helperText={duplicate ? "Already an alias of this source" : ""}
+          autoFocus
+          fullWidth
+        />
+        <EditPopoverActions>
+          <Button
+            primary
+            size="small"
+            onClick={add}
+            disabled={isSubmitting || !newAlias || duplicate}
+            data-testid="addAliasSubmitButton"
+          >
+            Save
+          </Button>
+        </EditPopoverActions>
+      </EditPopover>
     </>
   );
 };
