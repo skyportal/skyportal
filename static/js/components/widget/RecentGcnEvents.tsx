@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Link as RouterLink } from "react-router-dom";
 
 import Box from "@mui/material/Box";
@@ -114,6 +115,7 @@ const GcnEventRow = ({
   extractions: RecentGcnExtraction[];
 }) => {
   const aliases: string[] = gcnEvent.aliases ?? [];
+  const [aliasesCut, setAliasesCut] = useState(false);
   const dateobs = dayjs.utc(gcnEvent.dateobs);
 
   return (
@@ -143,9 +145,18 @@ const GcnEventRow = ({
           })}
         >
           {aliases.length > 0 && (
-            <Tooltip title={aliases.join(", ")} placement="bottom-end">
+            <Tooltip
+              title={aliasesCut ? aliases.join(", ") : ""}
+              placement="bottom-end"
+            >
               <Box
                 component="span"
+                onMouseEnter={(event) =>
+                  setAliasesCut(
+                    event.currentTarget.scrollWidth >
+                      event.currentTarget.clientWidth,
+                  )
+                }
                 sx={{
                   minWidth: 0,
                   overflow: "hidden",
