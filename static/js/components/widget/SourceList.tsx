@@ -15,7 +15,7 @@ import { isPlaceholder } from "../thumbnail/ThumbnailList";
 import { dec_to_dms, ra_to_hours } from "../../units";
 import { useGetProfileQuery } from "../../ducks/profile";
 
-const STAMP_SIZE = "4rem";
+const STAMP_SIZE = "5rem";
 
 const latestClassification = (source: any) => {
   const classifications = source.classifications ?? [];
