@@ -494,6 +494,8 @@ def feedback_notification_text(content, escape, bold="*", sep=": "):
     """Announce a feedback message or reply, escaping the user text for its channel."""
     author = f"{bold}{escape(content['author'])}{bold}"
     snippet = escape(content["snippet"])
+    if content.get("deployed"):
+        return f"The fix for your {content['label']} is now deployed: {snippet}"
     if content["reply"]:
         whose = "their" if content.get("by_author") else "your"
         return f"{author} replied to {whose} {content['label']}{sep}{snippet}"

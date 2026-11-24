@@ -10,6 +10,8 @@ import Dialog from "@mui/material/Dialog";
 import DialogActions from "@mui/material/DialogActions";
 import DialogContent from "@mui/material/DialogContent";
 import DialogTitle from "@mui/material/DialogTitle";
+import IconButton from "@mui/material/IconButton";
+import Link from "@mui/material/Link";
 import Paper from "@mui/material/Paper";
 import Stack from "@mui/material/Stack";
 import TextField from "@mui/material/TextField";
@@ -31,6 +33,8 @@ import UndoIcon from "@mui/icons-material/Undo";
 import AssignIcon from "@mui/icons-material/AssignmentIndOutlined";
 import UnassignIcon from "@mui/icons-material/PersonRemoveOutlined";
 import TakeOverIcon from "@mui/icons-material/SwapHoriz";
+import AddLinkIcon from "@mui/icons-material/AddLink";
+import CloseIcon from "@mui/icons-material/Close";
 
 import { showNotification } from "baselayer/components/Notifications";
 import Button from "../Button";
@@ -276,6 +280,126 @@ const AssignButton = ({ message }: { message: Feedback }) => {
   );
 };
 
+// "https://github.com/owner/repo/pull/12" -> "owner/repo#12"
+const prLabel = (url: string) =>
+  url.replace(/^https:\/\/github\.com\/([^/]+\/[^/]+)\/pull\/(\d+)$/, "$1#$2");
+
+const PullRequests = ({
+  message,
+  isAdmin,
+}: {
+  message: Feedback;
+  isAdmin: boolean;
+}) => {
+  const [updateFeedback] = useUpdateFeedbackMutation();
+  const pullRequests = message.pull_requests ?? [];
+  if (!pullRequests.length) return null;
+  const urls = pullRequests.map(({ url }) => url);
+
+  return (
+    <Stack
+      direction="row"
+      sx={{ mt: 1, flexWrap: "wrap", columnGap: 1, alignItems: "center" }}
+    >
+      {pullRequests.map(({ url, deployed }) => (
+        <Box
+          key={url}
+          sx={{
+            display: "inline-flex",
+            alignItems: "center",
+            "& .unlink": { display: "none" },
+            "&:hover .unlink, &:focus-within .unlink": {
+              display: "inline-flex",
+            },
+            // no hover on touch screens
+            "@media (hover: none)": { "& .unlink": { display: "inline-flex" } },
+          }}
+        >
+          <Tooltip
+            title={`${prLabel(url)}: ${deployed ? "deployed" : "not deployed yet"}`}
+          >
+            <Link
+              variant="body2"
+              href={url}
+              target="_blank"
+              rel="noreferrer"
+              sx={{ fontWeight: "bold" }}
+            >
+              {`#${url.split("/").pop()}`}
+            </Link>
+          </Tooltip>
+          {isAdmin && (
+            <Tooltip title="Unlink">
+              <IconButton
+                className="unlink"
+                size="small"
+                aria-label={`Unlink ${prLabel(url)}`}
+                onClick={() =>
+                  updateFeedback({
+                    id: message.id,
+                    pr_urls: urls.filter((other) => other !== url),
+                  })
+                }
+              >
+                <CloseIcon sx={{ fontSize: "0.9rem" }} />
+              </IconButton>
+            </Tooltip>
+          )}
+        </Box>
+      ))}
+      {message.deployed_at && (
+        <Typography
+          variant="caption"
+          color="text.secondary"
+          sx={{ alignSelf: "center" }}
+        >
+          Deployed <Posted at={message.deployed_at} />
+        </Typography>
+      )}
+    </Stack>
+  );
+};
+
+const LinkPullRequest = ({
+  message,
+  onDone,
+}: {
+  message: Feedback;
+  onDone: () => void;
+}) => {
+  const [url, setUrl] = useState("");
+  const [updateFeedback, { isLoading }] = useUpdateFeedbackMutation();
+  const urls = (message.pull_requests ?? []).map((pr) => pr.url);
+
+  return (
+    <Stack direction="row" spacing={1} sx={{ mt: 1.5, alignItems: "center" }}>
+      <TextField
+        size="small"
+        label="Pull request URL"
+        placeholder="https://github.com/skyportal/skyportal/pull/1234"
+        value={url}
+        onChange={(event) => setUrl(event.target.value)}
+        sx={{ flexGrow: 1 }}
+      />
+      <Button
+        async
+        loading={isLoading}
+        disabled={!url.trim()}
+        onClick={async () => {
+          await updateFeedback({
+            id: message.id,
+            pr_urls: [...urls, url.trim()],
+          }).unwrap();
+          setUrl("");
+          onDone();
+        }}
+      >
+        Link
+      </Button>
+    </Stack>
+  );
+};
+
 const Message = ({
   message,
   isAdmin,
@@ -284,6 +408,7 @@ const Message = ({
   isAdmin: boolean;
 }) => {
   const [replying, setReplying] = useState(false);
+  const [linking, setLinking] = useState(false);
   const { data: profile } = useGetProfileQuery();
   const [updateFeedback] = useUpdateFeedbackMutation();
   const [replyToFeedback, { isLoading }] = useReplyToFeedbackMutation();
@@ -324,6 +449,7 @@ const Message = ({
           <Typography variant="body2" sx={{ mt: 0.75, whiteSpace: "pre-wrap" }}>
             {message.text}
           </Typography>
+          <PullRequests message={message} isAdmin={isAdmin} />
           {(message.replies ?? []).map((reply) => (
             <Stack
               key={reply.id}
@@ -375,6 +501,12 @@ const Message = ({
               />
             </Stack>
           )}
+          {linking && (
+            <LinkPullRequest
+              message={message}
+              onDone={() => setLinking(false)}
+            />
+          )}
           {(isAdmin || isAuthor) && (
             <Stack
               direction="row"
@@ -390,6 +522,13 @@ const Message = ({
               </Button>
               {isAdmin && (
                 <>
+                  <Button
+                    size="small"
+                    endIcon={<AddLinkIcon />}
+                    onClick={() => setLinking(!linking)}
+                  >
+                    {linking ? "Cancel" : "Link PR"}
+                  </Button>
                   <AssignButton message={message} />
                   <Button
                     size="small"
