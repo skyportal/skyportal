@@ -61,23 +61,21 @@ const WithholdFromTNS = ({
         label={withheld ? "TNS reporting off" : "TNS reporting on"}
         {...(readOnly ? {} : { onClick: toggle })}
         sx={(theme) => {
-          const { error, success } = theme.palette;
-          const dark = theme.palette.mode === "dark";
-          const color = withheld
-            ? dark
-              ? error.light
-              : error.main
-            : dark
-              ? success.light
-              : success.dark;
+          const { error, text } = theme.palette;
+          const red = theme.palette.mode === "dark" ? error.light : error.main;
+          const tint = withheld ? red : text.primary;
           return {
             alignSelf: "flex-start",
-            bgcolor: alpha(color, 0.12),
-            color,
+            bgcolor: alpha(tint, withheld ? 0.12 : 0.06),
+            color: "text.primary",
             fontWeight: 500,
             borderRadius: "8px",
-            "& .MuiChip-icon": { color: "inherit", fontSize: 15, ml: 0.75 },
-            "&&:hover": { bgcolor: alpha(color, 0.2) },
+            "& .MuiChip-icon": {
+              color: withheld ? red : "text.secondary",
+              fontSize: 15,
+              ml: 0.75,
+            },
+            "&&:hover": { bgcolor: alpha(tint, withheld ? 0.2 : 0.11) },
           };
         }}
       />

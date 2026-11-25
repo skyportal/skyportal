@@ -893,7 +893,8 @@ const SourceContent = ({ source }: SourceContentProps) => {
                 const dark = theme.palette.mode === "dark";
                 const tint = (color: string) => ({
                   bgcolor: alpha(color, 0.14),
-                  color,
+                  color: "text.primary",
+                  "& .MuiButton-endIcon": { color },
                   "&:hover": { bgcolor: alpha(color, 0.22) },
                 });
                 return {
@@ -906,10 +907,7 @@ const SourceContent = ({ source }: SourceContentProps) => {
                   mt: 0.75,
                   "& [data-testid=interested-button].MuiButton-colorSuccess": {
                     bgcolor: alpha(success.main, 0.16),
-                    color:
-                      theme.palette.mode === "dark"
-                        ? success.light
-                        : success.dark,
+                    color: "text.primary",
                     "&:hover": { bgcolor: alpha(success.main, 0.24) },
                   },
                   "& [data-testid=observing-button]": tint(

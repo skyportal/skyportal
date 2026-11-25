@@ -45,7 +45,6 @@ const useStyles = makeStyles()((theme) => ({
   typeSelected: {
     borderColor: theme.palette.primary.main,
     background: alpha(theme.palette.primary.main, 0.08),
-    color: theme.palette.primary.main,
     fontWeight: 600,
     "&:hover": {
       borderColor: theme.palette.primary.main,

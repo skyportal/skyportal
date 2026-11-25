@@ -3,7 +3,7 @@ import Link from "@mui/material/Link";
 import Box from "@mui/material/Box";
 import Chip from "@mui/material/Chip";
 import Popover from "@mui/material/Popover";
-import { alpha, lighten } from "@mui/material/styles";
+import { alpha } from "@mui/material/styles";
 import type { BrokerHost } from "../../ducks/brokers";
 
 export const zDigits = (zErr: number | null | undefined) =>
@@ -101,11 +101,10 @@ export const HostChip = ({
         sx={
           host.primary
             ? (theme) => {
-                const { main, dark } = theme.palette.success;
+                const { main } = theme.palette.success;
                 return {
                   bgcolor: alpha(main, 0.16),
-                  color:
-                    theme.palette.mode === "dark" ? lighten(main, 0.5) : dark,
+                  color: "text.primary",
                   "&:hover": { bgcolor: alpha(main, 0.24) },
                   "& .MuiChip-deleteIcon": {
                     color: alpha(main, 0.45),
