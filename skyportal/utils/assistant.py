@@ -144,7 +144,7 @@ def tool_note(calls):
     for call in calls or []:
         arguments = json.dumps(call.get("arguments") or {}, default=str)
         if len(arguments) > HISTORY_ARG_BUDGET:
-            arguments = arguments[:HISTORY_ARG_BUDGET] + "…"
+            arguments = arguments[:HISTORY_ARG_BUDGET] + "\u2026"
         outcome = "ok" if call.get("ok") else "failed"
         summary = " ".join(str(call.get("summary") or "").split())
         lines.append(f"- {call.get('name')} {arguments} ({outcome}): {summary}")
