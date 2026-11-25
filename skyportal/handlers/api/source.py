@@ -94,6 +94,7 @@ from ...models import (
     Thumbnail,
     Token,
     User,
+    serialize_obj_tag,
 )
 from ...utils.asynchronous import run_async
 from ...utils.cache import Cache, cache_folder, dict_to_bytes
@@ -803,14 +804,17 @@ async def get_source(
                 ]
             )
     if include_tags:
+        user_group_ids = set(await accessible_group_ids_async(user, session))
         tags_result = await session.scalars(
             ObjTag.select(user)
-            .options(selectinload(ObjTag.objtagoption))
+            .options(
+                selectinload(ObjTag.objtagoption),
+                selectinload(ObjTag.groups),
+            )
             .where(ObjTag.obj_id.in_(aggregated_obj_ids))
         )
-        tags = tags_result.all()
-        tags = [{**tag.to_dict(), "name": tag.objtagoption.name} for tag in tags]
-        source_info["tags"] = tags
+        tags = tags_result.unique().all()
+        source_info["tags"] = [serialize_obj_tag(tag, user_group_ids) for tag in tags]
     source_query = Source.select(user).where(Source.obj_id == source_info["id"])
     source_query = apply_active_or_requested_filtering(
         source_query, include_requested, requested_only
