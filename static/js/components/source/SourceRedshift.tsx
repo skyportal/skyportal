@@ -18,7 +18,7 @@ export const REDSHIFT_TYPES = [
   { value: "photometric", label: "Photometric" },
 ];
 
-export const TYPE_LABELS: Record<string, string> = {
+const TYPE_LABELS: Record<string, string> = {
   spectroscopic: "spec-z",
   photometric: "photo-z",
 };

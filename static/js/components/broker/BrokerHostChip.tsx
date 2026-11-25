@@ -5,7 +5,7 @@ import Chip from "@mui/material/Chip";
 import Popover from "@mui/material/Popover";
 import { alpha, lighten } from "@mui/material/styles";
 import type { BrokerHost } from "../../ducks/brokers";
-import { REDSHIFT_TYPES, TYPE_LABELS } from "../source/SourceRedshift";
+import { REDSHIFT_TYPES } from "../source/SourceRedshift";
 
 export const zDigits = (zErr: number | null | undefined) =>
   zErr ? Math.min(6, Math.max(1, Math.ceil(Math.abs(Math.log10(zErr))))) : 4;
@@ -98,9 +98,8 @@ export const HostChip = ({
 }) => {
   const [anchor, setAnchor] = useState<HTMLElement | null>(null);
   const heading = host.heading ?? host.tag;
-  const zLabel = (host.zType && TYPE_LABELS[host.zType]) || "z";
   const meta = [
-    host.z != null ? `${zLabel} ${host.z.toFixed(zDigits(host.zErr))}` : null,
+    host.z != null ? `z ${host.z.toFixed(zDigits(host.zErr))}` : null,
     host.sepArcsec != null ? `${host.sepArcsec.toFixed(1)}″` : null,
     host.sepKpc != null ? `${host.sepKpc.toFixed(1)} kpc` : null,
   ]
