@@ -1,8 +1,8 @@
 import { useState } from "react";
 
 import ErrorIcon from "@mui/icons-material/ErrorOutlineOutlined";
+import HorizontalRuleIcon from "@mui/icons-material/HorizontalRule";
 import ManageSearchIcon from "@mui/icons-material/ManageSearch";
-import SearchOffIcon from "@mui/icons-material/SearchOff";
 import Box from "@mui/material/Box";
 import CircularProgress from "@mui/material/CircularProgress";
 import Dialog from "@mui/material/Dialog";
@@ -63,7 +63,7 @@ const UpdateSourceTNS = ({ sourceId, tnsRequest }: UpdateSourceTNSProps) => {
           title={`No TNS object within ${tnsRequest.radius}″, searched on ${tnsRequest.modified.slice(0, 10)}`}
           placement="bottom-start"
         >
-          <SearchOffIcon
+          <HorizontalRuleIcon
             color="action"
             fontSize="small"
             data-testid="tnsNotFound"
