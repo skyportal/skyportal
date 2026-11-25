@@ -1,13 +1,17 @@
 import { useGetProfileQuery } from "../../ducks/profile";
-import { useEffect, useState } from "react";
-import Tooltip from "@mui/material/Tooltip";
+import { type ReactNode, useState } from "react";
+import Tooltip, { type TooltipProps } from "@mui/material/Tooltip";
 import Chip from "@mui/material/Chip";
-import DeleteIcon from "@mui/icons-material/Delete";
-import ThumbUp from "@mui/icons-material/ThumbUp";
-import ThumbDown from "@mui/icons-material/ThumbDown";
-import VisibilityIcon from "@mui/icons-material/Visibility";
-import VisibilityOffIcon from "@mui/icons-material/VisibilityOff";
-import { makeStyles } from "tss-react/mui";
+import Box from "@mui/material/Box";
+import Divider from "@mui/material/Divider";
+import IconButton from "@mui/material/IconButton";
+import Typography from "@mui/material/Typography";
+import { alpha, type Theme } from "@mui/material/styles";
+import DeleteOutlineIcon from "@mui/icons-material/DeleteOutlined";
+import ThumbUpIcon from "@mui/icons-material/ThumbUp";
+import ThumbUpOutlinedIcon from "@mui/icons-material/ThumbUpOutlined";
+import ThumbDownIcon from "@mui/icons-material/ThumbDown";
+import ThumbDownOutlinedIcon from "@mui/icons-material/ThumbDownOutlined";
 import { showNotification } from "baselayer/components/Notifications";
 import { useAppDispatch } from "../../types/hooks";
 import Button from "../Button";
@@ -19,26 +23,129 @@ import {
 } from "../../ducks/source";
 import { useGetConfigQuery } from "../../ducks/config";
 
-// preserve the legacy <font> tag (not a typed JSX intrinsic element)
-const Font: any = "font";
+export const cardTooltipSlotProps: TooltipProps["slotProps"] = {
+  tooltip: {
+    sx: (theme: Theme) => ({
+      p: 0,
+      maxWidth: 320,
+      color: "text.primary",
+      bgcolor:
+        theme.palette.mode === "dark" ? "background.paper" : "common.white",
+      border: 1,
+      borderColor: "divider",
+      borderRadius: 2,
+      boxShadow: theme.shadows[8],
+      fontSize: "0.85rem",
+      fontWeight: 400,
+    }),
+  },
+};
 
-export const useStyles = makeStyles()(() => ({
-  chip: {
-    fontSize: "1.2rem",
-    fontWeight: "bold",
-  },
-  classificationDelete: {
-    cursor: "pointer",
-    fontSize: "2em",
-    position: "absolute",
-    padding: 0,
-    right: 0,
-    top: 0,
-  },
-  classificationDeleteDisabled: {
-    opacity: 0,
-  },
-}));
+interface VoteButtonProps {
+  id: string;
+  up?: boolean;
+  active: boolean;
+  count?: number;
+  onClick: () => void;
+}
+
+export const VoteButton = ({
+  id,
+  up = false,
+  active,
+  count,
+  onClick,
+}: VoteButtonProps) => {
+  const color = up ? "success" : "error";
+  const Icon = up
+    ? active
+      ? ThumbUpIcon
+      : ThumbUpOutlinedIcon
+    : active
+      ? ThumbDownIcon
+      : ThumbDownOutlinedIcon;
+  return (
+    <Button
+      id={id}
+      size="small"
+      onClick={onClick}
+      aria-label={up ? "Upvote" : "Downvote"}
+      endIcon={<Icon />}
+      sx={(theme: Theme) => {
+        const base = active
+          ? theme.palette[color].main
+          : theme.palette.text.primary;
+        return {
+          minWidth: 0,
+          px: 1.25,
+          py: 0.25,
+          borderRadius: 999,
+          fontWeight: 600,
+          fontVariantNumeric: "tabular-nums",
+          color: active ? `${color}.main` : "text.secondary",
+          bgcolor: alpha(base, active ? 0.12 : 0.05),
+          "&:hover": { bgcolor: alpha(base, active ? 0.2 : 0.1) },
+          "& .MuiButton-endIcon": { ml: count === undefined ? 0 : 0.5, mr: 0 },
+          "& .MuiButton-endIcon svg": { fontSize: "1rem" },
+        };
+      }}
+    >
+      {count}
+    </Button>
+  );
+};
+
+interface ClassificationCardProps {
+  title: string;
+  color?: string;
+  action?: ReactNode;
+  footer: ReactNode;
+  children?: ReactNode;
+}
+
+export const ClassificationCard = ({
+  title,
+  color,
+  action,
+  footer,
+  children,
+}: ClassificationCardProps) => (
+  <Box sx={{ minWidth: 220 }}>
+    <Box
+      sx={{
+        display: "flex",
+        alignItems: "center",
+        gap: 1,
+        minHeight: 40,
+        pl: 1.5,
+        pr: 0.5,
+      }}
+    >
+      {color && (
+        <Box
+          sx={{
+            width: 10,
+            height: 10,
+            borderRadius: "50%",
+            bgcolor: color,
+            flexShrink: 0,
+          }}
+        />
+      )}
+      <Typography sx={{ flex: 1, fontWeight: 600, fontSize: "0.95rem" }}>
+        {title}
+      </Typography>
+      {action}
+    </Box>
+    {children && <Divider />}
+    {children}
+    <Divider />
+    <Box sx={{ display: "flex", gap: 0.75, px: 1.5, py: 1 }}>{footer}</Box>
+  </Box>
+);
+
+const formatProbability = (probability: any) =>
+  typeof probability === "number" ? `${Math.round(probability * 100)}%` : "–";
 
 interface ClassificationRowProps {
   classifications: Record<string, any>[];
@@ -49,52 +156,21 @@ const ClassificationRow = ({
   classifications,
   fontSize = "1rem",
 }: ClassificationRowProps) => {
-  const { classes } = useStyles();
   const dispatch = useAppDispatch();
   const [addClassificationVote] = useAddClassificationVoteMutation();
   const [deleteClassificationMutation] = useDeleteClassificationMutation();
-
   const { data: currentUser } = useGetProfileQuery();
-  // The old global `group` slice (a single most-recently-fetched group) no
-  // longer exists: the group duck is now RTK Query keyed by id, and no specific
-  // group id is in scope here. As before, when no group is loaded the
-  // membership lookup resolves to undefined.
-  const groupUsers: any = undefined;
-  const currentGroupUser = groupUsers?.filter(
-    (groupUser: any) => groupUser.user_id === currentUser?.id,
-  )[0];
-
-  useEffect(() => {
-    if (
-      currentGroupUser?.admin !== undefined &&
-      currentGroupUser?.admin !== null
-    ) {
-      window.localStorage.setItem(
-        "CURRENT_GROUP_ADMIN",
-        JSON.stringify(currentGroupUser.admin),
-      );
-    }
-  }, [currentGroupUser]);
-
-  const isGroupAdmin = JSON.parse(
-    window.localStorage.getItem("CURRENT_GROUP_ADMIN") as string,
-  );
+  const classificationsClasses = (useGetConfigQuery().data as any)
+    ?.classificationsClasses;
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [votesVisible, setVotesVisible] = useState(false);
-  const [classificationToDelete, setClassificationToDelete] = useState<
-    any | null
-  >(null);
-  const openDialog = (id: any) => {
-    setDialogOpen(true);
-    setClassificationToDelete(id);
-  };
-  const closeDialog = () => {
-    setDialogOpen(false);
-    setClassificationToDelete(null);
-  };
 
-  const addVote = (classification_id: any, vote: number) => {
-    addClassificationVote({ classification_id, data: { vote } })
+  const classification = classifications[0]!;
+
+  const addVote = (vote: number) => {
+    addClassificationVote({
+      classification_id: classification["id"],
+      data: { vote },
+    })
       .unwrap()
       .then(() => {
         dispatch(showNotification("Vote registered"));
@@ -104,237 +180,139 @@ const ClassificationRow = ({
       });
   };
 
-  const switchVotesVisible = () => {
-    setVotesVisible(!votesVisible);
-  };
-
   const deleteClassification = () => {
-    deleteClassificationMutation(classificationToDelete)
+    deleteClassificationMutation(classification["id"])
       .unwrap()
       .then(() => {
         dispatch(showNotification("Classification deleted"));
-        closeDialog();
+        setDialogOpen(false);
       })
       .catch(() => {
         // error notification handled by the baseQuery
       });
   };
 
-  const classification = classifications[0]!;
-
-  const classifications_classes = (useGetConfigQuery().data as any)
-    ?.classificationsClasses;
-
-  const upvoterIds: any[] = [];
-  const downvoterIds: any[] = [];
-  let upvoteValue = 1;
-  let downvoteValue = -1;
-  let upvoteColor: any = "disabled";
-  let downvoteColor: any = "disabled";
-
-  classification["votes"]?.forEach((s: any) => {
-    if (s.vote === 1) {
-      upvoterIds.push(s.id);
-      if (s.voter_id === currentUser?.id) {
-        upvoteValue = 0;
-        upvoteColor = "success";
-      }
-    } else if (s.vote === -1) {
-      downvoterIds.push(s.id);
-      if (s.voter_id === currentUser?.id) {
-        downvoteValue = 0;
-        downvoteColor = "error";
-      }
-    }
-  });
-
-  const defaultColor = (isML: boolean) => {
-    let color = "#000000";
-    if (isML) {
-      color = "#3063ab";
-    }
-    return color;
-  };
+  const votes = classification["votes"] || [];
+  const upvotes = votes.filter((v: any) => v.vote === 1);
+  const downvotes = votes.filter((v: any) => v.vote === -1);
+  const upvoted = upvotes.some((v: any) => v.voter_id === currentUser?.id);
+  const downvoted = downvotes.some((v: any) => v.voter_id === currentUser?.id);
 
   const permission =
     currentUser?.permissions.includes("System admin") ||
     currentUser?.permissions.includes("Manage groups") ||
-    isGroupAdmin ||
+    JSON.parse(window.localStorage.getItem("CURRENT_GROUP_ADMIN") as string) ||
     currentUser?.username === classification["author_name"];
 
-  const clsProb = classification["probability"]
-    ? classification["probability"]
-    : "null";
+  const isML = Boolean(classification["ml"]);
+  const originColor =
+    classificationsClasses?.origin && classification["origin"]
+      ? classificationsClasses.origin[classification["origin"]]
+      : undefined;
+  const backgroundColor = originColor
+    ? undefined
+    : classificationsClasses?.classification?.[
+        classification["classification"]
+      ] || "#999999";
+  const label = `${isML ? "ML: " : ""}${classification["classification"]}${
+    classification["probability"] < 0.1 ? "?" : ""
+  }`;
+
   return (
-    <div>
+    <>
       <Tooltip
-        key={`${classification["modified"]}tt`}
         disableFocusListener
         disableTouchListener
+        slotProps={cardTooltipSlotProps}
         title={
-          <div>
-            <div>
+          <ClassificationCard
+            title={classification["classification"]}
+            color={originColor || backgroundColor}
+            action={
+              permission && (
+                <IconButton
+                  id="delete_classification"
+                  size="small"
+                  aria-label="Delete classification"
+                  onClick={() => setDialogOpen(true)}
+                  sx={{ color: "text.secondary" }}
+                >
+                  <DeleteOutlineIcon fontSize="small" />
+                </IconButton>
+              )
+            }
+            footer={
+              <>
+                <VoteButton
+                  id="up_vote"
+                  up
+                  active={upvoted}
+                  count={upvotes.length}
+                  onClick={() => addVote(upvoted ? 0 : 1)}
+                />
+                <VoteButton
+                  id="down_vote"
+                  active={downvoted}
+                  count={downvotes.length}
+                  onClick={() => addVote(downvoted ? 0 : -1)}
+                />
+              </>
+            }
+          >
+            <Box
+              sx={{
+                display: "flex",
+                flexDirection: "column",
+                gap: 1,
+                px: 1.5,
+                py: 1,
+              }}
+            >
               {classifications.map((cls) => (
-                <span key={cls["id"]}>
-                  P=
-                  {clsProb} ({cls["taxname"]})
-                  <br />
-                  <i>{cls["author_name"]}</i>
-                  <br />
-                </span>
+                <Box
+                  key={cls["id"]}
+                  sx={{ display: "flex", alignItems: "center", gap: 1.5 }}
+                >
+                  <Typography
+                    sx={{
+                      minWidth: 40,
+                      fontWeight: 600,
+                      fontVariantNumeric: "tabular-nums",
+                    }}
+                  >
+                    {formatProbability(cls["probability"])}
+                  </Typography>
+                  <Box sx={{ minWidth: 0 }}>
+                    <Typography variant="body2">{cls["taxname"]}</Typography>
+                    <Typography variant="caption" color="text.secondary">
+                      {cls["ml"] ? "ML · " : ""}
+                      {cls["author_name"]}
+                    </Typography>
+                  </Box>
+                </Box>
               ))}
-            </div>
-            <div>
-              <Button
-                id="delete_classification"
-                classes={{
-                  root: classes.classificationDelete,
-                  disabled: classes.classificationDeleteDisabled,
-                }}
-                onClick={() => openDialog(classification["id"])}
-                disabled={!permission}
-              >
-                <DeleteIcon />
-              </Button>
-              <ConfirmDeletionDialog
-                deleteFunction={deleteClassification}
-                dialogOpen={dialogOpen}
-                closeDialog={closeDialog}
-                resourceName="classification"
-              />
-            </div>
-            <div>
-              <Button
-                key={classification["id"]}
-                id="down_vote"
-                onClick={() => switchVotesVisible()}
-              >
-                <Font color="white">
-                  {votesVisible ? (
-                    <VisibilityOffIcon color="primary" />
-                  ) : (
-                    <VisibilityIcon color="primary" />
-                  )}{" "}
-                  &nbsp; Votes Visible?
-                </Font>
-              </Button>
-            </div>
-            <div>
-              <Button
-                key={classification["id"]}
-                id="down_vote"
-                onClick={() => addVote(classification["id"], downvoteValue)}
-              >
-                <ThumbDown color={downvoteColor} />
-                <Font color="white">
-                  {" "}
-                  {votesVisible ? (
-                    <> &nbsp; {`${downvoterIds.length} vote(s)`} </>
-                  ) : (
-                    <> </>
-                  )}
-                </Font>
-              </Button>
-            </div>
-            <div>
-              <Button
-                key={classification["id"]}
-                id="up_vote"
-                onClick={() => addVote(classification["id"], upvoteValue)}
-              >
-                <ThumbUp color={upvoteColor} />
-                <Font color="white">
-                  {" "}
-                  {votesVisible ? (
-                    <> &nbsp; {`${upvoterIds.length} vote(s)`} </>
-                  ) : (
-                    <> </>
-                  )}
-                </Font>
-              </Button>
-            </div>
-            {classification["ml"] && (
-              <span>PS: This classification comes from a ML classifier.</span>
-            )}
-          </div>
+            </Box>
+          </ClassificationCard>
         }
       >
-        {classifications_classes?.origin && classification["origin"] ? (
-          <Chip
-            label={
-              <span
-                style={{
-                  display: "flex",
-                  flexDirection: "row",
-                  alignItems: "center",
-                  fontSize,
-                }}
-              >
-                {classification["ml"] ? (
-                  <span>
-                    {classification["probability"] < 0.1
-                      ? `ML: ${classification["classification"]}?`
-                      : `ML: ${classification["classification"]}`}
-                  </span>
-                ) : (
-                  <span>
-                    {classification["probability"] < 0.1
-                      ? `${classification["classification"]}?`
-                      : classification["classification"]}
-                  </span>
-                )}
-              </span>
-            }
-            key={`${classification["modified"]}tb`}
-            size="small"
-            className={classes.chip}
-            style={{
-              color: classifications_classes?.origin
-                ? classifications_classes.origin[classification["origin"]]
-                : defaultColor(classification?.["ml"]),
-            }}
-          />
-        ) : (
-          <Chip
-            label={
-              <span
-                style={{
-                  display: "flex",
-                  flexDirection: "row",
-                  alignItems: "center",
-                  fontSize,
-                }}
-              >
-                {classification["ml"] ? (
-                  <span>
-                    {classification["probability"] < 0.1
-                      ? `ML: ${classification["classification"]}?`
-                      : `ML: ${classification["classification"]}`}
-                  </span>
-                ) : (
-                  <span>
-                    {classification["probability"] < 0.1
-                      ? `${classification["classification"]}?`
-                      : classification["classification"]}
-                  </span>
-                )}
-              </span>
-            }
-            key={`${classification["modified"]}tb`}
-            size="small"
-            className={classes.chip}
-            style={{
-              backgroundColor: classifications_classes?.classification
-                ? classifications_classes.classification[
-                    classification["classification"]
-                  ]
-                : "#999999",
-              color: defaultColor(classification?.["ml"]),
-            }}
-          />
-        )}
+        <Chip
+          label={label}
+          size="small"
+          sx={{
+            fontSize,
+            fontWeight: "bold",
+            color: originColor || (isML ? "#3063ab" : "#000000"),
+            ...(backgroundColor && { backgroundColor }),
+          }}
+        />
       </Tooltip>
-    </div>
+      <ConfirmDeletionDialog
+        deleteFunction={deleteClassification}
+        dialogOpen={dialogOpen}
+        closeDialog={() => setDialogOpen(false)}
+        resourceName="classification"
+      />
+    </>
   );
 };
 
@@ -407,20 +385,17 @@ function ShowClassification({
     });
   });
 
-  const title = shortened ? "" : <b>Classification: </b>;
-
   return (
-    <div
-      style={{
+    <Box
+      sx={{
         display: "flex",
-        flexDirection: "row",
         flexWrap: "wrap",
         alignItems: "center",
-        gap: "0.25rem",
+        gap: 0.5,
         maxWidth: "100%",
       }}
     >
-      {title}
+      {!shortened && <b>Classification: </b>}
       {keys.map((key) => (
         <ClassificationRow
           key={key}
@@ -428,7 +403,7 @@ function ShowClassification({
           fontSize={fontSize}
         />
       ))}
-    </div>
+    </Box>
   );
 }
 

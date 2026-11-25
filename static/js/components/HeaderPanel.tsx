@@ -6,6 +6,27 @@ import Divider from "@mui/material/Divider";
 import Paper from "@mui/material/Paper";
 import Popper from "@mui/material/Popper";
 import Typography from "@mui/material/Typography";
+import { Theme } from "@mui/material/styles";
+
+export const HEADER_ICON_SX = {
+  p: 0,
+  m: 0,
+  width: 36,
+  height: 36,
+  fontSize: 23,
+  color: "secondary.main",
+  "&:hover": { bgcolor: "rgba(255, 255, 255, 0.12)" },
+  "& .MuiBadge-badge": {
+    top: 1,
+    right: -1,
+    height: 16,
+    minWidth: 16,
+    px: 0.5,
+    fontSize: "0.65rem",
+    fontWeight: 600,
+    boxShadow: (theme: Theme) => `0 0 0 2px ${theme.palette.primary.dark}`,
+  },
+};
 
 const POPPER_MODIFIERS = [
   { name: "offset", options: { offset: [0, 8] } },

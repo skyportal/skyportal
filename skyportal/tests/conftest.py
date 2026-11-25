@@ -166,6 +166,7 @@ from skyportal.models import (
     Telescope,
     TermsOfServiceAcceptance,
     Thumbnail,
+    TNSRetrievalRequest,
     Topic,
     TopicSource,
     TopicSubscription,
@@ -7380,6 +7381,23 @@ def public_source_interest(public_source, user_no_groups):
         .execute(sa.select(SourceInterest).filter(SourceInterest.id == interest_id))
         .scalars()
         .first()
+    )
+    if obj is not None:
+        DBSession().delete(obj)
+        DBSession().commit()
+
+
+@pytest.fixture()
+def public_tns_retrieval_request(public_source, user_no_groups):
+    request = TNSRetrievalRequest(
+        obj_id=public_source.id, user_id=user_no_groups.id, radius=2.0
+    )
+    DBSession.add(request)
+    DBSession.commit()
+    request_id = request.id
+    yield request
+    obj = DBSession().scalar(
+        sa.select(TNSRetrievalRequest).where(TNSRetrievalRequest.id == request_id)
     )
     if obj is not None:
         DBSession().delete(obj)
