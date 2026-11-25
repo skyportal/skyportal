@@ -17585,7 +17585,7 @@ export interface paths {
         };
         /**
          * Get TNS info for an object
-         * @description Retrieve TNS information for an object
+         * @description Queue a search of TNS around an object. The search runs in the background and its status is returned with the source.
          */
         get: {
             parameters: {
@@ -41718,6 +41718,64 @@ export interface components {
             status: "success";
             message?: string;
             data?: components["schemas"]["SurveyEfficiencyForObservationsNoID"][];
+        };
+        TNSRetrievalRequest: {
+            /** @description The Obj to look for on TNS. */
+            readonly obj?: components["schemas"]["Obj"];
+            /** @description The User who requested the search. */
+            readonly user?: components["schemas"]["User"];
+            /** @description ID of the Obj to look for on TNS. */
+            obj_id: string;
+            /** @description ID of the User who requested the search. */
+            user_id: number;
+            /** @description Search radius around the Obj, in arcsec. */
+            radius: number;
+            /** @description One of pending, processing, found, not_found or error. */
+            status?: string;
+            /** @description Why the search failed. */
+            error?: string | null;
+            /** @description Unique object identifier. */
+            id?: number;
+        };
+        SingleTNSRetrievalRequest: {
+            /** @enum {string} */
+            status: "success";
+            message?: string;
+            data?: components["schemas"]["TNSRetrievalRequest"];
+        };
+        ArrayOfTNSRetrievalRequests: {
+            /** @enum {string} */
+            status: "success";
+            message?: string;
+            data?: components["schemas"]["TNSRetrievalRequest"][];
+        };
+        TNSRetrievalRequestNoID: {
+            /** @description The Obj to look for on TNS. */
+            readonly obj?: components["schemas"]["Obj"];
+            /** @description The User who requested the search. */
+            readonly user?: components["schemas"]["User"];
+            /** @description ID of the Obj to look for on TNS. */
+            obj_id: string;
+            /** @description ID of the User who requested the search. */
+            user_id: number;
+            /** @description Search radius around the Obj, in arcsec. */
+            radius: number;
+            /** @description One of pending, processing, found, not_found or error. */
+            status?: string;
+            /** @description Why the search failed. */
+            error?: string | null;
+        };
+        SingleTNSRetrievalRequestNoID: {
+            /** @enum {string} */
+            status: "success";
+            message?: string;
+            data?: components["schemas"]["TNSRetrievalRequestNoID"];
+        };
+        ArrayOfTNSRetrievalRequestNoIDs: {
+            /** @enum {string} */
+            status: "success";
+            message?: string;
+            data?: components["schemas"]["TNSRetrievalRequestNoID"][];
         };
         Taxonomy: {
             readonly groups?: components["schemas"]["Group"][];

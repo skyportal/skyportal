@@ -5,6 +5,7 @@ import IconButton from "@mui/material/IconButton";
 import Tooltip from "@mui/material/Tooltip";
 import FeedbackIcon from "@mui/icons-material/FeedbackOutlined";
 
+import { HEADER_ICON_SX } from "../HeaderPanel";
 import { useOpenFeedbackCount } from "../../ducks/feedback";
 import { useGetProfileQuery } from "../../ducks/profile";
 
@@ -21,8 +22,7 @@ const FeedbackButton = () => {
         to="/feedback"
         aria-label="feedback"
         data-testid="feedbackButton"
-        size="large"
-        sx={{ p: 0, m: 0, display: { xs: "none", md: "inline-flex" } }}
+        sx={{ ...HEADER_ICON_SX, display: { xs: "none", md: "inline-flex" } }}
       >
         <Badge
           badgeContent={openFeedback}
@@ -30,7 +30,7 @@ const FeedbackButton = () => {
           color="warning"
           data-testid="feedbackBadge"
         >
-          <FeedbackIcon fontSize="large" sx={{ color: "#457b9d" }} />
+          <FeedbackIcon fontSize="inherit" />
         </Badge>
       </IconButton>
     </Tooltip>
