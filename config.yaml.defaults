@@ -917,7 +917,7 @@ app:
     # Use linkToGroupSources: true in props to link to the group sources page instead.
     GroupList:
       props:
-        title: My Groups
+        title: My groups
       resizeable: true
       minW: 1.5
       layouts:
@@ -1042,6 +1042,7 @@ services:
     # - slack
     # - sn_analysis_service
     # - spectral_cube_analysis_service
+    # - telegram
     # - thumbnail_queue
     # - tns_retrieval_queue
 
@@ -1226,6 +1227,7 @@ twilio: # TODO: DEPRECATED Twilio Sendgrid no longer offers a free tier. Use SMT
   # Twilio SMS API configs
   # These values must be valid ones from the Twilio API console
   from_number:
+  alphanumeric_sender_id:
   sms_account_sid:
   sms_auth_token:
 smtp:
@@ -1273,6 +1275,10 @@ image_grayscale_params:
 slack:
   microservice_port: 64100
   expected_url_preamble: "https://hooks.slack.com/"
+
+telegram:
+  # From @BotFather. Each instance needs its own bot.
+  bot_token:
 
 spectrum_types:
   types:
@@ -1494,6 +1500,11 @@ additional_bandpasses:
     transmission: [0, 1, 1, 0]
     description: "Argus rho tophat, 560-700 nm"
     color: "#D71F26"
+  - name: "askap-943MHz"
+    filterset: "askap"
+    wavelength: [3.116e+09, 3.131e+09, 3.227e+09, 3.243e+09]
+    transmission: [0, 1, 1, 0]
+    description: "ASKAP tophat centered at 943 MHz"
 
 user:
   default_role: "Full user"
@@ -1739,7 +1750,8 @@ health_monitor:
 # once the object crosses the threshold. The threshold lives on each DefaultAnalysis:
 # min_detections (total, any filter) and an optional min_detections_per_filter dict
 # (e.g. {"ztfg": 2, "ztfr": 2}), read from the precomputed PhotStat (SkyPortal's own
-# detection threshold, forced photometry excluded). Not configured here; these are
+# detection threshold, forced photometry excluded). require_redshift: true also
+# defers it until the object has a positive redshift. Not configured here; these are
 # only the sweep cadence and how far back to look for newly-active sources.
 analysis_rerun:
   interval_seconds: 3600

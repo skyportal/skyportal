@@ -142,6 +142,7 @@ def _normalize_lsst_object(object_id, meta, detections):
     prv = [
         {
             "jd": (d.get("mjd") + 2400000.5) if d.get("mjd") is not None else None,
+            "candid": d.get("measurement_id"),
             "psfFlux": d.get("psfFlux"),
             "psfFluxErr": d.get("psfFluxErr"),
             "band": _band_name(d),

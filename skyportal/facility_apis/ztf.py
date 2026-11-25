@@ -1,4 +1,6 @@
+import asyncio
 import functools
+import html
 import json
 import urllib
 from datetime import timedelta
@@ -26,6 +28,8 @@ from baselayer.app.flow import Flow
 from baselayer.log import make_log
 
 from ..utils import http
+from ..utils.app import get_app_base_url
+from ..utils.email import button, send_email
 from ..utils.naive_datetime import utcnow_naive
 from . import MMAAPI, FollowUpAPI
 from .interface import push_followup_refresh
@@ -480,6 +484,44 @@ def commit_photometry(
             session.close()
 
 
+async def notify_queue_submission(altdata, payload, requester, target, url):
+    recipients = [
+        address.strip()
+        for address in (altdata.get("too_notification_emails") or "").split(",")
+        if address.strip()
+    ]
+    if not recipients or cfg.get("email_service") not in ("sendgrid", "smtp"):
+        return
+
+    targets = payload["targets"]
+    queue_name = payload["queue_name"]
+    start, end = (
+        Time(mjd, format="mjd").iso[:16] for mjd in payload["validity_window_mjd"]
+    )
+    subprograms = sorted({t["subprogram_name"] for t in targets})
+    fields = sorted({t["field_id"] for t in targets})
+    filters = sorted({inv_bands[t["filter_id"]] for t in targets})
+    hours = sum(t["exposure_time"] for t in targets) / 3600
+
+    body = (
+        f"<h3>New ZTF ToO queue: {html.escape(queue_name)}</h3>"
+        "<ul>"
+        f"<li>Submitted by {html.escape(requester)} for {html.escape(target)}</li>"
+        f"<li>Subprogram: {html.escape(', '.join(subprograms))}</li>"
+        f"<li>{len(targets)} exposures ({hours:.2f} h) in {', '.join(filters)}</li>"
+        f"<li>Fields: {', '.join(map(str, fields))}</li>"
+        f"<li>Valid from {start} to {end} UTC</li>"
+        "</ul>" + button(url, f"View on {cfg['app.title']}")
+    )
+
+    try:
+        await asyncio.to_thread(
+            send_email, recipients, f"ZTF ToO queue submitted: {queue_name}", body
+        )
+    except Exception as e:
+        log(f"Could not send the email for ZTF queue {queue_name}: {e}")
+
+
 class ZTFAPI(FollowUpAPI):
     """An interface to ZTF operations."""
 
@@ -660,6 +702,15 @@ class ZTFAPI(FollowUpAPI):
         if status == 200:
             request.status = "submitted"
 
+            if request.payload["request_type"] == "triggered":
+                await notify_queue_submission(
+                    altdata,
+                    payload,
+                    request.requester.username,
+                    f"source {request.obj.id}",
+                    f"{get_app_base_url()}/source/{request.obj.id}",
+                )
+
             if request.payload["request_type"] == "forced_photometry":
                 params = urllib.parse.urlencode(
                     {
@@ -806,6 +857,10 @@ class ZTFAPI(FollowUpAPI):
                 "type": "string",
                 "title": "Access Token (from Kowalski)",
             },
+            "too_notification_emails": {
+                "type": "string",
+                "title": "Emails notified of each ToO queue (comma-separated)",
+            },
         },
     }
 
@@ -844,6 +899,7 @@ class ZTFMMAAPI(MMAAPI):
             .options(
                 selectinload(ObservationPlanRequest.allocation),
                 selectinload(ObservationPlanRequest.requester),
+                selectinload(ObservationPlanRequest.gcnevent),
                 selectinload(ObservationPlanRequest.observation_plans)
                 .selectinload(EventObservationPlan.planned_observations)
                 .selectinload(PlannedObservation.field),
@@ -878,6 +934,15 @@ class ZTFMMAAPI(MMAAPI):
 
         if status == 200:
             request.status = "submitted to telescope queue"
+            event = request.gcnevent
+            dateobs = event.dateobs.isoformat()
+            await notify_queue_submission(
+                altdata,
+                payload,
+                request.requester.username,
+                f"GCN event {', '.join(event.aliases) or dateobs}",
+                f"{get_app_base_url()}/gcn_events/{dateobs}",
+            )
         else:
             request.status = f"rejected from telescope queue: {content}"
 

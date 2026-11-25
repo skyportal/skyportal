@@ -68,7 +68,7 @@ class _Bot:
 def test_a_run_is_skipped_without_the_bot_user():
     from skyportal.utils.assistant_triage import enqueue_query_run
 
-    run = enqueue_query_run(_Session(None), _Analysis(), _Query())
+    run = enqueue_query_run(_Session(None), _Analysis(), [_Query()])
     assert asyncio.run(run) is None
 
 
@@ -77,5 +77,5 @@ def test_a_run_is_skipped_where_the_bot_cannot_read_the_group():
     # does not exist, onto the page where everyone in the group can see it.
     from skyportal.utils.assistant_triage import enqueue_query_run
 
-    run = enqueue_query_run(_Session(_Bot(), None), _Analysis(), _Query())
+    run = enqueue_query_run(_Session(_Bot(), None), _Analysis(), [_Query()])
     assert asyncio.run(run) is None

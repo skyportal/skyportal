@@ -1,93 +1,24 @@
-import React, { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { useState } from "react";
+import { Link as RouterLink } from "react-router-dom";
 
-import Paper from "@mui/material/Paper";
-import Typography from "@mui/material/Typography";
-import DragHandleIcon from "@mui/icons-material/DragHandle";
-import List from "@mui/material/List";
-import ListItem from "@mui/material/ListItem";
-import Divider from "@mui/material/Divider";
-import TextField from "@mui/material/TextField";
-import SearchIcon from "@mui/icons-material/Search";
-import InputAdornment from "@mui/material/InputAdornment";
-import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
-import ExpandLessIcon from "@mui/icons-material/ExpandLess";
-import Menu from "@mui/material/Menu";
 import Box from "@mui/material/Box";
-import MenuItem from "@mui/material/MenuItem";
-
-import { makeStyles } from "tss-react/mui";
-import Button from "../Button";
+import InputAdornment from "@mui/material/InputAdornment";
+import Link from "@mui/material/Link";
+import TextField from "@mui/material/TextField";
+import Typography from "@mui/material/Typography";
+import SearchIcon from "@mui/icons-material/Search";
 
 import UserAvatar from "../user/UserAvatar";
 import {
   useGetProfileQuery,
   useUpdateUserPreferencesMutation,
 } from "../../ducks/profile";
-import WidgetPrefsDialog from "./WidgetPrefsDialog";
 import { useGetTopSaversQuery } from "../../ducks/topSavers";
 import { useActiveTeam } from "../../ducks/teams";
+import WidgetCard, { WidgetEmpty, muted } from "./WidgetCard";
+import WidgetPrefsDialog from "./WidgetPrefsDialog";
 import WidgetLoading from "./WidgetLoading";
-
-interface TopSaversSearchProps {
-  savers: any[];
-  setOptions: (options: any[]) => void;
-}
-
-interface TopSaversListProps {
-  savers: any[];
-  styles: Record<string, any>;
-}
-
-interface TopSaversProps {
-  classes: Record<string, any>;
-}
-
-const useStyles = makeStyles()(() => ({
-  header: {},
-  timespanSelect: {
-    display: "inline",
-    "& > button": {
-      height: "1.5rem",
-      fontSize: "0.75rem",
-      marginTop: "-0.2rem",
-    },
-  },
-  timespanMenuItem: {
-    fontWeight: "bold",
-    fontSize: "0.75rem",
-    height: "1.5rem",
-    padding: "0.25rem 0.5rem",
-  },
-  saverListContainer: {
-    height: "calc(100% - 2.5rem)",
-    overflowY: "auto",
-    marginTop: 0,
-    paddingTop: 0,
-  },
-  saverListItem: {
-    display: "grid",
-    gridTemplateColumns: "2.25rem 1fr auto",
-    alignItems: "center",
-    gap: "0.75rem",
-    margin: 0,
-    padding: "0.25rem 0",
-  },
-  saverInfo: {
-    display: "flex",
-    flexDirection: "row",
-    alignItems: "center",
-    gap: "0.5rem",
-  },
-}));
-
-const timespans = [
-  { label: "DAY", sinceDaysAgo: "1", tooltip: "Past 24 hours" },
-  { label: "WEEK", sinceDaysAgo: "7", tooltip: "Past 7 days" },
-  { label: "MONTH", sinceDaysAgo: "30", tooltip: "Past 30 days" },
-  { label: "6 MONTHS", sinceDaysAgo: "180", tooltip: "Past 180 days" },
-  { label: "YEAR", sinceDaysAgo: "365", tooltip: "Past 365 days" },
-];
+import TimespanSelect from "./TimespanSelect";
 
 const defaultPrefs = {
   maxNumSavers: "100",
@@ -106,22 +37,21 @@ const RankBadge = ({ rank }: { rank: number }) => {
   return (
     <Box
       sx={{
-        width: 28,
-        height: 28,
+        width: 26,
+        height: 26,
         borderRadius: "50%",
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        fontSize: "0.8rem",
+        fontSize: "0.75rem",
         fontWeight: 700,
         flexShrink: 0,
-        justifySelf: "center",
+        fontVariantNumeric: "tabular-nums",
         ...(medal
           ? {
               color: medal[2],
               background: `radial-gradient(circle at 30% 30%, ${medal[0]}, ${medal[1]} 70%)`,
-              boxShadow: `0 0 0 2px ${medal[1]}55, 0 2px 4px rgba(0, 0, 0, 0.25)`,
-              textShadow: "0 1px 0 rgba(255, 255, 255, 0.5)",
+              boxShadow: `0 0 0 2px ${medal[1]}55, 0 2px 4px rgba(0, 0, 0, 0.2)`,
             }
           : { color: "text.secondary" }),
       }}
@@ -131,221 +61,143 @@ const RankBadge = ({ rank }: { rank: number }) => {
   );
 };
 
-const TopSaversSearch = ({ savers, setOptions }: TopSaversSearchProps) => {
-  const handleChange = (event: any) => {
-    let newValue = event.target.value;
-    if (newValue === "" || newValue === null || newValue === undefined) {
-      setOptions(savers);
-    } else {
-      newValue = newValue.toLowerCase();
-      // filter through the savers to keep those whose author.username contains the newValue
-      const newOptions = savers.filter(
-        (saver: any) =>
-          saver.author.username.toLowerCase().includes(newValue) ||
-          (saver.author.first_name &&
-            saver.author.first_name
-              .toLowerCase()
-              .includes(newValue.toLowerCase())) ||
-          (saver.author.last_name &&
-            saver.author.last_name
-              .toLowerCase()
-              .includes(newValue.toLowerCase())),
-      );
-      setOptions(newOptions);
-    }
-  };
-
-  return (
-    <TextField
-      id="topSaversSearch"
-      placeholder="Search for a user"
-      type="search"
-      size="small"
-      onChange={handleChange}
-      variant="outlined"
-      slotProps={{
-        input: {
-          startAdornment: (
-            <InputAdornment position="start">
-              <SearchIcon fontSize="small" />
-            </InputAdornment>
-          ),
-        },
-      }}
-      style={{ width: "100%" }}
-    />
-  );
-};
-
-const TopSaversList = ({ savers, styles }: TopSaversListProps) => {
-  const [options, setOptions] = useState<any[]>(savers);
-
-  useEffect(() => {
-    if (savers.length) {
-      setOptions(savers);
-    }
-  }, [savers]);
-
-  if (savers.length === 0) {
-    return <div>No top savers available.</div>;
-  }
-
-  const renderRank = (index: number) => (
-    <RankBadge rank={options[index].rank} />
+const matches = (saver: any, query: string) =>
+  [saver.author.username, saver.author.first_name, saver.author.last_name].some(
+    (field) => field?.toLowerCase().includes(query),
   );
 
-  const renderUser = (index: number) => {
-    const { author } = options[index];
-    return (
-      <div className={styles["saverInfo"]}>
-        <UserAvatar
-          size={32}
-          userId={author.id}
-          firstName={author.first_name}
-          lastName={author.last_name}
-          username={author.username}
-          gravatarUrl={author.gravatar_url}
-          isBot={author?.is_bot || false}
-        />
-        <p>
-          <Link to={`/user/${author.id}`}>{author.username}</Link>
-        </p>
-      </div>
-    );
-  };
-
-  const renderSaves = (index: number) => (
-    <p style={{ whiteSpace: "nowrap" }}>{options[index].saves} saved</p>
+const TopSaversList = ({ savers }: { savers: any[] }) => {
+  const [query, setQuery] = useState("");
+  const visible = savers.filter((saver) =>
+    matches(saver, query.trim().toLowerCase()),
   );
 
   return (
-    <div className={styles["saverListContainer"]}>
-      <TopSaversSearch savers={savers} setOptions={setOptions} />
-      <List>
-        {options.map((saver: any, index: number) => (
-          <React.Fragment key={saver.author.username}>
-            <ListItem className={styles["saverListItem"]}>
-              {renderRank(index)}
-              {renderUser(index)}
-              {renderSaves(index)}
-            </ListItem>
-            {index < options.length - 1 && <Divider />}
-          </React.Fragment>
-        ))}
-      </List>
-    </div>
+    <>
+      <TextField
+        id="topSaversSearch"
+        placeholder="Search users"
+        type="search"
+        size="small"
+        fullWidth
+        value={query}
+        onChange={(event) => setQuery(event.target.value)}
+        slotProps={{
+          input: {
+            startAdornment: (
+              <InputAdornment position="start">
+                <SearchIcon fontSize="small" sx={{ color: muted(0.5) }} />
+              </InputAdornment>
+            ),
+            sx: { borderRadius: 2 },
+          },
+        }}
+        sx={{ mb: 1 }}
+      />
+      {visible.map((saver: any) => (
+        <Box
+          key={saver.author.username}
+          sx={{
+            display: "flex",
+            alignItems: "center",
+            gap: 1.5,
+            py: 0.75,
+            px: 1,
+            mx: -1,
+            borderRadius: 2,
+            "&:hover": { bgcolor: muted(0.05) },
+          }}
+        >
+          <RankBadge rank={saver.rank} />
+          <UserAvatar
+            size={30}
+            userId={saver.author.id}
+            firstName={saver.author.first_name}
+            lastName={saver.author.last_name}
+            username={saver.author.username}
+            gravatarUrl={saver.author.gravatar_url}
+            isBot={saver.author?.is_bot || false}
+          />
+          <Link
+            component={RouterLink}
+            to={`/user/${saver.author.id}`}
+            variant="body2"
+            color="inherit"
+            noWrap
+            sx={{ flex: 1, minWidth: 0, fontWeight: 500 }}
+          >
+            {saver.author.username}
+          </Link>
+          <Typography
+            variant="body2"
+            sx={{
+              fontWeight: 600,
+              fontVariantNumeric: "tabular-nums",
+              whiteSpace: "nowrap",
+            }}
+          >
+            {saver.saves}
+            <Typography
+              component="span"
+              variant="caption"
+              color="text.secondary"
+              sx={{ ml: 0.5 }}
+            >
+              saved
+            </Typography>
+          </Typography>
+        </Box>
+      ))}
+    </>
   );
 };
 
-const TopSavers = ({ classes }: TopSaversProps) => {
-  const { classes: styles } = useStyles();
+const TopSavers = () => {
   const { activeTeam } = useActiveTeam();
   const { data: savers, isLoading } = useGetTopSaversQuery(
     activeTeam ? { teamID: activeTeam.id } : undefined,
   );
   const { data: profile } = useGetProfileQuery();
   const [updateUserPreferences] = useUpdateUserPreferencesMutation();
-
-  const storedPrefs = (profile?.preferences as any)?.topSavers;
-  const topSaversPrefs = { ...defaultPrefs, ...storedPrefs };
-
-  const [currentTimespan, setCurrentTimespan] = useState(
-    timespans.find(
-      (timespan) => timespan.sinceDaysAgo === topSaversPrefs.sinceDaysAgo,
-    ),
-  );
-
-  const [anchorEl, setAnchorEl] = React.useState<any>(null);
-  const open = Boolean(anchorEl);
-
-  const switchTimespan = (selectedTimespan: any) => {
-    const newTimespan = timespans.find(
-      (timespan) => timespan.label === selectedTimespan.label,
-    );
-    if (!newTimespan) {
-      return;
-    }
-    setCurrentTimespan(newTimespan);
-    topSaversPrefs.sinceDaysAgo = newTimespan.sinceDaysAgo;
-
-    updateUserPreferences({ topSavers: topSaversPrefs });
+  const prefs = {
+    ...defaultPrefs,
+    ...((profile?.preferences as any)?.topSavers ?? {}),
   };
+  const title = prefs.candidatesOnly ? "Top scanners" : "Top savers";
 
   return (
-    <Paper elevation={1} className={classes["widgetPaperFillSpace"]}>
-      <div className={classes["widgetPaperDiv"]}>
-        <div className={styles.header}>
-          <Typography
-            variant="h6"
-            style={{ marginRight: "0.5rem" }}
-            sx={{
-              display: "inline",
+    <WidgetCard
+      title={title}
+      teamScoped
+      actions={
+        <>
+          <TimespanSelect
+            value={prefs.sinceDaysAgo}
+            onChange={(sinceDaysAgo) =>
+              updateUserPreferences({ topSavers: { ...prefs, sinceDaysAgo } })
+            }
+            testIdPrefix="topSavers"
+          />
+          <WidgetPrefsDialog
+            initialValues={{
+              maxNumSavers: prefs.maxNumSavers,
+              candidatesOnly: prefs.candidatesOnly,
             }}
-          >
-            {topSaversPrefs.candidatesOnly ? "Top Scanners" : "Top Savers"}
-          </Typography>
-          {currentTimespan && (
-            <div className={styles.timespanSelect}>
-              <Button
-                variant="contained"
-                aria-controls={open ? "basic-menu" : undefined}
-                aria-haspopup="true"
-                aria-expanded={open ? "true" : undefined}
-                onClick={(e: any) => setAnchorEl(e.currentTarget)}
-                size="small"
-                endIcon={open ? <ExpandLessIcon /> : <ExpandMoreIcon />}
-                data-testid="topSavers_timespanButton"
-              >
-                {currentTimespan.label}
-              </Button>
-              <Menu
-                transitionDuration={50}
-                id="finding-chart-menu"
-                anchorEl={anchorEl}
-                open={open}
-                onClose={() => setAnchorEl(null)}
-                slotProps={{
-                  list: {
-                    "aria-labelledby": "basic-button",
-                  },
-                }}
-              >
-                {timespans.map((timespan) => (
-                  <MenuItem
-                    className={styles.timespanMenuItem}
-                    key={timespan.label}
-                    data-testid={`topSavers_${timespan.sinceDaysAgo}days`}
-                    onClick={() => {
-                      switchTimespan(timespan);
-                      setAnchorEl(null);
-                    }}
-                  >
-                    {timespan.label}
-                  </MenuItem>
-                ))}
-              </Menu>
-            </div>
-          )}
-          <DragHandleIcon className={`${classes["widgetIcon"]} dragHandle`} />
-          <div className={classes["widgetIcon"]}>
-            <WidgetPrefsDialog
-              initialValues={{
-                maxNumSavers: topSaversPrefs.maxNumSavers,
-                candidatesOnly: topSaversPrefs.candidatesOnly,
-              }}
-              stateBranchName="topSavers"
-              title="Top Scanners Preferences"
-              onSubmit={updateUserPreferences}
-            />
-          </div>
-        </div>
-        {isLoading ? (
-          <WidgetLoading />
-        ) : (
-          <TopSaversList savers={savers || []} styles={styles} />
-        )}
-      </div>
-    </Paper>
+            stateBranchName="topSavers"
+            title={title}
+            onSubmit={updateUserPreferences}
+          />
+        </>
+      }
+    >
+      {isLoading ? (
+        <WidgetLoading />
+      ) : !savers?.length ? (
+        <WidgetEmpty>No saves in this period.</WidgetEmpty>
+      ) : (
+        <TopSaversList savers={savers} />
+      )}
+    </WidgetCard>
   );
 };
 

@@ -496,6 +496,13 @@ class CandidateGetQuery(BaseModel):
             "non-numeric value types, or { origin, key, min, max } for numeric values."
         ),
     )
+    movingObjects: bool | None = Field(
+        default=None,
+        description=(
+            "If true, return only moving objects: known solar system bodies and "
+            "linked tracks."
+        ),
+    )
     includePhotometry: bool = Field(
         default=False,
         description=(

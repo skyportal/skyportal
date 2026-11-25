@@ -1,9 +1,13 @@
-import { ResponsiveGridLayout, useContainerWidth } from "react-grid-layout";
+import {
+  ResponsiveGridLayout,
+  useContainerWidth,
+  verticalCompactor,
+} from "react-grid-layout";
 import "reactgridlayoutcss/styles.css";
 import "reactresizablecss/styles.css";
 
-import { useTheme } from "@mui/material/styles";
-import { makeStyles } from "tss-react/mui";
+import { Theme, useTheme } from "@mui/material/styles";
+import Box from "@mui/material/Box";
 import IconButton from "@mui/material/IconButton";
 import CachedIcon from "@mui/icons-material/Cached";
 import Tooltip from "@mui/material/Tooltip";
@@ -30,25 +34,24 @@ import {{ widgetName }} from "../widget/{{ widgetName }}";
 {%- endif %}
 {%- endfor %}
 
-const useStyles = makeStyles()(() => ({
-  widgetIcon: {
-    float: "right",
-    color: "gray",
-    margin: "0.25rem 0.25rem 0.25rem 0.25rem",
-    "&:hover": {
-      cursor: "pointer",
-    },
+const gridSx = (theme: Theme) => ({
+  "& .react-grid-placeholder": {
+    background: theme.palette.primary.main,
+    opacity: 0.12,
+    borderRadius: "12px",
   },
-  widgetPaperDiv: {
-    padding: "1rem",
-    height: "100%",
-    display: "flex",
-    flexFlow: "column nowrap",
+  "& .react-grid-item.react-draggable-dragging": {
+    opacity: 0.9,
+    zIndex: 3,
   },
-  widgetPaperFillSpace: {
-    height: "100%",
+  "& .react-grid-item > .react-resizable-handle": {
+    opacity: 0,
+    transition: "opacity 0.2s",
   },
-}));
+  "& .react-grid-item:hover > .react-resizable-handle": {
+    opacity: 0.6,
+  },
+});
 
 const defaultLayouts: any = {
   {%- for breakpoint in app.homepage_grid.breakpoints.keys() %}
@@ -63,8 +66,19 @@ const defaultLayouts: any = {
 
 const gridCols: any = {{ app.homepage_grid.cols|tojson }}
 
-const geometry = (items: any[] = []) =>
+const geometry = (items: readonly any[] = []) =>
   JSON.stringify(items.map(({ i, x, y, w, h }: any) => [i, x, y, w, h]));
+
+const RESET_BUTTON_SX = {
+  position: "fixed",
+  bottom: "1rem",
+  right: "1rem",
+  zIndex: 10,
+  bgcolor: "background.paper",
+  color: "text.secondary",
+  boxShadow: 3,
+  "&:hover": { bgcolor: "background.paper", color: "text.primary", boxShadow: 6 },
+};
 
 const withSavedPositions = (saved: any) =>
   Object.fromEntries(
@@ -157,8 +171,14 @@ const withoutGettingStarted = (layouts: any) =>
     }),
   );
 
+const defaultLayoutsWithoutGettingStarted = withoutGettingStarted(defaultLayouts);
+
+const compacted = (layouts: any, breakpoint: string) =>
+  geometry(
+    verticalCompactor.compact(layouts[breakpoint] ?? [], gridCols[breakpoint]),
+  );
+
 const HomePage = () => {
-  const { classes } = useStyles();
   const [updateUserPreferences] = useUpdateUserPreferencesMutation();
 
   const { typography } = useTheme();
@@ -178,6 +198,14 @@ const HomePage = () => {
   const currentLayouts = onboardingDismissed
     ? withoutGettingStarted(savedLayouts)
     : savedLayouts;
+  const expectedLayouts = onboardingDismissed
+    ? defaultLayoutsWithoutGettingStarted
+    : defaultLayouts;
+  const isDefaultLayout = Object.keys(defaultLayouts).every(
+    (breakpoint) =>
+      compacted(currentLayouts, breakpoint) ===
+      compacted(expectedLayouts, breakpoint),
+  );
 
   const layoutChangeHandler = (_: any, allLayouts: any) => {
     // The grid also fires this on mount, which would save a layout nobody chose.
@@ -192,15 +220,11 @@ const HomePage = () => {
   // The container must render unconditionally: the effect gives up if the node is missing.
   const { width, containerRef, mounted } = useContainerWidth();
 
-  const resetLayouts = () =>
-    updateUserPreferences({
-      layouts: defaultLayouts,
-      onboardingDismissed: false,
-    });
+  const resetLayouts = () => updateUserPreferences({ layouts: defaultLayouts });
 
   return (
     <>
-      <div ref={containerRef}>
+      <Box ref={containerRef} sx={gridSx}>
       {profile?.username && mounted && (
       <ResponsiveGridLayout
         key={String(onboardingDismissed)}
@@ -211,7 +235,7 @@ const HomePage = () => {
         cols={gridCols}
         margin={[10, 10]}
         onLayoutChange={layoutChangeHandler}
-        {% raw %}dragConfig={{ handle: ".dragHandle" }}{% endraw %}
+        {% raw %}dragConfig={{ handle: ".dragHandle", cancel: "a, button, input, .MuiButtonBase-root" }}{% endraw %}
         rowHeight={gridRowHeight}
       >
         {%- for widgetName, widgetProps in visible_widgets.items() %}
@@ -234,15 +258,12 @@ const HomePage = () => {
             {%- elif widgetName == "GettingStarted" %}
         {!onboardingDismissed && (
         <div key="{{ widgetName }}">
-          <{{ widgetName }}
-            classes={classes}
-          />
+          <{{ widgetName }} />
         </div>
         )}
             {%- else %}
         <div key="{{ widgetName }}">
           <{{ widgetName }}
-            classes={classes}
             {%- if widgetProps.props is defined %}
             {% for key, value in widgetProps.props.items() -%}
             {%- if value is string %}
@@ -260,13 +281,10 @@ const HomePage = () => {
         {%- endfor %}
       </ResponsiveGridLayout>
       )}
-      </div>
-      {profile?.username && (
-      <Tooltip title="Reset page layout" placement="left">
-        <IconButton
-          onClick={resetLayouts}
-          {% raw %}sx={{ position: "fixed", bottom: "1rem", right: "1rem" }}{% endraw %}
-        >
+      </Box>
+      {profile?.username && !isDefaultLayout && (
+      <Tooltip title="Reset layout" placement="left">
+        <IconButton onClick={resetLayouts} sx={RESET_BUTTON_SX}>
           <CachedIcon />
         </IconButton>
       </Tooltip>

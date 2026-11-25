@@ -253,10 +253,6 @@ def query_mpc(obj_id, user_id, url):
             log(f"{obj_id}: identified MPC name {mpc_name}")
             obj.is_roid = True
             obj.mpc_name = mpc_name
-            number = re.match(r"\((\d+)\)", mpc_name)
-            alias = f"SSO {number.group(1)}" if number else mpc_name
-            if alias not in (obj.alias or []):
-                obj.alias = (obj.alias or []) + [alias]
             session.commit()
         elif pre is not None:
             log(f"{obj_id}: No known minor planets")

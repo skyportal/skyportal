@@ -42,13 +42,13 @@ def _set_num_items(page, value):
     n_items_input.press_sequentially(value)
 
 
-def test_news_feed_refresh_button(
+def test_news_feed_refreshes_on_logo_click(
     page, user, public_group, upload_data_token, comment_token
 ):
     # Load the dashboard first so the news feed is fetched and cached.
     page.goto(f"/become_user/{user.id}")
     page.goto("/")
-    expect(page.locator('//h6[text()="News Feed"]').first).to_be_visible()
+    expect(page.locator('//h6[text()="News feed"]').first).to_be_visible()
 
     # Create activity *after* the feed has loaded. With nothing forcing a
     # refetch, the cached feed shouldn't show it yet.
@@ -62,9 +62,7 @@ def test_news_feed_refresh_button(
     )
     expect(page.locator(new_source_xpath).first).to_be_hidden()
 
-    # The header Refresh button must force the news feed to refetch (regression:
-    # a bare initiate() was a no-op for the already-subscribed query).
-    page.locator('//*[@data-testid="refreshButton"]').first.click()
+    page.locator('//header//a[@href="/"]').first.click()
     expect(page.locator(new_source_xpath).first).to_be_visible()
 
 

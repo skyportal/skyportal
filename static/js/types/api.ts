@@ -3584,6 +3584,8 @@ export interface paths {
                     crossmatchOrigin?: string;
                     /** @description Comma-separated string of JSON objects representing annotation filters. Filter objects are expected to have keys { origin, key, value } for non-numeric value types, or { origin, key, min, max } for numeric values. */
                     annotationFilterList?: string | null;
+                    /** @description If true, return only moving objects: known solar system bodies and linked tracks. */
+                    movingObjects?: boolean | null;
                     /** @description Boolean indicating whether to include associated photometry. Defaults to false. */
                     includePhotometry?: boolean;
                     /** @description Boolean indicating whether to include associated spectra. Defaults to false. */
@@ -17583,7 +17585,7 @@ export interface paths {
         };
         /**
          * Get TNS info for an object
-         * @description Retrieve TNS information for an object
+         * @description Queue a search of TNS around an object. The search runs in the background and its status is returned with the source.
          */
         get: {
             parameters: {
@@ -21541,8 +21543,8 @@ export interface paths {
         options?: never;
         head?: never;
         /**
-         * Mark a message left to the admins as handled, reopen it, or assign it
-         * @description <b>Permission(s) required:</b> <em>System admin (or System admin)</em><br><br>
+         * Mark a message left to the admins as handled, reopen it, assign it, or link its fixes
+         * @description <b>Permission(s) required:</b> <em>System admin (or System admin)</em><br><br>Once all the linked pull requests are deployed, the message is resolved and its author notified.
          */
         patch: {
             parameters: {
@@ -29244,6 +29246,13 @@ export interface components {
             text: string;
             /** @description Whether an admin has handled the message */
             resolved?: boolean;
+            /** @description URLs of the pull requests fixing the message */
+            pr_urls?: string[];
+            /**
+             * Format: date-time
+             * @description When all the linked pull requests were first deployed and the author notified
+             */
+            deployed_at?: string | null;
             /** @description ID of the admin working on the message */
             assignee_id?: number | null;
             /** @description Unique object identifier. */
@@ -29275,6 +29284,13 @@ export interface components {
             text: string;
             /** @description Whether an admin has handled the message */
             resolved?: boolean;
+            /** @description URLs of the pull requests fixing the message */
+            pr_urls?: string[];
+            /**
+             * Format: date-time
+             * @description When all the linked pull requests were first deployed and the author notified
+             */
+            deployed_at?: string | null;
             /** @description ID of the admin working on the message */
             assignee_id?: number | null;
         };
@@ -29392,6 +29408,10 @@ export interface components {
             broker_id?: number | null;
             /** @description Whether objects passing this filter are auto-saved as Sources to the Filter's Group. */
             autosave?: boolean;
+            /** @description Whether the scanning page opens on the moving objects view for this filter. */
+            moving_objects?: boolean;
+            /** @description False once the filter was deactivated. */
+            active?: boolean;
             /** Format: date-time */
             created_at?: string;
             /** Format: date-time */
@@ -32749,12 +32769,12 @@ export interface components {
              * @description Name of the instrument's API class.
              * @enum {string|null}
              */
-            api_classname?: "MMAAPI" | "GENERICAPI" | "SLACKAPI" | "ATLASAPI" | "COLIBRIAPI" | "GROWTHINDIAMMAAPI" | "KAITAPI" | "SEDMAPI" | "SEDMV2API" | "IOOAPI" | "IOIAPI" | "SPRATAPI" | "SINISTROAPI" | "SPECTRALAPI" | "FLOYDSAPI" | "MUSCATAPI" | "NICERAPI" | "PS1API" | "SOARGHTSAPI" | "SOARGHTSIMAGERAPI" | "SOARTSPECAPI" | "UVOTXRTAPI" | "UVOTXRTMMAAPI" | "TAROTAPI" | "TESSAPI" | "TRTAPI" | "WINTERAPI" | "SPRINGAPI" | "ZTFAPI" | "ZTFMMAAPI" | "GEMINIAPI" | "BINOSPECAPI" | "MMIRSAPI" | "TTTAPI" | "NEWFIRMAPI" | "RUBINMMAAPI" | "NGPSAPI" | "WENDELSTEINAPI" | "ATCAAPI" | null;
+            api_classname?: "MMAAPI" | "GENERICAPI" | "SLACKAPI" | "ATLASAPI" | "COLIBRIAPI" | "GROWTHINDIAMMAAPI" | "KAITAPI" | "SEDMAPI" | "SEDMV2API" | "IOOAPI" | "IOIAPI" | "SPRATAPI" | "SINISTROAPI" | "SPECTRALAPI" | "FLOYDSAPI" | "MUSCATAPI" | "NICERAPI" | "PS1API" | "SOARGHTSAPI" | "SOARGHTSIMAGERAPI" | "SOARTSPECAPI" | "UVOTXRTAPI" | "UVOTXRTMMAAPI" | "TAROTAPI" | "TESSAPI" | "TRTAPI" | "WINTERAPI" | "SPRINGAPI" | "ZTFAPI" | "ZTFMMAAPI" | "GEMINIAPI" | "BINOSPECAPI" | "MMIRSAPI" | "TTTAPI" | "NEWFIRMAPI" | "RUBINMMAAPI" | "NGPSAPI" | "WENDELSTEINAPI" | "ATCAAPI" | "VLAAPI" | null;
             /**
              * @description Name of the instrument's ObservationPlan API class.
              * @enum {string|null}
              */
-            api_classname_obsplan?: "MMAAPI" | "GENERICAPI" | "SLACKAPI" | "ATLASAPI" | "COLIBRIAPI" | "GROWTHINDIAMMAAPI" | "KAITAPI" | "SEDMAPI" | "SEDMV2API" | "IOOAPI" | "IOIAPI" | "SPRATAPI" | "SINISTROAPI" | "SPECTRALAPI" | "FLOYDSAPI" | "MUSCATAPI" | "NICERAPI" | "PS1API" | "SOARGHTSAPI" | "SOARGHTSIMAGERAPI" | "SOARTSPECAPI" | "UVOTXRTAPI" | "UVOTXRTMMAAPI" | "TAROTAPI" | "TESSAPI" | "TRTAPI" | "WINTERAPI" | "SPRINGAPI" | "ZTFAPI" | "ZTFMMAAPI" | "GEMINIAPI" | "BINOSPECAPI" | "MMIRSAPI" | "TTTAPI" | "NEWFIRMAPI" | "RUBINMMAAPI" | "NGPSAPI" | "WENDELSTEINAPI" | "ATCAAPI" | null;
+            api_classname_obsplan?: "MMAAPI" | "GENERICAPI" | "SLACKAPI" | "ATLASAPI" | "COLIBRIAPI" | "GROWTHINDIAMMAAPI" | "KAITAPI" | "SEDMAPI" | "SEDMV2API" | "IOOAPI" | "IOIAPI" | "SPRATAPI" | "SINISTROAPI" | "SPECTRALAPI" | "FLOYDSAPI" | "MUSCATAPI" | "NICERAPI" | "PS1API" | "SOARGHTSAPI" | "SOARGHTSIMAGERAPI" | "SOARTSPECAPI" | "UVOTXRTAPI" | "UVOTXRTMMAAPI" | "TAROTAPI" | "TESSAPI" | "TRTAPI" | "WINTERAPI" | "SPRINGAPI" | "ZTFAPI" | "ZTFMMAAPI" | "GEMINIAPI" | "BINOSPECAPI" | "MMIRSAPI" | "TTTAPI" | "NEWFIRMAPI" | "RUBINMMAAPI" | "NGPSAPI" | "WENDELSTEINAPI" | "ATCAAPI" | "VLAAPI" | null;
             /**
              * @description Name of the instrument's listener class.
              * @enum {string|null}
@@ -33028,12 +33048,12 @@ export interface components {
              * @description Name of the instrument's API class.
              * @enum {string|null}
              */
-            api_classname?: "MMAAPI" | "GENERICAPI" | "SLACKAPI" | "ATLASAPI" | "COLIBRIAPI" | "GROWTHINDIAMMAAPI" | "KAITAPI" | "SEDMAPI" | "SEDMV2API" | "IOOAPI" | "IOIAPI" | "SPRATAPI" | "SINISTROAPI" | "SPECTRALAPI" | "FLOYDSAPI" | "MUSCATAPI" | "NICERAPI" | "PS1API" | "SOARGHTSAPI" | "SOARGHTSIMAGERAPI" | "SOARTSPECAPI" | "UVOTXRTAPI" | "UVOTXRTMMAAPI" | "TAROTAPI" | "TESSAPI" | "TRTAPI" | "WINTERAPI" | "SPRINGAPI" | "ZTFAPI" | "ZTFMMAAPI" | "GEMINIAPI" | "BINOSPECAPI" | "MMIRSAPI" | "TTTAPI" | "NEWFIRMAPI" | "RUBINMMAAPI" | "NGPSAPI" | "WENDELSTEINAPI" | "ATCAAPI" | null;
+            api_classname?: "MMAAPI" | "GENERICAPI" | "SLACKAPI" | "ATLASAPI" | "COLIBRIAPI" | "GROWTHINDIAMMAAPI" | "KAITAPI" | "SEDMAPI" | "SEDMV2API" | "IOOAPI" | "IOIAPI" | "SPRATAPI" | "SINISTROAPI" | "SPECTRALAPI" | "FLOYDSAPI" | "MUSCATAPI" | "NICERAPI" | "PS1API" | "SOARGHTSAPI" | "SOARGHTSIMAGERAPI" | "SOARTSPECAPI" | "UVOTXRTAPI" | "UVOTXRTMMAAPI" | "TAROTAPI" | "TESSAPI" | "TRTAPI" | "WINTERAPI" | "SPRINGAPI" | "ZTFAPI" | "ZTFMMAAPI" | "GEMINIAPI" | "BINOSPECAPI" | "MMIRSAPI" | "TTTAPI" | "NEWFIRMAPI" | "RUBINMMAAPI" | "NGPSAPI" | "WENDELSTEINAPI" | "ATCAAPI" | "VLAAPI" | null;
             /**
              * @description Name of the instrument's ObservationPlan API class.
              * @enum {string|null}
              */
-            api_classname_obsplan?: "MMAAPI" | "GENERICAPI" | "SLACKAPI" | "ATLASAPI" | "COLIBRIAPI" | "GROWTHINDIAMMAAPI" | "KAITAPI" | "SEDMAPI" | "SEDMV2API" | "IOOAPI" | "IOIAPI" | "SPRATAPI" | "SINISTROAPI" | "SPECTRALAPI" | "FLOYDSAPI" | "MUSCATAPI" | "NICERAPI" | "PS1API" | "SOARGHTSAPI" | "SOARGHTSIMAGERAPI" | "SOARTSPECAPI" | "UVOTXRTAPI" | "UVOTXRTMMAAPI" | "TAROTAPI" | "TESSAPI" | "TRTAPI" | "WINTERAPI" | "SPRINGAPI" | "ZTFAPI" | "ZTFMMAAPI" | "GEMINIAPI" | "BINOSPECAPI" | "MMIRSAPI" | "TTTAPI" | "NEWFIRMAPI" | "RUBINMMAAPI" | "NGPSAPI" | "WENDELSTEINAPI" | "ATCAAPI" | null;
+            api_classname_obsplan?: "MMAAPI" | "GENERICAPI" | "SLACKAPI" | "ATLASAPI" | "COLIBRIAPI" | "GROWTHINDIAMMAAPI" | "KAITAPI" | "SEDMAPI" | "SEDMV2API" | "IOOAPI" | "IOIAPI" | "SPRATAPI" | "SINISTROAPI" | "SPECTRALAPI" | "FLOYDSAPI" | "MUSCATAPI" | "NICERAPI" | "PS1API" | "SOARGHTSAPI" | "SOARGHTSIMAGERAPI" | "SOARTSPECAPI" | "UVOTXRTAPI" | "UVOTXRTMMAAPI" | "TAROTAPI" | "TESSAPI" | "TRTAPI" | "WINTERAPI" | "SPRINGAPI" | "ZTFAPI" | "ZTFMMAAPI" | "GEMINIAPI" | "BINOSPECAPI" | "MMIRSAPI" | "TTTAPI" | "NEWFIRMAPI" | "RUBINMMAAPI" | "NGPSAPI" | "WENDELSTEINAPI" | "ATCAAPI" | "VLAAPI" | null;
             /**
              * @description Name of the instrument's listener class.
              * @enum {string|null}
@@ -37606,7 +37626,7 @@ export interface components {
         PhotFluxFlexible: {
             /** @description MJD of the observation(s). Can be a given as a scalar or a 1D list. If a scalar, will be broadcast to all values given as lists. Null values not allowed. */
             mjd: number | number[];
-            /** @description The bandpass of the observation(s). Can be given as a scalar or a 1D list. If a scalar, will be broadcast to all values given as lists. Null values not allowed. Allowed values: `bessellux`, `bessellb`, `bessellv`, `bessellr`, `besselli`, `standard::u`, `standard::b`, `standard::v`, `standard::r`, `standard::i`, `desu`, `desg`, `desr`, `desi`, `desz`, `desy`, `sdssu`, `sdssg`, `sdssr`, `sdssi`, `sdssz`, `f435w`, `f475w`, `f555w`, `f606w`, `f625w`, `f775w`, `f850lp`, `nicf110w`, `nicf160w`, `f098m`, `f105w`, `f110w`, `f125w`, `f127m`, `f139m`, `f140w`, `f153m`, `f160w`, `f218w`, `f225w`, `f275w`, `f300x`, `f336w`, `f350lp`, `f390w`, `f689m`, `f763m`, `f845m`, `f438w`, `uvf475w`, `uvf555w`, `uvf606w`, `uvf625w`, `uvf775w`, `uvf814w`, `uvf850lp`, `kepler`, `cspb`, `csphs`, `csphd`, `cspjs`, `cspjd`, `cspv3009`, `cspv3014`, `cspv9844`, `cspys`, `cspyd`, `cspg`, `cspi`, `cspk`, `cspr`, `cspu`, `f070w`, `f090w`, `f115w`, `f150w`, `f200w`, `f277w`, `f356w`, `f444w`, `f140m`, `f162m`, `f182m`, `f210m`, `f250m`, `f300m`, `f335m`, `f360m`, `f410m`, `f430m`, `f460m`, `f480m`, `f560w`, `f770w`, `f1000w`, `f1130w`, `f1280w`, `f1500w`, `f1800w`, `f2100w`, `f2550w`, `f1065c`, `f1140c`, `f1550c`, `f2300c`, `lsstu`, `lsstg`, `lsstr`, `lssti`, `lsstz`, `lssty`, `keplercam::us`, `keplercam::b`, `keplercam::v`, `keplercam::r`, `keplercam::i`, `4shooter2::us`, `4shooter2::b`, `4shooter2::v`, `4shooter2::r`, `4shooter2::i`, `f062`, `f087`, `f106`, `f129`, `f158`, `f184`, `f213`, `f146`, `euclidvis`, `euclidy`, `euclidj`, `euclidh`, `ztfg`, `ztfr`, `ztfi`, `uvot::b`, `uvot::u`, `uvot::uvm2`, `uvot::uvw1`, `uvot::uvw2`, `uvot::v`, `uvot::white`, `ps1::open`, `ps1::g`, `ps1::r`, `ps1::i`, `ps1::z`, `ps1::y`, `ps1::w`, `atlasc`, `atlaso`, `2massj`, `2massh`, `2massks`, `gaia::gbp`, `gaia::g`, `gaia::grp`, `gaia::grvs`, `tess`, `galex::fuv`, `galex::nuv`, `gotob`, `gotog`, `gotol`, `gotor`, `skymapperu`, `skymapperg`, `skymapperr`, `skymapperi`, `skymapperz`, `ztf::g`, `ztf::r`, `ztf::i`, `megacam6::g`, `megacam6::r`, `megacam6::i`, `megacam6::i2`, `megacam6::z`, `hsc::g`, `hsc::r`, `hsc::r2`, `hsc::i`, `hsc::i2`, `hsc::z`, `hsc::y`, `swiftxrt`, `nicerxti`, `epwxt`, `epfxt`, `svommxt`, `svomeclairs`, `svomgrm`, `svomvtb`, `svomvtr`, `radio-0.34GHz`, `radio-1.4GHz`, `radio-3GHz`, `radio-6GHz`, `radio-10GHz`, `radio-15GHz`, `radio-22GHz`, `radio-33GHz`, `radio-45GHz`, `radio-93GHz`, `radio-95GHz`, `swiftbat`, `fermigbm`, `fermilat`, `konus`, `integralacs`, `integralibis`, `integraljemx`, `caletcgbm`, `nustar`, `maxigsc`, `sma-230GHz`, `sma-345GHz`, `sma-400GHz`, `argusbeta`, `argusrho` */
+            /** @description The bandpass of the observation(s). Can be given as a scalar or a 1D list. If a scalar, will be broadcast to all values given as lists. Null values not allowed. Allowed values: `bessellux`, `bessellb`, `bessellv`, `bessellr`, `besselli`, `standard::u`, `standard::b`, `standard::v`, `standard::r`, `standard::i`, `desu`, `desg`, `desr`, `desi`, `desz`, `desy`, `sdssu`, `sdssg`, `sdssr`, `sdssi`, `sdssz`, `f435w`, `f475w`, `f555w`, `f606w`, `f625w`, `f775w`, `f850lp`, `nicf110w`, `nicf160w`, `f098m`, `f105w`, `f110w`, `f125w`, `f127m`, `f139m`, `f140w`, `f153m`, `f160w`, `f218w`, `f225w`, `f275w`, `f300x`, `f336w`, `f350lp`, `f390w`, `f689m`, `f763m`, `f845m`, `f438w`, `uvf475w`, `uvf555w`, `uvf606w`, `uvf625w`, `uvf775w`, `uvf814w`, `uvf850lp`, `kepler`, `cspb`, `csphs`, `csphd`, `cspjs`, `cspjd`, `cspv3009`, `cspv3014`, `cspv9844`, `cspys`, `cspyd`, `cspg`, `cspi`, `cspk`, `cspr`, `cspu`, `f070w`, `f090w`, `f115w`, `f150w`, `f200w`, `f277w`, `f356w`, `f444w`, `f140m`, `f162m`, `f182m`, `f210m`, `f250m`, `f300m`, `f335m`, `f360m`, `f410m`, `f430m`, `f460m`, `f480m`, `f560w`, `f770w`, `f1000w`, `f1130w`, `f1280w`, `f1500w`, `f1800w`, `f2100w`, `f2550w`, `f1065c`, `f1140c`, `f1550c`, `f2300c`, `lsstu`, `lsstg`, `lsstr`, `lssti`, `lsstz`, `lssty`, `keplercam::us`, `keplercam::b`, `keplercam::v`, `keplercam::r`, `keplercam::i`, `4shooter2::us`, `4shooter2::b`, `4shooter2::v`, `4shooter2::r`, `4shooter2::i`, `f062`, `f087`, `f106`, `f129`, `f158`, `f184`, `f213`, `f146`, `euclidvis`, `euclidy`, `euclidj`, `euclidh`, `ztfg`, `ztfr`, `ztfi`, `uvot::b`, `uvot::u`, `uvot::uvm2`, `uvot::uvw1`, `uvot::uvw2`, `uvot::v`, `uvot::white`, `ps1::open`, `ps1::g`, `ps1::r`, `ps1::i`, `ps1::z`, `ps1::y`, `ps1::w`, `atlasc`, `atlaso`, `2massj`, `2massh`, `2massks`, `gaia::gbp`, `gaia::g`, `gaia::grp`, `gaia::grvs`, `tess`, `galex::fuv`, `galex::nuv`, `gotob`, `gotog`, `gotol`, `gotor`, `skymapperu`, `skymapperg`, `skymapperr`, `skymapperi`, `skymapperz`, `ztf::g`, `ztf::r`, `ztf::i`, `megacam6::g`, `megacam6::r`, `megacam6::i`, `megacam6::i2`, `megacam6::z`, `hsc::g`, `hsc::r`, `hsc::r2`, `hsc::i`, `hsc::i2`, `hsc::z`, `hsc::y`, `swiftxrt`, `nicerxti`, `epwxt`, `epfxt`, `svommxt`, `svomeclairs`, `svomgrm`, `svomvtb`, `svomvtr`, `radio-0.34GHz`, `radio-1.4GHz`, `radio-3GHz`, `radio-6GHz`, `radio-10GHz`, `radio-15GHz`, `radio-22GHz`, `radio-33GHz`, `radio-45GHz`, `radio-93GHz`, `radio-95GHz`, `swiftbat`, `fermigbm`, `fermilat`, `konus`, `integralacs`, `integralibis`, `integraljemx`, `caletcgbm`, `nustar`, `maxigsc`, `sma-230GHz`, `sma-345GHz`, `sma-400GHz`, `argusbeta`, `argusrho`, `askap-943MHz` */
             filter: string | string[];
             /** @description ID of the `Obj`(s) to which the photometry will be attached. Can be given as a scalar or a 1D list. If a scalar, will be broadcast to all values given as lists. Null values are not allowed. */
             obj_id: string | string[];
@@ -37668,7 +37688,7 @@ export interface components {
         PhotMagFlexible: {
             /** @description MJD of the observation(s). Can be a given as a scalar or a 1D list. If a scalar, will be broadcast to all values given as lists. Null values not allowed. */
             mjd: number | number[];
-            /** @description The bandpass of the observation(s). Can be given as a scalar or a 1D list. If a scalar, will be broadcast to all values given as lists. Null values not allowed. Allowed values: `bessellux`, `bessellb`, `bessellv`, `bessellr`, `besselli`, `standard::u`, `standard::b`, `standard::v`, `standard::r`, `standard::i`, `desu`, `desg`, `desr`, `desi`, `desz`, `desy`, `sdssu`, `sdssg`, `sdssr`, `sdssi`, `sdssz`, `f435w`, `f475w`, `f555w`, `f606w`, `f625w`, `f775w`, `f850lp`, `nicf110w`, `nicf160w`, `f098m`, `f105w`, `f110w`, `f125w`, `f127m`, `f139m`, `f140w`, `f153m`, `f160w`, `f218w`, `f225w`, `f275w`, `f300x`, `f336w`, `f350lp`, `f390w`, `f689m`, `f763m`, `f845m`, `f438w`, `uvf475w`, `uvf555w`, `uvf606w`, `uvf625w`, `uvf775w`, `uvf814w`, `uvf850lp`, `kepler`, `cspb`, `csphs`, `csphd`, `cspjs`, `cspjd`, `cspv3009`, `cspv3014`, `cspv9844`, `cspys`, `cspyd`, `cspg`, `cspi`, `cspk`, `cspr`, `cspu`, `f070w`, `f090w`, `f115w`, `f150w`, `f200w`, `f277w`, `f356w`, `f444w`, `f140m`, `f162m`, `f182m`, `f210m`, `f250m`, `f300m`, `f335m`, `f360m`, `f410m`, `f430m`, `f460m`, `f480m`, `f560w`, `f770w`, `f1000w`, `f1130w`, `f1280w`, `f1500w`, `f1800w`, `f2100w`, `f2550w`, `f1065c`, `f1140c`, `f1550c`, `f2300c`, `lsstu`, `lsstg`, `lsstr`, `lssti`, `lsstz`, `lssty`, `keplercam::us`, `keplercam::b`, `keplercam::v`, `keplercam::r`, `keplercam::i`, `4shooter2::us`, `4shooter2::b`, `4shooter2::v`, `4shooter2::r`, `4shooter2::i`, `f062`, `f087`, `f106`, `f129`, `f158`, `f184`, `f213`, `f146`, `euclidvis`, `euclidy`, `euclidj`, `euclidh`, `ztfg`, `ztfr`, `ztfi`, `uvot::b`, `uvot::u`, `uvot::uvm2`, `uvot::uvw1`, `uvot::uvw2`, `uvot::v`, `uvot::white`, `ps1::open`, `ps1::g`, `ps1::r`, `ps1::i`, `ps1::z`, `ps1::y`, `ps1::w`, `atlasc`, `atlaso`, `2massj`, `2massh`, `2massks`, `gaia::gbp`, `gaia::g`, `gaia::grp`, `gaia::grvs`, `tess`, `galex::fuv`, `galex::nuv`, `gotob`, `gotog`, `gotol`, `gotor`, `skymapperu`, `skymapperg`, `skymapperr`, `skymapperi`, `skymapperz`, `ztf::g`, `ztf::r`, `ztf::i`, `megacam6::g`, `megacam6::r`, `megacam6::i`, `megacam6::i2`, `megacam6::z`, `hsc::g`, `hsc::r`, `hsc::r2`, `hsc::i`, `hsc::i2`, `hsc::z`, `hsc::y`, `swiftxrt`, `nicerxti`, `epwxt`, `epfxt`, `svommxt`, `svomeclairs`, `svomgrm`, `svomvtb`, `svomvtr`, `radio-0.34GHz`, `radio-1.4GHz`, `radio-3GHz`, `radio-6GHz`, `radio-10GHz`, `radio-15GHz`, `radio-22GHz`, `radio-33GHz`, `radio-45GHz`, `radio-93GHz`, `radio-95GHz`, `swiftbat`, `fermigbm`, `fermilat`, `konus`, `integralacs`, `integralibis`, `integraljemx`, `caletcgbm`, `nustar`, `maxigsc`, `sma-230GHz`, `sma-345GHz`, `sma-400GHz`, `argusbeta`, `argusrho` */
+            /** @description The bandpass of the observation(s). Can be given as a scalar or a 1D list. If a scalar, will be broadcast to all values given as lists. Null values not allowed. Allowed values: `bessellux`, `bessellb`, `bessellv`, `bessellr`, `besselli`, `standard::u`, `standard::b`, `standard::v`, `standard::r`, `standard::i`, `desu`, `desg`, `desr`, `desi`, `desz`, `desy`, `sdssu`, `sdssg`, `sdssr`, `sdssi`, `sdssz`, `f435w`, `f475w`, `f555w`, `f606w`, `f625w`, `f775w`, `f850lp`, `nicf110w`, `nicf160w`, `f098m`, `f105w`, `f110w`, `f125w`, `f127m`, `f139m`, `f140w`, `f153m`, `f160w`, `f218w`, `f225w`, `f275w`, `f300x`, `f336w`, `f350lp`, `f390w`, `f689m`, `f763m`, `f845m`, `f438w`, `uvf475w`, `uvf555w`, `uvf606w`, `uvf625w`, `uvf775w`, `uvf814w`, `uvf850lp`, `kepler`, `cspb`, `csphs`, `csphd`, `cspjs`, `cspjd`, `cspv3009`, `cspv3014`, `cspv9844`, `cspys`, `cspyd`, `cspg`, `cspi`, `cspk`, `cspr`, `cspu`, `f070w`, `f090w`, `f115w`, `f150w`, `f200w`, `f277w`, `f356w`, `f444w`, `f140m`, `f162m`, `f182m`, `f210m`, `f250m`, `f300m`, `f335m`, `f360m`, `f410m`, `f430m`, `f460m`, `f480m`, `f560w`, `f770w`, `f1000w`, `f1130w`, `f1280w`, `f1500w`, `f1800w`, `f2100w`, `f2550w`, `f1065c`, `f1140c`, `f1550c`, `f2300c`, `lsstu`, `lsstg`, `lsstr`, `lssti`, `lsstz`, `lssty`, `keplercam::us`, `keplercam::b`, `keplercam::v`, `keplercam::r`, `keplercam::i`, `4shooter2::us`, `4shooter2::b`, `4shooter2::v`, `4shooter2::r`, `4shooter2::i`, `f062`, `f087`, `f106`, `f129`, `f158`, `f184`, `f213`, `f146`, `euclidvis`, `euclidy`, `euclidj`, `euclidh`, `ztfg`, `ztfr`, `ztfi`, `uvot::b`, `uvot::u`, `uvot::uvm2`, `uvot::uvw1`, `uvot::uvw2`, `uvot::v`, `uvot::white`, `ps1::open`, `ps1::g`, `ps1::r`, `ps1::i`, `ps1::z`, `ps1::y`, `ps1::w`, `atlasc`, `atlaso`, `2massj`, `2massh`, `2massks`, `gaia::gbp`, `gaia::g`, `gaia::grp`, `gaia::grvs`, `tess`, `galex::fuv`, `galex::nuv`, `gotob`, `gotog`, `gotol`, `gotor`, `skymapperu`, `skymapperg`, `skymapperr`, `skymapperi`, `skymapperz`, `ztf::g`, `ztf::r`, `ztf::i`, `megacam6::g`, `megacam6::r`, `megacam6::i`, `megacam6::i2`, `megacam6::z`, `hsc::g`, `hsc::r`, `hsc::r2`, `hsc::i`, `hsc::i2`, `hsc::z`, `hsc::y`, `swiftxrt`, `nicerxti`, `epwxt`, `epfxt`, `svommxt`, `svomeclairs`, `svomgrm`, `svomvtb`, `svomvtr`, `radio-0.34GHz`, `radio-1.4GHz`, `radio-3GHz`, `radio-6GHz`, `radio-10GHz`, `radio-15GHz`, `radio-22GHz`, `radio-33GHz`, `radio-45GHz`, `radio-93GHz`, `radio-95GHz`, `swiftbat`, `fermigbm`, `fermilat`, `konus`, `integralacs`, `integralibis`, `integraljemx`, `caletcgbm`, `nustar`, `maxigsc`, `sma-230GHz`, `sma-345GHz`, `sma-400GHz`, `argusbeta`, `argusrho`, `askap-943MHz` */
             filter: string | string[];
             /** @description ID of the `Obj`(s) to which the photometry will be attached. Can be given as a scalar or a 1D list. If a scalar, will be broadcast to all values given as lists. Null values are not allowed. */
             obj_id: string | string[];
@@ -37986,7 +38006,7 @@ export interface components {
              * @description Filter with which the observation was taken.
              * @enum {string}
              */
-            filter: "bessellux" | "bessellb" | "bessellv" | "bessellr" | "besselli" | "standard::u" | "standard::b" | "standard::v" | "standard::r" | "standard::i" | "desu" | "desg" | "desr" | "desi" | "desz" | "desy" | "sdssu" | "sdssg" | "sdssr" | "sdssi" | "sdssz" | "f435w" | "f475w" | "f555w" | "f606w" | "f625w" | "f775w" | "f850lp" | "nicf110w" | "nicf160w" | "f098m" | "f105w" | "f110w" | "f125w" | "f127m" | "f139m" | "f140w" | "f153m" | "f160w" | "f218w" | "f225w" | "f275w" | "f300x" | "f336w" | "f350lp" | "f390w" | "f689m" | "f763m" | "f845m" | "f438w" | "uvf475w" | "uvf555w" | "uvf606w" | "uvf625w" | "uvf775w" | "uvf814w" | "uvf850lp" | "kepler" | "cspb" | "csphs" | "csphd" | "cspjs" | "cspjd" | "cspv3009" | "cspv3014" | "cspv9844" | "cspys" | "cspyd" | "cspg" | "cspi" | "cspk" | "cspr" | "cspu" | "f070w" | "f090w" | "f115w" | "f150w" | "f200w" | "f277w" | "f356w" | "f444w" | "f140m" | "f162m" | "f182m" | "f210m" | "f250m" | "f300m" | "f335m" | "f360m" | "f410m" | "f430m" | "f460m" | "f480m" | "f560w" | "f770w" | "f1000w" | "f1130w" | "f1280w" | "f1500w" | "f1800w" | "f2100w" | "f2550w" | "f1065c" | "f1140c" | "f1550c" | "f2300c" | "lsstu" | "lsstg" | "lsstr" | "lssti" | "lsstz" | "lssty" | "keplercam::us" | "keplercam::b" | "keplercam::v" | "keplercam::r" | "keplercam::i" | "4shooter2::us" | "4shooter2::b" | "4shooter2::v" | "4shooter2::r" | "4shooter2::i" | "f062" | "f087" | "f106" | "f129" | "f158" | "f184" | "f213" | "f146" | "euclidvis" | "euclidy" | "euclidj" | "euclidh" | "ztfg" | "ztfr" | "ztfi" | "uvot::b" | "uvot::u" | "uvot::uvm2" | "uvot::uvw1" | "uvot::uvw2" | "uvot::v" | "uvot::white" | "ps1::open" | "ps1::g" | "ps1::r" | "ps1::i" | "ps1::z" | "ps1::y" | "ps1::w" | "atlasc" | "atlaso" | "2massj" | "2massh" | "2massks" | "gaia::gbp" | "gaia::g" | "gaia::grp" | "gaia::grvs" | "tess" | "galex::fuv" | "galex::nuv" | "gotob" | "gotog" | "gotol" | "gotor" | "skymapperu" | "skymapperg" | "skymapperr" | "skymapperi" | "skymapperz" | "ztf::g" | "ztf::r" | "ztf::i" | "megacam6::g" | "megacam6::r" | "megacam6::i" | "megacam6::i2" | "megacam6::z" | "hsc::g" | "hsc::r" | "hsc::r2" | "hsc::i" | "hsc::i2" | "hsc::z" | "hsc::y" | "swiftxrt" | "nicerxti" | "epwxt" | "epfxt" | "svommxt" | "svomeclairs" | "svomgrm" | "svomvtb" | "svomvtr" | "radio-0.34GHz" | "radio-1.4GHz" | "radio-3GHz" | "radio-6GHz" | "radio-10GHz" | "radio-15GHz" | "radio-22GHz" | "radio-33GHz" | "radio-45GHz" | "radio-93GHz" | "radio-95GHz" | "swiftbat" | "fermigbm" | "fermilat" | "konus" | "integralacs" | "integralibis" | "integraljemx" | "caletcgbm" | "nustar" | "maxigsc" | "sma-230GHz" | "sma-345GHz" | "sma-400GHz" | "argusbeta" | "argusrho";
+            filter: "bessellux" | "bessellb" | "bessellv" | "bessellr" | "besselli" | "standard::u" | "standard::b" | "standard::v" | "standard::r" | "standard::i" | "desu" | "desg" | "desr" | "desi" | "desz" | "desy" | "sdssu" | "sdssg" | "sdssr" | "sdssi" | "sdssz" | "f435w" | "f475w" | "f555w" | "f606w" | "f625w" | "f775w" | "f850lp" | "nicf110w" | "nicf160w" | "f098m" | "f105w" | "f110w" | "f125w" | "f127m" | "f139m" | "f140w" | "f153m" | "f160w" | "f218w" | "f225w" | "f275w" | "f300x" | "f336w" | "f350lp" | "f390w" | "f689m" | "f763m" | "f845m" | "f438w" | "uvf475w" | "uvf555w" | "uvf606w" | "uvf625w" | "uvf775w" | "uvf814w" | "uvf850lp" | "kepler" | "cspb" | "csphs" | "csphd" | "cspjs" | "cspjd" | "cspv3009" | "cspv3014" | "cspv9844" | "cspys" | "cspyd" | "cspg" | "cspi" | "cspk" | "cspr" | "cspu" | "f070w" | "f090w" | "f115w" | "f150w" | "f200w" | "f277w" | "f356w" | "f444w" | "f140m" | "f162m" | "f182m" | "f210m" | "f250m" | "f300m" | "f335m" | "f360m" | "f410m" | "f430m" | "f460m" | "f480m" | "f560w" | "f770w" | "f1000w" | "f1130w" | "f1280w" | "f1500w" | "f1800w" | "f2100w" | "f2550w" | "f1065c" | "f1140c" | "f1550c" | "f2300c" | "lsstu" | "lsstg" | "lsstr" | "lssti" | "lsstz" | "lssty" | "keplercam::us" | "keplercam::b" | "keplercam::v" | "keplercam::r" | "keplercam::i" | "4shooter2::us" | "4shooter2::b" | "4shooter2::v" | "4shooter2::r" | "4shooter2::i" | "f062" | "f087" | "f106" | "f129" | "f158" | "f184" | "f213" | "f146" | "euclidvis" | "euclidy" | "euclidj" | "euclidh" | "ztfg" | "ztfr" | "ztfi" | "uvot::b" | "uvot::u" | "uvot::uvm2" | "uvot::uvw1" | "uvot::uvw2" | "uvot::v" | "uvot::white" | "ps1::open" | "ps1::g" | "ps1::r" | "ps1::i" | "ps1::z" | "ps1::y" | "ps1::w" | "atlasc" | "atlaso" | "2massj" | "2massh" | "2massks" | "gaia::gbp" | "gaia::g" | "gaia::grp" | "gaia::grvs" | "tess" | "galex::fuv" | "galex::nuv" | "gotob" | "gotog" | "gotol" | "gotor" | "skymapperu" | "skymapperg" | "skymapperr" | "skymapperi" | "skymapperz" | "ztf::g" | "ztf::r" | "ztf::i" | "megacam6::g" | "megacam6::r" | "megacam6::i" | "megacam6::i2" | "megacam6::z" | "hsc::g" | "hsc::r" | "hsc::r2" | "hsc::i" | "hsc::i2" | "hsc::z" | "hsc::y" | "swiftxrt" | "nicerxti" | "epwxt" | "epfxt" | "svommxt" | "svomeclairs" | "svomgrm" | "svomvtb" | "svomvtr" | "radio-0.34GHz" | "radio-1.4GHz" | "radio-3GHz" | "radio-6GHz" | "radio-10GHz" | "radio-15GHz" | "radio-22GHz" | "radio-33GHz" | "radio-45GHz" | "radio-93GHz" | "radio-95GHz" | "swiftbat" | "fermigbm" | "fermilat" | "konus" | "integralacs" | "integralibis" | "integraljemx" | "caletcgbm" | "nustar" | "maxigsc" | "sma-230GHz" | "sma-345GHz" | "sma-400GHz" | "argusbeta" | "argusrho" | "askap-943MHz";
             /** @description Name of channel of the photometric series. */
             channel?: string;
             /** @description Origin from which this photometric series was extracted (if any). */
@@ -38112,7 +38132,7 @@ export interface components {
              * @description Filter with which the observation was taken.
              * @enum {string}
              */
-            filter: "bessellux" | "bessellb" | "bessellv" | "bessellr" | "besselli" | "standard::u" | "standard::b" | "standard::v" | "standard::r" | "standard::i" | "desu" | "desg" | "desr" | "desi" | "desz" | "desy" | "sdssu" | "sdssg" | "sdssr" | "sdssi" | "sdssz" | "f435w" | "f475w" | "f555w" | "f606w" | "f625w" | "f775w" | "f850lp" | "nicf110w" | "nicf160w" | "f098m" | "f105w" | "f110w" | "f125w" | "f127m" | "f139m" | "f140w" | "f153m" | "f160w" | "f218w" | "f225w" | "f275w" | "f300x" | "f336w" | "f350lp" | "f390w" | "f689m" | "f763m" | "f845m" | "f438w" | "uvf475w" | "uvf555w" | "uvf606w" | "uvf625w" | "uvf775w" | "uvf814w" | "uvf850lp" | "kepler" | "cspb" | "csphs" | "csphd" | "cspjs" | "cspjd" | "cspv3009" | "cspv3014" | "cspv9844" | "cspys" | "cspyd" | "cspg" | "cspi" | "cspk" | "cspr" | "cspu" | "f070w" | "f090w" | "f115w" | "f150w" | "f200w" | "f277w" | "f356w" | "f444w" | "f140m" | "f162m" | "f182m" | "f210m" | "f250m" | "f300m" | "f335m" | "f360m" | "f410m" | "f430m" | "f460m" | "f480m" | "f560w" | "f770w" | "f1000w" | "f1130w" | "f1280w" | "f1500w" | "f1800w" | "f2100w" | "f2550w" | "f1065c" | "f1140c" | "f1550c" | "f2300c" | "lsstu" | "lsstg" | "lsstr" | "lssti" | "lsstz" | "lssty" | "keplercam::us" | "keplercam::b" | "keplercam::v" | "keplercam::r" | "keplercam::i" | "4shooter2::us" | "4shooter2::b" | "4shooter2::v" | "4shooter2::r" | "4shooter2::i" | "f062" | "f087" | "f106" | "f129" | "f158" | "f184" | "f213" | "f146" | "euclidvis" | "euclidy" | "euclidj" | "euclidh" | "ztfg" | "ztfr" | "ztfi" | "uvot::b" | "uvot::u" | "uvot::uvm2" | "uvot::uvw1" | "uvot::uvw2" | "uvot::v" | "uvot::white" | "ps1::open" | "ps1::g" | "ps1::r" | "ps1::i" | "ps1::z" | "ps1::y" | "ps1::w" | "atlasc" | "atlaso" | "2massj" | "2massh" | "2massks" | "gaia::gbp" | "gaia::g" | "gaia::grp" | "gaia::grvs" | "tess" | "galex::fuv" | "galex::nuv" | "gotob" | "gotog" | "gotol" | "gotor" | "skymapperu" | "skymapperg" | "skymapperr" | "skymapperi" | "skymapperz" | "ztf::g" | "ztf::r" | "ztf::i" | "megacam6::g" | "megacam6::r" | "megacam6::i" | "megacam6::i2" | "megacam6::z" | "hsc::g" | "hsc::r" | "hsc::r2" | "hsc::i" | "hsc::i2" | "hsc::z" | "hsc::y" | "swiftxrt" | "nicerxti" | "epwxt" | "epfxt" | "svommxt" | "svomeclairs" | "svomgrm" | "svomvtb" | "svomvtr" | "radio-0.34GHz" | "radio-1.4GHz" | "radio-3GHz" | "radio-6GHz" | "radio-10GHz" | "radio-15GHz" | "radio-22GHz" | "radio-33GHz" | "radio-45GHz" | "radio-93GHz" | "radio-95GHz" | "swiftbat" | "fermigbm" | "fermilat" | "konus" | "integralacs" | "integralibis" | "integraljemx" | "caletcgbm" | "nustar" | "maxigsc" | "sma-230GHz" | "sma-345GHz" | "sma-400GHz" | "argusbeta" | "argusrho";
+            filter: "bessellux" | "bessellb" | "bessellv" | "bessellr" | "besselli" | "standard::u" | "standard::b" | "standard::v" | "standard::r" | "standard::i" | "desu" | "desg" | "desr" | "desi" | "desz" | "desy" | "sdssu" | "sdssg" | "sdssr" | "sdssi" | "sdssz" | "f435w" | "f475w" | "f555w" | "f606w" | "f625w" | "f775w" | "f850lp" | "nicf110w" | "nicf160w" | "f098m" | "f105w" | "f110w" | "f125w" | "f127m" | "f139m" | "f140w" | "f153m" | "f160w" | "f218w" | "f225w" | "f275w" | "f300x" | "f336w" | "f350lp" | "f390w" | "f689m" | "f763m" | "f845m" | "f438w" | "uvf475w" | "uvf555w" | "uvf606w" | "uvf625w" | "uvf775w" | "uvf814w" | "uvf850lp" | "kepler" | "cspb" | "csphs" | "csphd" | "cspjs" | "cspjd" | "cspv3009" | "cspv3014" | "cspv9844" | "cspys" | "cspyd" | "cspg" | "cspi" | "cspk" | "cspr" | "cspu" | "f070w" | "f090w" | "f115w" | "f150w" | "f200w" | "f277w" | "f356w" | "f444w" | "f140m" | "f162m" | "f182m" | "f210m" | "f250m" | "f300m" | "f335m" | "f360m" | "f410m" | "f430m" | "f460m" | "f480m" | "f560w" | "f770w" | "f1000w" | "f1130w" | "f1280w" | "f1500w" | "f1800w" | "f2100w" | "f2550w" | "f1065c" | "f1140c" | "f1550c" | "f2300c" | "lsstu" | "lsstg" | "lsstr" | "lssti" | "lsstz" | "lssty" | "keplercam::us" | "keplercam::b" | "keplercam::v" | "keplercam::r" | "keplercam::i" | "4shooter2::us" | "4shooter2::b" | "4shooter2::v" | "4shooter2::r" | "4shooter2::i" | "f062" | "f087" | "f106" | "f129" | "f158" | "f184" | "f213" | "f146" | "euclidvis" | "euclidy" | "euclidj" | "euclidh" | "ztfg" | "ztfr" | "ztfi" | "uvot::b" | "uvot::u" | "uvot::uvm2" | "uvot::uvw1" | "uvot::uvw2" | "uvot::v" | "uvot::white" | "ps1::open" | "ps1::g" | "ps1::r" | "ps1::i" | "ps1::z" | "ps1::y" | "ps1::w" | "atlasc" | "atlaso" | "2massj" | "2massh" | "2massks" | "gaia::gbp" | "gaia::g" | "gaia::grp" | "gaia::grvs" | "tess" | "galex::fuv" | "galex::nuv" | "gotob" | "gotog" | "gotol" | "gotor" | "skymapperu" | "skymapperg" | "skymapperr" | "skymapperi" | "skymapperz" | "ztf::g" | "ztf::r" | "ztf::i" | "megacam6::g" | "megacam6::r" | "megacam6::i" | "megacam6::i2" | "megacam6::z" | "hsc::g" | "hsc::r" | "hsc::r2" | "hsc::i" | "hsc::i2" | "hsc::z" | "hsc::y" | "swiftxrt" | "nicerxti" | "epwxt" | "epfxt" | "svommxt" | "svomeclairs" | "svomgrm" | "svomvtb" | "svomvtr" | "radio-0.34GHz" | "radio-1.4GHz" | "radio-3GHz" | "radio-6GHz" | "radio-10GHz" | "radio-15GHz" | "radio-22GHz" | "radio-33GHz" | "radio-45GHz" | "radio-93GHz" | "radio-95GHz" | "swiftbat" | "fermigbm" | "fermilat" | "konus" | "integralacs" | "integralibis" | "integraljemx" | "caletcgbm" | "nustar" | "maxigsc" | "sma-230GHz" | "sma-345GHz" | "sma-400GHz" | "argusbeta" | "argusrho" | "askap-943MHz";
             /** @description Name of channel of the photometric series. */
             channel?: string;
             /** @description Origin from which this photometric series was extracted (if any). */
@@ -38238,7 +38258,7 @@ export interface components {
              * @description Filter with which the observation was taken.
              * @enum {string}
              */
-            filter: "bessellux" | "bessellb" | "bessellv" | "bessellr" | "besselli" | "standard::u" | "standard::b" | "standard::v" | "standard::r" | "standard::i" | "desu" | "desg" | "desr" | "desi" | "desz" | "desy" | "sdssu" | "sdssg" | "sdssr" | "sdssi" | "sdssz" | "f435w" | "f475w" | "f555w" | "f606w" | "f625w" | "f775w" | "f850lp" | "nicf110w" | "nicf160w" | "f098m" | "f105w" | "f110w" | "f125w" | "f127m" | "f139m" | "f140w" | "f153m" | "f160w" | "f218w" | "f225w" | "f275w" | "f300x" | "f336w" | "f350lp" | "f390w" | "f689m" | "f763m" | "f845m" | "f438w" | "uvf475w" | "uvf555w" | "uvf606w" | "uvf625w" | "uvf775w" | "uvf814w" | "uvf850lp" | "kepler" | "cspb" | "csphs" | "csphd" | "cspjs" | "cspjd" | "cspv3009" | "cspv3014" | "cspv9844" | "cspys" | "cspyd" | "cspg" | "cspi" | "cspk" | "cspr" | "cspu" | "f070w" | "f090w" | "f115w" | "f150w" | "f200w" | "f277w" | "f356w" | "f444w" | "f140m" | "f162m" | "f182m" | "f210m" | "f250m" | "f300m" | "f335m" | "f360m" | "f410m" | "f430m" | "f460m" | "f480m" | "f560w" | "f770w" | "f1000w" | "f1130w" | "f1280w" | "f1500w" | "f1800w" | "f2100w" | "f2550w" | "f1065c" | "f1140c" | "f1550c" | "f2300c" | "lsstu" | "lsstg" | "lsstr" | "lssti" | "lsstz" | "lssty" | "keplercam::us" | "keplercam::b" | "keplercam::v" | "keplercam::r" | "keplercam::i" | "4shooter2::us" | "4shooter2::b" | "4shooter2::v" | "4shooter2::r" | "4shooter2::i" | "f062" | "f087" | "f106" | "f129" | "f158" | "f184" | "f213" | "f146" | "euclidvis" | "euclidy" | "euclidj" | "euclidh" | "ztfg" | "ztfr" | "ztfi" | "uvot::b" | "uvot::u" | "uvot::uvm2" | "uvot::uvw1" | "uvot::uvw2" | "uvot::v" | "uvot::white" | "ps1::open" | "ps1::g" | "ps1::r" | "ps1::i" | "ps1::z" | "ps1::y" | "ps1::w" | "atlasc" | "atlaso" | "2massj" | "2massh" | "2massks" | "gaia::gbp" | "gaia::g" | "gaia::grp" | "gaia::grvs" | "tess" | "galex::fuv" | "galex::nuv" | "gotob" | "gotog" | "gotol" | "gotor" | "skymapperu" | "skymapperg" | "skymapperr" | "skymapperi" | "skymapperz" | "ztf::g" | "ztf::r" | "ztf::i" | "megacam6::g" | "megacam6::r" | "megacam6::i" | "megacam6::i2" | "megacam6::z" | "hsc::g" | "hsc::r" | "hsc::r2" | "hsc::i" | "hsc::i2" | "hsc::z" | "hsc::y" | "swiftxrt" | "nicerxti" | "epwxt" | "epfxt" | "svommxt" | "svomeclairs" | "svomgrm" | "svomvtb" | "svomvtr" | "radio-0.34GHz" | "radio-1.4GHz" | "radio-3GHz" | "radio-6GHz" | "radio-10GHz" | "radio-15GHz" | "radio-22GHz" | "radio-33GHz" | "radio-45GHz" | "radio-93GHz" | "radio-95GHz" | "swiftbat" | "fermigbm" | "fermilat" | "konus" | "integralacs" | "integralibis" | "integraljemx" | "caletcgbm" | "nustar" | "maxigsc" | "sma-230GHz" | "sma-345GHz" | "sma-400GHz" | "argusbeta" | "argusrho";
+            filter: "bessellux" | "bessellb" | "bessellv" | "bessellr" | "besselli" | "standard::u" | "standard::b" | "standard::v" | "standard::r" | "standard::i" | "desu" | "desg" | "desr" | "desi" | "desz" | "desy" | "sdssu" | "sdssg" | "sdssr" | "sdssi" | "sdssz" | "f435w" | "f475w" | "f555w" | "f606w" | "f625w" | "f775w" | "f850lp" | "nicf110w" | "nicf160w" | "f098m" | "f105w" | "f110w" | "f125w" | "f127m" | "f139m" | "f140w" | "f153m" | "f160w" | "f218w" | "f225w" | "f275w" | "f300x" | "f336w" | "f350lp" | "f390w" | "f689m" | "f763m" | "f845m" | "f438w" | "uvf475w" | "uvf555w" | "uvf606w" | "uvf625w" | "uvf775w" | "uvf814w" | "uvf850lp" | "kepler" | "cspb" | "csphs" | "csphd" | "cspjs" | "cspjd" | "cspv3009" | "cspv3014" | "cspv9844" | "cspys" | "cspyd" | "cspg" | "cspi" | "cspk" | "cspr" | "cspu" | "f070w" | "f090w" | "f115w" | "f150w" | "f200w" | "f277w" | "f356w" | "f444w" | "f140m" | "f162m" | "f182m" | "f210m" | "f250m" | "f300m" | "f335m" | "f360m" | "f410m" | "f430m" | "f460m" | "f480m" | "f560w" | "f770w" | "f1000w" | "f1130w" | "f1280w" | "f1500w" | "f1800w" | "f2100w" | "f2550w" | "f1065c" | "f1140c" | "f1550c" | "f2300c" | "lsstu" | "lsstg" | "lsstr" | "lssti" | "lsstz" | "lssty" | "keplercam::us" | "keplercam::b" | "keplercam::v" | "keplercam::r" | "keplercam::i" | "4shooter2::us" | "4shooter2::b" | "4shooter2::v" | "4shooter2::r" | "4shooter2::i" | "f062" | "f087" | "f106" | "f129" | "f158" | "f184" | "f213" | "f146" | "euclidvis" | "euclidy" | "euclidj" | "euclidh" | "ztfg" | "ztfr" | "ztfi" | "uvot::b" | "uvot::u" | "uvot::uvm2" | "uvot::uvw1" | "uvot::uvw2" | "uvot::v" | "uvot::white" | "ps1::open" | "ps1::g" | "ps1::r" | "ps1::i" | "ps1::z" | "ps1::y" | "ps1::w" | "atlasc" | "atlaso" | "2massj" | "2massh" | "2massks" | "gaia::gbp" | "gaia::g" | "gaia::grp" | "gaia::grvs" | "tess" | "galex::fuv" | "galex::nuv" | "gotob" | "gotog" | "gotol" | "gotor" | "skymapperu" | "skymapperg" | "skymapperr" | "skymapperi" | "skymapperz" | "ztf::g" | "ztf::r" | "ztf::i" | "megacam6::g" | "megacam6::r" | "megacam6::i" | "megacam6::i2" | "megacam6::z" | "hsc::g" | "hsc::r" | "hsc::r2" | "hsc::i" | "hsc::i2" | "hsc::z" | "hsc::y" | "swiftxrt" | "nicerxti" | "epwxt" | "epfxt" | "svommxt" | "svomeclairs" | "svomgrm" | "svomvtb" | "svomvtr" | "radio-0.34GHz" | "radio-1.4GHz" | "radio-3GHz" | "radio-6GHz" | "radio-10GHz" | "radio-15GHz" | "radio-22GHz" | "radio-33GHz" | "radio-45GHz" | "radio-93GHz" | "radio-95GHz" | "swiftbat" | "fermigbm" | "fermilat" | "konus" | "integralacs" | "integralibis" | "integraljemx" | "caletcgbm" | "nustar" | "maxigsc" | "sma-230GHz" | "sma-345GHz" | "sma-400GHz" | "argusbeta" | "argusrho" | "askap-943MHz";
             /** @description Uncertainty of ra position [arcsec] */
             ra_unc?: number | null;
             /** @description Uncertainty of dec position [arcsec] */
@@ -38294,7 +38314,7 @@ export interface components {
              * @description The bandpass of the observation.
              * @enum {string}
              */
-            filter: "bessellux" | "bessellb" | "bessellv" | "bessellr" | "besselli" | "standard::u" | "standard::b" | "standard::v" | "standard::r" | "standard::i" | "desu" | "desg" | "desr" | "desi" | "desz" | "desy" | "sdssu" | "sdssg" | "sdssr" | "sdssi" | "sdssz" | "f435w" | "f475w" | "f555w" | "f606w" | "f625w" | "f775w" | "f850lp" | "nicf110w" | "nicf160w" | "f098m" | "f105w" | "f110w" | "f125w" | "f127m" | "f139m" | "f140w" | "f153m" | "f160w" | "f218w" | "f225w" | "f275w" | "f300x" | "f336w" | "f350lp" | "f390w" | "f689m" | "f763m" | "f845m" | "f438w" | "uvf475w" | "uvf555w" | "uvf606w" | "uvf625w" | "uvf775w" | "uvf814w" | "uvf850lp" | "kepler" | "cspb" | "csphs" | "csphd" | "cspjs" | "cspjd" | "cspv3009" | "cspv3014" | "cspv9844" | "cspys" | "cspyd" | "cspg" | "cspi" | "cspk" | "cspr" | "cspu" | "f070w" | "f090w" | "f115w" | "f150w" | "f200w" | "f277w" | "f356w" | "f444w" | "f140m" | "f162m" | "f182m" | "f210m" | "f250m" | "f300m" | "f335m" | "f360m" | "f410m" | "f430m" | "f460m" | "f480m" | "f560w" | "f770w" | "f1000w" | "f1130w" | "f1280w" | "f1500w" | "f1800w" | "f2100w" | "f2550w" | "f1065c" | "f1140c" | "f1550c" | "f2300c" | "lsstu" | "lsstg" | "lsstr" | "lssti" | "lsstz" | "lssty" | "keplercam::us" | "keplercam::b" | "keplercam::v" | "keplercam::r" | "keplercam::i" | "4shooter2::us" | "4shooter2::b" | "4shooter2::v" | "4shooter2::r" | "4shooter2::i" | "f062" | "f087" | "f106" | "f129" | "f158" | "f184" | "f213" | "f146" | "euclidvis" | "euclidy" | "euclidj" | "euclidh" | "ztfg" | "ztfr" | "ztfi" | "uvot::b" | "uvot::u" | "uvot::uvm2" | "uvot::uvw1" | "uvot::uvw2" | "uvot::v" | "uvot::white" | "ps1::open" | "ps1::g" | "ps1::r" | "ps1::i" | "ps1::z" | "ps1::y" | "ps1::w" | "atlasc" | "atlaso" | "2massj" | "2massh" | "2massks" | "gaia::gbp" | "gaia::g" | "gaia::grp" | "gaia::grvs" | "tess" | "galex::fuv" | "galex::nuv" | "gotob" | "gotog" | "gotol" | "gotor" | "skymapperu" | "skymapperg" | "skymapperr" | "skymapperi" | "skymapperz" | "ztf::g" | "ztf::r" | "ztf::i" | "megacam6::g" | "megacam6::r" | "megacam6::i" | "megacam6::i2" | "megacam6::z" | "hsc::g" | "hsc::r" | "hsc::r2" | "hsc::i" | "hsc::i2" | "hsc::z" | "hsc::y" | "swiftxrt" | "nicerxti" | "epwxt" | "epfxt" | "svommxt" | "svomeclairs" | "svomgrm" | "svomvtb" | "svomvtr" | "radio-0.34GHz" | "radio-1.4GHz" | "radio-3GHz" | "radio-6GHz" | "radio-10GHz" | "radio-15GHz" | "radio-22GHz" | "radio-33GHz" | "radio-45GHz" | "radio-93GHz" | "radio-95GHz" | "swiftbat" | "fermigbm" | "fermilat" | "konus" | "integralacs" | "integralibis" | "integraljemx" | "caletcgbm" | "nustar" | "maxigsc" | "sma-230GHz" | "sma-345GHz" | "sma-400GHz" | "argusbeta" | "argusrho";
+            filter: "bessellux" | "bessellb" | "bessellv" | "bessellr" | "besselli" | "standard::u" | "standard::b" | "standard::v" | "standard::r" | "standard::i" | "desu" | "desg" | "desr" | "desi" | "desz" | "desy" | "sdssu" | "sdssg" | "sdssr" | "sdssi" | "sdssz" | "f435w" | "f475w" | "f555w" | "f606w" | "f625w" | "f775w" | "f850lp" | "nicf110w" | "nicf160w" | "f098m" | "f105w" | "f110w" | "f125w" | "f127m" | "f139m" | "f140w" | "f153m" | "f160w" | "f218w" | "f225w" | "f275w" | "f300x" | "f336w" | "f350lp" | "f390w" | "f689m" | "f763m" | "f845m" | "f438w" | "uvf475w" | "uvf555w" | "uvf606w" | "uvf625w" | "uvf775w" | "uvf814w" | "uvf850lp" | "kepler" | "cspb" | "csphs" | "csphd" | "cspjs" | "cspjd" | "cspv3009" | "cspv3014" | "cspv9844" | "cspys" | "cspyd" | "cspg" | "cspi" | "cspk" | "cspr" | "cspu" | "f070w" | "f090w" | "f115w" | "f150w" | "f200w" | "f277w" | "f356w" | "f444w" | "f140m" | "f162m" | "f182m" | "f210m" | "f250m" | "f300m" | "f335m" | "f360m" | "f410m" | "f430m" | "f460m" | "f480m" | "f560w" | "f770w" | "f1000w" | "f1130w" | "f1280w" | "f1500w" | "f1800w" | "f2100w" | "f2550w" | "f1065c" | "f1140c" | "f1550c" | "f2300c" | "lsstu" | "lsstg" | "lsstr" | "lssti" | "lsstz" | "lssty" | "keplercam::us" | "keplercam::b" | "keplercam::v" | "keplercam::r" | "keplercam::i" | "4shooter2::us" | "4shooter2::b" | "4shooter2::v" | "4shooter2::r" | "4shooter2::i" | "f062" | "f087" | "f106" | "f129" | "f158" | "f184" | "f213" | "f146" | "euclidvis" | "euclidy" | "euclidj" | "euclidh" | "ztfg" | "ztfr" | "ztfi" | "uvot::b" | "uvot::u" | "uvot::uvm2" | "uvot::uvw1" | "uvot::uvw2" | "uvot::v" | "uvot::white" | "ps1::open" | "ps1::g" | "ps1::r" | "ps1::i" | "ps1::z" | "ps1::y" | "ps1::w" | "atlasc" | "atlaso" | "2massj" | "2massh" | "2massks" | "gaia::gbp" | "gaia::g" | "gaia::grp" | "gaia::grvs" | "tess" | "galex::fuv" | "galex::nuv" | "gotob" | "gotog" | "gotol" | "gotor" | "skymapperu" | "skymapperg" | "skymapperr" | "skymapperi" | "skymapperz" | "ztf::g" | "ztf::r" | "ztf::i" | "megacam6::g" | "megacam6::r" | "megacam6::i" | "megacam6::i2" | "megacam6::z" | "hsc::g" | "hsc::r" | "hsc::r2" | "hsc::i" | "hsc::i2" | "hsc::z" | "hsc::y" | "swiftxrt" | "nicerxti" | "epwxt" | "epfxt" | "svommxt" | "svomeclairs" | "svomgrm" | "svomvtb" | "svomvtr" | "radio-0.34GHz" | "radio-1.4GHz" | "radio-3GHz" | "radio-6GHz" | "radio-10GHz" | "radio-15GHz" | "radio-22GHz" | "radio-33GHz" | "radio-45GHz" | "radio-93GHz" | "radio-95GHz" | "swiftbat" | "fermigbm" | "fermilat" | "konus" | "integralacs" | "integralibis" | "integraljemx" | "caletcgbm" | "nustar" | "maxigsc" | "sma-230GHz" | "sma-345GHz" | "sma-400GHz" | "argusbeta" | "argusrho" | "askap-943MHz";
             /** @description ID of the Object to which the photometry will be attached. */
             obj_id: string;
             /** @description ID of the instrument with which the observation was carried out. */
@@ -38381,7 +38401,7 @@ export interface components {
              * @description The bandpass of the observation.
              * @enum {string}
              */
-            filter: "bessellux" | "bessellb" | "bessellv" | "bessellr" | "besselli" | "standard::u" | "standard::b" | "standard::v" | "standard::r" | "standard::i" | "desu" | "desg" | "desr" | "desi" | "desz" | "desy" | "sdssu" | "sdssg" | "sdssr" | "sdssi" | "sdssz" | "f435w" | "f475w" | "f555w" | "f606w" | "f625w" | "f775w" | "f850lp" | "nicf110w" | "nicf160w" | "f098m" | "f105w" | "f110w" | "f125w" | "f127m" | "f139m" | "f140w" | "f153m" | "f160w" | "f218w" | "f225w" | "f275w" | "f300x" | "f336w" | "f350lp" | "f390w" | "f689m" | "f763m" | "f845m" | "f438w" | "uvf475w" | "uvf555w" | "uvf606w" | "uvf625w" | "uvf775w" | "uvf814w" | "uvf850lp" | "kepler" | "cspb" | "csphs" | "csphd" | "cspjs" | "cspjd" | "cspv3009" | "cspv3014" | "cspv9844" | "cspys" | "cspyd" | "cspg" | "cspi" | "cspk" | "cspr" | "cspu" | "f070w" | "f090w" | "f115w" | "f150w" | "f200w" | "f277w" | "f356w" | "f444w" | "f140m" | "f162m" | "f182m" | "f210m" | "f250m" | "f300m" | "f335m" | "f360m" | "f410m" | "f430m" | "f460m" | "f480m" | "f560w" | "f770w" | "f1000w" | "f1130w" | "f1280w" | "f1500w" | "f1800w" | "f2100w" | "f2550w" | "f1065c" | "f1140c" | "f1550c" | "f2300c" | "lsstu" | "lsstg" | "lsstr" | "lssti" | "lsstz" | "lssty" | "keplercam::us" | "keplercam::b" | "keplercam::v" | "keplercam::r" | "keplercam::i" | "4shooter2::us" | "4shooter2::b" | "4shooter2::v" | "4shooter2::r" | "4shooter2::i" | "f062" | "f087" | "f106" | "f129" | "f158" | "f184" | "f213" | "f146" | "euclidvis" | "euclidy" | "euclidj" | "euclidh" | "ztfg" | "ztfr" | "ztfi" | "uvot::b" | "uvot::u" | "uvot::uvm2" | "uvot::uvw1" | "uvot::uvw2" | "uvot::v" | "uvot::white" | "ps1::open" | "ps1::g" | "ps1::r" | "ps1::i" | "ps1::z" | "ps1::y" | "ps1::w" | "atlasc" | "atlaso" | "2massj" | "2massh" | "2massks" | "gaia::gbp" | "gaia::g" | "gaia::grp" | "gaia::grvs" | "tess" | "galex::fuv" | "galex::nuv" | "gotob" | "gotog" | "gotol" | "gotor" | "skymapperu" | "skymapperg" | "skymapperr" | "skymapperi" | "skymapperz" | "ztf::g" | "ztf::r" | "ztf::i" | "megacam6::g" | "megacam6::r" | "megacam6::i" | "megacam6::i2" | "megacam6::z" | "hsc::g" | "hsc::r" | "hsc::r2" | "hsc::i" | "hsc::i2" | "hsc::z" | "hsc::y" | "swiftxrt" | "nicerxti" | "epwxt" | "epfxt" | "svommxt" | "svomeclairs" | "svomgrm" | "svomvtb" | "svomvtr" | "radio-0.34GHz" | "radio-1.4GHz" | "radio-3GHz" | "radio-6GHz" | "radio-10GHz" | "radio-15GHz" | "radio-22GHz" | "radio-33GHz" | "radio-45GHz" | "radio-93GHz" | "radio-95GHz" | "swiftbat" | "fermigbm" | "fermilat" | "konus" | "integralacs" | "integralibis" | "integraljemx" | "caletcgbm" | "nustar" | "maxigsc" | "sma-230GHz" | "sma-345GHz" | "sma-400GHz" | "argusbeta" | "argusrho";
+            filter: "bessellux" | "bessellb" | "bessellv" | "bessellr" | "besselli" | "standard::u" | "standard::b" | "standard::v" | "standard::r" | "standard::i" | "desu" | "desg" | "desr" | "desi" | "desz" | "desy" | "sdssu" | "sdssg" | "sdssr" | "sdssi" | "sdssz" | "f435w" | "f475w" | "f555w" | "f606w" | "f625w" | "f775w" | "f850lp" | "nicf110w" | "nicf160w" | "f098m" | "f105w" | "f110w" | "f125w" | "f127m" | "f139m" | "f140w" | "f153m" | "f160w" | "f218w" | "f225w" | "f275w" | "f300x" | "f336w" | "f350lp" | "f390w" | "f689m" | "f763m" | "f845m" | "f438w" | "uvf475w" | "uvf555w" | "uvf606w" | "uvf625w" | "uvf775w" | "uvf814w" | "uvf850lp" | "kepler" | "cspb" | "csphs" | "csphd" | "cspjs" | "cspjd" | "cspv3009" | "cspv3014" | "cspv9844" | "cspys" | "cspyd" | "cspg" | "cspi" | "cspk" | "cspr" | "cspu" | "f070w" | "f090w" | "f115w" | "f150w" | "f200w" | "f277w" | "f356w" | "f444w" | "f140m" | "f162m" | "f182m" | "f210m" | "f250m" | "f300m" | "f335m" | "f360m" | "f410m" | "f430m" | "f460m" | "f480m" | "f560w" | "f770w" | "f1000w" | "f1130w" | "f1280w" | "f1500w" | "f1800w" | "f2100w" | "f2550w" | "f1065c" | "f1140c" | "f1550c" | "f2300c" | "lsstu" | "lsstg" | "lsstr" | "lssti" | "lsstz" | "lssty" | "keplercam::us" | "keplercam::b" | "keplercam::v" | "keplercam::r" | "keplercam::i" | "4shooter2::us" | "4shooter2::b" | "4shooter2::v" | "4shooter2::r" | "4shooter2::i" | "f062" | "f087" | "f106" | "f129" | "f158" | "f184" | "f213" | "f146" | "euclidvis" | "euclidy" | "euclidj" | "euclidh" | "ztfg" | "ztfr" | "ztfi" | "uvot::b" | "uvot::u" | "uvot::uvm2" | "uvot::uvw1" | "uvot::uvw2" | "uvot::v" | "uvot::white" | "ps1::open" | "ps1::g" | "ps1::r" | "ps1::i" | "ps1::z" | "ps1::y" | "ps1::w" | "atlasc" | "atlaso" | "2massj" | "2massh" | "2massks" | "gaia::gbp" | "gaia::g" | "gaia::grp" | "gaia::grvs" | "tess" | "galex::fuv" | "galex::nuv" | "gotob" | "gotog" | "gotol" | "gotor" | "skymapperu" | "skymapperg" | "skymapperr" | "skymapperi" | "skymapperz" | "ztf::g" | "ztf::r" | "ztf::i" | "megacam6::g" | "megacam6::r" | "megacam6::i" | "megacam6::i2" | "megacam6::z" | "hsc::g" | "hsc::r" | "hsc::r2" | "hsc::i" | "hsc::i2" | "hsc::z" | "hsc::y" | "swiftxrt" | "nicerxti" | "epwxt" | "epfxt" | "svommxt" | "svomeclairs" | "svomgrm" | "svomvtb" | "svomvtr" | "radio-0.34GHz" | "radio-1.4GHz" | "radio-3GHz" | "radio-6GHz" | "radio-10GHz" | "radio-15GHz" | "radio-22GHz" | "radio-33GHz" | "radio-45GHz" | "radio-93GHz" | "radio-95GHz" | "swiftbat" | "fermigbm" | "fermilat" | "konus" | "integralacs" | "integralibis" | "integraljemx" | "caletcgbm" | "nustar" | "maxigsc" | "sma-230GHz" | "sma-345GHz" | "sma-400GHz" | "argusbeta" | "argusrho" | "askap-943MHz";
             /** @description ID of the Object to which the photometry will be attached. */
             obj_id: string;
             /** @description ID of the instrument with which the observation was carried out. */
@@ -38480,7 +38500,7 @@ export interface components {
              * @description Filter with which the observation was taken.
              * @enum {string}
              */
-            filter: "bessellux" | "bessellb" | "bessellv" | "bessellr" | "besselli" | "standard::u" | "standard::b" | "standard::v" | "standard::r" | "standard::i" | "desu" | "desg" | "desr" | "desi" | "desz" | "desy" | "sdssu" | "sdssg" | "sdssr" | "sdssi" | "sdssz" | "f435w" | "f475w" | "f555w" | "f606w" | "f625w" | "f775w" | "f850lp" | "nicf110w" | "nicf160w" | "f098m" | "f105w" | "f110w" | "f125w" | "f127m" | "f139m" | "f140w" | "f153m" | "f160w" | "f218w" | "f225w" | "f275w" | "f300x" | "f336w" | "f350lp" | "f390w" | "f689m" | "f763m" | "f845m" | "f438w" | "uvf475w" | "uvf555w" | "uvf606w" | "uvf625w" | "uvf775w" | "uvf814w" | "uvf850lp" | "kepler" | "cspb" | "csphs" | "csphd" | "cspjs" | "cspjd" | "cspv3009" | "cspv3014" | "cspv9844" | "cspys" | "cspyd" | "cspg" | "cspi" | "cspk" | "cspr" | "cspu" | "f070w" | "f090w" | "f115w" | "f150w" | "f200w" | "f277w" | "f356w" | "f444w" | "f140m" | "f162m" | "f182m" | "f210m" | "f250m" | "f300m" | "f335m" | "f360m" | "f410m" | "f430m" | "f460m" | "f480m" | "f560w" | "f770w" | "f1000w" | "f1130w" | "f1280w" | "f1500w" | "f1800w" | "f2100w" | "f2550w" | "f1065c" | "f1140c" | "f1550c" | "f2300c" | "lsstu" | "lsstg" | "lsstr" | "lssti" | "lsstz" | "lssty" | "keplercam::us" | "keplercam::b" | "keplercam::v" | "keplercam::r" | "keplercam::i" | "4shooter2::us" | "4shooter2::b" | "4shooter2::v" | "4shooter2::r" | "4shooter2::i" | "f062" | "f087" | "f106" | "f129" | "f158" | "f184" | "f213" | "f146" | "euclidvis" | "euclidy" | "euclidj" | "euclidh" | "ztfg" | "ztfr" | "ztfi" | "uvot::b" | "uvot::u" | "uvot::uvm2" | "uvot::uvw1" | "uvot::uvw2" | "uvot::v" | "uvot::white" | "ps1::open" | "ps1::g" | "ps1::r" | "ps1::i" | "ps1::z" | "ps1::y" | "ps1::w" | "atlasc" | "atlaso" | "2massj" | "2massh" | "2massks" | "gaia::gbp" | "gaia::g" | "gaia::grp" | "gaia::grvs" | "tess" | "galex::fuv" | "galex::nuv" | "gotob" | "gotog" | "gotol" | "gotor" | "skymapperu" | "skymapperg" | "skymapperr" | "skymapperi" | "skymapperz" | "ztf::g" | "ztf::r" | "ztf::i" | "megacam6::g" | "megacam6::r" | "megacam6::i" | "megacam6::i2" | "megacam6::z" | "hsc::g" | "hsc::r" | "hsc::r2" | "hsc::i" | "hsc::i2" | "hsc::z" | "hsc::y" | "swiftxrt" | "nicerxti" | "epwxt" | "epfxt" | "svommxt" | "svomeclairs" | "svomgrm" | "svomvtb" | "svomvtr" | "radio-0.34GHz" | "radio-1.4GHz" | "radio-3GHz" | "radio-6GHz" | "radio-10GHz" | "radio-15GHz" | "radio-22GHz" | "radio-33GHz" | "radio-45GHz" | "radio-93GHz" | "radio-95GHz" | "swiftbat" | "fermigbm" | "fermilat" | "konus" | "integralacs" | "integralibis" | "integraljemx" | "caletcgbm" | "nustar" | "maxigsc" | "sma-230GHz" | "sma-345GHz" | "sma-400GHz" | "argusbeta" | "argusrho";
+            filter: "bessellux" | "bessellb" | "bessellv" | "bessellr" | "besselli" | "standard::u" | "standard::b" | "standard::v" | "standard::r" | "standard::i" | "desu" | "desg" | "desr" | "desi" | "desz" | "desy" | "sdssu" | "sdssg" | "sdssr" | "sdssi" | "sdssz" | "f435w" | "f475w" | "f555w" | "f606w" | "f625w" | "f775w" | "f850lp" | "nicf110w" | "nicf160w" | "f098m" | "f105w" | "f110w" | "f125w" | "f127m" | "f139m" | "f140w" | "f153m" | "f160w" | "f218w" | "f225w" | "f275w" | "f300x" | "f336w" | "f350lp" | "f390w" | "f689m" | "f763m" | "f845m" | "f438w" | "uvf475w" | "uvf555w" | "uvf606w" | "uvf625w" | "uvf775w" | "uvf814w" | "uvf850lp" | "kepler" | "cspb" | "csphs" | "csphd" | "cspjs" | "cspjd" | "cspv3009" | "cspv3014" | "cspv9844" | "cspys" | "cspyd" | "cspg" | "cspi" | "cspk" | "cspr" | "cspu" | "f070w" | "f090w" | "f115w" | "f150w" | "f200w" | "f277w" | "f356w" | "f444w" | "f140m" | "f162m" | "f182m" | "f210m" | "f250m" | "f300m" | "f335m" | "f360m" | "f410m" | "f430m" | "f460m" | "f480m" | "f560w" | "f770w" | "f1000w" | "f1130w" | "f1280w" | "f1500w" | "f1800w" | "f2100w" | "f2550w" | "f1065c" | "f1140c" | "f1550c" | "f2300c" | "lsstu" | "lsstg" | "lsstr" | "lssti" | "lsstz" | "lssty" | "keplercam::us" | "keplercam::b" | "keplercam::v" | "keplercam::r" | "keplercam::i" | "4shooter2::us" | "4shooter2::b" | "4shooter2::v" | "4shooter2::r" | "4shooter2::i" | "f062" | "f087" | "f106" | "f129" | "f158" | "f184" | "f213" | "f146" | "euclidvis" | "euclidy" | "euclidj" | "euclidh" | "ztfg" | "ztfr" | "ztfi" | "uvot::b" | "uvot::u" | "uvot::uvm2" | "uvot::uvw1" | "uvot::uvw2" | "uvot::v" | "uvot::white" | "ps1::open" | "ps1::g" | "ps1::r" | "ps1::i" | "ps1::z" | "ps1::y" | "ps1::w" | "atlasc" | "atlaso" | "2massj" | "2massh" | "2massks" | "gaia::gbp" | "gaia::g" | "gaia::grp" | "gaia::grvs" | "tess" | "galex::fuv" | "galex::nuv" | "gotob" | "gotog" | "gotol" | "gotor" | "skymapperu" | "skymapperg" | "skymapperr" | "skymapperi" | "skymapperz" | "ztf::g" | "ztf::r" | "ztf::i" | "megacam6::g" | "megacam6::r" | "megacam6::i" | "megacam6::i2" | "megacam6::z" | "hsc::g" | "hsc::r" | "hsc::r2" | "hsc::i" | "hsc::i2" | "hsc::z" | "hsc::y" | "swiftxrt" | "nicerxti" | "epwxt" | "epfxt" | "svommxt" | "svomeclairs" | "svomgrm" | "svomvtb" | "svomvtr" | "radio-0.34GHz" | "radio-1.4GHz" | "radio-3GHz" | "radio-6GHz" | "radio-10GHz" | "radio-15GHz" | "radio-22GHz" | "radio-33GHz" | "radio-45GHz" | "radio-93GHz" | "radio-95GHz" | "swiftbat" | "fermigbm" | "fermilat" | "konus" | "integralacs" | "integralibis" | "integraljemx" | "caletcgbm" | "nustar" | "maxigsc" | "sma-230GHz" | "sma-345GHz" | "sma-400GHz" | "argusbeta" | "argusrho" | "askap-943MHz";
             /** @description Uncertainty of ra position [arcsec] */
             ra_unc?: number | null;
             /** @description Uncertainty of dec position [arcsec] */
@@ -38761,6 +38781,8 @@ export interface components {
         PublicSourcePage: {
             /** @description The release associated with this source page */
             readonly release?: components["schemas"]["PublicRelease"];
+            /** @description The User who published the page */
+            readonly created_by?: components["schemas"]["User"];
             id?: number;
             /** @description ID of the source */
             source_id: string;
@@ -38776,6 +38798,8 @@ export interface components {
             is_visible?: boolean;
             /** @description ID of the public release associated with this source page */
             release_id?: number | null;
+            /** @description ID of the User who published the page */
+            created_by_id?: number | null;
         };
         SinglePublicSourcePage: {
             /** @enum {string} */
@@ -38792,6 +38816,8 @@ export interface components {
         PublicSourcePageNoID: {
             /** @description The release associated with this source page */
             readonly release?: components["schemas"]["PublicRelease"];
+            /** @description The User who published the page */
+            readonly created_by?: components["schemas"]["User"];
             /** @description ID of the source */
             source_id: string;
             /** @description Source data accessible on the page */
@@ -38806,6 +38832,8 @@ export interface components {
             is_visible?: boolean;
             /** @description ID of the public release associated with this source page */
             release_id?: number | null;
+            /** @description ID of the User who published the page */
+            created_by_id?: number | null;
         };
         SinglePublicSourcePageNoID: {
             /** @enum {string} */
@@ -41691,6 +41719,64 @@ export interface components {
             message?: string;
             data?: components["schemas"]["SurveyEfficiencyForObservationsNoID"][];
         };
+        TNSRetrievalRequest: {
+            /** @description The Obj to look for on TNS. */
+            readonly obj?: components["schemas"]["Obj"];
+            /** @description The User who requested the search. */
+            readonly user?: components["schemas"]["User"];
+            /** @description ID of the Obj to look for on TNS. */
+            obj_id: string;
+            /** @description ID of the User who requested the search. */
+            user_id: number;
+            /** @description Search radius around the Obj, in arcsec. */
+            radius: number;
+            /** @description One of pending, processing, found, not_found or error. */
+            status?: string;
+            /** @description Why the search failed. */
+            error?: string | null;
+            /** @description Unique object identifier. */
+            id?: number;
+        };
+        SingleTNSRetrievalRequest: {
+            /** @enum {string} */
+            status: "success";
+            message?: string;
+            data?: components["schemas"]["TNSRetrievalRequest"];
+        };
+        ArrayOfTNSRetrievalRequests: {
+            /** @enum {string} */
+            status: "success";
+            message?: string;
+            data?: components["schemas"]["TNSRetrievalRequest"][];
+        };
+        TNSRetrievalRequestNoID: {
+            /** @description The Obj to look for on TNS. */
+            readonly obj?: components["schemas"]["Obj"];
+            /** @description The User who requested the search. */
+            readonly user?: components["schemas"]["User"];
+            /** @description ID of the Obj to look for on TNS. */
+            obj_id: string;
+            /** @description ID of the User who requested the search. */
+            user_id: number;
+            /** @description Search radius around the Obj, in arcsec. */
+            radius: number;
+            /** @description One of pending, processing, found, not_found or error. */
+            status?: string;
+            /** @description Why the search failed. */
+            error?: string | null;
+        };
+        SingleTNSRetrievalRequestNoID: {
+            /** @enum {string} */
+            status: "success";
+            message?: string;
+            data?: components["schemas"]["TNSRetrievalRequestNoID"];
+        };
+        ArrayOfTNSRetrievalRequestNoIDs: {
+            /** @enum {string} */
+            status: "success";
+            message?: string;
+            data?: components["schemas"]["TNSRetrievalRequestNoID"][];
+        };
         Taxonomy: {
             readonly groups?: components["schemas"]["Group"][];
             readonly classifications?: components["schemas"]["Classification"][];
@@ -43712,6 +43798,12 @@ export interface components {
              * @default null
              */
             autoFollowup: boolean | null;
+            /**
+             * Movingobjects
+             * @description Whether the scanning page opens on the moving objects view for this filter.
+             * @default null
+             */
+            movingObjects: boolean | null;
             /**
              * Autosaveignoregroupids
              * @description Groups whose members are not auto-saved (e.g. junk).
@@ -51330,6 +51422,16 @@ export interface components {
             gravatar_url: string | null;
         };
         /**
+         * FeedbackPullRequestResponse
+         * @description A pull request linked to a message, and whether this instance runs it.
+         */
+        FeedbackPullRequestResponse: {
+            /** Url */
+            url: string;
+            /** Deployed */
+            deployed: boolean;
+        };
+        /**
          * FeedbackReplyResponse
          * @description A reply to a message, from an admin or its author.
          */
@@ -51371,6 +51473,14 @@ export interface components {
             assignee: components["schemas"]["FeedbackAuthorResponse"];
             /** Replies */
             replies?: components["schemas"]["FeedbackReplyResponse"][];
+            /** Pull Requests */
+            pull_requests?: components["schemas"]["FeedbackPullRequestResponse"][];
+            /**
+             * Deployed At
+             * Format: date-time
+             * @default null
+             */
+            deployed_at: string | null;
         };
         /**
          * FeedbackListResponse
@@ -51413,6 +51523,12 @@ export interface components {
              * @default null
              */
             assignee_id: number | null;
+            /**
+             * Pr Urls
+             * @description GitHub pull requests fixing it; the author is notified once all are deployed
+             * @default null
+             */
+            pr_urls: string[] | null;
         };
         /**
          * FeedbackReplyPostBody

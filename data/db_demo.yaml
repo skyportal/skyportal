@@ -1084,6 +1084,7 @@ instrument:
         "radio-45GHz",
       ]
     tns_id: 226
+    api_classname: VLAAPI
     =id: VLA
   - band: radio
     name: ATCA
@@ -1327,6 +1328,13 @@ instrument/=SEDMv2/log:
       file: ../data/sample.log
 
 allocation:
+  - pi: VLA Rubin Alerts
+    proposal_id: ALRT01
+    hours_allocated: 0
+    types: [triggered]
+    group_id: =program_A
+    instrument_id: =VLA
+    =id: VLA_Rubin_allocation
   - pi: Robert Stein
     proposal_id: WINTER-001
     validity_ranges:
@@ -1708,7 +1716,6 @@ sources:
     dec: 19.2033
     is_roid: true
     mpc_name: "2026 DM1"
-    alias: ["SSO 2026 DM1"]
     group_ids:
       - =public_group_id
       - =program_A

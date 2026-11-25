@@ -1,16 +1,11 @@
-import { Fragment } from "react";
+import { useState } from "react";
 
-import CheckCircleOutlinedIcon from "@mui/icons-material/CheckCircleOutlined";
-import ErrorOutlinedIcon from "@mui/icons-material/ErrorOutlined";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
-import Accordion from "@mui/material/Accordion";
-import AccordionDetails from "@mui/material/AccordionDetails";
-import AccordionSummary from "@mui/material/AccordionSummary";
 import Box from "@mui/material/Box";
-import Typography from "@mui/material/Typography";
-import { alpha } from "@mui/material/styles";
+import Collapse from "@mui/material/Collapse";
 
 import { AssistantToolCall } from "../../ducks/assistant";
+import { chevronSx, linkButtonSx } from "./chatStyles";
 
 // The arguments worth showing in the one-line summary of a call. A pipeline is
 // the whole point of the call it appears in, and is shown in the proposal.
@@ -28,75 +23,82 @@ interface AssistantToolTraceProps {
 }
 
 const AssistantToolTrace = ({ calls }: AssistantToolTraceProps) => {
+  const [open, setOpen] = useState(false);
   if (!calls?.length) return null;
 
   const failed = calls.filter((call) => !call.ok).length;
 
   return (
-    <Accordion
-      disableGutters
-      elevation={0}
-      sx={(theme) => ({
-        marginRight: "1rem",
-        marginBottom: "0.25rem",
-        backgroundColor: alpha(theme.palette.text.primary, 0.03),
-        "&::before": { display: "none" },
-      })}
-    >
-      <AccordionSummary
-        expandIcon={<ExpandMoreIcon sx={{ fontSize: "1rem" }} />}
-        sx={{ minHeight: 0, "& .MuiAccordionSummary-content": { margin: 0 } }}
+    <Box sx={{ marginBottom: "0.5rem" }}>
+      <Box
+        component="button"
+        type="button"
+        aria-expanded={open}
+        onClick={() => setOpen(!open)}
+        sx={linkButtonSx}
       >
-        <Typography sx={{ fontSize: "0.7rem", opacity: 0.6 }}>
+        <span>
           {calls.length} {calls.length === 1 ? "step" : "steps"}
-          {failed > 0 && `, ${failed} failed`}
-        </Typography>
-      </AccordionSummary>
-      <AccordionDetails sx={{ paddingTop: 0 }}>
-        {calls.map((call, index) => (
-          <Fragment key={`${call.name}-${index}`}>
+          {failed > 0 && (
+            <Box component="span" sx={{ color: "error.main" }}>
+              , {failed} failed
+            </Box>
+          )}
+        </span>
+        <ExpandMoreIcon sx={chevronSx(open)} />
+      </Box>
+      <Collapse in={open} unmountOnExit>
+        <Box
+          component="ol"
+          sx={{
+            display: "flex",
+            flexDirection: "column",
+            gap: "0.5rem",
+            listStyle: "none",
+            margin: "0.4rem 0 0.25rem 0.25rem",
+            padding: "0 0 0 0.85rem",
+            borderLeft: 2,
+            borderColor: "divider",
+          }}
+        >
+          {calls.map((call, index) => (
             <Box
-              sx={{
-                display: "flex",
-                alignItems: "baseline",
-                gap: "0.35rem",
-                fontSize: "0.7rem",
-                marginBottom: "0.35rem",
-              }}
+              component="li"
+              key={`${call.name}-${index}`}
+              sx={{ position: "relative", fontSize: "0.75rem", minWidth: 0 }}
             >
-              {call.ok ? (
-                <CheckCircleOutlinedIcon
-                  color="success"
-                  sx={{ fontSize: "0.85rem" }}
-                />
-              ) : (
-                <ErrorOutlinedIcon color="error" sx={{ fontSize: "0.85rem" }} />
+              <Box
+                title={call.ok ? "Succeeded" : "Failed"}
+                sx={(theme) => ({
+                  position: "absolute",
+                  left: "calc(-0.85rem - 5px)",
+                  top: "0.4rem",
+                  width: 8,
+                  height: 8,
+                  borderRadius: "50%",
+                  backgroundColor: call.ok
+                    ? theme.palette.success.main
+                    : theme.palette.error.main,
+                  boxShadow: `0 0 0 2px ${theme.palette.background.paper}`,
+                })}
+              />
+              <Box component="code" sx={{ fontWeight: 600 }}>
+                {call.name}
+              </Box>
+              {describe(call) && (
+                <Box component="span" sx={{ color: "text.secondary" }}>
+                  {" "}
+                  {describe(call)}
+                </Box>
               )}
-              <Box sx={{ minWidth: 0 }}>
-                <Box component="code" sx={{ fontWeight: 600 }}>
-                  {call.name}
-                </Box>
-                {describe(call) && (
-                  <Box component="span" sx={{ opacity: 0.6 }}>
-                    {" "}
-                    {describe(call)}
-                  </Box>
-                )}
-                <Box
-                  sx={{
-                    opacity: 0.55,
-                    overflowWrap: "anywhere",
-                    marginTop: "0.1rem",
-                  }}
-                >
-                  {call.summary}
-                </Box>
+              <Box sx={{ color: "text.secondary", overflowWrap: "anywhere" }}>
+                {call.summary}
               </Box>
             </Box>
-          </Fragment>
-        ))}
-      </AccordionDetails>
-    </Accordion>
+          ))}
+        </Box>
+      </Collapse>
+    </Box>
   );
 };
 

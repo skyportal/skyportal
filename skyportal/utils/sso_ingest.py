@@ -91,15 +91,10 @@ def is_on_target(point, max_arcsec=MAX_SEPARATION_ARCSEC):
     return 0 <= separation < max_arcsec
 
 
-# Bare designations are often plain integers, which read as an id from anywhere.
-# The alias and SuperObj name carry a marker so one query finds every
-# solar-system object; `mpc_name` keeps the canonical designation.
-ALIAS_PREFIX = "SSO"
-
-
 def sso_label(designation):
-    """The prefixed label used for both an Obj's alias and its SuperObj name."""
-    return f"{ALIAS_PREFIX} {designation}"
+    """The prefixed name of the SuperObj grouping a solar-system object."""
+    # Bare designations are often plain integers, which read as an id from anywhere.
+    return f"SSO {designation}"
 
 
 # Obj IDs appear in URL paths, whose route pattern allows [0-9A-Za-z-_.+] only.
@@ -337,6 +332,7 @@ async def ingest_sso_alert(
     passing_alert_id=None,
     annotations_by_filter_id=None,
     fetch_history=None,
+    cutouts=None,
 ):
     """Ingest one alert as a detection of a known solar-system object.
 
@@ -367,6 +363,9 @@ async def ingest_sso_alert(
         once, the first time a body is seen, to backfill its full light curve
         from the broker (each detection lands under a different position-keyed
         object id, so the history has to be gathered by designation).
+    cutouts : dict, optional
+        The alert's ``{cutoutScience, cutoutTemplate, cutoutDifference}``,
+        stored as the object's thumbnails so they show its latest detection.
 
     Returns
     -------
@@ -405,10 +404,6 @@ async def ingest_sso_alert(
 
     obj.is_roid = True
     obj.mpc_name = designation
-    alias = sso_label(designation)
-    aliases = set(obj.alias or [])
-    if alias not in aliases:
-        obj.alias = sorted(aliases | {alias})
     # The position is only ever "where it was last seen", so stamp the epoch.
     if ra is not None and dec is not None:
         obj.ra, obj.dec = ra, dec
@@ -592,6 +587,21 @@ async def ingest_sso_alert(
             if photometry_group_ids:
                 pd["group_ids"] = sorted(photometry_group_ids)
             await add_external_photometry(pd, user, session, apply_default_share=False)
+
+    if cutouts and detection and is_on_target(detection):
+        from ..broker_apis._thumbnails import add_thumbnails
+
+        try:
+            await add_thumbnails(
+                obj_id,
+                cutouts,
+                survey,
+                session,
+                user_id=user.id,
+                jd=detection.get("jd", cand.get("jd")),
+            )
+        except Exception as e:
+            log(f"Failed to add thumbnails for {obj_id}: {e}")
 
     await _link_designation(session, obj_id, designation)
     await session.commit()

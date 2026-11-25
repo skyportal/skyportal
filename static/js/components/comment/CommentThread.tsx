@@ -1,8 +1,7 @@
 import { useGetProfileQuery } from "../../ducks/profile";
 import { useEffect, useRef, useState } from "react";
 
-import { makeStyles } from "tss-react/mui";
-import { alpha } from "@mui/material/styles";
+import type { Theme } from "@mui/material/styles";
 import FormControlLabel from "@mui/material/FormControlLabel";
 import Checkbox from "@mui/material/Checkbox";
 import Box from "@mui/material/Box";
@@ -45,183 +44,15 @@ import Comment from "./Comment";
 dayjs.extend(relativeTime);
 dayjs.extend(utc);
 
-const useStyles = makeStyles()((theme) => ({
-  panelContainer: {
-    display: "flex",
-    flexDirection: "column",
-    height: "100%",
-    minHeight: 0,
-  },
-  panelList: {
-    flexGrow: 1,
-    minHeight: 0,
-    overflowY: "auto",
-    padding: "0.5rem 0.5rem 0",
-  },
-  panelBots: {
-    display: "flex",
-    justifyContent: "flex-end",
-    padding: "0 0.5rem",
-    "& .MuiFormControlLabel-root": {
-      margin: 0,
-    },
-    "& .MuiCheckbox-root": {
-      padding: "0.125rem",
-    },
-  },
-  systemComment: {
-    textAlign: "center",
-    color: theme.palette.text.secondary,
-    fontSize: "0.75rem",
-    fontStyle: "italic",
-    padding: "0.4rem 0.5rem",
-    "& > p": {
-      margin: 0,
-    },
-    "& strong": {
-      color: theme.palette.text.primary,
-      fontStyle: "normal",
-    },
-    "& strong:first-of-type": {
-      color: "#76aace",
-    },
-  },
-  panelEmpty: {
-    padding: "0.5rem",
-    textAlign: "center",
-    fontSize: "0.75rem",
-    fontStyle: "italic",
-    color: theme.palette.text.secondary,
-  },
-  panelBotsLabel: {
-    fontSize: "0.7rem",
-    color: theme.palette.text.secondary,
-  },
-  botComment: {
-    fontSize: "80%",
-    color: theme.palette.text.secondary,
-    backgroundColor: alpha(theme.palette.text.primary, 0.05),
-    "&:hover": {
-      backgroundColor: alpha(theme.palette.text.primary, 0.09),
-    },
-  },
-  botUserName: {
-    display: "inline-flex",
-    alignItems: "center",
-    gap: "0.25em",
-    color: theme.palette.text.secondary,
-    fontWeight: 500,
-  },
-  comment: {
-    fontSize: "90%",
-    display: "flex",
-    flexDirection: "row",
-    padding: "0.125rem",
-    margin: "0 0.125rem 0.125rem 0",
-    borderRadius: "1rem",
-    "&:hover": {
-      backgroundColor: "#e0e0e0",
-    },
-    "& .commentDelete": {
-      "&:hover": {
-        color: "#e63946",
-      },
-    },
-  },
-  commentDark: {
-    fontSize: "90%",
-    display: "flex",
-    flexDirection: "row",
-    padding: "0.125rem",
-    margin: "0 0.125rem 0.125rem 0",
-    borderRadius: "1rem",
-    "&:hover": {
-      backgroundColor: "#3a3a3a",
-    },
-    "& .commentDelete": {
-      color: "#b1dae9",
-      "&:hover": {
-        color: "#e63946",
-      },
-    },
-  },
-  commentContent: {
-    display: "flex",
-    flexFlow: "column nowrap",
-    padding: "0.3125rem 0.625rem 0.3125rem 0.875rem",
-    borderRadius: "15px",
-    width: "100%",
-  },
-  commentContentCompact: {
-    padding: "0.25rem 0.5rem",
-  },
-  commentHeader: {
-    display: "flex",
-    alignItems: "center",
-  },
-  commentHeaderContent: {
-    width: "70%",
-  },
-  commentHeaderContentCompact: {
-    width: "auto",
-    flex: 1,
-    minWidth: 0,
-  },
-  commentTime: {
-    color: "gray",
-    fontSize: "80%",
-    marginRight: "1em",
-  },
-  commentMessage: {
-    maxWidth: "35em",
-    "& > p": {
-      margin: "0",
-    },
-    wordWrap: "break-word",
-  },
-  commentMessageShift: {
-    maxWidth: "47em",
-    "& > p": {
-      margin: "0",
-    },
-    wordWrap: "break-word",
-  },
-  commentUserName: {
-    fontWeight: "bold",
-    fontSize: "90%",
-    marginRight: "0.5em",
-    whiteSpace: "nowrap",
-    color: "#76aace",
-  },
-  commentUserAvatar: {
-    display: "block",
-    margin: "0.5em",
-  },
-  commentUserAvatarInline: {
-    display: "inline-block",
-    verticalAlign: "middle",
-    marginRight: "0.375em",
-  },
-  commentUserGroup: {
-    display: "inline-block",
-    "& > svg": {
-      fontSize: "1rem",
-    },
-  },
-  commentVersionSwitch: {
-    display: "inline-block",
-    marginLeft: "0.5em",
-    verticalAlign: "middle",
-  },
-  wrap: {
-    display: "flex",
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    minHeight: "27px",
-    maxWidth: "25em",
-  },
-}));
+const systemCommentSx = (theme: Theme) => ({
+  textAlign: "center",
+  color: theme.palette.text.secondary,
+  fontSize: "0.75rem",
+  padding: "0.4rem 0.5rem",
+  "& > p": { margin: 0 },
+  "& strong": { color: theme.palette.text.primary },
+  "& strong:first-of-type": { color: theme.palette.primary.main },
+});
 
 interface CommentThreadProps {
   isCandidate?: boolean;
@@ -259,7 +90,6 @@ const CommentThread = ({
   pinned = false,
   compact = false,
 }: CommentThreadProps) => {
-  const { classes: styles, cx } = useStyles();
   const [hoverID, setHoverID] = useState<any>(null);
 
   const handleMouseHover = (id: any, userProfile: any, author: any) => {
@@ -311,7 +141,6 @@ const CommentThread = ({
   const [addCommentOnEarthquake] = useAddCommentOnEarthquakeMutation();
   const showBotComments = (useGetProfileQuery().data?.preferences as any)
     ?.showBotComments;
-  const userColorTheme = (useGetProfileQuery().data?.preferences as any)?.theme;
 
   const [includeBots, setIncludeBots] = useState(false);
   const [publicShown, setPublicShown] = useState<number[]>([]);
@@ -470,24 +299,6 @@ const CommentThread = ({
     />
   );
 
-  const commentStyle =
-    userColorTheme === "dark" ? styles.commentDark : styles.comment;
-
-  const commentStyles = compact
-    ? {
-        ...styles,
-        commentContent: cx(styles.commentContent, styles.commentContentCompact),
-        commentHeaderContent: cx(
-          styles.commentHeaderContent,
-          styles.commentHeaderContentCompact,
-        ),
-      }
-    : styles;
-  const botStyles = {
-    ...commentStyles,
-    commentUserName: cx(styles.commentUserName, styles.botUserName),
-  };
-
   const listRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
@@ -497,11 +308,26 @@ const CommentThread = ({
   }, [channel, comments.length]);
 
   return (
-    <div className={styles.panelContainer}>
-      <div
+    <Box
+      sx={{
+        display: "flex",
+        flexDirection: "column",
+        height: "100%",
+        minHeight: 0,
+      }}
+    >
+      <Box
         ref={listRef}
-        className={styles.panelList}
-        style={{ maxHeight: maxHeightList }}
+        sx={{
+          display: "flex",
+          flexDirection: "column",
+          gap: "0.125rem",
+          flexGrow: 1,
+          minHeight: 0,
+          maxHeight: maxHeightList,
+          overflowY: "auto",
+          padding: "0.5rem 0.5rem 0.25rem",
+        }}
       >
         {loading &&
           [0, 1, 2].map((i) => (
@@ -514,11 +340,18 @@ const CommentThread = ({
             </Box>
           ))}
         {!loading && comments.length === 0 && (
-          <div className={styles.panelEmpty}>
+          <Box
+            sx={{
+              padding: "1.5rem 0.5rem",
+              textAlign: "center",
+              fontSize: "0.8rem",
+              color: "text.secondary",
+            }}
+          >
             {channel && !pinned
               ? "This conversation is only kept once a message is sent."
               : "No comment yet."}
-          </div>
+          </Box>
         )}
         {comments?.map(
           ({
@@ -538,17 +371,18 @@ const CommentThread = ({
             pairID,
           }: any) =>
             system ? (
-              <ReactMarkdown
-                key={`system${id}`}
-                className={styles.systemComment}
-              >
-                {text}
-              </ReactMarkdown>
+              <Box key={`system${id}`} sx={systemCommentSx}>
+                <ReactMarkdown>{text}</ReactMarkdown>
+              </Box>
             ) : (
-              <span
+              <Box
                 id="comment"
                 key={(spectrum_id ? "Spectrum" : "Source") + id}
-                className={cx(commentStyle, bot && styles.botComment)}
+                sx={{
+                  display: "flex",
+                  gap: "0.625rem",
+                  padding: "0.375rem 0.25rem",
+                }}
                 onMouseOver={() =>
                   handleMouseHover(id, userProfile, author.username)
                 }
@@ -570,7 +404,7 @@ const CommentThread = ({
                       target="_blank"
                       rel="noopener noreferrer"
                       clickable
-                      style={{ height: "18px", marginBottom: "0.2em" }}
+                      sx={{ height: 18 }}
                     />
                   </Tooltip>
                 )}
@@ -583,7 +417,6 @@ const CommentThread = ({
                   }
                   bot={bot}
                   compact={compact}
-                  styles={bot ? botStyles : commentStyles}
                   id={id}
                   objID={objID}
                   gcnEventID={gcnEventID}
@@ -600,14 +433,29 @@ const CommentThread = ({
                   shiftID={shiftID}
                   versionSwitch={pairID ? versionSwitch(pairID) : null}
                 />
-              </span>
+              </Box>
             ),
         )}
-      </div>
+      </Box>
       {!channel && !compact && (
-        <div className={styles.panelBots}>
+        <Box
+          sx={{
+            display: "flex",
+            justifyContent: "flex-end",
+            padding: "0 0.75rem",
+            "& .MuiFormControlLabel-root": { margin: 0, gap: "0.25rem" },
+            "& .MuiCheckbox-root": { padding: "0.125rem" },
+          }}
+        >
           <FormControlLabel
-            label={<span className={styles.panelBotsLabel}>Include bots</span>}
+            label={
+              <Box
+                component="span"
+                sx={{ fontSize: "0.75rem", color: "text.secondary" }}
+              >
+                Include bots
+              </Box>
+            }
             control={
               <Checkbox
                 color="primary"
@@ -618,7 +466,7 @@ const CommentThread = ({
               />
             }
           />
-        </div>
+        </Box>
       )}
       {permissions?.includes("Comment") && resourceID[resourceType] && (
         <CommentForm
@@ -626,7 +474,7 @@ const CommentThread = ({
           streamAccess={resourceType === "sources"}
         />
       )}
-    </div>
+    </Box>
   );
 };
 

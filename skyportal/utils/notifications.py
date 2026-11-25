@@ -490,17 +490,19 @@ def escape_slack(text):
     return text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
 
 
-def feedback_notification_text(content, escape, bold="*"):
+def feedback_notification_text(content, escape, bold="*", sep=": "):
     """Announce a feedback message or reply, escaping the user text for its channel."""
     author = f"{bold}{escape(content['author'])}{bold}"
     snippet = escape(content["snippet"])
+    if content.get("deployed"):
+        return f"The fix for your {content['label']} is now deployed: {snippet}"
     if content["reply"]:
         whose = "their" if content.get("by_author") else "your"
-        return f"{author} replied to {whose} {content['label']}: {snippet}"
-    return f"New {content['label']} from {author}: {snippet}"
+        return f"{author} replied to {whose} {content['label']}{sep}{snippet}"
+    return f"New {content['label']} from {author}{sep}{snippet}"
 
 
-def group_admission_request_notification_text(content, escape, bold="*"):
+def group_admission_request_notification_text(content, escape, bold="*", sep=": "):
     details = [f"@{content['username']}"] if content["name"] else []
     if content["affiliations"]:
         details.append(", ".join(content["affiliations"]))
@@ -509,22 +511,22 @@ def group_admission_request_notification_text(content, escape, bold="*"):
         requester += f" ({escape(', '.join(details))})"
     text = f"New Group Admission Request from {requester} for Group {bold}{escape(content['group'])}{bold}"
     if content["message"]:
-        text += f": {escape(content['message'])}"
+        text += f"{sep}{escape(content['message'])}"
     return text
 
 
-def discussion_notification_text(content, escape, bold="*"):
+def discussion_notification_text(content, escape, bold="*", sep=": "):
     author = f"{bold}@{escape(content['author'])}{bold}"
     snippet = escape(content["snippet"])
     if content["direct"]:
-        return f"{author} sent you a message: {snippet}"
+        return f"{author} sent you a message{sep}{snippet}"
     where = (
         f"{bold}{escape(content['label'])}{bold}"
         if content["label"]
         else "a group discussion"
     )
     verb = "mentioned you in" if content["mentioned"] else "wrote in"
-    return f"{author} {verb} {where}: {snippet}"
+    return f"{author} {verb} {where}{sep}{snippet}"
 
 
 _notification_executor = ThreadPoolExecutor(max_workers=4)

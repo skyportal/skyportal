@@ -187,6 +187,14 @@ export const brokersApi = skyportalApi.injectEndpoints({
         body: { group_ids: groupIds },
       }),
     }),
+    getBrokerAlertSchema: build.query<
+      any,
+      { brokerId: number; survey: string }
+    >({
+      query: ({ brokerId, survey }) =>
+        `api/brokers/${brokerId}/filter_modules?survey=${survey}&elements=schema`,
+      transformResponse: (response: any) => response?.schema ?? null,
+    }),
     // Filters this broker manages (skyportal Filter rows with broker altdata).
     getBrokerFilters: build.query<BrokerFilter[], number>({
       query: (brokerId) => `api/brokers/${brokerId}/filters`,
@@ -234,6 +242,17 @@ export const brokersApi = skyportalApi.injectEndpoints({
         url: `api/brokers/${brokerId}/filters/${filterId}`,
         method: "POST",
         body: { query, autosave },
+      }),
+      invalidatesTags: ["Broker"],
+    }),
+    postBrokerFilterVersion: build.mutation<
+      { id: number },
+      { brokerId: number; filterId: number; altdata: any[]; filters?: any }
+    >({
+      query: ({ brokerId, filterId, ...body }) => ({
+        url: `api/brokers/${brokerId}/filters/${filterId}`,
+        method: "POST",
+        body,
       }),
       invalidatesTags: ["Broker"],
     }),
@@ -356,10 +375,12 @@ export const {
   useGetSourceIfSavedQuery,
   useSaveBrokerObjectAsSourceMutation,
   useLazyTestBrokerFilterQuery,
+  useGetBrokerAlertSchemaQuery,
   useGetBrokerFiltersQuery,
   useGetFilterCatalogQuery,
   useAttachFilterToBrokerMutation,
   useSaveBrokerFilterMutation,
+  usePostBrokerFilterVersionMutation,
   useGetBrokerAvailableTopicsQuery,
   useGetBrokerAPIsQuery,
   useCreateBrokerMutation,

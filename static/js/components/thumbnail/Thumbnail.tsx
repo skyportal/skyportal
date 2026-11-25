@@ -99,7 +99,7 @@ export const getThumbnailAltAndLink = (
 
 // This function is used when the "outside_survey.png" is store in the DB.
 const defaultState = (src?: string) =>
-  src?.includes("outside_survey") ? "Outside Survey Area" : "loading";
+  src?.includes("outside_survey") ? "Outside survey area" : "loading";
 
 interface ThumbnailProps {
   ra: number;
@@ -240,7 +240,7 @@ const Thumbnail = ({
               onLoad={() => setStatus("loaded")}
               onError={(e: any) => {
                 e.target.onerror = null;
-                setStatus("Currently Unavailable");
+                setStatus("Unavailable");
               }}
             />
             {status === "loading" ? (
@@ -280,7 +280,7 @@ const Thumbnail = ({
         ) : (
           <Box
             className={`${classes.media}`}
-            sx={{ background: "#eee", containerType: "inline-size" }}
+            sx={{ bgcolor: "action.hover", containerType: "inline-size" }}
           >
             <Box
               sx={{
@@ -290,9 +290,9 @@ const Thumbnail = ({
                 alignItems: "center",
                 justifyContent: "center",
                 textAlign: "center",
-                fontSize: "12cqi",
-                fontWeight: "bold",
-                color: "rgba(0,0,0,0.75)",
+                px: 1,
+                fontSize: "clamp(0.7rem, 7cqi, 0.9rem)",
+                color: "text.secondary",
               }}
             >
               {status}

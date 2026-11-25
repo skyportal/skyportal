@@ -81,6 +81,7 @@ from skyportal.utils.notifications import (
     wants_in_app,
 )
 from skyportal.utils.parse import mentioned_usernames
+from skyportal.utils.telegram import telegram_api, telegram_enabled
 
 env, cfg = load_env()
 log = make_log("notification_queue")
@@ -99,6 +100,7 @@ request_session.trust_env = (
 account_sid = cfg["twilio.sms_account_sid"]
 auth_token = cfg["twilio.sms_auth_token"]
 from_number = cfg["twilio.from_number"]
+alphanumeric_sender_id = cfg["twilio.alphanumeric_sender_id"]
 client = None
 if account_sid and auth_token and from_number:
     client = TwilioClient(account_sid, auth_token)
@@ -154,7 +156,7 @@ def user_preferences(target, notification_setting, resource_type):
     if "preferences" not in target["user"]:
         return
 
-    if notification_setting in ["sms", "phone", "whatsapp"]:
+    if notification_setting in ["sms", "phone"]:
         if client is None:
             return
         if not target["user"]["contact_phone"]:
@@ -170,6 +172,13 @@ def user_preferences(target, notification_setting, resource_type):
             .get("url", "")
             .startswith(cfg["slack.expected_url_preamble"])
         ):
+            return
+
+    if notification_setting == "telegram":
+        integration = target["user"]["preferences"].get("telegram_integration") or {}
+        if not telegram_enabled() or not integration.get("active"):
+            return
+        if not integration.get("chat_id"):
             return
 
     prefs = (target["user"]["preferences"] or {}).get("notifications")
@@ -202,7 +211,7 @@ def user_preferences(target, notification_setting, resource_type):
                 return
             if not prefs[resource_type][notification_setting].get("active", False):
                 return
-        elif notification_setting in ["sms", "phone", "whatsapp"]:
+        elif notification_setting in ["sms", "phone"]:
             if not prefs.get(resource_type, {}).get(notification_setting):
                 return
 
@@ -346,7 +355,9 @@ def send_email_notification(target):
             subject = f"{cfg['app.title']} - New deployment"
 
         elif resource_type == "feedback":
-            if target["notification_type"] != "feedback_reply":
+            if target["notification_type"] == "feedback_deployed":
+                subject = f"{cfg['app.title']} - Your feedback was addressed"
+            elif target["notification_type"] != "feedback_reply":
                 subject = f"{cfg['app.title']} - New feedback"
             elif (target.get("content") or {}).get("by_author"):
                 subject = f"{cfg['app.title']} - New reply to a feedback"
@@ -393,6 +404,20 @@ def send_email_notification(target):
         log(f"Error sending email notification: {e}")
 
 
+def plain_text(target):
+    resource_type = notification_resource_type(target)
+    content = target.get("content")
+    if content and resource_type in DISCUSSION_TYPES:
+        return discussion_notification_text(content, str, bold="", sep=":\n")
+    if content and resource_type == "feedback":
+        return feedback_notification_text(content, str, bold="", sep=":\n")
+    if content and resource_type == "group_admission_request":
+        return group_admission_request_notification_text(
+            content, str, bold="", sep=":\n"
+        )
+    return target["text"].replace("*", "")
+
+
 def send_sms_notification(target):
     resource_type = notification_resource_type(target)
     prefs = user_preferences(target, "sms", resource_type)
@@ -426,10 +451,14 @@ def send_sms_notification(target):
 
     if sending:
         try:
+            to = target["user"]["contact_phone"].e164
+            named = alphanumeric_sender_id and not to.startswith("+1")
             client.messages.create(
-                body=f"{cfg['app.title']} - {target['text']}",
-                from_=from_number,
-                to=target["user"]["contact_phone"].e164,
+                body=plain_text(target)
+                if named
+                else f"{cfg['app.title']} - {plain_text(target)}",
+                from_=alphanumeric_sender_id if named else from_number,
+                to=to,
             )
             log(
                 f"Sent SMS notification to user {target['user']['id']} at phone number: {target['user']['contact_phone'].e164}, body: {target['text']}, resource_type: {resource_type}"
@@ -485,49 +514,23 @@ def send_phone_notification(target):
             log(f"Error sending phone call notification: {e}")
 
 
-def send_whatsapp_notification(target):
+def send_telegram_notification(target):
     resource_type = notification_resource_type(target)
-    prefs = user_preferences(target, "whatsapp", resource_type)
-    if not prefs:
+    if not user_preferences(target, "telegram", resource_type):
         return
-
-    sending = not (
-        prefs[resource_type]["whatsapp"].get("on_shift")
-        or prefs[resource_type]["whatsapp"].get("time_slot")
-    )
-    if prefs[resource_type]["whatsapp"].get("on_shift", False):
-        current_shift = (
-            Shift.query.join(ShiftUser)
-            .filter(ShiftUser.user_id == target["user"]["id"])
-            .filter(Shift.start_date <= arrow.utcnow().datetime)
-            .filter(Shift.end_date >= arrow.utcnow().datetime)
-            .first()
+    chat_id = target["user"]["preferences"]["telegram_integration"]["chat_id"]
+    try:
+        telegram_api(
+            "sendMessage",
+            chat_id=chat_id,
+            text=f"{plain_text(target)}\n\n{get_app_base_url()}{target['url']}",
+            link_preview_options={"is_disabled": True},
         )
-        if current_shift is not None:
-            sending = True
-
-    timeslot = prefs[resource_type]["whatsapp"].get("time_slot", [])
-    if len(timeslot) > 0:
-        current_time = arrow.utcnow().datetime
-        if timeslot[0] < timeslot[1]:
-            if current_time.hour >= timeslot[0] and current_time.hour <= timeslot[1]:
-                sending = True
-        else:
-            if current_time.hour <= timeslot[1] or current_time.hour >= timeslot[0]:
-                sending = True
-
-    if sending:
-        try:
-            client.messages.create(
-                body=f"{cfg['app.title']} - {target['text']}",
-                from_="whatsapp:" + str(from_number),
-                to="whatsapp:" + str(target["user"]["contact_phone"].e164),
-            )
-            log(
-                f"Sent WhatsApp notification to user {target['user']['id']} at phone number: {target['user']['contact_phone'].e164}, body: {target['text']}, resource_type: {resource_type}"
-            )
-        except Exception as e:
-            log(f"Error sending WhatsApp notification: {e}")
+        log(
+            f"Sent Telegram notification to user {target['user']['id']}, body: {target['text']}, resource_type: {resource_type}"
+        )
+    except Exception as e:
+        log(f"Error sending Telegram notification: {e}")
 
 
 def push_frontend_notification(target):
@@ -575,14 +578,21 @@ def user_notification_target(session, user, text, notification_type, url, conten
     return {**notification.to_dict(), **target}
 
 
-def system_admins(session):
+def feedback_admins(session):
     admin_ids = sa.union(
         sa.select(UserACL.user_id).where(UserACL.acl_id == "System admin"),
         sa.select(UserRole.user_id)
         .join(RoleACL, RoleACL.role_id == UserRole.role_id)
         .where(RoleACL.acl_id == "System admin"),
     )
-    return session.scalars(sa.select(User).where(User.id.in_(admin_ids))).all()
+    return session.scalars(
+        sa.select(User).where(
+            User.id.in_(admin_ids),
+            User.preferences["notifications"]["feedback"]["active"]
+            .astext.cast(sa.Boolean)
+            .is_(True),
+        )
+    ).all()
 
 
 def users_on_shift(session):
@@ -625,7 +635,7 @@ def service(queue):
             push_frontend_notification,
             send_phone_notification,
             send_sms_notification,
-            send_whatsapp_notification,
+            send_telegram_notification,
             send_email_notification,
             send_slack_notification,
         ):
@@ -691,6 +701,8 @@ def api(queue):
             is_deployment = target_class_name == "Deployment"
             is_feedback = target_class_name == "Feedback"
             is_feedback_reply = target_class_name == "FeedbackReply"
+            # its linked pull requests are deployed: tell the author, not the admins
+            is_feedback_deployed = is_feedback and bool(data.get("deployed"))
             is_discussion_message = target_class_name == "DiscussionMessage"
 
             with DBSession() as session:
@@ -869,10 +881,14 @@ def api(queue):
                             .to_dict()
                         )
                     elif is_feedback:
-                        users = system_admins(session)
                         target_class = Feedback
                         feedback = session.scalar(
                             sa.select(Feedback).where(Feedback.id == target_id)
+                        )
+                        users = (
+                            [feedback.author]
+                            if is_feedback_deployed
+                            else feedback_admins(session)
                         )
                         target_data = {
                             **feedback.to_dict(),
@@ -887,7 +903,7 @@ def api(queue):
                         )
                         by_author = reply.author_id == reply.feedback.author_id
                         users = (
-                            system_admins(session)
+                            feedback_admins(session)
                             if by_author
                             else [reply.feedback.author]
                         )
@@ -1101,7 +1117,9 @@ def api(queue):
                                     f"{event_tag} from extraction {target_id}"
                                 )
 
-                    users = [user for user in users if user.is_active()]
+                    users = [
+                        user for user in users if user.is_active() and not user.is_bot
+                    ]
                     failure_count = 0
                     nb_users = len(users)
                     for user in users:
@@ -1311,6 +1329,7 @@ def api(queue):
                                                 target_content,
                                             )
                                         )
+                                        break
 
                                 elif is_gcn_match:
                                     match_prefs = pref["gcn_matches"]
@@ -1467,7 +1486,10 @@ def api(queue):
                                         )
                                     )
                                 elif is_feedback or is_feedback_reply:
-                                    if user.id == target_data["author_id"]:
+                                    if (
+                                        user.id == target_data["author_id"]
+                                        and not is_feedback_deployed
+                                    ):
                                         continue
                                     label = FEEDBACK_CATEGORIES.get(
                                         target_data["category"], "message"
@@ -1482,6 +1504,7 @@ def api(queue):
                                         "by_author": target_data.get(
                                             "by_author", False
                                         ),
+                                        "deployed": is_feedback_deployed,
                                     }
                                     queue.append(
                                         user_notification_target(
@@ -1492,6 +1515,8 @@ def api(queue):
                                             ),
                                             "feedback_reply"
                                             if is_feedback_reply
+                                            else "feedback_deployed"
+                                            if is_feedback_deployed
                                             else "feedback",
                                             "/feedback",
                                             content,

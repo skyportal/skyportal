@@ -26,6 +26,7 @@ interface TrackCandidateSummaryProps {
   brokerId: number;
   objId: string;
   survey?: string;
+  showId?: boolean;
 }
 
 /**
@@ -40,6 +41,7 @@ const TrackCandidateSummary = ({
   brokerId,
   objId,
   survey = "ZTF",
+  showId = true,
 }: TrackCandidateSummaryProps) => {
   const { data: track } = useGetMovingObjectTrackQuery({
     trackId,
@@ -118,9 +120,13 @@ const TrackCandidateSummary = ({
         alignItems: "center",
       }}
     >
-      <Chip size="small" label={track.id} />
+      {showId && <Chip size="small" label={track.id} />}
       <Chip size="small" label={`${track.n_detections ?? "?"} det`} />
-      <Chip size="small" label={`${track.n_nights ?? "?"} nights`} />
+      <Chip
+        size="small"
+        color={(track.n_nights ?? 0) >= 3 ? "success" : "default"}
+        label={`${track.n_nights ?? "?"} nights`}
+      />
       {track.arc_days != null && (
         <Chip size="small" label={`${track.arc_days.toFixed(1)} d arc`} />
       )}
@@ -145,14 +151,20 @@ const TrackCandidateSummary = ({
       {track.neo_score != null && (
         <Chip
           size="small"
-          color={track.neo_score >= 65 ? "warning" : "default"}
+          color={track.neo_score >= 65 ? "info" : "default"}
           label={`digest2 ${Math.round(track.neo_score)}`}
         />
       )}
       {track.rms_ratio != null && (
         <Chip
           size="small"
-          color={track.rms_ratio > 3 ? "warning" : "default"}
+          color={
+            track.rms_ratio > 3
+              ? "warning"
+              : track.rms_ratio <= 1
+                ? "success"
+                : "default"
+          }
           label={`rms x${track.rms_ratio.toFixed(1)}`}
           title="Fit residual over the expected astrometric scatter"
         />
@@ -167,7 +179,7 @@ const TrackCandidateSummary = ({
       {track.activity?.possible_comet && (
         <Chip
           size="small"
-          color="warning"
+          color="info"
           label="possible comet"
           title={`FWHM ${track.activity.fwhm_ratio.toFixed(2)}x the PSF, classtar ${track.activity.classtar?.toFixed(2) ?? "?"}`}
         />

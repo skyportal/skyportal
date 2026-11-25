@@ -522,6 +522,23 @@ const BoomFilterPlugins = () => {
             />
           </Box>
         )}
+        <Divider />
+        <Section title="Scanning page">
+          <ToggleWithHelp
+            label="Moving objects"
+            help={
+              altdata.sso
+                ? "Always on for solar system filters"
+                : "Open the scanning page on Moving objects for this filter"
+            }
+            checked={!!altdata.sso || !!altdata.movingObjects}
+            disabled={noVersion || !!altdata.sso}
+            loading={busy === "movingObjects"}
+            onChange={(movingObjects: boolean) =>
+              updateFlags({ movingObjects })
+            }
+          />
+        </Section>
       </Paper>
       <VersionSwitchDialog
         filter={filter_v}

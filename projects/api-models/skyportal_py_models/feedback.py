@@ -30,6 +30,11 @@ class FeedbackPatchBody(BaseModel):
     assignee_id: int | None = Field(
         default=None, description="ID of the admin working on it; null to unassign"
     )
+    pr_urls: list[str] | None = Field(
+        default=None,
+        max_length=20,
+        description="GitHub pull requests fixing it; the author is notified once all are deployed",
+    )
 
 
 class FeedbackReplyPostBody(BaseModel):
@@ -63,6 +68,15 @@ class FeedbackReplyResponse(BaseModel):
     author: FeedbackAuthorResponse
 
 
+class FeedbackPullRequestResponse(BaseModel):
+    """A pull request linked to a message, and whether this instance runs it."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    url: str
+    deployed: bool
+
+
 class FeedbackResponse(BaseModel):
     """A message left to the admins, with their replies."""
 
@@ -76,6 +90,8 @@ class FeedbackResponse(BaseModel):
     author: FeedbackAuthorResponse
     assignee: FeedbackAuthorResponse | None = None
     replies: list[FeedbackReplyResponse] = Field(default_factory=list)
+    pull_requests: list[FeedbackPullRequestResponse] = Field(default_factory=list)
+    deployed_at: datetime | None = None
 
 
 class FeedbackListResponse(BaseModel):
@@ -92,6 +108,7 @@ __all__ = [
     "FeedbackListResponse",
     "FeedbackPatchBody",
     "FeedbackPostBody",
+    "FeedbackPullRequestResponse",
     "FeedbackReplyPostBody",
     "FeedbackReplyResponse",
     "FeedbackResponse",

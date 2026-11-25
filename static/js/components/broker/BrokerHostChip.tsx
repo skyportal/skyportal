@@ -3,92 +3,187 @@ import Link from "@mui/material/Link";
 import Box from "@mui/material/Box";
 import Chip from "@mui/material/Chip";
 import Popover from "@mui/material/Popover";
+import { alpha, lighten } from "@mui/material/styles";
 import type { BrokerHost } from "../../ducks/brokers";
 
-const zDigits = (zErr: number | null) =>
+export const zDigits = (zErr: number | null | undefined) =>
   zErr ? Math.min(6, Math.max(1, Math.ceil(Math.abs(Math.log10(zErr))))) : 4;
 
-const hostUrl = (host: BrokerHost) => {
-  if (host.catalog === "NED" && host.objname) {
+export const hostUrl = ({
+  catalog,
+  objname,
+  ra,
+  dec,
+}: {
+  catalog?: string | null | undefined;
+  objname?: string | null;
+  ra?: number | null;
+  dec?: number | null;
+}) => {
+  if (catalog === "NED" && objname) {
     return `https://ned.ipac.caltech.edu/byname?objname=${encodeURIComponent(
-      host.objname,
+      objname,
     )}`;
   }
-  if (host.ra == null || host.dec == null) return null;
-  const layer = host.catalog === "LSDR9" ? "ls-dr9" : "ls-dr10";
-  return `https://www.legacysurvey.org/viewer?ra=${host.ra}&dec=${host.dec}&layer=${layer}&zoom=16&mark=${host.ra},${host.dec}`;
+  if (ra == null || dec == null) return null;
+  const layer = catalog === "LSDR9" ? "ls-dr9" : "ls-dr10";
+  return `https://www.legacysurvey.org/viewer?ra=${ra}&dec=${dec}&layer=${layer}&zoom=16&mark=${ra},${dec}`;
 };
 
-const hostRows = (host: BrokerHost): [string, string][] => {
-  const digits = zDigits(host.z_err);
-  const rows: [string, string | null][] = [
+const formatZ = (z: number, zErr: number | null | undefined) => {
+  const digits = zDigits(zErr);
+  return `${z.toFixed(digits)}${zErr != null ? ` ± ${zErr.toFixed(digits)}` : ""}`;
+};
+
+const formatSeparation = (
+  arcsec: number | null | undefined,
+  kpc: number | null | undefined,
+) => {
+  if (arcsec == null) return null;
+  return `${arcsec.toFixed(2)}″${kpc != null ? ` (${kpc.toFixed(1)} kpc)` : ""}`;
+};
+
+export interface HostSummary {
+  name: string;
+  tag?: string | undefined;
+  heading?: string | undefined;
+  primary?: boolean | undefined;
+  extraRows?: [string, string][] | undefined;
+  z?: number | null | undefined;
+  zErr?: number | null | undefined;
+  sepArcsec?: number | null | undefined;
+  sepKpc?: number | null | undefined;
+  distMpc?: number | null | undefined;
+  catalog?: string | null | undefined;
+  dDlr?: number | null | undefined;
+  url?: string | null | undefined;
+}
+
+const detailRows = (host: HostSummary): [string, string][] => {
+  const rows: [string, string | null | undefined][] = [
     ["Catalog", host.catalog],
-    [
-      "Redshift",
-      host.z != null
-        ? `${host.z.toFixed(digits)}${
-            host.z_err != null ? ` ± ${host.z_err.toFixed(digits)}` : ""
-          }`
-        : null,
-    ],
+    ["Redshift", host.z != null ? formatZ(host.z, host.zErr) : null],
     [
       "Distance",
-      host.dist_mpc != null ? `${host.dist_mpc.toFixed(1)} Mpc` : null,
+      host.distMpc != null ? `${host.distMpc.toFixed(1)} Mpc` : null,
     ],
-    [
-      "Separation",
-      host.sep_arcsec != null
-        ? `${host.sep_arcsec.toFixed(2)}″${
-            host.sep_kpc != null ? ` (${host.sep_kpc.toFixed(2)} kpc)` : ""
-          }`
-        : null,
-    ],
-    ["d_DLR", host.d_dlr != null ? host.d_dlr.toFixed(2) : null],
+    ["Separation", formatSeparation(host.sepArcsec, host.sepKpc)],
+    ["d_DLR", host.dDlr != null ? host.dDlr.toFixed(2) : null],
+    ...(host.extraRows ?? []),
   ];
   return rows.filter((row): row is [string, string] => row[1] != null);
 };
 
-const BrokerHostChip = ({ host }: { host: BrokerHost | undefined }) => {
+export const HostChip = ({
+  host,
+  onDelete,
+}: {
+  host: HostSummary;
+  onDelete?: (() => void) | undefined;
+}) => {
   const [anchor, setAnchor] = useState<HTMLElement | null>(null);
-
-  if (!host) {
-    return <Chip size="small" variant="outlined" label="None" />;
-  }
-
-  const name = host.objname || host.catalog || "Host";
-  const url = hostUrl(host);
+  const heading = host.heading ?? host.tag;
+  const meta = [
+    host.z != null ? `z ${host.z.toFixed(zDigits(host.zErr))}` : null,
+    host.sepArcsec != null ? `${host.sepArcsec.toFixed(1)}″` : null,
+    host.sepKpc != null ? `${host.sepKpc.toFixed(1)} kpc` : null,
+  ]
+    .filter(Boolean)
+    .join(" · ");
 
   return (
     <>
       <Chip
         size="small"
-        color="success"
-        label={
-          host.z != null
-            ? `${name} · z ${host.z.toFixed(zDigits(host.z_err))}`
-            : name
-        }
+        variant={host.primary ? "filled" : "outlined"}
         onClick={(e) => setAnchor(e.currentTarget)}
+        onDelete={onDelete}
+        sx={
+          host.primary
+            ? (theme) => {
+                const { main, dark } = theme.palette.primary;
+                return {
+                  bgcolor: alpha(main, 0.16),
+                  color:
+                    theme.palette.mode === "dark" ? lighten(main, 0.5) : dark,
+                  "&:hover": { bgcolor: alpha(main, 0.24) },
+                  "& .MuiChip-deleteIcon": {
+                    color: alpha(main, 0.45),
+                    "&:hover": { color: main },
+                  },
+                };
+              }
+            : { bgcolor: "background.paper" }
+        }
+        label={
+          <Box
+            component="span"
+            sx={{ display: "inline-flex", alignItems: "baseline", gap: 0.75 }}
+          >
+            {host.tag && (
+              <Box
+                component="span"
+                sx={{
+                  fontSize: "0.65rem",
+                  fontWeight: 600,
+                  letterSpacing: "0.06em",
+                  textTransform: "uppercase",
+                  color: "text.secondary",
+                }}
+              >
+                {host.tag}
+              </Box>
+            )}
+            <Box component="span" sx={{ fontWeight: 600 }}>
+              {host.name}
+            </Box>
+            {meta && (
+              <Box
+                component="span"
+                sx={{
+                  color: "text.secondary",
+                  fontVariantNumeric: "tabular-nums",
+                }}
+              >
+                {meta}
+              </Box>
+            )}
+          </Box>
+        }
       />
       <Popover
         open={Boolean(anchor)}
         anchorEl={anchor}
         onClose={() => setAnchor(null)}
         anchorOrigin={{ vertical: "bottom", horizontal: "left" }}
+        transformOrigin={{ vertical: -6, horizontal: "left" }}
       >
-        <Box sx={{ p: 1.5, fontSize: "0.85rem" }}>
-          <Box sx={{ fontWeight: "bold", mb: 1 }}>
-            {url ? (
+        <Box sx={{ p: 1.5, minWidth: 200, fontSize: "0.85rem" }}>
+          {heading && (
+            <Box
+              sx={{
+                fontSize: "0.65rem",
+                fontWeight: 600,
+                letterSpacing: "0.06em",
+                textTransform: "uppercase",
+                color: "text.secondary",
+              }}
+            >
+              {heading}
+            </Box>
+          )}
+          <Box sx={{ fontWeight: 600, fontSize: "0.95rem", mb: 1 }}>
+            {host.url ? (
               <Link
-                href={url}
+                href={host.url}
                 target="_blank"
                 rel="noopener noreferrer"
                 underline="hover"
               >
-                {name}
+                {host.name}
               </Link>
             ) : (
-              name
+              host.name
             )}
           </Box>
           <Box
@@ -96,10 +191,11 @@ const BrokerHostChip = ({ host }: { host: BrokerHost | undefined }) => {
               display: "grid",
               gridTemplateColumns: "auto 1fr",
               columnGap: 2,
-              rowGap: 0.25,
+              rowGap: 0.5,
+              fontVariantNumeric: "tabular-nums",
             }}
           >
-            {hostRows(host).map(([label, value]) => (
+            {detailRows(host).map(([label, value]) => (
               <Box key={label} sx={{ display: "contents" }}>
                 <Box sx={{ color: "text.secondary" }}>{label}</Box>
                 <Box>{value}</Box>
@@ -110,6 +206,33 @@ const BrokerHostChip = ({ host }: { host: BrokerHost | undefined }) => {
       </Popover>
     </>
   );
+};
+
+export const brokerHostSummary = (
+  host: BrokerHost,
+  tag?: string,
+): HostSummary => ({
+  name: host.objname || host.catalog || "Host",
+  tag,
+  z: host.z,
+  zErr: host.z_err,
+  sepArcsec: host.sep_arcsec,
+  sepKpc: host.sep_kpc,
+  distMpc: host.dist_mpc,
+  catalog: host.catalog,
+  dDlr: host.d_dlr,
+  url: hostUrl(host),
+});
+
+const BrokerHostChip = ({ host }: { host: BrokerHost | undefined }) => {
+  if (!host) {
+    return (
+      <Box component="span" sx={{ color: "text.secondary" }}>
+        None
+      </Box>
+    );
+  }
+  return <HostChip host={brokerHostSummary(host)} />;
 };
 
 export default BrokerHostChip;

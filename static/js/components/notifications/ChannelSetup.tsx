@@ -1,8 +1,9 @@
-import { FormEvent, ReactNode, useState } from "react";
+import { FormEvent, ReactNode, useEffect, useState } from "react";
 
 import CallIcon from "@mui/icons-material/CallOutlined";
 import EmailIcon from "@mui/icons-material/EmailOutlined";
 import TagIcon from "@mui/icons-material/Tag";
+import TelegramIcon from "@mui/icons-material/Telegram";
 import Avatar from "@mui/material/Avatar";
 import Box from "@mui/material/Box";
 import TextField from "@mui/material/TextField";
@@ -10,8 +11,9 @@ import Typography from "@mui/material/Typography";
 import { alpha } from "@mui/material/styles";
 
 import Button from "../Button";
-import type { SetupKind } from "./channels";
+import { SetupKind, isSetUp } from "./channels";
 import { useGetConfigQuery } from "../../ducks/config";
+import { useCreateTelegramLinkMutation } from "../../ducks/profile";
 import { useNotificationTarget } from "./target";
 
 const TEXTS: Record<
@@ -30,9 +32,15 @@ const TEXTS: Record<
     label: "Contact email",
     placeholder: "you@example.org",
   },
+  telegram: {
+    title: "Connect Telegram",
+    text: "Open the bot in Telegram and press Start. This closes once it is connected.",
+    label: "",
+    placeholder: "",
+  },
   phone: {
     title: "Add a phone number",
-    text: "Used for SMS, WhatsApp and phone calls. Include the country code.",
+    text: "Used for SMS and phone calls. Include the country code.",
     label: "Phone number",
     placeholder: "+1 555 123 4567",
   },
@@ -41,6 +49,7 @@ const TEXTS: Record<
 const ICONS: Record<SetupKind, ReactNode> = {
   slack: <TagIcon />,
   email: <EmailIcon />,
+  telegram: <TelegramIcon />,
   phone: <CallIcon />,
 };
 
@@ -63,7 +72,26 @@ const ChannelSetup = ({ kind, onDone, onCancel }: ChannelSetupProps) => {
   const [value, setValue] = useState<string>(initial);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [telegramLink, setTelegramLink] = useState<string | null>(null);
+  const [createTelegramLink] = useCreateTelegramLinkMutation();
   const { title, text, label, placeholder } = TEXTS[kind];
+  const connected = profile ? isSetUp(profile, kind) : false;
+
+  useEffect(() => {
+    if (kind !== "telegram") return;
+    createTelegramLink()
+      .unwrap()
+      .then(({ url }) => setTelegramLink(url))
+      .catch((err: any) =>
+        setError(
+          err?.error ?? err?.data?.message ?? "Could not reach Telegram",
+        ),
+      );
+  }, [kind, createTelegramLink]);
+
+  useEffect(() => {
+    if (kind === "telegram" && connected) onDone();
+  }, [kind, connected, onDone]);
 
   const save = async (event: FormEvent) => {
     event.preventDefault();
@@ -127,34 +155,73 @@ const ChannelSetup = ({ kind, onDone, onCancel }: ChannelSetupProps) => {
             {text}
           </Typography>
         </Box>
-        <TextField
-          autoFocus
-          size="small"
-          name={kind === "slack" ? "url" : kind}
-          label={label}
-          placeholder={placeholder}
-          value={value}
-          onChange={(event) => setValue(event.target.value)}
-          error={Boolean(error)}
-          helperText={error ?? ""}
-          slotProps={{ htmlInput: { "data-testid": `${kind}_input` } }}
-        />
-        <Box sx={{ display: "flex", gap: 1, justifyContent: "flex-end" }}>
-          {onCancel && (
-            <Button secondary size="small" onClick={onCancel}>
-              Cancel
-            </Button>
-          )}
-          <Button
-            primary
-            size="small"
-            type="submit"
-            disabled={!value.trim() || saving}
-            data-testid={`${kind}_save_button`}
+        {kind === "telegram" ? (
+          <Box
+            sx={{
+              display: "flex",
+              gap: 1,
+              justifyContent: "flex-end",
+              alignItems: "center",
+            }}
           >
-            {kind === "slack" ? "Connect" : "Save"}
-          </Button>
-        </Box>
+            {error && (
+              <Typography
+                variant="body2"
+                color="error"
+                sx={{ marginRight: "auto" }}
+              >
+                {error}
+              </Typography>
+            )}
+            {onCancel && (
+              <Button secondary size="small" onClick={onCancel}>
+                Cancel
+              </Button>
+            )}
+            <Button
+              primary
+              size="small"
+              href={telegramLink ?? undefined}
+              target="_blank"
+              rel="noopener noreferrer"
+              disabled={!telegramLink}
+              data-testid="telegram_open_button"
+            >
+              Open Telegram
+            </Button>
+          </Box>
+        ) : (
+          <>
+            <TextField
+              autoFocus
+              size="small"
+              name={kind === "slack" ? "url" : kind}
+              label={label}
+              placeholder={placeholder}
+              value={value}
+              onChange={(event) => setValue(event.target.value)}
+              error={Boolean(error)}
+              helperText={error ?? ""}
+              slotProps={{ htmlInput: { "data-testid": `${kind}_input` } }}
+            />
+            <Box sx={{ display: "flex", gap: 1, justifyContent: "flex-end" }}>
+              {onCancel && (
+                <Button secondary size="small" onClick={onCancel}>
+                  Cancel
+                </Button>
+              )}
+              <Button
+                primary
+                size="small"
+                type="submit"
+                disabled={!value.trim() || saving}
+                data-testid={`${kind}_save_button`}
+              >
+                {kind === "slack" ? "Connect" : "Save"}
+              </Button>
+            </Box>
+          </>
+        )}
       </Box>
     </Box>
   );

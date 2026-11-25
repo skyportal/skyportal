@@ -26,6 +26,7 @@ import {
   usePeople,
 } from "./people";
 import { otherMembers } from "./names";
+import { pillButtonSx } from "../comment/chatStyles";
 import { Body, Empty, Header } from "./pane";
 import { useGetGroupsQuery } from "../../ducks/groups";
 import { useGetProfileQuery } from "../../ducks/profile";
@@ -379,7 +380,7 @@ const NewGroupConversation = ({ onOpen, onBack }: NewDiscussionProps) => {
           disabled={!ready || starting}
           onClick={create}
           data-testid="createGroupConversationButton"
-          sx={{ flexShrink: 0, whiteSpace: "nowrap" }}
+          sx={{ ...pillButtonSx, flexShrink: 0, whiteSpace: "nowrap" }}
         >
           Create conversation
         </Button>

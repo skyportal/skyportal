@@ -104,6 +104,7 @@ class _Base:
         return {
             "methodsImplemented": cls.implements(),
             "formSchema": formSchema,
+            "externalFollowupForm": cls.external_followup_form,
             "aliasLookup": cls.alias_lookup,
             "priorityOrder": priority_order,
             **cls.frontend_render_api_info(),

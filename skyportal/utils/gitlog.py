@@ -132,3 +132,34 @@ def load_gitlog(files="data/gitlog*.json"):
     return sorted(
         parsed_log, key=lambda x: datetime.fromisoformat(x["time"]), reverse=True
     )
+
+
+PR_URL_RE = re.compile(
+    r"^(?:https?://)?(?:www\.)?github\.com/([\w.-]+)/([\w.-]+)/pull/(\d+)(?:[/?#].*)?$",
+    re.IGNORECASE,
+)
+
+
+def normalize_pr_url(url):
+    """Canonical form of a GitHub pull request URL, or None if it is not one."""
+    m = PR_URL_RE.match(url.strip())
+    if m is None:
+        return None
+    owner, repo, number = m.groups()
+    return f"https://github.com/{owner.lower()}/{repo.lower()}/pull/{int(number)}"
+
+
+def deployed_pr_urls(gitlog):
+    """Canonical URLs of the pull requests in a parsed git log."""
+    return {normalize_pr_url(entry["pr_url"]) for entry in gitlog if entry["pr_url"]}
+
+
+@cache
+def running_pr_urls():
+    """Canonical URLs of the pull requests in the running code."""
+    return frozenset(deployed_pr_urls(load_gitlog()))
+
+
+def tracked_pr_url_bases(pr_urls):
+    """PR URL prefixes of the repos these pull requests belong to."""
+    return {url.rsplit("/", 1)[0] + "/" for url in pr_urls}

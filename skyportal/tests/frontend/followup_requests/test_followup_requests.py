@@ -1,16 +1,22 @@
 import glob
 import os
 import uuid
+from datetime import UTC, datetime, timedelta
+from urllib.parse import parse_qs, urlparse
 
 import pandas as pd
 import pytest
 import requests
+import sqlalchemy as sa
+from astropy.time import Time
 from playwright.sync_api import TimeoutError as PlaywrightTimeoutError
 from playwright.sync_api import expect
 from regions import Regions
 
+from skyportal.models import DBSession, Instrument
 from skyportal.tests import api
 from skyportal.tests.external.test_moving_objects import add_telescope_and_instrument
+from skyportal.tests.fixtures import InstrumentFactory, PhotometryFactory
 
 LCO_ALTDATA = '{"API_TOKEN": "testtoken", "PROPOSAL_ID": "TOM2020A-008"}'
 
@@ -75,6 +81,89 @@ def select_followup_allocation(page, user, source, instrument_name, group):
     allocation.click()
 
     return submit_button
+
+
+def test_select_vla_rubin_followup(
+    page,
+    request,
+    super_admin_user,
+    public_source_no_data,
+    super_admin_token,
+    public_group,
+):
+    _, instrument_id, _, instrument_name = add_telescope_and_instrument(
+        "SEDMv2", super_admin_token
+    )
+    add_allocation(
+        instrument_id,
+        public_group.id,
+        super_admin_token,
+        _altdata='{"access_token": "testtoken"}',
+    )
+    _, vla_id, _, vla_name = add_telescope_and_instrument("VLA", super_admin_token)
+    source = public_source_no_data
+    source.origin = "LSST"
+    source.ra = 188.73625
+    source.dec = 20.51125
+    lsst = DBSession().scalar(sa.select(Instrument).where(Instrument.name == "LSST"))
+    if lsst is None:
+        lsst = InstrumentFactory(name="LSST", filters=["lsstg"])
+        request.addfinalizer(lambda: InstrumentFactory.teardown(lsst))
+    first_alert = datetime.now(UTC) - timedelta(days=10)
+    first_mjd = Time(first_alert).mjd
+    alert_id = "170059317401616524"
+    photometry = {
+        "obj_id": source.id,
+        "instrument": lsst,
+        "filter": "lsstg",
+        "groups": [public_group],
+    }
+    PhotometryFactory(**photometry, mjd=first_mjd - 4, origin="fp")
+    PhotometryFactory(**photometry, mjd=first_mjd)
+    PhotometryFactory(**photometry, mjd=first_mjd + 1, altdata={"candid": alert_id})
+    DBSession().commit()
+    page.goto(f"/become_user/{super_admin_user.id}")
+    page.goto(f"/source/{source.id}")
+
+    selector = page.locator("#followupRequestAllocationSelect")
+    native_form = page.get_by_test_id("followup-request-form")
+    vla_link = page.get_by_role("link", name="Request VLA follow-up")
+    native_option = page.get_by_role("option").filter(has_text=instrument_name)
+
+    selector.click()
+    vla_option = page.get_by_role("option").filter(has_text=vla_name)
+    expect(vla_option).to_have_count(0)
+    native_option.click()
+    expect(native_form).to_be_visible()
+    expect(vla_link).to_have_count(0)
+
+    add_allocation(vla_id, public_group.id, super_admin_token, types=["triggered"])
+    page.reload()
+    selector.click()
+    vla_label = vla_option.inner_text()
+    assert vla_option.get_attribute("data-value").isdigit()
+    vla_option.click()
+    expect(selector).to_have_value(vla_label)
+    expect(native_form).to_have_count(0)
+    expect(
+        page.get_by_text("First recorded Rubin detection was 10 days ago.")
+    ).to_be_visible()
+    expect(vla_link).to_be_visible()
+    expect(vla_link).to_have_attribute("target", "_blank")
+    url = urlparse(vla_link.get_attribute("href"))
+    assert url.netloc == "docs.google.com"
+    assert parse_qs(url.query) == {
+        "usp": ["pp_url"],
+        "entry.1703452690": [alert_id],
+        "entry.634862218": ["12:34:56.7"],
+        "entry.97408733": ["+20:30:40.5"],
+        "entry.812198857": [first_alert.date().isoformat()],
+    }
+
+    selector.click()
+    native_option.click()
+    expect(native_form).to_be_visible()
+    expect(vla_link).to_have_count(0)
 
 
 def add_followup_request_using_frontend_and_verify_SEDMv2(

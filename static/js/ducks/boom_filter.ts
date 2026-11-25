@@ -48,6 +48,7 @@ export const boomFilterApi = skyportalApi.injectEndpoints({
         autoSave?: boolean;
         autoAnnotate?: boolean;
         autoFollowup?: boolean;
+        movingObjects?: boolean;
         autoSaveIgnoreGroupIds?: number[];
         autoSaveIgnoreRadius?: number | null;
         autoSaveSaverId?: number | null;
@@ -62,6 +63,7 @@ export const boomFilterApi = skyportalApi.injectEndpoints({
         method: "PATCH",
         body: flags,
       }),
+      invalidatesTags: ["Filters"],
     }),
     // Returns at once: the verdict stays pending on the filter until the replay ends.
     validateBoomFilter: build.mutation<any, { filter_id: any; fid?: any }>({

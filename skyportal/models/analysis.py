@@ -11,7 +11,7 @@ import json
 import os
 import re
 import uuid
-from datetime import datetime, timedelta
+from datetime import datetime
 from pathlib import Path
 
 import joblib
@@ -703,20 +703,22 @@ def _default_analysis_gated():
     default_analysis_parameters is json in the database, but JSONType does not
     carry the comparator that indexes one, so the type is named here.
     """
-    return sa.type_coerce(DefaultAnalysis.default_analysis_parameters, psql.JSON)[
-        "min_detections"
-    ].astext.isnot(None)
+    params = sa.type_coerce(DefaultAnalysis.default_analysis_parameters, psql.JSON)
+    return or_(
+        params["min_detections"].astext.isnot(None),
+        params["require_redshift"].astext == "true",
+    )
 
 
 def _default_analysis_under_limit():
-    """SQL clause: DefaultAnalysis still under its per-day cap (or window rolled over)."""
+    """SQL clause: DefaultAnalysis under its daily cap, or last run before today (UTC)."""
     return or_(
         func.coalesce(DefaultAnalysis.stats["daily_count"].astext.cast(sa.Integer), 0)
         < func.coalesce(
             DefaultAnalysis.stats["daily_limit"].astext.cast(sa.Integer), 10
         ),
-        DefaultAnalysis.stats["last_run"].astext.cast(sa.DateTime)
-        < cast(utcnow_naive() - timedelta(days=1), sa.DateTime),
+        DefaultAnalysis.stats["last_run"].astext.cast(sa.Date)
+        < cast(utcnow_naive().date(), sa.Date),
     )
 
 
@@ -802,6 +804,18 @@ def _insufficient_photometry(session, default_analysis, obj_id):
     return False
 
 
+def _missing_redshift(session, default_analysis, obj_id):
+    """True if this default analysis sets ``require_redshift`` and the object has
+    no positive redshift yet."""
+    from skyportal.models import Obj
+
+    params = default_analysis.default_analysis_parameters or {}
+    if not params.get("require_redshift"):
+        return False
+    redshift = session.scalar(sa.select(Obj.redshift).where(Obj.id == obj_id))
+    return redshift is None or redshift <= 0
+
+
 def _run_default_analysis(
     default_analysis_id, author_id, obj_id, trigger, spectrum_id=None
 ):
@@ -846,16 +860,19 @@ def _run_default_analysis(
             if default_analysis is None:
                 return
 
-            # Don't submit a job we'd only gate on too-sparse a light curve.
-            if _insufficient_photometry(db_session, default_analysis, obj_id):
+            # Don't submit a job the service would only refuse.
+            if _insufficient_photometry(
+                db_session, default_analysis, obj_id
+            ) or _missing_redshift(db_session, default_analysis, obj_id):
                 return
 
             now = utcnow_naive().strftime("%Y-%m-%dT%H:%M:%S.%f")
             stats = default_analysis.stats or {}
             if not {"daily_limit", "daily_count", "last_run"}.issubset(stats.keys()):
                 stats = {"daily_limit": 10, "daily_count": 0, "last_run": now}
-            if datetime.strptime(stats["last_run"], "%Y-%m-%dT%H:%M:%S.%f") < (
-                utcnow_naive() - timedelta(days=1)
+            if (
+                datetime.strptime(stats["last_run"], "%Y-%m-%dT%H:%M:%S.%f").date()
+                < utcnow_naive().date()
             ):
                 stats = {
                     "daily_limit": stats["daily_limit"],
@@ -988,8 +1005,9 @@ def _run_default_gcnevent_analysis(default_analysis_id, author_id, dateobs, trig
             stats = default_analysis.stats or {}
             if not {"daily_limit", "daily_count", "last_run"}.issubset(stats.keys()):
                 stats = {"daily_limit": 10, "daily_count": 0, "last_run": now}
-            if datetime.strptime(stats["last_run"], "%Y-%m-%dT%H:%M:%S.%f") < (
-                utcnow_naive() - timedelta(days=1)
+            if (
+                datetime.strptime(stats["last_run"], "%Y-%m-%dT%H:%M:%S.%f").date()
+                < utcnow_naive().date()
             ):
                 stats = {
                     "daily_limit": stats["daily_limit"],

@@ -248,11 +248,7 @@ def ingest_scout_event(
     obj.is_roid = True
     obj.healpix = ha.constants.HPX.lonlat_to_healpix(ra * u.deg, dec * u.deg)
     if event.get("iau_designation"):
-        # Same prefix as the survey path, so one alias query finds every
-        # solar-system object however it was ingested.
-        aliases = set(obj.alias or [])
-        aliases.add(sso_label(event["iau_designation"]))
-        obj.alias = sorted(aliases)
+        obj.mpc_name = event["iau_designation"]
 
     session.flush()
 

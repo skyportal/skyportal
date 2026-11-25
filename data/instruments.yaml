@@ -1343,6 +1343,7 @@
       "radio-45GHz",
     ]
   tns_id: 226
+  api_classname: VLAAPI
 - name: TRT
   type: imager
   band: optical

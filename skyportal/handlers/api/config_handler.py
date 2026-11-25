@@ -9,6 +9,7 @@ from baselayer.app.env import load_env
 from skyportal.models import cosmo
 from skyportal.utils.assistant import is_enabled as assistant_enabled
 from skyportal.utils.paper_corner import paper_corner_enabled
+from skyportal.utils.telegram import telegram_enabled
 from skyportal.utils.tns import TNS_INSTRUMENT_IDS
 from skyportal.utils.user_applications import may_decide, user_applications_enabled
 
@@ -126,6 +127,12 @@ class ConfigHandler(BaseHandler):
         return self.success(
             data={
                 "slackPreamble": cfg["slack.expected_url_preamble"],
+                "notificationChannels": [
+                    "email",
+                    "slack",
+                    *(["sms", "phone"] if cfg["twilio.from_number"] else []),
+                    *(["telegram"] if telegram_enabled() else []),
+                ],
                 "invitationsEnabled": cfg["invitations.enabled"],
                 "invitationsDaysUntilExpiry": cfg["invitations.days_until_expiry"],
                 "userApplicationsEnabled": user_applications_enabled(),
