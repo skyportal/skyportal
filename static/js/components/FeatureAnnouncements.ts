@@ -8,6 +8,7 @@ export interface FeatureAnnouncement {
   id: string;
   path: RegExp;
   announcedAt: string;
+  requiresConfig?: string;
   steps: TourStep[];
 }
 

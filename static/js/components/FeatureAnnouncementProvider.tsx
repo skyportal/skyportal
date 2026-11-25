@@ -9,6 +9,7 @@ import {
   useGetProfileQuery,
   useUpdateUserPreferencesMutation,
 } from "../ducks/profile";
+import { useGetConfigQuery } from "../ducks/config";
 
 const SEEN_PREF = "featureAnnouncementsSeen";
 const MAX_AGE_MS = 60 * 24 * 60 * 60 * 1000;
@@ -18,6 +19,7 @@ const MAX_AGE_MS = 60 * 24 * 60 * 60 * 1000;
 const FeatureAnnouncementProvider = () => {
   const location = useLocation();
   const { data: profile } = useGetProfileQuery();
+  const { data: config } = useGetConfigQuery();
   const [updatePreferences] = useUpdateUserPreferencesMutation();
   const [steps, setSteps] = useState<Step[]>([]);
   const announcementID = useRef<string | null>(null);
@@ -49,6 +51,8 @@ const FeatureAnnouncementProvider = () => {
         !done.current.has(announcement.id) &&
         !unavailable.current.has(`${announcement.id}@${location.pathname}`) &&
         announcement.path.test(location.pathname) &&
+        (!announcement.requiresConfig ||
+          config?.[announcement.requiresConfig] === true) &&
         (!createdAt || createdAt < new Date(announcement.announcedAt)),
     );
     if (!pending) {
@@ -62,7 +66,7 @@ const FeatureAnnouncementProvider = () => {
     }
     announcementID.current = pending.id;
     setSteps(applicable);
-  }, [profile, location.pathname, attempt]);
+  }, [profile, config, location.pathname, attempt]);
 
   // Start only once the target has actually mounted, otherwise the tour runs
   // against an empty DOM and silently gives up.
