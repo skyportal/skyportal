@@ -1732,7 +1732,8 @@ health_monitor:
 # once the object crosses the threshold. The threshold lives on each DefaultAnalysis:
 # min_detections (total, any filter) and an optional min_detections_per_filter dict
 # (e.g. {"ztfg": 2, "ztfr": 2}), read from the precomputed PhotStat (SkyPortal's own
-# detection threshold, forced photometry excluded). Not configured here; these are
+# detection threshold, forced photometry excluded). require_redshift: true also
+# defers it until the object has a positive redshift. Not configured here; these are
 # only the sweep cadence and how far back to look for newly-active sources.
 analysis_rerun:
   interval_seconds: 3600
