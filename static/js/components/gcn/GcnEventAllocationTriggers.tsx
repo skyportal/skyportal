@@ -185,13 +185,10 @@ const GcnEventAllocationTriggers = ({
         "mixed";
     }
     let triggered = "not_set";
-    let triggeredText = "Not set";
     if (t?.triggered === true) {
       triggered = "triggered";
-      triggeredText = "Triggered";
     } else if (t?.triggered === false) {
       triggered = "passed";
-      triggeredText = "Passed";
     }
     // first verify that there is an "allocation_triggered" array, if not create it
     if (instruments_triggered[allocationLookUp[allocation_id]] !== undefined) {
@@ -199,7 +196,6 @@ const GcnEventAllocationTriggers = ({
         allocationLookUp[allocation_id]
       ].allocation_triggered.push({
         triggered,
-        triggeredText,
         trigger_id: t?.id || null,
         allocation: [...allocationListApiObsplan, ...allocationList].find(
           (allocation: any) => allocation.id === parseInt(allocation_id, 10),
@@ -335,7 +331,7 @@ const GcnEventAllocationTriggers = ({
                     <TableCell>
                       <Chip
                         size="small"
-                        label={allocationTrigger.triggeredText}
+                        label={STATE_LABELS[allocationTrigger.triggered]}
                         id={`${allocation?.id}_current`}
                         sx={stateChipSx(allocationTrigger.triggered)}
                       />
