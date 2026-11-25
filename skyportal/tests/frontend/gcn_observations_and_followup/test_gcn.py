@@ -168,9 +168,7 @@ def test_gcn_allocation_triggers(
         f'//div[@id="{allocation_id}_current"]/span[contains(., "Not set")]',
     )
 
-    trigger_state = (
-        f'//div[@id="{allocation_id}_triggered"]/span[contains(., "Triggered")]'
-    )
+    trigger_state = f'//button[@id="{allocation_id}_triggered"]'
     page.locator(trigger_state).first.click()
 
     # check that the allocation trigger is triggered

@@ -1,10 +1,18 @@
 import { useGetProfileQuery } from "../../ducks/profile";
 import { useState } from "react";
-import { makeStyles } from "tss-react/mui";
+import Box from "@mui/material/Box";
 import Chip from "@mui/material/Chip";
 import Dialog from "@mui/material/Dialog";
+import DialogActions from "@mui/material/DialogActions";
 import DialogContent from "@mui/material/DialogContent";
 import DialogTitle from "@mui/material/DialogTitle";
+import Table from "@mui/material/Table";
+import TableBody from "@mui/material/TableBody";
+import TableCell from "@mui/material/TableCell";
+import TableHead from "@mui/material/TableHead";
+import TableRow from "@mui/material/TableRow";
+import Typography from "@mui/material/Typography";
+import { alpha, lighten, type Theme } from "@mui/material/styles";
 
 import { showNotification } from "baselayer/components/Notifications";
 
@@ -18,64 +26,59 @@ import {
   useGetAllocationsApiObsplanQuery,
 } from "../../ducks/allocations";
 import { useGetInstrumentsQuery } from "../../ducks/instruments";
+import Button from "../Button";
+import softButtonsSx from "../softButtons";
 import EventInfoRow from "./EventInfoRow";
 
-const useStyles = makeStyles()(() => ({
-  root: {
-    margin: "0",
-    padding: "0",
-    display: "flex",
-    flexDirection: "row",
-    alignItems: "center",
-  },
-  chips: {
-    padding: "0",
-    margin: "0",
-    "& > div": {
-      marginTop: 0,
-      marginBottom: 0,
-      marginLeft: "0.05rem",
-      marginRight: "0.05rem",
-    },
-  },
-  addIcon: {
-    fontSize: "1rem",
-  },
+const STATE_LABELS: Record<string, string> = {
+  triggered: "Triggered",
+  passed: "Passed",
+  not_set: "Not set",
+};
 
-  triggered: {
-    background: "#468847!important", // green
-  },
-  passed: {
-    background: "#b94a48!important", // red
-  },
-  not_set: {
-    background: "#999999!important", // grey
-  },
-  mixed: {
-    background: "linear-gradient(120deg, #468847 50%, #d54f4d 50%)",
-  },
-  allocationTable: {
-    borderCollapse: "collapse",
-    width: "100%",
-    "& th": {
-      border: "1px solid #dddddd",
-      textAlign: "left",
-      padding: "8px",
-    },
-    "& td": {
-      border: "1px solid #dddddd",
-      textAlign: "left",
-      padding: "8px",
-    },
-  },
+const STATE_OPTIONS = [
+  { state: "triggered", idSuffix: "triggered", value: true },
+  { state: "passed", idSuffix: "passed", value: false },
+  { state: "not_set", idSuffix: "not-set", value: null },
+];
 
-  allocationTrigger: {
-    display: "flex",
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
+const stateChipSx = (state: string) => (theme: Theme) => {
+  const { mode, success, error, text } = theme.palette;
+  const readable = (color: string) =>
+    mode === "dark" ? lighten(color, 0.45) : color;
+  const green = readable(success.main);
+  const red = readable(error.main);
+  const tone = state === "triggered" ? green : state === "passed" ? red : null;
+  const tint = (opacity: number) =>
+    state === "mixed"
+      ? `linear-gradient(120deg, ${alpha(green, opacity)} 50%, ${alpha(red, opacity)} 50%)`
+      : alpha(tone ?? text.primary, tone ? opacity : opacity / 2);
+  return {
+    fontWeight: 500,
+    color: tone ?? (state === "mixed" ? text.primary : text.secondary),
+    background: tint(0.2),
+    "&.MuiChip-clickable:hover": { background: tint(0.32) },
+  };
+};
+
+const dialogSlotProps = {
+  paper: {
+    sx: (theme: Theme) => ({ borderRadius: "12px", ...softButtonsSx(theme) }),
   },
-}));
+};
+
+const tableSx = {
+  "& .MuiTableCell-root": { borderColor: "divider", px: 1, py: 1 },
+  "& .MuiTableCell-head": {
+    py: 0.5,
+    color: "text.secondary",
+    fontSize: "0.75rem",
+    fontWeight: 500,
+  },
+  "& .MuiTableBody-root .MuiTableRow-root:last-of-type .MuiTableCell-root": {
+    borderBottom: 0,
+  },
+};
 
 interface GcnEventAllocationTriggersProps {
   gcnEvent: any;
@@ -92,7 +95,6 @@ const GcnEventAllocationTriggers = ({
   showUnset = false,
   showTitle = false,
 }: GcnEventAllocationTriggersProps) => {
-  const { classes } = useStyles();
   const dispatch = useAppDispatch();
   const [putGcnTrigger] = usePutGcnTriggerMutation();
   const [deleteGcnTrigger] = useDeleteGcnTriggerMutation();
@@ -104,7 +106,10 @@ const GcnEventAllocationTriggers = ({
 
   const { data: instrumentList = [] } = useGetInstrumentsQuery();
 
-  const [selectedInstrument, setSelectedInstrument] = useState<any>(null);
+  const [selectedInstrument, setSelectedInstrument] = useState<string | null>(
+    null,
+  );
+  const [pending, setPending] = useState(false);
 
   const permission =
     currentUser?.permissions?.includes("System admin") ||
@@ -196,7 +201,7 @@ const GcnEventAllocationTriggers = ({
         triggered,
         triggeredText,
         trigger_id: t?.id || null,
-        allocation: allocationListApiObsplan.find(
+        allocation: [...allocationListApiObsplan, ...allocationList].find(
           (allocation: any) => allocation.id === parseInt(allocation_id, 10),
         ),
       });
@@ -236,10 +241,36 @@ const GcnEventAllocationTriggers = ({
 
   if (!Object.keys(filtered_instruments_triggered).length) return null;
 
+  const updateTrigger = (allocationID: number, triggered: boolean | null) => {
+    setPending(true);
+    const request: Promise<unknown> =
+      triggered === null
+        ? deleteGcnTrigger({ dateobs: gcnEvent.dateobs, allocationID }).unwrap()
+        : putGcnTrigger({
+            dateobs: gcnEvent.dateobs,
+            allocationID,
+            triggered,
+          }).unwrap();
+    request
+      .then(() => {
+        dispatch(showNotification("Trigger state updated successfully"));
+        setSelectedInstrument(null);
+      })
+      .catch(() => {
+        dispatch(showNotification("Error updating trigger state", "error"));
+      })
+      .finally(() => setPending(false));
+  };
+
+  const selectedAllocations =
+    (selectedInstrument &&
+      instruments_triggered[selectedInstrument]?.allocation_triggered) ||
+    [];
+
   const content = (
     <>
-      <div
-        className={classes.chips}
+      <Box
+        sx={{ display: "flex", flexWrap: "wrap", gap: 0.5 }}
         {...({ name: "gcn_triggers-chips" } as any)}
       >
         {Object.keys(filtered_instruments_triggered).map((instrument) => (
@@ -249,16 +280,12 @@ const GcnEventAllocationTriggers = ({
             key={instrument}
             id={`${instrument}_${filtered_instruments_triggered[instrument].triggered}`}
             clickable={permission || false}
-            className={
-              (classes as any)[
-                filtered_instruments_triggered[instrument].triggered
-              ]
-            }
+            sx={stateChipSx(
+              filtered_instruments_triggered[instrument].triggered,
+            )}
             onClick={() => {
               if (permission) {
-                setSelectedInstrument(
-                  filtered_instruments_triggered[instrument],
-                );
+                setSelectedInstrument(instrument);
               } else {
                 dispatch(
                   showNotification(
@@ -270,161 +297,91 @@ const GcnEventAllocationTriggers = ({
             }}
           />
         ))}
-      </div>
+      </Box>
       <Dialog
-        open={selectedInstrument !== null}
+        open={selectedAllocations.length > 0}
         onClose={() => setSelectedInstrument(null)}
+        slotProps={dialogSlotProps}
       >
-        <DialogTitle>Change Trigger state</DialogTitle>
-        <DialogContent>
-          <table className={classes.allocationTable}>
-            <tr>
-              <th>Allocation</th>
-              <th>Current state</th>
-              <th>Edit</th>
-            </tr>
-            {selectedInstrument?.allocation_triggered.map(
-              (allocationTrigger: any) => (
-                <tr key={allocationTrigger?.allocation?.id}>
-                  <td>
-                    {`Allocation ${allocationTrigger.allocation.id} (PI: ${allocationTrigger.allocation.pi})`}
-                  </td>
-                  <td>
-                    <Chip
-                      size="small"
-                      label={allocationTrigger.triggeredText}
-                      key="trigger"
-                      id={`${allocationTrigger?.allocation?.id}_current`}
-                      className={(classes as any)[allocationTrigger.triggered]}
-                    />
-                  </td>
-                  <td className={classes.chips}>
-                    <Chip
-                      size="small"
-                      label="Triggered"
-                      key="triggered"
-                      id={`${allocationTrigger?.allocation?.id}_triggered`}
-                      clickable
-                      className={classes.triggered}
-                      onClick={() => {
-                        putGcnTrigger({
-                          dateobs: gcnEvent.dateobs,
-                          allocationID: allocationTrigger?.allocation?.id,
-                          triggered: true,
-                        })
-                          .unwrap()
-                          .then(() => {
-                            dispatch(
-                              showNotification(
-                                "Trigger state updated successfully",
-                              ),
-                            );
-                            setSelectedInstrument(null);
-                          })
-                          .catch(() => {
-                            dispatch(
-                              showNotification(
-                                "Error updating trigger state",
-                                "error",
-                              ),
-                            );
-                          });
-                      }}
-                      style={{
-                        display:
-                          allocationTrigger?.triggered === "triggered"
-                            ? "none"
-                            : "inline-block",
-                      }}
-                    />
-                    <Chip
-                      size="small"
-                      label="Passed"
-                      key="passed"
-                      id={`${allocationTrigger?.allocation?.id}_passed`}
-                      clickable
-                      className={classes.passed}
-                      onClick={() => {
-                        putGcnTrigger({
-                          dateobs: gcnEvent.dateobs,
-                          allocationID: allocationTrigger?.allocation?.id,
-                          triggered: false,
-                        })
-                          .unwrap()
-                          .then(() => {
-                            dispatch(
-                              showNotification(
-                                "Trigger state updated successfully",
-                              ),
-                            );
-                            setSelectedInstrument(null);
-                          })
-                          .catch(() => {
-                            dispatch(
-                              showNotification(
-                                "Error updating trigger state",
-                                "error",
-                              ),
-                            );
-                          });
-                      }}
-                      style={{
-                        display:
-                          allocationTrigger?.triggered === "passed"
-                            ? "none"
-                            : "inline-block",
-                      }}
-                    />
-                    <Chip
-                      size="small"
-                      label="Not Set"
-                      key="not-set"
-                      id={`${allocationTrigger?.allocation?.id}_not-set`}
-                      clickable
-                      className={classes.not_set}
-                      onClick={() => {
-                        deleteGcnTrigger({
-                          dateobs: gcnEvent.dateobs,
-                          allocationID: allocationTrigger?.allocation?.id,
-                        })
-                          .unwrap()
-                          .then(() => {
-                            dispatch(
-                              showNotification(
-                                "Trigger state updated successfully",
-                              ),
-                            );
-                            setSelectedInstrument(null);
-                          })
-                          .catch(() => {
-                            dispatch(
-                              showNotification(
-                                "Error updating trigger state",
-                                "error",
-                              ),
-                            );
-                          });
-                      }}
-                      style={{
-                        display:
-                          allocationTrigger?.triggered === "not_set"
-                            ? "none"
-                            : "inline-block",
-                      }}
-                    />
-                  </td>
-                </tr>
-              ),
-            )}
-          </table>
+        <DialogTitle>{selectedInstrument} trigger state</DialogTitle>
+        <DialogContent sx={{ pb: 0 }}>
+          <Table size="small" sx={tableSx}>
+            <TableHead>
+              <TableRow>
+                <TableCell>Allocation</TableCell>
+                <TableCell>State</TableCell>
+                <TableCell align="right">Set to</TableCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {selectedAllocations.map((allocationTrigger: any) => {
+                const { allocation } = allocationTrigger;
+                return (
+                  <TableRow key={allocation?.id}>
+                    <TableCell>
+                      <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                        Allocation {allocation?.id}
+                      </Typography>
+                      <Typography
+                        variant="caption"
+                        component="div"
+                        color="text.secondary"
+                      >
+                        {[`PI: ${allocation?.pi}`, allocation?.proposal_id]
+                          .filter(Boolean)
+                          .join(" · ")}
+                      </Typography>
+                    </TableCell>
+                    <TableCell>
+                      <Chip
+                        size="small"
+                        label={allocationTrigger.triggeredText}
+                        id={`${allocation?.id}_current`}
+                        sx={stateChipSx(allocationTrigger.triggered)}
+                      />
+                    </TableCell>
+                    <TableCell>
+                      <Box
+                        sx={{
+                          display: "flex",
+                          justifyContent: "flex-end",
+                          gap: 0.75,
+                        }}
+                      >
+                        {STATE_OPTIONS.filter(
+                          ({ state }) => state !== allocationTrigger.triggered,
+                        ).map(({ state, idSuffix, value }) => (
+                          <Button
+                            key={state}
+                            secondary
+                            size="small"
+                            id={`${allocation?.id}_${idSuffix}`}
+                            disabled={pending}
+                            onClick={() => updateTrigger(allocation?.id, value)}
+                          >
+                            {STATE_LABELS[state]}
+                          </Button>
+                        ))}
+                      </Box>
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
+            </TableBody>
+          </Table>
         </DialogContent>
+        <DialogActions>
+          <Button secondary onClick={() => setSelectedInstrument(null)}>
+            Close
+          </Button>
+        </DialogActions>
       </Dialog>
     </>
   );
   return showTitle ? (
     <EventInfoRow label="Triggered">{content}</EventInfoRow>
   ) : (
-    <div className={classes.root}>{content}</div>
+    <Box sx={{ display: "flex", alignItems: "center" }}>{content}</Box>
   );
 };
 
