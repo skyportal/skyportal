@@ -7,6 +7,21 @@ import pytest
 from skyportal.broker_apis import lasair
 
 
+@pytest.mark.parametrize("kafka", [None, {}, {"host": "   "}])
+def test_topic_lookup_requires_a_saved_kafka_host(monkeypatch, kafka):
+    from skyportal.broker_apis import _kafka
+
+    def unexpected_lookup(*args):
+        pytest.fail("Kafka metadata requested without a host")
+
+    monkeypatch.setattr(_kafka, "list_topics", unexpected_lookup)
+    altdata = {} if kafka is None else {"kafka": kafka}
+    broker = types.SimpleNamespace(id=7, altdata=altdata)
+
+    with pytest.raises(ValueError, match="Lasair Kafka host is not configured"):
+        lasair.LASAIRBROKER.available_topics(broker)
+
+
 def test_cutouts_come_from_boom_not_lasair(monkeypatch):
     class Source:
         name = "BOOM"
