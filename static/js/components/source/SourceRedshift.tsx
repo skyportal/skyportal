@@ -13,12 +13,12 @@ import Button from "../Button";
 import { useUpdateSourceMutation } from "../../ducks/source";
 import { useGetUsersQuery } from "../../ducks/users";
 
-const REDSHIFT_TYPES = [
+export const REDSHIFT_TYPES = [
   { value: "spectroscopic", label: "Spectroscopic" },
   { value: "photometric", label: "Photometric" },
 ];
 
-const TYPE_LABELS: Record<string, string> = {
+export const TYPE_LABELS: Record<string, string> = {
   spectroscopic: "spec-z",
   photometric: "photo-z",
 };

@@ -39,6 +39,7 @@ HOST_FIELDS = (
     "dec",
     "z",
     "z_err",
+    "z_type",
     "dist_mpc",
     "sep_arcsec",
     "sep_kpc",
