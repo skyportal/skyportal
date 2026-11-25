@@ -913,7 +913,7 @@ class SourceGetQuery(BaseModel):
     )
     sourceID: str | None = Field(
         default=None,
-        description="Portion of ID or TNS name to filter on",
+        description="Portion of ID, TNS name or MPC name to filter on",
     )
     rejectedSourceIDs: list[str] | None = Field(
         default=None,
