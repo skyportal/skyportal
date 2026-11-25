@@ -1,7 +1,7 @@
 import { useGetProfileQuery } from "../../ducks/profile";
 import { useState } from "react";
 import Box from "@mui/material/Box";
-import Chip from "@mui/material/Chip";
+import Chip, { type ChipProps } from "@mui/material/Chip";
 import Dialog from "@mui/material/Dialog";
 import DialogActions from "@mui/material/DialogActions";
 import DialogContent from "@mui/material/DialogContent";
@@ -43,7 +43,7 @@ const STATE_OPTIONS = [
 ];
 
 const stateChipSx = (state: string) => (theme: Theme) => {
-  if (state === "not_set") return { fontWeight: 500 };
+  if (state === "not_set") return { fontWeight: 500, color: "text.secondary" };
   const { success, grey, common } = theme.palette;
   const green = success.main;
   const darkGrey = grey[700];
@@ -60,6 +60,15 @@ const stateChipSx = (state: string) => (theme: Theme) => {
     "&.MuiChip-clickable:hover": { background, filter: "brightness(0.9)" },
   };
 };
+
+const StateChip = ({ state, ...props }: ChipProps & { state: string }) => (
+  <Chip
+    size="small"
+    variant={state === "not_set" ? "outlined" : "filled"}
+    sx={stateChipSx(state)}
+    {...props}
+  />
+);
 
 const dialogSlotProps = {
   paper: {
@@ -270,15 +279,12 @@ const GcnEventAllocationTriggers = ({
         {...({ name: "gcn_triggers-chips" } as any)}
       >
         {Object.keys(filtered_instruments_triggered).map((instrument) => (
-          <Chip
-            size="small"
+          <StateChip
+            state={filtered_instruments_triggered[instrument].triggered}
             label={instrument}
             key={instrument}
             id={`${instrument}_${filtered_instruments_triggered[instrument].triggered}`}
             clickable={permission || false}
-            sx={stateChipSx(
-              filtered_instruments_triggered[instrument].triggered,
-            )}
             onClick={() => {
               if (permission) {
                 setSelectedInstrument(instrument);
@@ -329,11 +335,10 @@ const GcnEventAllocationTriggers = ({
                       </Typography>
                     </TableCell>
                     <TableCell>
-                      <Chip
-                        size="small"
+                      <StateChip
+                        state={allocationTrigger.triggered}
                         label={STATE_LABELS[allocationTrigger.triggered]}
                         id={`${allocation?.id}_current`}
-                        sx={stateChipSx(allocationTrigger.triggered)}
                       />
                     </TableCell>
                     <TableCell>
