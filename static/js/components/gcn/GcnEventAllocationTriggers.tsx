@@ -12,7 +12,7 @@ import TableCell from "@mui/material/TableCell";
 import TableHead from "@mui/material/TableHead";
 import TableRow from "@mui/material/TableRow";
 import Typography from "@mui/material/Typography";
-import type { Theme } from "@mui/material/styles";
+import { getContrastRatio, type Theme } from "@mui/material/styles";
 
 import { showNotification } from "baselayer/components/Notifications";
 
@@ -32,7 +32,7 @@ import EventInfoRow from "./EventInfoRow";
 
 const STATE_LABELS: Record<string, string> = {
   triggered: "Triggered",
-  passed: "Passed",
+  passed: "Skipped",
   not_set: "Not set",
 };
 
@@ -44,15 +44,16 @@ const STATE_OPTIONS = [
 
 const stateChipSx = (state: string) => (theme: Theme) => {
   if (state === "not_set") return { fontWeight: 500, color: "text.secondary" };
-  const { success, grey, common } = theme.palette;
+  const { success, error, common } = theme.palette;
   const green = success.main;
-  const darkGrey = grey[700];
+  const red =
+    getContrastRatio(error.main, common.white) >= 3 ? error.main : error.dark;
   const background =
     state === "mixed"
-      ? `linear-gradient(120deg, ${green} 50%, ${darkGrey} 50%)`
+      ? `linear-gradient(120deg, ${green} 50%, ${red} 50%)`
       : state === "triggered"
         ? green
-        : darkGrey;
+        : red;
   return {
     fontWeight: 500,
     color: common.white,
