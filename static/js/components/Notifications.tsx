@@ -13,7 +13,7 @@ import DoneAllIcon from "@mui/icons-material/DoneAll";
 import RemoveDoneIcon from "@mui/icons-material/RemoveDone";
 import DeleteSweepIcon from "@mui/icons-material/DeleteSweepOutlined";
 
-import HeaderPanel from "./HeaderPanel";
+import HeaderPanel, { HEADER_ICON_SX } from "./HeaderPanel";
 import NotificationList from "./NotificationList";
 import AlertList, { Severity, useAlerts } from "./AlertList";
 import {
@@ -101,8 +101,7 @@ const Notifications = () => {
             setAnchorEl(open ? null : event.currentTarget);
           }}
           data-testid="notificationsButton"
-          size="large"
-          sx={{ p: 0, m: 0 }}
+          sx={{ ...HEADER_ICON_SX, fontSize: 25 }}
         >
           <Badge
             badgeContent={unreadCount + alerts.unseenCount}
@@ -110,7 +109,7 @@ const Notifications = () => {
             color="error"
             data-testid="notificationsBadge"
           >
-            <NotificationsIcon fontSize="large" color="primary" />
+            <NotificationsIcon fontSize="inherit" />
           </Badge>
         </IconButton>
       </Tooltip>
