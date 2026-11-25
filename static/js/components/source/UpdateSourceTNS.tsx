@@ -1,9 +1,7 @@
 import { useState } from "react";
 
-import ErrorIcon from "@mui/icons-material/ErrorOutlineOutlined";
-import HorizontalRuleIcon from "@mui/icons-material/HorizontalRule";
 import ManageSearchIcon from "@mui/icons-material/ManageSearch";
-import Box from "@mui/material/Box";
+import Badge from "@mui/material/Badge";
 import CircularProgress from "@mui/material/CircularProgress";
 import Dialog from "@mui/material/Dialog";
 import DialogActions from "@mui/material/DialogActions";
@@ -40,59 +38,64 @@ const UpdateSourceTNS = ({ sourceId, tnsRequest }: UpdateSourceTNSProps) => {
     if (!("error" in result)) setDialogOpen(false);
   };
 
-  if (tnsRequest?.status === "pending" || tnsRequest?.status === "processing") {
-    return (
-      <Tooltip
-        title={`Looking for a TNS object within ${tnsRequest.radius}″`}
-        placement="bottom-start"
-      >
-        <CircularProgress
-          size={14}
-          thickness={5}
-          disableShrink
-          data-testid="tnsSearchInProgress"
-        />
-      </Tooltip>
-    );
+  const searching =
+    tnsRequest?.status === "pending" || tnsRequest?.status === "processing";
+  const notFound = tnsRequest?.status === "not_found";
+  const failed = tnsRequest?.status === "error";
+
+  let title = "Look for this source on TNS";
+  if (searching) {
+    title = `Looking for a TNS object within ${tnsRequest.radius}″`;
+  } else if (notFound) {
+    title = `No TNS object within ${tnsRequest.radius}″, searched on ${tnsRequest.modified.slice(0, 10)}. Click to search again.`;
+  } else if (failed) {
+    title = `TNS search failed: ${tnsRequest.error || "unknown error"}. Click to try again.`;
   }
 
   return (
-    <Box sx={{ display: "flex", alignItems: "center", gap: 0.75 }}>
-      {tnsRequest?.status === "not_found" && (
-        <Tooltip
-          title={`No TNS object within ${tnsRequest.radius}″, searched on ${tnsRequest.modified.slice(0, 10)}`}
-          placement="bottom-start"
-        >
-          <HorizontalRuleIcon
-            color="action"
-            fontSize="small"
-            data-testid="tnsNotFound"
-          />
-        </Tooltip>
-      )}
-      {tnsRequest?.status === "error" && (
-        <Tooltip
-          title={`TNS search failed: ${tnsRequest.error || "unknown error"}`}
-          placement="bottom-start"
-        >
-          <ErrorIcon
-            color="error"
-            fontSize="small"
-            data-testid="tnsSearchFailed"
-          />
-        </Tooltip>
-      )}
-      <Tooltip title="Look for this source on TNS">
-        <Button
-          variant="outlined"
-          color="primary"
-          size="small"
-          onClick={() => setDialogOpen(true)}
-          data-testid="updateTNSIconButton"
-          sx={{ py: 0, px: 0.5, minWidth: 0 }}
-        >
-          <ManageSearchIcon fontSize="small" />
-        </Button>
+    <>
+      <Tooltip title={title} placement="bottom-start">
+        <span>
+          <Badge
+            invisible={!notFound && !failed}
+            badgeContent={failed ? "!" : "–"}
+            data-testid={
+              failed ? "tnsSearchFailed" : notFound ? "tnsNotFound" : undefined
+            }
+            sx={{
+              "& .MuiBadge-badge": {
+                minWidth: 14,
+                height: 14,
+                p: 0,
+                fontSize: 10,
+                fontWeight: 700,
+                color: "common.white",
+                bgcolor: failed ? "error.main" : "grey.500",
+              },
+            }}
+          >
+            <Button
+              variant="outlined"
+              color="primary"
+              size="small"
+              disabled={searching}
+              onClick={() => setDialogOpen(true)}
+              data-testid="updateTNSIconButton"
+              sx={{ py: 0, px: 0.5, minWidth: 0 }}
+            >
+              {searching ? (
+                <CircularProgress
+                  size={16}
+                  thickness={5}
+                  disableShrink
+                  data-testid="tnsSearchInProgress"
+                />
+              ) : (
+                <ManageSearchIcon fontSize="small" />
+              )}
+            </Button>
+          </Badge>
+        </span>
       </Tooltip>
       <Dialog
         open={dialogOpen}
@@ -124,7 +127,7 @@ const UpdateSourceTNS = ({ sourceId, tnsRequest }: UpdateSourceTNSProps) => {
           </Button>
         </DialogActions>
       </Dialog>
-    </Box>
+    </>
   );
 };
 
