@@ -12,7 +12,7 @@ import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
 import AddIcon from "@mui/icons-material/Add";
 import Box from "@mui/material/Box";
-import { makeStyles } from "tss-react/mui";
+import type { Theme } from "@mui/material/styles";
 
 import { showNotification } from "baselayer/components/Notifications";
 import { useAppDispatch } from "../types/hooks";
@@ -24,60 +24,166 @@ import {
   useUpdateTagOptionMutation,
   useDeleteTagOptionMutation,
 } from "../ducks/objectTags";
-import { getContrastColor } from "./ObjectTags";
+import { DEFAULT_TAG_COLOR, getContrastColor } from "./ObjectTags";
+import softButtonsSx from "./softButtons";
 import { useHasPermission } from "../ducks/profile";
 
-const useStyles = makeStyles()((theme) => ({
-  root: {
-    padding: theme.spacing(2),
+const TAG_COLORS = [
+  "#e57373",
+  "#f06292",
+  "#ba68c8",
+  "#9575cd",
+  "#7986cb",
+  "#64b5f6",
+  "#4dd0e1",
+  "#4db6ac",
+  "#81c784",
+  "#aed581",
+  "#ffd54f",
+  "#ffb74d",
+  "#a1887f",
+  "#90a4ae",
+  DEFAULT_TAG_COLOR,
+];
+
+const dialogPaperProps = {
+  paper: {
+    sx: (theme: Theme) => ({ borderRadius: "12px", ...softButtonsSx(theme) }),
   },
-  actionButtons: {
-    display: "flex",
-    flexFlow: "row wrap",
-    gap: "0.2rem",
-  },
-  manage: {
-    display: "flex",
-    flexDirection: "row",
-    gap: "0.2rem",
-  },
-  colorChip: {
-    minWidth: 60,
-    height: 24,
-  },
-  editDialog: {
-    minWidth: 400,
-  },
-  formControl: {
-    minWidth: 200,
-    marginTop: theme.spacing(1),
-    marginBottom: theme.spacing(1),
-  },
-  colorPreview: {
-    width: 24,
-    height: 24,
-    borderRadius: 4,
-    border: "1px solid #ccc",
-    marginRight: theme.spacing(1),
-  },
-  colorPicker: {
-    display: "flex",
-    alignItems: "center",
-    gap: theme.spacing(2),
-    marginBottom: theme.spacing(2),
-  },
-}));
+};
+
+interface TagFormProps {
+  form: { name: string; color: string };
+  setForm: (form: { name: string; color: string }) => void;
+  disabled: boolean;
+  prefix: "create" | "edit";
+}
+
+const TagForm = ({ form, setForm, disabled, prefix }: TagFormProps) => (
+  <Box sx={{ display: "flex", flexDirection: "column", gap: 2.5 }}>
+    <TextField
+      label="Name"
+      value={form.name}
+      onChange={(e) => setForm({ ...form, name: e.target.value })}
+      fullWidth
+      size="small"
+      disabled={disabled}
+      helperText="Letters and numbers only"
+      slotProps={{
+        htmlInput: { "data-testid": `${prefix}-tag-name-input` },
+      }}
+    />
+    <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
+      <Typography variant="subtitle2">Color</Typography>
+      <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1 }}>
+        {TAG_COLORS.map((color) => {
+          const selected = form.color.toLowerCase() === color;
+          return (
+            <Box
+              key={color}
+              component="button"
+              type="button"
+              aria-label={color}
+              disabled={disabled}
+              onClick={() => setForm({ ...form, color })}
+              sx={{
+                width: 28,
+                height: 28,
+                p: 0,
+                borderRadius: "50%",
+                bgcolor: color,
+                border: 1,
+                borderColor: "divider",
+                cursor: "pointer",
+                outline: selected ? "2px solid" : "none",
+                outlineColor: "primary.main",
+                outlineOffset: "2px",
+                transition: "transform 0.1s",
+                "&:hover": { transform: "scale(1.1)" },
+              }}
+            />
+          );
+        })}
+        <Box
+          sx={{
+            width: 28,
+            height: 28,
+            p: "3px",
+            borderRadius: "50%",
+            background:
+              "conic-gradient(#e57373, #ffd54f, #81c784, #4dd0e1, #7986cb, #ba68c8, #e57373)",
+            outline: TAG_COLORS.includes(form.color.toLowerCase())
+              ? "none"
+              : "2px solid",
+            outlineColor: "primary.main",
+            outlineOffset: "2px",
+          }}
+        >
+          <Box
+            component="input"
+            type="color"
+            title="Custom color"
+            value={form.color}
+            onChange={(e: any) => setForm({ ...form, color: e.target.value })}
+            disabled={disabled}
+            data-testid={`${prefix}-tag-color-input`}
+            sx={{
+              display: "block",
+              width: "100%",
+              height: "100%",
+              p: 0,
+              border: 2,
+              borderColor: "background.paper",
+              borderRadius: "50%",
+              bgcolor: "transparent",
+              cursor: "pointer",
+              overflow: "hidden",
+              "&::-webkit-color-swatch-wrapper": { p: 0 },
+              "&::-webkit-color-swatch": { border: "none" },
+              "&::-moz-color-swatch": { border: "none" },
+            }}
+          />
+        </Box>
+      </Box>
+    </Box>
+    <Box
+      sx={{
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        py: 2,
+        borderRadius: "8px",
+        bgcolor: "action.hover",
+      }}
+    >
+      <Chip
+        label={form.name || "Preview"}
+        sx={{
+          bgcolor: form.color,
+          color: getContrastColor(form.color),
+          fontWeight: 500,
+        }}
+        data-testid={`${prefix}-tag-preview-chip`}
+      />
+    </Box>
+  </Box>
+);
 
 const TagManagement = () => {
-  const { classes } = useStyles();
   const dispatch = useAppDispatch();
   const canManageSources = useHasPermission("Manage sources");
 
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [editingTag, setEditingTag] = useState<any>(null);
-  const [editForm, setEditForm] = useState({ name: "", color: "#dddfe2" });
+  const [editForm, setEditForm] = useState({
+    name: "",
+    color: DEFAULT_TAG_COLOR,
+  });
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
-  const [createForm, setCreateForm] = useState({ name: "", color: "#dddfe2" });
+  const [createForm, setCreateForm] = useState({
+    name: "",
+    color: DEFAULT_TAG_COLOR,
+  });
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [tagToDelete, setTagToDelete] = useState<any>(null);
   const [loading, setLoading] = useState(false);
@@ -91,13 +197,13 @@ const TagManagement = () => {
     setEditingTag(tag);
     setEditForm({
       name: tag.name,
-      color: tag.color || "#dddfe2",
+      color: tag.color || DEFAULT_TAG_COLOR,
     });
     setEditDialogOpen(true);
   };
 
   const handleCreateClick = () => {
-    setCreateForm({ name: "", color: "#dddfe2" });
+    setCreateForm({ name: "", color: DEFAULT_TAG_COLOR });
     setCreateDialogOpen(true);
   };
 
@@ -115,7 +221,7 @@ const TagManagement = () => {
       }).unwrap();
       dispatch(showNotification("Tag created successfully"));
       setCreateDialogOpen(false);
-      setCreateForm({ name: "", color: "#dddfe2" });
+      setCreateForm({ name: "", color: DEFAULT_TAG_COLOR });
     } catch (error) {
       dispatch(showNotification("Failed to create tag", "error"));
     } finally {
@@ -186,10 +292,11 @@ const TagManagement = () => {
         return (
           <Chip
             label={tag.name}
-            className={classes.colorChip}
-            style={{
-              backgroundColor: tag.color || "#dddfe2",
-              color: getContrastColor(tag.color || "#dddfe2"),
+            size="small"
+            sx={{
+              minWidth: 60,
+              bgcolor: tag.color || DEFAULT_TAG_COLOR,
+              color: getContrastColor(tag.color || DEFAULT_TAG_COLOR),
             }}
           />
         );
@@ -203,9 +310,15 @@ const TagManagement = () => {
       sortable: false,
       filterable: false,
       renderCell: (params: any) => (
-        <div
-          className={classes.colorPreview}
-          style={{ backgroundColor: params.row.color || "#dddfe2" }}
+        <Box
+          sx={{
+            width: 20,
+            height: 20,
+            borderRadius: "50%",
+            border: 1,
+            borderColor: "divider",
+            bgcolor: params.row.color || DEFAULT_TAG_COLOR,
+          }}
         />
       ),
     },
@@ -228,7 +341,7 @@ const TagManagement = () => {
         const tag = params.row;
         if (!canManageSources) return null;
         return (
-          <div className={classes.manage}>
+          <Box sx={{ display: "flex", gap: 0.25 }}>
             <Tooltip title="Edit tag">
               <IconButton
                 size="small"
@@ -250,7 +363,7 @@ const TagManagement = () => {
                 <DeleteIcon />
               </IconButton>
             </Tooltip>
-          </div>
+          </Box>
         );
       },
     },
@@ -275,89 +388,47 @@ const TagManagement = () => {
   }
 
   return (
-    <div className={classes.root} data-testid="tag-management-page">
-      <Typography variant="h6" style={{ marginBottom: "0.5rem" }}>
+    <Box sx={{ p: 2 }} data-testid="tag-management-page">
+      <Typography variant="h6" sx={{ mb: 1 }}>
         Source Tags Management
       </Typography>
-      <Box sx={{ width: "100%" }}>
-        <StyledDataGrid
-          autoHeight
-          rows={tagOptions}
-          columns={columns}
-          getRowId={(row: any) => row.id}
-          loading={loading}
-          slots={{ toolbar: CustomToolbar }}
-          showToolbar
-        />
-      </Box>
+      <StyledDataGrid
+        autoHeight
+        rows={tagOptions}
+        columns={columns}
+        getRowId={(row: any) => row.id}
+        loading={loading}
+        slots={{ toolbar: CustomToolbar }}
+        showToolbar
+      />
       <Dialog
         open={editDialogOpen}
         onClose={() => setEditDialogOpen(false)}
-        className={classes.editDialog}
-        maxWidth="sm"
+        maxWidth="xs"
         fullWidth
+        slotProps={dialogPaperProps}
         data-testid="edit-tag-dialog"
       >
         <DialogTitle>Edit tag</DialogTitle>
-        <DialogContent>
-          <TextField
-            label="Tag Name"
-            value={editForm.name}
-            onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
-            fullWidth
-            margin="normal"
-            variant="outlined"
+        <DialogContent sx={{ pt: "0.5rem !important" }}>
+          <TagForm
+            form={editForm}
+            setForm={setEditForm}
             disabled={loading}
-            slotProps={{
-              htmlInput: { "data-testid": "edit-tag-name-input" },
-            }}
+            prefix="edit"
           />
-
-          <div className={classes.colorPicker}>
-            <Typography variant="body2">Color:</Typography>
-            <input
-              type="color"
-              value={editForm.color}
-              onChange={(e) =>
-                setEditForm({ ...editForm, color: e.target.value })
-              }
-              data-testid="edit-tag-color-input"
-              disabled={loading}
-              style={{
-                width: 40,
-                height: 40,
-                border: "none",
-                borderRadius: "4px",
-                cursor: "pointer",
-              }}
-            />
-            <Typography variant="body2">{editForm.color}</Typography>
-          </div>
-
-          <div>
-            <Typography variant="subtitle2">Preview:</Typography>
-            <Chip
-              label={editForm.name || "Tag Preview"}
-              style={{
-                backgroundColor: editForm.color,
-                color: getContrastColor(editForm.color),
-                marginTop: 8,
-              }}
-              data-testid="edit-tag-preview-chip"
-            />
-          </div>
         </DialogContent>
-        <DialogActions>
+        <DialogActions sx={{ px: 3, pb: 2 }}>
           <Button
+            secondary
             onClick={() => setEditDialogOpen(false)}
-            color="secondary"
             disabled={loading}
           >
             Cancel
           </Button>
           <Button
+            primary
             onClick={handleEditSave}
-            color="primary"
             disabled={loading}
             data-testid="edit-tag-save-button"
           >
@@ -369,74 +440,31 @@ const TagManagement = () => {
       <Dialog
         open={createDialogOpen}
         onClose={() => setCreateDialogOpen(false)}
-        className={classes.editDialog}
-        maxWidth="sm"
+        maxWidth="xs"
         fullWidth
+        slotProps={dialogPaperProps}
         data-testid="create-tag-dialog"
       >
-        <DialogTitle>Create new tag</DialogTitle>
-        <DialogContent>
-          <TextField
-            label="Tag Name"
-            value={createForm.name}
-            onChange={(e) =>
-              setCreateForm({ ...createForm, name: e.target.value })
-            }
-            fullWidth
-            margin="normal"
-            variant="outlined"
+        <DialogTitle>New tag</DialogTitle>
+        <DialogContent sx={{ pt: "0.5rem !important" }}>
+          <TagForm
+            form={createForm}
+            setForm={setCreateForm}
             disabled={loading}
-            helperText="Only letters and numbers, no spaces or special characters"
-            slotProps={{
-              htmlInput: { "data-testid": "create-tag-name-input" },
-            }}
+            prefix="create"
           />
-
-          <div className={classes.colorPicker}>
-            <Typography variant="body2">Color:</Typography>
-            <input
-              type="color"
-              value={createForm.color}
-              onChange={(e) =>
-                setCreateForm({ ...createForm, color: e.target.value })
-              }
-              disabled={loading}
-              data-testid="create-tag-color-input"
-              style={{
-                width: 40,
-                height: 40,
-                border: "none",
-                borderRadius: "4px",
-                cursor: "pointer",
-              }}
-            />
-            <Typography variant="body2">{createForm.color}</Typography>
-          </div>
-
-          <div style={{ marginTop: "16px" }}>
-            <Typography variant="subtitle2">Preview:</Typography>
-            <Chip
-              label={createForm.name || "Tag Preview"}
-              style={{
-                backgroundColor: createForm.color,
-                color: getContrastColor(createForm.color),
-                marginTop: 8,
-              }}
-              data-testid="create-tag-preview-chip"
-            />
-          </div>
         </DialogContent>
-        <DialogActions>
+        <DialogActions sx={{ px: 3, pb: 2 }}>
           <Button
+            secondary
             onClick={() => setCreateDialogOpen(false)}
-            color="secondary"
             disabled={loading}
           >
             Cancel
           </Button>
           <Button
+            primary
             onClick={handleCreateSave}
-            color="primary"
             disabled={loading}
             data-testid="create-tag-save-button"
           >
@@ -448,17 +476,19 @@ const TagManagement = () => {
       <Dialog
         open={deleteDialogOpen}
         onClose={closeDeleteDialog}
-        maxWidth="sm"
-        data-testid="delete-tag-dialog"
+        maxWidth="xs"
         fullWidth
+        slotProps={dialogPaperProps}
+        data-testid="delete-tag-dialog"
       >
         <DialogTitle data-testid="delete-tag-title">
           Delete tag: {tagToDelete?.name}
         </DialogTitle>
-        <DialogContent>
+        <DialogContent
+          sx={{ display: "flex", flexDirection: "column", gap: 1.5 }}
+        >
           <Typography
             variant="body1"
-            gutterBottom
             data-testid="delete-tag-confirmation-text"
           >
             Are you sure you want to delete the tag{" "}
@@ -467,25 +497,25 @@ const TagManagement = () => {
           <Typography
             variant="body2"
             color="error"
-            style={{ marginTop: "12px" }}
             data-testid="delete-tag-warning-text"
           >
             <strong>Warning:</strong> Deleting this tag will also remove all tag
             associations with sources.
           </Typography>
         </DialogContent>
-        <DialogActions>
+        <DialogActions sx={{ px: 3, pb: 2 }}>
           <Button
+            secondary
             onClick={closeDeleteDialog}
-            color="secondary"
             disabled={loading}
             data-testid="delete-tag-cancel-button"
           >
             Cancel
           </Button>
           <Button
+            primary
+            color="error"
             onClick={handleDeleteConfirm}
-            color="primary"
             disabled={loading}
             data-testid="delete-tag-confirm-button"
           >
@@ -493,7 +523,7 @@ const TagManagement = () => {
           </Button>
         </DialogActions>
       </Dialog>
-    </div>
+    </Box>
   );
 };
 

@@ -26,7 +26,7 @@ import {
 } from "../ducks/objectTags";
 import { useGetGroupsQuery } from "../ducks/groups";
 
-const DEFAULT_TAG_COLOR = "#dddfe2";
+export const DEFAULT_TAG_COLOR = "#dddfe2";
 
 export const getContrastColor = (hexColor: string) => {
   if (!hexColor || hexColor.length !== 7) return "#000000";
