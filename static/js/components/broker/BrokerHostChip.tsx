@@ -101,7 +101,7 @@ export const HostChip = ({
         sx={
           host.primary
             ? (theme) => {
-                const { main, dark } = theme.palette.primary;
+                const { main, dark } = theme.palette.success;
                 return {
                   bgcolor: alpha(main, 0.16),
                   color:
