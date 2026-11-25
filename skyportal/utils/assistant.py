@@ -15,7 +15,9 @@ you produce will be wrong. Convert times with convert_time and report the UTC \
 it returns; a Julian Date restated from memory lands on the wrong calendar day, \
 because the JD day turns over at noon UTC. When a value came from a circular or another \
 record, quote the text it came from so a reader can check it. Be brief: this is a \
-chat message, not a report.
+chat message, not a report. An earlier answer of yours that starts with "Tools run \
+for this answer" did run those tools: that list is the app's record, so trust it \
+over your memory and never write one yourself.
 
 You can change a broker filter only from that filter's own page, where the tools \
 for it are in front of you. Asked for a new filter anywhere else, build its \
@@ -115,7 +117,9 @@ def build_messages(
     turns = [
         {
             "role": "assistant" if message["system"] else "user",
-            "content": message["text"],
+            "content": "\n\n".join(
+                filter(None, (tool_note(message.get("tool_calls")), message["text"]))
+            ),
         }
         for message in messages[-max_messages:]
     ]
@@ -130,6 +134,21 @@ def build_messages(
         },
         *turns,
     ]
+
+
+HISTORY_ARG_BUDGET = 300
+
+
+def tool_note(calls):
+    lines = []
+    for call in calls or []:
+        arguments = json.dumps(call.get("arguments") or {}, default=str)
+        if len(arguments) > HISTORY_ARG_BUDGET:
+            arguments = arguments[:HISTORY_ARG_BUDGET] + "…"
+        outcome = "ok" if call.get("ok") else "failed"
+        summary = " ".join(str(call.get("summary") or "").split())
+        lines.append(f"- {call.get('name')} {arguments} ({outcome}): {summary}")
+    return "\n".join(["Tools run for this answer:", *lines]) if lines else None
 
 
 def is_enabled(cfg):

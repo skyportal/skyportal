@@ -572,7 +572,12 @@ def conversation_of(session, user_id, channel, up_to_id=None):
         session.scalars(query.order_by(AssistantMessage.created_at)).unique().all()
     )
     return [
-        {"text": message.text, "system": bool(message.system)} for message in messages
+        {
+            "text": message.text,
+            "system": bool(message.system),
+            "tool_calls": message.tool_calls,
+        }
+        for message in messages
     ]
 
 
