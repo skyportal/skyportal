@@ -1,6 +1,7 @@
 import { useState } from "react";
 import Box from "@mui/material/Box";
 import Chip from "@mui/material/Chip";
+import { alpha } from "@mui/material/styles";
 
 import { showNotification } from "baselayer/components/Notifications";
 import { useAppDispatch } from "../../types/hooks";
@@ -73,14 +74,16 @@ const GcnTags = ({ gcnEvent, addTags = true }: GcnTagsProps) => {
           key={tag}
           size="small"
           label={tag}
-          {...(links[tag]
-            ? {
-                component: "a",
-                href: links[tag],
-                target: "_blank",
-                clickable: true,
-              }
-            : { sx: { backgroundColor: tagColors[tag] } })}
+          {...(links[tag] && {
+            component: "a",
+            href: links[tag],
+            target: "_blank",
+            clickable: true,
+          })}
+          sx={(theme) => ({
+            backgroundColor:
+              tagColors[tag] ?? alpha(theme.palette.text.primary, 0.08),
+          })}
           {...(permission && {
             onDelete: (event: any) => {
               event.preventDefault();
