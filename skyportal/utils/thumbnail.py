@@ -34,8 +34,18 @@ def get_thumbnail_header(thumb_type):
     header = {
         "ls": "LEGACY SURVEY DR10",
         "ps1": "PANSTARRS DR2",
+        "sm": "SKYMAPPER DR4",
     }
     return header.get(thumb_type, thumb_type.upper())
+
+
+def is_placeholder(public_url):
+    return (
+        not public_url
+        or public_url == "#"
+        or "outside_survey" in public_url
+        or "currently_unavailable" in public_url
+    )
 
 
 def latest_thumbnails(thumbnails):

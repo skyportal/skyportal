@@ -1,10 +1,10 @@
 import { useGetProfileQuery } from "../../../ducks/profile";
-import { makeStyles } from "tss-react/mui";
+import Box from "@mui/material/Box";
 import CircularProgress from "@mui/material/CircularProgress";
 import DeleteIcon from "@mui/icons-material/Delete";
 import VisibilityIcon from "@mui/icons-material/Visibility";
 import Link from "@mui/material/Link";
-import Button from "@mui/material/Button";
+import IconButton from "@mui/material/IconButton";
 import Tooltip from "@mui/material/Tooltip";
 import InfoIcon from "@mui/icons-material/InfoOutlined";
 import moment from "moment";
@@ -12,53 +12,13 @@ import {
   useDeletePublicSourcePageMutation,
   useFetchPublicSourcePagesQuery,
 } from "../../../ducks/public_pages/public_source_page";
-
-const useStyles = makeStyles()(() => ({
-  versionHistory: {
-    width: "100%",
-    padding: "0 0.3rem",
-  },
-  versionHistoryLine: {
-    border: "1px solid #e0e0e0",
-    display: "flex",
-    padding: "0.25rem 0.5rem",
-    justifyContent: "space-between",
-    alignItems: "center",
-    borderRadius: "0.5rem",
-    marginBottom: "0.3rem",
-  },
-  dateAndRelease: {
-    display: "flex",
-    flexDirection: "column",
-  },
-  date: {
-    display: "flex",
-    gap: "1rem",
-  },
-  infoIcon: {
-    display: "flex",
-    alignItems: "center",
-  },
-  release: {
-    fontSize: "0.8rem",
-  },
-  actions: {
-    display: "flex",
-  },
-  noVersion: {
-    display: "flex",
-    justifyContent: "center",
-    padding: "1rem 0",
-    color: "gray",
-  },
-}));
+import { userLabel } from "../../../utils/format";
 
 interface SourcePublishHistoryProps {
   sourceId: string;
 }
 
 const SourcePublishHistory = ({ sourceId }: SourcePublishHistoryProps) => {
-  const { classes: styles } = useStyles();
   const manageSourcesAccess =
     useGetProfileQuery().data?.permissions?.includes("Manage sources");
   const { data: versions = [], isLoading: loading } =
@@ -68,80 +28,113 @@ const SourcePublishHistory = ({ sourceId }: SourcePublishHistoryProps) => {
     };
   const [deletePublicSourcePage] = useDeletePublicSourcePageMutation();
 
-  const deleteVersion = (id: number) => {
-    deletePublicSourcePage(id);
-  };
+  if (versions.length === 0) {
+    return (
+      <Box
+        sx={{
+          display: "flex",
+          justifyContent: "center",
+          py: 2,
+          color: "text.secondary",
+        }}
+      >
+        {loading ? (
+          <CircularProgress size={24} />
+        ) : (
+          "No public page available yet!"
+        )}
+      </Box>
+    );
+  }
 
   return (
-    <div className={styles.versionHistory}>
-      {versions.length > 0 ? (
-        versions.map((version) => {
-          return (
-            <div
-              className={styles.versionHistoryLine}
-              key={`version_${version.id}}`}
+    <Box sx={{ display: "flex", flexDirection: "column", gap: 0.5, px: 0.5 }}>
+      {versions.map((version) => (
+        <Box
+          key={`version_${version.id}`}
+          sx={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            gap: 1,
+            border: 1,
+            borderColor: "divider",
+            borderRadius: 2,
+            py: 0.5,
+            px: 1,
+          }}
+        >
+          <Box sx={{ minWidth: 0 }}>
+            <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+              {moment(version.created_at).format("MM/DD/YY HH:mm")} UTC
+              <Tooltip
+                title={
+                  <Box sx={{ display: "flex", flexDirection: "column" }}>
+                    <span>Photometry: {version.options.photometry}</span>
+                    <span>Spectroscopy: {version.options.spectroscopy}</span>
+                    <span>
+                      Classifications: {version.options.classifications}
+                    </span>
+                  </Box>
+                }
+                placement="right"
+              >
+                <InfoIcon fontSize="small" color="primary" />
+              </Tooltip>
+            </Box>
+            <Box
+              sx={{
+                display: "flex",
+                flexWrap: "wrap",
+                columnGap: 1,
+                fontSize: "0.8rem",
+                color: "text.secondary",
+              }}
             >
-              <div className={styles.dateAndRelease}>
-                <div className={styles.date}>
-                  {moment(version.created_at).format("MM/DD/YY HH:mm")} UTC
-                  <Tooltip
-                    title={
-                      <>
-                        Photometry: {version.options.photometry} <br />
-                        Spectroscopy: {version.options.spectroscopy} <br />
-                        Classifications: {version.options.classifications}
-                      </>
-                    }
-                    placement="right"
-                  >
-                    <div className={styles.infoIcon}>
-                      <InfoIcon fontSize="small" color="primary" />
-                    </div>
-                  </Tooltip>
-                </div>
-                {version.release_link_name ? (
-                  <Link
-                    href={`/public/releases/${version.release_link_name}`}
-                    className={styles.release}
-                    target="_blank"
-                    underline="hover"
-                  >
-                    {version.release_link_name}
-                  </Link>
-                ) : (
-                  <div className={styles.release}>No release</div>
-                )}
-              </div>
-              <div className={styles.actions}>
-                <Button
-                  href={`/public${
-                    version.release_link_name
-                      ? `/releases/${version.release_link_name}`
-                      : ""
-                  }/sources/${sourceId}/version/${version?.hash}`}
+              {version.created_by && (
+                <span>by {userLabel(version.created_by)}</span>
+              )}
+              {version.release_link_name ? (
+                <Link
+                  href={`/public/releases/${version.release_link_name}`}
                   target="_blank"
+                  underline="hover"
                 >
-                  <VisibilityIcon />
-                </Button>
-                {manageSourcesAccess && (
-                  <Button onClick={() => deleteVersion(version.id)}>
-                    <DeleteIcon />
-                  </Button>
-                )}
-              </div>
-            </div>
-          );
-        })
-      ) : (
-        <div className={styles.noVersion}>
-          {loading ? (
-            <CircularProgress size={24} />
-          ) : (
-            <div>No public page available yet!</div>
-          )}
-        </div>
-      )}
-    </div>
+                  {version.release_link_name}
+                </Link>
+              ) : (
+                <span>No release</span>
+              )}
+            </Box>
+          </Box>
+          <Box sx={{ display: "flex", flexShrink: 0 }}>
+            <Tooltip title="Open">
+              <IconButton
+                href={`/public${
+                  version.release_link_name
+                    ? `/releases/${version.release_link_name}`
+                    : ""
+                }/sources/${sourceId}/version/${version?.hash}`}
+                target="_blank"
+                color="primary"
+              >
+                <VisibilityIcon />
+              </IconButton>
+            </Tooltip>
+            {manageSourcesAccess && (
+              <Tooltip title="Delete">
+                <IconButton
+                  onClick={() => deletePublicSourcePage(version.id)}
+                  color="primary"
+                >
+                  <DeleteIcon />
+                </IconButton>
+              </Tooltip>
+            )}
+          </Box>
+        </Box>
+      ))}
+    </Box>
   );
 };
 

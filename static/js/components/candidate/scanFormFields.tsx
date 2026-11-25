@@ -295,7 +295,21 @@ export const FilterSelect = ({
     renderOption={({ key, ...optionProps }, filter: any, { selected }) => (
       <li key={key} {...optionProps}>
         <Checkbox size="small" checked={selected} sx={{ p: 0, mr: 1 }} />
-        {filter.name}
+        <Box
+          component="span"
+          sx={{ color: filter.active === false ? "text.disabled" : undefined }}
+        >
+          {filter.name}
+        </Box>
+        {filter.active === false && (
+          <Typography
+            variant="caption"
+            color="text.secondary"
+            sx={{ ml: "auto", pl: 2 }}
+          >
+            Deactivated
+          </Typography>
+        )}
       </li>
     )}
     renderValue={(selected: any[], getItemProps) => (

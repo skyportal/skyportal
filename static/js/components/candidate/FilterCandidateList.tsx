@@ -191,6 +191,7 @@ const FilterCandidateList = ({
   );
   const [moreFiltersOpen, setMoreFiltersOpen] = useState(false);
   const [searchCount, setSearchCount] = useState(0);
+  const [searchedFiltersKey, setSearchedFiltersKey] = useState("");
 
   const [gcnEvent, setGcnEvent] = useState<any>(null);
   const { data: gcnEvents } = useGetGcnEventsQuery(gcnEventsParams) as {
@@ -344,6 +345,21 @@ const FilterCandidateList = ({
         }
       : null;
     dispatch(setCandidatesAnnotationSortOptions(sorting));
+    const searchedFilters =
+      filterIDs.length > 0
+        ? selectableFilters.filter((f: any) => filterIDs.includes(f.id))
+        : allFilters.filter((f: any) => formData.groupIDs.includes(f.group_id));
+    const searchedKey = searchedFilters.map((f: any) => f.id).join(",");
+    if (searchedKey !== searchedFiltersKey) {
+      setSearchedFiltersKey(searchedKey);
+      setScanView(
+        selectedScanningProfile?.scanView === "moving" ||
+          (searchedFilters.length > 0 &&
+            searchedFilters.every((f: any) => f.moving_objects))
+          ? "moving"
+          : "objects",
+      );
+    }
     setSearchCount(searchCount + 1);
     setMoreFiltersOpen(false);
     selectGroups(
