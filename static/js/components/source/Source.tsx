@@ -657,12 +657,6 @@ const SourceContent = ({ source }: SourceContentProps) => {
               <div className={classes.header}>
                 {!isReadOnly && <FavoritesButton sourceID={source.id} />}
                 <h6 className={classes.name}>{source.id}</h6>
-                {source.associated_objs?.length > 0 && (
-                  <AssociatedObjs
-                    sourceId={source.id}
-                    objs={source.associated_objs}
-                  />
-                )}
                 <SourceAcknowledgment obj_id={source.id} />
                 <div className={classes.sourceCandidates}>
                   <SourceCandidatesHistory
@@ -730,10 +724,20 @@ const SourceContent = ({ source }: SourceContentProps) => {
                   <FieldLabel>T0</FieldLabel>
                   <UpdateSourceT0 source={source} readOnly={isReadOnly} />
                 </div>
-                <div>
-                  <FieldLabel>Aliases</FieldLabel>
-                  <SourceAlias source={source} readOnly={isReadOnly} />
-                </div>
+              </div>
+              <div>
+                <FieldLabel>Aliases</FieldLabel>
+                <SourceAlias
+                  source={source}
+                  readOnly={isReadOnly}
+                  emptyLabel={
+                    source.associated_objs?.length > 0 ? "Add" : "None"
+                  }
+                >
+                  {source.associated_objs?.length > 0 && (
+                    <AssociatedObjs objs={source.associated_objs} />
+                  )}
+                </SourceAlias>
               </div>
             </div>
             <div className={classes.fieldRow}>

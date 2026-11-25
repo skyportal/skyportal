@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { type ReactNode, useState } from "react";
 import Box from "@mui/material/Box";
 import Chip from "@mui/material/Chip";
 import TextField from "@mui/material/TextField";
@@ -15,9 +15,16 @@ interface SourceAliasProps {
     alias?: string[] | null;
   };
   readOnly?: boolean;
+  emptyLabel?: string;
+  children?: ReactNode;
 }
 
-const SourceAlias = ({ source, readOnly = false }: SourceAliasProps) => {
+const SourceAlias = ({
+  source,
+  readOnly = false,
+  emptyLabel = "None",
+  children,
+}: SourceAliasProps) => {
   const dispatch = useAppDispatch();
   const [updateSource] = useUpdateSourceMutation();
   const [open, setOpen] = useState(false);
@@ -71,10 +78,11 @@ const SourceAlias = ({ source, readOnly = false }: SourceAliasProps) => {
             data-testid="aliasChip"
             variant={a ? "filled" : "outlined"}
             sx={a ? undefined : emptyChipSx}
-            label={a ?? "None"}
+            label={a ?? emptyLabel}
             {...(readOnly ? {} : { onClick: openEditor })}
           />
         ))}
+        {children}
       </Box>
       <EditDialog
         open={open}
