@@ -1,8 +1,6 @@
 import { useState } from "react";
-import AddIcon from "@mui/icons-material/Add";
 import Box from "@mui/material/Box";
 import Chip from "@mui/material/Chip";
-import IconButton from "@mui/material/IconButton";
 import TextField from "@mui/material/TextField";
 import Tooltip from "@mui/material/Tooltip";
 
@@ -10,26 +8,27 @@ import { showNotification } from "baselayer/components/Notifications";
 import { useAppDispatch } from "../../types/hooks";
 import Button from "../Button";
 import { useUpdateSourceMutation } from "../../ducks/source";
-import FieldLabel from "./FieldLabel";
-import EditDialog from "./EditDialog";
+import EditDialog, { emptyChipSx } from "./EditDialog";
 
 interface SourceAliasProps {
   source: {
     id: string;
-    alias?: string[];
+    alias?: string[] | null;
   };
+  readOnly?: boolean;
 }
 
-const SourceAlias = ({ source }: SourceAliasProps) => {
+const SourceAlias = ({ source, readOnly = false }: SourceAliasProps) => {
   const dispatch = useAppDispatch();
   const [updateSource] = useUpdateSourceMutation();
   const [open, setOpen] = useState(false);
   const [alias, setAlias] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const aliases = source.alias || [];
+  const aliases = source.alias ?? [];
   const newAlias = alias.trim();
   const duplicate = aliases.includes(newAlias);
+  const invalid = isSubmitting || !newAlias || duplicate;
 
   const save = async (aliasList: string[], message: string) => {
     setIsSubmitting(true);
@@ -53,74 +52,70 @@ const SourceAlias = ({ source }: SourceAliasProps) => {
 
   return (
     <>
-      <Box
-        sx={{
-          display: "flex",
-          flexWrap: "wrap",
-          alignItems: "center",
-          gap: 0.75,
-        }}
-      >
-        <FieldLabel>Aliases</FieldLabel>
-        {aliases.length === 0 && (
-          <Box component="span" sx={{ fontStyle: "italic", opacity: 0.6 }}>
-            none
-          </Box>
-        )}
-        {aliases.map((a, idx) => (
-          <Chip
-            key={`${a}-${idx}`}
-            label={a}
-            size="small"
-            variant="outlined"
-            sx={{ maxWidth: "100%" }}
-            onDelete={() =>
-              save(
-                aliases.filter((other) => other !== a),
-                "Source alias removed successfully.",
-              )
-            }
-          />
-        ))}
-        <Tooltip title="Add alias">
-          <IconButton
-            data-testid="updateAliasIconButton"
-            size="small"
-            onClick={() => {
-              setAlias("");
-              setOpen(true);
-            }}
-            sx={{
-              opacity: 0.5,
-              transition: "opacity 0.2s",
-              "&:hover": { opacity: 1 },
-            }}
-          >
-            <AddIcon fontSize="small" />
-          </IconButton>
-        </Tooltip>
-      </Box>
+      <Tooltip title={aliases.length > 1 ? aliases.join(", ") : ""}>
+        <Chip
+          size="small"
+          data-testid="aliasChip"
+          variant={aliases.length ? "filled" : "outlined"}
+          sx={aliases.length ? undefined : emptyChipSx}
+          label={
+            aliases.length
+              ? `${aliases[0]}${aliases.length > 1 ? ` +${aliases.length - 1}` : ""}`
+              : "None"
+          }
+          {...(readOnly
+            ? {}
+            : {
+                onClick: () => {
+                  setAlias("");
+                  setOpen(true);
+                },
+              })}
+        />
+      </Tooltip>
       <EditDialog
         open={open}
         onClose={() => setOpen(false)}
-        title="Add alias"
+        title="Aliases"
+        description="Other names this source is known by"
         actions={
           <Button
             primary
             onClick={add}
-            disabled={isSubmitting || !newAlias || duplicate}
+            disabled={invalid}
             data-testid="addAliasSubmitButton"
           >
             Add
           </Button>
         }
       >
+        {aliases.length > 0 && (
+          <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.75 }}>
+            {aliases.map((a) => (
+              <Chip
+                key={a}
+                label={a}
+                size="small"
+                disabled={isSubmitting}
+                onDelete={() =>
+                  save(
+                    aliases.filter((other) => other !== a),
+                    "Source alias removed successfully.",
+                  )
+                }
+              />
+            ))}
+          </Box>
+        )}
         <TextField
           data-testid="addAliasTextfield"
           size="small"
-          label="Alias"
+          label="New alias"
           value={alias}
           onChange={(e) => setAlias(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" && !invalid) add();
+          }}
           error={duplicate}
           helperText={duplicate ? "Already an alias of this source" : ""}
           autoFocus

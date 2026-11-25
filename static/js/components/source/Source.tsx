@@ -724,6 +724,10 @@ const SourceContent = ({ source }: SourceContentProps) => {
                   <FieldLabel>T0</FieldLabel>
                   <UpdateSourceT0 source={source} readOnly={isReadOnly} />
                 </div>
+                <div>
+                  <FieldLabel>Aliases</FieldLabel>
+                  <SourceAlias source={source} readOnly={isReadOnly} />
+                </div>
               </div>
             </div>
             <div className={classes.fieldRow}>
@@ -790,11 +794,6 @@ const SourceContent = ({ source }: SourceContentProps) => {
                   </HoverAction>
                 )}
               </Box>
-            </div>
-            <div className={classes.fieldRow}>
-              <div className={classes.rowInfo}>
-                <SourceAlias source={source} />
-              </div>
             </div>
             <SourceHost
               source={source}
