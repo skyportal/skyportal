@@ -4,6 +4,7 @@ import json
 import re
 import time
 import uuid
+from datetime import datetime
 
 import requests
 import sqlalchemy as sa
@@ -21,8 +22,10 @@ from skyportal.models import (
     AssistantQuery,
     AssistantUsage,
     Comment,
+    CommentOnGCN,
     DBSession,
     Filter,
+    GcnEvent,
     GroupUser,
     ObjAnalysis,
     Stream,
@@ -43,6 +46,7 @@ from skyportal.utils.assistant import (
     record_call,
     targets_page_filter,
 )
+from skyportal.utils.assistant_schedule import saved_source, visible_events
 from skyportal.utils.assistant_triage import (
     CROSSMATCH_RADIUS_ARCSEC,
     FACTS_PROMPT,
@@ -302,9 +306,18 @@ def remaining(deadline, floor=5.0):
     return left if left >= floor else None
 
 
-def answer(conversation, context_type, context_id, user, token, detail=None):
+def answer(
+    conversation,
+    context_type,
+    context_id,
+    user,
+    token,
+    detail=None,
+    *,
+    evidence_only=False,
+):
     """The answer, the tools it took, any filter it built and the model that wrote it."""
-    tools = list_tools(token, context_type)
+    tools = [] if evidence_only else list_tools(token, context_type)
     offered = {tool["function"]["name"] for tool in tools}
     messages = build_messages(
         conversation, MAX_CONTEXT, context_type, context_id, user, detail
@@ -593,30 +606,36 @@ def _parse_urgency(answer):
 
 
 def post_triage_comment(session, author_id, notify, context_type, context_id, answer):
-    """Post the full triage as a bot comment on the source, visible to the query's
-    group(s). Only for source-scoped query runs, whose notify carries
-    ``comment_groups``; interactive chats (no comment_groups) never post.
-    """
+    """Post a triage comment with the visibility of the saved query."""
     if not isinstance(notify, dict):
         return
     group_ids = notify.get("comment_groups") or []
     text = (answer or "").strip()
-    if not (group_ids and context_type == "source" and context_id and text):
+    if not (
+        group_ids and context_type in {"source", "gcn_event"} and context_id and text
+    ):
         return
     author = session.scalar(sa.select(User).where(User.id == author_id))
     groups = [group for group in author.accessible_groups if group.id in group_ids]
     if not groups:
         return
-    session.add(
-        Comment(
-            text=text,
-            obj_id=context_id,
-            author_id=author_id,
-            groups=list(groups),
-            bot=True,
-            origin="skybot",
+    fields = {
+        "text": text,
+        "author_id": author_id,
+        "groups": groups,
+        "bot": True,
+        "origin": "skybot",
+    }
+    if context_type == "source":
+        session.add(Comment(obj_id=context_id, **fields))
+    else:
+        gcn_id = session.scalar(
+            sa.select(GcnEvent.id).where(
+                GcnEvent.dateobs == datetime.fromisoformat(context_id)
+            )
         )
-    )
+        if gcn_id is not None:
+            session.add(CommentOnGCN(gcn_id=gcn_id, **fields))
 
 
 def deliver_notifications(session, author_id, notify, context_type, context_id, answer):
@@ -668,13 +687,40 @@ def deliver_notifications(session, author_id, notify, context_type, context_id, 
         if snippet
         else f"An assistant run{where} produced no answer."
     )
-    url = f"/source/{context_id}" if context_type == "source" and context_id else None
+    resource_paths = {"source": "source", "gcn_event": "gcn_events"}
+    path = resource_paths.get(context_type)
+    url = f"/{path}/{context_id}" if path and context_id else None
     for uid in allowed:
         session.add(
             UserNotification(
                 user_id=uid, text=text, notification_type="assistant", url=url
             )
         )
+
+
+def permitted_task_query(session, query_id, bot_id, context_type, context_id):
+    query = session.get(AssistantQuery, query_id) if query_id is not None else None
+    if query is None or query.context_type != context_type:
+        return None
+    if context_type == "source" and query.source_id != context_id:
+        return None
+    members = set(
+        session.scalars(
+            sa.select(GroupUser.user_id).where(
+                GroupUser.group_id == query.group_id,
+                GroupUser.user_id.in_((query.owner_id, bot_id)),
+            )
+        )
+    )
+    if not {query.owner_id, bot_id} <= members:
+        return None
+    if context_type == "source":
+        target = saved_source(query.group_id, context_id)
+    else:
+        target = visible_events(query.group_id, cfg["misc.public_group_name"]).where(
+            GcnEvent.dateobs == datetime.fromisoformat(context_id)
+        )
+    return query if session.scalar(target.limit(1)) is not None else None
 
 
 def respond(message_id):
@@ -691,6 +737,7 @@ def respond(message_id):
             channel = message.channel
             context_type, context_id = message.context_type, message.context_id
             notify = message.notify
+            task = message.run_status is not None
             if already_answered(session, message):
                 log(f"message {message_id} already has an answer; not answering twice")
                 return
@@ -698,6 +745,15 @@ def respond(message_id):
                 session, user_id, channel, up_to_id=message.id
             )
             user = session.scalar(sa.select(User).where(User.id == user_id))
+            query_id = query_id_of(message, user)
+            if task and not permitted_task_query(
+                session, query_id, user_id, context_type, context_id
+            ):
+                message.run_status = "failed"
+                session.commit()
+                return
+            if task:
+                conversation = [{"text": message.text, "system": False}]
             profile = {
                 "username": user.username,
                 "first_name": user.first_name,
@@ -716,8 +772,8 @@ def respond(message_id):
                 if context_type == "filter"
                 else None
             )
-            token_id = service_token(session, requester_id).id
-            analysis_id = triggering_analysis(session, message, user)
+            token_id = None if task else service_token(session, requester_id).id
+            analysis_id = None if task else triggering_analysis(session, message, user)
 
         # Answering takes minutes, so no connection is held while it runs.
         trace, built, model = [], None, None
@@ -728,10 +784,16 @@ def respond(message_id):
                 reply = answer_from_facts(context_id, analysis_id, token_id)
             if reply is None:
                 reply = answer(
-                    conversation, context_type, context_id, profile, token_id, detail
+                    conversation,
+                    context_type,
+                    context_id,
+                    profile,
+                    token_id,
+                    detail,
+                    evidence_only=task,
                 )
             text, trace, built, model = reply
-            failed = text == OUT_OF_TIME
+            failed = not text or text == OUT_OF_TIME
         except Exception as exc:
             failed = True
             log(f"assistant failed on message {message_id}: {exc}")
@@ -752,17 +814,54 @@ def respond(message_id):
         is_urgent, text = _parse_urgency(text)
 
         with DBSession() as session:
-            session.execute(sa.delete(Token).where(Token.id == token_id))
-            asked = session.execute(
-                sa.select(AssistantMessage.channel).where(
-                    AssistantMessage.id == message_id
-                )
-            ).one_or_none()
-            if asked is not None:
+            if token_id is not None:
+                session.execute(sa.delete(Token).where(Token.id == token_id))
+            asked = session.scalar(
+                sa.select(AssistantMessage)
+                .where(AssistantMessage.id == message_id)
+                .with_for_update()
+            )
+            if asked is not None and not already_answered(session, asked):
+                if task:
+                    newer_attempt = session.scalar(
+                        sa.select(AssistantMessage.id)
+                        .where(
+                            AssistantMessage.channel == asked.channel,
+                            AssistantMessage.id > asked.id,
+                            AssistantMessage.system.is_(False),
+                        )
+                        .limit(1)
+                    )
+                    if newer_attempt is not None:
+                        asked.run_status = "failed"
+                        session.commit()
+                        return
+                    query = permitted_task_query(
+                        session, query_id, user_id, context_type, context_id
+                    )
+                    if query is None:
+                        asked.run_status = "failed"
+                        session.commit()
+                        return
+                    asked.run_status = "failed" if failed else "completed"
+                    if query.dry_run:
+                        notify = None
+                    elif notify:
+                        notify = {
+                            **notify,
+                            "users": list(
+                                session.scalars(
+                                    sa.select(GroupUser.user_id).where(
+                                        GroupUser.group_id == query.group_id,
+                                        GroupUser.user_id.in_(notify.get("users", [])),
+                                    )
+                                )
+                            ),
+                        }
                 session.add(
                     AssistantMessage(
                         user_id=user_id,
-                        channel=asked[0],
+                        channel=asked.channel,
                         text=text or "I could not find an answer to that.",
                         system=True,
                         tool_calls=trace or None,

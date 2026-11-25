@@ -189,3 +189,56 @@ def test_triage_skips_groups_the_source_is_not_saved_to(
     )
     DBSession().commit()
     assert public_assistant_query.id not in _triggered_query_ids(public_source.id)
+
+
+def test_interval_grb_query_can_be_paused_and_cleared(user, public_group):
+    token = _token(user)
+    status, data = api(
+        "POST",
+        "assistant_queries",
+        data={
+            "name": "GRANDMA GRB review",
+            "group_id": public_group.id,
+            "prompt": "Review new GRB evidence.",
+            "context_type": "gcn_event",
+            "interval_minutes": 5,
+            "dry_run": True,
+        },
+        token=token,
+    )
+    assert_api(status, data)
+    query_id = data["data"]["id"]
+    path = f"assistant_queries/{query_id}"
+
+    try:
+        status, data = api("GET", path, token=token)
+        assert_api(status, data)
+        assert data["data"]["interval_minutes"] == 5
+        assert data["data"]["next_run_at"] is not None
+        assert data["data"]["last_run_at"] is None
+
+        status, data = api("PATCH", path, data={"active": False}, token=token)
+        assert_api(status, data)
+        status, data = api("GET", path, token=token)
+        assert_api(status, data)
+        assert data["data"]["interval_minutes"] == 5
+        assert data["data"]["next_run_at"] is None
+
+        status, data = api("PATCH", path, data={"active": True}, token=token)
+        assert_api(status, data)
+        status, data = api("GET", path, token=token)
+        assert_api(status, data)
+        assert data["data"]["next_run_at"] is not None
+
+        status, data = api("PATCH", path, data={"interval_minutes": None}, token=token)
+        assert_api(status, data)
+        status, data = api("GET", path, token=token)
+        assert_api(status, data)
+        assert data["data"]["interval_minutes"] is None
+        assert data["data"]["next_run_at"] is None
+
+        status, data = api("GET", f"{path}/runs", token=token)
+        assert_api(status, data)
+        assert data["data"] == []
+    finally:
+        assert_api(*api("DELETE", path, token=token))
