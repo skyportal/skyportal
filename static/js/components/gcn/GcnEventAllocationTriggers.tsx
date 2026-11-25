@@ -170,34 +170,20 @@ const GcnEventAllocationTriggers = ({
         allocation_triggered: [],
       };
     }
-    if (
-      t?.triggered === true &&
-      instruments_triggered[allocationLookUp[allocation_id]]?.triggered ===
-        "not_set"
-    ) {
-      instruments_triggered[allocationLookUp[allocation_id]].triggered =
-        "triggered";
-    } else if (
-      t?.triggered === false &&
-      instruments_triggered[allocationLookUp[allocation_id]]?.triggered ===
-        "not_set"
-    ) {
-      instruments_triggered[allocationLookUp[allocation_id]].triggered =
-        "passed";
-    } else if (
-      t !== null &&
-      t?.triggered === false &&
-      instruments_triggered[allocationLookUp[allocation_id]]?.triggered !==
-        "not_set"
-    ) {
-      instruments_triggered[allocationLookUp[allocation_id]].triggered =
-        "mixed";
-    }
     let triggered = "not_set";
     if (t?.triggered === true) {
       triggered = "triggered";
     } else if (t?.triggered === false) {
       triggered = "passed";
+    }
+    const instrumentTrigger =
+      instruments_triggered[allocationLookUp[allocation_id]];
+    if (triggered !== "not_set") {
+      if (instrumentTrigger.triggered === "not_set") {
+        instrumentTrigger.triggered = triggered;
+      } else if (instrumentTrigger.triggered !== triggered) {
+        instrumentTrigger.triggered = "mixed";
+      }
     }
     // first verify that there is an "allocation_triggered" array, if not create it
     if (instruments_triggered[allocationLookUp[allocation_id]] !== undefined) {
