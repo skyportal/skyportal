@@ -36,6 +36,18 @@ LIST_FIELDS = (
     "modified",
 )
 
+MOVING_OBJECTS = sa.func.coalesce(
+    sa.or_(
+        Filter.altdata["sso"].astext == "true",
+        Filter.altdata["movingObjects"].astext == "true",
+    ),
+    False,
+)
+# A filter with no logged activation counts as active.
+ACTIVE = sa.func.coalesce(
+    Filter.altdata[("boom", "activations", -1, "active")].astext != "false", True
+)
+
 
 async def clear_filter_from_routing(filter_id, session):
     """Drop a filter from every credential's routing; no foreign key does.
@@ -134,7 +146,7 @@ class FilterHandler(BaseHandler):
             stmt = Filter.select(
                 session.user_or_token,
                 options=[load_only(*(getattr(Filter, f) for f in LIST_FIELDS))],
-            )
+            ).add_columns(MOVING_OBJECTS, ACTIVE)
             if query.group_id is not None:
                 stmt = stmt.where(Filter.group_id == query.group_id)
             if query.stream_id is not None:
@@ -142,9 +154,16 @@ class FilterHandler(BaseHandler):
 
             # The access-control join returns a row per group membership, so the
             # same filter comes back once per member without unique().
-            filters = (await session.scalars(stmt)).unique().all()
+            rows = (await session.execute(stmt)).unique().all()
             return self.success(
-                data=[{f: getattr(fil, f) for f in LIST_FIELDS} for fil in filters]
+                data=[
+                    {
+                        **{f: getattr(fil, f) for f in LIST_FIELDS},
+                        "moving_objects": moving_objects,
+                        "active": active,
+                    }
+                    for fil, moving_objects, active in rows
+                ]
             )
 
     @permissions(["Upload data"])
