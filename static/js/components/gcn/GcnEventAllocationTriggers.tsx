@@ -12,11 +12,7 @@ import TableCell from "@mui/material/TableCell";
 import TableHead from "@mui/material/TableHead";
 import TableRow from "@mui/material/TableRow";
 import Typography from "@mui/material/Typography";
-import {
-  getContrastRatio,
-  type PaletteColor,
-  type Theme,
-} from "@mui/material/styles";
+import type { Theme } from "@mui/material/styles";
 
 import { showNotification } from "baselayer/components/Notifications";
 
@@ -48,17 +44,15 @@ const STATE_OPTIONS = [
 
 const stateChipSx = (state: string) => (theme: Theme) => {
   if (state === "not_set") return { fontWeight: 500 };
-  const { success, error, common } = theme.palette;
-  const shade = ({ main, dark }: PaletteColor) =>
-    getContrastRatio(main, common.white) >= 3 ? main : dark;
-  const green = shade(success);
-  const red = shade(error);
+  const { success, grey, common } = theme.palette;
+  const green = success.main;
+  const darkGrey = grey[700];
   const background =
     state === "mixed"
-      ? `linear-gradient(120deg, ${green} 50%, ${red} 50%)`
+      ? `linear-gradient(120deg, ${green} 50%, ${darkGrey} 50%)`
       : state === "triggered"
         ? green
-        : red;
+        : darkGrey;
   return {
     fontWeight: 500,
     color: common.white,
