@@ -4,9 +4,11 @@ import "reactresizablecss/styles.css";
 
 import { useTheme } from "@mui/material/styles";
 import { makeStyles } from "tss-react/mui";
+import IconButton from "@mui/material/IconButton";
+import CachedIcon from "@mui/icons-material/Cached";
+import Tooltip from "@mui/material/Tooltip";
 import convertLength from "convert-css-length";
 
-import Button from "../Button";
 import {
   useGetProfileQuery,
   useUpdateUserPreferencesMutation,
@@ -69,9 +71,6 @@ const RESET_BUTTON_SX = {
   bottom: "1rem",
   right: "1rem",
   zIndex: 10,
-  px: 2,
-  borderRadius: "999px",
-  textTransform: "none",
   bgcolor: "background.paper",
   color: "text.secondary",
   boxShadow: 3,
@@ -281,9 +280,11 @@ const HomePage = () => {
       )}
       </div>
       {profile?.username && !isDefaultLayout && (
-      <Button size="small" onClick={resetLayouts} sx={RESET_BUTTON_SX}>
-        Reset layout
-      </Button>
+      <Tooltip title="Reset layout" placement="left">
+        <IconButton onClick={resetLayouts} sx={RESET_BUTTON_SX}>
+          <CachedIcon />
+        </IconButton>
+      </Tooltip>
       )}
     </>
   );
