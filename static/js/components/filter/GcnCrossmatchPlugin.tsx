@@ -72,19 +72,28 @@ const GcnCrossmatchPlugin = () => {
   if (!filter) return null;
 
   const handleSave = async () => {
-    const config: Record<string, any> = { enabled };
+    const { data: current } = await refetch();
+    if (!current) return;
+
+    const config: Record<string, any> = {
+      ...(current.altdata?.[KEY] ?? {}),
+      enabled,
+    };
     SETTINGS.forEach(({ key }) => {
       const parsed = Number(values[key]);
       if (values[key] && !Number.isNaN(parsed)) config[key] = parsed;
+      else delete config[key];
     });
     const gcnTags = tags
       .split(",")
       .map((tag) => tag.trim())
       .filter(Boolean);
-    if (gcnTags.length) config["filters"] = { gcn_tags: gcnTags };
+    const filters = { ...(config["filters"] ?? {}) };
+    if (gcnTags.length) filters["gcn_tags"] = gcnTags;
+    else delete filters["gcn_tags"];
+    if (Object.keys(filters).length) config["filters"] = filters;
+    else delete config["filters"];
 
-    const { data: current } = await refetch();
-    if (!current) return;
     const result = await updateFilter({
       filter_id: filter.id,
       altdata: { ...(current.altdata ?? {}), [KEY]: config },
