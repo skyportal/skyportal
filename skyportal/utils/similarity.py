@@ -9,6 +9,7 @@ from tornado.ioloop import IOLoop
 from baselayer.log import make_log
 
 from ..models import Broker, Classification, Obj, Source, Taxonomy
+from .survey import survey_from_object_id
 
 log = make_log("similarity")
 
@@ -34,6 +35,16 @@ async def find_neighbors(broker, obj_id, top_k, permissions):
             broker, obj_id, None, top_k=top_k, permissions=permissions
         ),
     )
+
+
+def no_neighbors_reason(obj_id, neighbors, surveys):
+    """Why a search returned no neighbors: "no_embedding" (``neighbors`` is
+    None), "survey" (the object is outside ``surveys``), or None."""
+    if neighbors is None:
+        return "no_embedding"
+    if not neighbors and surveys and survey_from_object_id(obj_id, surveys) is None:
+        return "survey"
+    return None
 
 
 async def human_classifications(session, user, obj_ids):

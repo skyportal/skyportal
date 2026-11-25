@@ -21,6 +21,7 @@ from ...utils.similarity import (
     find_neighbors,
     label_neighbors,
     more_like_this,
+    no_neighbors_reason,
     similarity_broker,
     vetting_queue,
 )
@@ -61,11 +62,16 @@ class SimilarSourcesHandler(BaseHandler):
                 )
             except Exception as e:
                 return self.error(f"Error querying broker {broker.name}: {e}")
+            surveys = broker.broker_class.similarity_surveys
             return self.success(
                 data={
                     "obj_id": obj_id,
                     "broker_id": broker.id,
-                    "neighbors": await label_neighbors(session, user, neighbors),
+                    "neighbors": await label_neighbors(session, user, neighbors or []),
+                    "no_neighbors_reason": no_neighbors_reason(
+                        obj_id, neighbors, surveys
+                    ),
+                    "surveys": list(surveys),
                 }
             )
 
