@@ -440,6 +440,8 @@ def get_tags(root, notice_type):
     if ivorn.startswith("ivo://org.svom/fsc"):
         if "_eclairs-catalog" in ivorn:
             yield "ECLAIRs-Catalog"
+        else:
+            yield "GRB"
         if "_slewing" in ivorn:
             yield "ECLAIRs-Slewing"
         if "_not-slewing" in ivorn:
