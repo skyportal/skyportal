@@ -209,29 +209,12 @@ export const useSourceStyles = makeStyles()((theme) => ({
     alignItems: "center",
     gap: "0.25rem",
   },
-  fieldRow: {
-    display: "flex",
-    flexWrap: "wrap",
-    alignItems: "center",
-    columnGap: "1rem",
-  },
   rowInfo: {
     display: "flex",
     flexDirection: "row",
     alignItems: "center",
     minHeight: theme.spacing(4),
     "& > .MuiChip-root + *": { marginLeft: theme.spacing(0.5) },
-  },
-  lineRow: {
-    display: "flex",
-    flexWrap: "wrap",
-    alignItems: "center",
-    columnGap: "0.5rem",
-    "& > div": {
-      display: "flex",
-      alignItems: "center",
-      minHeight: theme.spacing(4),
-    },
   },
   linkedObjs: {
     flexBasis: "100%",
@@ -695,7 +678,19 @@ const SourceContent = ({ source }: SourceContentProps) => {
               </Box>
             )}
             <SourceCoordinates source={sourceWithPosition} />
-            <div className={classes.lineRow}>
+            <Box
+              sx={{
+                display: "flex",
+                flexWrap: "wrap",
+                alignItems: "center",
+                columnGap: 1,
+                "& > div": {
+                  display: "flex",
+                  alignItems: "center",
+                  minHeight: 32,
+                },
+              }}
+            >
               {/* Meaningless for a solar-system object. DM and luminosity
                   distance derive from it, so they drop out on their own. */}
               {!source.is_roid && (
@@ -729,8 +724,15 @@ const SourceContent = ({ source }: SourceContentProps) => {
                 <FieldLabel>Aliases</FieldLabel>
                 <SourceAlias source={source} readOnly={isReadOnly} />
               </div>
-            </div>
-            <div className={classes.fieldRow}>
+            </Box>
+            <Box
+              sx={{
+                display: "flex",
+                flexWrap: "wrap",
+                alignItems: "center",
+                columnGap: 2,
+              }}
+            >
               <Box className={classes.rowInfo} data-testid="tour-source-tns">
                 <Tooltip title="Transient reported at this position, from the Transient Name Server">
                   <FieldLabel>TNS</FieldLabel>
@@ -794,7 +796,7 @@ const SourceContent = ({ source }: SourceContentProps) => {
                   </HoverAction>
                 )}
               </Box>
-            </div>
+            </Box>
             <SourceHost
               source={source}
               brokerHosts={brokerHosts}
@@ -1075,17 +1077,17 @@ const SourceContent = ({ source }: SourceContentProps) => {
             {showSummary &&
               noSummary &&
               (!isReadOnly || source.summary_history?.length > 0) && (
-              <Box
-                sx={{
-                  mt: 0.75,
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 0.5,
-                }}
-              >
-                {summaryActions(true)}
-              </Box>
-            )}
+                <Box
+                  sx={{
+                    mt: 0.75,
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 0.5,
+                  }}
+                >
+                  {summaryActions(true)}
+                </Box>
+              )}
             {showSummary && !noSummary && (
               <Box
                 sx={(theme) => ({

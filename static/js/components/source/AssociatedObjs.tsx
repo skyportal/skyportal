@@ -3,11 +3,6 @@ import Box from "@mui/material/Box";
 import Chip from "@mui/material/Chip";
 import Tooltip from "@mui/material/Tooltip";
 
-const SURVEY_LABELS: Record<string, string> = {
-  DECAM: "DECam",
-  ARGUS: "Argus",
-};
-
 interface AssociatedObj {
   obj_id: string;
   separation: number;
@@ -44,7 +39,7 @@ const AssociatedObjs = ({ objs }: { objs: AssociatedObj[] }) => (
                     color: "text.secondary",
                   }}
                 >
-                  {SURVEY_LABELS[obj.survey] ?? obj.survey}
+                  {obj.survey}
                 </Box>
               )}
               <Box
