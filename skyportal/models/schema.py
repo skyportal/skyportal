@@ -2322,6 +2322,15 @@ class FilterListItem(_Schema):
             "Sources to the Filter's Group."
         }
     )
+    moving_objects = fields.Boolean(
+        metadata={
+            "description": "Whether the scanning page opens on the moving objects "
+            "view for this filter."
+        }
+    )
+    active = fields.Boolean(
+        metadata={"description": "False once the filter was deactivated."}
+    )
     created_at = fields.DateTime()
     modified = fields.DateTime()
 

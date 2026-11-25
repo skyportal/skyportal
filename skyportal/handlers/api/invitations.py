@@ -103,7 +103,7 @@ class InvitationHandler(BaseHandler):
                     .join(GroupStream)
                     .where(GroupStream.group_id.in_(group_ids))
                 )
-                streams = streams_result.all()
+                streams = streams_result.unique().all()
             # The flag arrays below are positional against the caller's
             # `group_ids`, which `IN` does not preserve.
             groups = sorted(groups, key=lambda group: group_ids.index(group.id))

@@ -1879,7 +1879,7 @@ class BrokerFiltersHandler(BaseHandler):
                         if switching:
                             _requeue_crossmatch(session, f)
                     flag_modified(f, "altdata")
-                for flag in ("autoAnnotate", "autoFollowup"):
+                for flag in ("autoAnnotate", "autoFollowup", "movingObjects"):
                     if flag in body.model_fields_set:
                         f.altdata[flag] = getattr(body, flag)
                         flag_modified(f, "altdata")

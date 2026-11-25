@@ -12,7 +12,7 @@ from sqlalchemy import not_, or_
 
 from baselayer.app.access import auth_or_token, permissions
 from baselayer.app.flow import Flow
-from baselayer.app.models import DBSession
+from baselayer.app.models import DBSession, UserAccessControl
 from baselayer.log import make_log
 
 from ....enum_types import THUMBNAIL_TYPES
@@ -207,6 +207,9 @@ def post_public_source_page(options, source, release, is_auto_published, session
         is_auto_published=is_auto_published,
         is_visible=True,
         release_id=release.id if release is not None else None,
+        created_by_id=UserAccessControl.user_id_from_user_or_token(
+            session.user_or_token
+        ),
     )
     session.add(public_source_page)
     session.commit()
@@ -362,6 +365,7 @@ class PublicSourcePageHandler(BaseHandler):
                 PublicSourcePage.select(session.user_or_token, mode="read")
                 .options(
                     sa.orm.selectinload(PublicSourcePage.release),
+                    sa.orm.selectinload(PublicSourcePage.created_by),
                     sa.orm.undefer(PublicSourcePage.data),
                 )
                 .where(
