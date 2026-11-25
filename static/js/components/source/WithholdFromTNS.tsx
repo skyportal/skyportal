@@ -68,10 +68,9 @@ const WithholdFromTNS = ({
               "&&.Mui-disabled": { color: "text.secondary" },
               ...(withheld
                 ? {
-                    bgcolor: alpha(red, 0.12),
-                    borderColor: "transparent",
+                    borderColor: red,
                     color: "text.primary",
-                    "&&:hover": { bgcolor: alpha(red, 0.2) },
+                    "&&:hover": { bgcolor: alpha(red, 0.08) },
                   }
                 : {
                     borderStyle: "dashed",
