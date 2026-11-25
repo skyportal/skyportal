@@ -1148,7 +1148,10 @@ async def get_sources(
             )
             statements.append(
                 """
-                (lower(objs.alias) LIKE '%' || :alias || '%')
+                EXISTS (
+                    SELECT 1 FROM unnest(objs.alias) AS a(name)
+                    WHERE lower(a.name) LIKE '%' || :alias || '%'
+                )
                 """
             )
         if origin not in [None, ""]:
