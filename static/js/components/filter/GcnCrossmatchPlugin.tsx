@@ -12,6 +12,7 @@ import Tooltip from "@mui/material/Tooltip";
 import Typography from "@mui/material/Typography";
 
 import Button from "../Button";
+import GcnNoticeTypesSelect from "../gcn/GcnNoticeTypesSelect";
 import { useGetFilterQuery, useUpdateFilterMutation } from "../../ducks/filter";
 
 const KEY = "gcn_crossmatch";
@@ -53,6 +54,7 @@ const GcnCrossmatchPlugin = () => {
 
   const [enabled, setEnabled] = useState(false);
   const [tags, setTags] = useState("");
+  const [excludedNoticeTypes, setExcludedNoticeTypes] = useState<string[]>([]);
   const [values, setValues] = useState<Record<string, string>>({});
   const [saved, setSaved] = useState(false);
 
@@ -62,6 +64,7 @@ const GcnCrossmatchPlugin = () => {
     const config = stored ?? {};
     setEnabled(Boolean(config.enabled));
     setTags((config.filters?.gcn_tags ?? []).join(", "));
+    setExcludedNoticeTypes(config.exclude_notice_types ?? []);
     setValues(
       Object.fromEntries(
         SETTINGS.map(({ key }) => [key, String(config[key] ?? "")]),
@@ -93,6 +96,9 @@ const GcnCrossmatchPlugin = () => {
     else delete filters["gcn_tags"];
     if (Object.keys(filters).length) config["filters"] = filters;
     else delete config["filters"];
+    if (excludedNoticeTypes.length)
+      config["exclude_notice_types"] = excludedNoticeTypes;
+    else delete config["exclude_notice_types"];
 
     const result = await updateFilter({
       filter_id: filter.id,
@@ -135,6 +141,15 @@ const GcnCrossmatchPlugin = () => {
           value={tags}
           onChange={(event) => {
             setTags(event.target.value);
+            setSaved(false);
+          }}
+        />
+        <GcnNoticeTypesSelect
+          label="Ignore notice types"
+          id="selectCrossmatchIgnoredNoticeTypes"
+          selectedGcnNoticeTypes={excludedNoticeTypes}
+          setSelectedGcnNoticeTypes={(value: string[]) => {
+            setExcludedNoticeTypes(value);
             setSaved(false);
           }}
         />
