@@ -2,7 +2,6 @@ import { useState } from "react";
 import Box from "@mui/material/Box";
 import Chip from "@mui/material/Chip";
 import TextField from "@mui/material/TextField";
-import Tooltip from "@mui/material/Tooltip";
 
 import { showNotification } from "baselayer/components/Notifications";
 import { useAppDispatch } from "../../types/hooks";
@@ -50,29 +49,33 @@ const SourceAlias = ({ source, readOnly = false }: SourceAliasProps) => {
     }
   };
 
+  const openEditor = () => {
+    setAlias("");
+    setOpen(true);
+  };
+
   return (
     <>
-      <Tooltip title={aliases.length > 1 ? aliases.join(", ") : ""}>
-        <Chip
-          size="small"
-          data-testid="aliasChip"
-          variant={aliases.length ? "filled" : "outlined"}
-          sx={aliases.length ? undefined : emptyChipSx}
-          label={
-            aliases.length
-              ? `${aliases[0]}${aliases.length > 1 ? ` +${aliases.length - 1}` : ""}`
-              : "None"
-          }
-          {...(readOnly
-            ? {}
-            : {
-                onClick: () => {
-                  setAlias("");
-                  setOpen(true);
-                },
-              })}
-        />
-      </Tooltip>
+      <Box
+        sx={{
+          display: "inline-flex",
+          flexWrap: "wrap",
+          alignItems: "center",
+          gap: 0.5,
+        }}
+      >
+        {(aliases.length ? aliases : [null]).map((a) => (
+          <Chip
+            key={a ?? "none"}
+            size="small"
+            data-testid="aliasChip"
+            variant={a ? "filled" : "outlined"}
+            sx={a ? undefined : emptyChipSx}
+            label={a ?? "None"}
+            {...(readOnly ? {} : { onClick: openEditor })}
+          />
+        ))}
+      </Box>
       <EditDialog
         open={open}
         onClose={() => setOpen(false)}
