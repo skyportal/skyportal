@@ -46,15 +46,12 @@ const UpdateSourceTNS = ({ sourceId, tnsRequest }: UpdateSourceTNSProps) => {
         title={`Looking for a TNS object within ${tnsRequest.radius}″`}
         placement="bottom-start"
       >
-        <Box
-          sx={{ display: "flex", alignItems: "center", gap: 0.75 }}
+        <CircularProgress
+          size={14}
+          thickness={5}
+          disableShrink
           data-testid="tnsSearchInProgress"
-        >
-          <CircularProgress size={14} thickness={5} disableShrink />
-          <Typography variant="body2" color="text.secondary">
-            Searching…
-          </Typography>
-        </Box>
+        />
       </Tooltip>
     );
   }
