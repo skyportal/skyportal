@@ -223,6 +223,7 @@ FIXTURE_MODEL = {
     "public_source_interest": "SourceInterest",
     "public_source_label": "SourceLabel",
     "public_source_view": "SourceView",
+    "public_tns_retrieval_request": "TNSRetrievalRequest",
     "public_gcn_event_obj": "GcnEventObj",
     "public_gcn_event_association": "GcnEventAssociation",
     "public_gcn_association_rule": "GcnAssociationRule",
@@ -2595,6 +2596,23 @@ CASES = [
     ("super_admin_user", "public_source_view", "read", True),
     ("super_admin_user", "public_source_view", "update", True),
     ("super_admin_user", "public_source_view", "delete", True),
+    # --- TNSRetrievalRequest  (public_tns_retrieval_request) ---
+    ("user", "public_tns_retrieval_request", "create", True),
+    ("user", "public_tns_retrieval_request", "read", True),
+    ("user", "public_tns_retrieval_request", "update", False),
+    ("user", "public_tns_retrieval_request", "delete", False),
+    ("user_group2", "public_tns_retrieval_request", "create", True),
+    ("user_group2", "public_tns_retrieval_request", "read", True),
+    ("user_group2", "public_tns_retrieval_request", "update", False),
+    ("user_group2", "public_tns_retrieval_request", "delete", False),
+    ("group_admin_user", "public_tns_retrieval_request", "create", True),
+    ("group_admin_user", "public_tns_retrieval_request", "read", True),
+    ("group_admin_user", "public_tns_retrieval_request", "update", False),
+    ("group_admin_user", "public_tns_retrieval_request", "delete", False),
+    ("super_admin_user", "public_tns_retrieval_request", "create", True),
+    ("super_admin_user", "public_tns_retrieval_request", "read", True),
+    ("super_admin_user", "public_tns_retrieval_request", "update", True),
+    ("super_admin_user", "public_tns_retrieval_request", "delete", True),
     # --- GcnEventAssociation  (public_gcn_event_association) ---
     # Follows read access to the earlier event, like GcnEventObj: anyone who can
     # see the events is in a position to judge whether they are one event.

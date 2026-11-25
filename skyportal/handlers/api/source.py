@@ -92,6 +92,7 @@ from ...models import (
     Stream,
     Telescope,
     Thumbnail,
+    TNSRetrievalRequest,
     Token,
     User,
 )
@@ -662,6 +663,17 @@ async def get_source(
         )
         source_info["withhold_from_tns_set_by"] = (
             setter.to_dict() if setter is not None else None
+        )
+
+    if not source_info.get("tns_name"):
+        tns_request = await session.scalar(
+            TNSRetrievalRequest.select(session.user_or_token)
+            .where(TNSRetrievalRequest.obj_id == s.id)
+            .order_by(TNSRetrievalRequest.created_at.desc())
+            .limit(1)
+        )
+        source_info["tns_request"] = (
+            tns_request.to_dict() if tns_request is not None else None
         )
 
     annotations_result = await session.scalars(
