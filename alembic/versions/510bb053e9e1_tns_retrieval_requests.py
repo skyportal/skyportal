@@ -1,7 +1,7 @@
 """tns retrieval requests
 
 Revision ID: 510bb053e9e1
-Revises: d7b3e9f41a26
+Revises: b4e8f2a6c913
 Create Date: 2026-11-24
 
 """
@@ -11,7 +11,7 @@ import sqlalchemy as sa
 from alembic import op
 
 revision = "510bb053e9e1"
-down_revision = "d7b3e9f41a26"
+down_revision = "b4e8f2a6c913"
 branch_labels = None
 depends_on = None
 
