@@ -8,6 +8,7 @@ import DialogActions from "@mui/material/DialogActions";
 import DialogContent from "@mui/material/DialogContent";
 import DialogContentText from "@mui/material/DialogContentText";
 import DialogTitle from "@mui/material/DialogTitle";
+import IconButton from "@mui/material/IconButton";
 import TextField from "@mui/material/TextField";
 import Tooltip from "@mui/material/Tooltip";
 import dayjs from "dayjs";
@@ -28,9 +29,10 @@ interface UpdateSourceMPCProps {
     first_detected?: string;
     [key: string]: any;
   };
+  button?: boolean;
 }
 
-const UpdateSourceMPC = ({ source }: UpdateSourceMPCProps) => {
+const UpdateSourceMPC = ({ source, button = false }: UpdateSourceMPCProps) => {
   const dispatch = useAppDispatch();
   const [addMPC] = useAddMPCMutation();
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -95,16 +97,26 @@ const UpdateSourceMPC = ({ source }: UpdateSourceMPCProps) => {
   return (
     <>
       <Tooltip title="Search the Minor Planet Center for a known solar system object at this position">
-        <Button
-          variant="outlined"
-          color="primary"
-          size="small"
-          data-testid="updateMPCIconButton"
-          onClick={() => setDialogOpen(true)}
-          sx={{ py: 0, px: 0.75, minWidth: 0, height: 22 }}
-        >
-          <TravelExploreIcon fontSize="small" />
-        </Button>
+        {button ? (
+          <Button
+            variant="outlined"
+            color="primary"
+            size="small"
+            data-testid="updateMPCIconButton"
+            onClick={() => setDialogOpen(true)}
+            sx={{ py: 0, px: 0.75, minWidth: 0, height: 22 }}
+          >
+            <TravelExploreIcon fontSize="small" />
+          </Button>
+        ) : (
+          <IconButton
+            size="small"
+            data-testid="updateMPCIconButton"
+            onClick={() => setDialogOpen(true)}
+          >
+            <TravelExploreIcon fontSize="small" />
+          </IconButton>
+        )}
       </Tooltip>
       <Dialog
         open={dialogOpen}

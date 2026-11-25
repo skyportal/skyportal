@@ -770,7 +770,7 @@ const SourceContent = ({ source }: SourceContentProps) => {
                 {source.mpc_name && (
                   <Chip size="small" label={source.mpc_name} />
                 )}
-                {!isReadOnly && <UpdateSourceMPC source={source} />}
+                {!isReadOnly && <UpdateSourceMPC source={source} button />}
               </Box>
               <Box className={classes.rowInfo} sx={{ position: "relative" }}>
                 <Tooltip title="Events this object was matched to by the GCN crossmatch or by hand">
