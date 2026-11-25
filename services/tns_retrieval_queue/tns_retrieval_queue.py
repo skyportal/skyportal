@@ -22,7 +22,15 @@ from baselayer.log import make_log
 from skyportal.handlers.api.photometry import add_external_photometry
 from skyportal.handlers.api.source import post_source_async
 from skyportal.handlers.api.spectrum import post_spectrum
-from skyportal.models import Classification, DBSession, Group, Obj, Source, User
+from skyportal.models import (
+    Classification,
+    DBSession,
+    Group,
+    Obj,
+    Source,
+    TNSRetrievalRequest,
+    User,
+)
 from skyportal.utils.parse import is_null
 from skyportal.utils.services import check_loaded
 from skyportal.utils.tns import (
@@ -78,6 +86,64 @@ def refresh_obj_on_frontend(obj, user_id="*"):
         )
     except Exception:
         log(f"Error refreshing object {obj.id} on frontend")
+
+
+def claim_retrieval_request():
+    """Mark the oldest pending TNSRetrievalRequest as processing and return it as a task."""
+    with DBSession() as session:
+        request = session.scalar(
+            sa.select(TNSRetrievalRequest)
+            .where(TNSRetrievalRequest.status == "pending")
+            .order_by(TNSRetrievalRequest.created_at)
+            .limit(1)
+        )
+        if request is None:
+            return None
+        task = {
+            "request_id": request.id,
+            "obj_id": request.obj_id,
+            "user_id": request.user_id,
+            "radius": request.radius,
+        }
+        request.status = "processing"
+        session.commit()
+        return task
+
+
+def finish_retrieval_request(task, status, error=None):
+    """Store the outcome of a task's TNSRetrievalRequest, once, and tell the frontend."""
+    request_id = task.pop("request_id", None)
+    if request_id is None:
+        return
+    try:
+        with DBSession() as session:
+            request = session.scalar(
+                sa.select(TNSRetrievalRequest).where(
+                    TNSRetrievalRequest.id == request_id
+                )
+            )
+            if request is None:
+                return
+            request.status = status
+            request.error = error
+            session.commit()
+            refresh_obj_on_frontend(request.obj)
+
+        if status == "found":
+            note, kind = f"Found {task['obj_id']} on TNS", "info"
+        elif status == "not_found":
+            note, kind = f"{task['obj_id']} not found on TNS", "warning"
+        else:
+            note, kind = f"TNS search for {task['obj_id']} failed", "error"
+            if error:
+                note += f": {error}"
+        Flow().push(
+            task["user_id"],
+            action_type="baselayer/SHOW_NOTIFICATION",
+            payload={"note": note, "type": kind},
+        )
+    except Exception as e:
+        log(f"Error updating TNS retrieval request {request_id}: {e}")
 
 
 def add_tns_name_to_existing_objs(tns_name, tns_source_data, tns_ra, tns_dec, session):
@@ -260,11 +326,21 @@ def process_queue(queue):
     tns_headers = get_tns_headers(bot_id, bot_name)
     last_request_at = 0.0
 
+    with DBSession() as session:
+        session.execute(
+            sa.update(TNSRetrievalRequest)
+            .where(TNSRetrievalRequest.status == "processing")
+            .values(status="pending")
+        )
+        session.commit()
+
     while True:
-        if not queue:
-            time.sleep(1)
-            continue
-        task = queue.pop(0)
+        task = claim_retrieval_request()
+        if task is None:
+            if not queue:
+                time.sleep(1)
+                continue
+            task = queue.pop(0)
         if not task:
             continue
 
@@ -275,6 +351,7 @@ def process_queue(queue):
 
         tns_name = None
         existing_obj = None
+        request_status, request_error = "error", None
         try:
             with DBSession() as session:
                 public_group = session.scalar(
@@ -312,7 +389,9 @@ def process_queue(queue):
                         f"Found TNS source {tns_source} for object {existing_obj.id} with prefix {tns_prefix}"
                     )
                     if is_null(tns_source):
-                        raise ValueError(f"{task.get('obj_id')} not found on TNS.")
+                        log(f"{existing_obj.id} not found on TNS")
+                        request_status = "not_found"
+                        continue
                     tns_name = f"{tns_prefix} {tns_source}"
                 elif task.get("tns_source"):
                     # here we just want to create a TNS source
@@ -362,6 +441,7 @@ def process_queue(queue):
 
                 if status_code != 200:
                     log(f"Error getting TNS data for {tns_name}: {r.text}")
+                    request_error = f"TNS returned status {status_code}"
                     continue
 
                 try:
@@ -370,6 +450,7 @@ def process_queue(queue):
                     tns_source_data = None
                 if tns_source_data is None:
                     log(f"Error getting TNS data for {tns_name}: no reply in data")
+                    request_error = "TNS sent no data"
                     continue
 
                 try:
@@ -381,6 +462,7 @@ def process_queue(queue):
                     )
                     if msg == "No results found.":
                         log(f"Could not find {tns_name} on TNS at {TNS_URL}")
+                        request_status = "not_found"
                         continue
                 except Exception:
                     pass
@@ -390,6 +472,7 @@ def process_queue(queue):
                     log(
                         f"Error processing TNS source {tns_name}: obj has no prefix ({str(r.json())})"
                     )
+                    request_error = f"{tns_name} has no prefix on TNS"
                     continue
 
                 tns_name = f"{tns_prefix} {tns_source}"
@@ -400,6 +483,7 @@ def process_queue(queue):
                 )
                 if ra is None or dec is None:
                     log(f"Error processing TNS source {tns_name}: no coordinates")
+                    request_error = f"{tns_name} has no coordinates on TNS"
                     continue
 
                 if existing_obj:
@@ -407,7 +491,7 @@ def process_queue(queue):
                     existing_obj.tns_name = tns_name
                     existing_obj.tns_info = tns_source_data
                     session.commit()
-                    refresh_obj_on_frontend(existing_obj)
+                    finish_retrieval_request(task, "found")
                 else:
                     # otherwise, add the TNS name to all the existing sources within a 2 arcsec radius
                     add_tns_name_to_existing_objs(
@@ -473,29 +557,11 @@ def process_queue(queue):
         except Exception as e:
             traceback.print_exc()
             log(f"Error processing TNS source {tns_name}: {e}")
-            user_id = task.get("user_id", None)
-            if user_id is not None:
-                flow = Flow()
-                if "not found on TNS" in str(e):
-                    flow.push(
-                        user_id,
-                        action_type="baselayer/SHOW_NOTIFICATION",
-                        payload={
-                            "note": str(e),
-                            "type": "warning",
-                        },
-                    )
-                else:
-                    flow.push(
-                        user_id,
-                        action_type="baselayer/SHOW_NOTIFICATION",
-                        payload={
-                            "note": f"Error processing TNS source {tns_name}: {e}",
-                            "type": "error",
-                        },
-                    )
+            request_error = str(e)
         else:
             processed_at[tns_name] = datetime.now()
+        finally:
+            finish_retrieval_request(task, request_status, request_error)
 
 
 def tns_watcher(queue):
@@ -632,25 +698,9 @@ def api(queue):
                     }
                 )
 
-            required_keys = {"obj_id", "user_id"}
-            if not required_keys.issubset(set(data.keys())):
-                self.set_status(400)
-                return self.write(
-                    {
-                        "status": "error",
-                        "message": f"TNS requests requires keys {required_keys}",
-                    }
-                )
-
-            queue.append(data)
-
-            self.set_status(200)
+            self.set_status(400)
             return self.write(
-                {
-                    "status": "success",
-                    "message": "TNS request accepted into queue",
-                    "data": {"queue_length": len(queue)},
-                }
+                {"status": "error", "message": "TNS requests require a tns_source"}
             )
 
     app = tornado.web.Application([(r"/", QueueHandler)])

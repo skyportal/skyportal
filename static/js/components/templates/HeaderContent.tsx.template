@@ -4,13 +4,13 @@ import { Link } from "react-router-dom";
 import Box from "@mui/material/Box";
 import { makeStyles } from "tss-react/mui";
 import IconButton from "@mui/material/IconButton";
-import RefreshIcon from '@mui/icons-material/Refresh';
 import SearchIcon from '@mui/icons-material/Search';
 import CloseIcon from '@mui/icons-material/Close';
 import Tooltip from "@mui/material/Tooltip";
 import useMediaQuery from "@mui/material/useMediaQuery";
 
 import FeedbackButton from "../feedback/FeedbackButton";
+import { HEADER_ICON_SX } from "../HeaderPanel";
 import ProfileDropdown from "../ProfileDropdown";
 import Logo from "../Logo";
 import Notifications from "../Notifications";
@@ -20,6 +20,13 @@ import { useAppDispatch } from "../../types/hooks";
 
 import QuickSearchBar from "../QuickSearchBar";
 import {alpha} from "@mui/material/styles";
+
+const MOBILE_ONLY_ICON_SX = { ...HEADER_ICON_SX, display: { xs: "inline-flex", md: "none" } };
+const ICON_GROUP_SX = {
+  display: "inline-flex",
+  alignItems: "center",
+  gap: "2px",
+};
 
 const useStyles = makeStyles()((theme) => ({
   topBannerContent: {
@@ -106,17 +113,10 @@ const HeaderContent = () => {
   const isDesktop = useMediaQuery((theme: any) => theme.breakpoints.up("md"));
   const downSm = useMediaQuery((theme: any) => theme.breakpoints.down("sm"));
 
-  const [refreshing, setRefreshing] = useState(false);
   const [openSearch, setOpenSearch] = useState(false);
   const [now, setNow] = useState(new Date());
   const bannerRef = useRef<HTMLDivElement>(null);
   const [searchTop, setSearchTop] = useState(0);
-
-  const handleRefresh = () => {
-    dispatch(hydrate());
-    setRefreshing(true);
-    setTimeout(() => setRefreshing(false), 3000);
-  };
 
   useEffect(() => {
     if (isDesktop) {
@@ -179,31 +179,17 @@ const HeaderContent = () => {
         <Box sx={{"{{ display: { xs: 'none', md: 'block' } }}"}}>
           <QuickSearchBar />
         </Box>
-        <Box sx={{"{{ display: { xs: 'block', md: 'none' } }}"}}>
-          <IconButton
-            onClick={() => setOpenSearch(!openSearch)}
-            size="large"
-            style={{"{{padding: 0, margin: 0}}"}}
-          >
-            <SearchIcon fontSize="large" style={{"{{color: '#457b9d'}}"}}/>
-          </IconButton>
-        </Box>
-        <Box sx={{"{{ display: { xs: 'none', md: 'block' } }}"}}>
-          <Tooltip title="Refresh basic data">
-            <IconButton
-              onClick={() => handleRefresh()}
-              data-testid="refreshButton"
-              size="large"
-              style={{"{{padding: 0, margin: 0}}"}}
-              disabled={refreshing}
-            >
-              <RefreshIcon fontSize="large" style={{"{{color: refreshing ? 'grey' : '#457b9d'}}"}}/>
-            </IconButton>
-          </Tooltip>
-        </Box>
-        <FeedbackButton />
+        <IconButton
+          onClick={() => setOpenSearch(!openSearch)}
+          sx={MOBILE_ONLY_ICON_SX}
+        >
+          <SearchIcon fontSize="inherit" />
+        </IconButton>
         <TeamSwitcher />
-        <Notifications />
+        <Box sx={ICON_GROUP_SX}>
+          <FeedbackButton />
+          <Notifications />
+        </Box>
         <ProfileDropdown />
       </div>
       <Box

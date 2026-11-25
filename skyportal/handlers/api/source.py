@@ -92,6 +92,7 @@ from ...models import (
     Stream,
     Telescope,
     Thumbnail,
+    TNSRetrievalRequest,
     Token,
     User,
 )
@@ -274,11 +275,12 @@ async def _get_vla_rubin_alert(obj, user, session):
 
     if alert_id is None:
         # Older ingest paths retained the ID on the passing candidate only.
+        alert_filter = sa.orm.aliased(Filter)
         alert_id = await session.scalar(
             Candidate.select(user, columns=[Candidate.passing_alert_id])
-            .join(Filter, Candidate.filter_id == Filter.id)
-            .join(Stream, Filter.stream_id == Stream.id)
-            .join(Broker, Filter.broker_id == Broker.id)
+            .join(alert_filter, Candidate.filter_id == alert_filter.id)
+            .join(Stream, alert_filter.stream_id == Stream.id)
+            .join(Broker, alert_filter.broker_id == Broker.id)
             .where(
                 Candidate.obj_id == obj.id,
                 Candidate.passing_alert_id > 0,
@@ -661,6 +663,17 @@ async def get_source(
         )
         source_info["withhold_from_tns_set_by"] = (
             setter.to_dict() if setter is not None else None
+        )
+
+    if not source_info.get("tns_name"):
+        tns_request = await session.scalar(
+            TNSRetrievalRequest.select(session.user_or_token)
+            .where(TNSRetrievalRequest.obj_id == s.id)
+            .order_by(TNSRetrievalRequest.created_at.desc())
+            .limit(1)
+        )
+        source_info["tns_request"] = (
+            tns_request.to_dict() if tns_request is not None else None
         )
 
     annotations_result = await session.scalars(
