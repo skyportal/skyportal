@@ -1921,6 +1921,59 @@ def test_user_can_delete_owned_photometry_data(
     assert status == 400
 
 
+def test_owner_can_delete_photometry_with_unreadable_siblings(
+    upload_data_token,
+    upload_data_token_group2,
+    public_source_two_groups,
+    ztf_camera,
+    public_group,
+    public_group2,
+):
+    # Deleting one point triggers PhotStat recompute, which must load every
+    # point on the object. If those sibling points are attached to the verified
+    # session, commit-time read-ACL verification used to reject the delete,
+    # listing every unreadable sibling id.
+    status, data = api(
+        "POST",
+        "photometry",
+        data={
+            "obj_id": str(public_source_two_groups.id),
+            "mjd": 58000.0,
+            "instrument_id": ztf_camera.id,
+            "flux": 12.24,
+            "fluxerr": 0.031,
+            "zp": 25.0,
+            "magsys": "ab",
+            "filter": "ztfi",
+            "group_ids": [public_group.id],
+        },
+        token=upload_data_token,
+    )
+    assert status == 200, data
+    my_point_id = data["data"]["ids"][0]
+
+    status, data = api(
+        "POST",
+        "photometry",
+        data={
+            "obj_id": str(public_source_two_groups.id),
+            "mjd": 58000.5,
+            "instrument_id": ztf_camera.id,
+            "flux": 10.0,
+            "fluxerr": 0.03,
+            "zp": 25.0,
+            "magsys": "ab",
+            "filter": "ztfr",
+            "group_ids": [public_group2.id],
+        },
+        token=upload_data_token_group2,
+    )
+    assert status == 200, data
+
+    status, data = api("DELETE", f"photometry/{my_point_id}", token=upload_data_token)
+    assert status == 200, data
+
+
 def test_user_cannot_delete_unowned_photometry_data(
     upload_data_token, manage_sources_token, public_source, ztf_camera, public_group
 ):
