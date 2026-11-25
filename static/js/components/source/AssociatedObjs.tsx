@@ -19,7 +19,7 @@ const AssociatedObjs = ({ objs }: { objs: AssociatedObj[] }) => (
     {objs.map((obj) => (
       <Tooltip
         key={obj.obj_id}
-        title={`Same object, ${obj.separation.toFixed(2)}″ away`}
+        title={`${obj.obj_id}, ${obj.separation.toFixed(2)}″ away`}
       >
         <Chip
           size="small"
@@ -57,7 +57,9 @@ const AssociatedObjs = ({ objs }: { objs: AssociatedObj[] }) => (
                       : theme.palette.primary.main,
                 }}
               >
-                {obj.obj_id}
+                {obj.obj_id.length > 12
+                  ? `${obj.obj_id.slice(0, 8)}…`
+                  : obj.obj_id}
               </Box>
             </Box>
           }

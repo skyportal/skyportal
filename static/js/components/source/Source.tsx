@@ -727,17 +727,7 @@ const SourceContent = ({ source }: SourceContentProps) => {
               </div>
               <div>
                 <FieldLabel>Aliases</FieldLabel>
-                <SourceAlias
-                  source={source}
-                  readOnly={isReadOnly}
-                  emptyLabel={
-                    source.associated_objs?.length > 0 ? "Add" : "None"
-                  }
-                >
-                  {source.associated_objs?.length > 0 && (
-                    <AssociatedObjs objs={source.associated_objs} />
-                  )}
-                </SourceAlias>
+                <SourceAlias source={source} readOnly={isReadOnly} />
               </div>
             </div>
             <div className={classes.fieldRow}>
@@ -859,6 +849,14 @@ const SourceContent = ({ source }: SourceContentProps) => {
                       </Box>
                     ),
                   )}
+                </Box>
+              </Box>
+            )}
+            {source?.associated_objs?.length > 0 && (
+              <Box className={classes.linkedObjs}>
+                <FieldLabel>Associated</FieldLabel>
+                <Box className={classes.linkedObjList}>
+                  <AssociatedObjs objs={source.associated_objs} />
                 </Box>
               </Box>
             )}
