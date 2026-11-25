@@ -885,11 +885,6 @@ const SourceContent = ({ source }: SourceContentProps) => {
             currentUser?.preferences?.["showSimilarSources"] === true ? (
               <SimilarSources source={source} k={3} />
             ) : null}
-            {(!source.tns_name || source.withhold_from_tns) && (
-              <Box sx={{ flexBasis: "100%", mt: 0.75 }}>
-                <WithholdFromTNS source={source} readOnly={isReadOnly} />
-              </Box>
-            )}
             <Box
               sx={(theme) => {
                 const { success, primary, secondary } = theme.palette;
@@ -1093,6 +1088,9 @@ const SourceContent = ({ source }: SourceContentProps) => {
                 />
               )}
               {!isReadOnly && <RequestDataAccess sourceID={source.id} />}
+              {(!source.tns_name || source.withhold_from_tns) && (
+                <WithholdFromTNS source={source} readOnly={isReadOnly} />
+              )}
             </Box>
             {showStarList && <StarList sourceId={source.id} />}
             {/* checking if the id exists is a way to know if the user profile is loaded or not */}

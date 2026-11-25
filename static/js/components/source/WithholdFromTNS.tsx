@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
-import Chip from "@mui/material/Chip";
 import Tooltip from "@mui/material/Tooltip";
-import { alpha } from "@mui/material/styles";
+import { alpha, type Theme } from "@mui/material/styles";
 
+import Button from "../Button";
 import { useUpdateSourceMutation } from "../../ducks/source";
 
 interface WithholdFromTNSProps {
@@ -51,39 +51,44 @@ const WithholdFromTNS = ({
           : "Click to block this source from being sent to TNS, automatically or manually"
       }
     >
-      <Chip
-        size="small"
-        data-testid="withhold-from-tns-button"
-        aria-pressed={withheld}
-        variant="outlined"
-        label={withheld ? "TNS reporting off" : "TNS reporting on"}
-        {...(readOnly ? {} : { onClick: toggle })}
-        sx={(theme) => {
-          const { error } = theme.palette;
-          const red = theme.palette.mode === "dark" ? error.light : error.main;
-          return {
-            alignSelf: "flex-start",
-            fontWeight: 500,
-            borderRadius: "8px",
-            ...(withheld
-              ? {
-                  bgcolor: alpha(red, 0.12),
-                  borderColor: "transparent",
-                  color: "text.primary",
-                  "&&:hover": { bgcolor: alpha(red, 0.2) },
-                }
-              : {
-                  borderStyle: "dashed",
-                  color: "text.secondary",
-                  "&&:hover": {
-                    bgcolor: "transparent",
-                    borderColor: red,
+      <span>
+        <Button
+          size="small"
+          data-testid="withhold-from-tns-button"
+          aria-pressed={withheld}
+          disabled={readOnly}
+          onClick={toggle}
+          sx={(theme: Theme) => {
+            const { error } = theme.palette;
+            const red =
+              theme.palette.mode === "dark" ? error.light : error.main;
+            return {
+              py: "3px",
+              border: "1px solid",
+              "&&.Mui-disabled": { color: "text.secondary" },
+              ...(withheld
+                ? {
+                    bgcolor: alpha(red, 0.12),
+                    borderColor: "transparent",
                     color: "text.primary",
-                  },
-                }),
-          };
-        }}
-      />
+                    "&&:hover": { bgcolor: alpha(red, 0.2) },
+                  }
+                : {
+                    borderStyle: "dashed",
+                    borderColor: "divider",
+                    color: "text.secondary",
+                    "&&:hover": {
+                      bgcolor: "transparent",
+                      borderColor: red,
+                      color: "text.primary",
+                    },
+                  }),
+            };
+          }}
+        >
+          {withheld ? "TNS reporting off" : "TNS reporting on"}
+        </Button>
+      </span>
     </Tooltip>
   );
 };
