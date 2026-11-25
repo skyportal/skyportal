@@ -224,9 +224,8 @@ def test_delete_classification_shortcut(page, user, public_group, taxonomy_token
 def test_public_profile_view_and_shared_fields(page, user, super_admin_user):
     page.goto(f"/become_user/{user.id}")
     page.goto("/profile")
-    time.sleep(2)  # give it enough time to load the current profile
-
-    page.locator('//*[@id="editProfileButton"]').first.click()
+    edit_profile = page.locator("#editProfileButton")
+    edit_profile.click()
 
     first_name = str(uuid.uuid4())
     page.locator('//input[@name="firstName"]').first.fill(first_name)
@@ -234,9 +233,13 @@ def test_public_profile_view_and_shared_fields(page, user, super_admin_user):
     affiliations_entry = page.locator('//input[@name="affiliations"]').first
     affiliations_entry.fill(affiliation)
     affiliations_entry.press("Enter")
-    page.locator('//*[@id="updateProfileButton"]').first.click()
+    page.locator("#updateProfileButton").click()
+    # The save re-renders the link when Settings exits edit mode.
+    expect(edit_profile).to_be_visible()
 
-    page.locator('//*[@data-testid="profile-public-view"]').first.click()
+    public_profile = page.get_by_test_id("profile-public-view")
+    public_profile.click()
+    page.wait_for_url(f"**/user/{user.id}")
     expect(
         page.locator(
             f'//*[@id="publicProfileRealname"][contains(text(), "{first_name}")]'
@@ -244,10 +247,18 @@ def test_public_profile_view_and_shared_fields(page, user, super_admin_user):
     ).to_be_visible()
     expect(page.get_by_text(affiliation).first).to_be_visible()
 
-    page.locator('//*[@data-testid="profile-settings-view"]').first.click()
-    page.locator('//*[@id="userAffiliations"]').first.hover()
-    page.locator('//*[@data-testid="public-toggle-affiliations"]').first.click()
-    page.locator('//*[@data-testid="profile-public-view"]').first.click()
+    page.get_by_test_id("profile-settings-view").click()
+    page.locator("#userAffiliations").hover()
+    with page.expect_response(
+        lambda response: (
+            response.url.endswith("/api/internal/profile")
+            and response.request.method == "PATCH"
+        )
+    ) as preferences_update:
+        page.get_by_test_id("public-toggle-affiliations").click()
+    assert preferences_update.value.ok
+    public_profile.click()
+    page.wait_for_url(f"**/user/{user.id}")
     expect(page.get_by_text(affiliation)).to_have_count(0)
 
     page.goto(f"/become_user/{super_admin_user.id}")
