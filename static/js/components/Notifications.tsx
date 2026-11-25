@@ -105,7 +105,6 @@ const Notifications = () => {
         >
           <Badge
             badgeContent={unreadCount + alerts.unseenCount}
-            variant="dot"
             overlap="circular"
             color="error"
             data-testid="notificationsBadge"

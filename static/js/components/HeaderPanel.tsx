@@ -16,7 +16,14 @@ export const HEADER_ICON_SX = {
   fontSize: 21,
   color: "secondary.main",
   "&:hover": { bgcolor: "rgba(255, 255, 255, 0.12)" },
-  "& .MuiBadge-dot": {
+  "& .MuiBadge-badge": {
+    top: 1,
+    right: -1,
+    height: 16,
+    minWidth: 16,
+    px: 0.5,
+    fontSize: "0.65rem",
+    fontWeight: 600,
     boxShadow: (theme: Theme) => `0 0 0 2px ${theme.palette.primary.dark}`,
   },
 };

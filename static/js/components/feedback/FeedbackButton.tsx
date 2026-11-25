@@ -26,7 +26,6 @@ const FeedbackButton = () => {
       >
         <Badge
           badgeContent={openFeedback}
-          variant="dot"
           overlap="circular"
           color="warning"
           data-testid="feedbackBadge"
