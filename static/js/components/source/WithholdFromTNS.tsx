@@ -1,6 +1,4 @@
 import { useEffect, useState } from "react";
-import CancelScheduleSendIcon from "@mui/icons-material/CancelScheduleSend";
-import SendOutlinedIcon from "@mui/icons-material/SendOutlined";
 import Chip from "@mui/material/Chip";
 import Tooltip from "@mui/material/Tooltip";
 import { alpha } from "@mui/material/styles";
@@ -57,25 +55,32 @@ const WithholdFromTNS = ({
         size="small"
         data-testid="withhold-from-tns-button"
         aria-pressed={withheld}
-        icon={withheld ? <CancelScheduleSendIcon /> : <SendOutlinedIcon />}
+        variant="outlined"
         label={withheld ? "TNS reporting off" : "TNS reporting on"}
         {...(readOnly ? {} : { onClick: toggle })}
         sx={(theme) => {
-          const { error, text } = theme.palette;
+          const { error } = theme.palette;
           const red = theme.palette.mode === "dark" ? error.light : error.main;
-          const tint = withheld ? red : text.primary;
           return {
             alignSelf: "flex-start",
-            bgcolor: alpha(tint, withheld ? 0.12 : 0.06),
-            color: "text.primary",
             fontWeight: 500,
             borderRadius: "8px",
-            "& .MuiChip-icon": {
-              color: withheld ? red : "text.secondary",
-              fontSize: 15,
-              ml: 0.75,
-            },
-            "&&:hover": { bgcolor: alpha(tint, withheld ? 0.2 : 0.11) },
+            ...(withheld
+              ? {
+                  bgcolor: alpha(red, 0.12),
+                  borderColor: "transparent",
+                  color: "text.primary",
+                  "&&:hover": { bgcolor: alpha(red, 0.2) },
+                }
+              : {
+                  borderStyle: "dashed",
+                  color: "text.secondary",
+                  "&&:hover": {
+                    bgcolor: "transparent",
+                    borderColor: red,
+                    color: "text.primary",
+                  },
+                }),
           };
         }}
       />
