@@ -73,6 +73,7 @@ import UpdateSourceSummary from "./UpdateSourceSummary";
 import UpdateSourceT0 from "./UpdateSourceT0";
 import UpdateSourceTNS from "./UpdateSourceTNS";
 import WithholdFromTNS from "./WithholdFromTNS";
+import AssociatedObjs from "./AssociatedObjs";
 import StartBotSummary from "../StartBotSummary";
 import SourceGCNCrossmatchList from "./SourceGCNCrossmatchList";
 import SourceRedshift from "./SourceRedshift";
@@ -855,30 +856,7 @@ const SourceContent = ({ source }: SourceContentProps) => {
             {source?.associated_objs?.length > 0 && (
               <Box className={classes.linkedObjs}>
                 <FieldLabel>Associated with</FieldLabel>
-                <Box className={classes.linkedObjList}>
-                  {source.associated_objs.map((associatedObj: any) => (
-                    <Tooltip
-                      key={associatedObj.obj_id}
-                      title={`${associatedObj.separation.toFixed(2)}″ away`}
-                    >
-                      <Chip
-                        size="small"
-                        variant="outlined"
-                        clickable
-                        component={Link}
-                        to={`/source/${associatedObj.obj_id}`}
-                        label={associatedObj.obj_id}
-                        sx={{
-                          fontWeight: 600,
-                          color: (theme) =>
-                            theme.palette.mode === "dark"
-                              ? theme.palette.secondary.main
-                              : theme.palette.primary.main,
-                        }}
-                      />
-                    </Tooltip>
-                  ))}
-                </Box>
+                <AssociatedObjs objs={source.associated_objs} />
               </Box>
             )}
             {source.summary_history?.length > 0 &&
