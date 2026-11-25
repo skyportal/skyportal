@@ -12,7 +12,7 @@ import TableCell from "@mui/material/TableCell";
 import TableHead from "@mui/material/TableHead";
 import TableRow from "@mui/material/TableRow";
 import Typography from "@mui/material/Typography";
-import { alpha, lighten, type Theme } from "@mui/material/styles";
+import { alpha, type Theme } from "@mui/material/styles";
 
 import { showNotification } from "baselayer/components/Notifications";
 
@@ -44,20 +44,18 @@ const STATE_OPTIONS = [
 
 const stateChipSx = (state: string) => (theme: Theme) => {
   const { mode, success, error, text } = theme.palette;
-  const readable = (color: string) =>
-    mode === "dark" ? lighten(color, 0.45) : color;
-  const green = readable(success.main);
-  const red = readable(error.main);
-  const tone = state === "triggered" ? green : state === "passed" ? red : null;
+  const tone =
+    state === "triggered" ? success : state === "passed" ? error : null;
   const tint = (opacity: number) =>
     state === "mixed"
-      ? `linear-gradient(120deg, ${alpha(green, opacity)} 50%, ${alpha(red, opacity)} 50%)`
-      : alpha(tone ?? text.primary, tone ? opacity : opacity / 2);
+      ? `linear-gradient(120deg, ${alpha(success.main, opacity)} 50%, ${alpha(error.main, opacity)} 50%)`
+      : alpha(tone?.main ?? text.primary, tone ? opacity : opacity / 2);
+  const toneText = mode === "dark" ? tone?.light : tone?.dark;
   return {
     fontWeight: 500,
-    color: tone ?? (state === "mixed" ? text.primary : text.secondary),
-    background: tint(0.2),
-    "&.MuiChip-clickable:hover": { background: tint(0.32) },
+    color: toneText ?? (state === "mixed" ? text.primary : text.secondary),
+    background: tint(0.16),
+    "&.MuiChip-clickable:hover": { background: tint(0.24) },
   };
 };
 
