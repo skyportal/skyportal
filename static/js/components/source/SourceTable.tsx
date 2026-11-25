@@ -17,11 +17,9 @@ import IconButton from "@mui/material/IconButton";
 import FormControlLabel from "@mui/material/FormControlLabel";
 import AddIcon from "@mui/icons-material/Add";
 import Chip from "@mui/material/Chip";
-import DeleteIcon from "@mui/icons-material/Delete";
+import DeleteOutlineIcon from "@mui/icons-material/DeleteOutlined";
 import Dialog from "@mui/material/Dialog";
 import DialogContent from "@mui/material/DialogContent";
-import ThumbUp from "@mui/icons-material/ThumbUp";
-import ThumbDown from "@mui/icons-material/ThumbDown";
 import PictureAsPdfIcon from "@mui/icons-material/PictureAsPdf";
 import FilterListIcon from "@mui/icons-material/FilterList";
 import DownloadIcon from "@mui/icons-material/Download";
@@ -56,7 +54,11 @@ import ExpandableCell, { ExpandableColumnHeader } from "../ExpandableCell";
 import DisplayPhotStats from "./DisplayPhotStats";
 
 import { dec_to_dms, mjd_to_utc, ra_to_hours } from "../../units";
-import ShowClassification from "../classification/ShowClassification";
+import ShowClassification, {
+  ClassificationCard,
+  VoteButton,
+  cardTooltipSlotProps,
+} from "../classification/ShowClassification";
 import FavoritesButton from "../listing/FavoritesButton";
 import {
   useDeleteClassificationsMutation,
@@ -155,52 +157,62 @@ const RenderShowClassification = React.memo(({ source }: { source: any }) => {
     JSON.parse(window.localStorage.getItem("CURRENT_GROUP_ADMIN") as any);
 
   return (
-    <Tooltip
-      placement="top-end"
-      disableFocusListener
-      disableTouchListener
-      title={
-        <Box sx={{ display: "flex", flexDirection: "column", pt: 2 }}>
-          <b>All Classifications:</b>
-          <Button
-            id="delete_classifications"
-            onClick={() => setDialogOpen(true)}
-            disabled={!permission}
-            sx={{
-              fontSize: "2em",
-              position: "absolute",
-              p: 0,
-              right: 0,
-              top: 0,
-              "&.Mui-disabled": { opacity: 0 },
-            }}
-          >
-            <DeleteIcon />
-          </Button>
-          <ConfirmDeletionDialog
-            deleteFunction={deleteClassifications}
-            dialogOpen={dialogOpen}
-            closeDialog={() => setDialogOpen(false)}
-            resourceName="classifications"
+    <>
+      <Tooltip
+        placement="top-start"
+        disableFocusListener
+        disableTouchListener
+        slotProps={cardTooltipSlotProps}
+        title={
+          <ClassificationCard
+            title="All classifications"
+            action={
+              permission && (
+                <IconButton
+                  id="delete_classifications"
+                  size="small"
+                  aria-label="Delete all classifications"
+                  onClick={() => setDialogOpen(true)}
+                  sx={{ color: "text.secondary" }}
+                >
+                  <DeleteOutlineIcon fontSize="small" />
+                </IconButton>
+              )
+            }
+            footer={
+              <>
+                <VoteButton
+                  id="up_vote"
+                  up
+                  active={upvoted}
+                  onClick={() => addVotes(upvoted ? 0 : 1)}
+                />
+                <VoteButton
+                  id="down_vote"
+                  active={downvoted}
+                  onClick={() => addVotes(downvoted ? 0 : -1)}
+                />
+              </>
+            }
           />
-          <Button id="down_vote" onClick={() => addVotes(downvoted ? 0 : -1)}>
-            <ThumbDown color={downvoted ? "error" : "disabled"} />
-          </Button>
-          <Button id="up_vote" onClick={() => addVotes(upvoted ? 0 : 1)}>
-            <ThumbUp color={upvoted ? "success" : "disabled"} />
-          </Button>
-        </Box>
-      }
-    >
-      <div>
-        <ShowClassification
-          classifications={source.classifications}
-          taxonomyList={taxonomyList}
-          shortened
-          fontSize="0.95rem"
-        />
-      </div>
-    </Tooltip>
+        }
+      >
+        <div>
+          <ShowClassification
+            classifications={source.classifications}
+            taxonomyList={taxonomyList}
+            shortened
+            fontSize="0.95rem"
+          />
+        </div>
+      </Tooltip>
+      <ConfirmDeletionDialog
+        deleteFunction={deleteClassifications}
+        dialogOpen={dialogOpen}
+        closeDialog={() => setDialogOpen(false)}
+        resourceName="classifications"
+      />
+    </>
   );
 });
 RenderShowClassification.displayName = "RenderShowClassification";
