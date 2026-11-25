@@ -657,6 +657,12 @@ const SourceContent = ({ source }: SourceContentProps) => {
               <div className={classes.header}>
                 {!isReadOnly && <FavoritesButton sourceID={source.id} />}
                 <h6 className={classes.name}>{source.id}</h6>
+                {source.associated_objs?.length > 0 && (
+                  <AssociatedObjs
+                    sourceId={source.id}
+                    objs={source.associated_objs}
+                  />
+                )}
                 <SourceAcknowledgment obj_id={source.id} />
                 <div className={classes.sourceCandidates}>
                   <SourceCandidatesHistory
@@ -850,12 +856,6 @@ const SourceContent = ({ source }: SourceContentProps) => {
                     ),
                   )}
                 </Box>
-              </Box>
-            )}
-            {source?.associated_objs?.length > 0 && (
-              <Box className={classes.linkedObjs}>
-                <FieldLabel>Associated with</FieldLabel>
-                <AssociatedObjs objs={source.associated_objs} />
               </Box>
             )}
             {source.summary_history?.length > 0 &&

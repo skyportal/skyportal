@@ -36,7 +36,7 @@ const ARGUS_OBJECT_ID =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 
 // Mirrors the backend's survey_from_object_id.
-const guessSurvey = (objectId: string) => {
+export const guessSurvey = (objectId: string) => {
   const id = objectId.trim();
   if (/^ZTF\d{2}[a-z]{7}$/.test(id)) return "ZTF";
   if (/^[ACT]20\d{13}[pm]\d{6}$/.test(id)) return "DECAM";
