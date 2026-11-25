@@ -703,9 +703,11 @@ def _default_analysis_gated():
     default_analysis_parameters is json in the database, but JSONType does not
     carry the comparator that indexes one, so the type is named here.
     """
-    return sa.type_coerce(DefaultAnalysis.default_analysis_parameters, psql.JSON)[
-        "min_detections"
-    ].astext.isnot(None)
+    params = sa.type_coerce(DefaultAnalysis.default_analysis_parameters, psql.JSON)
+    return or_(
+        params["min_detections"].astext.isnot(None),
+        params["require_redshift"].astext == "true",
+    )
 
 
 def _default_analysis_under_limit():
@@ -802,6 +804,18 @@ def _insufficient_photometry(session, default_analysis, obj_id):
     return False
 
 
+def _missing_redshift(session, default_analysis, obj_id):
+    """True if this default analysis sets ``require_redshift`` and the object has
+    no positive redshift yet."""
+    from skyportal.models import Obj
+
+    params = default_analysis.default_analysis_parameters or {}
+    if not params.get("require_redshift"):
+        return False
+    redshift = session.scalar(sa.select(Obj.redshift).where(Obj.id == obj_id))
+    return redshift is None or redshift <= 0
+
+
 def _run_default_analysis(
     default_analysis_id, author_id, obj_id, trigger, spectrum_id=None
 ):
@@ -846,8 +860,10 @@ def _run_default_analysis(
             if default_analysis is None:
                 return
 
-            # Don't submit a job we'd only gate on too-sparse a light curve.
-            if _insufficient_photometry(db_session, default_analysis, obj_id):
+            # Don't submit a job the service would only refuse.
+            if _insufficient_photometry(
+                db_session, default_analysis, obj_id
+            ) or _missing_redshift(db_session, default_analysis, obj_id):
                 return
 
             now = utcnow_naive().strftime("%Y-%m-%dT%H:%M:%S.%f")
