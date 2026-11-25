@@ -179,14 +179,14 @@ const HeaderContent = () => {
         <Box sx={{"{{ display: { xs: 'none', md: 'block' } }}"}}>
           <QuickSearchBar />
         </Box>
+        <IconButton
+          onClick={() => setOpenSearch(!openSearch)}
+          sx={MOBILE_ONLY_ICON_SX}
+        >
+          <SearchIcon fontSize="inherit" />
+        </IconButton>
         <TeamSwitcher />
         <Box sx={ICON_GROUP_SX}>
-          <IconButton
-            onClick={() => setOpenSearch(!openSearch)}
-            sx={MOBILE_ONLY_ICON_SX}
-          >
-            <SearchIcon fontSize="inherit" />
-          </IconButton>
           <FeedbackButton />
           <Notifications />
         </Box>

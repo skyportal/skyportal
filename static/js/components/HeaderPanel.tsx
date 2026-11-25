@@ -13,7 +13,7 @@ export const HEADER_ICON_SX = {
   m: 0,
   width: 36,
   height: 36,
-  fontSize: 21,
+  fontSize: 23,
   color: "secondary.main",
   "&:hover": { bgcolor: "rgba(255, 255, 255, 0.12)" },
   "& .MuiBadge-badge": {
