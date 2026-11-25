@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import Badge from "@mui/material/Badge";
 import IconButton from "@mui/material/IconButton";
 import Tooltip from "@mui/material/Tooltip";
-import FeedbackIcon from "@mui/icons-material/ChatBubbleOutlineRounded";
+import FeedbackIcon from "@mui/icons-material/FeedbackOutlined";
 
 import { HEADER_ICON_SX } from "../HeaderPanel";
 import { useOpenFeedbackCount } from "../../ducks/feedback";
