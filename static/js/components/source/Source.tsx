@@ -1072,8 +1072,9 @@ const SourceContent = ({ source }: SourceContentProps) => {
               )}
             </Box>
             {showStarList && <StarList sourceId={source.id} />}
-            {/* checking if the id exists is a way to know if the user profile is loaded or not */}
-            {showSummary && noSummary && !isReadOnly && (
+            {showSummary &&
+              noSummary &&
+              (!isReadOnly || source.summary_history?.length > 0) && (
               <Box
                 sx={{
                   mt: 0.75,
