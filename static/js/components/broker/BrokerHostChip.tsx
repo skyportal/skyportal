@@ -5,6 +5,7 @@ import Chip from "@mui/material/Chip";
 import Popover from "@mui/material/Popover";
 import { alpha, lighten } from "@mui/material/styles";
 import type { BrokerHost } from "../../ducks/brokers";
+import { REDSHIFT_TYPES } from "../source/SourceRedshift";
 
 export const zDigits = (zErr: number | null | undefined) =>
   zErr ? Math.min(6, Math.max(1, Math.ceil(Math.abs(Math.log10(zErr))))) : 4;
@@ -30,9 +31,19 @@ export const hostUrl = ({
   return `https://www.legacysurvey.org/viewer?ra=${ra}&dec=${dec}&layer=${layer}&zoom=16&mark=${ra},${dec}`;
 };
 
-const formatZ = (z: number, zErr: number | null | undefined) => {
+const formatZ = (
+  z: number,
+  zErr: number | null | undefined,
+  zType: string | null | undefined,
+) => {
   const digits = zDigits(zErr);
-  return `${z.toFixed(digits)}${zErr != null ? ` ± ${zErr.toFixed(digits)}` : ""}`;
+  const type = REDSHIFT_TYPES.find(({ value }) => value === zType)?.label;
+  return [
+    `${z.toFixed(digits)}${zErr != null ? ` ± ${zErr.toFixed(digits)}` : ""}`,
+    type,
+  ]
+    .filter(Boolean)
+    .join(" · ");
 };
 
 const formatSeparation = (
@@ -51,6 +62,7 @@ export interface HostSummary {
   extraRows?: [string, string][] | undefined;
   z?: number | null | undefined;
   zErr?: number | null | undefined;
+  zType?: string | null | undefined;
   sepArcsec?: number | null | undefined;
   sepKpc?: number | null | undefined;
   distMpc?: number | null | undefined;
@@ -62,7 +74,10 @@ export interface HostSummary {
 const detailRows = (host: HostSummary): [string, string][] => {
   const rows: [string, string | null | undefined][] = [
     ["Catalog", host.catalog],
-    ["Redshift", host.z != null ? formatZ(host.z, host.zErr) : null],
+    [
+      "Redshift",
+      host.z != null ? formatZ(host.z, host.zErr, host.zType) : null,
+    ],
     [
       "Distance",
       host.distMpc != null ? `${host.distMpc.toFixed(1)} Mpc` : null,
@@ -216,6 +231,7 @@ export const brokerHostSummary = (
   tag,
   z: host.z,
   zErr: host.z_err,
+  zType: host.z_type,
   sepArcsec: host.sep_arcsec,
   sepKpc: host.sep_kpc,
   distMpc: host.dist_mpc,

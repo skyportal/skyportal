@@ -65,6 +65,7 @@ export interface BrokerHost {
   dec: number | null;
   z: number | null;
   z_err: number | null;
+  z_type: string | null;
   dist_mpc: number | null;
   sep_arcsec: number | null;
   sep_kpc: number | null;
