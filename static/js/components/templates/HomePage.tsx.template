@@ -1,4 +1,8 @@
-import { ResponsiveGridLayout, useContainerWidth } from "react-grid-layout";
+import {
+  ResponsiveGridLayout,
+  useContainerWidth,
+  verticalCompactor,
+} from "react-grid-layout";
 import "reactgridlayoutcss/styles.css";
 import "reactresizablecss/styles.css";
 
@@ -63,7 +67,7 @@ const defaultLayouts: any = {
 
 const gridCols: any = {{ app.homepage_grid.cols|tojson }}
 
-const geometry = (items: any[] = []) =>
+const geometry = (items: readonly any[] = []) =>
   JSON.stringify(items.map(({ i, x, y, w, h }: any) => [i, x, y, w, h]));
 
 const RESET_BUTTON_SX = {
@@ -168,6 +172,13 @@ const withoutGettingStarted = (layouts: any) =>
     }),
   );
 
+const defaultLayoutsWithoutGettingStarted = withoutGettingStarted(defaultLayouts);
+
+const compacted = (layouts: any, breakpoint: string) =>
+  geometry(
+    verticalCompactor.compact(layouts[breakpoint] ?? [], gridCols[breakpoint]),
+  );
+
 const HomePage = () => {
   const { classes } = useStyles();
   const [updateUserPreferences] = useUpdateUserPreferencesMutation();
@@ -189,13 +200,14 @@ const HomePage = () => {
   const currentLayouts = onboardingDismissed
     ? withoutGettingStarted(savedLayouts)
     : savedLayouts;
-  const isDefaultLayout =
-    !onboardingDismissed &&
-    Object.keys(defaultLayouts).every(
-      (breakpoint) =>
-        geometry(savedLayouts[breakpoint]) ===
-        geometry(defaultLayouts[breakpoint]),
-    );
+  const expectedLayouts = onboardingDismissed
+    ? defaultLayoutsWithoutGettingStarted
+    : defaultLayouts;
+  const isDefaultLayout = Object.keys(defaultLayouts).every(
+    (breakpoint) =>
+      compacted(currentLayouts, breakpoint) ===
+      compacted(expectedLayouts, breakpoint),
+  );
 
   const layoutChangeHandler = (_: any, allLayouts: any) => {
     // The grid also fires this on mount, which would save a layout nobody chose.
@@ -210,11 +222,7 @@ const HomePage = () => {
   // The container must render unconditionally: the effect gives up if the node is missing.
   const { width, containerRef, mounted } = useContainerWidth();
 
-  const resetLayouts = () =>
-    updateUserPreferences({
-      layouts: defaultLayouts,
-      onboardingDismissed: false,
-    });
+  const resetLayouts = () => updateUserPreferences({ layouts: defaultLayouts });
 
   return (
     <>
