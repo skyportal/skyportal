@@ -120,10 +120,19 @@ async def _grb_targets(session, query, now, public_group_name):
         .order_by(GcnEvent.dateobs.desc())
     )
     for event in events:
-        evidence = json.dumps(grb_evidence(event), sort_keys=True, default=str)
-        # Changing the prompt or enabling posting deserves a fresh review.
+        evidence = grb_evidence(event)
+        # Notices and their event properties can arrive without new measurements.
         digest = hashlib.sha256(
-            json.dumps([query.prompt, query.dry_run, evidence]).encode()
+            json.dumps(
+                [
+                    query.prompt,
+                    query.dry_run,
+                    evidence["localizations"],
+                    evidence["extractions"],
+                ],
+                sort_keys=True,
+                default=str,
+            ).encode()
         ).hexdigest()
         dateobs = event.dateobs.isoformat()
         channel = f"task:grb:{event.id}:{digest}"
@@ -141,7 +150,12 @@ async def _grb_targets(session, query, now, public_group_name):
             or (previous.run_status == "queued" and previous.modified > now - STALE_RUN)
         ):
             continue
-        yield "gcn_event", dateobs, channel, evidence
+        yield (
+            "gcn_event",
+            dateobs,
+            channel,
+            json.dumps(evidence, sort_keys=True, default=str),
+        )
 
 
 async def _source_targets(session, query, now, public_group_name):

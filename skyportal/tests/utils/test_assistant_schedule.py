@@ -1,4 +1,5 @@
 import asyncio
+import json
 from datetime import datetime, timedelta
 from types import SimpleNamespace
 
@@ -49,13 +50,19 @@ def test_grb_evidence_preserves_upper_limits_and_unknown_duration():
     assert evidence["properties"] == []
 
 
-def test_grb_evidence_is_queued_only_when_new_or_retryable(monkeypatch):
+def test_grb_evidence_is_queued_only_when_new_or_retryable():
     now = datetime(2026, 11, 22, 4, 50)
     query = AssistantQuery(id=1, group_id=1, prompt="Review.", dry_run=False)
     event = SimpleNamespace(
         id=1,
         dateobs=datetime(2026, 11, 22, 1, 32, 20),
+        aliases=[],
+        trigger_id="1519536",
+        gcn_notices=[],
         circulars={"46329": "Fermi localization"},
+        localizations=[],
+        properties=[],
+        extractions=[],
     )
 
     class Session:
@@ -73,9 +80,6 @@ def test_grb_evidence_is_queued_only_when_new_or_retryable(monkeypatch):
             return self.jobs.get(channel)
 
     session = Session()
-    monkeypatch.setattr(
-        assistant_schedule, "grb_evidence", lambda event: event.circulars
-    )
 
     async def targets():
         return [
@@ -91,13 +95,35 @@ def test_grb_evidence_is_queued_only_when_new_or_retryable(monkeypatch):
     session.jobs[channel] = SimpleNamespace(run_status="completed")
     assert asyncio.run(targets()) == []
 
+    event.gcn_notices.append(
+        SimpleNamespace(stream="swift", notice_type=63, ivorn="ivo://swift/lc")
+    )
+    event.properties.append(SimpleNamespace(data={"notice_type": 63}))
     event.circulars["46330"] = "MASTER-Net follow-up"
+    assert asyncio.run(targets()) == []
+
+    event.localizations.append(
+        SimpleNamespace(id=1, localization_name="271.1_-57.7_0.1", properties=[])
+    )
     updated = asyncio.run(targets())
     assert len(updated) == 1
     assert updated[0][2] != original[0][2]
+    assert json.loads(updated[0][3])["notices"][0]["id"] == "ivo://swift/lc"
 
     channel = f"query:{query.id}:{updated[0][2]}"
     session.jobs[channel] = SimpleNamespace(run_status="queued", modified=now)
     assert asyncio.run(targets()) == []
     session.jobs[channel].run_status = "failed"
     assert asyncio.run(targets()) == updated
+
+    session.jobs[channel].run_status = "completed"
+    event.extractions.append(
+        SimpleNamespace(
+            circular_id=46330,
+            origin="circex",
+            data={"photometry": [{"limiting_mag": 17.8}]},
+        )
+    )
+    extracted = asyncio.run(targets())
+    assert len(extracted) == 1
+    assert extracted[0][2] != updated[0][2]

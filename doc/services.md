@@ -98,6 +98,7 @@ an interval of five minutes, and start with **Dry run**. An example prompt:
 > shifter.
 
 Each check considers GRB-tagged events from the previous two days that the group
-can see, including sitewide events. It skips evidence already reviewed under the
-same prompt and dry-run setting. Live results appear as group-visible bot comments
-on the GCN event. The review uses the evidence already linked in SkyPortal.
+can see, including sitewide events. Under the same prompt and dry-run setting,
+an event is reviewed again only when its localizations or circular extractions
+change. Live results appear as group-visible bot comments on the GCN event.
+The review uses the evidence already linked in SkyPortal.
