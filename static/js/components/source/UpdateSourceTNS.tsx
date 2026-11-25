@@ -2,6 +2,7 @@ import { useState } from "react";
 
 import ErrorIcon from "@mui/icons-material/ErrorOutlineOutlined";
 import ManageSearchIcon from "@mui/icons-material/ManageSearch";
+import SearchOffIcon from "@mui/icons-material/SearchOff";
 import Box from "@mui/material/Box";
 import CircularProgress from "@mui/material/CircularProgress";
 import Dialog from "@mui/material/Dialog";
@@ -10,7 +11,6 @@ import DialogContent from "@mui/material/DialogContent";
 import DialogTitle from "@mui/material/DialogTitle";
 import TextField from "@mui/material/TextField";
 import Tooltip from "@mui/material/Tooltip";
-import Typography from "@mui/material/Typography";
 
 import { useAddTNSMutation } from "../../ducks/source";
 import Button from "../Button";
@@ -63,9 +63,11 @@ const UpdateSourceTNS = ({ sourceId, tnsRequest }: UpdateSourceTNSProps) => {
           title={`No TNS object within ${tnsRequest.radius}″, searched on ${tnsRequest.modified.slice(0, 10)}`}
           placement="bottom-start"
         >
-          <Typography variant="body2" color="text.secondary">
-            Not found
-          </Typography>
+          <SearchOffIcon
+            color="action"
+            fontSize="small"
+            data-testid="tnsNotFound"
+          />
         </Tooltip>
       )}
       {tnsRequest?.status === "error" && (
