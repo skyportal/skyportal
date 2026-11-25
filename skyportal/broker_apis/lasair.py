@@ -1084,6 +1084,11 @@ def available_topics(broker, credentials=None):
 
     altdata = broker.altdata or {}
     kafka = {**(altdata.get("kafka") or {}), **((credentials or {}).get("kafka") or {})}
+    if not (kafka.get("host") or "").strip():
+        raise ValueError(
+            "Lasair Kafka host is not configured. Ask a SkyPortal admin to edit "
+            "this broker and save its Kafka host and port."
+        )
     # Metadata only; a distinct group so it never disturbs an ingestion offset.
     topics = list_topics(kafka, f"skyportal-broker-{broker.id}-topics")
     return [t for t in topics if t.startswith("lasair_")]
