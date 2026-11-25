@@ -48,8 +48,8 @@ const WithholdFromTNS = ({
     <Tooltip
       title={
         withheld
-          ? `Click to allow it to be sent to TNS again${setBy}`
-          : "Click to stop it from being sent to TNS, automatically or manually"
+          ? `Click to allow this source to be sent to TNS again${setBy}`
+          : "Click to block this source from being sent to TNS, automatically or manually"
       }
     >
       <span>
