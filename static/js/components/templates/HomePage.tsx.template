@@ -4,11 +4,9 @@ import "reactresizablecss/styles.css";
 
 import { useTheme } from "@mui/material/styles";
 import { makeStyles } from "tss-react/mui";
-import IconButton from "@mui/material/IconButton";
-import CachedIcon from "@mui/icons-material/Cached";
-import Tooltip from "@mui/material/Tooltip";
 import convertLength from "convert-css-length";
 
+import Button from "../Button";
 import {
   useGetProfileQuery,
   useUpdateUserPreferencesMutation,
@@ -65,6 +63,20 @@ const gridCols: any = {{ app.homepage_grid.cols|tojson }}
 
 const geometry = (items: any[] = []) =>
   JSON.stringify(items.map(({ i, x, y, w, h }: any) => [i, x, y, w, h]));
+
+const RESET_BUTTON_SX = {
+  position: "fixed",
+  bottom: "1rem",
+  right: "1rem",
+  zIndex: 10,
+  px: 2,
+  borderRadius: "999px",
+  textTransform: "none",
+  bgcolor: "background.paper",
+  color: "text.secondary",
+  boxShadow: 3,
+  "&:hover": { bgcolor: "background.paper", color: "text.primary", boxShadow: 6 },
+};
 
 const withSavedPositions = (saved: any) =>
   Object.fromEntries(
@@ -178,6 +190,13 @@ const HomePage = () => {
   const currentLayouts = onboardingDismissed
     ? withoutGettingStarted(savedLayouts)
     : savedLayouts;
+  const isDefaultLayout =
+    !onboardingDismissed &&
+    Object.keys(defaultLayouts).every(
+      (breakpoint) =>
+        geometry(savedLayouts[breakpoint]) ===
+        geometry(defaultLayouts[breakpoint]),
+    );
 
   const layoutChangeHandler = (_: any, allLayouts: any) => {
     // The grid also fires this on mount, which would save a layout nobody chose.
@@ -261,15 +280,10 @@ const HomePage = () => {
       </ResponsiveGridLayout>
       )}
       </div>
-      {profile?.username && (
-      <Tooltip title="Reset page layout" placement="left">
-        <IconButton
-          onClick={resetLayouts}
-          {% raw %}sx={{ position: "fixed", bottom: "1rem", right: "1rem" }}{% endraw %}
-        >
-          <CachedIcon />
-        </IconButton>
-      </Tooltip>
+      {profile?.username && !isDefaultLayout && (
+      <Button size="small" onClick={resetLayouts} sx={RESET_BUTTON_SX}>
+        Reset layout
+      </Button>
       )}
     </>
   );
