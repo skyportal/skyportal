@@ -1,8 +1,9 @@
 import { useEffect, useState } from "react";
 import CancelScheduleSendIcon from "@mui/icons-material/CancelScheduleSend";
-import CancelScheduleSendOutlinedIcon from "@mui/icons-material/CancelScheduleSendOutlined";
-import IconButton from "@mui/material/IconButton";
+import SendOutlinedIcon from "@mui/icons-material/SendOutlined";
+import Chip from "@mui/material/Chip";
 import Tooltip from "@mui/material/Tooltip";
+import { alpha } from "@mui/material/styles";
 
 import { useUpdateSourceMutation } from "../../ducks/source";
 
@@ -52,28 +53,34 @@ const WithholdFromTNS = ({
           : "Click to block this source from being sent to TNS, automatically or manually"
       }
     >
-      <span>
-        <IconButton
-          size="small"
-          data-testid="withhold-from-tns-button"
-          aria-pressed={withheld}
-          disabled={readOnly}
-          onClick={toggle}
-          sx={{
-            p: 0,
-            ml: 0.5,
-            color: withheld ? "error.main" : "text.disabled",
-            "&:hover": { color: "error.main" },
-            "& .MuiSvgIcon-root": { fontSize: 17 },
-          }}
-        >
-          {withheld ? (
-            <CancelScheduleSendIcon />
-          ) : (
-            <CancelScheduleSendOutlinedIcon />
-          )}
-        </IconButton>
-      </span>
+      <Chip
+        size="small"
+        data-testid="withhold-from-tns-button"
+        aria-pressed={withheld}
+        icon={withheld ? <CancelScheduleSendIcon /> : <SendOutlinedIcon />}
+        label={withheld ? "TNS reporting off" : "TNS reporting on"}
+        {...(readOnly ? {} : { onClick: toggle })}
+        sx={(theme) => {
+          const { error, success } = theme.palette;
+          const dark = theme.palette.mode === "dark";
+          const color = withheld
+            ? dark
+              ? error.light
+              : error.main
+            : dark
+              ? success.light
+              : success.dark;
+          return {
+            alignSelf: "flex-start",
+            bgcolor: alpha(color, 0.12),
+            color,
+            fontWeight: 500,
+            borderRadius: "8px",
+            "& .MuiChip-icon": { color: "inherit", fontSize: 15, ml: 0.75 },
+            "&&:hover": { bgcolor: alpha(color, 0.2) },
+          };
+        }}
+      />
     </Tooltip>
   );
 };
