@@ -1,7 +1,7 @@
 """Cache ADS paper matches by object.
 
 Revision ID: 91c2e8a4b70f
-Revises: c4f1e8a2b937
+Revises: 510bb053e9e1
 """
 
 import sqlalchemy as sa
@@ -10,7 +10,7 @@ from sqlalchemy.dialects.postgresql import JSONB
 from alembic import op
 
 revision = "91c2e8a4b70f"
-down_revision = "c4f1e8a2b937"
+down_revision = "510bb053e9e1"
 branch_labels = None
 depends_on = None
 

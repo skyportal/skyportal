@@ -87,7 +87,7 @@ def refresh(batch_size, ads):
 
 
 @check_loaded(logger=log)
-def service():
+def service(*args, **kwargs):
     interval = max(3600, int(cfg["paper_corner.refresh_interval_seconds"]))
     batch_size = max(1, int(cfg["paper_corner.batch_size"]))
     max_requests = max(1, int(cfg["paper_corner.max_requests_per_refresh"]))
