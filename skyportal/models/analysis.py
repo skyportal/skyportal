@@ -11,7 +11,7 @@ import json
 import os
 import re
 import uuid
-from datetime import datetime, timedelta
+from datetime import datetime
 from pathlib import Path
 
 import joblib
@@ -709,14 +709,14 @@ def _default_analysis_gated():
 
 
 def _default_analysis_under_limit():
-    """SQL clause: DefaultAnalysis still under its per-day cap (or window rolled over)."""
+    """SQL clause: DefaultAnalysis under its daily cap, or last run before today (UTC)."""
     return or_(
         func.coalesce(DefaultAnalysis.stats["daily_count"].astext.cast(sa.Integer), 0)
         < func.coalesce(
             DefaultAnalysis.stats["daily_limit"].astext.cast(sa.Integer), 10
         ),
-        DefaultAnalysis.stats["last_run"].astext.cast(sa.DateTime)
-        < cast(utcnow_naive() - timedelta(days=1), sa.DateTime),
+        DefaultAnalysis.stats["last_run"].astext.cast(sa.Date)
+        < cast(utcnow_naive().date(), sa.Date),
     )
 
 
@@ -854,8 +854,9 @@ def _run_default_analysis(
             stats = default_analysis.stats or {}
             if not {"daily_limit", "daily_count", "last_run"}.issubset(stats.keys()):
                 stats = {"daily_limit": 10, "daily_count": 0, "last_run": now}
-            if datetime.strptime(stats["last_run"], "%Y-%m-%dT%H:%M:%S.%f") < (
-                utcnow_naive() - timedelta(days=1)
+            if (
+                datetime.strptime(stats["last_run"], "%Y-%m-%dT%H:%M:%S.%f").date()
+                < utcnow_naive().date()
             ):
                 stats = {
                     "daily_limit": stats["daily_limit"],
@@ -988,8 +989,9 @@ def _run_default_gcnevent_analysis(default_analysis_id, author_id, dateobs, trig
             stats = default_analysis.stats or {}
             if not {"daily_limit", "daily_count", "last_run"}.issubset(stats.keys()):
                 stats = {"daily_limit": 10, "daily_count": 0, "last_run": now}
-            if datetime.strptime(stats["last_run"], "%Y-%m-%dT%H:%M:%S.%f") < (
-                utcnow_naive() - timedelta(days=1)
+            if (
+                datetime.strptime(stats["last_run"], "%Y-%m-%dT%H:%M:%S.%f").date()
+                < utcnow_naive().date()
             ):
                 stats = {
                     "daily_limit": stats["daily_limit"],
