@@ -211,7 +211,9 @@ const FollowupRequestForm = ({
   const externalForm = instrumentParams.externalFollowupForm;
   if (canRequestVla && externalForm?.type === "vla_rubin") {
     return (
-      <Box sx={{ display: "flex", flexDirection: "column", gap: 1, mb: 2 }}>
+      <Box
+        sx={{ display: "flex", flexDirection: "column", gap: 1, pt: 1, mb: 2 }}
+      >
         {requestSelect}
         {isSomeActiveRangeOrNoRange(allocation.validity_ranges) ? (
           <VlaFollowupButton alert={vlaRubinAlert} formUrl={externalForm.url} />
@@ -316,7 +318,9 @@ const FollowupRequestForm = ({
   }
 
   return (
-    <Box sx={{ display: "flex", flexDirection: "column", gap: 1, mb: 2 }}>
+    <Box
+      sx={{ display: "flex", flexDirection: "column", gap: 1, pt: 1, mb: 2 }}
+    >
       {requestSelect}
       <Box
         sx={{
