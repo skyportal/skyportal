@@ -49,7 +49,7 @@ const ProfileDropdown = () => {
         size="large"
         sx={{ p: 0, m: 0 }}
       >
-        <UserAvatar size={45} {...avatarProps} />
+        <UserAvatar size={36} {...avatarProps} />
       </IconButton>
       {/* this is to make baselayer.app.test_util.login happy */}
       <Box component="span" sx={{ display: "none" }}>

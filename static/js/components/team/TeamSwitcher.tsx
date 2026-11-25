@@ -161,7 +161,7 @@ const TeamSwitcher = () => {
                 sx={{ width: 24, height: 24 }}
               />
             ) : (
-              <GroupsIcon color="primary" />
+              <GroupsIcon color="secondary" />
             )}
           </IconButton>
         </Tooltip>

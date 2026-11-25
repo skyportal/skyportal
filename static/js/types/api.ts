@@ -17585,7 +17585,7 @@ export interface paths {
         };
         /**
          * Get TNS info for an object
-         * @description Retrieve TNS information for an object
+         * @description Queue a search of TNS around an object. The search runs in the background and its status is returned with the source.
          */
         get: {
             parameters: {
@@ -29408,6 +29408,10 @@ export interface components {
             broker_id?: number | null;
             /** @description Whether objects passing this filter are auto-saved as Sources to the Filter's Group. */
             autosave?: boolean;
+            /** @description Whether the scanning page opens on the moving objects view for this filter. */
+            moving_objects?: boolean;
+            /** @description False once the filter was deactivated. */
+            active?: boolean;
             /** Format: date-time */
             created_at?: string;
             /** Format: date-time */
@@ -38777,6 +38781,8 @@ export interface components {
         PublicSourcePage: {
             /** @description The release associated with this source page */
             readonly release?: components["schemas"]["PublicRelease"];
+            /** @description The User who published the page */
+            readonly created_by?: components["schemas"]["User"];
             id?: number;
             /** @description ID of the source */
             source_id: string;
@@ -38792,6 +38798,8 @@ export interface components {
             is_visible?: boolean;
             /** @description ID of the public release associated with this source page */
             release_id?: number | null;
+            /** @description ID of the User who published the page */
+            created_by_id?: number | null;
         };
         SinglePublicSourcePage: {
             /** @enum {string} */
@@ -38808,6 +38816,8 @@ export interface components {
         PublicSourcePageNoID: {
             /** @description The release associated with this source page */
             readonly release?: components["schemas"]["PublicRelease"];
+            /** @description The User who published the page */
+            readonly created_by?: components["schemas"]["User"];
             /** @description ID of the source */
             source_id: string;
             /** @description Source data accessible on the page */
@@ -38822,6 +38832,8 @@ export interface components {
             is_visible?: boolean;
             /** @description ID of the public release associated with this source page */
             release_id?: number | null;
+            /** @description ID of the User who published the page */
+            created_by_id?: number | null;
         };
         SinglePublicSourcePageNoID: {
             /** @enum {string} */
@@ -41707,6 +41719,64 @@ export interface components {
             message?: string;
             data?: components["schemas"]["SurveyEfficiencyForObservationsNoID"][];
         };
+        TNSRetrievalRequest: {
+            /** @description The Obj to look for on TNS. */
+            readonly obj?: components["schemas"]["Obj"];
+            /** @description The User who requested the search. */
+            readonly user?: components["schemas"]["User"];
+            /** @description ID of the Obj to look for on TNS. */
+            obj_id: string;
+            /** @description ID of the User who requested the search. */
+            user_id: number;
+            /** @description Search radius around the Obj, in arcsec. */
+            radius: number;
+            /** @description One of pending, processing, found, not_found or error. */
+            status?: string;
+            /** @description Why the search failed. */
+            error?: string | null;
+            /** @description Unique object identifier. */
+            id?: number;
+        };
+        SingleTNSRetrievalRequest: {
+            /** @enum {string} */
+            status: "success";
+            message?: string;
+            data?: components["schemas"]["TNSRetrievalRequest"];
+        };
+        ArrayOfTNSRetrievalRequests: {
+            /** @enum {string} */
+            status: "success";
+            message?: string;
+            data?: components["schemas"]["TNSRetrievalRequest"][];
+        };
+        TNSRetrievalRequestNoID: {
+            /** @description The Obj to look for on TNS. */
+            readonly obj?: components["schemas"]["Obj"];
+            /** @description The User who requested the search. */
+            readonly user?: components["schemas"]["User"];
+            /** @description ID of the Obj to look for on TNS. */
+            obj_id: string;
+            /** @description ID of the User who requested the search. */
+            user_id: number;
+            /** @description Search radius around the Obj, in arcsec. */
+            radius: number;
+            /** @description One of pending, processing, found, not_found or error. */
+            status?: string;
+            /** @description Why the search failed. */
+            error?: string | null;
+        };
+        SingleTNSRetrievalRequestNoID: {
+            /** @enum {string} */
+            status: "success";
+            message?: string;
+            data?: components["schemas"]["TNSRetrievalRequestNoID"];
+        };
+        ArrayOfTNSRetrievalRequestNoIDs: {
+            /** @enum {string} */
+            status: "success";
+            message?: string;
+            data?: components["schemas"]["TNSRetrievalRequestNoID"][];
+        };
         Taxonomy: {
             readonly groups?: components["schemas"]["Group"][];
             readonly classifications?: components["schemas"]["Classification"][];
@@ -43728,6 +43798,12 @@ export interface components {
              * @default null
              */
             autoFollowup: boolean | null;
+            /**
+             * Movingobjects
+             * @description Whether the scanning page opens on the moving objects view for this filter.
+             * @default null
+             */
+            movingObjects: boolean | null;
             /**
              * Autosaveignoregroupids
              * @description Groups whose members are not auto-saved (e.g. junk).

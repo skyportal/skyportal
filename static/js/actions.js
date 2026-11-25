@@ -55,9 +55,7 @@ import * as instrumentActions from "./ducks/instrument";
 
 export default function hydrate() {
   return (dispatch) => {
-    // One-shot forced refetch of the dashboard widgets (navigation + Refresh
-    // button). forceRefetch is required: a bare initiate() is a no-op for an
-    // already-subscribed query, leaving the feed stale and Refresh inert.
+    // A bare initiate() is a no-op for an already-subscribed query.
     const refetch = { subscribe: false, forceRefetch: true };
     dispatch(
       newsFeedActions.newsFeedApi.endpoints.getNewsFeed.initiate(

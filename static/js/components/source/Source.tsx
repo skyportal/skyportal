@@ -744,7 +744,10 @@ const SourceContent = ({ source }: SourceContentProps) => {
                   />
                 )}
                 {!source.tns_name && !isReadOnly && (
-                  <UpdateSourceTNS sourceId={source.id} />
+                  <UpdateSourceTNS
+                    sourceId={source.id}
+                    tnsRequest={source.tns_request}
+                  />
                 )}
                 {!isReadOnly && (
                   <Box sx={{ ml: 1 }}>
