@@ -178,7 +178,21 @@ def _reparsed(text):
         return text
 
 
-def condense(text, budget=6000):
+def lift_active_pipeline(text):
+    try:
+        record = json.loads(text)
+    except (ValueError, TypeError):
+        return text
+    if not isinstance(record, dict) or not record.get("active_fid"):
+        return text
+    for version in record.get("fv") or []:
+        if version.get("fid") == record["active_fid"] and "pipeline" in version:
+            record["active_pipeline"] = _reparsed(version.pop("pipeline"))
+            return json.dumps(record, default=str)
+    return text
+
+
+def condense(text, budget=6000, keep=()):
     """Fit a tool result into a context budget without handing back broken JSON."""
     if len(text) <= budget:
         return text
@@ -221,7 +235,10 @@ def condense(text, budget=6000):
             payload[key] = smaller
 
     dropped = []
-    by_size = sorted(payload, key=lambda k: -len(json.dumps(payload[k], default=str)))
+    by_size = sorted(
+        (key for key in payload if key not in keep),
+        key=lambda k: -len(json.dumps(payload[k], default=str)),
+    )
     for key in by_size:
         current = json.dumps(payload, default=str)
         if len(current) <= budget:

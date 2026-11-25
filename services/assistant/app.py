@@ -37,6 +37,7 @@ from skyportal.utils.assistant import (
     build_messages,
     chat_payload,
     condense,
+    lift_active_pipeline,
     merge_deltas,
     offered_tools,
     proposal,
@@ -342,7 +343,11 @@ def answer(conversation, context_type, context_id, user, token, detail=None):
                 {
                     "role": "tool",
                     "tool_call_id": call["id"],
-                    "content": condense(result, RESULT_BUDGET),
+                    "content": condense(
+                        lift_active_pipeline(result),
+                        RESULT_BUDGET,
+                        keep=("active_pipeline",),
+                    ),
                 }
             )
 
