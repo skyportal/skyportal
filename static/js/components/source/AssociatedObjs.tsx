@@ -21,7 +21,11 @@ const surveyLabel = (survey?: string | null) =>
 
 const AssociatedObjs = ({ objs }: { objs: AssociatedObj[] }) => {
   const [anchor, setAnchor] = useState<HTMLElement | null>(null);
-  const surveys = [...new Set(objs.map((obj) => surveyLabel(obj.survey)))];
+  const counts = objs.reduce<Record<string, number>>((acc, obj) => {
+    const label = surveyLabel(obj.survey);
+    acc[label] = (acc[label] ?? 0) + 1;
+    return acc;
+  }, {});
 
   return (
     <>
@@ -29,7 +33,9 @@ const AssociatedObjs = ({ objs }: { objs: AssociatedObj[] }) => {
         size="small"
         variant="outlined"
         data-testid="associated-objs-button"
-        label={surveys.join(" · ")}
+        label={Object.entries(counts)
+          .map(([survey, n]) => (n > 1 ? `${survey} ×${n}` : survey))
+          .join(" · ")}
         onClick={(e) => setAnchor(e.currentTarget)}
         sx={{
           fontWeight: 600,
