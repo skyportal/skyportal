@@ -21,13 +21,24 @@ class PublicSourcePageOptionsResponse(BaseModel):
     summary: Literal["public", "private", "no data"] | None = None
 
 
+class PublicSourcePagePublisherResponse(BaseModel):
+    """The user who published a public source page."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    id: int
+    username: str
+    first_name: str | None = None
+    last_name: str | None = None
+
+
 class PublicSourcePageResponse(BaseModel):
     """A published snapshot of a source (``PublicSourcePage``).
 
     ``PublicSourcePage.to_dict`` returns exactly these keys, so the ``data``,
     ``is_auto_published`` and ``release_id`` columns and the ``release``
     relationship never reach the client; ``release_link_name`` is derived from
-    the release instead.
+    the release instead, and ``created_by`` is reduced to the publisher's name.
     """
 
     model_config = ConfigDict(extra="forbid")
@@ -37,6 +48,7 @@ class PublicSourcePageResponse(BaseModel):
     release_link_name: str | None = None
     is_visible: bool | None = None
     created_at: datetime | None = None
+    created_by: PublicSourcePagePublisherResponse | None = None
     hash: str | None = None
     options: PublicSourcePageOptionsResponse | None = None
 
@@ -178,5 +190,6 @@ __all__ = [
     "PublicSourcePageOptionsResponse",
     "PublicSourcePagePostBody",
     "PublicSourcePagePostResponse",
+    "PublicSourcePagePublisherResponse",
     "PublicSourcePageResponse",
 ]
