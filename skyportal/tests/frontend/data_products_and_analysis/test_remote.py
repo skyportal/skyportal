@@ -15,4 +15,4 @@ def test_remote(page):
     DBSession.commit()
     page.goto("/")
     assert "localhost" in page.url
-    expect(page.locator('//p[contains(.,"New Sources")]').first).to_be_visible()
+    expect(page.locator('//p[contains(.,"New sources")]').first).to_be_visible()

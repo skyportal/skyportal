@@ -48,7 +48,7 @@ def test_news_feed_refreshes_on_logo_click(
     # Load the dashboard first so the news feed is fetched and cached.
     page.goto(f"/become_user/{user.id}")
     page.goto("/")
-    expect(page.locator('//h6[text()="News Feed"]').first).to_be_visible()
+    expect(page.locator('//h6[text()="News feed"]').first).to_be_visible()
 
     # Create activity *after* the feed has loaded. With nothing forcing a
     # refetch, the cached feed shouldn't show it yet.

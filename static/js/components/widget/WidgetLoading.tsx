@@ -11,7 +11,7 @@ const WidgetLoading = () => (
       justifyContent: "center",
     }}
   >
-    <CircularProgress />
+    <CircularProgress size={28} />
   </Box>
 );
 
