@@ -32,11 +32,11 @@ interface SummaryHistoryListProps {
 }
 
 const SummaryHistoryList = ({ items, objId }: SummaryHistoryListProps) => {
-  const users = useGetUsersQuery().data?.users ?? [];
+  const users = useGetUsersQuery({ slim: true }).data?.users;
   return (
     <Box sx={{ maxHeight: "60vh", overflowY: "auto" }}>
       {items.map((item, index) => {
-        const username = users.find(
+        const username = users?.find(
           (user: any) => user.id === item.set_by_user_id,
         )?.username;
         const showAnalysisLink =
@@ -74,7 +74,7 @@ const SummaryHistoryList = ({ items, objId }: SummaryHistoryListProps) => {
               {item.is_bot && (
                 <SmartToyOutlinedIcon sx={{ fontSize: "0.9rem" }} />
               )}
-              {username ?? (item.is_bot ? "AI" : "a deleted user")}
+              {username ?? (item.is_bot ? "AI" : users ? "a deleted user" : "")}
               {item.set_at_utc &&
                 ` · ${dayjs(item.set_at_utc).format("YYYY-MM-DD HH:mm")}`}
               {showAnalysisLink && (
