@@ -28,6 +28,7 @@ from skyportal.models.analysis import (
     _default_analysis_rerun_blocked,
     _default_analysis_under_limit,
     _insufficient_photometry,
+    _missing_redshift,
     _run_default_analysis,
 )
 from skyportal.utils.naive_datetime import utcnow_naive
@@ -87,7 +88,9 @@ def _sweep_default_analysis(session, default_analysis, cutoff):
     for obj_id in obj_ids:
         # _run_default_analysis re-checks the gate and only submits if sufficient;
         # skip the ones still too sparse so we don't churn through them each sweep.
-        if _insufficient_photometry(session, default_analysis, obj_id):
+        if _insufficient_photometry(
+            session, default_analysis, obj_id
+        ) or _missing_redshift(session, default_analysis, obj_id):
             continue
         log(f"firing {default_analysis.analysis_service.name} on {obj_id}")
         _run_default_analysis(
