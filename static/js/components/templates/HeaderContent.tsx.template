@@ -26,9 +26,6 @@ const ICON_GROUP_SX = {
   display: "inline-flex",
   alignItems: "center",
   gap: "2px",
-  p: "3px",
-  borderRadius: "999px",
-  bgcolor: "rgba(255, 255, 255, 0.07)",
 };
 
 const useStyles = makeStyles()((theme) => ({
