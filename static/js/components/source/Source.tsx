@@ -398,7 +398,7 @@ const SourceContent = ({ source }: SourceContentProps) => {
         (source.comments?.length > 0 || source.classifications?.length > 0) && (
           <StartBotSummary obj_id={source.id} />
         )}
-      {source.summary_history?.length > 0 && (
+      {isReadOnly && source.summary_history?.length > 0 && (
         <ShowSummaryHistory
           summaries={source.summary_history}
           obj_id={source.id}

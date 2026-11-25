@@ -28,6 +28,7 @@ const UpdateSourceSummary = ({
       summaryHistory={source.summary_history}
       showAISummaries={showAISummaries}
       chip={chip}
+      objId={source.id}
       onSave={async (summary) => {
         await updateSource({ id: source.id!, payload: { summary } }).unwrap();
         dispatch(showNotification("Source summary successfully updated."));
