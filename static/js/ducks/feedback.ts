@@ -1,7 +1,7 @@
 import { skyportalApi } from "../api/skyportalApi";
 import { invalidateOnMessage } from "../api/wsInvalidation";
 import type { components } from "../types/api";
-import { useHasPermission } from "./profile";
+import { useGetProfileQuery, useHasPermission } from "./profile";
 
 export type Feedback = components["schemas"]["FeedbackResponse"];
 export type FeedbackCategory = Feedback["category"];
@@ -69,8 +69,11 @@ export const {
 
 export const useOpenFeedbackCount = () => {
   const isAdmin = useHasPermission("System admin");
+  const { data: profile } = useGetProfileQuery();
+  const followsFeedback =
+    profile?.preferences?.["notifications"]?.feedback?.active === true;
   const { data = [] } = feedbackApi.useGetFeedbackQuery(undefined, {
-    skip: !isAdmin,
+    skip: !isAdmin || !followsFeedback,
   });
   return data.filter((message) => statusOf(message) === "open").length;
 };
