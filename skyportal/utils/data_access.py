@@ -695,6 +695,10 @@ async def auto_classification_publishing_async(session, classification_id):
     )
     obj = classification.obj
     group_ids = [group.id for group in classification.groups]
+    if cfg["misc.public_group_name"] in {group.name for group in classification.groups}:
+        group_ids = sa.select(Source.group_id).where(
+            Source.obj_id == obj.id, Source.active.is_(True)
+        )
 
     stmt = (
         SharingServiceGroup.select(author)
