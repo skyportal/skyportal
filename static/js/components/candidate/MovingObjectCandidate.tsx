@@ -12,6 +12,7 @@ import TrackCandidateSummary from "../moving_object/TrackCandidateSummary";
 import RejectButton from "../RejectButton";
 import SaveCandidateButton from "./SaveCandidateButton";
 import { flattenAnnotationData } from "./annotationValue";
+import { surveyOf } from "./candidateSurvey";
 
 const ALERT_CUTOUTS = ["new", "ref", "sub"];
 const HIDDEN_KEYS = new Set(["designation"]);
@@ -143,6 +144,7 @@ const MovingObjectCandidate = ({
             trackId={track}
             brokerId={candidate.broker_id}
             objId={candidate.id}
+            survey={surveyOf(candidate)}
             showId={false}
           />
         )}

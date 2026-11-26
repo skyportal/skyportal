@@ -62,6 +62,7 @@ import AddClassificationsScanningPage from "./AddClassificationsScanningPage";
 import CandidatePlugins from "./CandidatePlugins";
 import CandidatesSkymap from "./CandidatesSkymap";
 import MovingObjectCandidate from "./MovingObjectCandidate";
+import { surveyOf } from "./candidateSurvey";
 import GenerateReportForm from "./scan_reports/GenerateReportForm";
 import { scanViewOptions } from "./scanFormFields";
 import type { ScanView } from "./scanFormFields";
@@ -92,13 +93,6 @@ const groupStacks = (candidates: any[]) => {
   }
   return [...stacks.values()];
 };
-
-const surveyOf = (candidate: any): string | undefined =>
-  candidate.thumbnails?.find((t: any) => t.obj_id === candidate.id && t.survey)
-    ?.survey ??
-  candidate.photstats?.[0]?.last_detected_filter
-    ?.match(/^(ztf|lsst|decam)/i)?.[1]
-    .toUpperCase();
 
 const stackShadow = (theme: Theme, size: number) =>
   Array.from({ length: Math.min(size - 1, 2) }, (_, i) => {
@@ -573,6 +567,7 @@ const Candidate = ({
             trackId={trackId}
             brokerId={candidate.broker_id}
             objId={candidate.id}
+            survey={surveyOf(candidate)}
           />
         )}
       </Box>
