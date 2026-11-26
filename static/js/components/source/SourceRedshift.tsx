@@ -2,7 +2,6 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 import Chip from "@mui/material/Chip";
 import TextField from "@mui/material/TextField";
-import Tooltip from "@mui/material/Tooltip";
 import { alpha } from "@mui/material/styles";
 import { makeStyles } from "tss-react/mui";
 
@@ -207,18 +206,14 @@ const SourceRedshift = ({ source, readOnly = false }: SourceRedshiftProps) => {
         leftAction={
           !readOnly &&
           hasRedshift && (
-            <Tooltip title="Remove the redshift from this source">
-              <span>
-                <Button
-                  secondary
-                  onClick={clear}
-                  disabled={isSubmitting}
-                  data-testid="nullifyRedshiftButton"
-                >
-                  Clear
-                </Button>
-              </span>
-            </Tooltip>
+            <Button
+              secondary
+              onClick={clear}
+              disabled={isSubmitting}
+              data-testid="nullifyRedshiftButton"
+            >
+              Clear
+            </Button>
           )
         }
         actions={

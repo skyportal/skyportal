@@ -39,7 +39,7 @@ const SourceCoordinates = ({ source }: SourceCoordinatesProps) => {
       ? `The coordinates displayed here have been re-computed using the object's photometry (${source.adjusted_position!.separation!.toFixed(
           2,
         )}" from the original)`
-      : "The coordinates displayed here are the original coordinates of the object";
+      : "";
 
   return (
     <Tooltip title={title} placement="top">
