@@ -25,7 +25,7 @@ interface TrackCandidateSummaryProps {
   trackId: string;
   brokerId: number;
   objId: string;
-  survey?: string;
+  survey?: string | undefined;
   showId?: boolean;
 }
 
