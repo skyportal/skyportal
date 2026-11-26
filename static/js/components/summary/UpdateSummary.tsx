@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
+import HistoryIcon from "@mui/icons-material/History";
 import MoreVertIcon from "@mui/icons-material/MoreVert";
 import SmartToyOutlinedIcon from "@mui/icons-material/SmartToyOutlined";
 import Box from "@mui/material/Box";
@@ -99,6 +100,7 @@ interface UpdateSummaryProps {
   summaryHistory?: SummaryHistoryItem[] | null | undefined;
   showAISummaries?: boolean;
   chip?: boolean;
+  readOnly?: boolean;
   objId?: string | undefined;
   onSave: (summary: string | null) => Promise<unknown>;
 }
@@ -108,6 +110,7 @@ const UpdateSummary = ({
   summaryHistory,
   showAISummaries = true,
   chip = false,
+  readOnly = false,
   objId,
   onSave,
 }: UpdateSummaryProps) => {
@@ -135,7 +138,7 @@ const UpdateSummary = ({
     if (saved) setDialogOpen(false);
   };
 
-  const editing = tab === "edit";
+  const editing = !readOnly && tab === "edit";
 
   return (
     <>
@@ -143,8 +146,8 @@ const UpdateSummary = ({
         <Chip
           size="small"
           variant="outlined"
-          label="Add summary"
-          onClick={() => open("edit")}
+          label="Summary"
+          onClick={() => open(readOnly ? "history" : "edit")}
           data-testid="add-summary-button"
           sx={{
             borderStyle: "dashed",
@@ -152,6 +155,15 @@ const UpdateSummary = ({
             "&:hover": { borderColor: "primary.main", color: "primary.main" },
           }}
         />
+      ) : readOnly ? (
+        <IconButton
+          size="small"
+          aria-label="Summary history"
+          onClick={() => open("history")}
+          sx={{ color: "text.secondary" }}
+        >
+          <HistoryIcon fontSize="small" />
+        </IconButton>
       ) : (
         <>
           <IconButton
@@ -206,7 +218,7 @@ const UpdateSummary = ({
           )
         }
       >
-        {history.length > 0 && (
+        {!readOnly && history.length > 0 && (
           <Tabs
             value={tab}
             onChange={(_, value) => setTab(value)}

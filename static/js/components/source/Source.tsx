@@ -371,23 +371,16 @@ const SourceContent = ({ source }: SourceContentProps) => {
   const noSummary = !latestSummary(source.summary_history, showAISummaries);
   const summaryActions = (chip = false) => (
     <>
-      {!isReadOnly && (
-        <UpdateSourceSummary
-          source={source}
-          showAISummaries={showAISummaries}
-          chip={chip}
-        />
-      )}
+      <UpdateSourceSummary
+        source={source}
+        showAISummaries={showAISummaries}
+        chip={chip}
+        readOnly={isReadOnly}
+      />
       {!isReadOnly &&
         (source.comments?.length > 0 || source.classifications?.length > 0) && (
           <StartBotSummary obj_id={source.id} />
         )}
-      {isReadOnly && source.summary_history?.length > 0 && (
-        <ShowSummaryHistory
-          summaries={source.summary_history}
-          obj_id={source.id}
-        />
-      )}
     </>
   );
 
