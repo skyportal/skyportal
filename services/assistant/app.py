@@ -382,7 +382,7 @@ def answer_from_facts(obj_id, analysis_id, token):
     flare = flare_result(read("get_analysis", analysis_id=analysis_id))
     if flare is None:
         return None
-    source = read("get_sources", obj_id=obj_id) or {}
+    source = read("get_sources", obj_id=obj_id, includeSpectrumExists=True) or {}
     catalogs = None
     if source.get("ra") is not None and source.get("dec") is not None:
         brokers = read("list_brokers") or []
