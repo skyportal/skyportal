@@ -187,14 +187,8 @@ class ZTFRequest:
             if "alert photometry only" in position:
                 additional_constraints.append(lambda p: p and len(p.streams) > 0)
             if "ZTF alert photometry only" in position:
-                # grab the id of the ZTF instrument (one of ZTF or CFH12k)
                 ztf_instrument_id = await session.scalar(
-                    sa.select(Instrument.id).where(
-                        sa.or_(
-                            Instrument.name == "ZTF",
-                            Instrument.name == "CFH12k",
-                        )
-                    )
+                    sa.select(Instrument.id).where(Instrument.name == "ZTF")
                 )
                 if ztf_instrument_id is not None:
                     additional_constraints.append(
