@@ -865,6 +865,17 @@
   robotic: false
   fixed_location: true
   =id: Fraunhofer
+- name: Wendelstein PlaneWave CDK17
+  nickname: Wendelstein 43cm
+  lat: 47.70363889
+  lon: 12.01205556
+  elevation: 1838.0
+  diameter: 0.43
+  skycam_link: https://www.foto-webcam.eu/webcam/wendelstein-west/
+  weather_link: https://www.meteoblue.com/de/wetter/outdoorsports/seeing/wendelstein_deutschland_2811293
+  robotic: false
+  fixed_location: true
+  =id: Wendelstein43
 - name: Canada-France-Hawaii Telescope
   nickname: CFHT
   lat: 19.82544
