@@ -482,15 +482,6 @@
   nickname: IRSF
   skycam_link: null
   =id: IRSF
-- diameter: 1.6
-  elevation: null
-  lat: null
-  lon: null
-  name: Korea Microlensing Telescope Network
-  nickname: KMTNet
-  skycam_link: null
-  fixed_location: false
-  =id: KMTNet
 - diameter: 0.40000001
   elevation: 1760.0
   lat: -32.379
