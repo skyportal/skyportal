@@ -656,10 +656,10 @@
   =id: MMT
 - name: Two-meter Twin Telescope
   nickname: TTT
-  lat: 28.3011
-  lon: -16.5105
+  lat: 28.29873
+  lon: -16.50958
   diameter: 0.8
-  elevation: 2390.0
+  elevation: 2412.0
   robotic: true
   fixed_location: true
   mpc_obscode: "954"
@@ -713,10 +713,10 @@
   =id: Euclid
 - name: Southern Astrophysical Research Telescope
   nickname: SOAR
-  lat: -30.2380
-  lon: -70.73372
+  lat: -30.237892
+  lon: -70.733642
   diameter: 4.1
-  elevation: 2738.0
+  elevation: 2748.0
   robotic: false
   fixed_location: true
   mpc_obscode: I33
