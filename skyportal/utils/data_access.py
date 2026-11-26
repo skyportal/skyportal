@@ -26,6 +26,7 @@ from ..models import (
     Stream,
     StreamPhotometry,
     StreamSharingService,
+    Taxonomy,
     Team,
     Thumbnail,
     Token,
@@ -629,6 +630,15 @@ def classification_is_reportable(classification):
     return bool(classification.groups)
 
 
+def classes_under(hierarchy, parent, inside=False):
+    """``parent`` and every class below it in a taxonomy hierarchy."""
+    inside = inside or hierarchy.get("class") == parent
+    if inside and "class" in hierarchy:
+        yield hierarchy["class"]
+    for item in hierarchy.get("subclasses") or []:
+        yield from classes_under(item, parent, inside)
+
+
 async def classification_report_error(session, obj):
     """Why a TNS classification report for ``obj`` would fail in the queue, or
     None. Checked before queuing one, manually or automatically.
@@ -766,8 +776,14 @@ async def auto_classification_publishing_async(session, classification_id):
     reported = {
         row.id: row
         for row in await session.execute(
-            sa.select(Classification.id, Classification.classification, User.is_bot)
+            sa.select(
+                Classification.id,
+                Classification.classification,
+                User.is_bot,
+                Taxonomy.hierarchy,
+            )
             .join(User, User.id == Classification.author_id)
+            .join(Taxonomy, Taxonomy.id == Classification.taxonomy_id)
             .where(Classification.id.in_(reported_ids))
         )
     }
@@ -783,6 +799,10 @@ async def auto_classification_publishing_async(session, classification_id):
                 submission is not pending
                 or tns_classification_id(reported_classification.classification)
                 == tns_type
+                or reported_classification.classification
+                in classes_under(
+                    reported_classification.hierarchy, classification.classification
+                )
             ):
                 return
     if pending is not None:
