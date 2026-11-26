@@ -231,7 +231,7 @@ class SharingServiceGroup(Base):
         sa.Integer,
         nullable=False,
         server_default="0",
-        doc="Hours an automatic classification report waits before it is sent.",
+        doc="Hours an automatic classification report from a person waits before it is sent; a bot's goes out right away.",
     )
     auto_share_to_hermes = sa.Column(sa.Boolean, nullable=False, server_default="false")
     auto_share_to_mpc = sa.Column(sa.Boolean, nullable=False, server_default="false")
