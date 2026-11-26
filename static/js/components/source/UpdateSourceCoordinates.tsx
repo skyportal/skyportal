@@ -1,28 +1,15 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import EditIcon from "@mui/icons-material/Edit";
-import Dialog from "@mui/material/Dialog";
-import DialogContent from "@mui/material/DialogContent";
-import DialogTitle from "@mui/material/DialogTitle";
-import { makeStyles } from "tss-react/mui";
-import SaveIcon from "@mui/icons-material/Save";
+import Box from "@mui/material/Box";
+import IconButton from "@mui/material/IconButton";
 import TextField from "@mui/material/TextField";
+import Tooltip from "@mui/material/Tooltip";
 
 import { showNotification } from "baselayer/components/Notifications";
 import { useAppDispatch } from "../../types/hooks";
 import Button from "../Button";
-import FormValidationError from "../FormValidationError";
 import { useUpdateSourceMutation } from "../../ducks/source";
-
-const useStyles = makeStyles()(() => ({
-  saveButton: {
-    textAlign: "center",
-    margin: "1rem",
-  },
-  editIcon: {
-    height: "0.75rem",
-    cursor: "pointer",
-  },
-}));
+import EditDialog from "./EditDialog";
 
 interface UpdateSourceCoordinatesProps {
   source: {
@@ -33,125 +20,80 @@ interface UpdateSourceCoordinatesProps {
 }
 
 const UpdateSourceCoordinates = ({ source }: UpdateSourceCoordinatesProps) => {
-  const { classes } = useStyles();
   const dispatch = useAppDispatch();
   const [updateSource] = useUpdateSourceMutation();
-  const [state, setState] = useState<{
-    ra?: number | undefined;
-    dec?: number | undefined;
-  }>({
-    ra: source.ra,
-    dec: source.dec,
-  });
-
-  const [dialogOpen, setDialogOpen] = useState(false);
+  const [open, setOpen] = useState(false);
+  const [ra, setRa] = useState("");
+  const [dec, setDec] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [invalid, setInvalid] = useState(true);
 
-  useEffect(() => {
-    setInvalid(
-      !source.ra ||
-        isNaN(source.ra as number) ||
-        !source.dec ||
-        isNaN(source.dec as number),
-    );
-    setState({
-      ra: source.ra,
-      dec: source.dec,
-    });
-  }, [source, setInvalid]);
+  const badRa = !ra.trim() || isNaN(Number(ra));
+  const badDec = !dec.trim() || isNaN(Number(dec));
 
-  const handleChange = (e: any) => {
-    const newState: any = {};
-    newState[e.target.name] = parseFloat(e.target.value);
-    setState({
-      ...state,
-      ...newState,
-    });
-  };
-
-  const handleSubmit = async (subState: {
-    ra?: number | undefined;
-    dec?: number | undefined;
-  }) => {
+  const submit = async () => {
     setIsSubmitting(true);
-    const newState: any = {};
-    if (!Number.isNaN(subState.ra)) {
-      newState.ra = subState.ra;
-    }
-    if (!Number.isNaN(subState.dec)) {
-      newState.dec = subState.dec;
-    }
-    try {
-      await updateSource({
-        id: source.id!,
-        payload: { ...newState },
-      }).unwrap();
-      dispatch(showNotification("Source location successfully updated."));
-      setDialogOpen(false);
-    } catch {
-      // error notification handled by the baseQuery
-    }
+    const result = await updateSource({
+      id: source.id!,
+      payload: { ra: Number(ra), dec: Number(dec) },
+    });
     setIsSubmitting(false);
+    if ("error" in result) return;
+    dispatch(showNotification("Source location successfully updated."));
+    setOpen(false);
   };
 
   return (
     <>
-      <EditIcon
-        data-testid="updateCoordinatesIconButton"
-        fontSize="small"
-        className={classes.editIcon}
-        onClick={() => {
-          setDialogOpen(true);
-        }}
-      />
-      <Dialog open={dialogOpen} onClose={() => setDialogOpen(false)}>
-        <DialogTitle>Update Coordinates</DialogTitle>
-        <DialogContent>
-          <div>
-            {invalid && (
-              <FormValidationError message="Please enter a valid float" />
-            )}
-            <TextField
-              data-testid="updateCoordinatesRATextfield"
-              size="small"
-              label="ra"
-              value={state.ra}
-              name="ra"
-              onChange={handleChange}
-              type="number"
-              variant="outlined"
-            />
-          </div>
-          <p />
-          <div>
-            <TextField
-              data-testid="updateCoordinatesDecTextfield"
-              size="small"
-              label="dec"
-              value={state.dec}
-              name="dec"
-              onChange={handleChange}
-              type="number"
-              variant="outlined"
-            />
-          </div>
-          <div className={classes.saveButton}>
-            <Button
-              secondary
-              onClick={() => {
-                handleSubmit(state);
-              }}
-              endIcon={<SaveIcon />}
-              size="large"
-              data-testid="updateCoordinatesSubmitButton"
-              disabled={isSubmitting || invalid}
-            >
-              Save
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
+      <Tooltip title="Edit position">
+        <IconButton
+          size="small"
+          data-testid="updateCoordinatesIconButton"
+          onClick={() => {
+            setRa(source.ra != null ? String(source.ra) : "");
+            setDec(source.dec != null ? String(source.dec) : "");
+            setOpen(true);
+          }}
+        >
+          <EditIcon />
+        </IconButton>
+      </Tooltip>
+      <EditDialog
+        open={open}
+        onClose={() => setOpen(false)}
+        title="Position"
+        actions={
+          <Button
+            primary
+            onClick={submit}
+            disabled={isSubmitting || badRa || badDec}
+            data-testid="updateCoordinatesSubmitButton"
+          >
+            Save
+          </Button>
+        }
+      >
+        <Box sx={{ display: "flex", gap: 1 }}>
+          <TextField
+            data-testid="updateCoordinatesRATextfield"
+            size="small"
+            label="RA (deg)"
+            value={ra}
+            onChange={(e) => setRa(e.target.value)}
+            error={Boolean(ra.trim()) && badRa}
+            autoFocus
+            fullWidth
+          />
+          <TextField
+            data-testid="updateCoordinatesDecTextfield"
+            size="small"
+            label="Dec (deg)"
+            value={dec}
+            onChange={(e) => setDec(e.target.value)}
+            error={Boolean(dec.trim()) && badDec}
+            fullWidth
+          />
+        </Box>
+      </EditDialog>
     </>
   );
 };

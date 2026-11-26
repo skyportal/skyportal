@@ -81,7 +81,7 @@ const UpdateSourceTNS = ({ sourceId, tnsRequest }: UpdateSourceTNSProps) => {
               disabled={searching}
               onClick={() => setDialogOpen(true)}
               data-testid="updateTNSIconButton"
-              sx={{ py: 0, px: 0.5, minWidth: 0 }}
+              sx={{ py: 0, px: 0.75, minWidth: 0, height: 22 }}
             >
               {searching ? (
                 <CircularProgress

@@ -249,7 +249,7 @@ const GcnEventPage = ({ route }: GcnEventPageProps) => {
                     <GenerateGcnEventSummary dateobs={dateobs} />
                   </>
                 )}
-                {gcnEvent.summary_history?.length > 0 && (
+                {!permission && gcnEvent.summary_history?.length > 0 && (
                   <ShowSummaryHistory
                     summaries={gcnEvent.summary_history}
                     label={dateobs}

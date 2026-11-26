@@ -907,6 +907,7 @@ async def get_source(
                         * 3600,
                         "super_obj_id": super_obj_id,
                         "super_obj_name": super_obj_name,
+                        "survey": survey_from_object_id(obj.id),
                     }
                 )
         source_info["associated_objs"] = sorted(

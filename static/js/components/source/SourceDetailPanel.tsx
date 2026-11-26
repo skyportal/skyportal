@@ -18,7 +18,6 @@ import { photometryApi } from "../../ducks/photometry";
 import ThumbnailList from "../thumbnail/ThumbnailList";
 import VegaPhotometry from "../plot/VegaPhotometry";
 import ShowSummaries from "../summary/ShowSummaries";
-import ShowSummaryHistory from "../summary/ShowSummaryHistory";
 import StartBotSummary from "../StartBotSummary";
 import MultipleClassificationsForm from "../classification/MultipleClassificationsForm";
 import UpdateSourceSummary from "./UpdateSourceSummary";
@@ -214,12 +213,6 @@ const SourceDetailPanel = React.memo(
             <UpdateSourceSummary source={source} />
             {source.classifications?.length > 0 ? (
               <StartBotSummary obj_id={source.id} />
-            ) : null}
-            {source.summary_history?.length > 0 ? (
-              <ShowSummaryHistory
-                summaries={source.summary_history}
-                obj_id={source.id}
-              />
             ) : null}
           </Grid>
         </Grid>

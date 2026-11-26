@@ -14,11 +14,11 @@ import { Link } from "react-router-dom";
 import { makeStyles } from "tss-react/mui";
 import Box from "@mui/material/Box";
 import { alpha } from "@mui/material/styles";
+import { deepPurple, teal } from "@mui/material/colors";
+import SendOutlinedIcon from "@mui/icons-material/SendOutlined";
 import Chip from "@mui/material/Chip";
 import Grid from "@mui/material/Grid";
 import Tooltip from "@mui/material/Tooltip";
-import Checkbox from "@mui/material/Checkbox";
-import FormControlLabel from "@mui/material/FormControlLabel";
 import Accordion from "@mui/material/Accordion";
 import AccordionSummary from "@mui/material/AccordionSummary";
 import AccordionDetails from "@mui/material/AccordionDetails";
@@ -35,8 +35,6 @@ import ImageOutlinedIcon from "@mui/icons-material/ImageOutlined";
 import PictureAsPdfOutlinedIcon from "@mui/icons-material/PictureAsPdfOutlined";
 import ShowChartOutlinedIcon from "@mui/icons-material/ShowChartOutlined";
 import FormatListBulletedOutlinedIcon from "@mui/icons-material/FormatListBulletedOutlined";
-import SendOutlinedIcon from "@mui/icons-material/SendOutlined";
-import PublicOutlinedIcon from "@mui/icons-material/PublicOutlined";
 import MenuItem from "@mui/material/MenuItem";
 import IconButton from "@mui/material/IconButton";
 import Paper from "@mui/material/Paper";
@@ -53,7 +51,7 @@ import CopyPhotometryDialog from "./CopyPhotometryDialog";
 import ClassificationList from "../classification/ClassificationList";
 import ClassificationForm from "../classification/ClassificationForm";
 import ShowClassification from "../classification/ShowClassification";
-import ShowSummaries from "../summary/ShowSummaries";
+import ShowSummaries, { latestSummary } from "../summary/ShowSummaries";
 import SurveyLinkList from "./SurveyLinkList";
 import SourcePapers from "./SourcePapers";
 import StarList from "../StarList";
@@ -75,6 +73,8 @@ import UpdateSourceMPC from "./UpdateSourceMPC";
 import UpdateSourceSummary from "./UpdateSourceSummary";
 import UpdateSourceT0 from "./UpdateSourceT0";
 import UpdateSourceTNS from "./UpdateSourceTNS";
+import WithholdFromTNS from "./WithholdFromTNS";
+import AssociatedObjs from "./AssociatedObjs";
 import StartBotSummary from "../StartBotSummary";
 import SourceGCNCrossmatchList from "./SourceGCNCrossmatchList";
 import SourceRedshift from "./SourceRedshift";
@@ -110,7 +110,6 @@ import {
   useGetAssociatedGcnsQuery,
   useGetSourcePositionQuery,
   useAddSourceViewMutation,
-  useUpdateSourceMutation,
 } from "../../ducks/source";
 
 import PhotometryPlot from "../plot/PhotometryPlot";
@@ -215,11 +214,14 @@ export const useSourceStyles = makeStyles()((theme) => ({
     display: "flex",
     flexDirection: "row",
     alignItems: "center",
+    minHeight: theme.spacing(4),
+    "& > .MuiChip-root + *": { marginLeft: theme.spacing(0.5) },
   },
   linkedObjs: {
     flexBasis: "100%",
     display: "flex",
-    alignItems: "baseline",
+    alignItems: "center",
+    minHeight: theme.spacing(4),
   },
   linkedObjList: {
     display: "flex",
@@ -228,10 +230,12 @@ export const useSourceStyles = makeStyles()((theme) => ({
     gap: "0.25rem 0.5rem",
   },
   dmdlInfo: {
-    alignSelf: "center",
-    "&>div": {
-      display: "inline",
-      padding: "0.25rem 0.5rem 0.25rem 0",
+    flexWrap: "wrap",
+    columnGap: "0.5rem",
+    "& > div": {
+      display: "flex",
+      alignItems: "center",
+      minHeight: theme.spacing(4),
     },
   },
   sourceCandidates: {
@@ -289,7 +293,6 @@ const SourceContent = ({ source }: SourceContentProps) => {
   const unsharedSpectraCount = dataAvailability?.spectra?.length ?? 0;
   const { data: associatedGcnsData } = useGetAssociatedGcnsQuery(source.id);
   const associatedGCNs = associatedGcnsData?.["gcns"];
-  const [updateSource] = useUpdateSourceMutation();
 
   const { data: brokers = [] } = useGetBrokersQuery();
   const { data: brokerHosts } = useGetBrokerHostsQuery([source.id], {
@@ -312,8 +315,6 @@ const SourceContent = ({ source }: SourceContentProps) => {
   // (where it will appear on the screen)
   const [anchorElObserving, setAnchorElObserving] =
     useState<HTMLElement | null>(null);
-  const [anchorElShare, setAnchorElShare] = useState<HTMLElement | null>(null);
-  const [publishDialogOpen, setPublishDialogOpen] = useState(false);
 
   const [showStarList, setShowStarList] = useState(false);
   const [showPhotometry, setShowPhotometry] = useState(false);
@@ -364,25 +365,25 @@ const SourceContent = ({ source }: SourceContentProps) => {
     });
   }
 
-  const noSummary =
-    source.summary_history?.length < 1 ||
-    !source.summary_history ||
-    source.summary_history.filter(
-      (summary: any) =>
-        summary.summary !== null && summary.summary.trim() !== "",
-    )?.length < 1;
-
-  const noHumanSummary =
-    source.summary_history?.length < 1 ||
-    !source.summary_history ||
-    source.summary_history[0].summary === null ||
-    source.summary_history[0].summary === "" ||
-    source.summary_history.filter(
-      (summary: any) =>
-        summary.summary !== null &&
-        summary.summary.trim() !== "" &&
-        summary.is_bot === false,
-    )?.length < 1;
+  const showSummary =
+    currentUser?.id && !currentUser?.preferences?.["hideSourceSummary"];
+  const showAISummaries = (currentUser?.preferences?.["showAISourceSummary"] ||
+    false) as any;
+  const noSummary = !latestSummary(source.summary_history, showAISummaries);
+  const summaryActions = (chip = false) => (
+    <>
+      <UpdateSourceSummary
+        source={source}
+        showAISummaries={showAISummaries}
+        chip={chip}
+        readOnly={isReadOnly}
+      />
+      {!isReadOnly &&
+        (source.comments?.length > 0 || source.classifications?.length > 0) && (
+          <StartBotSummary obj_id={source.id} />
+        )}
+    </>
+  );
 
   // associatedGCNs is an array of dateobs
   // source.gcn_crossmatch is an array of objects with dateobs
@@ -671,18 +672,23 @@ const SourceContent = ({ source }: SourceContentProps) => {
               </Box>
             )}
             <SourceCoordinates source={sourceWithPosition} />
-            <div
-              className={classes.flexRow}
-              style={{
-                flexBasis: "100%",
-                flexFlow: "wrap",
-                alignItems: "baseline",
+            <Box
+              sx={{
+                display: "flex",
+                flexWrap: "wrap",
+                alignItems: "center",
+                columnGap: 1,
+                "& > div": {
+                  display: "flex",
+                  alignItems: "center",
+                  minHeight: 32,
+                },
               }}
             >
               {/* Meaningless for a solar-system object. DM and luminosity
                   distance derive from it, so they drop out on their own. */}
               {!source.is_roid && (
-                <div style={{ marginRight: "0.5rem" }}>
+                <div>
                   <FieldLabel>Redshift</FieldLabel>
                   <SourceRedshift source={source} readOnly={isReadOnly} />
                 </div>
@@ -705,24 +711,24 @@ const SourceContent = ({ source }: SourceContentProps) => {
                 )}
                 <div>
                   <FieldLabel>T0</FieldLabel>
-                  {source.t0}
-                  {!isReadOnly && <UpdateSourceT0 source={source} />}
+                  <UpdateSourceT0 source={source} readOnly={isReadOnly} />
                 </div>
               </div>
-            </div>
-            <div
-              className={classes.flexRow}
-              style={{
-                justifyContent: "flex-start",
+              <div>
+                <FieldLabel>Aliases</FieldLabel>
+                <SourceAlias source={source} readOnly={isReadOnly} />
+              </div>
+            </Box>
+            <Box
+              sx={{
+                display: "flex",
+                flexWrap: "wrap",
                 alignItems: "center",
-                flexFlow: "wrap",
-                columnGap: "1rem",
+                columnGap: 2,
               }}
             >
-              <div className={classes.rowInfo} data-testid="tour-source-tns">
-                <Tooltip title="Transient reported at this position, from the Transient Name Server">
-                  <FieldLabel>TNS</FieldLabel>
-                </Tooltip>
+              <Box className={classes.rowInfo} data-testid="tour-source-tns">
+                <FieldLabel>TNS</FieldLabel>
                 {source.tns_name && (
                   <Chip
                     size="small"
@@ -750,57 +756,13 @@ const SourceContent = ({ source }: SourceContentProps) => {
                     tnsRequest={source.tns_request}
                   />
                 )}
-                {!isReadOnly && (
-                  <Box sx={{ ml: 1 }}>
-                    <Tooltip
-                      title={`Never send this source to TNS, automatically or manually.${
-                        source.withhold_from_tns_set_at
-                          ? ` Last changed by ${
-                              source.withhold_from_tns_set_by?.username ??
-                              "a deleted user"
-                            } on ${source.withhold_from_tns_set_at.slice(0, 10)}.`
-                          : ""
-                      }`}
-                    >
-                      <FormControlLabel
-                        sx={{ m: 0 }}
-                        control={
-                          <Checkbox
-                            size="small"
-                            sx={{ p: 0, mr: 0.5 }}
-                            checked={Boolean(source.withhold_from_tns)}
-                            onChange={(event) =>
-                              updateSource({
-                                id: source.id,
-                                payload: {
-                                  withhold_from_tns: event.target.checked,
-                                },
-                              })
-                            }
-                          />
-                        }
-                        label="Don't report to TNS"
-                        slotProps={{ typography: { variant: "body2" } }}
-                      />
-                    </Tooltip>
-                  </Box>
-                )}
-              </div>
+              </Box>
               <Box className={classes.rowInfo} sx={{ position: "relative" }}>
-                <Tooltip title="Known solar system object at this position, from the Minor Planet Center">
-                  <FieldLabel>MPC</FieldLabel>
-                </Tooltip>
+                <FieldLabel>MPC</FieldLabel>
                 {source.mpc_name && (
                   <Chip size="small" label={source.mpc_name} />
                 )}
-                {!isReadOnly &&
-                  (source.mpc_name ? (
-                    <HoverAction>
-                      <UpdateSourceMPC source={source} />
-                    </HoverAction>
-                  ) : (
-                    <UpdateSourceMPC source={source} button />
-                  ))}
+                {!isReadOnly && <UpdateSourceMPC source={source} button />}
               </Box>
               <Box className={classes.rowInfo} sx={{ position: "relative" }}>
                 <Tooltip title="Events this object was matched to by the GCN crossmatch or by hand">
@@ -824,10 +786,7 @@ const SourceContent = ({ source }: SourceContentProps) => {
                   </HoverAction>
                 )}
               </Box>
-              <div className={classes.rowInfo}>
-                <SourceAlias source={source} />
-              </div>
-            </div>
+            </Box>
             <SourceHost
               source={source}
               brokerHosts={brokerHosts}
@@ -887,23 +846,9 @@ const SourceContent = ({ source }: SourceContentProps) => {
             )}
             {source?.associated_objs?.length > 0 && (
               <Box className={classes.linkedObjs}>
-                <FieldLabel>Associated with</FieldLabel>
+                <FieldLabel>Associated</FieldLabel>
                 <Box className={classes.linkedObjList}>
-                  {source.associated_objs.map((associatedObj: any) => (
-                    <Tooltip
-                      key={associatedObj.obj_id}
-                      title={`${associatedObj.separation.toFixed(2)}″ away`}
-                    >
-                      <Chip
-                        size="small"
-                        variant="outlined"
-                        clickable
-                        component={Link}
-                        to={`/source/${associatedObj.obj_id}`}
-                        label={associatedObj.obj_id}
-                      />
-                    </Tooltip>
-                  ))}
+                  <AssociatedObjs objs={source.associated_objs} />
                 </Box>
               </Box>
             )}
@@ -913,7 +858,14 @@ const SourceContent = ({ source }: SourceContentProps) => {
             ) : null}
             <Box
               sx={(theme) => {
-                const { success } = theme.palette;
+                const { success, primary, secondary } = theme.palette;
+                const dark = theme.palette.mode === "dark";
+                const tint = (color: string) => ({
+                  bgcolor: alpha(color, 0.14),
+                  color: "text.primary",
+                  "& .MuiButton-endIcon": { color },
+                  "&:hover": { bgcolor: alpha(color, 0.22) },
+                });
                 return {
                   ...softButtonsSx(theme),
                   flexBasis: "100%",
@@ -924,63 +876,33 @@ const SourceContent = ({ source }: SourceContentProps) => {
                   mt: 0.75,
                   "& [data-testid=interested-button].MuiButton-colorSuccess": {
                     bgcolor: alpha(success.main, 0.16),
-                    color:
-                      theme.palette.mode === "dark"
-                        ? success.light
-                        : success.dark,
+                    color: "text.primary",
                     "&:hover": { bgcolor: alpha(success.main, 0.24) },
                   },
+                  "& [data-testid=observing-button]": tint(
+                    dark ? secondary.main : primary.main,
+                  ),
+                  "& [data-testid=send-to-button]": tint(
+                    dark ? deepPurple[200] : deepPurple[500],
+                  ),
+                  "& [data-testid=search-alerts-button]": tint(
+                    dark ? teal[200] : teal[700],
+                  ),
                 };
               }}
             >
-              {alertBroker ? (
-                <Tooltip
-                  title={`Alerts for this object in ${alertBroker.name}`}
-                >
-                  <Link
-                    to={`/brokers/${alertBroker.id}?${new URLSearchParams({
-                      objectId: source.id,
-                      ...(source.ra != null && source.dec != null
-                        ? {
-                            ra: String(source.ra),
-                            dec: String(source.dec),
-                            radius: "3",
-                          }
-                        : {}),
-                    })}`}
-                    target="_blank"
-                  >
-                    <Button secondary size="small" endIcon={<SearchIcon />}>
-                      Search alerts
-                    </Button>
-                  </Link>
-                </Tooltip>
-              ) : (
-                <Tooltip title="No broker is set as the default for alert search">
-                  <span>
-                    <Button
-                      secondary
-                      size="small"
-                      disabled
-                      endIcon={<SearchIcon />}
-                    >
-                      Search alerts
-                    </Button>
-                  </span>
-                </Tooltip>
-              )}
-              <Tooltip title="Finding chart, observability and starlist">
-                <Button
-                  secondary
-                  size="small"
-                  endIcon={<ExpandMoreIcon />}
-                  aria-haspopup="true"
-                  aria-expanded={Boolean(anchorElObserving)}
-                  onClick={(e: any) => setAnchorElObserving(e.currentTarget)}
-                >
-                  Observing
-                </Button>
-              </Tooltip>
+              <Button
+                secondary
+                color="primary"
+                size="small"
+                endIcon={<ExpandMoreIcon />}
+                data-testid="observing-button"
+                aria-haspopup="true"
+                aria-expanded={Boolean(anchorElObserving)}
+                onClick={(e: any) => setAnchorElObserving(e.currentTarget)}
+              >
+                Observing
+              </Button>
               <Menu
                 transitionDuration={50}
                 anchorEl={anchorElObserving}
@@ -1049,65 +971,75 @@ const SourceContent = ({ source }: SourceContentProps) => {
               </Menu>
               {!isReadOnly && (
                 <>
-                  <Tooltip title="Send to a service or make public">
-                    <Button
-                      secondary
-                      size="small"
-                      endIcon={<ExpandMoreIcon />}
-                      aria-haspopup="true"
-                      aria-expanded={Boolean(anchorElShare)}
-                      onClick={(e: any) => setAnchorElShare(e.currentTarget)}
-                    >
-                      Share
-                    </Button>
-                  </Tooltip>
-                  <Menu
-                    transitionDuration={50}
-                    anchorEl={anchorElShare}
-                    open={Boolean(anchorElShare)}
-                    onClose={() => setAnchorElShare(null)}
-                    slotProps={{ list: { dense: true } }}
+                  <Button
+                    secondary
+                    color="primary"
+                    size="small"
+                    endIcon={<SendOutlinedIcon />}
+                    data-testid="send-to-button"
+                    onClick={() => setSendToDialogOpen(true)}
                   >
-                    <MenuItem
-                      onClick={() => {
-                        setSendToDialogOpen(true);
-                        setAnchorElShare(null);
-                      }}
-                    >
-                      <ListItemIcon>
-                        <SendOutlinedIcon fontSize="small" />
-                      </ListItemIcon>
-                      Send to
-                    </MenuItem>
-                    <MenuItem
-                      onClick={() => {
-                        setPublishDialogOpen(true);
-                        setAnchorElShare(null);
-                      }}
-                    >
-                      <ListItemIcon>
-                        <PublicOutlinedIcon fontSize="small" />
-                      </ListItemIcon>
-                      Public access
-                    </MenuItem>
-                  </Menu>
+                    Send to
+                  </Button>
                   <SharingServicesDialog
                     obj_id={source.id}
                     dialogOpen={sendToDialogOpen}
                     setDialogOpen={setSendToDialogOpen}
-                  />
-                  <SourcePublish
-                    sourceId={source.id}
-                    isElements={{
-                      summary: source.summary_history?.length > 0,
-                      photometry: source.photometry_exists,
-                      spectroscopy: source.spectrum_exists,
-                      classifications: source.classifications?.length > 0,
-                    }}
-                    open={publishDialogOpen}
-                    onClose={() => setPublishDialogOpen(false)}
+                    publicPage={
+                      <SourcePublish
+                        sourceId={source.id}
+                        isElements={{
+                          summary: source.summary_history?.length > 0,
+                          photometry: source.photometry_exists,
+                          spectroscopy: source.spectrum_exists,
+                          classifications: source.classifications?.length > 0,
+                        }}
+                      />
+                    }
                   />
                 </>
+              )}
+              {alertBroker ? (
+                <Tooltip
+                  title={`Alerts for this object in ${alertBroker.name}`}
+                >
+                  <Link
+                    to={`/brokers/${alertBroker.id}?${new URLSearchParams({
+                      objectId: source.id,
+                      ...(source.ra != null && source.dec != null
+                        ? {
+                            ra: String(source.ra),
+                            dec: String(source.dec),
+                            radius: "3",
+                          }
+                        : {}),
+                    })}`}
+                    target="_blank"
+                  >
+                    <Button
+                      secondary
+                      color="primary"
+                      size="small"
+                      endIcon={<SearchIcon />}
+                      data-testid="search-alerts-button"
+                    >
+                      Search alerts
+                    </Button>
+                  </Link>
+                </Tooltip>
+              ) : (
+                <Tooltip title="No broker is set as the default for alert search">
+                  <span>
+                    <Button
+                      secondary
+                      size="small"
+                      disabled
+                      endIcon={<SearchIcon />}
+                    >
+                      Search alerts
+                    </Button>
+                  </span>
+                </Tooltip>
               )}
               {currentUser?.preferences?.["hideSourceSummary"] === true && (
                 <ShowSummaryHistory
@@ -1123,95 +1055,75 @@ const SourceContent = ({ source }: SourceContentProps) => {
                 />
               )}
               {!isReadOnly && <RequestDataAccess sourceID={source.id} />}
+              {(!source.tns_name || source.withhold_from_tns) && (
+                <WithholdFromTNS source={source} readOnly={isReadOnly} />
+              )}
             </Box>
             {showStarList && <StarList sourceId={source.id} />}
-            {/* checking if the id exists is a way to know if the user profile is loaded or not */}
-            {currentUser?.id &&
-              !currentUser?.preferences?.["hideSourceSummary"] && (
+            {showSummary &&
+              noSummary &&
+              (!isReadOnly || source.summary_history?.length > 0) && (
                 <Box
-                  sx={(theme) => ({
-                    display: "flex",
-                    alignItems: "flex-start",
-                    gap: 1,
+                  sx={{
                     mt: 0.75,
-                    py: 1,
-                    pl: 1.5,
-                    pr: 0.5,
-                    borderRadius: "8px",
-                    bgcolor: alpha(theme.palette.text.primary, 0.035),
-                  })}
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 0.5,
+                  }}
                 >
-                  <Box sx={{ flex: 1, minWidth: 0 }}>
-                    <Box
-                      sx={{
-                        fontSize: "0.65rem",
-                        fontWeight: 600,
-                        letterSpacing: "0.06em",
-                        textTransform: "uppercase",
-                        color: "text.secondary",
-                        mb: 0.25,
-                      }}
-                    >
-                      Summary
-                    </Box>
-                    {noSummary ? (
-                      <Box
-                        sx={{
-                          fontSize: "0.85rem",
-                          fontStyle: "italic",
-                          color: "text.secondary",
-                        }}
-                      >
-                        {`No${noHumanSummary ? " human" : ""} summary yet`}
-                      </Box>
-                    ) : (
-                      <Box
-                        sx={{
-                          "& p": { fontSize: "0.9rem", lineHeight: 1.5 },
-                          "& > div > div": { p: 0 },
-                        }}
-                      >
-                        <ShowSummaries
-                          summaries={source.summary_history || []}
-                          showAISummaries={
-                            (currentUser?.preferences?.[
-                              "showAISourceSummary"
-                            ] || false) as any
-                          }
-                        />
-                      </Box>
-                    )}
+                  {summaryActions(true)}
+                </Box>
+              )}
+            {showSummary && !noSummary && (
+              <Box
+                sx={(theme) => ({
+                  display: "flex",
+                  alignItems: "flex-start",
+                  gap: 1,
+                  mt: 0.75,
+                  py: 1,
+                  pl: 1.5,
+                  pr: 0.5,
+                  borderRadius: "8px",
+                  bgcolor: alpha(theme.palette.text.primary, 0.035),
+                })}
+              >
+                <Box sx={{ flex: 1, minWidth: 0 }}>
+                  <Box
+                    sx={{
+                      fontSize: "0.65rem",
+                      fontWeight: 600,
+                      letterSpacing: "0.06em",
+                      textTransform: "uppercase",
+                      color: "text.secondary",
+                      mb: 0.25,
+                    }}
+                  >
+                    Summary
                   </Box>
                   <Box
                     sx={{
-                      display: "flex",
-                      alignItems: "center",
-                      flexShrink: 0,
+                      "& p": { fontSize: "0.9rem", lineHeight: 1.5 },
+                      "& > div > div": { p: 0 },
                     }}
                   >
-                    {!isReadOnly && (
-                      <UpdateSourceSummary
-                        source={source}
-                        showAISummaries={
-                          (currentUser?.preferences?.["showAISourceSummary"] ||
-                            false) as any
-                        }
-                      />
-                    )}
-                    {!isReadOnly &&
-                      (source.comments?.length > 0 ||
-                        source.classifications?.length > 0) && (
-                        <StartBotSummary obj_id={source.id} />
-                      )}
-                    {source.summary_history?.length > 0 && (
-                      <ShowSummaryHistory
-                        summaries={source.summary_history}
-                        obj_id={source.id}
-                      />
-                    )}
+                    <ShowSummaries
+                      summaries={source.summary_history || []}
+                      showAISummaries={showAISummaries}
+                    />
                   </Box>
                 </Box>
-              )}
+                <Box
+                  sx={{
+                    display: "flex",
+                    alignItems: "center",
+                    flexShrink: 0,
+                  }}
+                >
+                  {summaryActions()}
+                </Box>
+              </Box>
+            )}
             <Box
               sx={(theme) => ({
                 ...softButtonsSx(theme),
@@ -1220,6 +1132,7 @@ const SourceContent = ({ source }: SourceContentProps) => {
                 alignItems: "center",
                 gap: 0.75,
                 py: 0.5,
+                mt: 1,
               })}
             >
               <SavedGroupChips groups={source.groups ?? []} max={5} />

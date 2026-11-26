@@ -101,7 +101,7 @@ const Notifications = () => {
             setAnchorEl(open ? null : event.currentTarget);
           }}
           data-testid="notificationsButton"
-          sx={{ ...HEADER_ICON_SX, fontSize: 25 }}
+          sx={{ ...HEADER_ICON_SX, fontSize: 28 }}
         >
           <Badge
             badgeContent={unreadCount + alerts.unseenCount}

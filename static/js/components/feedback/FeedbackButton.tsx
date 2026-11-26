@@ -22,7 +22,11 @@ const FeedbackButton = () => {
         to="/feedback"
         aria-label="feedback"
         data-testid="feedbackButton"
-        sx={{ ...HEADER_ICON_SX, display: { xs: "none", md: "inline-flex" } }}
+        sx={{
+          ...HEADER_ICON_SX,
+          fontSize: 24,
+          display: { xs: "none", md: "inline-flex" },
+        }}
       >
         <Badge
           badgeContent={openFeedback}

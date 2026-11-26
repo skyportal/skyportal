@@ -107,9 +107,7 @@ const SourceInterests = ({ sourceID, onDiscuss }: SourceInterestsProps) => {
             onClick={() => setOpen(true)}
             data-testid="interested-button"
           >
-            {interests.some((interest) => interest.user.id === profile?.id)
-              ? "Interested"
-              : "I'm interested"}
+            Interested
             {interests.length > 0 && ` (${interests.length})`}
           </Button>
         </span>

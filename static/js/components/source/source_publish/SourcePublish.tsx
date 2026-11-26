@@ -1,10 +1,8 @@
 import { useGetProfileQuery } from "../../../ducks/profile";
 import { useState } from "react";
-import { makeStyles } from "tss-react/mui";
 import Tooltip from "@mui/material/Tooltip";
-import Dialog from "@mui/material/Dialog";
-import DialogTitle from "@mui/material/DialogTitle";
 import DialogContent from "@mui/material/DialogContent";
+import Box from "@mui/material/Box";
 import ExpandLess from "@mui/icons-material/ExpandLess";
 import ExpandMore from "@mui/icons-material/ExpandMore";
 import CircularProgress from "@mui/material/CircularProgress";
@@ -14,28 +12,20 @@ import SourcePublishOptions from "./SourcePublishOptions";
 import SourcePublishHistory from "./SourcePublishHistory";
 import SourcePublishRelease from "./SourcePublishRelease";
 
-const useStyles = makeStyles()(() => ({
-  expandButton: {
-    backgroundColor: "#80808017",
-    width: "100%",
-    display: "flex",
-    justifyContent: "space-between",
-    color: "gray",
-    fontSize: "1rem",
-    borderBottom: "2px solid #e0e0e0",
-    borderRadius: "0",
-    marginBottom: "0.5rem",
-  },
-  versionHistoryTitle: {
-    marginBottom: "0.5rem",
-    fontSize: "1.15rem",
-  },
-}));
+const expandButtonSx = {
+  bgcolor: "#80808017",
+  width: "100%",
+  display: "flex",
+  justifyContent: "space-between",
+  color: "gray",
+  fontSize: "1rem",
+  borderBottom: "2px solid #e0e0e0",
+  borderRadius: 0,
+  mb: 1,
+};
 
 interface SourcePublishProps {
   sourceId: string;
-  open: boolean;
-  onClose: () => void;
   isElements: {
     summary?: boolean;
     photometry?: boolean;
@@ -44,13 +34,7 @@ interface SourcePublishProps {
   };
 }
 
-const SourcePublish = ({
-  sourceId,
-  open,
-  onClose,
-  isElements,
-}: SourcePublishProps) => {
-  const { classes: styles } = useStyles();
+const SourcePublish = ({ sourceId, isElements }: SourcePublishProps) => {
   const [generatePublicSourcePage] = useGeneratePublicSourcePageMutation();
   const { data: currentUser } = useGetProfileQuery();
   const manageSourcesAccess =
@@ -103,115 +87,93 @@ const SourcePublish = ({
   };
 
   return (
-    <Dialog
-      open={open}
-      onClose={onClose}
-      slotProps={{
-        paper: { style: { maxWidth: "800px" } },
-      }}
-    >
-      <DialogTitle>Public access information</DialogTitle>
-      <DialogContent style={{ paddingBottom: "0.5rem" }}>
-        <div style={{ marginBottom: "1rem" }}>
-          You are about to change the public access settings for this source
-          page. The data you selected will be available to everyone on the
-          internet. Are you sure you want to do this ?
-        </div>
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "center",
-            margin: "1.5rem 0",
-          }}
+    <DialogContent sx={{ pb: 1 }}>
+      <Box sx={{ mt: 2, mb: 2 }}>
+        You are about to change the public access settings for this source page.
+        The data you selected will be available to everyone on the internet. Are
+        you sure you want to do this ?
+      </Box>
+      <Box sx={{ display: "flex", justifyContent: "center", my: 3 }}>
+        <Tooltip
+          title={
+            manageSourcesAccess
+              ? ""
+              : "You do not have permission to publish this source"
+          }
         >
-          <Tooltip
-            title={
-              manageSourcesAccess
-                ? ""
-                : "You do not have permission to publish this source"
-            }
-          >
-            <div>
-              <Button
-                variant="contained"
-                onClick={publish}
-                style={{
-                  backgroundColor: publishButton.color,
-                  color: "white",
-                }}
-                disabled={
-                  !manageSourcesAccess || publishButton.text !== "Publish"
-                }
-              >
-                {publishButton.text === "loading" ? (
-                  <CircularProgress size={24} />
-                ) : (
-                  publishButton.text
-                )}
-              </Button>
-            </div>
-          </Tooltip>
-        </div>
+          <div>
+            <Button
+              variant="contained"
+              onClick={publish}
+              sx={{ bgcolor: publishButton.color, color: "white" }}
+              disabled={
+                !manageSourcesAccess || publishButton.text !== "Publish"
+              }
+            >
+              {publishButton.text === "loading" ? (
+                <CircularProgress size={24} />
+              ) : (
+                publishButton.text
+              )}
+            </Button>
+          </div>
+        </Tooltip>
+      </Box>
+      <div>
+        <Button
+          sx={expandButtonSx}
+          size="small"
+          variant="text"
+          onClick={() => setSourcePublishReleaseOpen(!sourcePublishReleaseOpen)}
+        >
+          Release {manageSourcesAccess ? "(optional)" : "list"}
+          {sourcePublishReleaseOpen ? <ExpandLess /> : <ExpandMore />}
+        </Button>
+        {sourcePublishReleaseOpen && (
+          <SourcePublishRelease
+            sourceReleaseId={sourceReleaseId}
+            setSourceReleaseId={setSourceReleaseId}
+            setOptions={setOptions}
+          />
+        )}
+      </div>
+      {displayOptions && (
         <div>
           <Button
-            className={styles.expandButton}
+            sx={expandButtonSx}
             size="small"
             variant="text"
             onClick={() =>
-              setSourcePublishReleaseOpen(!sourcePublishReleaseOpen)
+              setSourcePublishOptionsOpen(!sourcePublishOptionsOpen)
             }
           >
-            Release {manageSourcesAccess ? "(optional)" : "list"}
-            {sourcePublishReleaseOpen ? <ExpandLess /> : <ExpandMore />}
+            Options
+            {sourcePublishOptionsOpen ? <ExpandLess /> : <ExpandMore />}
           </Button>
-          {sourcePublishReleaseOpen && (
-            <SourcePublishRelease
-              sourceReleaseId={sourceReleaseId}
-              setSourceReleaseId={setSourceReleaseId}
+          {sourcePublishOptionsOpen && (
+            <SourcePublishOptions
+              options={options}
               setOptions={setOptions}
+              isElements={isElements}
             />
           )}
         </div>
-        {displayOptions && (
-          <div>
-            <Button
-              className={styles.expandButton}
-              size="small"
-              variant="text"
-              onClick={() =>
-                setSourcePublishOptionsOpen(!sourcePublishOptionsOpen)
-              }
-            >
-              Options
-              {sourcePublishOptionsOpen ? <ExpandLess /> : <ExpandMore />}
-            </Button>
-            {sourcePublishOptionsOpen && (
-              <SourcePublishOptions
-                options={options}
-                setOptions={setOptions}
-                isElements={isElements}
-              />
-            )}
-          </div>
+      )}
+      <div>
+        <Button
+          sx={expandButtonSx}
+          size="small"
+          variant="text"
+          onClick={() => setSourcePublishHistoryOpen(!sourcePublishHistoryOpen)}
+        >
+          Version history
+          {sourcePublishHistoryOpen ? <ExpandLess /> : <ExpandMore />}
+        </Button>
+        {sourcePublishHistoryOpen && (
+          <SourcePublishHistory sourceId={sourceId} />
         )}
-        <div>
-          <Button
-            className={styles.expandButton}
-            size="small"
-            variant="text"
-            onClick={() =>
-              setSourcePublishHistoryOpen(!sourcePublishHistoryOpen)
-            }
-          >
-            Version history
-            {sourcePublishHistoryOpen ? <ExpandLess /> : <ExpandMore />}
-          </Button>
-          {sourcePublishHistoryOpen && (
-            <SourcePublishHistory sourceId={sourceId} />
-          )}
-        </div>
-      </DialogContent>
-    </Dialog>
+      </div>
+    </DialogContent>
   );
 };
 
