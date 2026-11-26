@@ -178,37 +178,48 @@ const GcnCrossmatchPlugin = () => {
             setSaved(false);
           }}
         />
-        {SETTINGS.map(({ key, label, help }) => (
-          <TextField
-            key={key}
-            size="small"
-            label={label}
-            helperText={`${help} (blank inherits the default)`}
-            value={values[key] ?? ""}
-            onChange={(event) => {
-              setValues({ ...values, [key]: event.target.value });
-              setSaved(false);
-            }}
-          />
-        ))}
-        <TextField
-          select
-          size="small"
-          label="Sort order"
-          helperText="Which alerts are kept when a search hits its limit"
-          value={sortOrder}
-          onChange={(event) => {
-            setSortOrder(event.target.value);
-            setSaved(false);
+        <Typography variant="body2" sx={{ color: "text.secondary" }}>
+          Leave a setting blank to use the default.
+        </Typography>
+        <Box
+          sx={{
+            display: "grid",
+            gridTemplateColumns: { xs: "1fr", sm: "repeat(2, 1fr)" },
+            gap: 2,
           }}
         >
-          <MenuItem value="">Default</MenuItem>
-          {SORT_ORDERS.map(({ value, label }) => (
-            <MenuItem key={value} value={value}>
-              {label}
-            </MenuItem>
+          {SETTINGS.map(({ key, label, help }) => (
+            <TextField
+              key={key}
+              size="small"
+              label={label}
+              helperText={help}
+              value={values[key] ?? ""}
+              onChange={(event) => {
+                setValues({ ...values, [key]: event.target.value });
+                setSaved(false);
+              }}
+            />
           ))}
-        </TextField>
+          <TextField
+            select
+            size="small"
+            label="Sort order"
+            helperText="Which alerts are kept when a search hits its limit"
+            value={sortOrder}
+            onChange={(event) => {
+              setSortOrder(event.target.value);
+              setSaved(false);
+            }}
+          >
+            <MenuItem value="">Default</MenuItem>
+            {SORT_ORDERS.map(({ value, label }) => (
+              <MenuItem key={value} value={value}>
+                {label}
+              </MenuItem>
+            ))}
+          </TextField>
+        </Box>
         <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
           <Tooltip
             describeChild
