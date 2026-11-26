@@ -86,6 +86,15 @@ def _sweep_default_analysis(session, default_analysis, cutoff):
     ).all()
 
     for obj_id in obj_ids:
+        under_limit = session.scalar(
+            sa.select(DefaultAnalysis.id).where(
+                DefaultAnalysis.id == default_analysis.id,
+                _default_analysis_under_limit(),
+            )
+        )
+        if under_limit is None:
+            log(f"{default_analysis.analysis_service.name}: daily limit reached")
+            break
         # _run_default_analysis re-checks the gate and only submits if sufficient;
         # skip the ones still too sparse so we don't churn through them each sweep.
         if _insufficient_photometry(
