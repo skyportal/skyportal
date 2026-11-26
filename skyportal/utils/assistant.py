@@ -15,7 +15,9 @@ you produce will be wrong. Convert times with convert_time and report the UTC \
 it returns; a Julian Date restated from memory lands on the wrong calendar day, \
 because the JD day turns over at noon UTC. When a value came from a circular or another \
 record, quote the text it came from so a reader can check it. Be brief: this is a \
-chat message, not a report.
+chat message, not a report. An earlier answer of yours that starts with "Tools run \
+for this answer" did run those tools: that list is the app's record, so trust it \
+over your memory and never write one yourself.
 
 You can change a broker filter only from that filter's own page, where the tools \
 for it are in front of you. Asked for a new filter anywhere else, build its \
@@ -115,7 +117,9 @@ def build_messages(
     turns = [
         {
             "role": "assistant" if message["system"] else "user",
-            "content": message["text"],
+            "content": "\n\n".join(
+                filter(None, (tool_note(message.get("tool_calls")), message["text"]))
+            ),
         }
         for message in messages[-max_messages:]
     ]
@@ -130,6 +134,21 @@ def build_messages(
         },
         *turns,
     ]
+
+
+HISTORY_ARG_BUDGET = 300
+
+
+def tool_note(calls):
+    lines = []
+    for call in calls or []:
+        arguments = json.dumps(call.get("arguments") or {}, default=str)
+        if len(arguments) > HISTORY_ARG_BUDGET:
+            arguments = arguments[:HISTORY_ARG_BUDGET] + "\u2026"
+        outcome = "ok" if call.get("ok") else "failed"
+        summary = " ".join(str(call.get("summary") or "").split())
+        lines.append(f"- {call.get('name')} {arguments} ({outcome}): {summary}")
+    return "\n".join(["Tools run for this answer:", *lines]) if lines else None
 
 
 def is_enabled(cfg):
@@ -159,7 +178,21 @@ def _reparsed(text):
         return text
 
 
-def condense(text, budget=6000):
+def lift_active_pipeline(text):
+    try:
+        record = json.loads(text)
+    except (ValueError, TypeError):
+        return text
+    if not isinstance(record, dict) or not record.get("active_fid"):
+        return text
+    for version in record.get("fv") or []:
+        if version.get("fid") == record["active_fid"] and "pipeline" in version:
+            record["active_pipeline"] = _reparsed(version.pop("pipeline"))
+            return json.dumps(record, default=str)
+    return text
+
+
+def condense(text, budget=6000, keep=()):
     """Fit a tool result into a context budget without handing back broken JSON."""
     if len(text) <= budget:
         return text
@@ -202,7 +235,10 @@ def condense(text, budget=6000):
             payload[key] = smaller
 
     dropped = []
-    by_size = sorted(payload, key=lambda k: -len(json.dumps(payload[k], default=str)))
+    by_size = sorted(
+        (key for key in payload if key not in keep),
+        key=lambda k: -len(json.dumps(payload[k], default=str)),
+    )
     for key in by_size:
         current = json.dumps(payload, default=str)
         if len(current) <= budget:
