@@ -821,7 +821,7 @@ def respond(message_id):
                 .where(AssistantMessage.id == message_id)
                 .with_for_update()
             )
-            if asked is not None and not already_answered(session, asked):
+            if asked is not None and not (task and already_answered(session, asked)):
                 if task:
                     newer_attempt = session.scalar(
                         sa.select(AssistantMessage.id)

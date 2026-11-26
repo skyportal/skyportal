@@ -82,15 +82,17 @@ async def _can_notify(user_or_token, session, group_ids):
     )
 
 
-async def _validate_scope(session, query):
+async def _validate_scope(session, query, check_source=True):
     if query.context_type == "gcn_event":
         if query.analysis_service_match or query.source_id:
             return "GRB queries use Run now or an interval."
     elif query.context_type == "source":
         if query.interval_minutes and not query.source_id:
             return "An interval requires a source saved to the query's group."
-        if query.source_id and not await session.scalar(
-            saved_source(query.group_id, query.source_id)
+        if (
+            check_source
+            and query.source_id
+            and not await session.scalar(saved_source(query.group_id, query.source_id))
         ):
             return "Select a source saved to the query's group."
     else:
@@ -250,9 +252,14 @@ class AssistantQueryHandler(BaseHandler):
                 for key in ("active", "interval_minutes")
                 if key in updates
             )
+            rescoped = any(
+                updates[key] != getattr(query, key)
+                for key in ("source_id", "context_type", "group_id")
+                if key in updates
+            )
             for field, value in updates.items():
                 setattr(query, field, value)
-            if error := await _validate_scope(session, query):
+            if error := await _validate_scope(session, query, check_source=rescoped):
                 return self.error(error)
             if reschedule:
                 update_schedule(query, utcnow_naive())
