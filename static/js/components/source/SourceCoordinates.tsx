@@ -2,6 +2,7 @@ import { ReactNode } from "react";
 import Box from "@mui/material/Box";
 import Tooltip from "@mui/material/Tooltip";
 import UpdateSourceCoordinates from "./UpdateSourceCoordinates";
+import { useIsReadOnly } from "../../ducks/profile";
 import { dec_to_dms, ra_to_hours } from "../../units";
 import { Source } from "../../types";
 
@@ -26,6 +27,7 @@ interface SourceCoordinatesProps {
 }
 
 const SourceCoordinates = ({ source }: SourceCoordinatesProps) => {
+  const isReadOnly = useIsReadOnly();
   const ra = source?.adjusted_position?.ra || source.ra;
   const dec = source?.adjusted_position?.dec || source.dec;
   const gal_lon = source?.adjusted_position?.gal_lon || source.gal_lon;
@@ -85,9 +87,11 @@ const SourceCoordinates = ({ source }: SourceCoordinatesProps) => {
               {ebv.toFixed(2)}
             </>
           )}
-          <span className="edit-position">
-            <UpdateSourceCoordinates source={source} />
-          </span>
+          {!isReadOnly && (
+            <span className="edit-position">
+              <UpdateSourceCoordinates source={source} />
+            </span>
+          )}
         </Box>
       </Box>
     </Tooltip>
