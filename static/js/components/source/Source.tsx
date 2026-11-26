@@ -55,6 +55,7 @@ import ClassificationForm from "../classification/ClassificationForm";
 import ShowClassification from "../classification/ShowClassification";
 import ShowSummaries from "../summary/ShowSummaries";
 import SurveyLinkList from "./SurveyLinkList";
+import SourcePapers from "./SourcePapers";
 import StarList from "../StarList";
 import FollowupRequestForm from "../followup_request/FollowupRequestForm";
 import FollowupRequestLists from "../followup_request/FollowupRequestLists";
@@ -1273,6 +1274,7 @@ const SourceContent = ({ source }: SourceContentProps) => {
               <SurveyLinkList id={source.id} ra={source.ra} dec={source.dec} />
             </div>
           </Paper>
+          <SourcePapers objID={source.id} />
         </Grid>
         <Grid
           size={12}

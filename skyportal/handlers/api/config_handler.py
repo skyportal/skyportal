@@ -8,6 +8,7 @@ from baselayer.app.auth_backends import configured_backends
 from baselayer.app.env import load_env
 from skyportal.models import cosmo
 from skyportal.utils.assistant import is_enabled as assistant_enabled
+from skyportal.utils.paper_corner import paper_corner_enabled
 from skyportal.utils.telegram import telegram_enabled
 from skyportal.utils.tns import TNS_INSTRUMENT_IDS
 from skyportal.utils.user_applications import may_decide, user_applications_enabled
@@ -137,6 +138,7 @@ class ConfigHandler(BaseHandler):
                 "userApplicationsEnabled": user_applications_enabled(),
                 "canDecideUserApplications": may_decide(self.current_user),
                 "assistantEnabled": assistant_enabled(cfg),
+                "paperCornerEnabled": paper_corner_enabled(cfg),
                 "cosmology": str(cosmo),
                 "cosmologyParams": cosmology_parameter_rows(cosmo),
                 "summary_apikey_set": summary_apikey_set,

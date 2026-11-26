@@ -37,6 +37,7 @@ from .obj import *
 from .observation import *
 from .observation_plan import *
 from .observing_run import *
+from .paper_corner import *
 from .phot_stat import *
 from .photometric_series import *
 from .photometry import *
