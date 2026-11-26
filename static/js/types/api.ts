@@ -39698,7 +39698,7 @@ export interface components {
             owner?: boolean;
             auto_share_to_tns?: boolean;
             auto_share_classifications_to_tns?: boolean;
-            /** @description Hours an automatic classification report waits before it is sent. */
+            /** @description Hours an automatic classification report from a person waits before it is sent; a bot's goes out right away. */
             auto_share_classifications_delay_hours?: number;
             auto_share_to_hermes?: boolean;
             auto_share_to_mpc?: boolean;
@@ -39770,7 +39770,7 @@ export interface components {
             owner?: boolean;
             auto_share_to_tns?: boolean;
             auto_share_classifications_to_tns?: boolean;
-            /** @description Hours an automatic classification report waits before it is sent. */
+            /** @description Hours an automatic classification report from a person waits before it is sent; a bot's goes out right away. */
             auto_share_classifications_delay_hours?: number;
             auto_share_to_hermes?: boolean;
             auto_share_to_mpc?: boolean;

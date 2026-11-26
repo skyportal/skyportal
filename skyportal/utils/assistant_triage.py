@@ -217,7 +217,9 @@ FACTS_PROMPT = (
     "Action: one sentence.\n"
     "Caveats: one or two short items.\n"
     "Use only numbers that appear in the facts and never compute new ones. If "
-    "something is missing, say it is unknown. Do not restate the facts.\n\n"
+    "something is missing, say it is unknown. Do not restate the facts. When it "
+    "has a non-ML classification or a spectrum, do not recommend a spectrum to "
+    "establish its type.\n\n"
     "Facts for {obj_id}:\n{facts}"
 )
 
@@ -484,6 +486,35 @@ def _other_classifier_facts(classifications):
     ]
 
 
+def _non_ml_classification_facts(classifications):
+    latest = {}
+    for c in classifications or []:
+        name = c.get("classification")
+        if c.get("ml") or not name:
+            continue
+        if name not in latest or c["created_at"] > latest[name]["created_at"]:
+            latest[name] = c
+    if not latest:
+        return ["Non-ML classifications: none."]
+    newest_first = sorted(
+        latest.items(), key=lambda pair: pair[1]["created_at"], reverse=True
+    )
+    return [
+        "Non-ML classifications: "
+        + "; ".join(
+            f"{name} by {c.get('author_name') or 'unknown'} on {str(c['created_at'])[:10]}"
+            for name, c in newest_first
+        )
+        + "."
+    ]
+
+
+def _spectrum_facts(source):
+    if "spectrum_exists" not in source:
+        return []
+    return [f"Spectra in SkyPortal: {'yes' if source['spectrum_exists'] else 'none'}."]
+
+
 def triage_facts(flare, source, light_curve, catalogs, classifications):
     """What a FLARE triage rests on, worked out by the code for the model to interpret."""
     peaks = [
@@ -494,4 +525,6 @@ def triage_facts(flare, source, light_curve, catalogs, classifications):
         + _light_curve_facts(light_curve)
         + _host_facts(flare, source or {}, catalogs, min(peaks, default=None))
         + _other_classifier_facts(classifications)
+        + _non_ml_classification_facts(classifications)
+        + _spectrum_facts(source or {})
     )

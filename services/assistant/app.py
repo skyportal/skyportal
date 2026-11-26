@@ -382,7 +382,7 @@ def answer_from_facts(obj_id, analysis_id, token):
     flare = flare_result(read("get_analysis", analysis_id=analysis_id))
     if flare is None:
         return None
-    source = read("get_sources", obj_id=obj_id) or {}
+    source = read("get_sources", obj_id=obj_id, includeSpectrumExists=True) or {}
     catalogs = None
     if source.get("ra") is not None and source.get("dec") is not None:
         brokers = read("list_brokers") or []
@@ -581,6 +581,9 @@ def conversation_of(session, user_id, channel, up_to_id=None):
             "text": message.text,
             "system": bool(message.system),
             "tool_calls": message.tool_calls,
+            "created_at": message.created_at,
+            "context_type": message.context_type,
+            "context_id": message.context_id,
         }
         for message in messages
     ]

@@ -114,6 +114,7 @@ def build_messages(
     user=None,
     detail=None,
 ):
+    recent = messages[-max_messages:]
     turns = [
         {
             "role": "assistant" if message["system"] else "user",
@@ -121,12 +122,15 @@ def build_messages(
                 filter(None, (tool_note(message.get("tool_calls")), message["text"]))
             ),
         }
-        for message in messages[-max_messages:]
+        for message in recent
     ]
     # A model answers a question, so the last turn has to be one. Trailing
     # assistant turns are refused outright by an OpenAI-compatible server.
     while turns and turns[-1]["role"] == "assistant":
         turns.pop()
+    for turn, message in zip(turns[:-1], recent):
+        if turn["role"] == "user" and (note := asked_note(message)):
+            turn["content"] = f"{note}\n\n{turn['content']}"
     return [
         {
             "role": "system",
@@ -134,6 +138,17 @@ def build_messages(
         },
         *turns,
     ]
+
+
+def asked_note(message):
+    """When and from which page an earlier question was asked, so an old exchange
+    about another object is not read as being about the page open now."""
+    asked_at = message.get("created_at")
+    if asked_at is None:
+        return None
+    page = describe_context(message.get("context_type"), message.get("context_id"))
+    where = f"on {page}" if page else "from no particular page"
+    return f"(Earlier question, asked {str(asked_at)[:16]} UTC {where}.)"
 
 
 HISTORY_ARG_BUDGET = 300
