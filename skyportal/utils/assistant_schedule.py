@@ -3,7 +3,6 @@
 import asyncio
 import hashlib
 import json
-import uuid
 from datetime import timedelta
 
 import sqlalchemy as sa
@@ -32,6 +31,7 @@ log = make_log("assistant_schedule")
 GRB_LOOKBACK = timedelta(days=2)
 STALE_RUN = timedelta(minutes=15)
 MAX_EVENTS_PER_RUN = 10
+LIGHT_CURVE_NOTICE = "SWIFT_BAT_GRB_LC"
 
 
 def task_channel_prefix(query_id):
@@ -60,6 +60,28 @@ def visible_events(group_id, public_group_name):
 
 def group_scope(group_id, public_group_name):
     return (Group.id == group_id) | (Group.name == public_group_name)
+
+
+def _digest(*parts):
+    return hashlib.sha256(
+        json.dumps(parts, sort_keys=True, default=str).encode()
+    ).hexdigest()
+
+
+async def _already_queued(session, query, channel, now):
+    previous = await session.scalar(
+        sa.select(AssistantMessage)
+        .where(
+            AssistantMessage.channel == f"query:{query.id}:{channel}",
+            AssistantMessage.system.is_(False),
+        )
+        .order_by(AssistantMessage.id.desc())
+        .limit(1)
+    )
+    return previous is not None and (
+        previous.run_status == "completed"
+        or (previous.run_status == "queued" and previous.modified > now - STALE_RUN)
+    )
 
 
 def _localization_evidence(localization):
@@ -121,34 +143,25 @@ async def _grb_targets(session, query, now, public_group_name):
     )
     for event in events:
         evidence = grb_evidence(event)
+        light_curves = {
+            notice.id
+            for notice in event.gcn_notices
+            if notice.notice_type == LIGHT_CURVE_NOTICE
+        }
         # Notices and their event properties can arrive without new measurements.
-        digest = hashlib.sha256(
-            json.dumps(
-                [
-                    query.prompt,
-                    query.dry_run,
-                    evidence["localizations"],
-                    evidence["extractions"],
-                ],
-                sort_keys=True,
-                default=str,
-            ).encode()
-        ).hexdigest()
+        digest = _digest(
+            query.prompt,
+            query.dry_run,
+            [
+                loc.localization_name
+                for loc in sorted(event.localizations, key=lambda loc: loc.id)
+                if loc.notice_id not in light_curves
+            ],
+            evidence["extractions"],
+        )
         dateobs = event.dateobs.isoformat()
         channel = f"task:grb:{event.id}:{digest}"
-        previous = await session.scalar(
-            sa.select(AssistantMessage)
-            .where(
-                AssistantMessage.channel == f"query:{query.id}:{channel}",
-                AssistantMessage.system.is_(False),
-            )
-            .order_by(AssistantMessage.id.desc())
-            .limit(1)
-        )
-        if previous and (
-            previous.run_status == "completed"
-            or (previous.run_status == "queued" and previous.modified > now - STALE_RUN)
-        ):
+        if await _already_queued(session, query, channel, now):
             continue
         yield (
             "gcn_event",
@@ -163,17 +176,6 @@ async def _source_targets(session, query, now, public_group_name):
         saved_source(query.group_id, query.source_id)
     ):
         raise ValueError("Select a source saved to this query's group.")
-    pending = await session.scalar(
-        sa.select(AssistantMessage.id)
-        .where(
-            AssistantMessage.channel.startswith(task_channel_prefix(query.id)),
-            AssistantMessage.run_status == "queued",
-            AssistantMessage.modified > now - STALE_RUN,
-        )
-        .limit(1)
-    )
-    if pending is not None:
-        return
     source_id = query.source_id
     scope = group_scope(query.group_id, public_group_name)
     coordinates = (
@@ -182,7 +184,7 @@ async def _source_targets(session, query, now, public_group_name):
     photometry = await session.execute(
         sa.select(Photometry.mjd, Photometry.filter, Photometry.mag)
         .where(Photometry.obj_id == source_id, Photometry.groups.any(scope))
-        .order_by(Photometry.mjd.desc())
+        .order_by(Photometry.mjd.desc(), Photometry.id.desc())
         .limit(25)
     )
     classifications = await session.execute(
@@ -197,11 +199,16 @@ async def _source_targets(session, query, now, public_group_name):
         "recent_photometry": [dict(row._mapping) for row in photometry],
         "classifications": [dict(row._mapping) for row in classifications],
     }
+    channel = (
+        f"task:source:{source_id}:{_digest(query.prompt, query.dry_run, evidence)}"
+    )
+    if await _already_queued(session, query, channel, now):
+        return
     yield (
         "source",
         source_id,
-        f"task:source:{uuid.uuid4().hex}",
-        json.dumps(evidence, default=str),
+        channel,
+        json.dumps(evidence, sort_keys=True, default=str),
     )
 
 

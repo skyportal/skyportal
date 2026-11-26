@@ -96,14 +96,26 @@ def test_grb_evidence_is_queued_only_when_new_or_retryable():
     assert asyncio.run(targets()) == []
 
     event.gcn_notices.append(
-        SimpleNamespace(stream="swift", notice_type=63, ivorn="ivo://swift/lc")
+        SimpleNamespace(
+            id=10,
+            stream="SWIFT",
+            notice_type="SWIFT_BAT_GRB_LC",
+            ivorn="ivo://swift/lc",
+        )
+    )
+    event.localizations.append(
+        SimpleNamespace(
+            id=2, localization_name="271.1_-57.7_0.001", notice_id=10, properties=[]
+        )
     )
     event.properties.append(SimpleNamespace(data={"notice_type": 63}))
     event.circulars["46330"] = "MASTER-Net follow-up"
     assert asyncio.run(targets()) == []
 
     event.localizations.append(
-        SimpleNamespace(id=1, localization_name="271.1_-57.7_0.1", properties=[])
+        SimpleNamespace(
+            id=1, localization_name="271.1_-57.7_0.1", notice_id=None, properties=[]
+        )
     )
     updated = asyncio.run(targets())
     assert len(updated) == 1
@@ -117,6 +129,9 @@ def test_grb_evidence_is_queued_only_when_new_or_retryable():
     assert asyncio.run(targets()) == updated
 
     session.jobs[channel].run_status = "completed"
+    event.localizations[-1].properties.append(SimpleNamespace(data={"area_90": 1.0}))
+    assert asyncio.run(targets()) == []
+
     event.extractions.append(
         SimpleNamespace(
             circular_id=46330,
