@@ -146,7 +146,7 @@ class ZTFRequest:
         error : str
             error message if the request is invalid.
         """
-        from ..models import Instrument, Photometry
+        from ..models import Photometry
 
         error = None
 
@@ -187,16 +187,10 @@ class ZTFRequest:
             if "alert photometry only" in position:
                 additional_constraints.append(lambda p: p and len(p.streams) > 0)
             if "ZTF alert photometry only" in position:
-                ztf_instrument_id = await session.scalar(
-                    sa.select(Instrument.id).where(Instrument.name == "ZTF")
+                ztf_instrument_id = request.allocation.instrument_id
+                additional_constraints.append(
+                    lambda p: p and p.instrument_id == ztf_instrument_id
                 )
-                if ztf_instrument_id is not None:
-                    additional_constraints.append(
-                        lambda p: p and p.instrument_id == ztf_instrument_id
-                    )
-                else:
-                    error = "Could not find the ZTF instrument in the database."
-                    return target, error
             photometry = [
                 (p.ra, p.dec, p.flux, p.fluxerr)
                 for p in photometry
