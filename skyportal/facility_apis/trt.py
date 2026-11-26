@@ -26,6 +26,41 @@ env, cfg = load_env()
 log = make_log("facility_apis/trt")
 
 
+SLOAN_FILTERS = ["U_Sloan", "G_Sloan", "R_Sloan", "I_Sloan", "Z_Sloan"]
+TRT_STATION_FILTERS = {
+    "SRO": ["B", "V", "R", "I"],
+    "GAO": ["B", "V", "R", "I"],
+    "SBO": [*SLOAN_FILTERS, "V", "Rc", "Ic"],
+    "CTO": [
+        "No_Filter",
+        "Lum",
+        "Red",
+        "Green",
+        "Blue",
+        "U_Bessell",
+        "B_Bessell",
+        "V_Bessell",
+        "R_Bessell",
+        "I_Bessell",
+        *SLOAN_FILTERS,
+        "SII_8",
+        "RG_Clear",
+    ],
+}
+
+# Saved CTO requests can still contain the old SkyPortal filter names.
+CTO_FILTER_ALIASES = {
+    "B": "B_Bessell",
+    "V": "V_Bessell",
+    "R": "R_Bessell",
+    "I": "I_Bessell",
+    "g": "G_Sloan",
+    "r": "R_Sloan",
+    "i": "I_Sloan",
+    "z": "Z_Sloan",
+}
+
+
 def validate_request_to_trt(request):
     """Validate FollowupRequest contents for TRT queue.
 
@@ -46,16 +81,25 @@ def validate_request_to_trt(request):
         if param not in request.payload:
             raise ValueError(f"Parameter {param} required.")
 
-    if any(
-        filt not in ["B", "V", "R", "I", "Rc", "Ic", "g", "r", "i", "z"]
-        for filt in request.payload["observation_choices"]
-    ):
-        raise ValueError(
-            f"Filter configuration {request.payload['observation_choices']} unknown."
-        )
-
-    if request.payload["station_name"] not in ["SRO", "GAO", "SBO", "CTO"]:
+    station_name = request.payload["station_name"]
+    if station_name not in TRT_STATION_FILTERS:
         raise ValueError("station_name must be SRO, GAO, SBO or CTO")
+
+    filters = request.payload["observation_choices"]
+    if not isinstance(filters, list) or not filters:
+        raise ValueError("TRT requests require a nonempty list of filters.")
+    if any(not isinstance(filt, str) for filt in filters):
+        raise ValueError("TRT filter names must be strings.")
+
+    if station_name == "CTO":
+        filters = [CTO_FILTER_ALIASES.get(filt, filt) for filt in filters]
+
+    allowed_filters = TRT_STATION_FILTERS[station_name]
+    if any(filt not in allowed_filters for filt in filters):
+        raise ValueError(
+            f"Invalid filters for TRT station {station_name}: {filters}. "
+            f"Choose from {', '.join(allowed_filters)}."
+        )
 
     if request.payload["exposure_time"] < 0:
         raise ValueError("exposure_time must be positive.")
@@ -73,7 +117,7 @@ def validate_request_to_trt(request):
 
     requestgroup = {
         "ObjectName": request.obj.id,
-        "StationName": request.payload["station_name"],
+        "StationName": station_name,
         "RA": ra_str,
         "DEC": dec_str,
         "Subframe": "1",
@@ -87,15 +131,10 @@ def validate_request_to_trt(request):
         "EndDate": tend.iso,
         "ExposuresMode": "1",
         "M3Port": "1",
-        "Filter": request.payload["observation_choices"],
-        "Suffix": [
-            f"{request.obj.id}_{filt}"
-            for filt in request.payload["observation_choices"]
-        ],
-        "Exposure": [str(request.payload["exposure_time"])]
-        * len(request.payload["observation_choices"]),
-        "Repeat": [str(request.payload["exposure_counts"])]
-        * len(request.payload["observation_choices"]),
+        "Filter": filters,
+        "Suffix": [f"{request.obj.id}_{filt}" for filt in filters],
+        "Exposure": [str(request.payload["exposure_time"])] * len(filters),
+        "Repeat": [str(request.payload["exposure_counts"])] * len(filters),
     }
 
     return requestgroup
@@ -495,7 +534,7 @@ class TRTAPI(FollowUpAPI):
         "properties": {
             "station_name": {
                 "type": "string",
-                "enum": ["SRO", "GAO", "SBO", "CTO"],
+                "enum": list(TRT_STATION_FILTERS),
                 "default": "SRO",
             },
             "exposure_time": {
@@ -540,54 +579,21 @@ class TRTAPI(FollowUpAPI):
                     {
                         "properties": {
                             "station_name": {
-                                "enum": ["SRO", "GAO"],
+                                "enum": [station_name],
                             },
                             "observation_choices": {
                                 "type": "array",
                                 "title": "Desired Observations",
                                 "items": {
                                     "type": "string",
-                                    "enum": ["B", "V", "R", "I"],
+                                    "enum": filters,
                                 },
                                 "uniqueItems": True,
                                 "minItems": 1,
                             },
                         },
-                    },
-                    {
-                        "properties": {
-                            "station_name": {
-                                "enum": ["SBO"],
-                            },
-                            "observation_choices": {
-                                "type": "array",
-                                "title": "Desired Observations",
-                                "items": {
-                                    "type": "string",
-                                    "enum": ["B", "V", "Rc", "Ic"],
-                                },
-                                "uniqueItems": True,
-                                "minItems": 1,
-                            },
-                        },
-                    },
-                    {
-                        "properties": {
-                            "station_name": {
-                                "enum": ["CTO"],
-                            },
-                            "observation_choices": {
-                                "type": "array",
-                                "title": "Desired Observations",
-                                "items": {
-                                    "type": "string",
-                                    "enum": ["B", "V", "R", "I", "g", "r", "i", "z"],
-                                },
-                                "uniqueItems": True,
-                                "minItems": 1,
-                            },
-                        },
-                    },
+                    }
+                    for station_name, filters in TRT_STATION_FILTERS.items()
                 ],
             },
         },

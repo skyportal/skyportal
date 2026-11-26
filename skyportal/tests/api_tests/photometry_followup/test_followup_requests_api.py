@@ -1,11 +1,35 @@
 import asyncio
 import uuid
+from unittest.mock import Mock
 
+import pytest
 import sqlalchemy as sa
+from astropy.time import Time
 
+from skyportal.models import FollowupRequest
 from skyportal.tests import api
 
 from ....utils.naive_datetime import utcnow_naive
+
+
+@pytest.mark.parametrize(
+    ("method", "missing_event"),
+    [
+        ("rise_time", "next_sunset"),
+        ("rise_time", "next_sunrise"),
+        ("set_time", "next_sunset"),
+    ],
+)
+def test_followup_request_time_without_solar_event(method, missing_event):
+    request = Mock()
+    telescope = request.allocation.instrument.telescope
+    telescope.next_sunset.return_value = Time("2026-01-01T01:00:00")
+    telescope.next_sunrise.return_value = Time("2026-01-01T13:00:00")
+    getattr(telescope, missing_event).return_value = None
+
+    assert getattr(FollowupRequest, method)(request) is None
+    telescope.observer.target_rise_time.assert_not_called()
+    telescope.observer.target_set_time.assert_not_called()
 
 
 def test_token_user_post_robotic_followup_request(

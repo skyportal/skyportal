@@ -1,3 +1,4 @@
+from skyportal.models import DBSession
 from skyportal.tests import api
 
 # Obj.internal_key anonymizes objects in websocket refresh messages. It must only
@@ -43,14 +44,20 @@ def test_internal_key_present_on_observing_run_assignments(
 
 
 def test_internal_key_present_on_allocation_requests(
-    super_admin_token, public_source_followup_request, public_source
+    super_admin_token, public_source_followup_request, public_source, p60_telescope
 ):
+    # Exercise serialization without relying on the observing site or wall clock.
+    p60_telescope.fixed_location = False
+    DBSession.commit()
+
     allocation_id = public_source_followup_request.allocation_id
     status, data = api("GET", f"allocation/{allocation_id}", token=super_admin_token)
     assert status == 200, data
     requests = data["data"]["allocation"]["requests"]
-    row = next(r for r in requests if r["obj_id"] == public_source.id)
+    row = next(r for r in requests if r["id"] == public_source_followup_request.id)
     assert row["internal_key"] == public_source.internal_key
+    assert row["rise_time_utc"] is None
+    assert row["set_time_utc"] is None
 
 
 def test_internal_key_not_leaked_via_spectra(
