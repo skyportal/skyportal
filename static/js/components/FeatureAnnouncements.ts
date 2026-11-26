@@ -8,6 +8,7 @@ export interface FeatureAnnouncement {
   id: string;
   path: RegExp;
   announcedAt: string;
+  requiresConfig?: string;
   steps: TourStep[];
 }
 
@@ -122,6 +123,22 @@ export const FEATURE_ANNOUNCEMENTS: FeatureAnnouncement[] = [
           "Report a bug or ask for a new feature from this button, and " +
           "follow the replies on its page.",
         placement: "bottom",
+      },
+    ],
+  },
+  {
+    id: "assistant-improves-daily",
+    path: /./,
+    announcedAt: "2026-11-25",
+    requiresConfig: "assistantEnabled",
+    steps: [
+      {
+        target: '[data-testid="source-chat-button"]',
+        title: "The assistant improves every day",
+        content:
+          "We improve it daily from your feedback, so don't hesitate to use " +
+          "it: a question that failed yesterday may work today.",
+        placement: "left",
       },
     ],
   },
