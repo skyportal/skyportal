@@ -836,15 +836,19 @@ def _run_default_analysis(
 
     # Wait for the just-saved obj to be visible: a broker-ingested obj is new in
     # the still-uncommitted triggering transaction, so a fresh session can miss it.
+    if spectrum_id is None:
+        awaited = f"obj {obj_id}"
+        probe_stmt = sa.select(Obj.id).where(Obj.id == obj_id)
+    else:
+        awaited = f"spectrum {spectrum_id}"
+        probe_stmt = sa.select(Spectrum.id).where(Spectrum.id == spectrum_id)
     for _ in range(20):
         with DBSession() as probe:
-            if probe.scalar(sa.select(Obj.id).where(Obj.id == obj_id)) is not None:
+            if probe.scalar(probe_stmt) is not None:
                 break
         time.sleep(0.5)
     else:
-        log(
-            f"Default analysis {default_analysis_id}: obj {obj_id} never became visible"
-        )
+        log(f"Default analysis {default_analysis_id}: {awaited} never became visible")
         return
 
     with DBSession() as db_session:
@@ -879,6 +883,12 @@ def _run_default_analysis(
                     "daily_count": 0,
                     "last_run": now,
                 }
+            if stats["daily_count"] >= stats["daily_limit"]:
+                log(
+                    f"Default analysis {default_analysis.analysis_service.name}: "
+                    f"daily limit of {stats['daily_limit']} reached, skipping {obj_id}"
+                )
+                return
             default_analysis.stats = {
                 "daily_limit": stats["daily_limit"],
                 "daily_count": stats["daily_count"] + 1,
@@ -1014,6 +1024,12 @@ def _run_default_gcnevent_analysis(default_analysis_id, author_id, dateobs, trig
                     "daily_count": 0,
                     "last_run": now,
                 }
+            if stats["daily_count"] >= stats["daily_limit"]:
+                log(
+                    f"Default analysis {default_analysis.analysis_service.name}: "
+                    f"daily limit of {stats['daily_limit']} reached, skipping {dateobs}"
+                )
+                return
             default_analysis.stats = {
                 "daily_limit": stats["daily_limit"],
                 "daily_count": stats["daily_count"] + 1,
