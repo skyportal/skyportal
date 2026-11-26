@@ -389,11 +389,12 @@
   name: HCT Spectograph
   telescope_id: =HCT
   type: spectrograph
-- =id: SALT_Spectrograph
+- =id: SALT_RSS
   band: optical
-  name: Spectrograph
+  name: RSS
   telescope_id: =SALT
   type: spectrograph
+  tns_id: 117
 - band: optical
   name: Sinistro
   telescope_id: =LCOGT1m
