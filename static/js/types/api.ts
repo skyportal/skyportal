@@ -18800,7 +18800,7 @@ export interface paths {
                     detectedWindowEnd?: string | null;
                     /** @description Get only sources saved to the querying user's list, e.g., "favorites". */
                     listName?: string | null;
-                    /** @description Portion of ID or TNS name to filter on */
+                    /** @description Portion of ID, TNS name or MPC name to filter on */
                     sourceID?: string | null;
                     /** @description Comma-separated string of object IDs not to be returned, useful in cases where you are looking for new sources passing a query. */
                     rejectedSourceIDs?: string[] | null;
