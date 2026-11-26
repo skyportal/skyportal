@@ -894,20 +894,18 @@ const SourceContent = ({ source }: SourceContentProps) => {
                 };
               }}
             >
-              <Tooltip title="Finding chart, observability and starlist">
-                <Button
-                  secondary
-                  color="primary"
-                  size="small"
-                  endIcon={<ExpandMoreIcon />}
-                  data-testid="observing-button"
-                  aria-haspopup="true"
-                  aria-expanded={Boolean(anchorElObserving)}
-                  onClick={(e: any) => setAnchorElObserving(e.currentTarget)}
-                >
-                  Observing
-                </Button>
-              </Tooltip>
+              <Button
+                secondary
+                color="primary"
+                size="small"
+                endIcon={<ExpandMoreIcon />}
+                data-testid="observing-button"
+                aria-haspopup="true"
+                aria-expanded={Boolean(anchorElObserving)}
+                onClick={(e: any) => setAnchorElObserving(e.currentTarget)}
+              >
+                Observing
+              </Button>
               <Menu
                 transitionDuration={50}
                 anchorEl={anchorElObserving}
@@ -976,18 +974,16 @@ const SourceContent = ({ source }: SourceContentProps) => {
               </Menu>
               {!isReadOnly && (
                 <>
-                  <Tooltip title="Send to TNS, Hermes or TROVE, or make a public page">
-                    <Button
-                      secondary
-                      color="primary"
-                      size="small"
-                      endIcon={<SendOutlinedIcon />}
-                      data-testid="send-to-button"
-                      onClick={() => setSendToDialogOpen(true)}
-                    >
-                      Send to
-                    </Button>
-                  </Tooltip>
+                  <Button
+                    secondary
+                    color="primary"
+                    size="small"
+                    endIcon={<SendOutlinedIcon />}
+                    data-testid="send-to-button"
+                    onClick={() => setSendToDialogOpen(true)}
+                  >
+                    Send to
+                  </Button>
                   <SharingServicesDialog
                     obj_id={source.id}
                     dialogOpen={sendToDialogOpen}
