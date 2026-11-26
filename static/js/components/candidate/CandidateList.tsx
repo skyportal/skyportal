@@ -439,12 +439,7 @@ const CandidateInfo = ({
         </InfoRow>
       )}
       <InfoRow label="MPC:">
-        {candidate.is_roid && (
-          <Chip
-            size="small"
-            label={candidate.alias?.[0] ?? candidate.mpc_name}
-          />
-        )}
+        {candidate.mpc_name && <Chip size="small" label={candidate.mpc_name} />}
         {!isReadOnly && (
           <UpdateSourceMPC
             source={{

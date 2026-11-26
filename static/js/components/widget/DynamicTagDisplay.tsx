@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState, useRef, useMemo } from "react";
-import { Chip, Tooltip } from "@mui/material";
+import { Box, Chip, Tooltip } from "@mui/material";
 import { getContrastColor } from "../ObjectTags";
 import { useGetGroupsQuery } from "../../ducks/groups";
 import { useGetTagOptionsQuery } from "../../ducks/objectTags";
@@ -13,10 +13,11 @@ interface DynamicTagDisplayProps {
       groups?: { id: number }[];
     }[];
   };
-  styles: Record<string, string>;
 }
 
-const DynamicTagDisplay = ({ source, styles }: DynamicTagDisplayProps) => {
+const tagChipSx = { height: 20, fontSize: "0.7rem", fontWeight: 500 };
+
+const DynamicTagDisplay = ({ source }: DynamicTagDisplayProps) => {
   const [visibleTagsCount, setVisibleTagsCount] = useState(2);
   const [containerWidth, setContainerWidth] = useState(0);
   const containerRef = useRef<any>(null);
@@ -50,15 +51,15 @@ const DynamicTagDisplay = ({ source, styles }: DynamicTagDisplayProps) => {
     tempElement.style.visibility = "hidden";
     tempElement.style.position = "absolute";
     tempElement.style.whiteSpace = "nowrap";
-    tempElement.style.fontSize = "0.8125rem";
+    tempElement.style.fontSize = "0.7rem";
     tempElement.style.fontFamily = window.getComputedStyle(
       measureRef.current,
     ).fontFamily;
-    tempElement.style.padding = "4px 12px";
+    tempElement.style.padding = "0 8px";
     tempElement.textContent = text;
 
     document.body.appendChild(tempElement);
-    const width = tempElement.offsetWidth + 8;
+    const width = tempElement.offsetWidth + 4;
     document.body.removeChild(tempElement);
 
     return width;
@@ -155,10 +156,19 @@ const DynamicTagDisplay = ({ source, styles }: DynamicTagDisplayProps) => {
   });
 
   return (
-    <div className={styles["tagsContainer"]} ref={containerRef}>
-      <span
+    <Box
+      ref={containerRef}
+      sx={{
+        display: "flex",
+        flexWrap: "wrap",
+        gap: 0.5,
+        width: "100%",
+      }}
+    >
+      <Box
+        component="span"
         ref={measureRef}
-        style={{ visibility: "hidden", position: "absolute" }}
+        sx={{ visibility: "hidden", position: "absolute" }}
       />
 
       {visibleTagsWithColors.map((tag) => (
@@ -166,9 +176,9 @@ const DynamicTagDisplay = ({ source, styles }: DynamicTagDisplayProps) => {
           key={tag.id}
           label={tag.name}
           size="small"
-          className={styles["tagChip"]}
           variant="filled"
-          style={{
+          sx={{
+            ...tagChipSx,
             backgroundColor: tag.color,
             color: getContrastColor(tag.color),
           }}
@@ -178,41 +188,32 @@ const DynamicTagDisplay = ({ source, styles }: DynamicTagDisplayProps) => {
       {hasMoreTags && (
         <Tooltip
           title={
-            <div>
-              <strong>Additional tags:</strong>
-              <br />
-              {hiddenTagsWithColors.map((tag, index) => (
-                <span key={tag.id}>
-                  <Chip
-                    label={tag.name}
-                    size="small"
-                    style={{
-                      backgroundColor: tag.color,
-                      color: getContrastColor(tag.color),
-                      margin: "2px",
-                    }}
-                  />
-                  {index < hiddenTagsWithColors.length - 1 ? " " : ""}
-                </span>
+            <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.5, py: 0.5 }}>
+              {hiddenTagsWithColors.map((tag) => (
+                <Chip
+                  key={tag.id}
+                  label={tag.name}
+                  size="small"
+                  sx={{
+                    ...tagChipSx,
+                    backgroundColor: tag.color,
+                    color: getContrastColor(tag.color),
+                  }}
+                />
               ))}
-            </div>
+            </Box>
           }
         >
           <Chip
             key="more-tags"
             label={`+${hiddenTags.length}`}
             size="small"
-            className={styles["tagChip"]}
-            color="default"
-            variant="filled"
-            style={{
-              fontStyle: "italic",
-              opacity: 0.7,
-            }}
+            variant="outlined"
+            sx={tagChipSx}
           />
         </Tooltip>
       )}
-    </div>
+    </Box>
   );
 };
 

@@ -185,8 +185,8 @@ def test_ingest_links_iau_designation(scout_tdes, public_group, super_admin_user
     session.commit()
 
     obj = session.scalar(sa.select(Obj).where(Obj.id == scout_obj_id(scout_tdes)))
-    # Prefixed like the survey path, so one alias query spans both.
-    assert obj.alias == [f"SSO {iau}"]
+    assert obj.mpc_name == iau
+    assert not obj.alias
 
     super_obj = session.scalar(
         sa.select(SuperObj).where(SuperObj.objs.any(Obj.id == scout_obj_id(scout_tdes)))

@@ -39,6 +39,7 @@ HOST_FIELDS = (
     "dec",
     "z",
     "z_err",
+    "z_type",
     "dist_mpc",
     "sep_arcsec",
     "sep_kpc",
@@ -1287,9 +1288,11 @@ class BOOMBROKER(BrokerAPI):
                     results[catalog] = sources
         return results
 
+    similarity_surveys = ("ZTF",)
+
     @staticmethod
     def similar_objects(broker, object_id, session, top_k=10, **kwargs):
-        if survey_from_object_id(object_id, ["ZTF"]) != "ZTF":
+        if survey_from_object_id(object_id, BOOMBROKER.similarity_surveys) != "ZTF":
             return []
         programids = _programids(kwargs, "ZTF")
         if programids is None:
@@ -1310,7 +1313,7 @@ class BOOMBROKER(BrokerAPI):
             )
         except requests.HTTPError as e:
             if e.response is not None and e.response.status_code == 404:
-                return []
+                return None
             raise
         if isinstance(neighbors, dict):
             neighbors = neighbors.get("neighbors")

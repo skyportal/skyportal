@@ -34,5 +34,5 @@ def test_source_count_widget(page, user, public_group, upload_data_token):
     time.sleep(2)  # wait for the counter to finish. Not a vanilla hardcode!
     source_count_text = source_counter.inner_text()
 
-    # expecting something like: "3\nNew Sources\nLast 7 days"
+    # expecting something like: "3\nNew sources\nLast 7 days"
     assert int(source_count_text.split()[0]) >= 2

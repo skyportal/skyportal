@@ -491,7 +491,7 @@ const NotificationPreferences = () => {
         title={isAdmin ? "Feedback" : "Feedback by email or Slack"}
         text={
           isAdmin
-            ? "As an admin, when someone sends a message. They are on the Feedback page."
+            ? "As an admin, when someone sends a message, with the count of open ones on the Feedback icon. They are on the Feedback page."
             : "You get an in-app notification when an admin replies to one of your messages."
         }
         channels={["email", "slack"]}

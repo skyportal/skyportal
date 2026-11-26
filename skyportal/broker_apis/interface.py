@@ -140,9 +140,12 @@ class BrokerAPI(_Base):
     def similar_objects(broker, object_id, session, top_k=10, **kwargs):
         """Nearest neighbors of an object in the broker's embedding space, as
         dicts with ``object_id``, ``score`` and optionally ``jd``,
-        ``model_label`` and ``model_probability``, best first. Empty when the
+        ``model_label`` and ``model_probability``, best first. None when the
         object has no embedding."""
         raise NotImplementedError
+
+    # Surveys whose objects similar_objects can search.
+    similarity_surveys = ()
 
     @staticmethod
     def gaia_cone_search(broker, ra, dec, radius_degrees, columns):

@@ -11,16 +11,19 @@ import Typography from "@mui/material/Typography";
 import LogoutIcon from "@mui/icons-material/Logout";
 import PersonIcon from "@mui/icons-material/PersonOutlined";
 import FeedbackIcon from "@mui/icons-material/FeedbackOutlined";
+import ChecklistIcon from "@mui/icons-material/Checklist";
 
 import { useOpenFeedbackCount } from "../ducks/feedback";
 import { useGetProfileQuery } from "../ducks/profile";
 import Button from "./Button";
 import UserAvatar from "./user/UserAvatar";
+import { GettingStartedDialog } from "./widget/GettingStarted";
 
 const ProfileDropdown = () => {
   const { data: profile } = useGetProfileQuery();
   const openFeedback = useOpenFeedbackCount();
   const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
+  const [gettingStartedOpen, setGettingStartedOpen] = useState(false);
 
   // In the header of every page: render nothing, not a spinner, while loading.
   if (!profile) return null;
@@ -122,6 +125,16 @@ const ProfileDropdown = () => {
               Profile
             </MenuItem>
             <MenuItem
+              data-testid="gettingStartedMenuItem"
+              onClick={() => {
+                handleClose();
+                setGettingStartedOpen(true);
+              }}
+            >
+              <ChecklistIcon fontSize="small" color="action" />
+              Getting started
+            </MenuItem>
+            <MenuItem
               component={Link}
               to="/feedback"
               role="link"
@@ -138,6 +151,12 @@ const ProfileDropdown = () => {
           </MenuList>
         )}
       </Popover>
+      {!profile.is_anonymous && (
+        <GettingStartedDialog
+          open={gettingStartedOpen}
+          onClose={() => setGettingStartedOpen(false)}
+        />
+      )}
     </>
   );
 };

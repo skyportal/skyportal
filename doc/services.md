@@ -67,6 +67,7 @@ worth listing are those that poll for something you do not use.
 | `ep_service`                       | Ingests candidates from the proprietary Einstein Probe feed                             | Idles without `einstein_probe.enabled`            |
 | `scout_service`                    | Consumes the JPL Scout NEO ToO Kafka stream                                             | Idles without `scout.*`                           |
 | `neofixer_service`                 | Polls NEOFixer target lists and annotates solar system objects                          | Idles without `neofixer.enabled`                  |
+| `paper_corner`                     | Refreshes ADS paper matches for sources ingested from TNS                               | No ADS token configured                           |
 | `tess_sector`                      | Loads TESS sector footprints and annotates coverage                                     | Idles without `tess.enabled`                      |
 | `mast_retrieval`                   | Adds new JWST and HST spectra from MAST to the saved sources they target                | Idles without `mast.enabled`                      |
 | `broker_ingest`                    | Runs the ingestion loop of each active broker, see [broker ingestion](broker_ingestion) | Idles without `brokers.ingest_enabled`            |
@@ -79,7 +80,7 @@ worth listing are those that poll for something you do not use.
 | `ngsf_analysis_service`            | [Analysis](analysis) backend: NGSF spectral fitting                                     | No `AnalysisService` record points at it          |
 | `spectral_cube_analysis_service`   | [Analysis](analysis) backend: spectral cube extraction                                  | No `AnalysisService` record points at it          |
 
-### Scheduled Assistant Queries
+## Scheduled Assistant Queries
 
 With the assistant and `recurring_apis` services enabled, a query owner can set
 an interval on **Assistant Queries**. **Run now** checks the saved query without
@@ -102,3 +103,25 @@ can see, including sitewide events. Under the same prompt and dry-run setting,
 an event is reviewed again only when its localizations or circular extractions
 change. Live results appear as group-visible bot comments on the GCN event.
 The review uses the evidence already linked in SkyPortal.
+
+## Paper Corner
+
+Set `paper_corner.ads_token` in the deployment's private config. Paper Corner
+automatically includes sources ingested from the Transient Name Server (TNS)
+that are actively saved to the deployment's public group.
+
+```yaml
+app:
+  homepage_widgets:
+    PaperCorner:
+      show: true
+```
+
+The service checks ADS titles and abstracts for TNS designations, including both
+the AT and SN forms when applicable. Each search combines up to 20 designations
+and fetches additional pages as needed. By default, a refresh runs hourly,
+considers up to 1,000 sources, and makes at most 100 requests including pagination.
+ADS quota headers can stop a refresh sooner. Recently saved sources get priority,
+and each designation is rechecked after at least seven days. The Front Page
+shows five papers, and each eligible source has a Papers section with its cached
+matches.

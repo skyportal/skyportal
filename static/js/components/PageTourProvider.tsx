@@ -20,9 +20,13 @@ const PageTourProvider = () => {
     continuous: true,
     // Scroll each target into view, including the first step.
     scrollToFirstStep: true,
-    options,
+    options: {
+      ...options,
+      buttons: ["back", "close", "skip", "primary"],
+      closeButtonAction: "skip",
+    },
     styles,
-    locale: { last: "Got it" },
+    locale: { last: "Got it", skip: "End tour" },
   });
 
   const requested = (location.state as { tour?: string } | null)?.tour;

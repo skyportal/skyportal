@@ -60,8 +60,7 @@ const MovingObjectCandidate = ({
     list.filter((g) => !savedGroupIds.includes(g.id));
   const unsavedUserGroups = unsaved(groups?.userAccessible ?? []);
   const track = candidate.broker_id != null ? trackId : null;
-  const name =
-    track ?? candidate.alias?.[0] ?? candidate.mpc_name ?? candidate.id;
+  const name = track ?? candidate.mpc_name ?? candidate.id;
   const lastDetected = candidate.last_detected_at
     ? String(candidate.last_detected_at).slice(0, 16).replace("T", " ")
     : null;

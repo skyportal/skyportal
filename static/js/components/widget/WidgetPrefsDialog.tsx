@@ -1,32 +1,41 @@
-import { useGetGroupsQuery } from "../../ducks/groups";
 import { useState } from "react";
 import { Controller, useForm } from "react-hook-form";
+
+import Box from "@mui/material/Box";
+import Checkbox from "@mui/material/Checkbox";
 import Dialog from "@mui/material/Dialog";
+import DialogActions from "@mui/material/DialogActions";
 import DialogContent from "@mui/material/DialogContent";
 import DialogTitle from "@mui/material/DialogTitle";
-import SettingsIcon from "@mui/icons-material/Settings";
-import Checkbox from "@mui/material/Checkbox";
-import { makeStyles } from "tss-react/mui";
-import SaveIcon from "@mui/icons-material/Save";
-import TextField from "@mui/material/TextField";
 import FormControlLabel from "@mui/material/FormControlLabel";
-import Typography from "@mui/material/Typography";
+import IconButton from "@mui/material/IconButton";
+import TextField from "@mui/material/TextField";
 import Tooltip from "@mui/material/Tooltip";
+import Typography from "@mui/material/Typography";
+import SettingsOutlinedIcon from "@mui/icons-material/SettingsOutlined";
+
+import { useGetGroupsQuery } from "../../ducks/groups";
 import SearchableSelect from "../SearchableSelect";
 import Button from "../Button";
 
-const useStyles = makeStyles()(() => ({
-  saveButton: {
-    margin: "1rem 0",
-  },
-  inputSectionDiv: {
-    marginBottom: "1rem",
-    marginTop: "0.5rem",
-  },
-  fullWidth: {
-    width: "100%",
-  },
-}));
+const LABELS: Record<string, string> = {
+  numItems: "Number of items",
+  maxNumSources: "Number of sources",
+  maxNumSavers: "Number of users",
+  maxNumEvents: "Number of events",
+  sinceDaysAgo: "Number of days",
+  includeSitewideSources: "Include sitewide sources",
+  displayTNS: "Show TNS names",
+  candidatesOnly: "Only if source has candidate(s)",
+  categories: "Show",
+  includeCommentsFromBots: "Comments from bots",
+};
+
+const labelFor = (key: string) =>
+  LABELS[key] ?? key.charAt(0).toUpperCase() + key.slice(1);
+
+const isPlainObject = (value: any) =>
+  typeof value === "object" && value !== null && value.constructor === Object;
 
 interface WidgetPrefsDialogProps {
   title: string;
@@ -41,7 +50,6 @@ const WidgetPrefsDialog = ({
   onSubmit,
   stateBranchName,
 }: WidgetPrefsDialogProps) => {
-  const { classes } = useStyles();
   const [open, setOpen] = useState(false);
   const groups = useGetGroupsQuery().data?.userAccessible ?? [];
 
@@ -49,182 +57,183 @@ const WidgetPrefsDialog = ({
     handleSubmit,
     reset,
     control,
-
     formState: { errors },
   } = useForm({ defaultValues: initialValues });
 
-  const handleClickOpen = () => {
+  const handleOpen = () => {
     reset(initialValues);
     setOpen(true);
   };
 
-  const handleClose = () => {
+  const formSubmit = (formData: any) => {
+    onSubmit({ [stateBranchName]: formData });
     setOpen(false);
   };
 
-  const formSubmit = (formData: any) => {
-    const payload = { [stateBranchName]: formData };
-    onSubmit(payload);
-    setOpen(false);
+  const renderField = (key: string) => {
+    const initial = initialValues[key];
+    if (isPlainObject(initial)) {
+      return (
+        <Box key={key}>
+          <Typography variant="subtitle2" sx={{ mb: 0.5 }}>
+            {labelFor(key)}
+          </Typography>
+          <Box sx={{ display: "grid", gridTemplateColumns: "1fr 1fr" }}>
+            {Object.keys(initial).map((subKey) => {
+              const checkbox = (
+                <FormControlLabel
+                  key={subKey}
+                  control={
+                    <Controller
+                      render={({ field: { onChange, value } }) => (
+                        <Checkbox
+                          size="small"
+                          onChange={(event) => onChange(event.target.checked)}
+                          checked={value}
+                          data-testid={`${key}.${subKey}`}
+                        />
+                      )}
+                      name={`${key}.${subKey}`}
+                      control={control}
+                      defaultValue={false}
+                    />
+                  }
+                  label={labelFor(subKey)}
+                />
+              );
+              return subKey === "includeCommentsFromBots" ? (
+                <Tooltip
+                  key={subKey}
+                  placement="right"
+                  title="Bot comments are those posted programmatically using API tokens"
+                >
+                  {checkbox}
+                </Tooltip>
+              ) : (
+                checkbox
+              );
+            })}
+          </Box>
+        </Box>
+      );
+    }
+    if (typeof initial === "string") {
+      return (
+        <Controller
+          key={key}
+          render={({ field: { onChange, value } }) => (
+            <TextField
+              data-testid={key}
+              size="small"
+              label={labelFor(key)}
+              name={key}
+              error={!!errors[key]}
+              helperText={errors[key] ? "Required" : ""}
+              onChange={onChange}
+              value={value}
+              fullWidth
+              slotProps={{ htmlInput: { inputMode: "numeric" } }}
+            />
+          )}
+          name={key}
+          control={control}
+          rules={{ required: true }}
+          defaultValue={initial}
+        />
+      );
+    }
+    if (typeof initial === "boolean") {
+      return (
+        <Controller
+          key={key}
+          render={({ field: { onChange, value } }) => (
+            <FormControlLabel
+              sx={{ mt: -1 }}
+              control={
+                <Checkbox
+                  size="small"
+                  onChange={(event) => onChange(event.target.checked)}
+                  checked={value}
+                  data-testid={key}
+                />
+              }
+              label={labelFor(key)}
+            />
+          )}
+          name={key}
+          control={control}
+          defaultValue={initial}
+        />
+      );
+    }
+    if (key === "groupIds" && Array.isArray(initial)) {
+      return (
+        <Controller
+          key={key}
+          name={key}
+          render={({ field: { onChange, value } }) => (
+            <SearchableSelect
+              multiple
+              id={key}
+              label="Only show for these groups"
+              options={groups}
+              getOptionLabel={(group: any) => group.name}
+              value={groups.filter((group: any) => value.includes(group.id))}
+              onChange={(_e, data) =>
+                onChange(data.map((group: any) => group.id))
+              }
+              filterSelectedOptions
+              error={!!errors[key]}
+            />
+          )}
+          control={control}
+          defaultValue={[]}
+        />
+      );
+    }
+    return null;
   };
 
   return (
-    <div>
-      <SettingsIcon
-        id={`${stateBranchName}SettingsIcon`}
-        fontSize="small"
-        onClick={handleClickOpen}
-      />
-      <Dialog open={open} onClose={handleClose} maxWidth="md">
-        <DialogTitle>{title}</DialogTitle>
-        <DialogContent>
-          <form onSubmit={handleSubmit(formSubmit)}>
-            {Object.keys(initialValues).map((key) => {
-              if (
-                typeof initialValues[key] === "object" &&
-                initialValues[key].constructor === Object
-              ) {
-                return (
-                  <div key={key} className={classes.inputSectionDiv}>
-                    <Typography variant="subtitle2">Select {key}:</Typography>
-                    {Object.keys(initialValues[key]).map((subKey) => {
-                      const checkbox = (
-                        <FormControlLabel
-                          key={subKey}
-                          control={
-                            <Controller
-                              render={({ field: { onChange, value } }) => (
-                                <Checkbox
-                                  onChange={(event) =>
-                                    onChange(event.target.checked)
-                                  }
-                                  checked={value}
-                                  data-testid={`${key}.${subKey}`}
-                                />
-                              )}
-                              name={`${key}.${subKey}`}
-                              control={control}
-                              defaultValue={false}
-                            />
-                          }
-                          label={subKey}
-                        />
-                      );
-                      return subKey === "includeCommentsFromBots" ? (
-                        <Tooltip
-                          key={subKey}
-                          placement="right"
-                          title="Bot comments are those posted programmatically using API tokens"
-                        >
-                          {checkbox}
-                        </Tooltip>
-                      ) : (
-                        checkbox
-                      );
-                    })}
-                  </div>
-                );
-              }
-              if (typeof initialValues[key] === "string") {
-                return (
-                  <div key={key} className={classes.inputSectionDiv}>
-                    <Controller
-                      render={({ field: { onChange, value } }) => (
-                        <TextField
-                          data-testid={key}
-                          size="small"
-                          label={key}
-                          name={key}
-                          error={!!errors[key]}
-                          helperText={errors[key] ? "Required" : ""}
-                          variant="outlined"
-                          onChange={onChange}
-                          value={value}
-                          className={classes.fullWidth}
-                        />
-                      )}
-                      name={key}
-                      control={control}
-                      rules={{ required: true }}
-                      defaultValue={initialValues[key]}
-                    />
-                  </div>
-                );
-              }
-              if (typeof initialValues[key] === "boolean") {
-                return (
-                  <div key={key} className={classes.inputSectionDiv}>
-                    <Controller
-                      render={({ field: { onChange, value } }) => (
-                        <FormControlLabel
-                          control={
-                            <Checkbox
-                              onChange={(event) =>
-                                onChange(event.target.checked)
-                              }
-                              checked={value}
-                              data-testid={key}
-                            />
-                          }
-                          label={
-                            key === "candidatesOnly"
-                              ? "Only if source has candidate(s)"
-                              : key
-                          }
-                        />
-                      )}
-                      name={key}
-                      control={control}
-                      defaultValue={initialValues[key]}
-                    />
-                  </div>
-                );
-              }
-              if (key === "groupIds" && Array.isArray(initialValues[key])) {
-                return (
-                  <div key={key} className={classes.inputSectionDiv}>
-                    <Controller
-                      name={key}
-                      render={({ field: { onChange, value } }) => (
-                        <SearchableSelect
-                          multiple
-                          id={key}
-                          label="Only show for these groups"
-                          options={groups || []}
-                          getOptionLabel={(group: any) => group.name}
-                          value={(groups || []).filter((group: any) =>
-                            value.includes(group.id),
-                          )}
-                          onChange={(_e, data) =>
-                            onChange(data.map((group: any) => group.id))
-                          }
-                          filterSelectedOptions
-                          error={!!errors[key]}
-                          className={classes.fullWidth}
-                        />
-                      )}
-                      control={control}
-                      defaultValue={[]}
-                    />
-                  </div>
-                );
-              }
-              return <div key={key} />;
-            })}
-            <div className={classes.saveButton}>
-              <Button
-                secondary
-                type="submit"
-                name={`${stateBranchName}Submit`}
-                endIcon={<SaveIcon />}
-              >
-                Save
-              </Button>
-            </div>
-          </form>
-        </DialogContent>
+    <>
+      <Tooltip title="Settings">
+        <IconButton
+          id={`${stateBranchName}SettingsIcon`}
+          size="small"
+          aria-label="Settings"
+          onClick={handleOpen}
+          sx={{ color: "text.secondary" }}
+        >
+          <SettingsOutlinedIcon fontSize="small" />
+        </IconButton>
+      </Tooltip>
+      <Dialog
+        open={open}
+        onClose={() => setOpen(false)}
+        fullWidth
+        maxWidth="xs"
+      >
+        <form onSubmit={handleSubmit(formSubmit)}>
+          <DialogTitle sx={{ pb: 1 }}>{title}</DialogTitle>
+          <DialogContent
+            sx={{
+              display: "flex",
+              flexDirection: "column",
+              gap: 2,
+              pt: "0.5rem !important",
+            }}
+          >
+            {Object.keys(initialValues).map(renderField)}
+          </DialogContent>
+          <DialogActions sx={{ px: 3, pb: 2 }}>
+            <Button onClick={() => setOpen(false)}>Cancel</Button>
+            <Button primary type="submit" name={`${stateBranchName}Submit`}>
+              Save
+            </Button>
+          </DialogActions>
+        </form>
       </Dialog>
-    </div>
+    </>
   );
 };
 

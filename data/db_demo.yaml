@@ -1716,7 +1716,6 @@ sources:
     dec: 19.2033
     is_roid: true
     mpc_name: "2026 DM1"
-    alias: ["SSO 2026 DM1"]
     group_ids:
       - =public_group_id
       - =program_A

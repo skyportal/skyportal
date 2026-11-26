@@ -91,15 +91,10 @@ def is_on_target(point, max_arcsec=MAX_SEPARATION_ARCSEC):
     return 0 <= separation < max_arcsec
 
 
-# Bare designations are often plain integers, which read as an id from anywhere.
-# The alias and SuperObj name carry a marker so one query finds every
-# solar-system object; `mpc_name` keeps the canonical designation.
-ALIAS_PREFIX = "SSO"
-
-
 def sso_label(designation):
-    """The prefixed label used for both an Obj's alias and its SuperObj name."""
-    return f"{ALIAS_PREFIX} {designation}"
+    """The prefixed name of the SuperObj grouping a solar-system object."""
+    # Bare designations are often plain integers, which read as an id from anywhere.
+    return f"SSO {designation}"
 
 
 # Obj IDs appear in URL paths, whose route pattern allows [0-9A-Za-z-_.+] only.
@@ -409,10 +404,6 @@ async def ingest_sso_alert(
 
     obj.is_roid = True
     obj.mpc_name = designation
-    alias = sso_label(designation)
-    aliases = set(obj.alias or [])
-    if alias not in aliases:
-        obj.alias = sorted(aliases | {alias})
     # The position is only ever "where it was last seen", so stamp the epoch.
     if ra is not None and dec is not None:
         obj.ra, obj.dec = ra, dec

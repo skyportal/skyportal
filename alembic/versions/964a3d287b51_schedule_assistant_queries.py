@@ -1,7 +1,7 @@
 """Schedule assistant queries.
 
 Revision ID: 964a3d287b51
-Revises: 510bb053e9e1
+Revises: 91c2e8a4b70f
 """
 
 import sqlalchemy as sa
@@ -9,7 +9,7 @@ import sqlalchemy as sa
 from alembic import op
 
 revision = "964a3d287b51"
-down_revision = "510bb053e9e1"
+down_revision = "91c2e8a4b70f"
 branch_labels = None
 depends_on = None
 
