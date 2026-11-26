@@ -4,7 +4,6 @@ import { makeStyles } from "tss-react/mui";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 import relativeTime from "dayjs/plugin/relativeTime";
-import Tooltip from "@mui/material/Tooltip";
 
 import { rehypeEmoji } from "../comment/rehypeEmoji";
 
@@ -62,16 +61,14 @@ const ShowSummaries = ({
   const { classes: styles } = useStyles();
   return (
     <div className={(styles as any).compactContainer}>
-      <Tooltip title="Latest Summary" placement="right-start">
-        <div className={styles.compactWrap}>
-          <ReactMarkdown
-            rehypePlugins={[rehypeEmoji]}
-            className={styles.compactText}
-          >
-            {latestSummary(summaries, showAISummaries)}
-          </ReactMarkdown>
-        </div>
-      </Tooltip>
+      <div className={styles.compactWrap}>
+        <ReactMarkdown
+          rehypePlugins={[rehypeEmoji]}
+          className={styles.compactText}
+        >
+          {latestSummary(summaries, showAISummaries)}
+        </ReactMarkdown>
+      </div>
     </div>
   );
 };
