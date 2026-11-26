@@ -171,7 +171,7 @@
   skycam_link: null
   mpc_obscode: "697"
   =id: MDM24
-- diameter: 9.8000002
+- diameter: 9.2
   elevation: 1798.0
   lat: -32.376
   lon: 20.8107
@@ -383,9 +383,9 @@
   mpc_obscode: T16
   =id: Keck1
 - diameter: 1.0
-  elevation: 1.0
-  lat: 1.0
-  lon: 1.0
+  elevation: null
+  lat: null
+  lon: null
   nickname: Swift
   name: Swift
   skycam_link: null
@@ -519,9 +519,9 @@
   mpc_obscode: Q55
   =id: Skymapper
 - diameter: 1.0
-  elevation: 50.0
-  lat: -31.35666667
-  lon: 115.71361111
+  elevation: 51.0
+  lat: -31.35595
+  lon: 115.71311
   nickname: Zadko
   name: Zadko
   skycam_link: null
@@ -980,10 +980,10 @@
   =id: GCN
 - name: FRAM-CTA-N
   nickname: FRAM-CTA-N
-  lat: 28.7616
-  lon: -17.8916
-  elevation: 2200.0
-  diameter: 1.0
+  lat: 28.7623
+  lon: -17.89
+  elevation: 2185.0
+  diameter: 0.25
   mpc_obscode: "950"
   robotic: true
   fixed_location: true
