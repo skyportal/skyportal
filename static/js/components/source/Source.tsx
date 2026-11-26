@@ -727,9 +727,7 @@ const SourceContent = ({ source }: SourceContentProps) => {
               }}
             >
               <Box className={classes.rowInfo} data-testid="tour-source-tns">
-                <Tooltip title="Transient reported at this position, from the Transient Name Server">
-                  <FieldLabel>TNS</FieldLabel>
-                </Tooltip>
+                <FieldLabel>TNS</FieldLabel>
                 {source.tns_name && (
                   <Chip
                     size="small"
@@ -759,9 +757,7 @@ const SourceContent = ({ source }: SourceContentProps) => {
                 )}
               </Box>
               <Box className={classes.rowInfo} sx={{ position: "relative" }}>
-                <Tooltip title="Known solar system object at this position, from the Minor Planet Center">
-                  <FieldLabel>MPC</FieldLabel>
-                </Tooltip>
+                <FieldLabel>MPC</FieldLabel>
                 {source.mpc_name && (
                   <Chip size="small" label={source.mpc_name} />
                 )}
