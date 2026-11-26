@@ -788,6 +788,12 @@ async def auto_classification_publishing_async(session, classification_id):
     if pending is not None:
         # Repoint rather than skip: MultipleClassificationsForm posts a
         # parent class before its child, and the child is the one to report.
+        repoint = {
+            "tns_report_classification_id": classification.id,
+            "user_id": author.id,
+        }
+        if author.is_bot:
+            repoint["tns_send_after"] = utcnow_naive()
         repointed = await session.execute(
             sa.update(SharingServiceSubmission)
             .where(
@@ -795,10 +801,7 @@ async def auto_classification_publishing_async(session, classification_id):
                 SharingServiceSubmission.tns_status == "pending",
                 SharingServiceSubmission.tns_payload.is_(None),
             )
-            .values(
-                tns_report_classification_id=classification.id,
-                user_id=author.id,
-            )
+            .values(**repoint)
         )
         await session.commit()
         if repointed.rowcount:
@@ -841,7 +844,9 @@ async def auto_classification_publishing_async(session, classification_id):
             tns_report_spectrum_id=spectrum.id,
             tns_send_after=utcnow_naive()
             + timedelta(
-                hours=sharing_service_group.auto_share_classifications_delay_hours
+                hours=0
+                if author.is_bot
+                else sharing_service_group.auto_share_classifications_delay_hours
             ),
             tns_status="pending",
         )
