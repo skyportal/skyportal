@@ -55,6 +55,7 @@ worth listing are those that poll for something you do not use.
 | `pgbouncer`                        | Bundled connection pooler                                                               | Already inert without `database.pooler.enabled`   |
 | `notification_queue`               | Delivers user notifications (email, SMS, Slack, push)                                   | Never, notifications stop being delivered         |
 | `facility_queue`                   | Submits and polls follow-up requests to observing facilities                            | No follow-up                                      |
+| `followup_status_refresh`          | Refreshes the status of pending LCO follow-up requests every hour                       | No LCO allocation                                 |
 | `observation_plan_queue`           | Builds and submits the observation plans of the [MMA](mma) workflow                     | No MMA                                            |
 | `recurring_apis`                   | Calls the `RecurringAPI` records users created                                          | Feature unused                                    |
 | `reminders`                        | Delivers the reminders users set on sources, GCN events and shifts                      | Feature unused                                    |
