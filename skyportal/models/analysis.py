@@ -879,6 +879,12 @@ def _run_default_analysis(
                     "daily_count": 0,
                     "last_run": now,
                 }
+            if stats["daily_count"] >= stats["daily_limit"]:
+                log(
+                    f"Default analysis {default_analysis.analysis_service.name}: "
+                    f"daily limit of {stats['daily_limit']} reached, skipping {obj_id}"
+                )
+                return
             default_analysis.stats = {
                 "daily_limit": stats["daily_limit"],
                 "daily_count": stats["daily_count"] + 1,
@@ -1014,6 +1020,12 @@ def _run_default_gcnevent_analysis(default_analysis_id, author_id, dateobs, trig
                     "daily_count": 0,
                     "last_run": now,
                 }
+            if stats["daily_count"] >= stats["daily_limit"]:
+                log(
+                    f"Default analysis {default_analysis.analysis_service.name}: "
+                    f"daily limit of {stats['daily_limit']} reached, skipping {dateobs}"
+                )
+                return
             default_analysis.stats = {
                 "daily_limit": stats["daily_limit"],
                 "daily_count": stats["daily_count"] + 1,
