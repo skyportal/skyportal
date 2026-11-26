@@ -4,6 +4,7 @@ import { useParams } from "react-router-dom";
 import Box from "@mui/material/Box";
 import Chip from "@mui/material/Chip";
 import FormControlLabel from "@mui/material/FormControlLabel";
+import MenuItem from "@mui/material/MenuItem";
 import Paper from "@mui/material/Paper";
 import Stack from "@mui/material/Stack";
 import Switch from "@mui/material/Switch";
@@ -43,6 +44,26 @@ const SETTINGS = [
     label: "Max radius (deg)",
     help: "Skip localizations bounding larger than this",
   },
+  {
+    key: "min_detections",
+    label: "Min detections",
+    help: "Detections an object needs, e.g. 2 from its second alert",
+  },
+  {
+    key: "max_days_to_first_detection",
+    label: "Max days to first detection",
+    help: "First detected after the event and within this many days",
+  },
+  {
+    key: "max_detection_span_days",
+    label: "Max detection span (days)",
+    help: "Drop objects detected over a longer time than this",
+  },
+];
+
+const SORT_ORDERS = [
+  { value: "Descending", label: "Newest first" },
+  { value: "Ascending", label: "Oldest first" },
 ];
 
 const GcnCrossmatchPlugin = () => {
@@ -56,6 +77,7 @@ const GcnCrossmatchPlugin = () => {
   const [tags, setTags] = useState("");
   const [excludedNoticeTypes, setExcludedNoticeTypes] = useState<string[]>([]);
   const [values, setValues] = useState<Record<string, string>>({});
+  const [sortOrder, setSortOrder] = useState("");
   const [saved, setSaved] = useState(false);
 
   const stored = filter?.altdata?.[KEY];
@@ -65,6 +87,7 @@ const GcnCrossmatchPlugin = () => {
     setEnabled(Boolean(config.enabled));
     setTags((config.filters?.gcn_tags ?? []).join(", "));
     setExcludedNoticeTypes(config.exclude_notice_types ?? []);
+    setSortOrder(config.sort_order ?? "");
     setValues(
       Object.fromEntries(
         SETTINGS.map(({ key }) => [key, String(config[key] ?? "")]),
@@ -99,6 +122,8 @@ const GcnCrossmatchPlugin = () => {
     if (excludedNoticeTypes.length)
       config["exclude_notice_types"] = excludedNoticeTypes;
     else delete config["exclude_notice_types"];
+    if (sortOrder) config["sort_order"] = sortOrder;
+    else delete config["sort_order"];
 
     const result = await updateFilter({
       filter_id: filter.id,
@@ -166,6 +191,24 @@ const GcnCrossmatchPlugin = () => {
             }}
           />
         ))}
+        <TextField
+          select
+          size="small"
+          label="Sort order"
+          helperText="Which alerts are kept when a search hits its limit"
+          value={sortOrder}
+          onChange={(event) => {
+            setSortOrder(event.target.value);
+            setSaved(false);
+          }}
+        >
+          <MenuItem value="">Default</MenuItem>
+          {SORT_ORDERS.map(({ value, label }) => (
+            <MenuItem key={value} value={value}>
+              {label}
+            </MenuItem>
+          ))}
+        </TextField>
         <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
           <Tooltip
             describeChild
