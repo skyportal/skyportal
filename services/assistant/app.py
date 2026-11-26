@@ -581,6 +581,9 @@ def conversation_of(session, user_id, channel, up_to_id=None):
             "text": message.text,
             "system": bool(message.system),
             "tool_calls": message.tool_calls,
+            "created_at": message.created_at,
+            "context_type": message.context_type,
+            "context_id": message.context_id,
         }
         for message in messages
     ]
